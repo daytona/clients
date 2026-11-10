@@ -130,7 +130,6 @@ func currentKeyFixture() map[string]any {
 		"created_at":          "2026-10-23T10:00:00Z",
 		"project_permissions": []string{"read:limits"},
 		"sync_to_v0":          false,
-		"sync_to_v1":          false,
 		"context":             map[string]any{"org_id": testOrgA, "org_name": "Acme", "project_name": "default"},
 	}
 }

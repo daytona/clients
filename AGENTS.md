@@ -653,7 +653,7 @@ skipping exist only in the TypeScript tool).
   - TypeScript refuses `null` where Python's `None` omits, for now
     (accepting it later is additive): `images.get()` / `snapshots.get()`
     `wait` and `timeoutSeconds`, `images.pull()` `timeoutSeconds`,
-    `volumes.create()` `sizeGib`, `ports.signedPreviewLink()`
+    `volumes.create()` `sizeGib` and `type`, `ports.signedPreviewLink()`
     `expiresInSeconds`, `createAccessToken()` `ttlSeconds` / `operations` /
     `ports`, `followBuildLogs()` (client and sandbox) `cursor` /
     `timeoutSeconds` / `onEvent`, `reservations.create()` / `createBulk()`

@@ -36,14 +36,13 @@ class V0MigrationSummary(BaseModel):
     """ # noqa: E501
     api_keys: StrictInt = Field(description="Live API keys of the organization's `default` project. Keys synced from Daytona v0 work on both platforms unchanged.")
     from_v0: StrictBool = Field(description="The organization was imported from Daytona v0 (it carries the Daytona v0 organization id it came from). Personal organizations included.")
-    from_v1: StrictBool = Field(description="Deprecated: use `from_v0`, which carries the same value.")
     images_converted: StrictInt = Field(description="Named images registered from Daytona v0 snapshots that are at the current image format.")
     images_to_convert: StrictInt = Field(description="Named images registered from Daytona v0 snapshots that are still below the current image format (`format_outdated`): not converted yet, converting, or a failed conversion (retried on the next use). Each converts on its first Linux sandbox create, or ahead of time with `POST /images/{id}/convert`.")
     personal: StrictBool = Field(description="The organization is a personal organization.")
     registries: StrictInt = Field(description="Container registries of the `default` project.")
     sandboxes_imported: StrictInt = Field(description="Archived Daytona v0 sandboxes imported into the `default` project.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["api_keys", "from_v0", "from_v1", "images_converted", "images_to_convert", "personal", "registries", "sandboxes_imported"]
+    __properties: ClassVar[List[str]] = ["api_keys", "from_v0", "images_converted", "images_to_convert", "personal", "registries", "sandboxes_imported"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -107,7 +106,6 @@ class V0MigrationSummary(BaseModel):
         _obj = cls.model_validate({
             "api_keys": obj.get("api_keys"),
             "from_v0": obj.get("from_v0"),
-            "from_v1": obj.get("from_v1"),
             "images_converted": obj.get("images_converted"),
             "images_to_convert": obj.get("images_to_convert"),
             "personal": obj.get("personal"),

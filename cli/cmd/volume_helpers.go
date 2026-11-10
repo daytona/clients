@@ -57,6 +57,9 @@ func volumeKV(volume gen.Volume) [][2]string {
 
 // validateVolumeCreateRequest reports invalid bucket options before sending a request.
 func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
+	if req.Type != nil && !req.Type.Valid() {
+		return cerr.Usage("the volume type must be disk or bucket (got %q); omit it to let the server choose", string(*req.Type))
+	}
 	if volumeType(req) == "bucket" && req.SizeGib != nil {
 		return cerr.Usage("--size-gib applies to disk volumes only; a bucket volume has no scratch size")
 	}
@@ -84,9 +87,10 @@ func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 	return nil
 }
 
+// volumeType is the type the request names, "" when it leaves the choice to the server.
 func volumeType(req gen.CreateVolumeRequest) string {
-	if req.Type == nil || strings.TrimSpace(string(*req.Type)) == "" {
-		return "disk"
+	if req.Type == nil {
+		return ""
 	}
 	return strings.TrimSpace(string(*req.Type))
 }

@@ -44,7 +44,6 @@ function reservation(wire: api.MacReservation): MacReservation {
     orgId: value.org_id,
     projectId: value.project_id,
     autoRenew: value.auto_renew,
-    sandboxesPerMac: value.sandboxes_per_mac,
     slotsUsed: value.slots_used,
     model: value.model ?? undefined,
     capacity: value.capacity == null ? undefined : mapMacResources(value.capacity),

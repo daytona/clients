@@ -267,9 +267,15 @@ class VolumesService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
-        """Create a disk volume (ready immediately); ``size_gib`` omitted uses the server default."""
-        return self._bridge.call(lambda: self._impl.create(name=name, size_gib=size_gib))
+    def create(
+        self, *, name: str, size_gib: Optional[int] = None, type: Optional[Literal["disk", "bucket"]] = None
+    ) -> Volume:
+        """Create a volume.
+
+        ``type`` omitted lets the server choose the volume's type; ``size_gib``
+        (disk volumes only) omitted uses the server default.
+        """
+        return self._bridge.call(lambda: self._impl.create(name=name, size_gib=size_gib, type=type))
 
     def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""

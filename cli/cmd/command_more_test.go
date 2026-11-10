@@ -17,7 +17,7 @@ import (
 
 func TestKeyMint_allowsOmittingNameWhenContractMakesItOptional(t *testing.T) {
 	api := newFakeAPI(t)
-	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "server-default", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true, "sync_to_v1": true})
+	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "server-default", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true})
 	_, stderr, code := runMgmt(t, api, cfgDir(t), "--org", testOrgP, "--project", "proj-1", "key", "mint", "--permission", "write:sandboxes")
 	require.Equal(t, 0, code, stderr)
 	mint := findRequest(t, api, http.MethodPost, "/projects/proj-1/api-keys")
@@ -27,7 +27,7 @@ func TestKeyMint_allowsOmittingNameWhenContractMakesItOptional(t *testing.T) {
 
 func TestKeyMint_withoutServiceAccountDoesNotRequireOrg(t *testing.T) {
 	api := newFakeAPI(t)
-	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true, "sync_to_v1": true})
+	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true})
 	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--project", "proj-1", "key", "mint", "--name", "ci", "--permission", "write:sandboxes")
 	require.Equal(t, 0, code, stderr)
 	require.Len(t, api.requests, 1)
@@ -35,7 +35,7 @@ func TestKeyMint_withoutServiceAccountDoesNotRequireOrg(t *testing.T) {
 
 func TestKeyMint_printsTokenToStdoutInTableMode(t *testing.T) {
 	api := newFakeAPI(t)
-	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true, "sync_to_v1": true})
+	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true})
 	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "--quiet", "-o", "table", "key", "mint", "--name", "ci", "--permission", "write:sandboxes")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "Token (shown once): dtn_token")
@@ -150,7 +150,7 @@ func TestKeyMint_interactiveProjectPickerCarriesPickedOrgIntoServiceAccountResol
 	api.on(http.MethodGet, "/orgs", http.StatusOK, organizationsFixture())
 	api.on(http.MethodGet, "/orgs/"+testOrgA+"/projects", http.StatusOK, projectsFixture(testOrgA, "default"))
 	api.on(http.MethodGet, "/orgs/"+testOrgA+"/service-accounts", http.StatusOK, map[string]any{"service_accounts": []map[string]any{serviceAccountFixture("11111111-1111-1111-1111-111111111111", testOrgA, "bot")}})
-	api.on(http.MethodPost, "/projects/"+testProjA1+"/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjA1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": false, "sync_to_v1": false, "service_account_id": "11111111-1111-1111-1111-111111111111"})
+	api.on(http.MethodPost, "/projects/"+testProjA1+"/api-keys", http.StatusCreated, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjA1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": false, "service_account_id": "11111111-1111-1111-1111-111111111111"})
 	_, _, code := runNoEnv(t, "--api-url", api.srv.URL, "--api-key", "k", "key", "mint", "--name", "ci", "--permission", "write:sandboxes", "--service-account", "bot")
 	require.Equal(t, 0, code)
 	require.Equal(t, 2, selectCalls)
@@ -162,7 +162,7 @@ func TestKeyMint_serviceAccountNamePrefersLiveMatch(t *testing.T) {
 		archivedServiceAccountFixture("11111111-1111-1111-1111-111111111111", testOrgP, "bot"),
 		serviceAccountFixture("22222222-2222-2222-2222-222222222222", testOrgP, "bot"),
 	}})
-	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "33333333-3333-3333-3333-333333333333", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": false, "sync_to_v1": false, "service_account_id": "22222222-2222-2222-2222-222222222222"})
+	api.on(http.MethodPost, "/projects/proj-1/api-keys", http.StatusCreated, map[string]any{"id": "33333333-3333-3333-3333-333333333333", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": false, "service_account_id": "22222222-2222-2222-2222-222222222222"})
 	_, stderr, code := runMgmt(t, api, cfgDir(t), "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "key", "mint", "--name", "ci", "--permission", "write:sandboxes", "--service-account", "bot")
 	require.Equal(t, 0, code, stderr)
 	mint := findRequest(t, api, http.MethodPost, "/projects/proj-1/api-keys")

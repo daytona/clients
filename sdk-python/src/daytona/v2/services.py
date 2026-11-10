@@ -57,6 +57,7 @@ from ._gen.api import MacReservation as MacReservationWire
 from ._gen.api import MacReservationBatch as MacReservationBatchWire
 from ._gen.api import ReservationPage
 from ._gen.api import Volume as VolumeWire
+from ._gen.api import VolumeType as VolumeTypeWire
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
@@ -89,6 +90,11 @@ _T = TypeVar("_T")
 
 
 _path = path_segment
+
+# The types a create may name, from the contract.
+_VOLUME_CREATE_TYPES: Tuple[str, ...] = tuple(
+    str(member.value) for member in VolumeTypeWire if member.name != "UNKNOWN_DEFAULT_OPEN_API"
+)
 
 
 def _additional_cursor_from_mapping(payload: Mapping[str, JsonValue]) -> Optional[str]:
@@ -543,10 +549,24 @@ class AsyncVolumesService:
                 raise
             return await self.create(name=name_or_id)
 
-    async def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
-        """Create a disk volume (ready immediately); ``size_gib`` omitted uses the server default."""
+    async def create(
+        self,
+        *,
+        name: str,
+        size_gib: Optional[int] = None,
+        type: Optional[Literal["disk", "bucket"]] = None,
+    ) -> Volume:
+        """Create a volume.
+
+        ``type`` omitted lets the server choose the volume's type; ``size_gib``
+        (disk volumes only) omitted uses the server default.
+        """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        if type is not None and type not in _VOLUME_CREATE_TYPES:
+            raise create_error(
+                f"type must be one of {', '.join(_VOLUME_CREATE_TYPES)}", 400, "BAD_REQUEST", "SDK"
+            )
         if size_gib is not None and (
             isinstance(size_gib, bool)
             or not isinstance(size_gib, int)
@@ -560,7 +580,9 @@ class AsyncVolumesService:
                 "BAD_REQUEST",
                 "SDK",
             )
-        body: JsonObject = {"name": name, "type": "disk"}
+        body: JsonObject = {"name": name}
+        if type is not None:
+            body["type"] = type
         if size_gib is not None:
             body["size_gib"] = size_gib
         created = _volume(
@@ -776,7 +798,6 @@ def _mac_reservation(response: TransportPayload | MacReservationWire) -> MacRese
         region=value.region_id,
         status=_mac_reservation_status(raw_status),
         raw_status=raw_status,
-        sandboxes_per_mac=value.sandboxes_per_mac,
         period_n=value.period_n,
         period_seconds=value.period_seconds,
         created_at=value.created_at,

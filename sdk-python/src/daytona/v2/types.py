@@ -710,7 +710,6 @@ class MacReservation:
     region: str
     status: MacReservationStatus
     raw_status: str
-    sandboxes_per_mac: int
     period_n: int
     period_seconds: int
     created_at: datetime

@@ -319,9 +319,12 @@ make asynchronous callback work cancellation-aware when needed.
   `start`, `stop`, `pause`, `resume`, `delete`) plus platform
   services: `images`, `snapshots`, `volumes`, `secrets`, `reservations`,
   `macModels`.
-- **Bucket volumes** — to mount an S3 bucket, create a bucket volume in the
-  dashboard or with `POST /volumes`, then attach it when creating a sandbox
-  through the `volumes` option.
+- **Bucket volumes** — to mount an S3 bucket you own, create a bucket volume
+  for it in the dashboard or with `daytona volume create NAME --type bucket
+  --bucket BUCKET_NAME --access-key-secret ACCESS_KEY_SECRET
+  --secret-key-secret SECRET_KEY_SECRET` (the last two name project secrets
+  holding the bucket's keys), then attach it when creating a sandbox through
+  the `volumes` option.
 - **Sandbox search** — `list({ cursor, limit })` returns one page without
   filters; `iter({ cursor, limit })` traverses those pages. Use `search()` for
   eventually consistent, all-region filtering by `states`, `sandboxClass`,
@@ -437,8 +440,9 @@ const result = await sandbox.volumes.pull(volume.id, {
 `readOnly`. Only bucket volumes support `readOnly: true`. macOS accepts
 read-write disk volumes only, without `persistent: true`.
 
-Create a disk volume with `daytona.v2.volumes.create({ name: 'data', sizeGib: 10 })`;
-delete one by name with `await daytona.v2.volumes.delete('data')`, or by ID with
+Create a volume with `daytona.v2.volumes.create({ name: 'data' })`; the server
+chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
+`type: 'bucket'`. Delete one by name with `await daytona.v2.volumes.delete('data')`, or by ID with
 `await daytona.v2.volumes.delete(volume.id, { idOnly: true })`. `{ idOnly: true }`
 accepts an ID only and turns off the name lookup.
 

@@ -2116,7 +2116,7 @@
             ]
           },
           "cores": {
-            "description": "CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of them when it is 1. The first successful claim fixes the size; request and limit are equal.",
+            "description": "CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of them when it runs one. The first successful claim fixes the size; request and limit are equal.",
             "format": "int32",
             "minimum": 4,
             "type": [
@@ -2133,7 +2133,7 @@
             ]
           },
           "disk_mib": {
-            "description": "Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when `sandboxes_per_mac` is 2, or all of it when it is 1. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.",
+            "description": "Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.",
             "format": "int32",
             "minimum": 81920,
             "type": [
@@ -2185,7 +2185,7 @@
             ]
           },
           "memory_mib": {
-            "description": "Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of it when it is 1. The first successful claim fixes the size; request and limit are equal.",
+            "description": "Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The first successful claim fixes the size; request and limit are equal.",
             "format": "int32",
             "minimum": 4096,
             "type": [
@@ -2341,14 +2341,6 @@
           },
           "sync_to_v0": {
             "description": "Whether the v0 \u2194 v2 key sync may copy this key to Daytona v0. Absent\n= `true`. Only a key a person mints in the organization's `default`\nproject is ever copied; elsewhere the field is ignored and the\nresponse says `false`. A Daytona v0 copy can read every sandbox,\nsnapshot and registry of the organization on Daytona v0, which has no\nread permissions; `false` keeps the key on this platform only. Change\nit later by updating the API key.",
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "sync_to_v1": {
-            "deprecated": true,
-            "description": "Deprecated: use `sync_to_v0`. Accepted with the same meaning; a\nrequest that sets both to different values is refused.",
             "type": [
               "boolean",
               "null"
@@ -4558,11 +4550,6 @@
             "$ref": "#/components/schemas/MacResources",
             "description": "CPU and memory held by the sandboxes on this reservation's Mac,\nincluding paused sandboxes and sandboxes still being deleted, and the\ndisk its sandboxes hold, stopped sandboxes included. Sandboxes that no\nMac has claimed yet are not counted."
           },
-          "sandboxes_per_mac": {
-            "description": "Most sandboxes this reservation's Mac runs at once, subject to CPU,\nmemory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.",
-            "format": "int32",
-            "type": "integer"
-          },
           "slots_used": {
             "description": "macOS sandboxes currently occupying this reservation's Mac.",
             "format": "int64",
@@ -4581,7 +4568,6 @@
           "status",
           "origin",
           "auto_renew",
-          "sandboxes_per_mac",
           "slots_used",
           "period_n",
           "period_seconds",
@@ -5030,11 +5016,6 @@
           "v0_membership_sync_enabled": {
             "description": "Whether membership changes sync with the Daytona v0 organization of the\nsame ID. When true, removing a member also removes them from the\nDaytona v0 organization.",
             "type": "boolean"
-          },
-          "v1_membership_sync_enabled": {
-            "deprecated": true,
-            "description": "Deprecated: use `v0_membership_sync_enabled`, which carries the same\nvalue.",
-            "type": "boolean"
           }
         },
         "required": [
@@ -5047,7 +5028,6 @@
           "budget_stop_grace_seconds",
           "max_sandbox_timeout_seconds",
           "v0_membership_sync_enabled",
-          "v1_membership_sync_enabled",
           "sso_linked",
           "sso_organization_id",
           "created_at",
@@ -6127,11 +6107,6 @@
           "sync_to_v0": {
             "description": "Whether the v0 \u2194 v2 key sync copies this key to Daytona v0 (for an\norganization that is kept in sync with Daytona v0). `true` for a live\nkey a person minted in the organization's `default` project unless it\nwas opted out by updating the API key, and always for a live key\nimported from Daytona v0. `false` for every key the sync never copies:\nkeys in other projects, service-account keys, the dashboard's own key\nnamed `default`, and revoked or expired keys. A Daytona v0 copy can\nread every sandbox, snapshot and registry of the organization on\nDaytona v0, which has no read permissions.",
             "type": "boolean"
-          },
-          "sync_to_v1": {
-            "deprecated": true,
-            "description": "Deprecated: use `sync_to_v0`, which carries the same value.",
-            "type": "boolean"
           }
         },
         "required": [
@@ -6140,8 +6115,7 @@
           "name",
           "created_at",
           "project_permissions",
-          "sync_to_v0",
-          "sync_to_v1"
+          "sync_to_v0"
         ],
         "type": "object"
       },
@@ -8604,12 +8578,7 @@
       "UpdateProjectApiKeyRequest": {
         "properties": {
           "sync_to_v0": {
-            "description": "Whether the v0 \u2194 v2 key sync keeps a copy of this key on Daytona v0.\n`false` deletes the Daytona v0 copy (the key keeps working here);\n`true` copies the key to Daytona v0 again. A Daytona v0 copy can read\nevery sandbox, snapshot and registry of the organization on Daytona\nv0, which has no read permissions. Only a key a person minted in the\norganization's `default` project is ever copied; a key imported from\nDaytona v0 always is. Required (or the deprecated `sync_to_v1`).",
-            "type": "boolean"
-          },
-          "sync_to_v1": {
-            "deprecated": true,
-            "description": "Deprecated: use `sync_to_v0`. Accepted with the same meaning; a\nrequest that sets both to different values is refused.",
+            "description": "Whether the v0 \u2194 v2 key sync keeps a copy of this key on Daytona v0.\n`false` deletes the Daytona v0 copy (the key keeps working here);\n`true` copies the key to Daytona v0 again. A Daytona v0 copy can read\nevery sandbox, snapshot and registry of the organization on Daytona\nv0, which has no read permissions. Only a key a person minted in the\norganization's `default` project is ever copied; a key imported from\nDaytona v0 always is. Required.",
             "type": "boolean"
           }
         },
@@ -9085,11 +9054,6 @@
             "description": "The organization was imported from Daytona v0 (it carries the Daytona\nv0 organization id it came from). Personal organizations included.",
             "type": "boolean"
           },
-          "from_v1": {
-            "deprecated": true,
-            "description": "Deprecated: use `from_v0`, which carries the same value.",
-            "type": "boolean"
-          },
           "images_converted": {
             "description": "Named images registered from Daytona v0 snapshots that are at the current\nimage format.",
             "format": "int64",
@@ -9117,7 +9081,6 @@
         },
         "required": [
           "from_v0",
-          "from_v1",
           "api_keys",
           "registries",
           "images_to_convert",
@@ -9199,16 +9162,10 @@
           "v0_id": {
             "description": "The sandbox ID on Daytona v0.",
             "type": "string"
-          },
-          "v1_id": {
-            "deprecated": true,
-            "description": "Deprecated: use `v0_id`, which carries the same value.",
-            "type": "string"
           }
         },
         "required": [
           "v0_id",
-          "v1_id",
           "name",
           "status",
           "class",
@@ -9252,11 +9209,6 @@
             "description": "Whether Daytona v0 confirmed the `daytona.io/migrated-to` label on\nthe original sandbox. False means the label could not be set now; the\nimport itself succeeded, and repeating the call retries the label.",
             "type": "boolean"
           },
-          "v1_labeled": {
-            "deprecated": true,
-            "description": "Deprecated: use `v0_labeled`, which carries the same value.",
-            "type": "boolean"
-          },
           "warnings": {
             "description": "Settings and values that could not be imported.",
             "items": {
@@ -9271,7 +9223,6 @@
           "status",
           "existing",
           "v0_labeled",
-          "v1_labeled",
           "warnings",
           "secret_env_vars"
         ],

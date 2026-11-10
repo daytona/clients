@@ -410,7 +410,6 @@ _RESERVATION: JsonObject = {
     "status": "active",
     "origin": "explicit",
     "auto_renew": True,
-    "sandboxes_per_mac": 2,
     "slots_used": 0,
     "period_n": 1,
     "period_seconds": 86400,

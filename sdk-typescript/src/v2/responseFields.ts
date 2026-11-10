@@ -142,7 +142,7 @@ export const MAC_MODEL: ResponseFields = {
 /** @internal */
 export const MAC_RESERVATION: ResponseFields = {
   id: 'string', org_id: 'string', project_id: 'string', region_id: 'string', status: 'string', origin: 'string',
-  auto_renew: 'boolean', sandboxes_per_mac: 'integer', slots_used: 'integer', period_n: 'integer',
+  auto_renew: 'boolean', slots_used: 'integer', period_n: 'integer',
   period_seconds: 'integer', renewal_pending: 'boolean', created_at: 'timestamp',
   resources_used: nested(MAC_RESOURCES), capacity: nested(MAC_RESOURCES, true), model: 'string?',
   end_reason: 'string?', activated_at: 'timestamp?', pending_mac_started_at: 'timestamp?', period_started_at: 'timestamp?',

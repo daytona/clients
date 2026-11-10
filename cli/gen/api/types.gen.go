@@ -2278,13 +2278,13 @@ type CreateMacosSandboxRequest struct {
 	// auto-reserve setting.
 	AutoRenew *bool `json:"auto_renew,omitempty"`
 
-	// Cores CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of them when it is 1. The first successful claim fixes the size; request and limit are equal.
+	// Cores CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of them when it runs one. The first successful claim fixes the size; request and limit are equal.
 	Cores *int32 `json:"cores,omitempty"`
 
 	// CreateTimeoutSeconds Seconds the sandbox may take to reach `running`. Defaults to 3600; creating from a saved disk may allow additional restore time, up to 86400. `-1` uses the maximum. The sandbox is deleted if the timeout expires, including time spent waiting for capacity. A reservation bought by this request remains purchased and charged.
 	CreateTimeoutSeconds *int64 `json:"create_timeout_seconds,omitempty"`
 
-	// DiskMib Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when `sandboxes_per_mac` is 2, or all of it when it is 1. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.
+	// DiskMib Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.
 	DiskMib *int32 `json:"disk_mib,omitempty"`
 
 	// Env Sandbox-specific environment variables. Names must be valid environment variable names.
@@ -2303,7 +2303,7 @@ type CreateMacosSandboxRequest struct {
 	// LifecyclePolicy Sandbox lifecycle policy: idle stop/delete budgets and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.
 	LifecyclePolicy *UpdateSandboxLifecyclePolicyRequest `json:"lifecycle_policy,omitempty"`
 
-	// MemoryMib Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of it when it is 1. The first successful claim fixes the size; request and limit are equal.
+	// MemoryMib Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The first successful claim fixes the size; request and limit are equal.
 	MemoryMib *int32 `json:"memory_mib,omitempty"`
 
 	// Name Optional sandbox name (defaults to `sandbox-<short-id>`).
@@ -2383,11 +2383,6 @@ type CreateProjectApiKeyRequest struct {
 	// read permissions; `false` keeps the key on this platform only. Change
 	// it later by updating the API key.
 	SyncToV0 *bool `json:"sync_to_v0,omitempty"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`. Accepted with the same meaning; a
-	// request that sets both to different values is refused.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 *bool `json:"sync_to_v1,omitempty"`
 }
 
 // CreateProjectRequest defines model for CreateProjectRequest.
@@ -3454,10 +3449,6 @@ type MacReservation struct {
 	// Mac has claimed yet are not counted.
 	ResourcesUsed MacResources `json:"resources_used"`
 
-	// SandboxesPerMac Most sandboxes this reservation's Mac runs at once, subject to CPU,
-	// memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.
-	SandboxesPerMac int32 `json:"sandboxes_per_mac"`
-
 	// SlotsUsed macOS sandboxes currently occupying this reservation's Mac.
 	SlotsUsed int64 `json:"slots_used"`
 
@@ -3674,11 +3665,6 @@ type Organization struct {
 	// same ID. When true, removing a member also removes them from the
 	// Daytona v0 organization.
 	V0MembershipSyncEnabled bool `json:"v0_membership_sync_enabled"`
-
-	// V1MembershipSyncEnabled Deprecated: use `v0_membership_sync_enabled`, which carries the same
-	// value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1MembershipSyncEnabled bool `json:"v1_membership_sync_enabled"`
 }
 
 // OrganizationApiKey An organization API key without its secret token.
@@ -3849,11 +3835,6 @@ type OrganizationListItem struct {
 	// same ID. When true, removing a member also removes them from the
 	// Daytona v0 organization.
 	V0MembershipSyncEnabled bool `json:"v0_membership_sync_enabled"`
-
-	// V1MembershipSyncEnabled Deprecated: use `v0_membership_sync_enabled`, which carries the same
-	// value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1MembershipSyncEnabled bool `json:"v1_membership_sync_enabled"`
 }
 
 // OrganizationMember defines model for OrganizationMember.
@@ -4243,10 +4224,6 @@ type ProjectApiKey struct {
 	// read every sandbox, snapshot and registry of the organization on
 	// Daytona v0, which has no read permissions.
 	SyncToV0 bool `json:"sync_to_v0"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 bool `json:"sync_to_v1"`
 }
 
 // ProjectApiKeyContext The project and organization in which an API key acts.
@@ -4328,10 +4305,6 @@ type ProjectApiKeyWithContext struct {
 	// read every sandbox, snapshot and registry of the organization on
 	// Daytona v0, which has no read permissions.
 	SyncToV0 bool `json:"sync_to_v0"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 bool `json:"sync_to_v1"`
 }
 
 // ProjectApiKeyWithToken A newly created project API key and its one-time secret token.
@@ -4389,10 +4362,6 @@ type ProjectApiKeyWithToken struct {
 	// read every sandbox, snapshot and registry of the organization on
 	// Daytona v0, which has no read permissions.
 	SyncToV0 bool `json:"sync_to_v0"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 bool `json:"sync_to_v1"`
 
 	// Token The secret token, returned only when the key is created.
 	Token string `json:"token"`
@@ -5628,13 +5597,8 @@ type UpdateProjectApiKeyRequest struct {
 	// every sandbox, snapshot and registry of the organization on Daytona
 	// v0, which has no read permissions. Only a key a person minted in the
 	// organization's `default` project is ever copied; a key imported from
-	// Daytona v0 always is. Required (or the deprecated `sync_to_v1`).
+	// Daytona v0 always is. Required.
 	SyncToV0 *bool `json:"sync_to_v0,omitempty"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`. Accepted with the same meaning; a
-	// request that sets both to different values is refused.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 *bool `json:"sync_to_v1,omitempty"`
 }
 
 // UpdateProjectLifecyclePolicyRequest A `PATCH` at block granularity: an absent block is kept, `null` clears it,
@@ -5851,10 +5815,6 @@ type V0MigrationSummary struct {
 	// v0 organization id it came from). Personal organizations included.
 	FromV0 bool `json:"from_v0"`
 
-	// FromV1 Deprecated: use `from_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	FromV1 bool `json:"from_v1"`
-
 	// ImagesConverted Named images registered from Daytona v0 snapshots that are at the current
 	// image format.
 	ImagesConverted int64 `json:"images_converted"`
@@ -5914,10 +5874,6 @@ type V0Sandbox struct {
 
 	// V0Id The sandbox ID on Daytona v0.
 	V0Id string `json:"v0_id"`
-
-	// V1Id Deprecated: use `v0_id`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1Id string `json:"v1_id"`
 }
 
 // V0SandboxImport The result of importing a Daytona v0 sandbox.
@@ -5944,10 +5900,6 @@ type V0SandboxImport struct {
 	// the original sandbox. False means the label could not be set now; the
 	// import itself succeeded, and repeating the call retries the label.
 	V0Labeled bool `json:"v0_labeled"`
-
-	// V1Labeled Deprecated: use `v0_labeled`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1Labeled bool `json:"v1_labeled"`
 
 	// Warnings Settings and values that could not be imported.
 	Warnings []string `json:"warnings"`

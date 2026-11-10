@@ -22,7 +22,6 @@ WIRE: Final = {
     "status": "released",
     "origin": "auto",
     "auto_renew": False,
-    "sandboxes_per_mac": 4,
     "slots_used": 2,
     "model": "m4-10c-16g",
     "capacity": {"cores": 10, "memory_mib": 16384, "disk_mib": 235520},

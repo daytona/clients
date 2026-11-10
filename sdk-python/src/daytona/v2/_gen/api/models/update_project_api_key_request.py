@@ -34,10 +34,9 @@ class UpdateProjectApiKeyRequest(BaseModel):
     """
     UpdateProjectApiKeyRequest
     """ # noqa: E501
-    sync_to_v0: Optional[StrictBool] = Field(default=None, description="Whether the v0 ↔ v2 key sync keeps a copy of this key on Daytona v0. `false` deletes the Daytona v0 copy (the key keeps working here); `true` copies the key to Daytona v0 again. A Daytona v0 copy can read every sandbox, snapshot and registry of the organization on Daytona v0, which has no read permissions. Only a key a person minted in the organization's `default` project is ever copied; a key imported from Daytona v0 always is. Required (or the deprecated `sync_to_v1`).")
-    sync_to_v1: Optional[StrictBool] = Field(default=None, description="Deprecated: use `sync_to_v0`. Accepted with the same meaning; a request that sets both to different values is refused.")
+    sync_to_v0: Optional[StrictBool] = Field(default=None, description="Whether the v0 ↔ v2 key sync keeps a copy of this key on Daytona v0. `false` deletes the Daytona v0 copy (the key keeps working here); `true` copies the key to Daytona v0 again. A Daytona v0 copy can read every sandbox, snapshot and registry of the organization on Daytona v0, which has no read permissions. Only a key a person minted in the organization's `default` project is ever copied; a key imported from Daytona v0 always is. Required.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["sync_to_v0", "sync_to_v1"]
+    __properties: ClassVar[List[str]] = ["sync_to_v0"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -99,8 +98,7 @@ class UpdateProjectApiKeyRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            **({"sync_to_v0": obj["sync_to_v0"]} if "sync_to_v0" in obj else {}),
-            **({"sync_to_v1": obj["sync_to_v1"]} if "sync_to_v1" in obj else {})
+            **({"sync_to_v0": obj["sync_to_v0"]} if "sync_to_v0" in obj else {})
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

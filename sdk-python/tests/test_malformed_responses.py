@@ -1128,7 +1128,6 @@ _API_KEY: JsonObject = {
     "created_at": "2026-01-01T00:00:00Z",
     "context": {"project_name": "p", "org_id": "o", "org_name": "o"},
     "sync_to_v0": True,
-    "sync_to_v1": True,
 }
 _LISTED: JsonObject = {
     **_DETAIL,

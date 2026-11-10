@@ -18,7 +18,7 @@ const MAC = { cores: 4, memory_mib: 8192, disk_mib: 81920 }
 const MODEL = { id: 'm4', name: 'Apple M4', cores: 10, memory_mib: 16384, disk_mib: 244198, sandbox_disk_mib: 235520, max_sandboxes: 2, default_size: MAC }
 const RESERVATION = {
   id: 'res', org_id: 'o', project_id: 'p', region_id: 'r', status: 'active', origin: 'explicit', auto_renew: true,
-  sandboxes_per_mac: 2, slots_used: 0, period_n: 1, period_seconds: 86400, renewal_pending: false, created_at: TIME, resources_used: MAC,
+  slots_used: 0, period_n: 1, period_seconds: 86400, renewal_pending: false, created_at: TIME, resources_used: MAC,
 }
 const VOLUME = { id: 'vol', name: 'data', type: 'disk', status: 'ready', created_at: TIME, updated_at: TIME, options: { bucket: 'b', nested: { depth: [1] } } }
 const SECRET = { name: 'KEY', allowed_domains: ['example.com'], created_at: TIME, updated_at: TIME }

@@ -18,7 +18,6 @@ const wire = {
   status: 'released',
   origin: 'auto',
   auto_renew: false,
-  sandboxes_per_mac: 4,
   slots_used: 2,
   model: 'm4-10c-16g',
   capacity: { cores: 10, memory_mib: 16384, disk_mib: 235520 },
@@ -40,7 +39,7 @@ const wire = {
 const expected = {
   id: wire.id, orgId: wire.org_id, projectId: wire.project_id, region: wire.region_id,
   status: 'released', rawStatus: 'released', origin: 'auto', rawOrigin: 'auto',
-  autoRenew: false, sandboxesPerMac: 4, slotsUsed: 2, model: wire.model,
+  autoRenew: false, slotsUsed: 2, model: wire.model,
   capacity: { cores: 10, memoryMib: 16384, diskMib: 235520 },
   resourcesUsed: { cores: 5, memoryMib: 8192, diskMib: 117760 },
   periodN: 3, periodSeconds: 86400, createdAt: wire.created_at,

@@ -25,7 +25,7 @@ func init() {
 func newVolumeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "volume", Short: "Manage volumes",
-		Long:    "Manage volumes.\nExamples:\n  daytona volume create data --size-gib 200\n  daytona volume list",
+		Long:    "Manage volumes.\nExamples:\n  daytona volume create data\n  daytona volume list",
 		GroupID: GroupWorkload,
 	}
 	cmd.AddCommand(newVolumeCreateCommand(), newVolumeListCommand(), newVolumeGetCommand(), newVolumeDeleteCommand())
@@ -33,8 +33,8 @@ func newVolumeCommand() *cobra.Command {
 }
 
 func newVolumeCreateCommand() *cobra.Command {
-	sizeGiB := int32(100)
-	typeName := "disk"
+	sizeGiB := int32(0)
+	typeName := ""
 	bucketName := ""
 	endpoint := ""
 	bucketRegion := ""
@@ -44,7 +44,7 @@ func newVolumeCreateCommand() *cobra.Command {
 	pathStyle := false
 	cmd := &cobra.Command{
 		Use: "create <name>", Short: "Create a volume",
-		Long: "Create a volume.\nExamples:\n  daytona volume create data --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
+		Long: "Create a volume. Without --type the server chooses the volume's type.\nExamples:\n  daytona volume create data\n  daytona volume create data --type disk --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -88,8 +88,8 @@ func newVolumeCreateCommand() *cobra.Command {
 			return a.Printer().Object(resp, volumeKV(resp.V))
 		},
 	}
-	cmd.Flags().Int32Var(&sizeGiB, "size-gib", sizeGiB, "volume size in GiB (disk volumes only)")
-	cmd.Flags().StringVar(&typeName, "type", typeName, "volume type: disk|bucket")
+	cmd.Flags().Int32Var(&sizeGiB, "size-gib", sizeGiB, "volume size in GiB (disk volumes only; default: the server's)")
+	cmd.Flags().StringVar(&typeName, "type", typeName, "volume type: disk|bucket (default: chosen by the server)")
 	cmd.Flags().StringVar(&bucketName, "bucket", bucketName, "customer bucket name; on --type bucket, omitting this creates a platform-owned bucket volume")
 	cmd.Flags().StringVar(&endpoint, "endpoint", endpoint, "S3 endpoint URL for a customer bucket")
 	cmd.Flags().StringVar(&bucketRegion, "bucket-region", bucketRegion, "region of a customer bucket (the S3 region, not a Daytona region)")

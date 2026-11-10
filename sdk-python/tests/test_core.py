@@ -5293,7 +5293,6 @@ _CURRENT_API_KEY_PAYLOAD = {
     "last_used_at": None,
     "service_account_id": None,
     "sync_to_v0": True,
-    "sync_to_v1": True,
 }
 
 
@@ -12406,7 +12405,6 @@ def _mac_reservation_payload(**overrides: object) -> dict[str, object]:
         "project_id": "proj",
         "region_id": "mac-region",
         "status": "active",
-        "sandboxes_per_mac": 2,
         "model": "m4-10c-16g",
         "capacity": {"cores": 10, "memory_mib": 16384, "disk_mib": 235520},
         "resources_used": {"cores": 5, "memory_mib": 8192, "disk_mib": 117760},
@@ -12693,7 +12691,8 @@ async def test_reservations_namespace_paths_idempotency_header_and_parsing():
     assert (created.origin, created.auto_renew, created.renewal_error) == ("explicit", True, None)
     assert created.raw_origin == "explicit"
     assert created.period_end == datetime(2026, 9, 23, tzinfo=timezone.utc)
-    assert (created.sandboxes_per_mac, created.period_seconds) == (2, 86400)
+    assert created.period_seconds == 86400
+    assert not hasattr(created, "sandboxes_per_mac")
     assert created.period_started_at == datetime(2026, 9, 22, tzinfo=timezone.utc)
     assert created.pending_mac_started_at == datetime(2026, 9, 21, 23, 30, tzinfo=timezone.utc)
     # `list()` hands back exactly one page: its items plus the server's cursor.

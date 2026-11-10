@@ -41,9 +41,8 @@ class CreateProjectApiKeyRequest(BaseModel):
     project_permissions: Annotated[List[StrictStr], Field(min_length=1)] = Field(description="The project permissions the key holds. Required, with at least one entry: a key never gets a default or implied permission set.")
     service_account_id: Optional[StrictStr] = Field(default=None, description="The service account that owns this key, or `null` for the current user.")
     sync_to_v0: Optional[StrictBool] = Field(default=None, description="Whether the v0 ↔ v2 key sync may copy this key to Daytona v0. Absent = `true`. Only a key a person mints in the organization's `default` project is ever copied; elsewhere the field is ignored and the response says `false`. A Daytona v0 copy can read every sandbox, snapshot and registry of the organization on Daytona v0, which has no read permissions; `false` keeps the key on this platform only. Change it later by updating the API key.")
-    sync_to_v1: Optional[StrictBool] = Field(default=None, description="Deprecated: use `sync_to_v0`. Accepted with the same meaning; a request that sets both to different values is refused.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["expires_at", "name", "project_permissions", "service_account_id", "sync_to_v0", "sync_to_v1"]
+    __properties: ClassVar[List[str]] = ["expires_at", "name", "project_permissions", "service_account_id", "sync_to_v0"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -113,11 +112,6 @@ class CreateProjectApiKeyRequest(BaseModel):
         if self.sync_to_v0 is None and "sync_to_v0" in self.model_fields_set:
             _dict['sync_to_v0'] = None
 
-        # set to None if sync_to_v1 (nullable) is None
-        # and model_fields_set contains the field
-        if self.sync_to_v1 is None and "sync_to_v1" in self.model_fields_set:
-            _dict['sync_to_v1'] = None
-
         return _dict
 
     @classmethod
@@ -134,8 +128,7 @@ class CreateProjectApiKeyRequest(BaseModel):
             **({"name": obj["name"]} if "name" in obj else {}),
             "project_permissions": obj.get("project_permissions"),
             **({"service_account_id": obj["service_account_id"]} if "service_account_id" in obj else {}),
-            **({"sync_to_v0": obj["sync_to_v0"]} if "sync_to_v0" in obj else {}),
-            **({"sync_to_v1": obj["sync_to_v1"]} if "sync_to_v1" in obj else {})
+            **({"sync_to_v0": obj["sync_to_v0"]} if "sync_to_v0" in obj else {})
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

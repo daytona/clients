@@ -310,7 +310,8 @@ never prompts:
   `--timeout` with nothing to wait for is refused (exit 2): with `--no-wait`,
   on `image logs` / `sandbox process logs` without `--follow`, and on
   `sandbox docker status` without `--wait`.
-- Bucket volumes are created with `daytona volume create NAME --type bucket`; add
+- Without `--type`, `daytona volume create NAME` lets the server choose the
+  volume's type. Bucket volumes are created with `daytona volume create NAME --type bucket`; add
   `--bucket`, `--endpoint`, `--bucket-region`, `--prefix`, `--path-style`,
   `--access-key-secret`, and `--secret-key-secret` for a customer bucket.
   `--size-gib` sizes a disk volume.

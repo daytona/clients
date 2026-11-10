@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
+import typing
 
 import httpx
 import pytest
@@ -29,6 +30,7 @@ from daytona.v2 import (
     Resources,
     SearchResult,
 )
+from daytona.v2 import services as services_module
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import AsyncDaytona
@@ -246,6 +248,13 @@ async def test_if_match_must_be_a_non_empty_string(if_match: object) -> None:
         await sandbox.replace_secrets(secrets=[], if_match=if_match)  # type: ignore[arg-type]
 
 
+def test_volume_create_type_annotation_matches_the_contract_enum() -> None:
+    # The Literal is written by hand; the runtime check reads the contract enum.
+    hint = typing.get_type_hints(AsyncVolumesService.create)["type"]
+    (literal,) = (arg for arg in typing.get_args(hint) if arg is not type(None))
+    assert set(typing.get_args(literal)) == set(services_module._VOLUME_CREATE_TYPES)
+
+
 @pytest.mark.anyio
 async def test_platform_inputs_are_validated_before_any_request() -> None:
     api = _Api([])
@@ -260,6 +269,12 @@ async def test_platform_inputs_are_validated_before_any_request() -> None:
     for size in (0, -1, 1.5, True, float("nan"), float("inf")):
         with pytest.raises(BadRequestError, match="size_gib must be a positive integer"):
             await volumes.create(name="v", size_gib=size)  # type: ignore[arg-type]
+    # Values a caller outside the type checker can pass.
+    invalid_types: tuple[object, ...] = ("", "DISK", "unknown", "nfs", 1, ["disk"])
+    for volume_type in invalid_types:
+        with pytest.raises(BadRequestError, match="type must be one of disk, bucket"):
+            # An invalid size too: the type is checked first, as in TypeScript.
+            await volumes.create(name="v", size_gib=0, type=volume_type)
     client = _client(api)
     with pytest.raises(BadRequestError, match="create_timeout_seconds must be an integer from -1"):
         await client.create("img", create_timeout_seconds=-2)

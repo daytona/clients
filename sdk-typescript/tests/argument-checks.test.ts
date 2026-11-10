@@ -296,7 +296,7 @@ it('ends a ready wait whose first hold outlives the deadline with RequestTimeout
 
 const RESERVATION = {
   id: 'res', org_id: 'o', project_id: 'p', region_id: 'r', status: 'active', origin: 'explicit', auto_renew: true,
-  sandboxes_per_mac: 2, slots_used: 0, period_n: 1, period_seconds: 86400, renewal_pending: false, created_at: '2026-01-01T00:00:00Z',
+  slots_used: 0, period_n: 1, period_seconds: 86400, renewal_pending: false, created_at: '2026-01-01T00:00:00Z',
   resources_used: { cores: 0, memory_mib: 0, disk_mib: 0 },
 }
 

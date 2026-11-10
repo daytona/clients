@@ -98,7 +98,6 @@ func TestAutomaticKeysAreV2OnlyAndLive24Hours(t *testing.T) {
 	req := requests[0]
 	require.NotNil(t, req.SyncToV0)
 	require.False(t, *req.SyncToV0)
-	require.Nil(t, req.SyncToV1)
 	require.WithinRange(t, *req.ExpiresAt, before.Add(24*time.Hour), time.Now().Add(24*time.Hour))
 }
 
