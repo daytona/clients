@@ -1,0 +1,103 @@
+sdk-typescript/tests/image-builder-directory-parity.test.ts
+  s_f96982b855e516::t_bf53f4684c4abe 1-8,10-34,36-91,95-128,130-139
+  s_f96982b855e516::t_43b7fc0eb65796 9,35,92-94,129
+sdk-python/tests/test_dockerignore.py
+  s_3723dfe076088f::t_05fedc2066ca94 82-84,251-252
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_6d711aa4eb3d6d::t_dde95c9152320e 509-514
+  s_3723dfe076088f::t_5a61f5621e1e41 508
+sdk-typescript/tests/dockerignore.test.ts
+  s_3723dfe076088f::t_05fedc2066ca94 86-87,104-108
+  s_3723dfe076088f::t_ace87f6bea3665 109-110
+sdk-typescript/src/v2/contextArchive.ts
+  s_f96982b855e516::t_926cbb93c937f3 76
+sdk-typescript/src/v2/contextTar.ts
+  s_f96982b855e516::t_926cbb93c937f3 15,38-41,49,97,102-103,106,110,115-117,119-122,125,144-145
+  s_f96982b855e516::t_17da0f7fbc1ba4 118
+sdk-typescript/src/v2/contextEntries.ts
+  s_f96982b855e516::t_17da0f7fbc1ba4 35
+  s_f96982b855e516::t_926cbb93c937f3 16-17,33-34,36-39,58
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_3723dfe076088f::t_2a8c9921e64a59 186
+  s_3723dfe076088f::t_4d1590b34d5efc 188
+  s_3723dfe076088f::t_b72b9011203b06 170,181-185,187,233
+sdk-python/src/daytona/v2/_image_source.py
+  s_6d711aa4eb3d6d::t_dde95c9152320e 25-31,34-40,42
+  s_6d711aa4eb3d6d::t_3e53a89b9a6719 41
+sdk-typescript/tests/imageBuilderContextFixture.ts
+  s_f96982b855e516::t_17da0f7fbc1ba4 47-49
+sdk-python/tests/fixtures/image-builder-context.json
+  s_6d711aa4eb3d6d::t_dde95c9152320e 145-158
+sdk-typescript/tests/image-builder-archive.test.ts
+  s_f96982b855e516::t_17da0f7fbc1ba4 6
+  s_f96982b855e516::t_dc25d5f68f8612 1-5,7-52
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_f96982b855e516::t_64b0e34d1e53f6 1-18
+sdk-python/src/daytona/v2/_image_context.py
+  s_f96982b855e516::t_6ec2787462ec9d 65-68,70
+  s_f96982b855e516::t_926cbb93c937f3 9-10,39-56,63,71-84,88,185-186,204,210-212,221-224,226
+  s_f96982b855e516::t_f7d257d7494cc4 27,131
+  s_f96982b855e516::t_7e9df415beb7c9 242-243,247,252,255,261
+  s_f96982b855e516::t_886a51ad1cf97d 64,69,213,225
+sdk-python/tests/test_image_builder_parity.py
+  s_6d711aa4eb3d6d::t_941d0a761866a1 199-201
+  s_6d711aa4eb3d6d::t_dde95c9152320e 198,202-211
+  s_6d711aa4eb3d6d::t_60e13c8d72b700 197
+sdk-typescript/tests/image-builder-parity.test.ts
+  s_6d711aa4eb3d6d::t_dde95c9152320e 130-135,137-143
+  s_f96982b855e516::t_bf53f4684c4abe 136
+sdk-typescript/src/v2/builderLocalSource.ts
+  s_6d711aa4eb3d6d::t_dde95c9152320e 19-26,35
+  s_3723dfe076088f::t_ad0cf36cf7f517 18
+sdk-python/src/daytona/v2/image.py
+  s_6d711aa4eb3d6d::t_dde95c9152320e 53-57
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_3723dfe076088f::t_7d0e1bd1f69263 67,69
+  s_3723dfe076088f::t_4d1590b34d5efc 68,70
+sdk-python/tests/fixtures/image-builder-archives.json
+  s_f96982b855e516::t_64b0e34d1e53f6 1-5,7-16,18-20
+  s_f96982b855e516::t_17e8b2a37d5207 6,17
+sdk-python/tests/test_image_builder_context.py
+  s_f96982b855e516::t_17da0f7fbc1ba4 80,82,84
+sdk-typescript/src/v2/Images.ts
+  s_f96982b855e516::t_7e9df415beb7c9 16
+  s_f96982b855e516::t_f7d257d7494cc4 19,143-145,148
+docs/adr/0006-image-builder-local-context.md
+  s_f96982b855e516::t_6ec2787462ec9d 41-44,86-93,102-109,114-116,123-129
+  s_f96982b855e516::t_e1c2d681290b09 130
+sdk-python/tests/test_image_context_archive.py
+  s_f96982b855e516::t_64b0e34d1e53f6 6-7,10,14-16,19-90,187-188,191,195,197-235
+  s_f96982b855e516::t_608dc11e404f0e 236-292
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "162c4a927fa65e1f2e1fdbb449c15bb88fee65f9",
+  "prompts": {},
+  "sessions": {
+    "s_3723dfe076088f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38a1d34cffeDsBvcdFWIO3373",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6d711aa4eb3d6d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38a1b8d5ffeVKtTYyb9OwIkaZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f96982b855e516": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38a25d02ffeO9dSEUD37uIl2U",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
