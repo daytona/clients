@@ -28,7 +28,10 @@ const PART_ATTEMPTS = 3
 const PART_CONCURRENCY = 4
 const COMPLETE_ATTEMPTS = 3
 
-/** Test seams: the storage client, the pause between attempts, the complete timeout, and the runtime check. */
+/**
+ * Test seams: the storage client, the pause between attempts, the complete timeout, and the runtime check.
+ * @internal
+ */
 export const contextUploadRuntime = {
   isNode,
   fetch: (input: string, init: RequestInit): Promise<Response> => globalThis.fetch(input, init),
@@ -248,7 +251,10 @@ async function complete(http: AxiosInstance, upload: api.BuildContextUpload): Pr
   }
 }
 
-/** Upload `context`; resolve to the ID and region of its verified upload. */
+/**
+ * Upload `context`; resolve to the ID and region of its verified upload.
+ * @internal
+ */
 export async function uploadBuildContext(
   http: AxiosInstance,
   context: BuildContext,
