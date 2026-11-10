@@ -82,6 +82,7 @@ export class SdkMethods {
     // A 0.x sandbox (or service) method updates the object's data, never the
     // service objects it holds, so later `sandbox.fs.…` calls keep their proof.
     const kind = this.objectKind(receiver);
-    return kind !== undefined && this.mapping.suggestions.some(entry => entry.receiver === kind && entry.v0.ts === member);
+    return kind !== undefined && this.mapping.suggestions.some(entry => entry.receiver === kind && entry.v0.ts === member) &&
+      !this.writes.lost(receiver, member);
   }
 }

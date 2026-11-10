@@ -56,3 +56,12 @@ it('renders an LSP server start on the sandbox that created the server', async (
   expect(report.items.find(item => item.line === 7)).toMatchObject({ kind: 'fixme',
     message: 'move this call to the owning sandbox: const lsp = await sandbox.lsp.start(languageId, pathToProject)' });
 });
+
+it('drops service proofs after a sandbox method the code replaced', async () => {
+  // Given a 0.x sandbox method the program overwrote with its own function.
+  const report = await suggest({ 'index.ts': "import { Sandbox } from '@daytonaio/sdk';\n" +
+    "async function f(sb: Sandbox, other: unknown) {\n  sb.refreshData = async function (this: any) { this.fs = other };\n" +
+    "  await sb.refreshData();\n  await sb.fs.createFolder('/x', '755');\n}\n" });
+  // Then the later service call is not suggested as the SDK's.
+  expect(ids(report)).not.toContain('sandbox.fs.createFolder');
+});

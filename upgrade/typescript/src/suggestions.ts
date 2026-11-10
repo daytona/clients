@@ -89,14 +89,22 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
   // Code that already holds the 0.x client (`client.v0`) and hands it out
   // (an argument, an alias) or writes one of its members may replace its
   // services.
-  const v0Escapes = (v0: Node): boolean => source.getDescendants().some(node => {
-    if (!isMemberAccess(node) || node.getText() !== v0.getText()) return false;
-    const parent = node.getParent();
-    if (parent === undefined || !isMemberAccess(parent) || parent.getExpression() !== node) return true;
-    const write = parent.getParent();
-    return Node.isBinaryExpression(write) && write.getLeft() === parent &&
-      write.getOperatorToken().getKind() >= SyntaxKind.FirstAssignment && write.getOperatorToken().getKind() <= SyntaxKind.LastAssignment;
-  });
+  const escapedV0 = new Map<string, boolean>();
+  const v0Escapes = (v0: Node): boolean => {
+    const text = v0.getText();
+    const cached = escapedV0.get(text);
+    if (cached !== undefined) return cached;
+    const escapes = source.getDescendants().some(node => {
+      if (!isMemberAccess(node) || node.getText() !== text) return false;
+      const parent = node.getParent();
+      if (parent === undefined || !isMemberAccess(parent) || parent.getExpression() !== node) return true;
+      const write = parent.getParent();
+      return Node.isBinaryExpression(write) && write.getLeft() === parent &&
+        write.getOperatorToken().getKind() >= SyntaxKind.FirstAssignment && write.getOperatorToken().getKind() <= SyntaxKind.LastAssignment;
+    });
+    escapedV0.set(text, escapes);
+    return escapes;
+  };
   const rootProvenEntry = (access: Node): Suggestion | undefined => {
     let candidate: Node = access;
     while (isMemberAccess(candidate)) {

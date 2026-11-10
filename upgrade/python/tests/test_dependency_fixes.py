@@ -135,8 +135,9 @@ def test_drops_extras_the_renamed_package_does_not_define(
     # Then the known extra is kept, the unknown one dropped and reported.
     assert result.source == expected
     assert [message for _, message in result.manual] == [
-        "Dropped the x extra of daytona-sdk: SDK 2.x's daytona defines only otel, "
-        "v0-sdk; install what it provided directly if you still need it."
+        "Dropped the x extra of daytona-sdk: SDK 2.x's daytona has no such extra "
+        "(its extras: otel, v0-sdk); install what it provided directly if you "
+        "still need it."
     ]
 
 

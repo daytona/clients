@@ -26,8 +26,8 @@ def target_extras(extras: list[str], mapping: Mapping) -> tuple[list[str], list[
 def dropped_extra_message(extra: str, name: str, mapping: Mapping) -> str:
     return (
         f"Dropped the {extra} extra of {name}: SDK 2.x's {mapping.package_new} "
-        f"defines only {', '.join(mapping.known_extras)}; install what it provided "
-        "directly if you still need it."
+        f"has no such extra (its extras: {', '.join(mapping.known_extras)}); "
+        "install what it provided directly if you still need it."
     )
 
 

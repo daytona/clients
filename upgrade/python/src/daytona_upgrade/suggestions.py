@@ -119,7 +119,7 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
         )
         # A handle a sandbox call produced (an LSP server, a PTY) is not its
         # sandbox: an unproven owner needs the same manual move as a service.
-        sandbox_produced = any(
+        sandbox_produced = entry.receiver != "sandbox" and any(
             producer.startswith("sandbox")
             for producer in mapping.receivers[entry.receiver].produced_by
         )

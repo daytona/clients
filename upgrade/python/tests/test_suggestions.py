@@ -407,3 +407,46 @@ def test_lifecycle_suggestions_carry_only_the_timeout_the_call_passed(
 ) -> None:
     # The TypeScript tool renders the same forms (tests/optional-arguments.test.ts).
     assert _lifecycle_form(call, entry_id) == expected
+
+
+def _suggest(source: str) -> list[tuple[int, str, str | None]]:
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    return [
+        (item["line"], item["kind"], item["suggestion"]["v2"])
+        for item in result.items
+        if "suggestion" in item
+    ]
+
+
+def test_root_sandbox_calls_and_lsp_servers_render_on_their_sandbox() -> None:
+    # Given root sandbox calls and an LSP server created from a sandbox named box.
+    source = (
+        "from daytona import Daytona, LspServer, Sandbox\n"
+        "def main(sb: Sandbox):\n"
+        "    sb.refresh_data()\n"
+        "    box = Daytona().v0.create()\n"
+        "    server = box.create_lsp_server('python', '/x')\n"
+        "    server.start()\n"
+        "def other(lsp: LspServer):\n"
+        "    lsp.start()\n"
+    )
+    # When
+    items = _suggest(source)
+    # Then the root call is a plain suggestion, the server starts on box, and a
+    # server whose sandbox is unknown is a manual move (as in the TypeScript tool).
+    assert (3, "suggestion", "sb.refresh_data()") in items
+    assert (
+        6,
+        "suggestion",
+        "lsp = box.lsp.start(language_id, path_to_project)",
+    ) in items
+    assert (
+        8,
+        "fixme",
+        "lsp = sandbox.lsp.start(language_id, path_to_project)",
+    ) in items

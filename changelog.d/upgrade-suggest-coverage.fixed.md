@@ -5,4 +5,5 @@ services** — `npx @daytona/upgrade --suggest-v2` no longer skips later
 an unmigrated project as it does after the default pass (where it reported that
 it could not prove the owning client, and after the pass gave nothing); and
 renders an LSP server's `start()` on the sandbox that created it, or as a manual
-move when that sandbox is unknown (`uvx daytona-upgrade` does the same).
+move when that sandbox is unknown. `uvx daytona-upgrade` now traces the LSP
+server's sandbox too, where it named a `sandbox` placeholder.
