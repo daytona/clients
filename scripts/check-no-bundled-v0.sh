@@ -46,7 +46,7 @@ done
 # The bundle also merges v0's own runtime dependencies into package.json. A
 # hand-edited bundled manifest with the API clients removed would still carry
 # them, so check the declared (root) dependencies for v0-only names too. These
-# are the packages bundle-v0.mjs merges at v0.230.0 that v2 does not use
+# are the packages bundle-v0.mjs merges at v0.231.1 that v2 does not use
 # (form-data is merged too, but v2 also resolves it). sdk-ci's "v0 bundle from
 # the publish snapshot" job runs `--check-list` on a real bundle, so a pin
 # bump that merges a new name fails there until it is listed here.

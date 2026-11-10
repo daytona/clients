@@ -155,7 +155,7 @@ must preserve `manifestId: null` rather than optionalizing it.
   repopulates `src/v0/`, writes `src/v0/_bundle.ts`, appends the `...V0`
   aliases for names also exported by v2, and merges the v0 runtime dependency
   set into `package.json`. Re-running it replaces the bundle in place.
-- Names also exported by v0 at the pinned tag (`v0.230.0`) on the v2 surface are committed as
+- Names also exported by v0 at the pinned tag (`v0.231.1`) on the v2 surface are committed as
   `...V2` aliases: `DaytonaError`, `Image`, `LspServer`, and `Sandbox`.
   `scripts/bundle-v0.mjs` fails when this set and the pinned release's shared
   value exports disagree.
