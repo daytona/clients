@@ -481,6 +481,8 @@ def test_workflow_items_carry_the_data_guide_link() -> None:
     )
     # Then the workflow item has the TypeScript tool's suggestion object.
     workflow = next(item for item in result.items if item["kind"] == "workflow")
-    assert workflow["suggestion"]["id"] == "workflow:box"
-    assert workflow["suggestion"]["docs"] == mapping.docs + "#data"
-    assert list(workflow["suggestion"]["notes"]) == list(mapping.data_traps)
+    assert "suggestion" in workflow
+    suggestion = workflow["suggestion"]
+    assert suggestion["id"] == "workflow:box"
+    assert suggestion["docs"] == mapping.docs + "#data"
+    assert list(suggestion["notes"]) == list(mapping.data_traps)
