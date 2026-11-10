@@ -985,6 +985,14 @@ lives in the unpackaged `sdk-python/DEVELOPMENT.md` / `sdk-typescript/DEVELOPMEN
 
 ## Verification
 
+CI on the pull request runs every suite below and is the gate. Locally, run
+only fast checks targeted at what you changed (the tests, typecheck and lint
+for the touched files), plus any heavier check you have reason to suspect,
+then push and let the PR run the rest. When a CI check fails, reproduce that
+check locally, fix, and push again.
+
+Each package's full suite, for reference and for reproducing a CI failure:
+
 ```bash
 (cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
 (cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
@@ -996,8 +1004,8 @@ scripts/gen-contract-types.sh --check     # only after touching contract/ or a g
 TypeScript runtime compatibility (the packed package in Node, Bun, Deno,
 bundlers, Next.js, Nuxt, Remix, workerd, Lambda, Azure Functions and a
 browser, against a local mock API; CI workflow `TypeScript runtimes`):
-`(cd sdk-typescript && npm run build && npm run test:runtime)`. Run it after
-touching the transports in `src/v2/http.ts`, the build, or `package.json`
+`(cd sdk-typescript && npm run build && npm run test:runtime)`. Worth running
+locally after touching the transports in `src/v2/http.ts`, the build, or `package.json`
 `exports` / `imports`; see `sdk-typescript/runtime-tests/README.md`.
 
 Optional, for larger changes: `.claude/skills/deep-review` is an adversarial,
@@ -1012,30 +1020,28 @@ Live suites, when credentials are available and the change alters behaviour
 against the server: `DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts`
 for one).
 
-### Scale the checks to the change
+### Rebasing a branch
 
-Run what the change can break, not the whole list on every push:
-
-- **Rebase or conflict-only update.** Regenerate generated files instead of
-  merging them by hand (`scripts/gen-contract-types.sh` for `contract/`,
-  `python gen/gen_sync.py` in `sdk-python` for `_sync/`), run the unit tests of
-  the packages the conflicts touched, and push. No deep-review, coverage
-  preflight or live e2e; after the push, wait for CI only.
-- **Squash before rebasing a long branch.** Replaying many commits resolves
-  the same conflicts (often in generated files) once per commit. PRs are
-  squash-merged, so offer to squash the branch to one commit first; ask the
-  user before rewriting their commits.
-- **New behaviour or surface.** The full Verification list above, plus live
-  e2e when it talks to the server.
+- **Squash first if the branch is long.** Replaying many commits resolves the
+  same conflicts (often in generated files) once per commit. PRs are
+  squash-merged, so offer to squash the branch to one commit before rebasing;
+  ask the user before rewriting their commits.
+- **Regenerate, don't hand-merge, generated files**: `scripts/gen-contract-types.sh`
+  for `contract/`, `python gen/gen_sync.py` in `sdk-python` for `_sync/`.
+- **Clean rebase** (no conflicts, or conflicts only in generated files): push
+  and wait for CI. No deep-review, coverage preflight or live e2e.
+- **Rebase with hand-resolved conflicts**: run the targeted checks for the
+  resolved files, push, and treat the push like any other fix in the loop
+  below, since it changes hand-written code that cubic and Vidoc re-review.
 
 ## Pull requests
 
 - The 2.x line lives on `main`: branch from it and target pull requests at it.
   The 0.x SDKs and CLI live on `release/v0`.
 - Sign off every commit (`git commit -s`); sign the CLA once (the CLA check runs on every PR). See [CONTRIBUTING.md](CONTRIBUTING.md).
-- E2E runs against the hosted production deployment and skips when its secrets
-  are not available (pull requests from forks). **A PR that depends on API
-  changes not yet deployed to production fails e2e** (`py SDK E2E` /
+- E2E runs against the configured hosted deployment (production by default)
+  and skips when its secrets are not available (pull requests from forks).
+  **A PR that depends on API changes not yet deployed there fails e2e** (`py SDK E2E` /
   `ts SDK E2E`) until they ship — that is expected, not a bug to chase. Before
   debugging a red e2e, check whether the failing calls touch surface the PR
   adds or changes against the synced contract (`contract/`); if they do, say
@@ -1051,16 +1057,18 @@ Run what the change can break, not the whole list on every push:
 
 cubic (`cubic-dev-ai`) and Vidoc (`vidoc-agent`) review every PR. An agent
 that opens a PR keeps working it, fix → push → re-check, until all three of
-these hold, and only then reports it as ready (after a rebase-only push, only
-CI needs re-checking):
+these hold, and only then reports it as ready (after a clean rebase, see
+above, only CI needs re-checking):
 
 1. **cubic** — run the `.claude/skills/cubic-loop` skill in **PR mode** until
    no unresolved cubic threads remain (P3-only counts as clean). A won't-fix
    gets a reply with the reasoning and is then resolved.
 2. **Vidoc** — its `Vidoc security review` comment (marker
-   `vidoc:scan-result`) reads no issues, or every finding is fixed or answered
-   with a reply explaining why it does not apply. A push triggers a new scan;
-   read the latest one.
+   `vidoc:scan-result`) on the latest push reports no issues, or every finding
+   is fixed or answered with a reply explaining why it does not apply. A
+   `Partial review` that left changed files unanalyzed is not clean: say so in
+   the PR instead of counting it. A push triggers a new scan; read the latest
+   one.
 3. **CI** — `CI passed` is green, and every other failing check is fixed or
    explained. The only failure that may stay red is e2e waiting on an
    undeployed API change (see above), recorded in the PR description.
