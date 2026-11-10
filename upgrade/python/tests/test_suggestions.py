@@ -81,7 +81,11 @@ def test_guidance_when_proven_call_is_found() -> None:
     result = suggest(source)
     # Then executable syntax is identical and machine-readable guidance is precise.
     assert ast.dump(ast.parse(result.source)) == ast.dump(ast.parse(source))
-    entries = [item["suggestion"] for item in result.items if "suggestion" in item]
+    entries = [
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert len(entries) == 1
     assert {key: value for key, value in entries[0].items() if key != "notes"} == {
         "id": "client.create",
@@ -101,7 +105,11 @@ def test_nested_service_when_sandbox_is_produced() -> None:
     # When producing guidance.
     result = suggest(source)
     # Then service suggestions substitute the actual sandbox binding.
-    entries = [item["suggestion"] for item in result.items if "suggestion" in item]
+    entries = [
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert [entry["id"] for entry in entries] == [
         "client.create",
         "sandbox.fs.list_files",
@@ -118,7 +126,11 @@ def test_no_equivalent_when_mapping_explicitly_has_none() -> None:
     # When producing guidance.
     result = suggest(source)
     # Then the report preserves null rather than inventing a v2 call.
-    entries = [item["suggestion"] for item in result.items if "suggestion" in item]
+    entries = [
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert len(entries) == 1
     assert entries[0]["v2"] is None
     assert entries[0]["category"] == "none"
@@ -255,7 +267,9 @@ def test_git_remote_calls_carry_request_timeout_into_the_v2_timeout(
     entry = next(
         item["suggestion"]
         for item in result.items
-        if "suggestion" in item and item["suggestion"]["id"] == f"sandbox.git.{method}"
+        if "suggestion" in item
+        and item["kind"] != "workflow"
+        and item["suggestion"]["id"] == f"sandbox.git.{method}"
     )
     form = entry["v2"]
     assert form is not None and form.endswith(", timeout=request_timeout)")
@@ -279,7 +293,9 @@ def _lifecycle_form(call: str, entry_id: str) -> str:
     form = next(
         item["suggestion"]["v2"]
         for item in result.items
-        if "suggestion" in item and item["suggestion"]["id"] == entry_id
+        if "suggestion" in item
+        and item["kind"] != "workflow"
+        and item["suggestion"]["id"] == entry_id
     )
     assert form is not None
     return form
@@ -419,7 +435,7 @@ def _suggest(source: str) -> list[tuple[int, str, str | None]]:
     return [
         (item["line"], item["kind"], item["suggestion"]["v2"])
         for item in result.items
-        if "suggestion" in item
+        if "suggestion" in item and item["kind"] != "workflow"
     ]
 
 
@@ -450,3 +466,21 @@ def test_root_sandbox_calls_and_lsp_servers_render_on_their_sandbox() -> None:
         "fixme",
         "lsp = sandbox.lsp.start(language_id, path_to_project)",
     ) in items
+
+
+def test_workflow_items_carry_the_data_guide_link() -> None:
+    # Given
+    source = (
+        "from daytona import Daytona\nbox = Daytona().v0.create()\nbox.refresh_data()\n"
+    )
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    # Then the workflow item has the TypeScript tool's suggestion object.
+    workflow = next(item for item in result.items if item["kind"] == "workflow")
+    assert workflow["suggestion"]["id"] == "workflow:box"
+    assert workflow["suggestion"]["docs"] == mapping.docs + "#data"
+    assert list(workflow["suggestion"]["notes"]) == list(mapping.data_traps)
