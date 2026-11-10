@@ -14,8 +14,9 @@ below works with what is in the repository plus, optionally, a Daytona account:
 
 - **Live checks gate on credentials, not on who you are.** When
   `DAYTONA_API_KEY` (and `DAYTONA_V2_API_URL`, for a deployment other than the
-  default) are set, run the live suites (`./e2e/run.sh`); when they are not,
-  skip them and say so in the PR. Never ask a contributor for credentials, and
+  default) are set, run the live suites (`./e2e/run.sh`) for changes that
+  alter behaviour against the server; when they are not set, skip them and say
+  so in the PR. Never ask a contributor for credentials, and
   never paste a key, an endpoint that is not public, or a request trace into an
   issue, a PR, a commit message or a workflow input.
 - **Contract files come from maintainers.** `contract/` is refreshed by
@@ -999,15 +1000,33 @@ browser, against a local mock API; CI workflow `TypeScript runtimes`):
 touching the transports in `src/v2/http.ts`, the build, or `package.json`
 `exports` / `imports`; see `sdk-typescript/runtime-tests/README.md`.
 
-Before opening a PR, review the branch with `.claude/skills/deep-review` (adversarial, local-only,
-never posted).
+Optional, for larger changes: `.claude/skills/deep-review` is an adversarial,
+local-only pre-review of a branch (never posted). It is not a required step;
+run it when the user asks for it or when the change warrants it.
 
 Patch coverage of a branch (target 60%; skill: `.claude/skills/coverage-preflight`):
 generate the reports listed in `scripts/patch_coverage.py`, then
 `python3 scripts/patch_coverage.py`.
 
-Live suites, when credentials are available:
-`DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts` for one).
+Live suites, when credentials are available and the change alters behaviour
+against the server: `DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts`
+for one).
+
+### Scale the checks to the change
+
+Run what the change can break, not the whole list on every push:
+
+- **Rebase or conflict-only update.** Regenerate generated files instead of
+  merging them by hand (`scripts/gen-contract-types.sh` for `contract/`,
+  `python gen/gen_sync.py` in `sdk-python` for `_sync/`), run the unit tests of
+  the packages the conflicts touched, and push. No deep-review, coverage
+  preflight or live e2e; after the push, wait for CI only.
+- **Squash before rebasing a long branch.** Replaying many commits resolves
+  the same conflicts (often in generated files) once per commit. PRs are
+  squash-merged, so offer to squash the branch to one commit first; ask the
+  user before rewriting their commits.
+- **New behaviour or surface.** The full Verification list above, plus live
+  e2e when it talks to the server.
 
 ## Pull requests
 
@@ -1032,7 +1051,8 @@ Live suites, when credentials are available:
 
 cubic (`cubic-dev-ai`) and Vidoc (`vidoc-agent`) review every PR. An agent
 that opens a PR keeps working it, fix → push → re-check, until all three of
-these hold, and only then reports it as ready:
+these hold, and only then reports it as ready (after a rebase-only push, only
+CI needs re-checking):
 
 1. **cubic** — run the `.claude/skills/cubic-loop` skill in **PR mode** until
    no unresolved cubic threads remain (P3-only counts as clean). A won't-fix
