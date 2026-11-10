@@ -10,7 +10,7 @@
 // value's cause.
 
 import type { AxiosInstance } from 'axios'
-import { strictUriEncode } from './http.js'
+import { pathSegment } from './pathSegment.js'
 import { badRequest } from './options.js'
 import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
@@ -242,7 +242,7 @@ async function complete(http: AxiosInstance, upload: api.BuildContextUpload): Pr
   const request: api.CompleteBuildContextUploadRequest = { region_id: upload.region_id }
   for (let attempt = 0; ; attempt++) {
     try {
-      await http.post<api.BuildContextUpload>(`/build-contexts/${strictUriEncode(upload.id)}/complete`, request, { timeout })
+      await http.post<api.BuildContextUpload>(`/build-contexts/${pathSegment(upload.id, 'build context upload id')}/complete`, request, { timeout })
       return
     } catch (error) {
       if (attempt + 1 >= COMPLETE_ATTEMPTS || !(error instanceof DaytonaError) || !retryableComplete(error)) throw error
@@ -260,7 +260,7 @@ export async function uploadBuildContext(
   context: BuildContext,
   options: { readonly dockerfile: string; readonly region?: string },
 ): Promise<{ readonly id: string; readonly regionId: string }> {
-  if (options.dockerfile.trim() === '') throw badRequest('dockerfile must be a non-empty path')
+  if (typeof options.dockerfile !== 'string' || options.dockerfile.trim() === '') throw badRequest('dockerfile must be a non-empty path')
   const source = await sourceOf(context)
   try {
     if (source.size === 0) throw badRequest('build context is empty')
@@ -273,6 +273,8 @@ export async function uploadBuildContext(
     }
     const { data: upload } = await http.post<api.BuildContextUpload>('/build-contexts', request)
     if (upload.state === 'ready') return { id: upload.id, regionId: upload.region_id }
+    // Checked before any part is sent: the id becomes a path segment of complete.
+    pathSegment(upload.id, 'build context upload id')
     await putParts(source, upload.parts)
     await complete(http, upload)
     return { id: upload.id, regionId: upload.region_id }

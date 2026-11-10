@@ -12,7 +12,7 @@ import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
-import { Image, ImageBuilder, Snapshot, buildImageRequest, isImageBuilder } from './Image.js'
+import { Image, ImageBuilder, Snapshot, buildImageRequest, imageOptionsBody, isImageBuilder } from './Image.js'
 import { uploadBuildContext } from './contextUpload.js'
 import type { BuildContext } from './contextUpload.js'
 import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
@@ -123,14 +123,14 @@ export class ImagesService {
     if (options.name !== undefined && options.idleExpirySeconds !== undefined) {
       throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
     }
-    const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: options.region })
+    // Checked before the upload, as build() checks them before its request.
+    const imageOptions = imageOptionsBody(options)
+    const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: imageOptions.region_id })
     const request: api.CreateImageRequest = {
+      ...imageOptions,
       // The build must name the region the upload was verified in.
       context_upload_id: upload.id,
       region_id: upload.regionId,
-      ...(options.name === undefined ? {} : { name: options.name }),
-      ...(options.idleExpirySeconds === undefined ? {} : { idle_expiry_seconds: options.idleExpirySeconds }),
-      ...(options.cpuArch === undefined ? {} : { cpu_arch: options.cpuArch }),
     }
     const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
     // Checked before the read: no request ever goes to /images/undefined.

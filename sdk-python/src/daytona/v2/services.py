@@ -52,6 +52,7 @@ from ._core import (
     parse_image,
     parse_snapshot,
     path_segment,
+    region_selector,
     wait_budget_seconds,
 )
 from ._gen.api import MacReservation as MacReservationWire
@@ -209,7 +210,7 @@ class AsyncImagesService:
         name: Optional[str] = None,
         idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
-        cpu_arch: Optional[str] = None,
+        cpu_arch: Optional[CpuArch] = None,
         timeout: Optional[float] = None,
     ) -> Image:
         """Build an image from a Dockerfile inside a build-context tar archive.
@@ -230,17 +231,16 @@ class AsyncImagesService:
                 code="BAD_REQUEST",
                 source="SDK",
             )
+        # Checked before the upload, as build() checks them before its request.
+        body = image_options_body(
+            name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
+        )
         upload_id, upload_region = await upload_build_context(
-            self._transport, context, dockerfile=dockerfile, region=region
+            self._transport, context, dockerfile=dockerfile, region=region_selector(region)
         )
         # The build must name the region the upload was verified in.
-        body: JsonObject = {"context_upload_id": upload_id, "region_id": upload_region}
-        if name is not None:
-            body["name"] = name
-        if idle_expiry_seconds is not None:
-            body["idle_expiry_seconds"] = idle_expiry_seconds
-        if cpu_arch is not None:
-            body["cpu_arch"] = cpu_arch
+        body["context_upload_id"] = upload_id
+        body["region_id"] = upload_region
         created = expect_create_image_resp(
             await self._transport.send(
                 RequestSpec(

@@ -19,12 +19,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Iterator, Mapping, Optional, Sequence, Union
-from urllib.parse import quote
 
 import anyio
 import httpx
 
-from ._core import RequestSpec
+from ._core import RequestSpec, path_segment
 from ._transport import AsyncTransport
 from .errors import (
     BadRequestError,
@@ -268,7 +267,7 @@ async def upload_build_context(
     region: Optional[str],
 ) -> tuple[str, str]:
     """Upload ``context``; return the ID and region of its verified upload."""
-    if dockerfile.strip() == "":
+    if not isinstance(dockerfile, str) or dockerfile.strip() == "":
         raise BadRequestError(
             "dockerfile must be a non-empty path", status_code=400, code="BAD_REQUEST", source="SDK"
         )
@@ -284,6 +283,8 @@ async def upload_build_context(
     region_id = _text(created, "region_id")
     if created.get("state") == "ready":
         return upload_id, region_id
+    # Checked before any part is sent: the id becomes a path segment of complete.
+    path_segment(upload_id, "build context upload id")
     parts = _parts(created)
     if (
         any(part.number != index + 1 or part.bytes <= 0 for index, part in enumerate(parts))
@@ -332,7 +333,7 @@ async def _complete(transport: AsyncTransport, upload_id: str, region_id: str) -
     configured = transport.request_timeout_seconds
     spec = RequestSpec(
         "POST",
-        f"/build-contexts/{quote(upload_id, safe='')}/complete",
+        f"/build-contexts/{path_segment(upload_id, 'build context upload id')}/complete",
         json_body={"region_id": region_id},
         timeout=None if configured == 0 else max(configured, _COMPLETE_TIMEOUT_SECONDS),
     )

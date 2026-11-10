@@ -35,6 +35,7 @@ let rewriteParts: ((parts: Array<Record<string, unknown>>) => Array<Record<strin
 let completeStatuses: number[]
 let completeDelays: number[]
 let createResponse: unknown
+let uploadId: string
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
 const defaultIsNode = contextUploadRuntime.isNode
 const tempDirs: string[] = []
@@ -78,6 +79,7 @@ beforeEach(async () => {
   completeStatuses = []
   completeDelays = []
   createResponse = { id: 'img-ctx', status: 'pending' }
+  uploadId = UPLOAD_ID
   contextUploadRuntime.sleep = async () => {}
   contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
   contextUploadRuntime.isNode = defaultIsNode
@@ -93,7 +95,7 @@ beforeEach(async () => {
         response.end(payload === undefined ? '' : JSON.stringify(payload))
       }
       const upload = (state: string, declared: { dockerfile: string; bytes: number; sha256: string }, parts: unknown[]) => ({
-        id: UPLOAD_ID, state, region_id: 'region-c', dockerfile: declared.dockerfile, bytes: declared.bytes, sha256: declared.sha256, parts,
+        id: uploadId, state, region_id: 'region-c', dockerfile: declared.dockerfile, bytes: declared.bytes, sha256: declared.sha256, parts,
       })
       if (request.method === 'PUT') {
         const part = partNumber(request.url ?? '')
@@ -392,6 +394,39 @@ it('refuses an unknown option before any request', async () => {
     new BadRequestError('BuildFromContextOptions has no option `dockerFile`', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
   )
   expect(seen).toEqual([])
+})
+
+it.each([
+  { option: 'a blank name', options: { name: ' ' }, message: 'name must be a non-empty string' },
+  { option: 'an unknown cpuArch', options: { cpuArch: 'x86' as never }, message: 'cpuArch must be "amd64" or "arm64"' },
+  { option: 'a zero idle expiry', options: { idleExpirySeconds: 0 }, message: 'idleExpirySeconds must be -1 (the maximum) or a positive integer number of seconds' },
+  { option: 'a non-string dockerfile', options: { dockerfile: 42 as never }, message: 'dockerfile must be a non-empty path' },
+])('refuses $option before any request', async ({ options, message }) => {
+  const pending = service().buildFromContext(archive(), options)
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow(message)
+  expect(seen).toEqual([])
+})
+
+it.each([
+  { region: undefined, sent: undefined },
+  { region: 'local', sent: undefined },
+  { region: ' ', sent: undefined },
+  { region: 'eu-1', sent: 'eu-1' },
+])('declares the upload in region $region as build() selects it', async ({ region, sent }) => {
+  await service().buildFromContext(archive(), { region })
+  expect((json('POST', '/build-contexts') as { region_id?: string }).region_id).toBe(sent)
+  // The build always names the region the upload was verified in.
+  expect((json('POST', '/images') as { region_id?: string }).region_id).toBe('region-c')
+})
+
+it.each(['.', '..'])('refuses an upload id of %s before any part is sent', async (id) => {
+  uploadId = id
+  const pending = service().buildFromContext(archive(10_000))
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow('build context upload id')
+  expect(puts()).toEqual([])
+  expect(completes()).toEqual([])
 })
 
 it.each([

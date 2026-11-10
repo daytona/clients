@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import logging
+import re
 import tarfile
 import threading
 import time
@@ -67,6 +68,7 @@ class Peer:
     complete_delays: list[float] = field(default_factory=list)
     # Rewrites the parts a declaration is answered with.
     rewrite_parts: Callable[[list[dict[str, object]]], list[dict[str, object]]] | None = None
+    upload_id: str = UPLOAD_ID
     requests: list[tuple[str, str, dict[str, str], bytes]] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -146,7 +148,7 @@ def storage_peer(**options: object) -> Iterator[Peer]:
 
         def upload(self, state: str, declared: dict[str, object], parts: list[object]) -> dict[str, object]:
             return {
-                "id": UPLOAD_ID,
+                "id": holder[0].upload_id,
                 "state": state,
                 "region_id": "region-c",
                 "dockerfile": declared["dockerfile"],
@@ -401,6 +403,48 @@ async def test_an_unusable_context_is_refused_before_any_request(context: object
         with pytest.raises(BadRequestError, match=message):
             await build(peer, context, False)
         assert peer.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"name": " "}, "name must be a non-empty string"),
+        ({"cpu_arch": "x86"}, 'cpu_arch must be "amd64" or "arm64"'),
+        ({"idle_expiry_seconds": 0}, "idle_expiry_seconds must be"),
+        ({"dockerfile": 42}, "dockerfile must be a non-empty path"),
+    ],
+    ids=["blank-name", "unknown-cpu-arch", "zero-idle-expiry", "non-string-dockerfile"],
+)
+async def test_an_invalid_option_is_refused_before_any_request(
+    sync: bool, options: dict[str, object], message: str
+) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match=re.escape(message)):
+            await build(peer, archive(), sync, **options)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("region", "sent"), [(None, None), ("local", None), (" ", None), ("eu-1", "eu-1")])
+async def test_the_upload_is_declared_in_the_region_build_selects(
+    region: str | None, sent: str | None
+) -> None:
+    with storage_peer() as peer:
+        await build(peer, archive(), False, region=region)
+        assert peer.json("POST", "/build-contexts").get("region_id") == sent
+        # The build always names the region the upload was verified in.
+        assert peer.json("POST", "/images")["region_id"] == "region-c"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("upload_id", [".", ".."])
+async def test_an_upload_id_that_is_a_dot_segment_is_refused_before_any_part(upload_id: str) -> None:
+    with storage_peer(upload_id=upload_id) as peer:
+        with pytest.raises(BadRequestError, match="build context upload id"):
+            await build(peer, archive(10_000), False)
+        assert peer.bodies("PUT", "/") == []
+        assert not [path for _, path, _, _ in peer.requests if path.endswith("/complete")]
 
 
 @pytest.mark.anyio
