@@ -183,3 +183,26 @@ def test_guidance_is_silent_when_member_belongs_to_client_factory_function() -> 
     # Then return provenance does not identify the function as a client receiver.
     assert result.source == source
     assert result.items == ()
+
+
+def test_volume_suggestions_flag_the_server_chosen_type() -> None:
+    # Given 0.x volume calls, which always made disk volumes.
+    source = 'from daytona import Daytona\ndaytona = Daytona()\ndaytona.volume.create("data")\ndaytona.volume.get("data", True)\n'
+    # When requesting guidance.
+    result = guidance(source)
+    # Then both suggestions keep the call without a type and ask for a review of it.
+    notes = {
+        item["suggestion"]["id"]: item["suggestion"]["notes"]
+        for item in result.items
+        if "suggestion" in item
+    }
+    assert notes["client.volume.create"][-1] == (
+        "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, "
+        'so pass type="disk" (with size_gib) to keep a disk volume'
+    )
+    assert notes["client.volume.get"][-1].startswith(
+        "Review the volume type: v0 volumes were always disk volumes"
+    )
+    assert 'type="disk"' in notes["client.volume.get"][-1]
+    assert "# daytona-v2:   differs: Review the volume type" in result.source
+    assert all(item["kind"] == "suggestion" for item in result.items)

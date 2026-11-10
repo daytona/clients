@@ -4155,11 +4155,13 @@
       "notes": {
         "py": [
           "Creates a v2 volume of the server's default type; migrate v0 volume data separately",
-          "Optional type chooses disk or bucket, and size_gib sets a disk volume's capacity in GiB; on AsyncDaytona this call must be awaited"
+          "Optional type chooses disk or bucket, and size_gib sets a disk volume's capacity in GiB; on AsyncDaytona this call must be awaited",
+          "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type=\"disk\" (with size_gib) to keep a disk volume"
         ],
         "ts": [
           "Creates a v2 volume of the server's default type; migrate v0 volume data separately",
-          "Optional type in the options object chooses disk or bucket, and sizeGib sets a disk volume's capacity in GiB"
+          "Optional type in the options object chooses disk or bucket, and sizeGib sets a disk volume's capacity in GiB",
+          "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type: 'disk' (with sizeGib) to keep a disk volume"
         ]
       },
       "anchor": "client-volume",
@@ -4205,11 +4207,13 @@
       "notes": {
         "py": [
           "Looks up a v2 volume by name or ID; create=True creates a volume of the server's default type if missing",
-          "Migrate v0 volume data separately; on AsyncDaytona this call must be awaited"
+          "Migrate v0 volume data separately; on AsyncDaytona this call must be awaited",
+          "Review the volume type: v0 volumes were always disk volumes, create=True lets the server choose, so create it first with volumes.create(name=..., type=\"disk\") to keep a disk volume"
         ],
         "ts": [
           "Looks up a v2 volume by name or ID; create: true creates a volume of the server's default type if missing",
-          "Migrate v0 volume data separately"
+          "Migrate v0 volume data separately",
+          "Review the volume type: v0 volumes were always disk volumes, create: true lets the server choose, so create it first with volumes.create({ name, type: 'disk' }) to keep a disk volume"
         ]
       },
       "anchor": "client-volume",

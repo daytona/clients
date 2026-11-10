@@ -141,18 +141,18 @@ Python: sync and async method names match
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `client.volume.create(...)` | `{client}.v2.volumes.create(name=name)` | differs; Creates a v2 volume of the server's default type; migrate v0 volume data separately; Optional type chooses disk or bucket, and size_gib sets a disk volume's capacity in GiB; on AsyncDaytona this call must be awaited |
+| `client.volume.create(...)` | `{client}.v2.volumes.create(name=name)` | differs; Creates a v2 volume of the server's default type; migrate v0 volume data separately; Optional type chooses disk or bucket, and size_gib sets a disk volume's capacity in GiB; on AsyncDaytona this call must be awaited; Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type="disk" (with size_gib) to keep a disk volume |
 | `client.volume.delete(...)` | `{client}.v2.volumes.delete(volume_id)` | differs; Pass a v2 volume name or ID rather than a v0 Volume object; delete attached sandboxes first; Requests deletion without waiting for completion; on AsyncDaytona this call must be awaited |
-| `client.volume.get(...)` | `{client}.v2.volumes.get(name_or_id, create=create)` | differs; Looks up a v2 volume by name or ID; create=True creates a volume of the server's default type if missing; Migrate v0 volume data separately; on AsyncDaytona this call must be awaited |
+| `client.volume.get(...)` | `{client}.v2.volumes.get(name_or_id, create=create)` | differs; Looks up a v2 volume by name or ID; create=True creates a volume of the server's default type if missing; Migrate v0 volume data separately; on AsyncDaytona this call must be awaited; Review the volume type: v0 volumes were always disk volumes, create=True lets the server choose, so create it first with volumes.create(name=..., type="disk") to keep a disk volume |
 | `client.volume.list(...)` | `{client}.v2.volumes.list()` | differs; Returns one envelope page with items and next_cursor; use volumes.iter() to traverse all pages; On AsyncDaytona this call must be awaited |
 
 ### TypeScript
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `client.volume.create(...)` | `{client}.v2.volumes.create({ name })` | differs; Creates a v2 volume of the server's default type; migrate v0 volume data separately; Optional type in the options object chooses disk or bucket, and sizeGib sets a disk volume's capacity in GiB |
+| `client.volume.create(...)` | `{client}.v2.volumes.create({ name })` | differs; Creates a v2 volume of the server's default type; migrate v0 volume data separately; Optional type in the options object chooses disk or bucket, and sizeGib sets a disk volume's capacity in GiB; Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type: 'disk' (with sizeGib) to keep a disk volume |
 | `client.volume.delete(...)` | `{client}.v2.volumes.delete(volumeId)` | differs; Pass a v2 volume name or ID rather than a v0 Volume object; delete attached sandboxes first; Requests deletion without waiting for completion |
-| `client.volume.get(...)` | `{client}.v2.volumes.get(nameOrId, { create })` | differs; Looks up a v2 volume by name or ID; create: true creates a volume of the server's default type if missing; Migrate v0 volume data separately |
+| `client.volume.get(...)` | `{client}.v2.volumes.get(nameOrId, { create })` | differs; Looks up a v2 volume by name or ID; create: true creates a volume of the server's default type if missing; Migrate v0 volume data separately; Review the volume type: v0 volumes were always disk volumes, create: true lets the server choose, so create it first with volumes.create({ name, type: 'disk' }) to keep a disk volume |
 | `client.volume.list(...)` | `{client}.v2.volumes.list()` | differs; Returns one envelope page with items and nextCursor; use volumes.iter() to traverse all pages |
 
 <a id="client-secret"></a>

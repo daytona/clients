@@ -117,3 +117,21 @@ it.each([
   expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(false);
   expect(report.items).toContainEqual(expect.objectContaining({ kind: 'fixme' }));
 });
+
+it('flags the server-chosen volume type on volume suggestions', async () => {
+  // Given 0.x volume calls, which always made disk volumes.
+  const root = temporaryProject({ ...manifest, 'app.ts': prefix + "await daytona.volume.create('data');\nawait daytona.volume.get('data', true);\n" });
+  // When
+  const result = await invoke(root, ['--suggest-v2', '--json']);
+  // Then both suggestions keep the call without a type and ask for a review of it.
+  const report: Report = JSON.parse(result.output);
+  expect(result.code, result.output).toBe(0);
+  const notes = new Map(report.items.flatMap(item => item.suggestion ? [[item.suggestion.id, item.suggestion.notes]] as const : []));
+  expect(notes.get('client.volume.create')?.at(-1)).toBe(
+    "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type: 'disk' (with sizeGib) to keep a disk volume")
+  expect(notes.get('client.volume.get')?.at(-1)).toMatch(/^Review the volume type: v0 volumes were always disk volumes.*type: 'disk'/)
+  expect(report.items.filter(item => item.kind === 'fixme')).toEqual([])
+  // And the written comments carry it (a --json suggestion run writes nothing).
+  expect((await invoke(root, ['--suggest-v2'])).code).toBe(0)
+  expect(contents(root)['app.ts']).toContain('daytona-v2:   differs: Review the volume type')
+});
