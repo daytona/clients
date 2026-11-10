@@ -1014,16 +1014,39 @@ Live suites, when credentials are available:
 - The 2.x line lives on `main`: branch from it and target pull requests at it.
   The 0.x SDKs and CLI live on `release/v0`.
 - Sign off every commit (`git commit -s`); sign the CLA once (the CLA check runs on every PR). See [CONTRIBUTING.md](CONTRIBUTING.md).
-- E2E runs against the hosted deployment and skips when its secrets are not
-  available (pull requests from forks). A PR that depends on API surface that
-  is not deployed yet has red e2e — that is expected: **keep it a draft until
-  its checks pass**, then mark it ready. Maintainers coordinate deployments;
-  contributors don't need to.
-- Do not merge with failing checks; a red non-draft PR is a bug report.
+- E2E runs against the hosted production deployment and skips when its secrets
+  are not available (pull requests from forks). **A PR that depends on API
+  changes not yet deployed to production fails e2e** (`py SDK E2E` /
+  `ts SDK E2E`) until they ship — that is expected, not a bug to chase. Before
+  debugging a red e2e, check whether the failing calls touch surface the PR
+  adds or changes against the synced contract (`contract/`); if they do, say
+  in the PR description which server change it waits for and move on.
+  Maintainers coordinate deployments; contributors don't need to.
+- Do not merge with failing checks.
 - `CI passed` is the check to require for test results: it waits for every
   other `pull_request` workflow that ran on the PR and fails if any of them did
   (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
   counted automatically; add its name to `ci-passed-rerun.yaml` too.
+
+### After opening a PR — iterate until it is clean
+
+cubic (`cubic-dev-ai`) and Vidoc (`vidoc-agent`) review every PR. An agent
+that opens a PR keeps working it, fix → push → re-check, until all three of
+these hold, and only then reports it as ready:
+
+1. **cubic** — run the `.claude/skills/cubic-loop` skill in **PR mode** until
+   no unresolved cubic threads remain (P3-only counts as clean). A won't-fix
+   gets a reply with the reasoning and is then resolved.
+2. **Vidoc** — its `Vidoc security review` comment (marker
+   `vidoc:scan-result`) reads no issues, or every finding is fixed or answered
+   with a reply explaining why it does not apply. A push triggers a new scan;
+   read the latest one.
+3. **CI** — `CI passed` is green, and every other failing check is fixed or
+   explained. The only failure that may stay red is e2e waiting on an
+   undeployed API change (see above), recorded in the PR description.
+
+If a round makes no progress, or a finding needs a judgement call, stop and
+report what remains and why instead of looping.
 
 ## Architecture decision records — `docs/adr/`
 
