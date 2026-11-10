@@ -384,3 +384,18 @@ func TestSignedTransferErrors_redactTheSignedQuery(t *testing.T) {
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
 }
+
+func TestSignedTransfer_invalidURLIsNotPrinted(t *testing.T) {
+	t.Parallel()
+	bad := "http://proxy.example/files\x7f?signature=SECRET-SIGNATURE"
+	err := transferClient().DownloadFile(context.Background(), bad, filepath.Join(t.TempDir(), "out"))
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
+	uploadFileStubMu.Lock()
+	defer uploadFileStubMu.Unlock()
+	localFile := filepath.Join(t.TempDir(), "upload.txt")
+	require.NoError(t, os.WriteFile(localFile, []byte("x"), 0o644))
+	err = transferClient().UploadFile(context.Background(), bad, localFile, "/tmp/x")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
+}

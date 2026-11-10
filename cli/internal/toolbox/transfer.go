@@ -25,7 +25,7 @@ var openUploadFile = func(path string) (io.ReadCloser, error) {
 func (c *Client) DownloadFile(ctx context.Context, signedURL, localPath string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedURL, nil)
 	if err != nil {
-		return fmt.Errorf("build signed download request: %w", err)
+		return errors.New("build signed download request: invalid pre-signed URL")
 	}
 	c.inner.SetIdentityHeaders(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -107,7 +107,7 @@ func newSignedUploadRequest(ctx context.Context, signedURL, localPath, remotePat
 	bodyReader, contentType, done := startSignedUploadBody(localPath, remotePath, file)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, signedURL, bodyReader)
 	if err != nil {
-		wrapped := fmt.Errorf("build signed upload request: %w", err)
+		wrapped := errors.New("build signed upload request: invalid pre-signed URL")
 		_ = bodyReader.CloseWithError(wrapped)
 		<-done
 		return nil, done, wrapped

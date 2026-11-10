@@ -96,11 +96,15 @@ active, and announces the resulting selection on stderr.`,
 				return err
 			}
 			if a.Config.ActiveProfile == args[0] {
-				if _, ok := a.Config.Profile("default"); ok && args[0] != "default" {
-					_, err := fmt.Fprintln(a.Stderr, "Deleted the active profile; now using profile \"default\".")
+				after, err := a.Store.LoadConfig()
+				if err != nil {
 					return err
 				}
-				_, err := fmt.Fprintln(a.Stderr, "Deleted the active profile; none is active. Use `daytona profile use NAME` or `daytona login`.")
+				if after.ActiveProfile != "" {
+					_, err := fmt.Fprintf(a.Stderr, "Deleted the active profile; now using profile %q.\n", after.ActiveProfile)
+					return err
+				}
+				_, err = fmt.Fprintln(a.Stderr, "Deleted the active profile; none is active. Use `daytona profile use NAME` or `daytona login`.")
 				return err
 			}
 			return nil

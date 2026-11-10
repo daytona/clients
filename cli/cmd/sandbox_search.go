@@ -78,6 +78,12 @@ func newSandboxSearchCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				for _, pair := range flags.labelPairs {
+					key, value, _ := strings.Cut(pair, "=")
+					if pairs[key] != value {
+						return cerr.Usage("label %q is given more than once with different values", key)
+					}
+				}
 				for key, value := range pairs {
 					if previous, ok := labels[key]; ok && previous != value {
 						return cerr.Usage("label %q has conflicting values in --labels and --label", key)

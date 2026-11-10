@@ -24,10 +24,11 @@ func newSandboxStartCommand() *cobra.Command {
 		// State-aware, as the SDKs' start(): a running sandbox needs nothing
 		// and a paused one is resumed.
 		switch resolved.Detail.Status {
-		case "running":
-			return nil, resolved.Detail.Id, "running", nil
 		case "paused":
 			return sandboxJobAction[gen.AsyncOperation](cmd, resolved, "resume")
+		case "running", "queued", "pending", "assigned", "booting":
+			// Running, or on its way there: nothing to send, only the wait.
+			return nil, resolved.Detail.Id, "running", nil
 		}
 		return sandboxJobAction[gen.AsyncOperation](cmd, resolved, "start")
 	})

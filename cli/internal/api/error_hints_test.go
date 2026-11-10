@@ -92,3 +92,10 @@ func TestHintForFeatureNotEnabled(t *testing.T) {
 		t.Fatalf("bare hint = %q", bare)
 	}
 }
+
+func TestHintForImageNotFound_keepsTheImportRemedyOnCreate(t *testing.T) {
+	hint := hintFor(&APIError{Status: http.StatusNotFound, Code: CodeImageNotFound, Method: http.MethodPost, Path: "/sandboxes"})
+	if !strings.Contains(hint, "daytona image create NAME --ref REF") {
+		t.Fatalf("hint %q", hint)
+	}
+}

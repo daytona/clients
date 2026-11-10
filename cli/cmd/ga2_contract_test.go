@@ -481,3 +481,17 @@ func TestSavedCredential_urlComparisonIgnoresSchemeAndHostCase(t *testing.T) {
 	_, errb, code = run(t, d, nil, "whoami", "-o", "json", "--api-url", upper)
 	require.Equal(t, 0, code, errb)
 }
+
+func TestSandboxStart_transientStatusOnlyWaits(t *testing.T) {
+	_, _, err := runCLI(t, []string{"sandbox", "start", ga2SandboxID, "--timeout", "1s"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "booting")},
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+	})
+	require.NoError(t, err)
+}
+
+func TestSandboxSearch_repeatedLabelWithDifferentValuesIsRefused(t *testing.T) {
+	_, _, err := runCLI(t, []string{"sandbox", "search", "--label", "team=a", "--label", "team=b"}, nil)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "more than once with different values")
+}
