@@ -184,6 +184,12 @@ function makeHub(
       earlyProbeMs?: number
       clientPingAfterMs?: number
       subscribeFlushMs?: number
+      staleAfterMinMs?: number
+      staleAfterMs?: number
+      staleAfterSlowMs?: number
+      staleSlowAfterMs?: number
+      staleSweepTickMs?: number
+      staleSweepMaxIds?: number
     }
   } = {},
 ): WaitHub {
@@ -198,6 +204,21 @@ function makeHub(
     api,
     opts.timings,
   )
+}
+
+/** Returns a function that answers every new subscribe of `id` with a
+ *  pre-target snapshot; call it after advancing time. */
+function answerEverySubscribe(ws: FakeWebSocket, id: string): () => void {
+  let seen = 0
+  let version = 0
+  return () => {
+    const n = ws.sentFrames().filter((f) => f['type'] === 'subscribe' && (f['ids'] as Array<{ id: string }>).some((e) => e.id === id)).length
+    if (n > seen) {
+      seen = n
+      version += 1
+      ws.inject({ type: 'snapshot', id, status: 'booting', version })
+    }
+  }
 }
 
 async function drain(iterations = 15): Promise<void> {
@@ -1194,6 +1215,382 @@ describe('WaitHub: reconcile', () => {
     ws.inject({ type: 'event', id: SANDBOX_ID, status: 'running', version: 1 })
     await expect(prom).resolves.toMatchObject({ state: 'started' })
   }, 10_000)
+})
+
+describe('WaitHub: stale sweep', () => {
+  const subscribes = (ws: FakeWebSocket): number => ws.sentFrames().filter((f) => f['type'] === 'subscribe').length
+
+  // The server answers the subscribe with a pre-target snapshot, then sends
+  // only keepalives. Those hold the early probe off, and the reconcile timer
+  // is off; the stale sweep still asks again.
+  test('a waiter that hears no event is re-subscribed while keepalives flow', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const api = mockAxios()
+      const poll = jest.fn(async () => ({ state: 'started' as const, rawState: 'running' }))
+      const hub = makeHub(fc, { api, timings: { staleAfterMs: 100, staleSweepTickMs: 50, noFrameTimeoutMs: 5_000 } })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000, sandboxPollFn: poll })
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      expect(subscribes(ws)).toBe(1)
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'booting', version: 1 })
+      for (let i = 0; i < 15 && subscribes(ws) < 2; i++) {
+        await jest.advanceTimersByTimeAsync(20)
+        ws.inject({ type: 'ping' })
+        await drain()
+      }
+      expect(subscribes(ws)).toBe(2)
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'running', version: 2 })
+      await expect(prom).resolves.toMatchObject({ state: 'started' })
+      expect(poll).not.toHaveBeenCalled()
+      expect((api.get as jest.Mock).mock.calls).toHaveLength(0)
+      await hub.detach()
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  test('the sweep stays within the subscribe rate', () => {
+    // The server takes 2,000 subscribe ids per second per socket.
+    const hub = makeHub(makeFakeConnector())
+    const { staleSweepMaxIds, staleSweepTickMs } = hub as unknown as { staleSweepMaxIds: number; staleSweepTickMs: number }
+    expect(staleSweepMaxIds).toBe(1_500)
+    expect(staleSweepMaxIds / (staleSweepTickMs / 1_000)).toBeLessThanOrEqual(0.75 * 2_000)
+    // A shorter tick sends fewer ids per tick, not more per second.
+    const fast = makeHub(makeFakeConnector(), { timings: { staleSweepTickMs: 300 } }) as unknown as { staleSweepMaxIds: number }
+    expect(fast.staleSweepMaxIds).toBe(450)
+  })
+
+  test('the sweep stops without waiters and a new waiter arms it again', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: { staleAfterMs: 100, staleSweepTickMs: 50, noFrameTimeoutMs: 60_000 } })
+      const ws = fc.prepare()
+      const subscribesFor = (id: string): number =>
+        ws.sentFrames().filter((f) => f['type'] === 'subscribe' && (f['ids'] as Array<{ id: string }>).some((e) => e.id === id)).length
+      const first = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'running', version: 1 })
+      await expect(first).resolves.toMatchObject({ state: 'started' })
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      const sockets = (hub as unknown as { sockets: Map<string, { staleTimer: unknown; heardAt: Map<string, number> }> }).sockets
+      const sock = [...sockets.values()][0]!
+      expect(sock.staleTimer).toBeUndefined()
+      expect(sock.heardAt.size).toBe(0)
+
+      const other = 'xyz-regiona'
+      const second = hub.wait(other, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+      await drain()
+      expect(sock.staleTimer).toBeDefined()
+      for (let i = 0; i < 10 && subscribesFor(other) < 2; i++) {
+        await jest.advanceTimersByTimeAsync(50)
+        await drain()
+      }
+      expect(subscribesFor(other)).toBeGreaterThanOrEqual(2)
+      await hub.detach()
+      await second
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  test('one tick re-subscribes at most its cap, oldest first', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, {
+        timings: { staleAfterMs: 100, staleSweepTickMs: 300, staleSweepMaxIds: 2, noFrameTimeoutMs: 60_000 },
+      })
+      const ws = fc.prepare()
+      const ids = ['a-regiona', 'b-regiona', 'c-regiona']
+      const waits = ids.map((id) => hub.wait(id, startedPredicate(), { timeout: 30_000 }).catch(() => undefined))
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      const subscribed = (from: number): string[] =>
+        ws
+          .sentFrames()
+          .slice(from)
+          .filter((f) => f['type'] === 'subscribe')
+          .flatMap((f) => (f['ids'] as Array<{ id: string }>).map((e) => e.id))
+      expect(new Set(subscribed(0)).size).toBe(3)
+      // `c` is the oldest: the others hear a snapshot later.
+      await jest.advanceTimersByTimeAsync(10)
+      ws.inject({ type: 'snapshot', id: 'a-regiona', status: 'booting', version: 1 })
+      ws.inject({ type: 'snapshot', id: 'b-regiona', status: 'booting', version: 1 })
+      const before = ws.sent.length
+      // One tick (at 300 ms) finds every id stale.
+      await jest.advanceTimersByTimeAsync(240)
+      await drain()
+      expect(subscribed(before)).toEqual(['c-regiona', 'a-regiona'])
+      await hub.detach()
+      await Promise.all(waits)
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  // Threshold = half the wait's age, between the two bounds: with 100 / 400 ms
+  // the re-subscribes come about 100, 200, 400, 800 ms in, then every ~400 ms.
+  test('a young wait is re-subscribed sooner than an old one', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, {
+        timings: { staleAfterMinMs: 100, staleAfterMs: 400, staleSweepTickMs: 10, noFrameTimeoutMs: 60_000 },
+      })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      await drain()
+      // The server answers every subscribe at once (an unanswered one is not
+      // asked again until the ceiling has passed).
+      const answer = answerEverySubscribe(ws, SANDBOX_ID)
+      for (let i = 0; i < 160; i++) {
+        await jest.advanceTimersByTimeAsync(10)
+        await drain(2)
+        answer()
+      }
+      const at = ws.sentFrameRecords().filter(({ frame }) => frame['type'] === 'subscribe').map(({ at }) => at)
+      const gaps = at.slice(1).map((t, i) => t - at[i]!)
+      expect(gaps.length).toBeGreaterThanOrEqual(5)
+      expect(gaps[0]).toBeLessThan(200)
+      expect(Math.max(...gaps)).toBeLessThan(500)
+      expect(gaps.at(-1)).toBeGreaterThan(300)
+      await hub.detach()
+      await prom
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  const sweepTimings = {
+    staleAfterMinMs: 50,
+    staleAfterMs: 100,
+    staleAfterSlowMs: 1_000,
+    staleSlowAfterMs: 500,
+    staleSweepTickMs: 10,
+    noFrameTimeoutMs: 60_000,
+  }
+  const subscribeTimes = (ws: FakeWebSocket, id: string): number[] =>
+    ws
+      .sentFrameRecords()
+      .filter(({ frame }) => frame['type'] === 'subscribe' && (frame['ids'] as Array<{ id: string }>).some((e) => e.id === id))
+      .map(({ at }) => at)
+  const withSweepClock = async (body: () => Promise<void>): Promise<void> => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      await body()
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  }
+  const advance = async (ms: number, each?: () => void): Promise<void> => {
+    for (let t = 0; t < ms; t += 10) {
+      await jest.advanceTimersByTimeAsync(10)
+      await drain(2)
+      each?.()
+    }
+  }
+
+  test('an id whose answer is outstanding is not asked again early', async () => {
+    await withSweepClock(async () => {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: sweepTimings })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      await drain()
+      await advance(600)
+      const at = subscribeTimes(ws, SANDBOX_ID)
+      expect(at.length).toBeGreaterThanOrEqual(3)
+      // Never answered: no repeat before the 100 ms ceiling has passed.
+      expect(Math.min(...at.slice(1).map((t, i) => t - at[i]!))).toBeGreaterThanOrEqual(100)
+      await hub.detach()
+      await prom
+    })
+  })
+
+  test('an id queued for the refused retry is not swept', async () => {
+    await withSweepClock(async () => {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: sweepTimings })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      await drain()
+      await advance(60)
+      expect(subscribeTimes(ws, SANDBOX_ID)).toHaveLength(1)
+      ws.inject({ type: 'error', id: SANDBOX_ID, code: 'LIMIT' })
+      // Only the refused retry (2 s) asks again, not the sweep.
+      await advance(1_900)
+      expect(subscribeTimes(ws, SANDBOX_ID)).toHaveLength(1)
+      await advance(200)
+      expect(subscribeTimes(ws, SANDBOX_ID)).toHaveLength(2)
+      await hub.detach()
+      await prom
+    })
+  })
+
+  test('an old wait is asked again less often', async () => {
+    await withSweepClock(async () => {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: sweepTimings })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      await drain()
+      const answer = answerEverySubscribe(ws, SANDBOX_ID)
+      await advance(2_000, answer)
+      const at = subscribeTimes(ws, SANDBOX_ID)
+      const gaps = at.slice(1).map((t, i) => [at[i]! - at[0]!, t - at[i]!] as const)
+      const young = gaps.filter(([age]) => age < 400).map(([, g]) => g)
+      const old = gaps.filter(([age]) => age > 600).map(([, g]) => g)
+      expect(young.length).toBeGreaterThan(0)
+      expect(Math.max(...young)).toBeLessThan(200)
+      expect(old.length).toBeGreaterThan(0)
+      expect(Math.min(...old)).toBeGreaterThan(800)
+      await hub.detach()
+      await prom
+    })
+  })
+
+  test("another id's events do not slow this wait", async () => {
+    await withSweepClock(async () => {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: { ...sweepTimings, staleSlowAfterMs: 10_000 } })
+      const ws = fc.prepare()
+      const other = hub.wait('other-regiona', startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      await drain()
+      await advance(60)
+      const answer = answerEverySubscribe(ws, SANDBOX_ID)
+      let version = 0
+      // Another id gets an event every 50 ms; this id's event never comes.
+      await advance(1_000, () => {
+        answer()
+        version += 1
+        if (version % 5 === 0) ws.inject({ type: 'event', id: 'other-regiona', status: 'booting', version })
+      })
+      const at = subscribeTimes(ws, SANDBOX_ID)
+      const gaps = at.slice(1).map((t, i) => t - at[i]!)
+      expect(gaps.length).toBeGreaterThanOrEqual(5)
+      expect(Math.max(...gaps)).toBeLessThan(200)
+      await hub.detach()
+      await Promise.all([prom, other])
+    })
+  })
+
+  type SweepSocket = { waitedSince: Map<string, number> }
+  const socketsOf = (hub: WaitHub): Map<string, SweepSocket> =>
+    (hub as unknown as { sockets: Map<string, SweepSocket> }).sockets
+
+  test('a new waiter restarts the young schedule', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    fc.prepare()
+    const first = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await drain()
+    const sock = [...socketsOf(hub).values()][0]!
+    const started = sock.waitedSince.get(SANDBOX_ID)
+    expect(started).toBeDefined()
+    await new Promise((r) => setTimeout(r, 20))
+    const second = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await drain()
+    expect(sock.waitedSince.get(SANDBOX_ID)!).toBeGreaterThan(started!)
+    await hub.detach()
+    await Promise.all([first, second])
+  })
+
+  test('a moved subscription keeps its wait start', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    hub.learn(SANDBOX_ID, 'destination-a')
+    fc.prepare()
+    fc.prepare()
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await drain()
+    const started = socketsOf(hub).get('destination-a')!.waitedSince.get(SANDBOX_ID)
+    expect(started).toBeDefined()
+    hub.learn(SANDBOX_ID, 'destination-b')
+    await drain(30)
+    expect(socketsOf(hub).has('destination-a')).toBe(false)
+    expect(socketsOf(hub).get('destination-b')!.waitedSince.get(SANDBOX_ID)).toBe(started)
+    await hub.detach()
+    await waiting
+  })
+
+  test('a subscription moved onto an idle connected socket is swept', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc, { timings: { staleAfterMinMs: 50, staleAfterMs: 100, staleSweepTickMs: 20, noFrameTimeoutMs: 60_000 } })
+    const subscribesFor = (ws: FakeWebSocket, id: string): number =>
+      ws.sentFrames().filter((f) => f['type'] === 'subscribe' && (f['ids'] as Array<{ id: string }>).some((e) => e.id === id)).length
+    const until = async (cond: () => boolean): Promise<void> => {
+      for (let i = 0; i < 200 && !cond(); i++) await new Promise((r) => setTimeout(r, 5))
+      expect(cond()).toBe(true)
+    }
+    // Connect destination-b for another id and settle it: the socket stays
+    // open with no waiter, so its sweep stops.
+    hub.learn('other-regionb', 'destination-b')
+    const wsB = fc.prepare()
+    const other = hub.wait('other-regionb', startedPredicate(), { timeout: 5_000 })
+    await until(() => subscribesFor(wsB, 'other-regionb') === 1)
+    wsB.inject({ type: 'snapshot', id: 'other-regionb', status: 'running', version: 1 })
+    await other
+    const sockB = (hub as unknown as { sockets: Map<string, { staleTimer: unknown }> }).sockets.get('destination-b')!
+    await until(() => sockB.staleTimer === undefined)
+
+    hub.learn(SANDBOX_ID, 'destination-a')
+    const wsA = fc.prepare()
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await until(() => subscribesFor(wsA, SANDBOX_ID) === 1)
+    hub.learn(SANDBOX_ID, 'destination-b')
+    // The move's own subscribe, then the destination's sweep.
+    await until(() => subscribesFor(wsB, SANDBOX_ID) >= 3)
+    await hub.detach()
+    await waiting
+  })
+
+  test('a waiter that keeps hearing events is not re-subscribed', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: { staleAfterMs: 100, staleSweepTickMs: 50, noFrameTimeoutMs: 5_000 } })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      expect(subscribes(ws)).toBe(1)
+      // Events every 30 ms for over three sweep ticks.
+      for (let version = 1; version < 14; version++) {
+        ws.inject({ type: 'event', id: SANDBOX_ID, status: 'booting', version })
+        await jest.advanceTimersByTimeAsync(30)
+        await drain()
+      }
+      ws.inject({ type: 'event', id: SANDBOX_ID, status: 'running', version: 14 })
+      await expect(prom).resolves.toMatchObject({ state: 'started' })
+      expect(subscribes(ws)).toBe(1)
+      await hub.detach()
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

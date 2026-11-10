@@ -87,6 +87,28 @@ _EARLY_PROBE_S: Final = 10.0
 _CLIENT_PING_AFTER_S: Final = 5.0
 _NO_FRAME_TIMEOUT_S: Final = 70.0
 _SUBSCRIBE_FLUSH_S: Final = 0.05
+#: An id a waiter holds that has heard no state frame (and sent no subscribe)
+#: for its stale threshold is re-subscribed at the next sweep tick; the server
+#: answers with a fresh snapshot. This bounds the delay a missed event adds to
+#: a wait, which neither the early probe (held off while the socket is live,
+#: keepalives included) nor the reconcile timer does. The threshold is half the
+#: wait's age, at least ``_STALE_AFTER_MIN_S`` and at most ``_STALE_AFTER_S``:
+#: a young wait (a create just past the server's hold, most of which start
+#: within a few seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every
+#: ~3 s. The ceiling rises to ``_STALE_AFTER_SLOW_S`` once the wait is older
+#: than ``_STALE_SLOW_AFTER_S``: a long wait on a resting sandbox then costs a
+#: snapshot every ~15 s, not every ~3 s.
+_STALE_AFTER_MIN_S: Final = 1.0
+_STALE_AFTER_S: Final = 3.0
+_STALE_AFTER_SLOW_S: Final = 15.0
+_STALE_SLOW_AFTER_S: Final = 60.0
+_STALE_SWEEP_TICK_S: Final = 1.0
+#: Ids the sweep re-subscribes per 1 s tick at most, about 1,500 per second per
+#: socket (one client and region): under the server's per-socket subscribe
+#: rate (2,000 ids/s) even with the tick's jitter, leaving room for fresh
+#: subscribes and refused retries. Past it the oldest go first and the rest
+#: wait a tick.
+_STALE_SWEEP_IDS_PER_S: Final = 1_500
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -316,9 +338,15 @@ class _SocketState:
     permanent_fallback: bool = False
     task: Optional[asyncio.Task[None]] = None
     reconcile_task: Optional[asyncio.Task[None]] = None
+    stale_task: Optional[asyncio.Task[None]] = None
     ws: Optional[_WsConn] = None
     versions: Dict[str, int] = field(default_factory=dict)
     snapshot_pending: Dict[str, int] = field(default_factory=dict)
+    # When each subscribed id was last sent a subscribe or given a state frame.
+    heard_at: Dict[str, float] = field(default_factory=dict)
+    # When the current wait on each subscribed id began (its stale threshold
+    # grows with the wait's age).
+    waited_since: Dict[str, float] = field(default_factory=dict)
     # The last decoded state per subscribed id: a new waiter on an id the
     # socket already holds is judged against it at once (a sandbox resting in
     # its target state emits no further event to wait for).
@@ -412,6 +440,13 @@ class WaitHub:
         self._early_probe_s: float = _EARLY_PROBE_S
         self._client_ping_after_s: float = _CLIENT_PING_AFTER_S
         self._subscribe_flush_s: float = _SUBSCRIBE_FLUSH_S
+        self._stale_after_min_s: float = _STALE_AFTER_MIN_S
+        self._stale_after_s: float = _STALE_AFTER_S
+        self._stale_after_slow_s: float = _STALE_AFTER_SLOW_S
+        self._stale_slow_after_s: float = _STALE_SLOW_AFTER_S
+        self._stale_sweep_tick_s: float = _STALE_SWEEP_TICK_S
+        # Unset: derived from the tick (`_stale_sweep_cap`).
+        self._stale_sweep_max_ids: Optional[int] = None
 
         # The hub's own API transport (the SDK's, not a bare HTTP
         # client): the ticket mint and the long-poll fallback carry the same
@@ -450,6 +485,8 @@ class WaitHub:
                 sock.task.cancel()
             if sock.reconcile_task is not None and not sock.reconcile_task.done():
                 sock.reconcile_task.cancel()
+            if sock.stale_task is not None and not sock.stale_task.done():
+                sock.stale_task.cancel()
             if sock.refused_retry_task is not None and not sock.refused_retry_task.done():
                 sock.refused_retry_task.cancel()
             if sock.subscribe_flush_task is not None and not sock.subscribe_flush_task.done():
@@ -470,17 +507,20 @@ class WaitHub:
     def _discard_closed_loop_resources(self) -> None:
         self._closed = True
         for sock in self._sockets.values():
-            for task in (sock.task, sock.reconcile_task, sock.refused_retry_task):
+            for task in (sock.task, sock.reconcile_task, sock.stale_task, sock.refused_retry_task):
                 if task is not None and not task.done():
                     task.cancel()
             sock.task = None
             sock.reconcile_task = None
+            sock.stale_task = None
             sock.refused_retry_task = None
             if sock.subscribe_flush_task is not None and not sock.subscribe_flush_task.done():
                 sock.subscribe_flush_task.cancel()
             sock.subscribe_flush_task = None
             sock.ws = None
             sock.subscriptions.clear()
+            sock.heard_at.clear()
+            sock.waited_since.clear()
             sock.states.clear()
             sock.raw_states.clear()
             sock.versions.clear()
@@ -579,6 +619,12 @@ class WaitHub:
             pending_version = source.snapshot_pending.get(sandbox_id)
             if pending_version is not None:
                 destination.snapshot_pending[sandbox_id] = pending_version
+            waited_since = source.waited_since.get(sandbox_id)
+            if waited_since is not None:
+                # The newer start of the two, as a new waiter would set it.
+                destination.waited_since[sandbox_id] = max(
+                    waited_since, destination.waited_since.get(sandbox_id, waited_since)
+                )
             if preserve_state:
                 source_state = source.states.get(sandbox_id)
                 if source_state is not None:
@@ -590,6 +636,8 @@ class WaitHub:
                 destination.refused_retry_ids.add(sandbox_id)
 
         source.subscriptions.clear()
+        source.heard_at.clear()
+        source.waited_since.clear()
         source.states.clear()
         source.raw_states.clear()
         source.snapshot_pending.clear()
@@ -601,11 +649,16 @@ class WaitHub:
             source.task.cancel()
         if source.reconcile_task is not None and not source.reconcile_task.done():
             source.reconcile_task.cancel()
+        if source.stale_task is not None and not source.stale_task.done():
+            source.stale_task.cancel()
         del self._sockets[source_key]
         destination.wake.set()
         self._ensure_socket_task(destination)
         if destination.ws is not None and moved_ids:
             asyncio.get_running_loop().create_task(self._send_subscribe_ids(destination, moved_ids))
+        if destination.ws is not None and self._has_any_waiter_for(destination):
+            # A connected destination with no waiter until now runs no sweep.
+            self._ensure_stale_sweep(destination)
         if destination.refused_retry_ids and (
             destination.refused_retry_task is None or destination.refused_retry_task.done()
         ):
@@ -724,6 +777,9 @@ class WaitHub:
                     sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
                 )
         waiter.registered_at = _clock.monotonic()
+        # The newest waiter's start: a fresh wait (a start() next to an old
+        # background wait, say) gets the young schedule, not the old wait's.
+        sock.waited_since[sandbox_id] = waiter.registered_at
 
         if sandbox_id not in sock.subscriptions:
             sock.subscriptions.add(sandbox_id)
@@ -740,6 +796,8 @@ class WaitHub:
 
         self._ensure_socket_task(sock)
         sock.wake.set()
+        if sock.ws is not None:
+            self._ensure_stale_sweep(sock)
 
         try:
             rem = _remaining()
@@ -747,7 +805,7 @@ class WaitHub:
                 if rem <= 0:
                     self._cancel_waiter_probe(waiter)
                     _remove_waiter(self._waiters, waiter)
-                    self._maybe_unsubscribe(sock, sandbox_id)
+                    self._maybe_unsubscribe_for_id(sandbox_id)
                     raise RequestTimeoutError(
                         f"sandbox {sandbox_id} did not reach the requested state before timeout",
                         status_code=408,
@@ -759,7 +817,9 @@ class WaitHub:
         except asyncio.TimeoutError:
             self._cancel_waiter_probe(waiter)
             _remove_waiter(self._waiters, waiter)
-            self._maybe_unsubscribe(sock, sandbox_id)
+            # The socket that holds the id now: a learned endpoint may have
+            # moved it since this wait registered.
+            self._maybe_unsubscribe_for_id(sandbox_id)
             raise RequestTimeoutError(
                 f"sandbox {sandbox_id} did not reach the requested state before timeout",
                 status_code=408,
@@ -773,7 +833,7 @@ class WaitHub:
         except asyncio.CancelledError:
             self._cancel_waiter_probe(waiter)
             _remove_waiter(self._waiters, waiter)
-            self._maybe_unsubscribe(sock, sandbox_id)
+            self._maybe_unsubscribe_for_id(sandbox_id)
             raise
 
     # ------------------------------------------------------------------
@@ -1066,6 +1126,7 @@ class WaitHub:
         if ri and ri > 0 and (sock.reconcile_task is None or sock.reconcile_task.done()):
             loop = asyncio.get_event_loop()
             sock.reconcile_task = loop.create_task(self._reconcile_loop(sock))
+        self._ensure_stale_sweep(sock)
 
         try:
             await self._resubscribe_all(sock)
@@ -1076,6 +1137,8 @@ class WaitHub:
             self._clear_pending_subscribe_ids(sock)
             if sock.reconcile_task is not None and not sock.reconcile_task.done():
                 sock.reconcile_task.cancel()
+            if sock.stale_task is not None and not sock.stale_task.done():
+                sock.stale_task.cancel()
             with contextlib.suppress(Exception):
                 await ws.close()
 
@@ -1208,6 +1271,7 @@ class WaitHub:
                 if sid not in sock.subscriptions:
                     continue
                 sock.versions[sid] = version
+                sock.heard_at[sid] = _clock.monotonic()
                 raw = str(frame.get("status") or "")
                 decoded = sandbox_state(raw)
                 sock.states[sid] = decoded
@@ -1472,8 +1536,10 @@ class WaitHub:
     async def _send_subscribe_ids(self, sock: _SocketState, ids: List[str]) -> None:
         if sock.ws is None:
             return
+        now = _clock.monotonic()
         for sandbox_id in ids:
             sock.snapshot_pending[sandbox_id] = sock.versions.get(sandbox_id, -1)
+            sock.heard_at[sandbox_id] = now
         for chunk in _chunks(ids, _MAX_IDS_PER_FRAME):
             frame = {
                 "type": "subscribe",
@@ -1510,6 +1576,8 @@ class WaitHub:
 
     def _release_subscription(self, sock: _SocketState, sandbox_id: str) -> None:
         sock.subscriptions.discard(sandbox_id)
+        sock.heard_at.pop(sandbox_id, None)
+        sock.waited_since.pop(sandbox_id, None)
         sock.states.pop(sandbox_id, None)
         sock.raw_states.pop(sandbox_id, None)
         sock.versions.pop(sandbox_id, None)
@@ -1531,6 +1599,81 @@ class WaitHub:
             if sock.ws is not None:
                 await self._resubscribe_all(sock)
 
+    def _ensure_stale_sweep(self, sock: _SocketState) -> None:
+        """Run the stale sweep on a connected socket; it stops by itself once
+        the socket has no waiter, and a new waiter starts it again."""
+        if self._stale_sweep_tick_s > 0 and (sock.stale_task is None or sock.stale_task.done()):
+            sock.stale_task = asyncio.get_running_loop().create_task(self._stale_resubscribe_loop(sock))
+
+    def _stale_sweep_cap(self) -> int:
+        """Ids one tick re-subscribes at most: the rate cap over this tick."""
+        if self._stale_sweep_max_ids is not None:
+            return self._stale_sweep_max_ids
+        return max(1, int(_STALE_SWEEP_IDS_PER_S * self._stale_sweep_tick_s))
+
+    def _is_stale(self, sock: _SocketState, sandbox_id: str, now: float) -> bool:
+        """Whether ``sandbox_id`` should be asked again: it has heard nothing
+        for its stale threshold (half its wait's age, ``_stale_after_min_s``
+        up to the ceiling; the ceiling when the wait's start is unknown), and
+        no answer to a recent subscribe of it is still outstanding.
+
+        The ceiling is ``_stale_after_s``, or ``_stale_after_slow_s`` once the
+        wait is older than ``_stale_slow_after_s``. It is per id: one id's
+        events say nothing about whether another id's event went missing."""
+        heard = sock.heard_at.get(sandbox_id, 0.0)
+        if sandbox_id in sock.snapshot_pending and heard > now - self._stale_after_s:
+            # Its subscribe went out recently and the answer is still due:
+            # asking again would only add load where the server is slowest.
+            return False
+        since = sock.waited_since.get(sandbox_id)
+        high = (
+            self._stale_after_slow_s
+            if since is not None and now - since > self._stale_slow_after_s
+            else self._stale_after_s
+        )
+        threshold = high if since is None else min(high, max(self._stale_after_min_s, (now - since) / 2))
+        return heard <= now - threshold
+
+    async def _stale_resubscribe_loop(self, sock: _SocketState) -> None:
+        """Re-subscribe every waited-on id that has heard nothing for its
+        stale threshold (:meth:`_is_stale`).
+
+        A wait whose transition event never arrives would otherwise end only
+        at the reconcile timer. The frame path pays one dict store; a tick
+        scans the subscriptions and sends nothing while every id is fresh.
+        """
+        while not self._closed:
+            await _sleep(_jittered(self._stale_sweep_tick_s))
+            if not self._has_any_waiter_for(sock):
+                return
+            if sock.ws is None:
+                continue
+            heard_at = sock.heard_at
+            now = _clock.monotonic()
+            if not any(self._is_stale(sock, sid, now) for sid in sock.subscriptions):
+                continue
+            # Under the flush lock, so a flush's unsubscribe of an id that
+            # leaves meanwhile cannot overtake this subscribe of it.
+            async with sock.flush_send_lock:
+                pending = sock.pending_subscribe_ids
+                refused = sock.refused_retry_ids
+                # Ids already queued for a subscribe, or for the refused
+                # (LIMIT) retry, are asked again by those paths.
+                stale = [
+                    sid
+                    for sid in sock.subscriptions
+                    if sid not in pending
+                    and sid not in refused
+                    and self._is_stale(sock, sid, now)
+                    and self._waiters.get(sid)
+                ]
+                max_ids = self._stale_sweep_cap()
+                if len(stale) > max_ids:
+                    stale.sort(key=lambda sid: heard_at.get(sid, 0.0))
+                    del stale[max_ids:]
+                if stale and sock.ws is not None:
+                    await self._send_subscribe_ids(sock, stale)
+
     # ------------------------------------------------------------------
     # Fallback helpers
     # ------------------------------------------------------------------
@@ -1544,6 +1687,8 @@ class WaitHub:
                 if not w.future.done():
                     w.future.set_exception(err)
         sock.subscriptions.clear()
+        sock.heard_at.clear()
+        sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
@@ -1560,6 +1705,8 @@ class WaitHub:
                 if not w.future.done():
                     w.future.set_exception(err)
         sock.subscriptions.clear()
+        sock.heard_at.clear()
+        sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
@@ -1579,6 +1726,8 @@ class WaitHub:
                 if not w.future.done():
                     w.future.set_exception(error)
         sock.subscriptions.clear()
+        sock.heard_at.clear()
+        sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
