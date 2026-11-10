@@ -139,6 +139,7 @@ import {
   SnapshotNotFoundError,
   statusForCode,
   ClientTimeoutError,
+  ClientClosedError,
   UnsupportedOperationError,
   SandboxCreateConnectionError,
   SandboxCreateRequestTimeoutError,
@@ -1972,15 +1973,15 @@ describe('V2 model', () => {
     expect(put).not.toHaveBeenCalled()
   })
 
-  it('sets labels without fetching metadata and observes stopped after posting stop', async () => {
+  it('sets labels that carry a name without fetching metadata and observes stopped after posting stop', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, 'lazy')
     const api = clientInstance(client)
     const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'lazy', status: 'stopped', class: 'macos', persistent: true, name: 'lazy', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-    const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { labels: { team: 'sdk' } } })
+    const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { labels: { team: 'sdk', name: 'lazy' } } })
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
 
-    await sandbox.setLabels({ team: 'sdk' })
+    await sandbox.setLabels({ team: 'sdk', name: 'lazy' })
     expect(get).not.toHaveBeenCalled()
     expect(put.mock.calls[0]?.[0]).toBe('/sandboxes/lazy/labels')
 
@@ -1992,15 +1993,15 @@ describe('V2 model', () => {
   it('replaces labels through the sandbox labels route and updates local state', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const sandbox = lazySandbox(client, { sandboxId: 'mac', sandboxClass: 'macos' })
-    const put = jest.spyOn(clientInstance(client), 'put').mockResolvedValue({ data: { labels: { team: 'sdk' } } })
+    const put = jest.spyOn(clientInstance(client), 'put').mockResolvedValue({ data: { labels: { team: 'sdk', name: 'mac' } } })
 
-    await expect(sandbox.setLabels({ team: 'sdk' })).resolves.toEqual({ team: 'sdk' })
+    await expect(sandbox.setLabels({ team: 'sdk', name: 'mac' })).resolves.toEqual({ team: 'sdk', name: 'mac' })
     expect(put.mock.calls[0]).toEqual([
       '/sandboxes/mac/labels',
-      { labels: { team: 'sdk' } },
+      { labels: { team: 'sdk', name: 'mac' } },
       expect.objectContaining({ daytona: { routeTemplate: '/sandboxes/{id}/labels', sandboxId: 'mac' } }),
     ])
-    expect(sandbox.labels).toEqual({ team: 'sdk' })
+    expect(sandbox.labels).toEqual({ team: 'sdk', name: 'mac' })
   })
 
   it('preserves __proto__ labels and env keys through request and response maps', async () => {
@@ -2008,6 +2009,7 @@ describe('V2 model', () => {
     const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'linux' }, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
     const labelPayload = Object.create(null) as Record<string, string>
     labelPayload['__proto__'] = 'label-value'
+    labelPayload.name = 'sbx'
     const labelResponse = Object.create(null) as Record<string, string>
     labelResponse['__proto__'] = 'label-value'
     const envPayload = Object.create(null) as Record<string, string>
@@ -3746,29 +3748,33 @@ describe('creation shape', () => {
     expect(config.headers['Idempotency-Key']).toBe('name:example-user')
   })
 
-  it('an explicit idempotencyKey wins over the name, and a blank name derives nothing', async () => {
+  it('an explicit idempotencyKey wins over the name', async () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', wait_cap_seconds: 3, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.create('py312', { name: 'example-user', idempotencyKey: 'my-key' })
-    let [, body, config] = post.mock.calls[0] as [string, Record<string, unknown>, { headers: Record<string, string> }]
+    const [, body, config] = post.mock.calls[0] as [string, Record<string, unknown>, { headers: Record<string, string> }]
     expect(config.headers['Idempotency-Key']).toBe('my-key')
     expect(body.labels).toEqual({ name: 'example-user' }) // the label is stamped regardless
 
-    // A blank name is no name (the API generates one): no label, random key.
-    await client.create('py312', { name: '   ' })
-    ;[, body, config] = post.mock.calls[1] as [string, Record<string, unknown>, { headers: Record<string, string> }]
-    expect(body.labels).toBeUndefined()
-    // A random per-call key (its exact shape depends on the runtime's Web
-    // Crypto — Node 18 under jest has no randomUUID), never a derived one.
-    const blankKey = config.headers['Idempotency-Key']
-    expect(blankKey).toBeTruthy()
-    expect(blankKey.startsWith('name:')).toBe(false)
-
     await client.create('py312')
-    const [, , third] = post.mock.calls[2] as [string, Record<string, unknown>, { headers: Record<string, string> }]
-    expect(third.headers['Idempotency-Key'].startsWith('name:')).toBe(false)
-    expect(third.headers['Idempotency-Key']).not.toBe(blankKey)
+    const [, , second] = post.mock.calls[1] as [string, Record<string, unknown>, { headers: Record<string, string> }]
+    expect(second.headers['Idempotency-Key'].startsWith('name:')).toBe(false)
+  })
+
+  // Shared with the Python SDK's test_core.py: a blank name is refused before
+  // any request on every create, as fork() and findByName() refuse one.
+  it.each(['', '   ', '\t\n'])('refuses the blank create name %p before any request', async (name) => {
+    const client = newClient()
+    const post = jest.spyOn(clientInstance(client), 'post')
+    for (const call of [
+      () => client.create('py312', { name }),
+      () => client.createFromSnapshot('snap', { name }),
+      () => client.createMacos('macos-15', { name }),
+    ]) {
+      await expect(call()).rejects.toMatchObject({ message: 'name must be a non-empty string when given', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('a named create refuses a contradicting name label', async () => {
@@ -4905,7 +4911,7 @@ describe('toolbox service request shaping', () => {
     })
     const fs = new FileSystemService(INTERNAL, transport.object)
 
-    const result = await fs.readMany(['bin.dat'])
+    const result = await fs.readMany(['/bin.dat'])
 
     expect(result.errors).toEqual([])
     expect(Buffer.from(result.files['bin.dat'] ?? new Uint8Array()).equals(payload)).toBe(true)
@@ -4936,11 +4942,11 @@ describe('toolbox service request shaping', () => {
     })
     const fs = new FileSystemService(INTERNAL, transport.object)
 
-    const result = await fs.readMany(['dir/ü.txt', '/nope.txt'])
+    const result = await fs.readMany(['/dir/ü.txt', '/nope.txt'])
 
     expect(transport.postRaw.mock.calls[0]).toEqual([
       '/files/bulk-download',
-      { paths: ['dir/ü.txt', '/nope.txt'] },
+      { paths: ['/dir/ü.txt', '/nope.txt'] },
       { responseType: 'arraybuffer', timeout: 0, daytona: { transfer: true } },
     ])
     const downloaded = result.files['dir/ü.txt']
@@ -4984,7 +4990,7 @@ describe('toolbox service request shaping', () => {
     const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     const handle = await process.start('echo hi', { name: 'job', env: { A: 'B' }, executionTimeoutSeconds: 0.005 })
-    expect(transport.post.mock.calls[0]).toEqual(['/processes', { shellCommand: 'echo hi', name: 'job', env: { A: 'B' }, timeoutMs: 5 }])
+    expect(transport.post.mock.calls[0]).toEqual(['/processes', { shellCommand: 'echo hi', name: 'job', env: { A: 'B' }, timeoutMs: 5, keepLogs: 'on_exit_ttl' }])
 
     await handle.kill({ signal: 'TERM', escalateAfterSeconds: 0.1, escalateTo: 'KILL' })
     expect(transport.post.mock.calls[1]).toEqual(['/processes/proc/signals', { signal: 'SIGTERM', escalateAfterMs: 100, escalateTo: 'SIGKILL' }])
@@ -8742,8 +8748,8 @@ describe('toolbox service request shaping', () => {
 
     // set with ["*"] sends allowed_domains: ["*"]
     put.mockResolvedValueOnce({ data: { name: 'WIDE', allowed_domains: ['*'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
-    await client.secrets.set('WIDE', 'val', { allowedDomains: ['*'] })
-    expect(put).toHaveBeenLastCalledWith('/secrets/WIDE', { value: 'val', allowed_domains: ['*'] }, undefined)
+    await client.secrets.set('WIDE', 'val', { allowedDomains: ['*'], description: '' })
+    expect(put).toHaveBeenLastCalledWith('/secrets/WIDE', { value: 'val', allowed_domains: ['*'], description: '' }, undefined)
 
     // @ts-expect-error options is required — allowedDomains must be provided
     const _setRequiresScope = () => client.secrets.set('X', 'v')
@@ -8891,16 +8897,14 @@ describe('toolbox service request shaping', () => {
     expect((client as unknown as { hub?: WaitHub }).hub).toBeUndefined()
   })
 
-  it('a closed client does not attach a new hub and waits by polling', async () => {
+  it('refuses attaching a new hub when the client is closed', async () => {
+    // Given a client whose hub has been closed,
     const client = new Daytona({ apiKey: 'key' })
     lazySandbox(client, 'seed')
     await client.close()
-    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-    const sandbox = lazySandbox(client, 'sbx')
-
-    expect((sandbox as unknown as { _hub?: WaitHub })._hub).toBeUndefined()
-    await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.05 })).resolves.toBe(sandbox)
-    expect(get).toHaveBeenCalled()
+    // When constructing another handle that would attach a hub,
+    // then report the closed client instead of silently enabling polling.
+    expect(() => lazySandbox(client, 'sbx')).toThrow(ClientClosedError)
   })
 
   it('resolveWithHub replaces a closed sandbox hub', async () => {
@@ -12653,14 +12657,14 @@ describe('toolbox surface', () => {
   })
 
   // Shared with the Python SDK's test_toolbox_surface.py: terminal cols / rows
-  // are int32 values of at least 1, on pty.start() and resize().
-  it.each([0, -1, 1.5, true, 2 ** 31, '80'].flatMap((bad) => (['cols', 'rows'] as const).map((field) => [field, bad] as const)))(
+  // are integers from 1 to 65535, on pty.start() and resize().
+  it.each([0, -1, 1.5, true, 65536, 2 ** 31, '80'].flatMap((bad) => (['cols', 'rows'] as const).map((field) => [field, bad] as const)))(
     'refuses terminal %s %p before any request',
     async (field, bad) => {
       const transport = transportStub()
       const process = new ProcessService(INTERNAL, transport.object, 'sbx')
       const sizes = { cols: 80, rows: 24, [field]: bad } as unknown as { cols: number; rows: number }
-      const message = `${field} must be an integer between 1 and 2147483647`
+      const message = `${field} must be an integer between 1 and 65535`
       await expect(new PtyService(INTERNAL, process, transport.object).start(undefined, { terminal: sizes })).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
       const handle = process.connect({ sandboxId: 'sbx', processId: 'p', kind: 'pty' })
       await expect(handle.resize(sizes.cols, sizes.rows)).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
@@ -12809,9 +12813,67 @@ describe('toolbox surface', () => {
     await pty.start(undefined, { user: 'dev', shell: 'zsh', login: true, executionTimeoutSeconds: 2.5 })
     await pty.start('top', { terminal: { cols: 120, rows: 40 } })
     expect(transport.post.mock.calls.map((call) => call[1])).toEqual([
-      { kind: 'pty', user: 'dev', shell: 'zsh', login: true, stdin: 'open', timeoutMs: 2500, keepLogs: 'until_cleanup', terminal: { cols: 80, rows: 24 } },
-      { kind: 'pty', shellCommand: 'top', stdin: 'open', keepLogs: 'until_cleanup', terminal: { cols: 120, rows: 40 } },
+      { kind: 'pty', user: 'dev', shell: 'zsh', login: true, env: { TERM: 'xterm-256color' }, stdin: 'open', timeoutMs: 2500, keepLogs: 'until_cleanup', terminal: { cols: 80, rows: 24 } },
+      { kind: 'pty', shellCommand: 'top', env: { TERM: 'xterm-256color' }, stdin: 'open', keepLogs: 'until_cleanup', terminal: { cols: 120, rows: 40 } },
     ])
+  })
+
+  it('sends terminal dimensions up to 65535', async () => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'pty' }))
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await new PtyService(INTERNAL, process, transport.object).start(undefined, { terminal: { cols: 1, rows: 65535 } })
+    expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ terminal: { cols: 1, rows: 65535 } })
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: a PTY gets
+  // TERM=xterm-256color unless the caller's env sets TERM.
+  it.each([
+    [{ A: '1' }, { TERM: 'xterm-256color', A: '1' }],
+    [{ TERM: 'linux' }, { TERM: 'linux' }],
+  ] as const)('sends the PTY env %p as %p', async (env, expected) => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'pty' }))
+    await new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object).start(undefined, { env })
+    expect((transport.post.mock.calls[0]?.[1] as { env: unknown }).env).toEqual(expected)
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: executionTimeoutSeconds
+  // 0 means no deadline, so timeoutMs is omitted (as above the timer maximum).
+  it.each([0, 1e9])('sends no timeoutMs for executionTimeoutSeconds %p', async (executionTimeoutSeconds) => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'exec' }))
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await process.start('sleep 1', { executionTimeoutSeconds })
+    await new PtyService(INTERNAL, process, transport.object).start(undefined, { executionTimeoutSeconds })
+    await process.connectSession('shell-1').start('sleep 1', { executionTimeoutSeconds })
+    for (const call of transport.post.mock.calls) expect(call[1]).not.toHaveProperty('timeoutMs')
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: run() returns no
+  // handle to write to, so stdin 'open' is refused before any request.
+  it('refuses stdin open on the blocking runs before any request', async () => {
+    const transport = transportStub()
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    const calls = [
+      () => process.run('cat', { stdin: 'open' } as never),
+      () => process.connectSession('shell-1').run('cat', { stdin: 'open' } as never),
+    ]
+    for (const call of calls) {
+      await expect(call()).rejects.toMatchObject({ message: expect.stringContaining("stdin 'open' is not supported by run()"), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
+  // Shared with the Python SDK's test_toolbox_surface.py: start() sends one
+  // explicit keepLogs default, whether or not the process is named.
+  it.each([undefined, 'job'])('sends keepLogs on_exit_ttl by default on start() (name %p)', async (name) => {
+    const transport = transportStub()
+    transport.post.mockResolvedValue(createdWire({ id: 'p', kind: 'exec' }))
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await process.start('true', name === undefined ? {} : { name })
+    await process.connectSession('shell-1').start('true', name === undefined ? {} : { name })
+    for (const call of transport.post.mock.calls) expect(call[1]).toMatchObject({ keepLogs: 'on_exit_ttl' })
   })
 
   it('needs the language to run in a context named by id', async () => {
@@ -13326,7 +13388,7 @@ describe('toolbox surface', () => {
     expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
     transport.post.mockResolvedValueOnce(createdWire({ id: 'p' }))
     await new ProcessService(INTERNAL, transport.object, 'sbx').start('x', { executionTimeoutSeconds: 10 ** 9 })
-    expect(transport.post.mock.calls[0]?.[1]).toEqual({ shellCommand: 'x' })
+    expect(transport.post.mock.calls[0]?.[1]).toEqual({ shellCommand: 'x', keepLogs: 'on_exit_ttl' })
     const git = new GitService(INTERNAL, transport.object)
     await git.pull('/repo', { timeoutSeconds: 10 ** 9 })
     expect(transport.post.mock.calls[1]?.[2]).toEqual({ timeout: 0 })

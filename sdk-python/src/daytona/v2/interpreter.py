@@ -251,6 +251,7 @@ class AsyncInterpreterService:
     def connect_context(
         self,
         context: str | AsyncInterpreterContext | InterpreterContextJSON,
+        /,
         *,
         language: str | None = None,
     ) -> AsyncInterpreterContext:
@@ -282,7 +283,9 @@ class AsyncInterpreterService:
             contexts.append(self._bind_context(context_id, kernel))
         return contexts
 
-    async def delete_context(self, context: AsyncInterpreterContext | InterpreterContextJSON | str) -> None:
+    async def delete_context(
+        self, context: AsyncInterpreterContext | InterpreterContextJSON | str, /
+    ) -> None:
         if isinstance(context, (AsyncInterpreterContext, Mapping)):
             context_id, _ = self._context_identity(context)
         else:
@@ -304,6 +307,7 @@ class AsyncInterpreterService:
     async def run(
         self,
         code: str,
+        /,
         *,
         language: Optional[str] = None,
         context: str | AsyncInterpreterContext | InterpreterContextJSON | None = None,

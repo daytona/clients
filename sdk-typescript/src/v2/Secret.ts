@@ -14,6 +14,7 @@
  * Uses the `/secrets` routes, scoped to the API key's project.
  */
 
+import { NotFoundError } from './errors/DaytonaError.js'
 import { pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
@@ -43,6 +44,10 @@ export interface SetSecretOptions {
    *  or `["*"]` for any verified host. `"*"` lets the value reach any HTTPS
    *  host, including one a compromised sandbox controls. */
   readonly allowedDomains: readonly string[]
+  /**
+   * Omitted (or `null`) keeps the stored description of an existing secret,
+   * read first with `get()` (no read with `ifNotExists`); `''` clears it.
+   */
   readonly description?: string
   readonly ifNotExists?: boolean
 }
@@ -107,7 +112,7 @@ export class SecretsService {
     return mapSecret(data)
   }
 
-  /** Creates or updates a secret's value + metadata. */
+  /** Creates or updates a secret's value + metadata. The value must not be empty. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
     const path = `/secrets/${pathSegment(name, 'name')}`
     // The options are required: an omitted value is refused like any non-object.
@@ -116,6 +121,7 @@ export class SecretsService {
     // The name, the options object and its keys, then the value and each option.
     const given: unknown = value
     if (typeof given !== 'string') throw badRequest('value must be a string')
+    if (given === '') throw badRequest('value must not be empty')
     const description: unknown = options.description
     if (description !== undefined && description !== null && typeof description !== 'string') throw badRequest('description must be a string')
     const ifNotExists: unknown = options.ifNotExists
@@ -128,10 +134,21 @@ export class SecretsService {
     // The API rejects an empty list (`['*']` is any verified host), as in Python.
     if (domains.length === 0) throw badRequest('allowedDomains must not be empty')
     const body: api.PutSecretRequest = { value, allowed_domains: domains }
-    if (typeof description === 'string') body.description = description
+    // The API replaces the whole secret: an omitted description keeps the stored one.
+    const kept = typeof description === 'string' || ifNotExists === true ? description : await this.storedDescription(name)
+    if (typeof kept === 'string') body.description = kept
     const config = ifNotExists === true ? { headers: { 'If-None-Match': '*' } } : undefined
     const { data } = await this.api.put<api.Secret>(path, body, config)
     return mapSecret(data)
+  }
+
+  private async storedDescription(name: string): Promise<string | undefined> {
+    try {
+      return (await this.get(name)).description
+    } catch (error) {
+      if (error instanceof NotFoundError) return undefined
+      throw error
+    }
   }
 
   public async delete(name: string): Promise<void> {

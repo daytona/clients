@@ -41,7 +41,7 @@ class InterpreterService:
         return hash(self._impl)
 
     def connect_context(
-        self, context: str | InterpreterContext | InterpreterContextJSON, *, language: str | None = None
+        self, context: str | InterpreterContext | InterpreterContextJSON, /, *, language: str | None = None
     ) -> InterpreterContext:
         """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
         from .types import InterpreterContext
@@ -74,7 +74,7 @@ class InterpreterService:
             self._bridge,
         )
 
-    def delete_context(self, context: InterpreterContext | InterpreterContextJSON | str) -> None:
+    def delete_context(self, context: InterpreterContext | InterpreterContextJSON | str, /) -> None:
         return self._bridge.call(lambda: self._impl.delete_context(_rt.unwrap(context)))
 
     def list_contexts(self) -> list[InterpreterContext]:
@@ -87,6 +87,7 @@ class InterpreterService:
     def run(
         self,
         code: str,
+        /,
         *,
         language: Optional[str] = None,
         context: str | InterpreterContext | InterpreterContextJSON | None = None,

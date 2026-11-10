@@ -46,6 +46,7 @@ from daytona.v2._bridge import BridgeError, SyncBridge
 from daytona.v2._sync import Daytona
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import AsyncDaytona
+from daytona.v2.errors import ClientClosedError
 from daytona.v2.process import AsyncProcessService
 from daytona.v2.types import DaytonaConfig, ListResult
 
@@ -774,7 +775,7 @@ def test_close_is_idempotent_including_inside_a_with_block(server: _Server) -> N
 def test_context_manager_shape_closes_on_exit(server: _Server) -> None:
     with Daytona(DaytonaConfig(api_key="k")) as client:
         assert client._bridge is not None
-    with pytest.raises(BridgeError, match="closed"):
+    with pytest.raises(ClientClosedError, match="closed"):
         client._bridge.call(lambda: client._impl.list())
 
 

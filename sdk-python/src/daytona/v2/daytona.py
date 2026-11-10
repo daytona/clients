@@ -75,6 +75,7 @@ from ._otel import load_opentelemetry_support
 from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
+    ClientClosedError,
     ClientTimeoutError,
     ConnectionError,
     DaytonaError,
@@ -857,7 +858,7 @@ class AsyncDaytona:
         )
 
     async def get(
-        self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
+        self, sandbox_id: str, /, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
     ) -> AsyncSandbox:
         """Fetch a sandbox by id.
 
@@ -1191,23 +1192,23 @@ class AsyncDaytona:
             seen_cursors.add(page.next_cursor)
             page_cursor = page.next_cursor
 
-    async def start(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+    async def start(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Start a sandbox by handle or id; see :meth:`AsyncSandbox.start`."""
         await self._resolve_with_hub(sandbox).start(timeout=timeout)
 
-    async def stop(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+    async def stop(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Stop a sandbox by handle or id and wait until it is stopped; see :meth:`AsyncSandbox.stop`."""
         await self._resolve_with_hub(sandbox).stop(timeout=timeout)
 
-    async def pause(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+    async def pause(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Pause a sandbox by handle or id; see :meth:`AsyncSandbox.pause`."""
         await self._resolve_with_hub(sandbox).pause(timeout=timeout)
 
-    async def resume(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+    async def resume(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Resume a sandbox by handle or id; see :meth:`AsyncSandbox.resume`."""
         await self._resolve_with_hub(sandbox).resume(timeout=timeout)
 
-    async def delete(self, sandbox: Union[AsyncSandbox, str], *, timeout: float = 60) -> None:
+    async def delete(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Delete a sandbox by handle or id and wait until it is destroyed; see :meth:`AsyncSandbox.delete`."""
         await self._resolve_with_hub(sandbox).delete(timeout=timeout)
 
@@ -1227,7 +1228,7 @@ class AsyncDaytona:
         # Only ever called on the event loop (see `_sandbox_by_id()`), whose single
         # thread makes this check-then-set safe.
         if self._closed:
-            return None
+            raise ClientClosedError()
         if self._hub is not None and self._hub._closed:
             self._hub = None
         if self._hub is None:
@@ -1251,7 +1252,10 @@ class AsyncDaytona:
         return sb
 
     async def close(self) -> None:
-        """Close HTTP resources."""
+        """Close HTTP resources; new requests on this client or its handles raise
+        ``ClientClosedError``. Close the root to let later ``root.v2`` access
+        build a fresh client.
+        """
         self._closed = True
         hub, self._hub = self._hub, None
         if hub is not None:
@@ -1611,10 +1615,10 @@ def _idempotency_key_for_name(name: str) -> str:
 
 
 def _named_create(name: CreateConfigValue | None) -> Optional[str]:
-    """The create's name when it names the sandbox (non-blank), else ``None``.
+    """The create's name when it names the sandbox, else ``None``.
 
-    Mirrors the API, which generates a name for a blank one: a blank name is no
-    name, so it neither stamps the label nor derives the key.
+    A blank name is refused before any request (see ``_create_body``); this
+    only tells an omitted name from a given one.
     """
     return name if isinstance(name, str) and name.strip() else None
 
@@ -1698,6 +1702,11 @@ def _create_body(config: CreateConfig) -> CreateBody:
         ("auto_renew", bool, "a boolean"),
     ):
         _optional_typed(config, key, kind, description)
+    # A blank name is refused, as fork() and find_by_name() refuse one: omit the
+    # name for a generated one.
+    given_name = config.get("name")
+    if isinstance(given_name, str) and not given_name.strip():
+        raise create_error("name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
     # The platform's architectures (the contract's CpuArchitecture), as for the
     # image option: SDK inputs are closed.
     if config.get("cpu_arch") is not None and config.get("cpu_arch") not in ("amd64", "arm64"):

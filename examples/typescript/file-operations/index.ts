@@ -20,12 +20,12 @@ async function main() {
   let ok = true
   try {
     assertStarted(sandbox)
-    const dir = 'project-files'
+    const dir = '/tmp/project-files'
 
     section('mkdir + list')
     await sandbox.fs.mkdir(dir, { mode: '755' })
-    const before = (await sandbox.fs.list('.')).items
-    info(`entries in cwd: ${before.map((f) => f.name).join(', ')}`)
+    const before = (await sandbox.fs.list('/tmp')).items
+    info(`entries in /tmp: ${before.map((f) => f.name).join(', ')}`)
 
     section('writeBytes / writeText (from memory)')
     const config = JSON.stringify({ name: 'demo', version: '1.0.0', settings: { debug: true } }, null, 2)

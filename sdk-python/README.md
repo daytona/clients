@@ -79,6 +79,14 @@ one.
 The root owns its namespace clients: close the root (`with Daytona(...)` or
 `root.close()`), not `root.v0` / `root.v2` directly; a namespace client closed
 on its own stays cached and fails on later calls. Closing is optional.
+After closing, new requests on a stored v2 client or any of its handles raise
+`ClientClosedError` (`CLIENT_CLOSED`, source `SDK`, no HTTP status).
+Accessing `root.v2` after `root.close()` builds a fresh working client.
+Configuration dataclasses, including `DaytonaConfig` and `SandboxEventsConfig`,
+accept keyword arguments only. Error `status_code` must be an integer (not a
+boolean) or `None`; invalid types raise `TypeError`.
+A non-Cloud `DAYTONA_API_URL` emits a warning once per process: SDK 2.x ignores
+this legacy variable. Use SDK 0.x for a custom API URL.
 `with Daytona(...)` or `close()` releases the v2 client's
 HTTP pools and stops its loop thread right away, and closes the v0 client's
 event socket (and its OpenTelemetry provider, with `otel_enabled`); a client you never close is shut down the
@@ -135,7 +143,7 @@ the object afterwards has no effect on the client. Additional env vars:
 - `DAYTONA_PROJECT_ID` — scopes a JWT for the v2 namespace.
 - `DAYTONA_V2_API_URL` — selects another v2 API endpoint (a regional endpoint,
   as `daytona region list` in the CLI shows them, or a test environment). When unset, the SDK connects to the Daytona API. `d.v0` always
-  uses its own production URL. SDK 2.x never reads `DAYTONA_API_URL`, the 0.x
+  uses its own production URL. SDK 2.x never routes using `DAYTONA_API_URL`, the 0.x
   SDK's variable.
 - Credentials: `d.v2` reads `DAYTONA_*` variables from the process
   environment only. `d.v0` keeps the 0.x SDK's behaviour of also reading
@@ -213,7 +221,7 @@ from daytona.v2 import Sandbox as SandboxV2  # or import SandboxV2 directly
 | `daytona.create(...)` | `daytona.v0.create(...)` |
 | `from daytona import Sandbox` | `from daytona.v0 import Sandbox` |
 | `from daytona import Daytona` then `Daytona()` | `from daytona import Daytona` then `Daytona().v0` (not `daytona.v0.Daytona`, which SDK 2.x does not export) |
-| `DaytonaConfig(api_url=...)` / `DAYTONA_API_URL` for a custom API URL | stay on SDK 0.x: SDK 2.x targets Daytona Cloud and never reads `DAYTONA_API_URL` |
+| `DaytonaConfig(api_url=...)` / `DAYTONA_API_URL` for a custom API URL | stay on SDK 0.x: SDK 2.x targets Daytona Cloud and never routes using `DAYTONA_API_URL` |
 
 ### Creating without an image
 
@@ -263,7 +271,7 @@ create is also the handle of the one-sandbox-per-end-user pattern. Every
 
 - stamps the name as a label, `labels["name"] == name`, next to any labels you
   pass (an explicit `labels["name"]` that disagrees with `name=` is rejected
-  before any request);
+  before any request, and so is a blank name: omit `name` for a generated one);
 - derives a stable idempotency key from the name unless you pass
   `idempotency_key`. The derivation is identical in the TypeScript SDK, so a
   retry can use either SDK without creating a second sandbox.
@@ -407,7 +415,9 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   or auto-retry around stale `If-Match`. Domain allow-lists imply default-deny:
   omitting `block_all` while setting `allow_domains` lets the API normalize it
   to `true`, while an explicit `block_all=False` is rejected locally with
-  `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. `block_all=True` with
+  `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allow_cidrs` needs
+  `block_all=True` or `allow_domains`: without them the policy is open and
+  ignores `allow_cidrs`, so the SDK refuses it locally. `block_all=True` with
   `allow_cidrs` and no `allow_domains` is the CIDR-only mode, which is **not a
   DNS exfiltration boundary**: DNS A lookups for any name are still sent to
   DNS resolvers and only answers inside `allow_cidrs` come back, so a sandbox can
@@ -457,8 +467,9 @@ unrecognized values to `"unknown"` and keep the original in a `raw_…`
 sibling. Timestamps are timezone-aware `datetime` values; a budget period
 start is a `date`. List and search pages are immutable: `items` is a tuple.
 
-Use `sandbox.set_labels({...})` to replace the entire label set
-(`{}` clears it), and `sandbox.entrypoint_logs()` to read the sandbox's
+Use `sandbox.set_labels({...})` to replace the label set (`{}` clears it).
+The reserved `name` label that `find_by_name()` matches is kept unless the new
+labels set it (the sandbox is read first to learn it). Use `sandbox.entrypoint_logs()` to read the sandbox's
 entrypoint-session log as plain text. On `AsyncDaytona` prefix these with
 `await`.
 
@@ -556,6 +567,10 @@ sandbox = d.v2.create_from_build(
     builder, resources=Resources(cpu=2, memory=4), build_timeout=600, wait_seconds=60
 )
 ```
+
+`ImageBuilder.env()` values are literal: the image gets exactly the string you
+pass (`$PATH` is not expanded), and a value with a control character (such as a
+newline) is rejected.
 
 `wait_seconds` is the create wait budget in whole seconds (default 60). The
 server holds create for up to its own short cap, then the SDK waits for the
@@ -717,9 +732,14 @@ frames it read them from (`logs`), and how the process ended (`reason`,
 reported them; `reason` is always set (`"unknown"` with the value on
 `raw_reason` for one this release does not know). `run()` reads the output
 back from the process log, so its `keep_logs=` takes `"on_exit_ttl"` (default)
-or `"until_cleanup"`, not `"none"`.
+or `"until_cleanup"`, not `"none"`. It returns no handle to write to, so it
+refuses `stdin="open"`: use `start()` for a process that reads stdin.
 
-`process.start()` returns a detached `ProcessHandle` with `logs()`,
+`process.start()` (and `session.start()`) sends `keep_logs="on_exit_ttl"`
+unless you pass another value: the sandbox keeps the record and log for a while
+after the process exits; `"until_cleanup"` keeps them until the process is
+deleted, and `"none"` keeps no log. `process.start()` returns a detached
+`ProcessHandle` with `logs()`,
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` / `close_stdin()` are for exec and
 PTY handles only. `stream_logs()` yields one `StreamLogEvent` per server
@@ -733,7 +753,7 @@ short, or one that ends without `eof`, raises `ConnectionError`: call
 `stream_logs(cursor=...)` again with the last event's cursor. `timeout=` is the
 caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
-runs that support one; `kill(escalate_after=)` is in seconds too. Signals are
+runs that support one (omitted or `0`: no deadline); `kill(escalate_after=)` is in seconds too. Signals are
 bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
 
 Handles come from the SDK, never from a constructor: `handle.to_json()` returns
@@ -744,7 +764,8 @@ handles remain replay/control handles (`logs()` / `wait()` / `kill()`), not a
 way to recover a parsed `InterpreterResult` on another worker.
 
 `pty.start(command=None, *, terminal=TerminalSize(cols=..., rows=...), ...)`
-starts an interactive terminal (80×24 when `terminal` is omitted); it also
+starts an interactive terminal (80×24 when `terminal` is omitted; `cols` and
+`rows` are 1 to 65535) with `TERM=xterm-256color` unless `env` sets `TERM`; it also
 takes `cwd`, `env`, `name`, `user`, `shell`, `login`, `stdin` (default
 `"open"`), `execution_timeout` and `keep_logs` (default `"until_cleanup"`).
 `pty.list()` is the PTY-only view of `process.list(kind="pty")`, and
@@ -822,6 +843,12 @@ survivors of an exited process; macOS `kill()` is unchanged. Tags can be reused
 immediately after `kill_all()`.
 
 ### Files
+
+All sandbox filesystem paths are absolute strings starting with `/`; relative
+paths are refused locally with `BadRequestError`. Local upload/download paths
+may be relative. Path lists must be sequences of strings, not a bare string.
+`write_text()` requires a string; `write_bytes()` and `write_many()` accept
+bytes-like buffers, including `bytes`, `bytearray` and `memoryview`.
 
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
 `download_file()`, bulk `read_many` / `write_many`, `remove()`, `grep()` (file
@@ -909,6 +936,10 @@ path itself; reconnecting a serialized code-process handle later does not
 recreate it.
 
 ### Git
+
+`add()`, `restore()` and `reset(files=...)` require a sequence of string
+pathspecs, not a bare string. Repository paths and pathspecs may remain relative;
+the filesystem's absolute-path rule does not apply to git.
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
 deadline by default, and each accepts a per-call `timeout=` override

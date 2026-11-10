@@ -49,7 +49,7 @@ from ._core import (
     parse_json_bytes,
 )
 from ._otel import OpenTelemetrySupport
-from .errors import ClientTimeoutError, ConnectionError, create_error
+from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
 _HTTP2_AVAILABLE = importlib.util.find_spec("h2") is not None
@@ -573,7 +573,7 @@ class _StreamOwners:
 
     def ensure_open(self) -> None:
         if self._closed:
-            raise ConnectionError("transport is closed")
+            raise ClientClosedError()
 
     def add(self, stream: AsyncResponseStream) -> None:
         if self._closed:
@@ -778,6 +778,7 @@ class AsyncTransport:
         return _request_deadline(_transfer_idle_seconds(timeout, self._request_timeout_seconds))
 
     async def _request_token(self) -> Optional[str]:
+        self._stream_owners.ensure_open()
         if self.auth_provider is not None:
             return await self.auth_provider.bearer()
         if self._auth is not None:

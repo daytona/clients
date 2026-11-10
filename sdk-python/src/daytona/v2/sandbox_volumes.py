@@ -99,7 +99,7 @@ class AsyncSandboxVolumesService:
         self._transport = _transport
 
     async def pull(
-        self, volume_id: str, *, request_id: str, timeout: Optional[float] = None
+        self, volume_id: str, /, *, request_id: str, timeout: Optional[float] = None
     ) -> PullVolumeResult:
         """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
 

@@ -62,14 +62,21 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-/** A blank name is not stamped and derives no key, matching API naming. */
-function namedCreate(name: string | undefined): string | undefined {
-  return typeof name === 'string' && !isBlank(name) ? name : undefined
+/**
+ * The create's name when given; omitted (or `null`) is none. A blank name is
+ * refused, as `fork()` and `findByName()` refuse one: omit the name for a
+ * generated one.
+ */
+function namedCreate(name: unknown): string | undefined {
+  if (name === undefined || name === null) return undefined
+  if (typeof name !== 'string') throw badRequest('name must be a string')
+  if (isBlank(name)) throw badRequest('name must be a non-empty string when given')
+  return name
 }
 
 /** @internal */
 export function createIdempotencyKey(body: { readonly name?: string | null; readonly idempotency_key?: string | null }): string | Promise<string> {
-  const named = namedCreate(body.name ?? undefined)
+  const named = namedCreate(body.name)
   return typeof body.idempotency_key === 'string' ? body.idempotency_key : named !== undefined ? idempotencyKeyForName(named) : runtimeUniqueId()
 }
 

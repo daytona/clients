@@ -33,19 +33,14 @@ describe('a symbol key on Object.prototype', () => {
     }))
   })
 
-  // Error options and response maps stop before Object.prototype: every
-  // options literal the SDK builds inherits from it, and a response map's
-  // names are its own keys only (string keys there are not refused either).
-  it('leaves error constructors and response maps working', () => {
-    expect(new NotFoundError('x', { statusCode: 404 })).toMatchObject({ statusCode: 404, message: 'x' })
+  it('refuses inherited error options while leaving response maps working', () => {
+    expect(() => new NotFoundError('x', { statusCode: 404 })).toThrow(TypeError)
     expect(Object.keys(mapComputerUseProcessStatusMap({ x: STATUS }))).toEqual(['x'])
   })
 
   it('still finds an own or class-level symbol in error options', () => {
     const own = Symbol('own')
-    expect(() => new NotFoundError('x', { [own]: true } as never)).toThrow(expect.objectContaining({
-      constructor: BadRequestError, message: 'ErrorOptions has no option `Symbol(own)`',
-    }))
+    expect(() => new NotFoundError('x', { [own]: true } as never)).toThrow(TypeError)
   })
 })
 

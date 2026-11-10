@@ -31,8 +31,8 @@ import pytest
 from daytona.v2._bridge import BridgeError, SyncBridge
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncResponseStream, AsyncTransport
+from daytona.v2.errors import ClientClosedError, DaytonaError, NotFoundError
 from daytona.v2.errors import ConnectionError as SdkConnectionError
-from daytona.v2.errors import DaytonaError, NotFoundError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -179,7 +179,7 @@ def test_close_is_idempotent_and_blocks_further_use() -> None:
     instance.close()
     instance.close()
 
-    with pytest.raises(BridgeError, match="closed"):
+    with pytest.raises(ClientClosedError, match="closed"):
         instance.call(lambda: _add(1, 1))
 
 
@@ -668,7 +668,7 @@ def test_bridge_works_as_a_context_manager() -> None:
     with SyncBridge() as instance:
         assert instance.call(lambda: _add(1, 2)) == 3
 
-    with pytest.raises(BridgeError, match="closed"):
+    with pytest.raises(ClientClosedError, match="closed"):
         instance.call(lambda: _add(1, 2))
 
 
@@ -741,7 +741,7 @@ def test_close_from_the_loop_thread_shuts_the_loop_down_without_raising() -> Non
         time.sleep(0.02)
     assert not any("portal" in t.name for t in threading.enumerate()), "loop thread left alive"
 
-    with pytest.raises(BridgeError, match="closed"):
+    with pytest.raises(ClientClosedError, match="closed"):
         instance.call(lambda: _add(1, 1))
 
 
@@ -1007,7 +1007,7 @@ def test_a_post_racing_close_runs_or_reports_the_closed_bridge() -> None:
     a raw RuntimeError from a loop close() already stopped."""
     import threading
 
-    from daytona.v2._bridge import BridgeError, SyncBridge
+    from daytona.v2._bridge import SyncBridge
 
     async def noop() -> None:
         return None
@@ -1021,7 +1021,7 @@ def test_a_post_racing_close_runs_or_reports_the_closed_bridge() -> None:
             while True:
                 try:
                     bridge.post(lambda: None)
-                except BridgeError:
+                except ClientClosedError:
                     outcomes.append("closed")
                     return
                 except BaseException as exc:
@@ -1098,7 +1098,7 @@ def test_registering_and_copying_live_bridges_share_one_lock() -> None:
 
 
 def test_a_post_on_the_loop_thread_after_close_raises_bridge_error() -> None:
-    from daytona.v2._bridge import BridgeError, SyncBridge
+    from daytona.v2._bridge import SyncBridge
 
     bridge = SyncBridge()
     ran: list[str] = []
@@ -1108,7 +1108,7 @@ def test_a_post_on_the_loop_thread_after_close_raises_bridge_error() -> None:
         bridge.close()  # from a call on the loop, which close() supports
         try:
             bridge.post(lambda: ran.append("ran"))
-        except BridgeError as error:
+        except ClientClosedError as error:
             outcome.append(str(error))
 
     bridge.call(post_after_close)
@@ -1135,7 +1135,7 @@ def test_a_post_on_the_loop_thread_runs_the_operation_at_once() -> None:
 
 
 def test_a_post_from_another_thread_after_close_raises_bridge_error() -> None:
-    from daytona.v2._bridge import BridgeError, SyncBridge
+    from daytona.v2._bridge import SyncBridge
 
     async def noop() -> None:
         return None
@@ -1143,5 +1143,5 @@ def test_a_post_from_another_thread_after_close_raises_bridge_error() -> None:
     bridge = SyncBridge()
     bridge.call(noop)
     bridge.close()
-    with pytest.raises(BridgeError, match="is closed"):
+    with pytest.raises(ClientClosedError, match="is closed"):
         bridge.post(lambda: None)

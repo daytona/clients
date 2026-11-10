@@ -22,7 +22,7 @@ import {
   DaytonaTimeoutError,
   ERROR_REGISTRY_KEY,
 } from '../src/errors'
-import { NotFoundError, NotSupportedError, RequestTimeoutError, ClientTimeoutError } from '../src/v2/errors/DaytonaError'
+import { NotFoundError, NotSupportedError, RequestTimeoutError, ClientTimeoutError, ClientClosedError } from '../src/v2/errors/DaytonaError'
 
 class FakeV0DaytonaError extends Error {}
 class FakeV0DaytonaNotFoundError extends FakeV0DaytonaError {}
@@ -105,7 +105,7 @@ describe('root Daytona client', () => {
     const first = root.v2
     expect(hubOf(first)).toBeDefined()
     await root.close()
-    expect(hubOf(first)).toBeUndefined() // the closed client never hands out a hub
+    expect(() => hubOf(first)).toThrow(ClientClosedError)
     const second = root.v2
     expect(second).not.toBe(first)
     expect(hubOf(second)).toBeDefined()

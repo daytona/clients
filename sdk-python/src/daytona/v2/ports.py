@@ -133,7 +133,7 @@ class AsyncPortsService:
                 )
         return ListResult(items=list(payload.ports))
 
-    async def is_in_use(self, port: int) -> bool:
+    async def is_in_use(self, port: int, /) -> bool:
         payload = expect_is_port_in_use_response(
             await self._require_toolbox().send(RequestSpec("GET", f"/port/{_port_segment(port)}/in-use"))
         )
@@ -167,7 +167,7 @@ class AsyncPortsService:
             seen.add(page.next_cursor)
             current = page.next_cursor
 
-    async def expose(self, port: int, *, public: bool = False) -> PreviewEndpoint:
+    async def expose(self, port: int, /, *, public: bool = False) -> PreviewEndpoint:
         """Register a sandbox port as a preview endpoint.
 
         If the port is already exposed, returns the existing endpoint (updating
@@ -192,7 +192,7 @@ class AsyncPortsService:
         )
         return _preview_endpoint_from_api(payload)
 
-    async def preview_link(self, port: int) -> PreviewLink:
+    async def preview_link(self, port: int, /) -> PreviewLink:
         """Preview URL plus access token for one sandbox port.
 
         Callers send the token in the ``X-Daytona-Preview-Token`` header.
@@ -239,7 +239,7 @@ class AsyncPortsService:
         return PreviewLink(url=payload.url or resolved.url, token=token, expires_at=expires_at)
 
     async def signed_preview_link(
-        self, port: int, *, expires_in_seconds: Optional[int] = None
+        self, port: int, /, *, expires_in_seconds: Optional[int] = None
     ) -> SignedPreviewLink:
         """Return a self-contained signed URL for one sandbox port.
 
@@ -282,7 +282,7 @@ class AsyncPortsService:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         return SignedPreviewLink(url=payload.url, token=payload.token, expires_at=expires_at)
 
-    async def expire_signed_preview_link(self, port: int, token: str) -> None:
+    async def expire_signed_preview_link(self, port: int, token: str, /) -> None:
         """Revoke a signed preview link before its natural expiry.
 
         :param port: TCP port the link was issued for.
@@ -299,7 +299,7 @@ class AsyncPortsService:
             )
         )
 
-    async def unexpose(self, port: int) -> None:
+    async def unexpose(self, port: int, /) -> None:
         _assert_port(port)
         await self._require_api().send(RequestSpec("DELETE", self._port_path(port)))
 

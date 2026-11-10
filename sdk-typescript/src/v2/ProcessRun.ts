@@ -9,7 +9,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import type { LogFrame, ProcessResult, RunKeepLogs, WaitResult } from './types.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import {
-  bodyFor, frameFromWire, processFromWire, runKeepLogs, secondsToMs, startedProcessKind, waitResult, WAIT_READ_SLACK_MS,
+  bodyFor, frameFromWire, processFromWire, runKeepLogs, runStdin, secondsToMs, startedProcessKind, waitResult, WAIT_READ_SLACK_MS,
 } from './ProcessWire.js'
 import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
@@ -58,7 +58,7 @@ export async function runProcess(
   spec: ProcessSpec,
   options: { readonly timeoutSeconds?: number; readonly keepLogs?: RunKeepLogs },
 ): Promise<ProcessResult> {
-  const body = bodyFor({ ...spec, keepLogs: runKeepLogs(options.keepLogs) })
+  const body = bodyFor({ ...spec, stdin: runStdin(spec.stdin), keepLogs: runKeepLogs(options.keepLogs) })
   // Reject invalid caller budgets locally before issuing any request.
   const requestedTimeout = secondsToMs('timeoutSeconds', options.timeoutSeconds)
   // Without a budget the first request still holds for one wait window (as

@@ -127,28 +127,36 @@ export function nonOptionsDescription(value: unknown): string | undefined {
  * is refused. Internal: every error constructor that reads options runs it
  * first.
  */
-export function errorOptions<T extends object>(options: T | undefined): T | undefined {
+export function errorOptions<T extends object>(options: T | undefined, extraKeys: readonly string[] = []): T | undefined {
   if (options === undefined) return undefined
   const given = nonOptionsDescription(options)
   if (given !== undefined) {
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
-  // No error options type declares a symbol key: an enumerable one, own or
-  // inherited, is refused, as the options guard (`enumerableKeys`) does. The
-  // walk stops before Object.prototype: every options literal the SDK builds
-  // itself inherits from it (this function's own BadRequestError included),
-  // so a key there would turn every error into this one, and a string key
-  // there is not refused either (it is copied, as `for...in` reads it).
+  // TypeError keeps diagnostics safe even when Object.prototype has an unknown
+  // enumerable key: constructing a BadRequestError here would recurse.
   // SAFETY: nonOptionsDescription has established an options object (an
   // object literal, a class instance or a prototype-based object).
-  const symbol = enumerableSymbolKey(options as unknown as KeyedObject, Object.prototype as KeyedObject)
+  const symbol = enumerableSymbolKey(options as unknown as KeyedObject)
   if (symbol !== undefined) {
-    throw new BadRequestError(`ErrorOptions has no option \`${String(symbol)}\``, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw new TypeError(`ErrorOptions has no option \`${String(symbol)}\``)
   }
   const copy: Record<string, unknown> = {}
-  for (const key in options) copy[key] = (options as Record<string, unknown>)[key]
+  for (const key in options) {
+    if (!ERROR_OPTION_KEYS.has(key) && !extraKeys.includes(key)) throw new TypeError(`ErrorOptions has no option \`${key}\``)
+    copy[key] = options[key]
+  }
+  if (copy.statusCode !== undefined && (typeof copy.statusCode !== 'number' || !Number.isInteger(copy.statusCode))) {
+    throw new TypeError('statusCode must be an integer or undefined')
+  }
   return copy as T
 }
+
+const ERROR_OPTION_KEYS: ReadonlySet<string> = new Set([
+  'statusCode', 'code', 'source', 'traceId', 'retryAfterSeconds', 'feature',
+  'entitlement', 'replacement', 'firstAvailableCursor', 'stated', 'actual',
+  'region', 'limit', 'current', 'max', 'maxBytes', 'bytes', 'requestId', 'retryAfterMs', 'cause',
+] satisfies readonly (keyof ErrorOptions)[])
 
 /**
  * Base class of every v2 error.
@@ -254,6 +262,13 @@ export function registerV2ErrorClass(key: string, errorClass: abstract new (...a
 }
 
 export class BadRequestError extends DaytonaError {}
+/** A new request on a closed client; no HTTP status applies. */
+export class ClientClosedError extends DaytonaError {
+  constructor(message = 'Daytona client is closed', options?: ErrorOptions) {
+    const parsed = errorOptions(options) ?? {}
+    super(message, { ...parsed, code: parsed.code ?? 'CLIENT_CLOSED', source: parsed.source ?? 'SDK' })
+  }
+}
 export class AuthenticationError extends DaytonaError {}
 export class ForbiddenError extends DaytonaError {}
 export class NotFoundError extends DaytonaError {}
@@ -299,7 +314,7 @@ export class SandboxTerminalStateError extends ConflictError {
   public readonly reason?: string
 
   constructor(sandboxId: string, state: SandboxState, options?: SandboxTerminalStateErrorOptions) {
-    const { rawState, reason } = errorOptions(options) ?? {}
+    const { rawState, reason } = errorOptions(options, ['rawState', 'reason']) ?? {}
     super(`sandbox ${sandboxId} reached terminal state ${state}${reason ? `: ${reason}` : ''}`, { statusCode: 409, code: 'CONFLICT', source: 'SDK' })
     this.state = state
     this.rawState = rawState
@@ -495,7 +510,7 @@ export class ImageBuildFailedError extends ConflictError {
   public readonly buildError?: string
 
   constructor(message: string, options?: ImageBuildFailedErrorOptions) {
-    const { imageId, buildError, ...rest } = errorOptions(options) ?? {}
+    const { imageId, buildError, ...rest } = errorOptions(options, ['imageId', 'buildError']) ?? {}
     super(message, rest)
     this.imageId = imageId
     this.buildError = buildError
@@ -720,7 +735,7 @@ const SOURCE_ERROR_CLASS: Readonly<Record<string, Readonly<Record<string, typeof
   DAYTONA_ROUTER: ROUTER_ERROR_CLASS,
   // SDK-synthesized errors reuse the toolbox error classes so callers can
   // handle timeouts and terminal states consistently across error sources.
-  SDK: DAEMON_ERROR_CLASS,
+  SDK: { ...DAEMON_ERROR_CLASS, CLIENT_CLOSED: ClientClosedError },
 }
 
 const STATUS_ERROR_CLASS: Record<number, typeof DaytonaError> = {
@@ -984,7 +999,7 @@ export async function readFetchText(response: Response, limit: number, onChunk?:
   return bytes === undefined ? undefined : new TextDecoder().decode(bytes)
 }
 
-export function statusForCode(code: ErrorCode): number {
+export function statusForCode(code: ErrorCode): number | undefined {
   return CODE_STATUS[code]
 }
 
@@ -1030,6 +1045,7 @@ for (const [key, errorClass] of [
   ['SnapshotTooLargeError', SnapshotTooLargeError],
   ['PreconditionRequiredError', PreconditionRequiredError],
   ['ConnectionError', ConnectionError],
+  ['ClientClosedError', ClientClosedError],
   ['ClientTimeoutError', ClientTimeoutError],
   ['TransferCancelledError', TransferCancelledError],
   ['SandboxCreateRequestTimeoutError', SandboxCreateRequestTimeoutError],

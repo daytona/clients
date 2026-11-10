@@ -36,8 +36,10 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
     }
     blockAll = input.blockAll
   }
+  let allowCidrs: string[] | undefined
   if (input.allowCidrs !== undefined) {
-    body.allow_cidrs = requestStringArray(input.allowCidrs, 'networkPolicy.allowCidrs')
+    allowCidrs = requestStringArray(input.allowCidrs, 'networkPolicy.allowCidrs')
+    body.allow_cidrs = allowCidrs
   }
   let allowDomains: string[] | null | undefined
   if (input.allowDomains !== undefined) {
@@ -51,6 +53,11 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
       'network_policy allow_domains requires block_all to be true or omitted',
       { statusCode: 400, code: 'NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL', source: 'SDK' },
     )
+  }
+  // Without a domain list the API leaves blockAll false, and an open policy
+  // ignores allowCidrs: refused, so an allow list never creates an open sandbox.
+  if (allowCidrs !== undefined && allowCidrs.length > 0 && blockAll !== true && (allowDomains === undefined || allowDomains === null)) {
+    throw badRequest('network_policy allow_cidrs restricts egress only with block_all set to true or with allow_domains; without them the policy is open')
   }
   if (blockAll !== undefined) {
     body.block_all = blockAll

@@ -287,6 +287,61 @@ async def test_platform_inputs_are_validated_before_any_request() -> None:
     assert api.specs == []
 
 
+_SECRET = {"name": "TOKEN", "allowed_domains": ["*"], "created_at": _TIME, "updated_at": _TIME}
+
+
+# Shared with the TypeScript SDK's secrets-service.test.ts: an omitted
+# description keeps the stored one (the API replaces the whole secret); ""
+# clears it.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("stored", "kwargs", "methods", "sent"),
+    [
+        ({"description": "kept"}, {}, ["GET", "PUT"], "kept"),
+        ({"description": None}, {}, ["GET", "PUT"], None),
+        (None, {}, ["GET", "PUT"], None),
+        ({"description": "kept"}, {"description": None}, ["GET", "PUT"], "kept"),
+        ({"description": "kept"}, {"description": ""}, ["PUT"], ""),
+        ({"description": "kept"}, {"description": "new"}, ["PUT"], "new"),
+        ({"description": "kept"}, {"if_not_exists": True}, ["PUT"], None),
+    ],
+    ids=["stored", "null-stored", "new-secret", "none", "empty", "given", "if-not-exists"],
+)
+async def test_secret_set_keeps_an_omitted_description(
+    stored: dict[str, object] | None, kwargs: dict[str, object], methods: list[str], sent: str | None
+) -> None:
+    from daytona.v2 import NotFoundError
+
+    responses: list[object] = []
+    if methods[0] == "GET":
+        responses.append(
+            NotFoundError("not found", status_code=404, code="NOT_FOUND")
+            if stored is None
+            else {**_SECRET, **stored}
+        )
+    responses.append({**_SECRET, **(stored or {})})
+    api = _Api(responses)
+
+    await AsyncSecretsService(api).set("TOKEN", "value", allowed_domains=["*"], **kwargs)  # type: ignore[arg-type]
+
+    assert [spec.method for spec in api.specs] == methods
+    body = api.specs[-1].json_body
+    assert isinstance(body, dict)
+    if sent is None:
+        assert "description" not in body
+    else:
+        assert body["description"] == sent
+
+
+@pytest.mark.anyio
+async def test_secret_set_refuses_an_empty_value_before_any_request() -> None:
+    api = _Api([])
+    with pytest.raises(BadRequestError, match="^value must not be empty$") as raised:
+        await AsyncSecretsService(api).set("TOKEN", "", allowed_domains=["*"])  # type: ignore[arg-type]
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert api.specs == []
+
+
 @pytest.mark.anyio
 async def test_mac_models_list_is_a_tuple() -> None:
     api = _Api([{"mac_models": []}])

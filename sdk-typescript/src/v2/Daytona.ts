@@ -10,7 +10,7 @@ import type { HttpClientOptions } from './http.js'
 import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL } from './internal.js'
-import { BadRequestError } from './errors/DaytonaError.js'
+import { BadRequestError, ClientClosedError } from './errors/DaytonaError.js'
 import type { ImageBuilder } from './Image.js'
 import { Sandbox } from './Sandbox.js'
 import type { SandboxConnectOptionsFromCreate } from './Sandbox.js'
@@ -61,7 +61,9 @@ export class Daytona {
     this.apiKey = connection.apiKey
     this.apiUrl = connection.apiUrl
     this.hubIdentityKey = connection.hubIdentityKey
-    this.httpOptions = connection.httpOptions
+    this.httpOptions = { ...connection.httpOptions, ensureOpen: () => {
+      if (this.closed) throw new ClientClosedError()
+    } }
     this.maxResponseBytes = connection.maxResponseBytes
     this.apiTransport = new HttpTransport(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
     this.api = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
@@ -77,7 +79,7 @@ export class Daytona {
   }
 
   private acquireHub(): WaitHub | undefined {
-    if (this.closed) return undefined
+    if (this.closed) throw new ClientClosedError()
     if (this.hub?.closed) this.hub = undefined
     if (this.hub === undefined) {
       this.hub = attachHub({
@@ -96,6 +98,8 @@ export class Daytona {
     return this.hub
   }
 
+  /** Close this client. New requests on stored clients and their handles throw
+   * `ClientClosedError`; closing the root lets `root.v2` build a fresh client. */
   public async close(): Promise<void> {
     this.closed = true
     const hub = this.hub

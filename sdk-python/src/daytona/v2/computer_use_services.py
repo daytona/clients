@@ -76,7 +76,7 @@ class AsyncAddonProcessesService:
     async def status(self) -> dict[str, ComputerUseProcessStatus]: ...
 
     @overload
-    async def status(self, name: str) -> ComputerUseProcessRunningStatus: ...
+    async def status(self, name: str, /) -> ComputerUseProcessRunningStatus: ...
 
     async def status(
         self,
@@ -99,7 +99,7 @@ class AsyncAddonProcessesService:
             )
         )
 
-    async def restart(self, name: str) -> ComputerUseProcessRestartResult:
+    async def restart(self, name: str, /) -> ComputerUseProcessRestartResult:
         return parse_computer_use_process_restart(
             expect_computer_use_process_restart_response(
                 await self._transport.send(
@@ -111,7 +111,7 @@ class AsyncAddonProcessesService:
             )
         )
 
-    async def logs(self, name: str) -> ComputerUseProcessLogs:
+    async def logs(self, name: str, /) -> ComputerUseProcessLogs:
         return parse_computer_use_process_logs(
             expect_computer_use_process_logs_response(
                 await self._transport.send(
@@ -123,7 +123,7 @@ class AsyncAddonProcessesService:
             )
         )
 
-    async def errors(self, name: str) -> ComputerUseProcessErrors:
+    async def errors(self, name: str, /) -> ComputerUseProcessErrors:
         return parse_computer_use_process_errors(
             expect_computer_use_process_errors_response(
                 await self._transport.send(
@@ -426,7 +426,7 @@ class AsyncRecordingService:
             )
         )
 
-    async def get(self, id: str) -> ComputerUseRecording:
+    async def get(self, id: str, /) -> ComputerUseRecording:
         return parse_computer_use_recording(
             expect_computer_use_recording(
                 await self._transport.send(
@@ -435,7 +435,7 @@ class AsyncRecordingService:
             )
         )
 
-    async def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+    async def download(self, id: str, /, *, max_response_bytes: Optional[int] = None) -> bytes:
         """Download a recording, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
@@ -463,7 +463,7 @@ class AsyncRecordingService:
             )
         )
 
-    async def delete(self, id: str) -> None:
+    async def delete(self, id: str, /) -> None:
         await self._transport.send(
             RequestSpec("DELETE", f"/computeruse/recordings/{_quote_path_segment(id, 'recording id')}")
         )

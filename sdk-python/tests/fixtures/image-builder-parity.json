@@ -133,6 +133,46 @@
       "request": {
         "dockerfile": "FROM alpine\nWORKDIR /app\n"
       }
+    },
+    {
+      "name": "env values are literal: $ is escaped, quotes and backslashes as in JSON",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "DOL": "$PATH",
+            "BRACE": "${HOME}/x",
+            "Q": "a\"b\\c\\$d",
+            "U": "\u00e9 \u2028"
+          }
+        ]
+      ],
+      "dockerfile": "FROM alpine\nENV DOL=\"\\$PATH\"\nENV BRACE=\"\\${HOME}/x\"\nENV Q=\"a\\\"b\\\\c\\\\\\$d\"\nENV U=\"\u00e9 \u2028\"\n",
+      "request": {
+        "dockerfile": "FROM alpine\nENV DOL=\"\\$PATH\"\nENV BRACE=\"\\${HOME}/x\"\nENV Q=\"a\\\"b\\\\c\\\\\\$d\"\nENV U=\"\u00e9 \u2028\"\n"
+      }
+    },
+    {
+      "name": "env value by name is literal",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "PATH",
+            "/opt/bin:$PATH"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM alpine\nENV PATH=\"/opt/bin:\\$PATH\"\n",
+      "request": {
+        "dockerfile": "FROM alpine\nENV PATH=\"/opt/bin:\\$PATH\"\n"
+      }
     }
   ],
   "refused": [
@@ -413,6 +453,82 @@
         ]
       ],
       "error": "ImageBuilder.workdir path \"/a\u007f\" must not contain a control character"
+    },
+    {
+      "name": "env value with a newline",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\ny"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value \"x\\ny\" must not contain a control character"
+    },
+    {
+      "name": "env value with a tab",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\ty"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value \"x\\ty\" must not contain a control character"
+    },
+    {
+      "name": "env value with a NUL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\u0000"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value \"x\\u0000\" must not contain a control character"
+    },
+    {
+      "name": "env value with a DEL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\u007f"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value \"x\u007f\" must not contain a control character"
+    },
+    {
+      "name": "env value by name with a newline",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "A",
+            "x\ny"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.env value \"x\\ny\" must not contain a control character"
     }
   ]
 }

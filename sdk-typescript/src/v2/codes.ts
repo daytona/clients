@@ -181,9 +181,11 @@ export type ApiErrorCode = (typeof API_ERROR_CODES)[number]
 export type ProxyErrorCode = (typeof PROXY_ERROR_CODES)[number]
 export type RouterErrorCode = (typeof ROUTER_ERROR_CODES)[number]
 export type GenericErrorCode = (typeof GENERIC_ERROR_CODES)[number]
-export type ErrorCode = DaemonErrorCode | ApiErrorCode | ProxyErrorCode | RouterErrorCode | GenericErrorCode
+/** Local SDK codes without an HTTP status. */
+export const SDK_ERROR_CODES = Object.freeze(['CLIENT_CLOSED'] as const)
+export type ErrorCode = DaemonErrorCode | ApiErrorCode | ProxyErrorCode | RouterErrorCode | GenericErrorCode | (typeof SDK_ERROR_CODES)[number]
 
-export const CODE_STATUS: Readonly<Record<ErrorCode, number>> = Object.freeze({
+export const CODE_STATUS: Readonly<Partial<Record<ErrorCode, number>>> = Object.freeze({
   PROCESS_NOT_FOUND: 404,
   PROCESS_START_FAILED: 400,
   PROCESS_TERMINAL: 409,
@@ -373,6 +375,7 @@ const ERROR_CODES: ReadonlySet<string> = new Set<string>([
   ...PROXY_ERROR_CODES,
   ...ROUTER_ERROR_CODES,
   ...GENERIC_ERROR_CODES,
+  ...SDK_ERROR_CODES,
 ])
 
 /** Whether `code` is in one of the catalogs above. */

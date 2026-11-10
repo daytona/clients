@@ -69,12 +69,13 @@ class ImagesService:
             )
         )
 
-    def delete(self, image_id: str) -> None:
+    def delete(self, image_id: str, /) -> None:
         return self._bridge.call(lambda: self._impl.delete(image_id))
 
     def follow_build_logs(
         self,
         image_id: str,
+        /,
         *,
         on_logs: BuildLogsCallback,
         on_event: Optional[BuildLogEventCallback] = None,
@@ -92,7 +93,7 @@ class ImagesService:
         )
 
     def get(
-        self, image_id: str, *, wait: Literal["ready"] | None = None, timeout: Optional[float] = None
+        self, image_id: str, /, *, wait: Literal["ready"] | None = None, timeout: Optional[float] = None
     ) -> Image:
         """Fetch an image; ``wait="ready"`` waits for it to finish building.
 
@@ -155,7 +156,7 @@ class ImagesService:
             )
         )
 
-    def promote(self, image_id: str, name: str) -> Image:
+    def promote(self, image_id: str, name: str, /) -> Image:
         """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``).
 
         Promotion only: an image that already has a name answers 409 — renaming
@@ -167,6 +168,7 @@ class ImagesService:
     def pull(
         self,
         image: str,
+        /,
         *,
         name: Optional[str] = None,
         idle_expiry_seconds: Optional[int] = None,
@@ -214,12 +216,12 @@ class SnapshotsService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def delete(self, snapshot_id: str) -> None:
+    def delete(self, snapshot_id: str, /) -> None:
         """Delete a snapshot (409 while sandboxes still depend on it)."""
         return self._bridge.call(lambda: self._impl.delete(snapshot_id))
 
     def get(
-        self, snapshot_id: str, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
+        self, snapshot_id: str, /, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
     ) -> Snapshot:
         """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does."""
         return self._bridge.call(lambda: self._impl.get(snapshot_id, wait=wait, timeout=timeout))
@@ -277,11 +279,11 @@ class VolumesService:
         """
         return self._bridge.call(lambda: self._impl.create(name=name, size_gib=size_gib, type=type))
 
-    def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
+    def delete(self, name_or_id: str, /, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
         return self._bridge.call(lambda: self._impl.delete(name_or_id, id_only=id_only))
 
-    def get(self, name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume:
+    def get(self, name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
         return self._bridge.call(lambda: self._impl.get(name_or_id, create=create, id_only=id_only))
 
@@ -319,11 +321,11 @@ class SecretsService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def delete(self, name: str) -> None:
+    def delete(self, name: str, /) -> None:
         """Delete a secret."""
         return self._bridge.call(lambda: self._impl.delete(name))
 
-    def get(self, name: str) -> Secret:
+    def get(self, name: str, /) -> Secret:
         """Fetch one secret's metadata (never its value)."""
         return self._bridge.call(lambda: self._impl.get(name))
 
@@ -338,6 +340,7 @@ class SecretsService:
         self,
         name: str,
         value: str,
+        /,
         *,
         allowed_domains: Sequence[str],
         description: Optional[str] = None,
@@ -345,10 +348,13 @@ class SecretsService:
     ) -> Secret:
         """Create or update a write-only secret.
 
-        ``allowed_domains``: The hosts where this secret's value may be sent
-        (exact or ``*.`` wildcard), or ``["*"]`` for any verified host.
-        ``"*"`` lets the value reach any HTTPS host, including one a
-        compromised sandbox controls.
+        ``value`` must not be empty. ``allowed_domains``: The hosts where this
+        secret's value may be sent (exact or ``*.`` wildcard), or ``["*"]`` for
+        any verified host. ``"*"`` lets the value reach any HTTPS host,
+        including one a compromised sandbox controls. ``description`` omitted
+        (or ``None``) keeps the stored description of an existing secret, read
+        first with :meth:`get` (no read with ``if_not_exists=True``); ``""``
+        clears it.
         """
         return self._bridge.call(
             lambda: self._impl.set(
@@ -440,7 +446,7 @@ class ReservationsService:
             )
         )
 
-    def get(self, reservation_id: str) -> MacReservation:
+    def get(self, reservation_id: str, /) -> MacReservation:
         return self._bridge.call(lambda: self._impl.get(reservation_id))
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[MacReservation]:
@@ -453,14 +459,14 @@ class ReservationsService:
         """One page of the organization's reservations."""
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
 
-    def renew(self, reservation_id: str, *, idempotency_key: Optional[str] = None) -> MacReservation:
+    def renew(self, reservation_id: str, /, *, idempotency_key: Optional[str] = None) -> MacReservation:
         """Renew the reservation for its next period, which the server charges.
 
         The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
         """
         return self._bridge.call(lambda: self._impl.renew(reservation_id, idempotency_key=idempotency_key))
 
-    def update(self, reservation_id: str, *, auto_renew: bool) -> MacReservation:
+    def update(self, reservation_id: str, /, *, auto_renew: bool) -> MacReservation:
         """Turn the reservation's auto-renewal on or off.
 
         Turning it on needs macOS access enabled for the organization;

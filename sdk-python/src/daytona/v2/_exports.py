@@ -99,6 +99,7 @@ ROOT_EXPORTS = [
     "ComputerUseUnknownStatus",
     "ComputerUseWindow",
     "ConflictError",
+    "ClientClosedError",
     "ConnectionError",
     "CouponAlreadyRedeemedError",
     "CouponExpiredError",

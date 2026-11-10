@@ -38,11 +38,11 @@ class ImageBuilder:
     # JSON string, is kept as given. TypeScript applies the same rule.
 
     @classmethod
-    def from_registry(cls, ref: str) -> Self:
+    def from_registry(cls, ref: str, /) -> Self:
         return cls(_registry_ref=cls._line_text(ref, "ImageBuilder.from_registry ref"))
 
     @classmethod
-    def from_dockerfile(cls, content: str) -> Self:
+    def from_dockerfile(cls, content: str, /) -> Self:
         return cls(_dockerfile=cls._require_text(content, "ImageBuilder.from_dockerfile content", strip=True))
 
     def pip_install(self, *packages: str) -> Self:
@@ -85,7 +85,7 @@ class ImageBuilder:
             entries = (
                 (
                     self._env_name(name_or_values, "ImageBuilder.env name"),
-                    self._require_text(value, "ImageBuilder.env value"),
+                    self._env_value(value, "ImageBuilder.env value"),
                 ),
             )
         elif isinstance(name_or_values, Mapping):
@@ -100,7 +100,7 @@ class ImageBuilder:
             entries = tuple(
                 (
                     self._env_name(key, "ImageBuilder.env key"),
-                    self._require_text(entry_value, "ImageBuilder.env value"),
+                    self._env_value(entry_value, "ImageBuilder.env value"),
                 )
                 for key, entry_value in name_or_values.items()
             )
@@ -128,9 +128,7 @@ class ImageBuilder:
             # ensure_ascii=False: TS renders with JSON.stringify, which leaves non-ASCII
             # as is; keep Dockerfile output consistent across SDKs and preserve values.
             _steps=self._steps
-            + tuple(
-                f"ENV {key}={json.dumps(entry_value, ensure_ascii=False)}" for key, entry_value in entries
-            ),
+            + tuple(f"ENV {key}={self._env_value_literal(entry_value)}" for key, entry_value in entries),
         )
 
     def workdir(self, path: str, /) -> Self:
@@ -176,6 +174,30 @@ class ImageBuilder:
                 "SDK",
             )
         return text
+
+    @classmethod
+    def _env_value(cls, value: object, label: str) -> str:
+        """An env value, kept as given: a control character (C0 or DEL) has no
+        literal form in a double-quoted Dockerfile word (Docker keeps ``\\n``
+        as two characters), so it is refused. TypeScript refuses the same
+        values."""
+        text = cls._require_text(value, label)
+        if any(char < " " or char == "\x7f" for char in text):
+            raise create_error(
+                f"{label} {json.dumps(text, ensure_ascii=False)} must not contain a control character",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return text
+
+    @staticmethod
+    def _env_value_literal(value: str) -> str:
+        """An env value as a double-quoted Dockerfile word that the image keeps
+        literally: ``"`` and ``\\`` are escaped (as in JSON) and so is ``$``, so
+        nothing is substituted. ``ensure_ascii=False``: non-ASCII is kept as
+        is, as TypeScript renders it; both SDKs render the same bytes."""
+        return json.dumps(value, ensure_ascii=False).replace("$", "\\$")
 
     @classmethod
     def _env_name(cls, value: object, label: str) -> str:

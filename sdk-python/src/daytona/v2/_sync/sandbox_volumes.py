@@ -36,7 +36,9 @@ class SandboxVolumesService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def pull(self, volume_id: str, *, request_id: str, timeout: Optional[float] = None) -> PullVolumeResult:
+    def pull(
+        self, volume_id: str, /, *, request_id: str, timeout: Optional[float] = None
+    ) -> PullVolumeResult:
         """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
 
         Zero does not wait: it submits a new request_id, or returns a known one's

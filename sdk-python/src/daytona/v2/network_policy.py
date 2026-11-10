@@ -33,11 +33,13 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
         if raw_block_all is not None and not isinstance(raw_block_all, bool):
             raise create_error("network_policy.block_all must be a boolean", 400, "BAD_REQUEST", "SDK")
         block_all = raw_block_all
+    allow_cidrs: list[str] | None = None
     if "allow_cidrs" in value:
-        body["allow_cidrs"] = _request_string_list(
+        allow_cidrs = _request_string_list(
             value["allow_cidrs"],
             field_name="network_policy.allow_cidrs",
         )
+        body["allow_cidrs"] = allow_cidrs
     allow_domains: list[str] | None = None
     allow_domains_present = "allow_domains" in value
     if "allow_domains" in value:
@@ -57,6 +59,16 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
             "network_policy allow_domains requires block_all to be true or omitted",
             400,
             codes.NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL,
+            "SDK",
+        )
+    # Without a domain list the API leaves block_all false, and an open policy
+    # ignores allow_cidrs: refused, so an allow list never creates an open sandbox.
+    if allow_cidrs and block_all is not True and allow_domains is None:
+        raise create_error(
+            "network_policy allow_cidrs restricts egress only with block_all set to true or with "
+            "allow_domains; without them the policy is open",
+            400,
+            "BAD_REQUEST",
             "SDK",
         )
     if block_all is not None:

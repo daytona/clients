@@ -215,7 +215,7 @@ class AsyncLspServer:
     ) -> None:
         await self.stop()
 
-    async def open_document(self, uri: str) -> None:
+    async def open_document(self, uri: str, /) -> None:
         """Notify the server that the document at ``uri`` was opened."""
         await self._transport.send(
             RequestSpec(
@@ -229,7 +229,7 @@ class AsyncLspServer:
             )
         )
 
-    async def close_document(self, uri: str) -> None:
+    async def close_document(self, uri: str, /) -> None:
         """Notify the server that the document at ``uri`` was closed."""
         await self._transport.send(
             RequestSpec(
@@ -247,6 +247,7 @@ class AsyncLspServer:
         self,
         uri: str,
         position: LspPosition | Mapping[str, int],
+        /,
         *,
         context: Optional[LspCompletionContext] = None,
     ) -> LspCompletionList:
@@ -262,7 +263,7 @@ class AsyncLspServer:
             await self._transport.send(RequestSpec("POST", "/lsp/completions", json_body=body))
         )
 
-    async def document_symbols(self, uri: str) -> list[LspSymbol]:
+    async def document_symbols(self, uri: str, /) -> list[LspSymbol]:
         payload = await self._transport.send(
             RequestSpec(
                 "GET",
@@ -276,7 +277,7 @@ class AsyncLspServer:
         )
         return _expect_symbol_list(payload)
 
-    async def workspace_symbols(self, query: str) -> list[LspSymbol]:
+    async def workspace_symbols(self, query: str, /) -> list[LspSymbol]:
         payload = await self._transport.send(
             RequestSpec(
                 "GET",
@@ -313,7 +314,7 @@ class AsyncLspService:
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
 
-    async def start(self, language_id: str, path_to_project: str) -> AsyncLspServer:
+    async def start(self, language_id: str, path_to_project: str, /) -> AsyncLspServer:
         await self._transport.send(
             RequestSpec(
                 "POST",

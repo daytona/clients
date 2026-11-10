@@ -980,13 +980,17 @@ export interface ProcessStartOptions {
   readonly user?: string
   readonly shell?: string
   readonly login?: boolean
+  /** `'open'` keeps stdin open for `handle.writeStdin()`; default `'closed'`. */
   readonly stdin?: StdinMode
-  /** Server-side deadline in seconds; the sandbox kills the process tree when it expires. */
+  /** Server-side deadline in seconds; the sandbox kills the process tree when it expires. Omitted or `0` means no deadline. */
   readonly executionTimeoutSeconds?: number
+  /** How long the sandbox keeps the process record and log (default `'on_exit_ttl'`). */
   readonly keepLogs?: KeepLogs
 }
 
-export interface RunOptions extends Omit<ProcessStartOptions, 'keepLogs'> {
+export interface RunOptions extends Omit<ProcessStartOptions, 'keepLogs' | 'stdin'> {
+  /** Only `'closed'` (default): `run()` returns no handle to write to; use `start()` for open stdin. */
+  readonly stdin?: 'closed'
   /** How long the sandbox keeps the process log (default `'on_exit_ttl'`). */
   readonly keepLogs?: RunKeepLogs
   /** Caller wait budget in seconds; omitted or `0` waits until the process ends. Expiry does not kill the process. */
@@ -998,6 +1002,7 @@ export interface PtyStartOptions {
   /** Terminal size; 80 columns by 24 rows when omitted. */
   readonly terminal?: TerminalSize
   readonly cwd?: string
+  /** Extra environment; `TERM` defaults to `xterm-256color` unless set here. */
   readonly env?: Readonly<Record<string, string>>
   readonly name?: string
   readonly user?: string
@@ -1005,7 +1010,7 @@ export interface PtyStartOptions {
   readonly login?: boolean
   /** Default `'open'`. */
   readonly stdin?: StdinMode
-  /** Server-side deadline in seconds. */
+  /** Server-side deadline in seconds; omitted or `0` means no deadline. */
   readonly executionTimeoutSeconds?: number
   /** Default `'until_cleanup'`. */
   readonly keepLogs?: KeepLogs

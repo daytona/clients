@@ -115,6 +115,7 @@ describe('codes namespace', () => {
       'PROXY_ERROR_CODES',
       'ROUTER_CODE_EXTRAS',
       'ROUTER_ERROR_CODES',
+      'SDK_ERROR_CODES',
       'isKnownErrorCode',
     ])
   })
@@ -189,9 +190,7 @@ describe('error constructors refuse a value that is not an options object', () =
     const own = { statusCode: 418, [key]: true }
     const inherited = Object.create({ [key]: true }) as object
     for (const options of [own, inherited]) {
-      expect(() => new ErrorClass('x', options as never)).toThrow(expect.objectContaining({
-        constructor: v2.BadRequestError, message: 'ErrorOptions has no option `Symbol(extra)`', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
-      }))
+      expect(() => new ErrorClass('x', options as never)).toThrow(TypeError)
     }
     // A non-enumerable symbol (a class's own bookkeeping) is not an option.
     const hidden = { statusCode: 418 }

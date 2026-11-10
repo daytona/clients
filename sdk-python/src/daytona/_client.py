@@ -20,12 +20,14 @@ import warnings
 from dataclasses import dataclass, field, fields
 from types import ModuleType
 from typing import TYPE_CHECKING, Callable, Final, Optional, Union
+from urllib.parse import urlsplit
 
 from typing_extensions import Self
 
 # The v2 client classes the root builds (`daytona.v2` does not export them).
 from .v2._sync import Daytona as _DaytonaV2
 from .v2._transport import SDK_VERSION as _SDK_VERSION
+from .v2.daytona import DEFAULT_V2_API_URL
 from .v2.daytona import AsyncDaytona as _AsyncDaytonaV2
 
 # Imported at runtime (not only for type checkers) so typing.get_type_hints()
@@ -51,8 +53,33 @@ if TYPE_CHECKING:
 
 # v0's own production API. `d.v0` always passes it explicitly, so the bundled
 # v0 client never falls back to `DAYTONA_API_URL` (the 0.x SDK's variable,
-# which nothing in SDK 2.x reads).
+# which SDK 2.x only checks to warn about ignored custom endpoints).
 V0_API_URL: Final[str] = "https://app.daytona.io/api"
+
+_legacy_url_warned = False
+_LEGACY_URL_WARNING: Final[str] = (
+    "DAYTONA_API_URL is set, but SDK 2.x ignores it and connects to Daytona Cloud "
+    "(DAYTONA_V2_API_URL selects the v2 endpoint). For a custom API URL, stay on SDK 0.x."
+)
+
+
+def _warn_legacy_api_url() -> None:
+    global _legacy_url_warned
+    value = os.environ.get("DAYTONA_API_URL", "").strip().rstrip("/")
+    if not value or _legacy_url_warned:
+        return
+    try:
+        parts = urlsplit(value)
+        cloud = any(
+            (parts.scheme.lower(), parts.netloc.lower(), parts.path, parts.query, parts.fragment)
+            == (known.scheme, known.netloc, known.path, known.query, known.fragment)
+            for known in (urlsplit(V0_API_URL), urlsplit(DEFAULT_V2_API_URL))
+        )
+    except ValueError:
+        cloud = False
+    if not cloud:
+        _legacy_url_warned = True
+        warnings.warn(_LEGACY_URL_WARNING, UserWarning, stacklevel=4)
 
 
 def _v0_api_url() -> str:
@@ -155,7 +182,7 @@ def _client_not_exported(namespace: str, name: str) -> str:
     return f"{message} {_CUSTOM_API_URL}" if namespace == "v0" else message
 
 
-@dataclass
+@dataclass(kw_only=True)
 class DaytonaConfig:
     """Configuration shared by every API version.
 
@@ -167,7 +194,7 @@ class DaytonaConfig:
     There is no region or API URL field here. Pass ``region=`` to a v2 create.
     ``DAYTONA_V2_API_URL`` (a regional endpoint or a test environment) selects the v2 API
     endpoint and never reaches v0; ``DAYTONA_API_URL`` belongs to the 0.x SDK
-    and SDK 2.x never reads it.
+    and SDK 2.x ignores it for routing (a custom value warns once per process).
 
     ``Daytona(config)`` / ``AsyncDaytona(config)`` copy the fields when the
     client is built: changing the object afterwards has no effect on it.
@@ -402,6 +429,7 @@ class _Root:
     """State shared by the sync and async root clients."""
 
     def __init__(self, config: Optional[DaytonaConfig] = None) -> None:
+        _warn_legacy_api_url()
         # Snapshot now: later edits to the caller's config do not reach the
         # namespace clients, which are built from it on first access.
         self._config = _snapshot_config(config) if config is not None else DaytonaConfig()
@@ -516,6 +544,8 @@ class Daytona(_Root):
         Closes the v2 client and the v0 client. The bundled 0.x sync
         ``Daytona`` has no ``close()``, so the root releases its event socket
         (and tracer provider) directly.
+        Stored v2 clients and their handles raise ``ClientClosedError`` on new
+        requests. Accessing ``root.v2`` again builds a fresh working client.
         """
         with self._lock:
             v2, self._v2 = self._v2, None
@@ -586,7 +616,11 @@ class AsyncDaytona(_Root):
             return self._v0
 
     async def close(self) -> None:
-        """Close the namespace clients built so far. Idempotent."""
+        """Close the namespace clients built so far. Idempotent.
+
+        Stored v2 clients and their handles raise ``ClientClosedError`` on new
+        requests. Accessing ``root.v2`` again builds a fresh working client.
+        """
         with self._lock:
             v2, self._v2 = self._v2, None
             v0, self._v0 = self._v0, None

@@ -26,17 +26,15 @@ def main() -> int:
     try:
         if not require_started(sandbox):
             return 1
-        d = "project-files"
+        d = "/tmp/project-files"
 
         section("mkdir + list")
         sandbox.fs.mkdir(d, mode="755")
-        before = sandbox.fs.list(".").items
-        info("entries in cwd: " + ", ".join(f.name for f in before))
+        before = sandbox.fs.list("/tmp").items
+        info("entries in /tmp: " + ", ".join(f.name for f in before))
 
         section("write_bytes (from in-memory bytes)")
-        config = json.dumps(
-            {"name": "demo", "version": "1.0.0", "settings": {"debug": True}}, indent=2
-        )
+        config = json.dumps({"name": "demo", "version": "1.0.0", "settings": {"debug": True}}, indent=2)
         sandbox.fs.write_bytes(f"{d}/config.json", config.encode())
         sandbox.fs.write_bytes(f"{d}/script.sh", b'#!/bin/bash\necho "Hello from script!"\n')
         info("uploaded config.json + script.sh")

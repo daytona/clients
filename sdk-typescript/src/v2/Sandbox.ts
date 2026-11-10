@@ -673,6 +673,7 @@ export class Sandbox {
   }
 
   private async waitForState(states: readonly SandboxWaitState[], options: SandboxStateWaitOptions = {}): Promise<void> {
+    this.httpOptions?.ensureOpen?.()
     await waitForSandboxState({
       id: this.id,
       region: this.region,
@@ -1076,10 +1077,23 @@ export class Sandbox {
     return new Snapshot(INTERNAL, snapshot)
   }
 
-  /** Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to the applied labels. */
+  /**
+   * Replace the sandbox's labels; pass `{}` to clear them. Resolves to the
+   * applied labels. The reserved `name` label, which `findByName()` and a
+   * `name` label search match, is kept unless `labels` sets it: without a
+   * `name` key the sandbox is read first and its current `name` label, if any,
+   * is sent along.
+   */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const body = labelsBody(labels)
+    // The reserved `name` label is kept unless `labels` sets it (the body is a
+    // null-prototype map, so `in` sees only its own keys).
+    if (!('name' in body)) {
+      await this.refreshData()
+      const current = this.labels
+      if (Object.prototype.hasOwnProperty.call(current, 'name')) body.name = current.name
+    }
     const requestConfig = { daytona: { routeTemplate: '/sandboxes/{id}/labels', sandboxId: this.id } } as AxiosRequestConfig
     const response = await this.api.put<{ labels?: unknown }>(
       `/sandboxes/${strictUriEncode(this.id)}/labels`,

@@ -27,7 +27,7 @@ import anyio
 from anyio.from_thread import BlockingPortal, start_blocking_portal
 from typing_extensions import Self
 
-from .errors import DaytonaError, _interrupt_error_of
+from .errors import ClientClosedError, DaytonaError, _interrupt_error_of
 
 T = TypeVar("T")
 
@@ -91,7 +91,7 @@ class SyncBridge:
         if current_pid != self._owner_pid:
             raise BridgeError(_AFTER_FORK.format(owner=self._owner_pid, current=current_pid))
         if self._closed:
-            raise BridgeError(f"{self._name} is closed")
+            raise ClientClosedError(f"{self._name} is closed")
         if self._portal is None:
             context = start_blocking_portal()
             portal = context.__enter__()
@@ -114,6 +114,8 @@ class SyncBridge:
         Takes a zero-argument callable rather than ``(func, *args)`` so the
         coroutine is built by the caller and stays fully typed.
         """
+        if self._closed:
+            raise ClientClosedError(f"{self._name} is closed")
         if _in_running_loop():
             raise BridgeError(_IN_EVENT_LOOP.format(name=self._name, async_name=self._async_name))
         unwound = threading.Event()
@@ -226,7 +228,7 @@ class SyncBridge:
             # starts after this check has not stopped the loop yet, so the
             # operation runs as a post that won the race would.
             if self._closed:
-                raise BridgeError(f"{self._name} is closed")
+                raise ClientClosedError(f"{self._name} is closed")
             operation()
             return
         # Scheduled under the lock close() takes before it stops the loop

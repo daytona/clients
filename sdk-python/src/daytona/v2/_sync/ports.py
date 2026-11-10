@@ -36,7 +36,7 @@ class PortsService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def expire_signed_preview_link(self, port: int, token: str) -> None:
+    def expire_signed_preview_link(self, port: int, token: str, /) -> None:
         """Revoke a signed preview link before its natural expiry.
 
         :param port: TCP port the link was issued for.
@@ -44,7 +44,7 @@ class PortsService:
         """
         return self._bridge.call(lambda: self._impl.expire_signed_preview_link(port, token))
 
-    def expose(self, port: int, *, public: bool = False) -> PreviewEndpoint:
+    def expose(self, port: int, /, *, public: bool = False) -> PreviewEndpoint:
         """Register a sandbox port as a preview endpoint.
 
         If the port is already exposed, returns the existing endpoint (updating
@@ -61,7 +61,7 @@ class PortsService:
         """
         return self._bridge.call(lambda: self._impl.expose(port, public=public))
 
-    def is_in_use(self, port: int) -> bool:
+    def is_in_use(self, port: int, /) -> bool:
         return self._bridge.call(lambda: self._impl.is_in_use(port))
 
     def iter_endpoints(
@@ -77,7 +77,7 @@ class PortsService:
     ) -> ListResult[PreviewEndpoint]:
         return self._bridge.call(lambda: self._impl.list_endpoints(cursor=cursor, limit=limit))
 
-    def preview_link(self, port: int) -> PreviewLink:
+    def preview_link(self, port: int, /) -> PreviewLink:
         """Preview URL plus access token for one sandbox port.
 
         Callers send the token in the ``X-Daytona-Preview-Token`` header.
@@ -95,7 +95,7 @@ class PortsService:
         return self._bridge.call(lambda: self._impl.preview_link(port))
 
     def signed_preview_link(
-        self, port: int, *, expires_in_seconds: Optional[int] = None
+        self, port: int, /, *, expires_in_seconds: Optional[int] = None
     ) -> SignedPreviewLink:
         """Return a self-contained signed URL for one sandbox port.
 
@@ -122,5 +122,5 @@ class PortsService:
             lambda: self._impl.signed_preview_link(port, expires_in_seconds=expires_in_seconds)
         )
 
-    def unexpose(self, port: int) -> None:
+    def unexpose(self, port: int, /) -> None:
         return self._bridge.call(lambda: self._impl.unexpose(port))
