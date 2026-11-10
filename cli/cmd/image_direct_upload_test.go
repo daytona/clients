@@ -506,11 +506,14 @@ func TestPostImageDirect_debugOutputNeverNamesAPartURL(t *testing.T) {
 	client := apiinternal.New(p.api.URL, "k", "test")
 	client.Debug = func(format string, a ...any) { lines = append(lines, fmt.Sprintf(format, a...)) }
 	require.NoError(t, p.postWith(t, client, writeContextFile(t, []byte("0123456789"))))
-	require.NotEmpty(t, lines)
+	// The hook sees the upload's API requests; the part PUTs never pass through it.
+	sawDeclare := false
 	for _, line := range lines {
+		sawDeclare = sawDeclare || strings.Contains(line, "/build-contexts")
 		require.NotContains(t, line, "Signature")
 		require.NotContains(t, line, p.storage.URL)
 	}
+	require.True(t, sawDeclare, "the debug hook saw no build-context request: %q", lines)
 }
 
 // requireInterrupted asserts an interrupt ends the build with the CLI's own
