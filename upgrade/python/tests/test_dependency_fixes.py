@@ -107,3 +107,46 @@ def test_migrates_poetry_when_only_old_supported_tomlkit_api_exists(
             }
         }
     }
+
+
+@pytest.mark.parametrize(
+    ("path", "source", "expected"),
+    [
+        (
+            "pyproject.toml",
+            "[tool.poetry.dependencies]\n"
+            'daytona-sdk = {version=">=0.100", extras=["x", "otel"]}\n',
+            "[tool.poetry.dependencies]\n"
+            'daytona = {version=">=2,<3", extras=["otel", "v0-sdk"]}\n',
+        ),
+        (
+            "requirements.txt",
+            "daytona-sdk[x,otel]>=0.100\n",
+            "daytona[otel,v0-sdk]>=2,<3\n",
+        ),
+    ],
+)
+def test_drops_extras_the_renamed_package_does_not_define(
+    path: str, source: str, expected: str
+) -> None:
+    # Given a 0.x declaration with an extra SDK 2.x does not define and one it does.
+    # When
+    result = inspect_manifest(Path(path), source, load_mapping())
+    # Then the known extra is kept, the unknown one dropped and reported.
+    assert result.source == expected
+    assert [message for _, message in result.manual] == [
+        "Dropped the x extra of daytona-sdk: SDK 2.x's daytona defines only otel, "
+        "v0-sdk; install what it provided directly if you still need it."
+    ]
+
+
+def test_known_extras_match_the_sdk_distribution() -> None:
+    # Given the 2.x SDK's own optional dependencies (minus its development extra).
+    pyproject = Path(__file__).parents[3] / "sdk-python" / "pyproject.toml"
+    if not pyproject.is_file():
+        pytest.skip("not in the repository checkout")
+    extras = tomlkit.parse(pyproject.read_text())["project"]["optional-dependencies"]
+    # Then the mapping lists exactly those.
+    assert sorted(load_mapping().known_extras) == sorted(
+        name for name in extras if name != "dev"
+    )

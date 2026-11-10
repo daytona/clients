@@ -70,6 +70,15 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         if (Node.isObjectLiteralExpression(value)) constraints(value);
       }
     }
+    // Both package names in the dependencies, or in one constraint section:
+    // every entry of the old name is left for manual reconciliation, so a
+    // dependency and its resolution never end up naming different packages.
+    const names = (entries: typeof object): string[] => entries.getProperties().filter(Node.isPropertyAssignment)
+      .map(entry => entry.getName().replaceAll('"', ''));
+    const duplicate = hasRoot || sections.some(({ entries }) => {
+      const present = names(entries);
+      return present.includes(mapping.packages.ts.new) && present.some(name => mapping.packages.ts.old.includes(name));
+    });
     for (const { name: sectionName, entries, constraint } of sections) {
       for (const entry of entries.getProperties()) {
         if (!Node.isPropertyAssignment(entry)) continue;
@@ -131,9 +140,7 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'peer-dependency', message: `Update peer dependency ${name} manually for SDK 2.x.` });
           continue;
         }
-        const collision = constraint ? entries.getProperties().some(candidate => Node.isPropertyAssignment(candidate) &&
-          candidate.getName().replaceAll('"', '') === mapping.packages.ts.new) : hasRoot;
-        if (name !== mapping.packages.ts.new && collision) {
+        if (name !== mapping.packages.ts.new && duplicate) {
           items.push({ ...detail, kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' });
           continue;
         }

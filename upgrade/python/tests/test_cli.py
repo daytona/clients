@@ -311,7 +311,7 @@ def test_information_when_help_or_version_requested(flag: str) -> None:
     assert code == 0
 
 
-@pytest.mark.parametrize("extension", [".py", ".pyi"])
+@pytest.mark.parametrize("extension", [".py", ".pyi", ".pyw"])
 @pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "latin-1"])
 def test_preserves_source_bytes_when_crlf_and_encoding_declared(
     tmp_path: Path, extension: str, encoding: str

@@ -60,6 +60,7 @@
             "old",
             "new",
             "extras",
+            "knownExtras",
             "specifier",
             "requirement"
           ],
@@ -72,6 +73,10 @@
             },
             "extras": {
               "$ref": "#/$defs/strings"
+            },
+            "knownExtras": {
+              "$ref": "#/$defs/strings",
+              "description": "Every extra the 2.x daytona distribution defines; an extra a migrated declaration carries that is not listed is dropped with a manual item."
             },
             "specifier": {
               "$ref": "#/$defs/text"

@@ -95,6 +95,8 @@ class Mapping:
     v0_version: str | None = None
     # 0.x root error aliases the 2.x root dropped -> the shared category each named.
     root_alias_categories: dict[str, str] = field(default_factory=dict)
+    # Every extra the 2.x distribution defines; others are dropped on migration.
+    known_extras: tuple[str, ...] = ()
 
     @property
     def root_imports(self) -> tuple[str, ...]:
@@ -176,6 +178,7 @@ def load_mapping(path: Path | None = None, tool_version: str | None = None) -> M
             str(alias): str(category)
             for alias, category in raw.get("rootAliasCategories", {}).items()
         },
+        tuple(package["knownExtras"]),
     )
 
 

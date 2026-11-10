@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { hasLiteralArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withoutOptionalArguments } from './optional-arguments.mjs';
+import { hasLiteralArguments, hasNoneArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withNoneArguments, withoutOptionalArguments } from './optional-arguments.mjs';
 
 const sdkRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -69,10 +69,14 @@ async function main() {
         { ...entry, id: `${entry.id} (zero)`, v2: variant((form) => withLiteralArguments(form, '0')) },
       ]
       : [];
+    const nones = ['py', 'ts'].some((lang) => entry.v2[lang] !== null && hasNoneArguments(entry.v2[lang]))
+      ? [{ ...entry, id: `${entry.id} (none)`, v2: variant(withNoneArguments) }]
+      : [];
     return [
       { ...entry, v2: variant(withNamedArguments) },
       { ...entry, id: `${entry.id} (defaults)`, v2: variant(withoutOptionalArguments) },
       ...literals,
+      ...nones,
     ];
   });
   const expanded = { ...mapping, suggestions: [...forms, ...notes] };

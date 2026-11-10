@@ -29,6 +29,13 @@ it.each([
   ['box.fork(undefined, budget > 0 ? budget : 60)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: (budget > 0 ? budget : 60) === 0 ? 30 * 86_400 : (budget > 0 ? budget : 60) })'],
   ['box.fork(undefined, budget || 60)', 'sandbox.fork', 'box.fork({ memory: false, waitSeconds: (budget || 60) === 0 ? 30 * 86_400 : (budget || 60) })'],
   ['box.pause(budget || 60)', 'sandbox.pause', 'box.pause({ timeoutSeconds: budget || 60 })'],
+  // Keyboard calls carry the call's own arguments; a delay is converted from
+  // milliseconds, parenthesized where it is an expression.
+  ["box.computerUse.keyboard.type('hi')", 'sandbox.computerUse.keyboard.type', "box.computerUse.keyboard.type({ text: 'hi' })"],
+  ['box.computerUse.keyboard.type(String(budget), 50)', 'sandbox.computerUse.keyboard.type', 'box.computerUse.keyboard.type({ text: String(budget), delaySeconds: 50 / 1000 })'],
+  ['box.computerUse.keyboard.type(String(budget), budget + 5)', 'sandbox.computerUse.keyboard.type', 'box.computerUse.keyboard.type({ text: String(budget), delaySeconds: (budget + 5) === undefined ? undefined : (budget + 5) / 1000 })'],
+  ["box.computerUse.keyboard.press('a', ['ctrl'])", 'sandbox.computerUse.keyboard.press', "box.computerUse.keyboard.key({ key: 'a', modifiers: ['ctrl'] })"],
+  ["box.computerUse.keyboard.hotkey('ctrl+c')", 'sandbox.computerUse.keyboard.hotkey', "box.computerUse.keyboard.hotkey({ keys: 'ctrl+c' })"],
   // `sandbox` in a client form stands for the 0.x call's sandbox, as the
   // guide says of every identifier but `{client}` / `{sandbox}`.
   ['d.v0.stop(box)', 'client.stop', 'd.v2.stop(sandbox)'],

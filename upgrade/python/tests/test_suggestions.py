@@ -341,6 +341,56 @@ def _lifecycle_form(call: str, entry_id: str) -> str:
             "box.start(timeout=0 if (a or b) is None else (a or b))",
         ),
         ("box.pause(timeout=a or b)", "sandbox.pause", "box.pause(timeout=a or b)"),
+        # A literal None is folded to the value it meant in 0.x.
+        (
+            "box.wait_for_sandbox_stop(timeout=None)",
+            "sandbox.waitUntilStopped",
+            'box.wait(until="stopped", timeout=0)',
+        ),
+        ("box.start(None)", "sandbox.start", "box.start(timeout=0)"),
+        ("box.delete(timeout=None)", "sandbox.delete", "box.delete(timeout=60)"),
+        (
+            "box.fork(timeout=None)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400)",
+        ),
+        (
+            "api.v0.delete(box, None)",
+            "client.delete",
+            "api.v2.delete(sandbox, timeout=60)",
+        ),
+        # Keyboard calls carry the call's own arguments; a delay is converted
+        # from milliseconds, parenthesized where it is an expression.
+        (
+            "box.computer_use.keyboard.type('hi')",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text='hi')",
+        ),
+        (
+            "box.computer_use.keyboard.type(message, delay=50)",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text=message, delay=50 / 1000)",
+        ),
+        (
+            "box.computer_use.keyboard.type(message, pause + 5)",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text=message, delay=None if (pause + 5) is None else (pause + 5) / 1000)",
+        ),
+        (
+            "box.computer_use.keyboard.type(message, delay=None)",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text=message)",
+        ),
+        (
+            "box.computer_use.keyboard.press('a', ['ctrl'])",
+            "sandbox.computerUse.keyboard.press",
+            "box.computer_use.keyboard.key(key='a', modifiers=['ctrl'])",
+        ),
+        (
+            "box.computer_use.keyboard.hotkey('ctrl+c')",
+            "sandbox.computerUse.keyboard.hotkey",
+            "box.computer_use.keyboard.hotkey(keys='ctrl+c')",
+        ),
         # `sandbox` in a client form stands for the 0.x call's sandbox, as the
         # guide says of every identifier but `{client}` / `{sandbox}`.
         ("api.v0.stop(box)", "client.stop", "api.v2.stop(sandbox)"),

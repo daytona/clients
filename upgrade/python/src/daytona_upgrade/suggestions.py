@@ -117,9 +117,15 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             call.kind.startswith("client.")
             and (call.node.lineno, call.node.col_offset) not in owners.clients
         )
+        # A handle a sandbox call produced (an LSP server, a PTY) is not its
+        # sandbox: an unproven owner needs the same manual move as a service.
+        sandbox_produced = any(
+            producer.startswith("sandbox")
+            for producer in mapping.receivers[entry.receiver].produced_by
+        )
         manual = manual_client or bool(
             entry.form
-            and call.kind.startswith("sandbox.")
+            and (call.kind.startswith("sandbox.") or sandbox_produced)
             and "{sandbox}" in owners.render(entry.form, call)
         )
         message = (

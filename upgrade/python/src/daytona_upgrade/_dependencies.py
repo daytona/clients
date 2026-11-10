@@ -20,7 +20,11 @@ from .dependency_versions import (
     target_constraint,
 )
 from .models import Mapping
-from .requirement_rendering import render_requirement
+from .requirement_rendering import (
+    dropped_extra_message,
+    render_requirement,
+    target_extras,
+)
 from .toml_values import render_declaration as _render
 from .toml_values import toml_string as _string
 
@@ -126,17 +130,35 @@ class Migration:
         if result is None:
             self.unparsed_requirement()
             return source
+        self._dropped_extras(
+            parsed["name"],
+            [
+                part.strip()
+                for part in (parsed["extras"] or "[]")[1:-1].split(",")
+                if part.strip()
+            ],
+        )
         if result != source:
             self.changes.append((source.strip(), result.strip()))
         return result
 
+    def _dropped_extras(self, name: str, extras: list[str]) -> None:
+        for extra in target_extras(extras, self.mapping)[1]:
+            self.manual.append(
+                (self.line, dropped_extra_message(extra, name, self.mapping))
+            )
+
     def _written(self, name: str, specifier: str, existing: str | None) -> str:
         """The requirement a rewrite of this declaration would write: its own
         extras first, then the mapping's (as render_requirement merges them)."""
-        names = [
-            part.strip() for part in (existing or "[]")[1:-1].split(",") if part.strip()
-        ]
-        names.extend(extra for extra in self.mapping.extras if extra not in names)
+        names, _ = target_extras(
+            [
+                part.strip()
+                for part in (existing or "[]")[1:-1].split(",")
+                if part.strip()
+            ],
+            self.mapping,
+        )
         extras = f"[{','.join(names)}]" if names else ""
         return (
             self.mapping.package_new
@@ -228,6 +250,14 @@ class Migration:
             updated["version"] = version
         extras = updated.get("extras")
         if isinstance(extras, Array):
+            _, dropped = target_extras(
+                [str(extra) for extra in extras if isinstance(extra, String)],
+                self.mapping,
+            )
+            for index in reversed(range(len(extras))):
+                if isinstance(extras[index], String) and str(extras[index]) in dropped:
+                    del extras[index]
+            self._dropped_extras(name, dropped)
             for extra in self.mapping.extras:
                 if extra not in extras:
                     extras.append(extra)

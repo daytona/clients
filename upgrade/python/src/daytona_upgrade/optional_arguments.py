@@ -9,9 +9,14 @@ positional ``index``); otherwise the marker is dropped and v2's default holds,
 so the suggestion never names a variable the call did not have. A marker
 may add ``|literal`` and ``|zero`` texts: for a numeric literal argument the
 value is computed instead, ``literal`` with ``$`` as the literal (``zero``
-when it is 0; ``literal`` again when no ``zero`` text is given). The
-TypeScript tool reads the same markers (optional-arguments.ts). A text that
-uses the argument more than once is a conversion expression: there an
+when it is 0; ``literal`` again when no ``zero`` text is given), and a
+fourth ``|none`` text is rendered for the language's null literal (``None``
+here, ``null`` in TypeScript), so ``timeout=None`` is folded instead of
+spelled into a conditional. A required argument is marked ``name@index!``:
+it is always rendered, by its v0 name when the call's source for it is
+unknown. The TypeScript tool reads the same markers
+(optional-arguments.ts). A text that uses the argument more than once, or
+next to an arithmetic operator, is a conversion expression: there an
 argument that is not a name, a member chain or a literal is parenthesized,
 so its operators keep their precedence.
 """
@@ -22,11 +27,14 @@ import ast
 import re
 from collections.abc import Callable
 
-_MARKER = re.compile(r"\[\[(\w+)@(\d+)\|((?:(?!\]\]).)*)\]\]")
+_MARKER = re.compile(r"\[\[(\w+)@(\d+)(!?)\|((?:(?!\]\]).)*)\]\]")
 # A decimal numeric literal, written as both languages write one.
 _NUMERIC_LITERAL = re.compile(r"(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][+-]?\d+)?")
 # A name or a member chain (`a`, `a.b.c`).
 _SIMPLE = re.compile(r"[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*")
+# `$` as an operand of an arithmetic operator (`$ / 1000`).
+_ARITHMETIC = re.compile(r"\$\s*[-+*/%]|[-+*/%]\s*\$")
+_NONE = "None"
 
 
 def render_optional_arguments(
@@ -35,15 +43,19 @@ def render_optional_arguments(
     def replace(match: re.Match[str]) -> str:
         value = argument(match.group(1), int(match.group(2)))
         if value is None:
-            return ""
-        text, *rest = match.group(3).split("|")
+            if not match.group(3):
+                return ""
+            value = match.group(1)
+        text, *rest = match.group(4).split("|")
         chosen = text
-        if rest and _NUMERIC_LITERAL.fullmatch(value):
+        if len(rest) > 2 and value == _NONE:
+            chosen = rest[2]
+        elif rest and _NUMERIC_LITERAL.fullmatch(value):
             literal = rest[0]
             zero = rest[1] if len(rest) > 1 else literal
             chosen = zero if float(value.replace("_", "")) == 0 else literal
         operand = value
-        if chosen.count("$") > 1 and not (
+        if (chosen.count("$") > 1 or _ARITHMETIC.search(chosen)) and not (
             _SIMPLE.fullmatch(value) or _NUMERIC_LITERAL.fullmatch(value)
         ):
             operand = f"({value})"

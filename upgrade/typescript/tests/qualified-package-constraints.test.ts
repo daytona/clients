@@ -36,3 +36,17 @@ it.each(['overrides', 'resolutions', 'pnpm'].flatMap(section => [
   expect(JSON.parse(contents(root)['package.json'] ?? '')).toMatchObject({ [section]: manifest[section] });
   expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ kind: 'config-field' })]) });
 });
+
+it.each([
+  { dependencies: { '@daytonaio/sdk': '^0.200.0', '@daytona/sdk': '^2.0.0' }, resolutions: { '@daytonaio/sdk': '0.200.1' } },
+  { dependencies: { '@daytonaio/sdk': '^0.200.0' }, resolutions: { '@daytonaio/sdk': '0.200.1', '@daytona/sdk': '2.0.0' } },
+])('leaves every old-name entry when both package names are present: %j', async manifest => {
+  // Given
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest), 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then: the dependency and its resolution keep naming the same package.
+  expect(JSON.parse(contents(root)['package.json'] ?? '')).toEqual(manifest);
+  expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({
+    kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' })]) });
+});

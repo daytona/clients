@@ -290,6 +290,28 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
   publish_npm=false -f publish_cli=false -f source_ref=<that commit>` (the
   registry check requires both SDKs to be published already).
 
+### The migration guide
+
+Every `--suggest-v2` comment and JSON item links `docs.base#<anchor>` from
+`upgrade/mapping/mapping.json`. Until the Daytona docs publish the guide,
+`docs.base` is the generated `upgrade/MIGRATION.md` on `main` on GitHub, whose
+section anchors (`<a id="…">`, one per receiver plus `data`) are checked by
+`upgrade/scripts/docs-links.test.mjs`. Published tool releases keep the link
+they shipped with, so the in-repo guide and its anchors stay where they are
+even after the docs site has its own page.
+
+**To move the links to the docs site (maintainer step):**
+
+1. Publish the guide at its own page (render `upgrade/MIGRATION.md`; keep every
+   section anchor, including `data`, as an element id on that page).
+2. Check every anchor resolves there: for each `anchor` in the mapping (and
+   `data`), open `<page>#<anchor>`.
+3. Set `docs.base` to the page URL (no `#`), update `inRepoGuide` in
+   `upgrade/scripts/docs-links.test.mjs` and the READMEs' "Documentation
+   links point at …" sentence, run `node upgrade/scripts/sync-mapping.mjs`,
+   and release the tool. Never point `docs.base` at the docs home: its anchors
+   do not exist there.
+
 ### The v0 pin
 
 The tool refuses projects on a newer 0.x minor than the release SDK 2.x
@@ -384,7 +406,7 @@ Procedure:
      `npm install @daytona/sdk`;
    - `upgrade/python/README.md` and `upgrade/typescript/README.md`: "Until
      SDK 2.0.0 is out, run the exact alpha you are migrating to" with its
-     `2.0.0a8` / `2.0.0-alpha.8` examples;
+     `2.0.0aN` / `2.0.0-alpha.N` examples;
    - `sdk-python/pyproject.toml`: the `Development Status :: 3 - Alpha`
      classifier (shown on PyPI).
    - `upgrade/MIGRATION.md`, which is generated: edit the two "Until SDK

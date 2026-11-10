@@ -13,6 +13,24 @@ from .dependency_versions import target_constraint
 from .models import Mapping
 
 
+def target_extras(extras: list[str], mapping: Mapping) -> tuple[list[str], list[str]]:
+    """The extras a migrated declaration writes (its own that the 2.x
+    distribution defines, then the mapping's), and the ones it drops."""
+    known = {re.sub(r"[-_.]+", "-", extra).lower() for extra in mapping.known_extras}
+    kept = [extra for extra in extras if re.sub(r"[-_.]+", "-", extra).lower() in known]
+    dropped = [extra for extra in extras if extra not in kept]
+    kept.extend(extra for extra in mapping.extras if extra not in kept)
+    return kept, dropped
+
+
+def dropped_extra_message(extra: str, name: str, mapping: Mapping) -> str:
+    return (
+        f"Dropped the {extra} extra of {name}: SDK 2.x's {mapping.package_new} "
+        f"defines only {', '.join(mapping.known_extras)}; install what it provided "
+        "directly if you still need it."
+    )
+
+
 def render_requirement(
     parsed: re.Match[str], requirement: Requirement, mapping: Mapping
 ) -> str | None:
@@ -26,12 +44,14 @@ def render_requirement(
         if marker is None:
             return None
         suffix = marker.group()
-    extras = [
-        part.strip()
-        for part in (parsed["extras"] or "[]")[1:-1].split(",")
-        if part.strip()
-    ]
-    extras.extend(extra for extra in mapping.extras if extra not in extras)
+    extras, _ = target_extras(
+        [
+            part.strip()
+            for part in (parsed["extras"] or "[]")[1:-1].split(",")
+            if part.strip()
+        ],
+        mapping,
+    )
     target = mapping.package_new
     if extras:
         target += "[" + ",".join(extras) + "]"
