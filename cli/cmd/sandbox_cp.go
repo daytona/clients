@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -74,8 +73,14 @@ func newSandboxCPSubcommand() *cobra.Command {
 				return recursiveUpload(cmd, toolClient, signer, target, args[0], dst.Path)
 			}
 			remotePath := destinationUploadPath(args[0], dst.Path)
-			if remotePath == dst.Path && remoteIsDir(cmd.Context(), toolClient, dst.Path) {
-				remotePath = path.Join(dst.Path, filepath.Base(args[0]))
+			if remotePath == dst.Path {
+				isDir, err := remoteIsDir(cmd.Context(), toolClient, dst.Path)
+				if err != nil {
+					return err
+				}
+				if isDir {
+					remotePath = path.Join(dst.Path, filepath.Base(args[0]))
+				}
 			}
 			signedURL, err := toolboxclient.SignFileURL(cmd.Context(), signer, string(target.Detail.Class), target.Detail.Id, http.MethodPost, remotePath, presignedTransferTTL)
 			if err != nil {
@@ -103,17 +108,6 @@ func checkLocalUploadSource(localPath string, recursive bool) error {
 		return cerr.Usage("%s is not a directory; -r copies a directory", localPath).WithHint("drop -r to copy one file")
 	}
 	return nil
-}
-
-// remoteIsDir reports whether path is an existing directory in the sandbox,
-// so a file copied onto it lands inside it, as with POSIX cp. A failed lookup
-// leaves the destination as given: the upload reports what is wrong.
-func remoteIsDir(ctx context.Context, toolClient *toolboxclient.Client, remotePath string) bool {
-	var info tbgen.FileInfo
-	if err := toolClient.GetJSON(ctx, "/files/info", url.Values{"path": {remotePath}}, &info); err != nil {
-		return false
-	}
-	return info.IsDir
 }
 
 func recursiveDownload(cmd *cobra.Command, toolClient *toolboxclient.Client, remotePath, localPath string) error {

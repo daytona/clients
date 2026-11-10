@@ -16,6 +16,10 @@ import (
 
 func TestSSHResolvedConfigUsesCLIHostKeyPolicy(t *testing.T) {
 	t.Parallel()
+	sshPath, lookErr := exec.LookPath("ssh")
+	if lookErr != nil {
+		t.Skip("ssh is not on PATH")
+	}
 	// Given a config directory requiring OpenSSH quoting.
 	name := "config space 'quoted' %h"
 	if runtime.GOOS != "windows" {
@@ -27,7 +31,7 @@ func TestSSHResolvedConfigUsesCLIHostKeyPolicy(t *testing.T) {
 	t.Cleanup(inv.Cleanup)
 	args := append([]string{"-G"}, inv.Args...)
 	// When OpenSSH resolves the actual invocation (without connecting).
-	out, err := exec.CommandContext(t.Context(), "ssh", args...).Output()
+	out, err := exec.CommandContext(t.Context(), sshPath, args...).Output()
 	// Then the actual gateway, not the shared alias, owns the CLI-only policy.
 	require.NoError(t, err)
 	values := make(map[string]string)

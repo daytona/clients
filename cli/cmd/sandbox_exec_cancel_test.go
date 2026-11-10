@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,13 @@ func TestExec_forwardsInterruptOnly_whenParentCancelled(t *testing.T) {
 			require.NoError(t, err)
 			oldStdin := os.Stdin
 			os.Stdin = stdin
-			t.Cleanup(func() { os.Stdin = oldStdin; require.NoError(t, stdin.Close()) })
+			t.Cleanup(func() {
+				os.Stdin = oldStdin
+				// The stdin pump may already have closed it on a failed stream.
+				if err := stdin.Close(); !errors.Is(err, os.ErrClosed) {
+					require.NoError(t, err)
+				}
+			})
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			var signals atomic.Int32

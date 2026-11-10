@@ -39,6 +39,7 @@ type terminalPrompt struct {
 	out        io.Writer
 	state      *term.State
 	pending    []byte
+	reading    chan promptByte
 }
 
 // Keep terminal probing out of the prompt dependency graph. In particular,
@@ -69,6 +70,9 @@ func newTerminalPrompt(ctx context.Context) (*terminalPrompt, error) {
 
 func (p *terminalPrompt) close() error {
 	p.stopCancel()
+	if p.reading != nil && p.reader.Cancel() {
+		<-p.reading
+	}
 	readErr := p.reader.Close()
 	err := term.Restore(int(p.in.Fd()), p.state)
 	_, writeErr := fmt.Fprint(p.out, "\x1b[?2004l\r\n")
@@ -86,15 +90,11 @@ func (p *terminalPrompt) readKey() (key string, err error) {
 			key, err = "", contextErr
 		}
 	}()
-	var first [1]byte
-	if len(p.pending) > 0 {
-		first[0], p.pending = p.pending[0], p.pending[1:]
-	} else {
-		if _, err := io.ReadFull(p.reader, first[:]); err != nil {
-			return "", fmt.Errorf("read terminal prompt: %w", err)
-		}
+	first, err := p.readByte(0)
+	if err != nil {
+		return "", fmt.Errorf("read terminal prompt: %w", err)
 	}
-	switch first[0] {
+	switch first {
 	case 3:
 		return keyAbort, nil
 	case '\r', '\n', '\t':
@@ -110,59 +110,45 @@ func (p *terminalPrompt) readKey() (key string, err error) {
 		// slow or large paste must never become individual confirmation keys.
 		return keyPaste, p.discardPaste()
 	}
-	data := []byte{first[0]}
+	data := []byte{first}
 	for !utf8.FullRune(data) {
-		if _, err := io.ReadFull(p.reader, first[:]); err != nil {
+		b, err := p.readByte(0)
+		if err != nil {
 			return "", fmt.Errorf("read prompt character: %w", err)
 		}
-		data = append(data, first[0])
+		data = append(data, b)
 	}
 	return string(data), nil
 }
 
 func (p *terminalPrompt) readEscape() (key string, err error) {
-	reader, err := cancelreader.NewReader(p.in)
-	if err != nil {
-		return "", fmt.Errorf("read prompt escape: %w", err)
-	}
-	defer func() { err = errors.Join(err, reader.Close()) }()
-	stopCancel := cancelReadOnContext(p.ctx, reader)
-	defer stopCancel()
-	// A bare Escape must not block waiting for an arrow-key suffix. Cancel
-	// the read without consuming input; join the timer before closing reader.
-	done := make(chan struct{})
-	timer := time.AfterFunc(50*time.Millisecond, func() {
-		reader.Cancel()
-		close(done)
-	})
+	// Bound gaps, not total sequence duration. A timed-out read remains owned
+	// by the prompt: cancelreader cancellation is permanent, not a deadline.
+	var consumed []byte
 	defer func() {
-		if !timer.Stop() {
-			<-done
+		if errors.Is(err, errEscapeTimeout) {
+			p.pending = append(consumed, p.pending...)
+			key, err = keyEscape, nil
 		}
 	}()
-	key, err = p.readEscapeSequence(reader)
-	if errors.Is(err, cancelreader.ErrCanceled) {
-		return keyEscape, nil
-	}
-	return key, err
-}
-
-func (p *terminalPrompt) readEscapeSequence(reader io.Reader) (string, error) {
-	var b [1]byte
-	if _, err := io.ReadFull(reader, b[:]); err != nil {
+	b, err := p.readByte(50 * time.Millisecond)
+	if err != nil {
 		return "", err
 	}
-	if b[0] != '[' && b[0] != 'O' {
-		p.pending = append(p.pending, b[0])
+	if b != '[' && b != 'O' {
+		p.pending = append(p.pending, b)
 		return keyEscape, nil
 	}
+	consumed = append(consumed, b)
 	sequence := ""
 	for range 16 {
-		if _, err := io.ReadFull(reader, b[:]); err != nil {
+		b, err = p.readByte(50 * time.Millisecond)
+		if err != nil {
 			return "", err
 		}
-		sequence += string(b[0])
-		switch b[0] {
+		consumed = append(consumed, b)
+		sequence += string(b)
+		switch b {
 		case 'A':
 			return keyUp, nil
 		case 'B':
@@ -185,7 +171,7 @@ func (p *terminalPrompt) readEscapeSequence(reader io.Reader) (string, error) {
 				return keyPaste, nil
 			}
 		}
-		if b[0] >= 0x40 && b[0] <= 0x7e {
+		if b >= 0x40 && b <= 0x7e {
 			return keyEscape, nil
 		}
 	}
@@ -195,14 +181,14 @@ func (p *terminalPrompt) readEscapeSequence(reader io.Reader) (string, error) {
 func (p *terminalPrompt) discardPaste() error {
 	const end = "\x1b[201~"
 	matched := 0
-	var b [1]byte
 	for matched < len(end) {
-		if _, err := io.ReadFull(p.reader, b[:]); err != nil {
+		b, err := p.readByte(0)
+		if err != nil {
 			return fmt.Errorf("read terminal paste: %w", err)
 		}
-		if b[0] == end[matched] {
+		if b == end[matched] {
 			matched++
-		} else if b[0] == end[0] {
+		} else if b == end[0] {
 			matched = 1
 		} else {
 			matched = 0

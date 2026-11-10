@@ -71,6 +71,9 @@ func discoverImageBuildLogs(ctx context.Context, client *api.Client, discoveryPa
 	if err := client.Do(ctx, http.MethodGet, strings.TrimSuffix(discoveryPath, "/build-logs-url"), nil, nil, &image); err != nil {
 		return "", err
 	}
+	if _, ok := buildLogPathSegment(url.PathEscape(image.Id)); !ok {
+		return "", cerr.New(cerr.ExitFailure, "invalid image response: missing or invalid id")
+	}
 	resolvedPath := "/images/" + url.PathEscape(image.Id) + "/build-logs-url"
 	var payload gen.BuildLogsUrl
 	if err := client.Do(ctx, http.MethodGet, resolvedPath, nil, nil, &payload); err != nil {
@@ -88,7 +91,23 @@ func readDiscoveredBuildLogs(ctx context.Context, client *api.Client, discoveryP
 	if follow {
 		query.Set("follow", "true")
 	}
-	return readText(ctx, client.WithBaseURL(baseURL), "", query)
+	resp, err := client.WithBaseURL(baseURL).Stream(ctx, http.MethodGet, "", query, nil, "")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	const maxBuildLogBytes = 64 << 20
+	if resp.ContentLength > maxBuildLogBytes {
+		return "", cerr.New(cerr.ExitFailure, "image build log exceeds the 64 MiB read limit; use --follow to stream it")
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBuildLogBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if len(body) > maxBuildLogBytes {
+		return "", cerr.New(cerr.ExitFailure, "image build log exceeds the 64 MiB read limit; use --follow to stream it")
+	}
+	return string(body), nil
 }
 
 func streamDiscoveredBuildLogs(ctx context.Context, client *api.Client, discoveryPath string, format output.Format, out io.Writer) error {

@@ -57,8 +57,10 @@ Examples:
 			if cmd.Flags().Changed("profile") {
 				name = a.Globals.Profile
 			}
-			if err := config.ValidateProfileName(name); err != nil {
-				return err
+			if _, exists := a.Config.Profile(name); !exists {
+				if err := config.ValidateProfileName(name); err != nil {
+					return err
+				}
 			}
 			if cmd.Flags().Changed("token") {
 				if strings.TrimSpace(token) == "" {

@@ -128,9 +128,8 @@ func TestSandboxCreate_nameAndKeyChecks(t *testing.T) {
 	}
 	var ce *cerr.Error
 	_, _, err := runCLI(t, []string{"sandbox", "create", "--wait", "5s"}, nil)
-	if errors.As(err, &ce) {
-		require.Contains(t, ce.Hint, "--server-wait")
-	}
+	require.ErrorAs(t, err, &ce)
+	require.Contains(t, ce.Hint, "--server-wait")
 }
 
 func TestSandboxCreate_serverWaitSetsWaitSeconds(t *testing.T) {
@@ -475,9 +474,12 @@ func TestSavedCredential_urlComparisonIgnoresSchemeAndHostCase(t *testing.T) {
 	saved := newFakeAPI(t)
 	saved.on("GET", "/api-keys/current", 200, projectKeyFixture())
 	d := cfgDir(t)
-	_, errb, code := run(t, d, nil, "login", "--token", "saved-token", "--api-url", saved.srv.URL)
+	// A hostname (not an IP literal), so host casing is actually compared.
+	named := strings.Replace(saved.srv.URL, "127.0.0.1", "localhost", 1)
+	_, errb, code := run(t, d, nil, "login", "--token", "saved-token", "--api-url", named)
 	require.Equal(t, 0, code, errb)
-	upper := strings.Replace(strings.ToUpper(saved.srv.URL), "HTTP://", "HTTP://", 1)
+	upper := strings.ToUpper(named)
+	require.NotEqual(t, named, upper)
 	_, errb, code = run(t, d, nil, "whoami", "-o", "json", "--api-url", upper)
 	require.Equal(t, 0, code, errb)
 }

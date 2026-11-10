@@ -88,6 +88,8 @@ func TestPlatformTokenIsNotReusedForAnotherAPIURL(t *testing.T) {
 
 	// Then: refuse before discovery, exchange, refresh, or any API request.
 	require.Equal(t, cerr.ExitUsage, code, errb)
+	require.Contains(t, errb, "saved credential was issued for "+saved.srv.URL)
+	require.Contains(t, errb, "it is not sent to "+other.srv.URL)
 	require.Empty(t, saved.requests)
 	require.Empty(t, other.requests)
 	cr, err := st.LoadCredentials()

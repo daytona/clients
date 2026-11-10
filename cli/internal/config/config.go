@@ -223,12 +223,12 @@ func (c *Config) Profile(name string) (*Profile, bool) {
 
 // Upsert adds or replaces a profile.
 func (c *Config) Upsert(p Profile) error {
-	if err := ValidateProfileName(p.Name); err != nil {
-		return err
-	}
 	if cur, ok := c.Profile(p.Name); ok {
 		*cur = p
 		return nil
+	}
+	if err := ValidateProfileName(p.Name); err != nil {
+		return err
 	}
 	c.Profiles = append(c.Profiles, p)
 	return nil

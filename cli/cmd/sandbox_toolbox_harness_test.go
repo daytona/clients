@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -51,6 +50,9 @@ func runToolboxCLIWithOptions(t *testing.T, opts runToolboxCLIOptions, args []st
 	t.Helper()
 	var index int
 	serverURL := ""
+	// Load the contracts here, on the test goroutine: the handler below calls
+	// helpers that would otherwise reach t.Fatalf from the server goroutine.
+	loadContracts(t)
 	// The handler runs on the server's goroutine: use assert (t.Errorf), never
 	// require (FailNow is only valid on the test goroutine). An unexpected
 	// request answers 500 so the CLI side fails too and the test goroutine's
@@ -100,11 +102,7 @@ func runToolboxCLIWithOptions(t *testing.T, opts runToolboxCLIOptions, args []st
 
 	toolboxEnvMu.Lock()
 	defer toolboxEnvMu.Unlock()
-	previous := os.Getenv("DAYTONA_CONFIG_DIR")
-	t.Cleanup(func() {
-		_ = os.Setenv("DAYTONA_CONFIG_DIR", previous)
-	})
-	require.NoError(t, os.Setenv("DAYTONA_CONFIG_DIR", t.TempDir()))
+	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}

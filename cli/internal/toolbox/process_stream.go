@@ -48,13 +48,16 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	query := url.Values{}
 	query.Set("waitMs", fmt.Sprintf("%d", inline.Milliseconds()))
 	query.Set("logs", encoding)
-	process, err := c.CreateProcess(ctx, opts.Request, query)
+	process, err := c.createStreamProcess(ctx, opts.Request, query)
 	if err != nil {
 		return ProcessResult{}, err
 	}
 	// Retain the identity even on a later stream failure so callers can
 	// interrupt the process when their own invocation is cancelled.
 	created := ProcessResult{Process: process}
+	if ctx.Err() != nil {
+		return created, ctx.Err()
+	}
 	var pump *stdinPump
 	// Feed stdin only while the process can still read it. A command that
 	// exited within the inline wait (most one-shot commands) needs no pump —
@@ -68,7 +71,7 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 			if err != nil {
 				pump.cancel()
 			}
-			err = errors.Join(err, pump.finish())
+			err = errors.Join(err, pump.finish(err == nil))
 			pump.cancel()
 		}()
 	}
@@ -126,19 +129,20 @@ func (c *Client) startStdinPump(ctx context.Context, processID string, reader io
 	return p
 }
 
-func (p *stdinPump) finish() error {
+func (p *stdinPump) finish(drain bool) error {
 	select {
 	case err := <-p.done:
 		return ignoreExpectedPumpShutdown(err)
 	default:
 	}
-	if p.regular {
+	if drain && p.regular {
 		return ignoreExpectedPumpShutdown(<-p.done)
 	}
 	if p.closer != nil {
 		_ = p.closer.Close()
-		return ignoreExpectedPumpShutdown(<-p.done)
 	}
+	// io.Closer does not promise to unblock Read. Never join an arbitrary
+	// reader after a stream failure (or after closing a non-regular reader).
 	p.cancel()
 	select {
 	case err := <-p.done:

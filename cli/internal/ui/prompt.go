@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"golang.org/x/term"
 )
@@ -108,7 +109,7 @@ func SelectContext(ctx context.Context, title string, opts []Option) (value stri
 			return "", err
 		}
 		if key == keyAbort {
-			return "", ErrPromptAborted
+			return "", cerr.Wrap(cerr.ExitInterrupted, ErrPromptAborted, "interrupted")
 		}
 		if filtering {
 			switch key {

@@ -29,11 +29,14 @@ func (c *Client) StreamTerminal(ctx context.Context, request tbgen.CreateProcess
 	size := terminalSize(int(os.Stdout.Fd()))
 	body := request
 	body.Kind, body.Stdin, body.KeepLogs, body.Terminal = &kind, &stdin, &retention, &size
-	proc, err := c.CreateProcess(ctx, body, nil)
+	proc, err := c.createStreamProcess(ctx, body, nil)
 	if err != nil {
 		return ProcessResult{}, err
 	}
 	result := ProcessResult{Process: proc}
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
 	// The cursor format is opaque. Obtain one from a beginning-of-log read,
 	// rather than inventing an offset or attaching live and losing early bytes.
 	page, err := c.ReadProcessLogs(ctx, proc.Id, url.Values{"encoding": {"base64"}})

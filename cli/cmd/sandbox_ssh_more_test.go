@@ -117,7 +117,11 @@ func TestInteractiveAttachAndWait_waitsWithParentContextAfterWebsocketCloses(t *
 			_, _ = bufrw.WriteString("Upgrade: websocket\r\n")
 			_, _ = bufrw.WriteString("Connection: Upgrade\r\n")
 			_, _ = bufrw.WriteString("Sec-WebSocket-Accept: " + accept + "\r\n\r\n")
+			// A clean close frame: the stream ended, the process result follows.
+			_, _ = bufrw.Write([]byte{0x88, 0})
 			_ = bufrw.Flush()
+		case "/test-tools/sbx/processes/proc/resize":
+			w.WriteHeader(http.StatusNoContent)
 		case "/test-tools/sbx/processes/proc/wait":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"reason":"exited","exitCode":3}`)

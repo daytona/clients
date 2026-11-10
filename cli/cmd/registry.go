@@ -50,6 +50,10 @@ func newRegistrySetCmd() *cobra.Command {
 		if err == nil {
 			existing = &stored
 		}
+		putReq, err := registryPutReq(cmd, existing, registrySetInput{Kind: kind, Username: username, Description: description})
+		if err != nil {
+			return err
+		}
 		// kind ecr_role names an IAM role (--username) and carries no secret.
 		// Without --kind the existing kind carries over, so a
 		// rotation of an existing ecr_role registry needs no password either.
@@ -72,10 +76,7 @@ func newRegistrySetCmd() *cobra.Command {
 			}
 			secret = &value
 		}
-		putReq, err := registryPutReq(cmd, existing, registrySetInput{Kind: kind, Username: username, Password: secret, Description: description})
-		if err != nil {
-			return err
-		}
+		putReq.Password = secret
 		var saved api.Raw[gen.Registry]
 		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, &saved); err != nil {
 			return err

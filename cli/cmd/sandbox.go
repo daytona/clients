@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"context"
-	"strconv"
-	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
@@ -131,7 +129,10 @@ func checkSandboxCursorRegions(cat *regions.Catalog, cursor string) error {
 		return nil
 	}
 	for region := range parseSandboxCursor(cursor) {
-		if region != "" && cat.Find(region) == nil {
+		if region == "" {
+			continue
+		}
+		if canonical := cat.Find(region); canonical == nil || canonical.Id != region {
 			return cerr.Usage("invalid --cursor: it names region %q, which the region catalog does not have", region).
 				WithHint("the cursor is stale or was not printed by `daytona sandbox list`; list again without --cursor")
 		}
@@ -204,85 +205,6 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 	}
 	raw.Items = regions.Unique(raw.Items, func(item gen.SandboxListItem) string { return item.Id })
 	return trimSandboxPage(raw, scope, page.limit), nil
-}
-
-func sandboxListTable(items []gen.SandboxListItem) output.Table {
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		rows = append(rows, []string{item.Id, item.Name, string(item.Class), item.Status, item.RegionId, sandboxArtifactSummary(item.Image, item.Snapshot), formatTimePtr(item.CreatedAt)})
-	}
-	return output.Table{Headers: []string{"ID", "NAME", "CLASS", "STATUS", "REGION", "ARTIFACT", "CREATED"}, Rows: rows}
-}
-
-// sandboxUnsized labels macOS resource sizes that are not available before first boot.
-const sandboxUnsized = "sizing on first boot"
-
-// formatCores prints a CPU amount in cores (1 core = 2 vCPUs) in its shortest
-// exact form: 2, 0.5, 1.5.
-func formatCores(cores float64) string {
-	return strconv.FormatFloat(cores, 'f', -1, 64)
-}
-
-func sandboxDetailKV(detail gen.Sandbox) [][2]string {
-	cpu := strings.TrimRight(strings.TrimRight(strconv.FormatFloat(detail.Cpu, 'f', 3, 64), "0"), ".")
-	coresMax := formatCores(detail.CoresMax)
-	memory := strconv.Itoa(int(detail.MemoryMib))
-	if detail.Class == workload.ClassMacOS && detail.CoresMax == 0 {
-		cpu, coresMax, memory = sandboxUnsized, sandboxUnsized, sandboxUnsized
-	}
-	kv := [][2]string{
-		{"id", detail.Id},
-		{"name", detail.Name},
-		{"class", string(detail.Class)},
-		{"status", detail.Status},
-		{"region", detail.RegionId},
-		{sandboxArtifactLabel(detail.Image, detail.Snapshot), sandboxArtifactSummary(detail.Image, detail.Snapshot)},
-		{"cpu", cpu},
-		{"cores_max", coresMax},
-		{"memory_mib", memory},
-		{"disk_mib", strconv.Itoa(int(detail.DiskMib))},
-	}
-	if detail.Class == workload.ClassMacOS {
-		persistent := ""
-		if detail.Persistent != nil {
-			persistent = strconv.FormatBool(*detail.Persistent)
-		}
-		kv = append(kv, [2]string{"persistent", persistent})
-		reservation := "-"
-		if detail.ReservationId != nil && *detail.ReservationId != "" {
-			reservation = *detail.ReservationId
-		}
-		kv = append(kv, [2]string{"reservation_id", reservation})
-	}
-	if detail.MacBootMode != nil {
-		kv = append(kv, [2]string{"mac_boot_mode", *detail.MacBootMode})
-	}
-	return kv
-}
-
-// The display label for the artifact the sandbox booted: "image" for an image,
-// "snapshot" for a sandbox resumed from a memory snapshot.
-func sandboxArtifactLabel(image *gen.ImageReference, snapshot *gen.SnapshotReference) string {
-	if image == nil && snapshot != nil {
-		return "snapshot"
-	}
-	return "image"
-}
-
-func sandboxArtifactSummary(image *gen.ImageReference, snapshot *gen.SnapshotReference) string {
-	if image != nil {
-		if image.Name != nil && strings.TrimSpace(*image.Name) != "" {
-			return *image.Name
-		}
-		return image.Id
-	}
-	if snapshot != nil {
-		if snapshot.Name != nil && strings.TrimSpace(*snapshot.Name) != "" {
-			return *snapshot.Name
-		}
-		return snapshot.Id
-	}
-	return ""
 }
 
 func printSandboxDetail(ctx context.Context, id string) error {

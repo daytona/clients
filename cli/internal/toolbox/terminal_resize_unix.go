@@ -21,16 +21,17 @@ func (c *Client) forwardTerminalResizes(ctx context.Context, processID string) f
 	go func() {
 		defer close(done)
 		for {
+			requestCtx, stop := context.WithTimeout(resizeCtx, 3*time.Second)
+			err := c.ResizeProcess(requestCtx, processID, terminalSize(int(os.Stdout.Fd())))
+			stop()
+			// Best effort: the PTY may have exited during the resize.
+			if err != nil && resizeCtx.Err() != nil {
+				return
+			}
 			select {
 			case <-resizeCtx.Done():
 				return
 			case <-changes:
-				requestCtx, stop := context.WithTimeout(resizeCtx, 3*time.Second)
-				err := c.ResizeProcess(requestCtx, processID, terminalSize(int(os.Stdout.Fd())))
-				stop()
-				if err != nil {
-					continue // best effort: the PTY may have exited during the resize
-				}
 			}
 		}
 	}()

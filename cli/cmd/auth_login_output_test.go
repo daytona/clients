@@ -25,10 +25,12 @@ func TestDeviceLogin_emitsEventBeforeApprovalWhenMachineReadable(t *testing.T) {
 			})
 			f.on("POST", "/idp/token", 400, map[string]string{"error": "access_denied"})
 			// When
-			stdout, _, code := run(t, cfgDir(t), nil, "login", "--device", "--api-url", f.srv.URL, "-o", format)
+			stdout, stderr, code := run(t, cfgDir(t), nil, "login", "--device", "--api-url", f.srv.URL, "-o", format)
 			// Then: YAML mode also emits a JSON event, and never the device credential.
 			require.Equal(t, cerr.ExitAuth, code)
 			require.JSONEq(t, `{"verification_uri":"https://idp.example/device","verification_uri_complete":"https://idp.example/device?user_code=ABCD","user_code":"ABCD","expires_in":60}`, stdout)
+			require.NotContains(t, stdout, "private-device-code")
+			require.NotContains(t, stderr, "private-device-code")
 		})
 	}
 }
@@ -40,7 +42,7 @@ func TestDeviceLogin_omitsUnknownFieldsWhenApprovalSucceeds(t *testing.T) {
 	f.on("GET", "/idp/.well-known/openid-configuration", 200, map[string]string{
 		"authorization_endpoint": f.srv.URL + "/idp/authorize", "token_endpoint": f.srv.URL + "/idp/token", "device_authorization_endpoint": f.srv.URL + "/idp/device",
 	})
-	f.on("POST", "/idp/device", 200, map[string]any{"device_code": "dc", "user_code": "ABCD", "verification_uri": "https://idp.example/device", "expires_in": 60})
+	f.on("POST", "/idp/device", 200, map[string]any{"device_code": "private-device-code", "user_code": "ABCD", "verification_uri": "https://idp.example/device", "expires_in": 60, "extra_field": "ignored"})
 	f.on("POST", "/idp/token", 200, map[string]any{"access_token": "jwt", "refresh_token": "rt", "expires_in": 3600})
 	f.on("GET", "/me", 200, map[string]any{"id": testUserID, "email": "me@x"})
 	f.on("GET", "/orgs", 200, organizationsFixture())
@@ -50,6 +52,9 @@ func TestDeviceLogin_omitsUnknownFieldsWhenApprovalSucceeds(t *testing.T) {
 	// Then: one event is the entire stdout, even on success.
 	require.Zero(t, code, stderr)
 	require.JSONEq(t, `{"verification_uri":"https://idp.example/device","user_code":"ABCD","expires_in":60}`, stdout)
+	require.NotContains(t, stdout, "private-device-code")
+	require.NotContains(t, stderr, "private-device-code")
+	require.NotContains(t, stdout, "ignored")
 }
 
 func TestDeviceLogin_keepsStdoutEmptyWhenTableAtTerminal(t *testing.T) {

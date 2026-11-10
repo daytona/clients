@@ -117,14 +117,12 @@ func exitError(result tbgen.ExitResult) error {
 	return err
 }
 
-// signalNumbers are the Linux signal numbers: a process ended by one exits
-// 128 + its number, as a shell reports it. An unlisted signal exits 1.
+// signalNumbers contains only numbers shared by Linux and macOS. Without
+// a process OS at every exit-mapping call site, other signals must exit 1.
 var signalNumbers = map[string]int{
-	"HUP": 1, "INT": 2, "QUIT": 3, "ILL": 4, "TRAP": 5, "ABRT": 6, "BUS": 7, "FPE": 8,
-	"KILL": 9, "USR1": 10, "SEGV": 11, "USR2": 12, "PIPE": 13, "ALRM": 14, "TERM": 15,
-	"STKFLT": 16, "CHLD": 17, "CONT": 18, "STOP": 19, "TSTP": 20, "TTIN": 21, "TTOU": 22,
-	"URG": 23, "XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF": 27, "WINCH": 28, "IO": 29,
-	"PWR": 30, "SYS": 31,
+	"HUP": 1, "INT": 2, "QUIT": 3, "ILL": 4, "TRAP": 5, "ABRT": 6, "FPE": 8,
+	"KILL": 9, "SEGV": 11, "PIPE": 13, "ALRM": 14, "TERM": 15,
+	"XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF": 27, "WINCH": 28,
 }
 
 func processExitError(result tbgen.ExitResult) error {

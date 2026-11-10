@@ -110,9 +110,14 @@ func TestExecTTY_replaysEarlyBytesAndResizes_whenTerminalStartsAtZero(t *testing
 		case "/test-tools/sbx/processes/proc/resize":
 			var size struct{ Cols, Rows int }
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&size))
+			w.WriteHeader(http.StatusNoContent)
+			// The first resize is the initial 80x24 sent at attach; the
+			// SIGWINCH one carries the new geometry.
+			if size.Cols == 80 && size.Rows == 24 {
+				return
+			}
 			assert.Equal(t, 90, size.Cols)
 			assert.Equal(t, 25, size.Rows)
-			w.WriteHeader(http.StatusNoContent)
 			close(resized)
 		case "/test-tools/sbx/processes/proc/wait":
 			_, _ = io.WriteString(w, `{"reason":"exited","exitCode":5}`)
@@ -161,6 +166,9 @@ func TestProcessAttach_keepsExitCode_whenLiveAliasReleased(t *testing.T) {
 				defer conn.Close()
 				_, _ = conn.Write([]byte{0x88, 0})
 			}
+		case "/test-tools/sbx/processes/canonical/resize":
+			// The initial terminal size, sent once at attach.
+			w.WriteHeader(http.StatusNoContent)
 		case "/test-tools/sbx/processes/canonical/wait":
 			_, _ = io.WriteString(w, `{"reason":"exited","exitCode":3}`)
 		default:

@@ -12,8 +12,8 @@ import (
 )
 
 func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
-	created := `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"33333333-3333-3333-3333-333333333333","name":"macbox","status":"pending","wait_cap_seconds":3,"reservation_id":null}`
-	stdout, _, err := runCLI(t, []string{
+	created := `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"33333333-3333-3333-3333-333333333333","name":"macbox","status":"pending","wait_cap_seconds":3,"reservation_id":null,"access_token":"mac-create-secret"}`
+	stdout, stderr, err := runCLI(t, []string{
 		"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--cores", "10", "--memory", "16384", "--disk", "163840", "--persistent", "--secret", "API_KEY", "--no-wait",
 	}, []expectedRequest{{
 		method:   http.MethodPost,
@@ -25,6 +25,8 @@ func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending"), stdout)
 	require.NotContains(t, requireJSONStdout(t, stdout), "access_token")
+	require.NotContains(t, stdout, "mac-create-secret")
+	require.NotContains(t, stderr, "mac-create-secret")
 
 	// Unsized: every axis stays absent; --auto-renew rides with --reservation new.
 	_, _, err = runCLI(t, []string{"sandbox", "create-macos", "--yes", "--image", "base-macos", "--reservation", "new", "--auto-renew", "--on-lifecycle-timeout", "delete", "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{

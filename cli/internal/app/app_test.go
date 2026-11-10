@@ -235,3 +235,13 @@ func TestSigningClient_returnsAPIClientUnchangedWithoutALoginSourcedBearer(t *te
 		})
 	}
 }
+
+func TestSameAPIURL_ignoresSchemeAndHostCase(t *testing.T) {
+	t.Parallel()
+	require.True(t, sameAPIURL("https://API.Example.com", "HTTPS://api.example.COM"))
+	require.True(t, sameAPIURL("http://localhost:8080/v2", "HTTP://LOCALHOST:8080/v2"))
+	require.False(t, sameAPIURL("https://api.example.com", "http://api.example.com"))
+	require.False(t, sameAPIURL("https://api.example.com", "https://api.example.org"))
+	require.False(t, sameAPIURL("http://localhost:8080", "http://localhost:8081"))
+	require.False(t, sameAPIURL("https://api.example.com/a", "https://api.example.com/b"))
+}

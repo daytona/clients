@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -87,7 +88,13 @@ func TestExec_preservesBytes_whenStdinIsTerminal(t *testing.T) {
 	// When
 	stdout, _, err := runToolboxCLI(t, []string{"sandbox", "exec", "sbx", "--", "binary"}, []toolboxExpectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
-		{method: http.MethodPost, path: "/test-tools/sbx/processes", status: 201, auth: true, response: `{"id":"proc","state":"terminal","kind":"exec","stdin":"closed","cwd":"/","keepLogs":"on_exit_ttl","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z","reason":"exited","exitCode":0,"logs":{"frames":[{"channel":"stdout","cursor":"c1","data":"_wA=","timestamp":1}],"nextCursor":"c1","truncatedHead":false,"eof":true}}`},
+		{method: http.MethodPost, path: "/test-tools/sbx/processes", status: 201, auth: true, check: func(t *testing.T, _ *http.Request, body []byte) {
+			// A terminal stdin is never forwarded: the process starts with stdin closed.
+			var sent map[string]any
+			if assert.NoError(t, json.Unmarshal(body, &sent)) {
+				assert.Equal(t, "closed", sent["stdin"])
+			}
+		}, response: `{"id":"proc","state":"terminal","kind":"exec","stdin":"closed","cwd":"/","keepLogs":"on_exit_ttl","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z","reason":"exited","exitCode":0,"logs":{"frames":[{"channel":"stdout","cursor":"c1","data":"_wA=","timestamp":1}],"nextCursor":"c1","truncatedHead":false,"eof":true}}`},
 	})
 	// Then
 	require.NoError(t, err)

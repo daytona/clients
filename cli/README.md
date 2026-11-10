@@ -83,7 +83,7 @@ profile's login-minted project keys.
 
 `login --profile NAME` creates a named connection; `profile use NAME` selects
 one. Names use 1–64 ASCII letters, digits, `.`, `_` or `-`, except `.` and
-`..`. Older saved names still load. An `active_profile` in the configuration that names a missing profile stops the commands that use it (exit 5), like an unknown `--profile`. Deleting the active profile explicitly
+`..`. Older saved names still load and can be refreshed with `login`. An `active_profile` in the configuration that names a missing profile stops the commands that use it (exit 5), like an unknown `--profile`. Deleting the active profile explicitly
 selects `default` when it exists and announces that on stderr; otherwise no
 profile is active, and the CLI asks you to select one or log in.
 
@@ -172,7 +172,8 @@ archives are checked by the server. A `--context` tar file is uploaded as is,
 and `sandbox cp` never filters. `image create --ref` refuses empty or blank
 references locally.
 
-`daytona image logs <id-or-name>` accepts an image name or id. Image build/import
+`daytona image logs <id-or-name>` accepts an image name or id. Without
+`--follow` it reads at most 64 MiB of logs; `--follow` streams larger ones. Image build/import
 failures include the recorded build error and its code when available. A timeout
 on `image create`, `build`, `capture` or `snapshot create` includes the pending
 resource id and its `get` command; the operation keeps running on the server.
@@ -193,6 +194,9 @@ Gateway host keys are kept per host and port under the CLI configuration
 directory, never in your personal `known_hosts`. New keys are accepted without
 a prompt; subsequent key changes are refused. This is trust on first use:
 an attacker intercepting the first connection could supply the trusted key.
+SSH options you forward after the sandbox id (for example
+`-o StrictHostKeyChecking=no` or `-o UserKnownHostsFile=…`) override this
+policy.
 
 ### macOS sandboxes
 
@@ -368,10 +372,10 @@ never prompts:
 - Long operations wait for completion by default; `--no-wait` returns the
   accepted resource immediately. `sandbox create*`, `start`, `stop`, `pause`,
   `resume`, `fork` and `delete` print the sandbox as `sandbox get` does in both
-  modes (with `--no-wait`, read once right after the request; a sandbox a
-  delete already removed prints the API's `{"id", "status"}`, and a create
-  whose read fails prints `{"id", "name", "status"}` from the create's answer
-  with a warning on stderr). No command
+  modes. With `--no-wait` the sandbox is read once right after the request.
+  If a delete has already removed the sandbox, the API's `{"id", "status"}` is
+  printed instead; if a create's read fails, `{"id", "name", "status"}` from the
+  create's answer is printed with a warning on stderr. No command
   prints a sandbox access token.
 - `sandbox wait --for` takes a settled status: `running`, `stopped`, `paused`
   or `deleted`, or the SDK state names `started` and `destroyed`; anything else
@@ -420,7 +424,7 @@ whole seconds where the API stores seconds:
 | `--execution-timeout` | `sandbox exec` | server-side execution deadline, greater than zero and rounded up to milliseconds; omitted means no execution deadline |
 | `--lifecycle-timeout` / `--on-lifecycle-timeout ACTION` | `sandbox create*`, `sandbox update` | the sandbox's wall-clock lifetime and the action when it ends |
 | `--idle-timeout` / `--on-idle-timeout ACTION` | `sandbox create*`, `sandbox update` | idle time before the action, at least `1m` (the API's minimum); `sandbox update --idle-timeout off` clears it |
-| `--server-wait` | `sandbox create*` | how long the server holds the create response (`0s` answers at once; server default `3s`); the CLI still waits for `running` unless `--no-wait`, which `--server-wait` does not combine with |
+| `--server-wait` | `sandbox create*` | how long the server holds the create response (`0s` answers at once; server default `3s`); the CLI still waits for `running` unless `--no-wait`, which neither `--server-wait` nor a `--file` `wait_seconds` combines with |
 | `--create-ttl` | `sandbox create*` | how long the sandbox may take to reach `running` before the server deletes it; `max` asks for the server's maximum (server default `1h`) |
 | `--ttl` | `sandbox port preview-url --signed` | lifetime of a signed preview URL (default `60s`) |
 | `--escalate-after` | `sandbox process signal` | when to send `--escalate-to` |
@@ -550,7 +554,7 @@ status apart from the CLI's own:
 
 | Command | Exit status |
 |---|---|
-| `sandbox exec`, `process wait`, `process logs --follow`, `process attach` | the process's exit code; for `sandbox exec`, a command that cannot be started → `127`; a process ended by a signal → `128` + the signal's Linux number (`SIGINT` → `130`, `SIGKILL` → `137`, `SIGTERM` → `143`; an unknown signal → `1`); its own timeout → `8`; `lost` / `failed` → its code, else `1` |
+| `sandbox exec`, `process wait`, `process logs --follow`, `process attach` | the process's exit code; for `sandbox exec`, a command that cannot be started → `127`; a process ended by a signal → `128` + its number when that number is the same on Linux and macOS (`SIGINT` → `130`, `SIGKILL` → `137`, `SIGTERM` → `143`); other or unknown signals → `1`; its own timeout → `8`; `lost` / `failed` → its code, else `1` |
 | `sandbox ssh` | the `ssh` client's exit status |
 | `sandbox cp` | the remote `tar`'s exit status when the in-sandbox side of the copy fails |
 

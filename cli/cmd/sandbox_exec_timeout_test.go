@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/base64"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -129,6 +130,9 @@ func TestRunTTYExec_timeoutClosesIdleWebsocketAndReturnsExitTimeout(t *testing.T
 		case "/test-tools/sbx/processes/proc/logs":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"frames":[],"nextCursor":"c0","truncatedHead":false,"eof":false}`)
+		case "/test-tools/sbx/processes/proc/resize":
+			// The initial terminal size, sent once at attach.
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
 			w.WriteHeader(http.StatusNotFound)
@@ -175,10 +179,10 @@ func sandboxExecReadServerFrame(r *bufio.Reader) (byte, []byte, error) {
 	return opcode, payload, nil
 }
 
-func TestTimeoutForDeadline_preservesInterruptedExitCode(t *testing.T) {
+func TestTimeoutForDeadline_mapsCanceledContextToExitInterrupted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := timeoutForDeadline(ctx, time.Second, cerr.New(cerr.ExitInterrupted, "interrupted"))
+	err := timeoutForDeadline(ctx, time.Second, errors.New("unrelated failure"))
 	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
 }
 
