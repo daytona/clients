@@ -70,7 +70,7 @@ func TestToolboxProcessCommands_routeAndRender(t *testing.T) {
 	})
 
 	t.Run("a process ended by SIGINT exits 130, by another signal 1", func(t *testing.T) {
-		for signal, want := range map[string]int{"SIGINT": cerr.ExitInterrupted, "SIGTERM": cerr.ExitFailure} {
+		for signal, want := range map[string]int{"SIGINT": cerr.ExitInterrupted, "SIGTERM": 143, "SIGKILL": 137} {
 			_, _, err := runToolboxCLI(t, []string{"sandbox", "process", "wait", "sbx", "p1", "--timeout", "1s"}, []toolboxExpectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
 				{method: http.MethodGet, path: "/test-tools/sbx/processes/p1/wait", status: 200, auth: true, response: `{"reason":"signaled","signal":"` + signal + `"}`},

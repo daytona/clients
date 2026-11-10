@@ -83,6 +83,7 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 
 func TestImageLogs_discoversRegionalURL(t *testing.T) {
 	stdout, _, err := runCLIWithResponseReplacement(t, []string{"image", "logs", "11111111-1111-1111-1111-111111111111"}, []expectedRequest{
+		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
 		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111/build-logs-url", status: 200, response: `{"url":"__SERVER__/build-logs/images/11111111-1111-1111-1111-111111111111"}`},
 		{method: http.MethodGet, path: "/build-logs/images/11111111-1111-1111-1111-111111111111", query: "follow=false&format=text", status: 200, response: "text/plain:state: ready\n"},
 	})

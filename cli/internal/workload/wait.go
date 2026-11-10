@@ -5,6 +5,7 @@ package workload
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -107,7 +108,7 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 }
 
 func WaitForImage(ctx context.Context, client *api.Client, id string, timeout time.Duration) (api.Raw[gen.Image], error) {
-	return wait.Until(ctx, timeout, 200*time.Millisecond,
+	image, err := wait.Until(ctx, timeout, 200*time.Millisecond,
 		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Image], error) {
 			var image api.Raw[gen.Image]
 			query := url.Values{
@@ -122,16 +123,32 @@ func WaitForImage(ctx context.Context, client *api.Client, id string, timeout ti
 				return true, nil
 			}
 			if image.V.Status == "failed" {
-				return false, cerr.New(cerr.ExitFailure, "image %s reached failed, not ready", id)
+				message := fmt.Sprintf("image %s reached failed, not ready", id)
+				if image.V.Error != nil && *image.V.Error != "" {
+					message += ": " + *image.V.Error
+				}
+				// Older contracts have no typed error_code; retain it when a
+				// newer server records one without changing the exit code.
+				var detail struct {
+					ErrorCode string `json:"error_code"`
+				}
+				if json.Unmarshal(image.JSON, &detail) == nil && detail.ErrorCode != "" {
+					message += " (" + detail.ErrorCode + ")"
+				}
+				return false, cerr.New(cerr.ExitFailure, "%s", message)
 			}
 			return false, nil
 		},
 		nil,
 	)
+	if cerr.ExitCode(err) == cerr.ExitTimeout && ctx.Err() == nil {
+		return image, cerr.Wrap(cerr.ExitTimeout, err, "timed out after %s waiting for image %s to become ready; check it with daytona image get %s", timeout, id, id)
+	}
+	return image, err
 }
 
 func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout time.Duration) (api.Raw[gen.Snapshot], error) {
-	return wait.Until(ctx, timeout, 200*time.Millisecond,
+	snapshot, err := wait.Until(ctx, timeout, 200*time.Millisecond,
 		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Snapshot], error) {
 			var snapshot api.Raw[gen.Snapshot]
 			query := url.Values{
@@ -152,6 +169,10 @@ func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout
 		},
 		nil,
 	)
+	if cerr.ExitCode(err) == cerr.ExitTimeout && ctx.Err() == nil {
+		return snapshot, cerr.Wrap(cerr.ExitTimeout, err, "timed out after %s waiting for snapshot %s to become ready; check it with daytona snapshot get %s", timeout, id, id)
+	}
+	return snapshot, err
 }
 
 func longPollMillis(timeout time.Duration) int64 {

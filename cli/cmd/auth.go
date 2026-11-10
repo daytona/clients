@@ -6,7 +6,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
+
+	gen "github.com/daytona/clients/cli/gen/api"
 
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
@@ -23,6 +26,28 @@ func init() {
 		auth.InstallProjectResolver(a)
 		auth.InstallWorkload(a)
 		auth.InstallPlatformToken(a)
+		a.StaticKeyProjectFn = func(ctx context.Context) (app.StaticKeyProject, bool, error) {
+			if !a.HasExplicitCredential() && a.CredentialSource != "profile-token" {
+				return app.StaticKeyProject{}, false, nil
+			}
+			mc, err := a.Client(ctx)
+			if err != nil {
+				return app.StaticKeyProject{}, false, err
+			}
+			key, err := mgmt.CurrentProjectKey(ctx, mc)
+			if err != nil {
+				switch cerr.ExitCode(err) {
+				case cerr.ExitAuth, cerr.ExitForbidden, cerr.ExitNotFound:
+					// Not a project API key (or this API does not describe keys).
+					return app.StaticKeyProject{}, false, nil
+				}
+				return app.StaticKeyProject{}, false, err
+			}
+			return app.StaticKeyProject{
+				ID: key.ProjectId.String(), Name: key.Context.ProjectName,
+				OrgID: key.Context.OrgId.String(), OrgName: key.Context.OrgName,
+			}, true, nil
+		}
 		// --org may be a NAME. Resolve it against the caller's orgs; an
 		// unambiguous match yields the id, an ambiguous one is a usage error.
 		// A value that matches nothing is passed through unchanged — the
@@ -138,6 +163,22 @@ name could not be resolved to an ID.`,
 				} else {
 					kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 				}
+			} else if a.HasExplicitCredential() || a.CredentialSource == "profile-token" {
+				key, ok, err := whoamiStaticKey(ctx, a, &scope)
+				if err != nil {
+					return err
+				}
+				if ok {
+					out["api_key"] = key
+					out["org_id"], out["project_id"] = scope.orgID, scope.projectID
+					delete(out, "org_ref")
+					delete(out, "project_ref")
+					out["context_resolved"] = true
+					kv = append(kv, [2]string{"Organization", fmt.Sprintf("%s (%s)", key.V.Context.OrgName, scope.orgID)})
+					kv = append(kv, [2]string{"Project", fmt.Sprintf("%s (%s)", key.V.Context.ProjectName, scope.projectID)})
+					return a.Printer().Object(out, kv)
+				}
+				kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 			} else {
 				kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 			}
@@ -145,6 +186,47 @@ name could not be resolved to an ID.`,
 			return a.Printer().Object(out, kv)
 		},
 	}
+}
+
+// whoamiStaticKey describes a static credential through GET /api-keys/current:
+// a refused credential is an authentication error (exit 3); a credential that
+// is not a project API key (403/404) is reported without a context. A project
+// key fills the scope with its own organization and project, and a --project /
+// --org selection that names another one is refused, as on every command.
+func whoamiStaticKey(ctx context.Context, a *app.App, scope *whoamiScope) (api.Raw[gen.ProjectApiKeyWithContext], bool, error) {
+	var key api.Raw[gen.ProjectApiKeyWithContext]
+	mc, err := a.Client(ctx)
+	if err != nil {
+		return key, false, err
+	}
+	if err := mc.Do(ctx, http.MethodGet, "/api-keys/current", nil, nil, &key); err != nil {
+		switch cerr.ExitCode(err) {
+		case cerr.ExitForbidden, cerr.ExitNotFound:
+			return key, false, nil
+		}
+		return key, false, err
+	}
+	keyOrg, keyProject := key.V.Context.OrgId.String(), key.V.ProjectId.String()
+	if ref := strings.TrimSpace(firstNonBlank(scope.orgID, scope.orgRef)); a.OrgFromOverride() && ref != "" &&
+		!strings.EqualFold(ref, keyOrg) && ref != key.V.Context.OrgName {
+		return key, false, cerr.Usage("--org %q is not the organization this API key acts in (%s, %s)", ref, key.V.Context.OrgName, keyOrg)
+	}
+	if ref := strings.TrimSpace(firstNonBlank(scope.projectID, scope.projectRef)); a.ProjectFromOverride() && ref != "" &&
+		!strings.EqualFold(ref, keyProject) && ref != key.V.Context.ProjectName {
+		return key, false, cerr.Usage("--project %q is not the project this API key acts in (%s, %s)", ref, key.V.Context.ProjectName, keyProject).
+			WithHint("a project API key always acts in its own project: drop --project / DAYTONA_PROJECT, or use a key of project %s", ref)
+	}
+	scope.orgID, scope.projectID = keyOrg, keyProject
+	return key, true, nil
+}
+
+func firstNonBlank(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // whoamiScope is the selected organization and project: IDs only when

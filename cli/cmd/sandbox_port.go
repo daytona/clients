@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
@@ -116,6 +117,16 @@ func exitError(result tbgen.ExitResult) error {
 	return err
 }
 
+// signalNumbers are the Linux signal numbers: a process ended by one exits
+// 128 + its number, as a shell reports it. An unlisted signal exits 1.
+var signalNumbers = map[string]int{
+	"HUP": 1, "INT": 2, "QUIT": 3, "ILL": 4, "TRAP": 5, "ABRT": 6, "BUS": 7, "FPE": 8,
+	"KILL": 9, "USR1": 10, "SEGV": 11, "USR2": 12, "PIPE": 13, "ALRM": 14, "TERM": 15,
+	"STKFLT": 16, "CHLD": 17, "CONT": 18, "STOP": 19, "TSTP": 20, "TTIN": 21, "TTOU": 22,
+	"URG": 23, "XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF": 27, "WINCH": 28, "IO": 29,
+	"PWR": 30, "SYS": 31,
+}
+
 func processExitError(result tbgen.ExitResult) error {
 	if result.Reason == nil {
 		return exitCodeError(result)
@@ -127,13 +138,16 @@ func processExitError(result tbgen.ExitResult) error {
 		}
 		return cerr.New(int(*result.ExitCode), "process exited with code %d", *result.ExitCode)
 	case tbgen.ReasonSignaled:
-		if result.Signal != nil && *result.Signal == "INT" {
+		if result.Signal == nil {
+			return cerr.New(cerr.ExitFailure, "process terminated by signal")
+		}
+		if *result.Signal == "INT" {
 			return cerr.New(cerr.ExitInterrupted, "process interrupted")
 		}
-		if result.Signal != nil {
-			return cerr.New(cerr.ExitFailure, "process terminated by signal %s", *result.Signal)
+		if number, ok := signalNumbers[strings.TrimPrefix(strings.ToUpper(*result.Signal), "SIG")]; ok {
+			return cerr.New(128+number, "process terminated by signal %s", *result.Signal)
 		}
-		return cerr.New(cerr.ExitFailure, "process terminated by signal")
+		return cerr.New(cerr.ExitFailure, "process terminated by signal %s", *result.Signal)
 	case tbgen.ReasonTimedOut:
 		return cerr.New(cerr.ExitTimeout, "timed out waiting for the process to finish")
 	case tbgen.ReasonLost, tbgen.ReasonFailed:

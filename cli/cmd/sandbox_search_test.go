@@ -17,7 +17,7 @@ func TestSandboxSearch_routesFilters(t *testing.T) {
 		"--class", "linux",
 		"--region", "region-b",
 		"--limit", "25",
-	}, []expectedRequest{{
+	}, []expectedRequest{{method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()}, {
 		method:   http.MethodGet,
 		path:     "/sandboxes/search",
 		status:   200,
@@ -132,7 +132,7 @@ func TestSandboxSearch_includesTotalsInStructuredOutput(t *testing.T) {
 }
 
 func TestSandboxSearch_regionFlagBeforeTheCommandName(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"--region", "region-b", "sandbox", "search", "python"}, []expectedRequest{{
+	stdout, _, err := runCLI(t, []string{"--region", "region-b", "sandbox", "search", "python"}, []expectedRequest{{method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()}, {
 		method:   http.MethodGet,
 		path:     "/sandboxes/search",
 		status:   200,

@@ -27,6 +27,9 @@ func newImageImportCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if cmd.Flags().Changed("ref") && strings.TrimSpace(ref) == "" {
+				return cerr.Usage("--ref must be a non-empty registry reference")
+			}
 			body, err := input.Load(a.Globals.File, os.Stdin, false)
 			if err != nil {
 				return err
@@ -83,6 +86,9 @@ func newImageBuildCommand() *cobra.Command {
 			a := FromContext(cmd.Context())
 			meta, dockerfile, contextFile, err := buildImageMultipartMeta(cmd, a, args[0], dockerfilePath, contextPath)
 			if err != nil {
+				return err
+			}
+			if err := checkImageDockerfile(contextFile, dockerfile); err != nil {
 				return err
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))

@@ -36,7 +36,7 @@ type ProcessResult struct {
 	Exit    tbgen.ExitResult
 }
 
-func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (ProcessResult, error) {
+func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (_ ProcessResult, err error) {
 	encoding := opts.LogEncoding
 	if encoding == "" {
 		encoding = "text"
@@ -52,6 +52,9 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	if err != nil {
 		return ProcessResult{}, err
 	}
+	// Retain the identity even on a later stream failure so callers can
+	// interrupt the process when their own invocation is cancelled.
+	created := ProcessResult{Process: process}
 	var pump *stdinPump
 	// Feed stdin only while the process can still read it. A command that
 	// exited within the inline wait (most one-shot commands) needs no pump —
@@ -59,12 +62,16 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	// error of the command; pumpStdin treats that code as end-of-input too.
 	if opts.Stdin != nil && process.State != tbgen.StateTerminal {
 		pump = c.startStdinPump(ctx, process.Id, opts.Stdin)
+		defer func() {
+			err = errors.Join(err, pump.finish())
+			pump.cancel()
+		}()
 	}
 	cursor := ""
 	if process.Logs != nil {
 		cursor = process.Logs.NextCursor
 		if err := WriteLogFrames(process.Logs.Frames, encoding, opts.Stdout, opts.Stderr); err != nil {
-			return ProcessResult{}, err
+			return created, err
 		}
 	}
 	result := resultFromProcess(process)
@@ -72,7 +79,7 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	if process.State != tbgen.StateTerminal || !eof {
 		followResult, followCursor, followEOF, err := c.FollowProcessLogs(ctx, process.Id, cursor, encoding, 0, opts.Stdout, opts.Stderr)
 		if err != nil {
-			return ProcessResult{}, err
+			return created, err
 		}
 		cursor = followCursor
 		eof = followEOF
@@ -83,14 +90,9 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	if result.Reason == nil || !eof {
 		pagedResult, err := c.finishProcessLogs(ctx, process.Id, cursor, encoding, opts.Stdout, opts.Stderr, result, opts.Timeout)
 		if err != nil {
-			return ProcessResult{}, err
+			return created, err
 		}
 		result = pagedResult
-	}
-	if pump != nil {
-		if err := pump.finish(); err != nil {
-			return ProcessResult{}, err
-		}
 	}
 	return ProcessResult{Process: process, Exit: normalizeExit(result)}, nil
 }

@@ -222,12 +222,16 @@ func (c *Config) Profile(name string) (*Profile, bool) {
 }
 
 // Upsert adds or replaces a profile.
-func (c *Config) Upsert(p Profile) {
+func (c *Config) Upsert(p Profile) error {
+	if err := ValidateProfileName(p.Name); err != nil {
+		return err
+	}
 	if cur, ok := c.Profile(p.Name); ok {
 		*cur = p
-		return
+		return nil
 	}
 	c.Profiles = append(c.Profiles, p)
+	return nil
 }
 
 // Remove deletes a profile; false if absent.
@@ -237,6 +241,9 @@ func (c *Config) Remove(name string) bool {
 			c.Profiles = append(c.Profiles[:i], c.Profiles[i+1:]...)
 			if c.ActiveProfile == name {
 				c.ActiveProfile = ""
+				if _, ok := c.Profile("default"); ok {
+					c.ActiveProfile = "default"
+				}
 			}
 			return true
 		}

@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -76,7 +78,7 @@ type createSurface struct {
 func newSandboxCreateCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create", short: "Create a sandbox from an image",
-		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
+		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --server-wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
 		path: "/sandboxes", imageOptional: true, resources: true, burst: true, cpuConstraints: true, user: true, volumes: true, secrets: true, spot: true, networkPolicy: true,
 		decode: decodeAndCreate[gen.CreateSandboxRequest],
 		keys:   input.CheckKeysFor[gen.CreateSandboxRequest],
@@ -109,7 +111,7 @@ func postCreate(cmd *cobra.Command, a *app.App, req any, headers http.Header) er
 	}
 	var created api.Raw[gen.SandboxCreateOperation]
 	if err := home.DoWithHeaders(cmd.Context(), http.MethodPost, path, nil, headers, req, &created); err != nil {
-		return err
+		return withRetryKeyHint(err, headers.Get("Idempotency-Key"))
 	}
 	return printCreatedSandbox(cmd, a, home, workload.NewCatalogCache(), created)
 }
@@ -149,7 +151,11 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 			if err := validateLifecycleBody(sf.macos, body); err != nil {
 				return err
 			}
-			return sf.decode(cmd, a, *flags, body, sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body))
+			headers, err := sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body)
+			if err != nil {
+				return err
+			}
+			return sf.decode(cmd, a, *flags, body, headers)
 		},
 	}
 	if sf.imageOptional {
@@ -174,7 +180,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		flagPlaceholder(f, "on-idle-timeout", "ACTION")
 	}
 	flags.wait.allowZero = true
-	addSecondsFlag(f, &flags.wait, "wait", "", "how long the server holds the create response for the sandbox to reach running (Go duration; 0s returns at once; server default 3s)")
+	addSecondsFlag(f, &flags.wait, "server-wait", "", "how long the server holds the create response for the sandbox to reach running (Go duration; 0s answers at once; server default 3s); the CLI still waits for running unless --no-wait")
 	flags.createTTL.keywords = map[string]int64{"max": -1}
 	addSecondsFlag(f, &flags.createTTL, "create-ttl", "", "deadline (Go duration) for the sandbox to reach running, queued or booting, before the server deletes it; max = the server's maximum (server default 1h)")
 	if sf.macos {
@@ -222,8 +228,15 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 
 func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache *workload.CatalogCache, raw api.Raw[gen.SandboxCreateOperation]) error {
 	created := raw.V
+	// The create acknowledgement carries the sandbox's access token: it is
+	// never printed. Both modes print the sandbox detail, the shape `sandbox
+	// get` prints: --no-wait reads it once, the default waits for running.
 	if a.Globals.NoWait {
-		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
+		resolved, err := workload.ResolveSandbox(cmd.Context(), home, cache, created.Id)
+		if err != nil {
+			return createdButUnreadable(created.Id, err)
+		}
+		return a.Printer().Object(resolved.Raw, sandboxDetailKV(resolved.Detail))
 	}
 	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 	if err != nil {
@@ -231,7 +244,7 @@ func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache
 	}
 	cat, err := cache.Fetch(cmd.Context(), home)
 	if err != nil {
-		return err
+		return createdButUnreadable(created.Id, err)
 	}
 	client := regions.ClientFor(cmd.Context(), home, cat, created.Id)
 	detail, err := workload.WaitForSandbox(cmd.Context(), client, workload.SandboxWaitOptions{
@@ -240,7 +253,41 @@ func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache
 		Timeout: timeout,
 	})
 	if err != nil {
-		return err
+		return createdButUnreadable(created.Id, err)
 	}
 	return a.Printer().Object(detail, sandboxDetailKV(detail.V))
+}
+
+// withRetryKeyHint names the idempotency key when a create may have reached
+// the server without an answer (a network error, a 5xx, a timeout), so a retry
+// with the same key replays it instead of creating a second sandbox.
+func withRetryKeyHint(err error, key string) error {
+	if code := cerr.ExitCode(err); key == "" || (code != cerr.ExitFailure && code != cerr.ExitTimeout) {
+		return err
+	}
+	out := &cerr.Error{Code: cerr.ExitCode(err), Err: err}
+	var ce *cerr.Error
+	out.Hint = fmt.Sprintf("the sandbox may have been created; retry with --idempotency-key %s to get the same sandbox instead of a second one", key)
+	if errors.As(err, &ce) {
+		out.Source = ce.Source
+		if ce.Hint != "" {
+			out.Hint = ce.Hint + "; " + out.Hint
+		}
+	}
+	return out
+}
+
+// createdButUnreadable keeps the exit code and details of err but names the
+// sandbox the accepted create made, so a failed read or wait never leaves the
+// caller without its id.
+func createdButUnreadable(id string, err error) error {
+	out := &cerr.Error{Code: cerr.ExitCode(err), Msg: fmt.Sprintf("sandbox %s was created, but %v", id, err), Err: err}
+	var ce *cerr.Error
+	if errors.As(err, &ce) {
+		out.Hint, out.Source = ce.Hint, ce.Source
+	}
+	if out.Hint == "" {
+		out.Hint = fmt.Sprintf("check it with `daytona sandbox get %s`; delete it with `daytona sandbox delete %s`", id, id)
+	}
+	return out
 }

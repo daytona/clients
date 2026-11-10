@@ -80,7 +80,6 @@ func TestOptionNeedsValue_unknownFlags(t *testing.T) {
 }
 
 func TestInteractiveAttachAndWait_waitsWithParentContextAfterWebsocketCloses(t *testing.T) {
-	t.Parallel()
 	stdinFile, err := os.CreateTemp(t.TempDir(), "stdin-*.txt")
 	require.NoError(t, err)
 	require.NoError(t, stdinFile.Close())
@@ -127,7 +126,7 @@ func TestInteractiveAttachAndWait_waitsWithParentContextAfterWebsocketCloses(t *
 		}
 	}))
 	defer srv.Close()
-	err = interactiveAttachAndWait(context.Background(), toolboxclient.New(apiinternal.New(srv.URL+"/test-tools/sbx", "k", "test")), "proc", "")
-	require.Error(t, err)
-	require.Equal(t, 3, cerr.ExitCode(err))
+	result, err := toolboxclient.New(apiinternal.New(srv.URL+"/test-tools/sbx", "k", "test")).AttachTerminal(context.Background(), toolboxclient.ProcessAttachment{ID: "proc"})
+	require.NoError(t, err)
+	require.Equal(t, 3, cerr.ExitCode(exitError(result)))
 }

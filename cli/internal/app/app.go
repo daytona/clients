@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 
@@ -82,6 +83,10 @@ type App struct {
 	Stderr  io.Writer
 	Getenv  func(string) string
 
+	// Ctx is the invocation's context (cancelled by Ctrl-C / SIGTERM); a
+	// terminal prompt stops reading when it ends. Nil means Background.
+	Ctx context.Context
+
 	// CredentialSource says where the bearer came from: "flag", "env",
 	// "profile-token", "profile-oidc", "" (none). whoami shows it; nothing
 	// else branches on it.
@@ -99,6 +104,21 @@ type App struct {
 	// (and so may be a name) rather than from the saved profile (always an id).
 	orgFromOverride bool
 	orgIDResolved   bool
+	// projectFromOverride marks a project named by --project / DAYTONA_PROJECT.
+	projectFromOverride bool
+
+	// savedAPIURL is the API the selected profile's saved credential was
+	// issued for: the URL its login saved, else DefaultAPIURL.
+	savedAPIURL string
+	// savedCredential marks that the credential is the profile's saved one
+	// (installed by SetCredentialResolver), which is bound to savedAPIURL.
+	savedCredential bool
+
+	// StaticKeyProjectFn describes the static credential's project when the
+	// server knows it as a project API key (ok=false otherwise). Installed by
+	// the cmd layer; called at most once per invocation (see staticKeyProject).
+	StaticKeyProjectFn func(ctx context.Context) (StaticKeyProject, bool, error)
+	staticKeyProject   *staticKeyProjectResult
 
 	// PlatformTokenFn returns a valid project-scoped platform access token
 	// for `project`, exchanged from the login's OIDC JWT (RFC 8693 at
@@ -122,6 +142,17 @@ type App struct {
 	// ceiling is replaced by one under the current ceiling. Installed by the
 	// auth package; nil until then.
 	WorkloadCredentialFn func(ctx context.Context, projectID, rejected string) (string, error)
+}
+
+// StaticKeyProject is the project a project API key acts in.
+type StaticKeyProject struct {
+	ID, Name, OrgID, OrgName string
+}
+
+type staticKeyProjectResult struct {
+	project StaticKeyProject
+	ok      bool
+	err     error
 }
 
 // Load builds the App from globals + environment.
@@ -170,12 +201,16 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	if p, ok := cfg.Profile(name); ok {
 		cp := *p
 		a.Profile = &cp
-	} else if explicit != "" && !g.ProfileOptional && !(g.ProfileMayBeNew && fromFlag) {
+	} else if (explicit != "" || cfg.ActiveProfile != "") && !g.ProfileOptional && !(g.ProfileMayBeNew && fromFlag) {
 		e := cerr.New(cerr.ExitNotFound, "no profile %q", name)
-		if fromFlag {
+		switch {
+		case fromFlag:
 			return nil, e.WithHint("`daytona profile list` shows the saved profiles; `daytona login --profile %s` creates one", name)
+		case explicit != "":
+			return nil, e.WithHint("DAYTONA_PROFILE names a profile that does not exist: unset it, or create the profile with `daytona login --profile %s`; `daytona profile list` shows the saved ones", name)
+		default:
+			return nil, e.WithHint("the active profile does not exist: `daytona profile list` shows the saved profiles; select one with `daytona profile use NAME`, or create it with `daytona login --profile %s`", name)
 		}
-		return nil, e.WithHint("DAYTONA_PROFILE names a profile that does not exist: unset it, or create the profile with `daytona login --profile %s`; `daytona profile list` shows the saved ones", name)
 	} else {
 		a.Profile = &config.Profile{Name: name}
 	}
@@ -184,7 +219,11 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	// DefaultAPIURL. The variable matches the SDKs; it and the flag exist for
 	// test environments. DAYTONA_API_URL belongs to the 0.x CLI and SDKs and
 	// is not read.
+	a.savedAPIURL = resolveAPIURL(a.Profile.APIURL)
 	a.Profile.APIURL = resolveAPIURL(g.APIURL, getenv("DAYTONA_V2_API_URL"), a.Profile.APIURL)
+	if err := checkAPIURL(a.Profile.APIURL); err != nil && !g.ProfileOptional {
+		return nil, err
+	}
 
 	// Explicit overrides. The credential is sent exactly as given.
 	if g.APIKeySet {
@@ -203,8 +242,20 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 			a.Profile.ProjectByOrg = map[string]string{}
 		}
 		a.Profile.ProjectByOrg[a.Profile.OrgID] = p
+		a.projectFromOverride = true
 	}
 	return a, nil
+}
+
+// checkAPIURL refuses an API URL that is not an absolute http(s) URL with a
+// host, as a usage error, before any request.
+func checkAPIURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return cerr.Usage("invalid API URL %q: want an absolute http:// or https:// URL with a host", raw).
+			WithHint("check --api-url, DAYTONA_V2_API_URL, or the profile's saved URL")
+	}
+	return nil
 }
 
 func staticCred(k string) func(context.Context) (string, error) {
@@ -219,6 +270,19 @@ func (a *App) SetCredentialResolver(source string, fn func(ctx context.Context) 
 	}
 	a.CredentialSource = source
 	a.credentialFn = fn
+	a.savedCredential = true
+}
+
+// credentialURLError refuses the profile's saved credential when this
+// invocation's API URL is not the one it was issued for: it is never sent,
+// refreshed or exchanged at another URL. An explicit credential (--api-key /
+// DAYTONA_API_KEY) is the way to call another API.
+func (a *App) credentialURLError() error {
+	if !a.savedCredential || a.APIURL() == a.savedAPIURL {
+		return nil
+	}
+	return cerr.Usage("profile %q's saved credential was issued for %s; it is not sent to %s", a.Profile.Name, a.savedAPIURL, a.APIURL()).
+		WithHint("pass --api-key / DAYTONA_API_KEY for that API, sign in there with `daytona login --api-url %s --profile NAME`, or drop --api-url / DAYTONA_V2_API_URL", a.APIURL())
 }
 
 // ReplaceCredentialResolver installs a resolver unconditionally. Used only by
@@ -228,11 +292,17 @@ func (a *App) SetCredentialResolver(source string, fn func(ctx context.Context) 
 func (a *App) ReplaceCredentialResolver(source string, fn func(ctx context.Context) (string, error)) {
 	a.CredentialSource = source
 	a.credentialFn = fn
+	a.savedCredential = true
+	a.savedAPIURL = a.APIURL()
 }
 
 // OrgFromOverride reports whether Profile.OrgID came from --org / DAYTONA_ORG
 // rather than from the saved profile.
 func (a *App) OrgFromOverride() bool { return a.orgFromOverride }
+
+// ProjectFromOverride reports whether the selected project came from
+// --project / DAYTONA_PROJECT rather than from the saved profile.
+func (a *App) ProjectFromOverride() bool { return a.projectFromOverride }
 
 // HasExplicitCredential reports whether --api-key / DAYTONA_API_KEY was given.
 func (a *App) HasExplicitCredential() bool {
@@ -241,6 +311,9 @@ func (a *App) HasExplicitCredential() bool {
 
 // Credential returns the bearer for this invocation.
 func (a *App) Credential(ctx context.Context) (string, error) {
+	if err := a.credentialURLError(); err != nil {
+		return "", err
+	}
 	if a.credentialFn == nil {
 		return "", cerr.New(cerr.ExitAuth, "not logged in").
 			WithHint("run `daytona login`, or pass --api-key / set DAYTONA_API_KEY")
@@ -284,6 +357,9 @@ func (a *App) Client(ctx context.Context) (*api.Client, error) {
 // cached/minted project key. `pick` is the interactive project picker.
 func (a *App) WorkloadClient(ctx context.Context, pick func(ctx context.Context) (string, error)) (*api.Client, string, error) {
 	base := a.APIURL()
+	if err := a.credentialURLError(); err != nil {
+		return nil, "", err
+	}
 	if a.HasExplicitCredential() || a.CredentialSource == "profile-token" {
 		// A static credential is sent as-is on every route, and the server's
 		// answer stands: the CLI never mints, caches or substitutes another
@@ -296,6 +372,9 @@ func (a *App) WorkloadClient(ctx context.Context, pick func(ctx context.Context)
 		}
 		project, err := a.resolveSelectedProject(ctx)
 		if err != nil {
+			return nil, "", err
+		}
+		if err := a.checkStaticKeyProject(ctx, project); err != nil {
 			return nil, "", err
 		}
 		return a.newClient(base, cred), project, nil
@@ -332,6 +411,39 @@ func (a *App) WorkloadClient(ctx context.Context, pick func(ctx context.Context)
 		}
 	}
 	return a.workloadKeyClient(ctx, base, project)
+}
+
+// StaticKeyProjectContext describes the static credential's project once per
+// invocation (ok=false when it is not a project API key, or no describer is
+// installed).
+func (a *App) StaticKeyProjectContext(ctx context.Context) (StaticKeyProject, bool, error) {
+	if a.StaticKeyProjectFn == nil {
+		return StaticKeyProject{}, false, nil
+	}
+	if a.staticKeyProject == nil {
+		project, ok, err := a.StaticKeyProjectFn(ctx)
+		a.staticKeyProject = &staticKeyProjectResult{project: project, ok: ok, err: err}
+	}
+	r := a.staticKeyProject
+	return r.project, r.ok, r.err
+}
+
+// checkStaticKeyProject refuses a --project / DAYTONA_PROJECT that names
+// another project than the one a project API key acts in: the server would
+// act in the key's project whatever the selection says.
+func (a *App) checkStaticKeyProject(ctx context.Context, selected string) error {
+	if !a.projectFromOverride || selected == "" {
+		return nil
+	}
+	key, ok, err := a.StaticKeyProjectContext(ctx)
+	if err != nil || !ok {
+		return err
+	}
+	if strings.EqualFold(selected, key.ID) || selected == key.Name {
+		return nil
+	}
+	return cerr.Usage("--project %q is not the project this API key acts in (%s, %s)", selected, key.Name, key.ID).
+		WithHint("a project API key always acts in its own project: drop --project / DAYTONA_PROJECT, or use a key of project %s", selected)
 }
 
 // workloadKeyClient returns a client that uses a project key for the
@@ -447,7 +559,14 @@ func (a *App) Confirm(verb, target string) error {
 	if !a.Mode.Interactive {
 		return cerr.RefuseWithoutYes(verb, target)
 	}
-	ok, err := ui.Confirm(fmt.Sprintf("%s %s?", capitalize(verb), target))
+	ctx := a.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ok, err := ui.ConfirmContext(ctx, fmt.Sprintf("%s %s?", capitalize(verb), target))
+	if err != nil && ctx.Err() != nil {
+		return cerr.FromContext(ctx)
+	}
 	if err != nil {
 		return err
 	}

@@ -54,7 +54,7 @@ func hintFor(ae *APIError) string {
 		return "the invitation is unknown, already accepted or declined, expired, or revoked — ask the organization to invite you again"
 	case ae.Status == http.StatusNotFound:
 		if ae.Code == CodeImageNotFound {
-			return "create takes an image name or img_… id; import the registry ref first with `daytona image create <name> --ref <registry-ref>`"
+			return "check the image name or id and the selected --project; `daytona image list` shows available images"
 		}
 		return "check the id and the selected --org/--project; a resource in another project also answers 404"
 	case ae.Status == http.StatusConflict && ae.Code == CodeNotSupportedForClass:

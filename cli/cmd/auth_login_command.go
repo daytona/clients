@@ -21,6 +21,8 @@ func newLoginCmd() *cobra.Command {
 		Long: `Signs in to the Daytona API (` + app.DefaultAPIURL + `) and saves the session in
 the active profile. For a test environment, point the CLI at another API with
 DAYTONA_V2_API_URL (or --api-url); the profile remembers it.
+--profile NAME creates a named profile: 1–64 ASCII letters, digits, '.', '_'
+or '-', excluding '.' and '..'.
 
 Default at a terminal: opens your browser (authorization code + PKCE on a
 loopback redirect) and prints the URL too — nothing to type, approve and you
@@ -28,6 +30,9 @@ are done. Without a terminal (agents, CI) or inside an SSH session (where a
 browser on your machine cannot reach this host's loopback redirect) the CLI
 switches to the device flow automatically; --device forces it — you open a URL
 on any device and enter a short code.
+With JSON/YAML output or non-terminal stdout, device login prints one JSON
+event with known verification_uri, verification_uri_complete, user_code and
+expires_in fields before waiting. It prints no additional result on stdout.
 --token: stores a static credential (a project API key, an org API key, or any
 bearer the server accepts) as-is. The CLI only rejects an empty value (for
 example an unset CI secret) and never inspects it otherwise; the server decides
@@ -48,6 +53,13 @@ Examples:
 		Annotations: map[string]string{annotationCreatesProfile: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
+			name := a.Profile.Name
+			if cmd.Flags().Changed("profile") {
+				name = a.Globals.Profile
+			}
+			if err := config.ValidateProfileName(name); err != nil {
+				return err
+			}
 			if cmd.Flags().Changed("token") {
 				if strings.TrimSpace(token) == "" {
 					return cerr.Usage("--token is empty; pass the credential value, or omit --token to sign in interactively")
@@ -71,7 +83,9 @@ func loginToken(ctx context.Context, a *app.App, token string) error {
 		if cur, ok := c.Profile(name); ok {
 			p.OIDCClientID = cur.OIDCClientID
 		}
-		c.Upsert(p)
+		if err := c.Upsert(p); err != nil {
+			return false, false, err
+		}
 		if c.ActiveProfile == "" {
 			c.ActiveProfile = name
 		}

@@ -21,9 +21,10 @@ func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","reservation":"region-a:res-1","cores":10,"memory_mib":16384,"disk_mib":163840,"persistent":true,"secrets":["API_KEY"]}`,
 		response: created,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/33333333-3333-3333-3333-333333333333", status: 200, response: sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending")}})
 	require.NoError(t, err)
-	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+	require.JSONEq(t, sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending"), stdout)
+	require.NotContains(t, requireJSONStdout(t, stdout), "access_token")
 
 	// Unsized: every axis stays absent; --auto-renew rides with --reservation new.
 	_, _, err = runCLI(t, []string{"sandbox", "create-macos", "--yes", "--image", "base-macos", "--reservation", "new", "--auto-renew", "--on-lifecycle-timeout", "delete", "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{
@@ -32,7 +33,7 @@ func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","reservation":"new","auto_renew":true,"lifecycle_policy":{"timeout_seconds":3600,"on_timeout":"delete"}}`,
 		response: created,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/33333333-3333-3333-3333-333333333333", status: 200, response: sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending")}})
 	require.NoError(t, err)
 }
 
@@ -111,7 +112,7 @@ func TestSandboxCreateMacos_sendsNetworkPolicy(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","network_policy":{"block_all":true,"allow_cidrs":["93.184.215.14/32"],"allow_domains":["example.com"]}}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"0b0e5a52-31f6-4c2e-9a1e-4c1d1f6a7b02","name":"mac","status":"pending","wait_cap_seconds":3,"reservation_id":null}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/0b0e5a52-31f6-4c2e-9a1e-4c1d1f6a7b02", status: 200, response: sandboxDetailFixture("0b0e5a52-31f6-4c2e-9a1e-4c1d1f6a7b02", "macos", "pending")}})
 	require.NoError(t, err)
 
 	// An allow list without default-deny would leave the sandbox open.

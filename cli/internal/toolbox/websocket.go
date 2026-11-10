@@ -7,9 +7,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
-	"crypto/sha1"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -18,7 +15,6 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 )
 
 // maxWebSocketFrame bounds a single inbound frame: PTY output arrives in
@@ -55,6 +51,12 @@ func dialWebSocket(ctx context.Context, rawURL string, decorate func(*http.Reque
 	if err != nil {
 		return nil, err
 	}
+	stopHandshake := context.AfterFunc(ctx, func() {
+		if err := conn.Close(); err != nil {
+			return
+		}
+	})
+	defer stopHandshake()
 	reader := bufio.NewReader(conn)
 	key, err := randomWebSocketKey()
 	if err != nil {
@@ -85,8 +87,9 @@ func dialWebSocket(ctx context.Context, rawURL string, decorate func(*http.Reque
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusSwitchingProtocols {
+		err := mapError(http.MethodGet, parsed.EscapedPath(), resp)
 		_ = conn.Close()
-		return nil, fmt.Errorf("websocket handshake failed: %s", resp.Status)
+		return nil, fmt.Errorf("websocket handshake failed: %w", err)
 	}
 	if !strings.EqualFold(resp.Header.Get("Upgrade"), "websocket") {
 		_ = conn.Close()
@@ -235,39 +238,6 @@ func (c *WebSocketConn) writeFrame(opcode byte, payload []byte) error {
 		return err
 	}
 	return nil
-}
-
-func dialWebSocketConn(ctx context.Context, parsed *url.URL) (net.Conn, error) {
-	dialer := &net.Dialer{Timeout: 30 * time.Second}
-	host := websocketDialAddress(parsed)
-	if parsed.Scheme == "wss" {
-		return (&tls.Dialer{NetDialer: dialer, Config: &tls.Config{ServerName: parsed.Hostname()}}).DialContext(ctx, "tcp", host)
-	}
-	return dialer.DialContext(ctx, "tcp", host)
-}
-
-func websocketDialAddress(parsed *url.URL) string {
-	if parsed.Port() != "" {
-		return parsed.Host
-	}
-	defaultPort := "80"
-	if parsed.Scheme == "wss" {
-		defaultPort = "443"
-	}
-	return net.JoinHostPort(parsed.Hostname(), defaultPort)
-}
-
-func randomWebSocketKey() (string, error) {
-	var raw [16]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("generate websocket key: %w", err)
-	}
-	return base64.StdEncoding.EncodeToString(raw[:]), nil
-}
-
-func expectedWebSocketAccept(key string) string {
-	sum := sha1.Sum([]byte(key + wsGUID))
-	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
 func websocketPayloadLength(r io.Reader, lengthByte byte) (int, error) {

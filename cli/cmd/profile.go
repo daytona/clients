@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/daytona/clients/cli/internal/auth"
@@ -32,7 +34,7 @@ func newProfileCmd() *cobra.Command {
 			type row struct {
 				Name       string `json:"name"`
 				APIURL     string `json:"api_url"`
-				Credential string `json:"credential"`
+				Credential string `json:"credential,omitempty"`
 				OrgID      string `json:"org_id,omitempty"`
 				ProjectID  string `json:"project_id,omitempty"`
 				Active     bool   `json:"active"`
@@ -57,8 +59,12 @@ func newProfileCmd() *cobra.Command {
 	c.AddCommand(&cobra.Command{
 		Use:   "use <name>",
 		Short: "Make a profile the active one",
+		Long:  "Make a saved profile active. Names use 1–64 ASCII letters, digits, '.', '_' or '-', excluding '.' and '..'.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.ValidateProfileName(args[0]); err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			return a.Store.Update(func(c *config.Config, _ *config.Credentials) (bool, bool, error) {
 				if _, ok := c.Profile(args[0]); !ok {
@@ -75,16 +81,29 @@ func newProfileCmd() *cobra.Command {
 		Long: `Deletes the profile and its saved credentials from this machine, then attempts
 to revoke the profile's cached login-minted project keys against the profile's
 saved API, like logout (at most 3 seconds total). Local deletion completes even
-when that API is unavailable; keys whose revocation fails expire server-side.`,
+when that API is unavailable; keys whose revocation fails expire server-side.
+Deleting the active profile selects default when present, otherwise leaves none
+active, and announces the resulting selection on stderr.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			if err := a.Confirm("delete", "profile "+args[0]); err != nil {
 				return err
 			}
-			return auth.DeleteProfile(cmd.Context(), a, args[0], func() error {
+			if err := auth.DeleteProfile(cmd.Context(), a, args[0], func() error {
 				return cerr.New(cerr.ExitNotFound, "no profile %q", args[0])
-			})
+			}); err != nil {
+				return err
+			}
+			if a.Config.ActiveProfile == args[0] {
+				if _, ok := a.Config.Profile("default"); ok && args[0] != "default" {
+					_, err := fmt.Fprintln(a.Stderr, "Deleted the active profile; now using profile \"default\".")
+					return err
+				}
+				_, err := fmt.Fprintln(a.Stderr, "Deleted the active profile; none is active. Use `daytona profile use NAME` or `daytona login`.")
+				return err
+			}
+			return nil
 		},
 	})
 	return c

@@ -86,9 +86,13 @@ func newSandboxWaitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wait <id>",
 		Short: "Wait for a sandbox status",
-		Long:  "Wait for a sandbox status.\nExample:\n  daytona sandbox wait <id> --for running",
+		Long:  "Wait for a sandbox to reach a settled status: running, stopped, paused or deleted.\nThe SDK state names started (running) and destroyed (deleted) are accepted too.\nExample:\n  daytona sandbox wait <id> --for running",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			target, err := sandboxWaitTarget(status)
+			if err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -105,7 +109,7 @@ func newSandboxWaitCommand() *cobra.Command {
 			}
 			detail, err := workload.WaitForSandbox(cmd.Context(), resolved.Client, workload.SandboxWaitOptions{
 				ID:      resolved.Detail.Id,
-				Target:  status,
+				Target:  target,
 				Timeout: timeout,
 			})
 			if err != nil {
@@ -114,14 +118,49 @@ func newSandboxWaitCommand() *cobra.Command {
 			return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 		},
 	}
-	cmd.Flags().StringVar(&status, "for", status, "status to wait for")
+	cmd.Flags().StringVar(&status, "for", status, "status to wait for: running, stopped, paused or deleted (or the SDK names started, destroyed)")
+	flagPlaceholder(cmd.Flags(), "for", "STATUS")
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long to wait (Go duration)")
 	return cmd
+}
+
+// checkSandboxCursorRegions refuses a --cursor that names a region the
+// catalog does not have: listing would silently start over at page one.
+func checkSandboxCursorRegions(cat *regions.Catalog, cursor string) error {
+	if cat == nil || len(cat.Regions) == 0 {
+		return nil
+	}
+	for region := range parseSandboxCursor(cursor) {
+		if region != "" && cat.Find(region) == nil {
+			return cerr.Usage("invalid --cursor: it names region %q, which the region catalog does not have", region).
+				WithHint("the cursor is stale or was not printed by `daytona sandbox list`; list again without --cursor")
+		}
+	}
+	return nil
+}
+
+// sandboxWaitTargets maps each `sandbox wait --for` value to the API status it
+// waits for: the settled statuses, and the SDKs' names for two of them.
+// Transient statuses are not targets: a wait could miss them and run to its
+// timeout.
+var sandboxWaitTargets = map[string]string{
+	"running": "running", "stopped": "stopped", "paused": "paused", "deleted": "deleted",
+	"started": "running", "destroyed": "deleted",
+}
+
+func sandboxWaitTarget(value string) (string, error) {
+	if target, ok := sandboxWaitTargets[value]; ok {
+		return target, nil
+	}
+	return "", cerr.Usage("invalid --for %q: want running, stopped, paused or deleted (or started, destroyed)", value)
 }
 
 func (source regionalListSource) fetchSandboxPage(ctx context.Context, page listPageRequest) (output.List[gen.SandboxListItem], error) {
 	cat, err := source.catalog.Fetch(ctx, source.home)
 	if err != nil {
+		return output.List[gen.SandboxListItem]{}, err
+	}
+	if err := checkSandboxCursorRegions(cat, page.cursor); err != nil {
 		return output.List[gen.SandboxListItem]{}, err
 	}
 	cat = cat.ForListCursor(source.home.BaseURL, page.cursor)

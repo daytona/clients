@@ -126,14 +126,17 @@ var renamedFlags = map[string]map[string]string{
 	"daytona sandbox create": {
 		"cores-max": "--cpu-max", "mem-max": "--memory-max",
 		"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)",
+		"wait":       serverWaitRename,
 	},
-	"daytona sandbox create-from-snapshot": {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)"},
-	"daytona sandbox create-macos":         {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)"},
+	"daytona sandbox create-from-snapshot": {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)", "wait": serverWaitRename},
+	"daytona sandbox create-macos":         {"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)", "wait": serverWaitRename},
 	"daytona sandbox update": {
 		"on-timeout": "--on-lifecycle-timeout (and --lifecycle-timeout for the lifetime)",
 		"timeout":    "--lifecycle-timeout DURATION (e.g. 1h) for the sandbox's lifetime",
 	},
 }
+
+const serverWaitRename = "--server-wait DURATION for how long the server holds the create response (the CLI waits for running unless --no-wait)"
 
 // lifecycleCommands took the sandbox lifetime as --timeout SECONDS before
 // 2.x; their --timeout is now the CLI's own wait.
@@ -225,6 +228,9 @@ var flagCombinationRules = map[string]func(*pflag.FlagSet) error{
 		}
 		return nil
 	},
+	"daytona sandbox create":               refuseServerWaitWithNoWait,
+	"daytona sandbox create-from-snapshot": refuseServerWaitWithNoWait,
+	"daytona sandbox create-macos":         refuseServerWaitWithNoWait,
 	"daytona sandbox update": func(f *pflag.FlagSet) error {
 		if clear, _ := f.GetBool("clear-labels"); clear && f.Changed("label") {
 			return cerr.Usage("--clear-labels and --label both set the labels; pass one").
@@ -241,6 +247,15 @@ var flagCombinationRules = map[string]func(*pflag.FlagSet) error{
 		}
 		return nil
 	},
+}
+
+// refuseServerWaitWithNoWait: with --no-wait the CLI prints the sandbox as soon
+// as the server answers, so asking the server to hold that answer contradicts it.
+func refuseServerWaitWithNoWait(f *pflag.FlagSet) error {
+	if noWait, _ := f.GetBool("no-wait"); noWait && f.Changed("server-wait") {
+		return cerr.Usage("--server-wait has no effect with --no-wait").WithHint("drop one of them")
+	}
+	return nil
 }
 
 // runsWithoutConfig reports whether cmd still runs when the config cannot be

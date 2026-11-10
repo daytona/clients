@@ -40,6 +40,13 @@ func newImageListCommand() *cobra.Command {
 				return err
 			}
 			flags.anonymous = anonymous
+			if cmd.Flags().Changed("platform") {
+				switch flags.platform {
+				case "true", "false", "any":
+				default:
+					return cerr.Usage("--platform must be true, false or any")
+				}
+			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err

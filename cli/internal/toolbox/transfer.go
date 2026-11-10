@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,7 +30,7 @@ func (c *Client) DownloadFile(ctx context.Context, signedURL, localPath string) 
 	c.inner.SetIdentityHeaders(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("download signed file: %w", err)
+		return fmt.Errorf("download signed file: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -44,7 +45,7 @@ func (c *Client) DownloadFile(ctx context.Context, signedURL, localPath string) 
 func (c *Client) UploadFile(ctx context.Context, signedURL, localPath, remotePath string) error {
 	file, err := openUploadFile(localPath)
 	if err != nil {
-		return fmt.Errorf("open %s: %w", localPath, err)
+		return err
 	}
 	defer file.Close()
 	return c.UploadReader(ctx, signedURL, localPath, remotePath, file)
@@ -59,17 +60,23 @@ func (c *Client) UploadReader(ctx context.Context, signedURL, localPath, remoteP
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		_ = req.Body.Close()
-		<-producerDone
-		return fmt.Errorf("upload signed file: %w", err)
+		producerErr := <-producerDone
+		if producerErr != nil && !errors.Is(producerErr, io.ErrClosedPipe) {
+			return producerErr
+		}
+		return fmt.Errorf("upload signed file: %w", redactURLError(err))
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// Read the error body before draining it: it carries the toolbox's
+		// message and code.
+		mapped := mapError(http.MethodPost, req.URL.Path, resp)
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
 		producerErr := <-producerDone
 		if producerErr != nil && !errors.Is(producerErr, io.ErrClosedPipe) {
 			return producerErr
 		}
-		return mapError(http.MethodPost, req.URL.Path, resp)
+		return mapped
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
@@ -77,6 +84,23 @@ func (c *Client) UploadReader(ctx context.Context, signedURL, localPath, remoteP
 		return producerErr
 	}
 	return nil
+}
+
+// redactURLError drops the query of a pre-signed URL from a transport error:
+// its signature stays valid until it expires, so it never reaches the output.
+func redactURLError(err error) error {
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		return err
+	}
+	redacted := *urlErr
+	if u, parseErr := url.Parse(urlErr.URL); parseErr == nil {
+		u.RawQuery, u.Fragment, u.User = "", "", nil
+		redacted.URL = u.String()
+	} else {
+		redacted.URL = "<signed URL>"
+	}
+	return &redacted
 }
 
 func newSignedUploadRequest(ctx context.Context, signedURL, localPath, remotePath string, file io.Reader) (*http.Request, <-chan error, error) {
@@ -106,7 +130,10 @@ func startSignedUploadBody(localPath, remotePath string, file io.Reader) (*io.Pi
 			return
 		}
 		if _, err := io.Copy(part, file); err != nil {
-			wrapped := fmt.Errorf("read %s: %w", localPath, err)
+			wrapped := fmt.Errorf("read %s: %w", localPath, errors.Unwrap(err))
+			if errors.Unwrap(err) == nil {
+				wrapped = fmt.Errorf("read %s: %w", localPath, err)
+			}
 			_ = pw.CloseWithError(wrapped)
 			done <- wrapped
 			close(done)

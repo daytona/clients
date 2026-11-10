@@ -81,6 +81,12 @@ Sandbox commands run on credentials derived from your session (see Credentials
 below). `daytona logout` removes the local session and attempts to revoke this
 profile's login-minted project keys.
 
+`login --profile NAME` creates a named connection; `profile use NAME` selects
+one. Names use 1–64 ASCII letters, digits, `.`, `_` or `-`, except `.` and
+`..`. Older saved names still load. An `active_profile` in the configuration that names a missing profile stops the commands that use it (exit 5), like an unknown `--profile`. Deleting the active profile explicitly
+selects `default` when it exists and announces that on stderr; otherwise no
+profile is active, and the CLI asks you to select one or log in.
+
 ## Use
 
 ```sh
@@ -113,7 +119,8 @@ daytona sandbox delete <id>
 ```
 
 `daytona --help` lists every command group; `daytona docs --full` prints the
-whole reference on one page.
+whole reference on one page. Use `daytona docs --dir DIR` for separate Markdown
+files instead; `--full` and `--dir` cannot be combined.
 
 `daytona region list` prints the region catalog as a tree, each NAME indented
 under the region it is inside, with the columns NAME, ID, PRICE MULTIPLIER and
@@ -158,8 +165,34 @@ directory is skipped. As with `docker build`, a pattern with a syntax error
 matcher (`foo\q`) fails it only when a path reaches it (exit 2, naming the
 ignore file). The Dockerfile and the ignore file are always uploaded,
 even when a pattern matches them. The 64 MiB context limit counts what is
-uploaded. A `--context` tar file is uploaded as is, and `sandbox cp` never
-filters.
+uploaded. Before any request, a directory context must contain the selected
+Dockerfile (`Dockerfile` by default, or `--dockerfile` inside the context).
+Plain tar contexts are checked for that entry too; compressed or unrecognized
+archives are checked by the server. A `--context` tar file is uploaded as is,
+and `sandbox cp` never filters. `image create --ref` refuses empty or blank
+references locally.
+
+`daytona image logs <id-or-name>` accepts an image name or id. Image build/import
+failures include the recorded build error and its code when available. A timeout
+on `image create`, `build`, `capture` or `snapshot create` includes the pending
+resource id and its `get` command; the operation keeps running on the server.
+`image list --platform` accepts only `true`, `false` or `any`.
+
+`sandbox exec <id> -- COMMAND [ARGS...]` copies stdout and stderr as raw bytes,
+including binary output. `--timeout` only stops the CLI waiting; the process
+continues. `--execution-timeout DURATION` sets the remote execution deadline
+(greater than zero, rounded up to milliseconds). Interrupting the CLI with
+Ctrl-C or SIGTERM instead forwards INT to the process, escalating to KILL
+after one second, best effort. `--tty` requires terminal stdin and stdout,
+replays output from startup, defaults an unavailable or zero terminal size to
+80×24, and forwards terminal resizes on Unix.
+
+`sandbox ssh [CLI FLAGS] <id> [SSH OPTIONS] [-- COMMAND [ARGS...]]` applies CLI
+flags only before the sandbox id; arguments after it are forwarded to OpenSSH.
+Gateway host keys are kept per host and port under the CLI configuration
+directory, never in your personal `known_hosts`. New keys are accepted without
+a prompt; subsequent key changes are refused. This is trust on first use:
+an attacker intercepting the first connection could supply the trusted key.
 
 ### macOS sandboxes
 
@@ -206,11 +239,27 @@ upgraded.
 and `reservation renew` send a fresh `Idempotency-Key` per invocation unless
 `--idempotency-key` is given; pass your own to retry safely.
 
+Every `sandbox create*` sends an `Idempotency-Key` too, as the SDKs do:
+`--idempotency-key` (or the `--file` body's `idempotency_key`), else one
+derived from `--name` (the same key the SDKs derive, so creating the same name
+again within a regional API answers with the sandbox the first create made),
+else a fresh one per invocation. When a create fails without an answer (a
+network error, a 5xx, a timeout), the error's hint names the key to retry with.
+A named create also stamps the name as the label `name`, which the SDKs'
+`find_by_name` matches; a `--label name=…` that disagrees with `--name` is a
+usage error, and so is a blank `--name` (omit it for a generated name).
+`sandbox create-macos` checks its sizes (`--cores` at least 4, `--memory` at
+least 4096, `--disk` at least 81920), `--auto-renew` (only with `--reservation
+new`) and its volumes (at most 8, read-write, not with `--persistent`) before
+asking to buy anything.
+
 `sandbox create-macos` with no `--reservation`, or with `--reservation new`,
 may buy a 24-hour Mac reservation billed to your organization. These commands,
-`reservation create` and `reservation renew` ask for confirmation at a
+`reservation create`, `reservation renew`, and `reservation update
+--auto-renew=true` ask for confirmation at a
 terminal; off a terminal, pass `--yes` or set `DAYTONA_YES=1`. Using an
 existing reservation ID or `reservation create --dry-run` does not prompt.
+`reservation update --auto-renew=false` needs no confirmation.
 
 Stop and pause need a persistent sandbox (`--persistent`). Stop keeps the disk on the same Mac, and start and resume use that Mac. Delete erases the disk. At reservation end, a persistent sandbox's disk is saved as an anonymous image before the Mac is erased, and an ephemeral sandbox's disk is erased unsaved; a lost Mac saves persistent disks if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
 
@@ -261,9 +310,12 @@ never prompts:
 
 - The default output is a table at a terminal and JSON otherwise;
   `--output` always wins. Payload goes to stdout, diagnostics to stderr.
+  Format names are case-sensitive: `table`, `json`, `yaml`, and `yml` (an
+  alias for `yaml`). Other spellings are refused (exit 2).
 - Destructive and billable commands (`delete`, `remove`, `revoke`, `leave`,
   billing setting deletes, `billing plan set`, `billing automatic-top-up
-  set`, Mac purchases, `reservation renew`) prompt at a
+  set`, Mac purchases, `reservation renew`, `reservation update
+  --auto-renew=true`) prompt at a
   terminal; in non-interactive mode (no terminal, `-o json|yaml`, or `CI`
   set) they refuse unless `--yes` or `DAYTONA_YES=1` is given, before
   anything reaches the server. `daytona config set confirm false`
@@ -295,17 +347,34 @@ never prompts:
   `--created-end-at`, `--updated-start-at` / `--updated-end-at`, and
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
   inclusive; end bounds are exclusive. Values are RFC3339 timestamps.
+- Sandbox search accepts repeatable `--label KEY=VALUE`, merged with
+  `--labels '{"key":"value"}'`; conflicting values across the two flags
+  are a usage error (exit 2). `--region` is checked against the region
+  catalog: an unknown region is a usage error (exit 2), and a parent expands
+  to itself and its children in the search API's `region_ids` filter.
 - Billing amounts are integer cents plus a currency. One-time top-ups use
   `--amount-cents`; automatic top-up and low-balance settings use
   `--threshold-cents` (and automatic top-up also uses `--target-cents`).
 - `secret set` takes the value from `--value`, `--from-file` or `--stdin`
   (one trailing newline is stripped from a file or stdin). An empty value is
   refused: the stored value cannot be read back, so an unset variable or an
-  empty file would otherwise erase it silently.
+  empty file would otherwise erase it silently. `--allowed-domain` rejects
+  empty entries, including in comma-separated lists. Omit it to preserve an
+  existing scope; use `--allowed-domain '*'` to remove domain restrictions
+  (the value can then reach any verified HTTPS host). An empty scope is not
+  supported by the API; delete the secret to remove it entirely.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
   `--permission`, `--label`, `--env`, `--allow-domain`, …).
 - Long operations wait for completion by default; `--no-wait` returns the
-  accepted resource immediately. `--timeout` bounds the CLI's own wait (default
+  accepted resource immediately. `sandbox create*`, `start`, `stop`, `pause`,
+  `resume`, `fork` and `delete` print the sandbox as `sandbox get` does in both
+  modes (with `--no-wait`, read once right after the request; a sandbox a
+  delete already removed prints the API's `{"id", "status"}`). No command
+  prints a sandbox access token.
+- `sandbox wait --for` takes a settled status: `running`, `stopped`, `paused`
+  or `deleted`, or the SDK state names `started` and `destroyed`; anything else
+  is a usage error (exit 2) before any request. `sandbox start` on a running
+  sandbox changes nothing, and on a paused one resumes it. `--timeout` bounds the CLI's own wait (default
   `10m`; the server keeps working) and exits **8** when it passes. A
   `--timeout` with nothing to wait for is refused (exit 2): with `--no-wait`,
   on `image logs` / `sandbox process logs` without `--follow`, and on
@@ -314,7 +383,9 @@ never prompts:
   volume's type. Bucket volumes are created with `daytona volume create NAME --type bucket`; add
   `--bucket`, `--endpoint`, `--bucket-region`, `--prefix`, `--path-style`,
   `--access-key-secret`, and `--secret-key-secret` for a customer bucket.
-  `--size-gib` sizes a disk volume.
+  `--size-gib` sizes a disk volume and must be greater than zero.
+- `audit list --start-at` and `--end-at` require RFC3339 timestamps and reject
+  invalid values locally, before any request.
 - `sandbox create --volume` accepts `VOLUME:MOUNT_PATH`,
   `VOLUME:MOUNT_PATH:ro`, or `VOLUME:MOUNT_PATH:SUBPATH[:ro]`.
   `sandbox create-macos --volume` takes `VOLUME:MOUNT_PATH[:SUBPATH]`:
@@ -344,13 +415,14 @@ whole seconds where the API stores seconds:
 | Flag | Commands | Meaning |
 |---|---|---|
 | `--timeout` | commands that wait (`sandbox create*`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `wait`, `exec`, `process wait`, `process logs --follow`, `docker status --wait`, `snapshot create`, `image create`, `build`, `capture`, `logs --follow`) | how long the CLI waits; never sent to the server |
+| `--execution-timeout` | `sandbox exec` | server-side execution deadline, greater than zero and rounded up to milliseconds; omitted means no execution deadline |
 | `--lifecycle-timeout` / `--on-lifecycle-timeout ACTION` | `sandbox create*`, `sandbox update` | the sandbox's wall-clock lifetime and the action when it ends |
 | `--idle-timeout` / `--on-idle-timeout ACTION` | `sandbox create*`, `sandbox update` | idle time before the action, at least `1m` (the API's minimum); `sandbox update --idle-timeout off` clears it |
-| `--wait` | `sandbox create*` | how long the server holds the create response (`0s` returns at once; server default `3s`) |
+| `--server-wait` | `sandbox create*` | how long the server holds the create response (`0s` answers at once; server default `3s`); the CLI still waits for `running` unless `--no-wait`, which `--server-wait` does not combine with |
 | `--create-ttl` | `sandbox create*` | how long the sandbox may take to reach `running` before the server deletes it; `max` asks for the server's maximum (server default `1h`) |
 | `--ttl` | `sandbox port preview-url --signed` | lifetime of a signed preview URL (default `60s`) |
 | `--escalate-after` | `sandbox process signal` | when to send `--escalate-to` |
-| `--expires` | `key mint`, `org-key mint` | key lifetime, or an RFC3339 timestamp |
+| `--expires` | `key mint`, `org-key mint` | key lifetime in whole seconds, or an RFC3339 timestamp |
 
 Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` only on
 a persistent macOS sandbox. Pause a sandbox with `daytona sandbox pause`; a
@@ -379,13 +451,21 @@ request.
   `{"data": "..."}` chunks for `sandbox logs` and `image logs`, one toolbox log
   frame (`channel`, `cursor`, `data`, `timestamp` in Unix milliseconds) for
   `sandbox process logs`. YAML is refused with `--follow` (exit 2).
+  With `sandbox process logs --encoding base64`, JSON/YAML frame data is
+  kept as the server sent it: standard base64 or base64url, with or without
+  padding. Decoders must accept both alphabets and padding forms. Table output
+  decodes frames; stdin sent by the CLI uses the contract's base64url alphabet.
 - The CLI's own shapes, for output no single API response holds:
   `{"logs": "<text>"}` (`sandbox logs` and `image logs` without `--follow`);
   `whoami` (`profile`, `api_url`, `credential_source`, `context_resolved`,
-  and `org_id`, `project_id`, `org_ref`, `project_ref`, `user`, `org` when
-  known); `version` (`version`, `go`, `os`, `arch`, and `api_url`,
+  and `org_id`, `project_id`, `org_ref`, `project_ref`, `user`, `org`,
+  `api_key` when known); `version` (`version`, `go`, `os`, `arch`, and `api_url`,
   `api_version`, `api_build_sha`, `api_built_at`, `skew_warning` when known);
-  `profile list` rows; `config get` / `config path`; `reservation create
+  device-login events (`verification_uri`, `verification_uri_complete`,
+  `user_code`, `expires_in`, only when known), one JSON object on stdout
+  before waiting for approval with JSON/YAML output or non-terminal stdout
+  (even with `-o table`); `profile list` rows (`credential` omitted when
+  empty); `config get` / `config path`; `reservation create
   --dry-run`; `region list` items, which are the API's region objects with
   `price_multiplier` added; and acknowledgements (below). They omit what they
   do not know rather than print empty values.
@@ -406,8 +486,8 @@ request.
   - `org_id`: `billing automatic-top-up delete`, `billing
     balance-notification delete` (`deleted`).
   `invite decline` prints `{"declined": true}` (the token is not echoed),
-  `sandbox port preview-url expire` `{"sandbox_id", "port", "token",
-  "revoked": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
+  `sandbox port preview-url expire` `{"sandbox_id", "port", "revoked": true}`
+  (`port` a number; the token is not echoed, and a blank one is refused), and `sandbox process signal` / `kill` `{"id", "signal"}`.
   With table output `org delete`, `project delete` and `project budget
   remove` print a sentence on stderr instead.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
@@ -415,11 +495,17 @@ request.
   `docs`, `completion`, `help` and `--version`.
 - The local configuration commands (`login`, `logout`, `org use`, `project
   use`, `profile use`, `profile delete`, `config set`) print nothing on
-  stdout.
+  stdout, except the device-login event described above. A successful login
+  prints no additional result on stdout.
 - `secret set` and `registry set` print the secret or registry credential
   the API stored, like `secret get` / `registry get`. They read the stored
-  resource first so the options you do not pass keep their values: they need
-  read as well as write access.
+  resource first so omitted metadata keeps its values: they need read as well
+  as write access. On `registry set`, an omitted username keeps the existing
+  username; a new registry requires `--username`. The API requires a password
+  on every set, even a description-only update, except for `--kind ecr_role`:
+  it cannot preserve an omitted write-only password. Supply `--password-stdin`
+  or `--password` again. `--kind` must be `basic`, `ghcr`, `gcr`, `ecr` or
+  `ecr_role`; omission on update keeps the stored kind.
 - The one exception to printing the API's JSON as it came: `secret get`,
   `set` and `list` drop a top-level `value` field, and `registry get`, `set`
   and `list` a top-level `password` field, matched in any case, in every
@@ -444,7 +530,7 @@ request.
 |---|---|
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
-| `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
+| `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
 | `3` | authentication: no credential, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE` that does not exist (on the commands that use the selected profile) |
@@ -452,14 +538,17 @@ request.
 | `7` | partial result: `sandbox list` / `image list` reached only some regions; the others' items are printed with each failure in `errors` (when no region answers, the first region's failure decides the code) |
 | `8` | timed out: `--timeout` passed, a request timed out, or HTTP 408 / 504 |
 | `130` | interrupted (Ctrl-C), or a confirmation prompt answered no |
+| `143` | terminated (SIGTERM) |
 
-Commands that run something in the sandbox pass its status through, so these
-numbers can also come from the remote side (the JSON error `source` then reads
-`PROCESS` or `SSH`):
+Commands that run something in the sandbox pass its status through, as a
+shell does, so any number, including those above, can also come from the
+remote side. With JSON or YAML output such an exit still prints the error
+object on stderr, whose `source` (`PROCESS` or `SSH`) tells a passed-through
+status apart from the CLI's own:
 
 | Command | Exit status |
 |---|---|
-| `sandbox exec`, `process wait`, `process logs --follow`, `process attach` | the process's exit code; a process ended by `SIGINT` → `130`, by another signal → `1`; its own timeout → `8`; `lost` / `failed` → its code, else `1` |
+| `sandbox exec`, `process wait`, `process logs --follow`, `process attach` | the process's exit code; for `sandbox exec`, a command that cannot be started → `127`; a process ended by a signal → `128` + the signal's Linux number (`SIGINT` → `130`, `SIGKILL` → `137`, `SIGTERM` → `143`; an unknown signal → `1`); its own timeout → `8`; `lost` / `failed` → its code, else `1` |
 | `sandbox ssh` | the `ssh` client's exit status |
 | `sandbox cp` | the remote `tar`'s exit status when the in-sandbox side of the copy fails |
 
@@ -480,7 +569,7 @@ fields:
 | `sandbox create` | `image`, `name`, `cpu`, `memory_mib`, `disk_mib`, `cores_max`, `memory_max_mib`, `disk_max_mib`, `cpu_arch`, `cpu_type`, `user`, `env`, `labels`, `ports`, `volumes`, `secrets`, `spot`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox create-from-snapshot` | `snapshot` (the positional argument wins), `name`, `labels`, `ports`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox create-macos` | `image`, `name`, `cores`, `memory_mib`, `disk_mib`, `persistent`, `reservation`, `auto_renew`, `env`, `labels`, `ports`, `volumes`, `secrets`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
-| `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set, `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |
+| `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set except the label `name`, which is kept unless the new set names it (then it must equal the sandbox name; `--clear-labels` keeps it too), `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |
 | `snapshot create` | `name` |
 | `image create` | `name` (the positional argument wins), `source` (`{"type": "registry", "ref": "..."}` or `{"type": "named", "name": "..."}`), `region_id`, `cpu_arch`, `idle_expiry_seconds`; a `dockerfile` field is refused (use `image build`) |
 | `image build` | the CLI's own descriptor, all strings: `name` (the positional argument wins), `context` (a local directory or tar file), `dockerfile` (a path inside the context), `region_id`, `cpu_arch`; `--dockerfile` and `--context` win even when given empty (then refused) |
@@ -498,7 +587,17 @@ An explicit credential is the only one used for that command — the CLI never
 falls back to your saved login, and an empty `--api-key` is a usage error.
 A static credential (`--api-key`, `DAYTONA_API_KEY`, `login --token`) is sent
 as-is on every request: the CLI never mints, caches or substitutes another key
-for it.
+for it. A project API key always acts in its own project, so a `--project` /
+`DAYTONA_PROJECT` that names another project is refused (exit 2) on the
+sandbox, image, secret and registry commands and on `whoami`, instead of being
+ignored; the CLI reads the key's project once per command
+(`GET /api-keys/current`) when a project is named.
+
+A saved credential (a login or `login --token`) belongs to the API URL it was
+saved with. With `--api-url` or `DAYTONA_V2_API_URL` naming another API, the
+CLI refuses to send it there, or to refresh or exchange it there (exit 2):
+pass `--api-key` / `DAYTONA_API_KEY` for that API, or sign in to it with
+`daytona login --api-url URL --profile NAME`.
 
 After a browser or device `daytona login`, sandbox, image, secret, and registry commands
 use automatically refreshed, project-scoped credentials. Platform tokens expire
@@ -523,14 +622,15 @@ Keys no longer tracked after replacement with `login --token` are not revoked
 by logout. `daytona profile delete` performs the same revocation for the
 deleted profile.
 
-A cached platform token is sent only to the API that issued it. With
-`--api-url` (or `DAYTONA_V2_API_URL`) pointing at another API, the CLI
-exchanges a new token there when that API issues platform tokens, and
-otherwise uses a project API key as described above.
+Cached platform tokens and minted keys are sent only to the API that issued
+them.
 
 `daytona whoami` reports `org_id` and `project_id` only when they are resolved
 IDs; a selection given by name appears in `org_ref` / `project_ref`, and
-`context_resolved` is `false` when a name could not be resolved.
+`context_resolved` is `false` when a name could not be resolved. With a static
+credential it asks the API about the key: a refused key fails with exit 3, and
+a project API key reports its own organization and project, with the API's
+description of the key (no secret) in `api_key`.
 
 ## Environment
 
@@ -551,9 +651,9 @@ IDs; a selection given by name appears in `org_ref` / `project_ref`, and
 The CLI does not read `DAYTONA_API_URL` (a value set for the 0.x CLI does not
 redirect it) or `DAYTONA_REGION` (pass `--region`). A login saves the API URL
 it used in its profile, and the CLI keeps using that URL when neither
-`--api-url` nor `DAYTONA_V2_API_URL` is set. To use the default Daytona API
-with such a profile, pass `--api-url https://api.daytona.com` or log in again
-without a test URL.
+`--api-url` nor `DAYTONA_V2_API_URL` is set, and its saved credential is never
+sent to another URL (see Credentials). To use the default Daytona API, log in
+again without a test URL, or use another profile.
 
 Configuration lives in `~/.config/daytona/` (`$XDG_CONFIG_HOME/daytona`), in
 files readable only by you.

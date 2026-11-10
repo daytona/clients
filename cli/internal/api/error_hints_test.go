@@ -7,7 +7,23 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestHintForImageNotFound_suggestsDiscovery_whenGettingOrDeleting(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			// Given an image reference that does not exist in this project.
+			failure := &APIError{Status: http.StatusNotFound, Code: CodeImageNotFound, Method: method, Path: "/images/missing"}
+			// When selecting a remedy.
+			hint := hintFor(failure)
+			// Then discovery is suggested, not importing a new resource.
+			require.Contains(t, hint, "daytona image list")
+			require.NotContains(t, hint, "daytona image create")
+		})
+	}
+}
 
 // The invitation token routes carry no id and no org context, so the generic
 // 404 hint ("check the id and --org/--project") would mislead; they get the
