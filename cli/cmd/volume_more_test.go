@@ -31,6 +31,9 @@ func TestVolumeCreate_rejectsShapesTheServerWouldRefuse(t *testing.T) {
 		"customer bucket without creds":   {"volume", "create", "v", "--type", "bucket", "--bucket", "corp"},
 		"customer bucket with half creds": {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--access-key-secret", "K"},
 		"bucket options without a type":   {"volume", "create", "v", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
+		"an empty type":                   {"volume", "create", "v", "--type", ""},
+		"an unknown type":                 {"volume", "create", "v", "--type", "nfs"},
+		"a type in another case":          {"volume", "create", "v", "--type", "DISK"},
 		"bucket options on a disk volume": {"volume", "create", "v", "--type", "disk", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
 	}
 	for name, args := range cases {
