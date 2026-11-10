@@ -12872,13 +12872,13 @@ describe('toolbox surface', () => {
   it('refuses stdin open on the blocking runs before any request', async () => {
     const transport = transportStub()
     const process = new ProcessService(INTERNAL, transport.object, 'sbx')
-    const calls = [
-      () => process.run('cat', { stdin: 'open' } as never),
-      () => process.connectSession('shell-1').run('cat', { stdin: 'open' } as never),
-      () => process.run('cat', { stdin: Object.create(null) } as never),
+    const cases: ReadonlyArray<readonly [() => Promise<unknown>, string]> = [
+      [() => process.run('cat', { stdin: 'open' } as never), "stdin 'open' is not supported by run()"],
+      [() => process.connectSession('shell-1').run('cat', { stdin: 'open' } as never), "stdin 'open' is not supported by run()"],
+      [() => process.run('cat', { stdin: Object.create(null) } as never), "stdin other than 'closed' is not supported by run()"],
     ]
-    for (const call of calls) {
-      await expect(call()).rejects.toMatchObject({ message: expect.stringContaining('is not supported by run()'), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    for (const [call, message] of cases) {
+      await expect(call()).rejects.toMatchObject({ message: expect.stringContaining(message), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     expect(transport.post).not.toHaveBeenCalled()
   })
