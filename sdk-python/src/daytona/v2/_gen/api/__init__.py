@@ -31,6 +31,9 @@ from daytona.v2._gen.api.models.billing_type import BillingType as BillingType
 from daytona.v2._gen.api.models.billing_usage_period import BillingUsagePeriod as BillingUsagePeriod
 from daytona.v2._gen.api.models.bucket_credentials import BucketCredentials as BucketCredentials
 from daytona.v2._gen.api.models.bucket_options import BucketOptions as BucketOptions
+from daytona.v2._gen.api.models.build_context_upload import BuildContextUpload as BuildContextUpload
+from daytona.v2._gen.api.models.build_context_upload_part import BuildContextUploadPart as BuildContextUploadPart
+from daytona.v2._gen.api.models.build_context_upload_state import BuildContextUploadState as BuildContextUploadState
 from daytona.v2._gen.api.models.build_log_chunk import BuildLogChunk as BuildLogChunk
 from daytona.v2._gen.api.models.build_log_done import BuildLogDone as BuildLogDone
 from daytona.v2._gen.api.models.build_log_done_reason import BuildLogDoneReason as BuildLogDoneReason
@@ -45,6 +48,7 @@ from daytona.v2._gen.api.models.change_impact import ChangeImpact as ChangeImpac
 from daytona.v2._gen.api.models.charge import Charge as Charge
 from daytona.v2._gen.api.models.charge_page import ChargePage as ChargePage
 from daytona.v2._gen.api.models.charge_status import ChargeStatus as ChargeStatus
+from daytona.v2._gen.api.models.complete_build_context_upload_request import CompleteBuildContextUploadRequest as CompleteBuildContextUploadRequest
 from daytona.v2._gen.api.models.config import Config as Config
 from daytona.v2._gen.api.models.coupon_redemption import CouponRedemption as CouponRedemption
 from daytona.v2._gen.api.models.cpu_arch_availability import CpuArchAvailability as CpuArchAvailability
@@ -52,6 +56,7 @@ from daytona.v2._gen.api.models.cpu_architecture import CpuArchitecture as CpuAr
 from daytona.v2._gen.api.models.cpu_catalog import CpuCatalog as CpuCatalog
 from daytona.v2._gen.api.models.cpu_catalog_region import CpuCatalogRegion as CpuCatalogRegion
 from daytona.v2._gen.api.models.cpu_type import CpuType as CpuType
+from daytona.v2._gen.api.models.create_build_context_upload_request import CreateBuildContextUploadRequest as CreateBuildContextUploadRequest
 from daytona.v2._gen.api.models.create_image_request import CreateImageRequest as CreateImageRequest
 from daytona.v2._gen.api.models.create_invitation_request import CreateInvitationRequest as CreateInvitationRequest
 from daytona.v2._gen.api.models.create_macos_sandbox_request import CreateMacosSandboxRequest as CreateMacosSandboxRequest

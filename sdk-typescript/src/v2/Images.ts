@@ -12,7 +12,9 @@ import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
-import { Image, ImageBuilder, Snapshot, buildImageRequest, isImageBuilder } from './Image.js'
+import { Image, ImageBuilder, Snapshot, buildImageRequest, imageOptionsBody, isImageBuilder } from './Image.js'
+import { uploadBuildContext } from './contextUpload.js'
+import type { BuildContext } from './contextUpload.js'
 import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import { acknowledgedId } from './responseFields.js'
 import type { HttpTransportConfig } from './http.js'
@@ -43,6 +45,9 @@ export interface ImagePullOptions extends BuildImageOptions {
 }
 
 const BUILD_IMAGE_OPTION_KEYS = optionKeys<BuildImageOptions>()({ name: true, idleExpirySeconds: true, region: true, cpuArch: true })
+export type BuildFromContextOptions = BuildImageOptions & { readonly dockerfile?: string }
+
+const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, dockerfile: true })
 const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, wait: true, timeoutSeconds: true })
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
@@ -99,6 +104,35 @@ export class ImagesService {
     if (!isImageBuilder(builder)) throw badRequest('images.build() takes an ImageBuilder (ImageBuilder.fromDockerfile(...), .fromRegistry(...))')
     assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
     const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
+    // Checked before the read: no request ever goes to /images/undefined.
+    return this.get(acknowledgedId(data, 'image create'))
+  }
+
+  /**
+   * Build an image from a Dockerfile inside a build-context tar archive: its
+   * bytes, a `Blob`, or (Node.js) the path of a `.tar` file, up to 1 GiB.
+   * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
+   * The archive is uploaded straight to storage in parts and verified by the
+   * API before the build starts; an identical archive the project already
+   * uploaded is reused without uploading it again. Resolves once the build is
+   * submitted; wait with `get(id, { wait: 'ready' })`.
+   */
+  public async buildFromContext(context: BuildContext, options: BuildFromContextOptions = {}): Promise<Image> {
+    assertKnownOptions('BuildFromContextOptions', options, BUILD_FROM_CONTEXT_OPTION_KEYS)
+    // Checked before the upload: the API refuses the pair only at the build.
+    if (options.name !== undefined && options.idleExpirySeconds !== undefined) {
+      throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
+    }
+    // Checked before the upload, as build() checks them before its request.
+    const imageOptions = imageOptionsBody(options)
+    const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: imageOptions.region_id })
+    const request: api.CreateImageRequest = {
+      ...imageOptions,
+      // The build must name the region the upload was verified in.
+      context_upload_id: upload.id,
+      region_id: upload.regionId,
+    }
+    const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
     // Checked before the read: no request ever goes to /images/undefined.
     return this.get(acknowledgedId(data, 'image create'))
   }

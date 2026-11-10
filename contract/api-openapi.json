@@ -1382,6 +1382,120 @@
         ],
         "type": "object"
       },
+      "BuildContextUpload": {
+        "description": "A build-context upload.",
+        "properties": {
+          "bytes": {
+            "description": "The size of the build-context tar in bytes.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "dockerfile": {
+            "description": "Path of the Dockerfile within the context.",
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "When a `ready` upload can no longer be used by a build.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "The upload ID.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "part_size": {
+            "description": "The size of every part but the last, in bytes. Set while `uploading`.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "parts": {
+            "description": "The parts to upload. Empty once the upload is `ready`.",
+            "items": {
+              "$ref": "#/components/schemas/BuildContextUploadPart"
+            },
+            "type": "array"
+          },
+          "region_id": {
+            "description": "The region the upload belongs to.",
+            "type": "string"
+          },
+          "sha256": {
+            "description": "The SHA-256 of the build-context tar.",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BuildContextUploadState",
+            "description": "`uploading` until the upload is completed and verified, then `ready`."
+          },
+          "upload_expires_at": {
+            "description": "When an upload that was not completed expires and is deleted. Set\nwhile `uploading`.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "urls_expire_at": {
+            "description": "When the part URLs stop accepting uploads. Set while `uploading`.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "region_id",
+          "dockerfile",
+          "bytes",
+          "sha256",
+          "parts"
+        ],
+        "type": "object"
+      },
+      "BuildContextUploadPart": {
+        "description": "One part of a build-context upload.",
+        "properties": {
+          "bytes": {
+            "description": "The exact size of the part's body in bytes.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "part_number": {
+            "description": "The part's 1-based number. Part `n` holds the archive bytes from\n`(n - 1) * part_size` on.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "url": {
+            "description": "A presigned URL that accepts one `PUT` of exactly `bytes` bytes until\n`urls_expire_at`. It is a credential: do not log or share it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_number",
+          "bytes",
+          "url"
+        ],
+        "type": "object"
+      },
+      "BuildContextUploadState": {
+        "description": "The state of a build-context upload.",
+        "enum": [
+          "uploading",
+          "ready"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "BuildLogChunk": {
         "properties": {
           "data_base64": {
@@ -1698,6 +1812,19 @@
         "type": "string",
         "x-daytona-open-enum": true
       },
+      "CompleteBuildContextUploadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "region_id": {
+            "description": "The region the upload was created in, as `POST /build-contexts`\nreturned it. Required: a multi-region deployment routes the request\nto that region's servers by it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "region_id"
+        ],
+        "type": "object"
+      },
       "Config": {
         "description": "The `/config` response body.",
         "properties": {
@@ -1973,11 +2100,56 @@
         ],
         "type": "object"
       },
+      "CreateBuildContextUploadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "description": "The size of the build-context tar in bytes, at most 1 GiB.",
+            "example": 10240,
+            "format": "int64",
+            "maximum": 1073741824,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "dockerfile": {
+            "description": "Path of the Dockerfile within the context. Defaults to `Dockerfile`.",
+            "example": "Dockerfile",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region_id": {
+            "description": "The region the image will be built in. When omitted, the project's\ndefault region is used, then the organization's, then the platform's\ndefault region. A build can use the upload only in this region.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "description": "The SHA-256 of the build-context tar, as 64 lowercase hex characters.",
+            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+            "type": "string"
+          },
+          "tree_hash": {
+            "description": "The canonical tree hash of the build context, as 64 lowercase hex\ncharacters. Optional: when set, the upload is refused unless the\nstored archive hashes to it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "bytes",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "CreateImageMultipartRequest": {
         "description": "The `multipart/form-data` variant of `POST /images`: a Dockerfile build\nwith an uploaded build context.",
         "properties": {
           "context": {
-            "description": "The build-context tar.",
+            "description": "The build-context tar, at most 64 MiB. Upload a larger context, up to\n1 GiB, with `POST /build-contexts` and build it with `context_upload_id`.",
             "format": "binary",
             "type": "string"
           },
@@ -2027,6 +2199,14 @@
       "CreateImageRequest": {
         "additionalProperties": false,
         "properties": {
+          "context_upload_id": {
+            "description": "A `ready` build-context upload from `POST /build-contexts` to build:\nthe Dockerfile at the upload's `dockerfile` path, with the uploaded\narchive as its context. The image must be created in the upload's\nregion. Mutually exclusive with `source` and `dockerfile`.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "cpu_arch": {
             "description": "The CPU architecture: `amd64` or `arm64`. Omit it to use the region default.",
             "example": "arm64",
@@ -9671,6 +9851,245 @@
         ]
       }
     },
+    "/build-contexts": {
+      "post": {
+        "description": "Starts a direct upload of a build-context tar of up to 1 GiB. When the project already holds a verified upload of the same archive in the region, the response is that upload with `state` `ready` and no parts. Otherwise `PUT` each part's bytes to its URL, then call `POST /build-contexts/{id}/complete`.",
+        "operationId": "create_build_context_upload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBuildContextUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildContextUpload"
+                }
+              }
+            },
+            "description": "The verified upload of the same archive",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildContextUpload"
+                }
+              }
+            },
+            "description": "The created upload and its part URLs",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body or target region is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Build contexts are not available in the region (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "write:images"
+            ]
+          },
+          {
+            "platform_token": [
+              "write:images"
+            ]
+          }
+        ],
+        "summary": "Create a build-context upload",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/build-contexts/{id}/complete": {
+      "post": {
+        "description": "Assembles the uploaded parts and verifies the stored archive: its size and SHA-256 must match the declared ones, it must be a well-formed tar, and its Dockerfile must pass the build admission checks. An archive that fails verification is deleted and the upload fails with a `400`. Repeating the request on a `ready` upload returns it unchanged.",
+        "operationId": "complete_build_context_upload",
+        "parameters": [
+          {
+            "description": "The upload ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteBuildContextUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildContextUpload"
+                }
+              }
+            },
+            "description": "The verified upload",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The uploaded archive failed verification, the region is missing or names another region, or the request is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Upload not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A part has not been uploaded yet, or the upload failed or expired (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The upload could not be verified now; retry (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "write:images"
+            ]
+          },
+          {
+            "platform_token": [
+              "write:images"
+            ]
+          }
+        ],
+        "summary": "Complete a build-context upload",
+        "tags": [
+          "images"
+        ]
+      }
+    },
     "/config": {
       "get": {
         "description": "Returns public settings clients need before signing in.",
@@ -10096,7 +10515,7 @@
               }
             }
           },
-          "description": "Build request. `application/json` carries a registry or named source; `multipart/form-data` carries an uploaded build context, with the fields `name`, optional `dockerfile` (a path within the context), `region_id`, `cpu_arch`, and the file field `context` (a build-context tar).",
+          "description": "Build request. `application/json` carries a registry or named source, an inline Dockerfile, or the `context_upload_id` of a build context uploaded with `POST /build-contexts`; `multipart/form-data` carries a build context of up to 64 MiB, with the fields `name`, optional `dockerfile` (a path within the context), `region_id`, `cpu_arch`, and the file field `context` (a build-context tar).",
           "required": true
         },
         "responses": {
@@ -10159,7 +10578,7 @@
                 }
               }
             },
-            "description": "The image name exists or the source image is not ready (`CONFLICT`). The same image is already built and exceeds the organization's image size limit (`IMAGE_TOO_LARGE`)",
+            "description": "The image name exists, the source image is not ready, or the build-context upload is not ready (`CONFLICT`). The same image is already built and exceeds the organization's image size limit (`IMAGE_TOO_LARGE`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -10168,6 +10587,24 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Build contexts are not available in the region, or are at capacity; retry (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
