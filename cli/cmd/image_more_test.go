@@ -347,7 +347,7 @@ func TestImageBuild_rejectsOversizedContextAsUsage(t *testing.T) {
 	root := t.TempDir()
 	contextPath := filepath.Join(root, "context.tar")
 	require.NoError(t, os.WriteFile(contextPath, nil, 0o600))
-	require.NoError(t, os.Truncate(contextPath, imageContextMaxBytes+1))
+	require.NoError(t, os.Truncate(contextPath, imageContextDirectMaxBytes+1))
 	f := newFakeAPI(t)
 	stdout, stderr, code := run(t, cfgDir(t), nil,
 		"--api-url", f.srv.URL,
@@ -357,7 +357,7 @@ func TestImageBuild_rejectsOversizedContextAsUsage(t *testing.T) {
 	)
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Empty(t, stdout)
-	require.Contains(t, stderr, "64 MiB")
+	require.Contains(t, stderr, "1 GiB")
 	require.Empty(t, f.requests)
 }
 
