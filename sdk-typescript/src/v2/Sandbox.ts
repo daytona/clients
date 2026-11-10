@@ -1031,7 +1031,10 @@ export class Sandbox {
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
    * A terminal state the events hub reports is confirmed with one read before it raises,
    * while the wait has budget left, unless that state already came from a full read or
-   * is `destroyed`.
+   * is `destroyed`. When the events hub has reported nothing decisive, the last part
+   * of a bounded budget (up to 5 s) reads the state from the server, so a state the
+   * hub missed still ends the wait; the same holds for the other lifecycle waits and
+   * the create and fork waits.
    */
   public async wait(options: WaitOptions = {}): Promise<this> {
     assertKnownOptions('WaitOptions', options, WAIT_KEYS)

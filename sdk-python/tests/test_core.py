@@ -8381,14 +8381,20 @@ async def test_sandbox_wait_for_state_updates_the_cached_state_before_rethrowing
             )
 
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    # The final read in the wait's reserve fails: the wait's own timeout stands.
+    api = RecordingTransport([create_error("busy", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")])
+    bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
     sandbox._update(state="started")
     sandbox._update(raw_state="running")
     sandbox._hub = _TimingOutHub()  # type: ignore[assignment]
 
-    with pytest.raises(RequestTimeoutError):
+    with pytest.raises(RequestTimeoutError) as raised:
         await sandbox._wait_for_state(["paused"], timeout=10)
 
+    assert raised.value.source == "SDK"
+    assert isinstance(raised.value.__cause__, ServiceUnavailableError)
+    assert [spec.method for spec in api.specs] == ["GET"]
     assert sandbox.state == "stopped"
     assert sandbox.raw_state == "stopped"
 

@@ -2977,9 +2977,12 @@ describe('V2 model', () => {
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
     const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    // The final read in the wait's reserve fails: the wait's own timeout stands.
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
 
     try {
-      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toBeInstanceOf(RequestTimeoutError)
+      await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toMatchObject({ constructor: RequestTimeoutError, source: 'SDK' })
+      expect(get).toHaveBeenCalledTimes(1)
       expect(sandbox.state).toBe('stopped')
       expect(sandbox.rawState).toBe('stopped')
     } finally {
