@@ -99,3 +99,28 @@ func TestHintForImageNotFound_keepsTheImportRemedyOnCreate(t *testing.T) {
 		t.Fatalf("hint %q", hint)
 	}
 }
+
+func TestImageNotFoundHint_targetsOnlySandboxCreate(t *testing.T) {
+	for _, tc := range []struct {
+		method string
+		path   string
+		create bool
+	}{
+		{http.MethodPost, "/sandboxes", true}, {http.MethodPost, "/sandboxes/from-snapshot", true}, {http.MethodPost, "/sandboxes/macos", true},
+		{http.MethodPost, "/sandboxes/sbx/images", false}, {http.MethodPost, "/sandboxes/sbx/snapshots", false}, {http.MethodPost, "/sandboxes-other", false},
+		{http.MethodGet, "/sandboxes", false},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			// Given an image-not-found error from this operation.
+			failure := &APIError{Status: http.StatusNotFound, Code: CodeImageNotFound, Method: tc.method, Path: tc.path}
+			// When selecting recovery advice.
+			hint := hintFor(failure)
+			// Then only sandbox creation suggests importing an image.
+			if tc.create {
+				require.Contains(t, hint, "daytona image create")
+			} else {
+				require.NotContains(t, hint, "daytona image create")
+			}
+		})
+	}
+}

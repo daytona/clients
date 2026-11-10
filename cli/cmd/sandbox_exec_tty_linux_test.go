@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -61,6 +62,7 @@ func TestExecTTY_replaysEarlyBytesAndResizes_whenTerminalStartsAtZero(t *testing
 	// Given: a real PTY with the zero geometry common in terminal wrappers.
 	master, slave := execTerminal(t)
 	resized := make(chan struct{})
+	var resizeOnce sync.Once
 	terminalChanged := make(chan struct{})
 	serverURL := ""
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -113,12 +115,9 @@ func TestExecTTY_replaysEarlyBytesAndResizes_whenTerminalStartsAtZero(t *testing
 			w.WriteHeader(http.StatusNoContent)
 			// The first resize is the initial 80x24 sent at attach; the
 			// SIGWINCH one carries the new geometry.
-			if size.Cols == 80 && size.Rows == 24 {
-				return
+			if size.Cols == 90 && size.Rows == 25 {
+				resizeOnce.Do(func() { close(resized) })
 			}
-			assert.Equal(t, 90, size.Cols)
-			assert.Equal(t, 25, size.Rows)
-			close(resized)
 		case "/test-tools/sbx/processes/proc/wait":
 			_, _ = io.WriteString(w, `{"reason":"exited","exitCode":5}`)
 		default:

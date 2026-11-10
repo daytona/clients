@@ -508,10 +508,10 @@ request.
   the API stored, like `secret get` / `registry get`. They read the stored
   resource first so omitted metadata keeps its values: they need read as well
   as write access. On `registry set`, an omitted username keeps the existing
-  username; a new registry requires `--username`. The API requires a password
-  on every set, even a description-only update, except for `--kind ecr_role`:
-  it cannot preserve an omitted write-only password. Supply `--password-stdin`
-  or `--password` again. `--kind` must be `basic`, `ghcr`, `gcr`, `ecr` or
+  username; a new registry requires `--username`. Every set of a `basic`,
+  `ghcr`, `gcr` or `ecr` registry needs `--password-stdin` or `--password`, even
+  a description-only update, because the API cannot preserve an omitted
+  write-only password; an `ecr_role` registry takes no password. `--kind` must be `basic`, `ghcr`, `gcr`, `ecr` or
   `ecr_role`; omission on update keeps the stored kind.
 - The one exception to printing the API's JSON as it came: `secret get`,
   `set` and `list` drop a top-level `value` field, and `registry get`, `set`

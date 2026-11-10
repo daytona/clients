@@ -26,6 +26,9 @@ func printSandboxAfterAction(cmd *cobra.Command, resolved workload.ResolvedSandb
 	var detail api.Raw[gen.Sandbox]
 	err := resolved.Client.Do(cmd.Context(), http.MethodGet, fmt.Sprintf("/sandboxes/%s", url.PathEscape(id)), nil, nil, &detail)
 	if err != nil {
+		if ctxErr := cerr.FromContext(cmd.Context()); ctxErr != nil {
+			return ctxErr
+		}
 		if ack != nil {
 			if verb != "delete" || cerr.ExitCode(err) != cerr.ExitNotFound {
 				fmt.Fprintln(a.Stderr, output.SanitizeLine(fmt.Sprintf("warning: sandbox %s %s accepted, but its details could not be read; printing the acknowledgement", id, verb)))

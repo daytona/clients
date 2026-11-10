@@ -125,8 +125,8 @@ func WaitForImage(ctx context.Context, client *api.Client, id string, timeout ti
 			if image.V.Status == "ready" {
 				return true, nil
 			}
-			if image.V.Status == "failed" {
-				message := fmt.Sprintf("image %s reached failed, not ready", id)
+			if image.V.Status == "failed" || image.V.Status == "error" {
+				message := fmt.Sprintf("image %s reached %s, not ready", id, image.V.Status)
 				if image.V.Error != nil && *image.V.Error != "" {
 					message += ": " + *image.V.Error
 				}

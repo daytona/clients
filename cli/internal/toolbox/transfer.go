@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 )
 
 var openUploadFile = func(path string) (io.ReadCloser, error) {
@@ -95,6 +96,8 @@ func redactURLError(err error) error {
 		return err
 	}
 	redacted := *urlErr
+	// The nested error can quote a URL too (a redirect's Location).
+	redacted.Err = errors.New(signedQuery.ReplaceAllString(urlErr.Err.Error(), "?<redacted>"))
 	if u, parseErr := url.Parse(urlErr.URL); parseErr == nil {
 		u.RawQuery, u.Fragment, u.User = "", "", nil
 		redacted.URL = u.String()
@@ -103,6 +106,8 @@ func redactURLError(err error) error {
 	}
 	return &redacted
 }
+
+var signedQuery = regexp.MustCompile(`\?[^\s"']*`)
 
 func newSignedUploadRequest(ctx context.Context, signedURL, localPath, remotePath string, file io.Reader) (*http.Request, <-chan error, error) {
 	bodyReader, contentType, done := startSignedUploadBody(localPath, remotePath, file)

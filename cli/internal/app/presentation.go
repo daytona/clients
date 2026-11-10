@@ -29,15 +29,18 @@ func (a *App) Info(format string, args ...any) {
 	// Arguments are often server-controlled (names, messages): strip terminal
 	// control sequences, and keep each argument on this one line so it cannot
 	// forge further diagnostic lines.
+	clean := make([]any, len(args))
 	for i, arg := range args {
 		switch v := arg.(type) {
 		case string:
-			args[i] = output.SanitizeLine(v)
+			clean[i] = output.SanitizeLine(v)
 		case error:
-			args[i] = output.SanitizeLine(v.Error())
+			clean[i] = output.SanitizeLine(v.Error())
+		default:
+			clean[i] = arg
 		}
 	}
-	fmt.Fprintln(a.Stderr, output.Sanitize(fmt.Sprintf(format, args...)))
+	fmt.Fprintln(a.Stderr, output.Sanitize(fmt.Sprintf(format, clean...)))
 }
 
 // PreflightConfirm is the network-free half of Confirm: in

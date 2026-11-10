@@ -120,8 +120,6 @@ func runToolboxCLIWithOptions(t *testing.T, opts runToolboxCLIOptions, args []st
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err := root.ExecuteContext(ctx)
-	if err == nil {
-		require.Equal(t, len(expected), index)
-	}
+	require.Equal(t, len(expected), index, "declared requests not made (err: %v)", err)
 	return stdout.String(), stderr.String(), err
 }
