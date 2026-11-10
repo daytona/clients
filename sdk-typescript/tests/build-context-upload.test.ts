@@ -136,6 +136,21 @@ afterEach(async () => {
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
 })
 
+it('fails a redirected part with the redirect error, without retrying it', async () => {
+  // Given storage that answers a part with a redirect.
+  partSize = 1 << 20
+  putStatuses = [302]
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  // Then the SDK follows no redirect (as Python): one PUT, the redirect error
+  // with its status, nothing completed or built.
+  expect(error).toBeInstanceOf(DaytonaError)
+  expect((error as Error).constructor).toBe(DaytonaError)
+  expect(error).toMatchObject({ statusCode: 302, source: 'SDK' })
+  expect(puts()).toHaveLength(1)
+  expect(completes()).toHaveLength(0)
+  expect(seen.some((request) => request.url === '/images')).toBe(false)
+})
+
 it.each(['bytes', 'file'] as const)('uploads a %s context in parts, completes it and builds from it', async (kind) => {
   // Given a context larger than one part, as bytes or as a tar file.
   const data = archive(10_000)

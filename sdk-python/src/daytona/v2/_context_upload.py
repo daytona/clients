@@ -31,6 +31,7 @@ from .errors import (
     ConnectionError,
     DaytonaError,
     ServiceUnavailableError,
+    redirect_error,
 )
 from .types import JsonObject
 
@@ -237,6 +238,9 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
             status = response.status_code
             if 200 <= status < 300:
                 return
+            if 300 <= status < 400:
+                # The SDK follows no redirect, a storage URL's included.
+                raise redirect_error(status)
             if status < 500 and status not in (408, 429):
                 raise BadRequestError(
                     f"storage refused build context part {part.number} (HTTP {status}); "

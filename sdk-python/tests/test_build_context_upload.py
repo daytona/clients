@@ -30,6 +30,7 @@ from daytona.v2.errors import (
     BadRequestError,
     ConflictError,
     ConnectionError,
+    DaytonaError,
     InternalServerError,
     ServiceUnavailableError,
 )
@@ -340,6 +341,20 @@ async def test_a_refused_part_fails_without_revealing_its_url(sync: bool) -> Non
         for text in (str(error.value), repr(error.value), repr(error.value.__cause__)):
             assert SIGNATURE not in text and "/bucket/" not in text
         assert error.value.__cause__ is None
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
+
+
+@pytest.mark.anyio
+async def test_a_redirected_part_is_the_redirect_error_and_is_not_retried(sync: bool) -> None:
+    # Given storage that answers a part with a redirect.
+    with storage_peer(put_statuses=[302], part_size=1 << 20) as peer:
+        with pytest.raises(DaytonaError) as error:
+            await build(peer, archive(), sync)
+        # Then the SDK follows no redirect (as TypeScript): one PUT, the
+        # redirect error with its status, nothing completed or built.
+        assert type(error.value) is DaytonaError
+        assert (error.value.status_code, error.value.source) == (302, "SDK")
+        assert len(peer.bodies("PUT", "/bucket/part/1")) == 1
         assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
 
 

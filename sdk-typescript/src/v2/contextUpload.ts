@@ -14,7 +14,7 @@ import { pathSegment } from './pathSegment.js'
 import { badRequest } from './options.js'
 import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
-import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
+import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, isRedirectStatus, NotSupportedError, redirectError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
 
 /** A build-context tar: its bytes, a `Blob`, or (Node.js) the path of a `.tar` file. */
 export type BuildContext = Uint8Array | Blob | string
@@ -176,8 +176,8 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
     // A presigned PUT needs a fixed length, so a streamed body is not chunked.
     const init: RequestInit & { duplex?: 'half' } =
       body instanceof ReadableStream
-        ? { method: 'PUT', body, redirect: 'error', signal, headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
-        : { method: 'PUT', body, redirect: 'error', signal }
+        ? { method: 'PUT', body, redirect: 'manual', signal, headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
+        : { method: 'PUT', body, redirect: 'manual', signal }
     try {
       const response = await contextUploadRuntime.fetch(part.url, init)
       status = response.status
@@ -190,6 +190,8 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
       status = undefined
     }
     if (status !== undefined && status >= 200 && status < 300) return
+    // The SDK follows no redirect, a storage URL's included (as Python).
+    if (isRedirectStatus(status)) throw redirectError(status)
     if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
       throw badRequest(`storage refused build context part ${part.part_number} (HTTP ${status}); its upload URL may have expired, start the build again`)
     }
