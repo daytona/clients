@@ -77,7 +77,8 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
       .map(entry => entry.getName().replaceAll('"', ''));
     const duplicate = hasRoot || sections.some(({ entries }) => {
       const present = names(entries);
-      return present.includes(mapping.packages.ts.new) && present.some(name => mapping.packages.ts.old.includes(name));
+      return present.includes(mapping.packages.ts.new) &&
+        present.some(name => name !== mapping.packages.ts.new && mapping.packages.ts.old.includes(name));
     });
     for (const { name: sectionName, entries, constraint } of sections) {
       for (const entry of entries.getProperties()) {

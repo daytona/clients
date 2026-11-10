@@ -298,7 +298,9 @@ Every `--suggest-v2` comment and JSON item links `docs.base#<anchor>` from
 section anchors (`<a id="…">`, one per receiver plus `data`) are checked by
 `upgrade/scripts/docs-links.test.mjs`. Published tool releases keep the link
 they shipped with, so the in-repo guide and its anchors stay where they are
-even after the docs site has its own page.
+even after the docs site has its own page: the test's `shippedAnchors` list
+only grows, and a guide section the mapping no longer generates keeps its
+anchor (`gen-guide.mjs` must still emit it).
 
 **To move the links to the docs site (maintainer step):**
 

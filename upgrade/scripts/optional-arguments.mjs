@@ -29,11 +29,14 @@ export function withLiteralArguments(form, value) {
   });
 }
 
-/** The form with every optional argument passed as the null literal where the marker has a `none` text, else by its v0 name. */
-export function withNoneArguments(form) {
+/**
+ * The form with every optional argument passed as the language's null literal
+ * (`None` / `null`) where the marker has a `none` text, else by its v0 name.
+ */
+export function withNoneArguments(form, nullLiteral) {
   return form.replace(MARKER, (_marker, name, _index, _required, body) => {
     const [text, , , none] = body.split('|');
-    return (none ?? text).split('$').join(name);
+    return none === undefined ? text.split('$').join(name) : none.split('$').join(nullLiteral);
   });
 }
 

@@ -58,8 +58,8 @@ export class SdkMethods {
     if (isMemberAccess(value)) {
       const name = memberName(value);
       const parent = this.objectKind(value.getExpression(), seen);
-      return parent === undefined ? undefined
-        : Object.entries(this.mapping.receivers).find(([, kind]) => kind.parent === parent && kind.attr?.ts === name)?.[0];
+      if (parent === undefined || name === undefined || this.writes.lost(value.getExpression(), name)) return undefined;
+      return Object.entries(this.mapping.receivers).find(([, kind]) => kind.parent === parent && kind.attr?.ts === name)?.[0];
     }
     if (!Node.isIdentifier(value)) return undefined;
     const definitions = declarations(value);

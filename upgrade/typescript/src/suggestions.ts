@@ -14,6 +14,7 @@ import { initializer } from './edits.js';
 import { bindingIsStable } from './stable-bindings.js';
 import { isMemberAccess, memberName } from './member-access.js';
 import { sandboxOwner } from './sandbox-owner.js';
+import { objectIdentity } from './object-identity.js';
 import { suggestionCommentEdits } from './comment-tokens.js';
 import { errorImportSuggestions } from './error-import-suggestions.js';
 import { renderOptionalArguments, withNamedArguments } from './optional-arguments.js';
@@ -82,29 +83,30 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
     }
     return undefined;
   };
-  // The default pass moves `client.<member>` to `client.v0.<member>` on this
-  // proof alone; a call directly on that member (or on the client), before or
-  // after that move, is the mapping row the migrated code gets, so suggest it
-  // the same way.
   // Code that already holds the 0.x client (`client.v0`) and hands it out
   // (an argument, an alias) or writes one of its members may replace its
   // services.
-  const escapedV0 = new Map<string, boolean>();
+  const escapedV0 = new Map<Node, boolean>();
   const v0Escapes = (v0: Node): boolean => {
-    const text = v0.getText();
-    const cached = escapedV0.get(text);
+    if (!isMemberAccess(v0)) return true;
+    const client = objectIdentity(v0.getExpression());
+    const cached = escapedV0.get(client);
     if (cached !== undefined) return cached;
     const escapes = source.getDescendants().some(node => {
-      if (!isMemberAccess(node) || node.getText() !== text) return false;
+      if (!isMemberAccess(node) || memberName(node) !== 'v0' || objectIdentity(node.getExpression()) !== client) return false;
       const parent = node.getParent();
       if (parent === undefined || !isMemberAccess(parent) || parent.getExpression() !== node) return true;
       const write = parent.getParent();
       return Node.isBinaryExpression(write) && write.getLeft() === parent &&
         write.getOperatorToken().getKind() >= SyntaxKind.FirstAssignment && write.getOperatorToken().getKind() <= SyntaxKind.LastAssignment;
     });
-    escapedV0.set(text, escapes);
+    escapedV0.set(client, escapes);
     return escapes;
   };
+  // The default pass moves `client.<member>` to `client.v0.<member>` on this
+  // proof alone; a call directly on that member (or on the client), before or
+  // after that move, is the mapping row the migrated code gets, so suggest it
+  // the same way.
   const rootProvenEntry = (access: Node): Suggestion | undefined => {
     let candidate: Node = access;
     while (isMemberAccess(candidate)) {

@@ -42,8 +42,9 @@ test('renders the none text for the null literal', () => {
   const remove = '{sandbox}.delete([[timeout@0|timeout=60 if $ is None else $|timeout=$|timeout=$|timeout=60]])';
   assert.equal(hasNoneArguments(remove), true);
   assert.equal(hasNoneArguments(start), false);
-  assert.equal(withNoneArguments(remove), '{sandbox}.delete(timeout=60)');
-  assert.equal(withNoneArguments(start), '{sandbox}.start(timeout=0 if timeout is None else timeout)');
+  assert.equal(withNoneArguments(remove, 'None'), '{sandbox}.delete(timeout=60)');
+  assert.equal(withNoneArguments(start, 'None'), '{sandbox}.start(timeout=0 if timeout is None else timeout)');
+  assert.equal(withNoneArguments('f([[x@0|x=$|x=$|x=$|x=$ or 1]])', 'None'), 'f(x=None or 1)');
   assert.equal(withLiteralArguments(remove, '0'), '{sandbox}.delete(timeout=0)');
 });
 

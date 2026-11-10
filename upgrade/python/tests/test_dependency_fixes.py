@@ -151,3 +151,26 @@ def test_known_extras_match_the_sdk_distribution() -> None:
     assert sorted(load_mapping().known_extras) == sorted(
         name for name in extras if name != "dev"
     )
+
+
+def test_reports_unknown_extras_of_a_hash_locked_requirement() -> None:
+    # Given an already-2.x hash-locked declaration with an unknown extra.
+    source = "daytona[x,v0-sdk]>=2,<3 --hash=sha256:" + "0" * 64 + "\n"
+    # When
+    result = inspect_manifest(Path("requirements.txt"), source, load_mapping())
+    # Then the record is preserved and the extra is reported for manual removal.
+    assert result.source == source
+    assert [message for _, message in result.manual] == [
+        "Remove the x extra of daytona manually: SDK 2.x's daytona has no such "
+        "extra (its extras: otel, v0-sdk); the hash-locked or continued record "
+        "was preserved."
+    ]
+
+
+def test_does_not_duplicate_an_extra_spelled_differently() -> None:
+    # Given
+    source = "daytona-sdk[V0_SDK]>=0.100\n"
+    # When
+    result = inspect_manifest(Path("requirements.txt"), source, load_mapping())
+    # Then
+    assert result.source == "daytona[V0_SDK]>=2,<3\n"

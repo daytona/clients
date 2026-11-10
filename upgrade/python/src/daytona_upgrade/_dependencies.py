@@ -22,6 +22,7 @@ from .dependency_versions import (
 from .models import Mapping
 from .requirement_rendering import (
     dropped_extra_message,
+    preserved_extra_message,
     render_requirement,
     target_extras,
 )
@@ -98,6 +99,18 @@ class Migration:
                 for extra in (parsed["extras"] or "[]")[1:-1].split(",")
                 if extra.strip()
             }
+            unknown = target_extras(
+                [
+                    extra.strip()
+                    for extra in (parsed["extras"] or "[]")[1:-1].split(",")
+                    if extra.strip()
+                ],
+                self.mapping,
+            )[1]
+            for extra in unknown:
+                self.manual.append(
+                    (self.line, preserved_extra_message(extra, name, self.mapping))
+                )
             if (
                 kept
                 and {_normalized(extra) for extra in self.mapping.extras} <= present

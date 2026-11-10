@@ -29,3 +29,20 @@ test('every suggestion anchor exists in the generated guide', () => {
   const missing = [...anchors].filter((anchor) => !guideAnchors.has(anchor));
   assert.deepEqual(missing, []);
 });
+
+// Every anchor a published tool release links to. Shipped comments keep their
+// link, so the guide on `main` must keep these anchors even if the mapping
+// later drops or renames a receiver: append to this list, never remove.
+const shippedAnchors = [
+  'client', 'client-secret', 'client-snapshot', 'client-volume', 'client-warm-pool', 'data', 'lsp-server', 'pty-handle',
+  'sandbox', 'sandbox-code-interpreter', 'sandbox-computer-use', 'sandbox-computer-use-accessibility',
+  'sandbox-computer-use-display', 'sandbox-computer-use-keyboard', 'sandbox-computer-use-mouse',
+  'sandbox-computer-use-recording', 'sandbox-computer-use-screenshot', 'sandbox-fs', 'sandbox-git', 'sandbox-process',
+];
+
+test('the guide keeps every anchor a published release links to', () => {
+  const current = new Set(['data', ...mapping.suggestions.map((entry) => entry.anchor)]);
+  assert.deepEqual(shippedAnchors.filter((anchor) => !guideAnchors.has(anchor)), []);
+  // A new anchor is recorded here in the PR that adds it.
+  assert.deepEqual([...current].filter((anchor) => !shippedAnchors.includes(anchor)), []);
+});

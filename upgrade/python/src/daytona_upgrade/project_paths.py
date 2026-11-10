@@ -19,10 +19,8 @@ from ._requirements import SKIP, is_requirements
 from .manifests import _at
 from .models import Item
 from .safety import _REPOSITORY_ENV
-
-# Python sources the tool reads and rewrites: modules, stubs and windowed
-# scripts (`.pyw`, which Windows also imports as modules).
-PYTHON_SOURCE_SUFFIXES = frozenset({".py", ".pyi", ".pyw"})
+from .source_suffixes import PACKAGE_INITIALIZERS
+from .source_suffixes import PYTHON_SOURCE_SUFFIXES as PYTHON_SOURCE_SUFFIXES
 
 
 def environment_base(base: Path) -> Path:
@@ -130,7 +128,10 @@ def shadowing_module(
         for name in ("daytona", "daytona_sdk"):
             candidates.update(
                 (
-                    base / name / "__init__.py",
+                    *(
+                        base / name / initializer
+                        for initializer in PACKAGE_INITIALIZERS
+                    ),
                     *(base / f"{name}{suffix}" for suffix in PYTHON_SOURCE_SUFFIXES),
                 )
             )
@@ -144,7 +145,11 @@ def shadowing_module(
         ):
             continue
         for root, prefix in roots.items():
-            if prefix in {"daytona", "daytona_sdk"} and path == root / "__init__.py":
+            if (
+                prefix in {"daytona", "daytona_sdk"}
+                and path.parent == root
+                and path.name in PACKAGE_INITIALIZERS
+            ):
                 return LocalModule(prefix, root.relative_to(base)), ()
             if (
                 not prefix
@@ -156,7 +161,7 @@ def shadowing_module(
                     return LocalModule(
                         parts[0], (root / parts[0]).relative_to(base)
                     ), ()
-        location = path.parent if path.name == "__init__.py" else path
+        location = path.parent if path.name in PACKAGE_INITIALIZERS else path
         name = location.name if location != path else path.stem
         if (
             name not in {"daytona", "daytona_sdk"}

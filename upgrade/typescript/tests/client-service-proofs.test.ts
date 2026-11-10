@@ -115,9 +115,10 @@ it.each([
   // When
   const result = await invoke(root, ['--suggest-v2', '--json']);
   // Then the service call is suggested as the default pass moves it (to
-  // `.v0.snapshot`, the 0.x client's own service).
+  // `.v0.snapshot`, the 0.x client's own service), with no ownership FIXME.
   const report: Report = JSON.parse(result.output);
   expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(true);
+  expect(report.items.filter(item => item.kind === 'fixme')).toEqual([]);
 });
 
 it('flags the server-chosen volume type on volume suggestions', async () => {

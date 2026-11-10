@@ -11,6 +11,7 @@ type Report = { items: { line: number; kind: string; message: string; suggestion
 async function suggest(files: Readonly<Record<string, string>>): Promise<Report> {
   const root = temporaryProject({ 'package.json': '{"dependencies":{"@daytonaio/sdk":"0.231.1"}}', ...files });
   const result = await invoke(root, ['--suggest-v2', '--json']);
+  expect(result.code, result.output).toBe(0);
   return JSON.parse(result.output) as Report;
 }
 
@@ -64,4 +65,14 @@ it('drops service proofs after a sandbox method the code replaced', async () => 
     "  await sb.refreshData();\n  await sb.fs.createFolder('/x', '755');\n}\n" });
   // Then the later service call is not suggested as the SDK's.
   expect(ids(report)).not.toContain('sandbox.fs.createFolder');
+});
+
+it('keeps a client.v0 escape to its own client, not another with the same name', async () => {
+  // Given two functions with their own `client`; only the first hands its 0.x client out.
+  const report = await suggest({ 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" +
+    "async function f(client: Daytona) {\n  unknown(client.v0);\n  await client.v0.snapshot.get('a');\n}\n" +
+    "async function g(client: Daytona) {\n  await client.v0.snapshot.get('b');\n}\n" });
+  // Then only the second call is suggested.
+  const lines = report.items.flatMap(item => item.suggestion?.id === 'client.snapshot.get' ? [item.line] : []);
+  expect(lines).toEqual([7]);
 });

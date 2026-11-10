@@ -16,11 +16,16 @@ from .models import Mapping
 def target_extras(extras: list[str], mapping: Mapping) -> tuple[list[str], list[str]]:
     """The extras a migrated declaration writes (its own that the 2.x
     distribution defines, then the mapping's), and the ones it drops."""
-    known = {re.sub(r"[-_.]+", "-", extra).lower() for extra in mapping.known_extras}
-    kept = [extra for extra in extras if re.sub(r"[-_.]+", "-", extra).lower() in known]
+    known = {_extra_name(extra) for extra in mapping.known_extras}
+    kept = [extra for extra in extras if _extra_name(extra) in known]
     dropped = [extra for extra in extras if extra not in kept]
-    kept.extend(extra for extra in mapping.extras if extra not in kept)
+    present = {_extra_name(extra) for extra in kept}
+    kept.extend(extra for extra in mapping.extras if _extra_name(extra) not in present)
     return kept, dropped
+
+
+def _extra_name(extra: str) -> str:
+    return re.sub(r"[-_.]+", "-", extra).lower()
 
 
 def dropped_extra_message(extra: str, name: str, mapping: Mapping) -> str:
@@ -28,6 +33,15 @@ def dropped_extra_message(extra: str, name: str, mapping: Mapping) -> str:
         f"Dropped the {extra} extra of {name}: SDK 2.x's {mapping.package_new} "
         f"has no such extra (its extras: {', '.join(mapping.known_extras)}); "
         "install what it provided directly if you still need it."
+    )
+
+
+def preserved_extra_message(extra: str, name: str, mapping: Mapping) -> str:
+    return (
+        f"Remove the {extra} extra of {name} manually: SDK 2.x's "
+        f"{mapping.package_new} has no such extra (its extras: "
+        f"{', '.join(mapping.known_extras)}); the hash-locked or continued record "
+        "was preserved."
     )
 
 

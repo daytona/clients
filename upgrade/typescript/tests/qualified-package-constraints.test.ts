@@ -50,3 +50,14 @@ it.each([
   expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({
     kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' })]) });
 });
+
+it('migrates the old dependency when a constraint section names only the new package', async () => {
+  // Given
+  const manifest = { dependencies: { '@daytonaio/sdk': '^0.200.0' }, resolutions: { '@daytona/sdk': '2.0.0' } };
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest), 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then: no duplicate-name item, and the dependency moves to the new package.
+  expect(result.output).not.toContain('Both Daytona package names are present');
+  expect(Object.keys(JSON.parse(contents(root)['package.json'] ?? '').dependencies)).toEqual(['@daytona/sdk']);
+});
