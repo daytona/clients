@@ -69,7 +69,15 @@ export class Sha256 {
       const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10)
       w[i] = w[i - 16] + s0 + w[i - 7] + s1
     }
-    let [a, b, c, d, e, f, g, h] = this.state
+    const s = this.state
+    let a = s[0]
+    let b = s[1]
+    let c = s[2]
+    let d = s[3]
+    let e = s[4]
+    let f = s[5]
+    let g = s[6]
+    let h = s[7]
     for (let i = 0; i < 64; i++) {
       const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) | 0
       const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0
@@ -82,7 +90,6 @@ export class Sha256 {
       b = a
       a = (t1 + t2) | 0
     }
-    const s = this.state
     s[0] += a
     s[1] += b
     s[2] += c
