@@ -1,0 +1,21 @@
+cli/README.md
+  s_982ebece9dd4e3::t_67479e20db9a4d 205-207
+cli/cmd/org.go
+  s_982ebece9dd4e3::t_4d7b8bcc307ea8 186-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76328f3aadde007234190d80aa854d9cf85f2a8a",
+  "prompts": {},
+  "sessions": {
+    "s_982ebece9dd4e3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b6804deffenaHLGFAXZjV0hR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}
