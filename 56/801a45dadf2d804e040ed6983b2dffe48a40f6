@@ -1,0 +1,70 @@
+sdk-python/tests/test_build_logs.py
+  s_e8864ccceb0d86::t_96747dc7098368 845-855
+sdk-typescript/DEVELOPMENT.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 95-97,105-107
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_e8864ccceb0d86::t_7ae0808945d34a 573-575
+sdk-typescript/src/v2/Sandbox.ts
+  s_e8864ccceb0d86::t_7ae0808945d34a 317-320
+changelog.d/sandbox-state-type.breaking.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 1-3
+sdk-typescript/tests/list-pages.test.ts
+  s_e8864ccceb0d86::t_2e75b48eb29381 131-132,135-137
+changelog.d/absent-values.breaking.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 1-7
+changelog.d/create-handle-labels.breaking.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 1-8
+sdk-python/src/daytona/v2/_otel.py
+  s_e8864ccceb0d86::t_a030623bd77d95 69-70,75
+sdk-typescript/tests/redirects.test.ts
+  s_e8864ccceb0d86::t_65a42f77c8a499 52-63
+sdk-python/README.md
+  s_e8864ccceb0d86::t_52d418872c2f38 440-441
+sdk-python/src/daytona/v2/sandbox.py
+  s_e8864ccceb0d86::t_b58c4656b06df8 412-414
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_e8864ccceb0d86::t_5a5ee1d0a193dd 817-820,822,907
+sdk-python/src/daytona/v2/_api_core.py
+  s_e8864ccceb0d86::t_7a8fc3e2f225bd 327-331
+  s_e8864ccceb0d86::t_2b572d2169ae3d 309-326,332-338,384-385,404
+sdk-typescript/src/v2/http.ts
+  s_e8864ccceb0d86::t_5a5ee1d0a193dd 700-702
+sdk-python/tests/test_redirects.py
+  s_e8864ccceb0d86::t_0ab24fc94eee2b 62-80
+sdk-typescript/tests/unit.test.ts
+  s_e8864ccceb0d86::t_2e75b48eb29381 13639
+sdk-typescript/README.md
+  s_e8864ccceb0d86::t_52d418872c2f38 392-395
+  s_e8864ccceb0d86::t_2e75b48eb29381 403-406
+changelog.d/raw-state-none.breaking.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 1-4
+sdk-python/tests/test_forward_compat.py
+  s_e8864ccceb0d86::t_7ae0808945d34a 78-80,89-91
+  s_e8864ccceb0d86::t_0ab24fc94eee2b 67-77,84-88
+sdk-python/src/daytona/v2/_body_limit.py
+  s_e8864ccceb0d86::t_3d2853fd8fce5b 239-242,285-287,290-291,304-305
+sdk-typescript/tests/build-logs.test.ts
+  s_e8864ccceb0d86::t_2e75b48eb29381 588-599
+changelog.d/redirects.breaking.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 3-7
+changelog.d/websockets-floor.breaking.md
+  s_e8864ccceb0d86::t_a8c114ce77cf06 1-3
+AGENTS.md
+  s_e8864ccceb0d86::t_52d418872c2f38 966-968
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56801a45dadf2d804e040ed6983b2dffe48a40f6",
+  "prompts": {},
+  "sessions": {
+    "s_e8864ccceb0d86": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e3dcfffeiMacsS74Cjbqod",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
