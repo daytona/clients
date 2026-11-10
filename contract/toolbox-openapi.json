@@ -10186,7 +10186,7 @@
         "operationId": "pull_volume",
         "parameters": [
           {
-            "description": "Attached volume ID (1\u2013128 ASCII letters, digits, underscores or hyphens).",
+            "description": "Attached volume ID: the volume's `vol_` ID or its UUID (1\u2013128 ASCII letters, digits, underscores or hyphens).",
             "in": "path",
             "name": "volumeId",
             "required": true,
