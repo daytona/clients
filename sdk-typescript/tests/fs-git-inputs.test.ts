@@ -57,6 +57,7 @@ const REFUSED: readonly (readonly [string, readonly unknown[], string])[] = [
   ['writeBytes', ['/a', [1, 2, 3]], 'data'],
   ['writeBytes', ['/a', {}], 'data'],
   ['writeBytes', ['/a', null], 'data'],
+  ['writeBytes', ['/a', { [Symbol.toStringTag]: 'ArrayBuffer' }], 'data'],
   ['writeText', ['/a', 42], 'text'],
   ['writeText', ['/a', {}], 'text'],
   ['writeText', ['/a', null], 'text'],

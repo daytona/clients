@@ -29,7 +29,19 @@ export function binaryBytes(name: string, value: unknown): Uint8Array {
   throw badRequest(`${name} must be an ArrayBuffer or an ArrayBuffer view`)
 }
 
-/** An `ArrayBuffer` from any realm (an iframe or a worker's fails `instanceof`). */
+const ARRAY_BUFFER_BYTE_LENGTH = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')?.get
+
+/**
+ * An `ArrayBuffer` from any realm (an iframe or a worker's fails
+ * `instanceof`): the intrinsic `byteLength` getter throws on anything else,
+ * including an object that fakes the type tag.
+ */
 export function isArrayBuffer(value: unknown): value is ArrayBuffer {
-  return Object.prototype.toString.call(value) === '[object ArrayBuffer]'
+  if (typeof value !== 'object' || value === null || ARRAY_BUFFER_BYTE_LENGTH === undefined) return false
+  try {
+    ARRAY_BUFFER_BYTE_LENGTH.call(value)
+    return true
+  } catch {
+    return false
+  }
 }
