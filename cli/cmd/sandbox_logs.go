@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -178,11 +179,25 @@ func newSandboxPreviewURLExpireCommand() *cobra.Command {
 			path := fmt.Sprintf("/sandboxes/%s/ports/%d/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id), port)
 			body := gen.RevokeSandboxSignedPreviewUrlRequest{Token: args[2]}
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, nil); err != nil {
-				return err
+				return redactInError(err, args[2])
 			}
 			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "port": port, "revoked": true})
 		},
 	}
+}
+
+// redactInError keeps err's exit code and details but drops secret from its
+// message, should the server echo it.
+func redactInError(err error, secret string) error {
+	if secret == "" || !strings.Contains(err.Error(), secret) {
+		return err
+	}
+	out := &cerr.Error{Code: cerr.ExitCode(err), Msg: strings.ReplaceAll(err.Error(), secret, "[redacted]"), Err: err}
+	var ce *cerr.Error
+	if errors.As(err, &ce) {
+		out.Hint, out.Source = strings.ReplaceAll(ce.Hint, secret, "[redacted]"), ce.Source
+	}
+	return out
 }
 
 // parsePortArg checks a <port> argument (1-65535) before any request.

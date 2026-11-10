@@ -39,10 +39,11 @@ func TestSandboxCreate_noWaitPrintsDetailWithoutAccessToken(t *testing.T) {
 	require.Equal(t, "pending", got["status"])
 }
 
-// A failed read after an accepted create names the sandbox it made.
-func TestSandboxCreate_failedReadNamesTheCreatedSandbox(t *testing.T) {
-	_, _, err := runCLI(t, []string{"sandbox", "create", "--no-wait"}, []expectedRequest{
+// A failed wait after an accepted create names the sandbox it made.
+func TestSandboxCreate_failedWaitNamesTheCreatedSandbox(t *testing.T) {
+	_, _, err := runCLI(t, []string{"sandbox", "create", "--timeout", "1s"}, []expectedRequest{
 		{method: http.MethodPost, path: "/sandboxes", status: 202, bodyJSON: `{}`, response: ga2CreateAck},
+		{method: http.MethodGet, path: "/regions", status: 200, response: `{"regions":[],"default_region_id":null}`},
 		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 403, response: `{"code":"FORBIDDEN","message":"no","source":"DAYTONA_API"}`},
 	})
 	require.Error(t, err)
@@ -428,6 +429,8 @@ func TestDanglingActiveProfileIsNotFound(t *testing.T) {
 	require.Contains(t, errb, `no profile "ghost"`)
 	_, errb, code = run(t, d, nil, "profile", "list", "-o", "json")
 	require.Equal(t, 0, code, errb)
+	_, errb, code = run(t, d, nil, "login", "--token", "dtn_k")
+	require.Equal(t, 0, code, errb)
 }
 
 func TestOutputFlag_explicitEmptyIsAUsageError(t *testing.T) {
@@ -435,4 +438,46 @@ func TestOutputFlag_explicitEmptyIsAUsageError(t *testing.T) {
 		_, errb, code := run(t, cfgDir(t), nil, "whoami", "-o", value)
 		require.Equal(t, cerr.ExitUsage, code, "%q: %s", value, errb)
 	}
+}
+
+func TestProcessExitError_signalWithoutReasonStillExitsBySignal(t *testing.T) {
+	sig := "TERM"
+	require.Equal(t, 143, cerr.ExitCode(processExitError(tbgen.ExitResult{Signal: &sig})))
+	unknown := tbgen.Reason("evicted")
+	require.Equal(t, 143, cerr.ExitCode(processExitError(tbgen.ExitResult{Reason: &unknown, Signal: &sig})))
+}
+
+// A --no-wait create whose follow-up read fails still succeeds (the create
+// did), printing the credential-free subset of the acknowledgement.
+func TestSandboxCreate_noWaitReadFailureFallsBackToTheAck(t *testing.T) {
+	stdout, stderr, err := runCLI(t, []string{"sandbox", "create", "--no-wait"}, []expectedRequest{
+		{method: http.MethodPost, path: "/sandboxes", status: 202, bodyJSON: `{}`, response: ga2CreateAck},
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 403, response: `{"code":"FORBIDDEN","message":"no","source":"DAYTONA_API"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"id": ga2SandboxID, "name": "box", "status": "pending"}, requireJSONStdout(t, stdout))
+	require.Contains(t, stderr, "was created, but reading it failed")
+	require.NotContains(t, stdout+stderr, "sandbox-token-must-not-print")
+}
+
+func TestPreviewURLExpire_errorNeverEchoesTheToken(t *testing.T) {
+	_, _, err := runCLI(t, []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080", "secret-preview-token"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/8080/signed-preview-urls/revoke", status: 400, bodyJSON: `{"token":"secret-preview-token"}`,
+			response: `{"code":"BAD_REQUEST","message":"unknown token secret-preview-token","source":"DAYTONA_API"}`},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.NotContains(t, err.Error(), "secret-preview-token")
+}
+
+func TestSavedCredential_urlComparisonIgnoresSchemeAndHostCase(t *testing.T) {
+	saved := newFakeAPI(t)
+	saved.on("GET", "/api-keys/current", 200, projectKeyFixture())
+	d := cfgDir(t)
+	_, errb, code := run(t, d, nil, "login", "--token", "saved-token", "--api-url", saved.srv.URL)
+	require.Equal(t, 0, code, errb)
+	upper := strings.Replace(strings.ToUpper(saved.srv.URL), "HTTP://", "HTTP://", 1)
+	_, errb, code = run(t, d, nil, "whoami", "-o", "json", "--api-url", upper)
+	require.Equal(t, 0, code, errb)
 }

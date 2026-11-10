@@ -141,13 +141,7 @@ func processExitError(result tbgen.ExitResult) error {
 		if result.Signal == nil {
 			return cerr.New(cerr.ExitFailure, "process terminated by signal")
 		}
-		if *result.Signal == "INT" {
-			return cerr.New(cerr.ExitInterrupted, "process interrupted")
-		}
-		if number, ok := signalNumbers[strings.TrimPrefix(strings.ToUpper(*result.Signal), "SIG")]; ok {
-			return cerr.New(128+number, "process terminated by signal %s", *result.Signal)
-		}
-		return cerr.New(cerr.ExitFailure, "process terminated by signal %s", *result.Signal)
+		return signalExitError(*result.Signal)
 	case tbgen.ReasonTimedOut:
 		return cerr.New(cerr.ExitTimeout, "timed out waiting for the process to finish")
 	case tbgen.ReasonLost, tbgen.ReasonFailed:
@@ -160,9 +154,24 @@ func processExitError(result tbgen.ExitResult) error {
 	}
 }
 
-// exitCodeError reports a nonzero exit code when the reason is absent or
-// unknown: `reason` is optional on the wire, the exit code still decides.
+func signalExitError(signal string) error {
+	number, ok := signalNumbers[strings.TrimPrefix(strings.ToUpper(signal), "SIG")]
+	switch {
+	case ok && number == 2:
+		return cerr.New(cerr.ExitInterrupted, "process interrupted")
+	case ok:
+		return cerr.New(128+number, "process terminated by signal %s", signal)
+	}
+	return cerr.New(cerr.ExitFailure, "process terminated by signal %s", signal)
+}
+
+// exitCodeError reports the result when the reason is absent or unknown:
+// `reason` is optional on the wire, so a reported signal, then the exit code,
+// decides.
 func exitCodeError(result tbgen.ExitResult) error {
+	if result.Signal != nil && strings.TrimSpace(*result.Signal) != "" {
+		return signalExitError(*result.Signal)
+	}
 	if result.ExitCode == nil || *result.ExitCode == 0 {
 		return nil
 	}

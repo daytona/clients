@@ -63,6 +63,11 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	if opts.Stdin != nil && process.State != tbgen.StateTerminal {
 		pump = c.startStdinPump(ctx, process.Id, opts.Stdin)
 		defer func() {
+			// On failure stop feeding stdin first: the process's output is
+			// no longer followed, and waiting for the upload could stall.
+			if err != nil {
+				pump.cancel()
+			}
 			err = errors.Join(err, pump.finish())
 			pump.cancel()
 		}()

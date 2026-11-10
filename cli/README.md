@@ -369,7 +369,9 @@ never prompts:
   accepted resource immediately. `sandbox create*`, `start`, `stop`, `pause`,
   `resume`, `fork` and `delete` print the sandbox as `sandbox get` does in both
   modes (with `--no-wait`, read once right after the request; a sandbox a
-  delete already removed prints the API's `{"id", "status"}`). No command
+  delete already removed prints the API's `{"id", "status"}`, and a create
+  whose read fails prints `{"id", "name", "status"}` from the create's answer
+  with a warning on stderr). No command
   prints a sandbox access token.
 - `sandbox wait --for` takes a settled status: `running`, `stopped`, `paused`
   or `deleted`, or the SDK state names `started` and `destroyed`; anything else
@@ -588,9 +590,10 @@ falls back to your saved login, and an empty `--api-key` is a usage error.
 A static credential (`--api-key`, `DAYTONA_API_KEY`, `login --token`) is sent
 as-is on every request: the CLI never mints, caches or substitutes another key
 for it. A project API key always acts in its own project, so a `--project` /
-`DAYTONA_PROJECT` that names another project is refused (exit 2) on the
-sandbox, image, secret and registry commands and on `whoami`, instead of being
-ignored; the CLI reads the key's project once per command
+`DAYTONA_PROJECT` that names another project is refused (exit 2) on every
+command that acts in a project (sandbox, image, snapshot, volume, secret,
+registry, reservation, region and catalog commands) and on `whoami`, instead
+of being ignored; the CLI reads the key's project once per command
 (`GET /api-keys/current`) when a project is named.
 
 A saved credential (a login or `login --token`) belongs to the API URL it was

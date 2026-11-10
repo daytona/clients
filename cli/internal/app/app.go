@@ -53,6 +53,9 @@ type Globals struct {
 	// explicit unknown profile is "not found", except on the commands
 	// ProfileOptional marks.
 	ProfileMayBeNew bool
+	// CreatesProfile marks `login`: a dangling active profile does not stop
+	// it, so signing in again is always possible.
+	CreatesProfile bool
 	// ProfileOptional marks a command that does not act on the selected
 	// profile (help, completion, docs, `profile *`, `config *`): an unknown
 	// --profile / DAYTONA_PROFILE does not stop it.
@@ -201,7 +204,7 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	if p, ok := cfg.Profile(name); ok {
 		cp := *p
 		a.Profile = &cp
-	} else if (explicit != "" || cfg.ActiveProfile != "") && !g.ProfileOptional && !(g.ProfileMayBeNew && fromFlag) {
+	} else if (explicit != "" || (cfg.ActiveProfile != "" && !g.CreatesProfile)) && !g.ProfileOptional && !(g.ProfileMayBeNew && fromFlag) {
 		e := cerr.New(cerr.ExitNotFound, "no profile %q", name)
 		switch {
 		case fromFlag:
@@ -247,6 +250,17 @@ func Load(g Globals, stdout, stderr io.Writer, getenv func(string) string) (*App
 	return a, nil
 }
 
+// sameAPIURL compares two resolved API URLs with the scheme and host
+// case-insensitive, as URLs are.
+func sameAPIURL(x, y string) bool {
+	ux, errX := url.Parse(x)
+	uy, errY := url.Parse(y)
+	if errX != nil || errY != nil {
+		return x == y
+	}
+	return strings.EqualFold(ux.Scheme, uy.Scheme) && strings.EqualFold(ux.Host, uy.Host) && ux.EscapedPath() == uy.EscapedPath()
+}
+
 // checkAPIURL refuses an API URL that is not an absolute http(s) URL with a
 // host, as a usage error, before any request.
 func checkAPIURL(raw string) error {
@@ -278,7 +292,7 @@ func (a *App) SetCredentialResolver(source string, fn func(ctx context.Context) 
 // refreshed or exchanged at another URL. An explicit credential (--api-key /
 // DAYTONA_API_KEY) is the way to call another API.
 func (a *App) credentialURLError() error {
-	if !a.savedCredential || a.APIURL() == a.savedAPIURL {
+	if !a.savedCredential || sameAPIURL(a.APIURL(), a.savedAPIURL) {
 		return nil
 	}
 	return cerr.Usage("profile %q's saved credential was issued for %s; it is not sent to %s", a.Profile.Name, a.savedAPIURL, a.APIURL()).

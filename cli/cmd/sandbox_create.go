@@ -234,7 +234,11 @@ func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache
 	if a.Globals.NoWait {
 		resolved, err := workload.ResolveSandbox(cmd.Context(), home, cache, created.Id)
 		if err != nil {
-			return createdButUnreadable(created.Id, err)
+			// The create succeeded: print what the acknowledgement says that
+			// is also a detail field (never its access token), and warn.
+			a.Info("warning: sandbox %s was created, but reading it failed: %v", created.Id, err)
+			return a.Printer().Object(map[string]any{"id": created.Id, "name": created.Name, "status": created.Status},
+				[][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
 		}
 		return a.Printer().Object(resolved.Raw, sandboxDetailKV(resolved.Detail))
 	}

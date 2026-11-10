@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
@@ -25,6 +26,10 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if len(args) == 0 {
 				return cerr.Usage("sandbox ssh needs a sandbox id")
 			}
+			sshArgs, remoteCommand, err := splitSSHArguments(args[1:])
+			if err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			toolClient, target, apiClient, err := sandboxToolboxClient(cmd.Context(), a, args[0])
 			if err != nil {
@@ -40,10 +45,6 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err != nil {
 				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
 			}
-			sshArgs, remoteCommand, err := splitSSHArguments(args[1:])
-			if err != nil {
-				return err
-			}
 			invocation, err := toolboxclient.BuildSSHInvocation(
 				toolboxclient.SSHTarget{Host: target.SSHHost, Port: target.SSHPort, SandboxID: target.Detail.Id, Credential: toolClient.Credential()},
 				toolboxclient.SSHCommand{Options: sshArgs, Args: remoteCommand},
@@ -52,18 +53,36 @@ func newSandboxSSHSubcommand() *cobra.Command {
 				return err
 			}
 			defer invocation.Cleanup()
-			if err := runSSHCommand(cmd.Context(), sshBinary, invocation.Args); err != nil {
-				var exitErr *exec.ExitError
-				if errors.As(err, &exitErr) {
-					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode()).WithSource(cerr.SourceSSH)
-				}
-				return err
-			}
-			return nil
+			return sshExitError(cmd.Context(), runSSHCommand(cmd.Context(), sshBinary, invocation.Args))
 		},
 	}
 	cmd.Flags().SetInterspersed(false)
 	return cmd
+}
+
+// sshExitError passes the ssh client's exit status through. When the CLI's
+// own context ended (Ctrl-C, SIGTERM, which also kills ssh), the CLI's
+// interruption code wins; an ssh killed by a signal exits 128 + its number.
+func sshExitError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctxErr := cerr.FromContext(ctx); ctxErr != nil {
+		return ctxErr
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+	code := exitErr.ExitCode()
+	if code < 0 {
+		code = cerr.ExitFailure
+		if status, ok := exitErr.Sys().(interface{ Signal() syscall.Signal }); ok && status.Signal() > 0 {
+			code = 128 + int(status.Signal())
+		}
+		return cerr.New(code, "ssh terminated by a signal").WithSource(cerr.SourceSSH)
+	}
+	return cerr.New(code, "ssh exited with code %d", code).WithSource(cerr.SourceSSH)
 }
 
 func splitSSHArguments(args []string) ([]string, []string, error) {

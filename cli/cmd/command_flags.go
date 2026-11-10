@@ -103,7 +103,8 @@ func commandGlobals(cmd *cobra.Command, g app.Globals) app.Globals {
 		g.Timeout = f.Value.String()
 	}
 	g.APIKeySet = flags.Changed("api-key")
-	g.ProfileMayBeNew = cmd.Annotations[annotationCreatesProfile] != "" && flags.Changed("profile")
+	g.CreatesProfile = cmd.Annotations[annotationCreatesProfile] != ""
+	g.ProfileMayBeNew = g.CreatesProfile && flags.Changed("profile")
 	g.ProfileOptional = profileOptional(cmd)
 	return g
 }
