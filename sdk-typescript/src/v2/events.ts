@@ -504,7 +504,7 @@ interface SocketState {
   subscribeFlushTimer: ReturnType<typeof setTimeout> | undefined
   readonly snapshotPending: Map<string, number>
   /** When each subscribed id was last sent a subscribe or given a state frame. */
-  heardAt: Map<string, number>
+  readonly heardAt: Map<string, number>
   /** The last decoded state per subscribed id: a new waiter on an id the
    *  socket already holds is judged against it at once (a sandbox resting in
    *  its target state emits no further event). */
@@ -635,7 +635,7 @@ export class WaitHub {
     this.staleAfterMs = timings.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
     this.staleSweepTickMs = timings.staleSweepTickMs ?? DEFAULT_STALE_SWEEP_TICK_MS
     this.staleSweepMaxIds =
-      timings.staleSweepMaxIds ?? Math.floor((STALE_SWEEP_IDS_PER_SECOND * DEFAULT_STALE_SWEEP_TICK_MS) / 1_000)
+      timings.staleSweepMaxIds ?? Math.max(1, Math.floor((STALE_SWEEP_IDS_PER_SECOND * this.staleSweepTickMs) / 1_000))
     credentialSafeDiagnostics(this, () => ({ type: 'WaitHub' }))
   }
 
@@ -796,6 +796,7 @@ export class WaitHub {
 
     this.clearPendingSubscribeFlush(source)
     source.subscriptions.clear()
+    source.heardAt.clear()
     source.states.clear()
     source.rawStates.clear()
     source.versions.clear()
@@ -946,6 +947,7 @@ export class WaitHub {
     sock.subscriptions.add(sandboxId)
     this.ensureSocketLoop(sock)
     sock.wake?.()
+    if (sock.ws !== undefined && sock.ws.readyState === WS_OPEN) this.armStaleSweep(sock)
 
     if (fresh) this.enqueueSubscribeIds(sock, [sandboxId])
 
@@ -1912,6 +1914,7 @@ export class WaitHub {
 
   private releaseSubscription(sock: SocketState, sandboxId: string): void {
     sock.subscriptions.delete(sandboxId)
+    sock.heardAt.delete(sandboxId)
     sock.states.delete(sandboxId)
     sock.rawStates.delete(sandboxId)
     sock.versions.delete(sandboxId)
@@ -2027,6 +2030,7 @@ export class WaitHub {
 
   /**
    * Re-subscribe every waited-on id that has heard nothing for `staleAfterMs`.
+   * The timer stops once the socket has no waiter; a new waiter arms it again.
    * A wait whose transition event never arrives would otherwise end only at
    * the reconcile timer. The frame path pays one map store; a tick scans the
    * subscriptions and sends nothing while every id is fresh. `ws.send` queues
@@ -2037,16 +2041,7 @@ export class WaitHub {
     const t = setTimeout(() => {
       sock.staleTimer = undefined
       const ws = sock.ws
-      if (this.closed || ws === undefined) return
-      if (sock.heardAt.size > sock.subscriptions.size) {
-        // Drop the times of released ids.
-        const kept = new Map<string, number>()
-        for (const sid of sock.subscriptions) {
-          const at = sock.heardAt.get(sid)
-          if (at !== undefined) kept.set(sid, at)
-        }
-        sock.heardAt = kept
-      }
+      if (this.closed || ws === undefined || !this.hasAnyWaiterFor(sock)) return
       const heardAt = sock.heardAt
       const cutoff = Date.now() - this.staleAfterMs
       const pending = sock.pendingSubscribeIds
@@ -2080,6 +2075,7 @@ export class WaitHub {
       }
     }
     sock.subscriptions.clear()
+    sock.heardAt.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2100,6 +2096,7 @@ export class WaitHub {
       }
     }
     sock.subscriptions.clear()
+    sock.heardAt.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2119,6 +2116,7 @@ export class WaitHub {
       }
     }
     sock.subscriptions.clear()
+    sock.heardAt.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()

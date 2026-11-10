@@ -1011,8 +1011,12 @@ class TestHubReconcile:
     def test_the_sweep_stays_within_the_subscribe_rate(self) -> None:
         # The server takes 2,000 subscribe ids per second per socket.
         hub = make_hub(FakeConnector())
-        assert hub._stale_sweep_max_ids == 1_500
-        assert hub._stale_sweep_max_ids / hub._stale_sweep_tick_s <= 0.75 * 2_000
+        assert hub._stale_sweep_cap() == 1_500
+        assert hub._stale_sweep_cap() / hub._stale_sweep_tick_s <= 0.75 * 2_000
+        # A shorter tick sends fewer ids per tick, not more per second.
+        hub._stale_sweep_tick_s = 0.3
+        assert hub._stale_sweep_cap() == 450
+        assert hub._stale_sweep_cap() / hub._stale_sweep_tick_s <= 0.75 * 2_000
 
     async def test_one_tick_resubscribes_at_most_its_cap_oldest_first(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1079,6 +1083,44 @@ class TestHubReconcile:
 
         kinds = [f["type"] for f in ws.sent_frames() if f.get("type") in ("subscribe", "unsubscribe")]
         assert kinds == ["subscribe", "unsubscribe"]
+
+    async def test_the_sweep_stops_without_waiters_and_a_new_waiter_restarts_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
+
+        def subscribes_for(sid: str) -> int:
+            return sum(
+                1
+                for f in ws.sent_frames()
+                if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+            )
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            first = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for("abc-region-a") == 1), timeout=1)
+            ws.inject({"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1})
+            await asyncio.wait_for(first, timeout=1)
+            sock = next(iter(hub._sockets.values()))
+            await asyncio.wait_for(
+                _wait_for(lambda: sock.stale_task is not None and sock.stale_task.done()), timeout=1
+            )
+            assert sock.ws is not None
+            assert not sock.heard_at
+
+            second = asyncio.create_task(hub.wait("def-region-a", _started_predicate(), timeout=5))
+            await drain()
+            assert sock.stale_task is not None and not sock.stale_task.done()
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for("def-region-a") >= 2), timeout=1)
+            second.cancel()
+            await asyncio.gather(second, return_exceptions=True)
 
     async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
         self, monkeypatch: pytest.MonkeyPatch

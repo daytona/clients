@@ -428,7 +428,8 @@ class WaitHub:
         self._subscribe_flush_s: float = _SUBSCRIBE_FLUSH_S
         self._stale_after_s: float = _STALE_AFTER_S
         self._stale_sweep_tick_s: float = _STALE_SWEEP_TICK_S
-        self._stale_sweep_max_ids: int = int(_STALE_SWEEP_IDS_PER_S * _STALE_SWEEP_TICK_S)
+        # Unset: derived from the tick (`_stale_sweep_cap`).
+        self._stale_sweep_max_ids: Optional[int] = None
 
         # The hub's own API transport (the SDK's, not a bare HTTP
         # client): the ticket mint and the long-poll fallback carry the same
@@ -501,6 +502,7 @@ class WaitHub:
             sock.subscribe_flush_task = None
             sock.ws = None
             sock.subscriptions.clear()
+            sock.heard_at.clear()
             sock.states.clear()
             sock.raw_states.clear()
             sock.versions.clear()
@@ -610,6 +612,7 @@ class WaitHub:
                 destination.refused_retry_ids.add(sandbox_id)
 
         source.subscriptions.clear()
+        source.heard_at.clear()
         source.states.clear()
         source.raw_states.clear()
         source.snapshot_pending.clear()
@@ -762,6 +765,8 @@ class WaitHub:
 
         self._ensure_socket_task(sock)
         sock.wake.set()
+        if sock.ws is not None:
+            self._ensure_stale_sweep(sock)
 
         try:
             rem = _remaining()
@@ -1088,8 +1093,7 @@ class WaitHub:
         if ri and ri > 0 and (sock.reconcile_task is None or sock.reconcile_task.done()):
             loop = asyncio.get_event_loop()
             sock.reconcile_task = loop.create_task(self._reconcile_loop(sock))
-        if self._stale_sweep_tick_s > 0 and (sock.stale_task is None or sock.stale_task.done()):
-            sock.stale_task = asyncio.get_running_loop().create_task(self._stale_resubscribe_loop(sock))
+        self._ensure_stale_sweep(sock)
 
         try:
             await self._resubscribe_all(sock)
@@ -1539,6 +1543,7 @@ class WaitHub:
 
     def _release_subscription(self, sock: _SocketState, sandbox_id: str) -> None:
         sock.subscriptions.discard(sandbox_id)
+        sock.heard_at.pop(sandbox_id, None)
         sock.states.pop(sandbox_id, None)
         sock.raw_states.pop(sandbox_id, None)
         sock.versions.pop(sandbox_id, None)
@@ -1560,6 +1565,18 @@ class WaitHub:
             if sock.ws is not None:
                 await self._resubscribe_all(sock)
 
+    def _ensure_stale_sweep(self, sock: _SocketState) -> None:
+        """Run the stale sweep on a connected socket; it stops by itself once
+        the socket has no waiter, and a new waiter starts it again."""
+        if self._stale_sweep_tick_s > 0 and (sock.stale_task is None or sock.stale_task.done()):
+            sock.stale_task = asyncio.get_running_loop().create_task(self._stale_resubscribe_loop(sock))
+
+    def _stale_sweep_cap(self) -> int:
+        """Ids one tick re-subscribes at most: the rate cap over this tick."""
+        if self._stale_sweep_max_ids is not None:
+            return self._stale_sweep_max_ids
+        return max(1, int(_STALE_SWEEP_IDS_PER_S * self._stale_sweep_tick_s))
+
     async def _stale_resubscribe_loop(self, sock: _SocketState) -> None:
         """Re-subscribe every waited-on id that has heard nothing for
         ``_stale_after_s``.
@@ -1570,14 +1587,11 @@ class WaitHub:
         """
         while not self._closed:
             await _sleep(_jittered(self._stale_sweep_tick_s))
+            if not self._has_any_waiter_for(sock):
+                return
             if sock.ws is None:
                 continue
             heard_at = sock.heard_at
-            if len(heard_at) > len(sock.subscriptions):
-                # Drop the times of released ids.
-                sock.heard_at = heard_at = {
-                    sid: at for sid, at in heard_at.items() if sid in sock.subscriptions
-                }
             cutoff = _clock.monotonic() - self._stale_after_s
             if not any(heard_at.get(sid, 0.0) <= cutoff for sid in sock.subscriptions):
                 continue
@@ -1590,7 +1604,7 @@ class WaitHub:
                     for sid in sock.subscriptions
                     if heard_at.get(sid, 0.0) <= cutoff and sid not in pending and self._waiters.get(sid)
                 ]
-                max_ids = self._stale_sweep_max_ids
+                max_ids = self._stale_sweep_cap()
                 if len(stale) > max_ids:
                     stale.sort(key=lambda sid: heard_at.get(sid, 0.0))
                     del stale[max_ids:]
@@ -1610,6 +1624,7 @@ class WaitHub:
                 if not w.future.done():
                     w.future.set_exception(err)
         sock.subscriptions.clear()
+        sock.heard_at.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
@@ -1626,6 +1641,7 @@ class WaitHub:
                 if not w.future.done():
                     w.future.set_exception(err)
         sock.subscriptions.clear()
+        sock.heard_at.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
@@ -1645,6 +1661,7 @@ class WaitHub:
                 if not w.future.done():
                     w.future.set_exception(error)
         sock.subscriptions.clear()
+        sock.heard_at.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()

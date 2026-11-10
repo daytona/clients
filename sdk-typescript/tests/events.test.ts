@@ -1243,6 +1243,48 @@ describe('WaitHub: stale sweep', () => {
     const { staleSweepMaxIds, staleSweepTickMs } = hub as unknown as { staleSweepMaxIds: number; staleSweepTickMs: number }
     expect(staleSweepMaxIds).toBe(1_500)
     expect(staleSweepMaxIds / (staleSweepTickMs / 1_000)).toBeLessThanOrEqual(0.75 * 2_000)
+    // A shorter tick sends fewer ids per tick, not more per second.
+    const fast = makeHub(makeFakeConnector(), { timings: { staleSweepTickMs: 300 } }) as unknown as { staleSweepMaxIds: number }
+    expect(fast.staleSweepMaxIds).toBe(450)
+  })
+
+  test('the sweep stops without waiters and a new waiter arms it again', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, { timings: { staleAfterMs: 100, staleSweepTickMs: 50, noFrameTimeoutMs: 60_000 } })
+      const ws = fc.prepare()
+      const subscribesFor = (id: string): number =>
+        ws.sentFrames().filter((f) => f['type'] === 'subscribe' && (f['ids'] as Array<{ id: string }>).some((e) => e.id === id)).length
+      const first = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 })
+      await drain()
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'running', version: 1 })
+      await expect(first).resolves.toMatchObject({ state: 'started' })
+      await jest.advanceTimersByTimeAsync(60)
+      await drain()
+      const sockets = (hub as unknown as { sockets: Map<string, { staleTimer: unknown; heardAt: Map<string, number> }> }).sockets
+      const sock = [...sockets.values()][0]!
+      expect(sock.staleTimer).toBeUndefined()
+      expect(sock.heardAt.size).toBe(0)
+
+      const other = 'xyz-regiona'
+      const second = hub.wait(other, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+      await drain()
+      expect(sock.staleTimer).toBeDefined()
+      for (let i = 0; i < 10 && subscribesFor(other) < 2; i++) {
+        await jest.advanceTimersByTimeAsync(50)
+        await drain()
+      }
+      expect(subscribesFor(other)).toBeGreaterThanOrEqual(2)
+      await hub.detach()
+      await second
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
   })
 
   test('one tick re-subscribes at most its cap, oldest first', async () => {
