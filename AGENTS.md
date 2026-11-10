@@ -1050,6 +1050,11 @@ for one).
   in the PR description which server change it waits for and move on.
   Maintainers coordinate deployments; contributors don't need to.
 - Do not merge with failing checks.
+- PRs are squash-merged. A squash message written for a maintainer ends its
+  title with the PR number, `<type>(<scope>): <summary> (#N)`, and ends its
+  body with a `Signed-off-by:` line for whoever merges it (the DCO covers the
+  squash commit on `main` too). Pasting a custom title in GitHub's merge
+  dialog replaces the `(#N)` it pre-fills, so the message has to carry it.
 - `CI passed` is the check to require for test results: it waits for every
   other `pull_request` workflow that ran on the PR and fails if any of them did
   (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
