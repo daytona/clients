@@ -985,11 +985,13 @@ lives in the unpackaged `sdk-python/DEVELOPMENT.md` / `sdk-typescript/DEVELOPMEN
 
 ## Verification
 
-CI on the pull request runs every suite below and is the gate. Locally, run
-only fast checks targeted at what you changed (the tests, typecheck and lint
-for the touched files), plus any heavier check you have reason to suspect,
-then push and let the PR run the rest. When a CI check fails, reproduce that
-check locally, fix, and push again.
+CI on the pull request is the gate: each workflow runs the suites below that
+its path filters match. Locally, run only fast checks targeted at what you
+changed (the tests, typecheck and lint for the touched files), plus any heavier
+check you have reason to suspect, then push and let the PR run the rest. When a
+CI check fails, reproduce that check locally, fix, and push again. The one
+exception is patch coverage (below): no workflow gates it, so check it locally
+for changes that add code.
 
 Each package's full suite, for reference and for reproducing a CI failure:
 
