@@ -49,7 +49,7 @@ from daytona.v2.services import AsyncImagesService
 from daytona.v2.types import DaytonaConfig
 from daytona.v2.types import _SandboxInfo as SandboxInfo
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.timing]
 
 UUID = "12345678-1234-1234-1234-123456789abc"
 DISCOVERY = "/images/image/build-logs-url"
