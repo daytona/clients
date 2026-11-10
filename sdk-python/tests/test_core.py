@@ -6662,6 +6662,7 @@ async def test_a_blank_create_name_is_refused(name: str) -> None:
         lambda: client.create(Image.base("py312"), name=name),
         lambda: client.create_from_snapshot("snap", name=name),
         lambda: client.create_macos("macos-15", name=name),
+        lambda: client.create_from_build(ImageBuilder.from_registry("python:3.12"), name=name),
     ):
         with pytest.raises(BadRequestError, match="^name must be a non-empty string when given$") as raised:
             await call()

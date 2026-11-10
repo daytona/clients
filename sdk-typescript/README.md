@@ -417,9 +417,10 @@ For an automatically deleted temporary sandbox:
 ### Sandbox labels and entrypoint logs
 
 Use `sandbox.setLabels(labels)` to replace the label set. Pass `{}` to clear
-it. It resolves to the applied label map. The reserved `name` label that
-`findByName()` matches is kept unless the new labels set it (the sandbox is
-read first to learn it).
+every label but `name`. It resolves to the applied label map. The reserved
+`name` label that `findByName()` matches is kept unless the new labels set it:
+the sandbox is read first to learn it (one more request, not atomic with the
+write), and it cannot be removed.
 
 ```ts
 const labels = await sandbox.setLabels({ team: 'sdk', env: 'ci' })

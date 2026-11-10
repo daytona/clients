@@ -46,7 +46,9 @@ export interface SetSecretOptions {
   readonly allowedDomains: readonly string[]
   /**
    * Omitted (or `null`) keeps the stored description of an existing secret,
-   * read first with `get()` (no read with `ifNotExists`); `''` clears it.
+   * read first with `get()` (one more request, not atomic with the write; an
+   * error from it other than not-found fails the call; no read with
+   * `ifNotExists`); `''` clears it.
    */
   readonly description?: string
   readonly ifNotExists?: boolean

@@ -185,7 +185,8 @@ export type GenericErrorCode = (typeof GENERIC_ERROR_CODES)[number]
 export const SDK_ERROR_CODES = Object.freeze(['CLIENT_CLOSED'] as const)
 export type ErrorCode = DaemonErrorCode | ApiErrorCode | ProxyErrorCode | RouterErrorCode | GenericErrorCode | (typeof SDK_ERROR_CODES)[number]
 
-export const CODE_STATUS: Readonly<Partial<Record<ErrorCode, number>>> = Object.freeze({
+// Every catalog code has its status; the SDK-only codes have none.
+export const CODE_STATUS: Readonly<Record<Exclude<ErrorCode, (typeof SDK_ERROR_CODES)[number]>, number>> & Readonly<Partial<Record<(typeof SDK_ERROR_CODES)[number], number>>> = Object.freeze({
   PROCESS_NOT_FOUND: 404,
   PROCESS_START_FAILED: 400,
   PROCESS_TERMINAL: 409,

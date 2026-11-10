@@ -3771,6 +3771,7 @@ describe('creation shape', () => {
       () => client.create('py312', { name }),
       () => client.createFromSnapshot('snap', { name }),
       () => client.createMacos('macos-15', { name }),
+      () => client.createFromBuild(ImageBuilder.fromRegistry('python:3.12'), { name }),
     ]) {
       await expect(call()).rejects.toMatchObject({ message: 'name must be a non-empty string when given', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }

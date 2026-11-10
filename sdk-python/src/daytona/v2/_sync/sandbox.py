@@ -377,12 +377,14 @@ class Sandbox:
         )
 
     def set_labels(self, labels: Mapping[str, str], /) -> Mapping[str, str]:
-        """Replace the sandbox's labels; pass ``{}`` to clear them.
+        """Replace the sandbox's labels; pass ``{}`` to clear all but ``name``.
 
         The reserved ``name`` label, which :meth:`Daytona.find_by_name` and a
         ``name`` label search match, is kept unless ``labels`` sets it: without
-        a ``name`` key the sandbox is read first and its current ``name`` label,
-        if any, is sent along. Returns the labels the API applied, as a fresh
+        a ``name`` key the sandbox is read first (one more request, which also
+        refreshes this handle's metadata) and its current ``name`` label, if
+        any, is sent along; the read and the write are not atomic. The ``name``
+        label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
         changes nothing.
         """

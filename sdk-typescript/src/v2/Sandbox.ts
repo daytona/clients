@@ -1078,11 +1078,13 @@ export class Sandbox {
   }
 
   /**
-   * Replace the sandbox's labels; pass `{}` to clear them. Resolves to the
-   * applied labels. The reserved `name` label, which `findByName()` and a
-   * `name` label search match, is kept unless `labels` sets it: without a
-   * `name` key the sandbox is read first and its current `name` label, if any,
-   * is sent along.
+   * Replace the sandbox's labels; pass `{}` to clear all but `name`. Resolves
+   * to the applied labels. The reserved `name` label, which `findByName()` and
+   * a `name` label search match, is kept unless `labels` sets it: without a
+   * `name` key the sandbox is read first (one more request, which also
+   * refreshes this handle's metadata) and its current `name` label, if any, is
+   * sent along; the read and the write are not atomic. The `name` label cannot
+   * be removed.
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')

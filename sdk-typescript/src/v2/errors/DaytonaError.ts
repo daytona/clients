@@ -133,17 +133,24 @@ export function errorOptions<T extends object>(options: T | undefined, extraKeys
   if (given !== undefined) {
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
-  // TypeError keeps diagnostics safe even when Object.prototype has an unknown
-  // enumerable key: constructing a BadRequestError here would recurse.
+  // A refusal is a TypeError: constructing an SDK error here would recurse.
+  // No error options type declares a symbol key: an enumerable one, own or
+  // inherited, is refused. Both walks stop before Object.prototype: every
+  // options literal the SDK builds itself inherits from it, so an unknown key
+  // a library put there would turn every SDK error into this one (a string key
+  // there is skipped, never refused).
   // SAFETY: nonOptionsDescription has established an options object (an
   // object literal, a class instance or a prototype-based object).
-  const symbol = enumerableSymbolKey(options as unknown as KeyedObject)
+  const keyed = options as unknown as KeyedObject
+  const symbol = enumerableSymbolKey(keyed, Object.prototype as KeyedObject)
   if (symbol !== undefined) {
     throw new TypeError(`ErrorOptions has no option \`${String(symbol)}\``)
   }
   const copy: Record<string, unknown> = {}
   for (const key in options) {
-    if (!ERROR_OPTION_KEYS.has(key) && !extraKeys.includes(key)) throw new TypeError(`ErrorOptions has no option \`${key}\``)
+    if (!definedBelowObjectPrototype(keyed, key)) continue
+    const known = Object.prototype.hasOwnProperty.call(ERROR_OPTION_KEYS, key) || extraKeys.includes(key)
+    if (!known) throw new TypeError(`ErrorOptions has no option \`${key}\``)
     copy[key] = options[key]
   }
   if (copy.statusCode !== undefined && (typeof copy.statusCode !== 'number' || !Number.isInteger(copy.statusCode))) {
@@ -152,11 +159,22 @@ export function errorOptions<T extends object>(options: T | undefined, extraKeys
   return copy as T
 }
 
-const ERROR_OPTION_KEYS: ReadonlySet<string> = new Set([
-  'statusCode', 'code', 'source', 'traceId', 'retryAfterSeconds', 'feature',
-  'entitlement', 'replacement', 'firstAvailableCursor', 'stated', 'actual',
-  'region', 'limit', 'current', 'max', 'maxBytes', 'bytes', 'requestId', 'retryAfterMs', 'cause',
-] satisfies readonly (keyof ErrorOptions)[])
+// Every key of ErrorOptions, exactly: the mapped type fails to compile when
+// a key is missing or one ErrorOptions lacks is listed.
+const ERROR_OPTION_KEYS: { readonly [K in keyof Required<ErrorOptions>]: true } = Object.freeze({
+  statusCode: true, code: true, source: true, traceId: true, retryAfterSeconds: true, feature: true,
+  entitlement: true, replacement: true, firstAvailableCursor: true, stated: true, actual: true,
+  region: true, limit: true, current: true, max: true, maxBytes: true, bytes: true, requestId: true,
+  retryAfterMs: true, cause: true,
+})
+
+/** Whether `key` is an own key of `value` or of a prototype before Object.prototype. */
+function definedBelowObjectPrototype(value: KeyedObject, key: string): boolean {
+  for (let current: KeyedObject | null = value; current !== null && current !== Object.prototype; current = Object.getPrototypeOf(current) as KeyedObject | null) {
+    if (Object.prototype.hasOwnProperty.call(current, key)) return true
+  }
+  return false
+}
 
 /**
  * Base class of every v2 error.

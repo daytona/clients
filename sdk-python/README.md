@@ -467,9 +467,10 @@ unrecognized values to `"unknown"` and keep the original in a `raw_…`
 sibling. Timestamps are timezone-aware `datetime` values; a budget period
 start is a `date`. List and search pages are immutable: `items` is a tuple.
 
-Use `sandbox.set_labels({...})` to replace the label set (`{}` clears it).
-The reserved `name` label that `find_by_name()` matches is kept unless the new
-labels set it (the sandbox is read first to learn it). Use `sandbox.entrypoint_logs()` to read the sandbox's
+Use `sandbox.set_labels({...})` to replace the label set (`{}` clears every
+label but `name`). The reserved `name` label that `find_by_name()` matches is
+kept unless the new labels set it: the sandbox is read first to learn it (one
+more request, not atomic with the write), and it cannot be removed. Use `sandbox.entrypoint_logs()` to read the sandbox's
 entrypoint-session log as plain text. On `AsyncDaytona` prefix these with
 `await`.
 

@@ -353,8 +353,9 @@ class SecretsService:
         any verified host. ``"*"`` lets the value reach any HTTPS host,
         including one a compromised sandbox controls. ``description`` omitted
         (or ``None``) keeps the stored description of an existing secret, read
-        first with :meth:`get` (no read with ``if_not_exists=True``); ``""``
-        clears it.
+        first with :meth:`get` (one more request, not atomic with the write; an
+        error from it other than not-found fails the call; no read with
+        ``if_not_exists=True``); ``""`` clears it.
         """
         return self._bridge.call(
             lambda: self._impl.set(

@@ -34,13 +34,12 @@ describe('client input and lifecycle', () => {
     expect(terminal.rawState).toBe('lost')
   })
 
-  it('refuses an enumerable symbol on Object.prototype without recursive diagnostics', () => {
-    // Given an unknown enumerable option at the end of the prototype chain,
-    const key = Symbol('extra')
+  it.each([Symbol('extra'), 'extra'])('keeps constructing errors with the unknown enumerable key %p on Object.prototype', (key) => {
+    // Given an unknown enumerable key a library put on Object.prototype,
     Object.defineProperty(Object.prototype, key, { value: true, enumerable: true, configurable: true })
     try {
-      // When constructing an error, then refuse it without constructing another SDK error.
-      expect(() => new NotFoundError('missing', { statusCode: 404 })).toThrow(TypeError)
+      // When constructing an error, then it still works: the check stops before Object.prototype.
+      expect(new NotFoundError('missing', { statusCode: 404 })).toMatchObject({ statusCode: 404, message: 'missing' })
     } finally {
       Reflect.deleteProperty(Object.prototype, key)
     }
@@ -155,6 +154,29 @@ describe('client input and lifecycle', () => {
       // When the closed client's handle waits, then refuse before using the hub.
       await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.01 })).rejects.toBeInstanceOf(ClientClosedError)
       expect(api.requests).toHaveLength(2)
+    } finally {
+      await first.close()
+      await second.close()
+      await api.close()
+    }
+  })
+
+  it('keeps the shared hub working for the other client after one client closes', async () => {
+    // Given two clients sharing the events hub the first one created,
+    const body = { id: 'sbx', class: 'linux', status: 'running', name: 'test', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
+    const api = await startFakeApi([{ status: 200, body }])
+    const first = clientAt(api.url, { events: { enabled: true } })
+    const second = clientAt(api.url, { events: { enabled: true } })
+    try {
+      // SAFETY: acquireHub is the client's private hub accessor (no arguments).
+      const acquire = (client: Daytona): unknown => (client.v2 as unknown as { acquireHub(): unknown }).acquireHub()
+      const hub = acquire(first)
+      expect(acquire(second)).toBe(hub)
+      // When the first client closes,
+      await first.close()
+      // then the hub's own requests (ticket mints, reads) still work for the second.
+      const hubApi = Reflect.get(hub as object, 'api') as { get: (path: string) => Promise<{ data: unknown }> }
+      await expect(hubApi.get('/sandboxes/sbx')).resolves.toMatchObject({ data: { id: 'sbx' } })
     } finally {
       await first.close()
       await second.close()

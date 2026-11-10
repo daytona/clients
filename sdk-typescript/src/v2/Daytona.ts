@@ -54,6 +54,7 @@ export class Daytona {
   private readonly hubEventsConfig: EventsHubConfig
   private readonly hubIdentityKey: string
   private hub: WaitHub | undefined
+  private readonly hubApi: AxiosInstance
   private closed = false
 
   constructor(config: DaytonaConfig = {}) {
@@ -67,6 +68,10 @@ export class Daytona {
     this.maxResponseBytes = connection.maxResponseBytes
     this.apiTransport = new HttpTransport(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
     this.api = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
+    // A shared events hub outlives the client that created it: its instance has
+    // no closed-client check, so closing this client never breaks the waits of
+    // another client attached to the same hub (each wait checks its own client).
+    this.hubApi = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, connection.httpOptions)
     this.images = new ImagesService(INTERNAL, this.api, this.apiTransport)
     this.snapshots = new SnapshotsService(INTERNAL, this.api)
     this.volumes = new VolumesService(INTERNAL, this.api)
@@ -91,7 +96,7 @@ export class Daytona {
         config: this.hubEventsConfig,
         // The client's own instance: its maxResponseBytes caps the hub's
         // ticket mint and long-poll fallback (neither is a file transfer).
-        _api: this.api,
+        _api: this.hubApi,
         maxResponseBytes: this.maxResponseBytes,
       })
     }
