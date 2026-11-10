@@ -218,13 +218,14 @@ export class GitService {
     await this.transport.post<void>('/git/push', body, timeoutConfig(options.timeoutSeconds))
   }
 
-  public async getConfig(key: string, options: GitConfigOptions = {}): Promise<string | null> {
+  /** The config value, or undefined when the key is not set. */
+  public async getConfig(key: string, options: GitConfigOptions = {}): Promise<string | undefined> {
     assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
     const data = await this.transport.get<unknown>('/git/config', {
       params: { key, path: options.path, scope: configScope(options.scope) },
     })
     const value = record(data, 'git config response').value
-    if (value === undefined || value === null) return null
+    if (value === undefined || value === null) return undefined
     if (typeof value !== 'string') throw malformedResponse('git config response: value must be a string or null')
     return value
   }

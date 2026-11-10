@@ -332,6 +332,11 @@ export class UnsupportedMediaTypeError extends DaytonaError {}
 export class UnprocessableEntityError extends DaytonaError {}
 export class ServiceUnavailableError extends DaytonaError {}
 export class InternalServerError extends DaytonaError {}
+/**
+ * HTTP 429. `RATE_LIMITED` and `TOO_MANY_REQUESTS` throw this class itself
+ * (read `code` to tell them apart); `LIMIT_EXCEEDED` and `OVERLOADED` throw its
+ * subclasses.
+ */
 export class RateLimitError extends DaytonaError {}
 
 /**
@@ -463,7 +468,6 @@ export class OrgSuspendedError extends DaytonaError {}
  * next calendar month (UTC) begins.
  */
 export class ProjectBudgetExceededError extends DaytonaError {}
-export class RateLimitedError extends RateLimitError {}
 export class OverloadedError extends RateLimitError {}
 export class NotSupportedForClassError extends ConflictError {}
 export class FeatureNotEnabledError extends ForbiddenError {}
@@ -647,7 +651,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
   OVERLOADED: OverloadedError,
   PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
-  RATE_LIMITED: RateLimitedError,
+  RATE_LIMITED: RateLimitError,
   SEARCH_NOT_CONFIGURED: SearchNotConfiguredError,
   SEARCH_UNAVAILABLE: SearchUnavailableError,
   SIGNUP_NOT_INVITED: ForbiddenError,
@@ -801,6 +805,21 @@ export function createDaytonaError(message: string, statusCode?: number, code?: 
 }
 
 /**
+ * The error for a 3xx response (and a browser's opaque redirect, whose status
+ * reads 0): the SDK follows no redirect, whatever the body says, as in Python.
+ * @internal
+ */
+export function redirectError(status: number | undefined): DaytonaError {
+  const shown = status === undefined || status === 0 ? 'HTTP redirect' : `HTTP ${status}`
+  return createDaytonaError(`${shown}: unexpected redirect (the SDK does not follow redirects)`, status || undefined, undefined, 'SDK')
+}
+
+/** Whether a status is a redirect the SDK refuses. @internal */
+export function isRedirectStatus(status: number | undefined): boolean {
+  return status !== undefined && status >= 300 && status < 400
+}
+
+/**
  * Whether a response's media type is exactly `application/json` (type and
  * subtype compared case-insensitively, parameters ignored), as the Python
  * SDK's `is_json_media_type`: `application/jsonl` is not JSON. Only an error
@@ -882,6 +901,8 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
   if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
+  // A fetch response reads status 0 only when opaque (a browser's manual redirect).
+  if (isRedirectStatus(status) || (error.response !== undefined && status === 0)) return redirectError(status)
   const fallback = typeof error.response?.data === 'string' ? error.response.data : (json ? undefined : errorBodyText(error.response?.data)) || error.message
   return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
 }
@@ -919,6 +940,7 @@ function errorFromEnvelope(
   fallbackMessage: string,
   emptyProseIsAbsent: boolean,
 ): DaytonaError {
+  if (isRedirectStatus(status)) return redirectError(status)
   const parsed = dataObject(body)
   const code = typeof parsed?.code === 'string' ? parsed.code : undefined
   const source = typeof parsed?.source === 'string' ? parsed.source : undefined
@@ -937,6 +959,10 @@ function errorFromEnvelope(
  * the error keeps its status's class and says the body was too large).
  */
 export async function errorFromFetchResponse(response: Response, limit = 0, onChunk?: () => void): Promise<DaytonaError> {
+  if (isRedirectStatus(response.status) || response.type === 'opaqueredirect') {
+    await response.body?.cancel().catch(() => undefined)
+    return redirectError(response.status)
+  }
   const text = await readFetchText(response, limit, onChunk)
   if (text === undefined) {
     return createDaytonaError(
@@ -1065,7 +1091,6 @@ for (const [key, errorClass] of [
   ['DesktopNotReadyError', DesktopNotReadyError],
   ['OrgSuspendedError', OrgSuspendedError],
   ['ProjectBudgetExceededError', ProjectBudgetExceededError],
-  ['RateLimitedError', RateLimitedError],
   ['OverloadedError', OverloadedError],
   ['NotSupportedForClassError', NotSupportedForClassError],
   ['ImageNotFoundError', ImageNotFoundError],

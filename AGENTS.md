@@ -691,7 +691,17 @@ skipping exist only in the TypeScript tool).
   mappers, Python the generated models through `expect_*` and the typed
   toolbox models), and an id another request follows is checked before
   that request; fields it neither reads nor returns, such as a pre-signed
-  URL response's `url`, are not checked. Integers match between the SDKs except
+  URL response's `url`, are not checked. A discriminator value or stream
+  event this release does not know is NOT a contract break (a later 2.x API
+  may add one, VERSIONING.md's one-minor-ahead promise): an image source of
+  another kind is Python `UnknownImageSource(raw_type=…)` / TS
+  `{ type: 'unknown', rawType }`, and a build-log event of an unknown name is
+  skipped unparsed without moving the cursor, as watches skip theirs; a known
+  discriminator keeps every check, and a type that is not a non-empty string
+  is still malformed. The SDKs never follow an HTTP redirect: a 3xx response
+  is a `DaytonaError` carrying its status, source `SDK` (Python
+  `redirect_error`, TS `redirectError`; axios `maxRedirects: 0`, fetch
+  `redirect: 'manual'`, httpx's default). Integers match between the SDKs except
   in one case: a JSON number written with a zero fraction (`3.0`) is not an
   integer in Python, which refuses it, while TypeScript's `JSON.parse` cannot
   tell it from `3`, so only Python can refuse it. An id or name a call puts
@@ -733,9 +743,8 @@ skipping exist only in the TypeScript tool).
 - **Toolbox identities are one camelCase JSON in both SDKs.**
   `ProcessHandleJSON` `{sandboxId, processId, kind?}`, `SessionJSON`
   `{sandboxId, sessionId}`, `InterpreterContextJSON`
-  `{sandboxId, contextId, language}` (Python's `connect_context` also reads
-  the snake_case `InterpreterContextJSON` keys of earlier pre-releases; the
-  other identities are camelCase only). Handles reconnect through their namespace
+  `{sandboxId, contextId, language}`, camelCase only (snake_case keys are
+  refused in both SDKs). Handles reconnect through their namespace
   (`process.connect`, `process.connect_session` / `connectSession`,
   `interpreter.connect_context` / `connectContext`), never through a
   constructor or a `from_json`.
@@ -862,7 +871,7 @@ skipping exist only in the TypeScript tool).
   the context and what code is safe to rerun.
 - **Every pageable public list returns one envelope page.** Hidden pagination
   loops are forbidden; multi-page traversal lives in explicit iterators
-  (`iter()`), each with a cursor-cycle guard. Non-pageable list surfaces such
+  (`iter()`), each with a cursor-cycle guard; an absent or empty `next_cursor` ends one. Non-pageable list surfaces such
   as `interpreter.list_contexts()` / `listContexts()` stay one-shot arrays.
   The client's `list()` / `iter()` take only a cursor and a limit; filters
   belong to `search()`, whose `states` take SDK states and map to the API's
@@ -951,7 +960,12 @@ skipping exist only in the TypeScript tool).
   `Mapping`, never `MappingProxyType`, so `asdict` / `deepcopy` / `pickle` /
   `json.dumps` work. List and search pages are immutable (Python tuples, TS
   `readonly T[]`), keyword-only and not iterable in Python: `.items` is the
-  one way in, in both SDKs. The handle exposes the
+  one way in, in both SDKs. An absent value is `None` in Python and an
+  optional `undefined` in TypeScript, never `null` (and never `''`): a
+  handle's `state` is always set (`unknown` before a read), and a create or
+  fork handle's `labels` are `None` / `undefined` (unknown, not empty) until a
+  detail read reports them; `to_json()` / `toJSON()` write `labels` whenever
+  they are known. The handle exposes the
   sandbox-scoped `access_token` / `accessToken` it authenticates with, but
   not its toolbox URL. `to_json()` / `toJSON()` return one
   credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:

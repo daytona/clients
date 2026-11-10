@@ -78,7 +78,7 @@ from ._gen.toolbox import (
 )
 from ._timestamps import parse_optional_timestamp, rfc3339_timestamp
 from ._timestamps import parse_timestamp as parse_wire_timestamp
-from .errors import DaytonaError, UnsupportedOperationError, create_error
+from .errors import DaytonaError, UnsupportedOperationError, create_error, redirect_error
 from .types import (
     DISABLED,
     ArtifactRetention,
@@ -349,7 +349,13 @@ def error_from_response(status_code: int, body: bytes, *, content_type: Optional
     it is a JSON object declared as ``application/json``; any other body is
     only the message. A JSON body nested deeper than :data:`JSON_MAX_DEPTH`
     is unreadable, as an oversized one is: the error carries no code or
-    details from it."""
+    details from it.
+
+    The SDK never follows a redirect: a 3xx response is a
+    :class:`DaytonaError` carrying its status (source ``SDK``), whatever its
+    body says."""
+    if 300 <= status_code < 400:
+        return redirect_error(status_code)
     payload: Optional[JsonObject] = None
     if is_json_media_type(content_type):
         try:
@@ -1108,10 +1114,10 @@ def expect_status_response(value: TransportPayload) -> GitStatus:
         ahead=model.ahead,
         behind=model.behind,
         branch_published=model.branch_published,
-        file_status=[
+        file_status=tuple(
             GitFileStatus(name=item.name, staging=item.staging, worktree=item.worktree, extra=item.extra)
             for item in model.file_status
-        ],
+        ),
     )
 
 
@@ -1278,7 +1284,7 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         pid=int32_field(payload.pid, "pid", "process response"),
         session_id=payload.session_id,
         shell_command=payload.shell_command,
-        argv=payload.argv,
+        argv=tuple(payload.argv) if payload.argv is not None else None,
         code=payload.code,
         language=payload.language,
         shell=payload.shell,
@@ -1590,7 +1596,7 @@ def parse_log_page(payload: ProcessLogPayload) -> LogPage:
     _require_list_field(payload, "frames", "process log page")
     page = payload if isinstance(payload, ProcessLogsResponse) else expect_process_log_page(payload)
     return LogPage(
-        items=[_parse_log_frame(item) for item in page.frames],
+        items=tuple(_parse_log_frame(item) for item in page.frames),
         next_cursor=page.next_cursor,
         truncated_head=page.truncated_head,
         eof=page.eof,
@@ -1909,8 +1915,8 @@ def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:
         payload, BulkUploadResponse, "bulk upload response", BulkUploadResponse.from_dict
     )
     return BulkWriteResult(
-        files=[BulkWriteFile(path=item.path, bytes=item.bytes) for item in model.files],
-        errors=list(model.errors),
+        files=tuple(BulkWriteFile(path=item.path, bytes=item.bytes) for item in model.files),
+        errors=tuple(model.errors),
     )
 
 
@@ -1940,7 +1946,7 @@ def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None
             continue
         if part_name == "error":
             errors.append(_bulk_read_error(body))
-    return BulkReadResult(files=files, errors=errors)
+    return BulkReadResult(files=files, errors=tuple(errors))
 
 
 def _bulk_read_error(body: bytes) -> BulkReadError:
@@ -2316,7 +2322,7 @@ def parse_search_page(
     return items, cursor, total, total_relation, raw_total_relation
 
 
-def sandbox_state(status: str) -> SandboxState:
+def sandbox_state(status: Optional[str]) -> SandboxState:
     states: dict[str, SandboxState] = {
         "queued": "queued",
         "pending": "creating",
@@ -2332,7 +2338,7 @@ def sandbox_state(status: str) -> SandboxState:
         "failed": "error",
         "lost": "error",
     }
-    return states.get(status, "unknown")
+    return "unknown" if status is None else states.get(status, "unknown")
 
 
 def artifact_ref_from_wire(value: object) -> ImageRef | SnapshotRef | None:
@@ -2372,8 +2378,8 @@ def _image_source(value: object) -> ImageSource | None:
     match value:
         case {"type": "registry", "ref": str(ref)}:
             return RegistryImageSource(ref=ref)
-        case {"type": "dockerfile", "context_object": str(context_object), "dockerfile": str(dockerfile)}:
-            return DockerfileImageSource(context_object=context_object, dockerfile=dockerfile)
+        case {"type": "dockerfile", "dockerfile": str(dockerfile)}:
+            return DockerfileImageSource(dockerfile=dockerfile)
         case {"type": "named", "name": str(name)}:
             return NamedImageSource(name=name)
         case {"type": "manifest", "name": str(name)}:

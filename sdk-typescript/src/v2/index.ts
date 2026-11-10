@@ -152,7 +152,6 @@ export {
   StdinClosedError,
   StdinUnavailableError,
   ProtectedProcessError,
-  RateLimitedError,
   UnsupportedOperationError,
   SessionNotFoundError,
   SessionEndedError,

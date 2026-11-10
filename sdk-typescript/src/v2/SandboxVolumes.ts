@@ -30,7 +30,7 @@ export interface PullVolumeOptions {
 const PULL_VOLUME_KEYS = optionKeys<PullVolumeOptions>()({ requestId: true, timeoutSeconds: true })
 
 export interface PullVolumeResult {
-  readonly manifestId: string | null
+  readonly manifestId?: string
   readonly requestId: string
   readonly status: PullVolumeStatus
   readonly rawStatus: string
@@ -42,7 +42,7 @@ const PULL_VOLUME_RESPONSE: ResponseFields = { requestId: 'string', status: 'str
 function pullVolumeResult(data: unknown): PullVolumeResult {
   const result = checkResponse<toolbox.PullVolumeResponse>(data, PULL_VOLUME_RESPONSE, 'volume pull')
   return Object.freeze({
-    manifestId: result.manifestId ?? null,
+    manifestId: result.manifestId ?? undefined,
     requestId: result.requestId,
     status: knownOrUnknown(result.status, PULL_VOLUME_STATUSES),
     rawStatus: result.status,

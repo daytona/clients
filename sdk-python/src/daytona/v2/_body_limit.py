@@ -20,7 +20,7 @@ from typing import AsyncIterator, Final, Iterator, Optional
 import httpx
 
 from ._core import MAX_SAFE_INTEGER
-from .errors import ConnectionError, DaytonaError, create_error
+from .errors import ConnectionError, DaytonaError, create_error, redirect_error
 
 #: The default cap on a buffered response body: 1 GiB.
 DEFAULT_MAX_RESPONSE_BYTES: Final = 1 << 30
@@ -45,6 +45,8 @@ def resolve_limit(per_call: Optional[int], client_limit: int) -> int:
 
 def too_large_error(status_code: int, limit: int) -> DaytonaError:
     """The error for a refused body: the status's own error for an error response."""
+    if 300 <= status_code < 400:
+        return redirect_error(status_code)
     if status_code >= 400:
         return create_error(
             f"HTTP {status_code}: the response body was too large to read "
@@ -87,6 +89,8 @@ def bounded_accept_encoding(value: Optional[str]) -> bool:
 
 
 def _unreadable(status_code: int, detail: str) -> DaytonaError:
+    if 300 <= status_code < 400:
+        return redirect_error(status_code)
     if status_code >= 400:
         return create_error(
             f"HTTP {status_code}: the response body could not be read ({detail})", status_code

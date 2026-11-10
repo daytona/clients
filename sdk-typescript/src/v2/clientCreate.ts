@@ -9,7 +9,7 @@ import { eventDestinationFromHeaders } from './events.js'
 import { scopedProxyToolboxUrl } from './Sandbox.js'
 import { usablePathId } from './pathSegment.js'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
-import { imageOptionsBody, isImageBuilder } from './Image.js'
+import { artifactRefOf, imageOptionsBody, isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
 import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitDeadline } from './options.js'
@@ -94,9 +94,9 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     state: sandboxState(status),
     region,
     image: bootedId !== undefined && bootedId !== ''
-      ? { id: bootedId, name: text(booted, 'name') ?? null }
-      : metadata.image?.startsWith('img_') ? { id: metadata.image, name: null } : undefined,
-    snapshot: metadata.snapshot?.startsWith('snap_') ? { id: metadata.snapshot, name: null } : undefined,
+      ? artifactRefOf({ id: bootedId, name: text(booted, 'name') })
+      : metadata.image?.startsWith('img_') ? { id: metadata.image } : undefined,
+    snapshot: metadata.snapshot?.startsWith('snap_') ? { id: metadata.snapshot } : undefined,
     sandboxClass: metadata.sandboxClass,
     rawSandboxClass: metadata.sandboxClass,
     reservationId: text(created, 'reservation_id'),

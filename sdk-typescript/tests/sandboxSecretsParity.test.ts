@@ -103,7 +103,7 @@ describe('sandbox secrets parity', () => {
   it('decodes absent optional fields as undefined', async () => {
     const info = await getWith({ secrets: [], desired_revision: 0 })
 
-    expect(info).toEqual({ secrets: [], desiredRevision: 0, etag: '"sv-3"', httpStatus: 200, appliedRevision: undefined, status: undefined, error: undefined, captureStatus: undefined, captureUnresolvedCount: undefined })
+    expect(info).toEqual({ secrets: [], desiredRevision: 0, etag: '"sv-3"', appliedRevision: undefined, status: undefined, error: undefined, captureStatus: undefined, captureUnresolvedCount: undefined })
   })
 
   it('decodes every contract response property', async () => {
@@ -114,7 +114,7 @@ describe('sandbox secrets parity', () => {
 
     expect(Object.keys(fullBody).sort()).toEqual(properties)
     const info = await getWith(fullBody)
-    const decoded = Object.keys(info).filter((key) => key !== 'etag' && key !== 'httpStatus').sort()
+    const decoded = Object.keys(info).filter((key) => key !== 'etag').sort()
     expect(decoded).toEqual(properties.map(camel).sort())
     for (const key of decoded) expect(info[key as keyof SandboxSecretsInfo]).toBeDefined()
   })
@@ -241,6 +241,7 @@ describe('sandbox secrets parity', () => {
     const request = api.requests[0]!
     expect([request.method, request.path, request.headers['if-match']]).toEqual(['PUT', '/sandboxes/sbx/secrets', '"sv-3"'])
     expect(jsonBody(request)).toEqual({ secrets: [] })
-    expect([info.secrets, info.desiredRevision, info.etag, info.httpStatus]).toEqual([[], 4, '"sv-4"', 202])
+    expect([info.secrets, info.desiredRevision, info.etag]).toEqual([[], 4, '"sv-4"'])
+    expect(info).not.toHaveProperty('httpStatus')
   })
 })

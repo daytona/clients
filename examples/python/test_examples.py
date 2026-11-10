@@ -395,7 +395,7 @@ class FakeWorld:
             ahead=0,
             behind=0,
             branch_published=False,
-            file_status=[],
+            file_status=(),
         )
         git.list_branches.return_value = ListResult(items=["master"])
         sandbox.git = git
@@ -438,9 +438,9 @@ class FakeWorld:
 def _result(exit_code: int, output: str) -> ProcessResult:
     # Non-empty output is one stdout log frame, as the sandbox reports it.
     logs = (
-        [LogFrame(cursor="1", channel="stdout", data=output, timestamp_ms=0)]
+        (LogFrame(cursor="1", channel="stdout", data=output, timestamp_ms=0),)
         if output
-        else []
+        else ()
     )
     return ProcessResult(
         process_id="p",
@@ -1005,4 +1005,4 @@ def test_the_test_double_reports_a_commands_output_as_a_stdout_log_frame() -> No
     assert [(frame.channel, frame.data) for frame in _result(0, "out").logs] == [
         ("stdout", "out")
     ]
-    assert _result(0, "").logs == []
+    assert _result(0, "").logs == ()

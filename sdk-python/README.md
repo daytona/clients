@@ -363,7 +363,10 @@ retry, since their side effects may already have happened. A timeout,
 cancellation or keyboard interrupt closes the observation, not the build.
 Source changes never restart from zero automatically. Unavailable output is
 reported as an `unavailable` event; queued builds continue to be observed
-until completion or a deadline.
+until completion or a deadline. An event kind a later API adds is skipped
+(it does not move the cursor). An HTTP error of the first request, such as
+`NotFoundError` for an unknown image, is raised as that typed error rather
+than as `BuildLogInterruptedError`.
 
 Cancelling the task that awaits `follow_build_logs` propagates as ordinary
 `asyncio.CancelledError`, so timeouts and task groups keep working. On
@@ -434,7 +437,10 @@ Every fetched sandbox exposes its metadata, read-only:
 `persistent`, `spot`, `spot_evicted_at`,
 `lifecycle_policy`, `forked_from`, `user`, and `error` (network policy is read through `get_network_policy()`).
 Update it with methods such as `set_labels()` and reload it with
-`refresh_data()`. A class this SDK does not know reads as
+`refresh_data()`. A handle from `create*()` or `fork()` holds only what the
+create response carries: fields it does not report are `None` (unknown), with
+`labels is None` rather than `{}`, until `refresh_data()` reads them; `state` is
+`"unknown"` and `raw_state` is `None` before a status is known. A class this SDK does not know reads as
 `sandbox_class == "unknown"` with the API's value in `raw_sandbox_class`.
 `sandbox.access_token` is the sandbox-scoped token the handle authenticates
 with (from the create response, a token you pass as
@@ -452,10 +458,13 @@ expose `sandbox_class`, `layer_count` and `available_in`; snapshots expose
 `sandbox_class` / `raw_sandbox_class` and `memory_bytes`; volumes expose
 `size_gib`, `used_bytes` and read-only `options`. An image's `source` is a
 frozen `RegistryImageSource`, `DockerfileImageSource`, `NamedImageSource` or
-`ManifestImageSource`, told apart by `source.type`. Closed SDK enums map
+`ManifestImageSource`, told apart by `source.type`; a source kind a later API
+adds reads as `UnknownImageSource` (`type == "unknown"`, the wire type in
+`raw_type`), never as an error. Closed SDK enums map
 unrecognized values to `"unknown"` and keep the original in a `raw_…`
 sibling. Timestamps are timezone-aware `datetime` values; a budget period
-start is a `date`. List and search pages are immutable: `items` is a tuple.
+start is a `date`. Collection fields on result dataclasses are tuples,
+including `items` on list, search and log pages; mapping fields remain plain dicts.
 
 Use `sandbox.set_labels({...})` to replace the entire label set
 (`{}` clears it), and `sandbox.entrypoint_logs()` to read the sandbox's
@@ -1056,6 +1065,8 @@ catch as narrowly as you need. `code` and `source` are open vocabularies: a
 code this release does not know is kept as sent and the error is the class for
 its HTTP status; `daytona.v2.codes` lists the known codes per source
 (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`, `codes.is_known_error_code`, …).
+The SDK never follows an HTTP redirect: a 3xx response raises `DaytonaError`
+with its `status_code` (source `SDK`).
 Import the v2 errors by name rather than with `from daytona.v2 import *`:
 `ConnectionError` and `FileNotFoundError` are the SDK's categories and would
 shadow Python's built-ins. Version-specific errors are imported from

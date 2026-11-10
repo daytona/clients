@@ -126,3 +126,17 @@ describe('account responses', () => {
     }
   })
 })
+
+it('ends an iteration on an empty next_cursor, as Python does', async () => {
+  const api = await startFakeApi([{ status: 200, body: { volumes: [], next_cursor: '' } }])
+  const client = clientAt(api.url)
+  try {
+    const seen: unknown[] = []
+    for await (const volume of client.v2.volumes.iter()) seen.push(volume)
+    expect(seen).toEqual([])
+    expect(api.requests).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})

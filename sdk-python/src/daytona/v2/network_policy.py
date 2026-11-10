@@ -77,7 +77,6 @@ def parse_network_policy_response(response: httpx.Response) -> NetworkPolicyInfo
         desired=_optional_policy(payload.get("desired"), field_name="desired"),
         desired_revision=desired_revision,
         etag=etag,
-        http_status=response.status_code,
         applied=_optional_policy(payload.get("applied"), field_name="applied"),
         applied_revision=_optional_int(payload.get("applied_revision"), field_name="applied_revision"),
         applied_start_id=_optional_str(payload.get("applied_start_id")),

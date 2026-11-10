@@ -351,13 +351,14 @@ async def test_sandbox_without_build_discovery_404_never_falls_back(follow):
         api = AsyncTransport("https://api.example", "secret-test-key", client=client)
         sandbox = AsyncSandbox(SandboxInfo(id="registry-sbx"), api, None)
         output: list[str] = []
-        if follow:
-            with pytest.raises(BuildLogInterruptedError) as failure:
+        # The discovery request's HTTP error is the answer in both cases: its
+        # mapped typed error, never wrapped as an interruption.
+        with pytest.raises(NotFoundError) as failure:
+            if follow:
                 await sandbox.follow_build_logs(on_logs=output.append, cursor=cursor(0))
-            assert failure.value.cursor == cursor(0)
-        else:
-            with pytest.raises(NotFoundError) as failure:
+            else:
                 await sandbox.build_logs()
+        assert not isinstance(failure.value, BuildLogInterruptedError)
         assert failure.value.status_code == 404
         assert failure.value.code == "NOT_FOUND"
         assert output == []
@@ -582,7 +583,6 @@ async def test_task_cancellation_closes_only_its_response_and_carries_checkpoint
             cursor(3),
         ),
         ("unavailable", {}, None),
-        ("new_unknown_event", {}, None),
         # A timestamp is a string (the model would read a number as Unix time).
         ("state", {"status": "building", "deadline_at": 5}, None),
     ],
@@ -820,13 +820,26 @@ async def test_a_discovery_body_that_is_not_strict_utf8_json_is_a_protocol_error
     assert len(requests) == 1
 
 
-async def test_unknown_event_is_rejected_before_delivery_or_retry():
-    api, requests, _ = setup([event("other_log", {"data_base64": "eA=="})])
+async def test_unknown_events_are_skipped_unparsed_without_moving_the_cursor():
+    # A later API's event kinds (one with an id, one with data that is not
+    # even JSON, one with no event name) come between known events.
+    wire = (
+        event("progress", {"percent": 40}, cursor(99))
+        + log(b"ab", 0)
+        + b"event: future_kind\ndata: not json\n\n"
+        + b'data: {"type":"message"}\n\n'
+        + done(2)
+    )
+    api, requests, _ = setup([wire])
     output: list[str] = []
-    with pytest.raises(BuildLogInterruptedError) as failure:
-        await follow_build_logs(api, DISCOVERY, on_logs=output.append)
-    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
-    assert output == [] and len(requests) == 2
+    events: list[str] = []
+    result = await follow_build_logs(
+        api, DISCOVERY, on_logs=output.append, on_event=lambda item: events.append(item.type)
+    )
+    assert "".join(output) == "ab"
+    assert events == ["log", "done"]
+    assert result.cursor == cursor(2) and result.output_complete
+    assert len(requests) == 2
 
 
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 409])

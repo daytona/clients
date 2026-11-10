@@ -40,7 +40,6 @@ async def test_get_sandbox_secrets_returns_etag_and_runtime_fields() -> None:
 
     assert api.requests[0].path == "/sandboxes/sbx/secrets"
     assert info.etag == '"sv-7"'
-    assert info.http_status == 200
     assert info.secrets == ("OPENAI_API_KEY", "GITHUB_TOKEN")
     assert info.applied_revision == 6
     assert info.status == "pending"
@@ -73,7 +72,6 @@ async def test_replace_sandbox_secrets_uses_exact_path_headers_and_202_status() 
         finally:
             await client.close()
 
-    assert updated.http_status == 202
     assert updated.etag == '"sv-2"'
     assert api.requests[0].path == "/sandboxes/sbx/secrets"
     assert api.requests[0].headers["If-Match"] == '"sv-1"'

@@ -796,7 +796,7 @@ class AsyncDaytona:
         # The sandbox exists once its id came back: a missing or non-string
         # status reads as `unknown`, never an error (as `wait_cap_seconds`).
         status = data.get("status")
-        raw_status = status if isinstance(status, str) else ""
+        raw_status = status if isinstance(status, str) else None
         # The handle holds only what the response carries, plus an `img_` /
         # `snap_` id the caller passed (a name is never an id), and the class
         # the create route fixes (linux, or macos for create_macos); the rest
@@ -1182,11 +1182,7 @@ class AsyncDaytona:
             page = await self.list(cursor=page_cursor, limit=limit)
             for item in page.items:
                 yield item
-            if (
-                page.next_cursor is None
-                or page.next_cursor == page_cursor
-                or page.next_cursor in seen_cursors
-            ):
+            if not page.next_cursor or page.next_cursor == page_cursor or page.next_cursor in seen_cursors:
                 return
             seen_cursors.add(page.next_cursor)
             page_cursor = page.next_cursor

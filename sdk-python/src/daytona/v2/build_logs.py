@@ -72,6 +72,7 @@ from .errors import (
     _attach_interrupt_error,
     _ErrorFields,
     create_error,
+    redirect_error,
 )
 from .types import JsonValue
 
@@ -232,6 +233,14 @@ class _CallbackError(Exception):
     pass
 
 
+class _DiscoveryFailure(Exception):
+    """The initial discovery request's HTTP error, raised to the caller unchanged."""
+
+    def __init__(self, error: DaytonaError) -> None:
+        super().__init__(str(error))
+        self.error = error
+
+
 _MAX_EVENT = 128 * 1024
 # Bound this SDK string API to 2 MiB of response-body bytes so a misbehaving
 # endpoint cannot turn a one-shot read into an unbounded allocation.
@@ -381,7 +390,12 @@ class _SseDecoder:
                 self._first_line = False
             self._line.clear()
             if not text:
-                if self._data:
+                if self._data and self._event not in _WIRE_MODELS:
+                    # An event this release does not know (a later API added
+                    # it): skipped unparsed, and its ID is not a checkpoint,
+                    # so the cursor does not move, as watches skip theirs.
+                    pass
+                elif self._data:
                     try:
                         payload = _object(_json("\n".join(self._data)))
                     except (ValueError, RecursionError) as exc:
@@ -440,7 +454,8 @@ class _Observer:
     ) -> BuildLogFollowResult | None:
         model = _WIRE_MODELS.get(event)
         if model is None:
-            raise _ProtocolError("unknown build log event")
+            # The decoder skips unknown events; this guards direct callers.
+            return None
         try:
             model.model_validate(data)
         except ValueError as exc:
@@ -627,6 +642,9 @@ def _retry_after(headers: Mapping[str, str]) -> float:
 
 
 async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: Optional[str]) -> DaytonaError:
+    if 300 <= status < 400:
+        # The SDK follows no redirect, whatever the body says.
+        return redirect_error(status)
     body = bytearray()
     try:
         async for chunk in chunks:
@@ -835,7 +853,18 @@ async def follow_build_logs(
             with anyio.move_on_after(remaining()) as attempt:
                 try:
                     if target is None:
-                        discovery = await _discover(api, discovery_path, request_timeout())
+                        try:
+                            discovery = await _discover(api, discovery_path, request_timeout())
+                        except DaytonaError as exc:
+                            # An HTTP error of the discovery request (a 404 for an
+                            # unknown image, a 401, ...) is the caller's answer:
+                            # raised as its mapped typed error, not wrapped as an
+                            # interruption (as TypeScript).
+                            if exc.status_code is None or isinstance(
+                                exc, (ConnectionError, ClientTimeoutError)
+                            ):
+                                raise
+                            raise _DiscoveryFailure(exc) from exc
                         target = _destination(api, discovery, discovery_path)
                     params: dict[str, JsonValue] = {"follow": "true", "format": "sse"}
                     if state.cursor is not None:
@@ -898,6 +927,8 @@ async def follow_build_logs(
             await _sleep(min(delay, budget) if budget is not None else delay)
     except BuildLogInterruptedError:
         raise
+    except _DiscoveryFailure as exc:
+        raise exc.error from exc.error.__cause__
     except KeyboardInterrupt as exc:
         raise BuildLogInterruptedError(
             "build log observation canceled",

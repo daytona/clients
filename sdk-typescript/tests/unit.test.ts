@@ -132,7 +132,6 @@ import {
   PayloadTooLargeError,
   ProjectBudgetExceededError,
   RateLimitError,
-  RateLimitedError,
   SessionNotFoundError,
   SnapshotClassMismatchError,
   SnapshotNotReadyError,
@@ -1204,7 +1203,7 @@ describe('V2 model', () => {
     expect(post.mock.calls[3]?.[1]).toMatchObject({ image: 'python:3.12', name: 'img' })
     expect(bare.image).toEqual({ id: 'img_default', name: 'daytona-base' })
     // Without an image in the response, the image remains unknown.
-    expect(withOptions.image).toBeNull()
+    expect(withOptions.image).toBeUndefined()
   })
 
   it('prefers the response image on every create, falling back to the input when it is absent', async () => {
@@ -1234,9 +1233,9 @@ describe('V2 model', () => {
     expect(bare.image).toEqual({ id: 'img_default', name: 'daytona-base' })
     expect(macos.image).toEqual({ id: 'img_mac', name: 'base-macos' })
     // No echo: fall back to the input-derived ref (an img_ id only; a name stays unknown).
-    expect(withoutImageNamed.image).toBeNull()
-    expect(withoutImageId.image).toEqual({ id: 'img_py', name: null })
-    expect(withoutImageBare.image).toBeNull()
+    expect(withoutImageNamed.image).toBeUndefined()
+    expect(withoutImageId.image).toEqual({ id: 'img_py' })
+    expect(withoutImageBare.image).toBeUndefined()
   })
 
   it('keeps rejecting blank and non-string image sources before posting', async () => {
@@ -1300,9 +1299,9 @@ describe('V2 model', () => {
     const page = await client.images.list({ anonymous: true })
     const withoutDiskField = await client.images.list()
 
-    expect(page.items.map((image) => image.diskMib)).toEqual([61440, null])
-    // An absent disk field reads as null.
-    expect(withoutDiskField.items[0]?.diskMib).toBeNull()
+    expect(page.items.map((image) => image.diskMib)).toEqual([61440, undefined])
+    // An absent disk field reads as undefined.
+    expect(withoutDiskField.items[0]?.diskMib).toBeUndefined()
   })
 
 
@@ -2146,7 +2145,8 @@ describe('V2 model', () => {
       image: { id: 'img_py', name: 'python:3.12' },
       state: 'started',
     }))
-    expect(sandbox.toJSON()).not.toHaveProperty('labels')
+    // A detail read without labels reports none: known, and empty.
+    expect(sandbox.toJSON()).toHaveProperty('labels', {})
   })
 
   it('omits sandbox accessToken from toJSON and JSON.stringify output', () => {
@@ -3965,8 +3965,8 @@ describe('creation shape', () => {
     const client = newClient()
     const sandbox = lazySandbox(client, { sandboxId: 'sbx', image: 'python:3.12', snapshot: 'after-setup' } as unknown as SandboxInfo)
 
-    expect(sandbox.image).toBeNull()
-    expect(sandbox.snapshot).toBeNull()
+    expect(sandbox.image).toBeUndefined()
+    expect(sandbox.snapshot).toBeUndefined()
   })
 
   it('maps creation-shape error codes to typed errors', () => {
@@ -7373,7 +7373,7 @@ describe('toolbox service request shaping', () => {
     await git.addRemote('/repo', 'origin', 'https://example.invalid/repo.git')
     await expect(git.getConfig('user.name', { path: '/repo', scope: 'local' })).resolves.toBe('Ada')
     await git.setConfig('user.name', 'Ada', { path: '/repo', scope: 'local' })
-    await expect(git.getConfig('demo.missing')).resolves.toBeNull()
+    await expect(git.getConfig('demo.missing')).resolves.toBeUndefined()
 
     expect(transport.post.mock.calls).toEqual([
       ['/git/init', { path: '/repo', bare: true, initial_branch: 'trunk' }],
@@ -9225,7 +9225,8 @@ describe('typed error mapping', () => {
       toJSON: () => ({}),
     } as never)
 
-    expect(err).toBeInstanceOf(RateLimitedError)
+    expect(err).toBeInstanceOf(RateLimitError)
+    expect(err.constructor).toBe(RateLimitError)
     expect(err).toMatchObject({
       message: 'retry this request later',
       traceId: '0af7651916cd43dd8448eb211c80319c',
@@ -10441,7 +10442,7 @@ describe('macOS sandboxes and reservations', () => {
     await jest.advanceTimersByTimeAsync(200)
     await expect(paused).resolves.toBeUndefined()
     expect(sandbox.state).toBe('paused')
-    expect(sandbox.macBootMode).toBeNull()
+    expect(sandbox.macBootMode).toBeUndefined()
 
     const resumed = sandbox.resume({ timeoutSeconds: 10 })
     await jest.advanceTimersByTimeAsync(200)
@@ -10487,8 +10488,8 @@ describe('macOS sandboxes and reservations', () => {
     const resumed = createSandbox({ ...macResponse, mac_boot_mode: 'future-mode', error: 'Resume details' }, api, undefined, 'key')
     expect(resumed.macBootMode).toBe('future-mode')
     expect(resumed.error).toBe('Resume details')
-    expect(createSandbox({ ...macResponse, mac_boot_mode: null }, api, undefined, 'key').macBootMode).toBeNull()
-    expect(createSandbox({ id: 'lin', status: 'running', class: 'linux', name: 'lin', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key').macBootMode).toBeNull()
+    expect(createSandbox({ ...macResponse, mac_boot_mode: null }, api, undefined, 'key').macBootMode).toBeUndefined()
+    expect(createSandbox({ id: 'lin', status: 'running', class: 'linux', name: 'lin', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key').macBootMode).toBeUndefined()
   })
 
   it('refuses class-gated calls for a sandbox class it does not know instead of assuming linux', async () => {
@@ -13639,7 +13640,7 @@ describe('toolbox surface', () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ value: 'Ada' }).mockResolvedValueOnce({ value: null }).mockResolvedValueOnce({})
     const git = new GitService(INTERNAL, transport.object)
-    for (const expected of ['Ada', null, null]) await expect(git.getConfig('user.name')).resolves.toBe(expected)
+    for (const expected of ['Ada', undefined, undefined]) await expect(git.getConfig('user.name')).resolves.toBe(expected)
   })
 
   it('dispatches no SSE block without a data line and drops an unterminated final block, like the Python SDK', async () => {

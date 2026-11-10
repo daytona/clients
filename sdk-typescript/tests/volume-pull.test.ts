@@ -48,7 +48,7 @@ describe('sandbox volume pull', () => {
       { status: 200, body: { requestId: 'req_1', status: 'pulled', manifestId: 'manifest-1' } },
       { status: 200, body: { requestId: 'req_1', status: 'pulled', manifestId: 'manifest-1' } },
     )
-    expect(await sandbox.volumes.pull('volume_1', { requestId: 'req_1', timeoutSeconds: 0 })).toMatchObject({ status: 'pending', rawStatus: 'pending', manifestId: null })
+    expect(await sandbox.volumes.pull('volume_1', { requestId: 'req_1', timeoutSeconds: 0 })).toMatchObject({ status: 'pending', rawStatus: 'pending', manifestId: undefined })
     expect(requests).toHaveLength(1)
     const result = await sandbox.volumes.pull('volume_1', { requestId: 'req_1', timeoutSeconds: 30 })
     expect(result).toEqual({ requestId: 'req_1', status: 'pulled', rawStatus: 'pulled', manifestId: 'manifest-1' })
@@ -63,13 +63,13 @@ describe('sandbox volume pull', () => {
   test('passes a status this SDK release does not list through', async () => {
     responses.push({ status: 200, body: { requestId: 'r', status: 'superseded', manifestId: null } })
     const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
-    expect(await volumes.pull('v', { requestId: 'r' })).toEqual({ requestId: 'r', status: 'unknown', rawStatus: 'superseded', manifestId: null })
+    expect(await volumes.pull('v', { requestId: 'r' })).toEqual({ requestId: 'r', status: 'unknown', rawStatus: 'superseded', manifestId: undefined })
   })
 
   test.each([null, 'manifest-2'])('unchanged manifest %s', async (manifestId) => {
     responses.push({ status: 200, body: { requestId: 'r', status: 'unchanged', manifestId } })
     const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
-    expect(await volumes.pull('v', { requestId: 'r' })).toEqual({ requestId: 'r', status: 'unchanged', rawStatus: 'unchanged', manifestId })
+    expect(await volumes.pull('v', { requestId: 'r' })).toEqual({ requestId: 'r', status: 'unchanged', rawStatus: 'unchanged', manifestId: manifestId ?? undefined })
   })
 
   test.each([
@@ -91,7 +91,7 @@ describe('sandbox volume pull', () => {
     const result = await volumes.pull('v', { requestId: 'r', timeoutSeconds })
     // Then
     expect(result)
-      .toEqual({ requestId: 'r', status: 'pending', rawStatus: 'pending', manifestId: null })
+      .toEqual({ requestId: 'r', status: 'pending', rawStatus: 'pending', manifestId: undefined })
     expect(budgets).toEqual([(waitMs ?? 30_000) + WAIT_READ_SLACK_MS])
   })
 
