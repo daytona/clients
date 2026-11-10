@@ -40,7 +40,7 @@ func (a *App) Info(format string, args ...any) {
 			clean[i] = arg
 		}
 	}
-	fmt.Fprintln(a.Stderr, output.Sanitize(fmt.Sprintf(format, clean...)))
+	fmt.Fprintln(a.Stderr, output.SanitizeLine(fmt.Sprintf(format, clean...)))
 }
 
 // PreflightConfirm is the network-free half of Confirm: in
@@ -53,7 +53,7 @@ func (a *App) PreflightConfirm(verb, target string) error {
 	if a.Mode.AssumeYes || a.Mode.Interactive {
 		return nil
 	}
-	return cerr.RefuseWithoutYes(verb, target)
+	return cerr.RefuseWithoutYes(output.SanitizeLine(verb), output.SanitizeLine(target))
 }
 
 // Confirm prompts on a TTY and requires --yes otherwise.

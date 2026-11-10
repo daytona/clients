@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -15,6 +16,9 @@ import (
 )
 
 func TestImageDockerfile_rejectsEscape_whenSymlinkLeavesContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need extra privileges on Windows")
+	}
 	for _, component := range []bool{false, true} {
 		t.Run(map[bool]string{false: "file", true: "directory"}[component], func(t *testing.T) {
 			// Given a Dockerfile outside the context exposed through a symlink.

@@ -34,11 +34,13 @@ func TestSandboxDisplay_keepsCPUPrecision_whenCoresAreFractional(t *testing.T) {
 	// When rendering its detail rows.
 	rows := sandboxDetailKV(detail)
 	// Then the CPU row is as precise as the limit row.
+	found := map[string]string{}
 	for _, row := range rows {
 		if row[0] == "cpu" || row[0] == "cores_max" {
-			require.Equal(t, "0.0625", row[1])
+			found[row[0]] = row[1]
 		}
 	}
+	require.Equal(t, map[string]string{"cpu": "0.0625", "cores_max": "0.0625"}, found)
 }
 
 func TestSandboxSearch_preservesLabelComma_whenFlagIsRepeated(t *testing.T) {

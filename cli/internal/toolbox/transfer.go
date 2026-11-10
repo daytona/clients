@@ -96,8 +96,9 @@ func redactURLError(err error) error {
 		return err
 	}
 	redacted := *urlErr
-	// The nested error can quote a URL too (a redirect's Location).
-	redacted.Err = errors.New(signedQuery.ReplaceAllString(urlErr.Err.Error(), "?<redacted>"))
+	// The nested error can quote a URL too (a redirect's Location); keep it
+	// unwrappable for errors.Is (cancellation, deadlines).
+	redacted.Err = redactedCause{msg: signedQuery.ReplaceAllString(urlErr.Err.Error(), "?<redacted>"), cause: urlErr.Err}
 	if u, parseErr := url.Parse(urlErr.URL); parseErr == nil {
 		u.RawQuery, u.Fragment, u.User = "", "", nil
 		redacted.URL = u.String()
@@ -106,6 +107,14 @@ func redactURLError(err error) error {
 	}
 	return &redacted
 }
+
+type redactedCause struct {
+	msg   string
+	cause error
+}
+
+func (e redactedCause) Error() string { return e.msg }
+func (e redactedCause) Unwrap() error { return e.cause }
 
 var signedQuery = regexp.MustCompile(`\?[^\s"']*`)
 

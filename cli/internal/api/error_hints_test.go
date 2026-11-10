@@ -108,7 +108,7 @@ func TestImageNotFoundHint_targetsOnlySandboxCreate(t *testing.T) {
 	}{
 		{http.MethodPost, "/sandboxes", true}, {http.MethodPost, "/sandboxes/from-snapshot", true}, {http.MethodPost, "/sandboxes/macos", true},
 		{http.MethodPost, "/sandboxes/sbx/images", false}, {http.MethodPost, "/sandboxes/sbx/snapshots", false}, {http.MethodPost, "/sandboxes-other", false},
-		{http.MethodGet, "/sandboxes", false},
+		{http.MethodGet, "/sandboxes", false}, {http.MethodPost, "/images", false},
 	} {
 		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
 			// Given an image-not-found error from this operation.
