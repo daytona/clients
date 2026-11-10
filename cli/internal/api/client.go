@@ -75,6 +75,18 @@ func (c *Client) WithCredential(cred string) *Client {
 	return &cp
 }
 
+// WithTimeoutAtLeast returns a shallow copy whose requests may run for d, or
+// for the client's own timeout when that is longer or unbounded.
+func (c *Client) WithTimeoutAtLeast(d time.Duration) *Client {
+	cp := *c
+	if c.HTTP != nil && c.HTTP.Timeout != 0 && c.HTTP.Timeout < d {
+		httpClient := *c.HTTP
+		httpClient.Timeout = d
+		cp.HTTP = &httpClient
+	}
+	return &cp
+}
+
 // WithBaseURL returns a shallow copy targeting another regional API base URL.
 func (c *Client) WithBaseURL(base string) *Client {
 	cp := *c

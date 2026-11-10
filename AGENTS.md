@@ -14,8 +14,9 @@ below works with what is in the repository plus, optionally, a Daytona account:
 
 - **Live checks gate on credentials, not on who you are.** When
   `DAYTONA_API_KEY` (and `DAYTONA_V2_API_URL`, for a deployment other than the
-  default) are set, run the live suites (`./e2e/run.sh`); when they are not,
-  skip them and say so in the PR. Never ask a contributor for credentials, and
+  default) are set, run the live suites (`./e2e/run.sh`) for changes that
+  alter behaviour against the server; when they are not set, skip them and say
+  so in the PR. Never ask a contributor for credentials, and
   never paste a key, an endpoint that is not public, or a request trace into an
   issue, a PR, a commit message or a workflow input.
 - **Contract files come from maintainers.** `contract/` is refreshed by
@@ -996,6 +997,16 @@ lives in the unpackaged `sdk-python/DEVELOPMENT.md` / `sdk-typescript/DEVELOPMEN
 
 ## Verification
 
+CI on the pull request is the gate: each workflow runs the suites below that
+its path filters match. Locally, run only fast checks targeted at what you
+changed (the tests, typecheck and lint for the touched files), plus any heavier
+check you have reason to suspect, then push and let the PR run the rest. When a
+CI check fails, reproduce that check locally, fix, and push again. The one
+exception is patch coverage (below): no workflow gates it, so check it locally
+for changes that add code.
+
+Each package's full suite, for reference and for reproducing a CI failure:
+
 ```bash
 (cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
 (cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
@@ -1007,35 +1018,82 @@ scripts/gen-contract-types.sh --check     # only after touching contract/ or a g
 TypeScript runtime compatibility (the packed package in Node, Bun, Deno,
 bundlers, Next.js, Nuxt, Remix, workerd, Lambda, Azure Functions and a
 browser, against a local mock API; CI workflow `TypeScript runtimes`):
-`(cd sdk-typescript && npm run build && npm run test:runtime)`. Run it after
-touching the transports in `src/v2/http.ts`, the build, or `package.json`
+`(cd sdk-typescript && npm run build && npm run test:runtime)`. Worth running
+locally after touching the transports in `src/v2/http.ts`, the build, or `package.json`
 `exports` / `imports`; see `sdk-typescript/runtime-tests/README.md`.
 
-Before opening a PR, review the branch with `.claude/skills/deep-review` (adversarial, local-only,
-never posted).
+Optional, for larger changes: `.claude/skills/deep-review` is an adversarial,
+local-only pre-review of a branch (never posted). It is not a required step;
+run it when the user asks for it or when the change warrants it.
 
 Patch coverage of a branch (target 60%; skill: `.claude/skills/coverage-preflight`):
 generate the reports listed in `scripts/patch_coverage.py`, then
 `python3 scripts/patch_coverage.py`.
 
-Live suites, when credentials are available:
-`DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts` for one).
+Live suites, when credentials are available and the change alters behaviour
+against the server: `DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts`
+for one).
+
+### Rebasing a branch
+
+- **Squash first if the branch is long.** Replaying many commits resolves the
+  same conflicts (often in generated files) once per commit. PRs are
+  squash-merged, so offer to squash the branch to one commit before rebasing;
+  ask the user before rewriting their commits.
+- **Regenerate, don't hand-merge, generated files**: `scripts/gen-contract-types.sh`
+  for `contract/`, `python gen/gen_sync.py` in `sdk-python` for `_sync/`.
+- **Clean rebase** (no conflicts, or conflicts only in generated files): push
+  and wait for CI. No deep-review, coverage preflight or live e2e.
+- **Rebase with hand-resolved conflicts**: run the targeted checks for the
+  resolved files, push, and treat the push like any other fix in the loop
+  below, since it changes hand-written code that cubic and Vidoc re-review.
 
 ## Pull requests
 
 - The 2.x line lives on `main`: branch from it and target pull requests at it.
   The 0.x SDKs and CLI live on `release/v0`.
 - Sign off every commit (`git commit -s`); sign the CLA once (the CLA check runs on every PR). See [CONTRIBUTING.md](CONTRIBUTING.md).
-- E2E runs against the hosted deployment and skips when its secrets are not
-  available (pull requests from forks). A PR that depends on API surface that
-  is not deployed yet has red e2e — that is expected: **keep it a draft until
-  its checks pass**, then mark it ready. Maintainers coordinate deployments;
-  contributors don't need to.
-- Do not merge with failing checks; a red non-draft PR is a bug report.
+- E2E runs against the configured hosted deployment (production by default)
+  and skips when its secrets are not available (pull requests from forks).
+  **A PR that depends on API changes not yet deployed there fails e2e** (`py SDK E2E` /
+  `ts SDK E2E`) until they ship — that is expected, not a bug to chase. Before
+  debugging a red e2e, check whether the failing calls touch surface the PR
+  adds or changes against the synced contract (`contract/`); if they do, say
+  in the PR description which server change it waits for and move on.
+  Maintainers coordinate deployments; contributors don't need to.
+- Do not merge with failing checks.
+- PRs are squash-merged. A squash message written for a maintainer ends its
+  title with the PR number, `<type>(<scope>): <summary> (#N)`, and ends its
+  body with a `Signed-off-by:` line for whoever merges it (the DCO covers the
+  squash commit on `main` too). Pasting a custom title in GitHub's merge
+  dialog replaces the `(#N)` it pre-fills, so the message has to carry it.
 - `CI passed` is the check to require for test results: it waits for every
   other `pull_request` workflow that ran on the PR and fails if any of them did
   (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
   counted automatically; add its name to `ci-passed-rerun.yaml` too.
+
+### After opening a PR — iterate until it is clean
+
+cubic (`cubic-dev-ai`) and Vidoc (`vidoc-agent`) review every PR. An agent
+that opens a PR keeps working it, fix → push → re-check, until all three of
+these hold, and only then reports it as ready (after a clean rebase, see
+above, only CI needs re-checking):
+
+1. **cubic** — run the `.claude/skills/cubic-loop` skill in **PR mode** until
+   no unresolved cubic threads remain (P3-only counts as clean). A won't-fix
+   gets a reply with the reasoning and is then resolved.
+2. **Vidoc** — its `Vidoc security review` comment (marker
+   `vidoc:scan-result`) on the latest push reports no issues, or every finding
+   is fixed or answered with a reply explaining why it does not apply. A
+   `Partial review` that left changed files unanalyzed is not clean: say so in
+   the PR instead of counting it. A push triggers a new scan; read the latest
+   one.
+3. **CI** — `CI passed` is green, and every other failing check is fixed or
+   explained. The only failure that may stay red is e2e waiting on an
+   undeployed API change (see above), recorded in the PR description.
+
+If a round makes no progress, or a finding needs a judgement call, stop and
+report what remains and why instead of looping.
 
 ## Architecture decision records — `docs/adr/`
 

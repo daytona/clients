@@ -92,6 +92,9 @@ async def test_async_stored_client_refuses_requests_after_root_close() -> None:
     # When making a new request, then report the exported closed-client error.
     with pytest.raises(ClientClosedError):
         await client.list()
+    # A build-context upload is refused before it declares the upload.
+    with pytest.raises(ClientClosedError):
+        await client.images.build_from_context(b"FROM alpine\n")
 
 
 @pytest.mark.anyio

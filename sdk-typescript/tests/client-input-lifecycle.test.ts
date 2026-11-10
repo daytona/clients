@@ -82,7 +82,7 @@ describe('client input and lifecycle', () => {
     }
   })
 
-  it.each(['list', 'service', 'toolbox', 'stream', 'wait'] as const)('refuses %s requests after its root closes', async (entry) => {
+  it.each(['list', 'service', 'context', 'toolbox', 'stream', 'wait'] as const)('refuses %s requests after its root closes', async (entry) => {
     // Given a stored client and handle whose root has closed,
     const api = await startFakeApi([{ status: 200, body: { id: 'sandbox-id', class: 'linux', status: 'running', toolbox_proxy_url: 'https://sandbox.invalid', name: 'test', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }])
     const root = clientAt(api.url, { events: { enabled: false } })
@@ -94,6 +94,7 @@ describe('client input and lifecycle', () => {
       switch (entry) {
         case 'list': return client.list()
         case 'service': return client.volumes.list()
+        case 'context': return client.images.buildFromContext(new TextEncoder().encode('FROM alpine\n'))
         case 'toolbox': return sandbox.fs.readText('/test')
         case 'stream': return sandbox.fs.watchDir('/test', () => undefined)
         case 'wait': return sandbox.wait({ until: 'started', timeoutSeconds: 1 })
