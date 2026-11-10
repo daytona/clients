@@ -823,6 +823,10 @@ export class WaitHub {
     if (destination.ws !== undefined && destination.ws.readyState === WS_OPEN && movedIds.length > 0) {
       void this.sendSubscribeIds(destination, movedIds)
     }
+    // A connected destination with no waiter until now runs no sweep.
+    if (destination.ws !== undefined && destination.ws.readyState === WS_OPEN && this.hasAnyWaiterFor(destination)) {
+      this.armStaleSweep(destination)
+    }
     this.ensureSocketLoop(destination)
     clearReconcileTimer(source)
     clearStaleTimer(source)

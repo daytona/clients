@@ -1187,6 +1187,49 @@ class TestHubReconcile:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
 
+    async def test_a_subscription_moved_onto_an_idle_connected_socket_is_swept(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_min_s, hub._stale_after_s, hub._stale_sweep_tick_s = 0.05, 0.1, 0.02
+
+        def subscribes_for(ws: FakeWS, sid: str) -> int:
+            return sum(
+                1
+                for f in ws.sent_frames()
+                if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+            )
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ticket_mock("region-b")
+            # Connect endpoint-b for another id, settle it: the socket stays
+            # open with no waiter, so its sweep stops.
+            hub.learn("other-region-b", "endpoint-b")
+            ws_b = fc.prepare()
+            other = asyncio.create_task(hub.wait("other-region-b", _started_predicate(), timeout=5))
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_b, "other-region-b") == 1), timeout=1)
+            ws_b.inject({"type": "snapshot", "id": "other-region-b", "status": "running", "version": 1})
+            await asyncio.wait_for(other, timeout=1)
+            sock_b = hub._sockets["endpoint-b"]
+            await asyncio.wait_for(
+                _wait_for(lambda: sock_b.stale_task is not None and sock_b.stale_task.done()), timeout=1
+            )
+
+            hub.learn("abc-region-a", "endpoint-a")
+            ws_a = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_a, "abc-region-a") == 1), timeout=1)
+            hub.learn("abc-region-a", "endpoint-b")
+            # The move's own subscribe, then the destination's sweep.
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_b, "abc-region-a") >= 3), timeout=1)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
     async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

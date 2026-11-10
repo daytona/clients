@@ -644,6 +644,9 @@ class WaitHub:
         self._ensure_socket_task(destination)
         if destination.ws is not None and moved_ids:
             asyncio.get_running_loop().create_task(self._send_subscribe_ids(destination, moved_ids))
+        if destination.ws is not None and self._has_any_waiter_for(destination):
+            # A connected destination with no waiter until now runs no sweep.
+            self._ensure_stale_sweep(destination)
         if destination.refused_retry_ids and (
             destination.refused_retry_task is None or destination.refused_retry_task.done()
         ):

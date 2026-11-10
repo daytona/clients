@@ -1396,6 +1396,37 @@ describe('WaitHub: stale sweep', () => {
     await waiting
   })
 
+  test('a subscription moved onto an idle connected socket is swept', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc, { timings: { staleAfterMinMs: 50, staleAfterMs: 100, staleSweepTickMs: 20, noFrameTimeoutMs: 60_000 } })
+    const subscribesFor = (ws: FakeWebSocket, id: string): number =>
+      ws.sentFrames().filter((f) => f['type'] === 'subscribe' && (f['ids'] as Array<{ id: string }>).some((e) => e.id === id)).length
+    const until = async (cond: () => boolean): Promise<void> => {
+      for (let i = 0; i < 200 && !cond(); i++) await new Promise((r) => setTimeout(r, 5))
+      expect(cond()).toBe(true)
+    }
+    // Connect destination-b for another id and settle it: the socket stays
+    // open with no waiter, so its sweep stops.
+    hub.learn('other-regionb', 'destination-b')
+    const wsB = fc.prepare()
+    const other = hub.wait('other-regionb', startedPredicate(), { timeout: 5_000 })
+    await until(() => subscribesFor(wsB, 'other-regionb') === 1)
+    wsB.inject({ type: 'snapshot', id: 'other-regionb', status: 'running', version: 1 })
+    await other
+    const sockB = (hub as unknown as { sockets: Map<string, { staleTimer: unknown }> }).sockets.get('destination-b')!
+    await until(() => sockB.staleTimer === undefined)
+
+    hub.learn(SANDBOX_ID, 'destination-a')
+    const wsA = fc.prepare()
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await until(() => subscribesFor(wsA, SANDBOX_ID) === 1)
+    hub.learn(SANDBOX_ID, 'destination-b')
+    // The move's own subscribe, then the destination's sweep.
+    await until(() => subscribesFor(wsB, SANDBOX_ID) >= 3)
+    await hub.detach()
+    await waiting
+  })
+
   test('a waiter that keeps hearing events is not re-subscribed', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
