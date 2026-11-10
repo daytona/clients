@@ -218,7 +218,7 @@ class SyncBridge:
         the loop picks it up: a watch's synchronous twin posts the release of
         its callbacks this way, so the caller has usually stored the returned
         handle before the first callback runs. Runs it at once when called on
-        the loop itself. A post after ``close()`` raises ``BridgeError``, as
+        the loop itself. A post after ``close()`` raises ``ClientClosedError``, as
         every call does, whichever thread makes it.
         """
         if self._on_own_loop():
@@ -268,7 +268,7 @@ class SyncBridge:
             return
         try:
             self.call(aclose)
-        except (BridgeError, StopAsyncIteration):
+        except (BridgeError, ClientClosedError, StopAsyncIteration):
             pass
 
     def _closing_call_active(self) -> bool:

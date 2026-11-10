@@ -3,7 +3,7 @@
  *
  * Uses the single-file helpers `fs.writeBytes(path, bytes)` and
  * `fs.writeText(path, text)` to write, and `fs.readBytes(path)` (returns a
- * Uint8Array) to read. Paths are relative to the sandbox's working directory.
+ * Uint8Array) to read. Sandbox paths are absolute.
  *
  * Run (from examples):
  *     DAYTONA_API_KEY=dtn_... \
@@ -36,7 +36,7 @@ async function main() {
     section('run: verify + run the uploaded script')
     info((await sandbox.process.run(`ls -la ${dir}`)).output.trim())
     await sandbox.process.run(`chmod +x ${dir}/script.sh`)
-    const scriptOut = await sandbox.process.run(`./${dir}/script.sh`)
+    const scriptOut = await sandbox.process.run(`${dir}/script.sh`)
     info(`script output: ${scriptOut.output.trim()}`)
     if (scriptOut.exitCode === 0) pass('the uploaded script ran')
     else {

@@ -96,7 +96,10 @@ DEFAULT_PTY_TERM = "xterm-256color"
 
 
 def _pty_env(env: Optional[Mapping[str, str]]) -> Mapping[str, str]:
-    if env is not None and not isinstance(env, Mapping):
+    if env is not None and (
+        not isinstance(env, Mapping)
+        or not all(isinstance(key, str) and isinstance(value, str) for key, value in env.items())
+    ):
         raise create_error("env must be a mapping of strings to strings", 400, "BAD_REQUEST", "SDK")
     return {"TERM": DEFAULT_PTY_TERM, **(env or {})}
 

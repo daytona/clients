@@ -110,6 +110,30 @@ describe('client input and lifecycle', () => {
     }
   })
 
+  // Shared with the Python SDK's test_core.py: a create whose request completes
+  // while the client closes still returns its handle (the sandbox exists).
+  it('returns the handle of a create that completes during close', async () => {
+    const body = { id: 'sbx', class: 'linux', status: 'running', name: 'test', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
+    const api = await startFakeApi([{ status: 200, body }])
+    const root = clientAt(api.url, { events: { enabled: true } })
+    const client = root.v2
+    try {
+      // SAFETY: the client's private API instance, spied to close the client
+      // while the create request is in flight.
+      const instance = (client as unknown as { api: { post: (...args: unknown[]) => Promise<unknown> } }).api
+      const post = instance.post.bind(instance)
+      jest.spyOn(instance, 'post').mockImplementationOnce(async (...args: unknown[]) => {
+        const response = await post(...args)
+        await client.close()
+        return response
+      })
+      await expect(client.create('py312', { waitSeconds: 0 })).resolves.toMatchObject({ id: 'sbx' })
+    } finally {
+      await root.close()
+      await api.close()
+    }
+  })
+
   it('builds a working fresh namespace when reaccessed after closing the root', async () => {
     // Given a closed namespace and a server ready for the next client,
     const api = await startFakeApi([{ status: 200, body: { sandboxes: [], next_cursor: null, total: 0, total_relation: 'eq' } }])

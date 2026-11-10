@@ -4991,7 +4991,7 @@ describe('toolbox service request shaping', () => {
     const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     const handle = await process.start('echo hi', { name: 'job', env: { A: 'B' }, executionTimeoutSeconds: 0.005 })
-    expect(transport.post.mock.calls[0]).toEqual(['/processes', { shellCommand: 'echo hi', name: 'job', env: { A: 'B' }, timeoutMs: 5, keepLogs: 'on_exit_ttl' }])
+    expect(transport.post.mock.calls[0]).toEqual(['/processes', { shellCommand: 'echo hi', name: 'job', env: { A: 'B' }, stdin: 'closed', timeoutMs: 5, keepLogs: 'on_exit_ttl' }])
 
     await handle.kill({ signal: 'TERM', escalateAfterSeconds: 0.1, escalateTo: 'KILL' })
     expect(transport.post.mock.calls[1]).toEqual(['/processes/proc/signals', { signal: 'SIGTERM', escalateAfterMs: 100, escalateTo: 'SIGKILL' }])
@@ -8898,14 +8898,15 @@ describe('toolbox service request shaping', () => {
     expect((client as unknown as { hub?: WaitHub }).hub).toBeUndefined()
   })
 
-  it('refuses attaching a new hub when the client is closed', async () => {
-    // Given a client whose hub has been closed,
+  it('a closed client attaches no new hub, and its handles refuse to wait', async () => {
     const client = new Daytona({ apiKey: 'key' })
     lazySandbox(client, 'seed')
     await client.close()
-    // When constructing another handle that would attach a hub,
-    // then report the closed client instead of silently enabling polling.
-    expect(() => lazySandbox(client, 'sbx')).toThrow(ClientClosedError)
+    // A handle built after close (from a response that completed) gets no hub;
+    // its requests, a wait included, throw ClientClosedError.
+    const sandbox = lazySandbox(client, 'sbx')
+    expect((sandbox as unknown as { _hub?: WaitHub })._hub).toBeUndefined()
+    await expect(sandbox.wait({ until: 'started', timeoutSeconds: 0.05 })).rejects.toBeInstanceOf(ClientClosedError)
   })
 
   it('resolveWithHub replaces a closed sandbox hub', async () => {
@@ -12839,6 +12840,13 @@ describe('toolbox surface', () => {
     expect((transport.post.mock.calls[0]?.[1] as { env: unknown }).env).toEqual(expected)
   })
 
+  it.each([[['A=1']], [{ A: 1 }], [new Map([['A', '1']])]])('refuses the PTY env %p before any request', async (env) => {
+    const transport = transportStub()
+    await expect(new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object).start(undefined, { env } as never))
+      .rejects.toMatchObject({ message: 'env must be a plain object of string to string', code: 'BAD_REQUEST' })
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
   // Shared with the Python SDK's test_toolbox_surface.py: executionTimeoutSeconds
   // 0 means no deadline, so timeoutMs is omitted (as above the timer maximum).
   it.each([0, 1e9])('sends no timeoutMs for executionTimeoutSeconds %p', async (executionTimeoutSeconds) => {
@@ -13389,7 +13397,7 @@ describe('toolbox surface', () => {
     expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
     transport.post.mockResolvedValueOnce(createdWire({ id: 'p' }))
     await new ProcessService(INTERNAL, transport.object, 'sbx').start('x', { executionTimeoutSeconds: 10 ** 9 })
-    expect(transport.post.mock.calls[0]?.[1]).toEqual({ shellCommand: 'x', keepLogs: 'on_exit_ttl' })
+    expect(transport.post.mock.calls[0]?.[1]).toEqual({ shellCommand: 'x', stdin: 'closed', keepLogs: 'on_exit_ttl' })
     const git = new GitService(INTERNAL, transport.object)
     await git.pull('/repo', { timeoutSeconds: 10 ** 9 })
     expect(transport.post.mock.calls[1]?.[2]).toEqual({ timeout: 0 })

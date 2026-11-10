@@ -42,7 +42,7 @@ def main() -> int:
         section("run: verify + run the uploaded script")
         info(sandbox.process.run(f"ls -la {d}").output.strip())
         sandbox.process.run(f"chmod +x {d}/script.sh")
-        script_out = sandbox.process.run(f"./{d}/script.sh")
+        script_out = sandbox.process.run(f"{d}/script.sh")
         info(f"script output: {script_out.output.strip()}")
         if script_out.exit_code == 0:
             passed("the uploaded script ran")

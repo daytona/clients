@@ -124,7 +124,7 @@ describe('shell sessions', () => {
     await session.run('true', keepLogs === undefined ? {} : { keepLogs })
     // Then
     expect(post).toHaveBeenCalledWith('/processes?waitMs=60000&logs=text', {
-      kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', keepLogs: 'on_exit_ttl',
+      kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', stdin: 'closed', keepLogs: 'on_exit_ttl',
     }, { timeout: 65_000 })
   })
 
@@ -193,7 +193,7 @@ describe('shell sessions', () => {
     // When
     await session.start('true')
     // Then
-    expect(post).toHaveBeenCalledWith('/processes', { kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', keepLogs: 'on_exit_ttl' }, undefined)
+    expect(post).toHaveBeenCalledWith('/processes', { kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', stdin: 'closed', keepLogs: 'on_exit_ttl' }, undefined)
   })
 
   it('returns the live cwd when getting the encoded session process', async () => {

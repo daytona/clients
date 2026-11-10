@@ -112,7 +112,7 @@ export class Session {
   /** Queue a command and return its handle without waiting for completion. */
   public async start(command: string, options: SessionStartOptions = {}): Promise<ProcessHandle> {
     assertKnownOptions('SessionStartOptions', options, SESSION_START_OPTION_KEYS)
-    return startProcess(this.binding.transport, this.sandboxId, { ...options, cmd: command, kind: 'exec', sessionId: this.id, keepLogs: options.keepLogs ?? 'on_exit_ttl' })
+    return startProcess(this.binding.transport, this.sandboxId, { ...options, cmd: command, kind: 'exec', sessionId: this.id, stdin: options.stdin ?? 'closed', keepLogs: options.keepLogs ?? 'on_exit_ttl' })
   }
 
   /** Read the shell process, including its current working directory. */

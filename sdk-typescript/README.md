@@ -152,8 +152,8 @@ default one has `default: true`. When no default is configured, the create
 throws `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
 
 SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x: the root
-rejects `apiUrl`, and SDK 2.x (`daytona.v0` included) never reads
-`DAYTONA_API_URL`.
+rejects `apiUrl`, and SDK 2.x (`daytona.v0` included) never routes with
+`DAYTONA_API_URL` (a non-Cloud value only gets a one-time warning).
 
 `daytona.v0` is the v0 SDK's own `Daytona` client, the same instance on every
 access, so code written against the v0 SDK keeps its types, `instanceof`

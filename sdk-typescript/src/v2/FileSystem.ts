@@ -349,6 +349,8 @@ export class FileSystemService {
   public async writeBytes(path: string, data: Uint8Array | ArrayBuffer | ArrayBufferView, options: WriteFileOptions = {}): Promise<void> {
     sandboxPath('path', path)
     assertKnownOptions('WriteFileOptions', options, WRITE_FILE_OPTION_KEYS)
+    // JavaScript callers migrating from the old write(path, string) get a pointer to writeText().
+    if (typeof data === 'string') throw badRequest('data must be an ArrayBuffer or an ArrayBuffer view; use writeText() for strings')
     const bytes = binaryBytes('data', data)
     const form = new FormData()
     form.append('path', path)
@@ -401,6 +403,10 @@ export class FileSystemService {
   public async writeMany(files: Readonly<Record<string, Uint8Array | ArrayBuffer | ArrayBufferView>>, options: WriteManyOptions = {}): Promise<BulkWriteResult> {
     assertKnownOptions('WriteManyOptions', options, WRITE_MANY_OPTION_KEYS)
     if (typeof files !== 'object' || files === null || (Object.getPrototypeOf(files) !== Object.prototype && Object.getPrototypeOf(files) !== null)) {
+      throw badRequest('files must be a record of paths to buffers or views')
+    }
+    // Object.entries skips symbol keys: one would silently drop a file.
+    if (Object.getOwnPropertySymbols(files).some((key) => Object.prototype.propertyIsEnumerable.call(files, key))) {
       throw badRequest('files must be a record of paths to buffers or views')
     }
     const form = new FormData()

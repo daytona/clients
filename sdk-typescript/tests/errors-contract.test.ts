@@ -190,7 +190,7 @@ describe('error constructors refuse a value that is not an options object', () =
     const own = { statusCode: 418, [key]: true }
     const inherited = Object.create({ [key]: true }) as object
     for (const options of [own, inherited]) {
-      expect(() => new ErrorClass('x', options as never)).toThrow(TypeError)
+      expect(() => new ErrorClass('x', options as never)).toThrow(new TypeError('ErrorOptions has no option `Symbol(extra)`'))
     }
     // A non-enumerable symbol (a class's own bookkeeping) is not an option.
     const hidden = { statusCode: 418 }

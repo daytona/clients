@@ -60,13 +60,13 @@ function warnLegacyApiUrl(): void {
   if (!value || Reflect.get(globalThis, LEGACY_URL_WARNED) === true) return
   const normalized = value.replace(/^([^:]+):\/\/([^/]+)(.*)$/, (_match: string, scheme: string, host: string, path: string) => `${scheme.toLowerCase()}://${host.toLowerCase()}${path}`)
   if (normalized === V0_API_URL || normalized === DEFAULT_V2_API_URL) return
-  if (typeof runtime.process?.emitWarning !== 'function') return
   Reflect.set(globalThis, LEGACY_URL_WARNED, true)
-  runtime.process.emitWarning(
-    'DAYTONA_API_URL is set, but SDK 2.x ignores it and connects to Daytona Cloud ' +
-    '(DAYTONA_V2_API_URL selects the v2 endpoint). For a custom API URL, stay on SDK 0.x.',
-    { type: 'UserWarning', code: 'DAYTONA_LEGACY_API_URL' },
-  )
+  const message = 'DAYTONA_API_URL is set, but SDK 2.x ignores it and connects to Daytona Cloud ' +
+    '(DAYTONA_V2_API_URL selects the v2 endpoint). For a custom API URL, stay on SDK 0.x.'
+  // A runtime with a shimmed `process.env` but no emitWarning (a browser
+  // bundle) still gets the warning.
+  if (typeof runtime.process?.emitWarning === 'function') runtime.process.emitWarning(message, { type: 'UserWarning', code: 'DAYTONA_LEGACY_API_URL' })
+  else console.warn(message)
 }
 
 // The catalog's NOT_IMPLEMENTED shape (501 → NotSupportedError): this build

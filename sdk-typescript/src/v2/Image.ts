@@ -118,7 +118,8 @@ function shellQuote(value: string): string {
  */
 function envValue(value: unknown, label: string): string {
   const text = assertText(value, label)
-  if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} ${JSON.stringify(text)} must not contain a control character`)
+  // The value is not echoed: it may be a secret.
+  if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} must not contain a control character`)
   return text
 }
 
@@ -137,6 +138,22 @@ function envName(value: string, label: string): string {
     throw badRequest(`${label} ${JSON.stringify(name)} must not contain '=', whitespace or a control character`)
   }
   return name
+}
+
+const DIRECTIVE = /^#\s*([A-Za-z]+)\s*=\s*(\S*)\s*$/
+const ESCAPE_DIRECTIVE_REFUSED = 'ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash'
+
+/**
+ * The escape character a Dockerfile's parser directives select, if any.
+ * Directives are the leading `# name=value` lines (Python reads the same).
+ */
+function escapeDirective(dockerfile: string): string | undefined {
+  for (const line of dockerfile.split('\n')) {
+    const match = DIRECTIVE.exec(line.replace(/\r$/, ''))
+    if (match === null) return undefined
+    if (match[1]?.toLowerCase() === 'escape') return match[2]
+  }
+  return undefined
 }
 
 export class ImageBuilder {
@@ -182,6 +199,10 @@ export class ImageBuilder {
     for (const [key] of pairs) {
       if (seen.has(key)) throw badRequest(`ImageBuilder.env key ${JSON.stringify(key)} appears more than once after stripping`)
       seen.add(key)
+    }
+    if (this.source.type === 'dockerfile') {
+      const escape = escapeDirective(this.source.dockerfile)
+      if (escape !== undefined && escape !== '\\') throw badRequest(ESCAPE_DIRECTIVE_REFUSED)
     }
     const entries = Object.fromEntries(pairs)
     return new ImageBuilder(this.source, [...this.steps, { type: 'env', entries }])

@@ -23,7 +23,7 @@ import { requireSessionId, Session } from './Session.js'
 import type { CreateSessionOptions, SessionJSON } from './Session.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { pathSegment, refuseDotSegment } from './pathSegment.js'
 
@@ -121,7 +121,7 @@ export class ProcessService {
    */
   public async start(command: ProcessCommand, options: ProcessStartOptions = {}): Promise<ProcessHandle> {
     assertKnownOptions('ProcessStartOptions', options, START_OPTION_KEYS)
-    return startProcess(this.transport, this.sandboxId, { ...options, ...commandSpec(command), keepLogs: options.keepLogs ?? 'on_exit_ttl' })
+    return startProcess(this.transport, this.sandboxId, { ...options, ...commandSpec(command), stdin: options.stdin ?? 'closed', keepLogs: options.keepLogs ?? 'on_exit_ttl' })
   }
 
   /**
@@ -275,9 +275,7 @@ export class PtyService {
     // Omitted starts the default shell; anything but a string is refused.
     if (command !== undefined && typeof command !== 'string') throw badRequest('command must be a string')
     const { terminal, stdin, keepLogs, env, ...rest } = options
-    if (env !== undefined && (typeof env !== 'object' || env === null || Array.isArray(env))) {
-      throw badRequest('env must be an object of strings')
-    }
+    if (env !== undefined && !isPlainStringRecord(env)) throw badRequest('env must be a plain object of string to string')
     return startProcess(this.transport, this.process.sandboxId, {
       ...rest,
       env: { TERM: DEFAULT_PTY_TERM, ...env },

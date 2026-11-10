@@ -57,6 +57,7 @@ if TYPE_CHECKING:
 V0_API_URL: Final[str] = "https://app.daytona.io/api"
 
 _legacy_url_warned = False
+_legacy_url_lock = threading.Lock()
 _LEGACY_URL_WARNING: Final[str] = (
     "DAYTONA_API_URL is set, but SDK 2.x ignores it and connects to Daytona Cloud "
     "(DAYTONA_V2_API_URL selects the v2 endpoint). For a custom API URL, stay on SDK 0.x."
@@ -77,9 +78,14 @@ def _warn_legacy_api_url() -> None:
         )
     except ValueError:
         cloud = False
-    if not cloud:
+    if cloud:
+        return
+    # Roots built on several threads at once warn once.
+    with _legacy_url_lock:
+        if _legacy_url_warned:
+            return
         _legacy_url_warned = True
-        warnings.warn(_LEGACY_URL_WARNING, UserWarning, stacklevel=4)
+    warnings.warn(_LEGACY_URL_WARNING, UserWarning, stacklevel=4)
 
 
 def _v0_api_url() -> str:

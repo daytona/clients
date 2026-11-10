@@ -43,7 +43,7 @@ describe('a symbol key on Object.prototype', () => {
 
   it('still finds an own or class-level symbol in error options', () => {
     const own = Symbol('own')
-    expect(() => new NotFoundError('x', { [own]: true } as never)).toThrow(TypeError)
+    expect(() => new NotFoundError('x', { [own]: true } as never)).toThrow(new TypeError('ErrorOptions has no option `Symbol(own)`'))
   })
 })
 

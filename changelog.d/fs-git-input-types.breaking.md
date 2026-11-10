@@ -1,5 +1,6 @@
-**Filesystem and git input types** — Path lists require sequences (Python) or
-arrays (TypeScript) of strings; bare strings and non-string entries are refused
-locally with `BadRequestError`. Text writes require strings, binary writes accept
-bytes-like buffers (including buffer views), and invalid filesystem depth,
-watch recursion and event callbacks are refused before a request is sent.
+**Path lists must be lists of strings** — where `sandbox.fs` and `sandbox.git`
+take several paths (`read_many()` / `readMany()`, `replace()`, `git.add()`,
+`git.restore()`, `git.reset(files=...)`), a bare string is refused with
+`BadRequestError` instead of being split into one path per character (Python;
+TypeScript spread it the same way at run time), and so is anything but a
+sequence (Python) or array (TypeScript) of strings.

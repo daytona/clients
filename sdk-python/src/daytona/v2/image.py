@@ -4,14 +4,33 @@
 from __future__ import annotations
 
 import json
+import re
 import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import overload
+from typing import Final, overload
 
 from typing_extensions import Self
 
 from .errors import create_error
+
+_DIRECTIVE: Final = re.compile(r"#\s*([A-Za-z]+)\s*=\s*(\S*)\s*")
+_ESCAPE_DIRECTIVE_REFUSED: Final = (
+    "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+)
+
+
+def _escape_directive(dockerfile: str) -> str | None:
+    """The escape character a Dockerfile's parser directives select, if any.
+    Directives are the leading ``# name=value`` lines (TypeScript reads the
+    same)."""
+    for line in dockerfile.split("\n"):
+        match = _DIRECTIVE.fullmatch(line.rstrip("\r"))
+        if match is None:
+            return None
+        if match.group(1).lower() == "escape":
+            return match.group(2)
+    return None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -122,6 +141,8 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
+        if self._dockerfile is not None and _escape_directive(self._dockerfile) not in (None, "\\"):
+            raise create_error(_ESCAPE_DIRECTIVE_REFUSED, 400, "BAD_REQUEST", "SDK")
         return type(self)(
             _registry_ref=self._registry_ref,
             _dockerfile=self._dockerfile,
@@ -182,9 +203,10 @@ class ImageBuilder:
         as two characters), so it is refused. TypeScript refuses the same
         values."""
         text = cls._require_text(value, label)
+        # The value is not echoed: it may be a secret.
         if any(char < " " or char == "\x7f" for char in text):
             raise create_error(
-                f"{label} {json.dumps(text, ensure_ascii=False)} must not contain a control character",
+                f"{label} must not contain a control character",
                 400,
                 "BAD_REQUEST",
                 "SDK",

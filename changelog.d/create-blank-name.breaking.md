@@ -4,4 +4,3 @@
 non-empty string when given") for an empty or whitespace-only name (Python's
 whitespace set in both SDKs) instead of treating it as no name, as `fork()` and
 `find_by_name()` / `findByName()` already did; omit `name` for a generated one.
-TypeScript also refuses a non-string name.

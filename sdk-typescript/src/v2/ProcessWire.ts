@@ -203,8 +203,8 @@ export function terminalSpec(terminal: TerminalSize): TerminalSize {
 }
 
 /** `run()` returns no handle to write to, so it cannot keep stdin open. */
-export function runStdin(stdin: unknown): 'closed' | undefined {
-  if (stdin === undefined || stdin === 'closed') return stdin
+export function runStdin(stdin: unknown): 'closed' {
+  if (stdin === undefined || stdin === 'closed') return 'closed'
   throw badRequest(`stdin '${String(stdin)}' is not supported by run(); it returns no handle to write to. Use start() for a process with open stdin`)
 }
 

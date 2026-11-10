@@ -1003,7 +1003,7 @@ def test_on_a_bridge_loop_is_safe_while_other_threads_create_clients() -> None:
 
 
 def test_a_post_racing_close_runs_or_reports_the_closed_bridge() -> None:
-    """post() either schedules on a running loop or raises BridgeError, never
+    """post() either schedules on a running loop or raises ClientClosedError, never
     a raw RuntimeError from a loop close() already stopped."""
     import threading
 

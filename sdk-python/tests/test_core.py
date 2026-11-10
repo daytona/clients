@@ -6649,6 +6649,27 @@ async def test_explicit_idempotency_key_wins_over_the_name() -> None:
     assert uuid.UUID(api.specs[1].headers["Idempotency-Key"])
 
 
+# Shared with the TypeScript SDK's client-input-lifecycle.test.ts: a create
+# whose request completes while the client closes still returns its handle
+# (the sandbox exists); the handle's later requests raise ClientClosedError.
+@pytest.mark.anyio
+async def test_a_create_that_completes_during_close_returns_its_handle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+
+    class ClosingTransport(RecordingTransport):
+        async def send(self, spec: RequestSpec):
+            client._closed = True
+            return await super().send(spec)
+
+    bind_api(client, ClosingTransport([{"id": "sbx", "status": "running", "wait_cap_seconds": 3}]))
+    sandbox = await client.create(Image.base("py312"), wait_seconds=0)
+    assert sandbox.id == "sbx"
+    await client.close()
+
+
 # Shared with the TypeScript SDK's unit.test.ts: a blank name is refused before
 # any request on every create, as fork() and find_by_name() refuse one.
 @pytest.mark.anyio

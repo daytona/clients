@@ -274,6 +274,15 @@ async def test_pty_start_sends_a_default_term(env: dict[str, str], expected: dic
     assert isinstance(body, dict) and body["env"] == expected
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("env", [["A=1"], {"A": 1}, {1: "a"}])
+async def test_pty_start_refuses_an_env_that_is_not_strings(env: object) -> None:
+    transport = Transport()
+    with pytest.raises(BadRequestError, match="^env must be a mapping of strings to strings$"):
+        await AsyncPtyService(AsyncProcessService("sbx", transport)).start(env=env)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
 # Shared with the TypeScript SDK's unit.test.ts: execution_timeout=0 means no
 # deadline, so timeoutMs is omitted (as above the timer maximum).
 @pytest.mark.anyio

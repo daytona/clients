@@ -826,7 +826,7 @@ class AsyncDaytona:
             access_token=access_token,
             access_token_expires_at=access_token_expires_at,
             access_token_caller_supplied=False,
-            hub=self._acquire_hub() if _on_event_loop() else None,
+            hub=self._handle_hub() if _on_event_loop() else None,
             hub_provider=self._acquire_hub,
         )
         if created_endpoints:
@@ -853,7 +853,7 @@ class AsyncDaytona:
         return self._sandbox_handle(
             sandbox_info_from_id(sandbox_id),
             access_token_caller_supplied=False,
-            hub=self._acquire_hub() if _on_event_loop() else None,
+            hub=self._handle_hub() if _on_event_loop() else None,
             hub_provider=self._acquire_hub,
         )
 
@@ -1224,6 +1224,12 @@ class AsyncDaytona:
         path_segment(sandbox, "sandbox")
         return self._sandbox_by_id(sandbox)
 
+    def _handle_hub(self) -> Optional[WaitHub]:
+        """The hub for a handle built from a completed response: none once the
+        client is closed, so a create that finished during ``close()`` still
+        returns its handle (its later requests raise ``ClientClosedError``)."""
+        return None if self._closed else self._acquire_hub()
+
     def _acquire_hub(self) -> Optional[WaitHub]:
         # Only ever called on the event loop (see `_sandbox_by_id()`), whose single
         # thread makes this check-then-set safe.
@@ -1318,7 +1324,7 @@ class AsyncDaytona:
             # A caller's token (get(access_token=...)) is never replaced; one
             # from an SDK-internal path may be minted over.
             access_token_caller_supplied=access_token_caller_supplied,
-            hub=self._acquire_hub(),
+            hub=self._handle_hub(),
             hub_provider=self._acquire_hub,
         )
 

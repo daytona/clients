@@ -83,8 +83,11 @@ export class Daytona {
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 
+  // None once closed: a handle built from a completed response (a create that
+  // finished during close()) is still returned; its requests then throw
+  // ClientClosedError.
   private acquireHub(): WaitHub | undefined {
-    if (this.closed) throw new ClientClosedError()
+    if (this.closed) return undefined
     if (this.hub?.closed) this.hub = undefined
     if (this.hub === undefined) {
       this.hub = attachHub({
@@ -380,6 +383,7 @@ export class Daytona {
     }
     // A wrong type or a blank id is refused before any request, as in Python.
     if (!(sandbox instanceof Sandbox)) throw badRequest('sandbox must be a Sandbox or a non-empty sandbox id')
+    if (this.closed) throw new ClientClosedError()
     const hub = this.acquireHub()
     if (hub !== undefined) sandbox.attachHub(hub)
     return sandbox
