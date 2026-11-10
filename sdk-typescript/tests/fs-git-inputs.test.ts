@@ -47,6 +47,18 @@ describe.each(PATH_CALLS)('%s absolute paths', (method, rest) => {
   })
 })
 
+function detached(): ArrayBuffer {
+  const buffer = new ArrayBuffer(4)
+  structuredClone(buffer, { transfer: [buffer] })
+  return buffer
+}
+
+function detachedView(): Uint8Array {
+  const view = new Uint8Array(4)
+  structuredClone(view.buffer, { transfer: [view.buffer] })
+  return view
+}
+
 const REFUSED: readonly (readonly [string, readonly unknown[], string])[] = [
   ['move', ['/a', 'relative'], 'destination'],
   ['uploadFile', ['missing-local', 'relative'], 'remotePath'],
@@ -58,6 +70,8 @@ const REFUSED: readonly (readonly [string, readonly unknown[], string])[] = [
   ['writeBytes', ['/a', {}], 'data'],
   ['writeBytes', ['/a', null], 'data'],
   ['writeBytes', ['/a', { [Symbol.toStringTag]: 'ArrayBuffer' }], 'data'],
+  ['writeBytes', ['/a', detached()], 'not detached'],
+  ['writeBytes', ['/a', detachedView()], 'not detached'],
   ['writeText', ['/a', 42], 'text'],
   ['writeText', ['/a', {}], 'text'],
   ['writeText', ['/a', null], 'text'],

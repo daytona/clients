@@ -629,6 +629,14 @@ async def test_any_bytes_like_context_is_accepted() -> None:
     assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == wide.tobytes()
 
 
+def test_an_oversized_non_contiguous_view_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Sized from the view itself, before it would be copied to a contiguous one.
+    monkeypatch.setattr(_context_upload, "MAX_CONTEXT_BYTES", 10)
+    view = memoryview(bytes(range(64)))[::2]
+    with pytest.raises(BadRequestError, match=r"exceeds the 1 GiB limit \(32 bytes\)"):
+        _context_upload._Source(view)
+
+
 def test_a_released_view_is_refused_as_a_bad_request() -> None:
     view = memoryview(b"FROM alpine\n")
     view.release()

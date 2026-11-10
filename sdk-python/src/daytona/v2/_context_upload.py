@@ -119,6 +119,14 @@ class _Source:
             # not a copy, so a 1 GiB buffer is not duplicated; only a
             # non-contiguous view, which cannot be cast to bytes, is copied.
             view = memoryview(context)
+            # Checked before a non-contiguous view is copied.
+            if view.nbytes > MAX_CONTEXT_BYTES:
+                raise BadRequestError(
+                    f"build context exceeds the 1 GiB limit ({view.nbytes} bytes)",
+                    status_code=400,
+                    code="BAD_REQUEST",
+                    source="SDK",
+                )
             if not view.c_contiguous:
                 view = memoryview(view.tobytes())
             self._data: Optional[memoryview] = view.cast("B")
