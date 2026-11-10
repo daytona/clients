@@ -129,7 +129,8 @@ it('flags the server-chosen volume type on volume suggestions', async () => {
   const notes = new Map(report.items.flatMap(item => item.suggestion ? [[item.suggestion.id, item.suggestion.notes]] as const : []));
   expect(notes.get('client.volume.create')?.at(-1)).toBe(
     "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type: 'disk' (with sizeGib) to keep a disk volume")
-  expect(notes.get('client.volume.get')?.at(-1)).toMatch(/^Review the volume type: v0 volumes were always disk volumes.*type: 'disk'/)
+  expect(notes.get('client.volume.get')?.at(-1)).toBe(
+    "Review the volume type: v0 volumes were always disk volumes, create: true lets the server choose, so to keep a disk volume call volumes.get(nameOrId) and, when it throws NotFoundError, volumes.create({ name, type: 'disk' })")
   expect(report.items.filter(item => item.kind === 'fixme')).toEqual([])
   // And the written comments carry it (a --json suggestion run writes nothing).
   expect((await invoke(root, ['--suggest-v2'])).code).toBe(0)

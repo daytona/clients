@@ -4208,12 +4208,12 @@
         "py": [
           "Looks up a v2 volume by name or ID; create=True creates a volume of the server's default type if missing",
           "Migrate v0 volume data separately; on AsyncDaytona this call must be awaited",
-          "Review the volume type: v0 volumes were always disk volumes, create=True lets the server choose, so create it first with volumes.create(name=..., type=\"disk\") to keep a disk volume"
+          "Review the volume type: v0 volumes were always disk volumes, create=True lets the server choose, so to keep a disk volume call volumes.get(name_or_id) and, when it raises NotFoundError, volumes.create(name=..., type=\"disk\")"
         ],
         "ts": [
           "Looks up a v2 volume by name or ID; create: true creates a volume of the server's default type if missing",
           "Migrate v0 volume data separately",
-          "Review the volume type: v0 volumes were always disk volumes, create: true lets the server choose, so create it first with volumes.create({ name, type: 'disk' }) to keep a disk volume"
+          "Review the volume type: v0 volumes were always disk volumes, create: true lets the server choose, so to keep a disk volume call volumes.get(nameOrId) and, when it throws NotFoundError, volumes.create({ name, type: 'disk' })"
         ]
       },
       "anchor": "client-volume",

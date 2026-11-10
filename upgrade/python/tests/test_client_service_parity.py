@@ -200,9 +200,10 @@ def test_volume_suggestions_flag_the_server_chosen_type() -> None:
         "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, "
         'so pass type="disk" (with size_gib) to keep a disk volume'
     )
-    assert notes["client.volume.get"][-1].startswith(
-        "Review the volume type: v0 volumes were always disk volumes"
+    assert notes["client.volume.get"][-1] == (
+        "Review the volume type: v0 volumes were always disk volumes, create=True lets the server choose, "
+        "so to keep a disk volume call volumes.get(name_or_id) and, when it raises NotFoundError, "
+        'volumes.create(name=..., type="disk")'
     )
-    assert 'type="disk"' in notes["client.volume.get"][-1]
     assert "# daytona-v2:   differs: Review the volume type" in result.source
     assert all(item["kind"] == "suggestion" for item in result.items)
