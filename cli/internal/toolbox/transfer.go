@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -25,7 +26,7 @@ var openUploadFile = func(path string) (io.ReadCloser, error) {
 func (c *Client) DownloadFile(ctx context.Context, signedURL, localPath string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedURL, nil)
 	if err != nil {
-		return errors.New("build signed download request: invalid pre-signed URL")
+		return fmt.Errorf("build signed download request: %w", signedURLParseError(err))
 	}
 	c.inner.SetIdentityHeaders(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -107,7 +108,7 @@ func newSignedUploadRequest(ctx context.Context, signedURL, localPath, remotePat
 	bodyReader, contentType, done := startSignedUploadBody(localPath, remotePath, file)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, signedURL, bodyReader)
 	if err != nil {
-		wrapped := errors.New("build signed upload request: invalid pre-signed URL")
+		wrapped := fmt.Errorf("build signed upload request: %w", signedURLParseError(err))
 		_ = bodyReader.CloseWithError(wrapped)
 		<-done
 		return nil, done, wrapped
@@ -130,9 +131,10 @@ func startSignedUploadBody(localPath, remotePath string, file io.Reader) (*io.Pi
 			return
 		}
 		if _, err := io.Copy(part, file); err != nil {
-			wrapped := fmt.Errorf("read %s: %w", localPath, errors.Unwrap(err))
-			if errors.Unwrap(err) == nil {
-				wrapped = fmt.Errorf("read %s: %w", localPath, err)
+			wrapped := fmt.Errorf("read %s: %w", localPath, err)
+			var pathErr *fs.PathError
+			if errors.As(err, &pathErr) {
+				wrapped = fmt.Errorf("read upload source: %w", err)
 			}
 			_ = pw.CloseWithError(wrapped)
 			done <- wrapped

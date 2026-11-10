@@ -12,6 +12,7 @@ import (
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/regions"
 	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/spf13/cobra"
@@ -30,7 +31,9 @@ func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache
 		if err != nil {
 			// The create succeeded: print what the acknowledgement says that
 			// is also a detail field (never its access token), and warn.
-			a.Info("warning: sandbox %s was created, but reading it failed: %v", created.Id, err)
+			// Not silenced by --quiet: a billable create succeeded and its
+			// detail could not be shown.
+			fmt.Fprintln(a.Stderr, output.SanitizeLine(fmt.Sprintf("warning: sandbox %s was created, but reading it failed: %v", created.Id, err)))
 			return a.Printer().Object(map[string]any{"id": created.Id, "name": created.Name, "status": created.Status},
 				[][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
 		}

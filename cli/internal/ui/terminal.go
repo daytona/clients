@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/muesli/cancelreader"
 	"golang.org/x/term"
@@ -80,7 +81,13 @@ func (p *terminalPrompt) close() error {
 }
 
 func (p *terminalPrompt) render(line string) error {
-	_, err := fmt.Fprint(p.out, "\r\x1b[2K", line)
+	width, _, err := term.GetSize(int(p.in.Fd()))
+	if err != nil || width < 1 {
+		width = 80
+	}
+	// Reserve the final cell so terminals never auto-wrap the redraw line.
+	line = ansi.Truncate(line, width-1, "")
+	_, err = fmt.Fprint(p.out, "\r\x1b[2K", line)
 	return err
 }
 

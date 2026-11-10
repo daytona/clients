@@ -27,8 +27,23 @@ func checkImageDockerfile(contextPath, dockerfile string) error {
 		return cerr.Usage("--dockerfile must name a file inside the build context")
 	}
 	if info.IsDir() {
-		file, err := os.Stat(filepath.Join(contextPath, filepath.FromSlash(clean)))
-		if err != nil || !file.Mode().IsRegular() {
+		resolvedContext, err := filepath.EvalSymlinks(contextPath)
+		if err != nil {
+			return cerr.Wrap(cerr.ExitUsage, err, "resolve build context %q: %v", contextPath, err)
+		}
+		candidate, err := filepath.EvalSymlinks(filepath.Join(resolvedContext, filepath.FromSlash(clean)))
+		if err != nil {
+			return cerr.Wrap(cerr.ExitUsage, err, "resolve Dockerfile %q: %v", dockerfile, err)
+		}
+		relative, err := filepath.Rel(resolvedContext, candidate)
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return cerr.Usage("--dockerfile must name a file inside the build context")
+		}
+		file, err := os.Stat(candidate)
+		if err != nil {
+			return cerr.Wrap(cerr.ExitUsage, err, "stat Dockerfile %q: %v", dockerfile, err)
+		}
+		if !file.Mode().IsRegular() {
 			return cerr.Usage("Dockerfile %q is not a regular file in build context %q", dockerfile, contextPath)
 		}
 		return nil
@@ -50,7 +65,7 @@ func checkImageDockerfile(contextPath, dockerfile string) error {
 		if err != nil {
 			return nil // Unknown/compressed archive formats remain server-validated.
 		}
-		if path.Clean(header.Name) == clean && (header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeLink) {
+		if path.Clean(header.Name) == clean && (header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeLink || header.Typeflag == tar.TypeSymlink) {
 			return nil
 		}
 	}

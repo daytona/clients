@@ -9,17 +9,29 @@ import (
 	"time"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/cerr"
 )
 
 // createStreamProcess retains a successful create response even if the caller
 // is interrupted in flight. The stream returns that identity so its caller can
 // signal the process rather than leave an untracked command running. Only the
-// create is detached: all subsequent streaming uses the original context.
+// create is detached from cancellation, never from the caller's deadline:
+// all subsequent streaming uses the original context.
 func (c *Client) createStreamProcess(ctx context.Context, body tbgen.CreateProcessRequest, query url.Values) (tbgen.ProcessDto, error) {
-	if err := ctx.Err(); err != nil {
+	if err := cerr.FromContext(ctx); err != nil {
 		return tbgen.ProcessDto{}, err
 	}
-	createCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	deadline := time.Now().Add(30 * time.Second)
+	if callerDeadline, ok := ctx.Deadline(); ok && callerDeadline.Before(deadline) {
+		deadline = callerDeadline
+	}
+	createCtx, cancel := context.WithDeadline(context.WithoutCancel(ctx), deadline)
 	defer cancel()
-	return c.CreateProcess(createCtx, body, query)
+	process, err := c.CreateProcess(createCtx, body, query)
+	if err != nil {
+		if contextErr := cerr.FromContext(createCtx); contextErr != nil {
+			return process, contextErr
+		}
+	}
+	return process, err
 }

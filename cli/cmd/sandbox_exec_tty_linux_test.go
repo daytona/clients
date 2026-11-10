@@ -187,3 +187,45 @@ func TestProcessAttach_keepsExitCode_whenLiveAliasReleased(t *testing.T) {
 	require.Equal(t, 3, cerr.ExitCode(err))
 	require.Equal(t, cerr.SourceProcess, cerr.DetailsOf(err).Source)
 }
+
+func TestExecTTY_timeoutClosesIdleWebsocketAndReturnsExitTimeout(t *testing.T) {
+	// Given: a real PTY on stdin/stdout, so `sandbox exec --tty` runs its PTY
+	// path, and a toolbox that attaches and then stays silent.
+	execTerminal(t)
+	serverURL := ""
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/sandboxes/sbx":
+			_, _ = io.WriteString(w, strings.ReplaceAll(toolboxSandboxDetailFixture("sbx", "linux", "running"), "__SERVER__", serverURL))
+		case "/test-tools/sbx/processes":
+			_, _ = io.WriteString(w, `{"id":"proc","state":"running","kind":"pty","stdin":"open","cwd":"/","keepLogs":"until_cleanup","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z"}`)
+		case "/test-tools/sbx/processes/proc/logs":
+			_, _ = io.WriteString(w, `{"frames":[],"nextCursor":"c0","truncatedHead":false,"eof":false}`)
+		case "/test-tools/sbx/processes/proc/attach":
+			conn, rw, err := upgradeExecSocket(w, r)
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer conn.Close()
+			// Idle until the client gives up and closes the socket.
+			_, _, _ = sandboxExecReadServerFrame(rw.Reader)
+			_, _ = io.Copy(io.Discard, conn)
+		case "/test-tools/sbx/processes/proc/resize":
+			w.WriteHeader(http.StatusNoContent)
+		case "/test-tools/sbx/processes/proc":
+			// Best-effort cleanup of the timed-out process.
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	serverURL = srv.URL
+	// When
+	start := time.Now()
+	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", srv.URL, "--api-key", "k", "-o", "json", "--timeout", "300ms", "sandbox", "exec", "sbx", "--tty", "--", "bash")
+	// Then
+	require.Equal(t, cerr.ExitTimeout, code, stderr)
+	require.Less(t, time.Since(start), 5*time.Second)
+}

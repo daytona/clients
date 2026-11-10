@@ -221,7 +221,8 @@ func (c *Config) Profile(name string) (*Profile, bool) {
 	return nil, false
 }
 
-// Upsert adds or replaces a profile.
+// Upsert adds or replaces a profile. A new profile with an invalid name is
+// rejected with a usage error; replacing an existing profile skips that check.
 func (c *Config) Upsert(p Profile) error {
 	if cur, ok := c.Profile(p.Name); ok {
 		*cur = p
@@ -234,7 +235,8 @@ func (c *Config) Upsert(p Profile) error {
 	return nil
 }
 
-// Remove deletes a profile; false if absent.
+// Remove deletes a profile; false if absent. Removing the active profile selects
+// default when present, otherwise it clears ActiveProfile.
 func (c *Config) Remove(name string) bool {
 	for i := range c.Profiles {
 		if c.Profiles[i].Name == name {

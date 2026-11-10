@@ -26,8 +26,17 @@ func (a *App) Info(format string, args ...any) {
 	if a.Globals.Quiet {
 		return
 	}
-	// Arguments are often server-controlled (names, messages) — strip
-	// terminal control sequences before they reach a TTY.
+	// Arguments are often server-controlled (names, messages): strip terminal
+	// control sequences, and keep each argument on this one line so it cannot
+	// forge further diagnostic lines.
+	for i, arg := range args {
+		switch v := arg.(type) {
+		case string:
+			args[i] = output.SanitizeLine(v)
+		case error:
+			args[i] = output.SanitizeLine(v.Error())
+		}
+	}
 	fmt.Fprintln(a.Stderr, output.Sanitize(fmt.Sprintf(format, args...)))
 }
 

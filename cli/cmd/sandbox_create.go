@@ -85,7 +85,7 @@ func newSandboxCreateCommand() *cobra.Command {
 func newSandboxCreateFromSnapshotCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create-from-snapshot <snapshot-name-or-snap_id>", short: "Create a sandbox from a snapshot",
-		long: "Create a Linux sandbox from a snapshot (POST /sandboxes/from-snapshot). The SDK twin is create_from_snapshot(snapshot, …).\nResources come from the snapshot; only name, labels, ports, lifecycle, wait and create-ttl apply.\nExample:\n  daytona sandbox create-from-snapshot after-setup --name resumed",
+		long: "Create a Linux sandbox from a snapshot (POST /sandboxes/from-snapshot). The SDK twin is create_from_snapshot(snapshot, …).\nResources come from the snapshot; only name, labels, ports, lifecycle, server-wait and create-ttl apply.\nExample:\n  daytona sandbox create-from-snapshot after-setup --name resumed",
 		path: "/sandboxes/from-snapshot", snapshot: true,
 		decode: decodeAndCreate[gen.CreateSandboxFromSnapshotRequest],
 		keys:   input.CheckKeysFor[gen.CreateSandboxFromSnapshotRequest],

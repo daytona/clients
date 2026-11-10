@@ -145,7 +145,8 @@ func WaitForImage(ctx context.Context, client *api.Client, id string, timeout ti
 		nil,
 	)
 	if cerr.ExitCode(err) == cerr.ExitTimeout && ctx.Err() == nil && !errors.Is(err, requestErr) {
-		return image, cerr.Wrap(cerr.ExitTimeout, err, "timed out after %s waiting for image %s to become ready; check it with daytona image get %s", timeout, id, id)
+		return image, cerr.Wrap(cerr.ExitTimeout, err, "timed out after %s waiting for image %s to become ready; check it with daytona image get %s", timeout, id, id).
+			WithHint("%s", cerr.DetailsOf(err).Hint)
 	}
 	return image, err
 }
@@ -168,6 +169,9 @@ func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout
 				return true, nil
 			}
 			if snapshot.V.Status == "failed" {
+				if snapshot.V.Error != nil && *snapshot.V.Error != "" {
+					return false, cerr.New(cerr.ExitFailure, "snapshot %s reached failed, not ready: %s", id, *snapshot.V.Error)
+				}
 				return false, cerr.New(cerr.ExitFailure, "snapshot %s reached failed, not ready", id)
 			}
 			return false, nil
@@ -175,7 +179,8 @@ func WaitForSnapshot(ctx context.Context, client *api.Client, id string, timeout
 		nil,
 	)
 	if cerr.ExitCode(err) == cerr.ExitTimeout && ctx.Err() == nil && !errors.Is(err, requestErr) {
-		return snapshot, cerr.Wrap(cerr.ExitTimeout, err, "timed out after %s waiting for snapshot %s to become ready; check it with daytona snapshot get %s", timeout, id, id)
+		return snapshot, cerr.Wrap(cerr.ExitTimeout, err, "timed out after %s waiting for snapshot %s to become ready; check it with daytona snapshot get %s", timeout, id, id).
+			WithHint("%s", cerr.DetailsOf(err).Hint)
 	}
 	return snapshot, err
 }

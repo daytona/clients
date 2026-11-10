@@ -54,7 +54,7 @@ func hintFor(ae *APIError) string {
 		return "the invitation is unknown, already accepted or declined, expired, or revoked — ask the organization to invite you again"
 	case ae.Status == http.StatusNotFound:
 		if ae.Code == CodeImageNotFound {
-			if ae.Method == http.MethodPost && strings.HasPrefix(ae.Path, "/sandboxes") {
+			if ae.Method == http.MethodPost && (ae.Path == "/sandboxes" || ae.Path == "/sandboxes/from-snapshot" || ae.Path == "/sandboxes/macos") {
 				return "create takes an image name or img_… id; `daytona image list` shows available images, and `daytona image create NAME --ref REF` imports a registry image"
 			}
 			return "check the image name or id and the selected --project; `daytona image list` shows available images"

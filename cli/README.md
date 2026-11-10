@@ -368,7 +368,8 @@ never prompts:
   (the value can then reach any verified HTTPS host). An empty scope is not
   supported by the API; delete the secret to remove it entirely.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
-  `--permission`, `--label`, `--env`, `--allow-domain`, …).
+  `--permission`, `--allow-domain`, …). `--label` and `--env` take one
+  `KEY=VALUE` each and keep commas inside the value; repeat them for more.
 - Long operations wait for completion by default; `--no-wait` returns the
   accepted resource immediately. `sandbox create*`, `start`, `stop`, `pause`,
   `resume`, `fork` and `delete` print the sandbox as `sandbox get` does in both
@@ -539,7 +540,7 @@ request.
 | `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
 | `3` | authentication: no credential, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
-| `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE` that does not exist (on the commands that use the selected profile) |
+| `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE`, or the configuration's `active_profile`, that names a profile that does not exist (on the commands that use the selected profile) |
 | `6` | conflict: HTTP 409, 412 and 501, and HTTP 429 `LIMIT_EXCEEDED` (an organization limit) |
 | `7` | partial result: `sandbox list` / `image list` reached only some regions; the others' items are printed with each failure in `errors` (when no region answers, the first region's failure decides the code) |
 | `8` | timed out: `--timeout` passed, a request timed out, or HTTP 408 / 504 |
@@ -554,7 +555,7 @@ status apart from the CLI's own:
 
 | Command | Exit status |
 |---|---|
-| `sandbox exec`, `process wait`, `process logs --follow`, `process attach` | the process's exit code; for `sandbox exec`, a command that cannot be started → `127`; a process ended by a signal → `128` + its number when that number is the same on Linux and macOS (`SIGINT` → `130`, `SIGKILL` → `137`, `SIGTERM` → `143`); other or unknown signals → `1`; its own timeout → `8`; `lost` / `failed` → its code, else `1` |
+| `sandbox exec`, `process wait`, `process logs --follow`, `process attach` | the process's exit code; for `sandbox exec`, a command that cannot be started → `127`; a process ended by a signal → `128` + its number for `HUP`, `INT`, `QUIT`, `ILL`, `TRAP`, `ABRT`, `FPE`, `KILL`, `SEGV`, `PIPE`, `ALRM`, `TERM`, `XCPU`, `XFSZ`, `VTALRM`, `PROF` and `WINCH`, whose numbers are the same on Linux and macOS (`SIGINT` → `130`, `SIGKILL` → `137`, `SIGTERM` → `143`); any other signal → `1`; its own timeout → `8`; `lost` / `failed` → its code, else `1` |
 | `sandbox ssh` | the `ssh` client's exit status |
 | `sandbox cp` | the remote `tar`'s exit status when the in-sandbox side of the copy fails |
 
@@ -630,7 +631,8 @@ by logout. `daytona profile delete` performs the same revocation for the
 deleted profile.
 
 Cached platform tokens and minted keys are sent only to the API that issued
-them.
+them, and to the toolbox and build-log endpoints that API names for a sandbox
+or image, which can be on other (regional) hosts.
 
 `daytona whoami` reports `org_id` and `project_id` only when they are resolved
 IDs; a selection given by name appears in `org_ref` / `project_ref`, and

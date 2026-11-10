@@ -60,9 +60,9 @@ func newSandboxSearchCommand() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
-			if cmd.Flags().Changed("labels") || cmd.Flags().Changed("label") {
+			if strings.TrimSpace(flags.labels) != "" || cmd.Flags().Changed("label") {
 				labels := map[string]string{}
-				if cmd.Flags().Changed("labels") {
+				if strings.TrimSpace(flags.labels) != "" {
 					var decoded map[string]*string
 					if err := json.Unmarshal([]byte(flags.labels), &decoded); err != nil || decoded == nil {
 						return cerr.Usage("--labels must be a JSON object of string values")
@@ -151,7 +151,7 @@ func newSandboxSearchCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.imageRef, "image-ref", "", "filter by exact image reference")
 	cmd.Flags().StringVar(&flags.imageRefPrefix, "image-ref-prefix", "", "filter by image reference prefix")
 	cmd.Flags().StringVar(&flags.labels, "labels", "", "filter by labels JSON object")
-	cmd.Flags().StringSliceVar(&flags.labelPairs, "label", nil, "filter by KEY=VALUE label (repeatable or comma-separated; merged with --labels, conflicting values refused)")
+	cmd.Flags().StringArrayVar(&flags.labelPairs, "label", nil, "filter by KEY=VALUE label (repeatable; commas preserved; merged with --labels, conflicting values refused)")
 	cmd.Flags().BoolVar(&flags.spot, "spot", false, "filter by spot tier")
 	cmd.Flags().StringVar(&flags.forkedFrom, "forked-from", "", "filter by source sandbox id")
 	cmd.Flags().Float64Var(&flags.minCores, "min-cores", 0, "minimum CPU limit in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)")

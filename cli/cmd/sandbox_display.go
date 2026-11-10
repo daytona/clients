@@ -15,7 +15,7 @@ import (
 func sandboxListTable(items []gen.SandboxListItem) output.Table {
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, []string{item.Id, item.Name, string(item.Class), item.Status, item.RegionId, sandboxArtifactSummary(item.Image, item.Snapshot), formatTimePtr(item.CreatedAt)})
+		rows = append(rows, []string{item.Id, item.Name, string(item.Class), item.Status, item.RegionId, sandboxArtifactSummary(item.Image, item.Snapshot, item.ImageRef), formatTimePtr(item.CreatedAt)})
 	}
 	return output.Table{Headers: []string{"ID", "NAME", "CLASS", "STATUS", "REGION", "ARTIFACT", "CREATED"}, Rows: rows}
 }
@@ -30,7 +30,7 @@ func formatCores(cores float64) string {
 }
 
 func sandboxDetailKV(detail gen.Sandbox) [][2]string {
-	cpu := strings.TrimRight(strings.TrimRight(strconv.FormatFloat(detail.Cpu, 'f', 3, 64), "0"), ".")
+	cpu := formatCores(detail.Cpu)
 	coresMax := formatCores(detail.CoresMax)
 	memory := strconv.Itoa(int(detail.MemoryMib))
 	if detail.Class == workload.ClassMacOS && detail.CoresMax == 0 {
@@ -42,7 +42,7 @@ func sandboxDetailKV(detail gen.Sandbox) [][2]string {
 		{"class", string(detail.Class)},
 		{"status", detail.Status},
 		{"region", detail.RegionId},
-		{sandboxArtifactLabel(detail.Image, detail.Snapshot), sandboxArtifactSummary(detail.Image, detail.Snapshot)},
+		{sandboxArtifactLabel(detail.Image, detail.Snapshot), sandboxArtifactSummary(detail.Image, detail.Snapshot, detail.ImageRef)},
 		{"cpu", cpu},
 		{"cores_max", coresMax},
 		{"memory_mib", memory},
@@ -75,7 +75,7 @@ func sandboxArtifactLabel(image *gen.ImageReference, snapshot *gen.SnapshotRefer
 	return "image"
 }
 
-func sandboxArtifactSummary(image *gen.ImageReference, snapshot *gen.SnapshotReference) string {
+func sandboxArtifactSummary(image *gen.ImageReference, snapshot *gen.SnapshotReference, imageRef *string) string {
 	if image != nil {
 		if image.Name != nil && strings.TrimSpace(*image.Name) != "" {
 			return *image.Name
@@ -87,6 +87,9 @@ func sandboxArtifactSummary(image *gen.ImageReference, snapshot *gen.SnapshotRef
 			return *snapshot.Name
 		}
 		return snapshot.Id
+	}
+	if imageRef != nil {
+		return *imageRef
 	}
 	return ""
 }

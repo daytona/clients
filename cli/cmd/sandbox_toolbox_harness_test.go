@@ -102,6 +102,9 @@ func runToolboxCLIWithOptions(t *testing.T, opts runToolboxCLIOptions, args []st
 
 	toolboxEnvMu.Lock()
 	defer toolboxEnvMu.Unlock()
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
 
 	stdout := &bytes.Buffer{}

@@ -11,9 +11,14 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"golang.org/x/term"
 )
 
 func (c *Client) forwardTerminalResizes(ctx context.Context, processID string) func() {
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		return func() {}
+	}
 	resizeCtx, cancel := context.WithCancel(ctx)
 	changes := make(chan os.Signal, 1)
 	signal.Notify(changes, syscall.SIGWINCH)

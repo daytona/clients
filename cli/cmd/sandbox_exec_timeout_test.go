@@ -17,10 +17,7 @@ import (
 	"testing"
 	"time"
 
-	tbgen "github.com/daytona/clients/cli/gen/toolbox"
-	apiinternal "github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
-	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,64 +85,6 @@ func TestToolboxExec_timeoutOnInitialSandboxLookupReturnsExitTimeout(t *testing.
 	defer server.Close()
 	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "-o", "json", "--timeout", "500ms", "sandbox", "exec", "sbx", "--", "sleep", "1")
 	require.Equal(t, cerr.ExitTimeout, code, stderr)
-}
-
-func TestRunTTYExec_timeoutClosesIdleWebsocketAndReturnsExitTimeout(t *testing.T) {
-	stdinFile, err := os.CreateTemp(t.TempDir(), "stdin-*.txt")
-	require.NoError(t, err)
-	require.NoError(t, stdinFile.Close())
-	stdinFile, err = os.Open(stdinFile.Name())
-	require.NoError(t, err)
-	defer stdinFile.Close()
-	oldStdin := os.Stdin
-	os.Stdin = stdinFile
-	defer func() { os.Stdin = oldStdin }()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/test-tools/sbx/processes":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"id":"proc","state":"running","kind":"pty","stdin":"open","cwd":"/","keepLogs":"until_cleanup","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z"}`)
-		case "/test-tools/sbx/processes/proc/attach":
-			hijacker, ok := w.(http.Hijacker)
-			if !ok {
-				t.Errorf("http.Hijacker unavailable")
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			conn, bufrw, hijackErr := hijacker.Hijack()
-			if hijackErr != nil {
-				t.Errorf("Hijack() error = %v", hijackErr)
-				return
-			}
-			defer conn.Close()
-			accept := sandboxExecWebSocketAccept(r.Header.Get("Sec-WebSocket-Key"))
-			_, _ = bufrw.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
-			_, _ = bufrw.WriteString("Upgrade: websocket\r\n")
-			_, _ = bufrw.WriteString("Connection: Upgrade\r\n")
-			_, _ = bufrw.WriteString("Sec-WebSocket-Accept: " + accept + "\r\n\r\n")
-			_ = bufrw.Flush()
-			reader := bufio.NewReader(conn)
-			_, _, _ = sandboxExecReadServerFrame(reader)
-		case "/test-tools/sbx/processes/proc/logs":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"frames":[],"nextCursor":"c0","truncatedHead":false,"eof":false}`)
-		case "/test-tools/sbx/processes/proc/resize":
-			// The initial terminal size, sent once at attach.
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer server.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	toolClient := toolboxclient.New(apiinternal.New(server.URL+"/test-tools/sbx", "k", "test"))
-	_, err = toolClient.StreamTerminal(ctx, tbgen.CreateProcessRequest{Argv: &[]string{"bash"}})
-	err = timeoutForDeadline(ctx, 100*time.Millisecond, err)
-	require.Equal(t, cerr.ExitTimeout, cerr.ExitCode(err))
 }
 
 func sandboxExecWebSocketAccept(key string) string {

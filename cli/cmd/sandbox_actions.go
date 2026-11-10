@@ -260,26 +260,6 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 	return cmd
 }
 
-// printSandboxAfterAction prints, without waiting, the sandbox the action
-// acted on (the fork, for fork) as `sandbox get` does, so --no-wait prints the
-// same shape as a waited action. A sandbox the delete already removed (404)
-// prints the API's acknowledgement, whose id and status are detail fields.
-func printSandboxAfterAction(cmd *cobra.Command, resolved workload.ResolvedSandbox, ack any, id, verb string) error {
-	a := FromContext(cmd.Context())
-	if id == "" {
-		id = resolved.Detail.Id
-	}
-	var detail api.Raw[gen.Sandbox]
-	err := resolved.Client.Do(cmd.Context(), http.MethodGet, fmt.Sprintf("/sandboxes/%s", url.PathEscape(id)), nil, nil, &detail)
-	if err != nil {
-		if verb == "delete" && cerr.ExitCode(err) == cerr.ExitNotFound && ack != nil {
-			return a.Printer().Object(ack, [][2]string{{"id", id}, {"action", verb}})
-		}
-		return err
-	}
-	return a.Printer().Object(detail, sandboxDetailKV(detail.V))
-}
-
 func sandboxJobAction[T any](cmd *cobra.Command, resolved workload.ResolvedSandbox, verb string) (any, string, string, error) {
 	method := http.MethodPost
 	path := fmt.Sprintf("/sandboxes/%s/%s", url.PathEscape(resolved.Detail.Id), verb)

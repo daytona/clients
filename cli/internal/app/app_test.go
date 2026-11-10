@@ -4,6 +4,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -244,4 +245,13 @@ func TestSameAPIURL_ignoresSchemeAndHostCase(t *testing.T) {
 	require.False(t, sameAPIURL("https://api.example.com", "https://api.example.org"))
 	require.False(t, sameAPIURL("http://localhost:8080", "http://localhost:8081"))
 	require.False(t, sameAPIURL("https://api.example.com/a", "https://api.example.com/b"))
+}
+
+func TestInfo_keepsServerTextOnOneLine(t *testing.T) {
+	var errb bytes.Buffer
+	a := &App{Stderr: &errb}
+	a.Info("deleted %s", "box\nerror: forged")
+	if got := errb.String(); got != "deleted box error: forged\n" {
+		t.Fatalf("got %q", got)
+	}
 }
