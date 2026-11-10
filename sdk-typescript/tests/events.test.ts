@@ -184,6 +184,7 @@ function makeHub(
       earlyProbeMs?: number
       clientPingAfterMs?: number
       subscribeFlushMs?: number
+      staleAfterMinMs?: number
       staleAfterMs?: number
       staleSweepTickMs?: number
       staleSweepMaxIds?: number
@@ -1319,6 +1320,37 @@ describe('WaitHub: stale sweep', () => {
       expect(subscribed(before)).toEqual(['c-regiona', 'a-regiona'])
       await hub.detach()
       await Promise.all(waits)
+    } finally {
+      randomSpy.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  // Threshold = half the wait's age, between the two bounds: with 100 / 400 ms
+  // the re-subscribes come about 100, 200, 400, 700 ms in, then every ~400 ms.
+  test('a young wait is re-subscribed sooner than an old one', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const fc = makeFakeConnector()
+      const hub = makeHub(fc, {
+        timings: { staleAfterMinMs: 100, staleAfterMs: 400, staleSweepTickMs: 10, noFrameTimeoutMs: 60_000 },
+      })
+      const ws = fc.prepare()
+      const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
+      await drain()
+      for (let i = 0; i < 160; i++) {
+        await jest.advanceTimersByTimeAsync(10)
+        await drain(2)
+      }
+      const at = ws.sentFrameRecords().filter(({ frame }) => frame['type'] === 'subscribe').map(({ at }) => at)
+      const gaps = at.slice(1).map((t, i) => t - at[i]!)
+      expect(gaps.length).toBeGreaterThanOrEqual(5)
+      expect(gaps[0]).toBeLessThan(200)
+      expect(Math.max(...gaps)).toBeLessThan(500)
+      expect(gaps.at(-1)).toBeGreaterThan(300)
+      await hub.detach()
+      await prom
     } finally {
       randomSpy.mockRestore()
       jest.useRealTimers()

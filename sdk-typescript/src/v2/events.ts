@@ -110,11 +110,16 @@ const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
 /**
  * An id a waiter holds that has heard no state frame (and sent no subscribe)
- * for `DEFAULT_STALE_AFTER_MS` is re-subscribed at the next sweep tick; the
- * server answers with a fresh snapshot. This bounds the delay a missed event
- * adds to a wait (about 4 s), which neither the early probe (held off while the
- * socket is live, keepalives included) nor the reconcile timer does.
+ * for its stale threshold is re-subscribed at the next sweep tick; the server
+ * answers with a fresh snapshot. This bounds the delay a missed event adds to
+ * a wait, which neither the early probe (held off while the socket is live,
+ * keepalives included) nor the reconcile timer does. The threshold is half the
+ * wait's age, between `DEFAULT_STALE_AFTER_MIN_MS` and `DEFAULT_STALE_AFTER_MS`:
+ * a young wait (a create just past the server's hold, most of which start
+ * within a few seconds) is re-subscribed about 1, 2, 4 and 7 s in, then every
+ * ~3 s.
  */
+const DEFAULT_STALE_AFTER_MIN_MS = 1_000
 const DEFAULT_STALE_AFTER_MS = 3_000
 const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
 /** Ids per second the sweep re-subscribes at most: 75 % of the server's
@@ -505,6 +510,8 @@ interface SocketState {
   readonly snapshotPending: Map<string, number>
   /** When each subscribed id was last sent a subscribe or given a state frame. */
   readonly heardAt: Map<string, number>
+  /** When the current wait on each subscribed id began (its stale threshold grows with the wait's age). */
+  readonly waitedSince: Map<string, number>
   /** The last decoded state per subscribed id: a new waiter on an id the
    *  socket already holds is judged against it at once (a sandbox resting in
    *  its target state emits no further event). */
@@ -577,6 +584,7 @@ export class WaitHub {
   private readonly earlyProbeMs: number
   private readonly clientPingAfterMs: number
   private readonly subscribeFlushMs: number
+  private readonly staleAfterMinMs: number
   private readonly staleAfterMs: number
   private readonly staleSweepTickMs: number
   private readonly staleSweepMaxIds: number
@@ -597,6 +605,7 @@ export class WaitHub {
         readonly earlyProbeMs?: number
         readonly clientPingAfterMs?: number
         readonly subscribeFlushMs?: number
+        readonly staleAfterMinMs?: number
         readonly staleAfterMs?: number
         readonly staleSweepTickMs?: number
         readonly staleSweepMaxIds?: number
@@ -632,6 +641,7 @@ export class WaitHub {
     this.earlyProbeMs = timings.earlyProbeMs ?? DEFAULT_EARLY_PROBE_MS
     this.clientPingAfterMs = timings.clientPingAfterMs ?? DEFAULT_CLIENT_PING_AFTER_MS
     this.subscribeFlushMs = clampTimerDelayMs(timings.subscribeFlushMs) ?? DEFAULT_SUBSCRIBE_FLUSH_MS
+    this.staleAfterMinMs = timings.staleAfterMinMs ?? DEFAULT_STALE_AFTER_MIN_MS
     this.staleAfterMs = timings.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
     this.staleSweepTickMs = timings.staleSweepTickMs ?? DEFAULT_STALE_SWEEP_TICK_MS
     this.staleSweepMaxIds =
@@ -797,6 +807,7 @@ export class WaitHub {
     this.clearPendingSubscribeFlush(source)
     source.subscriptions.clear()
     source.heardAt.clear()
+    source.waitedSince.clear()
     source.states.clear()
     source.rawStates.clear()
     source.versions.clear()
@@ -861,6 +872,7 @@ export class WaitHub {
         subscribeFlushTimer: undefined,
         snapshotPending: new Map(),
         heardAt: new Map(),
+        waitedSince: new Map(),
         states: new Map(),
         wake: undefined,
         clientClosing: false,
@@ -945,6 +957,7 @@ export class WaitHub {
     this.scheduleClientPing(sock)
     const fresh = !sock.subscriptions.has(sandboxId)
     sock.subscriptions.add(sandboxId)
+    sock.waitedSince.set(sandboxId, Date.now())
     this.ensureSocketLoop(sock)
     sock.wake?.()
     if (sock.ws !== undefined && sock.ws.readyState === WS_OPEN) this.armStaleSweep(sock)
@@ -1915,6 +1928,7 @@ export class WaitHub {
   private releaseSubscription(sock: SocketState, sandboxId: string): void {
     sock.subscriptions.delete(sandboxId)
     sock.heardAt.delete(sandboxId)
+    sock.waitedSince.delete(sandboxId)
     sock.states.delete(sandboxId)
     sock.rawStates.delete(sandboxId)
     sock.versions.delete(sandboxId)
@@ -2028,8 +2042,19 @@ export class WaitHub {
     sock.reconcileTimer = t
   }
 
+  /** Whether `sandboxId` has heard nothing for its stale threshold: half its
+   *  wait's age, between `staleAfterMinMs` and `staleAfterMs` (the longest when
+   *  the wait's start is unknown). */
+  private isStale(sock: SocketState, sandboxId: string, now: number): boolean {
+    const since = sock.waitedSince.get(sandboxId)
+    const high = this.staleAfterMs
+    const threshold = since === undefined ? high : Math.min(high, Math.max(this.staleAfterMinMs, (now - since) / 2))
+    return (sock.heardAt.get(sandboxId) ?? 0) <= now - threshold
+  }
+
   /**
-   * Re-subscribe every waited-on id that has heard nothing for `staleAfterMs`.
+   * Re-subscribe every waited-on id that has heard nothing for its stale
+   * threshold (half its wait's age, `staleAfterMinMs` to `staleAfterMs`).
    * The timer stops once the socket has no waiter; a new waiter arms it again.
    * A wait whose transition event never arrives would otherwise end only at
    * the reconcile timer. The frame path pays one map store; a tick scans the
@@ -2043,11 +2068,11 @@ export class WaitHub {
       const ws = sock.ws
       if (this.closed || ws === undefined || !this.hasAnyWaiterFor(sock)) return
       const heardAt = sock.heardAt
-      const cutoff = Date.now() - this.staleAfterMs
+      const now = Date.now()
       const pending = sock.pendingSubscribeIds
       let stale: string[] = []
       for (const sid of sock.subscriptions) {
-        if ((heardAt.get(sid) ?? 0) <= cutoff && !pending.has(sid) && (this.waiters.get(sid)?.length ?? 0) > 0) {
+        if (this.isStale(sock, sid, now) && !pending.has(sid) && (this.waiters.get(sid)?.length ?? 0) > 0) {
           stale.push(sid)
         }
       }
@@ -2076,6 +2101,7 @@ export class WaitHub {
     }
     sock.subscriptions.clear()
     sock.heardAt.clear()
+    sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2097,6 +2123,7 @@ export class WaitHub {
     }
     sock.subscriptions.clear()
     sock.heardAt.clear()
+    sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2117,6 +2144,7 @@ export class WaitHub {
     }
     sock.subscriptions.clear()
     sock.heardAt.clear()
+    sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import gc
+import itertools
 import json
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -1121,6 +1122,34 @@ class TestHubReconcile:
             await asyncio.wait_for(_wait_for(lambda: subscribes_for("def-region-a") >= 2), timeout=1)
             second.cancel()
             await asyncio.gather(second, return_exceptions=True)
+
+    async def test_a_young_wait_is_resubscribed_sooner_than_an_old_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Threshold = half the wait's age, between the two bounds: with
+        # 0.1 s / 0.4 s the re-subscribes come about 0.1, 0.2, 0.4, 0.7 s in,
+        # then every ~0.4 s.
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_min_s, hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.4, 0.01
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.sleep(1.6)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+        at = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+        gaps = [b - a for a, b in itertools.pairwise(at)]
+        assert len(gaps) >= 5, gaps
+        assert gaps[0] < 0.2, gaps
+        assert all(g < 0.5 for g in gaps), gaps
+        assert gaps[-1] > 0.3, gaps
 
     async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
         self, monkeypatch: pytest.MonkeyPatch

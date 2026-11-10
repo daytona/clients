@@ -88,10 +88,14 @@ _CLIENT_PING_AFTER_S: Final = 5.0
 _NO_FRAME_TIMEOUT_S: Final = 70.0
 _SUBSCRIBE_FLUSH_S: Final = 0.05
 #: An id a waiter holds that has heard no state frame (and sent no subscribe)
-#: for ``_STALE_AFTER_S`` is re-subscribed at the next sweep tick; the server
+#: for its stale threshold is re-subscribed at the next sweep tick; the server
 #: answers with a fresh snapshot. This bounds the delay a missed event adds to
-#: a wait (about 4 s), which neither the early probe (held off while the socket
-#: is live, keepalives included) nor the reconcile timer does.
+#: a wait, which neither the early probe (held off while the socket is live,
+#: keepalives included) nor the reconcile timer does. The threshold is half the
+#: wait's age, between ``_STALE_AFTER_MIN_S`` and ``_STALE_AFTER_S``: a young
+#: wait (a create just past the server's hold, most of which start within a
+#: few seconds) is re-subscribed about 1, 2, 4 and 7 s in, then every ~3 s.
+_STALE_AFTER_MIN_S: Final = 1.0
 _STALE_AFTER_S: Final = 3.0
 _STALE_SWEEP_TICK_S: Final = 1.0
 #: Ids per second the sweep re-subscribes at most: 75 % of the server's
@@ -333,6 +337,9 @@ class _SocketState:
     snapshot_pending: Dict[str, int] = field(default_factory=dict)
     # When each subscribed id was last sent a subscribe or given a state frame.
     heard_at: Dict[str, float] = field(default_factory=dict)
+    # When the current wait on each subscribed id began (its stale threshold
+    # grows with the wait's age).
+    waited_since: Dict[str, float] = field(default_factory=dict)
     # The last decoded state per subscribed id: a new waiter on an id the
     # socket already holds is judged against it at once (a sandbox resting in
     # its target state emits no further event to wait for).
@@ -426,6 +433,7 @@ class WaitHub:
         self._early_probe_s: float = _EARLY_PROBE_S
         self._client_ping_after_s: float = _CLIENT_PING_AFTER_S
         self._subscribe_flush_s: float = _SUBSCRIBE_FLUSH_S
+        self._stale_after_min_s: float = _STALE_AFTER_MIN_S
         self._stale_after_s: float = _STALE_AFTER_S
         self._stale_sweep_tick_s: float = _STALE_SWEEP_TICK_S
         # Unset: derived from the tick (`_stale_sweep_cap`).
@@ -503,6 +511,7 @@ class WaitHub:
             sock.ws = None
             sock.subscriptions.clear()
             sock.heard_at.clear()
+            sock.waited_since.clear()
             sock.states.clear()
             sock.raw_states.clear()
             sock.versions.clear()
@@ -613,6 +622,7 @@ class WaitHub:
 
         source.subscriptions.clear()
         source.heard_at.clear()
+        source.waited_since.clear()
         source.states.clear()
         source.raw_states.clear()
         source.snapshot_pending.clear()
@@ -749,6 +759,7 @@ class WaitHub:
                     sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
                 )
         waiter.registered_at = _clock.monotonic()
+        sock.waited_since[sandbox_id] = waiter.registered_at
 
         if sandbox_id not in sock.subscriptions:
             sock.subscriptions.add(sandbox_id)
@@ -1544,6 +1555,7 @@ class WaitHub:
     def _release_subscription(self, sock: _SocketState, sandbox_id: str) -> None:
         sock.subscriptions.discard(sandbox_id)
         sock.heard_at.pop(sandbox_id, None)
+        sock.waited_since.pop(sandbox_id, None)
         sock.states.pop(sandbox_id, None)
         sock.raw_states.pop(sandbox_id, None)
         sock.versions.pop(sandbox_id, None)
@@ -1577,9 +1589,19 @@ class WaitHub:
             return self._stale_sweep_max_ids
         return max(1, int(_STALE_SWEEP_IDS_PER_S * self._stale_sweep_tick_s))
 
+    def _is_stale(self, sock: _SocketState, sandbox_id: str, now: float) -> bool:
+        """Whether ``sandbox_id`` has heard nothing for its stale threshold:
+        half its wait's age, between ``_stale_after_min_s`` and
+        ``_stale_after_s`` (the longest when the wait's start is unknown)."""
+        since = sock.waited_since.get(sandbox_id)
+        high = self._stale_after_s
+        threshold = high if since is None else min(high, max(self._stale_after_min_s, (now - since) / 2))
+        return sock.heard_at.get(sandbox_id, 0.0) <= now - threshold
+
     async def _stale_resubscribe_loop(self, sock: _SocketState) -> None:
-        """Re-subscribe every waited-on id that has heard nothing for
-        ``_stale_after_s``.
+        """Re-subscribe every waited-on id that has heard nothing for its
+        stale threshold (half its wait's age, ``_stale_after_min_s`` to
+        ``_stale_after_s``).
 
         A wait whose transition event never arrives would otherwise end only
         at the reconcile timer. The frame path pays one dict store; a tick
@@ -1592,8 +1614,8 @@ class WaitHub:
             if sock.ws is None:
                 continue
             heard_at = sock.heard_at
-            cutoff = _clock.monotonic() - self._stale_after_s
-            if not any(heard_at.get(sid, 0.0) <= cutoff for sid in sock.subscriptions):
+            now = _clock.monotonic()
+            if not any(self._is_stale(sock, sid, now) for sid in sock.subscriptions):
                 continue
             # Under the flush lock, so a flush's unsubscribe of an id that
             # leaves meanwhile cannot overtake this subscribe of it.
@@ -1602,7 +1624,7 @@ class WaitHub:
                 stale = [
                     sid
                     for sid in sock.subscriptions
-                    if heard_at.get(sid, 0.0) <= cutoff and sid not in pending and self._waiters.get(sid)
+                    if self._is_stale(sock, sid, now) and sid not in pending and self._waiters.get(sid)
                 ]
                 max_ids = self._stale_sweep_cap()
                 if len(stale) > max_ids:
@@ -1625,6 +1647,7 @@ class WaitHub:
                     w.future.set_exception(err)
         sock.subscriptions.clear()
         sock.heard_at.clear()
+        sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
@@ -1642,6 +1665,7 @@ class WaitHub:
                     w.future.set_exception(err)
         sock.subscriptions.clear()
         sock.heard_at.clear()
+        sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
@@ -1662,6 +1686,7 @@ class WaitHub:
                     w.future.set_exception(error)
         sock.subscriptions.clear()
         sock.heard_at.clear()
+        sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
         sock.versions.clear()
