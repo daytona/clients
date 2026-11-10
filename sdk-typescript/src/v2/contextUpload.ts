@@ -255,11 +255,11 @@ async function complete(http: AxiosInstance, uploadId: string, regionId: string)
 
 /**
  * The `/build-contexts` response, checked field by field before any field is
- * used, with Python's messages: an id or region that is not a non-empty
- * string, or a part that is not `{ part_number, bytes, url }` integers and a
+ * used, with Python's messages: an id, region or state that is not a non-empty
+ * string, `parts` that is not an array (a ready upload's included), or a part that is not `{ part_number, bytes, url }` integers and a
  * string, is the malformed-response error.
  */
-function checkedUpload(data: unknown): { readonly id: string; readonly regionId: string; readonly ready: boolean; readonly parts?: readonly api.BuildContextUploadPart[] } {
+function checkedUpload(data: unknown): { readonly id: string; readonly regionId: string; readonly ready: boolean; readonly parts: readonly api.BuildContextUploadPart[] } {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) throw badRequest('build context upload response is not an object')
   const record = data as Record<string, unknown>
   const text = (key: string): string => {
@@ -269,7 +269,8 @@ function checkedUpload(data: unknown): { readonly id: string; readonly regionId:
   }
   const id = text('id')
   const regionId = text('region_id')
-  if (record.state === 'ready') return { id, regionId, ready: true }
+  // Every field read is checked first, whatever the state (as Python).
+  const state = text('state')
   const raw = record.parts
   if (!Array.isArray(raw)) throw badRequest('build context upload response has no parts')
   const parts = raw.map((item: unknown): api.BuildContextUploadPart => {
@@ -278,7 +279,7 @@ function checkedUpload(data: unknown): { readonly id: string; readonly regionId:
     if (!Number.isSafeInteger(number) || !Number.isSafeInteger(bytes) || typeof url !== 'string') throw badRequest('build context upload response has a malformed part')
     return { part_number: number as number, bytes: bytes as number, url }
   })
-  return { id, regionId, ready: false, parts }
+  return { id, regionId, ready: state === 'ready', parts }
 }
 
 /**
@@ -303,7 +304,7 @@ export async function uploadBuildContext(
     }
     const { data } = await http.post<unknown>('/build-contexts', request)
     const upload = checkedUpload(data)
-    if (upload.ready || upload.parts === undefined) return { id: upload.id, regionId: upload.regionId }
+    if (upload.ready) return { id: upload.id, regionId: upload.regionId }
     // Checked before any part is sent: the id becomes a path segment of complete.
     pathSegment(upload.id, 'build context upload id')
     await putParts(source, upload.parts)

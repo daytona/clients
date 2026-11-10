@@ -199,7 +199,13 @@ def _parts(payload: Mapping[str, object]) -> list[_Part]:
         if not isinstance(item, Mapping):
             raise _malformed("build context upload response has a malformed part")
         number, size, url = item.get("part_number"), item.get("bytes"), item.get("url")
-        if not isinstance(number, int) or not isinstance(size, int) or not isinstance(url, str):
+        if (
+            not isinstance(number, int)
+            or isinstance(number, bool)
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or not isinstance(url, str)
+        ):
             raise _malformed("build context upload response has a malformed part")
         parts.append(_Part(number, size, url))
     return parts
@@ -290,13 +296,15 @@ async def upload_build_context(
     created = await transport.send(RequestSpec("POST", "/build-contexts", json_body=body))
     if not isinstance(created, Mapping):
         raise _malformed("build context upload response is not an object")
+    # Every field read is checked first, whatever the state (as TypeScript).
     upload_id = _text(created, "id")
     region_id = _text(created, "region_id")
-    if created.get("state") == "ready":
+    state = _text(created, "state")
+    parts = _parts(created)
+    if state == "ready":
         return upload_id, region_id
     # Checked before any part is sent: the id becomes a path segment of complete.
     path_segment(upload_id, "build context upload id")
-    parts = _parts(created)
     if (
         any(part.number != index + 1 or part.bytes <= 0 for index, part in enumerate(parts))
         or sum(part.bytes for part in parts) != source.size

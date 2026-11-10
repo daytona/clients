@@ -94,6 +94,8 @@ beforeEach(async () => {
       const reply = (status: number, payload?: unknown): void => {
         response.statusCode = status
         response.setHeader('Content-Type', 'application/json')
+        // A redirect names a target a follower would request.
+        if (status >= 300 && status < 400) response.setHeader('Location', `${baseUrl}/bucket/redirected`)
         response.end(payload === undefined ? '' : JSON.stringify(payload))
       }
       const upload = (state: string, declared: { dockerfile: string; bytes: number; sha256: string }, parts: unknown[]) => ({
@@ -141,6 +143,8 @@ afterEach(async () => {
 
 it.each([
   ['a ready upload without an id', true, ({ id: _id, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no id'],
+  ['a ready upload without parts', true, ({ parts: _parts, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no parts'],
+  ['an upload without a state', false, ({ state: _state, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no state'],
   ['a ready upload without a region', true, ({ region_id: _region, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no region_id'],
   ['an upload without parts', false, ({ parts: _parts, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no parts'],
   ['an unknown state without parts', false, ({ parts: _parts, ...rest }: Record<string, unknown>) => ({ ...rest, state: 'future' }), 'build context upload response has no parts'],
@@ -167,6 +171,7 @@ it('fails a redirected part with the redirect error, without retrying it', async
   expect((error as Error).constructor).toBe(DaytonaError)
   expect(error).toMatchObject({ statusCode: 302, source: 'SDK' })
   expect(puts()).toHaveLength(1)
+  expect(seen.some((request) => request.url.startsWith('/bucket/redirected'))).toBe(false)
   expect(completes()).toHaveLength(0)
   expect(seen.some((request) => request.url === '/images')).toBe(false)
 })

@@ -169,6 +169,9 @@ def storage_peer(**options: object) -> Iterator[Peer]:
             try:
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
+                if 300 <= status < 400:
+                    # A redirect names a target a follower would request.
+                    self.send_header("Location", f"{holder[0].url}/bucket/redirected")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -359,6 +362,7 @@ async def test_a_redirected_part_is_the_redirect_error_and_is_not_retried(sync: 
         assert type(error.value) is DaytonaError
         assert (error.value.status_code, error.value.source) == (302, "SDK")
         assert len(peer.bodies("PUT", "/bucket/part/1")) == 1
+        assert not [p for _, p, *_ in peer.requests if p.startswith("/bucket/redirected")]
         assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
 
 
@@ -368,6 +372,12 @@ def _without(key: str) -> Callable[[dict[str, object]], object]:
 
 def _future_state_without_parts(upload: dict[str, object]) -> object:
     return {**{k: v for k, v in upload.items() if k != "parts"}, "state": "future"}
+
+
+def _bool_part_numbers(upload: dict[str, object]) -> object:
+    parts = upload["parts"]
+    assert isinstance(parts, list)
+    return {**upload, "parts": [{**part, "part_number": True} for part in parts]}
 
 
 def _bad_urls(upload: dict[str, object]) -> object:
@@ -382,6 +392,9 @@ def _bad_urls(upload: dict[str, object]) -> object:
     [
         (True, _without("id"), "build context upload response has no id"),
         (True, _without("region_id"), "build context upload response has no region_id"),
+        (True, _without("parts"), "build context upload response has no parts"),
+        (False, _without("state"), "build context upload response has no state"),
+        (False, _bool_part_numbers, "build context upload response has a malformed part"),
         (False, _without("parts"), "build context upload response has no parts"),
         (False, _future_state_without_parts, "build context upload response has no parts"),
         (False, _bad_urls, "build context upload response has a malformed part"),
