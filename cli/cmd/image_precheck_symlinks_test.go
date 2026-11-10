@@ -77,3 +77,15 @@ func TestImageDockerfile_acceptsSymlink_whenPlainTarContainsIt(t *testing.T) {
 	// Then it is not incorrectly reported as missing.
 	require.NoError(t, err)
 }
+
+// A plain tar context larger than a multipart upload (sent directly to
+// storage) is still checked for its Dockerfile before any request.
+func TestImageDockerfile_checksLargeTarContexts(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "context.tar")
+	require.NoError(t, os.WriteFile(path, nil, 0o600))
+	require.NoError(t, os.Truncate(path, imageContextMaxBytes+1024))
+	err := checkImageDockerfile(path, "Dockerfile")
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.Contains(t, err.Error(), "missing from build context")
+}

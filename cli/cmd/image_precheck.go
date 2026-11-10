@@ -48,7 +48,7 @@ func checkImageDockerfile(contextPath, dockerfile string) error {
 		}
 		return nil
 	}
-	if !info.Mode().IsRegular() || info.Size() > imageContextMaxBytes {
+	if !info.Mode().IsRegular() || info.Size() > imageContextDirectMaxBytes {
 		return nil // The upload preparer reports unsupported entries and size limits.
 	}
 	file, err := os.Open(contextPath)
