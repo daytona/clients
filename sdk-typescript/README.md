@@ -321,8 +321,10 @@ make asynchronous callback work cancellation-aware when needed.
   `macModels`.
 - **Bucket volumes** — to mount an S3 bucket you own, create a bucket volume
   for it in the dashboard or with `daytona volume create NAME --type bucket
-  --bucket ...`, then attach it when creating a sandbox through the `volumes`
-  option.
+  --bucket BUCKET_NAME --access-key-secret ACCESS_KEY_SECRET
+  --secret-key-secret SECRET_KEY_SECRET` (the last two name project secrets
+  holding the bucket's keys), then attach it when creating a sandbox through
+  the `volumes` option.
 - **Sandbox search** — `list({ cursor, limit })` returns one page without
   filters; `iter({ cursor, limit })` traverses those pages. Use `search()` for
   eventually consistent, all-region filtering by `states`, `sandboxClass`,
