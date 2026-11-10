@@ -229,8 +229,12 @@ it('reports unreachable storage as a connection error without its URL', async ()
 it.each([
   { context: new Uint8Array(), message: 'build context is empty' },
   { context: '/nonexistent/ctx.tar', message: 'is not a file' },
+  // SAFETY: a deliberately invalid plain-JavaScript argument.
+  { context: 42 as never, message: 'context must be the bytes of a tar archive, a Blob, or the path of a tar file' },
 ])('refuses an unusable context before any request ($message)', async ({ context, message }) => {
-  await expect(service().buildFromContext(context)).rejects.toThrow(message)
+  const pending = service().buildFromContext(context)
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow(message)
   expect(seen).toHaveLength(0)
 })
 

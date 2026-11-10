@@ -137,7 +137,7 @@ async function sourceOf(context: BuildContext): Promise<ContextSource> {
       }
     }
     if (typeof Blob !== 'undefined' && context instanceof Blob) return blobSource(context)
-    throw new TypeError('context must be the bytes of a tar archive, a Blob, or the path of a tar file')
+    throw badRequest('context must be the bytes of a tar archive, a Blob, or the path of a tar file')
   }
   if (!contextUploadRuntime.isNode()) throw new NotSupportedError('a build context path is only supported in Node.js; pass its bytes or a Blob', { statusCode: 501, code: 'NOT_IMPLEMENTED', source: 'SDK' })
   return fileSource(context)

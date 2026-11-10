@@ -390,7 +390,11 @@ async def test_unreachable_storage_is_a_connection_error_without_its_url() -> No
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     ("context", "message"),
-    [(b"", "build context is empty"), ("/nonexistent/ctx.tar", "is not a file")],
+    [
+        (b"", "build context is empty"),
+        ("/nonexistent/ctx.tar", "is not a file"),
+        (42, "context must be the bytes of a tar archive or the path of a tar file"),
+    ],
 )
 async def test_an_unusable_context_is_refused_before_any_request(context: object, message: str) -> None:
     with storage_peer() as peer:

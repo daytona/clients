@@ -78,8 +78,6 @@ describe('error construction guard', () => {
     expect(counts(/new (?:Error|TypeError|RangeError)\(/g)).toEqual({
       // Construction outside the SDK (no INTERNAL token): TypeError.
       'internal.ts': 1,
-      // A build context that is neither bytes, a Blob nor a path: TypeError, as Python raises.
-      'contextUpload.ts': 1,
       // Socket and ticket failures the events hub handles itself (reconnect or fallback).
       'events.ts': 5,
       // A non-Error rejection reason, wrapped.

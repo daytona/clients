@@ -127,7 +127,12 @@ class _Source:
                 )
             self.size = self._path.stat().st_size
         else:
-            raise TypeError("context must be the bytes of a tar archive or the path of a tar file")
+            raise BadRequestError(
+                "context must be the bytes of a tar archive or the path of a tar file",
+                status_code=400,
+                code="BAD_REQUEST",
+                source="SDK",
+            )
         if self.size == 0:
             raise BadRequestError("build context is empty", status_code=400, code="BAD_REQUEST", source="SDK")
         if self.size > MAX_CONTEXT_BYTES:
