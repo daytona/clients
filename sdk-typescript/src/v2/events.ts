@@ -108,6 +108,7 @@ const DEFAULT_CLOSE_GRACE_MS = 1_000
 const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
+const DEFAULT_STALE_AFTER_MIN_MS = 1_000
 /**
  * An id a waiter holds that has heard no state frame (and sent no subscribe)
  * for its stale threshold is re-subscribed at the next sweep tick; the server
@@ -116,10 +117,9 @@ const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
  * keepalives included) nor the reconcile timer does. The threshold is half the
  * wait's age, between `DEFAULT_STALE_AFTER_MIN_MS` and `DEFAULT_STALE_AFTER_MS`:
  * a young wait (a create just past the server's hold, most of which start
- * within a few seconds) is re-subscribed about 1, 2, 4 and 7 s in, then every
+ * within a few seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every
  * ~3 s.
  */
-const DEFAULT_STALE_AFTER_MIN_MS = 1_000
 const DEFAULT_STALE_AFTER_MS = 3_000
 const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
 /** Ids per second the sweep re-subscribes at most: 75 % of the server's
@@ -795,6 +795,8 @@ export class WaitHub {
       }
       const pendingVersion = source.snapshotPending.get(sid)
       if (pendingVersion !== undefined) destination.snapshotPending.set(sid, pendingVersion)
+      const waitedSince = source.waitedSince.get(sid)
+      if (waitedSince !== undefined && !destination.waitedSince.has(sid)) destination.waitedSince.set(sid, waitedSince)
       if (preserveState) {
         const sourceState = source.states.get(sid)
         if (sourceState !== undefined) destination.states.set(sid, sourceState)
@@ -957,7 +959,9 @@ export class WaitHub {
     this.scheduleClientPing(sock)
     const fresh = !sock.subscriptions.has(sandboxId)
     sock.subscriptions.add(sandboxId)
-    sock.waitedSince.set(sandboxId, Date.now())
+    // The first waiter's start: a later waiter on the same id shares its
+    // subscription and does not restart the schedule.
+    if (!sock.waitedSince.has(sandboxId)) sock.waitedSince.set(sandboxId, Date.now())
     this.ensureSocketLoop(sock)
     sock.wake?.()
     if (sock.ws !== undefined && sock.ws.readyState === WS_OPEN) this.armStaleSweep(sock)

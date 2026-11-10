@@ -1327,7 +1327,7 @@ describe('WaitHub: stale sweep', () => {
   })
 
   // Threshold = half the wait's age, between the two bounds: with 100 / 400 ms
-  // the re-subscribes come about 100, 200, 400, 700 ms in, then every ~400 ms.
+  // the re-subscribes come about 100, 200, 400, 800 ms in, then every ~400 ms.
   test('a young wait is re-subscribed sooner than an old one', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
@@ -1355,6 +1355,45 @@ describe('WaitHub: stale sweep', () => {
       randomSpy.mockRestore()
       jest.useRealTimers()
     }
+  })
+
+  type SweepSocket = { waitedSince: Map<string, number> }
+  const socketsOf = (hub: WaitHub): Map<string, SweepSocket> =>
+    (hub as unknown as { sockets: Map<string, SweepSocket> }).sockets
+
+  test('a second waiter keeps the first wait start', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    fc.prepare()
+    const first = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await drain()
+    const sock = [...socketsOf(hub).values()][0]!
+    const started = sock.waitedSince.get(SANDBOX_ID)
+    expect(started).toBeDefined()
+    await new Promise((r) => setTimeout(r, 20))
+    const second = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await drain()
+    expect(sock.waitedSince.get(SANDBOX_ID)).toBe(started)
+    await hub.detach()
+    await Promise.all([first, second])
+  })
+
+  test('a moved subscription keeps its wait start', async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    hub.learn(SANDBOX_ID, 'destination-a')
+    fc.prepare()
+    fc.prepare()
+    const waiting = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
+    await drain()
+    const started = socketsOf(hub).get('destination-a')!.waitedSince.get(SANDBOX_ID)
+    expect(started).toBeDefined()
+    hub.learn(SANDBOX_ID, 'destination-b')
+    await drain(30)
+    expect(socketsOf(hub).has('destination-a')).toBe(false)
+    expect(socketsOf(hub).get('destination-b')!.waitedSince.get(SANDBOX_ID)).toBe(started)
+    await hub.detach()
+    await waiting
   })
 
   test('a waiter that keeps hearing events is not re-subscribed', async () => {

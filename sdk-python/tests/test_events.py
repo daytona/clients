@@ -1127,7 +1127,7 @@ class TestHubReconcile:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # Threshold = half the wait's age, between the two bounds: with
-        # 0.1 s / 0.4 s the re-subscribes come about 0.1, 0.2, 0.4, 0.7 s in,
+        # 0.1 s / 0.4 s the re-subscribes come about 0.1, 0.2, 0.4, 0.8 s in,
         # then every ~0.4 s.
         import daytona.v2._events as events_module
 
@@ -1150,6 +1150,42 @@ class TestHubReconcile:
         assert gaps[0] < 0.2, gaps
         assert all(g < 0.5 for g in gaps), gaps
         assert gaps[-1] > 0.3, gaps
+
+    async def test_a_second_waiter_keeps_the_first_wait_start(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        with respx.mock:
+            ticket_mock("region-a")
+            fc.prepare()
+            first = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            sock = next(iter(hub._sockets.values()))
+            started = sock.waited_since["abc-region-a"]
+            await asyncio.sleep(0.05)
+            second = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            assert sock.waited_since["abc-region-a"] == started
+            for task in (first, second):
+                task.cancel()
+            await asyncio.gather(first, second, return_exceptions=True)
+
+    async def test_a_moved_subscription_keeps_its_wait_start(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub.learn("abc-region-a", "endpoint-a")
+        with respx.mock:
+            ticket_mock("region-a")
+            fc.prepare()
+            fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            started = hub._sockets["endpoint-a"].waited_since["abc-region-a"]
+            hub.learn("abc-region-a", "endpoint-b")
+            await drain()
+            assert "endpoint-a" not in hub._sockets
+            assert hub._sockets["endpoint-b"].waited_since["abc-region-a"] == started
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
         self, monkeypatch: pytest.MonkeyPatch

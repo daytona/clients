@@ -94,7 +94,7 @@ _SUBSCRIBE_FLUSH_S: Final = 0.05
 #: keepalives included) nor the reconcile timer does. The threshold is half the
 #: wait's age, between ``_STALE_AFTER_MIN_S`` and ``_STALE_AFTER_S``: a young
 #: wait (a create just past the server's hold, most of which start within a
-#: few seconds) is re-subscribed about 1, 2, 4 and 7 s in, then every ~3 s.
+#: few seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every ~3 s.
 _STALE_AFTER_MIN_S: Final = 1.0
 _STALE_AFTER_S: Final = 3.0
 _STALE_SWEEP_TICK_S: Final = 1.0
@@ -610,6 +610,9 @@ class WaitHub:
             pending_version = source.snapshot_pending.get(sandbox_id)
             if pending_version is not None:
                 destination.snapshot_pending[sandbox_id] = pending_version
+            waited_since = source.waited_since.get(sandbox_id)
+            if waited_since is not None:
+                destination.waited_since.setdefault(sandbox_id, waited_since)
             if preserve_state:
                 source_state = source.states.get(sandbox_id)
                 if source_state is not None:
@@ -759,7 +762,9 @@ class WaitHub:
                     sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
                 )
         waiter.registered_at = _clock.monotonic()
-        sock.waited_since[sandbox_id] = waiter.registered_at
+        # The first waiter's start: a later waiter on the same id shares its
+        # subscription and does not restart the schedule.
+        sock.waited_since.setdefault(sandbox_id, waiter.registered_at)
 
         if sandbox_id not in sock.subscriptions:
             sock.subscriptions.add(sandbox_id)
