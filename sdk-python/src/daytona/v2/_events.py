@@ -384,12 +384,19 @@ def endpoint_from_headers(headers: Mapping[str, str]) -> Optional[str]:
 
 
 async def _default_connector(uri: str, subprotocols: List[str]) -> _WsConn:
-    import websockets  # type: ignore[import-untyped]
+    from websockets.asyncio.client import connect
+
+    class _NoRedirects(connect):
+        # The SDK follows no redirect (as TypeScript's WebSocket clients): a
+        # 3xx handshake is a failed connection, and the ticket in the
+        # subprotocol header never goes to the `Location` host.
+        def process_redirect(self, exc: Exception) -> Exception | str:
+            return exc
 
     # `max_size`: the largest server frame accepted (the websockets default,
     # made explicit so it is a decision, not an accident; the TypeScript hub
     # enforces the same 1 MiB). A larger frame closes the socket 1009.
-    return await websockets.connect(
+    return await _NoRedirects(
         uri, subprotocols=subprotocols, open_timeout=30, max_size=_MAX_SERVER_FRAME_BYTES
     )
 

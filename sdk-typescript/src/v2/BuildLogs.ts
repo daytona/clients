@@ -6,7 +6,7 @@
 // allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
 
 import { queryText } from './pageParams.js'
-import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, redirectError, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
+import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, isRedirectStatus, redirectError, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
 import { isRfc3339 } from './rfc3339.js'
 import { MAX_TIMER_DELAY_MS, boundedTimerDelay, badRequest, waitDeadline } from './options.js'
@@ -458,7 +458,8 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
 }
 
 async function httpError(response: Response, deadline: number | undefined): Promise<DaytonaError> {
-  if (response.type === 'opaqueredirect') {
+  // The SDK follows no redirect; its body is never read.
+  if (response.type === 'opaqueredirect' || isRedirectStatus(response.status)) {
     await cancelResponse(response)
     return redirectError(response.status)
   }

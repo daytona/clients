@@ -701,7 +701,8 @@ skipping exist only in the TypeScript tool).
   is still malformed. The SDKs never follow an HTTP redirect: a 3xx response
   is a `DaytonaError` carrying its status, source `SDK` (Python
   `redirect_error`, TS `redirectError`; axios `maxRedirects: 0`, fetch
-  `redirect: 'manual'`, httpx's default). Integers match between the SDKs except
+  `redirect: 'manual'`, httpx's default), and the events WebSocket refuses a
+  3xx handshake (Python `process_redirect`, TS `ws` / WHATWG defaults). Integers match between the SDKs except
   in one case: a JSON number written with a zero fraction (`3.0`) is not an
   integer in Python, which refuses it, while TypeScript's `JSON.parse` cannot
   tell it from `3`, so only Python can refuse it. An id or name a call puts

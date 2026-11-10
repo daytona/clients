@@ -62,3 +62,39 @@ def test_the_sync_client_refuses_a_3xx_too() -> None:
 def test_a_json_body_on_a_3xx_does_not_choose_the_error() -> None:
     error = error_from_response(304, b'{"code":"NOT_FOUND","message":"x"}', content_type="application/json")
     _assert_redirect_error(error, 304)
+
+
+async def test_the_events_websocket_refuses_a_3xx_handshake() -> None:
+    import asyncio
+
+    from websockets.asyncio.server import ServerConnection, serve
+    from websockets.exceptions import InvalidStatus
+
+    from daytona.v2._events import _default_connector
+
+    reached: list[str] = []
+
+    async def target(connection: ServerConnection) -> None:
+        reached.append(connection.request.path if connection.request is not None else "")
+        await connection.send("hello")
+
+    async with serve(target, "127.0.0.1", 0) as server:
+        target_port = next(iter(server.sockets)).getsockname()[1]
+
+        async def redirect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+            await reader.readuntil(b"\r\n\r\n")
+            writer.write(
+                f"HTTP/1.1 302 Found\r\nLocation: ws://127.0.0.1:{target_port}/stolen\r\n"
+                "Content-Length: 0\r\n\r\n".encode()
+            )
+            await writer.drain()
+            writer.close()
+
+        redirector = await asyncio.start_server(redirect, "127.0.0.1", 0)
+        async with redirector:
+            port = redirector.sockets[0].getsockname()[1]
+            with pytest.raises(InvalidStatus) as raised:
+                await _default_connector(f"ws://127.0.0.1:{port}/events", ["daytona.events.v1"])
+    assert raised.value.response.status_code == 302
+    # The ticket-carrying handshake never reached the Location host.
+    assert reached == []

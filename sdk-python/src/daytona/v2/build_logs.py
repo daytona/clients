@@ -688,6 +688,9 @@ def _budget(deadline: float | None) -> float | None:
 
 async def _finite_http_error(stream: AsyncResponseStream, deadline: float | None) -> DaytonaError:
     """Bound diagnostic bodies without replacing a known HTTP denial by retry."""
+    if 300 <= stream.status_code < 400:
+        # The SDK follows no redirect; its body is never read.
+        return redirect_error(stream.status_code)
     budget = _budget(deadline)
     if budget is not None and budget <= 0:
         return create_error(f"build log HTTP {stream.status_code}", stream.status_code)

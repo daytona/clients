@@ -92,7 +92,8 @@ macOS accepts read-write disk volumes only, without `persistent: true`.
 
 `sandbox.volumes` lazily caches a `SandboxVolumesService` and clears it
 when the sandbox connection is refreshed. `pull()` preserves the caller's
-request identity, accepts a nullable `manifestId`, and makes one request
+request identity, reads the wire's nullable `manifestId` as an optional
+field (`undefined` for `null`), and makes one request
 without automatic retries. Its HTTP deadline includes read slack beyond the
 requested wait. `timeoutSeconds` accepts 0–30 seconds, including fractions;
 the wire `waitMs` is floored, with every positive input producing at least 1 ms.

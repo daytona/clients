@@ -692,7 +692,8 @@ export class Sandbox {
       current: () => ({ state: this.state ?? 'unknown', rawState: this.rawState ?? '', reason: this.error }),
       observe: (outcome) => {
         this.observed.state = outcome.state
-        this.observed.rawState = outcome.rawState
+        // A frame without a status leaves the wire status unknown (never '').
+        this.observed.rawState = outcome.rawState || undefined
       },
     }, states, options)
   }

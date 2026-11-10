@@ -3,4 +3,5 @@
 `SDK`) in both SDKs, and its `Location` is never requested. TypeScript
 followed redirects (cross-host ones included) and reported the target's
 status; Python read a 3xx body as a success and failed with a misleading
-malformed-response error.
+malformed-response error, and its sandbox events connection followed a
+redirected WebSocket handshake. Python now needs `websockets` 13 or later.

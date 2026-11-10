@@ -322,7 +322,7 @@ export class Snapshot {
 // malformed response: it maps to `unknown` with the wire type (as Python).
 const SOURCE_FIELDS: Readonly<Record<string, ResponseFields>> = {
   registry: { ref: 'string' },
-  dockerfile: { dockerfile: 'string' },
+  dockerfile: { context_object: 'string', dockerfile: 'string' },
   named: { name: 'string' },
   manifest: { name: 'string' },
 }

@@ -1054,10 +1054,11 @@ class AsyncSandbox:
                 )
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
-                return WaitOutcome(self.state, self.raw_state)
+                return WaitOutcome(self.state, self.raw_state or "")
 
             def _observe_outcome(outcome: WaitOutcome) -> None:
-                self._update(state=outcome.state, raw_state=outcome.raw_state)
+                # A frame without a status leaves the wire status unknown (None, never "").
+                self._update(state=outcome.state, raw_state=outcome.raw_state or None)
 
             def _on_observed(outcome: WaitOutcome) -> None:
                 nonlocal refreshed_by_poll

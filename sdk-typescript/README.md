@@ -459,7 +459,7 @@ accepts an ID only and turns off the name lookup.
 Pulling an attachment is separate from the `daytona.v2.volumes` management
 service. IDs contain 1–128 ASCII letters, digits, underscores or hyphens.
 The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
-nullable `manifestId`. Unknown statuses map to `unknown` with the original
+an optional `manifestId` (`undefined` when there is none). Unknown statuses map to `unknown` with the original
 value in `rawStatus`.
 
 Zero timeout submits a new request, or returns a known request's last
