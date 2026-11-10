@@ -12875,9 +12875,10 @@ describe('toolbox surface', () => {
     const calls = [
       () => process.run('cat', { stdin: 'open' } as never),
       () => process.connectSession('shell-1').run('cat', { stdin: 'open' } as never),
+      () => process.run('cat', { stdin: Object.create(null) } as never),
     ]
     for (const call of calls) {
-      await expect(call()).rejects.toMatchObject({ message: expect.stringContaining("stdin 'open' is not supported by run()"), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      await expect(call()).rejects.toMatchObject({ message: expect.stringContaining('is not supported by run()'), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     expect(transport.post).not.toHaveBeenCalled()
   })

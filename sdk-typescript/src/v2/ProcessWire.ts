@@ -211,7 +211,8 @@ function processEnv(env: unknown): Record<string, string> {
 /** `run()` returns no handle to write to, so it cannot keep stdin open. */
 export function runStdin(stdin: unknown): 'closed' {
   if (stdin === undefined || stdin === 'closed') return 'closed'
-  throw badRequest(`stdin '${String(stdin)}' is not supported by run(); it returns no handle to write to. Use start() for a process with open stdin`)
+  const shown = typeof stdin === 'string' ? `'${stdin}'` : 'other than \'closed\''
+  throw badRequest(`stdin ${shown} is not supported by run(); it returns no handle to write to. Use start() for a process with open stdin`)
 }
 
 /** `run()` reads the output back from the retained log, so it cannot honour `'none'`. */
