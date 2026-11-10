@@ -1,0 +1,40 @@
+sdk-python/tests/test_core.py
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 6671-6673
+  s_1d65fa05b6bddd::t_712dbfff9c4f8f 35
+changelog.d/image-builder-escape-directive.breaking.md
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 1-5
+sdk-python/tests/test_toolbox_surface.py
+  s_1d65fa05b6bddd::t_712dbfff9c4f8f 279,281-288
+sdk-typescript/tests/unit.test.ts
+  s_1d65fa05b6bddd::t_712dbfff9c4f8f 12843-12850
+sdk-python/src/daytona/v2/_core.py
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 1205,1326-1332
+  s_1d65fa05b6bddd::t_0cbb26c5ed1848 1333-1334
+sdk-typescript/README.md
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 84-85
+sdk-typescript/src/v2/ProcessWire.ts
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 205-210,248
+  s_1d65fa05b6bddd::t_712dbfff9c4f8f 18
+changelog.d/fs-git-input-types.breaking.md
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 3-6
+changelog.d/terminal-size-range.breaking.md
+  s_1d65fa05b6bddd::t_83199a9eafa1ac 1-2
+changelog.d/process-env-type.breaking.md
+  s_1d65fa05b6bddd::t_de132e2bbdb527 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f13cf2266637b39639cf9eee6f0ab84a9b9b68ca",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
