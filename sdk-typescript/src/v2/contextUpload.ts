@@ -139,16 +139,6 @@ async function sourceOf(context: BuildContext): Promise<ContextSource> {
         close: async () => undefined,
       }
     }
-    if (context instanceof Uint8Array) {
-      return {
-        size: context.byteLength,
-        read: async (offset, length) => context.subarray(offset, offset + length),
-        // SAFETY: a view of the caller's bytes; fetch only reads it.
-        part: (offset, length) => context.subarray(offset, offset + length) as Uint8Array<ArrayBuffer>,
-        changed: async () => false,
-        close: async () => undefined,
-      }
-    }
     if (typeof Blob !== 'undefined' && context instanceof Blob) return blobSource(context)
     throw badRequest('context must be the bytes of a tar archive, a Blob, or the path of a tar file')
   }

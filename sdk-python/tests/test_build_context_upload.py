@@ -622,6 +622,11 @@ async def test_any_bytes_like_context_is_accepted() -> None:
         source = _context_upload._Source(context)
         assert source.size == len(data)
         assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data
+    # A wider item type is sized in bytes, not items.
+    wide = array.array("i", range(300))
+    source = _context_upload._Source(wide)
+    assert source.size == len(wide.tobytes())
+    assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == wide.tobytes()
 
 
 @pytest.mark.anyio
