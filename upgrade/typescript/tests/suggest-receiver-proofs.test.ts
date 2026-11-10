@@ -61,9 +61,11 @@ it('renders an LSP server start on the sandbox that created the server', async (
 it('drops service proofs after a sandbox method the code replaced', async () => {
   // Given a 0.x sandbox method the program overwrote with its own function.
   const report = await suggest({ 'index.ts': "import { Sandbox } from '@daytonaio/sdk';\n" +
-    "async function f(sb: Sandbox, other: unknown) {\n  sb.refreshData = async function (this: any) { this.fs = other };\n" +
+    "async function f(sb: Sandbox, other: unknown) {\n  await sb.git.status('/r');\n" +
+    "  sb.refreshData = async function (this: any) { this.fs = other };\n" +
     "  await sb.refreshData();\n  await sb.fs.createFolder('/x', '755');\n}\n" });
-  // Then the later service call is not suggested as the SDK's.
+  // Then the call before the replacement is suggested, the later service call is not.
+  expect(ids(report)).toContain('sandbox.git.status');
   expect(ids(report)).not.toContain('sandbox.fs.createFolder');
 });
 
@@ -75,4 +77,22 @@ it('keeps a client.v0 escape to its own client, not another with the same name',
   // Then only the second call is suggested.
   const lines = report.items.flatMap(item => item.suggestion?.id === 'client.snapshot.get' ? [item.line] : []);
   expect(lines).toEqual([7]);
+});
+
+it('keeps service proofs after sandbox lifecycle methods whose names the client also has', async () => {
+  // Given
+  const report = await suggest({ 'index.ts': "import { Sandbox } from '@daytonaio/sdk';\n" +
+    "async function f(sb: Sandbox) {\n  await sb.start();\n  await sb.fs.createFolder('/x', '755');\n  await sb.stop();\n  await sb.git.status('/r');\n}\n" });
+  // Then
+  expect(ids(report)).toEqual(expect.arrayContaining(['sandbox.fs.createFolder', 'sandbox.git.status', 'sandbox.start', 'sandbox.stop']));
+});
+
+it('drops service proofs after a sandbox method a project subclass overrides', async () => {
+  // Given
+  const report = await suggest({ 'index.ts': "import { Sandbox } from '@daytonaio/sdk';\n" +
+    "class Mine extends Sandbox {\n  async refreshData() { (this as any).fs = null; }\n}\n" +
+    "async function f(sb: Sandbox) {\n  await sb.git.status('/r');\n  await sb.refreshData();\n  await sb.fs.createFolder('/x', '755');\n}\n" });
+  // Then
+  expect(ids(report)).toContain('sandbox.git.status');
+  expect(ids(report)).not.toContain('sandbox.fs.createFolder');
 });

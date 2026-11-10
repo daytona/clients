@@ -204,6 +204,12 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
                     "column": call.node.col_offset + 1,
                     "kind": "workflow",
                     "message": header.removeprefix("daytona-v2: "),
+                    "suggestion": {
+                        **suggestion,
+                        "id": f"workflow:{call.binding}",
+                        "notes": list(mapping.data_traps),
+                        "docs": mapping.docs + "#data",
+                    },
                 }
             )
     return Guidance(

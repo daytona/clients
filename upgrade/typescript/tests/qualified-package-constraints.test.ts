@@ -61,3 +61,14 @@ it('migrates the old dependency when a constraint section names only the new pac
   expect(result.output).not.toContain('Both Daytona package names are present');
   expect(Object.keys(JSON.parse(contents(root)['package.json'] ?? '').dependencies)).toEqual(['@daytona/sdk']);
 });
+
+it('migrates old-name constraints when only the new package is a dependency', async () => {
+  // Given
+  const manifest = { dependencies: { '@daytona/sdk': '^2.0.0' }, resolutions: { '@daytonaio/sdk': '0.200.1' } };
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest), 'index.ts': "import { Daytona } from '@daytona/sdk';\n" });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then: nothing is duplicated, so the constraint follows the rename.
+  expect(result.output).not.toContain('Both Daytona package names are present');
+  expect(Object.keys(JSON.parse(contents(root)['package.json'] ?? '').resolutions)).toEqual(['@daytona/sdk']);
+});

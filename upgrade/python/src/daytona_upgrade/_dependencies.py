@@ -46,6 +46,8 @@ class Migration:
         self.mapping = mapping
         self.changes: list[tuple[str, str]] = []
         self.manual: list[tuple[int, str]] = []
+        # The "Dropped the … extra" items, withdrawn if the manifest is preserved.
+        self.dropped: list[tuple[int, str]] = []
         self.resolver_review: list[tuple[int, str]] = []
         self.line = 0
         self.found = False
@@ -157,9 +159,9 @@ class Migration:
 
     def _dropped_extras(self, name: str, extras: list[str]) -> None:
         for extra in target_extras(extras, self.mapping)[1]:
-            self.manual.append(
-                (self.line, dropped_extra_message(extra, name, self.mapping))
-            )
+            item = (self.line, dropped_extra_message(extra, name, self.mapping))
+            self.manual.append(item)
+            self.dropped.append(item)
 
     def _written(self, name: str, specifier: str, existing: str | None) -> str:
         """The requirement a rewrite of this declaration would write: its own
@@ -271,8 +273,11 @@ class Migration:
                 if isinstance(extras[index], String) and str(extras[index]) in dropped:
                     del extras[index]
             self._dropped_extras(name, dropped)
+            present = {
+                _normalized(str(extra)) for extra in extras if isinstance(extra, String)
+            }
             for extra in self.mapping.extras:
-                if extra not in extras:
+                if _normalized(extra) not in present:
                     extras.append(extra)
         else:
             added = tomlkit.array()

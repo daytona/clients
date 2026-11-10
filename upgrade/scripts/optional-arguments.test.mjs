@@ -56,7 +56,11 @@ test('tells forms that convert a literal from those that do not', () => {
 });
 
 test('always renders a required argument, by its name when left out', () => {
-  const type = "{sandbox}.computerUse.keyboard.type({ [[text@0!|text: $]][[delay@1|, delaySeconds: $ / 1000]] })";
-  assert.equal(withNamedArguments(type), '{sandbox}.computerUse.keyboard.type({ text, delaySeconds: delay / 1000 })');
+  // The mapping's form.
+  const type = '{sandbox}.computerUse.keyboard.type({ [[text@0!|text: $]][[delay@1|, delaySeconds: $ === undefined ? undefined : $ / 1000|, delaySeconds: $ / 1000|, delaySeconds: 0|]] })';
+  assert.equal(withNamedArguments(type), '{sandbox}.computerUse.keyboard.type({ text, delaySeconds: delay === undefined ? undefined : delay / 1000 })');
   assert.equal(withoutOptionalArguments(type), '{sandbox}.computerUse.keyboard.type({ text })');
+  assert.equal(withLiteralArguments(type, '50'), '{sandbox}.computerUse.keyboard.type({ text, delaySeconds: 50 / 1000 })');
+  assert.equal(withLiteralArguments(type, '0'), '{sandbox}.computerUse.keyboard.type({ text, delaySeconds: 0 })');
+  assert.equal(withNoneArguments(type, 'null'), '{sandbox}.computerUse.keyboard.type({ text })');
 });

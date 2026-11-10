@@ -78,11 +78,31 @@ export class SdkMethods {
     if (member === 'v0') return this.root(callee);
     const receiver = callee.getExpression();
     if (member === undefined) return false;
-    if (this.mapping.movedClientMembers.ts.includes(member)) return this.root(receiver) && !this.writes.lost(receiver, member);
+    if (this.mapping.movedClientMembers.ts.includes(member) && this.root(receiver)) return !this.writes.lost(receiver, member);
     // A 0.x sandbox (or service) method updates the object's data, never the
-    // service objects it holds, so later `sandbox.fs.…` calls keep their proof.
+    // service objects it holds, so later `sandbox.fs.…` calls keep their proof,
+    // unless the code replaced the method or a project subclass overrides it.
     const kind = this.objectKind(receiver);
     return kind !== undefined && this.mapping.suggestions.some(entry => entry.receiver === kind && entry.v0.ts === member) &&
-      !this.writes.lost(receiver, member);
+      !this.writes.lost(receiver, member) && !this.overridden(callee, kind, member);
+  }
+
+  private overrides: { files: number; members: ReadonlySet<string> } | undefined;
+  /** `kind.member` for every member a project class extending a 0.x type declares. */
+  private overridden(use: Node, kind: string, member: string): boolean {
+    const files = use.getProject().getSourceFiles().filter(source => !source.isDeclarationFile());
+    if (this.overrides?.files !== files.length) {
+      const members = new Set<string>();
+      for (const node of files.flatMap(source => source.getDescendants())) {
+        if (!Node.isClassDeclaration(node) && !Node.isClassExpression(node)) continue;
+        const base = node.getExtends()?.getExpression();
+        const name = base === undefined ? undefined : importedName(base, this.mapping);
+        const owner = Object.entries(this.mapping.receivers).find(([, receiver]) => name !== undefined && receiver.ts.types.includes(name))?.[0];
+        if (owner === undefined) continue;
+        for (const declared of node.getInstanceMembers()) members.add(`${owner}.${declared.getName()}`);
+      }
+      this.overrides = { files: files.length, members };
+    }
+    return this.overrides.members.has(`${kind}.${member}`);
   }
 }

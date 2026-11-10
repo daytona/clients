@@ -127,6 +127,9 @@ def _toml(source: str, migration: Migration, pipfile: bool) -> str:
             )
         if extras is None or not migration.references(extras):
             migration.changes.clear()
+            migration.manual = [
+                item for item in migration.manual if item not in migration.dropped
+            ]
             migration.v2_found = False
             return source
     groups = _at(document, "tool.poetry.group")

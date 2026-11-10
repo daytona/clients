@@ -11,9 +11,13 @@ const MARKER = /\[\[(\w+)@(\d+)(!?)\|((?:(?!\]\]).)*)\]\]/g;
 // A rendered TypeScript `key: key` property, written in shorthand.
 const SAME_NAME_PROPERTY = /^(, )?([A-Za-z_$][\w$]*): \2$/;
 
+function fill(text, value) {
+  return text.split('$').join(value).replace(SAME_NAME_PROPERTY, '$1$2');
+}
+
 /** The form with every optional argument passed, spelled by its v0 name. */
 export function withNamedArguments(form) {
-  return form.replace(MARKER, (_marker, name, _index, _required, body) => body.split('|')[0].split('$').join(name).replace(SAME_NAME_PROPERTY, '$1$2'));
+  return form.replace(MARKER, (_marker, name, _index, _required, body) => fill(body.split('|')[0], name));
 }
 
 /**
@@ -24,8 +28,8 @@ export function withNamedArguments(form) {
 export function withLiteralArguments(form, value) {
   return form.replace(MARKER, (_marker, name, _index, _required, body) => {
     const [text, literal, zero = literal] = body.split('|');
-    if (literal === undefined) return text.split('$').join(name);
-    return (Number(value) === 0 ? zero : literal).split('$').join(value);
+    if (literal === undefined) return fill(text, name);
+    return fill(Number(value) === 0 ? zero : literal, value);
   });
 }
 
@@ -36,7 +40,7 @@ export function withLiteralArguments(form, value) {
 export function withNoneArguments(form, nullLiteral) {
   return form.replace(MARKER, (_marker, name, _index, _required, body) => {
     const [text, , , none] = body.split('|');
-    return none === undefined ? text.split('$').join(name) : none.split('$').join(nullLiteral);
+    return none === undefined ? fill(text, name) : fill(none, nullLiteral);
   });
 }
 
@@ -51,9 +55,10 @@ export function hasLiteralArguments(form) {
 /** The form with every optional argument left out (v2's defaults). */
 export function withoutOptionalArguments(form) {
   return form.replace(MARKER, (_marker, name, _index, required, body) =>
-    required ? body.split('|')[0].split('$').join(name).replace(SAME_NAME_PROPERTY, '$1$2') : '');
+    required ? fill(body.split('|')[0], name) : '');
 }
 
+/** Whether the form has argument markers to render (optional or required `!` ones). */
 export function hasOptionalArguments(form) {
   return new RegExp(MARKER.source).test(form);
 }

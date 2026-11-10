@@ -174,3 +174,30 @@ def test_does_not_duplicate_an_extra_spelled_differently() -> None:
     result = inspect_manifest(Path("requirements.txt"), source, load_mapping())
     # Then
     assert result.source == "daytona[V0_SDK]>=2,<3\n"
+
+
+def test_withdraws_dropped_extra_items_when_the_manifest_is_preserved() -> None:
+    # Given a Poetry project whose extras table cannot follow the rename.
+    source = (
+        "[tool.poetry.dependencies]\n"
+        'daytona-sdk = {version = ">=0.100", extras = ["x"]}\n'
+        "[tool.poetry]\n"
+        'extras = "unreadable"\n'
+    )
+    # When
+    result = inspect_manifest(Path("pyproject.toml"), source, load_mapping())
+    # Then nothing reports an edit that never reached the file.
+    assert result.source == source
+    assert not any("Dropped the x extra" in message for _, message in result.manual)
+
+
+def test_poetry_extras_are_not_duplicated_by_spelling() -> None:
+    # Given
+    source = (
+        "[tool.poetry.dependencies]\n"
+        'daytona-sdk = {version = ">=0.100", extras = ["V0_SDK"]}\n'
+    )
+    # When
+    result = inspect_manifest(Path("pyproject.toml"), source, load_mapping())
+    # Then
+    assert 'extras = ["V0_SDK"]' in result.source

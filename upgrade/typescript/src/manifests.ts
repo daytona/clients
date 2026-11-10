@@ -75,11 +75,14 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
     // dependency and its resolution never end up naming different packages.
     const names = (entries: typeof object): string[] => entries.getProperties().filter(Node.isPropertyAssignment)
       .map(entry => entry.getName().replaceAll('"', ''));
-    const duplicate = hasRoot || sections.some(({ entries }) => {
-      const present = names(entries);
-      return present.includes(mapping.packages.ts.new) &&
-        present.some(name => name !== mapping.packages.ts.new && mapping.packages.ts.old.includes(name));
-    });
+    const legacy = (name: string): boolean => name !== mapping.packages.ts.new && mapping.packages.ts.old.includes(name);
+    const bothIn = (present: readonly string[]): boolean => present.includes(mapping.packages.ts.new) && present.some(legacy);
+    const dependencyNames = sections.filter(({ constraint }) => !constraint).flatMap(({ entries }) => names(entries));
+    // Some section (the dependencies together, or one constraint section)
+    // names both: every old-name entry stays. A dependency entry of the old
+    // name also stays when the new one is a dependency (hasRoot).
+    const both = bothIn(dependencyNames) || sections.some(({ constraint, entries }) => constraint && bothIn(names(entries)));
+    const duplicate = (constraint: boolean): boolean => both || !constraint && hasRoot;
     for (const { name: sectionName, entries, constraint } of sections) {
       for (const entry of entries.getProperties()) {
         if (!Node.isPropertyAssignment(entry)) continue;
@@ -141,7 +144,7 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'peer-dependency', message: `Update peer dependency ${name} manually for SDK 2.x.` });
           continue;
         }
-        if (name !== mapping.packages.ts.new && duplicate) {
+        if (name !== mapping.packages.ts.new && duplicate(constraint)) {
           items.push({ ...detail, kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' });
           continue;
         }
