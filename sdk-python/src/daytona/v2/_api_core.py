@@ -306,7 +306,36 @@ def _without_item_cursors(value: TransportPayload, items: str) -> TransportPaylo
 # a kind a later API added: not a malformed response, but an
 # `UnknownImageSource` carrying the wire type (the contract's other fields of
 # that source are not read). A source with a known type keeps every check.
-_KNOWN_IMAGE_SOURCE_TYPES = frozenset({"registry", "dockerfile", "named", "manifest"})
+# Each known kind's contract-required fields, all strings.
+_IMAGE_SOURCE_FIELDS: Mapping[str, tuple[str, ...]] = {
+    "registry": ("ref",),
+    "dockerfile": ("context_object", "dockerfile"),
+    "named": ("name",),
+    "manifest": ("name",),
+}
+_KNOWN_IMAGE_SOURCE_TYPES = frozenset(_IMAGE_SOURCE_FIELDS)
+
+
+def _check_known_source(item: object, description: str, path: str = "source") -> None:
+    """The malformed-response error, naming the field, for a source of a known
+    kind that misses one of its fields or has one that is not a string (the
+    generated parser would only say that no variant matched)."""
+    source = item.get("source") if isinstance(item, dict) else None
+    if not isinstance(source, dict):
+        return
+    kind = source.get("type")
+    if not isinstance(kind, str) or not kind:
+        raise create_error(
+            f"expected {description}: {path}.type: must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    for field in _IMAGE_SOURCE_FIELDS.get(kind, ()):
+        if field not in source:
+            problem = "Field required"
+        elif not isinstance(source[field], str):
+            problem = "must be a string"
+        else:
+            continue
+        raise create_error(f"expected {description}: {path}.{field}: {problem}", 400, "BAD_REQUEST", "SDK")
 
 
 def _unknown_source_type(item: object) -> Optional[str]:
@@ -352,6 +381,8 @@ def expect_images_page(value: TransportPayload) -> ListResult[Image]:
     # Every contract-required field (`platform`, `default` and `deprecated`
     # included) must be present: a missing one is the malformed-response error.
     items = value.get("images") if isinstance(value, dict) else None
+    for index, item in enumerate(items if isinstance(items, list) else []):
+        _check_known_source(item, "image list response", f"images.{index}.source")
     unknown = [_unknown_source_type(item) for item in items] if isinstance(items, list) else []
     if any(kind is not None for kind in unknown) and isinstance(value, dict) and isinstance(items, list):
         value = {**value, "images": [_set_aside_unknown_source(item) for item in items]}
@@ -370,6 +401,7 @@ def expect_images_page(value: TransportPayload) -> ListResult[Image]:
 
 def expect_image(value: TransportPayload) -> Image:
     """An image detail checked against the contract (as the list items are) before it is mapped."""
+    _check_known_source(value, "image detail response")
     unknown = _unknown_source_type(value)
     with _source_variant_errors("image detail response"):
         wire = _expect_model_from_dict(

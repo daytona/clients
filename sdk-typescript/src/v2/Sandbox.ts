@@ -314,9 +314,10 @@ export class Sandbox {
   /** The memory snapshot the sandbox resumed; undefined when it booted an image or before it is known. */
   public get snapshot(): SnapshotRef | undefined { return this.observed.snapshot }
   /**
-   * The sandbox labels; undefined until the API has reported them (a handle
-   * from `create*()` or `fork()` holds only what the create response carries:
-   * call `refreshData()` to load them). Replace them with `setLabels()`.
+   * The sandbox labels; undefined until the API has reported them (a
+   * `create*()` or `fork()` handle whose wait read nothing holds only what the
+   * create response carries: call `refreshData()` to load them). Replace them
+   * with `setLabels()`.
    */
   public get labels(): Readonly<Record<string, string>> | undefined { return this.observed.labels }
   /** Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU). */

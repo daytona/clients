@@ -409,8 +409,9 @@ class AsyncSandbox:
     def labels(self) -> Optional[Mapping[str, str]]:
         """The sandbox labels: a fresh copy on every read (changing it changes
         nothing); replace them with :meth:`set_labels`. ``None`` until the API
-        has reported them: a handle from ``create*()`` or ``fork()`` holds only
-        what the create response carries (call :meth:`refresh_data` to load them)."""
+        has reported them: a ``create*()`` or ``fork()`` handle whose wait read
+        nothing holds only what the create response carries (call
+        :meth:`refresh_data` to load them)."""
         return None if self._info.labels is None else dict(self._info.labels)
 
     @property

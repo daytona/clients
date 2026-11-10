@@ -64,11 +64,31 @@ def test_a_list_page_maps_each_unknown_source_and_checks_the_known_ones() -> Non
     assert page.items[0].source is not None and page.items[0].source.type == "registry"
 
 
-@pytest.mark.parametrize("source", [{"type": "registry"}, {"type": 7}, {"type": ""}, {"ref": "alpine"}])
-def test_a_malformed_source_is_still_the_malformed_response_error(source: dict[str, object]) -> None:
+@pytest.mark.parametrize(
+    ("source", "field"),
+    [
+        ({"type": "registry"}, "source.ref: Field required"),
+        ({"type": "registry", "ref": 5}, "source.ref: must be a string"),
+        ({"type": "dockerfile", "dockerfile": "Dockerfile"}, "source.context_object: Field required"),
+        ({"type": 7}, "source.type: must be a non-empty string"),
+        ({"type": ""}, "source.type: must be a non-empty string"),
+        ({"ref": "alpine"}, "source.type: must be a non-empty string"),
+    ],
+)
+def test_a_malformed_source_is_still_the_malformed_response_error(
+    source: dict[str, object], field: str
+) -> None:
     with pytest.raises(BadRequestError) as raised:
         expect_image(_image("img", source=source))
     assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert str(raised.value) == f"expected image detail response: {field}"
+
+
+def test_a_malformed_source_in_a_list_page_names_its_item() -> None:
+    with pytest.raises(BadRequestError, match=r"images\.1\.source\.name: Field required"):
+        expect_images_page(
+            {"images": [_image("a"), _image("b", source={"type": "named"})], "next_cursor": None}
+        )
 
 
 async def test_a_create_handle_has_unknown_labels_until_a_detail_read() -> None:

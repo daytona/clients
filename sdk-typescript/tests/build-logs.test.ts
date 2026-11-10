@@ -585,6 +585,18 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  it('does not take an unknown event id as a resume checkpoint', async () => {
+    // The stream ends right after an unknown event that carries an id: the
+    // reconnect resumes from the last log's cursor, not from that id.
+    jest.useFakeTimers()
+    const { client, fetch } = setup([log('ab', 0) + event('progress', { percent: 40 }, cursor(99)), done(2)])
+    const output: string[] = []
+    const result = await advance(client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } }))
+    expect(output.join('')).toBe('ab')
+    expect(result.cursor).toBe(cursor(2))
+    expect(new URL(String(fetch.mock.calls[2]?.[0])).searchParams.get('cursor')).toBe(cursor(2))
+  })
+
   it('keeps an unknown event out of the parsed stream', async () => {
     const messages = []
     for await (const message of buildLogMessages(response(event('progress', { percent: 40 }, cursor(5)) + event('state', { status: 'ready' })))) messages.push(message)

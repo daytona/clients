@@ -59,6 +59,25 @@ def test_the_sync_client_refuses_a_3xx_too() -> None:
         assert len(api.requests) == 1
 
 
+@pytest.mark.parametrize(
+    "headers",
+    [
+        # A body over the response cap, and one in an encoding the SDK refuses
+        # undecoded: neither is read, so the redirect is the error.
+        {"Content-Type": "text/plain", "Location": "/elsewhere"},
+        {"Content-Type": "text/plain", "Location": "/elsewhere", "Content-Encoding": "br"},
+        {"Content-Type": "text/plain", "Location": "/elsewhere", "Content-Encoding": "gzip"},
+    ],
+)
+async def test_a_3xx_body_is_never_read(headers: dict[str, str]) -> None:
+    with FakeApi([PlannedResponse(302, b"\x1f\x8b" + b"x" * 4096, headers)]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key", max_response_bytes=16)) as root:
+            with pytest.raises(DaytonaError) as raised:
+                await root.v2.images.get("img")
+        _assert_redirect_error(raised.value, 302)
+
+
 def test_a_json_body_on_a_3xx_does_not_choose_the_error() -> None:
     error = error_from_response(304, b'{"code":"NOT_FOUND","message":"x"}', content_type="application/json")
     _assert_redirect_error(error, 304)

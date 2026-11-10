@@ -13636,7 +13636,7 @@ describe('toolbox surface', () => {
     await expect(calls[operation]()).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(`expected ${message}`) })
   })
 
-  it('reads a git config value as a string or null', async () => {
+  it('reads a git config value as a string, or undefined when it is not set', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ value: 'Ada' }).mockResolvedValueOnce({ value: null }).mockResolvedValueOnce({})
     const git = new GitService(INTERNAL, transport.object)

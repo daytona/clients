@@ -437,7 +437,8 @@ Every fetched sandbox exposes its metadata, read-only:
 `persistent`, `spot`, `spot_evicted_at`,
 `lifecycle_policy`, `forked_from`, `user`, and `error` (network policy is read through `get_network_policy()`).
 Update it with methods such as `set_labels()` and reload it with
-`refresh_data()`. A handle from `create*()` or `fork()` holds only what the
+`refresh_data()`. A handle from `create*()` or `fork()` whose wait did not read
+the sandbox (`wait_seconds=0`, or a wait that ended early) holds only what the
 create response carries: fields it does not report are `None` (unknown), with
 `labels is None` rather than `{}`, until `refresh_data()` reads them; `state` is
 `"unknown"` and `raw_state` is `None` before a status is known. A class this SDK does not know reads as

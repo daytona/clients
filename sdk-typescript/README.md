@@ -389,9 +389,10 @@ make asynchronous callback work cancellation-aware when needed.
   `memoryMax`, `disk`, `diskMax`, `sandboxClass`, `region`,
   `persistent`, `spot`, `spotEvictedAt`,
   `lifecyclePolicy`, `forkedFrom`, `user`, and `error` (network policy is read through `getNetworkPolicy()`).
-  A handle from `create*()` or `fork()` holds only what the create response
-  carries: fields it does not report are `undefined` (unknown), `labels`
-  included, until `refreshData()` reads them; `state` is `'unknown'` before a
+  A handle from `create*()` or `fork()` whose wait did not read the sandbox
+  (`waitSeconds: 0`, or a wait that ended early) holds only what the create
+  response carries: fields it does not report are `undefined` (unknown),
+  `labels` included, until `refreshData()` reads them; `state` is `'unknown'` before a
   status is known. Absent values are `undefined` throughout the SDK's models,
   never `null`.
 
@@ -399,9 +400,10 @@ Resource models use readonly camelCase fields: for example, images expose
 `sandboxClass`, `layerCount` and `availableIn`; snapshots expose `sandboxClass`
 and `memoryBytes`; volumes expose `sizeGib` and `usedBytes`. Closed SDK
 enums map unrecognized values to `unknown` and preserve the original in a
-`raw…` sibling, such as `sandbox.rawSandboxClass`. An image's `source` is a
-union told apart by `source.type`; a source kind a later API adds reads as
-`{ type: 'unknown', rawType }`, never as an error. Timestamps are RFC 3339
+`raw…` sibling, such as `sandbox.rawSandboxClass`. An image's `source` is an
+`ImageSource` (exported from `@daytona/sdk/v2`) told apart by `source.type`; a
+source kind a later API adds reads as its `unknown` member, with the reported
+kind in `rawType`, never as an error. Timestamps are RFC 3339
 strings; budget period dates are `YYYY-MM-DD` strings.
 
 For an automatically deleted temporary sandbox:

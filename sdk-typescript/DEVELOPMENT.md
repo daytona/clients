@@ -92,8 +92,9 @@ macOS accepts read-write disk volumes only, without `persistent: true`.
 
 `sandbox.volumes` lazily caches a `SandboxVolumesService` and clears it
 when the sandbox connection is refreshed. `pull()` preserves the caller's
-request identity, reads the wire's nullable `manifestId` as an optional
-field (`undefined` for `null`), and makes one request
+request identity, maps the generated wire type's nullable `manifestId` to
+the public `PullVolumeResult`'s optional `manifestId` (`undefined` for
+`null`), and makes one request
 without automatic retries. Its HTTP deadline includes read slack beyond the
 requested wait. `timeoutSeconds` accepts 0–30 seconds, including fractions;
 the wire `waitMs` is floored, with every positive input producing at least 1 ms.
@@ -101,8 +102,9 @@ the wire `waitMs` is floored, with every positive input producing at least 1 ms.
 `tests/unit.test.ts` covers management, create mappings and route telemetry.
 
 `npm run gen:contract` restores volume aliases in the API and toolbox alias
-layers. Keep those aliases in `scripts/gen-contract.mjs`; the pull response
-must preserve `manifestId: null` rather than optionalizing it.
+layers. Keep those aliases in `scripts/gen-contract.mjs`; the generated pull
+response type must keep `manifestId: null` rather than optionalizing it (the
+wire carries `null`; only the public result reads it as `undefined`).
 
 ### Layout and runtime
 

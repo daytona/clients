@@ -236,6 +236,10 @@ class _Collector:
         self.body.extend(piece)
 
 
+def _is_redirect(response: httpx.Response) -> bool:
+    return 300 <= response.status_code < 400
+
+
 def _start(response: httpx.Response, limit: int) -> _Collector:
     if _declared_too_large(response, limit):
         raise too_large_error(response.status_code, limit)
@@ -278,9 +282,13 @@ async def decoded_chunks(response: httpx.Response) -> AsyncIterator[bytes]:
 async def read_body(response: httpx.Response, limit: int) -> bytes:
     """Read a streamed response's whole body under ``limit``; always closes it.
 
-    The wire bytes are decoded here, in bounded steps, never by httpx.
+    The wire bytes are decoded here, in bounded steps, never by httpx. A
+    redirect's body is never read (the SDK follows none; the caller raises
+    the redirect error from the status alone).
     """
     try:
+        if _is_redirect(response):
+            return b""
         collector = _start(response, limit)
         if not response.is_stream_consumed:
             async for raw in _raw_async(response):
@@ -293,6 +301,8 @@ async def read_body(response: httpx.Response, limit: int) -> bytes:
 def read_body_sync(response: httpx.Response, limit: int) -> bytes:
     """:func:`read_body` for a blocking client."""
     try:
+        if _is_redirect(response):
+            return b""
         collector = _start(response, limit)
         if not response.is_stream_consumed:
             for raw in response.iter_raw():

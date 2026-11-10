@@ -49,6 +49,18 @@ describe.each([false, true])('a 3xx answer (fetch adapter: %s)', (forceFetch) =>
       await api.close()
     }
   })
+
+  it('a 3xx body over the response cap is still the redirect error', async () => {
+    const api = await startFakeApi([{ status: 302, body: 'x'.repeat(4096), headers: { location: '/elsewhere', 'content-type': 'text/plain' } }])
+    const client = clientAt(api.url, { maxResponseBytes: 16 })
+    try {
+      const error = await client.v2.images.get('img').then(() => undefined, (failure: unknown) => failure)
+      expectRedirectError(error, 302)
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
 })
 
 it('HttpTransport.fetch refuses a 3xx without following it', async () => {

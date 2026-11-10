@@ -963,9 +963,9 @@ skipping exist only in the TypeScript tool).
   `readonly T[]`), keyword-only and not iterable in Python: `.items` is the
   one way in, in both SDKs. An absent value is `None` in Python and an
   optional `undefined` in TypeScript, never `null` (and never `''`): a
-  handle's `state` is always set (`unknown` before a read), and a create or
-  fork handle's `labels` are `None` / `undefined` (unknown, not empty) until a
-  detail read reports them; `to_json()` / `toJSON()` write `labels` whenever
+  handle's `state` is always set (`unknown` before a read), and the `labels`
+  of a create or fork handle whose wait read nothing are `None` / `undefined`
+  (unknown, not empty) until a detail read reports them; `to_json()` / `toJSON()` write `labels` whenever
   they are known. The handle exposes the
   sandbox-scoped `access_token` / `accessToken` it authenticates with, but
   not its toolbox URL. `to_json()` / `toJSON()` return one

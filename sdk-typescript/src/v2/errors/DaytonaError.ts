@@ -814,9 +814,12 @@ export function redirectError(status: number | undefined): DaytonaError {
   return createDaytonaError(`${shown}: unexpected redirect (the SDK does not follow redirects)`, status || undefined, undefined, 'SDK')
 }
 
-/** Whether a status is a redirect the SDK refuses. @internal */
+/**
+ * Whether a status is a redirect the SDK refuses: a 3xx, or the 0 of a fetch
+ * response that is opaque (a browser's manual redirect). @internal
+ */
 export function isRedirectStatus(status: number | undefined): boolean {
-  return status !== undefined && status >= 300 && status < 400
+  return status === 0 || (status !== undefined && status >= 300 && status < 400)
 }
 
 /**
@@ -901,8 +904,7 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
   if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
-  // A fetch response reads status 0 only when opaque (a browser's manual redirect).
-  if (isRedirectStatus(status) || (error.response !== undefined && status === 0)) return redirectError(status)
+  if (isRedirectStatus(status)) return redirectError(status)
   const fallback = typeof error.response?.data === 'string' ? error.response.data : (json ? undefined : errorBodyText(error.response?.data)) || error.message
   return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
 }

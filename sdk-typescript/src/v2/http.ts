@@ -697,8 +697,9 @@ function finalizeSpan(bundle: OtelBundle, span: Span, statusCode?: number, error
     return
   }
   // Callers that disable `checkStatus` still got an HTTP failure: the span
-  // must say so even though no exception travelled with it.
-  if (statusCode !== undefined && statusCode >= 400) {
+  // must say so even though no exception travelled with it (a redirect
+  // fails too: the SDK follows none).
+  if (statusCode !== undefined && statusCode >= 300) {
     span.setStatus({ code: bundle.api.SpanStatusCode.ERROR, message: `HTTP ${statusCode}` })
     span.end()
     return

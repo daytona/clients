@@ -842,6 +842,17 @@ async def test_unknown_events_are_skipped_unparsed_without_moving_the_cursor():
     assert len(requests) == 2
 
 
+async def test_an_unknown_event_id_is_not_a_resume_checkpoint():
+    # The stream ends right after an unknown event that carries an id: the
+    # reconnect resumes from the last log's cursor, not from that id.
+    api, requests, _ = setup([log(b"ab", 0) + event("progress", {"percent": 40}, cursor(99)), done(2)])
+    output: list[str] = []
+    result = await follow_build_logs(api, DISCOVERY, on_logs=output.append)
+    assert "".join(output) == "ab"
+    assert result.cursor == cursor(2)
+    assert requests[2].url.params["cursor"] == cursor(2)
+
+
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 409])
 async def test_auth_bad_cursor_and_not_found_never_fall_back(status):
     api, requests, _ = setup([httpx.Response(status, json={"message": "refused", "code": "BAD_REQUEST"})])
