@@ -226,11 +226,18 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
     for attempt in range(_PART_ATTEMPTS):
         try:
             # A presigned PUT needs a fixed length, so the stream is not chunked.
-            response = await client.put(
-                part.url,
-                content=source.chunks(offset, part.bytes),
-                headers={"Content-Length": str(part.bytes)},
+            # Streamed and closed unread: only the status is used, so storage's
+            # response body is never buffered (as TypeScript cancels it).
+            response = await client.send(
+                client.build_request(
+                    "PUT",
+                    part.url,
+                    content=source.chunks(offset, part.bytes),
+                    headers={"Content-Length": str(part.bytes)},
+                ),
+                stream=True,
             )
+            await response.aclose()
         except httpx.HTTPError:
             # The exception text names the URL, so it is not chained.
             status = None

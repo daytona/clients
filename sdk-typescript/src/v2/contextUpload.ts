@@ -238,19 +238,47 @@ function retryableComplete(error: DaytonaError): boolean {
 }
 
 /** Verify the upload. A repeated complete of a verified upload answers with it, so failures are retried. */
-async function complete(http: AxiosInstance, upload: api.BuildContextUpload): Promise<void> {
+async function complete(http: AxiosInstance, uploadId: string, regionId: string): Promise<void> {
   const configured = http.defaults.timeout
   const timeout = configured === 0 ? 0 : Math.max(configured ?? 0, contextUploadRuntime.completeTimeoutMs)
-  const request: api.CompleteBuildContextUploadRequest = { region_id: upload.region_id }
+  const request: api.CompleteBuildContextUploadRequest = { region_id: regionId }
   for (let attempt = 0; ; attempt++) {
     try {
-      await http.post<api.BuildContextUpload>(`/build-contexts/${pathSegment(upload.id, 'build context upload id')}/complete`, request, { timeout })
+      await http.post<api.BuildContextUpload>(`/build-contexts/${pathSegment(uploadId, 'build context upload id')}/complete`, request, { timeout })
       return
     } catch (error) {
       if (attempt + 1 >= COMPLETE_ATTEMPTS || !(error instanceof DaytonaError) || !retryableComplete(error)) throw error
     }
     await contextUploadRuntime.sleep(1000 * 2 ** attempt)
   }
+}
+
+/**
+ * The `/build-contexts` response, checked field by field before any field is
+ * used, with Python's messages: an id or region that is not a non-empty
+ * string, or a part that is not `{ part_number, bytes, url }` integers and a
+ * string, is the malformed-response error.
+ */
+function checkedUpload(data: unknown): { readonly id: string; readonly regionId: string; readonly ready: boolean; readonly parts?: readonly api.BuildContextUploadPart[] } {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) throw badRequest('build context upload response is not an object')
+  const record = data as Record<string, unknown>
+  const text = (key: string): string => {
+    const value = record[key]
+    if (typeof value !== 'string' || value === '') throw badRequest(`build context upload response has no ${key}`)
+    return value
+  }
+  const id = text('id')
+  const regionId = text('region_id')
+  if (record.state === 'ready') return { id, regionId, ready: true }
+  const raw = record.parts
+  if (!Array.isArray(raw)) throw badRequest('build context upload response has no parts')
+  const parts = raw.map((item: unknown): api.BuildContextUploadPart => {
+    const part = typeof item === 'object' && item !== null && !Array.isArray(item) ? item as Record<string, unknown> : undefined
+    const number = part?.part_number, bytes = part?.bytes, url = part?.url
+    if (!Number.isSafeInteger(number) || !Number.isSafeInteger(bytes) || typeof url !== 'string') throw badRequest('build context upload response has a malformed part')
+    return { part_number: number as number, bytes: bytes as number, url }
+  })
+  return { id, regionId, ready: false, parts }
 }
 
 /**
@@ -273,13 +301,14 @@ export async function uploadBuildContext(
       sha256: await sha256Hex(source),
       ...(options.region === undefined ? {} : { region_id: options.region }),
     }
-    const { data: upload } = await http.post<api.BuildContextUpload>('/build-contexts', request)
-    if (upload.state === 'ready') return { id: upload.id, regionId: upload.region_id }
+    const { data } = await http.post<unknown>('/build-contexts', request)
+    const upload = checkedUpload(data)
+    if (upload.ready || upload.parts === undefined) return { id: upload.id, regionId: upload.regionId }
     // Checked before any part is sent: the id becomes a path segment of complete.
     pathSegment(upload.id, 'build context upload id')
     await putParts(source, upload.parts)
-    await complete(http, upload)
-    return { id: upload.id, regionId: upload.region_id }
+    await complete(http, upload.id, upload.regionId)
+    return { id: upload.id, regionId: upload.regionId }
   } finally {
     await source.close().catch(() => undefined)
   }

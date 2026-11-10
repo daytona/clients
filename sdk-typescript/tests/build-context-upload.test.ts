@@ -32,6 +32,7 @@ let putStatuses: number[]
 let partStatuses: Map<number, number[]>
 let onPut: ((part: number) => Promise<void>) | undefined
 let rewriteParts: ((parts: Array<Record<string, unknown>>) => Array<Record<string, unknown>>) | undefined
+let rewriteUpload: ((upload: Record<string, unknown>) => unknown) | undefined
 let completeStatuses: number[]
 let completeDelays: number[]
 let createResponse: unknown
@@ -76,6 +77,7 @@ beforeEach(async () => {
   partStatuses = new Map()
   onPut = undefined
   rewriteParts = undefined
+  rewriteUpload = undefined
   completeStatuses = []
   completeDelays = []
   createResponse = { id: 'img-ctx', status: 'pending' }
@@ -104,12 +106,13 @@ beforeEach(async () => {
       }
       if (request.url === '/build-contexts') {
         const declared = JSON.parse(body.toString()) as { dockerfile: string; bytes: number; sha256: string }
-        if (ready) return reply(200, upload('ready', declared, []))
+        if (ready) return reply(200, rewriteUpload?.(upload('ready', declared, [])) ?? upload('ready', declared, []))
         const parts: Array<Record<string, unknown>> = []
         for (let offset = 0, number = 1; offset < declared.bytes; offset += partSize, number++) {
           parts.push({ part_number: number, bytes: Math.min(partSize, declared.bytes - offset), url: `${baseUrl}/bucket/part/${number}?${SIGNATURE}` })
         }
-        return reply(201, upload('uploading', declared, rewriteParts?.(parts) ?? parts))
+        const answer = upload('uploading', declared, rewriteParts?.(parts) ?? parts)
+        return reply(201, rewriteUpload?.(answer) ?? answer)
       }
       if (request.url === `/build-contexts/${UPLOAD_ID}/complete`) {
         const status = completeStatuses.shift() ?? 200
@@ -134,6 +137,23 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
   server.closeAllConnections()
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+})
+
+it.each([
+  ['a ready upload without an id', true, ({ id: _id, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no id'],
+  ['a ready upload without a region', true, ({ region_id: _region, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no region_id'],
+  ['an upload without parts', false, ({ parts: _parts, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no parts'],
+  ['an unknown state without parts', false, ({ parts: _parts, ...rest }: Record<string, unknown>) => ({ ...rest, state: 'future' }), 'build context upload response has no parts'],
+  ['a part whose url is not a string', false, (upload: Record<string, unknown>) => ({ ...upload, parts: (upload.parts as Array<Record<string, unknown>>).map((part) => ({ ...part, url: 5 })) }), 'build context upload response has a malformed part'],
+  ['a body that is not an object', false, () => [1], 'build context upload response is not an object'],
+])('refuses %s as a malformed response, before any other request (as Python)', async (_name, isReady, rewrite, message) => {
+  ready = isReady
+  rewriteUpload = rewrite
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(BadRequestError)
+  expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  expect(puts()).toHaveLength(0)
+  expect(seen.some((request) => request.url === '/images' || request.url.endsWith('/complete'))).toBe(false)
 })
 
 it('fails a redirected part with the redirect error, without retrying it', async () => {
