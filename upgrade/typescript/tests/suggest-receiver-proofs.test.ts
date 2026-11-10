@@ -46,7 +46,7 @@ it('suggests root service calls the same way before and after the default pass',
   expect(migrated).toBe(program('.v0').replace('@daytonaio/sdk', '@daytona/sdk'));
   const after = await suggest({ 'index.ts': migrated });
   // Then: no ownership FIXME, and both runs give the same rows.
-  expect(before.items.filter(item => item.kind === 'fixme')).toEqual([]);
+  for (const report of [before, after]) expect(report.items.filter(item => item.kind === 'fixme')).toEqual([]);
   expect(ids(before)).toEqual(['client.snapshot.delete', 'client.snapshot.get', 'client.volume.delete', 'client.volume.get']);
   expect(ids(after)).toEqual(ids(before));
 });
