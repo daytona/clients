@@ -184,6 +184,22 @@ async def _wait_for(predicate: Callable[[], bool]) -> None:
         await asyncio.sleep(0.01)
 
 
+async def _answer_every_subscribe(ws: FakeWS, sid: str) -> None:
+    """Answer each subscribe of ``sid`` with a pre-target snapshot."""
+    seen = version = 0
+    while True:
+        n = sum(
+            1
+            for f in ws.sent_frames()
+            if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+        )
+        if n > seen:
+            seen = n
+            version += 1
+            ws.inject({"type": "snapshot", "id": sid, "status": "booting", "version": version})
+        await asyncio.sleep(0.005)
+
+
 # ---------------------------------------------------------------------------
 # region_of tests
 # ---------------------------------------------------------------------------
@@ -1140,9 +1156,13 @@ class TestHubReconcile:
             ticket_mock("region-a")
             ws = fc.prepare()
             task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            # The server answers every subscribe at once (an unanswered one is
+            # not asked again until the ceiling has passed).
+            answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
             await asyncio.sleep(1.6)
+            answering.cancel()
             task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+            await asyncio.gather(task, answering, return_exceptions=True)
 
         at = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
         gaps = [b - a for a, b in itertools.pairwise(at)]
@@ -1229,6 +1249,144 @@ class TestHubReconcile:
             await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_b, "abc-region-a") >= 3), timeout=1)
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+    def _sweep_hub(self, monkeypatch: pytest.MonkeyPatch) -> tuple[FakeConnector, WaitHub]:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_min_s, hub._stale_after_s, hub._stale_sweep_tick_s = 0.05, 0.1, 0.01
+        hub._stale_after_slow_s, hub._stale_slow_after_s = 1.0, 0.5
+        return fc, hub
+
+    @staticmethod
+    def _subscribes_for(ws: FakeWS, sid: str) -> int:
+        return sum(
+            1
+            for f in ws.sent_frames()
+            if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+        )
+
+    async def test_an_id_whose_answer_is_outstanding_is_not_asked_again_early(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The server answers nothing: until the ceiling (0.1 s) passes after
+        # the subscribe, the sweep does not ask again.
+        fc, hub = self._sweep_hub(monkeypatch)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            sent = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") >= 3), timeout=2
+            )
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        sent = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+        assert all(b - a >= 0.09 for a, b in itertools.pairwise(sent)), sent
+
+    async def test_an_id_queued_for_the_refused_retry_is_not_swept(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        fc, hub = self._sweep_hub(monkeypatch)
+        monkeypatch.setattr(events_module, "_REFUSED_RETRY_S", 0.3)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            ws.inject({"type": "error", "id": "abc-region-a", "code": "LIMIT"})
+            # Only the refused retry (at 0.3 s) asks again, not the sweep.
+            await asyncio.sleep(0.25)
+            assert self._subscribes_for(ws, "abc-region-a") == 1
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 2), timeout=1
+            )
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_an_old_wait_is_asked_again_less_often(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fc, hub = self._sweep_hub(monkeypatch)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=10))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
+            await asyncio.sleep(2.0)
+            answering.cancel()
+            task.cancel()
+            await asyncio.gather(task, answering, return_exceptions=True)
+        at = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+        young = [b - a for a, b in itertools.pairwise(at) if a - at[0] < 0.4]
+        old = [b - a for a, b in itertools.pairwise(at) if a - at[0] > 0.6]
+        assert young and max(young) < 0.2, young
+        assert old and min(old) > 0.8, old
+
+    async def test_a_socket_that_delivers_events_lifts_the_ceiling(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Ceiling 0.1 s normally; once the socket applied an `event` frame it
+        # is 1.0 s, so past the young part (half the wait's age) the gaps grow
+        # beyond 0.1 s instead of flattening there.
+        fc, hub = self._sweep_hub(monkeypatch)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            other = asyncio.create_task(hub.wait("other-region-a", _started_predicate(), timeout=5))
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            ws.inject({"type": "snapshot", "id": "other-region-a", "status": "booting", "version": 1})
+            ws.inject({"type": "event", "id": "other-region-a", "status": "running", "version": 2})
+            await asyncio.wait_for(other, timeout=1)
+            answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
+            await asyncio.sleep(1.2)
+            answering.cancel()
+            task.cancel()
+            await asyncio.gather(task, answering, return_exceptions=True)
+        at = [
+            t
+            for t, f in ws.sent_frame_records()
+            if f.get("type") == "subscribe" and any(e["id"] == "abc-region-a" for e in f["ids"])
+        ]
+        gaps = [b - a for a, b in itertools.pairwise(at)]
+        assert gaps and max(gaps) > 0.25, gaps
+
+    async def test_a_moved_wait_that_times_out_releases_the_destination(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub.learn("abc-region-a", "endpoint-a")
+        with respx.mock:
+            ticket_mock("region-a")
+            fc.prepare()
+            ws_b = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=0.3))
+            await drain()
+            hub.learn("abc-region-a", "endpoint-b")
+            await drain()
+            with pytest.raises(RequestTimeoutError):
+                await task
+            await asyncio.sleep(hub._subscribe_flush_s + 0.05)
+            sock = hub._sockets["endpoint-b"]
+            assert "abc-region-a" not in sock.subscriptions
+            assert "abc-region-a" not in sock.heard_at
+            assert "abc-region-a" not in sock.waited_since
+            assert any(
+                f.get("type") == "unsubscribe" and "abc-region-a" in f["ids"] for f in ws_b.sent_frames()
+            )
 
     async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
         self, monkeypatch: pytest.MonkeyPatch

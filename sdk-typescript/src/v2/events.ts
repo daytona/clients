@@ -109,22 +109,29 @@ const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
 const DEFAULT_STALE_AFTER_MIN_MS = 1_000
+const DEFAULT_STALE_AFTER_SLOW_MS = 15_000
+const DEFAULT_STALE_SLOW_AFTER_MS = 60_000
 /**
  * An id a waiter holds that has heard no state frame (and sent no subscribe)
  * for its stale threshold is re-subscribed at the next sweep tick; the server
  * answers with a fresh snapshot. This bounds the delay a missed event adds to
  * a wait, which neither the early probe (held off while the socket is live,
  * keepalives included) nor the reconcile timer does. The threshold is half the
- * wait's age, between `DEFAULT_STALE_AFTER_MIN_MS` and `DEFAULT_STALE_AFTER_MS`:
- * a young wait (a create just past the server's hold, most of which start
- * within a few seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every
- * ~3 s.
+ * wait's age, at least `DEFAULT_STALE_AFTER_MIN_MS` and at most this: a young
+ * wait (a create just past the server's hold, most of which start within a few
+ * seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every ~3 s. The
+ * ceiling rises to `DEFAULT_STALE_AFTER_SLOW_MS` once the wait is older than
+ * `DEFAULT_STALE_SLOW_AFTER_MS`, or while the socket has applied an `event`
+ * frame within that time (the stream is delivering): a long wait on a resting
+ * sandbox then costs a snapshot every ~15 s, not every ~3 s.
  */
 const DEFAULT_STALE_AFTER_MS = 3_000
 const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
-/** Ids per second the sweep re-subscribes at most: 75 % of the server's
- *  per-socket subscribe rate (2,000 ids/s), leaving room for fresh subscribes
- *  and refused retries. Past it the oldest go first and the rest wait a tick. */
+/** Ids the sweep re-subscribes per 1 s tick at most, about 1,500 per second per
+ *  socket (one client and region): under the server's per-socket subscribe
+ *  rate (2,000 ids/s) even with the tick's jitter, leaving room for fresh
+ *  subscribes and refused retries. Past it the oldest go first and the rest
+ *  wait a tick. */
 const STALE_SWEEP_IDS_PER_SECOND = 1_500
 const WAITER_PIN_INTERVAL_MS = MAX_TIMER_DELAY_MS
 const WS_OPEN = 1
@@ -521,6 +528,9 @@ interface SocketState {
   wake: (() => void) | undefined
   clientClosing: boolean
   lastFrameAt: number
+  /** When an `event` frame (not a snapshot) was last applied: the stream is
+   *  delivering transitions, so the stale sweep can wait longer. */
+  lastEventAt: number | undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -586,6 +596,8 @@ export class WaitHub {
   private readonly subscribeFlushMs: number
   private readonly staleAfterMinMs: number
   private readonly staleAfterMs: number
+  private readonly staleAfterSlowMs: number
+  private readonly staleSlowAfterMs: number
   private readonly staleSweepTickMs: number
   private readonly staleSweepMaxIds: number
   private refCount: number
@@ -607,6 +619,8 @@ export class WaitHub {
         readonly subscribeFlushMs?: number
         readonly staleAfterMinMs?: number
         readonly staleAfterMs?: number
+        readonly staleAfterSlowMs?: number
+        readonly staleSlowAfterMs?: number
         readonly staleSweepTickMs?: number
         readonly staleSweepMaxIds?: number
       } = {},
@@ -643,6 +657,8 @@ export class WaitHub {
     this.subscribeFlushMs = clampTimerDelayMs(timings.subscribeFlushMs) ?? DEFAULT_SUBSCRIBE_FLUSH_MS
     this.staleAfterMinMs = timings.staleAfterMinMs ?? DEFAULT_STALE_AFTER_MIN_MS
     this.staleAfterMs = timings.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
+    this.staleAfterSlowMs = timings.staleAfterSlowMs ?? DEFAULT_STALE_AFTER_SLOW_MS
+    this.staleSlowAfterMs = timings.staleSlowAfterMs ?? DEFAULT_STALE_SLOW_AFTER_MS
     this.staleSweepTickMs = timings.staleSweepTickMs ?? DEFAULT_STALE_SWEEP_TICK_MS
     this.staleSweepMaxIds =
       timings.staleSweepMaxIds ?? Math.max(1, Math.floor((STALE_SWEEP_IDS_PER_SECOND * this.staleSweepTickMs) / 1_000))
@@ -883,6 +899,7 @@ export class WaitHub {
         wake: undefined,
         clientClosing: false,
         lastFrameAt: Date.now(),
+        lastEventAt: undefined,
       }
       this.sockets.set(key, sock)
     }
@@ -1585,7 +1602,9 @@ export class WaitHub {
           // the id's waiters: they now listen elsewhere.
           if (!sock.subscriptions.has(sid)) return
           sock.versions.set(sid, version)
-          sock.heardAt.set(sid, Date.now())
+          const heard = Date.now()
+          sock.heardAt.set(sid, heard)
+          if (ftype === 'event') sock.lastEventAt = heard
 
           const decoded = sandboxState(wireState)
           sock.states.set(sid, decoded)
@@ -2050,19 +2069,30 @@ export class WaitHub {
     sock.reconcileTimer = t
   }
 
-  /** Whether `sandboxId` has heard nothing for its stale threshold: half its
-   *  wait's age, between `staleAfterMinMs` and `staleAfterMs` (the longest when
-   *  the wait's start is unknown). */
+  /**
+   * Whether `sandboxId` should be asked again: it has heard nothing for its
+   * stale threshold (half its wait's age, `staleAfterMinMs` up to the ceiling;
+   * the ceiling when the wait's start is unknown), and no answer to a recent
+   * subscribe of it is still outstanding. The ceiling is `staleAfterMs`, or
+   * `staleAfterSlowMs` once the wait is older than `staleSlowAfterMs` or while
+   * the socket has applied an `event` frame within that time.
+   */
   private isStale(sock: SocketState, sandboxId: string, now: number): boolean {
+    const heard = sock.heardAt.get(sandboxId) ?? 0
+    // Its subscribe went out recently and the answer is still due: asking
+    // again would only add load where the server is slowest.
+    if (sock.snapshotPending.has(sandboxId) && heard > now - this.staleAfterMs) return false
     const since = sock.waitedSince.get(sandboxId)
-    const high = this.staleAfterMs
+    const slowAfter = this.staleSlowAfterMs
+    const streaming = sock.lastEventAt !== undefined && sock.lastEventAt > now - slowAfter
+    const high = streaming || (since !== undefined && now - since > slowAfter) ? this.staleAfterSlowMs : this.staleAfterMs
     const threshold = since === undefined ? high : Math.min(high, Math.max(this.staleAfterMinMs, (now - since) / 2))
-    return (sock.heardAt.get(sandboxId) ?? 0) <= now - threshold
+    return heard <= now - threshold
   }
 
   /**
    * Re-subscribe every waited-on id that has heard nothing for its stale
-   * threshold (half its wait's age, `staleAfterMinMs` to `staleAfterMs`).
+   * threshold (`isStale`).
    * The timer stops once the socket has no waiter; a new waiter arms it again.
    * A wait whose transition event never arrives would otherwise end only at
    * the reconcile timer. The frame path pays one map store; a tick scans the
@@ -2078,9 +2108,12 @@ export class WaitHub {
       const heardAt = sock.heardAt
       const now = Date.now()
       const pending = sock.pendingSubscribeIds
+      const refused = sock.refusedRetryIds
       let stale: string[] = []
       for (const sid of sock.subscriptions) {
-        if (this.isStale(sock, sid, now) && !pending.has(sid) && (this.waiters.get(sid)?.length ?? 0) > 0) {
+        // Ids already queued for a subscribe, or for the refused (LIMIT)
+        // retry, are asked again by those paths.
+        if (!pending.has(sid) && !refused.has(sid) && this.isStale(sock, sid, now) && (this.waiters.get(sid)?.length ?? 0) > 0) {
           stale.push(sid)
         }
       }
