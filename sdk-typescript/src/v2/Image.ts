@@ -140,7 +140,7 @@ function envName(value: string, label: string): string {
   return name
 }
 
-const DIRECTIVE = /^#\s*([A-Za-z]+)\s*=\s*(\S*)\s*$/
+const DIRECTIVE = /^[ \t]*#[ \t]*([A-Za-z]+)[ \t]*=[ \t]*([^ \t]*)[ \t]*$/
 const ESCAPE_DIRECTIVE_REFUSED = 'ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash'
 
 /**

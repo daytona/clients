@@ -14,7 +14,7 @@ from typing_extensions import Self
 
 from .errors import create_error
 
-_DIRECTIVE: Final = re.compile(r"#\s*([A-Za-z]+)\s*=\s*(\S*)\s*")
+_DIRECTIVE: Final = re.compile(r"[ \t]*#[ \t]*([A-Za-z]+)[ \t]*=[ \t]*([^ \t]*)[ \t]*")
 _ESCAPE_DIRECTIVE_REFUSED: Final = (
     "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
 )
@@ -25,7 +25,7 @@ def _escape_directive(dockerfile: str) -> str | None:
     Directives are the leading ``# name=value`` lines (TypeScript reads the
     same)."""
     for line in dockerfile.split("\n"):
-        match = _DIRECTIVE.fullmatch(line.rstrip("\r"))
+        match = _DIRECTIVE.fullmatch(line.removesuffix("\r"))
         if match is None:
             return None
         if match.group(1).lower() == "escape":

@@ -562,6 +562,21 @@
         ]
       ],
       "error": "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+    },
+    {
+      "name": "env under an indented backtick escape directive",
+      "source": {
+        "dockerfile": "\t# Escape = `\nFROM alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "$x"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
     }
   ]
 }
