@@ -104,9 +104,10 @@ func newSandboxWaitCommand() *cobra.Command {
 				return err
 			}
 			detail, err := workload.WaitForSandbox(cmd.Context(), resolved.Client, workload.SandboxWaitOptions{
-				ID:      resolved.Detail.Id,
-				Target:  status,
-				Timeout: timeout,
+				ID:                resolved.Detail.Id,
+				Target:            status,
+				Timeout:           timeout,
+				PauseFailureFails: status == "paused" && resolved.Detail.Class == workload.ClassLinux,
 			})
 			if err != nil {
 				return err

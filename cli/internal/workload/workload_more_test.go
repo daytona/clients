@@ -314,3 +314,71 @@ func TestWaitForSandbox_capsLongPollToRemainingDeadline(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "500", timeoutMs)
 }
+
+// Bodies served one per poll, the last one repeated.
+func sandboxBodies(bodies ...string) *httptest.Server {
+	var i int32
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		n := atomic.AddInt32(&i, 1) - 1
+		if int(n) >= len(bodies) {
+			n = int32(len(bodies) - 1)
+		}
+		_, _ = w.Write([]byte(bodies[n]))
+	}))
+}
+
+func sandboxWithError(status, msg string) string {
+	return strings.Replace(sandboxFixture(status), `"status":`, `"error":"`+msg+`","status":`, 1)
+}
+
+func waitForPaused(t *testing.T, srv *httptest.Server, pauseFailureFails bool) (string, error) {
+	t.Helper()
+	d, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "paused", Timeout: 5 * time.Second, PauseFailureFails: pauseFailureFails})
+	return d.V.Status, err
+}
+
+// A Linux pause that failed returns the sandbox to running, or stops it, with
+// the pause-failure error: either is a conflict naming the error.
+func TestWaitForSandbox_failedLinuxPauseConflicts(t *testing.T) {
+	for _, status := range []string{"running", "stopped"} {
+		t.Run(status, func(t *testing.T) {
+			srv := sandboxBodies(sandboxWithError(status, PauseFailedError))
+			defer srv.Close()
+			_, err := waitForPaused(t, srv, true)
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+			require.ErrorContains(t, err, "reached "+status+", not paused: "+PauseFailedError)
+		})
+	}
+}
+
+// Without the pause-failure error neither state is the failed pause: a running
+// read is the state the pause is leaving, and a pause that outlasts the
+// server's stuck-teardown limit reads stopped before it lands paused.
+func TestWaitForSandbox_linuxPauseKeepsWaitingWithoutTheError(t *testing.T) {
+	cases := map[string][]string{
+		"plain running":       {sandboxFixture("running"), sandboxFixture("paused")},
+		"stopped, no error":   {sandboxFixture("pausing"), sandboxFixture("stopped"), sandboxFixture("paused")},
+		"another error":       {sandboxWithError("running", "some earlier failure"), sandboxFixture("paused")},
+		"pausing with error":  {sandboxWithError("pausing", PauseFailedError), sandboxFixture("paused")},
+		"stopped, other text": {sandboxWithError("stopped", "the sandbox could not be stopped"), sandboxFixture("paused")},
+	}
+	for name, bodies := range cases {
+		t.Run(name, func(t *testing.T) {
+			srv := sandboxBodies(bodies...)
+			defer srv.Close()
+			status, err := waitForPaused(t, srv, true)
+			require.NoError(t, err)
+			require.Equal(t, "paused", status)
+		})
+	}
+}
+
+// Without the option (any class other than Linux) the error decides nothing.
+func TestWaitForSandbox_pauseFailureNeedsTheOption(t *testing.T) {
+	srv := sandboxBodies(sandboxWithError("running", PauseFailedError), sandboxFixture("paused"))
+	defer srv.Close()
+	status, err := waitForPaused(t, srv, false)
+	require.NoError(t, err)
+	require.Equal(t, "paused", status)
+}
