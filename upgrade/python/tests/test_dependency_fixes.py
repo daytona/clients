@@ -200,4 +200,6 @@ def test_poetry_extras_are_not_duplicated_by_spelling() -> None:
     # When
     result = inspect_manifest(Path("pyproject.toml"), source, load_mapping())
     # Then
-    assert 'extras = ["V0_SDK"]' in result.source
+    assert result.source == (
+        '[tool.poetry.dependencies]\ndaytona = {version = ">=2,<3", extras = ["V0_SDK"]}\n'
+    )

@@ -4,7 +4,7 @@
  */
 
 import { expect, it } from 'vitest';
-import { invoke, temporaryProject } from './helpers.js';
+import { contents, invoke, temporaryProject } from './helpers.js';
 
 type Report = { items: { line: number; kind: string; message: string; suggestion?: { id: string; v2: string | null } }[] };
 
@@ -38,9 +38,13 @@ it('suggests root service calls the same way before and after the default pass',
     'async function helper(daytona: Daytona) {}\nasync function main() {\n  const daytona = new Daytona();\n  await helper(daytona);\n' +
     `  const volume = await daytona${v0}.volume.get('v', true);\n  await daytona${v0}.volume.delete(volume);\n` +
     `  await daytona${v0}.snapshot.delete(await daytona${v0}.snapshot.get('s'));\n}\n`;
-  // When
+  // When: suggest on the 0.x source, and on what the default pass writes from it.
   const before = await suggest({ 'index.ts': program('') });
-  const after = await suggest({ 'index.ts': program('.v0') });
+  const root = temporaryProject({ 'package.json': '{"dependencies":{"@daytonaio/sdk":"0.231.1"}}', 'index.ts': program('') });
+  expect((await invoke(root, ['--json'])).code).toBe(0);
+  const migrated = contents(root)['index.ts'] ?? '';
+  expect(migrated).toBe(program('.v0').replace('@daytonaio/sdk', '@daytona/sdk'));
+  const after = await suggest({ 'index.ts': migrated });
   // Then: no ownership FIXME, and both runs give the same rows.
   expect(before.items.filter(item => item.kind === 'fixme')).toEqual([]);
   expect(ids(before)).toEqual(['client.snapshot.delete', 'client.snapshot.get', 'client.volume.delete', 'client.volume.get']);
