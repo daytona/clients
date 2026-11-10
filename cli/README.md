@@ -164,7 +164,7 @@ directory is skipped. As with `docker build`, a pattern with a syntax error
 (`[a-`) fails the build up front, and one that cannot be compiled into a
 matcher (`foo\q`) fails it only when a path reaches it (exit 2, naming the
 ignore file). The Dockerfile and the ignore file are always uploaded,
-even when a pattern matches them. The 64 MiB context limit counts what is
+even when a pattern matches them. The 1 GiB context limit counts what is
 uploaded. Before any request, a directory context must contain the selected
 Dockerfile (`Dockerfile` by default, or `--dockerfile` inside the context).
 Plain tar contexts are checked for that entry too; compressed or unrecognized

@@ -740,6 +740,24 @@ func (e BillingType) Valid() bool {
 	}
 }
 
+// Defines values for BuildContextUploadState.
+const (
+	BuildContextUploadStateReady     BuildContextUploadState = "ready"
+	BuildContextUploadStateUploading BuildContextUploadState = "uploading"
+)
+
+// Valid indicates whether the value is a known member of the BuildContextUploadState enum.
+func (e BuildContextUploadState) Valid() bool {
+	switch e {
+	case BuildContextUploadStateReady:
+		return true
+	case BuildContextUploadStateUploading:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ChargeStatus.
 const (
 	ChargeStatusFailed    ChargeStatus = "failed"
@@ -2022,6 +2040,60 @@ type BucketOptions struct {
 	Region *string `json:"region,omitempty"`
 }
 
+// BuildContextUpload A build-context upload.
+type BuildContextUpload struct {
+	// Bytes The size of the build-context tar in bytes.
+	Bytes int64 `json:"bytes"`
+
+	// Dockerfile Path of the Dockerfile within the context.
+	Dockerfile string `json:"dockerfile"`
+
+	// ExpiresAt When a `ready` upload can no longer be used by a build.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Id The upload ID.
+	Id openapi_types.UUID `json:"id"`
+
+	// PartSize The size of every part but the last, in bytes. Set while `uploading`.
+	PartSize *int64 `json:"part_size,omitempty"`
+
+	// Parts The parts to upload. Empty once the upload is `ready`.
+	Parts []BuildContextUploadPart `json:"parts"`
+
+	// RegionId The region the upload belongs to.
+	RegionId string `json:"region_id"`
+
+	// Sha256 The SHA-256 of the build-context tar.
+	Sha256 string `json:"sha256"`
+
+	// State `uploading` until the upload is completed and verified, then `ready`.
+	State BuildContextUploadState `json:"state"`
+
+	// UploadExpiresAt When an upload that was not completed expires and is deleted. Set
+	// while `uploading`.
+	UploadExpiresAt *time.Time `json:"upload_expires_at,omitempty"`
+
+	// UrlsExpireAt When the part URLs stop accepting uploads. Set while `uploading`.
+	UrlsExpireAt *time.Time `json:"urls_expire_at,omitempty"`
+}
+
+// BuildContextUploadPart One part of a build-context upload.
+type BuildContextUploadPart struct {
+	// Bytes The exact size of the part's body in bytes.
+	Bytes int64 `json:"bytes"`
+
+	// PartNumber The part's 1-based number. Part `n` holds the archive bytes from
+	// `(n - 1) * part_size` on.
+	PartNumber int32 `json:"part_number"`
+
+	// Url A presigned URL that accepts one `PUT` of exactly `bytes` bytes until
+	// `urls_expire_at`. It is a credential: do not log or share it.
+	Url string `json:"url"`
+}
+
+// BuildContextUploadState The state of a build-context upload.
+type BuildContextUploadState string
+
 // BuildLogsUrl A link to build logs.
 type BuildLogsUrl struct {
 	// Url The URL for reading the build logs.
@@ -2087,6 +2159,14 @@ type ChargeReceiptPdf = openapi_types.File
 
 // ChargeStatus defines model for ChargeStatus.
 type ChargeStatus string
+
+// CompleteBuildContextUploadRequest defines model for CompleteBuildContextUploadRequest.
+type CompleteBuildContextUploadRequest struct {
+	// RegionId The region the upload was created in, as `POST /build-contexts`
+	// returned it. Required: a multi-region deployment routes the request
+	// to that region's servers by it.
+	RegionId string `json:"region_id"`
+}
 
 // Config The `/config` response body.
 type Config struct {
@@ -2207,10 +2287,33 @@ type CpuType struct {
 	Tier int32 `json:"tier"`
 }
 
+// CreateBuildContextUploadRequest defines model for CreateBuildContextUploadRequest.
+type CreateBuildContextUploadRequest struct {
+	// Bytes The size of the build-context tar in bytes, at most 1 GiB.
+	Bytes int64 `json:"bytes"`
+
+	// Dockerfile Path of the Dockerfile within the context. Defaults to `Dockerfile`.
+	Dockerfile *string `json:"dockerfile,omitempty"`
+
+	// RegionId The region the image will be built in. When omitted, the project's
+	// default region is used, then the organization's, then the platform's
+	// default region. A build can use the upload only in this region.
+	RegionId *string `json:"region_id,omitempty"`
+
+	// Sha256 The SHA-256 of the build-context tar, as 64 lowercase hex characters.
+	Sha256 string `json:"sha256"`
+
+	// TreeHash The canonical tree hash of the build context, as 64 lowercase hex
+	// characters. Optional: when set, the upload is refused unless the
+	// stored archive hashes to it.
+	TreeHash *string `json:"tree_hash,omitempty"`
+}
+
 // CreateImageMultipartRequest The `multipart/form-data` variant of `POST /images`: a Dockerfile build
 // with an uploaded build context.
 type CreateImageMultipartRequest struct {
-	// Context The build-context tar.
+	// Context The build-context tar, at most 64 MiB. Upload a larger context, up to
+	// 1 GiB, with `POST /build-contexts` and build it with `context_upload_id`.
 	Context openapi_types.File `json:"context"`
 
 	// CpuArch The CPU architecture: `amd64` or `arm64`. Omit it to use the region default.
@@ -2233,6 +2336,12 @@ type CreateImageMultipartRequest struct {
 
 // CreateImageRequest defines model for CreateImageRequest.
 type CreateImageRequest struct {
+	// ContextUploadId A `ready` build-context upload from `POST /build-contexts` to build:
+	// the Dockerfile at the upload's `dockerfile` path, with the uploaded
+	// archive as its context. The image must be created in the upload's
+	// region. Mutually exclusive with `source` and `dockerfile`.
+	ContextUploadId *openapi_types.UUID `json:"context_upload_id,omitempty"`
+
 	// CpuArch The CPU architecture: `amd64` or `arm64`. Omit it to use the region default.
 	CpuArch *string `json:"cpu_arch,omitempty"`
 
@@ -6644,6 +6753,12 @@ type ExchangeTokenJSONRequestBody = ExchangeTokenRequest
 
 // ExchangeTokenFormdataRequestBody defines body for ExchangeToken for application/x-www-form-urlencoded ContentType.
 type ExchangeTokenFormdataRequestBody = ExchangeTokenRequest
+
+// CreateBuildContextUploadJSONRequestBody defines body for CreateBuildContextUpload for application/json ContentType.
+type CreateBuildContextUploadJSONRequestBody = CreateBuildContextUploadRequest
+
+// CompleteBuildContextUploadJSONRequestBody defines body for CompleteBuildContextUpload for application/json ContentType.
+type CompleteBuildContextUploadJSONRequestBody = CompleteBuildContextUploadRequest
 
 // CreateImageJSONRequestBody defines body for CreateImage for application/json ContentType.
 type CreateImageJSONRequestBody = CreateImageRequest

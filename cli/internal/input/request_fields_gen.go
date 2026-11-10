@@ -9,6 +9,7 @@ package input
 // --file body decodes into, keyed by the type's %T name.
 var requestFields = map[string]*Fields{
 	"api.CreateImageRequest": &Fields{Object: map[string]*Fields{
+		"context_upload_id":   nil,
 		"cpu_arch":            nil,
 		"dockerfile":          nil,
 		"idle_expiry_seconds": nil,

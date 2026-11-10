@@ -79,7 +79,7 @@ func newImageBuildCommand() *cobra.Command {
 		Long: "Build an image from a Dockerfile context: a directory, or a tar file uploaded as is.\n" +
 			"A directory is uploaded without what its ignore file excludes, with Docker's rules: <Dockerfile>.dockerignore\n" +
 			"next to the Dockerfile when it exists, else .dockerignore at the context root. The Dockerfile and the\n" +
-			"ignore file are always sent. The 64 MiB context limit counts what is uploaded.\n" +
+			"ignore file are always sent. The 1 GiB context limit counts what is uploaded.\n" +
 			"Example:\n  daytona image build my-base --dockerfile Dockerfile --context .",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

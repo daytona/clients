@@ -33,6 +33,8 @@ SENSITIVE_NAMES = frozenset(
 SENSITIVE_PROPERTIES = frozenset(
     {
         ("SetSecretRequest", "value"),
+        # A presigned storage URL: its query string is the credential.
+        ("BuildContextUploadPart", "url"),
         # The signed token is the hostname's first label.
         ("SignedPreviewUrl", "url"),
     }
