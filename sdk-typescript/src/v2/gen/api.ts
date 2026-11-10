@@ -61,6 +61,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/build-contexts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a build-context upload
+         * @description Starts a direct upload of a build-context tar of up to 1 GiB. When the project already holds a verified upload of the same archive in the region, the response is that upload with `state` `ready` and no parts. Otherwise `PUT` each part's bytes to its URL, then call `POST /build-contexts/{id}/complete`.
+         */
+        post: operations["create_build_context_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/build-contexts/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete a build-context upload
+         * @description Assembles the uploaded parts and verifies the stored archive: its size and SHA-256 must match the declared ones, it must be a well-formed tar, and its Dockerfile must pass the build admission checks. An archive that fails verification is deleted and the upload fails with a `400`. Repeating the request on a `ready` upload returns it unchanged.
+         */
+        post: operations["complete_build_context_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/config": {
         parameters: {
             query?: never;
@@ -1691,7 +1731,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Wait for sandboxes */
+        /**
+         * Wait for sandboxes
+         * @description Returns the requested sandboxes in the caller's project immediately, or with `wait`, once any of them reaches that status or a terminal status or `timeout_ms` elapses. A `wait=paused` also ends, with HTTP 200, when a requested Linux sandbox is `running` with `error` set to `the sandbox could not be paused`, because its last pause attempt failed. `wait_exact=paused` does not end on that state.
+         */
         get: operations["wait_sandboxes"];
         put?: never;
         post?: never;
@@ -1768,7 +1811,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get a sandbox */
+        /**
+         * Get a sandbox
+         * @description Returns the sandbox immediately, or with `wait`, once it reaches that status or a terminal status or `timeout_ms` elapses. A `wait=paused` also ends, with HTTP 200, when a Linux sandbox is `running` with `error` set to `the sandbox could not be paused`, because its last pause attempt failed. `wait_exact=paused` does not end on that state.
+         */
         get: operations["get_sandbox"];
         put?: never;
         post?: never;
@@ -2792,6 +2838,71 @@ export interface components {
              */
             region?: string | null;
         };
+        /** @description A build-context upload. */
+        BuildContextUpload: {
+            /**
+             * Format: int64
+             * @description The size of the build-context tar in bytes.
+             */
+            bytes: number;
+            /** @description Path of the Dockerfile within the context. */
+            dockerfile: string;
+            /**
+             * Format: date-time
+             * @description When a `ready` upload can no longer be used by a build.
+             */
+            expires_at?: string | null;
+            /**
+             * Format: uuid
+             * @description The upload ID.
+             */
+            id: string;
+            /**
+             * Format: int64
+             * @description The size of every part but the last, in bytes. Set while `uploading`.
+             */
+            part_size?: number | null;
+            /** @description The parts to upload. Empty once the upload is `ready`. */
+            parts: components["schemas"]["BuildContextUploadPart"][];
+            /** @description The region the upload belongs to. */
+            region_id: string;
+            /** @description The SHA-256 of the build-context tar. */
+            sha256: string;
+            /** @description `uploading` until the upload is completed and verified, then `ready`. */
+            state: components["schemas"]["BuildContextUploadState"];
+            /**
+             * Format: date-time
+             * @description When an upload that was not completed expires and is deleted. Set
+             *     while `uploading`.
+             */
+            upload_expires_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When the part URLs stop accepting uploads. Set while `uploading`.
+             */
+            urls_expire_at?: string | null;
+        };
+        /** @description One part of a build-context upload. */
+        BuildContextUploadPart: {
+            /**
+             * Format: int64
+             * @description The exact size of the part's body in bytes.
+             */
+            bytes: number;
+            /**
+             * Format: int32
+             * @description The part's 1-based number. Part `n` holds the archive bytes from
+             *     `(n - 1) * part_size` on.
+             */
+            part_number: number;
+            /**
+             * @description A presigned URL that accepts one `PUT` of exactly `bytes` bytes until
+             *     `urls_expire_at`. It is a credential: do not log or share it.
+             */
+            url: string;
+        };
+        /** @description The state of a build-context upload. */
+        BuildContextUploadState: ("uploading" | "ready") | (string & {});
         BuildLogChunk: {
             /** @description Base64-encoded log bytes. */
             data_base64: string;
@@ -2915,6 +3026,14 @@ export interface components {
          */
         ChargeReceiptPdf: string;
         ChargeStatus: ("succeeded" | "pending" | "failed") | (string & {});
+        CompleteBuildContextUploadRequest: {
+            /**
+             * @description The region the upload was created in, as `POST /build-contexts`
+             *     returned it. Required: a multi-region deployment routes the request
+             *     to that region's servers by it.
+             */
+            region_id: string;
+        };
         /** @description The `/config` response body. */
         Config: {
             /** @description Browser analytics configuration. `null` when analytics is disabled. */
@@ -3024,6 +3143,36 @@ export interface components {
              */
             tier: number;
         };
+        CreateBuildContextUploadRequest: {
+            /**
+             * Format: int64
+             * @description The size of the build-context tar in bytes, at most 1 GiB.
+             * @example 10240
+             */
+            bytes: number;
+            /**
+             * @description Path of the Dockerfile within the context. Defaults to `Dockerfile`.
+             * @example Dockerfile
+             */
+            dockerfile?: string | null;
+            /**
+             * @description The region the image will be built in. When omitted, the project's
+             *     default region is used, then the organization's, then the platform's
+             *     default region. A build can use the upload only in this region.
+             */
+            region_id?: string | null;
+            /**
+             * @description The SHA-256 of the build-context tar, as 64 lowercase hex characters.
+             * @example 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+             */
+            sha256: string;
+            /**
+             * @description The canonical tree hash of the build context, as 64 lowercase hex
+             *     characters. Optional: when set, the upload is refused unless the
+             *     stored archive hashes to it.
+             */
+            tree_hash?: string | null;
+        };
         /**
          * @description The `multipart/form-data` variant of `POST /images`: a Dockerfile build
          *     with an uploaded build context.
@@ -3031,7 +3180,8 @@ export interface components {
         CreateImageMultipartRequest: {
             /**
              * Format: binary
-             * @description The build-context tar.
+             * @description The build-context tar, at most 64 MiB. Upload a larger context, up to
+             *     1 GiB, with `POST /build-contexts` and build it with `context_upload_id`.
              */
             context: string;
             /** @description The CPU architecture: `amd64` or `arm64`. Omit it to use the region default. */
@@ -3056,6 +3206,14 @@ export interface components {
             region_id?: string | null;
         };
         CreateImageRequest: {
+            /**
+             * Format: uuid
+             * @description A `ready` build-context upload from `POST /build-contexts` to build:
+             *     the Dockerfile at the upload's `dockerfile` path, with the uploaded
+             *     archive as its context. The image must be created in the upload's
+             *     region. Mutually exclusive with `source` and `dockerfile`.
+             */
+            context_upload_id?: string | null;
             /**
              * @description The CPU architecture: `amd64` or `arm64`. Omit it to use the region default.
              * @example arm64
@@ -5615,7 +5773,9 @@ export interface components {
             toolbox_proxy_url: string;
             /**
              * Format: int64
-             * @description Maximum server-side create wait in seconds.
+             * @description Maximum server-side create wait in seconds. `0` when the server skipped
+             *     the hold because the organization already has its limit of held
+             *     creates; wait for the rest of `wait_seconds` client-side.
              */
             wait_cap_seconds: number;
         };
@@ -6984,6 +7144,137 @@ export interface operations {
             };
         };
     };
+    create_build_context_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBuildContextUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description The verified upload of the same archive */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildContextUpload"];
+                };
+            };
+            /** @description The created upload and its part URLs */
+            201: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildContextUpload"];
+                };
+            };
+            /** @description The request body or target region is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            /** @description Build contexts are not available in the region (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    complete_build_context_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The upload ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteBuildContextUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description The verified upload */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildContextUpload"];
+                };
+            };
+            /** @description The uploaded archive failed verification, the region is missing or names another region, or the request is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Upload not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description A part has not been uploaded yet, or the upload failed or expired (`CONFLICT`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The upload could not be verified now; retry (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     get_config: {
         parameters: {
             query?: never;
@@ -7229,7 +7520,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Build request. `application/json` carries a registry or named source; `multipart/form-data` carries an uploaded build context, with the fields `name`, optional `dockerfile` (a path within the context), `region_id`, `cpu_arch`, and the file field `context` (a build-context tar). */
+        /** @description Build request. `application/json` carries a registry or named source, an inline Dockerfile, or the `context_upload_id` of a build context uploaded with `POST /build-contexts`; `multipart/form-data` carries a build context of up to 64 MiB, with the fields `name`, optional `dockerfile` (a path within the context), `region_id`, `cpu_arch`, and the file field `context` (a build-context tar). */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CreateImageRequest"];
@@ -7269,7 +7560,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The image name exists or the source image is not ready (`CONFLICT`). The same image is already built and exceeds the organization's image size limit (`IMAGE_TOO_LARGE`) */
+            /** @description The image name exists, the source image is not ready, or the build-context upload is not ready (`CONFLICT`). The same image is already built and exceeds the organization's image size limit (`IMAGE_TOO_LARGE`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -7280,6 +7571,17 @@ export interface operations {
                 };
             };
             429: components["responses"]["TooManyRequests"];
+            /** @description Build contexts are not available in the region, or are at capacity; retry (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     get_image: {
@@ -8222,7 +8524,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The organization is a personal organization (`CONFLICT`). The organization still holds a live Mac lease (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`) */
+            /** @description The organization is a personal organization (`CONFLICT`). The organization still holds a live Mac lease (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14117,7 +14419,7 @@ export interface operations {
                     "application/json": components["schemas"]["SandboxList"];
                 };
             };
-            /** @description The ID list is empty or exceeds 200 entries (`BAD_REQUEST`) */
+            /** @description The ID list is empty or exceeds 200 entries (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -14352,7 +14654,8 @@ export interface operations {
                 /**
                  * @description Label containment filter: a JSON-encoded object `{"k":"v",...}`; only
                  *     sandboxes whose labels contain every pair match. A malformed or
-                 *     non-object value answers 400.
+                 *     non-object value answers 400. The whole query string, URL-encoded,
+                 *     may be at most 12,288 bytes; a longer one answers 400.
                  */
                 labels?: string;
                 /** @description Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes. */
@@ -14410,7 +14713,7 @@ export interface operations {
                     "application/json": components["schemas"]["SandboxSearchPage"];
                 };
             };
-            /** @description A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            /** @description A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -16014,7 +16317,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox cannot be started in its current configuration, or a macOS sandbox's reservation or local disk is unavailable (`CONFLICT`). The sandbox's Mac has no room (`NO_FREE_SLOT`) or no free disk space (`MAC_DISK_FULL`). A saved image of the sandbox's disk is still in progress (`SNAPSHOT_IN_PROGRESS`) */
+            /** @description The sandbox cannot be started in its current configuration, or a macOS sandbox's reservation or local disk is unavailable (`CONFLICT`). A Linux sandbox's previous pause attempt is still being resolved; retry the start after it settles (`CONFLICT`). The sandbox's Mac has no room (`NO_FREE_SLOT`) or no free disk space (`MAC_DISK_FULL`). A saved image of the sandbox's disk is still in progress (`SNAPSHOT_IN_PROGRESS`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

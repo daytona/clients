@@ -8250,7 +8250,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Attached volume ID (1–128 ASCII letters, digits, underscores or hyphens). */
+                /** @description Attached volume ID: the volume's `vol_` ID or its UUID (1–128 ASCII letters, digits, underscores or hyphens). */
                 volumeId: string;
             };
             cookie?: never;

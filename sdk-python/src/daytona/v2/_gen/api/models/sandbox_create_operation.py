@@ -82,7 +82,7 @@ class SandboxCreateOperation(BaseModel):
     reservation_id: Optional[StrictStr] = Field(default=None, description="The macOS reservation selected by a successful claim; null until a Mac claims the sandbox.")
     status: StrictStr = Field(description="Initial lifecycle status — `pending`, or the sandbox's current status on an idempotent replay.")
     toolbox_proxy_url: StrictStr = Field(description="The sandbox’s toolbox base URL, also returned by `GET /sandboxes/{id}`. Use this URL for sandbox operations.")
-    wait_cap_seconds: Annotated[int, Field(strict=True, ge=0)] = Field(description="Maximum server-side create wait in seconds.")
+    wait_cap_seconds: Annotated[int, Field(strict=True, ge=0)] = Field(description="Maximum server-side create wait in seconds. `0` when the server skipped the hold because the organization already has its limit of held creates; wait for the rest of `wait_seconds` client-side.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["access_token", "access_token_expires_at", "create_timeout_at", "id", "image", "name", "reservation_id", "status", "toolbox_proxy_url", "wait_cap_seconds"]
     _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset(["access_token", ])
