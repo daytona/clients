@@ -105,7 +105,7 @@ logging.getLogger("httpx").addFilter(_redact_part_urls)
 def _is_buffer(value: object) -> bool:
     try:
         memoryview(value)
-    except TypeError:
+    except (TypeError, ValueError):
         return False
     return True
 

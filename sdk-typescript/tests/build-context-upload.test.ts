@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { runInNewContext } from 'node:vm'
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import type { IncomingHttpHeaders, Server } from 'node:http'
@@ -254,6 +255,15 @@ it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own len
   expect(puts().length).toBeGreaterThan(1)
   expect(puts().every((request) => request.headers['content-length'] === String(request.body.byteLength))).toBe(true)
   expect(puts().every((request) => request.headers['transfer-encoding'] === undefined)).toBe(true)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+it('uploads an ArrayBuffer from another realm', async () => {
+  const data = archive(10_000)
+  const foreign = runInNewContext(`new ArrayBuffer(${data.byteLength})`) as ArrayBuffer
+  new Uint8Array(foreign).set(data)
+  expect(foreign instanceof ArrayBuffer).toBe(false)
+  await service().buildFromContext(foreign)
   expect(inPartOrder(puts())).toEqual(Buffer.from(data))
 })
 

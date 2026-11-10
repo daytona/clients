@@ -629,6 +629,13 @@ async def test_any_bytes_like_context_is_accepted() -> None:
     assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == wide.tobytes()
 
 
+def test_a_released_view_is_refused_as_a_bad_request() -> None:
+    view = memoryview(b"FROM alpine\n")
+    view.release()
+    with pytest.raises(BadRequestError, match="context must be"):
+        _context_upload._Source(view)
+
+
 @pytest.mark.anyio
 async def test_a_non_contiguous_view_is_still_accepted() -> None:
     data = archive(1_000)

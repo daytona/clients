@@ -12,7 +12,7 @@
 import type { AxiosInstance } from 'axios'
 import { pathSegment } from './pathSegment.js'
 import { badRequest } from './options.js'
-import { binaryBytes } from './filesystemInputs.js'
+import { binaryBytes, isArrayBuffer } from './filesystemInputs.js'
 import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
 import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
@@ -127,7 +127,7 @@ async function fileSource(path: string): Promise<ContextSource> {
 
 async function sourceOf(context: BuildContext): Promise<ContextSource> {
   if (typeof context !== 'string') {
-    if (ArrayBuffer.isView(context) || context instanceof ArrayBuffer) {
+    if (ArrayBuffer.isView(context) || isArrayBuffer(context)) {
       // Every bytes-like value, as the filesystem writes take it: its exact byte range.
       const bytes = binaryBytes('context', context)
       return {

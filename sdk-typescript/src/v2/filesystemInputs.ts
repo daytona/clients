@@ -25,6 +25,11 @@ export function pathSequence(name: string, value: unknown): string[] {
 /** The exact byte range of a buffer or view, never its numeric elements. */
 export function binaryBytes(name: string, value: unknown): Uint8Array {
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-  if (value instanceof ArrayBuffer) return new Uint8Array(value)
+  if (isArrayBuffer(value)) return new Uint8Array(value)
   throw badRequest(`${name} must be an ArrayBuffer or an ArrayBuffer view`)
+}
+
+/** An `ArrayBuffer` from any realm (an iframe or a worker's fails `instanceof`). */
+export function isArrayBuffer(value: unknown): value is ArrayBuffer {
+  return Object.prototype.toString.call(value) === '[object ArrayBuffer]'
 }
