@@ -12,8 +12,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ImagesService } from '../src/v2/Images.js'
 import { createHttpClient } from '../src/v2/http.js'
+import { INTERNAL } from '../src/v2/internal.js'
 import { contextUploadRuntime } from '../src/v2/contextUpload.js'
 import { Sha256 } from '../src/v2/sha256.js'
+import { imageWire } from './artifactFixtures.js'
 import { BadRequestError, ConflictError, ConnectionError, DaytonaError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
 
 const UPLOAD_ID = '0b6d2c8e-8a1f-4c1e-9d7a-3f0e5b2a9c41'
@@ -43,7 +45,7 @@ async function tempDir(): Promise<string> {
 }
 
 function service(requestTimeoutMs = 5_000): ImagesService {
-  return new ImagesService(createHttpClient(baseUrl, 'fixture-key', requestTimeoutMs))
+  return new ImagesService(INTERNAL, createHttpClient(baseUrl, 'fixture-key', requestTimeoutMs))
 }
 
 const partNumber = (url: string): number => Number(url.split('?')[0].split('/').pop())
@@ -113,7 +115,7 @@ beforeEach(async () => {
         return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
       }
       if (request.url === '/images') return reply(202, { id: 'img-ctx', status: 'pending' })
-      if (request.url === '/images/img-ctx') return reply(200, { id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' })
+      if (request.url === '/images/img-ctx') return reply(200, imageWire({ id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' }))
       reply(404, { message: 'not found', code: 'NOT_FOUND', source: 'API' })
     })
   })
