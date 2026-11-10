@@ -120,10 +120,6 @@ func stageImageContext(ctx context.Context, upload imageContextUpload) (*stagedI
 // and the part uploads end with the raw context error when the caller's
 // context ends; it is reported as the CLI's interrupt or timeout instead.
 func postImageDirectContext(ctx context.Context, client *api.Client, meta map[string]string, dockerfilePath string, upload imageContextUpload) (api.Raw[gen.AsyncOperation], error) {
-	// Refuse an oversized context before spooling it to a temporary file.
-	if upload.size > imageContextDirectMaxBytes {
-		return api.Raw[gen.AsyncOperation]{}, cerr.Usage("build context exceeds the 1 GiB limit (%d bytes)", upload.size)
-	}
 	staged, err := stageImageContext(ctx, upload)
 	if err == nil {
 		defer staged.cleanup()

@@ -89,3 +89,19 @@ func TestImageDockerfile_checksLargeTarContexts(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.Contains(t, err.Error(), "missing from build context")
 }
+
+// Tar entry names are matched as the archive extractor reads them: a leading
+// "/" or "./" names the same file.
+func TestImageDockerfile_matchesRootedTarEntries(t *testing.T) {
+	for _, name := range []string{"/Dockerfile", "./Dockerfile", "Dockerfile"} {
+		path := filepath.Join(t.TempDir(), "context.tar")
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+		require.NoError(t, tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: 4, Typeflag: tar.TypeReg}))
+		_, err := tw.Write([]byte("FROM"))
+		require.NoError(t, err)
+		require.NoError(t, tw.Close())
+		require.NoError(t, os.WriteFile(path, buf.Bytes(), 0o600))
+		require.NoError(t, checkImageDockerfile(path, "Dockerfile"), name)
+	}
+}

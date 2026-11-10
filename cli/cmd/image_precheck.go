@@ -65,7 +65,7 @@ func checkImageDockerfile(contextPath, dockerfile string) error {
 		if err != nil {
 			return nil // Unknown/compressed archive formats remain server-validated.
 		}
-		if path.Clean(header.Name) == clean && (header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeLink || header.Typeflag == tar.TypeSymlink) {
+		if strings.TrimPrefix(path.Clean("/"+header.Name), "/") == clean && (header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeLink || header.Typeflag == tar.TypeSymlink) {
 			return nil
 		}
 	}
