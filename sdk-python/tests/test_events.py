@@ -1171,7 +1171,7 @@ class TestHubReconcile:
         assert all(g < 0.5 for g in gaps), gaps
         assert gaps[-1] > 0.3, gaps
 
-    async def test_a_second_waiter_keeps_the_first_wait_start(self) -> None:
+    async def test_a_new_waiter_restarts_the_young_schedule(self) -> None:
         fc = FakeConnector()
         hub = make_hub(fc)
         with respx.mock:
@@ -1184,7 +1184,7 @@ class TestHubReconcile:
             await asyncio.sleep(0.05)
             second = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
             await drain()
-            assert sock.waited_since["abc-region-a"] == started
+            assert sock.waited_since["abc-region-a"] > started
             for task in (first, second):
                 task.cancel()
             await asyncio.gather(first, second, return_exceptions=True)
@@ -1334,13 +1334,11 @@ class TestHubReconcile:
         assert young and max(young) < 0.2, young
         assert old and min(old) > 0.8, old
 
-    async def test_a_socket_that_delivers_events_lifts_the_ceiling(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # Ceiling 0.1 s normally; once the socket applied an `event` frame it
-        # is 1.0 s, so past the young part (half the wait's age) the gaps grow
-        # beyond 0.1 s instead of flattening there.
+    async def test_another_ids_events_do_not_slow_this_wait(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Another id gets events all along; this id's event never comes. Its
+        # young schedule (ceiling 0.1 s) must hold regardless.
         fc, hub = self._sweep_hub(monkeypatch)
+        hub._stale_slow_after_s = 10.0
         with respx.mock:
             ticket_mock("region-a")
             ws = fc.prepare()
@@ -1349,21 +1347,27 @@ class TestHubReconcile:
             await asyncio.wait_for(
                 _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
             )
-            ws.inject({"type": "snapshot", "id": "other-region-a", "status": "booting", "version": 1})
-            ws.inject({"type": "event", "id": "other-region-a", "status": "running", "version": 2})
-            await asyncio.wait_for(other, timeout=1)
             answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
-            await asyncio.sleep(1.2)
-            answering.cancel()
-            task.cancel()
-            await asyncio.gather(task, answering, return_exceptions=True)
+
+            async def other_events() -> None:
+                for version in range(1, 100):
+                    ws.inject(
+                        {"type": "event", "id": "other-region-a", "status": "booting", "version": version}
+                    )
+                    await asyncio.sleep(0.05)
+
+            streaming = asyncio.create_task(other_events())
+            await asyncio.sleep(1.0)
+            for t in (streaming, answering, task, other):
+                t.cancel()
+            await asyncio.gather(streaming, answering, task, other, return_exceptions=True)
         at = [
             t
             for t, f in ws.sent_frame_records()
             if f.get("type") == "subscribe" and any(e["id"] == "abc-region-a" for e in f["ids"])
         ]
         gaps = [b - a for a, b in itertools.pairwise(at)]
-        assert gaps and max(gaps) > 0.25, gaps
+        assert len(gaps) >= 5 and max(gaps) < 0.2, gaps
 
     async def test_a_moved_wait_that_times_out_releases_the_destination(self) -> None:
         fc = FakeConnector()

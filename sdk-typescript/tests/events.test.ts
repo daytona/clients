@@ -1468,25 +1468,29 @@ describe('WaitHub: stale sweep', () => {
     })
   })
 
-  test('a socket that delivers events lifts the ceiling', async () => {
+  test("another id's events do not slow this wait", async () => {
     await withSweepClock(async () => {
       const fc = makeFakeConnector()
-      const hub = makeHub(fc, { timings: sweepTimings })
+      const hub = makeHub(fc, { timings: { ...sweepTimings, staleSlowAfterMs: 10_000 } })
       const ws = fc.prepare()
-      const other = hub.wait('other-regiona', startedPredicate(), { timeout: 10_000 })
+      const other = hub.wait('other-regiona', startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
       const prom = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 10_000 }).catch(() => undefined)
       await drain()
       await advance(60)
-      ws.inject({ type: 'snapshot', id: 'other-regiona', status: 'booting', version: 1 })
-      ws.inject({ type: 'event', id: 'other-regiona', status: 'running', version: 2 })
-      await other
       const answer = answerEverySubscribe(ws, SANDBOX_ID)
-      await advance(1_200, answer)
+      let version = 0
+      // Another id gets an event every 50 ms; this id's event never comes.
+      await advance(1_000, () => {
+        answer()
+        version += 1
+        if (version % 5 === 0) ws.inject({ type: 'event', id: 'other-regiona', status: 'booting', version })
+      })
       const at = subscribeTimes(ws, SANDBOX_ID)
-      // Past the young part, gaps grow beyond the 100 ms ceiling.
-      expect(Math.max(...at.slice(1).map((t, i) => t - at[i]!))).toBeGreaterThan(250)
+      const gaps = at.slice(1).map((t, i) => t - at[i]!)
+      expect(gaps.length).toBeGreaterThanOrEqual(5)
+      expect(Math.max(...gaps)).toBeLessThan(200)
       await hub.detach()
-      await prom
+      await Promise.all([prom, other])
     })
   })
 
@@ -1494,7 +1498,7 @@ describe('WaitHub: stale sweep', () => {
   const socketsOf = (hub: WaitHub): Map<string, SweepSocket> =>
     (hub as unknown as { sockets: Map<string, SweepSocket> }).sockets
 
-  test('a second waiter keeps the first wait start', async () => {
+  test('a new waiter restarts the young schedule', async () => {
     const fc = makeFakeConnector()
     const hub = makeHub(fc)
     fc.prepare()
@@ -1506,7 +1510,7 @@ describe('WaitHub: stale sweep', () => {
     await new Promise((r) => setTimeout(r, 20))
     const second = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5_000 }).catch(() => undefined)
     await drain()
-    expect(sock.waitedSince.get(SANDBOX_ID)).toBe(started)
+    expect(sock.waitedSince.get(SANDBOX_ID)!).toBeGreaterThan(started!)
     await hub.detach()
     await Promise.all([first, second])
   })

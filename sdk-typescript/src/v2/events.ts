@@ -121,9 +121,8 @@ const DEFAULT_STALE_SLOW_AFTER_MS = 60_000
  * wait (a create just past the server's hold, most of which start within a few
  * seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every ~3 s. The
  * ceiling rises to `DEFAULT_STALE_AFTER_SLOW_MS` once the wait is older than
- * `DEFAULT_STALE_SLOW_AFTER_MS`, or while the socket has applied an `event`
- * frame within that time (the stream is delivering): a long wait on a resting
- * sandbox then costs a snapshot every ~15 s, not every ~3 s.
+ * `DEFAULT_STALE_SLOW_AFTER_MS`: a long wait on a resting sandbox then costs a
+ * snapshot every ~15 s, not every ~3 s.
  */
 const DEFAULT_STALE_AFTER_MS = 3_000
 const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
@@ -528,9 +527,6 @@ interface SocketState {
   wake: (() => void) | undefined
   clientClosing: boolean
   lastFrameAt: number
-  /** When an `event` frame (not a snapshot) was last applied: the stream is
-   *  delivering transitions, so the stale sweep can wait longer. */
-  lastEventAt: number | undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -812,7 +808,8 @@ export class WaitHub {
       const pendingVersion = source.snapshotPending.get(sid)
       if (pendingVersion !== undefined) destination.snapshotPending.set(sid, pendingVersion)
       const waitedSince = source.waitedSince.get(sid)
-      if (waitedSince !== undefined && !destination.waitedSince.has(sid)) destination.waitedSince.set(sid, waitedSince)
+      // The newer start of the two, as a new waiter would set it.
+      if (waitedSince !== undefined) destination.waitedSince.set(sid, Math.max(waitedSince, destination.waitedSince.get(sid) ?? waitedSince))
       if (preserveState) {
         const sourceState = source.states.get(sid)
         if (sourceState !== undefined) destination.states.set(sid, sourceState)
@@ -899,7 +896,6 @@ export class WaitHub {
         wake: undefined,
         clientClosing: false,
         lastFrameAt: Date.now(),
-        lastEventAt: undefined,
       }
       this.sockets.set(key, sock)
     }
@@ -980,9 +976,9 @@ export class WaitHub {
     this.scheduleClientPing(sock)
     const fresh = !sock.subscriptions.has(sandboxId)
     sock.subscriptions.add(sandboxId)
-    // The first waiter's start: a later waiter on the same id shares its
-    // subscription and does not restart the schedule.
-    if (!sock.waitedSince.has(sandboxId)) sock.waitedSince.set(sandboxId, Date.now())
+    // The newest waiter's start: a fresh wait (a start() next to an old
+    // background wait, say) gets the young schedule, not the old wait's.
+    sock.waitedSince.set(sandboxId, Date.now())
     this.ensureSocketLoop(sock)
     sock.wake?.()
     if (sock.ws !== undefined && sock.ws.readyState === WS_OPEN) this.armStaleSweep(sock)
@@ -1602,9 +1598,7 @@ export class WaitHub {
           // the id's waiters: they now listen elsewhere.
           if (!sock.subscriptions.has(sid)) return
           sock.versions.set(sid, version)
-          const heard = Date.now()
-          sock.heardAt.set(sid, heard)
-          if (ftype === 'event') sock.lastEventAt = heard
+          sock.heardAt.set(sid, Date.now())
 
           const decoded = sandboxState(wireState)
           sock.states.set(sid, decoded)
@@ -2074,8 +2068,9 @@ export class WaitHub {
    * stale threshold (half its wait's age, `staleAfterMinMs` up to the ceiling;
    * the ceiling when the wait's start is unknown), and no answer to a recent
    * subscribe of it is still outstanding. The ceiling is `staleAfterMs`, or
-   * `staleAfterSlowMs` once the wait is older than `staleSlowAfterMs` or while
-   * the socket has applied an `event` frame within that time.
+   * `staleAfterSlowMs` once the wait is older than `staleSlowAfterMs`. It is
+   * per id: one id's events say nothing about whether another id's event went
+   * missing.
    */
   private isStale(sock: SocketState, sandboxId: string, now: number): boolean {
     const heard = sock.heardAt.get(sandboxId) ?? 0
@@ -2083,9 +2078,7 @@ export class WaitHub {
     // again would only add load where the server is slowest.
     if (sock.snapshotPending.has(sandboxId) && heard > now - this.staleAfterMs) return false
     const since = sock.waitedSince.get(sandboxId)
-    const slowAfter = this.staleSlowAfterMs
-    const streaming = sock.lastEventAt !== undefined && sock.lastEventAt > now - slowAfter
-    const high = streaming || (since !== undefined && now - since > slowAfter) ? this.staleAfterSlowMs : this.staleAfterMs
+    const high = since !== undefined && now - since > this.staleSlowAfterMs ? this.staleAfterSlowMs : this.staleAfterMs
     const threshold = since === undefined ? high : Math.min(high, Math.max(this.staleAfterMinMs, (now - since) / 2))
     return heard <= now - threshold
   }

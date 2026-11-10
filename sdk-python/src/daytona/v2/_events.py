@@ -96,9 +96,8 @@ _SUBSCRIBE_FLUSH_S: Final = 0.05
 #: a young wait (a create just past the server's hold, most of which start
 #: within a few seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every
 #: ~3 s. The ceiling rises to ``_STALE_AFTER_SLOW_S`` once the wait is older
-#: than ``_STALE_SLOW_AFTER_S``, or while the socket has applied an ``event``
-#: frame within that time (the stream is delivering): a long wait on a resting
-#: sandbox then costs a snapshot every ~15 s, not every ~3 s.
+#: than ``_STALE_SLOW_AFTER_S``: a long wait on a resting sandbox then costs a
+#: snapshot every ~15 s, not every ~3 s.
 _STALE_AFTER_MIN_S: Final = 1.0
 _STALE_AFTER_S: Final = 3.0
 _STALE_AFTER_SLOW_S: Final = 15.0
@@ -371,9 +370,6 @@ class _SocketState:
     flush_send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     subscribe_flush_task: Optional[asyncio.Task[None]] = None
     last_frame_at: float = field(default_factory=_clock.monotonic)
-    # When an `event` frame (not a snapshot) was last applied: the stream is
-    # delivering transitions, so the stale sweep can wait longer.
-    last_event_at: Optional[float] = None
     client_ping_sent_for_frame_at: Optional[float] = None
 
 
@@ -625,7 +621,10 @@ class WaitHub:
                 destination.snapshot_pending[sandbox_id] = pending_version
             waited_since = source.waited_since.get(sandbox_id)
             if waited_since is not None:
-                destination.waited_since.setdefault(sandbox_id, waited_since)
+                # The newer start of the two, as a new waiter would set it.
+                destination.waited_since[sandbox_id] = max(
+                    waited_since, destination.waited_since.get(sandbox_id, waited_since)
+                )
             if preserve_state:
                 source_state = source.states.get(sandbox_id)
                 if source_state is not None:
@@ -778,9 +777,9 @@ class WaitHub:
                     sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
                 )
         waiter.registered_at = _clock.monotonic()
-        # The first waiter's start: a later waiter on the same id shares its
-        # subscription and does not restart the schedule.
-        sock.waited_since.setdefault(sandbox_id, waiter.registered_at)
+        # The newest waiter's start: a fresh wait (a start() next to an old
+        # background wait, say) gets the young schedule, not the old wait's.
+        sock.waited_since[sandbox_id] = waiter.registered_at
 
         if sandbox_id not in sock.subscriptions:
             sock.subscriptions.add(sandbox_id)
@@ -1273,8 +1272,6 @@ class WaitHub:
                     continue
                 sock.versions[sid] = version
                 sock.heard_at[sid] = _clock.monotonic()
-                if ftype == "event":
-                    sock.last_event_at = sock.heard_at[sid]
                 raw = str(frame.get("status") or "")
                 decoded = sandbox_state(raw)
                 sock.states[sid] = decoded
@@ -1621,19 +1618,17 @@ class WaitHub:
         no answer to a recent subscribe of it is still outstanding.
 
         The ceiling is ``_stale_after_s``, or ``_stale_after_slow_s`` once the
-        wait is older than ``_stale_slow_after_s`` or while the socket has
-        applied an ``event`` frame within that time."""
+        wait is older than ``_stale_slow_after_s``. It is per id: one id's
+        events say nothing about whether another id's event went missing."""
         heard = sock.heard_at.get(sandbox_id, 0.0)
         if sandbox_id in sock.snapshot_pending and heard > now - self._stale_after_s:
             # Its subscribe went out recently and the answer is still due:
             # asking again would only add load where the server is slowest.
             return False
         since = sock.waited_since.get(sandbox_id)
-        slow_after = self._stale_slow_after_s
-        streaming = sock.last_event_at is not None and sock.last_event_at > now - slow_after
         high = (
             self._stale_after_slow_s
-            if streaming or (since is not None and now - since > slow_after)
+            if since is not None and now - since > self._stale_slow_after_s
             else self._stale_after_s
         )
         threshold = high if since is None else min(high, max(self._stale_after_min_s, (now - since) / 2))
