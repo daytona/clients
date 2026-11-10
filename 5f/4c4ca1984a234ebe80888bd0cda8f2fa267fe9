@@ -1,0 +1,21 @@
+cli/internal/api/error_hints.go
+  s_982ebece9dd4e3::t_392863c5025759 79-84
+cli/internal/api/error_hints_test.go
+  s_982ebece9dd4e3::t_65ab4bcccc8aca 71,75-80,83,86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f4c4ca1984a234ebe80888bd0cda8f2fa267fe9",
+  "prompts": {},
+  "sessions": {
+    "s_982ebece9dd4e3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b6804deffenaHLGFAXZjV0hR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}
