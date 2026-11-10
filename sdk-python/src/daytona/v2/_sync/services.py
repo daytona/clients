@@ -81,7 +81,16 @@ class ImagesService:
         cpu_arch: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> Image:
-        """Build an image from a Dockerfile inside a build-context tar archive."""
+        """Build an image from a Dockerfile inside a build-context tar archive.
+
+        ``context`` is the archive's bytes or the path of a ``.tar`` file, up
+        to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it. The
+        archive is uploaded straight to storage in parts and verified by the
+        API before the build starts; an identical archive the project already
+        uploaded is reused without uploading it again. The other arguments
+        are those of :meth:`build`. Returns as soon as the build is submitted;
+        wait with :meth:`get` (``wait="ready"``).
+        """
         return self._bridge.call(
             lambda: self._impl.build_from_context(
                 context,
