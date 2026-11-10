@@ -23,7 +23,7 @@ import pytest
 
 from daytona.v2 import _context_upload
 from daytona.v2._bridge import SyncBridge
-from daytona.v2._sync.services import ImageService
+from daytona.v2._sync.services import ImagesService
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import (
     BadRequestError,
@@ -32,7 +32,7 @@ from daytona.v2.errors import (
     InternalServerError,
     ServiceUnavailableError,
 )
-from daytona.v2.services import AsyncImageService
+from daytona.v2.services import AsyncImagesService
 from daytona.v2.types import Image
 
 UPLOAD_ID = "0b6d2c8e-8a1f-4c1e-9d7a-3f0e5b2a9c41"
@@ -123,7 +123,24 @@ def storage_peer(**options: object) -> Iterator[Peer]:
             if self.path == "/images/img-ctx":
                 return self.reply(
                     200,
-                    {"id": "img-ctx", "status": "pending", "region_id": "region-c", "origin": "dockerfile"},
+                    {
+                        "id": "img-ctx",
+                        "name": "base",
+                        "anonymous": False,
+                        "class": "linux",
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "updated_at": "2026-01-02T00:00:00Z",
+                        "region_id": "region-c",
+                        "region_ids": [],
+                        "retention": "permanent",
+                        "origin": "dockerfile",
+                        "status": "pending",
+                        "format_version": 2,
+                        "format_outdated": False,
+                        "platform": False,
+                        "default": False,
+                        "deprecated": False,
+                    },
                 )
             self.reply(404, {"message": "not found", "code": "NOT_FOUND", "source": "API"})
 
@@ -184,7 +201,7 @@ async def build(
 
             transport = bridge.call(make_transport)
             try:
-                return ImageService(AsyncImageService(transport), bridge).build_from_context(
+                return ImagesService(AsyncImagesService(transport), bridge).build_from_context(
                     context, **options
                 )  # type: ignore[arg-type]
             finally:
@@ -193,7 +210,7 @@ async def build(
         return await anyio.to_thread.run_sync(run)
     transport = AsyncTransport(peer.url, "offline", request_timeout=request_timeout)
     try:
-        return await AsyncImageService(transport).build_from_context(context, **options)  # type: ignore[arg-type]
+        return await AsyncImagesService(transport).build_from_context(context, **options)  # type: ignore[arg-type]
     finally:
         await transport.close()
 
