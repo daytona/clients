@@ -161,12 +161,13 @@ export function errorOptions<T extends object>(options: T | undefined, extraKeys
 
 // Every key of ErrorOptions, exactly: the mapped type fails to compile when
 // a key is missing or one ErrorOptions lacks is listed.
-const ERROR_OPTION_KEYS: { readonly [K in keyof Required<ErrorOptions>]: true } = Object.freeze({
+const ERROR_OPTION_KEY_LIST: { readonly [K in keyof Required<ErrorOptions>]: true } = {
   statusCode: true, code: true, source: true, traceId: true, retryAfterSeconds: true, feature: true,
   entitlement: true, replacement: true, firstAvailableCursor: true, stated: true, actual: true,
   region: true, limit: true, current: true, max: true, maxBytes: true, bytes: true, requestId: true,
   retryAfterMs: true, cause: true,
-})
+}
+const ERROR_OPTION_KEYS = Object.freeze(ERROR_OPTION_KEY_LIST)
 
 /** Whether `key` is an own key of `value` or of a prototype before Object.prototype. */
 function definedBelowObjectPrototype(value: KeyedObject, key: string): boolean {
