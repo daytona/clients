@@ -87,7 +87,7 @@ func TestImageBuildContext_sizeCheckCountsOnlyUploadedEntries(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(big), 0o755))
 	f, err := os.Create(big)
 	require.NoError(t, err)
-	require.NoError(t, f.Truncate(imageContextMaxBytes+1))
+	require.NoError(t, f.Truncate(imageContextDirectMaxBytes+1))
 	require.NoError(t, f.Close())
 
 	upload, err := imageContextUploadForPath(root, "Dockerfile")
