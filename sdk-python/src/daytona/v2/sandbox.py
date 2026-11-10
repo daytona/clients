@@ -325,7 +325,7 @@ class AsyncSandbox:
         *,
         state: Union[SandboxState, _Unset] = _UNSET,
         raw_state: Union[Optional[str], _Unset] = _UNSET,
-        labels: Union[Mapping[str, str], _Unset] = _UNSET,
+        labels: Union[Optional[Mapping[str, str]], _Unset] = _UNSET,
         sandbox_class: Union[Optional[Literal["linux", "macos", "unknown"]], _Unset] = _UNSET,
         raw_sandbox_class: Union[Optional[str], _Unset] = _UNSET,
         persistent: Union[Optional[bool], _Unset] = _UNSET,
@@ -1462,6 +1462,9 @@ class AsyncSandbox:
             hub_provider=self._hub_provider,
             toolbox_url_from_api=True,
         )
+        if detail is None:
+            # The fork response carries no labels: unknown until a detail read.
+            fork._update(labels=None)
         for endpoint in endpoints:
             # Source and fork share the regional API endpoint that accepted the fork.
             self._learn_endpoint(endpoint)

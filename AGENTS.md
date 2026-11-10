@@ -699,7 +699,9 @@ skipping exist only in the TypeScript tool).
   skipped unparsed without moving the cursor, as watches skip theirs; a known
   discriminator keeps every check, and a type that is not a non-empty string
   is still malformed. The SDKs never follow an HTTP redirect: a 3xx response
-  is a `DaytonaError` carrying its status, source `SDK` (Python
+  is a `DaytonaError` carrying its status, source `SDK` (in a browser, fetch's
+  opaque redirect reads status 0 and gives the same error with no status;
+  Python
   `redirect_error`, TS `redirectError`; axios `maxRedirects: 0`, fetch
   `redirect: 'manual'`, httpx's default), and the events WebSocket refuses a
   3xx handshake (Python `process_redirect`, TS `ws` / WHATWG defaults). Integers match between the SDKs except
