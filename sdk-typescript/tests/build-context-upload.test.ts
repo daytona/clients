@@ -34,6 +34,7 @@ let onPut: ((part: number) => Promise<void>) | undefined
 let rewriteParts: ((parts: Array<Record<string, unknown>>) => Array<Record<string, unknown>>) | undefined
 let completeStatuses: number[]
 let completeDelays: number[]
+let createResponse: unknown
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
 const defaultIsNode = contextUploadRuntime.isNode
 const tempDirs: string[] = []
@@ -76,6 +77,7 @@ beforeEach(async () => {
   rewriteParts = undefined
   completeStatuses = []
   completeDelays = []
+  createResponse = { id: 'img-ctx', status: 'pending' }
   contextUploadRuntime.sleep = async () => {}
   contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
   contextUploadRuntime.isNode = defaultIsNode
@@ -114,7 +116,7 @@ beforeEach(async () => {
         if (status !== 200) return reply(status, { message: 'not now', code: 'UNAVAILABLE', source: 'API' })
         return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
       }
-      if (request.url === '/images') return reply(202, { id: 'img-ctx', status: 'pending' })
+      if (request.url === '/images') return reply(202, createResponse)
       if (request.url === '/images/img-ctx') return reply(200, imageWire({ id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' }))
       reply(404, { message: 'not found', code: 'NOT_FOUND', source: 'API' })
     })
@@ -381,6 +383,26 @@ it('refuses a name with an idle expiry before any request', async () => {
     new BadRequestError('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
   )
   expect(seen).toEqual([])
+})
+
+it('refuses an unknown option before any request', async () => {
+  // SAFETY: a deliberately misspelled option, as plain JavaScript can pass.
+  const options = { dockerFile: 'alt/Dockerfile' } as never
+  await expect(service().buildFromContext(archive(), options)).rejects.toThrow(
+    new BadRequestError('BuildFromContextOptions has no option `dockerFile`', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
+  )
+  expect(seen).toEqual([])
+})
+
+it.each([
+  { name: 'no id', response: { status: 'pending' } },
+  { name: 'a blank id', response: { id: '', status: 'pending' } },
+])('refuses a create response with $name before reading the image', async ({ response }) => {
+  createResponse = response
+  const pending = service().buildFromContext(archive())
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow('image create response')
+  expect(seen.filter((request) => request.url.startsWith('/images/'))).toEqual([])
 })
 
 it('hashes incrementally to the same digest as node:crypto', () => {

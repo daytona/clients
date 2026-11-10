@@ -45,6 +45,9 @@ export interface ImagePullOptions extends BuildImageOptions {
 }
 
 const BUILD_IMAGE_OPTION_KEYS = optionKeys<BuildImageOptions>()({ name: true, idleExpirySeconds: true, region: true, cpuArch: true })
+export type BuildFromContextOptions = BuildImageOptions & { readonly dockerfile?: string }
+
+const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, dockerfile: true })
 const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, wait: true, timeoutSeconds: true })
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
@@ -114,7 +117,8 @@ export class ImagesService {
    * uploaded is reused without uploading it again. Resolves once the build is
    * submitted; wait with `get(id, { wait: 'ready' })`.
    */
-  public async buildFromContext(context: BuildContext, options: BuildImageOptions & { readonly dockerfile?: string } = {}): Promise<Image> {
+  public async buildFromContext(context: BuildContext, options: BuildFromContextOptions = {}): Promise<Image> {
+    assertKnownOptions('BuildFromContextOptions', options, BUILD_FROM_CONTEXT_OPTION_KEYS)
     // Checked before the upload: the API refuses the pair only at the build.
     if (options.name !== undefined && options.idleExpirySeconds !== undefined) {
       throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
@@ -129,7 +133,8 @@ export class ImagesService {
       ...(options.cpuArch === undefined ? {} : { cpu_arch: options.cpuArch }),
     }
     const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
-    return this.get(data.id)
+    // Checked before the read: no request ever goes to /images/undefined.
+    return this.get(acknowledgedId(data, 'image create'))
   }
 
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
