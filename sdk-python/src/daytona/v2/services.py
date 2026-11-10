@@ -43,6 +43,7 @@ from ._core import (
     RequestSpec,
     TransportPayload,
     _expect_model_from_dict,
+    checked_seconds,
     enum_str,
     header_text,
     image_options_body,
@@ -232,6 +233,7 @@ class AsyncImagesService:
                 source="SDK",
             )
         # Checked before the upload, as build() checks them before its request.
+        request_timeout = None if timeout is None else checked_seconds(timeout)
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
@@ -247,7 +249,7 @@ class AsyncImagesService:
                     "POST",
                     "/images",
                     json_body=body,
-                    timeout=timeout or None,
+                    timeout=request_timeout or None,
                 )
             )
         )

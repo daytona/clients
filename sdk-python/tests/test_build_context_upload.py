@@ -426,6 +426,15 @@ async def test_an_invalid_option_is_refused_before_any_request(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("timeout", [-1, float("nan"), float("inf"), "30", True], ids=repr)
+async def test_an_invalid_timeout_is_refused_before_any_request(sync: bool, timeout: object) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="timeout must be a non-negative finite number"):
+            await build(peer, archive(), sync, timeout=timeout)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(("region", "sent"), [(None, None), ("local", None), (" ", None), ("eu-1", "eu-1")])
 async def test_the_upload_is_declared_in_the_region_build_selects(
     region: str | None, sent: str | None
