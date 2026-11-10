@@ -276,10 +276,16 @@ async def test_pty_start_sends_a_default_term(env: dict[str, str], expected: dic
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("env", [["A=1"], {"A": 1}, {1: "a"}])
-async def test_pty_start_refuses_an_env_that_is_not_strings(env: object) -> None:
+async def test_process_starts_refuse_an_env_that_is_not_strings(env: object) -> None:
     transport = Transport()
-    with pytest.raises(BadRequestError, match="^env must be a mapping of strings to strings$"):
-        await AsyncPtyService(AsyncProcessService("sbx", transport)).start(env=env)  # type: ignore[arg-type]
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    for call in (
+        lambda: AsyncPtyService(process).start(env=env),  # type: ignore[arg-type]
+        lambda: process.start("true", env=env),  # type: ignore[arg-type]
+        lambda: process.run("true", env=env),  # type: ignore[arg-type]
+    ):
+        with pytest.raises(BadRequestError, match="^env must be a mapping of strings to strings$"):
+            await call()
     assert transport.specs == []
 
 

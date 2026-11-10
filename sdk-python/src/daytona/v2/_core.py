@@ -1202,7 +1202,7 @@ def process_create_spec(
         "tag": None if tag is None else process_tag(tag),
         "sessionId": session_id,
         "cwd": cwd,
-        "env": dict(env) if env is not None else None,
+        "env": None if env is None else _process_env(env),
         "user": user,
         "shell": shell,
         "login": login,
@@ -1321,6 +1321,15 @@ def process_list_spec(
         if value is not None:
             params[key] = value
     return RequestSpec("GET", "/processes", params=params)
+
+
+def _process_env(env: object) -> Dict[str, str]:
+    """A process ``env``: a mapping of strings (anything else is refused, not mangled)."""
+    if not isinstance(env, Mapping) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in env.items()
+    ):
+        raise create_error("env must be a mapping of strings to strings", 400, "BAD_REQUEST", "SDK")
+    return dict(env)
 
 
 _PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")

@@ -81,8 +81,8 @@ last client sharing it closes.
 New requests on a stored v2 client or any of its handles after closing throw
 `ClientClosedError` (`CLIENT_CLOSED`, source `SDK`, no HTTP status).
 Accessing `root.v2` after `await root.close()` builds a fresh working client.
-Error constructors reject unknown option keys and a `statusCode` that is not
-an integer number (or `undefined`) with `TypeError`.
+Error constructors that take `ErrorOptions` reject unknown option keys and a
+`statusCode` that is not an integer number (or `undefined`) with `TypeError`.
 A non-Cloud `DAYTONA_API_URL` emits a warning once per process: SDK 2.x ignores
 this legacy variable. Use SDK 0.x for a custom API URL.
 

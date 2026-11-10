@@ -32,6 +32,7 @@ from _repo import _repo_file
 from daytona.v2 import (
     AuditActionGroup,
     AuditActionList,
+    ClientClosedError,
     DockerfileImageSource,
     FilesystemEvent,
     FilesystemEventType,
@@ -6667,6 +6668,9 @@ async def test_a_create_that_completes_during_close_returns_its_handle(
     bind_api(client, ClosingTransport([{"id": "sbx", "status": "running", "wait_cap_seconds": 3}]))
     sandbox = await client.create(Image.base("py312"), wait_seconds=0)
     assert sandbox.id == "sbx"
+    assert sandbox._hub is None
+    with pytest.raises(ClientClosedError):
+        await sandbox.wait(timeout=0.01)
     await client.close()
 
 

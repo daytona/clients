@@ -12840,6 +12840,14 @@ describe('toolbox surface', () => {
     expect((transport.post.mock.calls[0]?.[1] as { env: unknown }).env).toEqual(expected)
   })
 
+  it.each([[['A=1']], [{ A: 1 }], [new Map([['A', '1']])]])('refuses the process env %p on start() before any request', async (env) => {
+    const transport = transportStub()
+    const process = new ProcessService(INTERNAL, transport.object, 'sbx')
+    await expect(process.start('true', { env } as never)).rejects.toMatchObject({ message: 'env must be a plain object of string to string', code: 'BAD_REQUEST' })
+    await expect(process.run('true', { env } as never)).rejects.toMatchObject({ message: 'env must be a plain object of string to string', code: 'BAD_REQUEST' })
+    expect(transport.post).not.toHaveBeenCalled()
+  })
+
   it.each([[['A=1']], [{ A: 1 }], [new Map([['A', '1']])]])('refuses the PTY env %p before any request', async (env) => {
     const transport = transportStub()
     await expect(new PtyService(INTERNAL, new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object).start(undefined, { env } as never))

@@ -15,7 +15,7 @@ import { knownOrUnknown } from './knownValue.js'
 import { MAX_INT32, MAX_TIMER_DELAY_MS } from './options.js'
 import { bool, int, int32, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 
@@ -202,6 +202,12 @@ export function terminalSpec(terminal: TerminalSize): TerminalSize {
   return { cols: terminalDimension(terminal.cols, 'cols'), rows: terminalDimension(terminal.rows, 'rows') }
 }
 
+/** A process `env`: a plain object of strings (a `Map`, an array or a non-string value is refused, not mangled). */
+function processEnv(env: unknown): Record<string, string> {
+  if (!isPlainStringRecord(env)) throw badRequest('env must be a plain object of string to string')
+  return { ...env }
+}
+
 /** `run()` returns no handle to write to, so it cannot keep stdin open. */
 export function runStdin(stdin: unknown): 'closed' {
   if (stdin === undefined || stdin === 'closed') return 'closed'
@@ -239,7 +245,7 @@ export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
   const body: toolbox.CreateProcessRequest = {
     shellCommand: spec.cmd, argv: spec.argv === undefined ? undefined : [...spec.argv], code: spec.code, kind: spec.kind,
     name: spec.name, tag: spec.tag === undefined ? undefined : processTag(spec.tag),
-    sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
+    sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : processEnv(spec.env),
     user: spec.user, shell: spec.shell, login: spec.login,
     // Sessions take no stdin mode.
     stdin: spec.kind === 'session' ? undefined : spec.stdin,
