@@ -46,8 +46,9 @@ export async function walkArchiveEntries(root: string, filter?: ArchiveFilter, v
     // Buffers: those become entries of unknown type, decided by lstat below.
     let names: { readonly name: Buffer; readonly dirent?: Dirent<Buffer> }[]
     try {
-      const listed: readonly (Dirent<Buffer> | Buffer)[] = await fs.readdir(directory, { withFileTypes: true, encoding: 'buffer' })
-      names = listed.map((item) => Buffer.isBuffer(item) ? { name: item } : { name: item.name, dirent: item })
+      const listed: readonly (Dirent<Buffer> | Uint8Array)[] = await fs.readdir(directory, { withFileTypes: true, encoding: 'buffer' })
+      // Some runtimes return Uint8Array rather than Buffer: normalized to Buffer.
+      names = listed.map((item) => item instanceof Uint8Array ? { name: Buffer.from(item) } : { name: item.name, dirent: item })
     }
     catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')) {

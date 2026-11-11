@@ -286,7 +286,8 @@ test('walks a directory when readdir returns Buffers instead of Dirents (Bun)', 
     await writeFile(join(root, 'b'), 'b')
     const fs = await import('node:fs/promises')
     const readdir = fs.default.readdir
-    const spy = jest.spyOn(fs.default, 'readdir').mockImplementation((async (path: string) => readdir(path, { encoding: 'buffer' })) as never)
+    // Plain Uint8Arrays (not Buffers), as some runtime versions return.
+    const spy = jest.spyOn(fs.default, 'readdir').mockImplementation((async (path: string) => (await readdir(path, { encoding: 'buffer' })).map((name) => new Uint8Array(name))) as never)
     try {
       // When walked, then lstat decides each type and the order is unchanged.
       const entries = await walkArchiveEntries(root)
