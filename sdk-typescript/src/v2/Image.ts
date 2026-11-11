@@ -255,7 +255,7 @@ export function isImageBuilder(value: unknown): value is ImageBuilder {
 
 export class Image implements ImageModel {
   public readonly id: string
-  public readonly name: string | null
+  public readonly name?: string
   public readonly anonymous: boolean
   public readonly availableIn: readonly string[]
   public readonly bytes?: number
@@ -276,7 +276,7 @@ export class Image implements ImageModel {
   public readonly platform: boolean
   public readonly default: boolean
   public readonly deprecated: boolean
-  public readonly diskMib: number | null
+  public readonly diskMib?: number
 
   /** @internal */
   constructor(token: Internal, image: api.ImageListItem)
@@ -286,7 +286,7 @@ export class Image implements ImageModel {
     assertInternal(token, 'Image')
     checkResponse<api.ImageListItem>(image, IMAGE, 'image')
     this.id = image.id
-    this.name = image.name ?? null
+    this.name = image.name ?? undefined
     this.anonymous = image.anonymous
     this.availableIn = Object.freeze([...image.region_ids])
     this.bytes = image.bytes ?? undefined
@@ -307,7 +307,7 @@ export class Image implements ImageModel {
     this.platform = image.platform
     this.default = image.default
     this.deprecated = image.deprecated
-    this.diskMib = image.disk_mib ?? null
+    this.diskMib = image.disk_mib ?? undefined
     // An SDK-owned data model with no live state: frozen at run time.
     Object.freeze(this)
   }
@@ -356,7 +356,9 @@ export class Snapshot {
   }
 }
 
-// The source is an exact-discriminator union: each variant's fields are required.
+// The source is a discriminated union: each known variant's fields are
+// required. Any other non-empty string type is a kind a later API added, not a
+// malformed response: it maps to `unknown` with the wire type (as Python).
 const SOURCE_FIELDS: Readonly<Record<string, ResponseFields>> = {
   registry: { ref: 'string' },
   dockerfile: { context_object: 'string', dockerfile: 'string' },
@@ -366,14 +368,14 @@ const SOURCE_FIELDS: Readonly<Record<string, ResponseFields>> = {
 
 function imageSource(source: NonNullable<api.ImageListItem['source']>): ImageSource {
   const type: unknown = Reflect.get(source, 'type')
-  const fields = typeof type === 'string' && Object.prototype.hasOwnProperty.call(SOURCE_FIELDS, type) ? SOURCE_FIELDS[type] : undefined
-  if (fields === undefined) throw badRequest('image response has a source.type that is not a known source type')
-  checkResponse(source, fields, 'image source')
+  if (typeof type !== 'string' || type === '') throw badRequest('image response has a source.type that is not a non-empty string')
+  if (!Object.prototype.hasOwnProperty.call(SOURCE_FIELDS, type)) return { type: 'unknown', rawType: type }
+  checkResponse(source, SOURCE_FIELDS[type], 'image source')
   switch (source.type) {
     case 'registry':
       return { type: source.type, ref: source.ref }
     case 'dockerfile':
-      return { type: source.type, contextObject: source.context_object, dockerfile: source.dockerfile }
+      return { type: source.type, dockerfile: source.dockerfile }
     case 'named':
     case 'manifest':
       return { type: source.type, name: source.name }
@@ -381,9 +383,9 @@ function imageSource(source: NonNullable<api.ImageListItem['source']>): ImageSou
 }
 
 /** @internal */
-export function artifactRefOf(ref: api.ImageReference | api.SnapshotReference | null | undefined): { readonly id: string; readonly name: string | null } | null {
-  if (!ref) return null
-  return Object.freeze({ id: ref.id, name: ref.name ?? null })
+export function artifactRefOf(ref: api.ImageReference | api.SnapshotReference | null | undefined): { readonly id: string; readonly name?: string } | undefined {
+  if (!ref) return undefined
+  return Object.freeze(ref.name === undefined || ref.name === null ? { id: ref.id } : { id: ref.id, name: ref.name })
 }
 
 /**

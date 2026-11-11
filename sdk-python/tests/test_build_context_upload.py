@@ -30,6 +30,7 @@ from daytona.v2.errors import (
     BadRequestError,
     ConflictError,
     ConnectionError,
+    DaytonaError,
     InternalServerError,
     ServiceUnavailableError,
 )
@@ -68,6 +69,8 @@ class Peer:
     complete_delays: list[float] = field(default_factory=list)
     # Rewrites the parts a declaration is answered with.
     rewrite_parts: Callable[[list[dict[str, object]]], list[dict[str, object]]] | None = None
+    # Rewrites the whole declaration answer.
+    rewrite_upload: Callable[[dict[str, object]], object] | None = None
     upload_id: str = UPLOAD_ID
     requests: list[tuple[str, str, dict[str, str], bytes]] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -100,7 +103,8 @@ def storage_peer(**options: object) -> Iterator[Peer]:
             if self.path == "/build-contexts":
                 declared = json.loads(body)
                 if peer.ready:
-                    return self.reply(200, self.upload("ready", declared, []))
+                    answer = self.upload("ready", declared, [])
+                    return self.reply(200, peer.rewrite_upload(answer) if peer.rewrite_upload else answer)
                 total, parts, offset, number = declared["bytes"], [], 0, 1
                 while offset < total:
                     size = min(peer.part_size, total - offset)
@@ -109,7 +113,8 @@ def storage_peer(**options: object) -> Iterator[Peer]:
                     offset, number = offset + size, number + 1
                 if peer.rewrite_parts is not None:
                     parts = peer.rewrite_parts(parts)
-                return self.reply(201, self.upload("uploading", declared, parts))
+                answer = self.upload("uploading", declared, parts)
+                return self.reply(201, peer.rewrite_upload(answer) if peer.rewrite_upload else answer)
             if self.path == f"/build-contexts/{UPLOAD_ID}/complete":
                 with peer.lock:
                     delay = peer.complete_delays.pop(0) if peer.complete_delays else 0.0
@@ -164,6 +169,9 @@ def storage_peer(**options: object) -> Iterator[Peer]:
             try:
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
+                if 300 <= status < 400:
+                    # A redirect names a target a follower would request.
+                    self.send_header("Location", f"{holder[0].url}/bucket/redirected")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -340,6 +348,69 @@ async def test_a_refused_part_fails_without_revealing_its_url(sync: bool) -> Non
         for text in (str(error.value), repr(error.value), repr(error.value.__cause__)):
             assert SIGNATURE not in text and "/bucket/" not in text
         assert error.value.__cause__ is None
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
+
+
+@pytest.mark.anyio
+async def test_a_redirected_part_is_the_redirect_error_and_is_not_retried(sync: bool) -> None:
+    # Given storage that answers a part with a redirect.
+    with storage_peer(put_statuses=[302], part_size=1 << 20) as peer:
+        with pytest.raises(DaytonaError) as error:
+            await build(peer, archive(), sync)
+        # Then the SDK follows no redirect (as TypeScript): one PUT, the
+        # redirect error with its status, nothing completed or built.
+        assert type(error.value) is DaytonaError
+        assert (error.value.status_code, error.value.source) == (302, "SDK")
+        assert len(peer.bodies("PUT", "/bucket/part/1")) == 1
+        assert not [p for _, p, *_ in peer.requests if p.startswith("/bucket/redirected")]
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
+
+
+def _without(key: str) -> Callable[[dict[str, object]], object]:
+    return lambda upload: {k: v for k, v in upload.items() if k != key}
+
+
+def _future_state_without_parts(upload: dict[str, object]) -> object:
+    return {**{k: v for k, v in upload.items() if k != "parts"}, "state": "future"}
+
+
+def _bool_part_numbers(upload: dict[str, object]) -> object:
+    parts = upload["parts"]
+    assert isinstance(parts, list)
+    return {**upload, "parts": [{**part, "part_number": True} for part in parts]}
+
+
+def _bad_urls(upload: dict[str, object]) -> object:
+    parts = upload["parts"]
+    assert isinstance(parts, list)
+    return {**upload, "parts": [{**part, "url": 5} for part in parts]}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("ready", "rewrite", "message"),
+    [
+        (True, _without("id"), "build context upload response has no id"),
+        (True, _without("region_id"), "build context upload response has no region_id"),
+        (True, _without("parts"), "build context upload response has no parts"),
+        (False, _without("state"), "build context upload response has no state"),
+        (False, _bool_part_numbers, "build context upload response has a malformed part"),
+        (False, _without("parts"), "build context upload response has no parts"),
+        (False, _future_state_without_parts, "build context upload response has no parts"),
+        (False, _bad_urls, "build context upload response has a malformed part"),
+        (False, lambda _u: [1], "build context upload response is not an object"),
+    ],
+)
+async def test_a_malformed_upload_response_is_refused_before_any_other_request(
+    sync: bool, ready: bool, rewrite: Callable[[dict[str, object]], object], message: str
+) -> None:
+    # The TypeScript twin checks the same fields with the same messages.
+    with storage_peer(ready=ready, rewrite_upload=rewrite) as peer:
+        with pytest.raises(BadRequestError) as error:
+            await build(peer, archive(), sync)
+        assert str(error.value) == message
+        assert (error.value.status_code, error.value.code, error.value.source) == (400, "BAD_REQUEST", "SDK")
+        assert peer.bodies("PUT", "/") == []
         assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
 
 

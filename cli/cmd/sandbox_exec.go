@@ -61,14 +61,18 @@ func newSandboxExecSubcommand() *cobra.Command {
 	var envPairs []string
 	var tty bool
 	var user string
+	var executionTimeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "exec <sandbox-id> -- <command> [args...]",
 		Short: "Run a command inside a sandbox",
-		Long:  "Starts a sandbox process, streams its output, and exits with the process exit code.\n\nExamples:\n  daytona sandbox exec sbx-123 -- python -V\n  printf hi | daytona sandbox exec sbx-123 -- cat\n  daytona sandbox exec sbx-123 --tty -- bash",
+		Long:  "Starts a sandbox process, streams its bytes, and exits with the process exit code (127 if the command cannot start). Interrupting the CLI signals the process with INT, escalating to KILL after 1s. --timeout only limits the client wait; --execution-timeout limits remote execution.\n\nExamples:\n  daytona sandbox exec sbx-123 -- python -V\n  printf hi | daytona sandbox exec sbx-123 -- cat\n  daytona sandbox exec sbx-123 --tty -- bash",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
 				return cerr.Usage("sandbox exec needs a sandbox id and a command after --")
+			}
+			if cmd.Flags().Changed("execution-timeout") && executionTimeout <= 0 {
+				return cerr.Usage("--execution-timeout must be greater than zero")
 			}
 			a := FromContext(cmd.Context())
 			env, err := input.KV(envPairs, "--env")
@@ -91,15 +95,15 @@ func newSandboxExecSubcommand() *cobra.Command {
 			if err != nil {
 				return timeoutForDeadline(execCtx, timeout, err)
 			}
-			if tty {
-				if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
-					return cerr.Usage("--tty requires a real terminal on stdin and stdout")
-				}
-				err = runTTYExec(execCtx, toolClient, args[1:], cwd, env, user)
-				return timeoutForDeadline(execCtx, timeout, err)
-			}
 			argv := args[1:]
 			request := tbgen.CreateProcessRequest{Argv: &argv}
+			if executionTimeout > 0 {
+				ms := executionTimeout.Milliseconds()
+				if executionTimeout%time.Millisecond != 0 {
+					ms++ // a positive sub-millisecond budget must not become zero
+				}
+				request.TimeoutMs = &ms
+			}
 			if cwd != "" {
 				request.Cwd = &cwd
 			}
@@ -109,29 +113,27 @@ func newSandboxExecSubcommand() *cobra.Command {
 			if user != "" {
 				request.User = &user
 			}
-			if stdin := processStdinReader(); stdin != nil {
-				request.Stdin = stdinModePtr(tbgen.Open)
-				result, err := toolClient.StreamProcess(execCtx, toolboxclient.StreamProcessOptions{
-					Request:     request,
-					Timeout:     timeout,
-					Stdout:      a.Stdout,
-					Stderr:      a.Stderr,
-					Stdin:       stdin,
-					LogEncoding: "text",
-				})
-				if err != nil {
-					return timeoutForDeadline(execCtx, timeout, err)
+			var result toolboxclient.ProcessResult
+			if tty {
+				if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
+					return cerr.Usage("--tty requires a real terminal on stdin and stdout")
 				}
-				return exitError(result.Exit)
+				result, err = toolClient.StreamTerminal(execCtx, request)
+			} else {
+				stdin := processStdinReader()
+				request.Stdin = stdinModePtr(tbgen.Closed)
+				if stdin != nil {
+					request.Stdin = stdinModePtr(tbgen.Open)
+				}
+				result, err = toolClient.StreamProcess(execCtx, toolboxclient.StreamProcessOptions{
+					Request: request, Timeout: timeout, Stdout: a.Stdout, Stderr: a.Stderr,
+					Stdin: stdin, LogEncoding: "base64",
+				})
 			}
-			request.Stdin = stdinModePtr(tbgen.Closed)
-			result, err := toolClient.StreamProcess(execCtx, toolboxclient.StreamProcessOptions{
-				Request:     request,
-				Timeout:     timeout,
-				Stdout:      a.Stdout,
-				Stderr:      a.Stderr,
-				LogEncoding: "text",
-			})
+			if errors.Is(cmd.Context().Err(), context.Canceled) && !errors.Is(execCtx.Err(), context.DeadlineExceeded) {
+				toolClient.InterruptProcess(cmd.Context(), result.Process.Id)
+				return cerr.FromContext(cmd.Context())
+			}
 			if err != nil {
 				return timeoutForDeadline(execCtx, timeout, err)
 			}
@@ -142,6 +144,7 @@ func newSandboxExecSubcommand() *cobra.Command {
 	cmd.Flags().StringArrayVar(&envPairs, "env", nil, "environment variable to set (KEY=VALUE, repeatable)")
 	cmd.Flags().BoolVar(&tty, "tty", false, "run the command in a PTY and attach interactively")
 	cmd.Flags().StringVar(&user, "user", "", "sandbox OS user to run the command as")
+	cmd.Flags().DurationVar(&executionTimeout, "execution-timeout", 0, "server-side execution deadline (positive Go duration, rounded up to milliseconds)")
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long the command may run before the CLI stops waiting (Go duration; exit 8)")
 	return cmd
 }
@@ -152,6 +155,13 @@ func timeoutForDeadline(ctx context.Context, timeout time.Duration, err error) e
 	}
 	if timeout > 0 && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded)) {
 		return cerr.New(cerr.ExitTimeout, "timed out after %s waiting for the process to finish", timeout)
+	}
+	var detail cerr.Detailed
+	if errors.As(err, &detail) && detail.ErrorCode() == "PROCESS_START_FAILED" {
+		return cerr.Wrap(127, err, "%s", err.Error()).WithSource(cerr.SourceProcess)
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return cerr.FromContext(ctx)
 	}
 	return err
 }

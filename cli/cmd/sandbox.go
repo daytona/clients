@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"context"
-	"strconv"
-	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
@@ -86,9 +84,13 @@ func newSandboxWaitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wait <id>",
 		Short: "Wait for a sandbox status",
-		Long:  "Wait for a sandbox status.\nExample:\n  daytona sandbox wait <id> --for running",
+		Long:  "Wait for a sandbox to reach a settled status: running, stopped, paused or deleted.\nThe SDK state names started (running) and destroyed (deleted) are accepted too.\nExample:\n  daytona sandbox wait <id> --for running",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			target, err := sandboxWaitTarget(status)
+			if err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -105,7 +107,7 @@ func newSandboxWaitCommand() *cobra.Command {
 			}
 			detail, err := workload.WaitForSandbox(cmd.Context(), resolved.Client, workload.SandboxWaitOptions{
 				ID:      resolved.Detail.Id,
-				Target:  status,
+				Target:  target,
 				Timeout: timeout,
 			})
 			if err != nil {
@@ -114,14 +116,52 @@ func newSandboxWaitCommand() *cobra.Command {
 			return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 		},
 	}
-	cmd.Flags().StringVar(&status, "for", status, "status to wait for")
+	cmd.Flags().StringVar(&status, "for", status, "status to wait for: running, stopped, paused or deleted (or the SDK names started, destroyed)")
+	flagPlaceholder(cmd.Flags(), "for", "STATUS")
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long to wait (Go duration)")
 	return cmd
+}
+
+// checkSandboxCursorRegions refuses a --cursor that names a region the
+// catalog does not have: listing would silently start over at page one.
+func checkSandboxCursorRegions(cat *regions.Catalog, cursor string) error {
+	if cat == nil || len(cat.Regions) == 0 {
+		return nil
+	}
+	for region := range parseSandboxCursor(cursor) {
+		if region == "" {
+			continue
+		}
+		if canonical := cat.Find(region); canonical == nil || canonical.Id != region {
+			return cerr.Usage("invalid --cursor: it names region %q, which the region catalog does not have", region).
+				WithHint("the cursor is stale or was not printed by `daytona sandbox list`; list again without --cursor")
+		}
+	}
+	return nil
+}
+
+// sandboxWaitTargets maps each `sandbox wait --for` value to the API status it
+// waits for: the settled statuses, and the SDKs' names for two of them.
+// Transient statuses are not targets: a wait could miss them and run to its
+// timeout.
+var sandboxWaitTargets = map[string]string{
+	"running": "running", "stopped": "stopped", "paused": "paused", "deleted": "deleted",
+	"started": "running", "destroyed": "deleted",
+}
+
+func sandboxWaitTarget(value string) (string, error) {
+	if target, ok := sandboxWaitTargets[value]; ok {
+		return target, nil
+	}
+	return "", cerr.Usage("invalid --for %q: want running, stopped, paused or deleted (or started, destroyed)", value)
 }
 
 func (source regionalListSource) fetchSandboxPage(ctx context.Context, page listPageRequest) (output.List[gen.SandboxListItem], error) {
 	cat, err := source.catalog.Fetch(ctx, source.home)
 	if err != nil {
+		return output.List[gen.SandboxListItem]{}, err
+	}
+	if err := checkSandboxCursorRegions(cat, page.cursor); err != nil {
 		return output.List[gen.SandboxListItem]{}, err
 	}
 	cat = cat.ForListCursor(source.home.BaseURL, page.cursor)
@@ -165,85 +205,6 @@ func (source regionalListSource) fetchSandboxPage(ctx context.Context, page list
 	}
 	raw.Items = regions.Unique(raw.Items, func(item gen.SandboxListItem) string { return item.Id })
 	return trimSandboxPage(raw, scope, page.limit), nil
-}
-
-func sandboxListTable(items []gen.SandboxListItem) output.Table {
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		rows = append(rows, []string{item.Id, item.Name, string(item.Class), item.Status, item.RegionId, sandboxArtifactSummary(item.Image, item.Snapshot), formatTimePtr(item.CreatedAt)})
-	}
-	return output.Table{Headers: []string{"ID", "NAME", "CLASS", "STATUS", "REGION", "ARTIFACT", "CREATED"}, Rows: rows}
-}
-
-// sandboxUnsized labels macOS resource sizes that are not available before first boot.
-const sandboxUnsized = "sizing on first boot"
-
-// formatCores prints a CPU amount in cores (1 core = 2 vCPUs) in its shortest
-// exact form: 2, 0.5, 1.5.
-func formatCores(cores float64) string {
-	return strconv.FormatFloat(cores, 'f', -1, 64)
-}
-
-func sandboxDetailKV(detail gen.Sandbox) [][2]string {
-	cpu := strings.TrimRight(strings.TrimRight(strconv.FormatFloat(detail.Cpu, 'f', 3, 64), "0"), ".")
-	coresMax := formatCores(detail.CoresMax)
-	memory := strconv.Itoa(int(detail.MemoryMib))
-	if detail.Class == workload.ClassMacOS && detail.CoresMax == 0 {
-		cpu, coresMax, memory = sandboxUnsized, sandboxUnsized, sandboxUnsized
-	}
-	kv := [][2]string{
-		{"id", detail.Id},
-		{"name", detail.Name},
-		{"class", string(detail.Class)},
-		{"status", detail.Status},
-		{"region", detail.RegionId},
-		{sandboxArtifactLabel(detail.Image, detail.Snapshot), sandboxArtifactSummary(detail.Image, detail.Snapshot)},
-		{"cpu", cpu},
-		{"cores_max", coresMax},
-		{"memory_mib", memory},
-		{"disk_mib", strconv.Itoa(int(detail.DiskMib))},
-	}
-	if detail.Class == workload.ClassMacOS {
-		persistent := ""
-		if detail.Persistent != nil {
-			persistent = strconv.FormatBool(*detail.Persistent)
-		}
-		kv = append(kv, [2]string{"persistent", persistent})
-		reservation := "-"
-		if detail.ReservationId != nil && *detail.ReservationId != "" {
-			reservation = *detail.ReservationId
-		}
-		kv = append(kv, [2]string{"reservation_id", reservation})
-	}
-	if detail.MacBootMode != nil {
-		kv = append(kv, [2]string{"mac_boot_mode", *detail.MacBootMode})
-	}
-	return kv
-}
-
-// The display label for the artifact the sandbox booted: "image" for an image,
-// "snapshot" for a sandbox resumed from a memory snapshot.
-func sandboxArtifactLabel(image *gen.ImageReference, snapshot *gen.SnapshotReference) string {
-	if image == nil && snapshot != nil {
-		return "snapshot"
-	}
-	return "image"
-}
-
-func sandboxArtifactSummary(image *gen.ImageReference, snapshot *gen.SnapshotReference) string {
-	if image != nil {
-		if image.Name != nil && strings.TrimSpace(*image.Name) != "" {
-			return *image.Name
-		}
-		return image.Id
-	}
-	if snapshot != nil {
-		if snapshot.Name != nil && strings.TrimSpace(*snapshot.Name) != "" {
-			return *snapshot.Name
-		}
-		return snapshot.Id
-	}
-	return ""
 }
 
 func printSandboxDetail(ctx context.Context, id string) error {

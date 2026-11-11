@@ -290,7 +290,7 @@ class SyncTransport:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
-        if spec.on_headers is not None and response.status_code < 400:
+        if spec.on_headers is not None and response.status_code < 300:
             spec.on_headers(response.headers)
         return _decode_response(response)
 
@@ -322,7 +322,7 @@ class SyncTransport:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             try:
                 body = read_body_sync(
                     response, resolve_limit(spec.max_response_bytes, self._max_response_bytes)
@@ -345,7 +345,7 @@ class SyncTransport:
     def request(self, method: str, path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response:
         """Return the raw httpx.Response after envelope-error handling.
 
-        Contract: any status >= 400 raises the typed SDK error; callers that
+        Contract: any status >= 300 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
         """
         try:
@@ -359,7 +359,7 @@ class SyncTransport:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             raise error_from_response(
                 response.status_code, response.content, content_type=response.headers.get("content-type")
             )
@@ -759,7 +759,7 @@ class AsyncTransport:
         # Every public client runs on THIS transport (the sync surface bridges
         # onto it), so this is where the events hub learns a sandbox's service endpoint
         # from the response's endpoint header.
-        if spec.on_headers is not None and response.status_code < 400:
+        if spec.on_headers is not None and response.status_code < 300:
             spec.on_headers(response.headers)
         return _decode_response(response)
 
@@ -879,7 +879,7 @@ class AsyncTransport:
             if span is not None:
                 span.finish(error=exc)
             raise
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             typed_error: BaseException | None = None
             try:
                 body = await read_body(
@@ -1016,7 +1016,7 @@ class AsyncTransport:
     ) -> httpx.Response:
         """Return the raw httpx.Response after envelope-error handling.
 
-        Contract: any status >= 400 raises the typed SDK error; callers that
+        Contract: any status >= 300 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
         ``transfer=True`` marks a file transfer: no total deadline, but its
         idle bound (an explicit ``timeout`` in seconds, else the request
@@ -1104,7 +1104,7 @@ class AsyncTransport:
             raise
         if span is not None:
             span.finish(status_code=response.status_code)
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             raise error_from_response(
                 response.status_code, response.content, content_type=response.headers.get("content-type")
             )
@@ -1313,7 +1313,7 @@ def _request_headers(
 
 
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
-    if response.status_code >= 400:
+    if response.status_code >= 300:
         raise error_from_response(
             response.status_code, response.content, content_type=response.headers.get("content-type")
         )

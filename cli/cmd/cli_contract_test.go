@@ -71,7 +71,7 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		{"image", "import", "img", "--ref", "python:3.12"}, // the alias is gone
 		{"invite", "show", "dtni_x"},                       // renamed to `invite get`
 		{"sandbox", "preview-url", "sbx", "8080"},          // moved under `sandbox port`
-		{"registry", "set", "ghcr.io"},                     // a required flag is missing
+		{"registry", "set", "ghcr.io", "--kind", "bogus"},  // an invalid enum value
 		{"login", "--token", "dtn_x", "--device"},          // mutually exclusive flags
 		{"login", "--device", "--browser"},
 		{"sandbox", "list", "--region="}, // an empty --region is refused everywhere
@@ -371,9 +371,10 @@ func TestUnknownProfileStopsOnlyProfileCommands(t *testing.T) {
 
 	// Only an explicit `login --profile NAME` creates a profile.
 	d := cfgDir(t)
+	f := newFakeAPI(t)
 	_, stderr, code = runReported(t, d, ghost, "login", "--token", "dtn_fixture")
 	require.Equal(t, cerr.ExitNotFound, code, stderr)
-	_, stderr, code = runReported(t, d, ghost, "login", "--profile", "ghost", "--token", "dtn_fixture")
+	_, stderr, code = runReported(t, d, ghost, "login", "--profile", "ghost", "--token", "dtn_fixture", "--api-url", f.srv.URL)
 	require.Equal(t, 0, code, stderr)
 	stdout, _, code = runReported(t, d, ghost, "whoami")
 	require.Equal(t, 0, code)
@@ -528,7 +529,7 @@ func TestSandboxCreateFileMapKeysAreSentAsGiven(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"env":{"PATH":"1","path":"2"},"labels":{"a":"1","A":"2"}}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 }
 

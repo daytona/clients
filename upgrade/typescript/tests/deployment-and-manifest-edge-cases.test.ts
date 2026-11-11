@@ -74,7 +74,7 @@ it('removes empty named-import braces after moving all named resources', async (
 it.each([
   { before: "new Daytona({ apiUrl: 'https://app.daytona.io/api' })", after: 'new Daytona()' },
   { before: 'new Daytona({})', after: 'new Daytona({})' },
-  { before: "new Daytona({ apiUrl: 'https://app.daytona.io/api', apiKey })", after: 'new Daytona({  apiKey })' },
+  { before: "new Daytona({ apiUrl: 'https://app.daytona.io/api', apiKey })", after: 'new Daytona({ apiKey })' },
 ])('only removes constructor objects emptied by migration: $before', async ({ before, after }) => {
   // Given
   const root = temporaryProject({ 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" + before });

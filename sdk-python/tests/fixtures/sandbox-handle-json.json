@@ -92,8 +92,7 @@
         "state": "creating",
         "rawState": "pending",
         "image": {
-          "id": "img_abc",
-          "name": null
+          "id": "img_abc"
         },
         "sandboxClass": "linux",
         "rawSandboxClass": "linux"

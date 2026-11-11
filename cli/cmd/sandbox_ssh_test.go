@@ -17,6 +17,7 @@ import (
 )
 
 func TestToolboxSSH_buildsSSHInvocation(t *testing.T) {
+	t.Setenv("DAYTONA_CONFIG_DIR", cfgDir(t))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/sandboxes/sbx", r.URL.Path)
 		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
@@ -25,7 +26,7 @@ func TestToolboxSSH_buildsSSHInvocation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	a, err := app.Load(app.Globals{APIURL: server.URL, APIKey: "k", Output: "json"}, &bytes.Buffer{}, &bytes.Buffer{}, nil)
+	a, err := app.Load(app.Globals{APIURL: server.URL, APIKey: "k", APIKeySet: true, Output: "json"}, &bytes.Buffer{}, &bytes.Buffer{}, nil)
 	require.NoError(t, err)
 	a.SetCredentialResolver("flag", func(context.Context) (string, error) { return "k", nil })
 	cmd := newSandboxSSHSubcommand()

@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -62,8 +63,9 @@ func TestRegistryDelete_escapesHostPathSegment(t *testing.T) {
 	api.on(http.MethodDelete, "/registries/a?b#c", http.StatusNoContent, "")
 	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "registry", "delete", "a?b#c", "--yes")
 	require.Equal(t, 0, code, stderr)
-	require.Equal(t, "/registries/a?b#c", api.requests[0].Path)
-	require.Empty(t, api.requests[0].Query)
+	// The key's project is checked first (a project named with a static key).
+	deleted := findRequest(t, api, http.MethodDelete, "/registries/a?b#c")
+	require.Empty(t, deleted.Query)
 }
 
 func TestSecretDelete_escapesNamePathSegment(t *testing.T) {
@@ -71,8 +73,9 @@ func TestSecretDelete_escapesNamePathSegment(t *testing.T) {
 	api.on(http.MethodDelete, "/secrets/a?b#c", http.StatusNoContent, "")
 	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "secret", "delete", "a?b#c", "--yes")
 	require.Equal(t, 0, code, stderr)
-	require.Equal(t, "/secrets/a?b#c", api.requests[0].Path)
-	require.Empty(t, api.requests[0].Query)
+	// The key's project is checked first (a project named with a static key).
+	deleted := findRequest(t, api, http.MethodDelete, "/secrets/a?b#c")
+	require.Empty(t, deleted.Query)
 }
 
 func TestProjectServiceAccountAdd_listsOnlyLiveAccounts(t *testing.T) {
@@ -127,7 +130,7 @@ func TestKeyMint_interactiveProjectPickerCarriesPickedOrgIntoServiceAccountResol
 	t.Cleanup(func() { app.ForceTTY = nil })
 	prevSelect := selectPrompt
 	selectCalls := 0
-	selectPrompt = func(title string, opts []ui.Option) (string, error) {
+	selectPrompt = func(_ context.Context, title string, opts []ui.Option) (string, error) {
 		selectCalls++
 		switch selectCalls {
 		case 1:

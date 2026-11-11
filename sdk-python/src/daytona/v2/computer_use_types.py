@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, TypeGuard, Union
+from typing import Dict, Literal, Optional, TypeGuard, Union
 
 from . import _gen
 from .types import JsonValue
@@ -237,7 +237,7 @@ class ComputerUseDisplay:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDisplayInfo:
-    displays: List[ComputerUseDisplay]
+    displays: tuple[ComputerUseDisplay, ...]
 
 
 ComputerUseDisplayInfoResponse = ComputerUseDisplayInfo
@@ -256,7 +256,7 @@ class ComputerUseWindow:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDisplayWindows:
-    windows: List[ComputerUseWindow]
+    windows: tuple[ComputerUseWindow, ...]
 
 
 ComputerUseDisplayWindowsResponse = ComputerUseDisplayWindows
@@ -276,10 +276,10 @@ class ComputerUseAccessibilityNode:
     role: str
     name: str
     bounds: ComputerUseAccessibilityBounds
-    states: List[str]
+    states: tuple[str, ...]
     description: Optional[str] = None
-    actions: Optional[List[str]] = None
-    children: Optional[List[ComputerUseAccessibilityNode]] = None
+    actions: Optional[tuple[str, ...]] = None
+    children: Optional[tuple[ComputerUseAccessibilityNode, ...]] = None
     # A control's current value (macOS). Never set for password fields.
     value: Optional[str] = None
     # `value` was cut at the platform's cap. False when uncut or not reported; the SDK always fills it.
@@ -297,7 +297,7 @@ ComputerUseA11yTreeResponse = ComputerUseA11yTree
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseA11yFindResult:
-    matches: List[ComputerUseAccessibilityNode]
+    matches: tuple[ComputerUseAccessibilityNode, ...]
     truncated: bool
 
 
@@ -318,7 +318,7 @@ class ComputerUseRecording:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRecordingList:
-    recordings: List[ComputerUseRecording]
+    recordings: tuple[ComputerUseRecording, ...]
 
 
 ComputerUseRecordingsResponse = ComputerUseRecordingList

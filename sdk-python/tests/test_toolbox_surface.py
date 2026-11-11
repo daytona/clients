@@ -209,7 +209,7 @@ async def test_run_returns_the_collected_log_frames() -> None:
     )
     result = await AsyncProcessService("sbx", transport).run("echo ok")  # type: ignore[arg-type]
 
-    assert result.logs == [LogFrame(cursor="1", channel="stdout", data="ok", timestamp_ms=5)]
+    assert result.logs == (LogFrame(cursor="1", channel="stdout", data="ok", timestamp_ms=5),)
     assert (result.reason, result.exit_code, result.stdout) == ("exited", 0, "ok")
     assert isinstance(result, WaitResult)
 
@@ -402,7 +402,7 @@ async def test_git_results_are_sdk_models() -> None:
         ahead=1,
         behind=0,
         branch_published=True,
-        file_status=[GitFileStatus(name="README.md", staging="M", worktree=" ", extra="")],
+        file_status=(GitFileStatus(name="README.md", staging="M", worktree=" ", extra=""),),
     )
     assert (await git.history("/repo")).items == (
         GitCommit(
@@ -442,12 +442,12 @@ async def test_lsp_completions_return_sdk_models_and_send_a_typed_context() -> N
         context=LspCompletionContext(trigger_kind=2, trigger_character="."),
     )
 
-    assert completions.items == [
+    assert completions.items == (
         LspCompletionItem(label="plain", kind=3, documentation="text"),
         LspCompletionItem(
             label="rich", documentation=LspMarkupContent(kind="markdown", value="**x**"), sort_text="a"
         ),
-    ]
+    )
     assert transport.specs[0].json_body == {
         "languageId": "python",
         "pathToProject": "/p",
@@ -1004,7 +1004,7 @@ async def test_logs_returns_the_contract_page() -> None:
     page = await handle.logs()
 
     assert page == LogPage(
-        items=[LogFrame(cursor="c1", channel="stdout", data="x", timestamp_ms=1)],
+        items=(LogFrame(cursor="c1", channel="stdout", data="x", timestamp_ms=1),),
         next_cursor="c1",
         truncated_head=True,
         eof=False,
@@ -1041,7 +1041,7 @@ async def test_write_many_returns_sdk_models() -> None:
     )  # type: ignore[arg-type]
 
     assert await fs.write_many({"/a": b"x"}) == BulkWriteResult(
-        files=[BulkWriteFile(path="/a", bytes=1)], errors=["b"]
+        files=(BulkWriteFile(path="/a", bytes=1),), errors=("b",)
     )
 
 
@@ -1403,7 +1403,7 @@ def test_read_many_reads_a_contract_error_part() -> None:
         _error_part(b'{"path": "/a", "message": "missing", "code": "FILE_NOT_FOUND"}')
     )
 
-    assert result.errors == [BulkReadError(path="/a", message="missing", code="FILE_NOT_FOUND", source=None)]
+    assert result.errors == (BulkReadError(path="/a", message="missing", code="FILE_NOT_FOUND", source=None),)
 
 
 @pytest.mark.anyio
@@ -1770,7 +1770,6 @@ def test_read_many_refuses_a_file_part_with_a_bad_filename_star(filename: str) -
         None,
         "",
         {"sandboxId": "sbx", "contextId": "", "language": "python"},
-        {"sandbox_id": "sbx", "context_id": "", "language": "python"},
     ],
 )
 async def test_delete_context_refuses_an_id_that_is_not_a_non_empty_string(context: object) -> None:

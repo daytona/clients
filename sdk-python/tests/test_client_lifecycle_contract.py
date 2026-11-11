@@ -147,6 +147,9 @@ async def test_fork_with_wait_seconds_zero_returns_once_accepted() -> None:
     # One request, as for create: the handle holds what the fork response
     # carries plus the class the call fixes (the source's).
     assert (fork.state, fork.sandbox_class, fork.forked_from) == ("creating", "linux", "src")
+    # The fork response carries no labels: unknown, not empty (as TypeScript).
+    assert fork.labels is None
+    assert "labels" not in fork.to_json()
     assert [(spec.method, spec.path) for spec in api.specs] == [("POST", "/sandboxes/src/fork")]
 
 

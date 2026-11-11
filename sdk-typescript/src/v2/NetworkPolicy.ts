@@ -75,7 +75,6 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
     desired: optionalNetworkPolicy(data.desired, 'desired'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
-    httpStatus: response.status,
     applied: optionalNetworkPolicy(data.applied, 'applied'),
     appliedRevision: optionalInteger(data.applied_revision, 'applied_revision'),
     appliedStartId: optionalString(data.applied_start_id),
@@ -109,8 +108,8 @@ function responseStringArray(value: unknown, fieldName: string): string[] {
   return [...value]
 }
 
-function optionalResponseStringArray(value: unknown, fieldName: string): string[] | null {
-  if (value === undefined || value === null) return null
+function optionalResponseStringArray(value: unknown, fieldName: string): string[] | undefined {
+  if (value === undefined || value === null) return undefined
   return responseStringArray(value, fieldName)
 }
 

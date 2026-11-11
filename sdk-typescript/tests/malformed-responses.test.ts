@@ -560,7 +560,9 @@ it('returns the create handle when its optional fields are mistyped, as Python d
   try {
     const sandbox = await client.v2.create('img_1', { waitSeconds: 0 })
     expect([sandbox.id, sandbox.state, sandbox.name, sandbox.reservationId, sandbox.toolboxProxyUrl]).toEqual(['sbx', 'creating', undefined, undefined, undefined])
-    expect(sandbox.image).toEqual({ id: 'img_1', name: null })
+    expect(sandbox.image).toEqual({ id: 'img_1' })
+    // Labels are unknown on a create handle until a detail read.
+    expect(sandbox.labels).toBeUndefined()
     expect(api.requests).toHaveLength(1)
   } finally {
     await client.close()

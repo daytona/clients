@@ -28,8 +28,8 @@ function dockerStatusFromWire(data: unknown): DockerStatus {
   return Object.freeze({
     owner: knownOrUnknown(status.owner, DOCKER_OWNERS),
     rawOwner: status.owner,
-    processId: status.processId,
-    reason: status.reason,
+    processId: status.processId ?? undefined,
+    reason: status.reason ?? undefined,
     state: knownOrUnknown(status.state, DOCKER_STATES),
     rawState: status.state,
   })

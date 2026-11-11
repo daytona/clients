@@ -247,7 +247,9 @@ class UnprocessableEntityError(DaytonaError, _shared.DaytonaUnprocessableEntityE
 
 
 class RateLimitError(DaytonaError, _shared.DaytonaRateLimitError):
-    """HTTP 429."""
+    """HTTP 429. ``RATE_LIMITED`` and ``TOO_MANY_REQUESTS`` raise this class
+    itself (read ``code`` to tell them apart); ``LIMIT_EXCEEDED`` and
+    ``OVERLOADED`` raise its subclasses."""
 
 
 class LimitExceededError(RateLimitError):
@@ -538,10 +540,6 @@ class ProjectBudgetExceededError(DaytonaError):
     New sandboxes cannot start in the project until the budget is raised or
     removed, or the next calendar month (UTC) begins.
     """
-
-
-class RateLimitedError(RateLimitError):
-    pass
 
 
 class OverloadedError(RateLimitError):
@@ -868,7 +866,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
     codes.OVERLOADED: OverloadedError,
     codes.PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
-    codes.RATE_LIMITED: RateLimitedError,
+    codes.RATE_LIMITED: RateLimitError,
     codes.READ_ONLY_UNSUPPORTED: ReadOnlyUnsupportedError,
     codes.SEARCH_NOT_CONFIGURED: SearchNotConfiguredError,
     codes.SEARCH_UNAVAILABLE: SearchUnavailableError,
@@ -975,6 +973,16 @@ def create_error(
         or error_class_from_status(status_code)
     )
     return cls(message, status_code=status_code, code=code, source=source, **fields)
+
+
+def redirect_error(status_code: int) -> DaytonaError:
+    """The error for a 3xx response (internal): the SDK follows no redirect,
+    whatever the body says, as in TypeScript."""
+    return create_error(
+        f"HTTP {status_code}: unexpected redirect (the SDK does not follow redirects)",
+        status_code,
+        source="SDK",
+    )
 
 
 # An async operation that is cancelled may still hold a typed outcome the

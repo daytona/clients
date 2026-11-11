@@ -119,7 +119,9 @@ def test_keeps_suggestion_when_v0_client_is_aliased() -> None:
     result = suggest(source)
     # Then namespace tracking preserves client and sandbox suggestions.
     assert [
-        item["suggestion"]["id"] for item in result.items if "suggestion" in item
+        item["suggestion"]["id"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
     ] == [
         "client.create",
         "sandbox.setLabels",

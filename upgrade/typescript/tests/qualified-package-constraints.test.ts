@@ -36,3 +36,39 @@ it.each(['overrides', 'resolutions', 'pnpm'].flatMap(section => [
   expect(JSON.parse(contents(root)['package.json'] ?? '')).toMatchObject({ [section]: manifest[section] });
   expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ kind: 'config-field' })]) });
 });
+
+it.each([
+  { dependencies: { '@daytonaio/sdk': '^0.200.0', '@daytona/sdk': '^2.0.0' }, resolutions: { '@daytonaio/sdk': '0.200.1' } },
+  { dependencies: { '@daytonaio/sdk': '^0.200.0' }, resolutions: { '@daytonaio/sdk': '0.200.1', '@daytona/sdk': '2.0.0' } },
+])('leaves every old-name entry when both package names are present: %j', async manifest => {
+  // Given
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest), 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then: the dependency and its resolution keep naming the same package.
+  expect(JSON.parse(contents(root)['package.json'] ?? '')).toEqual(manifest);
+  expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({
+    kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' })]) });
+});
+
+it('migrates the old dependency when a constraint section names only the new package', async () => {
+  // Given
+  const manifest = { dependencies: { '@daytonaio/sdk': '^0.200.0' }, resolutions: { '@daytona/sdk': '2.0.0' } };
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest), 'index.ts': "import { Daytona } from '@daytonaio/sdk';\n" });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then: no duplicate-name item, and the dependency moves to the new package.
+  expect(result.output).not.toContain('Both Daytona package names are present');
+  expect(Object.keys(JSON.parse(contents(root)['package.json'] ?? '').dependencies)).toEqual(['@daytona/sdk']);
+});
+
+it('migrates old-name constraints when only the new package is a dependency', async () => {
+  // Given
+  const manifest = { dependencies: { '@daytona/sdk': '^2.0.0' }, resolutions: { '@daytonaio/sdk': '0.200.1' } };
+  const root = temporaryProject({ 'package.json': JSON.stringify(manifest), 'index.ts': "import { Daytona } from '@daytona/sdk';\n" });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then: nothing is duplicated, so the constraint follows the rename.
+  expect(result.output).not.toContain('Both Daytona package names are present');
+  expect(Object.keys(JSON.parse(contents(root)['package.json'] ?? '').resolutions)).toEqual(['@daytona/sdk']);
+});

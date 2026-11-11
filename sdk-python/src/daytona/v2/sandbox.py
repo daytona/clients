@@ -109,6 +109,7 @@ from .sandbox_secrets import (
 from .sandbox_volumes import AsyncSandboxVolumesService
 from .types import (
     DEFAULT_SANDBOX_TERMINAL_STATES,
+    ArtifactRefJSON,
     AsyncInterpreterContext,
     Image,
     ImageRef,
@@ -323,8 +324,8 @@ class AsyncSandbox:
         self,
         *,
         state: Union[SandboxState, _Unset] = _UNSET,
-        raw_state: Union[str, _Unset] = _UNSET,
-        labels: Union[Mapping[str, str], _Unset] = _UNSET,
+        raw_state: Union[Optional[str], _Unset] = _UNSET,
+        labels: Union[Optional[Mapping[str, str]], _Unset] = _UNSET,
         sandbox_class: Union[Optional[Literal["linux", "macos", "unknown"]], _Unset] = _UNSET,
         raw_sandbox_class: Union[Optional[str], _Unset] = _UNSET,
         persistent: Union[Optional[bool], _Unset] = _UNSET,
@@ -376,8 +377,8 @@ class AsyncSandbox:
         return self._info.state
 
     @property
-    def raw_state(self) -> str:
-        """Wire status string exactly as the server sent it (``""`` before any read).
+    def raw_state(self) -> Optional[str]:
+        """Wire status string exactly as the server sent it (``None`` before any read).
 
         Informational only — the SDK never branches on this value.  Use
         :attr:`state` for all flow-control logic; ``raw_state`` is useful for
@@ -405,10 +406,13 @@ class AsyncSandbox:
         return self._info.region
 
     @property
-    def labels(self) -> Mapping[str, str]:
+    def labels(self) -> Optional[Mapping[str, str]]:
         """The sandbox labels: a fresh copy on every read (changing it changes
-        nothing); replace them with :meth:`set_labels`."""
-        return dict(self._info.labels)
+        nothing); replace them with :meth:`set_labels`. ``None`` until the API
+        has reported them: a ``create*()`` or ``fork()`` handle whose wait read
+        nothing holds only what the create response carries (call
+        :meth:`refresh_data` to load them)."""
+        return None if self._info.labels is None else dict(self._info.labels)
 
     @property
     def cpu(self) -> Optional[float]:
@@ -766,12 +770,12 @@ class AsyncSandbox:
         if info.raw_state:
             payload["rawState"] = info.raw_state
         if info.image is not None:
-            payload["image"] = {"id": info.image.id, "name": info.image.name}
+            payload["image"] = _artifact_json(info.image.id, info.image.name)
         if info.snapshot is not None:
-            payload["snapshot"] = {"id": info.snapshot.id, "name": info.snapshot.name}
+            payload["snapshot"] = _artifact_json(info.snapshot.id, info.snapshot.name)
         if info.region is not None:
             payload["region"] = info.region
-        if info.labels:
+        if info.labels is not None:
             payload["labels"] = dict(info.labels)
         # An integral size is written as an integer, as JavaScript's JSON does.
         if info.cpu is not None:
@@ -1068,10 +1072,11 @@ class AsyncSandbox:
                 )
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
-                return WaitOutcome(self.state, self.raw_state)
+                return WaitOutcome(self.state, self.raw_state or "")
 
             def _observe_outcome(outcome: WaitOutcome) -> None:
-                self._update(state=outcome.state, raw_state=outcome.raw_state)
+                # A frame without a status leaves the wire status unknown (None, never "").
+                self._update(state=outcome.state, raw_state=outcome.raw_state or None)
 
             def _on_observed(outcome: WaitOutcome) -> None:
                 nonlocal refreshed_by_poll
@@ -1475,6 +1480,9 @@ class AsyncSandbox:
             hub_provider=self._hub_provider,
             toolbox_url_from_api=True,
         )
+        if detail is None:
+            # The fork response carries no labels: unknown until a detail read.
+            fork._update(labels=None)
         for endpoint in endpoints:
             # Source and fork share the regional API endpoint that accepted the fork.
             self._learn_endpoint(endpoint)
@@ -1741,9 +1749,11 @@ class AsyncSandbox:
         typed ``BuildLogEvent``. Either callback may return an awaitable, which
         is awaited before the next event. ``timeout`` (seconds) bounds this
         observation only; cancelling the awaiting task closes the stream, not
-        the build. Discovery failures, including a 404 for a sandbox with no
-        image build, raise ``BuildLogInterruptedError`` with the HTTP status
-        and last cursor. They do not fall back to another log source.
+        the build. An HTTP error of the initial discovery request, including a
+        404 for a sandbox with no image build, raises its typed error
+        (``NotFoundError``, ...) unchanged; once the follower is running, a
+        failure raises ``BuildLogInterruptedError`` with the last cursor. It
+        does not fall back to another log source.
         """
         return await follow_build_logs(
             self._require_api(),
@@ -2076,6 +2086,10 @@ def _json_number(number: float) -> Union[int, float]:
     return int(number) if float(number).is_integer() else number
 
 
+def _artifact_json(artifact_id: str, name: Optional[str]) -> ArtifactRefJSON:
+    return {"id": artifact_id} if name is None else {"id": artifact_id, "name": name}
+
+
 def sandbox_info_from_id(sandbox_id: str) -> _SandboxInfo:
     return _SandboxInfo(id=sandbox_id)
 
@@ -2083,7 +2097,7 @@ def sandbox_info_from_id(sandbox_id: str) -> _SandboxInfo:
 def _sandbox_info_from_wire(data: Mapping[str, JsonValue]) -> _SandboxInfo:
     """Handle metadata from a sandbox API object (detail, list or search item)."""
     sandbox_id = str(data.get("id"))
-    raw_status = _wire_text(data.get("status")) or _wire_text(data.get("state")) or ""
+    raw_status = _wire_text(data.get("status")) or _wire_text(data.get("state")) or None
     raw_class = _wire_text(data.get("class")) or _wire_text(data.get("var_class"))
     region = _wire_text(data.get("region_id")) or None
     lifecycle = data.get("lifecycle_policy")

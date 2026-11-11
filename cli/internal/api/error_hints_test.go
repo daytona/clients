@@ -7,7 +7,23 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestHintForImageNotFound_suggestsDiscovery_whenGettingOrDeleting(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			// Given an image reference that does not exist in this project.
+			failure := &APIError{Status: http.StatusNotFound, Code: CodeImageNotFound, Method: method, Path: "/images/missing"}
+			// When selecting a remedy.
+			hint := hintFor(failure)
+			// Then discovery is suggested, not importing a new resource.
+			require.Contains(t, hint, "daytona image list")
+			require.NotContains(t, hint, "daytona image create")
+		})
+	}
+}
 
 // The invitation token routes carry no id and no org context, so the generic
 // 404 hint ("check the id and --org/--project") would mislead; they get the
@@ -74,5 +90,37 @@ func TestHintForFeatureNotEnabled(t *testing.T) {
 	bare := hintFor(&APIError{Status: http.StatusForbidden, Code: CodeFeatureNotEnabled})
 	if bare != "this feature is not enabled for this organization" {
 		t.Fatalf("bare hint = %q", bare)
+	}
+}
+
+func TestHintForImageNotFound_keepsTheImportRemedyOnCreate(t *testing.T) {
+	hint := hintFor(&APIError{Status: http.StatusNotFound, Code: CodeImageNotFound, Method: http.MethodPost, Path: "/sandboxes"})
+	if !strings.Contains(hint, "daytona image create NAME --ref REF") {
+		t.Fatalf("hint %q", hint)
+	}
+}
+
+func TestImageNotFoundHint_targetsOnlySandboxCreate(t *testing.T) {
+	for _, tc := range []struct {
+		method string
+		path   string
+		create bool
+	}{
+		{http.MethodPost, "/sandboxes", true}, {http.MethodPost, "/sandboxes/from-snapshot", true}, {http.MethodPost, "/sandboxes/macos", true},
+		{http.MethodPost, "/sandboxes/sbx/images", false}, {http.MethodPost, "/sandboxes/sbx/snapshots", false}, {http.MethodPost, "/sandboxes-other", false},
+		{http.MethodGet, "/sandboxes", false}, {http.MethodPost, "/images", false},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			// Given an image-not-found error from this operation.
+			failure := &APIError{Status: http.StatusNotFound, Code: CodeImageNotFound, Method: tc.method, Path: tc.path}
+			// When selecting recovery advice.
+			hint := hintFor(failure)
+			// Then only sandbox creation suggests importing an image.
+			if tc.create {
+				require.Contains(t, hint, "daytona image create")
+			} else {
+				require.NotContains(t, hint, "daytona image create")
+			}
+		})
 	}
 }

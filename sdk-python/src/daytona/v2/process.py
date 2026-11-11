@@ -793,7 +793,7 @@ class AsyncProcessService:
             stdout=stdout,
             stderr=stderr,
             output=output,
-            logs=logs,
+            logs=tuple(logs),
         )
 
     def connect(self, process: Union[str, ProcessHandleJSON], /) -> AsyncProcessHandle:

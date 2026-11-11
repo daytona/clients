@@ -2,7 +2,8 @@
 
 Upgrade a Daytona 0.x TypeScript or JavaScript project to SDK 2.x **while
 keeping its workloads on the v0 platform**. Requires Node.js 20.0.0 or newer.
-Documentation links point at the Daytona docs until the dedicated migration guide is published.
+Documentation links point at the migration guide in this repository
+([`upgrade/MIGRATION.md`](https://github.com/daytona/clients/blob/main/upgrade/MIGRATION.md)).
 
 ```sh
 npx @daytona/upgrade --dry
@@ -12,7 +13,7 @@ npx @daytona/upgrade --suggest-v2
 
 Each release migrates to the SDK release of the same version (see
 [Versions](#versions)). Until SDK 2.0.0 is out, run the exact alpha you are
-migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.8`.
+migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.N`.
 
 The default command moves proven client calls from `client.create()` to
 `client.v0.create()` and unconditionally routes resource imports and all 15 shared errors to `@daytona/sdk/v0`, preserving 0.x error constructors, fields and catches; constructor catches need a guaranteed `.v0` access inside the try, and wildcard re-exports require review. Conditional accesses (even in both `if/else` branches) and deferred callbacks keep the constructor FIXME; only straight-line accesses in the construction's block or an enclosing block suppress it. The tool updates
@@ -125,8 +126,8 @@ with a `private-import` manual item:
 ## Versions
 
 Each release of this tool is published with the SDK release of the same
-version, and migrates to exactly that release: `npx @daytona/upgrade@2.0.0-alpha.8`
-writes `"@daytona/sdk": "2.0.0-alpha.8"` (a pre-release is pinned, because
+version, and migrates to exactly that release: `npx @daytona/upgrade@2.0.0-alpha.N`
+writes `"@daytona/sdk": "2.0.0-alpha.N"` (a pre-release is pinned, because
 pre-releases may break), and a stable `X.Y.Z` writes `^X.Y.Z`. Run the release
 that matches the SDK you want; the SDK's runtime guidance for 0.x calls names
 it.

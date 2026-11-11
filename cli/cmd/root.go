@@ -84,6 +84,11 @@ Get started:
 			if err := checkFlagCombinations(cmd); err != nil {
 				return err
 			}
+			if cmd.Flags().Changed("output") {
+				if _, err := output.ParseFormat(globals.Output); err != nil {
+					return cerr.Usage("%v", err)
+				}
+			}
 			a, err := app.Load(commandGlobals(cmd, *globals), stdout, stderr, nil)
 			if err != nil {
 				if runsWithoutConfig(cmd) {
@@ -92,6 +97,7 @@ Get started:
 				}
 				return err
 			}
+			a.Ctx = cmd.Context()
 			installAuth(a)
 			cmd.SetContext(context.WithValue(cmd.Context(), ctxKey{}, a))
 			return nil
@@ -122,7 +128,7 @@ Get started:
 	pf.StringVar(&globals.Profile, "profile", "", "saved profile to use; it must exist (env DAYTONA_PROFILE)")
 	pf.StringVar(&globals.Org, "org", "", "organization id or name for this call (env DAYTONA_ORG)")
 	pf.StringVar(&globals.Project, "project", "", "project id or name for this call (env DAYTONA_PROJECT)")
-	pf.StringVarP(&globals.Output, "output", "o", "", "output format: table|json|yaml (default table at a terminal, json otherwise)")
+	pf.StringVarP(&globals.Output, "output", "o", "", "output format: table|json|yaml (yml is an alias of yaml; default table at a terminal, json otherwise)")
 	pf.BoolVarP(&globals.Yes, "yes", "y", false, "confirm destructive and billable actions; required off a terminal (env DAYTONA_YES=1)")
 	pf.BoolVarP(&globals.Quiet, "quiet", "q", false, "suppress progress and informational output on stderr")
 	pf.BoolVar(&globals.Debug, "debug", false, "log every request to stderr")
@@ -164,6 +170,9 @@ func Execute() int {
 	err := root.ExecuteContext(ctx)
 	if err == nil {
 		return 0
+	}
+	if code := interruptedExitCode(ctx, cerr.ExitCode(err)); code != cerr.ExitCode(err) {
+		err = &cerr.Error{Code: code, Msg: "terminated", Err: err}
 	}
 	reportError(root, os.Stdout, os.Stderr, err)
 	return cerr.ExitCode(err)

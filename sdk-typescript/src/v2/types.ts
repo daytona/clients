@@ -229,12 +229,12 @@ export type SandboxClass = 'linux' | 'macos'
 
 export interface ImageRef {
   readonly id: string
-  readonly name: string | null
+  readonly name?: string
 }
 
 export interface SnapshotRef {
   readonly id: string
-  readonly name: string | null
+  readonly name?: string
 }
 
 /**
@@ -289,14 +289,13 @@ export interface NetworkPolicy {
   readonly version: number
   readonly blockAll: boolean
   readonly allowCidrs: readonly string[]
-  readonly allowDomains: readonly string[] | null
+  readonly allowDomains?: readonly string[]
 }
 
 export interface NetworkPolicyInfo {
   readonly desired?: NetworkPolicy
   readonly desiredRevision: number
   readonly etag: string
-  readonly httpStatus: number
   readonly applied?: NetworkPolicy
   readonly appliedRevision?: number
   readonly appliedStartId?: string
@@ -308,7 +307,6 @@ export interface SandboxSecretsInfo {
   readonly secrets: readonly string[]
   readonly desiredRevision: number
   readonly etag: string
-  readonly httpStatus: number
   readonly appliedRevision?: number
   readonly status?: string
   readonly error?: string
@@ -864,8 +862,8 @@ type _DockerOwnersMatchContract = AssertExact<IsExact<Exclude<DockerOwner, 'unkn
 export interface DockerStatus {
   readonly owner: DockerOwner
   readonly rawOwner: string
-  readonly processId?: string | null
-  readonly reason?: string | null
+  readonly processId?: string
+  readonly reason?: string
   readonly state: DockerState
   readonly rawState: string
 }
@@ -1305,11 +1303,18 @@ export interface InterpreterResult {
   readonly error?: InterpreterError
 }
 
+/**
+ * Where an image came from. `unknown` is a source kind this SDK release does
+ * not know (a later API added it): `rawType` is the wire `source.type`, and the
+ * source's other fields are not read. Handle it as "some other source" rather
+ * than as an error.
+ */
 export type ImageSource =
   | { readonly type: 'registry'; readonly ref: string }
-  | { readonly type: 'dockerfile'; readonly contextObject: string; readonly dockerfile: string }
+  | { readonly type: 'dockerfile'; readonly dockerfile: string }
   | { readonly type: 'named'; readonly name: string }
   | { readonly type: 'manifest'; readonly name: string }
+  | { readonly type: 'unknown'; readonly rawType: string }
 
 
 export type VolumeState = (typeof API_VOLUME_STATUSES)[number] | 'unknown'

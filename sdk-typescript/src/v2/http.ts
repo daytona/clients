@@ -5,7 +5,7 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, responseTooLargeError } from './errors/DaytonaError.js'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, isRedirectStatus, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import { MAX_INT32, boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
@@ -638,6 +638,8 @@ async function fetchRequestForAttempt(
       body: watchedBody(requestInitWithoutFactory.method, body, watchBody),
       headers,
       signal,
+      // The SDK follows no redirect: a 3xx is a typed error (as Python).
+      redirect: 'manual',
     },
     canRetryUnauthorized: bodyFactory !== undefined || !isReadableStreamBody(body),
   }
@@ -659,6 +661,8 @@ function fetchRequestWithoutFactory(
       body: watchedBody(requestInitWithoutFactory.method, requestInitWithoutFactory.body, watchBody),
       headers,
       signal,
+      // The SDK follows no redirect: a 3xx is a typed error (as Python).
+      redirect: 'manual',
     },
     canRetryUnauthorized: !isReadableStreamBody(requestInitWithoutFactory.body),
   }
@@ -695,8 +699,9 @@ function finalizeSpan(bundle: OtelBundle, span: Span, statusCode?: number, error
     return
   }
   // Callers that disable `checkStatus` still got an HTTP failure: the span
-  // must say so even though no exception travelled with it.
-  if (statusCode !== undefined && statusCode >= 400) {
+  // must say so even though no exception travelled with it (a redirect
+  // fails too: the SDK follows none).
+  if (statusCode !== undefined && statusCode >= 300) {
     span.setStatus({ code: bundle.api.SpanStatusCode.ERROR, message: `HTTP ${statusCode}` })
     span.end()
     return
@@ -1014,6 +1019,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
           project_id: this.projectId,
         }),
         signal: timeout.signal,
+        redirect: 'manual',
       })
       if (!response.ok) {
         const error = await errorFromFetchResponse(response, this.maxResponseBytes)
@@ -1652,7 +1658,8 @@ export class HttpTransport {
     return this.withAuth(config, async (requestConfig) =>
       this.http.post<T>(assertRelativeRequestPath(path), body, {
         ...requestConfig,
-        validateStatus: (status) => status !== 401,
+        // A redirect is never the caller's to interpret: the SDK follows none.
+        validateStatus: (status) => status !== 401 && !isRedirectStatus(status),
       }),
     )
   }

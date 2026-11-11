@@ -40,6 +40,9 @@ func TestToolboxCP_uploadsSingleFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(src, []byte("payload"), 0o600))
 	_, _, err := runToolboxCLI(t, []string{"sandbox", "cp", src, "sbx:/tmp/demo.txt"}, []toolboxExpectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+		{method: http.MethodGet, path: "/test-tools/sbx/files/info", status: 404, auth: true, response: `{"code":"FILE_NOT_FOUND","message":"no such file"}`, check: func(t *testing.T, r *http.Request, _ []byte) {
+			assert.Equal(t, "/tmp/demo.txt", r.URL.Query().Get("path"))
+		}},
 		{method: http.MethodPost, path: "/sandboxes/sbx/files/sign", status: 200, auth: true, response: signedFileURLFixture(t, "POST", "/tmp/demo.txt"), check: expectSignFileRequest("POST", "/tmp/demo.txt")},
 		{method: http.MethodPost, path: "/test-tools/sbx/files/upload", status: 200, auth: false, check: func(t *testing.T, r *http.Request, body []byte) {
 			expectSignedTransferQuery("/tmp/demo.txt")(t, r, body)

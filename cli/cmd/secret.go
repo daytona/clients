@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/csv"
 	"io"
 	"net/http"
 	"net/url"
@@ -97,7 +98,7 @@ func newSecretSetCmd() *cobra.Command {
 	cmd.Flags().StringVar(&value, "value", "", "secret value on the command line — visible to other local users via the process list and shell history; prefer --stdin or --from-file")
 	cmd.Flags().StringVar(&fromFile, "from-file", "", "read the secret value from a file; strips exactly one trailing newline (or CRLF)")
 	cmd.Flags().BoolVar(&useStdin, "stdin", false, "read the secret value from stdin; strips exactly one trailing newline (or CRLF)")
-	cmd.Flags().StringSliceVar(&allowedDomains, "allowed-domain", nil, "hosts where this secret's value may be sent (exact or *.wildcard), or '*' for any verified host; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
+	cmd.Flags().Var((*secretDomainFlag)(&allowedDomains), "allowed-domain", "hosts where this secret's value may be sent (repeatable or comma-separated; no empty entries), or '*' to remove domain restrictions; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
 	cmd.Flags().StringVar(&description, "description", "", "secret description (set to an empty string to clear it)")
 	return cmd
 }
@@ -180,18 +181,8 @@ func secretPutReq(cmd *cobra.Command, existing *gen.Secret, input secretSetInput
 	req := gen.SetSecretRequest{Value: input.Value}
 	isCreate := existing == nil
 
-	// An explicitly empty flag (--allowed-domain '' from an unset shell
-	// variable) counts as no scope, so it gets the usage error below instead of
-	// sending [] for the API to reject.
-	given := make([]string, 0, len(input.AllowedDomains))
-	for _, d := range input.AllowedDomains {
-		if d = strings.TrimSpace(d); d != "" {
-			given = append(given, d)
-		}
-	}
-
-	if len(given) > 0 {
-		req.AllowedDomains = &given
+	if len(input.AllowedDomains) > 0 {
+		req.AllowedDomains = &input.AllowedDomains
 	} else if isCreate {
 		return gen.SetSecretRequest{}, cerr.New(cerr.ExitUsage,
 			"--allowed-domain is required when creating a secret; use --allowed-domain '*' to allow any verified host")
@@ -212,6 +203,31 @@ func secretPutReq(cmd *cobra.Command, existing *gen.Secret, input secretSetInput
 		req.Description = &desc
 	}
 	return req, nil
+}
+
+// secretDomainFlag refuses empty CSV entries before pflag can discard them.
+type secretDomainFlag []string
+
+func (f *secretDomainFlag) String() string { return strings.Join(*f, ",") }
+
+func (*secretDomainFlag) Type() string { return "strings" }
+
+func (f *secretDomainFlag) Set(value string) error {
+	if value == "" {
+		return cerr.Usage("invalid allowed_domains entry: %q", value)
+	}
+	entries, err := csv.NewReader(strings.NewReader(value)).Read()
+	if err != nil {
+		return cerr.Usage("invalid --allowed-domain list: %v", err)
+	}
+	for i, entry := range entries {
+		entries[i] = strings.TrimSpace(entry)
+		if entries[i] == "" {
+			return cerr.Usage("invalid allowed_domains entry: %q", entry)
+		}
+	}
+	*f = append(*f, entries...)
+	return nil
 }
 
 // secretInputValue reads the value from the one source the caller selected

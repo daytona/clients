@@ -6,30 +6,29 @@ package cmd
 import (
 	"context"
 	"errors"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
+	"syscall"
 
-	"github.com/spf13/cobra"
-	"golang.org/x/term"
-
-	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
+	"github.com/spf13/cobra"
 )
 
 func newSandboxSSHSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:                "ssh <sandbox-id> [ssh-args...] [command]",
-		Short:              "Open SSH through the sandbox gateway",
-		Long:               "Execs the system ssh binary against the sandbox SSH gateway. Extra SSH flags are forwarded before the destination; any remaining arguments become the remote command.",
-		DisableFlagParsing: true,
-		Args:               cobra.ArbitraryArgs,
+		Use:   "ssh [flags] <sandbox-id> [ssh-args...] [command]",
+		Short: "Open SSH through the sandbox gateway",
+		Long:  "Execs the system ssh binary against the sandbox SSH gateway. CLI flags go before the sandbox id; everything after it is passed to ssh. Extra SSH flags are forwarded before the destination; any remaining arguments become the remote command.",
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cerr.Usage("sandbox ssh needs a sandbox id")
+			}
+			sshArgs, remoteCommand, err := splitSSHArguments(args[1:])
+			if err != nil {
+				return err
 			}
 			a := FromContext(cmd.Context())
 			toolClient, target, apiClient, err := sandboxToolboxClient(cmd.Context(), a, args[0])
@@ -46,26 +45,44 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err != nil {
 				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
 			}
-			sshArgs, remoteCommand, err := splitSSHArguments(args[1:])
-			if err != nil {
-				return err
-			}
-			invocation, err := toolboxclient.BuildSSHInvocation(target.SSHHost, target.SSHPort, target.Detail.Id, toolClient.Credential(), sshArgs, remoteCommand)
+			invocation, err := toolboxclient.BuildSSHInvocation(
+				toolboxclient.SSHTarget{Host: target.SSHHost, Port: target.SSHPort, SandboxID: target.Detail.Id, Credential: toolClient.Credential()},
+				toolboxclient.SSHCommand{Options: sshArgs, Args: remoteCommand},
+			)
 			if err != nil {
 				return err
 			}
 			defer invocation.Cleanup()
-			if err := runSSHCommand(cmd.Context(), sshBinary, invocation.Args); err != nil {
-				var exitErr *exec.ExitError
-				if errors.As(err, &exitErr) {
-					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode()).WithSource(cerr.SourceSSH)
-				}
-				return err
-			}
-			return nil
+			return sshExitError(cmd.Context(), runSSHCommand(cmd.Context(), sshBinary, invocation.Args))
 		},
 	}
+	cmd.Flags().SetInterspersed(false)
 	return cmd
+}
+
+// sshExitError passes the ssh client's exit status through. When the CLI's
+// own context ended (Ctrl-C, SIGTERM, which also kills ssh), the CLI's
+// interruption code wins; an ssh killed by a signal exits 128 + its number.
+func sshExitError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctxErr := cerr.FromContext(ctx); ctxErr != nil {
+		return ctxErr
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+	code := exitErr.ExitCode()
+	if code < 0 {
+		code = cerr.ExitFailure
+		if status, ok := exitErr.Sys().(interface{ Signal() syscall.Signal }); ok && status.Signal() > 0 {
+			code = 128 + int(status.Signal())
+		}
+		return cerr.New(code, "ssh terminated by a signal").WithSource(cerr.SourceSSH)
+	}
+	return cerr.New(code, "ssh exited with code %d", code).WithSource(cerr.SourceSSH)
 }
 
 func splitSSHArguments(args []string) ([]string, []string, error) {
@@ -118,140 +135,3 @@ var runSSHCommand = func(ctx context.Context, binary string, args []string) erro
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
-
-func runTTYExec(ctx context.Context, toolClient *toolboxclient.Client, argv []string, cwd string, env map[string]string, user string) error {
-	cols, rows, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		cols, rows = 80, 24
-	}
-	request := tbgen.CreateProcessRequest{
-		Argv:     &argv,
-		Kind:     kindPtr(tbgen.Pty),
-		Stdin:    stdinModePtr(tbgen.Open),
-		KeepLogs: keepLogsPtr(tbgen.KeepLogs("until_cleanup")),
-		Terminal: &tbgen.TerminalSize{Cols: int32(cols), Rows: int32(rows)},
-	}
-	if cwd != "" {
-		request.Cwd = &cwd
-	}
-	if len(env) > 0 {
-		request.Env = &env
-	}
-	if user != "" {
-		request.User = &user
-	}
-	proc, err := toolClient.CreateProcess(ctx, request, nil)
-	if err != nil {
-		return err
-	}
-	return interactiveAttachAndWait(ctx, toolClient, proc.Id, "")
-}
-
-func interactiveAttachAndWait(ctx context.Context, toolClient *toolboxclient.Client, processID, cursor string) error {
-	waitCtx := ctx
-	ws, err := toolClient.AttachWebSocket(ctx, processID, cursor)
-	if err != nil {
-		return err
-	}
-	defer ws.Close()
-	fd := int(os.Stdin.Fd())
-	state, rawErr := term.MakeRaw(fd)
-	if rawErr == nil {
-		defer term.Restore(fd, state)
-	}
-	inputCtx, cancelInput := context.WithCancel(ctx)
-	defer cancelInput()
-	wsClosed := make(chan struct{})
-	defer close(wsClosed)
-	go func() {
-		select {
-		case <-inputCtx.Done():
-			_ = ws.Close()
-		case <-wsClosed:
-		}
-	}()
-	inputErrCh := make(chan error, 1)
-	inputDone := make(chan struct{})
-	waitForInput := func() error {
-		select {
-		case inputErr := <-inputErrCh:
-			return inputErr
-		case <-inputDone:
-			return nil
-		case <-time.After(50 * time.Millisecond):
-			return nil
-		}
-	}
-	go func() {
-		defer close(inputDone)
-		buf := make([]byte, 32*1024)
-		for {
-			n, readErr := os.Stdin.Read(buf)
-			if n > 0 {
-				if writeErr := ws.WriteBinary(buf[:n]); writeErr != nil {
-					inputErrCh <- writeErr
-					return
-				}
-			}
-			if errors.Is(readErr, io.EOF) {
-				inputErrCh <- nil
-				return
-			}
-			if readErr != nil {
-				inputErrCh <- readErr
-				return
-			}
-			select {
-			case <-inputCtx.Done():
-				inputErrCh <- nil
-				return
-			default:
-			}
-		}
-	}()
-	for {
-		select {
-		case inputErr := <-inputErrCh:
-			if inputErr != nil {
-				return inputErr
-			}
-		case <-waitCtx.Done():
-			if inputErr := waitForInput(); inputErr != nil {
-				return inputErr
-			}
-			return waitCtx.Err()
-		default:
-		}
-		msg, readErr := ws.ReadMessage()
-		if errors.Is(readErr, io.EOF) {
-			break
-		}
-		if readErr != nil {
-			if waitCtx.Err() != nil {
-				if inputErr := waitForInput(); inputErr != nil {
-					return inputErr
-				}
-				return waitCtx.Err()
-			}
-			return readErr
-		}
-		if _, writeErr := os.Stdout.Write(msg); writeErr != nil {
-			return writeErr
-		}
-	}
-	cancelInput()
-	if inputErr := waitForInput(); inputErr != nil {
-		return inputErr
-	}
-	result, err := toolClient.WaitProcess(waitCtx, processID, 0)
-	if err != nil {
-		if waitCtx.Err() != nil {
-			return waitCtx.Err()
-		}
-		return err
-	}
-	return exitError(result.V)
-}
-
-func kindPtr(v tbgen.Kind) *tbgen.Kind             { return &v }
-func keepLogsPtr(v tbgen.KeepLogs) *tbgen.KeepLogs { return &v }

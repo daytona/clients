@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -29,7 +30,10 @@ func newRegistrySetCmd() *cobra.Command {
 	var username, password, kind string
 	var passwordStdin bool
 	var description string
-	cmd := &cobra.Command{Use: "set <host>", Short: "Create or update a registry credential", Long: "Create or update a registry credential and print it (never its password). It reads the stored credential first, so options you do not pass keep their values: it needs read as well as write access to registries.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "set <host>", Short: "Create or update a registry credential", Long: "Create or update a registry credential and print it (never its password). It reads the stored credential first to preserve omitted username, kind and description, so it needs read as well as write access. A new registry requires --username. The API requires a password on every set, including metadata-only updates, except for ecr_role; passwords cannot be read back or preserved by this endpoint.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if !gen.SetRegistryRequestKind(kind).Valid() {
+			return cerr.Usage("--kind must be basic, ghcr, gcr, ecr or ecr_role")
+		}
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		client, _, err := a.WorkloadClient(ctx, pickProject(a))
@@ -45,6 +49,10 @@ func newRegistrySetCmd() *cobra.Command {
 		var existing *gen.Registry
 		if err == nil {
 			existing = &stored
+		}
+		putReq, err := registryPutReq(cmd, existing, registrySetInput{Kind: kind, Username: username, Description: description})
+		if err != nil {
+			return err
 		}
 		// kind ecr_role names an IAM role (--username) and carries no secret.
 		// Without --kind the existing kind carries over, so a
@@ -68,22 +76,18 @@ func newRegistrySetCmd() *cobra.Command {
 			}
 			secret = &value
 		}
-		putReq, err := registryPutReq(cmd, existing, registrySetInput{Kind: kind, Username: username, Password: secret, Description: description})
-		if err != nil {
-			return err
-		}
+		putReq.Password = secret
 		var saved api.Raw[gen.Registry]
 		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, &saved); err != nil {
 			return err
 		}
 		return printRegistry(a, saved)
 	}}
-	cmd.Flags().StringVar(&username, "username", "", "registry username")
+	cmd.Flags().StringVar(&username, "username", "", "registry username (required on create; omitted on update keeps the stored username)")
 	cmd.Flags().StringVar(&password, "password", "", "registry password or token on the command line — visible via the process list and shell history; prefer --password-stdin")
 	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the password from stdin")
 	cmd.Flags().StringVar(&kind, "kind", "basic", "registry auth kind (basic, ghcr, gcr, ecr, ecr_role; ecr_role takes the IAM role ARN as --username and no password)")
 	cmd.Flags().StringVar(&description, "description", "", "registry description (set to an empty string to clear it)")
-	_ = cmd.MarkFlagRequired("username")
 	return cmd
 }
 
@@ -164,6 +168,13 @@ type registrySetInput struct {
 
 func registryPutReq(cmd *cobra.Command, existing *gen.Registry, input registrySetInput) (gen.SetRegistryRequest, error) {
 	kind := input.Kind
+	username := input.Username
+	if existing != nil && !cmd.Flags().Changed("username") {
+		username = existing.Username
+	}
+	if strings.TrimSpace(username) == "" {
+		return gen.SetRegistryRequest{}, cerr.Usage("--username must be non-empty and is required when creating a registry")
+	}
 	// PUT replaces the registry settings: a rotation must carry over what the caller
 	// did not restate — kind (the flag's default is `basic`, which would
 	// silently downgrade a `ghcr` registry) and description alike.
@@ -171,7 +182,7 @@ func registryPutReq(cmd *cobra.Command, existing *gen.Registry, input registrySe
 		kind = string(existing.Kind)
 	}
 	wireKind := gen.SetRegistryRequestKind(kind)
-	req := gen.SetRegistryRequest{Kind: &wireKind, Username: input.Username, Password: input.Password}
+	req := gen.SetRegistryRequest{Kind: &wireKind, Username: username, Password: input.Password}
 	if existing != nil && !cmd.Flags().Changed("description") && existing.Description != nil {
 		desc := *existing.Description
 		req.Description = &desc

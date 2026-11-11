@@ -6,10 +6,13 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -114,6 +117,10 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if cmd.Flags().Changed("ttl") && !signed {
 				return cerr.Usage("--ttl requires --signed")
 			}
+			port, err := parsePortArg(args[1])
+			if err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -123,9 +130,9 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := fmt.Sprintf("/sandboxes/%s/ports/%s/preview-url", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
+			path := fmt.Sprintf("/sandboxes/%s/ports/%d/preview-url", url.PathEscape(resolved.Detail.Id), port)
 			if signed {
-				path = fmt.Sprintf("/sandboxes/%s/ports/%s/signed-preview-urls", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
+				path = fmt.Sprintf("/sandboxes/%s/ports/%d/signed-preview-urls", url.PathEscape(resolved.Detail.Id), port)
 				body := gen.CreateSandboxSignedPreviewUrlRequest{ExpiresInSeconds: &ttl.seconds}
 				var resp api.Raw[gen.SignedPreviewUrl]
 				if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, &resp); err != nil {
@@ -150,9 +157,16 @@ func newSandboxPreviewURLExpireCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "expire <sandbox-id> <port> <token>",
 		Short: "Expire one signed preview URL",
-		Long:  "Expire one signed preview URL.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
+		Long:  "Expire one signed preview URL. The token is not printed back.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			port, err := parsePortArg(args[1])
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(args[2]) == "" {
+				return cerr.Usage("the signed preview URL token must not be empty")
+			}
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -162,14 +176,37 @@ func newSandboxPreviewURLExpireCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := fmt.Sprintf("/sandboxes/%s/ports/%s/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
+			path := fmt.Sprintf("/sandboxes/%s/ports/%d/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id), port)
 			body := gen.RevokeSandboxSignedPreviewUrlRequest{Token: args[2]}
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, nil); err != nil {
-				return err
+				return redactInError(err, args[2])
 			}
-			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "port": args[1], "token": args[2], "revoked": true})
+			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "port": port, "revoked": true})
 		},
 	}
+}
+
+// redactInError keeps err's exit code and details but drops secret from its
+// message, should the server echo it.
+func redactInError(err error, secret string) error {
+	if secret == "" || !strings.Contains(err.Error(), secret) {
+		return err
+	}
+	out := &cerr.Error{Code: cerr.ExitCode(err), Msg: strings.ReplaceAll(err.Error(), secret, "[redacted]"), Err: err}
+	var ce *cerr.Error
+	if errors.As(err, &ce) {
+		out.Hint, out.Source = strings.ReplaceAll(ce.Hint, secret, "[redacted]"), ce.Source
+	}
+	return out
+}
+
+// parsePortArg checks a <port> argument (1-65535) before any request.
+func parsePortArg(raw string) (int, error) {
+	port, err := strconv.Atoi(raw)
+	if err != nil || port < 1 || port > 65535 {
+		return 0, cerr.Usage("invalid port %q: want 1-65535", raw)
+	}
+	return port, nil
 }
 
 func sandboxLogsPath(detail gen.Sandbox, entrypoint bool) (string, error) {

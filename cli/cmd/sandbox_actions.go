@@ -21,6 +21,15 @@ import (
 
 func newSandboxStartCommand() *cobra.Command {
 	return newSandboxActionCommand("start", func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error) {
+		// State-aware, as the SDKs' start(): a running sandbox needs nothing
+		// and a paused one is resumed.
+		switch resolved.Detail.Status {
+		case "paused":
+			return sandboxJobAction[gen.AsyncOperation](cmd, resolved, "resume")
+		case "running", "queued", "pending", "assigned", "booting":
+			// Running, or on its way there: nothing to send, only the wait.
+			return nil, resolved.Detail.Id, "running", nil
+		}
 		return sandboxJobAction[gen.AsyncOperation](cmd, resolved, "start")
 	})
 }
@@ -106,7 +115,8 @@ func newSandboxUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <id>",
 		Short: "Update sandbox labels or lifecycle",
-		Long: "Update sandbox labels or lifecycle policy. Labels are replaced, not merged.\n" +
+		Long: "Update sandbox labels or lifecycle policy. Labels are replaced, not merged, except the name label:\n" +
+			"labels.name (stamped by a named create) is kept unless the new set names it, and then it must match the sandbox name.\n" +
 			"--file takes {\"labels\": {...}, \"lifecycle_policy\": {...}}; any other top-level key is rejected.\n" +
 			"Examples:\n  daytona sandbox update <id> --label env=dev\n  daytona sandbox update <id> --idle-timeout 30m --on-idle-timeout delete\n  daytona sandbox update <id> --idle-timeout off",
 		Args: cobra.ExactArgs(1),
@@ -153,6 +163,9 @@ func newSandboxUpdateCommand() *cobra.Command {
 				}
 			}
 			if labelUpdate {
+				if err := keepNameLabel(&labelsBody, resolved.Detail); err != nil {
+					return err
+				}
 				var resp gen.SandboxLabels
 				if err := resolved.Client.Do(cmd.Context(), http.MethodPut, fmt.Sprintf("/sandboxes/%s/labels", url.PathEscape(resolved.Detail.Id)), nil, labelsBody, &resp); err != nil {
 					return err
@@ -169,7 +182,7 @@ func newSandboxUpdateCommand() *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringArrayVar(&flags.labels, "label", nil, "replacement label KEY=VALUE (repeatable)")
-	f.BoolVar(&flags.clearLabels, "clear-labels", false, "replace the label set with {}")
+	f.BoolVar(&flags.clearLabels, "clear-labels", false, "remove every label except the name label")
 	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; restarts the countdown from now")
 	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop on a persistent macOS sandbox")
 	flags.idleTimeout.keywords = map[string]int64{"off": -1}
@@ -227,11 +240,7 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 				waitOptions.StoppedSettles = true
 			}
 			if a.Globals.NoWait || waitID == "" || waitFor == "" {
-				displayID := args[0]
-				if waitID != "" {
-					displayID = waitID
-				}
-				return a.Printer().Object(result, [][2]string{{"id", displayID}, {"action", verb}})
+				return printSandboxAfterAction(cmd, resolved, result, waitID, verb)
 			}
 			if waitFor == "deleted" {
 				detail, waitErr := workload.WaitForSandbox(cmd.Context(), resolved.Client, waitOptions)
@@ -265,6 +274,29 @@ func sandboxJobAction[T any](cmd *cobra.Command, resolved workload.ResolvedSandb
 		return nil, "", "", err
 	}
 	return resp, resolved.Detail.Id, waitFor, nil
+}
+
+// keepNameLabel carries the sandbox's labels["name"] into a replacement label
+// set that does not name it, so SDK find_by_name and label searches keep
+// finding the sandbox. A set that names it must agree with the sandbox name.
+func keepNameLabel(body *gen.SetSandboxLabelsRequest, detail gen.Sandbox) error {
+	labels := map[string]string{}
+	if body.Labels != nil {
+		for k, v := range *body.Labels {
+			labels[k] = v
+		}
+	}
+	if given, ok := labels[nameLabel]; ok {
+		if detail.Name != "" && given != detail.Name {
+			return cerr.Usage("label %q (%s) must match the sandbox name (%s)", nameLabel, given, detail.Name)
+		}
+	} else if detail.Labels != nil {
+		if current, ok := (*detail.Labels)[nameLabel]; ok {
+			labels[nameLabel] = current
+		}
+	}
+	body.Labels = &labels
+	return nil
 }
 
 func hasLabelUpdate(cmd *cobra.Command, fileBody input.Body, flags sandboxUpdateFlags) bool {

@@ -117,9 +117,12 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             call.kind.startswith("client.")
             and (call.node.lineno, call.node.col_offset) not in owners.clients
         )
+        # A handle a sandbox call produced (an LSP server, a PTY) is not its
+        # sandbox: an unproven owner needs the same manual move as a service.
+        sandbox_produced = owners.sandbox_produced(entry.receiver)
         manual = manual_client or bool(
             entry.form
-            and call.kind.startswith("sandbox.")
+            and (call.kind.startswith("sandbox.") or sandbox_produced)
             and "{sandbox}" in owners.render(entry.form, call)
         )
         message = (
@@ -201,6 +204,12 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
                     "column": call.node.col_offset + 1,
                     "kind": "workflow",
                     "message": header.removeprefix("daytona-v2: "),
+                    "suggestion": {
+                        **suggestion,
+                        "id": f"workflow:{call.binding}",
+                        "notes": list(mapping.data_traps),
+                        "docs": mapping.docs + "#data",
+                    },
                 }
             )
     return Guidance(

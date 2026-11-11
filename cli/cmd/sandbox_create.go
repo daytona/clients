@@ -11,7 +11,6 @@ import (
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/input"
-	"github.com/daytona/clients/cli/internal/regions"
 	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/spf13/cobra"
 )
@@ -76,7 +75,7 @@ type createSurface struct {
 func newSandboxCreateCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create", short: "Create a sandbox from an image",
-		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
+		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --server-wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
 		path: "/sandboxes", imageOptional: true, resources: true, burst: true, cpuConstraints: true, user: true, volumes: true, secrets: true, spot: true, networkPolicy: true,
 		decode: decodeAndCreate[gen.CreateSandboxRequest],
 		keys:   input.CheckKeysFor[gen.CreateSandboxRequest],
@@ -86,7 +85,7 @@ func newSandboxCreateCommand() *cobra.Command {
 func newSandboxCreateFromSnapshotCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create-from-snapshot <snapshot-name-or-snap_id>", short: "Create a sandbox from a snapshot",
-		long: "Create a Linux sandbox from a snapshot (POST /sandboxes/from-snapshot). The SDK twin is create_from_snapshot(snapshot, …).\nResources come from the snapshot; only name, labels, ports, lifecycle, wait and create-ttl apply.\nExample:\n  daytona sandbox create-from-snapshot after-setup --name resumed",
+		long: "Create a Linux sandbox from a snapshot (POST /sandboxes/from-snapshot). The SDK twin is create_from_snapshot(snapshot, …).\nResources come from the snapshot; only name, labels, ports, lifecycle, server-wait and create-ttl apply.\nExample:\n  daytona sandbox create-from-snapshot after-setup --name resumed",
 		path: "/sandboxes/from-snapshot", snapshot: true,
 		decode: decodeAndCreate[gen.CreateSandboxFromSnapshotRequest],
 		keys:   input.CheckKeysFor[gen.CreateSandboxFromSnapshotRequest],
@@ -109,7 +108,7 @@ func postCreate(cmd *cobra.Command, a *app.App, req any, headers http.Header) er
 	}
 	var created api.Raw[gen.SandboxCreateOperation]
 	if err := home.DoWithHeaders(cmd.Context(), http.MethodPost, path, nil, headers, req, &created); err != nil {
-		return err
+		return withRetryKeyHint(err, headers.Get("Idempotency-Key"))
 	}
 	return printCreatedSandbox(cmd, a, home, workload.NewCatalogCache(), created)
 }
@@ -149,7 +148,11 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 			if err := validateLifecycleBody(sf.macos, body); err != nil {
 				return err
 			}
-			return sf.decode(cmd, a, *flags, body, sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body))
+			headers, err := sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body)
+			if err != nil {
+				return err
+			}
+			return sf.decode(cmd, a, *flags, body, headers)
 		},
 	}
 	if sf.imageOptional {
@@ -174,7 +177,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		flagPlaceholder(f, "on-idle-timeout", "ACTION")
 	}
 	flags.wait.allowZero = true
-	addSecondsFlag(f, &flags.wait, "wait", "", "how long the server holds the create response for the sandbox to reach running (Go duration; 0s returns at once; server default 3s)")
+	addSecondsFlag(f, &flags.wait, "server-wait", "", "how long the server holds the create response for the sandbox to reach running (Go duration; 0s answers at once; server default 3s); the CLI still waits for running unless --no-wait")
 	flags.createTTL.keywords = map[string]int64{"max": -1}
 	addSecondsFlag(f, &flags.createTTL, "create-ttl", "", "deadline (Go duration) for the sandbox to reach running, queued or booting, before the server deletes it; max = the server's maximum (server default 1h)")
 	if sf.macos {
@@ -218,29 +221,4 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	addFileFlag(cmd, "")
 	addWaitFlags(cmd)
 	return cmd
-}
-
-func printCreatedSandbox(cmd *cobra.Command, a *app.App, home *api.Client, cache *workload.CatalogCache, raw api.Raw[gen.SandboxCreateOperation]) error {
-	created := raw.V
-	if a.Globals.NoWait {
-		return a.Printer().Object(raw, [][2]string{{"id", created.Id}, {"name", created.Name}, {"status", created.Status}})
-	}
-	timeout, err := workload.ParseTimeout(a.Globals.Timeout)
-	if err != nil {
-		return err
-	}
-	cat, err := cache.Fetch(cmd.Context(), home)
-	if err != nil {
-		return err
-	}
-	client := regions.ClientFor(cmd.Context(), home, cat, created.Id)
-	detail, err := workload.WaitForSandbox(cmd.Context(), client, workload.SandboxWaitOptions{
-		ID:      created.Id,
-		Target:  "running",
-		Timeout: timeout,
-	})
-	if err != nil {
-		return err
-	}
-	return a.Printer().Object(detail, sandboxDetailKV(detail.V))
 }

@@ -55,11 +55,11 @@ func (c *Client) ListProcesses(ctx context.Context, query url.Values) ([]api.Raw
 func (c *Client) WaitProcess(ctx context.Context, id string, timeout time.Duration) (api.Raw[tbgen.ExitResult], error) {
 	if timeout <= 0 {
 		for {
-			result, err := c.waitOnce(ctx, id, 50*time.Second)
+			result, terminal, err := c.waitOnce(ctx, id, 50*time.Second)
 			if err != nil {
 				return api.Raw[tbgen.ExitResult]{}, err
 			}
-			if result.V.Reason == nil || *result.V.Reason != tbgen.ReasonTimedOut {
+			if terminal {
 				return result, nil
 			}
 		}
@@ -74,11 +74,11 @@ func (c *Client) WaitProcess(ctx context.Context, id string, timeout time.Durati
 		if step > 50*time.Second {
 			step = 50 * time.Second
 		}
-		result, err := c.waitOnce(ctx, id, step)
+		result, terminal, err := c.waitOnce(ctx, id, step)
 		if err != nil {
 			return api.Raw[tbgen.ExitResult]{}, err
 		}
-		if result.V.Reason == nil || *result.V.Reason != tbgen.ReasonTimedOut {
+		if terminal {
 			return result, nil
 		}
 	}
@@ -124,12 +124,31 @@ func (c *Client) AttachWebSocket(ctx context.Context, processID string, cursor s
 func (c *Client) WriteStdin(ctx context.Context, id string, data []byte, eof bool) error {
 	body := tbgen.StdinRequest{Eof: boolPtr(eof)}
 	if len(data) > 0 {
-		encoded := base64.StdEncoding.EncodeToString(data)
+		encoded := base64.URLEncoding.EncodeToString(data)
 		body.Data = &encoded
 		encoding := "base64"
 		body.Encoding = &encoding
 	}
 	return c.PostJSON(ctx, "/processes/"+url.PathEscape(id)+"/stdin", nil, body, nil)
+}
+
+// ResizeProcess changes the terminal geometry of a PTY process.
+func (c *Client) ResizeProcess(ctx context.Context, id string, size tbgen.TerminalSize) error {
+	return c.PostJSON(ctx, "/processes/"+url.PathEscape(id)+"/resize", nil, tbgen.ResizeRequest{Cols: size.Cols, Rows: size.Rows}, nil)
+}
+
+// InterruptProcess is best-effort cleanup after the caller's signal, not
+// after a client wait deadline. The server owns escalation, so it survives
+// this CLI exiting. Ignore cleanup failures: preserve the interruption.
+func (c *Client) InterruptProcess(ctx context.Context, id string) {
+	if id == "" {
+		return
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+	defer cancel()
+	if err := c.SignalProcess(cleanupCtx, id, "INT", time.Second, "KILL"); err != nil {
+		return
+	}
 }
 
 func (c *Client) ListPorts(ctx context.Context) ([]int32, error) {
@@ -140,15 +159,36 @@ func (c *Client) ListPorts(ctx context.Context) ([]int32, error) {
 	return out.Ports, nil
 }
 
-func (c *Client) waitOnce(ctx context.Context, id string, step time.Duration) (api.Raw[tbgen.ExitResult], error) {
+func (c *Client) waitOnce(ctx context.Context, id string, step time.Duration) (api.Raw[tbgen.ExitResult], bool, error) {
 	query := url.Values{}
 	query.Set("timeoutMs", fmt.Sprintf("%d", step.Milliseconds()))
 	var out api.Raw[tbgen.ExitResult]
 	if err := c.GetJSON(ctx, "/processes/"+url.PathEscape(id)+"/wait", query, &out); err != nil {
-		return api.Raw[tbgen.ExitResult]{}, err
+		return api.Raw[tbgen.ExitResult]{}, false, err
 	}
 	out.V = normalizeExit(out.V)
-	return out, nil
+	if out.V.Reason == nil {
+		return out, true, nil
+	}
+	switch *out.V.Reason {
+	case tbgen.ReasonTimedOut:
+		// Disambiguate this overloaded wire reason below.
+	default:
+		return out, true, nil
+	}
+	// The same reason denotes an expired long poll and an execution deadline.
+	// Read the record to avoid waiting forever for a process already stopped
+	// by --execution-timeout; it can also have exited since the poll ended.
+	proc, err := c.GetProcess(ctx, id)
+	if err != nil {
+		return out, false, err
+	}
+	switch proc.V.State {
+	case tbgen.StateTerminal:
+		return api.Raw[tbgen.ExitResult]{V: resultFromProcess(proc.V)}, true, nil
+	default:
+		return out, false, nil
+	}
 }
 
 func normalizeProcess(p tbgen.ProcessDto) tbgen.ProcessDto {

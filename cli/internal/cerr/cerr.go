@@ -17,14 +17,15 @@ import (
 const (
 	ExitOK          = 0
 	ExitFailure     = 1
-	ExitUsage       = 2 // bad flags, invalid --file, missing --yes / argument off-TTY
-	ExitAuth        = 3 // 401, no credential, expired and unrefreshable
-	ExitForbidden   = 4 // 403 — stderr names the missing permission + credential kind
-	ExitNotFound    = 5 // 404
-	ExitConflict    = 6 // 409, class mismatch, wrong API endpoint (501)
-	ExitPartial     = 7 // some regions/items failed; successful rows retained
-	ExitTimeout     = 8 // wait timed out; server-side work continues
-	ExitInterrupted = 130
+	ExitUsage       = 2   // bad flags, invalid --file, missing --yes / argument off-TTY
+	ExitAuth        = 3   // 401, no credential, expired and unrefreshable
+	ExitForbidden   = 4   // 403 — stderr names the missing permission + credential kind
+	ExitNotFound    = 5   // 404
+	ExitConflict    = 6   // 409, class mismatch, wrong API endpoint (501)
+	ExitPartial     = 7   // some regions/items failed; successful rows retained
+	ExitTimeout     = 8   // wait timed out; server-side work continues
+	ExitInterrupted = 130 // Ctrl-C (SIGINT), or a confirmation prompt answered no
+	ExitTerminated  = 143 // SIGTERM (128 + 15)
 )
 
 // Sources of errors the CLI reports itself. Server errors carry the

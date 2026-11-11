@@ -17,7 +17,7 @@ import type { ImageRef, MacBootMode, SandboxClass, SandboxDto, SandboxHandleJSON
 /** The handle's current observation; only the handle updates this storage. */
 export type SandboxMetadata = {
   -readonly [K in keyof Omit<SandboxHandleJSON, 'sandboxId'>]: SandboxHandleJSON[K]
-} & { macBootMode: MacBootMode | null }
+} & { macBootMode: MacBootMode | undefined }
 
 export function isSandboxInfo(value: SandboxDto | SandboxInfo): value is SandboxInfo {
   return 'sandboxId' in value
@@ -89,8 +89,8 @@ export function assertSandboxResponse(sandbox: unknown): asserts sandbox is Sand
 export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
   return {
     name: sandbox.name,
-    image: artifactRefOf(sandbox.image) ?? undefined,
-    snapshot: artifactRefOf(sandbox.snapshot) ?? undefined,
+    image: artifactRefOf(sandbox.image),
+    snapshot: artifactRefOf(sandbox.snapshot),
     labels: parseLabels(sandbox.labels),
     cpu: sandbox.cpu,
     cpuMax: sandbox.cores_max ?? undefined,
@@ -101,7 +101,7 @@ export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
     rawState: sandbox.status ?? undefined,
     state: sandboxState(sandbox.status),
     error: sandbox.error ?? undefined,
-    macBootMode: sandbox.mac_boot_mode ?? null,
+    macBootMode: sandbox.mac_boot_mode ?? undefined,
     imageBuildId: sandbox.image_build_id ?? undefined,
     // Every API sandbox object carries `class` (checked at the boundary with
     // assertSandboxResponse); partial internal data leaves it unknown.
@@ -123,7 +123,8 @@ export function metadataFromInfo(info: SandboxInfo): SandboxMetadata {
     name: info.name,
     image: infoArtifact(info.image),
     snapshot: infoArtifact(info.snapshot),
-    labels: parseLabels(info.labels),
+    // Undefined until the API reports them (a create or fork handle).
+    labels: info.labels === undefined ? undefined : parseLabels(info.labels),
     cpu: info.cpu,
     cpuMax: info.cpuMax,
     memory: info.memory,
@@ -133,7 +134,7 @@ export function metadataFromInfo(info: SandboxInfo): SandboxMetadata {
     state: info.state,
     rawState: info.rawState,
     error: info.error,
-    macBootMode: null,
+    macBootMode: undefined,
     imageBuildId: info.imageBuildId,
     sandboxClass: sandboxClass(info.rawSandboxClass ?? info.sandboxClass),
     rawSandboxClass: info.rawSandboxClass ?? info.sandboxClass,
@@ -152,7 +153,7 @@ function infoArtifact(value: ImageRef | undefined): ImageRef | undefined {
   // Internal fixtures may still carry the historical string form; it is not
   // enough information to identify an artifact and never becomes a reference.
   if (value === undefined || typeof value === 'string') return undefined
-  return artifactRefOf(value) ?? undefined
+  return artifactRefOf(value)
 }
 
 function knownFields<T extends object>(value: T): T {
@@ -184,10 +185,10 @@ export function sandboxHandleJSON(id: string, data: SandboxMetadata): SandboxHan
     name: data.name,
     state: data.state !== 'unknown' || data.rawState ? data.state : undefined,
     rawState: data.rawState || undefined,
-    image: data.image ? { id: data.image.id, name: data.image.name } : undefined,
-    snapshot: data.snapshot ? { id: data.snapshot.id, name: data.snapshot.name } : undefined,
+    image: data.image ? knownFields({ id: data.image.id, name: data.image.name }) : undefined,
+    snapshot: data.snapshot ? knownFields({ id: data.snapshot.id, name: data.snapshot.name }) : undefined,
     region: data.region,
-    labels: data.labels && Object.keys(data.labels).length > 0 ? { ...data.labels } : undefined,
+    labels: data.labels === undefined ? undefined : { ...data.labels },
     cpu: data.cpu,
     cpuMax: data.cpuMax,
     memory: data.memory,

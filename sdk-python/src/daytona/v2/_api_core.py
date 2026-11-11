@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import contextlib
+import dataclasses
 from datetime import datetime
-from typing import Mapping, Optional
+from typing import Iterator, Mapping, Optional
 
 from . import _gen
 from ._core import (
@@ -40,6 +42,7 @@ from .types import (
     Image,
     ImageBuildLimits,
     JsonObject,
+    ListResult,
     MacCatalog,
     MacCatalogModel,
     MacCatalogRegion,
@@ -55,6 +58,7 @@ from .types import (
     SandboxResourceLimits,
     Secret,
     StorageLimits,
+    UnknownImageSource,
     UsageLimit,
 )
 
@@ -298,18 +302,115 @@ def _without_item_cursors(value: TransportPayload, items: str) -> TransportPaylo
     return {**value, items: entries}
 
 
-def expect_images_page(value: TransportPayload) -> ImagePage:
+# The image source kinds this release maps. Any other non-empty string type is
+# a kind a later API added: not a malformed response, but an
+# `UnknownImageSource` carrying the wire type (the contract's other fields of
+# that source are not read). A source with a known type keeps every check.
+# Each known kind's contract-required fields, all strings.
+_IMAGE_SOURCE_FIELDS: Mapping[str, tuple[str, ...]] = {
+    "registry": ("ref",),
+    "dockerfile": ("context_object", "dockerfile"),
+    "named": ("name",),
+    "manifest": ("name",),
+}
+_KNOWN_IMAGE_SOURCE_TYPES = frozenset(_IMAGE_SOURCE_FIELDS)
+
+
+def _check_known_source(item: object, description: str, path: str = "source") -> None:
+    """The malformed-response error, naming the field, for a source of a known
+    kind that misses one of its fields or has one that is not a string (the
+    generated parser would only say that no variant matched)."""
+    source = item.get("source") if isinstance(item, dict) else None
+    if not isinstance(source, dict):
+        return
+    kind = source.get("type")
+    if not isinstance(kind, str) or not kind:
+        raise create_error(
+            f"expected {description}: {path}.type: must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    for field in _IMAGE_SOURCE_FIELDS.get(kind, ()):
+        if field not in source:
+            problem = "Field required"
+        elif not isinstance(source[field], str):
+            problem = "must be a string"
+        else:
+            continue
+        raise create_error(f"expected {description}: {path}.{field}: {problem}", 400, "BAD_REQUEST", "SDK")
+
+
+def _unknown_source_type(item: object) -> Optional[str]:
+    if isinstance(item, dict):
+        source = item.get("source")
+        if isinstance(source, dict):
+            kind = source.get("type")
+            if isinstance(kind, str) and kind and kind not in _KNOWN_IMAGE_SOURCE_TYPES:
+                return kind
+    return None
+
+
+def _set_aside_unknown_source(item: TransportPayload) -> TransportPayload:
+    """``item`` with an unknown-kind source removed before the contract check."""
+    if _unknown_source_type(item) is None or not isinstance(item, dict):
+        return item
+    return {**item, "source": None}
+
+
+@contextlib.contextmanager
+def _source_variant_errors(description: str) -> Iterator[None]:
+    """A known-kind source missing its fields: the generated oneOf parser
+    raises a plain ``ValueError``, which is the malformed-response error."""
+    try:
+        yield
+    except DaytonaError:
+        raise
+    except ValueError as exc:
+        raise create_error(
+            f"expected {description}: source does not match its type's fields", 400, "BAD_REQUEST", "SDK"
+        ) from exc
+
+
+def _with_source(image: Image, unknown_type: Optional[str]) -> Image:
+    return (
+        image
+        if unknown_type is None
+        else dataclasses.replace(image, source=UnknownImageSource(raw_type=unknown_type))
+    )
+
+
+def expect_images_page(value: TransportPayload) -> ListResult[Image]:
     # Every contract-required field (`platform`, `default` and `deprecated`
     # included) must be present: a missing one is the malformed-response error.
-    return _expect_model_from_dict(
-        _without_item_cursors(value, "images"), ImagePage, "image list response", ImagePage.from_dict
+    items = value.get("images") if isinstance(value, dict) else None
+    for index, item in enumerate(items if isinstance(items, list) else []):
+        _check_known_source(item, "image list response", f"images.{index}.source")
+    unknown = [_unknown_source_type(item) for item in items] if isinstance(items, list) else []
+    if any(kind is not None for kind in unknown) and isinstance(value, dict) and isinstance(items, list):
+        value = {**value, "images": [_set_aside_unknown_source(item) for item in items]}
+    with _source_variant_errors("image list response"):
+        page = _expect_model_from_dict(
+            _without_item_cursors(value, "images"), ImagePage, "image list response", ImagePage.from_dict
+        )
+    return ListResult(
+        items=[
+            _with_source(parse_image(item), unknown[index] if index < len(unknown) else None)
+            for index, item in enumerate(page.images)
+        ],
+        next_cursor=page.next_cursor,
     )
 
 
 def expect_image(value: TransportPayload) -> Image:
     """An image detail checked against the contract (as the list items are) before it is mapped."""
-    wire = _expect_model_from_dict(value, _gen.api.Image, "image detail response", _gen.api.Image.from_dict)
-    return parse_image(wire)
+    _check_known_source(value, "image detail response")
+    unknown = _unknown_source_type(value)
+    with _source_variant_errors("image detail response"):
+        wire = _expect_model_from_dict(
+            _set_aside_unknown_source(value),
+            _gen.api.Image,
+            "image detail response",
+            _gen.api.Image.from_dict,
+        )
+    return _with_source(parse_image(wire), unknown)
 
 
 def expect_list_secrets_resp(value: TransportPayload) -> SecretPage:

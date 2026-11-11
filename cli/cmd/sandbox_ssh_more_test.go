@@ -80,7 +80,6 @@ func TestOptionNeedsValue_unknownFlags(t *testing.T) {
 }
 
 func TestInteractiveAttachAndWait_waitsWithParentContextAfterWebsocketCloses(t *testing.T) {
-	t.Parallel()
 	stdinFile, err := os.CreateTemp(t.TempDir(), "stdin-*.txt")
 	require.NoError(t, err)
 	require.NoError(t, stdinFile.Close())
@@ -118,7 +117,11 @@ func TestInteractiveAttachAndWait_waitsWithParentContextAfterWebsocketCloses(t *
 			_, _ = bufrw.WriteString("Upgrade: websocket\r\n")
 			_, _ = bufrw.WriteString("Connection: Upgrade\r\n")
 			_, _ = bufrw.WriteString("Sec-WebSocket-Accept: " + accept + "\r\n\r\n")
+			// A clean close frame: the stream ended, the process result follows.
+			_, _ = bufrw.Write([]byte{0x88, 0})
 			_ = bufrw.Flush()
+		case "/test-tools/sbx/processes/proc/resize":
+			w.WriteHeader(http.StatusNoContent)
 		case "/test-tools/sbx/processes/proc/wait":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"reason":"exited","exitCode":3}`)
@@ -127,7 +130,7 @@ func TestInteractiveAttachAndWait_waitsWithParentContextAfterWebsocketCloses(t *
 		}
 	}))
 	defer srv.Close()
-	err = interactiveAttachAndWait(context.Background(), toolboxclient.New(apiinternal.New(srv.URL+"/test-tools/sbx", "k", "test")), "proc", "")
-	require.Error(t, err)
-	require.Equal(t, 3, cerr.ExitCode(err))
+	result, err := toolboxclient.New(apiinternal.New(srv.URL+"/test-tools/sbx", "k", "test")).AttachTerminal(context.Background(), toolboxclient.ProcessAttachment{ID: "proc"})
+	require.NoError(t, err)
+	require.Equal(t, 3, cerr.ExitCode(exitError(result)))
 }
