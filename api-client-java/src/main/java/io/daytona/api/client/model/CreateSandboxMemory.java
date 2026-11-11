@@ -84,7 +84,7 @@ public class CreateSandboxMemory extends AbstractOpenApiSchema {
                     }
                     // check if the actual instance is of the type `List<Integer>`
                     if (value.getActualInstance() instanceof List<?>) {
-                        JsonPrimitive primitive = adapterListInteger.toJsonTree((List<Integer>)value.getActualInstance()).getAsJsonPrimitive();
+                        JsonElement primitive = adapterListInteger.toJsonTree((List<Integer>)value.getActualInstance());
                         elementAdapter.write(out, primitive);
                         return;
                     }
