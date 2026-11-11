@@ -1,0 +1,52 @@
+sdk-typescript/tests/image-builder-escape.test.ts
+  s_8478c3ca1d7f79::t_5eb0f76401d003 37-38
+sdk-typescript/tests/dockerignore.test.ts
+  s_8478c3ca1d7f79::t_5eb0f76401d003 10,15-22
+  s_8478c3ca1d7f79::t_b6cc5f61211f33 23
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_8478c3ca1d7f79::t_5eb0f76401d003 7
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  s_8478c3ca1d7f79::t_919cf82d217b04 6
+  s_8478c3ca1d7f79::t_5eb0f76401d003 1-5,7-10
+sdk-python/src/daytona/v2/_dockerignore.py
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 183,188,192-202,220-221
+sdk-python/src/daytona/v2/_dockerignore_regexp.py
+  s_8478c3ca1d7f79::t_131875d425eee4 1-105
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_8478c3ca1d7f79::t_131875d425eee4 155-163
+sdk-typescript/tests/image-builder-context.test.ts
+  s_8478c3ca1d7f79::t_919cf82d217b04 9,192-215
+  s_8478c3ca1d7f79::t_06fcc1b32776fa 216
+sdk-python/src/daytona/v2/_image_archive.py
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 33,39-58,118
+sdk-python/tests/test_image_builder_context.py
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 221-248
+  s_8478c3ca1d7f79::t_5eb0f76401d003 277-278
+sdk-python/src/daytona/v2/_image_context.py
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 97
+sdk-typescript/src/v2/contextArchive.ts
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 64
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_8478c3ca1d7f79::t_131875d425eee4 16,129-132
+sdk-python/tests/test_dockerignore.py
+  s_8478c3ca1d7f79::t_5eb0f76401d003 10,38-59
+  s_8478c3ca1d7f79::t_6f7a3aaf688d72 330-334
+  s_8478c3ca1d7f79::t_131875d425eee4 9,320-329,335
+  s_8478c3ca1d7f79::t_04e226565d378b 60-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0101ccd6ca60386e632720a635fc6d5bd2ac4f2e",
+  "prompts": {},
+  "sessions": {
+    "s_8478c3ca1d7f79": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3829c79effe1He4uAkyL5DO6M",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
