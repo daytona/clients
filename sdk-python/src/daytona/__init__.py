@@ -24,9 +24,9 @@ if TYPE_CHECKING:
 
     from ._async.computer_use import AsyncComputerUse, AsyncDisplay, AsyncKeyboard, AsyncMouse, AsyncScreenshot
     from ._async.daytona import AsyncDaytona
-    from ._async.sandbox import AsyncSandbox
+    from ._async.sandbox import AsyncSandbox, AsyncSandboxNode, AsyncSandboxNodeCollection
     from ._sync.daytona import Daytona
-    from ._sync.sandbox import Sandbox
+    from ._sync.sandbox import Sandbox, SandboxNode, SandboxNodeCollection
     from .common.charts import (
         BarChart,
         BoxAndWhiskerChart,
@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     from .common.lsp_server import LspCompletionPosition, LspLanguageId
     from .common.process import CodeRunParams, ExecuteResponse, ExecutionArtifacts, OutputHandler, SessionExecuteRequest
     from .common.pty import PtySize
-    from .common.sandbox import ListSandboxesQuery, Resources, SandboxMetrics
+    from .common.sandbox import CreateSandboxResources, ListSandboxesQuery, NodeResources, Resources, SandboxMetrics
     from .common.secret import CreateSecretParams, ListSecretsResponse, Secret, UpdateSecretParams
     from .common.snapshot import CreateSnapshotParams
     from .common.volume import VolumeMount
@@ -119,7 +119,11 @@ __all__ = [
     "LspLanguageId",
     "CodeRunParams",
     "Sandbox",
+    "SandboxNode",
+    "SandboxNodeCollection",
+    "NodeResources",
     "Resources",
+    "CreateSandboxResources",
     "SandboxMetrics",
     "GpuType",
     "SandboxClass",
@@ -150,6 +154,8 @@ __all__ = [
     "ListSandboxesQuery",
     "AsyncDaytona",
     "AsyncSandbox",
+    "AsyncSandboxNode",
+    "AsyncSandboxNodeCollection",
     "AsyncComputerUse",
     "AsyncMouse",
     "AsyncKeyboard",
@@ -227,9 +233,13 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     # _sync
     "Daytona": "_sync.daytona",
     "Sandbox": "_sync.sandbox",
+    "SandboxNode": "_sync.sandbox",
+    "SandboxNodeCollection": "_sync.sandbox",
     # _async
     "AsyncDaytona": "_async.daytona",
     "AsyncSandbox": "_async.sandbox",
+    "AsyncSandboxNode": "_async.sandbox",
+    "AsyncSandboxNodeCollection": "_async.sandbox",
     "AsyncComputerUse": "_async.computer_use",
     "AsyncMouse": "_async.computer_use",
     "AsyncKeyboard": "_async.computer_use",
@@ -322,6 +332,8 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     # common.sandbox
     "ListSandboxesQuery": "common.sandbox",
     "Resources": "common.sandbox",
+    "CreateSandboxResources": "common.sandbox",
+    "NodeResources": "common.sandbox",
     "SandboxMetrics": "common.sandbox",
     # common.snapshot
     "CreateSnapshotParams": "common.snapshot",

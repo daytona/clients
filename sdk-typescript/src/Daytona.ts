@@ -178,6 +178,16 @@ export interface Resources {
   disk?: number
 }
 
+/** Resource allocation used when creating a Sandbox from an image. */
+export type CreateSandboxResources = Omit<Resources, 'cpu' | 'memory' | 'disk'> & {
+  /** CPU cores per node. A scalar applies to every node; an array is ordered by rank. */
+  cpu?: number | number[]
+  /** Memory in GiB per node. A scalar applies to every node; an array is ordered by rank. */
+  memory?: number | number[]
+  /** Disk in GiB per node. A scalar applies to every node; an array is ordered by rank. */
+  disk?: number | number[]
+}
+
 /**
  * Base parameters for creating a new Sandbox.
  *
@@ -244,7 +254,7 @@ export type CreateSandboxBaseParams = {
  */
 export type CreateSandboxFromImageParams = CreateSandboxBaseParams & {
   image: string | Image
-  resources?: Resources
+  resources?: CreateSandboxResources
 }
 
 /**
@@ -699,7 +709,7 @@ export class Daytona implements AsyncDisposable {
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
-      let resources: Resources | undefined
+      let resources: CreateSandboxResources | undefined
 
       if ('snapshot' in params) {
         snapshot = params.snapshot
@@ -967,8 +977,12 @@ export class Daytona implements AsyncDisposable {
         firstPage = false
 
         for (const sandbox of response.data.items) {
+          // SandboxListItem deliberately stays lightweight and does not carry
+          // internal member rows. Hydrate only gang heads so every public
+          // Sandbox instance still satisfies nodes[i].rank === i.
+          const sandboxWithNodes = sandbox.gpu > 8 ? (await sandboxApi.getSandbox(sandbox.id)).data : sandbox
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
-          const hydratedSandbox = await ensureToolboxProxyUrl(sandbox)
+          const hydratedSandbox = await ensureToolboxProxyUrl(sandboxWithNodes)
           yield new Sandbox(
             hydratedSandbox,
             structuredClone(clientConfig),

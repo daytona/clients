@@ -43,6 +43,7 @@ class JobType(str, Enum):
     SNAPSHOT_SANDBOX = 'SNAPSHOT_SANDBOX'
     FORK_SANDBOX = 'FORK_SANDBOX'
     PAUSE_SANDBOX = 'PAUSE_SANDBOX'
+    UPDATE_SANDBOX_FABRIC = 'UPDATE_SANDBOX_FABRIC'
     UNKNOWN_DEFAULT_OPEN_API = 'unknown_default_open_api'
 
     @classmethod

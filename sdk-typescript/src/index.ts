@@ -7,6 +7,7 @@ export { CodeLanguage, Daytona } from './Daytona'
 export type {
   CreateSandboxBaseParams,
   CreateSandboxFromImageParams,
+  CreateSandboxResources,
   CreateSandboxFromSnapshotParams,
   DaytonaConfig,
   ForkSandboxParams,
@@ -86,7 +87,16 @@ export {
 } from './errors/DaytonaError'
 export { Image } from './Image'
 export { Sandbox } from './Sandbox'
-export type { ListSandboxesQuery, SandboxMetrics } from './Sandbox'
+export type {
+  ListSandboxesQuery,
+  NodeExecuteOptions,
+  NodeResources,
+  SandboxMetrics,
+  SandboxNodeCollection,
+  SandboxNodeFileSystem,
+  SandboxNodeProcess,
+} from './Sandbox'
+export { SandboxNode } from './SandboxNode'
 export type { Secret, CreateSecretParams, UpdateSecretParams, ListSecretsQuery, ListSecretsResponse } from './Secret'
 export type { CreateSnapshotParams, ListSnapshotsQuery, PaginatedSnapshots, Snapshot } from './Snapshot'
 export type { WarmPool } from './WarmPool'
