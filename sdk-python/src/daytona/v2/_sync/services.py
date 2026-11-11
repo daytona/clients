@@ -66,7 +66,8 @@ class ImagesService:
         deterministically and uploaded as a build context before submission.
         Each upload part fails once no bytes move for the client's request
         timeout (``0``: never); each completion attempt uses the greater of
-        that timeout and 600 seconds. No total deadline bounds the upload.
+        that timeout and 600 seconds (``0``: no bound). No total deadline
+        bounds the upload.
         With local files, ``name`` and ``idle_expiry_seconds`` cannot be
         combined: idle expiry applies only to anonymous images.
         """

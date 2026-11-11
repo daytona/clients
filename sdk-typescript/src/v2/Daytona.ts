@@ -255,8 +255,8 @@ export class Daytona {
    * the sandbox create always receives the caller's full `waitSeconds`.
    * Local files are archived and uploaded before submission. Each part upload
    * fails once no bytes move for the client's request timeout (0: never); each
-   * completion attempt uses the greater of that timeout and 600 seconds. No
-   * total deadline bounds the upload.
+   * completion attempt uses the greater of that timeout and 600 seconds (0: no
+   * bound). No total deadline bounds the upload.
    */
   public async createFromBuild(builder: ImageBuilder, options: CreateFromBuildOptions = {}): Promise<Sandbox> {
     const { image, createOptions } = await buildSandboxImage(this.images, builder, options)

@@ -161,7 +161,7 @@ def collect_builder_entries(builder: ImageBuilder, cancel: Event | None = None) 
         # real path moved (an ancestor swapped for a link), has been redirected:
         # refused, so a swap between declaration and build cannot pull in
         # another tree. TypeScript refuses the same.
-        if not source.link and (os.path.islink(source.path) or os.path.realpath(source.path) != source.real):
+        if not source.link and (os.path.islink(source.path) or os.fspath(real) != source.real):
             raise create_error(
                 f"local source changed since it was added: {json.dumps(str(source.path), ensure_ascii=False)}",
                 400,

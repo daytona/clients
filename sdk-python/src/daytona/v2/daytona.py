@@ -608,8 +608,8 @@ class AsyncDaytona:
         For a builder with local files, submission first reads and uploads a
         deterministic build context. Each upload part fails once no bytes
         move for the client's request timeout (``0``: never); each completion
-        attempt uses the greater of that timeout and 600 seconds. No total
-        deadline bounds the upload.
+        attempt uses the greater of that timeout and 600 seconds (``0``: no
+        bound). No total deadline bounds the upload.
         It then sends the build request, bounded by the client's request
         timeout. The build itself is always awaited, bounded by
         ``build_timeout`` (seconds; ``None``, ``0`` or a value above about
