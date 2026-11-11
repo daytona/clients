@@ -404,13 +404,16 @@ class Sandbox:
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
-        sign in again. ``DISK_NOT_READY`` means its disk is not ready yet; retry
-        later. When the organization has no Mac reservation in the region and
-        auto-reserve is on, the start buys one, so it can fail as a create that
-        buys one does: :class:`LimitExceededError` with
+        sign in again. It raises :class:`ConflictError` with
+        ``DISK_NOT_READY`` while its disk is not ready yet (retry later),
+        ``NO_FREE_SLOT`` or ``MAC_DISK_FULL`` when no Mac of the organization
+        has space for it, and ``NO_ACTIVE_RESERVATION`` when the organization
+        has no Mac reservation in the region and auto-reserve is off. With
+        auto-reserve on, the start buys a reservation, so it can fail as a
+        create that buys one does: :class:`LimitExceededError` with
         ``limit == "max_mac_reservations"`` at the organization's Mac
         reservation limit, ``AUTO_RESERVE_LIMIT_REACHED``,
-        ``NO_MAC_AVAILABLE`` or ``INSUFFICIENT_BALANCE``.
+        ``NO_MAC_AVAILABLE``, ``INSUFFICIENT_BALANCE`` or ``CHARGE_FAILED``.
         """
         return self._bridge.call(lambda: self._impl.start(timeout=timeout))
 

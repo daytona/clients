@@ -553,8 +553,9 @@ one with `daytona.v2.createMacos(image, options)` (`POST /sandboxes/macos`).
 such as `base-macos`. Set `resources: { cpu, memory, disk }`: `cpu` is an
 integer number of physical cores (at least 4), `memory` is GiB (at least 4),
 and `disk` is GiB (at least 80, including macOS). Omitted values use the
-model's default sandbox size (`defaultSize`), and a create from a captured
-image gets the image's disk size. The size is fixed at creation.
+model's default sandbox size (`defaultSize`). A create from a captured image
+that omits `disk` gets the image's disk size, and a smaller `disk` is refused.
+The size is fixed at creation.
 The resulting sandbox reports its assigned resources (`sandbox.memory` and
 `sandbox.disk` in exact GiB, `sandbox.reservationId` for the reservation).
 `name`, `idempotencyKey`, `waitSeconds` and
@@ -600,8 +601,8 @@ Stop and pause need a persistent sandbox (`persistent: true`), which keeps its
 disk and machine across stop and start, and its memory across pause and
 resume. A start can run on any Mac of the organization; after a start on a
 different Mac, iCloud asks the user to sign in again. Delete erases the disk.
-A reservation end or a Mac failure stops a persistent sandbox and never deletes
-it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends
+A reservation end or a Mac failure stops a persistent sandbox that has started
+and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends
 with its reservation, or with its Mac when that Mac fails.
 
 `reservation` picks the Mac reservation. Omitted, the sandbox goes on any reservation of your

@@ -495,7 +495,7 @@ class AsyncDaytona:
         image's disk size, and a smaller ``disk`` is refused. The size is fixed
         at creation, and the sandbox reports it once a Mac takes the sandbox.
 
-        ``persistent`` keeps the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with its Mac when that Mac fails.
+        ``persistent`` keeps the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with its Mac when that Mac fails.
 
         ``volumes`` attaches disk volumes read-write. A sandbox with volumes
         cannot be persistent; bucket volumes and ``read_only`` are rejected

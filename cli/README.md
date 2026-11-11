@@ -228,7 +228,8 @@ daytona reservation update RESERVATION_ID --auto-renew=false
 
 `mac-model list` shows each model's `MAX_SANDBOXES` and `DEFAULT_SIZE`.
 Each omitted `--cores`, `--memory`, or `--disk` uses the model's
-`DEFAULT_SIZE`; a create from a captured image gets the image's disk size. The
+`DEFAULT_SIZE`; a create from a captured image without `--disk` gets the
+image's disk size, and a smaller `--disk` is refused. The
 disks and disk volumes of the sandboxes on one Mac must fit the model's sandbox
 disk space (`SANDBOX_DISK_MIB` in `mac-model list`), not the Mac's whole SSD.
 Sandbox sizes do not change the reservation.
@@ -273,8 +274,8 @@ start on a different Mac, iCloud asks the user to sign in again. With no Mac
 reservation in the region and auto-reserve on, `sandbox start` buys one, and
 can be refused at the organization's Mac reservation limit
 (`max_mac_reservations`). Delete erases the disk. A reservation end or a Mac
-failure stops a persistent sandbox and never deletes it; a Mac failure can lose
-its most recent writes. An ephemeral sandbox ends with its reservation, or with
+failure stops a persistent sandbox that has started and never deletes it; a Mac
+failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with
 its Mac when that Mac fails. A paused sandbox keeps an auto-renewing
 reservation renewing; otherwise it is stopped, with its disk, before the
 reservation ends.

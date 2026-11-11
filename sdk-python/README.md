@@ -626,8 +626,8 @@ such as `base-macos`. `resources=MacosResources(cpu=, memory=, disk=)` sizes
 the sandbox: `cpu` is an integer number of physical cores (at least 4),
 `memory` is GiB (at least 4) and `disk` is GiB (at least 80: the whole sandbox
 disk, macOS included); each omitted value uses the Mac model's default size
-(`default_size`), and a create from a captured image gets the image's disk
-size. The size is fixed at creation and reported once a Mac takes the sandbox
+(`default_size`). A create from a captured image that omits `disk` gets the
+image's disk size, and a smaller `disk` is refused. The size is fixed at creation and reported once a Mac takes the sandbox
 (`sandbox.memory` and `sandbox.disk` in exact GiB, `sandbox.reservation_id`
 for the reservation). `name`, `idempotency_key`, `wait_seconds` and
 `create_timeout_seconds` work as on `create()`: a named create derives its
@@ -676,8 +676,8 @@ Stop and pause need a persistent sandbox (`persistent=True`), which keeps its
 disk and machine across stop and start, and its memory across pause and
 resume. A start can run on any Mac of the organization; after a start on a
 different Mac, iCloud asks the user to sign in again. Delete erases the disk.
-A reservation end or a Mac failure stops a persistent sandbox and never deletes
-it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends
+A reservation end or a Mac failure stops a persistent sandbox that has started
+and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends
 with its reservation, or with its Mac when that Mac fails.
 
 `reservation` picks the Mac reservation. Omitted, the sandbox goes on any reservation of your

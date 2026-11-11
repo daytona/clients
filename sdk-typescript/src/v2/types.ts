@@ -512,8 +512,8 @@ export interface CreateMacosSandboxOptions extends CreateRequestBaseOptions {
    * across pause and resume. A start can run on any Mac of the organization;
    * after a start on a different Mac, iCloud asks the user to sign in again.
    * Delete erases the disk. A reservation end or a Mac failure stops a
-   * persistent sandbox and never deletes it; a Mac failure can lose its most
-   * recent writes.
+   * persistent sandbox that has started and never deletes it; a Mac failure
+   * can lose its most recent writes.
    */
   readonly persistent?: boolean
   /**

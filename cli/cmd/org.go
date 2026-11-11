@@ -186,8 +186,8 @@ func newOrgCmd() *cobra.Command {
 builds, Mac reservations, members, images, snapshots, secrets and API keys —
 each with the current usage it is checked against; "unlimited" means no limit
 applies. A request refused by one of them — a Mac reservation purchase
-included (reservation create or renew, or sandbox create-macos or start when
-it buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
+included (reservation create or renew, or a sandbox create-macos or start
+that buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
 maximum. Requires read:organization, or read:limits with an API key. An API
 key reads its own organization when none is named, and its read leaves out
 the member counts.`,
