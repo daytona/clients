@@ -543,7 +543,9 @@ non-terminal response pauses up to one second before retrying. Omitted or zero
 `timeoutSeconds` sends one hold of the server's default length and returns what
 the server reports.
 `sandbox.captureImage({ name, idleExpirySeconds })` captures an
-image from a sandbox.
+image from a sandbox, and `sandbox.createSnapshot(name)` a snapshot. Both need
+`write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
+they throw `ForbiddenError` (403).
 
 ### macOS sandboxes
 

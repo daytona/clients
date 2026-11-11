@@ -179,6 +179,8 @@ references locally.
 failures include the recorded build error and its code when available. A timeout
 on `image create`, `build`, `capture` or `snapshot create` includes the pending
 resource id and its `get` command; the operation keeps running on the server.
+`image capture` and `snapshot create` need `write:sandboxes` in addition to
+`write:images` / `write:snapshots` (exit code `4` without it).
 `image list --platform` accepts only `true`, `false` or `any`.
 
 `sandbox exec <id> -- COMMAND [ARGS...]` copies stdout and stderr as raw bytes,

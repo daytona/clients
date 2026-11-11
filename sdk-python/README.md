@@ -614,7 +614,9 @@ runs out first raises `RequestTimeoutError`; a budget above the timer maximum
 (about 24.8 days) waits without a deadline. Without a timeout (omitted or
 `0`), one long poll of the server's default length returns what the server
 reports. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
-image from a sandbox.
+image from a sandbox, and `sandbox.create_snapshot(name)` a snapshot. Both need
+`write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
+they raise `ForbiddenError` (403).
 
 ### macOS sandboxes
 

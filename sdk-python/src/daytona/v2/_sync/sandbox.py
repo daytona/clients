@@ -75,6 +75,8 @@ class Sandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
+        The credential needs ``write:sandboxes`` in addition to ``write:images``;
+        without it the capture raises :class:`ForbiddenError` (403).
 
         ``name`` makes the image named and permanent. ``idle_expiry_seconds`` is
         the idle-retention window of an ANONYMOUS capture: it is deleted once
@@ -124,6 +126,13 @@ class Sandbox:
         )
 
     def create_snapshot(self, name: str, /) -> Snapshot:
+        """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
+        (``POST /sandboxes/{id}/snapshots``).
+
+        The credential needs ``write:sandboxes`` in addition to
+        ``write:snapshots``; without it the capture raises
+        :class:`ForbiddenError` (403).
+        """
         return self._bridge.call(lambda: self._impl.create_snapshot(name))
 
     def delete(self, *, timeout: float = 60) -> None:

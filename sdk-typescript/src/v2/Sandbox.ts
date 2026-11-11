@@ -1086,7 +1086,8 @@ export class Sandbox {
    * (`POST /sandboxes/{id}/images`). The result boots new sandboxes
    * (`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
    * stopped; the capture answers `DISK_NOT_READY` while its disk is not ready
-   * yet (retry later).
+   * yet (retry later). The credential needs `write:sandboxes` in addition to
+   * `write:images`; without it the capture throws `ForbiddenError` (403).
    */
   public async captureImage(options: CaptureImageOptions = {}): Promise<Image> {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)
@@ -1098,6 +1099,12 @@ export class Sandbox {
     return new Image(INTERNAL, image)
   }
 
+  /**
+   * Capture this sandbox, memory and disk, as a new {@link Snapshot}
+   * (`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
+   * in addition to `write:snapshots`; without it the capture throws
+   * `ForbiddenError` (403).
+   */
   public async createSnapshot(name: string): Promise<Snapshot> {
     const snapshotName: unknown = name
     if (typeof snapshotName !== 'string' || isBlank(snapshotName)) throw badRequest('name must be a non-empty string')
