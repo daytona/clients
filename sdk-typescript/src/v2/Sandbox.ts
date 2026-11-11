@@ -1130,8 +1130,8 @@ export class Sandbox {
    * is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
    * be removed. An empty label key is refused with `BadRequestError` before
    * any request. A sandbox that is deleted or being deleted throws
-   * `ConflictError` (`CONFLICT`), unless the read finds it already gone
-   * (`NotFoundError`).
+   * `ConflictError` (`CONFLICT`); one the API no longer finds throws
+   * `NotFoundError`.
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')

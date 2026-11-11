@@ -833,8 +833,8 @@ class AsyncSandbox:
         changes nothing. An empty label key is refused with
         :class:`~daytona.v2.errors.BadRequestError` before any request. A
         sandbox that is deleted or being deleted raises
-        :class:`ConflictError` (``CONFLICT``), unless the read finds it already
-        gone (:class:`NotFoundError`).
+        :class:`ConflictError` (``CONFLICT``); one the API no longer finds raises
+        :class:`NotFoundError`.
         """
         body = _validated_labels(labels)
         if "name" not in body:
