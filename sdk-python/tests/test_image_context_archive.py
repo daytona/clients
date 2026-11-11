@@ -433,3 +433,16 @@ async def test_a_blank_context_path_is_refused_not_the_working_directory(context
     with pytest.raises(BadRequestError, match="build context path must be a non-empty string"):
         async with prepared_context(context, "Dockerfile"):
             pass
+
+
+@pytest.mark.anyio
+async def test_a_blank_path_like_context_is_refused() -> None:
+    # An os.PathLike returning "" would also become `.`; a pathlib.Path("") is
+    # already `.` by pathlib's own rules and is left to mean that.
+    class Blank:
+        def __fspath__(self) -> str:
+            return " "
+
+    with pytest.raises(BadRequestError, match="build context path must be a non-empty string"):
+        async with prepared_context(Blank(), "Dockerfile"):
+            pass

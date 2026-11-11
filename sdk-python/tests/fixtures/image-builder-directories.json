@@ -237,6 +237,26 @@
       },
       "dockerfile": "sub/../../ctx/Dockerfile",
       "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "ignore file that is a symbolic-link loop",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "symlinks": {
+        ".dockerignore": ".dockerignore"
+      },
+      "error": "build context path is not a regular file: \"<root>/.dockerignore\""
+    },
+    {
+      "name": "Dockerfile-specific ignore file that is a symbolic-link loop",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "symlinks": {
+        "Dockerfile.dockerignore": "Dockerfile.dockerignore"
+      },
+      "error": "build context path is not a regular file: \"<root>/Dockerfile.dockerignore\""
     }
   ]
 }

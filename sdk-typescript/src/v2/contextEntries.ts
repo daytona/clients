@@ -60,7 +60,9 @@ export async function contextEntries(root: string, dockerfile?: string): Promise
       throw error
     }
     try {
-      await fs.access(path.join(absolute, dockerfileName + '.dockerignore'))
+      // lstat, not access: a Dockerfile-specific ignore file that is a link
+      // loop is selected here and refused by regularFile below.
+      await fs.lstat(path.join(absolute, dockerfileName + '.dockerignore'))
       selected = dockerfileName + '.dockerignore'
     } catch (error) {
       if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')) throw error
@@ -69,6 +71,10 @@ export async function contextEntries(root: string, dockerfile?: string): Promise
   let patterns: readonly string[] = []
   try { patterns = readPatterns(await fs.readFile(await regularFile(selected), 'utf8')) }
   catch (error) {
+    // A link loop is refused like any other ignore file that is not a regular file.
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ELOOP') {
+      throw badRequest(`build context path is not a regular file: ${JSON.stringify(path.join(absolute, selected))}`)
+    }
     if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')) throw error
   }
   const always = dockerfileName === undefined ? [] : [dockerfileName, '.dockerignore', selected]

@@ -97,6 +97,14 @@ def _directory_filter(root: Path, dockerfile: str | None) -> Filter:
             text = _regular_file(root, name).read_bytes().decode("utf-8", errors="replace")
         except FileNotFoundError:
             continue
+        except (OSError, RuntimeError) as error:
+            # A link loop: Path.resolve raises RuntimeError on Python 3.10-3.12.
+            if isinstance(error, OSError) and error.errno != errno.ELOOP:
+                raise
+            quoted = json.dumps(str(root / name), ensure_ascii=False)
+            raise create_error(
+                f"build context path is not a regular file: {quoted}", 400, "BAD_REQUEST", "SDK"
+            ) from error
         return Filter(Matcher(read_patterns(text)), (*always, name) if dockerfile is not None else ())
     return Filter(Matcher(()))
 
@@ -205,7 +213,11 @@ async def prepared_context(
         raise create_error("dockerfile must be a non-empty path", 400, "BAD_REQUEST", "SDK")
     # A blank path would become `.`: the working directory must never be
     # archived by accident (TypeScript refuses it as a missing tar file).
-    if isinstance(context, str) and not context.strip():
+    if (
+        isinstance(context, (str, os.PathLike))
+        and not isinstance(context, Path)
+        and not os.fspath(context).strip()
+    ):
         raise create_error("build context path must be a non-empty string", 400, "BAD_REQUEST", "SDK")
     expanded = Path(expand_home(os.fspath(context))) if isinstance(context, (str, os.PathLike)) else context
     if isinstance(expanded, Path):

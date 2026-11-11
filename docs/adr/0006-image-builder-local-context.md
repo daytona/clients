@@ -221,9 +221,13 @@ RUN pip install --upgrade pip
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 ```
 
-The series is one of `3.10` to `3.14`, default `3.13`; anything else is a
-`BadRequestError`. 0.x pinned a micro version per series; 2.x uses the series
-tag, so the base receives Python patch releases.
+The series is one of `3.10` to `3.14`, default `3.13`; anything else,
+including a micro version such as `3.12.10`, is a `BadRequestError`. 0.x
+pinned a micro version per series; 2.x uses the series tag, so the base
+receives Python patch releases. With no version, the 0.x Python SDK used the
+series of the local interpreter (the 0.x TypeScript SDK used its newest
+series); 2.x always defaults to `3.13`, so ported code should pass the version
+it needs.
 
 ## Alternatives
 
