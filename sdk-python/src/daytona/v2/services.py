@@ -61,10 +61,11 @@ from ._gen.api import MacReservationBatch as MacReservationBatchWire
 from ._gen.api import ReservationPage
 from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
+from ._image_context import prepared_context
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
-from .errors import BadRequestError, ClientTimeoutError, DaytonaError, NotFoundError, create_error
+from .errors import ClientTimeoutError, DaytonaError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
     CpuArch,
@@ -126,6 +127,16 @@ async def _iter_pages(
         current_cursor = next_cursor
 
 
+def _check_context_image_options(name: str | None, idle_expiry_seconds: int | None) -> None:
+    if name is not None and idle_expiry_seconds is not None:
+        raise create_error(
+            "idle_expiry_seconds applies only to an anonymous image; omit name or idle_expiry_seconds",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+
+
 class AsyncImagesService:
     """Image build/pull/list namespace."""
 
@@ -179,6 +190,8 @@ class AsyncImagesService:
         ASCII with no leading or trailing whitespace. The submission is an
         ordinary request, bounded by the client's request timeout; it returns
         without waiting for the build (``get(image.id, wait="ready")``).
+        Local files recorded by the builder are read at build time, archived
+        deterministically and uploaded as a build context before submission.
         """
         if not isinstance(builder, ImageBuilder):
             raise create_error(
@@ -192,6 +205,17 @@ class AsyncImagesService:
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
+        if resolved_builder._local_sources:
+            # Validate the upload-only restriction before reading local files.
+            _check_context_image_options(name, idle_expiry_seconds)
+            async with prepared_context(resolved_builder, "Dockerfile") as context:
+                return await self.build_from_context(
+                    context,
+                    name=name,
+                    idle_expiry_seconds=idle_expiry_seconds,
+                    region=region,
+                    cpu_arch=cpu_arch,
+                )
         source, rendered_dockerfile = resolved_builder._request_source()
         if source is not None:
             body["source"] = source
@@ -214,10 +238,13 @@ class AsyncImagesService:
         cpu_arch: Optional[CpuArch] = None,
         timeout: Optional[float] = None,
     ) -> Image:
-        """Build an image from a Dockerfile inside a build-context tar archive.
+        """Build an image from a directory or a build-context tar archive.
 
-        ``context`` is the archive's bytes or the path of a ``.tar`` file, up
-        to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it. The
+        ``context`` is a directory path, archive bytes or the path of a ``.tar``
+        file, up to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it.
+        Directories are archived deterministically with BuildKit ignore rules:
+        ``<dockerfile>.dockerignore`` takes precedence over ``.dockerignore``.
+        The Dockerfile and the ignore files are always included. The
         archive is uploaded straight to storage in parts and verified by the
         API before the build starts; an identical archive the project already
         uploaded is reused without uploading it again. The other arguments
@@ -225,21 +252,16 @@ class AsyncImagesService:
         wait with :meth:`get` (``wait="ready"``).
         """
         # Checked before the upload: the API refuses the pair only at the build.
-        if name is not None and idle_expiry_seconds is not None:
-            raise BadRequestError(
-                "idle_expiry_seconds applies only to an anonymous image; omit name or idle_expiry_seconds",
-                status_code=400,
-                code="BAD_REQUEST",
-                source="SDK",
-            )
+        _check_context_image_options(name, idle_expiry_seconds)
         # Checked before the upload, as build() checks them before its request.
         request_timeout = None if timeout is None else checked_seconds(timeout)
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
-        upload_id, upload_region = await upload_build_context(
-            self._transport, context, dockerfile=dockerfile, region=region_selector(region)
-        )
+        async with prepared_context(context, dockerfile) as archive:
+            upload_id, upload_region = await upload_build_context(
+                self._transport, archive, dockerfile=dockerfile, region=region_selector(region)
+            )
         # The build must name the region the upload was verified in.
         body["context_upload_id"] = upload_id
         body["region_id"] = upload_region

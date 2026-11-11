@@ -1,0 +1,61 @@
+{
+  "_comment": "Escape character BuildKit v0.31.2 (go 1.26.10) reads from each Dockerfile's parser directives; both SDKs' dockerfile_escape/dockerfileEscape must agree. Generated from BuildKit's parser.Parse.",
+  "cases": [
+    {
+      "dockerfile": "# escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "#\fescape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "#\u00a0escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# escape\f=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "\u000b# escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# syntax=x\n\u00a0# escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# escape=`\r\r\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# escape=\\\f\nFROM a\n",
+      "escape": "\\"
+    },
+    {
+      "dockerfile": "\ufeff# escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# escape=\nFROM a\n",
+      "escape": "\\"
+    },
+    {
+      "dockerfile": "# ESCAPE = ` \nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# other=x\n# escape=`\nFROM a\n",
+      "escape": "\\"
+    },
+    {
+      "dockerfile": "FROM a\n# escape=`\n",
+      "escape": "\\"
+    },
+    {
+      "dockerfile": "#escape=\\\nFROM a\n",
+      "escape": "\\"
+    }
+  ]
+}

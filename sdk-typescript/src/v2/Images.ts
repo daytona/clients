@@ -13,7 +13,10 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest, imageOptionsBody, isImageBuilder } from './Image.js'
-import { uploadBuildContext } from './contextUpload.js'
+import { contextUploadRuntime, uploadBuildContext } from './contextUpload.js'
+import { archiveBuilder, archiveDirectory, isContextDirectory } from './contextArchive.js'
+import { localSourcesOf } from './ImageBuilder.js'
+import { expandHome } from './builderLocalSource.js'
 import type { BuildContext } from './contextUpload.js'
 import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import { acknowledgedId } from './responseFields.js'
@@ -103,14 +106,24 @@ export class ImagesService {
   public async build(builder: ImageBuilder, options: BuildImageOptions = {}): Promise<Image> {
     if (!isImageBuilder(builder)) throw badRequest('images.build() takes an ImageBuilder (ImageBuilder.fromDockerfile(...), .fromRegistry(...))')
     assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
-    const { data } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(builder, options))
+    // Validate every image option before inspecting or reading any local file.
+    const request = buildImageRequest(builder, options)
+    if (localSourcesOf(builder).length !== 0) {
+      if (request.name !== undefined && request.idle_expiry_seconds !== undefined) {
+        throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
+      }
+      const archive = await archiveBuilder(builder)
+      try { return await this.buildFromContext(archive.path, options) } finally { await archive.cleanup() }
+    }
+    const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
     // Checked before the read: no request ever goes to /images/undefined.
     return this.get(acknowledgedId(data, 'image create'))
   }
 
   /**
    * Build an image from a Dockerfile inside a build-context tar archive: its
-   * bytes, a `Blob`, or (Node.js) the path of a `.tar` file, up to 1 GiB.
+   * bytes, a `Blob`, or (Node.js) the path of a `.tar` file or directory, up to 1 GiB.
+   * Directories honour the Dockerfile-specific ignore file, else `.dockerignore`.
    * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
    * The archive is uploaded straight to storage in parts and verified by the
    * API before the build starts; an identical archive the project already
@@ -119,13 +132,20 @@ export class ImagesService {
    */
   public async buildFromContext(context: BuildContext, options: BuildFromContextOptions = {}): Promise<Image> {
     assertKnownOptions('BuildFromContextOptions', options, BUILD_FROM_CONTEXT_OPTION_KEYS)
+    // Checked before filesystem access or upload, as build() checks before its request.
+    const imageOptions = imageOptionsBody(options)
     // Checked before the upload: the API refuses the pair only at the build.
-    if (options.name !== undefined && options.idleExpirySeconds !== undefined) {
+    if (imageOptions.name !== undefined && imageOptions.idle_expiry_seconds !== undefined) {
       throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
     }
-    // Checked before the upload, as build() checks them before its request.
-    const imageOptions = imageOptionsBody(options)
-    const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: imageOptions.region_id })
+    const dockerfile = options.dockerfile ?? 'Dockerfile'
+    if (typeof dockerfile !== 'string' || isBlank(dockerfile)) throw badRequest('dockerfile must be a non-empty path')
+    const expanded = typeof context === 'string' && contextUploadRuntime.isNode() ? expandHome(context) : context
+    if (typeof expanded === 'string' && await isContextDirectory(expanded)) {
+      const archive = await archiveDirectory(expanded, dockerfile)
+      try { return await this.buildFromContext(archive.path, options) } finally { await archive.cleanup() }
+    }
+    const upload = await uploadBuildContext(this.http, expanded, { dockerfile, region: imageOptions.region_id })
     const request: api.CreateImageRequest = {
       ...imageOptions,
       // The build must name the region the upload was verified in.

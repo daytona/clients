@@ -6,11 +6,13 @@ on:
     paths:
       - 'cli/**'
       - 'contract/**'
+      - 'sdk-python/tests/fixtures/dockerignore-*.json'
       - '.github/workflows/cli-ci.yaml'
   pull_request:
     paths:
       - 'cli/**'
       - 'contract/**'
+      - 'sdk-python/tests/fixtures/dockerignore-*.json'
       - '.github/workflows/cli-ci.yaml'
 
 permissions:

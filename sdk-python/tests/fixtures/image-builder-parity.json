@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with its message in both SDKs (\"tsError\" where TypeScript names the argument in camelCase).",
+  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with its message in both SDKs (\"tsError\" where TypeScript names the argument in camelCase). Sources: \"registry\", \"dockerfile\" or \"debianSlim\" (null = the default series).",
   "cases": [
     {
       "name": "padded registry ref",
@@ -133,9 +133,98 @@
       "request": {
         "dockerfile": "FROM alpine\nWORKDIR /app\n"
       }
+    },
+    {
+      "name": "debian slim at the default series",
+      "source": {
+        "debianSlim": null
+      },
+      "steps": [],
+      "dockerfile": "FROM python:3.13-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\n",
+      "request": {
+        "dockerfile": "FROM python:3.13-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\n"
+      }
+    },
+    {
+      "name": "debian slim with layers",
+      "source": {
+        "debianSlim": " 3.12 "
+      },
+      "steps": [
+        [
+          "pip",
+          [
+            "numpy>=1.26"
+          ]
+        ],
+        [
+          "workdir",
+          "/app"
+        ]
+      ],
+      "dockerfile": "FROM python:3.12-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\nRUN python -m pip install 'numpy>=1.26'\nWORKDIR /app\n",
+      "request": {
+        "dockerfile": "FROM python:3.12-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\nRUN python -m pip install 'numpy>=1.26'\nWORKDIR /app\n"
+      }
+    },
+    {
+      "name": "user, cmd and entrypoint",
+      "source": {
+        "registry": "python:3.12"
+      },
+      "steps": [
+        [
+          "user",
+          " daytona "
+        ],
+        [
+          "entrypoint",
+          [
+            "/bin/sh",
+            "-c"
+          ]
+        ],
+        [
+          "cmd",
+          [
+            "echo \"hi\"",
+            " padded "
+          ]
+        ]
+      ],
+      "dockerfile": "FROM python:3.12\nUSER daytona\nENTRYPOINT [\"/bin/sh\", \"-c\"]\nCMD [\"echo \\\"hi\\\"\", \" padded \"]\n",
+      "request": {
+        "dockerfile": "FROM python:3.12\nUSER daytona\nENTRYPOINT [\"/bin/sh\", \"-c\"]\nCMD [\"echo \\\"hi\\\"\", \" padded \"]\n"
+      }
+    },
+    {
+      "name": "cmd with non-ASCII arguments",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "cmd",
+          [
+            "echo",
+            "\u017e\u0161"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM alpine\nCMD [\"echo\", \"\u017e\u0161\"]\n",
+      "request": {
+        "dockerfile": "FROM alpine\nCMD [\"echo\", \"\u017e\u0161\"]\n"
+      }
     }
   ],
   "refused": [
+    {
+      "name": "debian slim refuses a micro version",
+      "source": {"debianSlim": "3.12.10"},
+      "steps": [],
+      "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.12.10\")",
+      "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.12.10\")"
+    },
     {
       "name": "env keys that collide after stripping",
       "source": {
@@ -413,6 +502,77 @@
         ]
       ],
       "error": "ImageBuilder.workdir path \"/a\u007f\" must not contain a control character"
+    },
+    {
+      "name": "debian slim at an unsupported series",
+      "source": {
+        "debianSlim": "3.9"
+      },
+      "steps": [],
+      "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.9\")",
+      "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.9\")"
+    },
+    {
+      "name": "debian slim at a blank series",
+      "source": { "debianSlim": " \u001c\u0085 " },
+      "steps": [],
+      "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"\")",
+      "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"\")"
+    },
+    {
+      "name": "a blank user",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "  "
+        ]
+      ],
+      "error": "ImageBuilder.user name must be a non-empty string"
+    },
+    {
+      "name": "a user with a line break",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "a\nb"
+        ]
+      ],
+      "error": "ImageBuilder.user name \"a\\nb\" must not contain a control character"
+    },
+    {
+      "name": "cmd with no arguments",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "cmd",
+          []
+        ]
+      ],
+      "error": "ImageBuilder.cmd args requires at least one value"
+    },
+    {
+      "name": "entrypoint with a blank argument",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "entrypoint",
+          [
+            "sh",
+            " "
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.entrypoint args must be a non-empty string"
     }
   ]
 }

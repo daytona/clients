@@ -16,11 +16,17 @@ import { sentRequest, startFakeApi } from './networkPolicyTestServer'
 // sdk-python/tests/test_image_builder_parity.py.
 interface Case {
   readonly name: string
-  readonly source: { readonly registry?: string; readonly dockerfile?: string }
-  readonly steps: ReadonlyArray<readonly [string, unknown]>
+  readonly source: { readonly registry?: string; readonly dockerfile?: string; readonly debianSlim?: string | null }
+  readonly steps: readonly Step[]
   readonly dockerfile: string
   readonly request: unknown
 }
+type Step =
+  | readonly ['run' | 'pip' | 'cmd' | 'entrypoint', readonly string[]]
+  | readonly ['env', Record<string, string>]
+  | readonly ['env-name', readonly [string, string]]
+  | readonly ['env-map', readonly (readonly [string, string])[]]
+  | readonly ['workdir' | 'user', string]
 interface Refused {
   readonly name: string
   readonly source: Case['source']
@@ -31,15 +37,23 @@ interface Refused {
 const fixture = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'image-builder-parity.json'), 'utf8')) as { readonly cases: readonly Case[]; readonly refused: readonly Refused[] }
 
 function build(testCase: Pick<Case, 'source' | 'steps'>): ImageBuilder {
-  let builder = testCase.source.registry !== undefined ? ImageBuilder.fromRegistry(testCase.source.registry) : ImageBuilder.fromDockerfile(testCase.source.dockerfile ?? '')
+  let builder = 'debianSlim' in testCase.source
+    ? testCase.source.debianSlim == null ? ImageBuilder.debianSlim() : ImageBuilder.debianSlim(testCase.source.debianSlim)
+    : testCase.source.registry !== undefined ? ImageBuilder.fromRegistry(testCase.source.registry) : ImageBuilder.fromDockerfile(testCase.source.dockerfile ?? '')
   for (const [op, argument] of testCase.steps) {
-    if (op === 'run') builder = builder.runCommands(...(argument as string[]))
-    else if (op === 'pip') builder = builder.pipInstall(...(argument as string[]))
-    else if (op === 'env') builder = builder.env(argument as Record<string, string>)
-    else if (op === 'env-name') builder = builder.env(...(argument as [string, string]))
-    // A Map is not a plain object, as Python refuses a non-mapping.
-    else if (op === 'env-map') builder = builder.env(new Map(argument as Array<[string, string]>) as never)
-    else builder = builder.workdir(argument as string)
+    switch (op) {
+      case 'run': builder = builder.runCommands(...argument); break
+      case 'pip': builder = builder.pipInstall(...argument); break
+      case 'env': builder = builder.env(argument); break
+      case 'env-name': builder = builder.env(...argument); break
+      // SAFETY: a Map is deliberately not a plain object, as Python refuses a non-mapping.
+      case 'env-map': builder = builder.env(new Map(argument) as never); break
+      case 'workdir': builder = builder.workdir(argument); break
+      case 'user': builder = builder.user(argument); break
+      case 'cmd': builder = builder.cmd(...argument); break
+      case 'entrypoint': builder = builder.entrypoint(...argument); break
+      default: throw new TypeError(`unknown fixture operation: ${op satisfies never}`)
+    }
   }
   return builder
 }
@@ -55,6 +69,29 @@ it.each(fixture.refused.map((testCase) => [testCase.name, testCase] as const))('
   try { build(testCase) } catch (failure) { error = failure }
   expect(error).toBeInstanceOf(BadRequestError)
   expect(error).toMatchObject({ message: testCase.tsError ?? testCase.error })
+})
+
+it.each(['3.10', '3.11', '3.12', '3.13', '3.14'])('renders the supported Python series %s after Python whitespace stripping', (series) => {
+  // Given a series padded with characters Python strips but JS trim does not.
+  const padded = `\u001c${series}\u0085`
+  // When the base is rendered.
+  const dockerfile = ImageBuilder.debianSlim(padded).toDockerfile()
+  // Then the requested series, not the default, selects the base image.
+  expect(dockerfile.split('\n')[0]).toBe(`FROM python:${series}-slim-bookworm`)
+})
+
+it('keeps U+FEFF in an unsupported Python series, as Python strip does', () => {
+  // Given a BOM, which is not Python whitespace.
+  const series = '\ufeff3.13'
+  // When it selects a base, then it is refused rather than trimmed away.
+  expect(() => ImageBuilder.debianSlim(series)).toThrow('ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got "\ufeff3.13")')
+})
+
+it('reports a stripped blank Python series as an unsupported series', () => {
+  // Given an explicitly blank series rather than an omitted argument.
+  const series = ' \u001c\u0085 '
+  // When it selects a base, then the version error quotes the stripped value.
+  expect(() => ImageBuilder.debianSlim(series)).toThrow('ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got "")')
 })
 
 // SAFETY: every `as never` below is a deliberately invalid plain-JavaScript argument.
@@ -90,8 +127,21 @@ it('strips an images.pull ref as create does, and refuses a non-string before an
   }
 })
 
-// `user()` is TypeScript-only for now; it renders raw into a USER line, so it
-// follows the same rule as the shared steps.
+describe.each(['addLocalFile', 'addLocalDir', 'pipInstallFromRequirements'] as const)('%s local paths', (method) => {
+  it.each([null, undefined, 5, false, Buffer.from('/etc/hostname'), [], {}])('refuses a non-string localPath: %p', (path) => {
+    // Given a local-source method and a runtime value that is not a string path.
+    const builder = ImageBuilder.fromRegistry('alpine')
+    const args = method === 'pipInstallFromRequirements' ? [path] : [path, '/app']
+    // When the source is added, then it fails before filesystem access.
+    // oxlint-disable-next-line anti-slop/no-reflect-apply -- Deliberately pass malformed JavaScript arguments that the public TypeScript signatures forbid.
+    expect(() => Reflect.apply(builder[method], builder, args)).toThrow(expect.objectContaining({
+      name: 'BadRequestError', message: 'ImageBuilder localPath must be a non-empty string',
+      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    }))
+  })
+})
+
+// `user()` renders raw into a USER line, so it follows the shared line rule.
 it('refuses a user name with a control character', () => {
   expect(() => ImageBuilder.fromRegistry('alpine').user('root\nRUN x')).toThrow(expect.objectContaining({
     name: 'BadRequestError', message: 'ImageBuilder.user name "root\\nRUN x" must not contain a control character',
@@ -99,8 +149,9 @@ it('refuses a user name with a control character', () => {
 })
 
 it('refuses env() with a mapping and a second argument, as Python does', () => {
-  const values: unknown = { A: '1' }
-  expect(() => ImageBuilder.fromRegistry('alpine').env(values as string, '2')).toThrow(expect.objectContaining({
+  const values = { A: '1' }
+  // SAFETY: exercise a plain-JavaScript call with a mapping and an extra argument.
+  expect(() => ImageBuilder.fromRegistry('alpine').env(values as never, '2')).toThrow(expect.objectContaining({
     name: 'BadRequestError', message: 'ImageBuilder.env takes a name and a value, or a mapping of names to values',
   }))
 })

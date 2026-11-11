@@ -137,7 +137,7 @@ const encode = (text: string): Uint8Array => new TextEncoder().encode(text)
 const decode = (bytes: Uint8Array | undefined): string => new TextDecoder().decode(bytes ?? new Uint8Array())
 const readOnlyFailure = (path: string) => `sh: can't create ${path}: Read-only file system`
 
-function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: FileStore) {
+function run(command: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[], disk: FileStore, name: string) {
   for (const [pattern, exitCode, output] of scenario.overrides ?? []) {
     if (new RegExp(pattern).test(command)) return result(exitCode, output)
   }
@@ -154,6 +154,11 @@ function run(command: string, env: { [name: string]: string }, dockerfile: strin
   }
   const variable = /^printf %s "\$(\w+)"$/.exec(command)
   if (variable) return result(0, env[variable[1]] ?? '')
+  // local-files copies files the fake does not read: it answers from the
+  // run marker in the sandbox name, and the ignore file kept debug.log out.
+  const localFiles = /^local-files-(\S+)$/.exec(name)
+  if (localFiles && command === './main.sh && cat /etc/example/settings.conf') return result(0, `local-files-${localFiles[1]}\nrun=${localFiles[1]}`)
+  if (localFiles && command === 'ls -a /app') return result(0, '.\n..\nmain.sh')
   if (command === 'cat /marker') {
     const marker = /RUN echo (\S+) > \/marker/.exec(dockerfile)
     return marker ? result(0, marker[1]) : result(1, '')
@@ -182,7 +187,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     memory: 1,
     process: { run: async (command: string) => {
       record.commands.push({ sandboxId: id, command })
-      return run(command, env, dockerfile, mounts, disk)
+      return run(command, env, dockerfile, mounts, disk, name)
     } },
     interpreter: {
       run: async () => ({

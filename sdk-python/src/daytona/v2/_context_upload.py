@@ -35,7 +35,7 @@ from .errors import (
 from .types import JsonObject
 
 BuildContext = Union[bytes, bytearray, memoryview, str, os.PathLike[str]]
-"""A build-context tar: its bytes, or the path of a ``.tar`` file."""
+"""A build context: archive bytes, a ``.tar`` file path, or a directory path."""
 
 MAX_CONTEXT_BYTES = 1 << 30
 _HASH_CHUNK = 1 << 20

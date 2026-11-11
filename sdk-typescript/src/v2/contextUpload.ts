@@ -16,7 +16,7 @@ import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
 import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, NotSupportedError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
 
-/** A build-context tar: its bytes, a `Blob`, or (Node.js) the path of a `.tar` file. */
+/** A build context: tar bytes, a `Blob`, or (Node.js) a `.tar` file or directory path. */
 export type BuildContext = Uint8Array | Blob | string
 
 export const MAX_CONTEXT_BYTES = 1024 * 1024 * 1024

@@ -4,13 +4,16 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import shlex
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import overload
 
 from typing_extensions import Self
 
+from ._image_source import LocalSource, local_source
 from .errors import create_error
 
 
@@ -21,6 +24,7 @@ class ImageBuilder:
     _registry_ref: str | None = None
     _dockerfile: str | None = None
     _steps: tuple[str, ...] = ()
+    _local_sources: tuple[LocalSource, ...] = ()
 
     def __post_init__(self) -> None:
         if (self._registry_ref is None) == (self._dockerfile is None):
@@ -45,6 +49,55 @@ class ImageBuilder:
     def from_dockerfile(cls, content: str) -> Self:
         return cls(_dockerfile=cls._require_text(content, "ImageBuilder.from_dockerfile content", strip=True))
 
+    @classmethod
+    def debian_slim(cls, python_version: str | None = None) -> Self:
+        if python_version is not None and not isinstance(python_version, str):
+            raise create_error(
+                "ImageBuilder.debian_slim python_version must be a string", 400, "BAD_REQUEST", "SDK"
+            )
+        version = "3.13" if python_version is None else python_version.strip()
+        if version not in ("3.10", "3.11", "3.12", "3.13", "3.14"):
+            raise create_error(
+                "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 "
+                f"(got {json.dumps(version, ensure_ascii=False)})",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return cls.from_registry(f"python:{version}-slim-bookworm").run_commands(
+            "apt-get update",
+            "apt-get install -y gcc gfortran build-essential",
+            "pip install --upgrade pip",
+            "echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections",
+        )
+
+    def add_local_file(self, local_path: str | os.PathLike[str], remote_path: str) -> Self:
+        source = local_source(local_path, "file", len(self._local_sources) + 1)
+        remote = self._line_text(remote_path, "ImageBuilder.add_local_file remote_path")
+        # The appended name is the file's own, not a Dockerfile word: BuildKit
+        # runs its shell-word lexer over COPY destinations, so `\`, `$` and
+        # both quotes are escaped.
+        filename = re.sub(r"""([\\$'"])""", r"\\\1", source.path.name)
+        return self._copy(source, remote + filename if remote.endswith("/") else remote)
+
+    def add_local_dir(self, local_path: str | os.PathLike[str], remote_path: str) -> Self:
+        source = local_source(local_path, "dir", len(self._local_sources) + 1)
+        return self._copy(source, self._line_text(remote_path, "ImageBuilder.add_local_dir remote_path"))
+
+    def pip_install_from_requirements(self, requirements_txt: str | os.PathLike[str]) -> Self:
+        source = local_source(requirements_txt, "file", len(self._local_sources) + 1)
+        return self._copy(source, "/.requirements.txt").run_commands(
+            "python -m pip install -r /.requirements.txt"
+        )
+
+    def _copy(self, source: LocalSource, remote: str) -> Self:
+        paths = json.dumps([source.archive_path, remote], ensure_ascii=False)
+        return replace(
+            self,
+            _steps=self._steps + (f"COPY {paths}",),
+            _local_sources=self._local_sources + (source,),
+        )
+
     def pip_install(self, *packages: str) -> Self:
         if not packages:
             raise create_error(
@@ -68,9 +121,8 @@ class ImageBuilder:
                 "SDK",
             )
         cleaned = tuple(self._line_text(command, "ImageBuilder.run_commands command") for command in commands)
-        return type(self)(
-            _registry_ref=self._registry_ref,
-            _dockerfile=self._dockerfile,
+        return replace(
+            self,
             _steps=self._steps + tuple(f"RUN {command}" for command in cleaned),
         )
 
@@ -122,9 +174,8 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        return type(self)(
-            _registry_ref=self._registry_ref,
-            _dockerfile=self._dockerfile,
+        return replace(
+            self,
             # ensure_ascii=False: TS renders with JSON.stringify, which leaves non-ASCII
             # as is; keep Dockerfile output consistent across SDKs and preserve values.
             _steps=self._steps
@@ -134,10 +185,29 @@ class ImageBuilder:
         )
 
     def workdir(self, path: str, /) -> Self:
-        return type(self)(
-            _registry_ref=self._registry_ref,
-            _dockerfile=self._dockerfile,
+        return replace(
+            self,
             _steps=self._steps + (f"WORKDIR {self._line_text(path, 'ImageBuilder.workdir path')}",),
+        )
+
+    def user(self, name: str, /) -> Self:
+        return replace(
+            self, _steps=self._steps + (f"USER {self._line_text(name, 'ImageBuilder.user name')}",)
+        )
+
+    def cmd(self, *args: str) -> Self:
+        return self._json_command("CMD", args)
+
+    def entrypoint(self, *args: str) -> Self:
+        return self._json_command("ENTRYPOINT", args)
+
+    def _json_command(self, instruction: str, args: tuple[str, ...]) -> Self:
+        label = f"ImageBuilder.{instruction.lower()} args"
+        if not args:
+            raise create_error(f"{label} requires at least one value", 400, "BAD_REQUEST", "SDK")
+        cleaned = tuple(self._require_text(arg, label) for arg in args)
+        return replace(
+            self, _steps=self._steps + (f"{instruction} {json.dumps(cleaned, ensure_ascii=False)}",)
         )
 
     def _request_source(self) -> tuple[dict[str, str] | None, str | None]:

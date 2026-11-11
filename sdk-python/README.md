@@ -557,6 +557,33 @@ sandbox = d.v2.create_from_build(
 )
 ```
 
+A builder can copy local files into the image. `add_local_file`,
+`add_local_dir` and `pip_install_from_requirements` check the path when they
+are called and read it when the image is built: the SDK packs the rendered
+Dockerfile and the files into a build context and uploads it (up to 1 GiB;
+an unchanged builder reuses its earlier upload). A directory's own
+`.dockerignore` excludes entries as `docker build` would.
+
+```python
+builder = (
+    ImageBuilder.debian_slim("3.12")
+    .pip_install_from_requirements("requirements.txt")
+    .add_local_dir("src", "/app")
+    .workdir("/app")
+    .cmd("python", "main.py")
+)
+sandbox = d.v2.create_from_build(builder, build_timeout=600)
+```
+
+To build an existing Dockerfile with its directory as the context, pass the
+directory to `images.build_from_context()`; it honours the context's
+`.dockerignore` the way `docker build` does:
+
+```python
+image = d.v2.images.build_from_context("./service", dockerfile="Dockerfile", name="service")
+image = d.v2.images.get(image.id, wait="ready", timeout=600)
+```
+
 `wait_seconds` is the create wait budget in whole seconds (default 60). The
 server holds create for up to its own short cap, then the SDK waits for the
 remainder. `wait_seconds=0` returns as soon as the create is accepted. Once
