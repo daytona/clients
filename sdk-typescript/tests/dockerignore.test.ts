@@ -275,3 +275,22 @@ test('does not retain visited entries when a callback consumes the walk', async 
     expect({ entries, visited }).toEqual({ entries: [], visited: ['nested', 'nested/Dockerfile'] })
   } finally { await rm(root, { recursive: true, force: true }) }
 })
+
+test('walks a directory when readdir returns Buffers instead of Dirents (Bun)', async () => {
+  // Given a runtime whose readdir ignores withFileTypes with a buffer encoding,
+  // as Bun does: every entry arrives as a plain Buffer of unknown type.
+  const root = await mkdtemp(join(tmpdir(), 'walk-bun-'))
+  try {
+    await mkdir(join(root, 'sub'))
+    await writeFile(join(root, 'sub', 'a'), 'a')
+    await writeFile(join(root, 'b'), 'b')
+    const fs = await import('node:fs/promises')
+    const readdir = fs.default.readdir
+    const spy = jest.spyOn(fs.default, 'readdir').mockImplementation((async (path: string) => readdir(path, { encoding: 'buffer' })) as never)
+    try {
+      // When walked, then lstat decides each type and the order is unchanged.
+      const entries = await walkArchiveEntries(root)
+      expect(entries.map((entry) => entry.rel)).toEqual(['b', 'sub', 'sub/a'])
+    } finally { spy.mockRestore() }
+  } finally { await rm(root, { recursive: true, force: true }) }
+})

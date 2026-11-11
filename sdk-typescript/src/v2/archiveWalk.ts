@@ -42,8 +42,13 @@ export async function walkArchiveEntries(root: string, filter?: ArchiveFilter, v
   // These stack frames are traversal accumulators, not shared model state.
   const open: { readonly rel: string; readonly current: string; readonly state: Results | undefined; reported: boolean }[] = []
   const walk = async (directory: string, kept: boolean): Promise<void> => {
-    let names: Dirent<Buffer>[]
-    try { names = await fs.readdir(directory, { withFileTypes: true, encoding: 'buffer' }) }
+    // Bun ignores withFileTypes when encoding is 'buffer' and returns plain
+    // Buffers: those become entries of unknown type, decided by lstat below.
+    let names: { readonly name: Buffer; readonly dirent?: Dirent<Buffer> }[]
+    try {
+      const listed: readonly (Dirent<Buffer> | Buffer)[] = await fs.readdir(directory, { withFileTypes: true, encoding: 'buffer' })
+      names = listed.map((item) => Buffer.isBuffer(item) ? { name: item } : { name: item.name, dirent: item })
+    }
     catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')) {
         if (!kept) return
@@ -62,7 +67,8 @@ export async function walkArchiveEntries(root: string, filter?: ArchiveFilter, v
       // fall back to lstat then. An ignored entry that vanished meanwhile is
       // just skipped, as Python skips what it does not keep.
       let isDir: boolean
-      if (name.isDirectory() || name.isFile() || name.isSymbolicLink() || name.isFIFO() || name.isSocket() || name.isBlockDevice() || name.isCharacterDevice()) isDir = name.isDirectory()
+      const dirent = name.dirent
+      if (dirent !== undefined && (dirent.isDirectory() || dirent.isFile() || dirent.isSymbolicLink() || dirent.isFIFO() || dirent.isSocket() || dirent.isBlockDevice() || dirent.isCharacterDevice())) isDir = dirent.isDirectory()
       else {
         try { isDir = (await fs.lstat(current)).isDirectory() }
         catch (error) {
