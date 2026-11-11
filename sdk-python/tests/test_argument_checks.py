@@ -713,14 +713,17 @@ _SANDBOX_DETAIL: dict[str, object] = {
         ({"name": "box", "team": "a"}, {"team": "b"}, {"team": "b", "name": "box"}),
         ({"team": "a"}, {"team": "b"}, {"team": "b"}),
         ({"name": "box"}, {}, {"name": "box"}),
+        (None, {"team": "b"}, {"team": "b"}),
     ],
 )
 async def test_set_labels_keeps_the_name_label(
-    stored: dict[str, str], given: dict[str, str], sent: dict[str, str]
+    stored: dict[str, str] | None, given: dict[str, str], sent: dict[str, str]
 ) -> None:
+    # stored None: the read reports no labels (unknown), so no name is sent.
+    detail = dict(_SANDBOX_DETAIL) if stored is None else {**_SANDBOX_DETAIL, "labels": stored}
     with FakeApi(
         [
-            PlannedResponse(200, {**_SANDBOX_DETAIL, "labels": stored}),
+            PlannedResponse(200, detail),
             PlannedResponse(200, {"id": "sbx", "labels": sent}),
         ]
     ) as fake:  # type: ignore[arg-type]

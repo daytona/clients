@@ -1093,8 +1093,9 @@ export class Sandbox {
     // null-prototype map, so `in` sees only its own keys).
     if (!('name' in body)) {
       await this.refreshData()
+      // Labels the read did not report are unknown: no name label to keep.
       const current = this.labels
-      if (Object.prototype.hasOwnProperty.call(current, 'name')) body.name = current.name
+      if (current !== undefined && Object.prototype.hasOwnProperty.call(current, 'name')) body.name = current.name
     }
     const requestConfig = { daytona: { routeTemplate: '/sandboxes/{id}/labels', sandboxId: this.id } } as AxiosRequestConfig
     const response = await this.api.put<{ labels?: unknown }>(

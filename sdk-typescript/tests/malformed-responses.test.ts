@@ -179,8 +179,11 @@ it.each([
   [{ name: 'box', team: 'a' }, { team: 'b' }, { team: 'b', name: 'box' }],
   [{ team: 'a' }, { team: 'b' }, { team: 'b' }],
   [{ name: 'box' }, {}, { name: 'box' }],
+  // The read reports no labels (unknown): no name is sent.
+  [undefined, { team: 'b' }, { team: 'b' }],
 ] as const)('keeps the name label: stored %j, set %j', async (stored, given, sent) => {
-  const detail = { id: 'src', class: 'linux', name: 'src', status: 'stopped', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], labels: stored }
+  const base = { id: 'src', class: 'linux', name: 'src', status: 'stopped', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
+  const detail = stored === undefined ? base : { ...base, labels: stored }
   const api = await startFakeApi([{ status: 200, body: detail }, { status: 200, body: { id: 'src', labels: sent } }])
   try {
     await expect(source(api).setLabels({ ...given })).resolves.toEqual(sent)

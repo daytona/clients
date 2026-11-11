@@ -829,7 +829,9 @@ class AsyncSandbox:
         body = _validated_labels(labels)
         if "name" not in body:
             await self.refresh_data()
-            current = self.labels.get("name")
+            # Labels the read did not report are unknown: no name label to keep.
+            labels_now = self.labels
+            current = None if labels_now is None else labels_now.get("name")
             if current is not None:
                 body["name"] = current
         response = expect_object(
