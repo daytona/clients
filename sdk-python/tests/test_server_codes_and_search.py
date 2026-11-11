@@ -357,7 +357,9 @@ async def test_an_unreadable_search_root_raises_file_access_denied() -> None:
 
 
 def test_read_many_keeps_a_per_file_file_read_failed() -> None:
-    error = b'{"path":"/w/b","code":"FILE_READ_FAILED","message":"/w/b: read failed","source":"DAYTONA_DAEMON"}'
+    error = (
+        b'{"path":"/w/b","code":"FILE_READ_FAILED","message":"/w/b: read failed","source":"DAYTONA_DAEMON"}'
+    )
     body = (
         b"--DAYTONA-FILE-BOUNDARY\r\n"
         b'Content-Disposition: form-data; name="file"; filename="/w/a"\r\n'
@@ -371,5 +373,7 @@ def test_read_many_keeps_a_per_file_file_read_failed() -> None:
 
     assert dict(result.files) == {"/w/a": b"hi"}
     assert result.errors == (
-        BulkReadError(path="/w/b", message="/w/b: read failed", code="FILE_READ_FAILED", source="DAYTONA_DAEMON"),
+        BulkReadError(
+            path="/w/b", message="/w/b: read failed", code="FILE_READ_FAILED", source="DAYTONA_DAEMON"
+        ),
     )
