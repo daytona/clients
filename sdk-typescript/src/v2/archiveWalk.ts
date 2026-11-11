@@ -58,7 +58,18 @@ export async function walkArchiveEntries(root: string, filter?: ArchiveFilter, v
       // (as Python does), not before the subtrees of earlier siblings.
       const current = decodeContextPath(Buffer.concat([Buffer.from(directory + path.sep), name.name]))
       const rel = path.relative(absolute, current).split(path.sep).join('/')
-      const isDir = name.isDirectory()
+      // Node documents that a Dirent type can be unknown on some filesystems:
+      // fall back to lstat then. An ignored entry that vanished meanwhile is
+      // just skipped, as Python skips what it does not keep.
+      let isDir: boolean
+      if (name.isDirectory() || name.isFile() || name.isSymbolicLink() || name.isFIFO() || name.isSocket() || name.isBlockDevice() || name.isCharacterDevice()) isDir = name.isDirectory()
+      else {
+        try { isDir = (await fs.lstat(current)).isDirectory() }
+        catch (error) {
+          if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') continue
+          throw error
+        }
+      }
       const decision = filter?.keep(rel, isDir, open[open.length - 1]?.state) ?? { keep: true, descend: true, state: undefined }
       if (decision.keep) {
         for (const parent of open) {

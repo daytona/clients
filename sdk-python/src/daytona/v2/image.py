@@ -73,7 +73,7 @@ class ImageBuilder:
 
     def add_local_file(self, local_path: str | os.PathLike[str], remote_path: str) -> Self:
         source = local_source(local_path, "file", len(self._local_sources) + 1)
-        remote = self._line_text(remote_path, "ImageBuilder.add_local_file remote_path")
+        remote = self._line_text(remote_path, "ImageBuilder.add_local_file remote_path", json_form=True)
         # The appended name is the file's own, not a Dockerfile word: BuildKit
         # runs its shell-word lexer over COPY destinations, so `\`, `$` and
         # both quotes are escaped.
@@ -82,7 +82,9 @@ class ImageBuilder:
 
     def add_local_dir(self, local_path: str | os.PathLike[str], remote_path: str) -> Self:
         source = local_source(local_path, "dir", len(self._local_sources) + 1)
-        return self._copy(source, self._line_text(remote_path, "ImageBuilder.add_local_dir remote_path"))
+        return self._copy(
+            source, self._line_text(remote_path, "ImageBuilder.add_local_dir remote_path", json_form=True)
+        )
 
     def pip_install_from_requirements(self, requirements_txt: str | os.PathLike[str]) -> Self:
         source = local_source(requirements_txt, "file", len(self._local_sources) + 1)
@@ -233,7 +235,7 @@ class ImageBuilder:
         return "\n".join(layers).rstrip() + "\n"
 
     @classmethod
-    def _line_text(cls, value: object, label: str) -> str:
+    def _line_text(cls, value: object, label: str, *, json_form: bool = False) -> str:
         """Text rendered raw into one Dockerfile line, stripped: a line break
         would end the instruction and start another, so no control character
         (C0 or DEL) is allowed. TypeScript refuses the same values."""
@@ -245,7 +247,9 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        if text.endswith("\\"):
+        # A JSON-form COPY path is a JSON string: a trailing `\` cannot
+        # continue the line there, so only raw Dockerfile text is refused.
+        if text.endswith("\\") and not json_form:
             raise create_error(
                 f"{label} {json.dumps(text, ensure_ascii=False)} must not end with a backslash "
                 "(it would continue onto the next instruction)",

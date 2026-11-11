@@ -99,9 +99,12 @@ class ImagesService:
         parts have a 300-second idle timeout, and each completion attempt uses
         the greater of the client's request timeout and 600 seconds (client
         timeout ``0`` means no bound). An identical archive the project already
-        uploaded is reused without uploading it again. The other arguments
-        are those of :meth:`build`. ``name`` and ``idle_expiry_seconds`` cannot
-        be combined: idle expiry applies only to anonymous images.
+        uploaded is reused without uploading it again. ``timeout`` (seconds)
+        bounds only the build submission request (``POST /images``), not the
+        upload; omitted or ``0`` uses the client's request timeout. The other
+        arguments are those of :meth:`build`. ``name`` and
+        ``idle_expiry_seconds`` cannot be combined: idle expiry applies only to
+        anonymous images.
         Returns as soon as the build is submitted;
         wait with :meth:`get` (``wait="ready"``).
         """
