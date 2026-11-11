@@ -1,0 +1,24 @@
+sdk-typescript/src/v2/builderLocalSource.ts
+  s_8a7ddf2071703b::t_1e16f911cd29d8 38,48-49
+  s_8a7ddf2071703b::t_2888a124f9cfb8 50
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  s_8a7ddf2071703b::t_7b501d1354d008 1-78
+sdk-typescript/src/v2/contextArchive.ts
+  s_8a7ddf2071703b::t_1e16f911cd29d8 85-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e76c637f28478cf36352d909ee88a1a922e727c",
+  "prompts": {},
+  "sessions": {
+    "s_8a7ddf2071703b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3775b1bbffez7tKuLPkiq3gJj",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
