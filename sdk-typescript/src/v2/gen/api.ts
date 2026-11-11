@@ -1826,7 +1826,7 @@ export interface paths {
         head?: never;
         /**
          * Update the project limits
-         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating new sandboxes; the sandboxes it already has keep running, and lowering a limit never stops one.
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox that limit counts; the sandboxes it already has keep running, and lowering a limit never stops one.
          */
         patch: operations["update_project_limits"];
         trace?: never;
