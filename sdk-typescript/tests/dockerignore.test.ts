@@ -298,7 +298,7 @@ test('walks a directory when readdir returns Buffers instead of Dirents (Bun)', 
 
 test('compiles a long run of POSIX class openers in linear time', () => {
   // `[` followed by many `[:` with no `:]` used to be scanned once per item.
-  const pattern = '[' + '[:'.repeat(30000) + ']'
+  const pattern = '[' + '[:x'.repeat(30000) + ']'
   const started = performance.now()
   try { new Matcher([pattern]).excluded('x') } catch { /* a pattern error is fine; the time is the point */ }
   expect(performance.now() - started).toBeLessThan(2000)

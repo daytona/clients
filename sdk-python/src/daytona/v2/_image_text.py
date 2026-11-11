@@ -41,6 +41,22 @@ def dockerfile_escape(dockerfile: str) -> str:
     return escape
 
 
+def ends_with_continuation(dockerfile: str) -> bool:
+    """Whether the last instruction line ends with the escape character.
+
+    BuildKit joins such a line with the next one, so a step appended to the
+    base would become part of its last instruction. A comment line ending in
+    the escape character is not a continuation. TypeScript reads the same.
+    """
+    escape = dockerfile_escape(dockerfile)
+    for line in reversed(dockerfile.split("\n")):
+        text = line.rstrip(" \t\r")
+        if not text or text.lstrip(" \t").startswith("#"):
+            continue
+        return text.endswith(escape)
+    return False
+
+
 def require_text(value: object, label: str, *, strip: bool = False) -> str:
     """A non-blank UTF-8 string, stripped only when rendered raw."""
     if not isinstance(value, str) or not value.strip():

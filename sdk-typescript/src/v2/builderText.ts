@@ -130,3 +130,19 @@ export function dockerfileEscape(dockerfile: string): string {
   }
   return escape
 }
+
+/**
+ * Whether the last instruction line ends with the escape character: BuildKit
+ * joins it with the next line, so a step appended to the base would become
+ * part of its last instruction. A comment line is not a continuation. Python
+ * reads the same. @internal
+ */
+export function endsWithContinuation(dockerfile: string): boolean {
+  const escape = dockerfileEscape(dockerfile)
+  for (const line of dockerfile.split('\n').reverse()) {
+    const text = line.replace(/[ \t\r]+$/, '')
+    if (text === '' || text.replace(/^[ \t]+/, '').startsWith('#')) continue
+    return text.endsWith(escape)
+  }
+  return false
+}

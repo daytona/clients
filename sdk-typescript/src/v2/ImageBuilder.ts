@@ -7,7 +7,7 @@ import type * as api from './gen/api-types.js'
 import { badRequest, isPlainRecord } from './options.js'
 import { strip } from './pyText.js'
 import { deepFrozen } from './frozen.js'
-import { assertTextList, dockerfileEscape, envName, envValue, lineText, rawText, renderStep, shellQuote } from './builderText.js'
+import { assertTextList, dockerfileEscape, endsWithContinuation, envName, envValue, lineText, rawText, renderStep, shellQuote } from './builderText.js'
 import type { BuilderSource, BuilderStep } from './builderText.js'
 import { localSource } from './builderLocalSource.js'
 import type { LocalSource } from './builderLocalSource.js'
@@ -27,6 +27,11 @@ export class ImageBuilder {
     private readonly steps: readonly BuilderStep[] = [],
     localSources: readonly LocalSource[] = [],
   ) {
+    // Checked when the first step is added: a base ending in a line
+    // continuation would swallow it (and every later step) silently.
+    if (steps.length > 0 && source.type === 'dockerfile' && endsWithContinuation(source.dockerfile)) {
+      throw badRequest('ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction')
+    }
     deepFrozen(source)
     deepFrozen(steps)
     LOCAL_SOURCES.set(this, deepFrozen(localSources))

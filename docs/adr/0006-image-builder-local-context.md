@@ -83,6 +83,12 @@ paths, remote paths and `build_from_context(context, /)`. The optional
   `.dockerignore` file itself is not copied.
 - **`to_dockerfile()` renders the `COPY` lines** with the archive paths, so
   the Dockerfile it shows is the one that is built.
+- **A `from_dockerfile` base ending in a line continuation** (its last
+  instruction line ends with the escape character) cannot take further steps:
+  BuildKit would join the next line to it, so an appended `COPY` or other step
+  would silently become part of that instruction. Adding a step to such a base
+  is a `BadRequestError`. A comment line ending in the escape character is not
+  a continuation. An unterminated heredoc in the base is not detected.
 - **Builders stay immutable**: each call returns a new builder; the earlier
   one is unchanged.
 - **Local files require the default Dockerfile escape character (`\`).** A
@@ -127,8 +133,12 @@ for names or link targets over 100 ASCII bytes or containing non-ASCII text,
 and zero padding to a 10240-byte record boundary after the end markers.
 ASCII controls such as tabs do not by themselves require a PAX extension.
 A source path that is
-itself a symbolic link is followed, as `docker build` follows the context path
-it is given: a symlinked `requirements.txt` is copied as its content. Symbolic
+a symbolic link when it is added is followed to its current target, as `docker
+build` follows the context path it is given: a symlinked `requirements.txt` is
+copied as its content. A source path that was not a symbolic link when it was
+added and is one at build time is refused with `local source changed since it
+was added: "<path>"`, so a swap between declaration and build cannot redirect
+the copy to another tree. Symbolic
 links inside an added directory are archived as links; one whose target is
 absolute or lexically leaves the directory with `..` is a `BadRequestError` naming the
 path. Anything that is not a regular

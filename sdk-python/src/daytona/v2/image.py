@@ -14,7 +14,7 @@ from typing import Final, overload
 from typing_extensions import Self
 
 from ._image_source import LocalSource, local_source
-from ._image_text import dockerfile_escape, require_text
+from ._image_text import dockerfile_escape, ends_with_continuation, require_text
 from .errors import create_error
 
 _ESCAPE_DIRECTIVE_REFUSED: Final = (
@@ -35,6 +35,15 @@ class ImageBuilder:
         if (self._registry_ref is None) == (self._dockerfile is None):
             raise create_error(
                 "an ImageBuilder starts from ImageBuilder.from_registry(...) or ImageBuilder.from_dockerfile(...)",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        # Checked when the first step is added: a base ending in a line
+        # continuation would swallow it (and every later step) silently.
+        if self._steps and self._dockerfile is not None and ends_with_continuation(self._dockerfile):
+            raise create_error(
+                "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
                 400,
                 "BAD_REQUEST",
                 "SDK",

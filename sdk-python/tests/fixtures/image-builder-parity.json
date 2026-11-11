@@ -3,10 +3,36 @@
   "cases": [
     {
       "name": "env names retain step order even for integer keys",
-      "source": {"registry": "alpine"},
-      "steps": [["env-name", ["b", "1"]], ["env-name", ["2", "2"]], ["env-name", ["a", "3"]]],
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "b",
+            "1"
+          ]
+        ],
+        [
+          "env-name",
+          [
+            "2",
+            "2"
+          ]
+        ],
+        [
+          "env-name",
+          [
+            "a",
+            "3"
+          ]
+        ]
+      ],
       "dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n",
-      "request": {"dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n"}
+      "request": {
+        "dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n"
+      }
     },
     {
       "name": "padded registry ref",
@@ -280,25 +306,65 @@
       "request": {
         "dockerfile": "# syntax=docker/dockerfile:1\n# escape=\\\nFROM alpine\nENV A=\"\\$x\"\n"
       }
+    },
+    {
+      "name": "a Dockerfile base whose last line is a comment ending in a backslash",
+      "source": {
+        "dockerfile": "FROM alpine\n# note \\"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/w"
+        ]
+      ],
+      "dockerfile": "FROM alpine\n# note \\\nWORKDIR /w\n",
+      "request": {
+        "dockerfile": "FROM alpine\n# note \\\nWORKDIR /w\n"
+      }
     }
   ],
   "refused": [
     {
       "name": "run command with a stripped trailing backslash",
-      "source": {"registry": "alpine"},
-      "steps": [["run", ["echo a \\  "]], ["run", ["echo b"]]],
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a \\  "
+          ]
+        ],
+        [
+          "run",
+          [
+            "echo b"
+          ]
+        ]
+      ],
       "error": "ImageBuilder.run_commands command \"echo a \\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)",
       "tsError": "ImageBuilder.runCommands command \"echo a \\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)"
     },
     {
       "name": "workdir with a trailing backslash",
-      "source": {"registry": "alpine"},
-      "steps": [["workdir", "/app\\"]],
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/app\\"
+        ]
+      ],
       "error": "ImageBuilder.workdir path \"/app\\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)"
     },
     {
       "name": "debian slim refuses a micro version",
-      "source": {"debianSlim": "3.12.10"},
+      "source": {
+        "debianSlim": "3.12.10"
+      },
       "steps": [],
       "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.12.10\")",
       "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.12.10\")"
@@ -592,7 +658,9 @@
     },
     {
       "name": "debian slim at a blank series",
-      "source": { "debianSlim": " \u001c\u0085 " },
+      "source": {
+        "debianSlim": " \u001c\u0085 "
+      },
       "steps": [],
       "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"\")",
       "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"\")"
@@ -757,6 +825,20 @@
         ]
       ],
       "error": "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+    },
+    {
+      "name": "a Dockerfile base ending in a line continuation, then a step",
+      "source": {
+        "dockerfile": "FROM alpine\nRUN echo hi \\"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/w"
+        ]
+      ],
+      "error": "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
+      "tsError": "ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction"
     }
   ]
 }

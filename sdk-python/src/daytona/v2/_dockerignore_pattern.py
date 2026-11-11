@@ -23,53 +23,62 @@ def clean(text: str) -> str:
     return posixpath.normpath(text).replace("//", "/")
 
 
-def _escaped(chunk: str) -> tuple[str, str]:
-    if not chunk or chunk[0] in "-]":
-        raise PatternError(chunk, "syntax error in pattern")
-    text = chunk.removeprefix("\\")
-    if len(text) < 2:
-        raise PatternError(chunk, "syntax error in pattern")
-    return text[0], text[1:]
-
-
 def _match_chunk(chunk: str, name: str) -> tuple[str, bool]:
-    """Validate a Go filepath.Match chunk even after its match has failed."""
-    failed = False
-    while chunk:
-        failed = failed or not name
-        ch, chunk = chunk[0], chunk[1:]
+    """Validate a Go filepath.Match chunk even after its match has failed.
+
+    Walks the chunk by index: slicing it per character made a long chunk
+    quadratic (TypeScript walks it the same way)."""
+    at, left, failed = 0, 0, False
+
+    def escaped() -> str:
+        nonlocal at
+        if at >= len(chunk) or chunk[at] in "-]":
+            raise PatternError(chunk[at:], "syntax error in pattern")
+        if chunk[at] == "\\":
+            at += 1
+        if len(chunk) - at < 2:
+            raise PatternError(chunk[at:], "syntax error in pattern")
+        at += 1
+        return chunk[at - 1]
+
+    while at < len(chunk):
+        failed = failed or left >= len(name)
+        ch = chunk[at]
+        at += 1
         if ch == "[":
-            rune = name[0] if not failed else "\0"
+            rune = name[left] if not failed else "\0"
             if not failed:
-                name = name[1:]
-            negated = chunk.startswith("^")
+                left += 1
+            negated = chunk.startswith("^", at)
             if negated:
-                chunk = chunk[1:]
+                at += 1
             count, matched = 0, False
             while True:
-                if chunk.startswith("]") and count:
-                    chunk = chunk[1:]
+                if chunk.startswith("]", at) and count:
+                    at += 1
                     break
-                lo, chunk = _escaped(chunk)
+                lo = escaped()
                 hi = lo
-                if chunk.startswith("-"):
-                    hi, chunk = _escaped(chunk[1:])
+                if chunk.startswith("-", at):
+                    at += 1
+                    hi = escaped()
                 matched = matched or lo <= rune <= hi
                 count += 1
             failed = failed or matched == negated
         elif ch == "?":
             if not failed:
-                failed = name.startswith("/")
-                name = name[1:]
+                failed = name[left] == "/"
+                left += 1
         else:
             if ch == "\\":
-                if not chunk:
-                    raise PatternError(chunk, "syntax error in pattern")
-                ch, chunk = chunk[0], chunk[1:]
+                if at >= len(chunk):
+                    raise PatternError("", "syntax error in pattern")
+                ch = chunk[at]
+                at += 1
             if not failed:
-                failed = ch != name[0]
-                name = name[1:]
-    return name, not failed
+                failed = ch != name[left]
+                left += 1
+    return name[left:], not failed
 
 
 def validate_pattern(text: str) -> None:

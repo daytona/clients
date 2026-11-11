@@ -20,6 +20,7 @@ import pytest
 from pydantic import TypeAdapter
 
 from daytona.v2._dockerignore import Filter, Matcher, read_patterns, walk_archive_entries
+from daytona.v2._dockerignore_class import translate_class
 from daytona.v2._dockerignore_error import PatternError
 from daytona.v2._dockerignore_pattern import _go_regexp
 from daytona.v2.errors import BadRequestError
@@ -383,10 +384,19 @@ def test_matcher_refuses_what_go_refuses(case: dict[str, str]) -> None:
     assert str(raised.value) == case["error"]
 
 
-def test_a_long_run_of_posix_class_openers_compiles_in_linear_time() -> None:
-    # `[` followed by many `[:` with no `:]` used to be scanned once per item.
-    pattern = "[" + "[:" * 30000 + "]"
-    started = perf_counter()
+def test_a_long_run_of_posix_class_openers_is_scanned_once() -> None:
+    # `[` followed by many `[:` with no `:]` used to search for `:]` once per
+    # item (quadratic in the pattern). The class parser now searches once:
+    # counted on a str subclass, since the cost of str.find is not visible to
+    # a timer at a size CI can afford.
+    class Counted(str):
+        finds = 0
+
+        def find(self, *args: object) -> int:  # type: ignore[override]  # counting wrapper
+            Counted.finds += 1
+            return super().find(*args)  # type: ignore[arg-type]
+
+    source = Counted("[" + "[:x" * 3000 + "]")
     with contextlib.suppress(BadRequestError, PatternError):
-        Matcher((pattern,)).excluded("x")
-    assert perf_counter() - started < 2
+        translate_class(source, 0)
+    assert Counted.finds <= 2
