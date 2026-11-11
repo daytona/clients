@@ -238,8 +238,9 @@ reservation gets the region's default model; an unavailable model is never
 upgraded.
 
 `reservation create --count N` reserves N Macs, all or nothing; add
-`--min-count M` to accept as few as M when fewer are free. `reservation create`
-and `reservation renew` send a fresh `Idempotency-Key` per invocation unless
+`--min-count M` to accept as few as M when fewer are free or fit under the
+organization's Mac reservation limit. `reservation create` and
+`reservation renew` send a fresh `Idempotency-Key` per invocation unless
 `--idempotency-key` is given; pass your own to retry safely.
 
 Every `sandbox create*` sends an `Idempotency-Key` too, as the SDKs do:

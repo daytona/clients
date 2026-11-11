@@ -60,10 +60,11 @@ describe('account response models', () => {
     const usage = { limit: 10, usage: 2 }
     const api = await startFakeApi([{ status: 200, body: {
       sandboxes: { concurrent: usage, total: { limit: null, usage: 4 } }, image_builds: { concurrent: usage },
+      sandbox_timeout: { max_seconds: 3600, ceiling_seconds: 86400 },
       storage: { volumes: usage, images: usage, snapshots: usage }, secrets_per_project: usage,
       api_keys_per_project: usage, api_keys_per_organization: usage,
       sandbox_resources: { max_cores: 4.5, max_memory_mib: 4608 },
-      sandbox_timeout: { max_seconds: 86400, ceiling_seconds: 604800 },
+      mac_reservations: usage,
       members: { limit: 10, usage: 2, pending_invitations: 3 },
     } }])
     const client = clientAt(api.url)
@@ -76,6 +77,7 @@ describe('account response models', () => {
         storage: { volumes: usage, images: usage, snapshots: usage }, secretsPerProject: usage,
         apiKeysPerProject: usage, apiKeysPerOrganization: usage,
         sandboxResources: { maxCores: 4.5, maxMemoryMib: 4608 },
+        macReservations: usage,
         members: { limit: 10, usage: 2, pendingInvitations: 3 },
       })
     } finally {

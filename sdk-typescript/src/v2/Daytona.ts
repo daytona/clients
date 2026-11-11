@@ -221,6 +221,7 @@ export class Daytona {
    * reservation id targets that reservation at claim. With no reservation to use it fails
    * with `ConflictError` (`NO_ACTIVE_RESERVATION`, `NO_FREE_SLOT`,
    * `MAC_DISK_FULL`, `AUTO_RESERVE_LIMIT_REACHED`, `NO_MAC_AVAILABLE`).
+   * A reservation it buys (`reservation: 'new'` or auto-reserve) throws `LimitExceededError` (a `RateLimitError`) with `limit === 'max_mac_reservations'` when the organization holds its Mac reservation limit.
     * `resources.cpu` (cores), `resources.memory` (GiB) and `resources.disk` (GiB)
     * size the sandbox; each omitted
    * axis uses the Mac model's default size (`defaultSize` in `macModels.list()`); a create

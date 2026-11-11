@@ -138,7 +138,7 @@ _MODELS: dict[str, object] = {
     "OrganizationLimits": expect_organization_limits(
         {
             "sandboxes": {"concurrent": _USAGE, "total": _USAGE},
-            "sandbox_timeout": {"max_seconds": 86400, "ceiling_seconds": 604800},
+            "sandbox_timeout": {"max_seconds": 3600, "ceiling_seconds": 86400},
             "image_builds": {"concurrent": _USAGE},
             "storage": {"volumes": _USAGE, "images": _USAGE, "snapshots": _USAGE},
             "secrets_per_project": _USAGE,

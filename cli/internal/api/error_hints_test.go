@@ -82,6 +82,28 @@ func TestHintForLimitExceededNamesWhatFreesTheLimit(t *testing.T) {
 	}
 }
 
+func TestHintForMacReservationCap(t *testing.T) {
+	cases := []struct {
+		limit, path  string
+		current, max int
+		want         string
+	}{
+		{"max_mac_reservations", "/reservations", 10, 10, "organization limit max_mac_reservations reached (10 of 10) — a Mac reservation frees at the end of its period: let an active one lapse with `daytona reservation update RESERVATION_ID --auto-renew=false`, or upgrade the plan; `daytona org limits` shows the current usage"},
+		{"max_mac_reservations", "/reservations/bulk", 1, 5, "only 4 more Mac reservations fit under the organization limit (1 of 5 held) — lower --count or set --min-count"},
+		{"max_mac_reservations", "/reservations/bulk", 4, 5, "only 1 more Mac reservation fits under the organization limit (4 of 5 held) — lower --count or set --min-count"},
+		// No other command takes --count or --min-count.
+		{"max_mac_reservations", "/sandboxes/macos", 4, 5, "only 1 more Mac reservation fits under the organization limit (4 of 5 held)"},
+		{"max_members", "/orgs/o/invitations", 1, 5, "organization limit max_members reached (1 of 5) — remove members or revoke pending invitations or ask for a higher limit; `daytona org limits` shows the current usage"},
+	}
+	for _, c := range cases {
+		h := hintFor(&APIError{Status: http.StatusTooManyRequests, Code: CodeLimitExceeded, Method: "POST", Path: c.path,
+			Body: map[string]any{"limit": c.limit, "current": float64(c.current), "max": float64(c.max)}})
+		if h != c.want {
+			t.Errorf("%s at %d/%d on %s: hint = %q, want %q", c.limit, c.current, c.max, c.path, h, c.want)
+		}
+	}
+}
+
 func TestHintForFeatureNotEnabled(t *testing.T) {
 	named := hintFor(&APIError{Status: http.StatusForbidden, Code: CodeFeatureNotEnabled, Body: map[string]any{"feature": "example_feature"}})
 	if named != "the example_feature feature is not enabled for this organization" {

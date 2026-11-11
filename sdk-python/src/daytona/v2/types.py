@@ -817,6 +817,8 @@ class OrganizationLimits:
     api_keys_per_project: UsageLimit
     api_keys_per_organization: UsageLimit
     sandbox_resources: Optional[SandboxResourceLimits] = None
+    #: Mac reservations the organization holds: pending, active or ending. Renewals do not count again.
+    mac_reservations: Optional[UsageLimit] = None
     #: Omitted for credentials scoped to a project.
     members: Optional[MemberLimits] = None
 

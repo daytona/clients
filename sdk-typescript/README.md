@@ -611,9 +611,14 @@ an unavailable model to another one.
 model, how many Macs a purchase can reserve now (`available`, advisory) and the
 `price` of one reservation (absent when pricing is unavailable in the region).
 `reservations.createBulk()` reserves several Macs of one model in one request:
-all of them, or none if fewer are free, unless `minCount` accepts fewer. Every
-purchase and renewal carries an idempotency key; pass your own so a retry after
-a lost response neither reserves more Macs nor pays for a second period:
+all of them, or none if fewer are free or fit under the organization's Mac
+reservation limit, unless `minCount` accepts fewer. A purchase at that limit
+throws `LimitExceededError` (a `RateLimitError`) with `limit ===
+'max_mac_reservations'`. A bulk purchase throws it when fewer than `minCount`
+fit under the limit, which is checked first, and `ConflictError` with code
+`NO_MAC_AVAILABLE` when fewer than `minCount` Macs are free. Every purchase and
+renewal carries an idempotency key; pass your own so a retry after a lost
+response neither reserves more Macs nor pays for a second period:
 
 ```ts
 const catalog = await daytona.v2.macModels.catalog({ region: '<region>' })
@@ -632,12 +637,20 @@ Without a reservation to use, a macOS create throws `ConflictError` with
 for the size; `MAC_DISK_FULL` when the reservations with room have no free disk
 space; `AUTO_RESERVE_LIMIT_REACHED` when auto-reserve holds its maximum number
 of reservations; or `NO_MAC_AVAILABLE` when buying a reservation, with `reservation: 'new'`
-or through auto-reserve, finds no fitting Mac in the region). `MAC_DISK_FULL`
-never buys a reservation. Starting a stopped macOS sandbox can run on any Mac of the
-organization; with no Mac reservation in the region and auto-reserve on, the start buys one. Reservations report `model`,
+or through auto-reserve, finds no fitting Mac in the region). Buying a
+reservation when the organization holds its Mac reservation limit throws
+`LimitExceededError` with `limit === 'max_mac_reservations'` instead.
+`MAC_DISK_FULL` never buys a reservation. Starting a stopped macOS sandbox can run on
+any Mac of the organization; with no Mac reservation in the region and auto-reserve on,
+the start buys one. Reservations report `model`,
 `capacity`, `resourcesUsed`, `origin` (`explicit` or `auto`), `autoRenew`
 and `renewalError`; `reservations.update(id, { autoRenew })` changes renewal
 on a live reservation.
+An organization over its Mac reservation limit, after a plan downgrade for
+example, keeps every Mac until the end of the period it paid for, but the
+reservations above the limit do not renew: their `autoRenew` turns off and they
+end at the end of that period. `reservations.renew()` of such a reservation
+throws `LimitExceededError` with `limit === 'max_mac_reservations'`.
 
 `pause()` and `resume()` work on persistent macOS sandboxes. `pause()` saves
 the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the

@@ -109,6 +109,7 @@ const BUDGET_NULLS = { monthly_limit_cents: null, period_start_date: null, creat
 const USAGE = { limit: null, usage: 1 }
 const LIMITS = {
   sandboxes: { concurrent: USAGE, total: USAGE }, image_builds: { concurrent: USAGE },
+  sandbox_timeout: { max_seconds: 3600, ceiling_seconds: 86400 },
   storage: { volumes: USAGE, images: USAGE, snapshots: USAGE },
   secrets_per_project: USAGE, api_keys_per_project: USAGE, api_keys_per_organization: USAGE,
 }
@@ -828,12 +829,12 @@ it.each([
 })
 
 // As in Python.
-it.each(['members', 'sandbox_resources'] as const)('reads a null optional organization limit %s as absent', async (field) => {
+it.each(['members', 'sandbox_resources', 'mac_reservations'] as const)('reads a null optional organization limit %s as absent', async (field) => {
   const api = await startFakeApi([{ status: 200, body: { ...LIMITS, [field]: null } }])
   const client = clientAt(api.url)
   try {
     const limits = await client.v2.getLimits({ organizationId: 'org' })
-    expect(field === 'members' ? limits.members : limits.sandboxResources).toBeUndefined()
+    expect(field === 'members' ? limits.members : field === 'sandbox_resources' ? limits.sandboxResources : limits.macReservations).toBeUndefined()
   } finally {
     await client.close()
     await api.close()

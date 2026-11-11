@@ -150,6 +150,7 @@ def expect_organization_limits(value: TransportPayload) -> OrganizationLimits:
         )
         if wire.sandbox_resources is not None
         else None,
+        mac_reservations=_usage_limit(wire.mac_reservations) if wire.mac_reservations is not None else None,
         members=MemberLimits(
             limit=wire.members.limit,
             usage=wire.members.usage,

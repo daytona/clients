@@ -83,5 +83,7 @@ export interface OrganizationLimits {
   readonly apiKeysPerProject: UsageLimit
   readonly apiKeysPerOrganization: UsageLimit
   readonly sandboxResources?: SandboxResourceLimits
+  /** Mac reservations the organization holds: pending, active or ending. Renewals do not count again. */
+  readonly macReservations?: UsageLimit
   readonly members?: MemberLimits
 }
