@@ -1250,6 +1250,29 @@
         ],
         "type": "object"
       },
+      "ComputerUseResolution": {
+        "additionalProperties": false,
+        "description": "A desktop resolution in pixels.",
+        "properties": {
+          "height": {
+            "description": "Height in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
       "ComputerUseRestartResponse": {
         "description": "The response returned by `POST /computeruse/restart`.",
         "properties": {
@@ -1376,6 +1399,24 @@
         "required": [
           "success"
         ],
+        "type": "object"
+      },
+      "ComputerUseStartRequest": {
+        "additionalProperties": false,
+        "description": "The optional body of `POST /computeruse/start` and `/restart`.",
+        "properties": {
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComputerUseResolution",
+                "description": "The desktop resolution. Omitted = the resolution this sandbox's\ndesktop last started at, or 1280x720 if it never started. One of\n1024x768, 1280x720 or 1920x1080."
+              }
+            ]
+          }
+        },
         "type": "object"
       },
       "ComputerUseStatusResponse": {
@@ -5318,8 +5359,24 @@
     },
     "/computeruse/restart": {
       "post": {
-        "description": "Restarts the desktop and returns its ready status.",
+        "description": "Restarts the desktop and returns its ready status. The body is optional: `resolution` restarts the desktop at that size (1024x768, 1280x720 or 1920x1080) and keeps it for later starts; omitted, the desktop restarts at its current resolution. Linux only: other platforms refuse a `resolution`.",
         "operationId": "restart",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ComputerUseStartRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -5330,6 +5387,26 @@
               }
             },
             "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match the request schema"
           },
           "500": {
             "content": {
@@ -5940,8 +6017,24 @@
     },
     "/computeruse/start": {
       "post": {
-        "description": "Starts the desktop and returns its process statuses.",
+        "description": "Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution it last started at, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.",
         "operationId": "start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ComputerUseStartRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -5953,6 +6046,16 @@
             },
             "description": ""
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
+          },
           "409": {
             "content": {
               "application/json": {
@@ -5961,7 +6064,17 @@
                 }
               }
             },
-            "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart"
+            "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart; `CONFLICT` \u2014 the desktop is running at a different resolution"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match the request schema"
           },
           "500": {
             "content": {

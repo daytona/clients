@@ -277,6 +277,22 @@ export interface ComputerUseRecording {
   readonly sizeBytes?: number
 }
 
+/** A desktop resolution in pixels: 1024x768, 1280x720 or 1920x1080. */
+export interface ComputerUseResolution {
+  readonly width: number
+  readonly height: number
+}
+
+/** Options for `computerUse.start()` and `computerUse.restart()`. */
+export interface ComputerUseStartOptions {
+  /**
+   * The desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts
+   * and restarts. Omitted: the resolution the desktop last started at, or
+   * 1280x720. Linux sandboxes only.
+   */
+  readonly resolution?: ComputerUseResolution
+}
+
 export interface ComputerUseRecordingStartRequest {
   readonly label?: string
 }

@@ -519,7 +519,7 @@ export interface paths {
         put?: never;
         /**
          * Restart the desktop
-         * @description Restarts the desktop and returns its ready status.
+         * @description Restarts the desktop and returns its ready status. The body is optional: `resolution` restarts the desktop at that size (1024x768, 1280x720 or 1920x1080) and keeps it for later starts; omitted, the desktop restarts at its current resolution. Linux only: other platforms refuse a `resolution`.
          */
         post: operations["restart"];
         delete?: never;
@@ -619,7 +619,7 @@ export interface paths {
         put?: never;
         /**
          * Start the desktop
-         * @description Starts the desktop and returns its process statuses.
+         * @description Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution it last started at, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.
          */
         post: operations["start"];
         delete?: never;
@@ -2309,6 +2309,19 @@ export interface components {
             /** @description The current and retained recordings. */
             recordings: components["schemas"]["ComputerUseRecording"][];
         };
+        /** @description A desktop resolution in pixels. */
+        ComputerUseResolution: {
+            /**
+             * Format: int32
+             * @description Height in pixels.
+             */
+            height: number;
+            /**
+             * Format: int32
+             * @description Width in pixels.
+             */
+            width: number;
+        };
         /** @description The response returned by `POST /computeruse/restart`. */
         ComputerUseRestartResponse: {
             /** @description The explicit desktop state after the restart succeeds. */
@@ -2349,6 +2362,10 @@ export interface components {
         ComputerUseScrollResponse: {
             /** @description Always `true` when the request succeeds. */
             success: boolean;
+        };
+        /** @description The optional body of `POST /computeruse/start` and `/restart`. */
+        ComputerUseStartRequest: {
+            resolution?: null | components["schemas"]["ComputerUseResolution"];
         };
         /** @description The public desktop status surface. */
         ComputerUseStatusResponse: {
@@ -4573,7 +4590,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ComputerUseStartRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -4581,6 +4602,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ComputerUseRestartResponse"];
+                };
+            };
+            /** @description `BAD_REQUEST` — unsupported resolution; `UNSUPPORTED_OPERATION` — this platform cannot set the resolution */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match the request schema */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description `INTERNAL_SERVER_ERROR` — the desktop state could not be updated */
@@ -4906,7 +4945,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ComputerUseStartRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -4916,8 +4959,26 @@ export interface operations {
                     "application/json": components["schemas"]["ComputerUseLifecycleResponse"];
                 };
             };
-            /** @description `DESKTOP_NOT_READY` — the desktop is already starting or failed and needs restart */
+            /** @description `BAD_REQUEST` — unsupported resolution; `UNSUPPORTED_OPERATION` — this platform cannot set the resolution */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `DESKTOP_NOT_READY` — the desktop is already starting or failed and needs restart; `CONFLICT` — the desktop is running at a different resolution */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match the request schema */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

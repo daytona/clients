@@ -862,6 +862,15 @@ type ComputerUseRecordingsResponse struct {
 	Recordings []ComputerUseRecording `json:"recordings"`
 }
 
+// ComputerUseResolution A desktop resolution in pixels.
+type ComputerUseResolution struct {
+	// Height Height in pixels.
+	Height int32 `json:"height"`
+
+	// Width Width in pixels.
+	Width int32 `json:"width"`
+}
+
 // ComputerUseRestartResponse The response returned by `POST /computeruse/restart`.
 type ComputerUseRestartResponse struct {
 	// Desktop The explicit desktop state after the restart succeeds.
@@ -878,6 +887,11 @@ type ComputerUseRestartResponse struct {
 type ComputerUseScrollResponse struct {
 	// Success Always `true` when the request succeeds.
 	Success bool `json:"success"`
+}
+
+// ComputerUseStartRequest The optional body of `POST /computeruse/start` and `/restart`.
+type ComputerUseStartRequest struct {
+	Resolution *ComputerUseResolution `json:"resolution,omitempty"`
 }
 
 // ComputerUseStatusResponse The public desktop status surface.
@@ -1739,6 +1753,12 @@ type A11yTreeParams struct {
 	MaxDepth *int64 `form:"maxDepth,omitempty" json:"maxDepth,omitempty"`
 }
 
+// RestartJSONBody defines parameters for Restart.
+type RestartJSONBody = ComputerUseStartRequest
+
+// StartJSONBody defines parameters for Start.
+type StartJSONBody = ComputerUseStartRequest
+
 // DockerStatusParams defines parameters for DockerStatus.
 type DockerStatusParams struct {
 	// WaitMs Wait up to this many milliseconds for a `starting` state to settle
@@ -2030,6 +2050,12 @@ type RecordingsStartJSONRequestBody = ComputerUseRecordingStartRequest
 
 // RecordingsStopJSONRequestBody defines body for RecordingsStop for application/json ContentType.
 type RecordingsStopJSONRequestBody = ComputerUseRecordingStopRequest
+
+// RestartJSONRequestBody defines body for Restart for application/json ContentType.
+type RestartJSONRequestBody = RestartJSONBody
+
+// StartJSONRequestBody defines body for Start for application/json ContentType.
+type StartJSONRequestBody = StartJSONBody
 
 // SetEnvJSONRequestBody defines body for SetEnv for application/json ContentType.
 type SetEnvJSONRequestBody = EnvRequest

@@ -89,11 +89,25 @@ class ComputerUseService:
 
         return RecordingService(self._impl.recording, self._bridge)
 
-    def restart(self) -> ComputerUseRestartResponse:
-        return self._bridge.call(lambda: self._impl.restart())
+    def restart(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseRestartResponse:
+        """Restart the desktop, at ``resolution`` when given (kept for later
+        starts). Omitted, it restarts at its current resolution. Linux sandboxes
+        only: other platforms raise ``UnsupportedOperationError`` for a
+        ``resolution``.
+        """
+        return self._bridge.call(lambda: self._impl.restart(resolution=resolution))
 
-    def start(self) -> ComputerUseLifecycleResult:
-        return self._bridge.call(lambda: self._impl.start())
+    def start(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseLifecycleResult:
+        """Start the desktop.
+
+        ``resolution`` selects its size (1024x768, 1280x720 or 1920x1080) and is
+        kept for later starts and restarts. Omitted, the desktop uses the
+        resolution it last started at, or 1280x720. Starting a running desktop at
+        a different resolution raises ``ConflictError``; call ``restart`` with
+        the new resolution instead. Linux sandboxes only: other platforms raise
+        ``UnsupportedOperationError`` for a ``resolution``.
+        """
+        return self._bridge.call(lambda: self._impl.start(resolution=resolution))
 
     def status(self) -> ComputerUseStatusResponse:
         return self._bridge.call(lambda: self._impl.status())

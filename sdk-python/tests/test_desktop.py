@@ -196,6 +196,30 @@ async def test_restart_posts_exact_path_and_parses_response() -> None:
     assert result.message == "computer use restarted"
     assert result.status == "active"
     assert result.desktop == "ready"
+    assert transport.specs[0].json_body is None
+
+
+@pytest.mark.anyio
+async def test_start_and_restart_send_a_resolution_only_when_given() -> None:
+    from daytona.v2 import ComputerUseResolution
+
+    lifecycle = {"message": "computer use started", "status": {}}
+    restarted = {"message": "computer use restarted", "status": "active", "desktop": "ready"}
+    full_hd = ComputerUseResolution(width=1920, height=1080)
+
+    start = _Stub(lifecycle)
+    await AsyncComputerUseService(start).start()  # type: ignore[arg-type]
+    await AsyncComputerUseService(start).start(resolution=full_hd)  # type: ignore[arg-type]
+    assert [(spec.path, spec.json_body) for spec in start.specs] == [
+        ("/computeruse/start", None),
+        ("/computeruse/start", {"resolution": {"width": 1920, "height": 1080}}),
+    ]
+
+    restart = _Stub(restarted)
+    await AsyncComputerUseService(restart).restart(resolution=full_hd)  # type: ignore[arg-type]
+    assert [(spec.path, spec.json_body) for spec in restart.specs] == [
+        ("/computeruse/restart", {"resolution": {"width": 1920, "height": 1080}}),
+    ]
 
 
 def _desktop_not_ready_response(request: httpx.Request) -> httpx.Response:

@@ -127,6 +127,14 @@ ComputerUseStatusResponse = Union[
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class ComputerUseResolution:
+    """A desktop resolution in pixels: 1024x768, 1280x720 or 1920x1080."""
+
+    width: int
+    height: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRestartResponse:
     message: str
     status: Literal["active"] = "active"

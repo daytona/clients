@@ -6,6 +6,7 @@
 import type {
   ComputerUseLifecycleResponse,
   ComputerUseRestartResponse,
+  ComputerUseStartOptions,
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
 import {
@@ -54,16 +55,18 @@ export class ComputerUseService {
     return this.lifecycle.status()
   }
 
-  public async start(): Promise<ComputerUseLifecycleResponse> {
-    return this.lifecycle.start()
+  /** See `ComputerUseLifecycleService.start`: `resolution` selects the desktop size. */
+  public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
+    return this.lifecycle.start(options)
   }
 
   public async stop(): Promise<ComputerUseLifecycleResponse> {
     return this.lifecycle.stop()
   }
 
-  public async restart(): Promise<ComputerUseRestartResponse> {
-    return this.lifecycle.restart()
+  /** See `ComputerUseLifecycleService.restart`: `resolution` restarts at that size. */
+  public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
+    return this.lifecycle.restart(options)
   }
 }
 

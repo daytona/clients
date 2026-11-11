@@ -56,6 +56,7 @@ import type {
   ComputerUseRecording,
   ComputerUseRecordingsResponse,
   ComputerUseRecordingStartRequest,
+  ComputerUseStartOptions,
   ComputerUseRecordingStopRequest,
   ComputerUseRegion,
   ComputerUseRestartResponse,
@@ -99,6 +100,14 @@ const A11Y_FOCUS_KEYS = optionKeys<ComputerUseA11yFocusRequest>()({ id: true })
 const A11Y_INVOKE_KEYS = optionKeys<ComputerUseA11yInvokeRequest>()({ id: true, action: true })
 const A11Y_SET_VALUE_KEYS = optionKeys<ComputerUseA11ySetValueRequest>()({ id: true, value: true })
 const RECORDING_START_KEYS = optionKeys<ComputerUseRecordingStartRequest>()({ label: true })
+const DESKTOP_START_KEYS = optionKeys<ComputerUseStartOptions>()({ resolution: true })
+
+function desktopStartBody(options: ComputerUseStartOptions): toolbox.ComputerUseStartRequest | undefined {
+  assertKnownOptions('ComputerUseStartOptions', options, DESKTOP_START_KEYS)
+  if (options.resolution === undefined) return undefined
+  const { width, height } = options.resolution
+  return { resolution: { width, height } }
+}
 const RECORDING_STOP_KEYS = optionKeys<ComputerUseRecordingStopRequest>()({ id: true })
 
 export class AddonProcessesService {
@@ -391,9 +400,15 @@ export class ComputerUseLifecycleService {
     )
   }
 
-  public async start(): Promise<ComputerUseLifecycleResponse> {
+  /**
+   * Start the desktop. `resolution` selects its size and is kept for later
+   * starts and restarts; starting a running desktop at a different resolution
+   * throws `ConflictError` (restart with it instead). Linux sandboxes only:
+   * other platforms throw for a `resolution`.
+   */
+  public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
     return mapComputerUseLifecycleResponse(
-      await this.transport.post<toolbox.ComputerUseLifecycleResponse>('/computeruse/start'),
+      await this.transport.post<toolbox.ComputerUseLifecycleResponse>('/computeruse/start', desktopStartBody(options)),
     )
   }
 
@@ -403,9 +418,13 @@ export class ComputerUseLifecycleService {
     )
   }
 
-  public async restart(): Promise<ComputerUseRestartResponse> {
+  /**
+   * Restart the desktop, at `resolution` when given (kept for later starts);
+   * omitted, at its current resolution. Linux sandboxes only for `resolution`.
+   */
+  public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
     return mapComputerUseRestartResponse(
-      await this.transport.post<toolbox.ComputerUseRestartResponse>('/computeruse/restart'),
+      await this.transport.post<toolbox.ComputerUseRestartResponse>('/computeruse/restart', desktopStartBody(options)),
     )
   }
 }
