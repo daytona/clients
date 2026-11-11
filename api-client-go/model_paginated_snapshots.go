@@ -21,10 +21,10 @@ var _ MappedNullable = &PaginatedSnapshots{}
 
 // PaginatedSnapshots struct for PaginatedSnapshots
 type PaginatedSnapshots struct {
-	Items []SnapshotDto `json:"items"`
-	Total int32 `json:"total"`
-	Page int32 `json:"page"`
-	TotalPages int32 `json:"totalPages"`
+	Items                []SnapshotDto `json:"items"`
+	Total                int32         `json:"total"`
+	Page                 int32         `json:"page"`
+	TotalPages           int32         `json:"totalPages"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -148,7 +148,7 @@ func (o *PaginatedSnapshots) SetTotalPages(v int32) {
 }
 
 func (o PaginatedSnapshots) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -185,10 +185,10 @@ func (o *PaginatedSnapshots) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -252,5 +252,3 @@ func (v *NullablePaginatedSnapshots) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

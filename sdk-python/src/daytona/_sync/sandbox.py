@@ -374,22 +374,36 @@ class SandboxNodeCollection(list[SandboxNode]):
             raise DaytonaError("Sandbox node collection is not initialized")
         return self._sandbox
 
-    def _generation(self) -> int:
+    def _remaining(self, deadline: float | None) -> float | None:
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DaytonaTimeoutError("Node membership operation exceeded its timeout")
+        return remaining
+
+    def _generation(self, deadline: float | None = None) -> int:
         sandbox = self._require_sandbox()
-        sandbox.refresh_data()
+        sandbox.refresh_data(request_timeout=self._remaining(deadline))
+        self._remaining(deadline)
         generation = sandbox.topology_generation
         if generation is None:
             raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
         return generation
 
-    def _wait(self, operation: GangMembershipOperation) -> GangMembershipOperation:
+    def _wait(self, operation: GangMembershipOperation, deadline: float | None) -> GangMembershipOperation:
         sandbox = self._require_sandbox()
+        self._remaining(deadline)
         while operation.status not in {"COMPLETED", "FAILED"}:
-            time.sleep(1)
-            operation = sandbox._sandbox_api.get_gang_membership_operation(sandbox.id, operation.id)
+            time.sleep(min(1.0, self._remaining(deadline) or 1.0))
+            operation = sandbox._sandbox_api.get_gang_membership_operation(
+                sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
+            )
+            self._remaining(deadline)
         if operation.status == "FAILED":
             raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
-        sandbox.refresh_data()
+        sandbox.refresh_data(request_timeout=self._remaining(deadline))
+        self._remaining(deadline)
         return operation
 
     @intercept_errors(message_prefix="Failed to add Sandbox nodes: ")
@@ -397,13 +411,17 @@ class SandboxNodeCollection(list[SandboxNode]):
     @with_instrumentation()
     def add(self, nodes: list[NodeResources], timeout: float | None = 600) -> GangMembershipOperation:
         """Append rank-ordered nodes and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
         sandbox = self._require_sandbox()
         request = AddGangNodes(
-            expected_generation=self._generation(),
+            expected_generation=self._generation(deadline),
             nodes=[GangNodeResources(cpu=node.cpu, memory=node.memory, disk=node.disk) for node in nodes],
         )
         return self._wait(
-            sandbox._sandbox_api.add_sandbox_nodes(sandbox.id, request, _request_timeout=http_timeout(timeout))
+            sandbox._sandbox_api.add_sandbox_nodes(
+                sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
+            ),
+            deadline,
         )
 
     @intercept_errors(message_prefix="Failed to release Sandbox nodes: ")
@@ -411,10 +429,14 @@ class SandboxNodeCollection(list[SandboxNode]):
     @with_instrumentation()
     def release(self, count: int = 1, timeout: float | None = 600) -> GangMembershipOperation:
         """Release the highest ranks and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
         sandbox = self._require_sandbox()
-        request = RemoveGangNodes(expected_generation=self._generation(), count=count)
+        request = RemoveGangNodes(expected_generation=self._generation(deadline), count=count)
         return self._wait(
-            sandbox._sandbox_api.remove_sandbox_nodes(sandbox.id, request, _request_timeout=http_timeout(timeout))
+            sandbox._sandbox_api.remove_sandbox_nodes(
+                sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
+            ),
+            deadline,
         )
 
     @intercept_errors(message_prefix="Failed to replace Sandbox node: ")
@@ -422,12 +444,14 @@ class SandboxNodeCollection(list[SandboxNode]):
     @with_instrumentation()
     def replace(self, rank: int, timeout: float | None = 600) -> GangMembershipOperation:
         """Replace a degraded rank and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
         sandbox = self._require_sandbox()
-        request = ReplaceGangNode(expected_generation=self._generation())
+        request = ReplaceGangNode(expected_generation=self._generation(deadline))
         return self._wait(
             sandbox._sandbox_api.replace_sandbox_node(
-                sandbox.id, str(rank), request, _request_timeout=http_timeout(timeout)
-            )
+                sandbox.id, str(rank), request, _request_timeout=http_timeout(self._remaining(deadline))
+            ),
+            deadline,
         )
 
 

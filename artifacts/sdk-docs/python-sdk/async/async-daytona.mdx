@@ -551,8 +551,8 @@ Parameters for creating a new Sandbox from an image.
 
 - `image` _str | Image_ - Custom Docker image to use for the Sandbox. If an Image object is provided,
   the image will be dynamically built.
-- `resources` _Resources | None_ - Resource configuration for the Sandbox. If not provided, sandbox will
-  have default resources.
+- `resources` _Resources | CreateSandboxResources | None_ - Resource configuration for the Sandbox.
+  If not provided, the Sandbox will have default resources.
 
 ## CreateSandboxFromSnapshotParams
 

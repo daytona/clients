@@ -21,27 +21,27 @@ var _ MappedNullable = &RegionUsageOverview{}
 
 // RegionUsageOverview struct for RegionUsageOverview
 type RegionUsageOverview struct {
-	RegionId string `json:"regionId"`
-	SandboxClass SandboxClass `json:"sandboxClass"`
-	TotalCpuQuota float32 `json:"totalCpuQuota"`
-	CurrentCpuUsage float32 `json:"currentCpuUsage"`
-	TotalMemoryQuota float32 `json:"totalMemoryQuota"`
-	CurrentMemoryUsage float32 `json:"currentMemoryUsage"`
-	TotalDiskQuota float32 `json:"totalDiskQuota"`
-	CurrentDiskUsage float32 `json:"currentDiskUsage"`
-	TotalGpuQuota float32 `json:"totalGpuQuota"`
-	CurrentGpuUsage float32 `json:"currentGpuUsage"`
-	AllowedGpuTypes []GpuType `json:"allowedGpuTypes,omitempty"`
-	MaxCpuPerSandbox NullableFloat32 `json:"maxCpuPerSandbox"`
-	MaxMemoryPerSandbox NullableFloat32 `json:"maxMemoryPerSandbox"`
-	MaxDiskPerSandbox NullableFloat32 `json:"maxDiskPerSandbox"`
+	RegionId                      string          `json:"regionId"`
+	SandboxClass                  SandboxClass    `json:"sandboxClass"`
+	TotalCpuQuota                 float32         `json:"totalCpuQuota"`
+	CurrentCpuUsage               float32         `json:"currentCpuUsage"`
+	TotalMemoryQuota              float32         `json:"totalMemoryQuota"`
+	CurrentMemoryUsage            float32         `json:"currentMemoryUsage"`
+	TotalDiskQuota                float32         `json:"totalDiskQuota"`
+	CurrentDiskUsage              float32         `json:"currentDiskUsage"`
+	TotalGpuQuota                 float32         `json:"totalGpuQuota"`
+	CurrentGpuUsage               float32         `json:"currentGpuUsage"`
+	AllowedGpuTypes               []GpuType       `json:"allowedGpuTypes,omitempty"`
+	MaxCpuPerSandbox              NullableFloat32 `json:"maxCpuPerSandbox"`
+	MaxMemoryPerSandbox           NullableFloat32 `json:"maxMemoryPerSandbox"`
+	MaxDiskPerSandbox             NullableFloat32 `json:"maxDiskPerSandbox"`
 	MaxDiskPerNonEphemeralSandbox NullableFloat32 `json:"maxDiskPerNonEphemeralSandbox"`
 	// CPU maximum per requested GPU unit for GPU sandboxes.
 	MaxCpuPerGpu NullableFloat32 `json:"maxCpuPerGpu"`
 	// Memory maximum per requested GPU unit for GPU sandboxes.
 	MaxMemoryPerGpu NullableFloat32 `json:"maxMemoryPerGpu"`
 	// Disk maximum per requested GPU unit for GPU sandboxes.
-	MaxDiskPerGpu NullableFloat32 `json:"maxDiskPerGpu"`
+	MaxDiskPerGpu        NullableFloat32 `json:"maxDiskPerGpu"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -536,7 +536,7 @@ func (o *RegionUsageOverview) SetMaxDiskPerGpu(v float32) {
 }
 
 func (o RegionUsageOverview) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -602,10 +602,10 @@ func (o *RegionUsageOverview) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -683,5 +683,3 @@ func (v *NullableRegionUsageOverview) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

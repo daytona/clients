@@ -20,14 +20,13 @@ import (
 	"strings"
 )
 
-
 type UsersAPI interface {
 
 	/*
-	AcceptPrivacyPolicies Accept the current privacy policies
+		AcceptPrivacyPolicies Accept the current privacy policies
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIAcceptPrivacyPoliciesRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return UsersAPIAcceptPrivacyPoliciesRequest
 	*/
 	AcceptPrivacyPolicies(ctx context.Context) UsersAPIAcceptPrivacyPoliciesRequest
 
@@ -35,11 +34,11 @@ type UsersAPI interface {
 	AcceptPrivacyPoliciesExecute(r UsersAPIAcceptPrivacyPoliciesRequest) (*http.Response, error)
 
 	/*
-	ConfirmPendingSsoLink Confirm (link) a pending SSO account link
+		ConfirmPendingSsoLink Confirm (link) a pending SSO account link
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return UsersAPIConfirmPendingSsoLinkRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param id
+		@return UsersAPIConfirmPendingSsoLinkRequest
 	*/
 	ConfirmPendingSsoLink(ctx context.Context, id string) UsersAPIConfirmPendingSsoLinkRequest
 
@@ -47,11 +46,11 @@ type UsersAPI interface {
 	ConfirmPendingSsoLinkExecute(r UsersAPIConfirmPendingSsoLinkRequest) (*http.Response, error)
 
 	/*
-	DismissPendingSsoLink Dismiss a pending SSO account link
+		DismissPendingSsoLink Dismiss a pending SSO account link
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id
-	@return UsersAPIDismissPendingSsoLinkRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param id
+		@return UsersAPIDismissPendingSsoLinkRequest
 	*/
 	DismissPendingSsoLink(ctx context.Context, id string) UsersAPIDismissPendingSsoLinkRequest
 
@@ -59,12 +58,12 @@ type UsersAPI interface {
 	DismissPendingSsoLinkExecute(r UsersAPIDismissPendingSsoLinkRequest) (*http.Response, error)
 
 	/*
-	GetAccountProviders Get account providers
+		GetAccountProviders Get account providers
 
-	Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+		Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIGetAccountProvidersRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return UsersAPIGetAccountProvidersRequest
 	*/
 	GetAccountProviders(ctx context.Context) UsersAPIGetAccountProvidersRequest
 
@@ -73,10 +72,10 @@ type UsersAPI interface {
 	GetAccountProvidersExecute(r UsersAPIGetAccountProvidersRequest) ([]AccountProvider, *http.Response, error)
 
 	/*
-	GetAuthenticatedUser Get authenticated user
+		GetAuthenticatedUser Get authenticated user
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIGetAuthenticatedUserRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return UsersAPIGetAuthenticatedUserRequest
 	*/
 	GetAuthenticatedUser(ctx context.Context) UsersAPIGetAuthenticatedUserRequest
 
@@ -85,14 +84,14 @@ type UsersAPI interface {
 	GetAuthenticatedUserExecute(r UsersAPIGetAuthenticatedUserRequest) (*User, *http.Response, error)
 
 	/*
-	LinkAccount Link account (withdrawn)
+		LinkAccount Link account (withdrawn)
 
-	Withdrawn. This operation is no longer supported and always responds 410.
+		Withdrawn. This operation is no longer supported and always responds 410.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPILinkAccountRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return UsersAPILinkAccountRequest
 
-	Deprecated
+		Deprecated
 	*/
 	LinkAccount(ctx context.Context) UsersAPILinkAccountRequest
 
@@ -101,10 +100,10 @@ type UsersAPI interface {
 	LinkAccountExecute(r UsersAPILinkAccountRequest) (*http.Response, error)
 
 	/*
-	ListPendingSsoLinks List pending SSO account links for the authenticated user
+		ListPendingSsoLinks List pending SSO account links for the authenticated user
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIListPendingSsoLinksRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return UsersAPIListPendingSsoLinksRequest
 	*/
 	ListPendingSsoLinks(ctx context.Context) UsersAPIListPendingSsoLinksRequest
 
@@ -113,12 +112,12 @@ type UsersAPI interface {
 	ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLinksRequest) ([]PendingSsoLink, *http.Response, error)
 
 	/*
-	RecordLogin Record a completed login
+		RecordLogin Record a completed login
 
-	Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
+		Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return UsersAPIRecordLoginRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return UsersAPIRecordLoginRequest
 	*/
 	RecordLogin(ctx context.Context) UsersAPIRecordLoginRequest
 
@@ -130,7 +129,7 @@ type UsersAPI interface {
 type UsersAPIService service
 
 type UsersAPIAcceptPrivacyPoliciesRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
 }
 
@@ -141,22 +140,22 @@ func (r UsersAPIAcceptPrivacyPoliciesRequest) Execute() (*http.Response, error) 
 /*
 AcceptPrivacyPolicies Accept the current privacy policies
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIAcceptPrivacyPoliciesRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIAcceptPrivacyPoliciesRequest
 */
 func (a *UsersAPIService) AcceptPrivacyPolicies(ctx context.Context) UsersAPIAcceptPrivacyPoliciesRequest {
 	return UsersAPIAcceptPrivacyPoliciesRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
 func (a *UsersAPIService) AcceptPrivacyPoliciesExecute(r UsersAPIAcceptPrivacyPoliciesRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
+		localVarHTTPMethod = http.MethodPost
+		localVarPostBody   interface{}
+		formFiles          []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.AcceptPrivacyPolicies")
@@ -216,9 +215,9 @@ func (a *UsersAPIService) AcceptPrivacyPoliciesExecute(r UsersAPIAcceptPrivacyPo
 }
 
 type UsersAPIConfirmPendingSsoLinkRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
-	id string
+	id         string
 }
 
 func (r UsersAPIConfirmPendingSsoLinkRequest) Execute() (*http.Response, error) {
@@ -228,24 +227,24 @@ func (r UsersAPIConfirmPendingSsoLinkRequest) Execute() (*http.Response, error) 
 /*
 ConfirmPendingSsoLink Confirm (link) a pending SSO account link
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param id
- @return UsersAPIConfirmPendingSsoLinkRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param id
+	@return UsersAPIConfirmPendingSsoLinkRequest
 */
 func (a *UsersAPIService) ConfirmPendingSsoLink(ctx context.Context, id string) UsersAPIConfirmPendingSsoLinkRequest {
 	return UsersAPIConfirmPendingSsoLinkRequest{
 		ApiService: a,
-		ctx: ctx,
-		id: id,
+		ctx:        ctx,
+		id:         id,
 	}
 }
 
 // Execute executes the request
 func (a *UsersAPIService) ConfirmPendingSsoLinkExecute(r UsersAPIConfirmPendingSsoLinkRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
+		localVarHTTPMethod = http.MethodPost
+		localVarPostBody   interface{}
+		formFiles          []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.ConfirmPendingSsoLink")
@@ -306,9 +305,9 @@ func (a *UsersAPIService) ConfirmPendingSsoLinkExecute(r UsersAPIConfirmPendingS
 }
 
 type UsersAPIDismissPendingSsoLinkRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
-	id string
+	id         string
 }
 
 func (r UsersAPIDismissPendingSsoLinkRequest) Execute() (*http.Response, error) {
@@ -318,24 +317,24 @@ func (r UsersAPIDismissPendingSsoLinkRequest) Execute() (*http.Response, error) 
 /*
 DismissPendingSsoLink Dismiss a pending SSO account link
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param id
- @return UsersAPIDismissPendingSsoLinkRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param id
+	@return UsersAPIDismissPendingSsoLinkRequest
 */
 func (a *UsersAPIService) DismissPendingSsoLink(ctx context.Context, id string) UsersAPIDismissPendingSsoLinkRequest {
 	return UsersAPIDismissPendingSsoLinkRequest{
 		ApiService: a,
-		ctx: ctx,
-		id: id,
+		ctx:        ctx,
+		id:         id,
 	}
 }
 
 // Execute executes the request
 func (a *UsersAPIService) DismissPendingSsoLinkExecute(r UsersAPIDismissPendingSsoLinkRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodDelete
-		localVarPostBody     interface{}
-		formFiles            []formFile
+		localVarHTTPMethod = http.MethodDelete
+		localVarPostBody   interface{}
+		formFiles          []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.DismissPendingSsoLink")
@@ -396,7 +395,7 @@ func (a *UsersAPIService) DismissPendingSsoLinkExecute(r UsersAPIDismissPendingS
 }
 
 type UsersAPIGetAccountProvidersRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
 }
 
@@ -409,24 +408,25 @@ GetAccountProviders Get account providers
 
 Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIGetAccountProvidersRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIGetAccountProvidersRequest
 */
 func (a *UsersAPIService) GetAccountProviders(ctx context.Context) UsersAPIGetAccountProvidersRequest {
 	return UsersAPIGetAccountProvidersRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return []AccountProvider
+//
+//	@return []AccountProvider
 func (a *UsersAPIService) GetAccountProvidersExecute(r UsersAPIGetAccountProvidersRequest) ([]AccountProvider, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []AccountProvider
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue []AccountProvider
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.GetAccountProviders")
@@ -495,7 +495,7 @@ func (a *UsersAPIService) GetAccountProvidersExecute(r UsersAPIGetAccountProvide
 }
 
 type UsersAPIGetAuthenticatedUserRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
 }
 
@@ -506,24 +506,25 @@ func (r UsersAPIGetAuthenticatedUserRequest) Execute() (*User, *http.Response, e
 /*
 GetAuthenticatedUser Get authenticated user
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIGetAuthenticatedUserRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIGetAuthenticatedUserRequest
 */
 func (a *UsersAPIService) GetAuthenticatedUser(ctx context.Context) UsersAPIGetAuthenticatedUserRequest {
 	return UsersAPIGetAuthenticatedUserRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return User
+//
+//	@return User
 func (a *UsersAPIService) GetAuthenticatedUserExecute(r UsersAPIGetAuthenticatedUserRequest) (*User, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *User
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *User
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.GetAuthenticatedUser")
@@ -592,8 +593,8 @@ func (a *UsersAPIService) GetAuthenticatedUserExecute(r UsersAPIGetAuthenticated
 }
 
 type UsersAPILinkAccountRequest struct {
-	ctx context.Context
-	ApiService UsersAPI
+	ctx                 context.Context
+	ApiService          UsersAPI
 	createLinkedAccount *CreateLinkedAccount
 }
 
@@ -611,15 +612,15 @@ LinkAccount Link account (withdrawn)
 
 Withdrawn. This operation is no longer supported and always responds 410.
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPILinkAccountRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPILinkAccountRequest
 
 Deprecated
 */
 func (a *UsersAPIService) LinkAccount(ctx context.Context) UsersAPILinkAccountRequest {
 	return UsersAPILinkAccountRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
@@ -627,9 +628,9 @@ func (a *UsersAPIService) LinkAccount(ctx context.Context) UsersAPILinkAccountRe
 // Deprecated
 func (a *UsersAPIService) LinkAccountExecute(r UsersAPILinkAccountRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
+		localVarHTTPMethod = http.MethodPost
+		localVarPostBody   interface{}
+		formFiles          []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.LinkAccount")
@@ -694,7 +695,7 @@ func (a *UsersAPIService) LinkAccountExecute(r UsersAPILinkAccountRequest) (*htt
 }
 
 type UsersAPIListPendingSsoLinksRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
 }
 
@@ -705,24 +706,25 @@ func (r UsersAPIListPendingSsoLinksRequest) Execute() ([]PendingSsoLink, *http.R
 /*
 ListPendingSsoLinks List pending SSO account links for the authenticated user
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIListPendingSsoLinksRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIListPendingSsoLinksRequest
 */
 func (a *UsersAPIService) ListPendingSsoLinks(ctx context.Context) UsersAPIListPendingSsoLinksRequest {
 	return UsersAPIListPendingSsoLinksRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return []PendingSsoLink
+//
+//	@return []PendingSsoLink
 func (a *UsersAPIService) ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLinksRequest) ([]PendingSsoLink, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []PendingSsoLink
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue []PendingSsoLink
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.ListPendingSsoLinks")
@@ -791,7 +793,7 @@ func (a *UsersAPIService) ListPendingSsoLinksExecute(r UsersAPIListPendingSsoLin
 }
 
 type UsersAPIRecordLoginRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService UsersAPI
 }
 
@@ -804,22 +806,22 @@ RecordLogin Record a completed login
 
 Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return UsersAPIRecordLoginRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return UsersAPIRecordLoginRequest
 */
 func (a *UsersAPIService) RecordLogin(ctx context.Context) UsersAPIRecordLoginRequest {
 	return UsersAPIRecordLoginRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
 func (a *UsersAPIService) RecordLoginExecute(r UsersAPIRecordLoginRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
+		localVarHTTPMethod = http.MethodPost
+		localVarPostBody   interface{}
+		formFiles          []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.RecordLogin")

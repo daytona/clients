@@ -21,16 +21,15 @@ import (
 	"time"
 )
 
-
 type AuditAPI interface {
 
 	/*
-	GetAuditScenarios Get supported audit log scenarios
+		GetAuditScenarios Get supported audit log scenarios
 
-	Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
+		Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return AuditAPIGetAuditScenariosRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return AuditAPIGetAuditScenariosRequest
 	*/
 	GetAuditScenarios(ctx context.Context) AuditAPIGetAuditScenariosRequest
 
@@ -39,11 +38,11 @@ type AuditAPI interface {
 	GetAuditScenariosExecute(r AuditAPIGetAuditScenariosRequest) (*AuditScenarios, *http.Response, error)
 
 	/*
-	GetOrganizationAuditLogs Get audit logs for organization
+		GetOrganizationAuditLogs Get audit logs for organization
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param organizationId Organization ID
-	@return AuditAPIGetOrganizationAuditLogsRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param organizationId Organization ID
+		@return AuditAPIGetOrganizationAuditLogsRequest
 	*/
 	GetOrganizationAuditLogs(ctx context.Context, organizationId string) AuditAPIGetOrganizationAuditLogsRequest
 
@@ -56,7 +55,7 @@ type AuditAPI interface {
 type AuditAPIService service
 
 type AuditAPIGetAuditScenariosRequest struct {
-	ctx context.Context
+	ctx        context.Context
 	ApiService AuditAPI
 }
 
@@ -69,24 +68,25 @@ GetAuditScenarios Get supported audit log scenarios
 
 Returns the supported audit log actions grouped by target type. The list is derived at runtime from the audited routes and system events, so it always reflects what can actually appear in the audit log.
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return AuditAPIGetAuditScenariosRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return AuditAPIGetAuditScenariosRequest
 */
 func (a *AuditAPIService) GetAuditScenarios(ctx context.Context) AuditAPIGetAuditScenariosRequest {
 	return AuditAPIGetAuditScenariosRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return AuditScenarios
+//
+//	@return AuditScenarios
 func (a *AuditAPIService) GetAuditScenariosExecute(r AuditAPIGetAuditScenariosRequest) (*AuditScenarios, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *AuditScenarios
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *AuditScenarios
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "AuditAPIService.GetAuditScenarios")
@@ -155,24 +155,24 @@ func (a *AuditAPIService) GetAuditScenariosExecute(r AuditAPIGetAuditScenariosRe
 }
 
 type AuditAPIGetOrganizationAuditLogsRequest struct {
-	ctx context.Context
-	ApiService AuditAPI
-	organizationId string
-	page *int32
-	limit *int32
-	from *time.Time
-	to *time.Time
-	nextToken *string
-	id *StringFilter
-	actorId *StringFilter
-	actorEmail *StringFilter
+	ctx               context.Context
+	ApiService        AuditAPI
+	organizationId    string
+	page              *int32
+	limit             *int32
+	from              *time.Time
+	to                *time.Time
+	nextToken         *string
+	id                *StringFilter
+	actorId           *StringFilter
+	actorEmail        *StringFilter
 	actorApiKeyPrefix *StringFilter
 	actorApiKeySuffix *StringFilter
-	action *StringFilter
-	targetType *StringFilter
-	targetId *StringFilter
-	statusCode *IntFilter
-	createdAt *DateFilter
+	action            *StringFilter
+	targetType        *StringFilter
+	targetId          *StringFilter
+	statusCode        *IntFilter
+	createdAt         *DateFilter
 }
 
 // Page number of the results
@@ -274,26 +274,27 @@ func (r AuditAPIGetOrganizationAuditLogsRequest) Execute() (*PaginatedAuditLogs,
 /*
 GetOrganizationAuditLogs Get audit logs for organization
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param organizationId Organization ID
- @return AuditAPIGetOrganizationAuditLogsRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param organizationId Organization ID
+	@return AuditAPIGetOrganizationAuditLogsRequest
 */
 func (a *AuditAPIService) GetOrganizationAuditLogs(ctx context.Context, organizationId string) AuditAPIGetOrganizationAuditLogsRequest {
 	return AuditAPIGetOrganizationAuditLogsRequest{
-		ApiService: a,
-		ctx: ctx,
+		ApiService:     a,
+		ctx:            ctx,
 		organizationId: organizationId,
 	}
 }
 
 // Execute executes the request
-//  @return PaginatedAuditLogs
+//
+//	@return PaginatedAuditLogs
 func (a *AuditAPIService) GetOrganizationAuditLogsExecute(r AuditAPIGetOrganizationAuditLogsRequest) (*PaginatedAuditLogs, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *PaginatedAuditLogs
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *PaginatedAuditLogs
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "AuditAPIService.GetOrganizationAuditLogs")

@@ -489,8 +489,28 @@ export class Sandbox {
     }
   }
 
-  private async currentTopologyGeneration(): Promise<number> {
-    await this.refreshData()
+  private nodeOperationRequestOptions(timeout: number, deadline?: number) {
+    let requestTimeout = this.requestTimeoutMs
+    if (deadline !== undefined) {
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) throw new DaytonaTimeoutError(`Node operation exceeded timeout of ${timeout} seconds`)
+      requestTimeout =
+        requestTimeout !== undefined && requestTimeout > 0 ? Math.min(requestTimeout, remaining) : remaining
+    }
+    return requestTimeout === undefined
+      ? undefined
+      : { timeout: requestTimeout === 0 ? 0 : Math.max(1, Math.floor(requestTimeout)) }
+  }
+
+  private async currentTopologyGeneration(timeout: number, deadline?: number): Promise<number> {
+    const response = await this.sandboxApi.getSandbox(
+      this.id,
+      undefined,
+      undefined,
+      this.nodeOperationRequestOptions(timeout, deadline),
+    )
+    this.nodeOperationRequestOptions(timeout, deadline)
+    this.processSandboxDto(response.data)
     if (this.topologyGeneration === undefined) {
       throw new DaytonaError('Sandbox does not expose a topology generation; elastic node operations are unavailable')
     }
@@ -500,8 +520,9 @@ export class Sandbox {
   private async waitForNodeOperation(
     operation: GangMembershipOperation,
     timeout: number,
+    deadline?: number,
   ): Promise<GangMembershipOperation> {
-    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
+    this.nodeOperationRequestOptions(timeout, deadline)
     while (operation.status !== 'COMPLETED' && operation.status !== 'FAILED') {
       if (deadline !== undefined && Date.now() >= deadline) {
         throw new DaytonaTimeoutError(
@@ -514,49 +535,63 @@ export class Sandbox {
         this.id,
         operation.id,
         undefined,
-        this.requestTimeoutMs === undefined ? undefined : { timeout: this.requestTimeoutMs },
+        this.nodeOperationRequestOptions(timeout, deadline),
       )
+      this.nodeOperationRequestOptions(timeout, deadline)
       operation = response.data
     }
     if (operation.status === 'FAILED') {
       throw new DaytonaError(operation.errorReason ?? `Node ${operation.type.toLowerCase()} operation failed`)
     }
-    await this.refreshData()
+    const response = await this.sandboxApi.getSandbox(
+      this.id,
+      undefined,
+      undefined,
+      this.nodeOperationRequestOptions(timeout, deadline),
+    )
+    this.nodeOperationRequestOptions(timeout, deadline)
+    this.processSandboxDto(response.data)
     return operation
   }
 
   private async addNodes(nodes: ReadonlyArray<NodeResources>, timeout = 600): Promise<GangMembershipOperation> {
     this.validateNodeOperationTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
     const response = await this.sandboxApi.addSandboxNodes(
       this.id,
-      { expectedGeneration: await this.currentTopologyGeneration(), nodes: nodes.map((node) => ({ ...node })) },
+      {
+        expectedGeneration: await this.currentTopologyGeneration(timeout, deadline),
+        nodes: nodes.map((node) => ({ ...node })),
+      },
       undefined,
-      this.requestTimeoutMs === undefined ? undefined : { timeout: this.requestTimeoutMs },
+      this.nodeOperationRequestOptions(timeout, deadline),
     )
-    return this.waitForNodeOperation(response.data, timeout)
+    return this.waitForNodeOperation(response.data, timeout, deadline)
   }
 
   private async releaseNodes(count = 1, timeout = 600): Promise<GangMembershipOperation> {
     this.validateNodeOperationTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
     const response = await this.sandboxApi.removeSandboxNodes(
       this.id,
-      { expectedGeneration: await this.currentTopologyGeneration(), count },
+      { expectedGeneration: await this.currentTopologyGeneration(timeout, deadline), count },
       undefined,
-      this.requestTimeoutMs === undefined ? undefined : { timeout: this.requestTimeoutMs },
+      this.nodeOperationRequestOptions(timeout, deadline),
     )
-    return this.waitForNodeOperation(response.data, timeout)
+    return this.waitForNodeOperation(response.data, timeout, deadline)
   }
 
   private async replaceNode(rank: number, timeout = 600): Promise<GangMembershipOperation> {
     this.validateNodeOperationTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
     const response = await this.sandboxApi.replaceSandboxNode(
       this.id,
       String(rank),
-      { expectedGeneration: await this.currentTopologyGeneration() },
+      { expectedGeneration: await this.currentTopologyGeneration(timeout, deadline) },
       undefined,
-      this.requestTimeoutMs === undefined ? undefined : { timeout: this.requestTimeoutMs },
+      this.nodeOperationRequestOptions(timeout, deadline),
     )
-    return this.waitForNodeOperation(response.data, timeout)
+    return this.waitForNodeOperation(response.data, timeout, deadline)
   }
 
   /**

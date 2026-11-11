@@ -2318,6 +2318,9 @@ paths:
       - sandbox
   /sandbox/{sandboxIdOrName}/stop:
     post:
+      description: "Stops a single-node sandbox. For a multi-node GPU sandbox head,\
+        \ stop is irreversible and destroys the entire gang, including all ephemeral\
+        \ local data."
       operationId: stopSandbox
       parameters:
       - description: Use with JWT to specify the organization ID
@@ -2350,7 +2353,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Sandbox"
-          description: Sandbox has been stopped
+          description: "Sandbox has been stopped, or the complete multi-node gang\
+            \ has been marked for destruction"
       security:
       - bearer: []
       - oauth2:
@@ -3019,7 +3023,8 @@ paths:
         style: simple
       - description: "Maximum time to live in minutes, re-anchored from the current\
           \ time (0 to disable). When it elapses the sandbox is destroyed, even if\
-          \ it is stopped, paused, or archived"
+          \ it is stopped, paused, or archived. On a multi-node head, expiry destroys\
+          \ every member and all ephemeral local data"
         explode: false
         in: path
         name: ttlMinutes
@@ -6351,6 +6356,178 @@ paths:
       summary: Get sandbox metrics
       tags:
       - sandbox
+  /sandbox/{sandboxIdOrName}/nodes:
+    post:
+      operationId: addSandboxNodes
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddGangNodes"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: Membership operation accepted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Append nodes to a multi-node sandbox
+      tags:
+      - sandbox
+  /sandbox/{sandboxIdOrName}/nodes/remove:
+    post:
+      operationId: removeSandboxNodes
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveGangNodes"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: Membership operation accepted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Remove the highest ranks from a multi-node sandbox
+      tags:
+      - sandbox
+  /sandbox/{sandboxIdOrName}/nodes/{rank}/replace:
+    post:
+      operationId: replaceSandboxNode
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: rank
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceGangNode"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: Membership operation accepted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Replace a failed multi-node sandbox rank
+      tags:
+      - sandbox
+  /sandbox/{sandboxIdOrName}/membership-operations/{operationId}:
+    get:
+      operationId: getGangMembershipOperation
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: operationId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: ""
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Get a gang membership operation
+      tags:
+      - sandbox
 components:
   schemas:
     Announcement:
@@ -9035,7 +9212,7 @@ components:
       type: object
     CreateSandbox:
       example:
-        memory: 1
+        memory: 256
         buildInfo: ""
         autoStopInterval: 30
         otelEndpointOverride: https://otel-collector.example.com:4318
@@ -9057,7 +9234,11 @@ components:
         - mountPath: /data
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
-        cpu: 2
+        cpu:
+        - 16
+        - 16
+        - 32
+        - 32
         ttlMinutes: 1440
         env:
           NODE_ENV: production
@@ -9068,7 +9249,11 @@ components:
         labels:
           daytona.io/public: "true"
         target: us
-        disk: 3
+        disk:
+        - 180
+        - 180
+        - 300
+        - 300
         spot: false
         name: MySandbox
         user: daytona
@@ -9149,9 +9334,7 @@ components:
           example: us
           type: string
         cpu:
-          description: CPU cores allocated to the sandbox
-          example: 2
-          type: integer
+          $ref: "#/components/schemas/CreateSandbox_cpu"
         gpu:
           description: GPU units allocated to the sandbox
           example: 1
@@ -9173,13 +9356,9 @@ components:
           example: false
           type: boolean
         memory:
-          description: Memory allocated to the sandbox in GB
-          example: 1
-          type: integer
+          $ref: "#/components/schemas/CreateSandbox_memory"
         disk:
-          description: Disk space allocated to the sandbox in GB
-          example: 3
-          type: integer
+          $ref: "#/components/schemas/CreateSandbox_disk"
         autoStopInterval:
           description: Auto-stop interval in minutes (0 means disabled)
           example: 30
@@ -9290,31 +9469,24 @@ components:
       type: object
     Sandbox:
       example:
-        memory: 4
         linkedSandboxId: sandbox123
-        buildInfo: ""
         toolboxProxyUrl: https://proxy.app.daytona.io/toolbox
-        lastActivityAt: 2024-10-01T12:00:00Z
         warmPoolId: warmPoolId
         autoStopInterval: 30
         organizationId: organization123
         otelEndpointOverride: https://otel-collector.example.com:4318
-        autoPauseInterval: 60
         createdAt: 2024-10-01T12:00:00Z
-        networkBlockAll: false
         autoDeleteInterval: 30
-        domainAllowList: "example.com,*.daytona.io"
-        public: false
+        headSandboxId: headSandboxId
         outboundProxyUrl: http://user:pass@proxy.example.com:3128
-        errorReason: The sandbox is not running
         runnerId: runner123
+        nodeCount: 1
         id: sandbox123
         state: creating
-        gpuType: H100
         updatedAt: 2024-10-01T12:00:00Z
         sandboxClass: linux-vm
         desiredState: destroyed
-        kvm: false
+        nodeRank: 1
         networkAllowList: "192.168.1.0/16,10.0.0.0/24"
         spotEvictedAt: 2026-08-13T12:00:00.000Z
         volumes:
@@ -9325,24 +9497,64 @@ components:
           volumeId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
           subpath: users/alice
         cpu: 2
-        recoverable: true
-        env:
-          NODE_ENV: production
+        degraded: true
         gpu: 0
         daemonVersion: 1.0.0
         backupCreatedAt: 2024-10-01T12:00:00Z
         labels:
           daytona.io/public: "true"
-        target: local
         disk: 10
-        autoDestroyAt: 2026-07-15T12:00:00.000Z
-        queueTimedOutAt: 2026-08-13T12:00:00.000Z
         spot: false
         name: MySandbox
-        backupState: None
-        user: daytona
         autoArchiveInterval: 10080
         snapshot: daytonaio/sandbox:latest
+        memory: 4
+        buildInfo: ""
+        lastActivityAt: 2024-10-01T12:00:00Z
+        autoPauseInterval: 60
+        networkBlockAll: false
+        domainAllowList: "example.com,*.daytona.io"
+        public: false
+        topologyGeneration: 1
+        errorReason: The sandbox is not running
+        gpuType: H100
+        kvm: false
+        recoverable: true
+        env:
+          NODE_ENV: production
+        target: local
+        autoDestroyAt: 2026-07-15T12:00:00.000Z
+        queueTimedOutAt: 2026-08-13T12:00:00.000Z
+        nodes:
+        - memory: 5
+          cpu: 1
+          gpu: 5
+          disk: 2
+          fabricAddress: fabricAddress
+          failure: ""
+          fabricHealthy: true
+          fabricUnhealthySince: fabricUnhealthySince
+          rank: 0
+          id: id
+          state: ""
+          incarnation: 1
+          fabricPrefixLength: 7
+        - memory: 5
+          cpu: 1
+          gpu: 5
+          disk: 2
+          fabricAddress: fabricAddress
+          failure: ""
+          fabricHealthy: true
+          fabricUnhealthySince: fabricUnhealthySince
+          rank: 0
+          id: id
+          state: ""
+          incarnation: 1
+          fabricPrefixLength: 7
+        backupState: None
+        incarnation: 1
+        user: daytona
         queueTimeout: 5
       properties:
         id:
@@ -9419,11 +9631,13 @@ components:
           example: local
           type: string
         cpu:
-          description: The CPU quota for the sandbox
+          description: "The CPU quota for the sandbox; for a multi-node sandbox, this\
+            \ is the job total."
           example: 2
           type: integer
         gpu:
-          description: The GPU quota for the sandbox
+          description: "The GPU quota for the sandbox; for a multi-node sandbox, this\
+            \ is the job total."
           example: 0
           type: integer
         spot:
@@ -9451,11 +9665,13 @@ components:
           description: The GPU type assigned to the sandbox
           example: H100
         memory:
-          description: The memory quota for the sandbox
+          description: "The memory quota for the sandbox; for a multi-node sandbox,\
+            \ this is the job total."
           example: 4
           type: integer
         disk:
-          description: The disk quota for the sandbox
+          description: "The disk quota for the sandbox; for a multi-node sandbox,\
+            \ this is the job total."
           example: 10
           type: integer
         state:
@@ -9574,6 +9790,33 @@ components:
           description: The toolbox proxy URL for the sandbox
           example: https://proxy.app.daytona.io/toolbox
           type: string
+        nodes:
+          description: Gang members in rank order. Rank 0 is this sandbox.
+          items:
+            $ref: "#/components/schemas/SandboxNode"
+          type: array
+        topologyGeneration:
+          description: Committed logical topology generation.
+          minimum: 1
+          type: integer
+        incarnation:
+          description: Physical incarnation for an internal gang row.
+          minimum: 1
+          type: integer
+        nodeCount:
+          description: Derived number of physical nodes in this sandbox.
+          minimum: 1
+          type: integer
+        nodeRank:
+          description: Rank within the gang; present only on internal member rows.
+          minimum: 1
+          type: integer
+        headSandboxId:
+          description: Gang head ID; present only on internal member rows.
+          type: string
+        degraded:
+          description: The gang remains usable but one or more fabric checks are degraded.
+          type: boolean
       required:
       - cpu
       - disk
@@ -9633,8 +9876,10 @@ components:
     UpdateSandboxStateDto:
       example:
         errorReason: Failed to pull snapshot image
+        fabricFenced: true
         recoverable: true
         state: started
+        incarnation: 1
       properties:
         state:
           description: The new state for the sandbox
@@ -9670,6 +9915,14 @@ components:
         recoverable:
           description: Whether the sandbox is recoverable
           example: true
+          type: boolean
+        incarnation:
+          description: Physical gang-member incarnation producing this report.
+          minimum: 1
+          type: integer
+        fabricFenced:
+          description: The runner has restored an idle-closed fabric state for this
+            failed member.
           type: boolean
       required:
       - state
@@ -9907,6 +10160,7 @@ components:
         maxDiskPerNonEphemeralSandbox: 9.301444243932576
         regionId: regionId
         maxCpuPerGpu: 3.616076749251911
+        maxNodesPerSandbox: 1.2315135367772556
         maxMemoryPerSandbox: 2.3021358869347655
         maxDiskPerGpu: 4.145608029883936
         totalMemoryQuota: 6.027456183070403
@@ -9963,6 +10217,9 @@ components:
             \ TTL cannot be disabled."
           nullable: true
           type: number
+        maxNodesPerSandbox:
+          description: Maximum derived GPU node count; zero disables multi-node sandboxes.
+          type: number
       required:
       - maxCpuPerGpu
       - maxCpuPerSandbox
@@ -9971,6 +10228,7 @@ components:
       - maxDiskPerSandbox
       - maxMemoryPerGpu
       - maxMemoryPerSandbox
+      - maxNodesPerSandbox
       - maxSandboxLifespan
       - organizationId
       - regionId
@@ -10573,6 +10831,32 @@ components:
         appVersion: v0.0.0-dev
         apiUrl: http://api.daytona.example.com:8080
         proxyUrl: http://proxy.daytona.example.com:8080
+        fabric:
+          gdrHint: gdrHint
+          rails:
+          - rdmaDevice: rdmaDevice
+            prefixLength: 19
+            netdev: netdev
+            macAddress: macAddress
+            address: address
+            uverbsDevice: uverbsDevice
+            index: 0.8008281904610115
+            pciAddress: pciAddress
+          - rdmaDevice: rdmaDevice
+            prefixLength: 19
+            netdev: netdev
+            macAddress: macAddress
+            address: address
+            uverbsDevice: uverbsDevice
+            index: 0.8008281904610115
+            pciAddress: pciAddress
+          profileId: profileId
+          healthy: true
+          domain: domain
+          errorReason: errorReason
+          transportConfig:
+            key: ""
+          transport: roce-v2
         domain: runner-123.daytona.example.com
         serviceHealth:
         - healthy: false
@@ -10608,6 +10892,8 @@ components:
           description: Runner app version
           example: v0.0.0-dev
           type: string
+        fabric:
+          $ref: "#/components/schemas/RunnerFabricHealth"
       required:
       - appVersion
       type: object
@@ -11008,6 +11294,7 @@ components:
       - SNAPSHOT_SANDBOX
       - FORK_SANDBOX
       - PAUSE_SANDBOX
+      - UPDATE_SANDBOX_FABRIC
       type: string
     Job:
       example:
@@ -12024,6 +12311,9 @@ components:
             - ttl_expire
             - queue_timeout_expire
             - spot_evict
+            - add_nodes
+            - remove_nodes
+            - replace_node
             type: string
           type: array
       required:
@@ -12396,6 +12686,7 @@ components:
       enum:
       - sandbox.created
       - sandbox.state.updated
+      - sandbox.gang-member-failed
       - snapshot.created
       - snapshot.state.updated
       - snapshot.removed
@@ -12405,6 +12696,7 @@ components:
       x-enum-varnames:
       - SANDBOX_CREATED
       - SANDBOX_STATE_UPDATED
+      - SANDBOX_GANG_MEMBER_FAILED
       - SNAPSHOT_CREATED
       - SNAPSHOT_STATE_UPDATED
       - SNAPSHOT_REMOVED
@@ -12710,6 +13002,405 @@ components:
       - timestamp
       - updatedAt
       type: object
+    GangNodeFailure:
+      properties:
+        rank:
+          minimum: 0
+          type: integer
+        memberId:
+          type: string
+        incarnation:
+          minimum: 1
+          type: integer
+        reason:
+          type: string
+        reportedState:
+          allOf:
+          - $ref: "#/components/schemas/SandboxState"
+        failedAt:
+          format: date-time
+          type: string
+        fencingStatus:
+          enum:
+          - PENDING
+          - FENCED
+          - FAILED
+          type: string
+        fencingError:
+          type: string
+      required:
+      - failedAt
+      - fencingStatus
+      - incarnation
+      - memberId
+      - rank
+      - reason
+      - reportedState
+      type: object
+    SandboxNode:
+      example:
+        memory: 5
+        cpu: 1
+        gpu: 5
+        disk: 2
+        fabricAddress: fabricAddress
+        failure: ""
+        fabricHealthy: true
+        fabricUnhealthySince: fabricUnhealthySince
+        rank: 0
+        id: id
+        state: ""
+        incarnation: 1
+        fabricPrefixLength: 7
+      properties:
+        rank:
+          minimum: 0
+          type: integer
+        id:
+          type: string
+        state:
+          allOf:
+          - $ref: "#/components/schemas/SandboxState"
+          description: Current state of this logical rank.
+        incarnation:
+          description: Physical incarnation of this logical rank.
+          minimum: 1
+          type: integer
+        failure:
+          allOf:
+          - $ref: "#/components/schemas/GangNodeFailure"
+          description: Failure details for this rank while the gang is degraded.
+        cpu:
+          description: CPU cores allocated to this node.
+          type: integer
+        gpu:
+          description: GPU units allocated to this node.
+          type: integer
+        memory:
+          description: Memory allocated to this node in GB.
+          type: integer
+        disk:
+          description: Disk allocated to this node in GB.
+          type: integer
+        fabricAddress:
+          description: Rail-0 address assigned to this member.
+          type: string
+        fabricPrefixLength:
+          description: Prefix length of the member rail-0 address.
+          type: integer
+        fabricHealthy:
+          description: Latest fabric health reported by the assigned runner.
+          type: boolean
+        fabricUnhealthySince:
+          description: Start of the current sustained unhealthy interval.
+          type: string
+      required:
+      - cpu
+      - disk
+      - gpu
+      - id
+      - incarnation
+      - memory
+      - rank
+      - state
+      type: object
+    GangNodeResources:
+      example:
+        disk: 1
+        memory: 1
+        cpu: 1
+      properties:
+        cpu:
+          description: CPU cores for the appended node.
+          minimum: 1
+          type: integer
+        memory:
+          description: Memory in GB for the appended node.
+          minimum: 1
+          type: integer
+        disk:
+          description: Disk in GB for the appended node.
+          minimum: 1
+          type: integer
+      required:
+      - cpu
+      - disk
+      - memory
+      type: object
+    AddGangNodes:
+      example:
+        nodes:
+        - disk: 1
+          memory: 1
+          cpu: 1
+        - disk: 1
+          memory: 1
+          cpu: 1
+        expectedGeneration: 1
+      properties:
+        expectedGeneration:
+          description: Current sandbox topology generation.
+          minimum: 1
+          type: integer
+        nodes:
+          description: One resource specification per appended rank.
+          items:
+            $ref: "#/components/schemas/GangNodeResources"
+          type: array
+      required:
+      - expectedGeneration
+      - nodes
+      type: object
+    GangMembershipOperation:
+      example:
+        phase: phase
+        targetGeneration: 2
+        createdAt: createdAt
+        completedAt: completedAt
+        errorReason: errorReason
+        policyRevision: 1
+        sandboxId: sandboxId
+        expectedGeneration: 1
+        id: id
+        type: ADD
+        status: PENDING
+        updatedAt: updatedAt
+      properties:
+        id:
+          type: string
+        sandboxId:
+          type: string
+        type:
+          enum:
+          - ADD
+          - REMOVE
+          - REPLACE
+          type: string
+        status:
+          enum:
+          - PENDING
+          - RUNNING
+          - COMPLETED
+          - FAILED
+          type: string
+        phase:
+          type: string
+        expectedGeneration:
+          minimum: 1
+          type: integer
+        targetGeneration:
+          minimum: 2
+          type: integer
+        policyRevision:
+          minimum: 1
+          type: integer
+        errorReason:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        completedAt:
+          type: string
+      required:
+      - createdAt
+      - expectedGeneration
+      - id
+      - phase
+      - policyRevision
+      - sandboxId
+      - status
+      - targetGeneration
+      - type
+      - updatedAt
+      type: object
+    RemoveGangNodes:
+      example:
+        count: 1
+        expectedGeneration: 1
+      properties:
+        expectedGeneration:
+          description: Current sandbox topology generation.
+          minimum: 1
+          type: integer
+        count:
+          description: Number of highest ranks to remove.
+          minimum: 1
+          type: integer
+      required:
+      - count
+      - expectedGeneration
+      type: object
+    ReplaceGangNode:
+      example:
+        expectedGeneration: 1
+      properties:
+        expectedGeneration:
+          description: Current sandbox topology generation.
+          minimum: 1
+          type: integer
+      required:
+      - expectedGeneration
+      type: object
+    RunnerFabricRail:
+      example:
+        rdmaDevice: rdmaDevice
+        prefixLength: 19
+        netdev: netdev
+        macAddress: macAddress
+        address: address
+        uverbsDevice: uverbsDevice
+        index: 0.8008281904610115
+        pciAddress: pciAddress
+      properties:
+        index:
+          type: number
+        pciAddress:
+          type: string
+        netdev:
+          type: string
+        rdmaDevice:
+          type: string
+        uverbsDevice:
+          type: string
+        address:
+          type: string
+        prefixLength:
+          maximum: 32
+          minimum: 1
+          type: integer
+        macAddress:
+          type: string
+      required:
+      - address
+      - index
+      - netdev
+      - pciAddress
+      - prefixLength
+      - rdmaDevice
+      - uverbsDevice
+      type: object
+    RunnerFabricHealth:
+      example:
+        gdrHint: gdrHint
+        rails:
+        - rdmaDevice: rdmaDevice
+          prefixLength: 19
+          netdev: netdev
+          macAddress: macAddress
+          address: address
+          uverbsDevice: uverbsDevice
+          index: 0.8008281904610115
+          pciAddress: pciAddress
+        - rdmaDevice: rdmaDevice
+          prefixLength: 19
+          netdev: netdev
+          macAddress: macAddress
+          address: address
+          uverbsDevice: uverbsDevice
+          index: 0.8008281904610115
+          pciAddress: pciAddress
+        profileId: profileId
+        healthy: true
+        domain: domain
+        errorReason: errorReason
+        transportConfig:
+          key: ""
+        transport: roce-v2
+      properties:
+        domain:
+          description: Physical fabric failure domain.
+          type: string
+        transport:
+          enum:
+          - roce-v2
+          type: string
+          x-enum-varnames:
+          - ROCE_V2
+        profileId:
+          type: string
+        healthy:
+          description: "True only after discovery, address, RDMA, and rail checks\
+            \ pass."
+          type: boolean
+        rails:
+          items:
+            $ref: "#/components/schemas/RunnerFabricRail"
+          type: array
+        transportConfig:
+          additionalProperties: true
+          type: object
+        gdrHint:
+          type: string
+        errorReason:
+          type: string
+      required:
+      - domain
+      - healthy
+      - profileId
+      - rails
+      - transport
+      - transportConfig
+      type: object
+    SandboxGangMemberFailedWebhook:
+      properties:
+        event:
+          allOf:
+          - $ref: "#/components/schemas/WebhookEvent"
+          description: Event type identifier
+          example: sandbox.created
+        timestamp:
+          description: Timestamp when the event occurred
+          example: 2025-12-19T10:30:00Z
+          format: date-time
+          type: string
+        id:
+          description: Public gang sandbox ID
+          type: string
+        organizationId:
+          description: Organization ID
+          type: string
+        rank:
+          description: Failed logical rank
+          minimum: 0
+          type: integer
+        memberId:
+          description: Sandbox row ID for the failed rank
+          type: string
+        incarnation:
+          description: Physical member incarnation
+          minimum: 1
+          type: integer
+        state:
+          allOf:
+          - $ref: "#/components/schemas/SandboxState"
+        reason:
+          description: Failure reason
+          type: string
+        topologyGeneration:
+          description: Committed topology generation
+          minimum: 1
+          type: integer
+        fencingStatus:
+          description: Fabric fencing result
+          enum:
+          - PENDING
+          - FENCED
+          - FAILED
+          type: string
+      required:
+      - event
+      - fencingStatus
+      - id
+      - incarnation
+      - memberId
+      - organizationId
+      - rank
+      - reason
+      - state
+      - timestamp
+      - topologyGeneration
+      type: object
     resolveSandboxSecrets_200_response_inner:
       example:
         hosts:
@@ -12826,6 +13517,50 @@ components:
               message: Could not connect
           type: object
       type: object
+    CreateSandbox_cpu:
+      description: "CPU cores allocated per node. A scalar applies to every node;\
+        \ for a multi-node GPU sandbox, an array specifies one value per rank."
+      example:
+      - 16
+      - 16
+      - 32
+      - 32
+      oneOf:
+      - minimum: 0
+        type: integer
+      - items:
+          minimum: 0
+          type: integer
+        minItems: 1
+        type: array
+    CreateSandbox_memory:
+      description: "Memory allocated per node in GB. A scalar applies to every node;\
+        \ for a multi-node GPU sandbox, an array specifies one value per rank."
+      example: 256
+      oneOf:
+      - minimum: 0
+        type: integer
+      - items:
+          minimum: 0
+          type: integer
+        minItems: 1
+        type: array
+    CreateSandbox_disk:
+      description: "Disk space allocated per node in GB. A scalar applies to every\
+        \ node; for a multi-node GPU sandbox, an array specifies one value per rank."
+      example:
+      - 180
+      - 180
+      - 300
+      - 300
+      oneOf:
+      - minimum: 0
+        type: integer
+      - items:
+          minimum: 0
+          type: integer
+        minItems: 1
+        type: array
   securitySchemes:
     bearer:
       bearerFormat: JWT

@@ -20,6 +20,9 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import io.daytona.api.client.model.CreateBuildInfo;
+import io.daytona.api.client.model.CreateSandboxCpu;
+import io.daytona.api.client.model.CreateSandboxDisk;
+import io.daytona.api.client.model.CreateSandboxMemory;
 import io.daytona.api.client.model.GpuType;
 import io.daytona.api.client.model.SandboxVolume;
 import java.io.IOException;
@@ -125,7 +128,7 @@ public class CreateSandbox {
   public static final String SERIALIZED_NAME_CPU = "cpu";
   @SerializedName(SERIALIZED_NAME_CPU)
   @javax.annotation.Nullable
-  private Integer cpu;
+  private CreateSandboxCpu cpu;
 
   public static final String SERIALIZED_NAME_GPU = "gpu";
   @SerializedName(SERIALIZED_NAME_GPU)
@@ -145,12 +148,12 @@ public class CreateSandbox {
   public static final String SERIALIZED_NAME_MEMORY = "memory";
   @SerializedName(SERIALIZED_NAME_MEMORY)
   @javax.annotation.Nullable
-  private Integer memory;
+  private CreateSandboxMemory memory;
 
   public static final String SERIALIZED_NAME_DISK = "disk";
   @SerializedName(SERIALIZED_NAME_DISK)
   @javax.annotation.Nullable
-  private Integer disk;
+  private CreateSandboxDisk disk;
 
   public static final String SERIALIZED_NAME_AUTO_STOP_INTERVAL = "autoStopInterval";
   @SerializedName(SERIALIZED_NAME_AUTO_STOP_INTERVAL)
@@ -468,21 +471,21 @@ public class CreateSandbox {
   }
 
 
-  public CreateSandbox cpu(@javax.annotation.Nullable Integer cpu) {
+  public CreateSandbox cpu(@javax.annotation.Nullable CreateSandboxCpu cpu) {
     this.cpu = cpu;
     return this;
   }
 
   /**
-   * CPU cores allocated to the sandbox
+   * Get cpu
    * @return cpu
    */
   @javax.annotation.Nullable
-  public Integer getCpu() {
+  public CreateSandboxCpu getCpu() {
     return cpu;
   }
 
-  public void setCpu(@javax.annotation.Nullable Integer cpu) {
+  public void setCpu(@javax.annotation.Nullable CreateSandboxCpu cpu) {
     this.cpu = cpu;
   }
 
@@ -552,40 +555,40 @@ public class CreateSandbox {
   }
 
 
-  public CreateSandbox memory(@javax.annotation.Nullable Integer memory) {
+  public CreateSandbox memory(@javax.annotation.Nullable CreateSandboxMemory memory) {
     this.memory = memory;
     return this;
   }
 
   /**
-   * Memory allocated to the sandbox in GB
+   * Get memory
    * @return memory
    */
   @javax.annotation.Nullable
-  public Integer getMemory() {
+  public CreateSandboxMemory getMemory() {
     return memory;
   }
 
-  public void setMemory(@javax.annotation.Nullable Integer memory) {
+  public void setMemory(@javax.annotation.Nullable CreateSandboxMemory memory) {
     this.memory = memory;
   }
 
 
-  public CreateSandbox disk(@javax.annotation.Nullable Integer disk) {
+  public CreateSandbox disk(@javax.annotation.Nullable CreateSandboxDisk disk) {
     this.disk = disk;
     return this;
   }
 
   /**
-   * Disk space allocated to the sandbox in GB
+   * Get disk
    * @return disk
    */
   @javax.annotation.Nullable
-  public Integer getDisk() {
+  public CreateSandboxDisk getDisk() {
     return disk;
   }
 
-  public void setDisk(@javax.annotation.Nullable Integer disk) {
+  public void setDisk(@javax.annotation.Nullable CreateSandboxDisk disk) {
     this.disk = disk;
   }
 
@@ -982,9 +985,21 @@ public class CreateSandbox {
       if ((jsonObj.get("target") != null && !jsonObj.get("target").isJsonNull()) && !jsonObj.get("target").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `target` to be a primitive type in the JSON string but got `%s`", jsonObj.get("target").toString()));
       }
+      // validate the optional field `cpu`
+      if (jsonObj.get("cpu") != null && !jsonObj.get("cpu").isJsonNull()) {
+        CreateSandboxCpu.validateJsonElement(jsonObj.get("cpu"));
+      }
       // ensure the optional json data is an array if present
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull() && !jsonObj.get("gpuType").isJsonArray()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `gpuType` to be an array in the JSON string but got `%s`", jsonObj.get("gpuType").toString()));
+      }
+      // validate the optional field `memory`
+      if (jsonObj.get("memory") != null && !jsonObj.get("memory").isJsonNull()) {
+        CreateSandboxMemory.validateJsonElement(jsonObj.get("memory"));
+      }
+      // validate the optional field `disk`
+      if (jsonObj.get("disk") != null && !jsonObj.get("disk").isJsonNull()) {
+        CreateSandboxDisk.validateJsonElement(jsonObj.get("disk"));
       }
       if (jsonObj.get("volumes") != null && !jsonObj.get("volumes").isJsonNull()) {
         JsonArray jsonArrayvolumes = jsonObj.getAsJsonArray("volumes");

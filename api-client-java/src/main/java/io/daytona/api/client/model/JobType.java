@@ -61,6 +61,8 @@ public enum JobType {
   
   PAUSE_SANDBOX("PAUSE_SANDBOX"),
   
+  UPDATE_SANDBOX_FABRIC("UPDATE_SANDBOX_FABRIC"),
+  
   UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
 
   private String value;

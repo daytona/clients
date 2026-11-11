@@ -13,8 +13,8 @@ package apiclient
 
 import (
 	"encoding/json"
-	"time"
 	"fmt"
+	"time"
 )
 
 // checks if the SnapshotDto type satisfies the MappedNullable interface at compile time
@@ -22,24 +22,24 @@ var _ MappedNullable = &SnapshotDto{}
 
 // SnapshotDto struct for SnapshotDto
 type SnapshotDto struct {
-	Id string `json:"id"`
-	OrganizationId *string `json:"organizationId,omitempty"`
-	General bool `json:"general"`
-	Name string `json:"name"`
-	ImageName *string `json:"imageName,omitempty"`
-	State SnapshotState `json:"state"`
-	Size NullableFloat32 `json:"size"`
-	Entrypoint []string `json:"entrypoint"`
-	Cpu float32 `json:"cpu"`
-	Gpu float32 `json:"gpu"`
+	Id             string          `json:"id"`
+	OrganizationId *string         `json:"organizationId,omitempty"`
+	General        bool            `json:"general"`
+	Name           string          `json:"name"`
+	ImageName      *string         `json:"imageName,omitempty"`
+	State          SnapshotState   `json:"state"`
+	Size           NullableFloat32 `json:"size"`
+	Entrypoint     []string        `json:"entrypoint"`
+	Cpu            float32         `json:"cpu"`
+	Gpu            float32         `json:"gpu"`
 	// The GPU type assigned to the snapshot
-	GpuType *GpuType `json:"gpuType,omitempty"`
-	Mem float32 `json:"mem"`
-	Disk float32 `json:"disk"`
+	GpuType     *GpuType       `json:"gpuType,omitempty"`
+	Mem         float32        `json:"mem"`
+	Disk        float32        `json:"disk"`
 	ErrorReason NullableString `json:"errorReason"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	LastUsedAt NullableTime `json:"lastUsedAt"`
+	CreatedAt   time.Time      `json:"createdAt"`
+	UpdatedAt   time.Time      `json:"updatedAt"`
+	LastUsedAt  NullableTime   `json:"lastUsedAt"`
 	// Build information for the snapshot
 	BuildInfo *BuildInfo `json:"buildInfo,omitempty"`
 	// IDs of regions where the snapshot is available
@@ -51,7 +51,7 @@ type SnapshotDto struct {
 	// The ID of the sandbox the snapshot was created from
 	SourceSandboxId NullableString `json:"sourceSandboxId"`
 	// The sandbox class of the snapshot
-	SandboxClass *string `json:"sandboxClass,omitempty"`
+	SandboxClass         *string `json:"sandboxClass,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -716,7 +716,7 @@ func (o *SnapshotDto) SetSandboxClass(v string) {
 }
 
 func (o SnapshotDto) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -801,10 +801,10 @@ func (o *SnapshotDto) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -887,5 +887,3 @@ func (v *NullableSnapshotDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

@@ -72,7 +72,7 @@ type DaytonaConfiguration struct {
 	// SHA256 fingerprints of sshGatewayHostKeys, in the same order, in `ssh-keygen -lf` format. Compare against the fingerprint published at https://github.com/daytona/.github/blob/main/SECURITY.md#ssh-host-key-verification
 	SshGatewayHostKeyFingerprints []string `json:"sshGatewayHostKeyFingerprints,omitempty"`
 	// Rate limit configuration
-	RateLimit *RateLimitConfig `json:"rateLimit,omitempty"`
+	RateLimit            *RateLimitConfig `json:"rateLimit,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -851,7 +851,7 @@ func (o *DaytonaConfiguration) SetRateLimit(v RateLimitConfig) {
 }
 
 func (o DaytonaConfiguration) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -947,10 +947,10 @@ func (o *DaytonaConfiguration) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -1036,5 +1036,3 @@ func (v *NullableDaytonaConfiguration) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

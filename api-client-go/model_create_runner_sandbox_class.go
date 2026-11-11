@@ -20,9 +20,9 @@ type CreateRunnerSandboxClass string
 
 // List of CreateRunnerSandboxClass
 const (
-	CREATERUNNERSANDBOXCLASS_CONTAINER CreateRunnerSandboxClass = "container"
-	CREATERUNNERSANDBOXCLASS_LINUX_VM CreateRunnerSandboxClass = "linux-vm"
-	CREATERUNNERSANDBOXCLASS_WINDOWS CreateRunnerSandboxClass = "windows"
+	CREATERUNNERSANDBOXCLASS_CONTAINER                CreateRunnerSandboxClass = "container"
+	CREATERUNNERSANDBOXCLASS_LINUX_VM                 CreateRunnerSandboxClass = "linux-vm"
+	CREATERUNNERSANDBOXCLASS_WINDOWS                  CreateRunnerSandboxClass = "windows"
 	CREATERUNNERSANDBOXCLASS_UNKNOWN_DEFAULT_OPEN_API CreateRunnerSandboxClass = "11184809"
 )
 
@@ -114,4 +114,3 @@ func (v *NullableCreateRunnerSandboxClass) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

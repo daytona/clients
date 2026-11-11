@@ -28,7 +28,7 @@ type OidcIdPConfig struct {
 	// OAuth Client Secret
 	ClientSecret string `json:"clientSecret"`
 	// OAuth scopes
-	Scope *string `json:"scope,omitempty"`
+	Scope                *string `json:"scope,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -159,7 +159,7 @@ func (o *OidcIdPConfig) SetScope(v string) {
 }
 
 func (o OidcIdPConfig) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -197,10 +197,10 @@ func (o *OidcIdPConfig) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -264,5 +264,3 @@ func (v *NullableOidcIdPConfig) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

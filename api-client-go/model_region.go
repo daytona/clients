@@ -40,7 +40,7 @@ type Region struct {
 	// Snapshot Manager URL for the region
 	SnapshotManagerUrl NullableString `json:"snapshotManagerUrl,omitempty"`
 	// OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.
-	OtelEndpoint NullableString `json:"otelEndpoint,omitempty"`
+	OtelEndpoint         NullableString `json:"otelEndpoint,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -148,6 +148,7 @@ func (o *Region) HasOrganizationId() bool {
 func (o *Region) SetOrganizationId(v string) {
 	o.OrganizationId.Set(&v)
 }
+
 // SetOrganizationIdNil sets the value for OrganizationId to be an explicit nil
 func (o *Region) SetOrganizationIdNil() {
 	o.OrganizationId.Set(nil)
@@ -262,6 +263,7 @@ func (o *Region) HasProxyUrl() bool {
 func (o *Region) SetProxyUrl(v string) {
 	o.ProxyUrl.Set(&v)
 }
+
 // SetProxyUrlNil sets the value for ProxyUrl to be an explicit nil
 func (o *Region) SetProxyUrlNil() {
 	o.ProxyUrl.Set(nil)
@@ -304,6 +306,7 @@ func (o *Region) HasSshGatewayUrl() bool {
 func (o *Region) SetSshGatewayUrl(v string) {
 	o.SshGatewayUrl.Set(&v)
 }
+
 // SetSshGatewayUrlNil sets the value for SshGatewayUrl to be an explicit nil
 func (o *Region) SetSshGatewayUrlNil() {
 	o.SshGatewayUrl.Set(nil)
@@ -346,6 +349,7 @@ func (o *Region) HasSnapshotManagerUrl() bool {
 func (o *Region) SetSnapshotManagerUrl(v string) {
 	o.SnapshotManagerUrl.Set(&v)
 }
+
 // SetSnapshotManagerUrlNil sets the value for SnapshotManagerUrl to be an explicit nil
 func (o *Region) SetSnapshotManagerUrlNil() {
 	o.SnapshotManagerUrl.Set(nil)
@@ -388,6 +392,7 @@ func (o *Region) HasOtelEndpoint() bool {
 func (o *Region) SetOtelEndpoint(v string) {
 	o.OtelEndpoint.Set(&v)
 }
+
 // SetOtelEndpointNil sets the value for OtelEndpoint to be an explicit nil
 func (o *Region) SetOtelEndpointNil() {
 	o.OtelEndpoint.Set(nil)
@@ -399,7 +404,7 @@ func (o *Region) UnsetOtelEndpoint() {
 }
 
 func (o Region) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -453,10 +458,10 @@ func (o *Region) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -526,5 +531,3 @@ func (v *NullableRegion) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

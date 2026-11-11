@@ -21,22 +21,22 @@ var _ MappedNullable = &WarmPool{}
 
 // WarmPool struct for WarmPool
 type WarmPool struct {
-	Id string `json:"id"`
+	Id             string `json:"id"`
 	OrganizationId string `json:"organizationId"`
-	Snapshot string `json:"snapshot"`
-	Target string `json:"target"`
+	Snapshot       string `json:"snapshot"`
+	Target         string `json:"target"`
 	// Desired number of warm sandboxes
 	Pool float32 `json:"pool"`
 	// Current number of ready warm sandboxes in the pool
-	CurrentSize float32 `json:"currentSize"`
-	Cpu float32 `json:"cpu"`
-	Mem float32 `json:"mem"`
-	Disk float32 `json:"disk"`
-	OsUser string `json:"osUser"`
-	Env map[string]string `json:"env"`
-	ErrorReason NullableString `json:"errorReason,omitempty"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	CurrentSize          float32           `json:"currentSize"`
+	Cpu                  float32           `json:"cpu"`
+	Mem                  float32           `json:"mem"`
+	Disk                 float32           `json:"disk"`
+	OsUser               string            `json:"osUser"`
+	Env                  map[string]string `json:"env"`
+	ErrorReason          NullableString    `json:"errorReason,omitempty"`
+	CreatedAt            string            `json:"createdAt"`
+	UpdatedAt            string            `json:"updatedAt"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -368,6 +368,7 @@ func (o *WarmPool) HasErrorReason() bool {
 func (o *WarmPool) SetErrorReason(v string) {
 	o.ErrorReason.Set(&v)
 }
+
 // SetErrorReasonNil sets the value for ErrorReason to be an explicit nil
 func (o *WarmPool) SetErrorReasonNil() {
 	o.ErrorReason.Set(nil)
@@ -427,7 +428,7 @@ func (o *WarmPool) SetUpdatedAt(v string) {
 }
 
 func (o WarmPool) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -485,10 +486,10 @@ func (o *WarmPool) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -562,5 +563,3 @@ func (v *NullableWarmPool) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

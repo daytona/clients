@@ -32,7 +32,8 @@ type RunnerHealthcheck struct {
 	// Runner API URL
 	ApiUrl *string `json:"apiUrl,omitempty"`
 	// Runner app version
-	AppVersion string `json:"appVersion"`
+	AppVersion           string              `json:"appVersion"`
+	Fabric               *RunnerFabricHealth `json:"fabric,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -240,8 +241,40 @@ func (o *RunnerHealthcheck) SetAppVersion(v string) {
 	o.AppVersion = v
 }
 
+// GetFabric returns the Fabric field value if set, zero value otherwise.
+func (o *RunnerHealthcheck) GetFabric() RunnerFabricHealth {
+	if o == nil || IsNil(o.Fabric) {
+		var ret RunnerFabricHealth
+		return ret
+	}
+	return *o.Fabric
+}
+
+// GetFabricOk returns a tuple with the Fabric field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *RunnerHealthcheck) GetFabricOk() (*RunnerFabricHealth, bool) {
+	if o == nil || IsNil(o.Fabric) {
+		return nil, false
+	}
+	return o.Fabric, true
+}
+
+// HasFabric returns a boolean if a field has been set.
+func (o *RunnerHealthcheck) HasFabric() bool {
+	if o != nil && !IsNil(o.Fabric) {
+		return true
+	}
+
+	return false
+}
+
+// SetFabric gets a reference to the given RunnerFabricHealth and assigns it to the Fabric field.
+func (o *RunnerHealthcheck) SetFabric(v RunnerFabricHealth) {
+	o.Fabric = &v
+}
+
 func (o RunnerHealthcheck) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -266,6 +299,9 @@ func (o RunnerHealthcheck) ToMap() (map[string]interface{}, error) {
 		toSerialize["apiUrl"] = o.ApiUrl
 	}
 	toSerialize["appVersion"] = o.AppVersion
+	if !IsNil(o.Fabric) {
+		toSerialize["fabric"] = o.Fabric
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -287,10 +323,10 @@ func (o *RunnerHealthcheck) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -315,6 +351,7 @@ func (o *RunnerHealthcheck) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "proxyUrl")
 		delete(additionalProperties, "apiUrl")
 		delete(additionalProperties, "appVersion")
+		delete(additionalProperties, "fabric")
 		o.AdditionalProperties = additionalProperties
 	}
 
@@ -356,5 +393,3 @@ func (v *NullableRunnerHealthcheck) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

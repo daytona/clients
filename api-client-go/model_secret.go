@@ -13,8 +13,8 @@ package apiclient
 
 import (
 	"encoding/json"
-	"time"
 	"fmt"
+	"time"
 )
 
 // checks if the Secret type satisfies the MappedNullable interface at compile time
@@ -35,7 +35,7 @@ type Secret struct {
 	// Allowed hosts this secret may be sent to
 	Hosts []string `json:"hosts"`
 	// Last update timestamp
-	UpdatedAt time.Time `json:"updatedAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -241,7 +241,7 @@ func (o *Secret) SetUpdatedAt(v time.Time) {
 }
 
 func (o Secret) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -285,10 +285,10 @@ func (o *Secret) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -355,5 +355,3 @@ func (v *NullableSecret) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

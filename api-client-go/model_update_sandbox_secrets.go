@@ -22,7 +22,7 @@ var _ MappedNullable = &UpdateSandboxSecrets{}
 // UpdateSandboxSecrets struct for UpdateSandboxSecrets
 type UpdateSandboxSecrets struct {
 	// Secrets to mount in this sandbox, replacing the previously mounted set. Each entry maps an env var name to a vault secret name. Pass an empty array to detach all secrets.
-	Secrets []map[string]string `json:"secrets"`
+	Secrets              []map[string]string `json:"secrets"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -71,7 +71,7 @@ func (o *UpdateSandboxSecrets) SetSecrets(v []map[string]string) {
 }
 
 func (o UpdateSandboxSecrets) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -102,10 +102,10 @@ func (o *UpdateSandboxSecrets) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -166,5 +166,3 @@ func (v *NullableUpdateSandboxSecrets) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

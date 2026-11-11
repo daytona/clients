@@ -51,9 +51,9 @@ type Sandbox struct {
 	OtelEndpointOverride *string `json:"otelEndpointOverride,omitempty"`
 	// The target environment for the sandbox
 	Target string `json:"target"`
-	// The CPU quota for the sandbox
+	// The CPU quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Cpu int32 `json:"cpu"`
-	// The GPU quota for the sandbox
+	// The GPU quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Gpu int32 `json:"gpu"`
 	// Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
 	Spot *bool `json:"spot,omitempty"`
@@ -63,9 +63,9 @@ type Sandbox struct {
 	QueueTimedOutAt *string `json:"queueTimedOutAt,omitempty"`
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
-	// The memory quota for the sandbox
+	// The memory quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Memory int32 `json:"memory"`
-	// The disk quota for the sandbox
+	// The disk quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Disk int32 `json:"disk"`
 	// The state of the sandbox
 	State *SandboxState `json:"state,omitempty"`
@@ -115,6 +115,20 @@ type Sandbox struct {
 	LinkedSandboxId *string `json:"linkedSandboxId,omitempty"`
 	// The toolbox proxy URL for the sandbox
 	ToolboxProxyUrl string `json:"toolboxProxyUrl"`
+	// Gang members in rank order. Rank 0 is this sandbox.
+	Nodes []SandboxNode `json:"nodes,omitempty"`
+	// Committed logical topology generation.
+	TopologyGeneration *int32 `json:"topologyGeneration,omitempty"`
+	// Physical incarnation for an internal gang row.
+	Incarnation *int32 `json:"incarnation,omitempty"`
+	// Derived number of physical nodes in this sandbox.
+	NodeCount *int32 `json:"nodeCount,omitempty"`
+	// Rank within the gang; present only on internal member rows.
+	NodeRank *int32 `json:"nodeRank,omitempty"`
+	// Gang head ID; present only on internal member rows.
+	HeadSandboxId *string `json:"headSandboxId,omitempty"`
+	// The gang remains usable but one or more fabric checks are degraded.
+	Degraded             *bool `json:"degraded,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -1202,6 +1216,7 @@ func (o *Sandbox) HasQueueTimeout() bool {
 func (o *Sandbox) SetQueueTimeout(v int32) {
 	o.QueueTimeout.Set(&v)
 }
+
 // SetQueueTimeoutNil sets the value for QueueTimeout to be an explicit nil
 func (o *Sandbox) SetQueueTimeoutNil() {
 	o.QueueTimeout.Set(nil)
@@ -1524,8 +1539,232 @@ func (o *Sandbox) SetToolboxProxyUrl(v string) {
 	o.ToolboxProxyUrl = v
 }
 
+// GetNodes returns the Nodes field value if set, zero value otherwise.
+func (o *Sandbox) GetNodes() []SandboxNode {
+	if o == nil || IsNil(o.Nodes) {
+		var ret []SandboxNode
+		return ret
+	}
+	return o.Nodes
+}
+
+// GetNodesOk returns a tuple with the Nodes field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetNodesOk() ([]SandboxNode, bool) {
+	if o == nil || IsNil(o.Nodes) {
+		return nil, false
+	}
+	return o.Nodes, true
+}
+
+// HasNodes returns a boolean if a field has been set.
+func (o *Sandbox) HasNodes() bool {
+	if o != nil && !IsNil(o.Nodes) {
+		return true
+	}
+
+	return false
+}
+
+// SetNodes gets a reference to the given []SandboxNode and assigns it to the Nodes field.
+func (o *Sandbox) SetNodes(v []SandboxNode) {
+	o.Nodes = v
+}
+
+// GetTopologyGeneration returns the TopologyGeneration field value if set, zero value otherwise.
+func (o *Sandbox) GetTopologyGeneration() int32 {
+	if o == nil || IsNil(o.TopologyGeneration) {
+		var ret int32
+		return ret
+	}
+	return *o.TopologyGeneration
+}
+
+// GetTopologyGenerationOk returns a tuple with the TopologyGeneration field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetTopologyGenerationOk() (*int32, bool) {
+	if o == nil || IsNil(o.TopologyGeneration) {
+		return nil, false
+	}
+	return o.TopologyGeneration, true
+}
+
+// HasTopologyGeneration returns a boolean if a field has been set.
+func (o *Sandbox) HasTopologyGeneration() bool {
+	if o != nil && !IsNil(o.TopologyGeneration) {
+		return true
+	}
+
+	return false
+}
+
+// SetTopologyGeneration gets a reference to the given int32 and assigns it to the TopologyGeneration field.
+func (o *Sandbox) SetTopologyGeneration(v int32) {
+	o.TopologyGeneration = &v
+}
+
+// GetIncarnation returns the Incarnation field value if set, zero value otherwise.
+func (o *Sandbox) GetIncarnation() int32 {
+	if o == nil || IsNil(o.Incarnation) {
+		var ret int32
+		return ret
+	}
+	return *o.Incarnation
+}
+
+// GetIncarnationOk returns a tuple with the Incarnation field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetIncarnationOk() (*int32, bool) {
+	if o == nil || IsNil(o.Incarnation) {
+		return nil, false
+	}
+	return o.Incarnation, true
+}
+
+// HasIncarnation returns a boolean if a field has been set.
+func (o *Sandbox) HasIncarnation() bool {
+	if o != nil && !IsNil(o.Incarnation) {
+		return true
+	}
+
+	return false
+}
+
+// SetIncarnation gets a reference to the given int32 and assigns it to the Incarnation field.
+func (o *Sandbox) SetIncarnation(v int32) {
+	o.Incarnation = &v
+}
+
+// GetNodeCount returns the NodeCount field value if set, zero value otherwise.
+func (o *Sandbox) GetNodeCount() int32 {
+	if o == nil || IsNil(o.NodeCount) {
+		var ret int32
+		return ret
+	}
+	return *o.NodeCount
+}
+
+// GetNodeCountOk returns a tuple with the NodeCount field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetNodeCountOk() (*int32, bool) {
+	if o == nil || IsNil(o.NodeCount) {
+		return nil, false
+	}
+	return o.NodeCount, true
+}
+
+// HasNodeCount returns a boolean if a field has been set.
+func (o *Sandbox) HasNodeCount() bool {
+	if o != nil && !IsNil(o.NodeCount) {
+		return true
+	}
+
+	return false
+}
+
+// SetNodeCount gets a reference to the given int32 and assigns it to the NodeCount field.
+func (o *Sandbox) SetNodeCount(v int32) {
+	o.NodeCount = &v
+}
+
+// GetNodeRank returns the NodeRank field value if set, zero value otherwise.
+func (o *Sandbox) GetNodeRank() int32 {
+	if o == nil || IsNil(o.NodeRank) {
+		var ret int32
+		return ret
+	}
+	return *o.NodeRank
+}
+
+// GetNodeRankOk returns a tuple with the NodeRank field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetNodeRankOk() (*int32, bool) {
+	if o == nil || IsNil(o.NodeRank) {
+		return nil, false
+	}
+	return o.NodeRank, true
+}
+
+// HasNodeRank returns a boolean if a field has been set.
+func (o *Sandbox) HasNodeRank() bool {
+	if o != nil && !IsNil(o.NodeRank) {
+		return true
+	}
+
+	return false
+}
+
+// SetNodeRank gets a reference to the given int32 and assigns it to the NodeRank field.
+func (o *Sandbox) SetNodeRank(v int32) {
+	o.NodeRank = &v
+}
+
+// GetHeadSandboxId returns the HeadSandboxId field value if set, zero value otherwise.
+func (o *Sandbox) GetHeadSandboxId() string {
+	if o == nil || IsNil(o.HeadSandboxId) {
+		var ret string
+		return ret
+	}
+	return *o.HeadSandboxId
+}
+
+// GetHeadSandboxIdOk returns a tuple with the HeadSandboxId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetHeadSandboxIdOk() (*string, bool) {
+	if o == nil || IsNil(o.HeadSandboxId) {
+		return nil, false
+	}
+	return o.HeadSandboxId, true
+}
+
+// HasHeadSandboxId returns a boolean if a field has been set.
+func (o *Sandbox) HasHeadSandboxId() bool {
+	if o != nil && !IsNil(o.HeadSandboxId) {
+		return true
+	}
+
+	return false
+}
+
+// SetHeadSandboxId gets a reference to the given string and assigns it to the HeadSandboxId field.
+func (o *Sandbox) SetHeadSandboxId(v string) {
+	o.HeadSandboxId = &v
+}
+
+// GetDegraded returns the Degraded field value if set, zero value otherwise.
+func (o *Sandbox) GetDegraded() bool {
+	if o == nil || IsNil(o.Degraded) {
+		var ret bool
+		return ret
+	}
+	return *o.Degraded
+}
+
+// GetDegradedOk returns a tuple with the Degraded field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetDegradedOk() (*bool, bool) {
+	if o == nil || IsNil(o.Degraded) {
+		return nil, false
+	}
+	return o.Degraded, true
+}
+
+// HasDegraded returns a boolean if a field has been set.
+func (o *Sandbox) HasDegraded() bool {
+	if o != nil && !IsNil(o.Degraded) {
+		return true
+	}
+
+	return false
+}
+
+// SetDegraded gets a reference to the given bool and assigns it to the Degraded field.
+func (o *Sandbox) SetDegraded(v bool) {
+	o.Degraded = &v
+}
+
 func (o Sandbox) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -1642,6 +1881,27 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 		toSerialize["linkedSandboxId"] = o.LinkedSandboxId
 	}
 	toSerialize["toolboxProxyUrl"] = o.ToolboxProxyUrl
+	if !IsNil(o.Nodes) {
+		toSerialize["nodes"] = o.Nodes
+	}
+	if !IsNil(o.TopologyGeneration) {
+		toSerialize["topologyGeneration"] = o.TopologyGeneration
+	}
+	if !IsNil(o.Incarnation) {
+		toSerialize["incarnation"] = o.Incarnation
+	}
+	if !IsNil(o.NodeCount) {
+		toSerialize["nodeCount"] = o.NodeCount
+	}
+	if !IsNil(o.NodeRank) {
+		toSerialize["nodeRank"] = o.NodeRank
+	}
+	if !IsNil(o.HeadSandboxId) {
+		toSerialize["headSandboxId"] = o.HeadSandboxId
+	}
+	if !IsNil(o.Degraded) {
+		toSerialize["degraded"] = o.Degraded
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -1677,10 +1937,10 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -1745,6 +2005,13 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "runnerId")
 		delete(additionalProperties, "linkedSandboxId")
 		delete(additionalProperties, "toolboxProxyUrl")
+		delete(additionalProperties, "nodes")
+		delete(additionalProperties, "topologyGeneration")
+		delete(additionalProperties, "incarnation")
+		delete(additionalProperties, "nodeCount")
+		delete(additionalProperties, "nodeRank")
+		delete(additionalProperties, "headSandboxId")
+		delete(additionalProperties, "degraded")
 		o.AdditionalProperties = additionalProperties
 	}
 
@@ -1786,5 +2053,3 @@ func (v *NullableSandbox) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

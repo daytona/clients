@@ -25,7 +25,7 @@ type UpdateSandboxNetworkSettings struct {
 	// Comma-separated list of allowed CIDR network addresses for the sandbox
 	NetworkAllowList *string `json:"networkAllowList,omitempty"`
 	// Comma-separated list of allowed domains for the sandbox
-	DomainAllowList *string `json:"domainAllowList,omitempty"`
+	DomainAllowList      *string `json:"domainAllowList,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -145,7 +145,7 @@ func (o *UpdateSandboxNetworkSettings) SetDomainAllowList(v string) {
 }
 
 func (o UpdateSandboxNetworkSettings) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -229,5 +229,3 @@ func (v *NullableUpdateSandboxNetworkSettings) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

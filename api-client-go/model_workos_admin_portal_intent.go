@@ -20,8 +20,8 @@ type WorkosAdminPortalIntent string
 
 // List of WorkosAdminPortalIntent
 const (
-	WORKOSADMINPORTALINTENT_SSO WorkosAdminPortalIntent = "sso"
-	WORKOSADMINPORTALINTENT_DSYNC WorkosAdminPortalIntent = "dsync"
+	WORKOSADMINPORTALINTENT_SSO                      WorkosAdminPortalIntent = "sso"
+	WORKOSADMINPORTALINTENT_DSYNC                    WorkosAdminPortalIntent = "dsync"
 	WORKOSADMINPORTALINTENT_UNKNOWN_DEFAULT_OPEN_API WorkosAdminPortalIntent = "11184809"
 )
 
@@ -112,4 +112,3 @@ func (v *NullableWorkosAdminPortalIntent) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

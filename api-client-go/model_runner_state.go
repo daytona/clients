@@ -20,11 +20,11 @@ type RunnerState string
 
 // List of RunnerState
 const (
-	RUNNERSTATE_INITIALIZING RunnerState = "initializing"
-	RUNNERSTATE_READY RunnerState = "ready"
-	RUNNERSTATE_DISABLED RunnerState = "disabled"
-	RUNNERSTATE_DECOMMISSIONED RunnerState = "decommissioned"
-	RUNNERSTATE_UNRESPONSIVE RunnerState = "unresponsive"
+	RUNNERSTATE_INITIALIZING             RunnerState = "initializing"
+	RUNNERSTATE_READY                    RunnerState = "ready"
+	RUNNERSTATE_DISABLED                 RunnerState = "disabled"
+	RUNNERSTATE_DECOMMISSIONED           RunnerState = "decommissioned"
+	RUNNERSTATE_UNRESPONSIVE             RunnerState = "unresponsive"
 	RUNNERSTATE_UNKNOWN_DEFAULT_OPEN_API RunnerState = "11184809"
 )
 
@@ -118,4 +118,3 @@ func (v *NullableRunnerState) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

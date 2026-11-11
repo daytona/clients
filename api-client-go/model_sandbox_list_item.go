@@ -96,7 +96,7 @@ type SandboxListItem struct {
 	// Id of the warm pool this sandbox waits in; set only while it is an unclaimed member
 	WarmPoolId *string `json:"warmPoolId,omitempty"`
 	// The toolbox proxy URL for the sandbox
-	ToolboxProxyUrl string `json:"toolboxProxyUrl"`
+	ToolboxProxyUrl      string `json:"toolboxProxyUrl"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -1064,6 +1064,7 @@ func (o *SandboxListItem) HasQueueTimeout() bool {
 func (o *SandboxListItem) SetQueueTimeout(v int32) {
 	o.QueueTimeout.Set(&v)
 }
+
 // SetQueueTimeoutNil sets the value for QueueTimeout to be an explicit nil
 func (o *SandboxListItem) SetQueueTimeoutNil() {
 	o.QueueTimeout.Set(nil)
@@ -1259,7 +1260,7 @@ func (o *SandboxListItem) SetToolboxProxyUrl(v string) {
 }
 
 func (o SandboxListItem) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -1389,10 +1390,10 @@ func (o *SandboxListItem) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -1490,5 +1491,3 @@ func (v *NullableSandboxListItem) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

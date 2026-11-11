@@ -157,6 +157,72 @@ describe('node SSH access', () => {
   })
 })
 
+describe('membership operation deadlines', () => {
+  beforeEach(() => jest.useFakeTimers({ now: 0 }))
+  afterEach(() => jest.useRealTimers())
+
+  const prepare = () => {
+    const ctx = makeSandbox({ state: 'started' })
+    ctx.sandboxApi.getSandbox.mockResolvedValue(createApiResponse(baseDto))
+    ctx.sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse({ id: 'op-1', type: 'ADD', status: 'RUNNING' }))
+    return ctx
+  }
+
+  it('bounds polling and final refresh by the remaining budget', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getGangMembershipOperation.mockResolvedValue(
+      createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }),
+    )
+    const waiting = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2.5)
+    await jest.advanceTimersByTimeAsync(1000)
+    await waiting
+    expect(sandboxApi.getGangMembershipOperation.mock.calls[0][3]).toEqual({ timeout: 1500 })
+    expect(sandboxApi.getSandbox.mock.calls[0][3]).toEqual({ timeout: 2500 })
+    expect(sandboxApi.getSandbox.mock.calls[1][3]).toEqual({ timeout: 1500 })
+  })
+
+  it('rejects a terminal poll response that arrives after the deadline', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getGangMembershipOperation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' })), 2000)
+        }),
+    )
+    const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
+    await jest.advanceTimersByTimeAsync(3000)
+    expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+  })
+
+  it('does not start a poll after the budget expires during sleep', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getGangMembershipOperation.mockResolvedValue(
+      createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }),
+    )
+    const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 1).catch((error) => error)
+    await jest.advanceTimersByTimeAsync(1000)
+    expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+    expect(sandboxApi.getGangMembershipOperation).not.toHaveBeenCalled()
+  })
+
+  it('rejects a final refresh that arrives after the deadline', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }))
+    sandboxApi.getSandbox
+      .mockReset()
+      .mockResolvedValueOnce(createApiResponse(baseDto))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(createApiResponse(baseDto)), 3000)
+          }),
+      )
+    const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
+    await jest.advanceTimersByTimeAsync(3000)
+    expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+  })
+})
+
 describe('all-node execution deadlines', () => {
   beforeEach(() => jest.useFakeTimers())
   afterEach(() => jest.useRealTimers())

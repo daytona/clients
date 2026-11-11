@@ -20,10 +20,10 @@ var _ MappedNullable = &ResolveSandboxSecrets200ResponseInner{}
 
 // ResolveSandboxSecrets200ResponseInner struct for ResolveSandboxSecrets200ResponseInner
 type ResolveSandboxSecrets200ResponseInner struct {
-	Env *string `json:"env,omitempty"`
-	Placeholder *string `json:"placeholder,omitempty"`
-	Value *string `json:"value,omitempty"`
-	Hosts []string `json:"hosts,omitempty"`
+	Env                  *string  `json:"env,omitempty"`
+	Placeholder          *string  `json:"placeholder,omitempty"`
+	Value                *string  `json:"value,omitempty"`
+	Hosts                []string `json:"hosts,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -175,7 +175,7 @@ func (o *ResolveSandboxSecrets200ResponseInner) SetHosts(v []string) {
 }
 
 func (o ResolveSandboxSecrets200ResponseInner) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -263,5 +263,3 @@ func (v *NullableResolveSandboxSecrets200ResponseInner) UnmarshalJSON(src []byte
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

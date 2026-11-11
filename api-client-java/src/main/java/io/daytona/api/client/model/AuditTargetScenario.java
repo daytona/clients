@@ -280,6 +280,12 @@ public class AuditTargetScenario {
     
     SPOT_EVICT("spot_evict"),
     
+    ADD_NODES("add_nodes"),
+    
+    REMOVE_NODES("remove_nodes"),
+    
+    REPLACE_NODE("replace_node"),
+    
     UNKNOWN_DEFAULT_OPEN_API("unknown_default_open_api");
 
     private String value;

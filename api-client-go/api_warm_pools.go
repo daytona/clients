@@ -20,14 +20,13 @@ import (
 	"strings"
 )
 
-
 type WarmPoolsAPI interface {
 
 	/*
-	CreateWarmPool Create a warm pool
+		CreateWarmPool Create a warm pool
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return WarmPoolsAPICreateWarmPoolRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return WarmPoolsAPICreateWarmPoolRequest
 	*/
 	CreateWarmPool(ctx context.Context) WarmPoolsAPICreateWarmPoolRequest
 
@@ -36,11 +35,11 @@ type WarmPoolsAPI interface {
 	CreateWarmPoolExecute(r WarmPoolsAPICreateWarmPoolRequest) (*WarmPool, *http.Response, error)
 
 	/*
-	DeleteWarmPool Delete a warm pool
+		DeleteWarmPool Delete a warm pool
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id Warm pool ID
-	@return WarmPoolsAPIDeleteWarmPoolRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param id Warm pool ID
+		@return WarmPoolsAPIDeleteWarmPoolRequest
 	*/
 	DeleteWarmPool(ctx context.Context, id string) WarmPoolsAPIDeleteWarmPoolRequest
 
@@ -48,10 +47,10 @@ type WarmPoolsAPI interface {
 	DeleteWarmPoolExecute(r WarmPoolsAPIDeleteWarmPoolRequest) (*http.Response, error)
 
 	/*
-	ListWarmPools List warm pools for the organization
+		ListWarmPools List warm pools for the organization
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return WarmPoolsAPIListWarmPoolsRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@return WarmPoolsAPIListWarmPoolsRequest
 	*/
 	ListWarmPools(ctx context.Context) WarmPoolsAPIListWarmPoolsRequest
 
@@ -60,11 +59,11 @@ type WarmPoolsAPI interface {
 	ListWarmPoolsExecute(r WarmPoolsAPIListWarmPoolsRequest) ([]WarmPool, *http.Response, error)
 
 	/*
-	UpdateWarmPool Update a warm pool size
+		UpdateWarmPool Update a warm pool size
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param id Warm pool ID
-	@return WarmPoolsAPIUpdateWarmPoolRequest
+		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+		@param id Warm pool ID
+		@return WarmPoolsAPIUpdateWarmPoolRequest
 	*/
 	UpdateWarmPool(ctx context.Context, id string) WarmPoolsAPIUpdateWarmPoolRequest
 
@@ -77,9 +76,9 @@ type WarmPoolsAPI interface {
 type WarmPoolsAPIService service
 
 type WarmPoolsAPICreateWarmPoolRequest struct {
-	ctx context.Context
-	ApiService WarmPoolsAPI
-	createWarmPool *CreateWarmPool
+	ctx                    context.Context
+	ApiService             WarmPoolsAPI
+	createWarmPool         *CreateWarmPool
 	xDaytonaOrganizationID *string
 }
 
@@ -101,24 +100,25 @@ func (r WarmPoolsAPICreateWarmPoolRequest) Execute() (*WarmPool, *http.Response,
 /*
 CreateWarmPool Create a warm pool
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return WarmPoolsAPICreateWarmPoolRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return WarmPoolsAPICreateWarmPoolRequest
 */
 func (a *WarmPoolsAPIService) CreateWarmPool(ctx context.Context) WarmPoolsAPICreateWarmPoolRequest {
 	return WarmPoolsAPICreateWarmPoolRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return WarmPool
+//
+//	@return WarmPool
 func (a *WarmPoolsAPIService) CreateWarmPoolExecute(r WarmPoolsAPICreateWarmPoolRequest) (*WarmPool, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *WarmPool
+		localVarHTTPMethod  = http.MethodPost
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *WarmPool
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WarmPoolsAPIService.CreateWarmPool")
@@ -195,9 +195,9 @@ func (a *WarmPoolsAPIService) CreateWarmPoolExecute(r WarmPoolsAPICreateWarmPool
 }
 
 type WarmPoolsAPIDeleteWarmPoolRequest struct {
-	ctx context.Context
-	ApiService WarmPoolsAPI
-	id string
+	ctx                    context.Context
+	ApiService             WarmPoolsAPI
+	id                     string
 	xDaytonaOrganizationID *string
 }
 
@@ -214,24 +214,24 @@ func (r WarmPoolsAPIDeleteWarmPoolRequest) Execute() (*http.Response, error) {
 /*
 DeleteWarmPool Delete a warm pool
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param id Warm pool ID
- @return WarmPoolsAPIDeleteWarmPoolRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param id Warm pool ID
+	@return WarmPoolsAPIDeleteWarmPoolRequest
 */
 func (a *WarmPoolsAPIService) DeleteWarmPool(ctx context.Context, id string) WarmPoolsAPIDeleteWarmPoolRequest {
 	return WarmPoolsAPIDeleteWarmPoolRequest{
 		ApiService: a,
-		ctx: ctx,
-		id: id,
+		ctx:        ctx,
+		id:         id,
 	}
 }
 
 // Execute executes the request
 func (a *WarmPoolsAPIService) DeleteWarmPoolExecute(r WarmPoolsAPIDeleteWarmPoolRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodDelete
-		localVarPostBody     interface{}
-		formFiles            []formFile
+		localVarHTTPMethod = http.MethodDelete
+		localVarPostBody   interface{}
+		formFiles          []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WarmPoolsAPIService.DeleteWarmPool")
@@ -295,8 +295,8 @@ func (a *WarmPoolsAPIService) DeleteWarmPoolExecute(r WarmPoolsAPIDeleteWarmPool
 }
 
 type WarmPoolsAPIListWarmPoolsRequest struct {
-	ctx context.Context
-	ApiService WarmPoolsAPI
+	ctx                    context.Context
+	ApiService             WarmPoolsAPI
 	xDaytonaOrganizationID *string
 }
 
@@ -313,24 +313,25 @@ func (r WarmPoolsAPIListWarmPoolsRequest) Execute() ([]WarmPool, *http.Response,
 /*
 ListWarmPools List warm pools for the organization
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return WarmPoolsAPIListWarmPoolsRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return WarmPoolsAPIListWarmPoolsRequest
 */
 func (a *WarmPoolsAPIService) ListWarmPools(ctx context.Context) WarmPoolsAPIListWarmPoolsRequest {
 	return WarmPoolsAPIListWarmPoolsRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return []WarmPool
+//
+//	@return []WarmPool
 func (a *WarmPoolsAPIService) ListWarmPoolsExecute(r WarmPoolsAPIListWarmPoolsRequest) ([]WarmPool, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  []WarmPool
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue []WarmPool
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WarmPoolsAPIService.ListWarmPools")
@@ -402,10 +403,10 @@ func (a *WarmPoolsAPIService) ListWarmPoolsExecute(r WarmPoolsAPIListWarmPoolsRe
 }
 
 type WarmPoolsAPIUpdateWarmPoolRequest struct {
-	ctx context.Context
-	ApiService WarmPoolsAPI
-	id string
-	updateWarmPool *UpdateWarmPool
+	ctx                    context.Context
+	ApiService             WarmPoolsAPI
+	id                     string
+	updateWarmPool         *UpdateWarmPool
 	xDaytonaOrganizationID *string
 }
 
@@ -427,26 +428,27 @@ func (r WarmPoolsAPIUpdateWarmPoolRequest) Execute() (*WarmPool, *http.Response,
 /*
 UpdateWarmPool Update a warm pool size
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param id Warm pool ID
- @return WarmPoolsAPIUpdateWarmPoolRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param id Warm pool ID
+	@return WarmPoolsAPIUpdateWarmPoolRequest
 */
 func (a *WarmPoolsAPIService) UpdateWarmPool(ctx context.Context, id string) WarmPoolsAPIUpdateWarmPoolRequest {
 	return WarmPoolsAPIUpdateWarmPoolRequest{
 		ApiService: a,
-		ctx: ctx,
-		id: id,
+		ctx:        ctx,
+		id:         id,
 	}
 }
 
 // Execute executes the request
-//  @return WarmPool
+//
+//	@return WarmPool
 func (a *WarmPoolsAPIService) UpdateWarmPoolExecute(r WarmPoolsAPIUpdateWarmPoolRequest) (*WarmPool, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPatch
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  *WarmPool
+		localVarHTTPMethod  = http.MethodPatch
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *WarmPool
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "WarmPoolsAPIService.UpdateWarmPool")

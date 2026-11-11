@@ -13,8 +13,8 @@ package apiclient
 
 import (
 	"encoding/json"
-	"time"
 	"fmt"
+	"time"
 )
 
 // checks if the SnapshotStateUpdatedWebhook type satisfies the MappedNullable interface at compile time
@@ -37,7 +37,7 @@ type SnapshotStateUpdatedWebhook struct {
 	// New state
 	NewState SnapshotState `json:"newState"`
 	// When the snapshot was last updated
-	UpdatedAt time.Time `json:"updatedAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -261,7 +261,7 @@ func (o *SnapshotStateUpdatedWebhook) SetUpdatedAt(v time.Time) {
 }
 
 func (o SnapshotStateUpdatedWebhook) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -306,10 +306,10 @@ func (o *SnapshotStateUpdatedWebhook) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -377,5 +377,3 @@ func (v *NullableSnapshotStateUpdatedWebhook) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-
