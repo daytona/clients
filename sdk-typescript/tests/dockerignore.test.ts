@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, isAbsolute } from 'node:path'
 import cases from '../../cli/internal/dockerignore/testdata/buildkit_cases.json'
 import edgeCases from '../../sdk-python/tests/fixtures/dockerignore-edge-cases.json'
+import { checkPattern } from '../src/v2/dockerignorePattern.js'
 import refusedCases from '../../sdk-python/tests/fixtures/dockerignore-refused.json'
 import { Filter, Matcher, readPatterns, walkArchiveEntries } from '../src/v2/dockerignore.js'
 import { BadRequestError, NotSupportedError } from '../src/v2/errors/DaytonaError.js'
@@ -302,4 +303,11 @@ test('compiles a long run of POSIX class openers in linear time', () => {
   const started = performance.now()
   try { new Matcher([pattern]).excluded('x') } catch { /* a pattern error is fine; the time is the point */ }
   expect(performance.now() - started).toBeLessThan(2000)
+})
+
+it('validates a long run of stars in linear time', () => {
+  // A crafted ignore line must not stall the build (slicing per star was quadratic).
+  const started = Date.now()
+  expect(() => checkPattern('*'.repeat(60_000) + 'x', 'p')).not.toThrow()
+  expect(Date.now() - started).toBeLessThan(1_000)
 })
