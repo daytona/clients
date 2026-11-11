@@ -1092,8 +1092,8 @@ export class Sandbox {
    * to the applied labels. The reserved `name` label, which `findByName()` and
    * a `name` label search match, is kept unless `labels` sets it: without a
    * `name` key the sandbox is read first (one more request, which also
-   * refreshes this handle's metadata) and its current `name` label, if any, is
-   * sent along; the read and the write are not atomic. The `name` label cannot
+   * refreshes this handle's metadata) and the `name` label it reports, if any,
+   * is sent along (labels the read does not report are unknown); the read and the write are not atomic. The `name` label cannot
    * be removed.
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
