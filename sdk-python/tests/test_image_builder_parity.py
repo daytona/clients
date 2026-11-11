@@ -74,6 +74,16 @@ def test_the_builder_renders_the_shared_fixture(case: dict[str, object]) -> None
     assert ({"source": source} if source is not None else {"dockerfile": dockerfile}) == case["request"]
 
 
+@pytest.mark.parametrize("key", ["2", " 2"])
+def test_env_preserves_mapping_order_when_keys_are_numeric(key: str) -> None:
+    # Given: Python dicts retain insertion order, unlike JS integer keys.
+    values = {"b": "1", key: "2", "a": "3"}
+    # When: the mapping is rendered, including key stripping.
+    dockerfile = ImageBuilder.from_registry("alpine").env(values).to_dockerfile()
+    # Then: the caller's mapping order survives rendering.
+    assert dockerfile == 'FROM alpine\nENV b="1"\nENV 2="2"\nENV a="3"\n'
+
+
 @pytest.mark.parametrize("case", _FIXTURE["refused"], ids=[case["name"] for case in _FIXTURE["refused"]])
 def test_the_builder_refuses_the_shared_fixture(case: dict[str, object]) -> None:
     with pytest.raises(BadRequestError) as raised:

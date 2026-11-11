@@ -602,8 +602,10 @@ class AsyncDaytona:
         """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it.
 
         For a builder with local files, submission first reads and uploads a
-        deterministic build context, bounded by transfer idle time and the
-        complete step's own timeout, not the client's total request timeout.
+        deterministic build context. Upload parts have a 300-second idle
+        timeout; each completion attempt uses the greater of the client's
+        request timeout and 600 seconds (client timeout ``0`` means no bound).
+        The upload is not bounded by one total request timeout.
         It then sends the build request, bounded by the client's request
         timeout. The build itself is always awaited, bounded by
         ``build_timeout`` (seconds; ``None``, ``0`` or a value above about

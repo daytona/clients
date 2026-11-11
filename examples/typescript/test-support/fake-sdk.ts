@@ -62,6 +62,7 @@ export interface Record {
   createdVolumes: string[]
   deletedVolumes: string[]
   followedImages: string[]
+  builtDockerfiles: string[]
   pulledImages: { ref: string; name?: string }[]
   deletedImages: string[]
   imageWaits: { wait?: string; timeoutSeconds?: number }[]
@@ -78,6 +79,7 @@ const record: Record = {
   createdVolumes: [],
   deletedVolumes: [],
   followedImages: [],
+  builtDockerfiles: [],
   pulledImages: [],
   deletedImages: [],
   imageWaits: [],
@@ -262,6 +264,7 @@ const fake = {
   },
   createFromBuild: async (builder: { toDockerfile(): string }, options: CreateFromBuildOptions = {}) => {
     const dockerfile = builder.toDockerfile()
+    record.builtDockerfiles.push(dockerfile)
     if (scenario.failBuildsContaining && dockerfile.includes(scenario.failBuildsContaining)) {
       throw new ImageBuildFailedError('image build failed', {
         statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: 'img_failed',

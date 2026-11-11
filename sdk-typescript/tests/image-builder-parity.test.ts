@@ -64,6 +64,19 @@ it.each(fixture.cases.map((testCase) => [testCase.name, testCase] as const))('re
   expect(builder.toRequestSource()).toEqual(testCase.request)
 })
 
+it.each([
+  [{ b: '1', '2': '2', a: '3' }, ['ENV 2="2"', 'ENV b="1"', 'ENV a="3"']],
+  [{ b: '1', ' 2': '2', a: '3' }, ['ENV b="1"', 'ENV 2="2"', 'ENV a="3"']],
+] as const)('preserves mapping enumeration order when rendering env %j', (values, expected) => {
+  // Given: JS enumerates integer keys first; Python dicts retain insertion
+  // order. Stripping a key must not reorder the caller's enumerated pairs.
+  const builder = ImageBuilder.fromRegistry('alpine')
+  // When: the mapping is rendered.
+  const dockerfile = builder.env(values).toDockerfile()
+  // Then: rendering preserves Object.entries order, including stripped keys.
+  expect(dockerfile.trimEnd().split('\n').slice(1)).toEqual(expected)
+})
+
 it.each(fixture.refused.map((testCase) => [testCase.name, testCase] as const))('refuses the shared fixture: %s', (_name, testCase) => {
   let error: unknown
   try { build(testCase) } catch (failure) { error = failure }

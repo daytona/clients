@@ -121,6 +121,21 @@ for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secr
   })
 }
 
+test('local-files builds with positional COPY sources when copying a directory and a file', () => {
+  // Given the example's project directory and settings file.
+  // When the real example submits its builder.
+  const { code, record, output } = runExample(example('local-files'))
+  // Then COPY reads the archived sources, not machine-local paths.
+  assert.equal(code, 0, output)
+  assert.equal(record.builtDockerfiles.length, 1)
+  const [dockerfile] = record.builtDockerfiles
+  assert.deepEqual(dockerfile.split('\n').filter((line) => line.startsWith('COPY ')), [
+    'COPY [".daytona-context/1", "/app"]',
+    'COPY [".daytona-context/2/settings.conf", "/etc/example/settings.conf"]',
+  ])
+  assertCleanedUp(record)
+})
+
 test('the test double reports a command\'s output as a stdout log frame', () => {
   const { code, output } = runExample('typescript/test-support/probe-logs.ts', { images: [[IMAGE, 'ready']] })
   assert.equal(code, 0, output)

@@ -239,6 +239,10 @@ export class Daytona {
    * in one region and can only boot there, so it is built where the
    * sandbox will run. `buildTimeoutSeconds` bounds the image build separately;
    * the sandbox create always receives the caller's full `waitSeconds`.
+   * Local files are archived and uploaded before submission. Part uploads are
+   * outside the client's request timeout; each completion attempt uses the
+   * greater of that timeout and 600 seconds (client timeout 0 is unbounded).
+   * No single total request timeout bounds the upload.
    */
   public async createFromBuild(builder: ImageBuilder, options: CreateFromBuildOptions = {}): Promise<Sandbox> {
     const { image, createOptions } = await buildSandboxImage(this.images, builder, options)

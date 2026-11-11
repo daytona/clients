@@ -2,6 +2,13 @@
   "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with its message in both SDKs (\"tsError\" where TypeScript names the argument in camelCase). Sources: \"registry\", \"dockerfile\" or \"debianSlim\" (null = the default series).",
   "cases": [
     {
+      "name": "env names retain step order even for integer keys",
+      "source": {"registry": "alpine"},
+      "steps": [["env-name", ["b", "1"]], ["env-name", ["2", "2"]], ["env-name", ["a", "3"]]],
+      "dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n",
+      "request": {"dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n"}
+    },
+    {
       "name": "padded registry ref",
       "source": {
         "registry": " python:3.12 "
@@ -218,6 +225,19 @@
     }
   ],
   "refused": [
+    {
+      "name": "run command with a stripped trailing backslash",
+      "source": {"registry": "alpine"},
+      "steps": [["run", ["echo a \\  "]], ["run", ["echo b"]]],
+      "error": "ImageBuilder.run_commands command \"echo a \\\\\" must not end with a backslash (it would continue onto the next instruction)",
+      "tsError": "ImageBuilder.runCommands command \"echo a \\\\\" must not end with a backslash (it would continue onto the next instruction)"
+    },
+    {
+      "name": "workdir with a trailing backslash",
+      "source": {"registry": "alpine"},
+      "steps": [["workdir", "/app\\"]],
+      "error": "ImageBuilder.workdir path \"/app\\\\\" must not end with a backslash (it would continue onto the next instruction)"
+    },
     {
       "name": "debian slim refuses a micro version",
       "source": {"debianSlim": "3.12.10"},

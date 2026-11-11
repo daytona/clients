@@ -15,7 +15,7 @@ export type BuilderSource =
 /** @internal */
 export type BuilderStep =
   | { readonly type: 'run'; readonly commands: readonly string[] }
-  | { readonly type: 'env'; readonly entries: Readonly<Record<string, string>> }
+  | { readonly type: 'env'; readonly entries: readonly (readonly [string, string])[] }
   | { readonly type: 'workdir'; readonly path: string }
   | { readonly type: 'user'; readonly name: string }
   | { readonly type: 'cmd'; readonly args: readonly string[] }
@@ -52,7 +52,7 @@ export function renderStep(step: BuilderStep): string {
     case 'run':
       return step.commands.map((command) => `RUN ${command}`).join('\n')
     case 'env':
-      return Object.entries(step.entries).map(([key, value]) => `ENV ${key}=${JSON.stringify(value)}`).join('\n')
+      return step.entries.map(([key, value]) => `ENV ${key}=${JSON.stringify(value)}`).join('\n')
     case 'workdir':
       return `WORKDIR ${step.path}`
     case 'user':
@@ -77,6 +77,7 @@ export function assertNever(value: never): never {
 export function lineText(value: unknown, label: string): string {
   const text = rawText(value, label)
   if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} ${JSON.stringify(text)} must not contain a control character`)
+  if (text.endsWith('\\')) throw badRequest(`${label} ${JSON.stringify(text)} must not end with a backslash (it would continue onto the next instruction)`)
   return text
 }
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Stats } from 'node:fs'
+import type { Dirent, Stats } from 'node:fs'
 import type { Results } from './dockerignore.js'
 import { contextUploadRuntime } from './contextUpload.js'
 import { NotSupportedError } from './errors/DaytonaError.js'
@@ -40,10 +40,10 @@ export async function walkArchiveEntries(root: string, filter?: ArchiveFilter, v
   if (!(await fs.stat(absolute)).isDirectory()) throw badRequest(`${JSON.stringify(root)} is not a directory`)
   const entries: ArchiveEntry[] = []
   // These stack frames are traversal accumulators, not shared model state.
-  const open: { readonly entry: ArchiveEntry; readonly state: Results | undefined; reported: boolean }[] = []
+  const open: { readonly rel: string; readonly current: string; readonly state: Results | undefined; reported: boolean }[] = []
   const walk = async (directory: string, kept: boolean): Promise<void> => {
-    let names: Buffer[]
-    try { names = await fs.readdir(directory, { encoding: 'buffer' }) }
+    let names: Dirent<Buffer>[]
+    try { names = await fs.readdir(directory, { withFileTypes: true, encoding: 'buffer' }) }
     catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')) {
         if (!kept) return
@@ -52,31 +52,31 @@ export async function walkArchiveEntries(root: string, filter?: ArchiveFilter, v
       throw error
     }
     // Go sorts directory names by UTF-8 bytes, not the host locale or UTF-16.
-    names.sort((left, right) => left.compare(right))
+    names.sort((left, right) => left.name.compare(right.name))
     for (const name of names) {
       // Decoded per entry, so an undecodable name is reported in walk order
       // (as Python does), not before the subtrees of earlier siblings.
-      const current = decodeContextPath(Buffer.concat([Buffer.from(directory + path.sep), name]))
+      const current = decodeContextPath(Buffer.concat([Buffer.from(directory + path.sep), name.name]))
       const rel = path.relative(absolute, current).split(path.sep).join('/')
-      const info = await fs.lstat(current)
-      const isDir = info.isDirectory()
+      const isDir = name.isDirectory()
       const decision = filter?.keep(rel, isDir, open[open.length - 1]?.state) ?? { keep: true, descend: true, state: undefined }
-      const entry = { rel, current, info }
       if (decision.keep) {
         for (const parent of open) {
           if (!parent.reported) {
-            entries.push(parent.entry)
+            const entry = { rel: parent.rel, current: parent.current, info: await fs.lstat(parent.current) }
+            if (visit === undefined) entries.push(entry)
+            else await visit(entry)
             parent.reported = true
-            if (visit !== undefined) await visit(parent.entry)
           }
         }
-        entries.push(entry)
+        const entry = { rel, current, info: await fs.lstat(current) }
         // Each kept entry is checked as it is reached, so the first refusal
         // is the first in walk order in both SDKs.
-        if (visit !== undefined) await visit(entry)
+        if (visit === undefined) entries.push(entry)
+        else await visit(entry)
       }
       if (isDir && (decision.keep || decision.descend)) {
-        open.push({ entry, state: decision.state, reported: decision.keep })
+        open.push({ rel, current, state: decision.state, reported: decision.keep })
         await walk(current, decision.keep)
         open.pop()
       }

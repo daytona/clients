@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm, symlink, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, isAbsolute } from 'node:path'
 import cases from '../../cli/internal/dockerignore/testdata/buildkit_cases.json'
@@ -241,4 +241,37 @@ test('rejects filesystem traversal outside Node', async () => {
     // When walking, then raise the supported-runtime error before importing builtins.
     await expect(walkArchiveEntries('.')).rejects.toBeInstanceOf(NotSupportedError)
   } finally { runtime.mockRestore() }
+})
+
+test('skips an ignored entry when it vanishes after listing', async () => {
+  // Given: a listed file removed while an earlier kept entry is visited.
+  const root = await mkdtemp(join(tmpdir(), 'daytona-ignore-race-'))
+  try {
+    await writeFile(join(root, 'a'), 'kept')
+    await writeFile(join(root, 'z'), 'ignored')
+    const filter = new Filter(new Matcher(['z']))
+    const visited: string[] = []
+    // When: the walker reaches the removed ignored entry.
+    await walkArchiveEntries(root, filter, async (entry) => {
+      visited.push(entry.rel)
+      await unlink(join(root, 'z'))
+    })
+    // Then: no metadata probe of that entry aborts the walk.
+    expect(visited).toEqual(['a'])
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('does not retain visited entries when a callback consumes the walk', async () => {
+  // Given: an ignored parent forced into the archive by a kept child.
+  const root = await mkdtemp(join(tmpdir(), 'daytona-walk-stream-'))
+  try {
+    await mkdir(join(root, 'nested'))
+    await writeFile(join(root, 'nested', 'Dockerfile'), 'FROM scratch')
+    const filter = new Filter(new Matcher(['*']), ['nested/Dockerfile'])
+    const visited: string[] = []
+    // When: the callback consumes each kept entry in archive order.
+    const entries = await walkArchiveEntries(root, filter, async (entry) => { visited.push(entry.rel) })
+    // Then: no duplicate collection is retained after callback delivery.
+    expect({ entries, visited }).toEqual({ entries: [], visited: ['nested', 'nested/Dockerfile'] })
+  } finally { await rm(root, { recursive: true, force: true }) }
 })

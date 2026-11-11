@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import os
 import tarfile
 from pathlib import Path
@@ -234,11 +235,29 @@ async def test_unchanged_directory_context_reuses_the_same_digest(sync: bool, tm
     # Given an unchanged directory submitted twice.
     (tmp_path / "Dockerfile").write_text("FROM alpine\n")
     (tmp_path / "payload").write_text("stable")
-    with storage_peer() as first, storage_peer() as second:
-        # When independently archived and uploaded.
+    with storage_peer() as first, storage_peer(ready=True) as second:
+        # When independently archived, with the second declaration already ready.
         await build(first, tmp_path, sync)
         os.utime(tmp_path / "payload", (12345, 98765))
         await build(second, tmp_path, sync)
-    # Then both declarations and archive bytes identify the same reusable context.
+    # Then the same declaration reuses the verified archive without another PUT.
     assert first.json("POST", "/build-contexts") == second.json("POST", "/build-contexts")
-    assert uploaded_bytes(first) == uploaded_bytes(second)
+    assert second.bodies("PUT", "/") == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("as_path", [False, True], ids=["string", "path"])
+async def test_context_path_reports_utf8_error_when_it_contains_a_lone_surrogate(
+    sync: bool, as_path: bool, tmp_path: Path
+) -> None:
+    # Given: a path that cannot be probed or uploaded as UTF-8.
+    given = str(tmp_path / "bad\ud800")
+    context = Path(given) if as_path else given
+    # When: preparing it through either public surface.
+    with storage_peer() as peer, pytest.raises(BadRequestError) as raised:
+        await build(peer, context, sync)
+    # Then: validation wins over is_dir and no request is made.
+    assert str(raised.value) == "build context path is not valid UTF-8: " + json.dumps(
+        given.replace("\ud800", "�"), ensure_ascii=False
+    )
+    assert peer.requests == []

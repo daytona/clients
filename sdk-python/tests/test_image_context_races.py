@@ -99,7 +99,10 @@ def test_open_error_is_classified_when_archiving(
         assert str(raised.value) == f"{prefix}: {json.dumps(str(source))}"
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root can read mode-000 files")
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="requires POSIX permissions and a non-root user",
+)
 def test_unreadable_file_is_named_when_archiving(tmp_path: Path) -> None:
     # Given an unreadable file in a declared directory.
     source = tmp_path / "source"

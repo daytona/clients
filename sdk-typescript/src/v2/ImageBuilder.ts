@@ -113,7 +113,9 @@ export class ImageBuilder {
       if (seen.has(key)) throw badRequest(`ImageBuilder.env key ${JSON.stringify(key)} appears more than once after stripping`)
       seen.add(key)
     }
-    return this.append({ type: 'env', entries: Object.fromEntries(pairs) })
+    // Keep Object.entries order: recreating an object would sort integer-like
+    // keys again after envName strips them. Python preserves its dict order.
+    return this.append({ type: 'env', entries: pairs })
   }
 
   public workdir(path: string): ImageBuilder {

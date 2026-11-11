@@ -207,6 +207,7 @@ def test_archive_is_deterministic_and_keeps_permissions(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="requires FIFO support")
 def test_fifo_in_local_directory_is_refused(tmp_path: Path) -> None:
     # Given a directory with a special file that must never be read.
     root = tmp_path / "source"

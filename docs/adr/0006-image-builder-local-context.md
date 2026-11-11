@@ -16,10 +16,10 @@ that `POST /images` builds with no build context, so a `COPY` of a local path
 has nothing to read. Code that ported `Image.debian_slim().add_local_dir("src",
 ...)` had to write its own Dockerfile and tar archive. The API now accepts a
 build context: a tar archive declared with `POST /build-contexts`, uploaded in
-parts to storage, verified with `POST /build-contexts/{id}/complete`, and
-named by `POST /images` with `context_upload_id`. The SDKs expose it as
-`images.build_from_context()` / `images.buildFromContext()`, which takes a tar
-archive only.
+parts, verified with `POST /build-contexts/{id}/complete`, and named by
+`POST /images` with `context_upload_id`. The SDKs expose it as `images.build_from_context()` /
+`images.buildFromContext()`, accepting archive bytes, a tar-file path or a
+directory path.
 
 This record decides how the builder carries local files, how a directory
 becomes a build context, and which 0.x helpers 2.x keeps.

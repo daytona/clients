@@ -104,7 +104,7 @@ describe.each(methods)('%s archive', (method) => {
   })
 })
 
-const permissionTest = process.geteuid?.() === 0 ? it.skip : it
+const permissionTest = process.platform === 'win32' || process.geteuid?.() === 0 ? it.skip : it
 permissionTest.each(['', 'data\n', 'data\n!**/keep\n', 'data\n!data/keep\n'])('handles an unreadable directory when ignore is %j', async (ignore) => {
   // Given a kept or excluded mode-000 directory, including negations that attempt descent.
   const data = join(root, 'data"é')

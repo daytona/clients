@@ -192,6 +192,11 @@ class AsyncImagesService:
         without waiting for the build (``get(image.id, wait="ready")``).
         Local files recorded by the builder are read at build time, archived
         deterministically and uploaded as a build context before submission.
+        Upload parts have a 300-second idle timeout; each completion attempt
+        uses the greater of the client's request timeout and 600 seconds
+        (client timeout ``0`` means no bound), not one total upload deadline.
+        With local files, ``name`` and ``idle_expiry_seconds`` cannot be
+        combined: idle expiry applies only to anonymous images.
         """
         if not isinstance(builder, ImageBuilder):
             raise create_error(
@@ -245,10 +250,14 @@ class AsyncImagesService:
         Directories are archived deterministically with BuildKit ignore rules:
         ``<dockerfile>.dockerignore`` takes precedence over ``.dockerignore``.
         The Dockerfile and the ignore files are always included. The
-        archive is uploaded straight to storage in parts and verified by the
-        API before the build starts; an identical archive the project already
+        archive is uploaded in parts and verified before the build starts;
+        parts have a 300-second idle timeout, and each completion attempt uses
+        the greater of the client's request timeout and 600 seconds (client
+        timeout ``0`` means no bound). An identical archive the project already
         uploaded is reused without uploading it again. The other arguments
-        are those of :meth:`build`. Returns as soon as the build is submitted;
+        are those of :meth:`build`. ``name`` and ``idle_expiry_seconds`` cannot
+        be combined: idle expiry applies only to anonymous images.
+        Returns as soon as the build is submitted;
         wait with :meth:`get` (``wait="ready"``).
         """
         # Checked before the upload: the API refuses the pair only at the build.

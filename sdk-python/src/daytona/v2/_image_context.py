@@ -217,6 +217,8 @@ async def prepared_context(
     if not isinstance(dockerfile, str) or not dockerfile.strip():
         raise create_error("dockerfile must be a non-empty path", 400, "BAD_REQUEST", "SDK")
     expanded = Path(expand_home(os.fspath(context))) if isinstance(context, (str, os.PathLike)) else context
+    if isinstance(expanded, Path):
+        utf8_path(str(expanded))
     if isinstance(expanded, ImageBuilder):
         with TemporaryDirectory(prefix="daytona-build-") as directory:
             destination = Path(directory) / "context.tar"

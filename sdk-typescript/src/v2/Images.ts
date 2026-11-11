@@ -103,6 +103,12 @@ export class ImagesService {
     return followBuildLogs(this.getApiTransport(), `/images/${pathSegment(imageId, 'imageId')}/build-logs-url`, options)
   }
 
+  /**
+   * Submit a builder without waiting for the image to become ready.
+   * Local files are archived and uploaded first, with the same timeouts as
+   * `buildFromContext`. With local files, `name` and `idleExpirySeconds` cannot
+   * be combined: idle expiry applies only to anonymous images.
+   */
   public async build(builder: ImageBuilder, options: BuildImageOptions = {}): Promise<Image> {
     if (!isImageBuilder(builder)) throw badRequest('images.build() takes an ImageBuilder (ImageBuilder.fromDockerfile(...), .fromRegistry(...))')
     assertKnownOptions('BuildImageOptions', options, BUILD_IMAGE_OPTION_KEYS)
@@ -125,8 +131,12 @@ export class ImagesService {
    * bytes, a `Blob`, or (Node.js) the path of a `.tar` file or directory, up to 1 GiB.
    * Directories honour the Dockerfile-specific ignore file, else `.dockerignore`.
    * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
-   * The archive is uploaded straight to storage in parts and verified by the
-   * API before the build starts; an identical archive the project already
+   * The archive is uploaded in parts and verified before the build starts.
+   * Part uploads are outside the client's request timeout; each completion
+   * attempt uses the greater of that timeout and 600 seconds (client timeout 0
+   * is unbounded). No single total request timeout bounds the upload.
+   * `name` and `idleExpirySeconds` cannot be combined: idle expiry applies only
+   * to anonymous images. An identical archive the project already
    * uploaded is reused without uploading it again. Resolves once the build is
    * submitted; wait with `get(id, { wait: 'ready' })`.
    */

@@ -27,7 +27,9 @@ let root: string
 beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'builder-fixture-')) })
 afterEach(async () => { await rm(root, { recursive: true, force: true }) })
 
-it.each(fixture.cases)('archives the shared context fixture: $name', async (testCase) => {
+// A backslash is a filename character on POSIX, but a separator on Windows.
+const portableCases = fixture.cases.filter((testCase) => process.platform !== 'win32' || !Object.keys(testCase.files).some((name) => name.includes('\\')))
+it.each(portableCases)('archives the shared context fixture: $name', async (testCase) => {
   // Given the shared tree and an immutable builder recording its sources.
   await writeTree(root, testCase)
   const builder = contextBuilder(root, testCase)
@@ -178,7 +180,8 @@ it('uses PAX paths for long UTF-8 names without changing logical archive order',
   }
 })
 
-it('refuses a FIFO without opening it when a directory is archived', async () => {
+const posixTest = process.platform === 'win32' ? it.skip : it
+posixTest('refuses a FIFO without opening it when a directory is archived', async () => {
   // Given a named pipe, whose contents cannot be copied as a regular file.
   await writeTree(root, { files: { 'd/': '' } })
   const pipe = join(root, 'd/pipe')

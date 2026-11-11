@@ -66,7 +66,7 @@ posixTest('preserves a POSIX relative symlink target starting with a backslash',
   } finally { await archive.cleanup() }
 })
 
-it.each(['a$HOME.txt', 'cfg[prod].txt', 'close].txt', 'star*.txt', 'what?.txt', 'tab\t.txt', 'delete\x7f.txt', 'next\u0085line.txt', "it's.txt", 'a"b.txt'])('stages %s at a fixed COPY source while preserving its destination basename', async (name) => {
+posixTest.each(['a$HOME.txt', 'cfg[prod].txt', 'close].txt', 'star*.txt', 'what?.txt', 'tab\t.txt', 'delete\x7f.txt', 'next\u0085line.txt', "it's.txt", 'a"b.txt'])('stages %s at a fixed COPY source while preserving its destination basename', async (name) => {
   // Given a filename Docker would otherwise interpret as COPY syntax.
   const source = join(root, name)
   await fs.writeFile(source, 'literal content')

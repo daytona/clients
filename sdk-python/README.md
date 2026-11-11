@@ -576,8 +576,9 @@ sandbox = d.v2.create_from_build(builder, build_timeout=600)
 ```
 
 To build an existing Dockerfile with its directory as the context, pass the
-directory to `images.build_from_context()`; it honours the context's
-`.dockerignore` the way `docker build` does:
+directory to `images.build_from_context()`; it uses `<dockerfile>.dockerignore`
+next to the selected Dockerfile when present, otherwise `.dockerignore` at
+the context root, the way `docker build` does:
 
 ```python
 image = d.v2.images.build_from_context("./service", dockerfile="Dockerfile", name="service")

@@ -509,8 +509,9 @@ const sandbox = await daytona.v2.createFromBuild(builder, { buildTimeoutSeconds:
 ```
 
 To build an existing Dockerfile with its directory as the context, pass the
-directory to `images.buildFromContext()`; it honours the context's
-`.dockerignore` the way `docker build` does:
+directory to `images.buildFromContext()`; it uses `<dockerfile>.dockerignore`
+next to the selected Dockerfile when present, otherwise `.dockerignore` at
+the context root, the way `docker build` does:
 
 ```ts
 let image = await daytona.v2.images.buildFromContext('./service', { dockerfile: 'Dockerfile', name: 'service' })

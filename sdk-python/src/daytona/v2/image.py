@@ -245,6 +245,14 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
+        if text.endswith("\\"):
+            raise create_error(
+                f"{label} {json.dumps(text, ensure_ascii=False)} must not end with a backslash "
+                "(it would continue onto the next instruction)",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         return text
 
     @classmethod
