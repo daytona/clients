@@ -13,6 +13,8 @@ import { promisify } from 'node:util'
 import { ImageBuilder } from '../src/v2/Image.js'
 import { archiveBuilder, dockerfileEscape } from '../src/v2/contextArchive.js'
 import escapeCases from '../../sdk-python/tests/fixtures/dockerfile-escape.json'
+import continuationCases from '../../sdk-python/tests/fixtures/dockerfile-continuation.json'
+import { endsWithContinuation } from '../src/v2/builderText.js'
 import { localSourcesOf } from '../src/v2/ImageBuilder.js'
 import { contextUploadRuntime } from '../src/v2/contextUpload.js'
 import { BadRequestError, NotSupportedError } from '../src/v2/errors/DaytonaError.js'
@@ -264,4 +266,9 @@ it('uses a PAX path even when a long ASCII name also fits the ustar prefix field
 it.each(escapeCases.cases.map((testCase) => [JSON.stringify(testCase.dockerfile), testCase] as const))('reads the escape directive as BuildKit does: %s', (_name, testCase) => {
   // The expectations come from BuildKit's own parser (shared with Python).
   expect(dockerfileEscape(testCase.dockerfile)).toBe(testCase.escape)
+})
+
+it.each(continuationCases.cases.map((testCase) => [JSON.stringify(testCase.base), testCase] as const))('reads a continued base as BuildKit does: %s', (_name, testCase) => {
+  // Expectations from BuildKit's own parser (shared with Python).
+  expect(endsWithContinuation(testCase.base)).toBe(testCase.joins)
 })

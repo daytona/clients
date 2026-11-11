@@ -1,0 +1,381 @@
+{
+  "_comment": "Whether BuildKit v0.31.2 (go 1.26.10, parser.Parse) joins a line appended to each base Dockerfile into its last instruction. Both SDKs' ends_with_continuation / endsWithContinuation must agree; a builder step added to a base where joins is true is refused.",
+  "cases": [
+    {
+      "base": "FROM a\nRUN echo C:\\\\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN echo a \\",
+      "joins": true
+    },
+    {
+      "base": "FROM a\nRUN echo a \\\n\u00a0# c",
+      "joins": true
+    },
+    {
+      "base": "FROM a\nRUN echo a \\\n\u000b# c",
+      "joins": true
+    },
+    {
+      "base": "FROM a\nRUN echo a \\\n\f\n# c",
+      "joins": true
+    },
+    {
+      "base": "FROM a\n# note \\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a \\\n   \n",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN echo a `",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN echo a \\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN echo a ``",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a \\\t",
+      "joins": true
+    },
+    {
+      "base": "FROM a\n  \\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\\ ",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a \\\r",
+      "joins": true
+    },
+    {
+      "base": "FROM a\n\u000b# c\n\u000b# c\n\u3000",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a\\\\\\\n\u3000\n  \\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u00a0# c\n\n\u3000\n\f\n `",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n  \\\nRUN a \\\r\n# c \\\nENV X=1\n`",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a \\\t\n\t# x `\n\u2028\\\nRUN a \\ \n\u2028\\\n `\n\\ ",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\t# x `\n`\n\u00a0# c\nRUN echo C:\\\\\nRUN a \\\r\nENV X=1\n\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u00a0# c\n  \n\f",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\u000b# c\n\\ \nENV X=1\n\u3000\n\u00a0# c",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a \\\r\n# c\nRUN echo C:\\\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n# c\nRUN a `\t\n `\n# c\n  \\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a \\\r\n\f\n\u00a0# c",
+      "joins": true
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN echo a\nx\\\\`\nRUN echo a\n  \n\u2028\\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n  ",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN a \\ \n\u00a0# c\n `\n `\nRUN a \\\t\n\f\n\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u3000\n# c \\\n `\n  \n# c",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\u00a0# c\n  \n# c \\\nRUN a \\\r\n `",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n# c \\\n\\\nx``",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\n  \n\\ \n# c\n `\nRUN echo a",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\ufeffRUN a \\\n\f\nRUN echo C:\\\\\nRUN a \\\t",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u00a0# c\n\\ ",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n `\n# c \\\nx`",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nFROM a\n  \n\f\nENV X=1\n  \\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\u2028\\\nx`\n `\n# c \\\nRUN a \\\t\n  \\\nRUN a \\\r",
+      "joins": true
+    },
+    {
+      "base": "FROM a\n  \\\nFROM a\n`\n\f\nRUN a \\ ",
+      "joins": true
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a\\\\\\\n# c\n\t# x `\nx\\\\`",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\u3000\n\\ \n  \n`\n  \\",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nENV X=1\n\\\n  ",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nx``\n\nFROM a\nRUN a \\ \n# c \\",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN echo a\nx`\n# c \\",
+      "joins": true
+    },
+    {
+      "base": "FROM a\nx``\nx``\nFROM a\n# c \\\n  ",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nENV X=1\nRUN a \\\r",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a `\t\n# c\n\u3000\n\u000b# c\n  \nFROM a\n `",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\\\n\\ \nFROM a\nRUN echo a",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\\\nENV X=1\nENV X=1\n\u3000\n\u00a0# c",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\u000b# c\n\u3000\nx``\n  ",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a\\\\\\\nRUN a\\\\\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nFROM a\nRUN a `\t\nFROM a\nRUN a\\\\\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\\ \n\u000b# c\n# c \\\nRUN a \\\t\nx`\nRUN echo a",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n# c\nRUN a \\ \n\\ \nx`",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u2028\\\n  \\\n# c\nRUN a \\\t\nRUN a\\\\\\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a \\ \n# c \\\n\u00a0# c\nx`",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\n\u00a0# c",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nx`\n\\ \nRUN a \\\t\nx``",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a \\\r\nRUN a `\t\n\nRUN a \\\t",
+      "joins": true
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\\\nRUN a \\ ",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN echo C:\\\\\nx`\nRUN a \\\t",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN a \\\t",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN a \\ \n\\ \n\\ \nRUN echo a\nRUN a \\\t",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\u00a0# c\nRUN a \\ \n`\nRUN a \\ ",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN a\\\\\\\nRUN a \\\r\nRUN a \\\t\n\u000b# c\nRUN a\\\\\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u000b# c\n\\ \n\t# x `\nRUN a `\t\nRUN a\\\\\\\nx``\nx``",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n  \n `\n  \nRUN a \\\t\n\f",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\n  \n\u000b# c\n\u3000\n\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n`\nx``\nx`",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\\ \n `\nENV X=1\n\u000b# c\nx``\nRUN a `\t",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n `\nx\\\\`\n  \n\u2028\\\n# c\nRUN a `\t\n\u3000",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\nRUN a \\\t\n\f\n`\n# c \\",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\u2028\\\n\\ \n\u2028\\\n `",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n  \n\u2028\\\n# c\n\u00a0# c\nRUN echo C:\\\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN a \\\r\nRUN a \\ ",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\\\n  \nx\\\\`\n\t# x `\n\u00a0# c",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\n`\n  \\\n\u3000\n\u2028\\\n `\n`",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\u000b# c\n\u3000\n\u2028\\\n  \n\u2028\\\n\u3000",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\\\n\\ \nRUN a \\ \n `\n\u2028\\\nRUN echo a\n\u000b# c",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nENV X=1\n\u3000\nRUN echo a\n\u000b# c",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u000b# c\n# c \\\nRUN a \\\r\nRUN a \\ ",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nx\\\\`\n# c\n\u000b# c",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN echo a\n\u000b# c\nRUN echo a\n\u00a0# c\nRUN a\\\\\\\n# c",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\nRUN echo C:\\\\\nRUN a\\\\\\\n\u00a0# c\nRUN a \\ \n\u3000",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN echo C:\\\\\nENV X=1\n  \n\u000b# c",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\\ \n\nENV X=1\nRUN a \\ ",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\nFROM a\nx``\nx``\n\f",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n# c \\\n# c \\",
+      "joins": false
+    },
+    {
+      "base": "FROM a\nRUN a \\ \n\\\nFROM a\nRUN a \\\r",
+      "joins": true
+    },
+    {
+      "base": "# escape=\\\nFROM a\n`\n`\nRUN a \\ \n\u00a0# c",
+      "joins": true
+    },
+    {
+      "base": "# escape=`\nFROM a\n# c \\\n# c \\\n\u00a0# c",
+      "joins": false
+    },
+    {
+      "base": "FROM a\n\u000b# c\nRUN a \\ \n\u00a0# c\n\n\u3000",
+      "joins": true
+    },
+    {
+      "base": "FROM a\n`\n`\n\\ \nx`",
+      "joins": false
+    },
+    {
+      "base": "# escape=\\\nFROM a\n\\ \nRUN a \\ \nx``\n\u3000\n\\",
+      "joins": false
+    },
+    {
+      "base": "# escape=`\nFROM a\n\u3000\n\\ \n\u3000",
+      "joins": false
+    }
+  ]
+}

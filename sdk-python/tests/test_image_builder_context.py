@@ -21,7 +21,7 @@ from typing_extensions import assert_never
 
 from daytona.v2 import BadRequestError, ImageBuilder
 from daytona.v2._image_context import write_builder_context
-from daytona.v2._image_text import dockerfile_escape
+from daytona.v2._image_text import dockerfile_escape, ends_with_continuation
 
 Step = (
     tuple[Literal["file", "dir"], str, str]
@@ -312,3 +312,14 @@ _ESCAPE_CASES = json.loads((Path(__file__).parent / "fixtures/dockerfile-escape.
 def test_the_escape_directive_is_read_as_buildkit_reads_it(case: dict[str, str]) -> None:
     # The expectations come from BuildKit's own parser (shared with TypeScript).
     assert dockerfile_escape(case["dockerfile"]) == case["escape"]
+
+
+_CONTINUATION_CASES = json.loads(
+    (Path(__file__).parent / "fixtures/dockerfile-continuation.json").read_text("utf-8")
+)["cases"]
+
+
+@pytest.mark.parametrize("case", _CONTINUATION_CASES, ids=lambda case: repr(case["base"]))
+def test_a_continued_base_is_read_as_buildkit_reads_it(case: dict[str, object]) -> None:
+    # Expectations from BuildKit's own parser (shared with TypeScript).
+    assert ends_with_continuation(str(case["base"])) is case["joins"]

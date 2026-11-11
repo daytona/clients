@@ -132,17 +132,31 @@ export function dockerfileEscape(dockerfile: string): string {
 }
 
 /**
- * Whether the last instruction line ends with the escape character: BuildKit
- * joins it with the next line, so a step appended to the base would become
- * part of its last instruction. A comment line is not a continuation. Python
- * reads the same. @internal
+ * Whether BuildKit would join a line appended to `dockerfile` into its last
+ * instruction: a port of BuildKit v0.31.2's Parse loop (continuation rule
+ * `([^E])E[ \t]*$|^E[ \t]*$`, comment and whitespace-only lines skipped inside a
+ * continuation, Go's unicode.IsSpace). Python reads the same. Heredocs are not
+ * followed. @internal
  */
 export function endsWithContinuation(dockerfile: string): boolean {
-  const escape = dockerfileEscape(dockerfile)
-  for (const line of dockerfile.split('\n').reverse()) {
-    const text = line.replace(/[ \t\r]+$/, '')
-    if (text === '' || text.replace(/^[ \t]+/, '').startsWith('#')) continue
-    return text.endsWith(escape)
+  const escape = dockerfileEscape(dockerfile).replace(/[\\^$.*+?()[\]{}|-]/g, '\\$&')
+  const continuation = new RegExp(`([^${escape}])${escape}[ \\t]*$|^${escape}[ \\t]*$`, 'u')
+  // pending: the last instruction continues; carried: it holds text, so a
+  // joined line would change it (an escape alone on a line carries nothing).
+  let pending = false
+  let carried = false
+  for (const [index, raw] of dockerfile.split('\n').entries()) {
+    const line = (index === 0 ? raw.replace(/^\ufeff/, '') : raw).replace(/[\r\n]+$/, '')
+    const stripped = line.replace(GO_SPACE, '')
+    // A comment ends no instruction and continues none.
+    if (stripped.startsWith('#')) continue
+    if (pending && stripped === '') continue
+    const text = pending ? line : stripped
+    const matched = continuation.test(text)
+    // BuildKit's ReplaceAll(line, "$1"): what the line adds to the instruction.
+    const added = matched ? text.replace(continuation, (_match, kept: string | undefined) => kept ?? '') : text
+    carried = (carried && pending) || added.replace(GO_SPACE, '').replace(/[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/, '') !== ''
+    pending = matched
   }
-  return false
+  return pending && carried
 }

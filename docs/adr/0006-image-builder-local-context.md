@@ -87,8 +87,11 @@ paths, remote paths and `build_from_context(context, /)`. The optional
   instruction line ends with the escape character) cannot take further steps:
   BuildKit would join the next line to it, so an appended `COPY` or other step
   would silently become part of that instruction. Adding a step to such a base
-  is a `BadRequestError`. A comment line ending in the escape character is not
-  a continuation. An unterminated heredoc in the base is not detected.
+  is a `BadRequestError`. The check follows BuildKit's parser: an escaped
+  escape character (`\\`) ends no line, comment and whitespace-only lines
+  inside a continuation are skipped, and an escape character alone on the
+  last line carries nothing to join. A shared fixture generated from BuildKit
+  holds both SDKs to it. An unterminated heredoc in the base is not detected.
 - **Builders stay immutable**: each call returns a new builder; the earlier
   one is unchanged.
 - **Local files require the default Dockerfile escape character (`\`).** A

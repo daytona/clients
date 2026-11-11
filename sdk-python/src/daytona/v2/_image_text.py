@@ -42,19 +42,34 @@ def dockerfile_escape(dockerfile: str) -> str:
 
 
 def ends_with_continuation(dockerfile: str) -> bool:
-    """Whether the last instruction line ends with the escape character.
+    """Whether BuildKit would join a line appended to ``dockerfile`` into its
+    last instruction.
 
-    BuildKit joins such a line with the next one, so a step appended to the
-    base would become part of its last instruction. A comment line ending in
-    the escape character is not a continuation. TypeScript reads the same.
+    A port of BuildKit v0.31.2's Parse loop: the continuation rule is
+    ``([^E])E[ \t]*$|^E[ \t]*$`` for the escape character ``E`` (so an escaped
+    escape, ``\\``, ends no line), comment lines and whitespace-only lines
+    inside a continuation are skipped, and leading space is Go's
+    ``unicode.IsSpace``. TypeScript reads the same. Heredocs are not followed.
     """
-    escape = dockerfile_escape(dockerfile)
-    for line in reversed(dockerfile.split("\n")):
-        text = line.rstrip(" \t\r")
-        if not text or text.lstrip(" \t").startswith("#"):
+    escape = re.escape(dockerfile_escape(dockerfile))
+    continuation = re.compile(rf"([^{escape}]){escape}[ \t]*\Z|^{escape}[ \t]*\Z")
+    # pending: the last instruction continues; carried: it holds text, so a
+    # joined line would change it (an escape alone on a line carries nothing).
+    pending = carried = False
+    for index, raw in enumerate(dockerfile.split("\n")):
+        line = (raw.removeprefix("\ufeff") if index == 0 else raw).rstrip("\r\n")
+        stripped = line.lstrip(_GO_SPACE)
+        if stripped.startswith("#"):
+            # A comment ends no instruction and continues none.
             continue
-        return text.endswith(escape)
-    return False
+        if pending and not stripped:
+            continue
+        text = line if pending else stripped
+        # BuildKit's ReplaceAll(line, "$1"): what the line adds to the instruction.
+        added, count = continuation.subn(lambda match: match.group(1) or "", text)
+        carried = (carried and pending) or bool(added.strip(_GO_SPACE))
+        pending = count > 0
+    return pending and carried
 
 
 def require_text(value: object, label: str, *, strip: bool = False) -> str:
