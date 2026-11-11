@@ -263,13 +263,14 @@ class AsyncImagesService:
         bounds. Returns as soon as the build is submitted; wait with
         :meth:`get` (``wait="ready"``).
         """
-        # Checked before the upload: the API refuses the pair only at the build.
-        _check_context_image_options(name, idle_expiry_seconds)
-        # Checked before the upload, as build() checks them before its request.
-        request_timeout = None if timeout is None else checked_seconds(timeout)
+        # Options first, then the pair, then the timeout (TypeScript checks in
+        # the same order), all before the upload.
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
+        # The API refuses the pair only at the build.
+        _check_context_image_options(name, idle_expiry_seconds)
+        request_timeout = None if timeout is None else checked_seconds(timeout)
         # images.build() archives builders; here a context is bytes or a path.
         if isinstance(context, ImageBuilder):
             raise create_error(

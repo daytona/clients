@@ -466,6 +466,19 @@ it('refuses a name with an idle expiry before any request', async () => {
   expect(seen).toEqual([])
 })
 
+it('reports an invalid option before the name and idle pair (as Python)', async () => {
+  await expect(service().buildFromContext(archive(), { name: '', idleExpirySeconds: 60 })).rejects.toMatchObject({ message: 'name must be a non-empty string' })
+  expect(seen).toEqual([])
+})
+
+it('builds with no name and an idle expiry (as Python name=None)', async () => {
+  // SAFETY: null, as plain JavaScript can pass; it means no name.
+  await service().buildFromContext(archive(), { name: null, idleExpirySeconds: 60 } as never)
+  const body = json('POST', '/images') as Record<string, unknown>
+  expect(body.idle_expiry_seconds).toBe(60)
+  expect(body).not.toHaveProperty('name')
+})
+
 it('bounds the build request by timeoutSeconds instead of the request timeout (as Python timeout)', async () => {
   // Given a build request that answers after 300 ms.
   imagesDelayMs = 300
