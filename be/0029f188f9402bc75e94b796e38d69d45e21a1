@@ -1,0 +1,45 @@
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_f466ee7f0b17e1 633-675
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_f466ee7f0b17e1 1008-1033,1037-1051
+  s_ca009e77d17705::t_102704cb4c40ef 1034-1036
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_d2cecc9d3e4caa 464-482,496,500-501
+sdk-typescript/src/v2/responseFields.ts
+  s_ca009e77d17705::t_1c4941aa69d78b 7,117-127
+  s_ca009e77d17705::t_d2cecc9d3e4caa 143,145-146
+  s_ca009e77d17705::t_0d9bf342dea6e2 128
+sdk-typescript/tests/reservation-fields.test.ts
+  s_ca009e77d17705::t_f466ee7f0b17e1 145-159
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_1c4941aa69d78b 7,1055-1056,1068-1069
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_9a1a3182b6fc33 20-43
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_ca009e77d17705::t_372ef70b9829d9 12
+  s_ca009e77d17705::t_ec05473c39e236 86
+  s_ca009e77d17705::t_d2cecc9d3e4caa 70,84-85
+sdk-python/tests/test_reservation_fields.py
+  s_ca009e77d17705::t_f466ee7f0b17e1 150-178
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_1c4941aa69d78b 17,103,173-174
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_1c4941aa69d78b 239-243,245-251,255
+  s_ca009e77d17705::t_c9925f4964a94a 417-422
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be0029f188f9402bc75e94b796e38d69d45e21a1",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

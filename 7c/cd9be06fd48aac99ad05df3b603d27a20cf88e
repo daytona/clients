@@ -1,0 +1,29 @@
+upgrade/typescript/tests/client-service-proofs.test.ts
+  s_c85c66a4c5af54::t_a3411bcbaf2f94 132-133
+upgrade/mapping/mapping.json
+  s_c85c66a4c5af54::t_a3411bcbaf2f94 4211,4216
+upgrade/MIGRATION.md
+  s_c85c66a4c5af54::t_118fd9757a1a45 146,155
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_c85c66a4c5af54::t_beab7035f741b0 4211,4216
+upgrade/python/tests/test_client_service_parity.py
+  s_c85c66a4c5af54::t_f230a0b0ae60cc 203-206
+upgrade/typescript/src/mapping.json
+  s_c85c66a4c5af54::t_9c85090014be10 4211,4216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ccd9be06fd48aac99ad05df3b603d27a20cf88e",
+  "prompts": {},
+  "sessions": {
+    "s_c85c66a4c5af54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e0bd101ffeZjAnumrf4BzHhw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

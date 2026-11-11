@@ -1,0 +1,21 @@
+cli/internal/dockerignore/edge_cases_test.go
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 1-41
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 2-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea4290c21b2dd9887442f6bf330196de9c7b1b7d",
+  "prompts": {},
+  "sessions": {
+    "s_9d2460a3a992dc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37760cffffefqPD4DBGkpGP79",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

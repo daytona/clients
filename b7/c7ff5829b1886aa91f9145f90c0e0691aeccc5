@@ -1,0 +1,21 @@
+cli/build_check_test.go
+  s_4d9fba4bce0dac::t_1b5a4f858b7207 48-63
+cli/hack/check-binaries.sh
+  s_4d9fba4bce0dac::t_1b5a4f858b7207 30,38,45,48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7c7ff5829b1886aa91f9145f90c0e0691aeccc5",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

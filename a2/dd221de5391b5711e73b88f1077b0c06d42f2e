@@ -1,0 +1,19 @@
+changelog.d/ci-passed-demo.bogus.md
+  s_bcb2dd57ef8ca1::t_39c852b7b0373e 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a2dd221de5391b5711e73b88f1077b0c06d42f2e",
+  "prompts": {},
+  "sessions": {
+    "s_bcb2dd57ef8ca1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffegmosi5Ke0ybB8o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

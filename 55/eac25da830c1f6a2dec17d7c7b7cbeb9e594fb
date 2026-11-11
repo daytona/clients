@@ -1,0 +1,67 @@
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  s_dda305198a66db::t_00d8718a31ec57 9,40-52
+  s_dda305198a66db::t_d88988b090cd77 53
+cli/cmd/sandbox_ssh.go
+  s_dda305198a66db::t_00d8718a31ec57 147-149,151-155,161-164,167-169,175,197-203,210,214-217
+upgrade/typescript/src/mapping.json
+  s_dda305198a66db::t_0929671a183b0a 3841-3844,4118-4121
+upgrade/python/tests/test_dockerfile_image_suggestions.py
+  s_dda305198a66db::t_2de332e84d0b81 75-76,83-84,92-93
+sdk-typescript/src/v2/Images.ts
+  s_dda305198a66db::t_5ef7a5b031ef22 63-69,153
+sdk-typescript/tests/build-context-upload.test.ts
+  s_dda305198a66db::t_7ad3a710b7b96a 44,92,540-541,589-611,628
+upgrade/python/src/daytona_upgrade/flow.py
+  s_dda305198a66db::t_9ecfc8388fd138 48-51,53-55,216-219,223,229,232
+cli/cmd/image_direct_upload_test.go
+  s_dda305198a66db::t_d1928c906d4946 449-450
+upgrade/python/src/daytona_upgrade/dockerfile_images.py
+  s_dda305198a66db::t_760ddb42e87d00 17-22,28-35,37-40,42-44,49,59-62
+cli/README.md
+  s_dda305198a66db::t_3c780d70c743c1 207-208
+upgrade/typescript/tests/dockerfile-image-suggestions.test.ts
+  s_dda305198a66db::t_8305a9d2726089 48-50
+AGENTS.md
+  s_dda305198a66db::t_d19ca290fe8c38 540-548
+upgrade/mapping/mapping.json
+  s_dda305198a66db::t_0929671a183b0a 3841-3844,4118-4121
+upgrade/typescript/src/dockerfile-image.ts
+  s_dda305198a66db::t_8305a9d2726089 50-53,59,62-64
+upgrade/python/src/daytona_upgrade/models.py
+  s_dda305198a66db::t_25fcd2a276c6a3 79-80,118-134,191
+  s_dda305198a66db::t_247e371604faa2 192-193
+upgrade/python/src/daytona_upgrade/resolution.py
+  s_dda305198a66db::t_760ddb42e87d00 86-89
+changelog.d/build-from-context-timeout.added.md
+  s_dda305198a66db::t_d1928c906d4946 4
+changelog.d/build-from-context-timeout-zero.changed.md
+  s_dda305198a66db::t_d1928c906d4946 1-4
+sdk-typescript/src/v2/contextUpload.ts
+  s_dda305198a66db::t_5ef7a5b031ef22 37-38,43,50-60,203-205,214
+cli/cmd/sandbox_ssh_test.go
+  s_dda305198a66db::t_00d8718a31ec57 13,15,96-98,115-146
+upgrade/mapping/mapping.schema.json
+  s_dda305198a66db::t_0929671a183b0a 187,411,415,420-422
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_dda305198a66db::t_0929671a183b0a 3841-3844,4118-4121
+changelog.d/build-context-part-progress.fixed.md
+  s_dda305198a66db::t_d1928c906d4946 7-8
+sdk-python/tests/test_build_context_upload.py
+  s_dda305198a66db::t_d1928c906d4946 308-309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55eac25da830c1f6a2dec17d7c7b7cbeb9e594fb",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

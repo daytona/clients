@@ -1,0 +1,32 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 387
+.github/workflows/v0-pin-bump.yaml
+  h_e7759ddd73fa65 39-40,117-120,148,160
+upgrade/python/src/daytona_upgrade/project.py
+  h_e7759ddd73fa65 232-234,263-265
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 8,112-133,145
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 673-691
+upgrade/typescript/src/run.ts
+  h_e7759ddd73fa65 207,209
+upgrade/typescript/tests/bounded-environment-scan-inputs.test.ts
+  h_e7759ddd73fa65 89
+upgrade/typescript/tests/examples.test.ts
+  h_e7759ddd73fa65 13,39,51
+upgrade/typescript/tests/installed-package-runtime.test.ts
+  h_e7759ddd73fa65 14,31
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 6,319-331
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5204acd648503d8b49194e0a96acace5ba5330f6",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

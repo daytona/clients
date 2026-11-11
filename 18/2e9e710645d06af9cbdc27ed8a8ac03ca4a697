@@ -1,0 +1,21 @@
+sdk-typescript/src/v2/ProcessWire.ts
+  s_1d65fa05b6bddd::t_8bf71b7208e732 214-215
+sdk-typescript/tests/unit.test.ts
+  s_1d65fa05b6bddd::t_9c280547ac2d9c 12878,12881
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "182e9e710645d06af9cbdc27ed8a8ac03ca4a697",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

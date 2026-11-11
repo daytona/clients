@@ -1,0 +1,28 @@
+sdk-typescript/src/utils/Runtime.ts
+  s_e09f792a418dc9::t_e24dd9dbeebb52 228,230-234,236-237
+sdk-typescript/src/__tests__/Runtime.test.ts
+  s_e09f792a418dc9::t_3308aa102a5109 132,145-146,159-160,165-167,169,172-173,175,178-179
+  s_e09f792a418dc9::t_3885f3e846971e 11
+sdk-typescript/src/Daytona.ts
+  s_e09f792a418dc9::t_6fb7dfbd9d5f26 45
+  s_e09f792a418dc9::t_f42fe03279ab88 386-389,394-396
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_e09f792a418dc9::t_de043a47417723 29-30
+  s_e09f792a418dc9::t_deb3ba30485b07 846,851,857,861,868-877
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "944db62a285b27a15fbf08e55f76754332f99e37",
+  "prompts": {},
+  "sessions": {
+    "s_e09f792a418dc9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f7a53473affegTbtlQK9Bt17jn",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

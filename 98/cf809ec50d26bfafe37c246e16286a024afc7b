@@ -1,0 +1,21 @@
+.github/workflows/sdk_publish.yaml
+  s_4d9fba4bce0dac::t_89557b103ebc8a 1029-1030,1032
+upgrade/scripts/publish-channels.test.mjs
+  s_4d9fba4bce0dac::t_b40132acdd57ff 614
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "98cf809ec50d26bfafe37c246e16286a024afc7b",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

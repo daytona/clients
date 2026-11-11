@@ -1,0 +1,19 @@
+sdk-typescript/src/utils/Import.ts
+  s_1bcb63ffe16b31::t_004fcb54e316cd 18-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48aedf2de8f164ae35dd11a6d2aacd9897092ca0",
+  "prompts": {},
+  "sessions": {
+    "s_1bcb63ffe16b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ea6346a42ffe3HdoEm4jYgo730",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

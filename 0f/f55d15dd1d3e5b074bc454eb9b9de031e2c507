@@ -1,0 +1,23 @@
+cli/README.md
+  s_0df31975f3464b::t_20013c85cded5a 396-402
+changelog.d/536-file-exact-keys.breaking.md
+  s_0df31975f3464b::t_20013c85cded5a 4-9
+changelog.d/536-acknowledgements.breaking.md
+  s_0df31975f3464b::t_20013c85cded5a 3,5-15,17-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ff55d15dd1d3e5b074bc454eb9b9de031e2c507",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

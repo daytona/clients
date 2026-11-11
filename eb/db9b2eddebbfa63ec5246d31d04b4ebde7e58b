@@ -1,0 +1,23 @@
+artifacts/sdk-docs/go-sdk/errors.mdx
+  s_7bd8c3fe56c1f4::t_b82e978c7a35d5 41,45-46
+sdk-go/pkg/daytona/transport_error_test.go
+  s_7bd8c3fe56c1f4::t_da5c1944069d3d 26-30
+sdk-go/pkg/errors/errors.go
+  s_7bd8c3fe56c1f4::t_c2e3665c5446ac 35-37,40-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ebdb9b2eddebbfa63ec5246d31d04b4ebde7e58b",
+  "prompts": {},
+  "sessions": {
+    "s_7bd8c3fe56c1f4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec52e48eaffeDuQxKraCY5h6g1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

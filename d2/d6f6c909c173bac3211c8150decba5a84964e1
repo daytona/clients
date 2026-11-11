@@ -1,0 +1,38 @@
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_ca009e77d17705::t_5d8f8c3f003466 3776,3785,3979
+upgrade/typescript/src/mapping.json
+  s_ca009e77d17705::t_5d8f8c3f003466 3776,3785,3979
+changelog.d/539-upgrade-lifecycle-timeouts.changed.md
+  s_ca009e77d17705::t_8bae77ba90fdf0 7-11
+upgrade/MIGRATION.md
+  s_ca009e77d17705::t_5d8f8c3f003466 87,98,106
+upgrade/python/tests/test_suggestions.py
+  s_ca009e77d17705::t_071b55404768e0 332-347
+upgrade/typescript/tests/optional-arguments.test.ts
+  s_ca009e77d17705::t_071b55404768e0 28-35
+upgrade/typescript/src/optional-arguments.ts
+  s_ca009e77d17705::t_9fa153a37404e5 15-18,23-24,37-39
+upgrade/python/src/daytona_upgrade/optional_arguments.py
+  s_ca009e77d17705::t_5d8f8c3f003466 46-48
+  s_ca009e77d17705::t_9fa153a37404e5 13-16,28-29,45,49-50
+upgrade/mapping/mapping.json
+  s_ca009e77d17705::t_6f410c823556c5 3776,3785,3979
+upgrade/scripts/optional-arguments.test.mjs
+  s_ca009e77d17705::t_5d8f8c3f003466 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d2d6f6c909c173bac3211c8150decba5a84964e1",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

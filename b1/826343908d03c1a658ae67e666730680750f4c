@@ -1,0 +1,26 @@
+AGENTS.md
+  s_ca009e77d17705::t_eb26c98bdfbbf8 553-554
+sdk-typescript/src/v2/accountMappers.ts
+  s_ca009e77d17705::t_b896224b94c186 8-17,19-28,31,36-37,57,74-79,81-85
+  s_ca009e77d17705::t_1e86743ee196c0 18
+sdk-typescript/tests/list-pages.test.ts
+  s_ca009e77d17705::t_1e86743ee196c0 91-92,103
+  s_ca009e77d17705::t_0c501ca1cd3e31 90
+  s_ca009e77d17705::t_d982d5da799758 78-89,93-102,104-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1826343908d03c1a658ae67e666730680750f4c",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

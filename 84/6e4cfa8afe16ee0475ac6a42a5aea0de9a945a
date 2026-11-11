@@ -1,0 +1,19 @@
+changelog.d/538-toolbox-models.breaking.md
+  s_fcde18ee7fb6af::t_af4439038d8ed0 45-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "846e4cfa8afe16ee0475ac6a42a5aea0de9a945a",
+  "prompts": {},
+  "sessions": {
+    "s_fcde18ee7fb6af": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3f0b7ff6ffewhvl3CS9wiJRra",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

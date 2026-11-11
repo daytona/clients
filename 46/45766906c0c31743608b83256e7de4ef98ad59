@@ -1,0 +1,24 @@
+sdk-typescript/src/utils/Import.ts
+  s_1bcb63ffe16b31::t_4007bb1f23d36b 41
+  s_1bcb63ffe16b31::t_53743ea7290f3c 12-21,23
+sdk-typescript/src/__tests__/Import.test.ts
+  s_1bcb63ffe16b31::t_dbdde441686ecc 1-31
+sdk-typescript/runtime-tests/README.md
+  s_1bcb63ffe16b31::t_634d500c7a6a61 46,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4645766906c0c31743608b83256e7de4ef98ad59",
+  "prompts": {},
+  "sessions": {
+    "s_1bcb63ffe16b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ea6346a42ffe3HdoEm4jYgo730",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

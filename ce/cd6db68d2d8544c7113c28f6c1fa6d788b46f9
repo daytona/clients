@@ -1,0 +1,35 @@
+.github/workflows/sdk_publish.yaml
+  s_04342e65d6e006::t_1270fc45437d6b 371-376,1346-1347
+upgrade/python/tests/test_v0_version.py
+  s_04342e65d6e006::t_1270fc45437d6b 1057,1061,1066,1068-1073,1125-1150
+upgrade/typescript/tests/v0-version.test.ts
+  s_04342e65d6e006::t_1270fc45437d6b 426,428,431,433-434
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  s_04342e65d6e006::t_1270fc45437d6b 131-138
+upgrade/scripts/publish-gates.test.mjs
+  s_04342e65d6e006::t_1270fc45437d6b 302-320
+upgrade/typescript/src/v0-version.ts
+  s_04342e65d6e006::t_1270fc45437d6b 7,192-199,202-203
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  s_04342e65d6e006::t_1270fc45437d6b 107-113,128-132
+upgrade/typescript/tests/lockstep-target.test.ts
+  s_04342e65d6e006::t_1270fc45437d6b 120
+upgrade/typescript/src/sdk-target.ts
+  s_04342e65d6e006::t_1270fc45437d6b 52-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cecd6db68d2d8544c7113c28f6c1fa6d788b46f9",
+  "prompts": {},
+  "sessions": {
+    "s_04342e65d6e006": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4ff91b5cffe3aGDvkwX6ch256",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,69 @@
+openapi-specs/api.json
+  s_c581ab6ac63ac0::t_629fbe396aaab5 12106-12111,12421-12425
+  s_e51f56a48bf344::t_42584794dc7f04 12442
+api-client-go/api/openapi.yaml
+  s_c581ab6ac63ac0::t_8763f4613adee3 8929,9116-9121,9185,9429-9432
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_d1156b086934d2::t_333609d5a356af 4403-4406
+  s_31dd201ee799e4::t_f385b797284ab0 708,750,885,926,1572,1605,2011,2045,3140,3175,5343,5377,5538,5582,5832,5868,6011,6044
+api-client-go/model_sandbox.go
+  s_c581ab6ac63ac0::t_ebe849cd1dc196 112,1425,1427-1429,1431-1432,1434-1435,1437,1449-1450,1452,1454-1455,1669,1440-1441,1447
+  s_31dd201ee799e4::t_afe624042264e9 1438,113,123,1424,1426,1430,1433,1436,1439,1442-1446,1448,1451,1453,1567-1569
+api-client-python-async/daytona_api_client_async/models/sandbox.py
+  s_c581ab6ac63ac0::t_85446eadaac81f 83,194-195
+  s_31dd201ee799e4::t_1567a5c19b81dd 81
+api-client-python/daytona_api_client/models/sandbox.py
+  s_c581ab6ac63ac0::t_46a7483dbf4362 83,194-195
+  s_31dd201ee799e4::t_eff4a1528eb271 81
+api-client/src/models/sandbox.ts
+  s_c581ab6ac63ac0::t_7b4fa513f5648c 207-209
+  s_31dd201ee799e4::t_1d8384fcf59364 210
+api-client-ruby/lib/daytona_api_client/models/sandbox.rb
+  s_c581ab6ac63ac0::t_9d24e91a13a090 147-149,217-218,277-278,511-514,813-814,826
+api-client-java/src/main/java/io/daytona/api/client/model/Sandbox.java
+  s_c581ab6ac63ac0::t_fc94631bf897f5 398-399,401-402,1254,1256-1263,1265-1268,1270-1272,1370-1371,1377,1427,1447
+  s_31dd201ee799e4::t_eb4289f595e706 400,1255,1264,1269,1450
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_d1156b086934d2::t_e4d5e604d9e507 587-591
+  s_31dd201ee799e4::t_f92a072434a376 371,681
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "322d4b5adcb26be43614c8c833a29b939efdbea1",
+  "prompts": {},
+  "sessions": {
+    "s_31dd201ee799e4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2ffcf380ffex4xRxqI2DbisUU",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_c581ab6ac63ac0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f306ef9caffe1oK8QoATUfvVeS",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_d1156b086934d2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f302b633dffeAxk5otdcSNu60N",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_e51f56a48bf344": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f2ffcf380ffex4xRxqI2DbisUU",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

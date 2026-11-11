@@ -1,0 +1,34 @@
+sdk-python/tests/test_artifact_waits.py
+  s_ca009e77d17705::t_182e1083ff000c 156-162
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_1451b912202565 83-88,248-273,275-278,280,282-283,285
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_3ef4df3f1e40cd 943,946-949
+changelog.d/539-argument-checks.breaking.md
+  s_ca009e77d17705::t_48af2e5d75bc9f 9-15
+sdk-typescript/tests/artifact-waits-contract.test.ts
+  s_ca009e77d17705::t_1451b912202565 95-100
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_6765d2c8632f04 348-352,355
+changelog.d/539-images.breaking.md
+  s_ca009e77d17705::t_608070f4a1f3b5 17-21
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_5e3c6c024caa8d 13,20,28-35,340-376,378-386,389-393,408-410,413,415-416
+  s_ca009e77d17705::t_4aea3805c93bde 417-464
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "442596946696331af599ef95a977ddf5353f8cb5",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

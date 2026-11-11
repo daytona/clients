@@ -1,0 +1,27 @@
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_65475675413500 91-122,126-130
+sdk-python/tests/fixtures/dockerfile-escape.json
+  s_35c1b93d4ebbc5::t_ec429431d4fc67 1-61
+sdk-python/tests/test_image_builder_context.py
+  s_35c1b93d4ebbc5::t_3aaa18abbfe895 9,23,302-312
+sdk-typescript/src/v2/contextArchive.ts
+  s_35c1b93d4ebbc5::t_5b22d3136e5f05 58-81,86-87
+sdk-typescript/tests/image-builder-context.test.ts
+  s_35c1b93d4ebbc5::t_69ad937a1aea9e 14-15,260-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8bc74845d85c9df14366fb031918e624c8d11cd2",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

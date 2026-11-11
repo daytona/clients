@@ -1,0 +1,43 @@
+sdk-typescript/src/v2/BuildLogs.ts
+  s_e8864ccceb0d86::t_5196cd986c112d 9,461-462
+AGENTS.md
+  s_e8864ccceb0d86::t_1537e52cc09b45 704-705
+sdk-python/tests/test_redirects.py
+  s_e8864ccceb0d86::t_0b8613c11cd981 65-100
+changelog.d/redirects.breaking.md
+  s_e8864ccceb0d86::t_1537e52cc09b45 1-7
+sdk-python/src/daytona/v2/_events.py
+  s_e8864ccceb0d86::t_1e9203f0676872 387-394,399
+sdk-typescript/src/v2/Image.ts
+  s_e8864ccceb0d86::t_4fd3e9cb9a7c07 325
+sdk-typescript/src/v2/Sandbox.ts
+  s_e8864ccceb0d86::t_e155601f5336aa 695-696
+sdk-python/pyproject.toml
+  s_e8864ccceb0d86::t_6e18d2d64983f8 34
+sdk-typescript/DEVELOPMENT.md
+  s_e8864ccceb0d86::t_bfaade547beb35 95-96
+sdk-typescript/README.md
+  s_e8864ccceb0d86::t_bfaade547beb35 462
+sdk-python/src/daytona/v2/sandbox.py
+  s_e8864ccceb0d86::t_e155601f5336aa 1057,1060-1061
+sdk-python/src/daytona/v2/build_logs.py
+  s_e8864ccceb0d86::t_5196cd986c112d 691-693
+sdk-python/uv.lock
+  s_e8864ccceb0d86::t_b2632275df650a 288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3478ce8011bd61bb2342a9aac7ab8759104009ee",
+  "prompts": {},
+  "sessions": {
+    "s_e8864ccceb0d86": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e3dcfffeiMacsS74Cjbqod",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+sdk-ruby/README.md
+  s_220015efeb2e66::t_f0b97f15ba3100 152-154,156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68ca5ba59dff341268363cf72b40b70e2ba9de1d",
+  "prompts": {},
+  "sessions": {
+    "s_220015efeb2e66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e72ca8983ffefzlTYo8I7e2DzF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

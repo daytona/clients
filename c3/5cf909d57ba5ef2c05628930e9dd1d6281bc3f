@@ -1,0 +1,23 @@
+sdk-python/gen/api_surface.py
+  s_a3ea68093feda0::t_e0e92b3bfee6cf 6-7,1032-1037,1039-1040,1042-1044,1050-1051
+  s_a3ea68093feda0::t_478b15f26e32d5 31
+sdk-python/tests/test_api_surface.py
+  s_a3ea68093feda0::t_d6bf4e97298e39 250-253
+  s_a3ea68093feda0::t_44d211bcd83241 231-249,254
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c35cf909d57ba5ef2c05628930e9dd1d6281bc3f",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

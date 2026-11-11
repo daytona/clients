@@ -1,0 +1,44 @@
+sdk-python/tests/test_async_e2e.py
+  s_f1c42a35c4f4d9::t_62b3514dc62107 208
+  s_42dc286b9d68d2::t_8bc0b0b364a21f 201-207,209-224
+sdk-python/src/daytona/internal/event_dispatcher.py
+  s_f1c42a35c4f4d9::t_1d1e7eacea4d44 307-312
+  s_f1c42a35c4f4d9::t_cc60ad5b2c9864 304-306
+  s_f1c42a35c4f4d9::t_982a7cbedf7237 40,273-276,278,281,283,298-300,302-303,622-633
+sdk-python/tests/test_event_dispatcher.py
+  s_f1c42a35c4f4d9::t_5a2a32ae6e93e8 33-87,92-95,97,103,125,127-128
+  s_f1c42a35c4f4d9::t_9d8ff168c3784d 17
+  s_f1c42a35c4f4d9::t_4e79753f675f07 14-16
+  s_f1c42a35c4f4d9::t_90bf966d13a046 18-20,30-32
+  s_f1c42a35c4f4d9::t_3ec93119690455 88-91
+  s_f1c42a35c4f4d9::t_37f574d301859a 96
+  s_f1c42a35c4f4d9::t_03b5a98414afbf 98-102
+  s_f1c42a35c4f4d9::t_d153d56349e57b 104-106,122-124
+  s_f1c42a35c4f4d9::t_12e1cf0f9b6ebf 126
+  s_f1c42a35c4f4d9::t_c98081cbea764d 129-131
+  s_f1c42a35c4f4d9::t_350e16d1c8b94d 1-13,21-29,107-121,132-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fafd530aeda49b43dc1392ef35c3fb46c2f02fd1",
+  "prompts": {},
+  "sessions": {
+    "s_42dc286b9d68d2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eca09d5bfffeVMY7fNQ5My3Yyy",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    },
+    "s_f1c42a35c4f4d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e9f50e217ffe9E7juiueRe40Ho",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    }
+  }
+}

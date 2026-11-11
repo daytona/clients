@@ -1,0 +1,33 @@
+.github/workflows/prepare-release.yaml
+  s_1a59d756d7b71f::t_46976270d31f64 15-17,38-49,86
+.github/workflows/e2e_pr_tests.yaml
+  s_1a59d756d7b71f::t_d1374c9eca379b 7
+.github/workflows/deploy-pages.yml
+  s_1a59d756d7b71f::t_d1374c9eca379b 20-21
+.github/workflows/pr_checks.yaml
+  s_1a59d756d7b71f::t_d1374c9eca379b 7
+PUBLISHING.md
+  s_1a59d756d7b71f::t_fee0426fa7c9fa 112-125
+  s_1a59d756d7b71f::t_82ddb1d81d5690 93
+.github/workflows/release.yaml
+  s_1a59d756d7b71f::t_46976270d31f64 15-17,40-51,86-92,94-99,194
+  s_1a59d756d7b71f::t_7b69254665ed71 93,100
+.github/workflows/sdk_publish.yaml
+  s_1a59d756d7b71f::t_d1374c9eca379b 88-122,164-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a0d53a76a7741b5d4f9b33ee2ebd63e074723c1",
+  "prompts": {},
+  "sessions": {
+    "s_1a59d756d7b71f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55147ffepoNf4OrF6YCmBS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_6eedae2cce1630::t_cded92b7563d62 598-628,900,921
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7ca8a8efa099b65bf9a26f3cb514bfa1a5cb3ba",
+  "prompts": {},
+  "sessions": {
+    "s_6eedae2cce1630": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee50d955fffeD9RPMgupBJ4QdD",
+        "model": "claude-opus-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

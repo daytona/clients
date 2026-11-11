@@ -1,0 +1,21 @@
+e2e/e2e.ts
+  s_ca009e77d17705::t_ab6d30991de1ab 9,49-58
+e2e/e2e.py
+  s_ca009e77d17705::t_ab6d30991de1ab 33,70-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f896ae54aff2687f842e3c5615beb5007067b01",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

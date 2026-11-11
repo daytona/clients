@@ -1,0 +1,34 @@
+.github/actions/setup-toolchain/action.yml
+  s_c0faa7047dbab6::t_f790e89625ddbd 102-104
+flake.nix
+  s_3710a0cff554c8::t_77456d3621f934 61-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9351bad4b5c59307394611f00b87bb8fc7789bc0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_3710a0cff554c8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f3ca10f0efferVtB1CPkq5poJB",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_c0faa7047dbab6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 657,668
+sdk-go/pkg/daytona/client.go
+  h_e7759ddd73fa65 440-441,747-748
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06fd541d31dbfa6858114ea58bbc6b60ed5f5e74",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

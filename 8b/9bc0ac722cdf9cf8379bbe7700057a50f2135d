@@ -1,0 +1,83 @@
+sdk-ruby/lib/daytona/daytona.rb
+  s_03db1f9437b107::t_8a8f53f062330d 302
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_03db1f9437b107::t_b91a69fd9e36de 623-624
+sdk-python/tests/test_v1.py
+  s_03db1f9437b107::t_7e751a1c1fee9b 51-55
+  s_03db1f9437b107::t_ef17b8ef903a05 7-10,16-17,44-50
+  s_8d4fda28aa1056::t_7c5ca3d545ed7e 56-57
+sdk-python/tests/test_async_daytona.py
+  s_03db1f9437b107::t_ef17b8ef903a05 789-803,807-808,817-818,823-824,828
+sdk-typescript/src/Daytona.ts
+  s_03db1f9437b107::t_5be43101d8626d 212
+sdk-ruby/lib/daytona/config.rb
+  s_03db1f9437b107::t_8a8f53f062330d 86-94,122-124,174,178-181
+  s_8d4fda28aa1056::t_8f5fb5cb241d17 182
+artifacts/sdk-docs/ruby-sdk/config.mdx
+  s_03db1f9437b107::t_b91a69fd9e36de 27-29,166-168,172
+sdk-python/src/daytona/common/daytona.py
+  s_03db1f9437b107::t_e43ce7a1312439 208-209
+sdk-python/src/daytona/__init__.py
+  s_03db1f9437b107::t_e43ce7a1312439 366
+sdk-python/src/daytona/_sync/daytona.py
+  s_03db1f9437b107::t_e43ce7a1312439 124-125
+sdk-ruby/lib/daytona/common/daytona.rb
+  s_03db1f9437b107::t_8a8f53f062330d 90-91
+sdk-go/pkg/daytona/client_test.go
+  s_03db1f9437b107::t_9f0f0aaa994ed7 1281-1292,1304
+sdk-ruby/spec/daytona/daytona_spec.rb
+  s_03db1f9437b107::t_8a8f53f062330d 218-220
+  s_8d4fda28aa1056::t_a8c60073c3c2f1 215-217
+sdk-go/pkg/daytona/client.go
+  s_03db1f9437b107::t_210cf184fde3c2 419
+  s_03db1f9437b107::t_9f0f0aaa994ed7 479-488
+  s_8d4fda28aa1056::t_b5f43b8936adde 478
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_03db1f9437b107::t_b91a69fd9e36de 69-70,564-565
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  s_03db1f9437b107::t_b91a69fd9e36de 66-67,510-511
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  s_03db1f9437b107::t_b91a69fd9e36de 446,542-547
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_03db1f9437b107::t_b91a69fd9e36de 619
+sdk-ruby/spec/daytona/config_spec.rb
+  s_03db1f9437b107::t_8a8f53f062330d 68-69,71-78
+sdk-go/pkg/types/types.go
+  s_03db1f9437b107::t_9f0f0aaa994ed7 150-151
+sdk-ruby/README.md
+  s_03db1f9437b107::t_8a8f53f062330d 33
+sdk-python/README.md
+  s_03db1f9437b107::t_8a8f53f062330d 25
+sdk-python/src/daytona/_async/daytona.py
+  s_03db1f9437b107::t_e43ce7a1312439 172-173
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_03db1f9437b107::t_5be43101d8626d 917,919-921
+sdk-python/tests/test_daytona.py
+  s_03db1f9437b107::t_dfecb6e95a9a35 554-558,560-563,566-573,581-582,586-587,591-595,601,609
+sdk-typescript/README.md
+  s_03db1f9437b107::t_5be43101d8626d 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b9bc0ac722cdf9cf8379bbe7700057a50f2135d",
+  "prompts": {},
+  "sessions": {
+    "s_03db1f9437b107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_8d4fda28aa1056": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+sdk-typescript/src/__tests__/PtyHandle.test.ts
+  s_01ecc76de64e09::t_9bf8d739fa589a 308-337
+sdk-python/src/daytona/common/pty.py
+  s_c4138ccc8337dc::t_b5c1d78bd9d5a2 12-17
+sdk-python/tests/test_process_keepalive.py
+  s_c4138ccc8337dc::t_12fb0b8c711082 1-9,11,23-33,42,45-47,49,51-66,68
+  s_c4138ccc8337dc::t_3af6669618a716 10
+  s_01ecc76de64e09::t_e3fd54f2141f7b 44,48,50,67
+  s_01ecc76de64e09::t_59ccb6cf0a0b46 12-22,36-40
+  s_c4138ccc8337dc::t_6333446a301aba 34-35,41,43
+sdk-go/pkg/daytona/pty_handle.go
+  s_01ecc76de64e09::t_5d0146a45df672 69-71
+  s_01ecc76de64e09::t_d28b11d8630b67 63,101-102,112,115
+  s_01ecc76de64e09::t_93a665cf0302b0 66-68,72,107,113-114,116-133
+  s_01ecc76de64e09::t_7658eacfa3a165 134-135
+sdk-go/pkg/daytona/pty_handle_test.go
+  s_01ecc76de64e09::t_d28b11d8630b67 144
+  s_01ecc76de64e09::t_5d0146a45df672 102-143,145-147
+sdk-java/src/main/java/io/daytona/sdk/PtyHandle.java
+  s_01ecc76de64e09::t_e37c3e2d7ef0a7 29-36,63-66
+sdk-ruby/lib/daytona/common/pty.rb
+  s_01ecc76de64e09::t_a225c78fff31c4 68
+  s_01ecc76de64e09::t_e37c3e2d7ef0a7 79,81,113,173-176,180-203,238,330-331
+  s_01ecc76de64e09::t_8bd51d22800724 332
+sdk-python/src/daytona/_async/process.py
+  s_01ecc76de64e09::t_780e670d3342a6 40,68
+sdk-python/src/daytona/_sync/process.py
+  s_01ecc76de64e09::t_cd2cd3f8ca7426 676-683,755-760
+  s_01ecc76de64e09::t_780e670d3342a6 40
+sdk-ruby/spec/daytona/pty_handle_spec.rb
+  s_c4138ccc8337dc::t_cf5dbb5a0426a8 61-67,69-72
+  s_01ecc76de64e09::t_95a7b398d0805b 31-32,48-60
+  s_01ecc76de64e09::t_8c20edd3b19491 73-74
+  s_01ecc76de64e09::t_c13ccedcf76668 68
+sdk-typescript/src/PtyHandle.ts
+  s_01ecc76de64e09::t_141acb269357bf 12-16,56,321-349,359,443,452
+  s_c4138ccc8337dc::t_fd9416c474af9a 504-507
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b03fcfdb47999ca379cff3e073a2da8656a0a65",
+  "prompts": {},
+  "sessions": {
+    "s_01ecc76de64e09": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef3f4508effeHX7mK2A4z2sMiU",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": null
+    },
+    "s_c4138ccc8337dc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ef3f4508effeHX7mK2A4z2sMiU",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}

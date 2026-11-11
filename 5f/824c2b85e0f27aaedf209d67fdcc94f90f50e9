@@ -1,0 +1,25 @@
+cli/api-surface/daytona.api.txt
+  s_a3ea68093feda0::t_c12d9e0dc03a48 1-459
+cli/cmd/surface_test.go
+  s_a3ea68093feda0::t_f346369d3809d0 29
+  s_a3ea68093feda0::t_fcdbee2faaa4dd 1-28,30-251
+cli/README.md
+  s_a3ea68093feda0::t_e3ee959f3fba17 296,299-302
+  s_a3ea68093feda0::t_fe191c42ddeb83 303
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f824c2b85e0f27aaedf209d67fdcc94f90f50e9",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+PUBLISHING.md
+  h_e7759ddd73fa65 121
+hack/npm-latest-guard.sh
+  h_e7759ddd73fa65 19-21,35-42,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08e0b9e97bd4ebb1656d30ac722edc3567a1443f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

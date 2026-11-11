@@ -1,0 +1,36 @@
+sdk-typescript/scripts/api-surface.mjs
+  s_a3ea68093feda0::t_7984351ec28fed 21-22,532-537
+  s_a3ea68093feda0::t_1c65259a1adeb7 229-242
+  s_a3ea68093feda0::t_e9d363b7a9fd05 538-539
+sdk-python/gen/api_surface.py
+  s_a3ea68093feda0::t_1c65259a1adeb7 529-532,828,921-930
+  s_a3ea68093feda0::t_374273986c039b 400,441-443,533-535
+  s_a3ea68093feda0::t_43d29733514e0a 360-362,371,379,404
+  s_a3ea68093feda0::t_09c1b6b6c9aada 931-932
+sdk-python/tests/test_api_surface.py
+  s_a3ea68093feda0::t_43d29733514e0a 96-154
+sdk-typescript/DEVELOPMENT.md
+  s_a3ea68093feda0::t_4ae7d05cd8ea73 168-169
+sdk-python/DEVELOPMENT.md
+  s_a3ea68093feda0::t_4ae7d05cd8ea73 202-204
+sdk-typescript/scripts/api-surface.test.mjs
+  s_a3ea68093feda0::t_7984351ec28fed 8-10,13,41,47-63,66-69
+  s_a3ea68093feda0::t_a8780016c8fe86 42-46,64-65
+  s_a3ea68093feda0::t_ad072949f7b6ec 70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f1d98bbc28f12e67bd25f7e8f1b5a78d7f07c9c",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

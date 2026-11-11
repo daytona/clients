@@ -1,0 +1,169 @@
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_edea935999cd96 27,48-55,186-188,190,701
+docs/adr/0001-sdk-parity.md
+  s_ca009e77d17705::t_edea935999cd96 28-29,32-35,38-40,82-85
+sdk-typescript/src/v2/filesystemWire.ts
+  s_ca009e77d17705::t_edea935999cd96 25,65,74,79,85,90,122
+sdk-python/src/daytona/_client.py
+  s_ca009e77d17705::t_edea935999cd96 168
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_edea935999cd96 388,564,784,793,803,816,829,858-859,892,954,979,1002,1013,1030
+  s_ca009e77d17705::t_079cc513ce4a2b 512,654,673,686,699,725,777,944,965
+  s_ca009e77d17705::t_46c9c54310c642 34
+sdk-typescript/src/v2/sandboxAuth.ts
+  s_ca009e77d17705::t_46c9c54310c642 8
+  s_ca009e77d17705::t_079cc513ce4a2b 41,87
+changelog.d/537-ts-config-keys.breaking.md
+  s_ca009e77d17705::t_edea935999cd96 3
+examples/typescript/_common.ts
+  s_ca009e77d17705::t_edea935999cd96 8
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_edea935999cd96 10,367-368,392,394,400,403,467-468,480-481
+sdk-typescript/src/v2/events.ts
+  s_ca009e77d17705::t_edea935999cd96 27,68-73,76-77
+upgrade/mapping/mapping.json
+  s_ca009e77d17705::t_edea935999cd96 5515,5553,5617,5656
+sdk-python/src/daytona/v2/codes.py
+  s_ca009e77d17705::t_edea935999cd96 15,17-20,50,54-57,68
+sdk-typescript/src/root-config.ts
+  s_ca009e77d17705::t_edea935999cd96 7,9,96,98-99,101-103,105-117,123-127
+changelog.d/537-error-constructors.breaking.md
+  s_ca009e77d17705::t_edea935999cd96 11-18
+sdk-typescript/DEVELOPMENT.md
+  s_ca009e77d17705::t_edea935999cd96 173-177,212-220,235-241
+changelog.d/537-request-timeout.breaking.md
+  s_ca009e77d17705::t_edea935999cd96 9-13,15-18
+sdk-python/README.md
+  s_ca009e77d17705::t_edea935999cd96 111-113,118-119,129-130,872-874
+sdk-typescript/src/v2/clientConfig.ts
+  s_ca009e77d17705::t_5a4a831d09808e 9,11,14-15,41-42,78,87,97,103-109,111-112,115-116,120,147
+upgrade/python/tests/test_shared_errors.py
+  s_ca009e77d17705::t_edea935999cd96 20-23,26,117-119,162-177
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_c45318d1eb896c 85
+  s_ca009e77d17705::t_489c9259fac1b5 16
+  s_ca009e77d17705::t_5a4a831d09808e 6,41
+sdk-typescript/tests/root-client.test.ts
+  s_ca009e77d17705::t_e62ca89fa9e1c9 493
+sdk-typescript/src/v2/options.ts
+  s_ca009e77d17705::t_0e9471758db511 79,83,96
+  s_ca009e77d17705::t_edea935999cd96 60-64,66-67,69-78,80,85-93,97-113,115,125,129-142
+  s_ca009e77d17705::t_672ef1a82451d9 94-95
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_ca009e77d17705::t_edea935999cd96 5515,5553,5617,5656
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_edea935999cd96 204-209
+sdk-typescript/README.md
+  s_ca009e77d17705::t_edea935999cd96 82-85,99-100,179,797-798
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_edea935999cd96 56-60,62-67,80-81
+sdk-python/tests/test_root_client.py
+  s_ca009e77d17705::t_edea935999cd96 1660,1665-1683
+sdk-typescript/src/v2/http.ts
+  s_ca009e77d17705::t_edea935999cd96 10,149-154,287,479-480,483,701-703,768-770,774,788,796,918,935,988-989,994,1017,1060,1072-1082,1125-1134,1142,1146-1150,1152,1159-1169,1219-1251,1308-1316,1318,1321,1323,1405,1414,1458,1461-1462,1466,1474,1502
+upgrade/typescript/tests/shared-errors.test.ts
+  s_ca009e77d17705::t_edea935999cd96 14-17,83-94
+examples/python/_common.py
+  s_ca009e77d17705::t_edea935999cd96 7
+sdk-typescript/src/types.ts
+  s_ca009e77d17705::t_edea935999cd96 19
+sdk-typescript/src/v2/Git.ts
+  s_ca009e77d17705::t_edea935999cd96 7,135
+examples/README.md
+  s_ca009e77d17705::t_edea935999cd96 81
+examples/volumes_share.py
+  s_ca009e77d17705::t_edea935999cd96 13,43
+e2e/e2e.py
+  s_ca009e77d17705::t_edea935999cd96 102
+examples/volumes_share.ts
+  s_ca009e77d17705::t_edea935999cd96 12,28
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_ca009e77d17705::t_c45318d1eb896c 87
+  s_ca009e77d17705::t_489c9259fac1b5 15
+sdk-typescript/src/v2/FileSystem.ts
+  s_ca009e77d17705::t_edea935999cd96 21,109,118,121,124-125,127,378,390,394,399,459
+sdk-typescript/src/v2/Process.ts
+  s_ca009e77d17705::t_edea935999cd96 12,103
+sdk-typescript/tests/root-config-snapshot.test.ts
+  s_ca009e77d17705::t_edea935999cd96 10,61,79
+sdk-typescript/tests/client-config.test.ts
+  s_ca009e77d17705::t_edea935999cd96 14,23-28,77-102,173-176,196-206,303-450,460-484
+sdk-python/src/daytona/v2/_auth.py
+  s_ca009e77d17705::t_edea935999cd96 140
+sdk-typescript/src/v2/Daytona.ts
+  s_ca009e77d17705::t_5a4a831d09808e 72
+upgrade/typescript/tests/import-type-and-report-details.test.ts
+  s_ca009e77d17705::t_edea935999cd96 46
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_ca009e77d17705::t_489c9259fac1b5 11
+  s_ca009e77d17705::t_c45318d1eb896c 43,80,102
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_edea935999cd96 343-344
+sdk-python/tests/test_public_surface_generated.py
+  s_ca009e77d17705::t_edea935999cd96 34-35,129-131,150-158,160-172,211-212
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_edea935999cd96 289-308,752-753
+sdk-python/tests/test_client_config.py
+  s_ca009e77d17705::t_edea935999cd96 13,20,211-330
+sdk-python/src/daytona/v2/http.py
+  s_ca009e77d17705::t_0e9471758db511 8
+sdk-typescript/tests/errors-contract.test.ts
+  s_ca009e77d17705::t_edea935999cd96 12-14,133-143
+  s_ca009e77d17705::t_f69e9fd64b15c9 144-145
+AGENTS.md
+  s_ca009e77d17705::t_edea935999cd96 290-298,458,466-469,472-481,488-490,493-495,515-521,524-525,527-528
+sdk-typescript/src/v2/Ports.ts
+  s_ca009e77d17705::t_edea935999cd96 10,289,296,303
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_ca009e77d17705::t_edea935999cd96 9,161,170
+changelog.d/537-error-names.breaking.md
+  s_ca009e77d17705::t_edea935999cd96 8
+sdk-python/src/daytona/v2/_transport.py
+  s_ca009e77d17705::t_edea935999cd96 139,186,266,289-293,302,309,331,388,413,637-647,661,669,728-739,759,763,778-779,859,911-924,944,948,1053
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_edea935999cd96 4673,4692-4693,10640-10651,10653-10661
+sdk-python/tests/test_error_contract.py
+  s_ca009e77d17705::t_edea935999cd96 120,146-156
+upgrade/typescript/src/mapping.json
+  s_ca009e77d17705::t_edea935999cd96 5515,5553,5617,5656
+sdk-typescript/tests/runtime-compat.test.ts
+  s_ca009e77d17705::t_edea935999cd96 86
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_edea935999cd96 7101,7104,7108-7109,7111,7116-7117,7290,8399,8545-8547,8550,8556,8570,11731,11739
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_ca009e77d17705::t_edea935999cd96 82,157,159,161
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_edea935999cd96 159
+sdk-typescript/tests/public-surface-generated.test.ts
+  s_ca009e77d17705::t_edea935999cd96 222-239
+changelog.d/537-config-env.breaking.md
+  s_ca009e77d17705::t_edea935999cd96 2-17
+sdk-python/src/daytona/v2/_events.py
+  s_ca009e77d17705::t_edea935999cd96 43,66,1063-1067,1670
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_edea935999cd96 103,130-132,180,1210-1222,1224,1226,1236-1238,1261-1266,1270-1286,1288,1290-1301
+sdk-typescript/src/v2/ProcessWire.ts
+  s_ca009e77d17705::t_edea935999cd96 10,120,183
+sdk-python/src/daytona/v2/errors.py
+  s_ca009e77d17705::t_edea935999cd96 261-275,279-296
+sdk-typescript/src/v2/clientCreateOptions.ts
+  s_ca009e77d17705::t_59e630d23990f3 7
+  s_ca009e77d17705::t_c45318d1eb896c 109-113,115-119,122
+  s_ca009e77d17705::t_3237bb96c4007e 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb870f45be490eef2acf79062e4d8d77dacdfc43",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

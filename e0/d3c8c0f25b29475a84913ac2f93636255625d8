@@ -1,0 +1,26 @@
+upgrade/api-surface/daytona-upgrade.api.txt
+  s_a3ea68093feda0::t_618c8f0dc9602c 1-94
+.github/workflows/upgrade-tool-ci.yaml
+  s_a3ea68093feda0::t_8248a6b7af7a28 169-174
+upgrade/python/DEVELOPMENT.md
+  s_a3ea68093feda0::t_27cf123b8c4e31 274-289
+upgrade/scripts/api_surface.py
+  s_a3ea68093feda0::t_2c361ef35c4431 38-47,61,80,107,112-114,121-123,126-128,132-134,145,149,160,162-164,175-178
+  s_a3ea68093feda0::t_929218d0f6c9c2 1-37,48-60,62-79,81-106,108-111,115-120,124-125,129-131,135-144,146-148,150-159,161,165-174,179-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0d3c8c0f25b29475a84913ac2f93636255625d8",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+sdk-typescript/api-surface/v2.api.txt
+  s_a3ea68093feda0::t_e0e92b3bfee6cf 1236
+sdk-typescript/scripts/api-surface.mjs
+  s_a3ea68093feda0::t_e0e92b3bfee6cf 7-8,606-610,612-624
+sdk-typescript/scripts/api-surface.test.mjs
+  s_a3ea68093feda0::t_fea335f1db7d50 182-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "961734698028ae0b5f0e0dd2f4b5bebb5fe82b74",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

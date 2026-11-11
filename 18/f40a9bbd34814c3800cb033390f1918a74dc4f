@@ -1,0 +1,16 @@
+changelog.d/533.changed.md
+  h_e7759ddd73fa65 4-5
+docs/VERSIONING.md
+  h_e7759ddd73fa65 109-111,175-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18f40a9bbd34814c3800cb033390f1918a74dc4f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

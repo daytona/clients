@@ -1,0 +1,27 @@
+scripts/breaking/test_breaking_changes.py
+  s_a3ea68093feda0::t_6b0bbbeb435de2 84-152,224-245,276-301,427-444
+  s_a3ea68093feda0::t_a228cc16964b4a 545-546,552-553,558,567,577,580,605-606,609
+  s_a3ea68093feda0::t_9339ffef878ffb 445
+scripts/breaking/breaking_changes.py
+  s_a3ea68093feda0::t_61111157527678 259-307,310-330,349,450-452
+  s_a3ea68093feda0::t_6368860cdda226 128-132,376-445,488-489,501,549-573,682,789-790
+  s_a3ea68093feda0::t_6b0bbbeb435de2 53
+  s_a3ea68093feda0::t_239b433b7b1133 13-16,19-22,28-29
+  s_a3ea68093feda0::t_cc89b4fd23a322 446-447
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08e664f8192902ef1a38d792f4501c846fa48bc5",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

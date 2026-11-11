@@ -1,0 +1,62 @@
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_ce35564fdca0c8 280-281,298-299
+  s_f23bcae77f0e63::t_09df773e7932ac 291-295,302
+sdk-typescript/tests/events.test.ts
+  s_f23bcae77f0e63::t_09df773e7932ac 1450-1484
+sdk-python/tests/test_events.py
+  s_f23bcae77f0e63::t_09df773e7932ac 25,990-1049
+  s_f23bcae77f0e63::t_07d17e8e2cfd2e 1050
+cli/internal/workload/workload_more_test.go
+  s_f23bcae77f0e63::t_09df773e7932ac 10,279-304
+  s_f23bcae77f0e63::t_718e3ebe874878 305
+sdk-typescript/src/v2/events.ts
+  s_f23bcae77f0e63::t_ce35564fdca0c8 1195
+  s_f23bcae77f0e63::t_09df773e7932ac 414-432,1159,1193-1194,1196
+changelog.d/terminal-state-reason.added.md
+  s_f23bcae77f0e63::t_09df773e7932ac 1-6
+contract/toolbox-openapi.json
+  s_f23bcae77f0e63::t_09df773e7932ac 9459-9463,9466
+sdk-typescript/src/v2/Sandbox.ts
+  s_f23bcae77f0e63::t_09df773e7932ac 40,727,730,732-733,1087-1088,1114,1150,1155,1161-1167,1169,1189
+  s_f23bcae77f0e63::t_d00f0e65ffa577 1168,1180,1193
+sdk-python/src/daytona/v2/_events.py
+  s_f23bcae77f0e63::t_09df773e7932ac 28,219-237,805,825-828,1609
+sdk-python/README.md
+  s_f23bcae77f0e63::t_09df773e7932ac 771-772,785-798
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_f23bcae77f0e63::t_09df773e7932ac 7676,7682
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_09df773e7932ac 7412,7472,7534,7645-7809
+  s_f23bcae77f0e63::t_ae51f50e867f27 7810-7811
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_09df773e7932ac 2605-2651,2653-2691,2693-2715,2718-2731,2733-2736
+  s_f23bcae77f0e63::t_fd4d5ba101490e 2652,2692,2716-2717,2732
+sdk-python/src/daytona/v2/sandbox.py
+  s_f23bcae77f0e63::t_09df773e7932ac 43,707-716,720,835-838,875,879,916,924-940,957,966-968,986,990,996-998,1934-1937
+changelog.d/537-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_ab7cb3f282b35e 24-26
+sdk-typescript/README.md
+  s_f23bcae77f0e63::t_09df773e7932ac 724-726,734-749
+cli/internal/workload/wait.go
+  s_f23bcae77f0e63::t_09df773e7932ac 76-81
+sdk-python/src/daytona/v2/errors.py
+  s_f23bcae77f0e63::t_09df773e7932ac 189-190,193-203,205,212
+changelog.d/destroyed-wait-long-poll.fixed.md
+  s_f23bcae77f0e63::t_09df773e7932ac 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5fd32c690949484f279453f207664b053fff1220",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+PUBLISHING.md
+  h_e7759ddd73fa65 112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "713bec1f51b8bd8989033e735726c372c1107ee8",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

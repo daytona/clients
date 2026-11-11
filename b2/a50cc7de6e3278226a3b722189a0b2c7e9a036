@@ -1,0 +1,105 @@
+changelog.d/create-name-type.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 1-4
+sdk-typescript/tests/client-input-lifecycle.test.ts
+  s_1d65fa05b6bddd::t_68ce9dbf7209fa 121-130
+  s_1d65fa05b6bddd::t_2c288eda254c9d 113-120,131-136
+changelog.d/terminal-size-range.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 3-4
+changelog.d/image-builder-env-literal.breaking.md
+  s_1d65fa05b6bddd::t_b5f06d20f80210 8-10
+sdk-python/src/daytona/_client.py
+  s_1d65fa05b6bddd::t_7f5369c984cb27 60,81-86,88
+sdk-typescript/tests/root-client.test.ts
+  s_1d65fa05b6bddd::t_bf7970d78fbbce 25,108
+changelog.d/secret-set-description.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 1,7
+sdk-typescript/tests/symbol-keys.test.ts
+  s_1d65fa05b6bddd::t_b5f06d20f80210 46
+sdk-python/tests/test_toolbox_surface.py
+  s_1d65fa05b6bddd::t_1278068e340160 277-285
+sdk-typescript/src/v2/Daytona.ts
+  s_1d65fa05b6bddd::t_f2d82292d7e648 86-88,90
+  s_1d65fa05b6bddd::t_b8895cf121b970 386
+sdk-typescript/src/v2/ProcessWire.ts
+  s_1d65fa05b6bddd::t_929f542188c4c0 206-207
+sdk-typescript/tests/sessions.test.ts
+  s_1d65fa05b6bddd::t_dc4434957409f8 127
+  s_1d65fa05b6bddd::t_5256e85797f2d8 196
+sdk-typescript/README.md
+  s_1d65fa05b6bddd::t_08f71c04d9689e 155-156
+sdk-typescript/tests/errors-contract.test.ts
+  s_1d65fa05b6bddd::t_b5f06d20f80210 193
+changelog.d/539-python-renames.breaking.md
+  s_1d65fa05b6bddd::t_47ac56fc286482 6
+changelog.d/secret-set-empty-value.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 1-2
+sdk-typescript/tests/unit.test.ts
+  s_1d65fa05b6bddd::t_5256e85797f2d8 4994,13400
+  s_1d65fa05b6bddd::t_f8354a1c7cf9b6 12843-12849
+  s_1d65fa05b6bddd::t_bf7970d78fbbce 8901,8905-8909
+sdk-python/src/daytona/v2/image.py
+  s_1d65fa05b6bddd::t_8cf6d3011c8850 7,11
+  s_1d65fa05b6bddd::t_b42fe47ca58562 206,209
+  s_1d65fa05b6bddd::t_08b7c34dbd4551 17-34,144-145
+sdk-typescript/tests/fs-git-inputs.test.ts
+  s_1d65fa05b6bddd::t_50a774fbb0d3fb 56,68
+sdk-python/src/daytona/v2/process.py
+  s_1d65fa05b6bddd::t_1278068e340160 99-102
+sdk-python/tests/test_bridge.py
+  s_1d65fa05b6bddd::t_26990d4a1149f4 1006
+sdk-python/src/daytona/v2/_bridge.py
+  s_1d65fa05b6bddd::t_4df01ed8c82c24 221,271
+sdk-typescript/src/v2/Process.ts
+  s_1d65fa05b6bddd::t_98e29d2070092c 124
+  s_1d65fa05b6bddd::t_f8354a1c7cf9b6 26,278
+changelog.d/fs-write-input-types.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 1-8
+changelog.d/network-policy-open-cidrs.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 2-3
+sdk-typescript/src/Daytona.ts
+  s_1d65fa05b6bddd::t_7f5369c984cb27 64-69
+changelog.d/fs-git-input-types.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 1-6
+sdk-typescript/src/v2/Image.ts
+  s_1d65fa05b6bddd::t_b42fe47ca58562 121-122
+  s_1d65fa05b6bddd::t_08b7c34dbd4551 143-158,203-205
+  s_1d65fa05b6bddd::t_de146d1b55a967 206
+sdk-python/tests/test_core.py
+  s_1d65fa05b6bddd::t_7d7121916f2c48 6656-6658
+  s_1d65fa05b6bddd::t_2bee74f0859939 6652-6655,6659-6672
+changelog.d/fs-option-types.breaking.md
+  s_1d65fa05b6bddd::t_e4f43d3ec9f339 1-5
+sdk-typescript/src/v2/FileSystem.ts
+  s_1d65fa05b6bddd::t_148b1b94deef08 352,408-409
+  s_1d65fa05b6bddd::t_50a774fbb0d3fb 353
+  s_1d65fa05b6bddd::t_c58b41ffc821a9 410-411
+sdk-typescript/src/v2/Session.ts
+  s_1d65fa05b6bddd::t_98e29d2070092c 115
+sdk-typescript/src/types.ts
+  s_1d65fa05b6bddd::t_7f5369c984cb27 20-21
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_1d65fa05b6bddd::t_8cf6d3011c8850 176-193,550-564
+  s_1d65fa05b6bddd::t_b42fe47ca58562 488,503,518,533,549
+sdk-python/src/daytona/v2/daytona.py
+  s_1d65fa05b6bddd::t_7aa434b2dd26ed 829,856,1227-1232,1327
+examples/python/file_operations.py
+  s_1d65fa05b6bddd::t_bd90c69ec61fbf 45
+examples/typescript/file-operations/index.ts
+  s_1d65fa05b6bddd::t_52d27ca475f080 6,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2a50cc7de6e3278226a3b722189a0b2c7e9a036",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

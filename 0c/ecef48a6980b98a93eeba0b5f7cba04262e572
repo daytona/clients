@@ -1,0 +1,31 @@
+AGENTS.md
+  s_9a337fd66d5341::t_09fa7d7b3d7b22 626-627
+changelog.d/538-sdk-refusals.breaking.md
+  s_9a337fd66d5341::t_54882a4c2deb18 1-8
+changelog.d/538-stream-drops.breaking.md
+  s_9a337fd66d5341::t_1c02c5f2c51fab 1-7
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_dd98444176f53f 36-47
+sdk-python/README.md
+  s_9a337fd66d5341::t_38415c606b793c 635-638,719-722,760-762
+sdk-typescript/DEVELOPMENT.md
+  s_9a337fd66d5341::t_570574cb64b424 176-178
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_72ea5e6fad39d5 581-584,702-704
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0cecef48a6980b98a93eeba0b5f7cba04262e572",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

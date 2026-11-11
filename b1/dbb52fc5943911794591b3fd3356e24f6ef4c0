@@ -1,0 +1,18 @@
+.github/workflows/ax_evals.yaml
+  h_e7759ddd73fa65 111,116,140-142
+hack/ax-evals/ax-evals.test.js
+  h_e7759ddd73fa65 13,153-171
+hack/ax-evals/report.js
+  h_e7759ddd73fa65 4-5,108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1dbb52fc5943911794591b3fd3356e24f6ef4c0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

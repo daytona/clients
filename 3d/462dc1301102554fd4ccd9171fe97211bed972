@@ -1,0 +1,16 @@
+PUBLISHING.md
+  h_e7759ddd73fa65 140,142-150
+cli/mcp/README.md
+  h_e7759ddd73fa65 18-20,30-37,44-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d462dc1301102554fd4ccd9171fe97211bed972",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

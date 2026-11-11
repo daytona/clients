@@ -1,0 +1,59 @@
+sdk-python/tests/test_core.py
+  s_dda305198a66db::t_c8b9dc28253358 3883-3897
+AGENTS.md
+  s_dda305198a66db::t_d4c6e107fa162e 659-660
+sdk-typescript/tests/unit.test.ts
+  s_dda305198a66db::t_271ba03ff5ab96 11540-11542
+  s_dda305198a66db::t_227920d8f053fd 11550
+sdk-python/src/daytona/v2/ports.py
+  s_dda305198a66db::t_0d7a9b170e27e5 139-140
+  s_dda305198a66db::t_e4f275b8b1182b 137-138,141-145
+sdk-python/src/daytona/v2/_sync/ports.py
+  s_dda305198a66db::t_14e0854cf8c602 65-72
+sdk-python/tests/test_build_context_upload.py
+  s_dda305198a66db::t_832cb29becf921 14,31,290-294,304-307,310-313,315-319,321,324-331,333-335,338-347,360
+  s_dda305198a66db::t_b90e64edc23d27 308-309,314,320,322-323,332,336-337,508,715-716,718
+  s_dda305198a66db::t_e9d7c6f87176fa 795
+sdk-python/src/daytona/v2/_context_upload.py
+  s_dda305198a66db::t_e1680b39a73864 28,365
+  s_dda305198a66db::t_da78ccaca5b5cf 45-47,169-178,261-270,272,274,289,291,310-316,363-364,368,370,375-377,385
+changelog.d/ports-in-use-range.changed.md
+  s_dda305198a66db::t_559de7064ac555 1-5
+changelog.d/build-from-context-timeout.added.md
+  s_dda305198a66db::t_559de7064ac555 1-5
+sdk-typescript/tests/build-context-upload.test.ts
+  s_dda305198a66db::t_623b0c28aa90d8 40,86,129-133,467-481
+  s_dda305198a66db::t_88b318ed8869af 483,538-583
+  s_dda305198a66db::t_94a9533f7777e6 482,484,584
+sdk-typescript/src/v2/Ports.ts
+  s_dda305198a66db::t_0d7a9b170e27e5 156-159,162
+sdk-typescript/src/v2/contextUpload.ts
+  s_dda305198a66db::t_6e5055b0762fce 200-202
+  s_dda305198a66db::t_6081911dd16ed1 14-16,27-29,61-63,68,73-87
+  s_dda305198a66db::t_d61cb483795fca 186-193,197,207-209,211,213,218,223-224,234-236,242,259,347-349
+  s_dda305198a66db::t_99de5c72fbb14c 88-89
+sdk-typescript/src/v2/Images.ts
+  s_dda305198a66db::t_c0839bba92381d 48-57,59,69-75,133-135,144,153
+sdk-python/src/daytona/v2/_sync/services.py
+  s_dda305198a66db::t_14e0854cf8c602 91-95
+sdk-python/src/daytona/v2/services.py
+  s_dda305198a66db::t_e9d7c6f87176fa 225-229,256
+changelog.d/build-context-part-progress.fixed.md
+  s_dda305198a66db::t_559de7064ac555 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd037272c5f1d3ef10a27b8a76716d346a91de41",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

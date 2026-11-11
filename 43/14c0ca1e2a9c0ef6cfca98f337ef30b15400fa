@@ -1,0 +1,23 @@
+openapi-specs/api.json
+  s_6287f2b1c879f5::t_37861b6b4683a4 10372,10381
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_6287f2b1c879f5::t_8e188d75659ab5 382
+sdk-go/pkg/types/types.go
+  s_6287f2b1c879f5::t_37861b6b4683a4 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4314c0ca1e2a9c0ef6cfca98f337ef30b15400fa",
+  "prompts": {},
+  "sessions": {
+    "s_6287f2b1c879f5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d05e-2b93-7561-84a7-67ebc8b3a38d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+.github/workflows/ax_evals_config.yaml
+  h_e7759ddd73fa65 22-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96d8730ab957c7110ba731477a463e239fa16e0a",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

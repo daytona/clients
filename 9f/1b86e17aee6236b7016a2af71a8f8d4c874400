@@ -1,0 +1,22 @@
+hack/ax-evals/ax-evals.test.js
+  s_aaffc58b6b5f1a::t_ac6aa75689e931 1-202
+  s_aaffc58b6b5f1a::t_a9b9ff249bd8f7 203-205
+.github/workflows/ax_evals_config.yaml
+  s_aaffc58b6b5f1a::t_66bacb03581c39 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f1b86e17aee6236b7016a2af71a8f8d4c874400",
+  "prompts": {},
+  "sessions": {
+    "s_aaffc58b6b5f1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ed0eeedb9ffeT3ElCabF0QHD41",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

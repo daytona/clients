@@ -1,0 +1,50 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 570-571,575-576,580-581,585-586,590-591
+examples/ruby/auto-archive/auto_archive.rb
+  h_e7759ddd73fa65 16,20
+examples/ruby/auto-delete/auto_delete.rb
+  h_e7759ddd73fa65 24
+examples/ruby/charts/main.rb
+  h_e7759ddd73fa65 69-70,100,114,128,137,144,157
+examples/ruby/declarative-image/main.rb
+  h_e7759ddd73fa65 14,27,30,36,48,56
+examples/ruby/exec-command/exec.rb
+  h_e7759ddd73fa65 36,53,77,170,172,178
+examples/ruby/exec-command/exec_linked.rb
+  h_e7759ddd73fa65 15
+examples/ruby/exec-command/exec_session.rb
+  h_e7759ddd73fa65 18,38,56
+examples/ruby/file-operations/main.rb
+  h_e7759ddd73fa65 8,36-38
+examples/ruby/git-lsp/main.rb
+  h_e7759ddd73fa65 12-13,127-130,154
+examples/ruby/network-settings/main.rb
+  h_e7759ddd73fa65 13,19
+examples/ruby/pagination/sandbox.rb
+  h_e7759ddd73fa65 7,10-12
+examples/ruby/pty/main.rb
+  h_e7759ddd73fa65 12,27,47
+examples/ruby/secrets/secret.rb
+  h_e7759ddd73fa65 34-35
+examples/ruby/volumes/volume.rb
+  h_e7759ddd73fa65 14-15,36-37
+sdk-go/pkg/daytona/client.go
+  h_e7759ddd73fa65 126-127,142-143,147-148,152-153,157-158
+sdk-go/pkg/daytona/client_test.go
+  h_e7759ddd73fa65 1493-1508
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  h_e7759ddd73fa65 6
+sdk-ruby/spec/daytona/root_namespace_spec.rb
+  h_e7759ddd73fa65 92-94,96-97,102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d4d58070ce16f3e94832400e8d0392ae248f229",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

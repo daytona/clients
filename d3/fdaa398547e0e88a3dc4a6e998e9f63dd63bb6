@@ -1,0 +1,83 @@
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_90fe2f4d796d6d 155-156
+sdk-typescript/src/v2/options.ts
+  s_ca009e77d17705::t_90fe2f4d796d6d 121,130-134
+changelog.d/539-image-builder.breaking.md
+  s_ca009e77d17705::t_d9763191064fce 16-28
+sdk-typescript/tests/build-logs.test.ts
+  s_ca009e77d17705::t_9fe1391d119e5f 227-231
+  s_ca009e77d17705::t_081791dac42262 232-241
+sdk-python/tests/test_image_builder_parity.py
+  s_ca009e77d17705::t_8825b0edeb8c93 17,142-143
+  s_ca009e77d17705::t_b69cfc02d2b72c 137-141,144
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_9fe1391d119e5f 586-587
+  s_ca009e77d17705::t_081791dac42262 1435-1450
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_fe73c92349ace1 437
+  s_ca009e77d17705::t_081791dac42262 635-637
+  s_ca009e77d17705::t_2377c8ae27afc4 33,435-436,438
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_d9763191064fce 17-28,39-55
+sdk-typescript/tests/image-builder-parity.test.ts
+  s_ca009e77d17705::t_96077cc4a64946 113
+  s_ca009e77d17705::t_b69cfc02d2b72c 100-112,114
+changelog.d/539-path-ids.breaking.md
+  s_ca009e77d17705::t_d9763191064fce 5-11
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_6e762aca7efcb8 757-767
+  s_ca009e77d17705::t_88e6f2a318168e 742-756
+  s_ca009e77d17705::t_104a2ed55c75b0 687-689,691-692,694-698
+  s_ca009e77d17705::t_59c2a02fca6c1a 699-727,729-741
+  s_ca009e77d17705::t_095c8b7aba1a8a 16,652-656,660,684
+  s_ca009e77d17705::t_e2f301d381c648 728
+  s_ca009e77d17705::t_05e607e5a5a032 690,693
+  s_ca009e77d17705::t_9ce9f3a445c840 661
+sdk-python/tests/test_network_policy_wire.py
+  s_ca009e77d17705::t_871d4b7dcfb008 30,32,34,36,38
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_c14409d5f4e529 786,788-789,791
+  s_ca009e77d17705::t_8777d453de659c 787,790,792
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_88e6f2a318168e 430-448
+  s_ca009e77d17705::t_6e762aca7efcb8 449-457
+  s_ca009e77d17705::t_104a2ed55c75b0 398-411
+  s_ca009e77d17705::t_9cd1ab95dfe59c 412-429
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_095c8b7aba1a8a 381-382
+  s_ca009e77d17705::t_0001d59036fe12 13,404-423,425-444,473-474
+  s_ca009e77d17705::t_88b88a83134563 475-477
+  s_ca009e77d17705::t_fe73c92349ace1 403,424
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_996765de1dbe89 1304-1307
+sdk-python/src/daytona/v2/image.py
+  s_ca009e77d17705::t_90fe2f4d796d6d 92-99
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_6007e3c9fd4e81 1041,6616,6618
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_c14409d5f4e529 59-62
+sdk-typescript/tests/events.test.ts
+  s_ca009e77d17705::t_cd6e665cf10b82 1990-2021
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_996765de1dbe89 808-810
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_ce7538d6a51153 240-247,253-255,273-278
+changelog.d/539-build-log-discovery.breaking.md
+  s_ca009e77d17705::t_537a23d07a94d6 5-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d3fdaa398547e0e88a3dc4a6e998e9f63dd63bb6",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

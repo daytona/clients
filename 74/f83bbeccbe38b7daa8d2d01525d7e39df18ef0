@@ -1,0 +1,72 @@
+sdk-python/src/daytona/_client.py
+  s_f23bcae77f0e63::t_336f9cb4644090 168
+sdk-typescript/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_201368c928fc6c 140-144,176-184
+  s_f23bcae77f0e63::t_934fc7938994c4 199-205
+sdk-python/tests/test_root_client.py
+  s_f23bcae77f0e63::t_1b436be43e00ea 1660,1665-1683
+changelog.d/537-error-names.breaking.md
+  s_f23bcae77f0e63::t_15d5d7fedf8931 8
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_55f6de8ce68687 38-39
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_b40a159fc9cfd2 7257
+sdk-typescript/tests/runtime-compat.test.ts
+  s_f23bcae77f0e63::t_b40a159fc9cfd2 86
+examples/volumes_share.py
+  s_f23bcae77f0e63::t_336f9cb4644090 13
+examples/volumes_share.ts
+  s_f23bcae77f0e63::t_336f9cb4644090 12
+sdk-python/README.md
+  s_f23bcae77f0e63::t_118f7ec6808ef8 111-113,129-130,829-831
+  s_f23bcae77f0e63::t_336f9cb4644090 118-119
+sdk-typescript/README.md
+  s_f23bcae77f0e63::t_118f7ec6808ef8 82-83,99-100,754-755
+  s_f23bcae77f0e63::t_336f9cb4644090 84-85,179
+sdk-typescript/tests/client-config.test.ts
+  s_f23bcae77f0e63::t_4eb3687864708b 23-28,173-176
+sdk-typescript/src/types.ts
+  s_f23bcae77f0e63::t_336f9cb4644090 19
+upgrade/typescript/tests/import-type-and-report-details.test.ts
+  s_f23bcae77f0e63::t_45aa436e2aa72f 46
+sdk-python/src/daytona/v2/daytona.py
+  s_f23bcae77f0e63::t_55f6de8ce68687 114-116
+examples/README.md
+  s_f23bcae77f0e63::t_336f9cb4644090 81
+docs/adr/0001-sdk-parity.md
+  s_f23bcae77f0e63::t_075aa7515af535 28-29,32-35,38-40,82-85
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_201368c928fc6c 165-170
+AGENTS.md
+  s_f23bcae77f0e63::t_a66457b9bf5700 290-298,472-481,488-490,493-495,512-518,521-522,524-525
+  s_f23bcae77f0e63::t_75b5f77504addb 458,466-469
+sdk-python/src/daytona/v2/types.py
+  s_f23bcae77f0e63::t_55f6de8ce68687 361-362
+changelog.d/537-config-env.breaking.md
+  s_f23bcae77f0e63::t_15d5d7fedf8931 2-17
+examples/typescript/_common.ts
+  s_f23bcae77f0e63::t_336f9cb4644090 8
+sdk-typescript/src/v2/types.ts
+  s_f23bcae77f0e63::t_06ba1d7db53ae8 59-63,65-70
+  s_f23bcae77f0e63::t_55f6de8ce68687 83-84
+changelog.d/537-ts-config-keys.breaking.md
+  s_f23bcae77f0e63::t_15d5d7fedf8931 3
+examples/python/_common.py
+  s_f23bcae77f0e63::t_336f9cb4644090 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74f83bbeccbe38b7daa8d2d01525d7e39df18ef0",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+examples/python/_common.py
+  h_e7759ddd73fa65 27-33,92
+examples/python/test_examples.py
+  h_e7759ddd73fa65 34,315-326
+examples/typescript/_common.ts
+  h_e7759ddd73fa65 23-27,82
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 21,83-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "daed80d99b0feeb501f4294110829ea84bacab8a",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

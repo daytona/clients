@@ -1,0 +1,43 @@
+sdk-python/tests/fixtures/sandbox-handle-json.json
+  s_ca009e77d17705::t_197249f50b9c85 77-79,97-99,113-115
+examples/python/test_examples.py
+  s_ca009e77d17705::t_4179072fa2ea8d 45,97,128-130,167-199,231,761-774,777-782
+  s_ca009e77d17705::t_15dbcf4287f8e5 775-776
+  s_ca009e77d17705::t_27a6ec96a04229 783-784
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_7ae586d22ec4a4 810-812
+  s_ca009e77d17705::t_388ae1dd5c4a4e 799-800
+examples/typescript/test-support/volume-lifecycle.ts
+  s_ca009e77d17705::t_4179072fa2ea8d 1-37
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_4179072fa2ea8d 15,319-320,325-326
+changelog.d/539-create-handle-fields.breaking.md
+  s_ca009e77d17705::t_388ae1dd5c4a4e 3-7
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_55cdcd4a050b90 12987
+  s_ca009e77d17705::t_40ac12eabcebaa 12988
+examples/typescript/examples.test.ts
+  s_ca009e77d17705::t_4179072fa2ea8d 313-323
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_ca009e77d17705::t_7ae586d22ec4a4 88
+  s_ca009e77d17705::t_612d732676b611 37-38
+  s_ca009e77d17705::t_7c766f827209ea 111
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_388ae1dd5c4a4e 82-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92936767d9f9511f6d0fb82d779f0c33606b6b99",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

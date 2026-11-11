@@ -1,0 +1,21 @@
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_1e3e0f6264bc5a 12425-12443
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_387c77abce539a 2823-2830,2832-2834,2836-2838,2840-2842,2844-2862
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8dba0a5a453df65a37de1e5600155f28e42b8e7",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

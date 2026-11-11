@@ -1,0 +1,19 @@
+hack/ax-evals/setup/java.sh
+  s_5d6ae5810083ee::t_a8733ded4e7b40 9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a6d22117f47917a02aadfda4e6b822ae6546d74e",
+  "prompts": {},
+  "sessions": {
+    "s_5d6ae5810083ee": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed0f388ebffeLM0H3JGYweI69r",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

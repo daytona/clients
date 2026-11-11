@@ -1,0 +1,33 @@
+sdk-python/src/daytona/v2/_gen/api/models/sandbox.py
+  s_b3e701c41242f9::t_45424537578afa 24,55,72,85,179-183,305,322
+sdk-python/src/daytona/v2/_gen/api/models/create_gpu_sandbox_request.py
+  s_b3e701c41242f9::t_45424537578afa 1-225
+sdk-python/src/daytona/v2/_gen/api/models/gpu_type_selector.py
+  s_b3e701c41242f9::t_45424537578afa 1-143
+cli/gen/api/types.gen.go
+  s_b3e701c41242f9::t_45424537578afa 797-814,1282,1290-1291,2231-2303,2891-2904,4814-4816,4868-4871,5045-5047,5099-5102,6944-6946,6992-7052
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_b3e701c41242f9::t_45424537578afa 55,87-88
+sdk-python/src/daytona/v2/_gen/api/models/gpu_runtime.py
+  s_b3e701c41242f9::t_45424537578afa 1-55
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  s_b3e701c41242f9::t_45424537578afa 24,55,72,86,180-184,291,308
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_class.py
+  s_b3e701c41242f9::t_45424537578afa 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "524bf471dc2ccc8a5bdd35896266930f22897888",
+  "prompts": {},
+  "sessions": {
+    "s_b3e701c41242f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b7f97c1-6295-4839-a27b-f5f1f098b4d1",
+        "model": "unknown"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

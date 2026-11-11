@@ -1,0 +1,73 @@
+sdk-python/tests/conftest.py
+  s_0214a4f3225fed::t_a09206d65e2c36 49-50,65
+sdk-python/src/daytona/__init__.py
+  s_0214a4f3225fed::t_ddbf7e63629442 342
+  s_0214a4f3225fed::t_2ed6753c1df0c3 27,29,106,125-126,160,241,246
+sdk-typescript/src/index.ts
+  s_0214a4f3225fed::t_e08c718b9c6352 90-98
+sdk-python/tests/test_sandbox.py
+  s_0214a4f3225fed::t_9659118bd3a51c 20,208-273
+  s_0214a4f3225fed::t_a2116d9bfa5e8d 201
+  s_0214a4f3225fed::t_71a5b0a169275c 6,107-112
+  s_0214a4f3225fed::t_0963498e6b6839 106,113
+sdk-python/src/daytona/_async/sandbox.py
+  s_0214a4f3225fed::t_61145330c77ba7 279,289-290,502,504,507
+  s_0214a4f3225fed::t_d41c393c8cab06 21,26,28,31-32,77,187-190,192-258,260-263,268,270-278,280,284-287,297-301,303-304,306-307,309-315,317-320,323-330,332,335-342,344,347-348
+  s_0214a4f3225fed::t_29cf78182472cd 123,125,191,259,265-267,281-283,462
+  s_0214a4f3225fed::t_af351e5215cdab 27,1813,1872
+  s_0214a4f3225fed::t_e2529da1f3ec47 1811-1812
+  s_0214a4f3225fed::t_5a9e885e614972 1846-1847
+  s_0214a4f3225fed::t_440570c7ac1eef 264,269
+  s_0214a4f3225fed::t_ab13d6d95512fb 124,149-151,288,291-296,302,305,308,316,321-322,331,333-334,343,345-346
+  s_0214a4f3225fed::t_0963498e6b6839 15,157-177,478-480
+sdk-python/tests/test_async_sandbox.py
+  s_0214a4f3225fed::t_a2116d9bfa5e8d 194
+  s_0214a4f3225fed::t_9659118bd3a51c 21,201-219,221-250
+  s_0214a4f3225fed::t_4ae42ec4b4fa9f 7,76-86,220
+sdk-typescript/src/SandboxNode.ts
+  s_0214a4f3225fed::t_ab13d6d95512fb 20-22,69-71
+sdk-python/tests/test_daytona.py
+  s_0214a4f3225fed::t_e3c9087b14ad37 424-443
+sdk-python/src/daytona/common/sandbox.py
+  s_0214a4f3225fed::t_2ed6753c1df0c3 68-76
+sdk-typescript/src/Sandbox.ts
+  s_0214a4f3225fed::t_61145330c77ba7 177,179-181,212
+  s_0214a4f3225fed::t_50b9557ae17fd6 425-445,449-466,468-496,498
+  s_0214a4f3225fed::t_440570c7ac1eef 176,178,183,199-201,203-207,446-448,467
+  s_0214a4f3225fed::t_5a9e885e614972 1807-1808
+  s_0214a4f3225fed::t_99b59baf1f7e6c 31,74,81-175,182,184-198,202,208-211
+  s_0214a4f3225fed::t_ead06fc86dddce 299-300,303,391-395
+  s_0214a4f3225fed::t_e08c718b9c6352 1734-1736,1820,1835
+sdk-python/tests/test_async_daytona.py
+  s_0214a4f3225fed::t_e3c9087b14ad37 752-771
+sdk-python/src/daytona/_sync/sandbox.py
+  s_0214a4f3225fed::t_ab13d6d95512fb 126,151-153,301,304-309,315,318,321,329,343,354,357-358
+  s_0214a4f3225fed::t_af351e5215cdab 30,269,1807,1866
+  s_0214a4f3225fed::t_0963498e6b6839 18,159-179,479-481
+  s_0214a4f3225fed::t_ae4ed11fa2d03c 24,29,31,34-35,80,187-190,192-263,265-268,276-277,279-291,293,297-300,310-314,316-317,319-320,322-328,330-334,336-342,344-345,347-353,355-356,359-360
+  s_0214a4f3225fed::t_29cf78182472cd 125,127,191,264,270-275,278,294-296,335,346,463
+  s_0214a4f3225fed::t_5a9e885e614972 1840-1841
+  s_0214a4f3225fed::t_02b4818e530109 1805-1806
+  s_0214a4f3225fed::t_61145330c77ba7 292,302-303,502,504,507
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_0214a4f3225fed::t_a09206d65e2c36 47-48,184-185,305-306
+  s_0214a4f3225fed::t_9659118bd3a51c 96-99,176-177,205-297
+  s_0214a4f3225fed::t_29cf78182472cd 142-163
+  s_0214a4f3225fed::t_a2116d9bfa5e8d 195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f6ade7b4546c21ee73ee34977ec11471c00cb7a8",
+  "prompts": {},
+  "sessions": {
+    "s_0214a4f3225fed": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cdf0-b9b8-7cc2-a55e-b4fac3015c47",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

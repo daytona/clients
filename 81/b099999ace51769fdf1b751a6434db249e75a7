@@ -1,0 +1,35 @@
+.github/workflows/sdk-ci.yaml
+  s_68ed9543e726d9::t_eeae77db860c4a 15,25
+AGENTS.md
+  s_68ed9543e726d9::t_dfb2288df9a1c7 217
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  s_68ed9543e726d9::t_606d0dc92b9e32 48-49
+upgrade/MIGRATION.md
+  s_68ed9543e726d9::t_34c653ebe462ab 30-33
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  s_68ed9543e726d9::t_2b688bc53a1df5 74,80
+upgrade/python/tests/test_distribution_version.py
+  s_68ed9543e726d9::t_2e008da438240c 101-105
+upgrade/python/tests/test_v0_version.py
+  s_68ed9543e726d9::t_93249c68d22046 807-810,812,814-816,1156-1174
+upgrade/scripts/gen-guide.mjs
+  s_68ed9543e726d9::t_10afda3c928e6c 61-64
+upgrade/typescript/tests/v0-version.test.ts
+  s_68ed9543e726d9::t_6da7e051fead76 379-389,457-465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81b099999ace51769fdf1b751a6434db249e75a7",
+  "prompts": {},
+  "sessions": {
+    "s_68ed9543e726d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e542a0af0ffe6ZDh51IF2VSSft",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,64 @@
+python/src/daytona/v2/_gen/toolbox/models/clone_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 40-42,45-46,53-56,63-69,100-105
+python/tests/test_generated_model_redaction.py
+  s_aec3b70e676052::t_34eedc08cddf08 148-151
+  s_aec3b70e676052::t_da5188b8988231 23-24,102-136,146-147,152-167
+  s_aec3b70e676052::t_3541229b433108 168-169
+python/src/daytona/v2/_gen/api/models/organization_api_key_with_token.py
+  s_aec3b70e676052::t_3ef14f86beab3a 40-42,45-46,53-56,63-69,104-109
+changelog.d/493-python-redaction.security.md
+  s_aec3b70e676052::t_48684cbf97818f 3-7
+python/src/daytona/v2/_gen/api/models/lookup_invitation_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,92-97
+python/src/daytona/v2/_gen/api/models/sandbox_access_token.py
+  s_aec3b70e676052::t_3ef14f86beab3a 41-43,46-47,54-57,64-70,98-103
+python/src/daytona/v2/_gen/api/models/set_registry_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,95-100
+python/gen/mark_sensitive.py
+  s_aec3b70e676052::t_eb5a94ba4855a5 33-39
+  s_aec3b70e676052::t_3ef14f86beab3a 11-13,113
+python/src/daytona/v2/_gen/api/models/exchange_token_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,99-104
+changelog.d/493-cli-credentials.security.md
+  s_aec3b70e676052::t_48684cbf97818f 4-7
+python/src/daytona/v2/_gen/api/models/set_otel_config_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,92-97
+python/src/daytona/v2/_gen/api/models/set_secret_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,93-98
+python/gen/templates/model_generic.mustache
+  s_aec3b70e676052::t_eb5a94ba4855a5 43-45,48-49,56-59,66-72,188-193
+python/src/daytona/v2/_gen/api/models/project_api_key_with_token.py
+  s_aec3b70e676052::t_3ef14f86beab3a 40-42,45-46,53-56,63-69,109-114
+python/src/daytona/v2/_gen/api/models/signed_preview_url.py
+  s_aec3b70e676052::t_3ef14f86beab3a 40-42,45-46,53-56,63-69,79,95-100
+python/src/daytona/v2/_gen/api/models/accept_invitation_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,92-97
+python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_aec3b70e676052::t_3ef14f86beab3a 42-44,47-48,55-58,65-71,104-109
+python/src/daytona/v2/_gen/toolbox/models/repo_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,97-102
+python/src/daytona/v2/_gen/api/models/token_exchange.py
+  s_aec3b70e676052::t_3ef14f86beab3a 40-42,45-46,53-56,63-69,96-101
+python/src/daytona/v2/_gen/api/models/preview_url.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,93-98
+python/src/daytona/v2/_gen/api/models/revoke_sandbox_signed_preview_url_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,92-97
+python/src/daytona/v2/_gen/api/models/decline_invitation_request.py
+  s_aec3b70e676052::t_3ef14f86beab3a 39-41,44-45,52-55,62-68,92-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "405d5815f5ca069f97f68e20035a08073a031109",
+  "prompts": {},
+  "sessions": {
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

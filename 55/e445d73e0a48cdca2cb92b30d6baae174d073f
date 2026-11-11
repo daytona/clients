@@ -1,0 +1,56 @@
+upgrade/python/tests/test_dependency_records.py
+  s_b9ab62581dcdb7::t_35447ce80d75ae 56
+upgrade/python/tests/test_v0_version.py
+  s_b9ab62581dcdb7::t_b06af8b3de6567 41
+upgrade/python/tests/report_schema.py
+  s_b9ab62581dcdb7::t_3589eab9743c05 1-50
+upgrade/python/tests/test_import_boundaries.py
+  s_b9ab62581dcdb7::t_9b150b176d9d30 59
+docs/VERSIONING.md
+  s_b9ab62581dcdb7::t_1578f72110cab2 85-102
+upgrade/python/tests/test_report_schema.py
+  s_b9ab62581dcdb7::t_1602b688398da0 1-10,12-64
+  s_b9ab62581dcdb7::t_3730486f7eafbb 11
+upgrade/typescript/tests/report.test.ts
+  s_b9ab62581dcdb7::t_d0c11c2e475982 16-19,21-23,27-42,47-52
+  s_b9ab62581dcdb7::t_63d660292f9e5d 24-26
+  s_b9ab62581dcdb7::t_48a0ac1fcacb1b 123-145
+upgrade/python/tests/test_independent_project_safety.py
+  s_b9ab62581dcdb7::t_c88c82c687707f 54
+upgrade/mapping/report.schema.json
+  s_b9ab62581dcdb7::t_b92b536ece6707 5,11-12,20-23,50-51,66
+AGENTS.md
+  s_b9ab62581dcdb7::t_6e60cd9519ebab 407-414
+upgrade/python/tests/test_cli.py
+  s_b9ab62581dcdb7::t_573d983f0986e6 58
+upgrade/typescript/README.md
+  s_b9ab62581dcdb7::t_a41af5494a0eaf 310-314
+upgrade/python/README.md
+  s_b9ab62581dcdb7::t_004ea6838e8d8d 112-116
+changelog.d/532.changed.md
+  s_916e212ee8fb0c::t_336da4057cb94d 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55e445d73e0a48cdca2cb92b30d6baae174d073f",
+  "prompts": {},
+  "sessions": {
+    "s_916e212ee8fb0c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e50213ce5ffe6JFHNKMMipbsua",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_b9ab62581dcdb7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e50213ce5ffe6JFHNKMMipbsua",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

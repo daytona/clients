@@ -1,0 +1,20 @@
+sdk-typescript/tests/volumes-service.test.ts
+  s_ca009e77d17705::t_dedfc07854d3f2 60-69
+  s_ca009e77d17705::t_14a30b09ee6e02 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67ee8e2a88ca4a696dba9f25255ab413a63bc8b2",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

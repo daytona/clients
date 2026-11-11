@@ -1,0 +1,41 @@
+openapi-specs/api.json
+  s_e51f56a48bf344::t_42584794dc7f04 12442
+api-client-go/model_sandbox.go
+  s_31dd201ee799e4::t_afe624042264e9 113,123,1424,1426,1430,1433,1436,1439-1448,1451,1453,1567-1569
+api-client-java/src/main/java/io/daytona/api/client/model/Sandbox.java
+  s_31dd201ee799e4::t_eb4289f595e706 400,1255,1264,1269,1450
+api-client-python-async/daytona_api_client_async/models/sandbox.py
+  s_31dd201ee799e4::t_1567a5c19b81dd 81
+api-client-python/daytona_api_client/models/sandbox.py
+  s_31dd201ee799e4::t_eff4a1528eb271 81
+api-client/src/models/sandbox.ts
+  s_31dd201ee799e4::t_1d8384fcf59364 210
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_31dd201ee799e4::t_f385b797284ab0 708,750,885,926,1572,1605,2011,2045,3140,3175,5343,5377,5538,5582,5832,5868,6011,6044
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_31dd201ee799e4::t_f92a072434a376 371,681
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d383d8e8fb6852ba256f23a3bccabb2259713126",
+  "prompts": {},
+  "sessions": {
+    "s_31dd201ee799e4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2ffcf380ffex4xRxqI2DbisUU",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    },
+    "s_e51f56a48bf344": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f2ffcf380ffex4xRxqI2DbisUU",
+        "model": "unknown"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

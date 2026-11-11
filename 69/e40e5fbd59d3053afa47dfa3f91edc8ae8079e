@@ -1,0 +1,21 @@
+sdk-typescript/src/v2/archiveWalk.ts
+  s_35c1b93d4ebbc5::t_7efaf196b110b5 49-51
+sdk-typescript/tests/dockerignore.test.ts
+  s_35c1b93d4ebbc5::t_15d19db6155198 289-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69e40e5fbd59d3053afa47dfa3f91edc8ae8079e",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

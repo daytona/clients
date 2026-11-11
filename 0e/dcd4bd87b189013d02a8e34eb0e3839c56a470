@@ -1,0 +1,32 @@
+package.json
+  h_e7759ddd73fa65 44
+sdk-typescript/package.json
+  h_e7759ddd73fa65 28
+sdk-typescript/runtime-tests/README.md
+  h_e7759ddd73fa65 46
+sdk-typescript/runtime-tests/webpack-cjs/check.js
+  h_e7759ddd73fa65 4-5
+sdk-typescript/runtime-tests/webpack-cjs/run.sh
+  h_e7759ddd73fa65 13-17
+sdk-typescript/runtime-tests/webpack-cjs/test.js
+  h_e7759ddd73fa65 5
+sdk-typescript/src/Image.ts
+  h_e7759ddd73fa65 682,697-701
+sdk-typescript/src/__tests__/Image.test.ts
+  h_e7759ddd73fa65 123,128,198,321,323,343,345,368,370,403,408,434,442,469,471,490,492,508,510,525,527,542,544,575-605
+sdk-typescript/src/utils/Import.ts
+  h_e7759ddd73fa65 13,31,51
+yarn.lock
+  h_e7759ddd73fa65 8694,10031
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0edcd4bd87b189013d02a8e34eb0e3839c56a470",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

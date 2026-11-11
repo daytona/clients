@@ -1,0 +1,22 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 649,6180
+artifacts/sdk-docs/java-sdk/daytona.mdx
+  h_e7759ddd73fa65 28-35,47-50
+sdk-go/pkg/daytona/client.go
+  h_e7759ddd73fa65 433-434
+sdk-go/pkg/daytona/v1_client.go
+  h_e7759ddd73fa65 93-94
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  h_e7759ddd73fa65 46-51,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cdfe66a21b764016c4adb61b9f858fafe39df442",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

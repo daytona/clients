@@ -1,0 +1,25 @@
+sdk-ruby/spec/daytona/daytona_spec.rb
+  s_220015efeb2e66::t_618918856bee43 562-608
+sdk-ruby/lib/daytona/daytona.rb
+  s_220015efeb2e66::t_4772dabad28cf6 114-115
+  s_220015efeb2e66::t_78045f5275b62c 343
+  s_220015efeb2e66::t_81df62a0025477 460-482
+  s_220015efeb2e66::t_ad213dd65e5986 415,417,423
+  s_220015efeb2e66::t_2eb4eba224b0ed 403-404,406-407
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca94d7a68e3ecd6465f99c5c5674e8304a97d37f",
+  "prompts": {},
+  "sessions": {
+    "s_220015efeb2e66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e72ca8983ffefzlTYo8I7e2DzF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

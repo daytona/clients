@@ -1,0 +1,33 @@
+sdk-python/tests/test_services_contract.py
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 276-277
+  s_c85c66a4c5af54::t_aee3a32e29394b 16,33
+  s_c85c66a4c5af54::t_d9774da90ef1f4 251-257
+sdk-typescript/src/v2/Volume.ts
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 168-171
+sdk-typescript/tests/volumes-service.test.ts
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 103-104
+upgrade/typescript/src/mapping.json
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 4207,4211
+upgrade/mapping/mapping.json
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 4207,4211
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 4207,4211
+upgrade/MIGRATION.md
+  s_c85c66a4c5af54::t_241cdd7b5a69b2 146,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8da78200d31cbc427115e577b7b1339642079c51",
+  "prompts": {},
+  "sessions": {
+    "s_c85c66a4c5af54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e0bd101ffeZjAnumrf4BzHhw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
