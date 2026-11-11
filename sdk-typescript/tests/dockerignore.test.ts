@@ -307,7 +307,7 @@ test('compiles a long run of POSIX class openers in linear time', () => {
 
 it('validates a long run of stars in linear time', () => {
   // A crafted ignore line must not stall the build (slicing per star was quadratic).
-  const started = Date.now()
+  const started = performance.now()
   expect(() => checkPattern('*'.repeat(60_000) + 'x', 'p')).not.toThrow()
-  expect(Date.now() - started).toBeLessThan(1_000)
+  expect(performance.now() - started).toBeLessThan(1_000)
 })

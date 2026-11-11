@@ -41,7 +41,7 @@ export function checkPattern(text: string, raw: string): void {
     // One slice for the whole run: slicing per star was quadratic in its length.
     let stars = 0
     while (remaining[stars] === '*') stars++
-    remaining = remaining.slice(stars)
+    if (stars > 0) remaining = remaining.slice(stars)
     let index = 0
     let inRange = false
     for (; index < remaining.length; index++) {
