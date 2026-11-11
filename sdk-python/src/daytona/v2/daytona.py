@@ -490,12 +490,11 @@ class AsyncDaytona:
         ``resources`` sizes the sandbox (:class:`MacosResources`: physical CPU
         cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
         macOS included; memory and disk must convert to whole MiB). Each
-        omitted value uses half of the claiming Mac, rounded down, on a model
-        that runs two sandboxes, or all of it on a model that runs one. The
-        first successful claim fixes the size, which the sandbox reports from
-        then on.
+        omitted value uses the Mac model's default size (``default_size`` in
+        ``mac_models.list()``); a create from a captured image uses the
+        image's disk size. The sandbox reports its size.
 
-        ``persistent``: Stop keeps the disk on the same Mac. Start and resume use that Mac. Delete erases the disk. At reservation end, the disk is saved as an anonymous image before the Mac is erased; a lost Mac saves it if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+        ``persistent``: A persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.
 
         ``volumes`` attaches disk volumes read-write. A sandbox with volumes
         cannot be persistent; bucket volumes and ``read_only`` are rejected
