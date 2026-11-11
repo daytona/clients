@@ -675,10 +675,11 @@ how many Macs a purchase can reserve now (`available`, advisory) and the
 request: all of them, or none if fewer are free or fit under the organization's
 Mac reservation limit, unless `min_count` accepts fewer. A purchase at that
 limit raises `LimitExceededError` (a `RateLimitError`) with `limit ==
-"max_mac_reservations"`; a bulk purchase raises it when fewer than `min_count`
-fit. Every purchase and renewal carries an idempotency key; pass your own
-so a retry after a lost response neither reserves more Macs nor pays for a
-second period:
+"max_mac_reservations"`. A bulk purchase raises it when fewer than `min_count`
+fit under the limit, which is checked first, and `ConflictError` with code
+`NO_MAC_AVAILABLE` when fewer than `min_count` Macs are free. Every purchase
+and renewal carries an idempotency key; pass your own so a retry after a lost
+response neither reserves more Macs nor pays for a second period:
 
 ```python
 catalog = d.v2.mac_models.catalog(region="<region>")

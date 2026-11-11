@@ -597,10 +597,11 @@ model, how many Macs a purchase can reserve now (`available`, advisory) and the
 all of them, or none if fewer are free or fit under the organization's Mac
 reservation limit, unless `minCount` accepts fewer. A purchase at that limit
 throws `LimitExceededError` (a `RateLimitError`) with `limit ===
-'max_mac_reservations'`; a bulk purchase throws it when fewer than `minCount`
-fit. Every
-purchase and renewal carries an idempotency key; pass your own so a retry after
-a lost response neither reserves more Macs nor pays for a second period:
+'max_mac_reservations'`. A bulk purchase throws it when fewer than `minCount`
+fit under the limit, which is checked first, and `ConflictError` with code
+`NO_MAC_AVAILABLE` when fewer than `minCount` Macs are free. Every purchase and
+renewal carries an idempotency key; pass your own so a retry after a lost
+response neither reserves more Macs nor pays for a second period:
 
 ```ts
 const catalog = await daytona.v2.macModels.catalog({ region: '<region>' })
