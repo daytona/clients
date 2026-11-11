@@ -425,7 +425,10 @@ class Sandbox:
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
         sandboxes can stop (today: persistent macOS sandboxes) is the API's
-        decision; a refusal surfaces as its typed error.
+        decision; a refusal surfaces as its typed error. While it is stopped,
+        toolbox calls (process, files, git, …) and its preview URLs answer
+        :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
+        :meth:`start` it first.
         """
         return self._bridge.call(lambda: self._impl.stop(timeout=timeout))
 

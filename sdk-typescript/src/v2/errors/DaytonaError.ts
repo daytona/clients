@@ -579,6 +579,12 @@ export class PlanRequiresSalesError extends BadRequestError {}
 export class AutomaticTopUpNotAvailableError extends ConflictError {}
 export class SearchNotConfiguredError extends NotSupportedError {}
 export class SearchUnavailableError extends ServiceUnavailableError {}
+/**
+ * `SANDBOX_NOT_RUNNING` (409, source `DAYTONA_PROXY`): a toolbox call (process,
+ * files, git, …) or a preview URL request reached a sandbox that is not
+ * running, such as a stopped one. Start the sandbox and retry. Not a
+ * `NotFoundError`: the sandbox exists.
+ */
 export class SandboxNotRunningError extends ConflictError {}
 
 export const DAEMON_ERROR_CLASS: Record<DaemonErrorCode, typeof DaytonaError> = {

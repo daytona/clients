@@ -735,7 +735,11 @@ export class Sandbox {
     await this.waitForState(['started'], { timeoutSeconds, terminalStates })
   }
 
-  /** Stop the sandbox and wait until it is stopped. */
+  /**
+   * Stop the sandbox and wait until it is stopped. While it is stopped, toolbox
+   * calls (process, files, git, …) and its preview URLs answer
+   * `SandboxNotRunningError` (409, `SANDBOX_NOT_RUNNING`); `start()` it first.
+   */
   public async stop(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60

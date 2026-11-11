@@ -671,7 +671,10 @@ class SearchUnavailableError(ServiceUnavailableError):
 
 
 class SandboxNotRunningError(ConflictError):
-    pass
+    """``SANDBOX_NOT_RUNNING`` (409, source ``DAYTONA_PROXY``): a toolbox call
+    (process, files, git, …) or a preview URL request reached a sandbox that
+    is not running, such as a stopped one. Start the sandbox and retry. Not a
+    :class:`NotFoundError`: the sandbox exists."""
 
 
 class ImageNotFoundError(NotFoundError):

@@ -1030,7 +1030,11 @@ in the Python SDK: `BadRequestError`, `AuthenticationError` (401),
 `RequestTimeoutError` (408), `ClientTimeoutError` (the client's own request
 timeout), `ConnectionError`, … They also expose `traceId` (v0 errors carry
 none), and the status-level bases have code-specific subclasses so you can
-catch as broadly or narrowly as you need. `code` and `source` are open
+catch as broadly or narrowly as you need. A call into a sandbox that is not
+running (a stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git`
+or the other in-sandbox namespaces, throws `SandboxNotRunningError` (409,
+`SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview URLs
+answer 409 too. Start the sandbox and retry. `code` and `source` are open
 vocabularies: a code this release does not know is kept as sent and the error
 is the class for its HTTP status; the `codes` namespace lists the known codes
 per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,

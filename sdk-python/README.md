@@ -1118,7 +1118,11 @@ names as in the TypeScript SDK: `BadRequestError`, `AuthenticationError`
 client's own request timeout), `ConnectionError`, … They expose
 `status_code`, `code`, `source` and `trace_id`, and have code-specific
 subclasses (`ProcessNotFoundError`, `SandboxTerminalStateError`, …) so you can
-catch as narrowly as you need. `code` and `source` are open vocabularies: a
+catch as narrowly as you need. A call into a sandbox that is not running (a
+stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git` or the
+other in-sandbox namespaces, raises `SandboxNotRunningError` (409,
+`SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview
+URLs answer 409 too. Start the sandbox and retry. `code` and `source` are open vocabularies: a
 code this release does not know is kept as sent and the error is the class for
 its HTTP status; `daytona.v2.codes` lists the known codes per source
 (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`, `codes.is_known_error_code`, …).

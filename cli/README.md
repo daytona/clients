@@ -460,7 +460,9 @@ whole seconds where the API stores seconds:
 Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` only on
 a persistent macOS sandbox. Pause a sandbox with `daytona sandbox pause`; a
 lifecycle policy never pauses. A refused action is a usage error before any
-request.
+request. While a sandbox is stopped, commands that work inside it
+(`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409
+`SANDBOX_NOT_RUNNING` (exit code `6`, with a hint to start it), not 404.
 
 ### JSON output
 
