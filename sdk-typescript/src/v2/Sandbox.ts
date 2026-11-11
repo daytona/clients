@@ -706,11 +706,13 @@ export class Sandbox {
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to
    * sign in again. It throws `ConflictError` with `DISK_NOT_READY` while its
-   * disk is not ready yet (retry later), `NO_FREE_SLOT` or `MAC_DISK_FULL`
-   * when no Mac of the organization has space for it, and
-   * `NO_ACTIVE_RESERVATION` when the organization has no Mac reservation in
-   * the region and auto-reserve is off. With auto-reserve on, the start buys a
-   * reservation, so it can fail as a create that buys one does:
+   * disk is not ready yet (retry later), `NO_FREE_SLOT` when no Mac of the
+   * organization has space for its size, `MAC_DISK_FULL` when the Mac with
+   * space is low on free disk space, and `NO_ACTIVE_RESERVATION` when the
+   * organization has no Mac reservation in the region and auto-reserve is off.
+   * When the organization has no Mac reservation in the region and
+   * auto-reserve is on, the start buys one, so it can fail as a create that
+   * buys one does:
    * `LimitExceededError` with `limit === 'max_mac_reservations'` at the
    * organization's Mac reservation limit, `AUTO_RESERVE_LIMIT_REACHED`,
    * `NO_MAC_AVAILABLE`, `INSUFFICIENT_BALANCE` or `CHARGE_FAILED`.
