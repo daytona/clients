@@ -331,9 +331,10 @@ class AsyncInterpreterService:
         environment when it is created. For a context-free or isolated run, an
         unsupported ``language`` raises
         :class:`~daytona.v2.errors.UnsupportedOperationError`, as in
-        :meth:`create_context`; with an explicit context, a ``language`` that
-        differs from the context's raises
-        :class:`~daytona.v2.errors.BadRequestError` before any request.
+        :meth:`create_context`. With a context handle or ``to_json()``
+        identity, a ``language`` that differs from the context's language
+        raises :class:`~daytona.v2.errors.BadRequestError` before any request;
+        a bare context id takes ``language`` as the context's language.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on

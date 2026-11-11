@@ -1674,11 +1674,11 @@
       "notes": {
         "py": [
           "request_timeout is removed",
-          "Deletes only a merged branch by default (an unmerged one raises ConflictError); pass force=True to delete it anyway"
+          "Deletes only a merged branch by default (an unmerged one raises ConflictError); pass force=True to delete it anyway; the checked-out branch is never deleted, even with force"
         ],
         "ts": [
           "Same name and arguments on the v2 sandbox git service",
-          "Deletes only a merged branch by default (an unmerged one throws ConflictError); pass { force: true } to delete it anyway"
+          "Deletes only a merged branch by default (an unmerged one throws ConflictError); pass { force: true } to delete it anyway; the checked-out branch is never deleted, even with force"
         ]
       },
       "anchor": "sandbox-git",

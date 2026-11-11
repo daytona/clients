@@ -1267,8 +1267,10 @@ export interface InterpreterRunOptions {
    * context-free or isolated run, any other value throws
    * `UnsupportedOperationError` (400) before a kernel is provisioned, and
    * `KernelUnavailableError` (503) means a supported language's kernel failed
-   * to install or start. With an explicit `context`, a language that differs
-   * from the context's throws `BadRequestError` before any request.
+   * to install or start. With a context handle or `toJSON()` identity, a
+   * language that differs from the context's language throws
+   * `BadRequestError` before any request; a bare context id takes `language`
+   * as the context's language.
    */
   readonly language?: 'python' | 'typescript' | 'javascript' | (string & {})
   readonly context?: string | InterpreterContextReference | InterpreterContextJSON
