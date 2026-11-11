@@ -38,14 +38,14 @@ from daytona.v2 import (
     ServiceUnavailableError,
     UnsupportedOperationError,
 )
-from daytona.v2._core import error_from_response
+from daytona.v2._core import error_from_response, parse_bulk_read_result
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import DaytonaError
 from daytona.v2.filesystem import AsyncFileSystemService
 from daytona.v2.git import AsyncGitService
 from daytona.v2.interpreter import AsyncInterpreterService
 from daytona.v2.process import AsyncProcessService
-from daytona.v2.types import JsonValue
+from daytona.v2.types import BulkReadError, JsonValue
 
 _API = "DAYTONA_API"
 _DAEMON = "DAYTONA_DAEMON"
@@ -354,3 +354,22 @@ async def test_an_unreadable_search_root_raises_file_access_denied() -> None:
     async with _transport(lambda _request: response) as transport:
         with pytest.raises(FileAccessDeniedError):
             await AsyncFileSystemService(transport).glob("/root", "*")
+
+
+def test_read_many_keeps_a_per_file_file_read_failed() -> None:
+    error = b'{"path":"/w/b","code":"FILE_READ_FAILED","message":"/w/b: read failed","source":"DAYTONA_DAEMON"}'
+    body = (
+        b"--DAYTONA-FILE-BOUNDARY\r\n"
+        b'Content-Disposition: form-data; name="file"; filename="/w/a"\r\n'
+        b"Content-Type: application/octet-stream\r\n\r\nhi\r\n"
+        b"--DAYTONA-FILE-BOUNDARY\r\n"
+        b'Content-Disposition: form-data; name="error"\r\n'
+        b"Content-Type: application/json\r\n\r\n" + error + b"\r\n--DAYTONA-FILE-BOUNDARY--\r\n"
+    )
+
+    result = parse_bulk_read_result(body)
+
+    assert dict(result.files) == {"/w/a": b"hi"}
+    assert result.errors == (
+        BulkReadError(path="/w/b", message="/w/b: read failed", code="FILE_READ_FAILED", source="DAYTONA_DAEMON"),
+    )

@@ -905,7 +905,7 @@ and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
 new URLs use the new key, which is never
 returned to the client. `list()`, `grep()`, `glob()` and `replace()` return one
 `ListResult` page (of `FileInfo`, `FileMatch`, path strings and
-`ReplaceResult`, iterable over its items); these methods have no
+`ReplaceResult`; read them from `.items`); these methods have no
 page-draining iterator and take no cursor argument. `grep()` and `glob()` run
 as the sandbox user and return a `FileSearchResult`, a `ListResult` whose
 `skipped` tuple lists the absolute paths below the root that user cannot read

@@ -43,6 +43,7 @@ from daytona.v2 import (
     InterpreterLogs,
     InterpreterProcess,
     InterpreterResult,
+    FileSearchResult,
     ListResult,
     ConflictError,
     LogFrame,
@@ -393,7 +394,7 @@ class FakeWorld:
 
         fs.replace.side_effect = replace
         fs.list.side_effect = list_dir
-        fs.glob.return_value = ListResult(items=[])
+        fs.glob.return_value = FileSearchResult(items=[])
         sandbox.fs = fs
 
         git = create_autospec(GitService, instance=True)

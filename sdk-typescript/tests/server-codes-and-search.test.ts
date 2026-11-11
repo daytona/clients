@@ -14,6 +14,7 @@ import { once } from 'node:events'
 import * as v2 from '../src/v2/index'
 import { createDaytonaError } from '../src/v2/errors/DaytonaError'
 import { FileSystemService } from '../src/v2/FileSystem'
+import { parseBulkReadResult } from '../src/v2/filesystemWire'
 import { GitService } from '../src/v2/Git'
 import { HttpTransport } from '../src/v2/http'
 import { InterpreterService } from '../src/v2/Interpreter'
@@ -215,5 +216,18 @@ describe('search responses that break the contract', () => {
     const fs = new FileSystemService(INTERNAL, transport())
     const call = operation === 'grep' ? fs.grep('/w', 'x') : fs.glob('/w', '*')
     await expect(call).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(message) })
+  })
+})
+
+describe('fs.readMany', () => {
+  it('keeps a per-file FILE_READ_FAILED', () => {
+    const error = '{"path":"/w/b","code":"FILE_READ_FAILED","message":"/w/b: read failed","source":"DAYTONA_DAEMON"}'
+    const body = new TextEncoder().encode(
+      '--B\r\nContent-Disposition: form-data; name="file"; filename="/w/a"\r\nContent-Type: application/octet-stream\r\n\r\nhi\r\n' +
+        `--B\r\nContent-Disposition: form-data; name="error"\r\nContent-Type: application/json\r\n\r\n${error}\r\n--B--\r\n`,
+    )
+    const result = parseBulkReadResult(body, 'multipart/form-data; boundary=B')
+    expect(Object.keys(result.files)).toEqual(['/w/a'])
+    expect(result.errors).toStrictEqual([{ path: '/w/b', code: 'FILE_READ_FAILED', message: '/w/b: read failed', source: 'DAYTONA_DAEMON' }])
   })
 })

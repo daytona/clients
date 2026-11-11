@@ -26,7 +26,7 @@ import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { binaryBytes, pathSequence, sandboxPath } from './filesystemInputs.js'
 import type { OptionKeys } from './options.js'
-import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, searchSkipped, str, strList } from './toolboxModels.js'
+import { bool, bulkWriteResultFromWire, envelopeList, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, searchSkipped, str, strList } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 
@@ -493,9 +493,9 @@ export class FileSystemService {
     sandboxPath('path', path)
     // Daemons that predate `skipped` answer a bare array of matches.
     const data = await this.transport.get<toolbox.Match[] | { items: toolbox.Match[]; skipped?: string[] }>('/files/find', { params: { path, pattern } })
-    const { items } = listItems(data, 'items', 'grep response', fileMatchFromWire)
-    const skipped = Array.isArray(data) ? [] : searchSkipped(record(data, 'grep response'), 'grep response')
-    return deepFrozen({ items, skipped })
+    if (Array.isArray(data)) return deepFrozen({ items: data.map((item) => fileMatchFromWire(item)), skipped: [] })
+    const response = record(data, 'grep response')
+    return deepFrozen({ items: envelopeList(response, 'items', 'grep response', fileMatchFromWire), skipped: searchSkipped(response, 'grep response') })
   }
 
   /**
