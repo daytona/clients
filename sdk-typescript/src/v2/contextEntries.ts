@@ -41,7 +41,6 @@ export async function contextEntries(root: string, dockerfile?: string): Promise
     if (!(await fs.stat(filename)).isFile()) throw badRequest(`build context path is not a regular file: ${JSON.stringify(filename)}`)
     return filename
   }
-  let selected = '.dockerignore'
   let dockerfileName: string | undefined
   if (dockerfile !== undefined) {
     if (dockerfile.includes('\0') || path.isAbsolute(dockerfile) || path.win32.isAbsolute(dockerfile)) throw badRequest('dockerfile must be a relative path inside the build context')
@@ -59,23 +58,23 @@ export async function contextEntries(root: string, dockerfile?: string): Promise
       }
       throw error
     }
-    try {
-      // lstat, not access: a Dockerfile-specific ignore file that is a link
-      // loop is selected here and refused by regularFile below.
-      await fs.lstat(path.join(absolute, dockerfileName + '.dockerignore'))
-      selected = dockerfileName + '.dockerignore'
-    } catch (error) {
-      if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')) throw error
-    }
   }
+  // The ignore-file candidates, tried in order as the CLI and Python try them:
+  // a missing (or dangling) one falls through to the next; a link loop is
+  // refused like any other ignore file that is not a regular file.
+  const candidates = dockerfileName === undefined ? ['.dockerignore'] : [dockerfileName + '.dockerignore', '.dockerignore']
+  let selected = '.dockerignore'
   let patterns: readonly string[] = []
-  try { patterns = readPatterns(await fs.readFile(await regularFile(selected), 'utf8')) }
-  catch (error) {
-    // A link loop is refused like any other ignore file that is not a regular file.
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ELOOP') {
-      throw badRequest(`build context path is not a regular file: ${JSON.stringify(path.join(absolute, selected))}`)
+  for (const candidate of candidates) {
+    try {
+      patterns = readPatterns(await fs.readFile(await regularFile(candidate), 'utf8'))
+      selected = candidate
+      break
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+      if (code === 'ELOOP') throw badRequest(`build context path is not a regular file: ${JSON.stringify(path.join(absolute, candidate))}`)
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
     }
-    if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')) throw error
   }
   const always = dockerfileName === undefined ? [] : [dockerfileName, '.dockerignore', selected]
   const filter = new Filter(new Matcher(patterns), always)

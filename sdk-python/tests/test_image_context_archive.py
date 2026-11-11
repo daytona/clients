@@ -441,7 +441,7 @@ async def test_a_blank_path_like_context_is_refused() -> None:
     # already `.` by pathlib's own rules and is left to mean that.
     class Blank:
         def __fspath__(self) -> str:
-            return " "
+            return ""
 
     with pytest.raises(BadRequestError, match="build context path must be a non-empty string"):
         async with prepared_context(Blank(), "Dockerfile"):

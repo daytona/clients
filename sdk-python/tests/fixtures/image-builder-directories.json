@@ -32,6 +32,24 @@
         "build/Dockerfile.dockerignore",
         "keep"
       ]
+    },
+    {
+      "name": "a dangling Dockerfile-specific ignore file falls back to .dockerignore",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "sub\n",
+        "sub/a": "x",
+        "keep": "y"
+      },
+      "symlinks": {
+        "Dockerfile.dockerignore": "nonexistent"
+      },
+      "entries": [
+        ".dockerignore",
+        "Dockerfile",
+        "Dockerfile.dockerignore",
+        "keep"
+      ]
     }
   ],
   "directoryRefused": [
