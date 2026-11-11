@@ -12116,6 +12116,10 @@ describe('computer-use namespace', () => {
     await expect(
       computerUse.start({ resolution: { width: 1920, height: 1080 }, size: 1 } as never),
     ).rejects.toThrow(/size/)
+    await expect(
+      computerUse.restart({ resolution: { width: 1920, height: 1080, depth: 24 } as never }),
+    ).rejects.toThrow(/depth/)
+    expect(transport.post.mock.calls).toHaveLength(3)
   })
 
   it('maps the full computer-use process-status field set and keeps future additions', () => {

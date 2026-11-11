@@ -1412,7 +1412,7 @@
               },
               {
                 "$ref": "#/components/schemas/ComputerUseResolution",
-                "description": "The desktop resolution. Omitted = the resolution this sandbox's\ndesktop last started at, or 1280x720 if it never started. One of\n1024x768, 1280x720 or 1920x1080."
+                "description": "The desktop resolution. Omitted = the resolution last selected in\nthis sandbox, or 1280x720 if none was. One of 1024x768, 1280x720 or\n1920x1080."
               }
             ]
           }
@@ -5398,6 +5398,26 @@
             },
             "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`CONFLICT` \u2014 a concurrent restart brought the desktop up at a different resolution; retry the restart"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNSUPPORTED_MEDIA_TYPE` \u2014 a non-empty body without `Content-Type: application/json`"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -6017,7 +6037,7 @@
     },
     "/computeruse/start": {
       "post": {
-        "description": "Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution it last started at, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.",
+        "description": "Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution last selected, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.",
         "operationId": "start",
         "requestBody": {
           "content": {
@@ -6065,6 +6085,16 @@
               }
             },
             "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart; `CONFLICT` \u2014 the desktop is running at a different resolution"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNSUPPORTED_MEDIA_TYPE` \u2014 a non-empty body without `Content-Type: application/json`"
           },
           "422": {
             "content": {

@@ -619,7 +619,7 @@ export interface paths {
         put?: never;
         /**
          * Start the desktop
-         * @description Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution it last started at, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.
+         * @description Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution last selected, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.
          */
         post: operations["start"];
         delete?: never;
@@ -4613,6 +4613,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description `CONFLICT` — a concurrent restart brought the desktop up at a different resolution; retry the restart */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UNSUPPORTED_MEDIA_TYPE` — a non-empty body without `Content-Type: application/json` */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match the request schema */
             422: {
                 headers: {
@@ -4970,6 +4988,15 @@ export interface operations {
             };
             /** @description `DESKTOP_NOT_READY` — the desktop is already starting or failed and needs restart; `CONFLICT` — the desktop is running at a different resolution */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `UNSUPPORTED_MEDIA_TYPE` — a non-empty body without `Content-Type: application/json` */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

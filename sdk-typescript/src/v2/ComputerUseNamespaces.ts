@@ -56,6 +56,7 @@ import type {
   ComputerUseRecording,
   ComputerUseRecordingsResponse,
   ComputerUseRecordingStartRequest,
+  ComputerUseResolution,
   ComputerUseStartOptions,
   ComputerUseRecordingStopRequest,
   ComputerUseRegion,
@@ -101,11 +102,14 @@ const A11Y_INVOKE_KEYS = optionKeys<ComputerUseA11yInvokeRequest>()({ id: true, 
 const A11Y_SET_VALUE_KEYS = optionKeys<ComputerUseA11ySetValueRequest>()({ id: true, value: true })
 const RECORDING_START_KEYS = optionKeys<ComputerUseRecordingStartRequest>()({ label: true })
 const DESKTOP_START_KEYS = optionKeys<ComputerUseStartOptions>()({ resolution: true })
+const RESOLUTION_KEYS = optionKeys<ComputerUseResolution>()({ width: true, height: true })
 
 function desktopStartBody(options: ComputerUseStartOptions): toolbox.ComputerUseStartRequest | undefined {
   assertKnownOptions('ComputerUseStartOptions', options, DESKTOP_START_KEYS)
-  if (options.resolution === undefined) return undefined
-  const { width, height } = options.resolution
+  const resolution = options.resolution
+  if (resolution === undefined) return undefined
+  assertKnownOptions('ComputerUseResolution', resolution, RESOLUTION_KEYS)
+  const { width, height } = resolution
   return { resolution: { width, height } }
 }
 const RECORDING_STOP_KEYS = optionKeys<ComputerUseRecordingStopRequest>()({ id: true })
