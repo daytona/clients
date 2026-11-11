@@ -1,0 +1,23 @@
+sdk-python/src/daytona/_async/sandbox.py
+  s_59fee36c94ddd0::t_aa996120d18243 367,375,381,385
+sdk-python/src/daytona/_sync/sandbox.py
+  s_59fee36c94ddd0::t_aa996120d18243 388,396,402,406
+sdk-java/src/test/java/io/daytona/sdk/DaytonaTest.java
+  s_59fee36c94ddd0::t_b82071f0cb95e1 240,242-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ddf6eb08ca1332150a463f25de46efec296d4717",
+  "prompts": {},
+  "sessions": {
+    "s_59fee36c94ddd0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bc08-0cf7-79d2-b385-2eafd991a878",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}
