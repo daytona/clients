@@ -914,9 +914,11 @@ export const COMPUTER_USE_DESKTOP_STATES = TOOLBOX_COMPUTER_USE_DESKTOP_STATES
 type _ComputerUseDesktopStatesMatchContract = AssertExact<IsExact<Exclude<ComputerUseDesktopState, 'unknown'>, (typeof TOOLBOX_COMPUTER_USE_DESKTOP_STATES)[number]>>
 
 /**
- * PTY terminal dimensions, in character cells: `cols` and `rows` are each an
- * integer from 1 to 65535. A Windows sandbox takes at most 32767 and refuses a
- * larger value with `BadRequestError`.
+ * PTY terminal dimensions, in character cells. A size you pass has `cols` and
+ * `rows` each an integer from 1 to 65535 (checked before the request); a
+ * Windows sandbox takes at most 32767 and refuses a larger one with
+ * `BadRequestError`. A size the sandbox reports (a process's `terminal`) may be
+ * any positive 32-bit integer.
  */
 export interface TerminalSize {
   readonly cols: number
@@ -1261,10 +1263,12 @@ export interface GitRemote {
  */
 export interface InterpreterRunOptions {
   /**
-   * `'python'`, `'typescript'` or `'javascript'` (case-sensitive). Any other
-   * value throws `UnsupportedOperationError` (400) before a kernel is
-   * provisioned; `KernelUnavailableError` (503) means a supported language's
-   * kernel failed to install or start.
+   * `'python'`, `'typescript'` or `'javascript'` (case-sensitive). For a
+   * context-free or isolated run, any other value throws
+   * `UnsupportedOperationError` (400) before a kernel is provisioned, and
+   * `KernelUnavailableError` (503) means a supported language's kernel failed
+   * to install or start. With an explicit `context`, a language that differs
+   * from the context's throws `BadRequestError` before any request.
    */
   readonly language?: 'python' | 'typescript' | 'javascript' | (string & {})
   readonly context?: string | InterpreterContextReference | InterpreterContextJSON

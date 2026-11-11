@@ -109,9 +109,12 @@ class InterpreterService:
         context by handle, ``to_json()`` identity or id; an id needs
         ``language``. ``isolated=True`` runs in a throwaway context. ``env``
         applies to context-free and isolated runs; a context takes its
-        environment when it is created. An unsupported ``language`` raises
+        environment when it is created. For a context-free or isolated run, an
+        unsupported ``language`` raises
         :class:`~daytona.v2.errors.UnsupportedOperationError`, as in
-        :meth:`create_context`.
+        :meth:`create_context`; with an explicit context, a ``language`` that
+        differs from the context's raises
+        :class:`~daytona.v2.errors.BadRequestError` before any request.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on

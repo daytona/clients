@@ -1029,9 +1029,11 @@ class SandboxLifecycle:
 
 @dataclass(frozen=True, kw_only=True)
 class TerminalSize:
-    """PTY terminal dimensions, in character cells: ``cols`` and ``rows`` are
-    each an integer from 1 to 65535. A Windows sandbox takes at most 32767 and
-    refuses a larger value with :class:`~daytona.v2.errors.BadRequestError`.
+    """PTY terminal dimensions, in character cells. A size you pass has
+    ``cols`` and ``rows`` each an integer from 1 to 65535 (checked before the
+    request); a Windows sandbox takes at most 32767 and refuses a larger one
+    with :class:`~daytona.v2.errors.BadRequestError`. A size the sandbox
+    reports (a process's ``terminal``) may be any positive 32-bit integer.
     """
 
     cols: int
