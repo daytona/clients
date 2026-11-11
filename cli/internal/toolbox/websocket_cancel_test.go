@@ -129,7 +129,7 @@ func TestWebSocketReadMessage_onlyANormalCloseIsAnEndOfStream(t *testing.T) {
 		{"going away", []byte{0x03, 0xE9}, &WebSocketCloseError{Code: 1001}},
 		{"truncated status", []byte{0x03}, &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}},
 		{"normal closure with an invalid UTF-8 reason", []byte{0x03, 0xE8, 0xff, 0xfe}, &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}},
-		{"a reason longer than a control frame allows", append([]byte{0x03, 0xF0}, strings.Repeat("x", 124)...), &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}},
+		{"a reason longer than a control frame allows", append([]byte{0x03, 0xF0}, strings.Repeat("x", 124)...), &WebSocketCloseError{Code: 1002, Reason: "oversized control frame"}},
 		{"the longest reason a control frame allows", append([]byte{0x03, 0xF0}, strings.Repeat("x", 123)...), &WebSocketCloseError{Code: 1008, Reason: strings.Repeat("x", 123)}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -159,6 +159,27 @@ func TestWebSocketReadMessage_onlyANormalCloseIsAnEndOfStream(t *testing.T) {
 			require.NotErrorIs(t, err, io.EOF)
 		})
 	}
+}
+
+func TestWebSocketReadMessage_refusesAnOversizedPing(t *testing.T) {
+	// Given a server that sends a 126-byte ping.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, rw, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", wsAccept(r.Header.Get("Sec-WebSocket-Key")))
+		_ = rw.Flush()
+		writeServerFrame(conn, 0x9, []byte(strings.Repeat("p", 126)))
+	}))
+	defer srv.Close()
+	ws, err := dialWebSocket(t.Context(), srv.URL, nil)
+	require.NoError(t, err)
+	defer ws.conn.Close()
+	// When / Then it is a protocol error, not answered with a pong.
+	_, err = ws.ReadMessage()
+	require.Equal(t, &WebSocketCloseError{Code: 1002, Reason: "oversized control frame"}, err)
 }
 
 func TestWebSocketReadMessage_refusesAFragmentedControlFrame(t *testing.T) {

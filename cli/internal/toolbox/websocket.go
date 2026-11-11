@@ -41,14 +41,14 @@ func (e *WebSocketCloseError) Error() string {
 
 // closeFrameError reads a close frame's payload: nil for a normal closure (no
 // status, or 1000 with a valid reason), else a *WebSocketCloseError. A close
-// frame cut short, longer than a control frame may be, or whose reason is not
-// UTF-8 is malformed (RFC 6455 sections 5.5 and 7.1.6), whatever its status.
+// frame cut short, or whose reason is not UTF-8, is malformed (RFC 6455
+// section 7.1.6), whatever its status; ReadMessage refuses one longer than a
+// control frame may be before it gets here.
 func closeFrameError(payload []byte) error {
 	if len(payload) == 0 {
 		return nil
 	}
-	// A control frame carries at most 125 bytes (RFC 6455 section 5.5).
-	if len(payload) < 2 || len(payload) > 125 || !utf8.Valid(payload[2:]) {
+	if len(payload) < 2 || !utf8.Valid(payload[2:]) {
 		return &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}
 	}
 	code := int(binary.BigEndian.Uint16(payload[:2]))
@@ -93,11 +93,15 @@ func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 			}
 			return nil, err
 		}
-		// Control frames (close, ping, pong) are never fragmented (RFC 6455
-		// section 5.5): one that is would end the stream on half a frame.
-		if opcode >= 0x8 && !fin {
+		// Control frames (close, ping, pong) are never fragmented and carry at
+		// most 125 bytes (RFC 6455 section 5.5).
+		if opcode >= 0x8 && (!fin || len(payload) > 125) {
 			_ = c.Close()
-			return nil, &WebSocketCloseError{Code: 1002, Reason: "fragmented control frame"}
+			reason := "fragmented control frame"
+			if fin {
+				reason = "oversized control frame"
+			}
+			return nil, &WebSocketCloseError{Code: 1002, Reason: reason}
 		}
 		switch opcode {
 		case 0x1, 0x2:
