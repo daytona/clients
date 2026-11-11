@@ -41,6 +41,7 @@ let imagesDelayMs: number
 let uploadId: string
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
 const defaultIsNode = contextUploadRuntime.isNode
+const defaultStreamsParts = contextUploadRuntime.streamsParts
 const tempDirs: string[] = []
 
 async function tempDir(): Promise<string> {
@@ -88,6 +89,7 @@ beforeEach(async () => {
   contextUploadRuntime.sleep = async () => {}
   contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
   contextUploadRuntime.isNode = defaultIsNode
+  contextUploadRuntime.streamsParts = defaultStreamsParts
   server = createServer((request, response) => {
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -535,6 +537,8 @@ it.each([
   expect(seen.filter((request) => request.url.startsWith('/images/'))).toEqual([])
 })
 
+// Guards against a total deadline coming back: the old code had none in
+// TypeScript, so this passes there too; the stall test below proves the bound.
 it('keeps a part that moves slowly past the request timeout: no total cap, only a no-progress limit (as Python and the CLI)', async () => {
   // Given storage that reads each 64 KiB piece 60 ms apart, and a 150 ms request timeout.
   partSize = 4 * 64 * 1024
@@ -582,6 +586,29 @@ it('fails a part with ClientTimeoutError once no bytes move for the request time
   }
 })
 
+it.each([
+  ['Node.js', true, 'ReadableStream'],
+  ['Bun, Deno or a browser', false, 'Uint8Array'],
+])('sends an in-memory part in %s as a %s', async (_runtime, streams, kind) => {
+  // Given a runtime that does (or does not) send a stream with its length.
+  contextUploadRuntime.streamsParts = () => streams
+  const original = contextUploadRuntime.fetch
+  const bodies: string[] = []
+  contextUploadRuntime.fetch = async (input, init) => {
+    bodies.push(init.body instanceof ReadableStream ? 'ReadableStream' : init.body instanceof Uint8Array ? 'Uint8Array' : typeof init.body)
+    return original(input, init)
+  }
+  try {
+    const data = archive(10_000)
+    await service().buildFromContext(data)
+    // Then each part goes as that kind, and storage gets the archive whole.
+    expect(new Set(bodies)).toEqual(new Set([kind]))
+    expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
 it('hashes incrementally to the same digest as node:crypto', () => {
   const data = new Uint8Array(200_003).map((_, i) => (i * 31 + 7) & 0xff)
   for (const size of [0, 1, 55, 56, 63, 64, 65, 119, 120, 128, 1000, data.byteLength]) {
@@ -598,6 +625,7 @@ it('declares the digest of a Blob without node:crypto', async () => {
   // Given a runtime that is not Node.js, such as a browser.
   const data = archive(10_000)
   contextUploadRuntime.isNode = () => false
+  contextUploadRuntime.streamsParts = () => false
   // When a Blob context is built, it is hashed incrementally and declared.
   await service().buildFromContext(new Blob([Buffer.from(data)]))
   expect(json('POST', '/build-contexts')).toMatchObject({ sha256: createHash('sha256').update(data).digest('hex') })

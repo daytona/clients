@@ -184,7 +184,7 @@
       }
     },
     "dockerfileImage": {
-      "description": "The 0.x static call that builds an image from a Dockerfile and its directory, and the create parameter that takes it. A suggestion with a dockerfileImage alternative uses it when the call's parameters provably pass that call's result.",
+      "description": "The 0.x static call that builds an image from a Dockerfile and its directory, and the parameter that takes it. A suggestion with a dockerfileImage alternative uses it when the call's parameters provably pass that call's result.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -408,14 +408,18 @@
           "type": "boolean"
         },
         "dockerfileImage": {
-          "description": "The v2 form and notes for a call whose image parameter provably is the result of the dockerfileImage call.",
+          "description": "The v2 form and notes for a call whose image parameter provably is the result of the dockerfileImage call. parameters names the 0.x class whose instance the call takes as its first argument and whose keyword carries the image (null where the language passes a plain object).",
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "parameters",
             "v2",
             "notes"
           ],
           "properties": {
+            "parameters": {
+              "$ref": "#/$defs/languageText"
+            },
             "v2": {
               "$ref": "#/$defs/languageText"
             },

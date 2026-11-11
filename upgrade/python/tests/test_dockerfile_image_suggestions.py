@@ -72,12 +72,16 @@ def test_a_dockerfile_image_gets_the_build_context_form_as_in_typescript() -> No
         'client.snapshot.create(CreateSnapshotParams(image=Image.from_dockerfile("D"), **rest))',
         'image = Image.from_dockerfile("D")\nimage = other\nclient.create(CreateSandboxFromImageParams(image=image))',
         'client.snapshot.create(CreateSnapshotParams(name="web", image=Other.from_dockerfile("D")))',
+        'client.create(CreateSnapshotParams(image=Image.from_dockerfile("D")))',
+        'client.snapshot.create(mk(image=Image.from_dockerfile("D")))',
     ],
     ids=[
         "another builder",
         "a ** that may replace it",
         "a rebound name",
         "another package's Image",
+        "the other call's parameters class",
+        "a helper that may ignore its image",
     ],
 )
 def test_an_unproven_image_keeps_the_ordinary_form(call: str) -> None:
@@ -85,6 +89,8 @@ def test_an_unproven_image_keeps_the_ordinary_form(call: str) -> None:
     found = suggestions(
         "from daytona import CreateSandboxFromImageParams, CreateSnapshotParams, Daytona, Image\n"
         "from images import Image as Other\n"
+        "def mk(image):\n"
+        '    return CreateSnapshotParams(image=Image.base("python"))\n'
         "client = Daytona()\n" + call + "\n"
     )
     # Then its row keeps the ordinary form.

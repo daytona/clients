@@ -47,18 +47,21 @@ function isDockerfileImageCall(node: Node, proof: Proof, mapping: Mapping): bool
 
 /**
  * Whether the call's parameters object passes, as its image parameter, the
- * result of the 0.x `Image.fromDockerfile(...)`: an object literal (directly
- * or through a stable `const`) with exactly one such property and no spread
- * that could replace it.
+ * result of the 0.x `Image.fromDockerfile(...)`: an inline object literal (a
+ * variable could be written to before the call) of plain properties only,
+ * with exactly one such property. A spread, a computed key, an accessor or a
+ * method could replace it, so any of them defeats the proof.
  */
 export function passesDockerfileImage(call: CallExpression, mapping: Mapping): boolean {
   const proof = mapping.dockerfileImage?.ts;
   const [first] = call.getArguments();
   if (proof === undefined || first === undefined) return false;
-  const parameters = settled(first);
+  const parameters = unwrap(first);
   if (!Node.isObjectLiteralExpression(parameters)) return false;
   const properties = parameters.getProperties();
-  if (properties.some((property) => Node.isSpreadAssignment(property))) return false;
+  const plain = properties.every((property) => Node.isShorthandPropertyAssignment(property) ||
+    Node.isPropertyAssignment(property) && !Node.isComputedPropertyName(property.getNameNode()));
+  if (!plain) return false;
   const named = properties.filter((property) =>
     (Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property)) && property.getName() === proof.parameter);
   if (named.length !== 1) return false;

@@ -34,15 +34,28 @@ const PART_CONCURRENCY = 4
 const COMPLETE_ATTEMPTS = 3
 
 /**
- * Test seams: the storage client, the pause between attempts, the complete timeout, and the runtime check.
+ * Test seams: the storage client, the pause between attempts, the complete
+ * timeout, and the runtime checks.
  * @internal
  */
 export const contextUploadRuntime = {
   isNode,
+  streamsParts,
   fetch: (input: string, init: RequestInit): Promise<Response> => globalThis.fetch(input, init),
   sleep: (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms)),
   // The API reads the whole stored archive back (up to 1 GiB) before it answers.
   completeTimeoutMs: 10 * 60 * 1000,
+}
+
+/**
+ * Whether a part is sent as a stream of exactly its length: Node.js itself.
+ * Bun and Deno, which also report `process.versions.node`, may send a stream
+ * without its length, which a presigned PUT refuses, so an in-memory part
+ * goes whole there, as in a browser.
+ */
+function streamsParts(): boolean {
+  // SAFETY: every member is optional, and the result is only compared to a string.
+  return (globalThis as { process?: { release?: { name?: unknown } } }).process?.release?.name === 'node'
 }
 
 function isNode(): boolean {
@@ -187,8 +200,9 @@ async function sha256Hex(source: ContextSource): Promise<string> {
  * PUT one part, up to `PART_ATTEMPTS` times. An attempt fails once no bytes
  * move for `idleMs` (`0`: never): connecting, every piece of a streamed body,
  * and the wait for storage's answer each restart the countdown, so a large
- * part on a slow link is never cut while it moves. Outside Node.js the body is
- * not streamed and its progress cannot be seen, so the attempt is not bounded.
+ * part on a slow link is never cut while it moves. An in-memory part outside
+ * Node.js (a browser, Bun, Deno) is sent whole and its progress cannot be
+ * seen, so that attempt is not bounded.
  */
 async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart, signal: AbortSignal, idleMs: number): Promise<void> {
   const changed = (): BadRequestError => badRequest('build context changed while it was being uploaded')
@@ -197,7 +211,7 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
   let stalled = false
   for (let attempt = 0; attempt < PART_ATTEMPTS; attempt++) {
     if (signal.aborted) throw cancelled()
-    const inMemory = contextUploadRuntime.isNode() ? undefined : source.part?.(offset, part.bytes)
+    const inMemory = contextUploadRuntime.streamsParts() ? undefined : source.part?.(offset, part.bytes)
     const watchdog = new IdleWatchdog(inMemory === undefined ? idleMs : 0, signal, () => new DOMException('no bytes moved', 'AbortError'))
     const body = inMemory ?? partStream(source, offset, part.bytes, () => watchdog.kick())
     if (!(body instanceof ReadableStream) && (body instanceof Blob ? body.size : body.byteLength) !== part.bytes) throw changed()

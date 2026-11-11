@@ -305,6 +305,8 @@ async def test_a_part_is_streamed_in_bounded_chunks_with_a_fixed_length(
 async def test_a_part_that_keeps_moving_is_not_cut_by_the_request_timeout(
     sync: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Guards against a total deadline coming back (the old five-minute phase
+    # bound would also pass this); the stall test below proves the bound.
     # Given a part sent in pieces 150 ms apart and a 500 ms request timeout.
     monkeypatch.setattr(_context_upload, "_PART_PIECE", 2048)
     original = _context_upload._Source.chunks

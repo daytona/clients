@@ -3838,6 +3838,10 @@
       "anchor": "client",
       "startsWorkflow": true,
       "dockerfileImage": {
+        "parameters": {
+          "py": "CreateSandboxFromImageParams",
+          "ts": null
+        },
         "v2": {
           "py": "{client}.v2.images.build_from_context(context, dockerfile=dockerfile, region=region)",
           "ts": "{client}.v2.images.buildFromContext(context, { dockerfile, region })"
@@ -4111,6 +4115,10 @@
       "anchor": "client-snapshot",
       "startsWorkflow": false,
       "dockerfileImage": {
+        "parameters": {
+          "py": "CreateSnapshotParams",
+          "ts": null
+        },
         "v2": {
           "py": "{client}.v2.images.build_from_context(context, dockerfile=dockerfile, name=name, region=region)",
           "ts": "{client}.v2.images.buildFromContext(context, { dockerfile, name, region })"

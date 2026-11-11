@@ -60,19 +60,19 @@ const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ .
 const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, wait: true, timeoutSeconds: true })
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
+// A per-call timeout in seconds as axios milliseconds: `0`, or a value above
+// the longest timer, is no limit, as for every 2.x timeout.
+function axiosTimeoutMs(timeoutSeconds: number): number {
+  const timeoutMs = Math.ceil(timeoutSeconds * 1000)
+  return timeoutMs > MAX_TIMER_DELAY_MS ? 0 : timeoutMs
+}
+
 const IMAGE_LONGPOLL_MAX_MS = 60_000
 const IMAGE_POLL_MIN_INTERVAL_MS = 1_000
 const IMAGE_HOLD_READ_SLACK_MS = 5_000
 
 // Python's `anonymous` defaults to `False` (the contract's default) and refuses
 // `None`, so `null` is refused here too; only an omitted value takes the default.
-// A per-call timeout in axios milliseconds: `0`, or a value above the longest
-// timer, is no limit, as for every 2.x timeout.
-function perCallTimeoutMs(timeoutSeconds: number): number {
-  const timeoutMs = Math.ceil(timeoutSeconds * 1000)
-  return timeoutMs > MAX_TIMER_DELAY_MS ? 0 : timeoutMs
-}
-
 function listImagesAnonymous(value: unknown): boolean | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'boolean') throw badRequest('anonymous must be a boolean')
@@ -150,7 +150,7 @@ export class ImagesService {
       context_upload_id: upload.id,
       region_id: upload.regionId,
     }
-    const { data } = await this.http.post<api.CreateImageResponse>('/images', request, timeoutSeconds === undefined ? undefined : { timeout: perCallTimeoutMs(timeoutSeconds) })
+    const { data } = await this.http.post<api.CreateImageResponse>('/images', request, timeoutSeconds === undefined ? undefined : { timeout: axiosTimeoutMs(timeoutSeconds) })
     // Checked before the read: no request ever goes to /images/undefined.
     return this.get(acknowledgedId(data, 'image create'))
   }

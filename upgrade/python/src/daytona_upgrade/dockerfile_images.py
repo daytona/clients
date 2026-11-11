@@ -14,32 +14,39 @@ from .models import Mapping
 DOCKERFILE_IMAGE = "v0-dockerfile-image"
 
 
-def is_dockerfile_image_call(function: str, mapping: Mapping) -> bool:
-    """Whether ``function`` (an inferred callee) is the 0.x Dockerfile image call.
-
-    The callee is the 0.x ``Image`` class imported from a 0.x module (before or
-    after the default pass moves it to ``daytona.v0``), never from ``daytona.v2``.
-    """
-    proof = mapping.dockerfile_image
-    if proof is None or not function.startswith("module:"):
-        return False
-    suffix = "." + proof.type + "." + proof.method
-    if not function.endswith(suffix):
+def _v0_member(function: str, member: str, mapping: Mapping) -> bool:
+    """Whether ``function`` (an inferred kind) is ``member`` of a 0.x module:
+    a 0.x root, or its ``.v0`` namespace after the default pass, never
+    ``daytona.v2``."""
+    suffix = "." + member
+    if not function.startswith("module:") or not function.endswith(suffix):
         return False
     module = function[len("module:") : -len(suffix)]
     return any(module in (root, root + ".v0") for root in mapping.modules)
 
 
+def is_dockerfile_image_call(function: str, mapping: Mapping) -> bool:
+    """Whether ``function`` (an inferred callee) is the 0.x ``Image.from_dockerfile``."""
+    proof = mapping.dockerfile_image
+    return proof is not None and _v0_member(
+        function, proof.type + "." + proof.method, mapping
+    )
+
+
 def passes_dockerfile_image(
-    node: ast.Call, mapping: Mapping, infer: Callable[[ast.AST], str]
+    node: ast.Call,
+    parameters: str | None,
+    mapping: Mapping,
+    infer: Callable[[ast.AST], str],
 ) -> bool:
-    """Whether the call's parameters (its first argument, or ``params=``) are a
-    constructor call whose image keyword provably is a 0.x Dockerfile image.
+    """Whether the call's parameters (its first argument, or ``params=``) are
+    an inline construction of the 0.x ``parameters`` class whose image
+    keyword provably is a 0.x Dockerfile image.
 
     A ``**`` argument could replace the keyword, so it defeats the proof.
     """
     proof = mapping.dockerfile_image
-    if proof is None:
+    if proof is None or parameters is None:
         return False
     params = (
         node.args[0]
@@ -49,8 +56,10 @@ def passes_dockerfile_image(
             None,
         )
     )
-    if not isinstance(params, ast.Call) or any(
-        keyword.arg is None for keyword in params.keywords
+    if (
+        not isinstance(params, ast.Call)
+        or not _v0_member(infer(params.func), parameters, mapping)
+        or any(keyword.arg is None for keyword in params.keywords)
     ):
         return False
     images = [

@@ -45,6 +45,9 @@ it.each([
   ['a spread that may replace the image', "await client.snapshot.create({ image: Image.fromDockerfile('Dockerfile'), ...rest });"],
   ['a rebound binding', "let image = Image.fromDockerfile('Dockerfile'); image = other; await client.create({ image });"],
   ['an Image of another package', "await client.snapshot.create({ name: 'web', image: Other.fromDockerfile('Dockerfile') });"],
+  ['a parameters object written before the call', "const params = { image: Image.fromDockerfile('D') }; params.image = Image.base('x'); await client.create(params);"],
+  ['a later computed key', "await client.snapshot.create({ name: 'web', image: Image.fromDockerfile('D'), ['image']: Image.base('x') });"],
+  ['a later accessor', "await client.snapshot.create({ name: 'web', image: Image.fromDockerfile('D'), get image() { return Image.base('x'); } });"],
 ])('keeps the registry-image form for %s', async (_name, call) => {
   // Given a create whose image is not provably a 0.x Dockerfile image.
   const found = await suggestions(`import { Daytona, Image } from '@daytonaio/sdk';

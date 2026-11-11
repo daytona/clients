@@ -144,24 +144,35 @@ var runSSHCommand = func(ctx context.Context, binary string, args []string, stde
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = stderr
-	// A process ssh left behind (a ControlPersist master) may hold the stderr
-	// pipe open; do not wait for it once ssh itself has exited.
+	// A process ssh leaves behind (`-f`, a ControlPersist master) may hold the
+	// stderr pipe open: stop copying from it a second after ssh exits. That
+	// is not a failure of ssh, whose own exit status still decides.
 	cmd.WaitDelay = time.Second
-	return cmd.Run()
+	err := cmd.Run()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	return err
 }
 
 // secretRedacted replaces a secret in redacted output.
 const secretRedacted = "<redacted>"
 
+// secretRedactorHold is how long bytes that may start the secret are held
+// back when nothing follows them, so a prompt is not kept from the user.
+var secretRedactorHold = 50 * time.Millisecond
+
 // secretRedactor writes a stream through with every occurrence of a secret
 // replaced. A write that ends with the start of the secret holds those bytes
-// back until the next write (or Flush) shows whether the secret follows, so
-// a secret split across writes is replaced too.
+// back until the next write shows whether the secret follows, so a secret
+// split across writes is replaced too; held bytes are written once
+// secretRedactorHold passes with no further write, or on Flush.
 type secretRedactor struct {
 	mu      sync.Mutex
 	w       io.Writer
 	secret  []byte
 	pending []byte
+	timer   *time.Timer
 }
 
 func newSecretRedactor(w io.Writer, secret string) *secretRedactor {
@@ -183,16 +194,27 @@ func (r *secretRedactor) Write(p []byte) (int, error) {
 		}
 	}
 	r.pending = append([]byte(nil), data[len(data)-held:]...)
+	if r.timer != nil {
+		r.timer.Stop()
+		r.timer = nil
+	}
+	if held > 0 {
+		r.timer = time.AfterFunc(secretRedactorHold, func() { _ = r.Flush() })
+	}
 	if _, err := r.w.Write(data[:len(data)-held]); err != nil {
 		return 0, err
 	}
 	return len(p), nil
 }
 
-// Flush writes the bytes held back: the stream ended without the secret.
+// Flush writes the bytes held back: no part of the secret followed them.
 func (r *secretRedactor) Flush() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.timer != nil {
+		r.timer.Stop()
+		r.timer = nil
+	}
 	if len(r.pending) == 0 {
 		return nil
 	}

@@ -537,7 +537,15 @@ skipping exist only in the TypeScript tool).
   (`IdleWatchdog`), kicked by upload progress where the runtime reports it
   (Node's http adapter, a streamed `fetch` body) and by every response chunk;
   where it cannot see upload progress (the fetch adapter, a request body over
-  64 KiB) the bound starts at the response headers.
+  64 KiB) the bound starts at the response headers. Build-context part
+  uploads (straight to storage, outside the transports) follow the same
+  rule: an attempt fails once no bytes move for the request timeout, is
+  retried, and the last stalled attempt is `ClientTimeoutError`; each part
+  is sent in 64 KiB pieces (Python httpx per-phase timeouts in
+  `_context_upload.py`, TypeScript an `IdleWatchdog` over a streamed body in
+  `contextUpload.ts`), except an in-memory part outside Node.js (a browser,
+  Bun, Deno), which is sent whole and has no idle bound. The CLI bounds a
+  part the same way, at 60 s.
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
   error bodies): `max_response_bytes` / `maxResponseBytes` on the client

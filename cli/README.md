@@ -204,7 +204,8 @@ SSH options you forward after the sandbox id (for example
 `-o StrictHostKeyChecking=no` or `-o UserKnownHostsFile=…`) override this
 policy. The gateway login carries your credential, so the CLI replaces it with
 `<redacted>` wherever `ssh` prints it on stderr (an authentication failure,
-`-v` output).
+`-v` output). Standard output is passed through untouched, so options that
+print the configuration there (`-G`) show it.
 
 ### macOS sandboxes
 

@@ -446,6 +446,8 @@ func TestPostImageDirect_retriesAPartThatTimedOut(t *testing.T) {
 	require.True(t, p.completed)
 }
 
+// Guards against a total deadline coming back (the old five-minute cap would
+// also pass this); the stall test below proves the no-progress bound.
 func TestPostImageDirect_aPartThatKeepsMovingHasNoTotalDeadline(t *testing.T) {
 	// Given a part body that yields a byte every 60 ms, and a 150 ms
 	// no-progress limit.

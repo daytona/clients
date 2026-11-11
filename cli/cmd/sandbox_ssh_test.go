@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/stretchr/testify/assert"
@@ -91,6 +93,9 @@ func TestToolboxSSH_redactsTheCredentialFromSSHStderr(t *testing.T) {
 }
 
 func TestSecretRedactor_replacesEverySecretAndPassesOtherBytes(t *testing.T) {
+	old := secretRedactorHold
+	secretRedactorHold = time.Hour
+	t.Cleanup(func() { secretRedactorHold = old })
 	var out bytes.Buffer
 	r := newSecretRedactor(&out, "s3cr3t")
 	for _, chunk := range []string{"a s3", "cr3t b ", "s3cr3ts3cr", "3t", " s3c", "x"} {
@@ -106,4 +111,36 @@ func TestSecretRedactor_replacesEverySecretAndPassesOtherBytes(t *testing.T) {
 	_, err := none.Write([]byte("plain"))
 	require.NoError(t, err)
 	require.Equal(t, "plain", out.String())
+}
+
+// lockedBuffer is a bytes.Buffer safe for the redactor's flush timer.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestSecretRedactor_writesHeldBytesWhenNothingFollows(t *testing.T) {
+	// Given a prompt that ends with the first byte of the secret.
+	old := secretRedactorHold
+	secretRedactorHold = 20 * time.Millisecond
+	t.Cleanup(func() { secretRedactorHold = old })
+	var out lockedBuffer
+	r := newSecretRedactor(&out, "s3cr3t")
+	_, err := r.Write([]byte("password for s"))
+	require.NoError(t, err)
+	require.Equal(t, "password for ", out.String())
+	// Then it reaches the user once nothing follows, without a Flush.
+	require.Eventually(t, func() bool { return out.String() == "password for s" }, time.Second, 5*time.Millisecond)
 }
