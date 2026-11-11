@@ -144,3 +144,23 @@ func TestSecretRedactor_writesHeldBytesWhenNothingFollows(t *testing.T) {
 	// Then it reaches the user once nothing follows, without a Flush.
 	require.Eventually(t, func() bool { return out.String() == "password for s" }, time.Second, 5*time.Millisecond)
 }
+
+func TestSecretRedactor_aStaleFlushDoesNotReleaseALaterPrefix(t *testing.T) {
+	old := secretRedactorHold
+	secretRedactorHold = time.Hour
+	t.Cleanup(func() { secretRedactorHold = old })
+	var out bytes.Buffer
+	r := newSecretRedactor(&out, "s3cr3t")
+	// Given a flush armed by one write that fires after a later write.
+	_, err := r.Write([]byte("a s"))
+	require.NoError(t, err)
+	stale := r.generation
+	_, err = r.Write([]byte("3cr"))
+	require.NoError(t, err)
+	require.NoError(t, r.flushIf(stale))
+	// Then the later held prefix stays held, and the secret is still caught.
+	_, err = r.Write([]byte("3t b"))
+	require.NoError(t, err)
+	require.NoError(t, r.Flush())
+	require.Equal(t, "a <redacted> b", out.String())
+}

@@ -59,8 +59,10 @@ export function passesDockerfileImage(call: CallExpression, mapping: Mapping): b
   const parameters = unwrap(first);
   if (!Node.isObjectLiteralExpression(parameters)) return false;
   const properties = parameters.getProperties();
+  // Identifier keys only: a quoted or numeric key may duplicate the image key
+  // under another spelling (`'image'`), which JavaScript sources may do.
   const plain = properties.every((property) => Node.isShorthandPropertyAssignment(property) ||
-    Node.isPropertyAssignment(property) && !Node.isComputedPropertyName(property.getNameNode()));
+    Node.isPropertyAssignment(property) && Node.isIdentifier(property.getNameNode()));
   if (!plain) return false;
   const named = properties.filter((property) =>
     (Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property)) && property.getName() === proof.parameter);

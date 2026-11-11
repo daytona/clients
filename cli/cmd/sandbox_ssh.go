@@ -173,6 +173,9 @@ type secretRedactor struct {
 	secret  []byte
 	pending []byte
 	timer   *time.Timer
+	// generation counts writes, so a flush timer armed before a later write
+	// never releases bytes that write held back.
+	generation uint64
 }
 
 func newSecretRedactor(w io.Writer, secret string) *secretRedactor {
@@ -194,12 +197,14 @@ func (r *secretRedactor) Write(p []byte) (int, error) {
 		}
 	}
 	r.pending = append([]byte(nil), data[len(data)-held:]...)
+	r.generation++
 	if r.timer != nil {
 		r.timer.Stop()
 		r.timer = nil
 	}
 	if held > 0 {
-		r.timer = time.AfterFunc(secretRedactorHold, func() { _ = r.Flush() })
+		generation := r.generation
+		r.timer = time.AfterFunc(secretRedactorHold, func() { _ = r.flushIf(generation) })
 	}
 	if _, err := r.w.Write(data[:len(data)-held]); err != nil {
 		return 0, err
@@ -207,10 +212,25 @@ func (r *secretRedactor) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// flushIf writes the bytes held back by the write of that generation, if no
+// write came since.
+func (r *secretRedactor) flushIf(generation uint64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.generation != generation {
+		return nil
+	}
+	return r.flushLocked()
+}
+
 // Flush writes the bytes held back: no part of the secret followed them.
 func (r *secretRedactor) Flush() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	return r.flushLocked()
+}
+
+func (r *secretRedactor) flushLocked() error {
 	if r.timer != nil {
 		r.timer.Stop()
 		r.timer = nil

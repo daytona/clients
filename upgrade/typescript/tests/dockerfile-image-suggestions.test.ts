@@ -84,3 +84,20 @@ await sandbox.fs.listFiles('workspace');
   const listing = found.find(({ id }) => id === 'sandbox.fs.listFiles');
   expect(listing?.notes).toContain('v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory');
 });
+
+it('keeps the ordinary form for a JavaScript object that repeats the image key quoted', async () => {
+  // Given a .js source (TypeScript refuses duplicate keys) whose later quoted key wins.
+  const root = temporaryProject({
+    'package.json': '{"type":"module","dependencies":{"@daytonaio/sdk":"^0.231.1"}}',
+    'app.js': `import { Daytona, Image } from '@daytonaio/sdk';
+const client = new Daytona();
+await client.snapshot.create({ name: 'web', image: Image.fromDockerfile('D'), 'image': Image.base('x') });
+`,
+  });
+  const result = await invoke(root, ['--suggest-v2', '--json']);
+  expect(result.code, result.errors).toBe(0);
+  const report: Report = JSON.parse(result.output);
+  const forms = report.items.flatMap(item => item.suggestion ? [item.suggestion.v2] : []);
+  // Then its row keeps the ordinary form.
+  expect(forms).toEqual(['client.v2.images.build(builder, { name, region })']);
+});
