@@ -7080,6 +7080,19 @@
         ],
         "type": "object"
       },
+      "ProjectLimits": {
+        "description": "The project's own sandbox limits, each with the project's current usage\nagainst it.",
+        "properties": {
+          "sandboxes": {
+            "$ref": "#/components/schemas/ProjectSandboxLimits",
+            "description": "The project's sandbox count limits. A stored limit is always returned,\nand takes effect only while limit enforcement is turned on."
+          }
+        },
+        "required": [
+          "sandboxes"
+        ],
+        "type": "object"
+      },
       "ProjectMember": {
         "properties": {
           "added_at": {
@@ -7176,6 +7189,29 @@
         },
         "required": [
           "projects"
+        ],
+        "type": "object"
+      },
+      "ProjectSandboxLimits": {
+        "description": "The three sandbox counts a project can be limited on, each with its\nlimit and current usage.",
+        "properties": {
+          "concurrent": {
+            "$ref": "#/components/schemas/UsageLimit",
+            "description": "The project's concurrent sandbox limit and current usage."
+          },
+          "persistent": {
+            "$ref": "#/components/schemas/UsageLimit",
+            "description": "The project's persistent sandbox limit and current usage. Stopped and\npaused persistent sandboxes count."
+          },
+          "total": {
+            "$ref": "#/components/schemas/UsageLimit",
+            "description": "The project's total sandbox limit and current usage."
+          }
+        },
+        "required": [
+          "concurrent",
+          "total",
+          "persistent"
         ],
         "type": "object"
       },
@@ -9795,6 +9831,37 @@
               {
                 "$ref": "#/components/schemas/UpdateEphemeralLifecycleDefaults"
               }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "UpdateProjectLimitsRequest": {
+        "additionalProperties": false,
+        "description": "The limits to change. Each one is optional: a missing limit keeps the\nstored value, `null` removes it, and an integer sets it. Unknown fields\nare refused.",
+        "properties": {
+          "max_concurrent_vms": {
+            "description": "The most sandboxes the project may run at once, or null for no project\nlimit.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_persistent_vms": {
+            "description": "The most persistent sandboxes the project may have, or null for no\nproject limit.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_total_vms": {
+            "description": "The most sandboxes the project may have, resting ones included, or null\nfor no project limit.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
             ]
           }
         },
@@ -23210,6 +23277,164 @@
           }
         ],
         "summary": "Update a project lifecycle policy",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/projects/{project_id}/limits": {
+      "get": {
+        "description": "A null limit means the project has no limit of its own. The organization's limits apply on top: a sandbox is created only when it fits under both.",
+        "operationId": "get_project_limits",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLimits"
+                }
+              }
+            },
+            "description": "The project limits",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The project ID is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Project not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:projects"
+            ]
+          }
+        ],
+        "summary": "Get the project limits",
+        "tags": [
+          "projects"
+        ]
+      },
+      "patch": {
+        "description": "A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating new sandboxes; the sandboxes it already has keep running, and lowering a limit never stops one.",
+        "operationId": "update_project_limits",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectLimitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLimits"
+                }
+              }
+            },
+            "description": "The project limits",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A limit is outside the accepted range, or the body carries an unknown field (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Project not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:projects"
+            ]
+          }
+        ],
+        "summary": "Update the project limits",
         "tags": [
           "projects"
         ]
