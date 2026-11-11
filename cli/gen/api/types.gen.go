@@ -4894,6 +4894,14 @@ type ProjectLifecyclePolicy struct {
 	Policy ProjectLifecycleDefaults `json:"policy"`
 }
 
+// ProjectLimits The project's own sandbox limits, each with the project's current usage
+// against it.
+type ProjectLimits struct {
+	// Sandboxes The project's sandbox count limits. A stored limit is always returned,
+	// and takes effect only while limit enforcement is turned on.
+	Sandboxes ProjectSandboxLimits `json:"sandboxes"`
+}
+
 // ProjectMember defines model for ProjectMember.
 type ProjectMember struct {
 	// AddedAt When the member was added, or `null` for an implicit membership.
@@ -4934,6 +4942,20 @@ type ProjectPage struct {
 
 	// Projects The projects in this page.
 	Projects []Project `json:"projects"`
+}
+
+// ProjectSandboxLimits The three sandbox counts a project can be limited on, each with its
+// limit and current usage.
+type ProjectSandboxLimits struct {
+	// Concurrent The project's concurrent sandbox limit and current usage.
+	Concurrent UsageLimit `json:"concurrent"`
+
+	// Persistent The project's persistent sandbox limit and current usage. Stopped and
+	// paused persistent sandboxes count.
+	Persistent UsageLimit `json:"persistent"`
+
+	// Total The project's total sandbox limit and current usage.
+	Total UsageLimit `json:"total"`
 }
 
 // ProjectServiceAccount defines model for ProjectServiceAccount.
@@ -6339,6 +6361,23 @@ type UpdateProjectLifecyclePolicyRequest struct {
 	Ephemeral *UpdateEphemeralLifecycleDefaults `json:"ephemeral,omitempty"`
 }
 
+// UpdateProjectLimitsRequest The limits to change. Each one is optional: a missing limit keeps the
+// stored value, `null` removes it, and an integer sets it. Unknown fields
+// are refused.
+type UpdateProjectLimitsRequest struct {
+	// MaxConcurrentVms The most sandboxes the project may run at once, or null for no project
+	// limit.
+	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
+
+	// MaxPersistentVms The most persistent sandboxes the project may have, or null for no
+	// project limit.
+	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
+
+	// MaxTotalVms The most sandboxes the project may have, resting ones included, or null
+	// for no project limit.
+	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`
+}
+
 // UpdateProjectRequest defines model for UpdateProjectRequest.
 type UpdateProjectRequest struct {
 	// Name The new project name.
@@ -7554,6 +7593,9 @@ type SetProjectBudgetJSONRequestBody = SetProjectBudgetRequest
 
 // UpdateProjectLifecyclePolicyJSONRequestBody defines body for UpdateProjectLifecyclePolicy for application/json ContentType.
 type UpdateProjectLifecyclePolicyJSONRequestBody = UpdateProjectLifecyclePolicyRequest
+
+// UpdateProjectLimitsJSONRequestBody defines body for UpdateProjectLimits for application/json ContentType.
+type UpdateProjectLimitsJSONRequestBody = UpdateProjectLimitsRequest
 
 // AddProjectMembersJSONRequestBody defines body for AddProjectMembers for application/json ContentType.
 type AddProjectMembersJSONRequestBody = AddProjectMembersRequest

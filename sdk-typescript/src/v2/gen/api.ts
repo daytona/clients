@@ -1807,6 +1807,30 @@ export interface paths {
         patch: operations["update_project_lifecycle_policy"];
         trace?: never;
     };
+    "/projects/{project_id}/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the project limits
+         * @description A null limit means the project has no limit of its own. The organization's limits apply on top: a sandbox is created only when it fits under both.
+         */
+        get: operations["get_project_limits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update the project limits
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating new sandboxes; the sandboxes it already has keep running, and lowering a limit never stops one.
+         */
+        patch: operations["update_project_limits"];
+        trace?: never;
+    };
     "/projects/{project_id}/members": {
         parameters: {
             query?: never;
@@ -5942,6 +5966,17 @@ export interface components {
             /** @description The project-level lifecycle defaults. */
             policy: components["schemas"]["ProjectLifecycleDefaults"];
         };
+        /**
+         * @description The project's own sandbox limits, each with the project's current usage
+         *     against it.
+         */
+        ProjectLimits: {
+            /**
+             * @description The project's sandbox count limits. A stored limit is always returned,
+             *     and takes effect only while limit enforcement is turned on.
+             */
+            sandboxes: components["schemas"]["ProjectSandboxLimits"];
+        };
         ProjectMember: {
             /**
              * Format: date-time
@@ -5976,6 +6011,21 @@ export interface components {
             next_cursor?: string | null;
             /** @description The projects in this page. */
             projects: components["schemas"]["Project"][];
+        };
+        /**
+         * @description The three sandbox counts a project can be limited on, each with its
+         *     limit and current usage.
+         */
+        ProjectSandboxLimits: {
+            /** @description The project's concurrent sandbox limit and current usage. */
+            concurrent: components["schemas"]["UsageLimit"];
+            /**
+             * @description The project's persistent sandbox limit and current usage. Stopped and
+             *     paused persistent sandboxes count.
+             */
+            persistent: components["schemas"]["UsageLimit"];
+            /** @description The project's total sandbox limit and current usage. */
+            total: components["schemas"]["UsageLimit"];
         };
         ProjectServiceAccount: {
             /**
@@ -7229,6 +7279,31 @@ export interface components {
         UpdateProjectLifecyclePolicyRequest: {
             /** @description Replacement defaults for ephemeral sandboxes; null clears the block. */
             ephemeral?: null | components["schemas"]["UpdateEphemeralLifecycleDefaults"];
+        };
+        /**
+         * @description The limits to change. Each one is optional: a missing limit keeps the
+         *     stored value, `null` removes it, and an integer sets it. Unknown fields
+         *     are refused.
+         */
+        UpdateProjectLimitsRequest: {
+            /**
+             * Format: int64
+             * @description The most sandboxes the project may run at once, or null for no project
+             *     limit.
+             */
+            max_concurrent_vms?: number | null;
+            /**
+             * Format: int64
+             * @description The most persistent sandboxes the project may have, or null for no
+             *     project limit.
+             */
+            max_persistent_vms?: number | null;
+            /**
+             * Format: int64
+             * @description The most sandboxes the project may have, resting ones included, or null
+             *     for no project limit.
+             */
+            max_total_vms?: number | null;
         };
         UpdateProjectRequest: {
             /** @description The new project name. */
@@ -15413,6 +15488,102 @@ export interface operations {
                 };
             };
             /** @description The lifecycle policy is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Project not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_project_limits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project ID */
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project limits */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectLimits"];
+                };
+            };
+            /** @description The project ID is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Project not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_project_limits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project ID */
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectLimitsRequest"];
+            };
+        };
+        responses: {
+            /** @description The project limits */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectLimits"];
+                };
+            };
+            /** @description A limit is outside the accepted range, or the body carries an unknown field (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

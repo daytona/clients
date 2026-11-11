@@ -195,10 +195,12 @@ from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyW
 from daytona.v2._gen.api.models.project_budget import ProjectBudget as ProjectBudget
 from daytona.v2._gen.api.models.project_lifecycle_defaults import ProjectLifecycleDefaults as ProjectLifecycleDefaults
 from daytona.v2._gen.api.models.project_lifecycle_policy import ProjectLifecyclePolicy as ProjectLifecyclePolicy
+from daytona.v2._gen.api.models.project_limits import ProjectLimits as ProjectLimits
 from daytona.v2._gen.api.models.project_member import ProjectMember as ProjectMember
 from daytona.v2._gen.api.models.project_member_list import ProjectMemberList as ProjectMemberList
 from daytona.v2._gen.api.models.project_member_page import ProjectMemberPage as ProjectMemberPage
 from daytona.v2._gen.api.models.project_page import ProjectPage as ProjectPage
+from daytona.v2._gen.api.models.project_sandbox_limits import ProjectSandboxLimits as ProjectSandboxLimits
 from daytona.v2._gen.api.models.project_service_account import ProjectServiceAccount as ProjectServiceAccount
 from daytona.v2._gen.api.models.project_service_account_list import ProjectServiceAccountList as ProjectServiceAccountList
 from daytona.v2._gen.api.models.project_service_account_page import ProjectServiceAccountPage as ProjectServiceAccountPage
@@ -292,6 +294,7 @@ from daytona.v2._gen.api.models.update_organization_role_request import UpdateOr
 from daytona.v2._gen.api.models.update_preview_warning_request import UpdatePreviewWarningRequest as UpdatePreviewWarningRequest
 from daytona.v2._gen.api.models.update_project_api_key_request import UpdateProjectApiKeyRequest as UpdateProjectApiKeyRequest
 from daytona.v2._gen.api.models.update_project_lifecycle_policy_request import UpdateProjectLifecyclePolicyRequest as UpdateProjectLifecyclePolicyRequest
+from daytona.v2._gen.api.models.update_project_limits_request import UpdateProjectLimitsRequest as UpdateProjectLimitsRequest
 from daytona.v2._gen.api.models.update_project_request import UpdateProjectRequest as UpdateProjectRequest
 from daytona.v2._gen.api.models.update_reservation_request import UpdateReservationRequest as UpdateReservationRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest as UpdateSandboxLifecyclePolicyRequest
