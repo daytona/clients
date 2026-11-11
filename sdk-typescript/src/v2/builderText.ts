@@ -74,12 +74,12 @@ export function assertNever(value: never): never {
 }
 
 /** Raw text for one Dockerfile line: C0 and DEL would change the instruction. @internal */
-export function lineText(value: unknown, label: string, jsonForm = false): string {
+export function lineText(value: unknown, label: string): string {
   const text = rawText(value, label)
   if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} ${JSON.stringify(text)} must not contain a control character`)
-  // A JSON-form COPY path is a JSON string: a trailing `\` cannot continue
-  // the line there, so only raw Dockerfile text is refused.
-  if (!jsonForm && text.endsWith('\\')) throw badRequest(`${label} ${JSON.stringify(text)} must not end with a backslash (it would continue onto the next instruction)`)
+  // A raw line would continue onto the next instruction, and BuildKit's word
+  // lexer runs over JSON-form COPY paths too, where it is dropped.
+  if (text.endsWith('\\')) throw badRequest(`${label} ${JSON.stringify(text)} must not end with a backslash (the Dockerfile parser reads it as an escape)`)
   return text
 }
 

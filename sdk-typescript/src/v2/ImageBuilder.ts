@@ -67,7 +67,7 @@ export class ImageBuilder {
   public addLocalFile(localPath: string, remotePath: string): ImageBuilder {
     if (arguments.length > 2) throw badRequest('ImageBuilder.addLocalFile takes a local path and a remote path')
     const source = localSource(localPath, 'file', localSourcesOf(this).length + 1)
-    const remote = lineText(remotePath, 'ImageBuilder.addLocalFile remotePath', true)
+    const remote = lineText(remotePath, 'ImageBuilder.addLocalFile remotePath')
     // The appended name is the file's own, not a Dockerfile word: BuildKit
     // runs its shell-word lexer over COPY destinations, so `\\`, `$` and both
     // quotes are escaped.
@@ -78,7 +78,7 @@ export class ImageBuilder {
   public addLocalDir(localPath: string, remotePath: string): ImageBuilder {
     if (arguments.length > 2) throw badRequest('ImageBuilder.addLocalDir takes a local path and a remote path')
     const source = localSource(localPath, 'dir', localSourcesOf(this).length + 1)
-    return this.copy(source, lineText(remotePath, 'ImageBuilder.addLocalDir remotePath', true))
+    return this.copy(source, lineText(remotePath, 'ImageBuilder.addLocalDir remotePath'))
   }
 
   public pipInstallFromRequirements(path: string): ImageBuilder {

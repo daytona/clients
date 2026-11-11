@@ -278,32 +278,6 @@
         ".daytona-context/1/file": "single\n",
         ".daytona-context/2/file": "double\n"
       }
-    },
-    {
-      "name": "a remote path ending in a backslash stays in its JSON-form COPY",
-      "files": {
-        "a.txt": "A"
-      },
-      "source": {
-        "registry": "alpine"
-      },
-      "steps": [
-        [
-          "file",
-          "a.txt",
-          "/srv/a\\"
-        ]
-      ],
-      "dockerfile": "FROM alpine\nCOPY [\".daytona-context/1/a.txt\", \"/srv/a\\\\\"]\n",
-      "entries": [
-        ".daytona-context/",
-        ".daytona-context/1/",
-        ".daytona-context/1/a.txt",
-        "Dockerfile"
-      ],
-      "contents": {
-        ".daytona-context/1/a.txt": "A"
-      }
     }
   ],
   "refused": [
@@ -416,6 +390,23 @@
         ]
       ],
       "error": "must not contain a control character"
+    },
+    {
+      "name": "a remote path ending in a backslash",
+      "files": {
+        "a.txt": "A"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "a.txt",
+          "/srv/a\\"
+        ]
+      ],
+      "error": "must not end with a backslash"
     }
   ],
   "buildRefused": [

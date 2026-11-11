@@ -229,14 +229,14 @@
       "name": "run command with a stripped trailing backslash",
       "source": {"registry": "alpine"},
       "steps": [["run", ["echo a \\  "]], ["run", ["echo b"]]],
-      "error": "ImageBuilder.run_commands command \"echo a \\\\\" must not end with a backslash (it would continue onto the next instruction)",
-      "tsError": "ImageBuilder.runCommands command \"echo a \\\\\" must not end with a backslash (it would continue onto the next instruction)"
+      "error": "ImageBuilder.run_commands command \"echo a \\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)",
+      "tsError": "ImageBuilder.runCommands command \"echo a \\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)"
     },
     {
       "name": "workdir with a trailing backslash",
       "source": {"registry": "alpine"},
       "steps": [["workdir", "/app\\"]],
-      "error": "ImageBuilder.workdir path \"/app\\\\\" must not end with a backslash (it would continue onto the next instruction)"
+      "error": "ImageBuilder.workdir path \"/app\\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)"
     },
     {
       "name": "debian slim refuses a micro version",
