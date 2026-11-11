@@ -27,6 +27,7 @@ lib/daytona_api_client/api_error.rb
 lib/daytona_api_client/api_model_base.rb
 lib/daytona_api_client/configuration.rb
 lib/daytona_api_client/models/account_provider.rb
+lib/daytona_api_client/models/add_gang_nodes.rb
 lib/daytona_api_client/models/announcement.rb
 lib/daytona_api_client/models/api_key_list.rb
 lib/daytona_api_client/models/api_key_response.rb
@@ -50,6 +51,9 @@ lib/daytona_api_client/models/create_runner.rb
 lib/daytona_api_client/models/create_runner_response.rb
 lib/daytona_api_client/models/create_runner_sandbox_class.rb
 lib/daytona_api_client/models/create_sandbox.rb
+lib/daytona_api_client/models/create_sandbox_cpu.rb
+lib/daytona_api_client/models/create_sandbox_disk.rb
+lib/daytona_api_client/models/create_sandbox_memory.rb
 lib/daytona_api_client/models/create_sandbox_snapshot.rb
 lib/daytona_api_client/models/create_secret.rb
 lib/daytona_api_client/models/create_snapshot.rb
@@ -60,6 +64,9 @@ lib/daytona_api_client/models/daytona_configuration.rb
 lib/daytona_api_client/models/directory_sync_status.rb
 lib/daytona_api_client/models/docker_registry.rb
 lib/daytona_api_client/models/fork_sandbox.rb
+lib/daytona_api_client/models/gang_membership_operation.rb
+lib/daytona_api_client/models/gang_node_failure.rb
+lib/daytona_api_client/models/gang_node_resources.rb
 lib/daytona_api_client/models/generate_workos_admin_portal_link.rb
 lib/daytona_api_client/models/gpu_capacity.rb
 lib/daytona_api_client/models/gpu_capacity_response.rb
@@ -105,10 +112,14 @@ lib/daytona_api_client/models/region_quota.rb
 lib/daytona_api_client/models/region_type.rb
 lib/daytona_api_client/models/region_usage_overview.rb
 lib/daytona_api_client/models/registry_push_access_dto.rb
+lib/daytona_api_client/models/remove_gang_nodes.rb
+lib/daytona_api_client/models/replace_gang_node.rb
 lib/daytona_api_client/models/resize_sandbox.rb
 lib/daytona_api_client/models/resolve_sandbox_secrets200_response_inner.rb
 lib/daytona_api_client/models/runner.rb
 lib/daytona_api_client/models/runner_class.rb
+lib/daytona_api_client/models/runner_fabric_health.rb
+lib/daytona_api_client/models/runner_fabric_rail.rb
 lib/daytona_api_client/models/runner_full.rb
 lib/daytona_api_client/models/runner_health_metrics.rb
 lib/daytona_api_client/models/runner_healthcheck.rb
@@ -119,11 +130,13 @@ lib/daytona_api_client/models/sandbox.rb
 lib/daytona_api_client/models/sandbox_class.rb
 lib/daytona_api_client/models/sandbox_created_webhook.rb
 lib/daytona_api_client/models/sandbox_desired_state.rb
+lib/daytona_api_client/models/sandbox_gang_member_failed_webhook.rb
 lib/daytona_api_client/models/sandbox_identity.rb
 lib/daytona_api_client/models/sandbox_labels.rb
 lib/daytona_api_client/models/sandbox_list_item.rb
 lib/daytona_api_client/models/sandbox_list_sort_direction.rb
 lib/daytona_api_client/models/sandbox_list_sort_field.rb
+lib/daytona_api_client/models/sandbox_node.rb
 lib/daytona_api_client/models/sandbox_state.rb
 lib/daytona_api_client/models/sandbox_state_updated_webhook.rb
 lib/daytona_api_client/models/sandbox_volume.rb

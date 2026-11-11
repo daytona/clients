@@ -24,7 +24,7 @@ type SandboxIdentity struct {
 	// Sandbox ID
 	SandboxId string `json:"sandboxId"`
 	// Organization ID
-	OrganizationId string `json:"organizationId"`
+	OrganizationId       string `json:"organizationId"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -98,7 +98,7 @@ func (o *SandboxIdentity) SetOrganizationId(v string) {
 }
 
 func (o SandboxIdentity) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -131,10 +131,10 @@ func (o *SandboxIdentity) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -196,5 +196,3 @@ func (v *NullableSandboxIdentity) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

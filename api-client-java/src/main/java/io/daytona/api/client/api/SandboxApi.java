@@ -27,10 +27,12 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 
 
+import io.daytona.api.client.model.AddGangNodes;
 import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSandbox;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
+import io.daytona.api.client.model.GangMembershipOperation;
 import io.daytona.api.client.model.ListSandboxesResponse;
 import io.daytona.api.client.model.MetricsResponse;
 import java.time.OffsetDateTime;
@@ -39,6 +41,8 @@ import io.daytona.api.client.model.PaginatedLogs;
 import io.daytona.api.client.model.PaginatedTraces;
 import io.daytona.api.client.model.PortPreviewUrl;
 import io.daytona.api.client.model.RegionQuota;
+import io.daytona.api.client.model.RemoveGangNodes;
+import io.daytona.api.client.model.ReplaceGangNode;
 import io.daytona.api.client.model.ResizeSandbox;
 import io.daytona.api.client.model.ResolveSandboxSecrets200ResponseInner;
 import io.daytona.api.client.model.Sandbox;
@@ -101,6 +105,152 @@ public class SandboxApi {
         this.localCustomBaseUrl = customBaseUrl;
     }
 
+    /**
+     * Build call for addSandboxNodes
+     * @param sandboxIdOrName  (required)
+     * @param addGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call addSandboxNodesCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull AddGangNodes addGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = addGangNodes;
+
+        // create path and map variables
+        String localVarPath = "/sandbox/{sandboxIdOrName}/nodes"
+            .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call addSandboxNodesValidateBeforeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull AddGangNodes addGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxIdOrName' is set
+        if (sandboxIdOrName == null) {
+            throw new ApiException("Missing the required parameter 'sandboxIdOrName' when calling addSandboxNodes(Async)");
+        }
+
+        // verify the required parameter 'addGangNodes' is set
+        if (addGangNodes == null) {
+            throw new ApiException("Missing the required parameter 'addGangNodes' when calling addSandboxNodes(Async)");
+        }
+
+        return addSandboxNodesCall(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Append nodes to a multi-node sandbox
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param addGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return GangMembershipOperation
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public GangMembershipOperation addSandboxNodes(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull AddGangNodes addGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<GangMembershipOperation> localVarResp = addSandboxNodesWithHttpInfo(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Append nodes to a multi-node sandbox
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param addGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;GangMembershipOperation&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GangMembershipOperation> addSandboxNodesWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull AddGangNodes addGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = addSandboxNodesValidateBeforeCall(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Append nodes to a multi-node sandbox (asynchronously)
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param addGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call addSandboxNodesAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull AddGangNodes addGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<GangMembershipOperation> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = addSandboxNodesValidateBeforeCall(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
     /**
      * Build call for archiveSandbox
      * @param sandboxIdOrName  (required)
@@ -1522,6 +1672,152 @@ public class SandboxApi {
 
         okhttp3.Call localVarCall = getBuildLogsUrlValidateBeforeCall(sandboxIdOrName, xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<Url>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for getGangMembershipOperation
+     * @param sandboxIdOrName  (required)
+     * @param operationId  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getGangMembershipOperationCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String operationId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/sandbox/{sandboxIdOrName}/membership-operations/{operationId}"
+            .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
+            .replace("{" + "operationId" + "}", localVarApiClient.escapeString(operationId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getGangMembershipOperationValidateBeforeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String operationId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxIdOrName' is set
+        if (sandboxIdOrName == null) {
+            throw new ApiException("Missing the required parameter 'sandboxIdOrName' when calling getGangMembershipOperation(Async)");
+        }
+
+        // verify the required parameter 'operationId' is set
+        if (operationId == null) {
+            throw new ApiException("Missing the required parameter 'operationId' when calling getGangMembershipOperation(Async)");
+        }
+
+        return getGangMembershipOperationCall(sandboxIdOrName, operationId, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Get a gang membership operation
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param operationId  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return GangMembershipOperation
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
+     </table>
+     */
+    public GangMembershipOperation getGangMembershipOperation(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String operationId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<GangMembershipOperation> localVarResp = getGangMembershipOperationWithHttpInfo(sandboxIdOrName, operationId, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Get a gang membership operation
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param operationId  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;GangMembershipOperation&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GangMembershipOperation> getGangMembershipOperationWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String operationId, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = getGangMembershipOperationValidateBeforeCall(sandboxIdOrName, operationId, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Get a gang membership operation (asynchronously)
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param operationId  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td>  </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call getGangMembershipOperationAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String operationId, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<GangMembershipOperation> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getGangMembershipOperationValidateBeforeCall(sandboxIdOrName, operationId, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
@@ -4398,6 +4694,152 @@ public class SandboxApi {
         return localVarCall;
     }
     /**
+     * Build call for removeSandboxNodes
+     * @param sandboxIdOrName  (required)
+     * @param removeGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call removeSandboxNodesCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull RemoveGangNodes removeGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = removeGangNodes;
+
+        // create path and map variables
+        String localVarPath = "/sandbox/{sandboxIdOrName}/nodes/remove"
+            .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call removeSandboxNodesValidateBeforeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull RemoveGangNodes removeGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxIdOrName' is set
+        if (sandboxIdOrName == null) {
+            throw new ApiException("Missing the required parameter 'sandboxIdOrName' when calling removeSandboxNodes(Async)");
+        }
+
+        // verify the required parameter 'removeGangNodes' is set
+        if (removeGangNodes == null) {
+            throw new ApiException("Missing the required parameter 'removeGangNodes' when calling removeSandboxNodes(Async)");
+        }
+
+        return removeSandboxNodesCall(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Remove the highest ranks from a multi-node sandbox
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param removeGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return GangMembershipOperation
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public GangMembershipOperation removeSandboxNodes(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull RemoveGangNodes removeGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<GangMembershipOperation> localVarResp = removeSandboxNodesWithHttpInfo(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Remove the highest ranks from a multi-node sandbox
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param removeGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;GangMembershipOperation&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GangMembershipOperation> removeSandboxNodesWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull RemoveGangNodes removeGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = removeSandboxNodesValidateBeforeCall(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Remove the highest ranks from a multi-node sandbox (asynchronously)
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param removeGangNodes  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call removeSandboxNodesAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull RemoveGangNodes removeGangNodes, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<GangMembershipOperation> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = removeSandboxNodesValidateBeforeCall(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for replaceLabels
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param sandboxLabels  (required)
@@ -4540,6 +4982,162 @@ public class SandboxApi {
 
         okhttp3.Call localVarCall = replaceLabelsValidateBeforeCall(sandboxIdOrName, sandboxLabels, xDaytonaOrganizationID, _callback);
         Type localVarReturnType = new TypeToken<SandboxLabels>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for replaceSandboxNode
+     * @param sandboxIdOrName  (required)
+     * @param rank  (required)
+     * @param replaceGangNode  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call replaceSandboxNodeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String rank, @javax.annotation.Nonnull ReplaceGangNode replaceGangNode, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = replaceGangNode;
+
+        // create path and map variables
+        String localVarPath = "/sandbox/{sandboxIdOrName}/nodes/{rank}/replace"
+            .replace("{" + "sandboxIdOrName" + "}", localVarApiClient.escapeString(sandboxIdOrName.toString()))
+            .replace("{" + "rank" + "}", localVarApiClient.escapeString(rank.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        if (xDaytonaOrganizationID != null) {
+            localVarHeaderParams.put("X-Daytona-Organization-ID", localVarApiClient.parameterToString(xDaytonaOrganizationID));
+        }
+
+
+        String[] localVarAuthNames = new String[] { "bearer", "oauth2" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call replaceSandboxNodeValidateBeforeCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String rank, @javax.annotation.Nonnull ReplaceGangNode replaceGangNode, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'sandboxIdOrName' is set
+        if (sandboxIdOrName == null) {
+            throw new ApiException("Missing the required parameter 'sandboxIdOrName' when calling replaceSandboxNode(Async)");
+        }
+
+        // verify the required parameter 'rank' is set
+        if (rank == null) {
+            throw new ApiException("Missing the required parameter 'rank' when calling replaceSandboxNode(Async)");
+        }
+
+        // verify the required parameter 'replaceGangNode' is set
+        if (replaceGangNode == null) {
+            throw new ApiException("Missing the required parameter 'replaceGangNode' when calling replaceSandboxNode(Async)");
+        }
+
+        return replaceSandboxNodeCall(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID, _callback);
+
+    }
+
+    /**
+     * Replace a failed multi-node sandbox rank
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param rank  (required)
+     * @param replaceGangNode  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return GangMembershipOperation
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public GangMembershipOperation replaceSandboxNode(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String rank, @javax.annotation.Nonnull ReplaceGangNode replaceGangNode, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        ApiResponse<GangMembershipOperation> localVarResp = replaceSandboxNodeWithHttpInfo(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Replace a failed multi-node sandbox rank
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param rank  (required)
+     * @param replaceGangNode  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @return ApiResponse&lt;GangMembershipOperation&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<GangMembershipOperation> replaceSandboxNodeWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String rank, @javax.annotation.Nonnull ReplaceGangNode replaceGangNode, @javax.annotation.Nullable String xDaytonaOrganizationID) throws ApiException {
+        okhttp3.Call localVarCall = replaceSandboxNodeValidateBeforeCall(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID, null);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Replace a failed multi-node sandbox rank (asynchronously)
+     * 
+     * @param sandboxIdOrName  (required)
+     * @param rank  (required)
+     * @param replaceGangNode  (required)
+     * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 202 </td><td> Membership operation accepted </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call replaceSandboxNodeAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nonnull String rank, @javax.annotation.Nonnull ReplaceGangNode replaceGangNode, @javax.annotation.Nullable String xDaytonaOrganizationID, final ApiCallback<GangMembershipOperation> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = replaceSandboxNodeValidateBeforeCall(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID, _callback);
+        Type localVarReturnType = new TypeToken<GangMembershipOperation>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }
@@ -5692,7 +6290,7 @@ public class SandboxApi {
     /**
      * Build call for setTtl
      * @param sandboxIdOrName ID or name of the sandbox (required)
-     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived (required)
+     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param _callback Callback for upload/download progress
      * @return Call to execute
@@ -5775,7 +6373,7 @@ public class SandboxApi {
      * Set sandbox TTL
      * 
      * @param sandboxIdOrName ID or name of the sandbox (required)
-     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived (required)
+     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return Sandbox
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
@@ -5795,7 +6393,7 @@ public class SandboxApi {
      * Set sandbox TTL
      * 
      * @param sandboxIdOrName ID or name of the sandbox (required)
-     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived (required)
+     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @return ApiResponse&lt;Sandbox&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
@@ -5816,7 +6414,7 @@ public class SandboxApi {
      * Set sandbox TTL (asynchronously)
      * 
      * @param sandboxIdOrName ID or name of the sandbox (required)
-     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived (required)
+     * @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
@@ -5983,7 +6581,7 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox has been stopped </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox has been stopped, or the complete multi-node gang has been marked for destruction </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call stopSandboxCall(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Boolean force, final ApiCallback _callback) throws ApiException {
@@ -6053,7 +6651,7 @@ public class SandboxApi {
 
     /**
      * Stop sandbox
-     * 
+     * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param force Force stop the sandbox using SIGKILL instead of SIGTERM (optional)
@@ -6063,7 +6661,7 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox has been stopped </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox has been stopped, or the complete multi-node gang has been marked for destruction </td><td>  -  </td></tr>
      </table>
      */
     public Sandbox stopSandbox(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Boolean force) throws ApiException {
@@ -6073,7 +6671,7 @@ public class SandboxApi {
 
     /**
      * Stop sandbox
-     * 
+     * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param force Force stop the sandbox using SIGKILL instead of SIGTERM (optional)
@@ -6083,7 +6681,7 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox has been stopped </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox has been stopped, or the complete multi-node gang has been marked for destruction </td><td>  -  </td></tr>
      </table>
      */
     public ApiResponse<Sandbox> stopSandboxWithHttpInfo(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Boolean force) throws ApiException {
@@ -6094,7 +6692,7 @@ public class SandboxApi {
 
     /**
      * Stop sandbox (asynchronously)
-     * 
+     * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
      * @param sandboxIdOrName ID or name of the sandbox (required)
      * @param xDaytonaOrganizationID Use with JWT to specify the organization ID (optional)
      * @param force Force stop the sandbox using SIGKILL instead of SIGTERM (optional)
@@ -6105,7 +6703,7 @@ public class SandboxApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
-        <tr><td> 200 </td><td> Sandbox has been stopped </td><td>  -  </td></tr>
+        <tr><td> 200 </td><td> Sandbox has been stopped, or the complete multi-node gang has been marked for destruction </td><td>  -  </td></tr>
      </table>
      */
     public okhttp3.Call stopSandboxAsync(@javax.annotation.Nonnull String sandboxIdOrName, @javax.annotation.Nullable String xDaytonaOrganizationID, @javax.annotation.Nullable Boolean force, final ApiCallback<Sandbox> _callback) throws ApiException {

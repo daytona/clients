@@ -24,6 +24,12 @@ module DaytonaApiClient
     # Whether the sandbox is recoverable
     attr_accessor :recoverable
 
+    # Physical gang-member incarnation producing this report.
+    attr_accessor :incarnation
+
+    # The runner has restored an idle-closed fabric state for this failed member.
+    attr_accessor :fabric_fenced
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -51,7 +57,9 @@ module DaytonaApiClient
       {
         :'state' => :'state',
         :'error_reason' => :'errorReason',
-        :'recoverable' => :'recoverable'
+        :'recoverable' => :'recoverable',
+        :'incarnation' => :'incarnation',
+        :'fabric_fenced' => :'fabricFenced'
       }
     end
 
@@ -70,7 +78,9 @@ module DaytonaApiClient
       {
         :'state' => :'String',
         :'error_reason' => :'String',
-        :'recoverable' => :'Boolean'
+        :'recoverable' => :'Boolean',
+        :'incarnation' => :'Integer',
+        :'fabric_fenced' => :'Boolean'
       }
     end
 
@@ -109,6 +119,14 @@ module DaytonaApiClient
       if attributes.key?(:'recoverable')
         self.recoverable = attributes[:'recoverable']
       end
+
+      if attributes.key?(:'incarnation')
+        self.incarnation = attributes[:'incarnation']
+      end
+
+      if attributes.key?(:'fabric_fenced')
+        self.fabric_fenced = attributes[:'fabric_fenced']
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -118,6 +136,10 @@ module DaytonaApiClient
       invalid_properties = Array.new
       if @state.nil?
         invalid_properties.push('invalid value for "state", state cannot be nil.')
+      end
+
+      if !@incarnation.nil? && @incarnation < 1
+        invalid_properties.push('invalid value for "incarnation", must be greater than or equal to 1.')
       end
 
       invalid_properties
@@ -130,6 +152,7 @@ module DaytonaApiClient
       return false if @state.nil?
       state_validator = EnumAttributeValidator.new('String', ["creating", "restoring", "destroyed", "destroying", "started", "stopped", "starting", "stopping", "error", "build_failed", "pending_build", "building_snapshot", "unknown", "pulling_snapshot", "archived", "archiving", "resizing", "snapshotting", "forking", "pausing", "paused", "resuming", "unknown_default_open_api"])
       return false unless state_validator.valid?(@state)
+      return false if !@incarnation.nil? && @incarnation < 1
       true
     end
 
@@ -143,6 +166,20 @@ module DaytonaApiClient
       @state = state
     end
 
+    # Custom attribute writer method with validation
+    # @param [Object] incarnation Value to be assigned
+    def incarnation=(incarnation)
+      if incarnation.nil?
+        fail ArgumentError, 'incarnation cannot be nil'
+      end
+
+      if incarnation < 1
+        fail ArgumentError, 'invalid value for "incarnation", must be greater than or equal to 1.'
+      end
+
+      @incarnation = incarnation
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
@@ -150,7 +187,9 @@ module DaytonaApiClient
       self.class == o.class &&
           state == o.state &&
           error_reason == o.error_reason &&
-          recoverable == o.recoverable
+          recoverable == o.recoverable &&
+          incarnation == o.incarnation &&
+          fabric_fenced == o.fabric_fenced
     end
 
     # @see the `==` method
@@ -162,7 +201,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [state, error_reason, recoverable].hash
+      [state, error_reason, recoverable, incarnation, fabric_fenced].hash
     end
 
     # Builds the object from hash

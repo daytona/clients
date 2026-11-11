@@ -353,22 +353,36 @@ class AsyncSandboxNodeCollection(list[AsyncSandboxNode]):
             raise DaytonaError("Sandbox node collection is not initialized")
         return self._sandbox
 
-    async def _generation(self) -> int:
+    def _remaining(self, deadline: float | None) -> float | None:
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DaytonaTimeoutError("Node membership operation exceeded its timeout")
+        return remaining
+
+    async def _generation(self, deadline: float | None = None) -> int:
         sandbox = self._require_sandbox()
-        await sandbox.refresh_data()
+        await sandbox.refresh_data(request_timeout=self._remaining(deadline))
+        self._remaining(deadline)
         generation = sandbox.topology_generation
         if generation is None:
             raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
         return generation
 
-    async def _wait(self, operation: GangMembershipOperation) -> GangMembershipOperation:
+    async def _wait(self, operation: GangMembershipOperation, deadline: float | None) -> GangMembershipOperation:
         sandbox = self._require_sandbox()
+        self._remaining(deadline)
         while operation.status not in {"COMPLETED", "FAILED"}:
-            await asyncio.sleep(1)
-            operation = await sandbox._sandbox_api.get_gang_membership_operation(sandbox.id, operation.id)
+            await asyncio.sleep(min(1.0, self._remaining(deadline) or 1.0))
+            operation = await sandbox._sandbox_api.get_gang_membership_operation(
+                sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
+            )
+            self._remaining(deadline)
         if operation.status == "FAILED":
             raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
-        await sandbox.refresh_data()
+        await sandbox.refresh_data(request_timeout=self._remaining(deadline))
+        self._remaining(deadline)
         return operation
 
     @intercept_errors(message_prefix="Failed to add Sandbox nodes: ")
@@ -376,39 +390,42 @@ class AsyncSandboxNodeCollection(list[AsyncSandboxNode]):
     @with_instrumentation()
     async def add(self, nodes: list[NodeResources], timeout: float | None = 600) -> GangMembershipOperation:
         """Append rank-ordered nodes and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
         sandbox = self._require_sandbox()
         request = AddGangNodes(
-            expected_generation=await self._generation(),
+            expected_generation=await self._generation(deadline),
             nodes=[GangNodeResources(cpu=node.cpu, memory=node.memory, disk=node.disk) for node in nodes],
         )
         operation = await sandbox._sandbox_api.add_sandbox_nodes(
-            sandbox.id, request, _request_timeout=http_timeout(timeout)
+            sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
         )
-        return await self._wait(operation)
+        return await self._wait(operation, deadline)
 
     @intercept_errors(message_prefix="Failed to release Sandbox nodes: ")
     @with_timeout()
     @with_instrumentation()
     async def release(self, count: int = 1, timeout: float | None = 600) -> GangMembershipOperation:
         """Release the highest ranks and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
         sandbox = self._require_sandbox()
-        request = RemoveGangNodes(expected_generation=await self._generation(), count=count)
+        request = RemoveGangNodes(expected_generation=await self._generation(deadline), count=count)
         operation = await sandbox._sandbox_api.remove_sandbox_nodes(
-            sandbox.id, request, _request_timeout=http_timeout(timeout)
+            sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
         )
-        return await self._wait(operation)
+        return await self._wait(operation, deadline)
 
     @intercept_errors(message_prefix="Failed to replace Sandbox node: ")
     @with_timeout()
     @with_instrumentation()
     async def replace(self, rank: int, timeout: float | None = 600) -> GangMembershipOperation:
         """Replace a degraded rank and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
         sandbox = self._require_sandbox()
-        request = ReplaceGangNode(expected_generation=await self._generation())
+        request = ReplaceGangNode(expected_generation=await self._generation(deadline))
         operation = await sandbox._sandbox_api.replace_sandbox_node(
-            sandbox.id, str(rank), request, _request_timeout=http_timeout(timeout)
+            sandbox.id, str(rank), request, _request_timeout=http_timeout(self._remaining(deadline))
         )
-        return await self._wait(operation)
+        return await self._wait(operation, deadline)
 
 
 def with_events(cls: _T) -> _T:

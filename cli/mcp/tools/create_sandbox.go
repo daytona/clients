@@ -218,15 +218,15 @@ func createSandboxRequest(args CreateSandboxArgs) (*apiclient.CreateSandbox, err
 	}
 
 	if args.Cpu != nil {
-		createSandbox.SetCpu(*args.Cpu)
+		createSandbox.SetCpu(apiclient.Int32AsCreateSandboxCpu(apiclient.PtrInt32(*args.Cpu)))
 	}
 
 	if args.Memory != nil {
-		createSandbox.SetMemory(*args.Memory)
+		createSandbox.SetMemory(apiclient.Int32AsCreateSandboxMemory(apiclient.PtrInt32(*args.Memory)))
 	}
 
 	if args.Disk != nil {
-		createSandbox.SetDisk(*args.Disk)
+		createSandbox.SetDisk(apiclient.Int32AsCreateSandboxDisk(apiclient.PtrInt32(*args.Disk)))
 	}
 
 	if args.Volumes != nil {

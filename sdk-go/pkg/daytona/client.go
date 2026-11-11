@@ -655,7 +655,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 
 	if resources != nil {
 		if resources.CPU > 0 {
-			createReq.SetCpu(int32(resources.CPU))
+			createReq.SetCpu(apiclient.Int32AsCreateSandboxCpu(apiclient.PtrInt32(int32(resources.CPU))))
 		}
 		if resources.GPU > 0 {
 			createReq.SetGpu(int32(resources.GPU))
@@ -664,10 +664,10 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 			createReq.SetGpuType(resources.GpuType)
 		}
 		if resources.Memory > 0 {
-			createReq.SetMemory(int32(resources.Memory))
+			createReq.SetMemory(apiclient.Int32AsCreateSandboxMemory(apiclient.PtrInt32(int32(resources.Memory))))
 		}
 		if resources.Disk > 0 {
-			createReq.SetDisk(int32(resources.Disk))
+			createReq.SetDisk(apiclient.Int32AsCreateSandboxDisk(apiclient.PtrInt32(int32(resources.Disk))))
 		}
 	}
 

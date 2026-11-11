@@ -45,19 +45,16 @@ type CreateSandbox struct {
 	// OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.
 	OtelEndpointOverride *string `json:"otelEndpointOverride,omitempty"`
 	// The target (region) where the sandbox will be created
-	Target *string `json:"target,omitempty"`
-	// CPU cores allocated to the sandbox
-	Cpu *int32 `json:"cpu,omitempty"`
+	Target *string           `json:"target,omitempty"`
+	Cpu    *CreateSandboxCpu `json:"cpu,omitempty"`
 	// GPU units allocated to the sandbox
 	Gpu *int32 `json:"gpu,omitempty"`
 	// Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.
 	GpuType []GpuType `json:"gpuType,omitempty"`
 	// GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
-	Spot *bool `json:"spot,omitempty"`
-	// Memory allocated to the sandbox in GB
-	Memory *int32 `json:"memory,omitempty"`
-	// Disk space allocated to the sandbox in GB
-	Disk *int32 `json:"disk,omitempty"`
+	Spot   *bool                `json:"spot,omitempty"`
+	Memory *CreateSandboxMemory `json:"memory,omitempty"`
+	Disk   *CreateSandboxDisk   `json:"disk,omitempty"`
 	// Auto-stop interval in minutes (0 means disabled)
 	AutoStopInterval *int32 `json:"autoStopInterval,omitempty"`
 	// Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.
@@ -77,7 +74,7 @@ type CreateSandbox struct {
 	// ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.
 	LinkedSandbox *string `json:"linkedSandbox,omitempty"`
 	// Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
-	Secrets []map[string]string `json:"secrets,omitempty"`
+	Secrets              []map[string]string `json:"secrets,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -525,9 +522,9 @@ func (o *CreateSandbox) SetTarget(v string) {
 }
 
 // GetCpu returns the Cpu field value if set, zero value otherwise.
-func (o *CreateSandbox) GetCpu() int32 {
+func (o *CreateSandbox) GetCpu() CreateSandboxCpu {
 	if o == nil || IsNil(o.Cpu) {
-		var ret int32
+		var ret CreateSandboxCpu
 		return ret
 	}
 	return *o.Cpu
@@ -535,7 +532,7 @@ func (o *CreateSandbox) GetCpu() int32 {
 
 // GetCpuOk returns a tuple with the Cpu field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *CreateSandbox) GetCpuOk() (*int32, bool) {
+func (o *CreateSandbox) GetCpuOk() (*CreateSandboxCpu, bool) {
 	if o == nil || IsNil(o.Cpu) {
 		return nil, false
 	}
@@ -551,8 +548,8 @@ func (o *CreateSandbox) HasCpu() bool {
 	return false
 }
 
-// SetCpu gets a reference to the given int32 and assigns it to the Cpu field.
-func (o *CreateSandbox) SetCpu(v int32) {
+// SetCpu gets a reference to the given CreateSandboxCpu and assigns it to the Cpu field.
+func (o *CreateSandbox) SetCpu(v CreateSandboxCpu) {
 	o.Cpu = &v
 }
 
@@ -653,9 +650,9 @@ func (o *CreateSandbox) SetSpot(v bool) {
 }
 
 // GetMemory returns the Memory field value if set, zero value otherwise.
-func (o *CreateSandbox) GetMemory() int32 {
+func (o *CreateSandbox) GetMemory() CreateSandboxMemory {
 	if o == nil || IsNil(o.Memory) {
-		var ret int32
+		var ret CreateSandboxMemory
 		return ret
 	}
 	return *o.Memory
@@ -663,7 +660,7 @@ func (o *CreateSandbox) GetMemory() int32 {
 
 // GetMemoryOk returns a tuple with the Memory field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *CreateSandbox) GetMemoryOk() (*int32, bool) {
+func (o *CreateSandbox) GetMemoryOk() (*CreateSandboxMemory, bool) {
 	if o == nil || IsNil(o.Memory) {
 		return nil, false
 	}
@@ -679,15 +676,15 @@ func (o *CreateSandbox) HasMemory() bool {
 	return false
 }
 
-// SetMemory gets a reference to the given int32 and assigns it to the Memory field.
-func (o *CreateSandbox) SetMemory(v int32) {
+// SetMemory gets a reference to the given CreateSandboxMemory and assigns it to the Memory field.
+func (o *CreateSandbox) SetMemory(v CreateSandboxMemory) {
 	o.Memory = &v
 }
 
 // GetDisk returns the Disk field value if set, zero value otherwise.
-func (o *CreateSandbox) GetDisk() int32 {
+func (o *CreateSandbox) GetDisk() CreateSandboxDisk {
 	if o == nil || IsNil(o.Disk) {
-		var ret int32
+		var ret CreateSandboxDisk
 		return ret
 	}
 	return *o.Disk
@@ -695,7 +692,7 @@ func (o *CreateSandbox) GetDisk() int32 {
 
 // GetDiskOk returns a tuple with the Disk field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *CreateSandbox) GetDiskOk() (*int32, bool) {
+func (o *CreateSandbox) GetDiskOk() (*CreateSandboxDisk, bool) {
 	if o == nil || IsNil(o.Disk) {
 		return nil, false
 	}
@@ -711,8 +708,8 @@ func (o *CreateSandbox) HasDisk() bool {
 	return false
 }
 
-// SetDisk gets a reference to the given int32 and assigns it to the Disk field.
-func (o *CreateSandbox) SetDisk(v int32) {
+// SetDisk gets a reference to the given CreateSandboxDisk and assigns it to the Disk field.
+func (o *CreateSandbox) SetDisk(v CreateSandboxDisk) {
 	o.Disk = &v
 }
 
@@ -1037,7 +1034,7 @@ func (o *CreateSandbox) SetSecrets(v []map[string]string) {
 }
 
 func (o CreateSandbox) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -1225,5 +1222,3 @@ func (v *NullableCreateSandbox) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

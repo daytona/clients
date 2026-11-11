@@ -20,12 +20,12 @@ type SandboxListSortField string
 
 // List of SandboxListSortField
 const (
-	SANDBOXLISTSORTFIELD_NAME SandboxListSortField = "name"
-	SANDBOXLISTSORTFIELD_CPU SandboxListSortField = "cpu"
-	SANDBOXLISTSORTFIELD_MEMORY_GIB SandboxListSortField = "memoryGib"
-	SANDBOXLISTSORTFIELD_DISK_GIB SandboxListSortField = "diskGib"
-	SANDBOXLISTSORTFIELD_LAST_ACTIVITY_AT SandboxListSortField = "lastActivityAt"
-	SANDBOXLISTSORTFIELD_CREATED_AT SandboxListSortField = "createdAt"
+	SANDBOXLISTSORTFIELD_NAME                     SandboxListSortField = "name"
+	SANDBOXLISTSORTFIELD_CPU                      SandboxListSortField = "cpu"
+	SANDBOXLISTSORTFIELD_MEMORY_GIB               SandboxListSortField = "memoryGib"
+	SANDBOXLISTSORTFIELD_DISK_GIB                 SandboxListSortField = "diskGib"
+	SANDBOXLISTSORTFIELD_LAST_ACTIVITY_AT         SandboxListSortField = "lastActivityAt"
+	SANDBOXLISTSORTFIELD_CREATED_AT               SandboxListSortField = "createdAt"
 	SANDBOXLISTSORTFIELD_UNKNOWN_DEFAULT_OPEN_API SandboxListSortField = "11184809"
 )
 
@@ -120,4 +120,3 @@ func (v *NullableSandboxListSortField) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

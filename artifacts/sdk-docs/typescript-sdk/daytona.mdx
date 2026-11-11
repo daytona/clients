@@ -111,7 +111,7 @@ Daytona.fork
 #### \[asyncDispose\]()
 
 ```ts
-[asyncDispose](): Promise<void>;
+asyncDispose: Promise<void>;
 ```
 
 **Returns**:
@@ -120,7 +120,9 @@ Daytona.fork
 
 ##### Implementation of
 
-`AsyncDisposable.[asyncDispose]`
+```ts
+AsyncDisposable.[asyncDispose]
+```
 
 #### create()
 
@@ -445,7 +447,7 @@ Parameters for creating a new Sandbox.
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
 - `queueTimeout?` _number_
-- `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
+- `resources?` _CreateSandboxResources_ - Resource allocation for the Sandbox. If not provided, sandbox will
     have default resources.
 - `secrets?` _Record\<string, string\>_
 - `spot?` _boolean_
@@ -578,6 +580,47 @@ Represents a volume mount for a Sandbox.
 **Extends:**
 
 - `SandboxVolume`
+## CreateSandboxResources
+
+```ts
+type CreateSandboxResources = Omit<Resources, "cpu" | "memory" | "disk"> & {
+  cpu?: number | number[];
+  disk?: number | number[];
+  memory?: number | number[];
+};
+```
+
+Resource allocation used when creating a Sandbox from an image.
+
+### Type Declaration
+
+#### cpu?
+
+```ts
+optional cpu?: number | number[];
+```
+
+CPU cores per node. A scalar applies to every node; an array is ordered by rank.
+
+#### disk?
+
+```ts
+optional disk?: number | number[];
+```
+
+Disk in GiB per node. A scalar applies to every node; an array is ordered by rank.
+
+#### memory?
+
+```ts
+optional memory?: number | number[];
+```
+
+Memory in GiB per node. A scalar applies to every node; an array is ordered by rank.
+
+***
+
+
 ## ForkSandboxParams
 
 ```ts

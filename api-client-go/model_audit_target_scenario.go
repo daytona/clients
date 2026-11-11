@@ -24,7 +24,7 @@ type AuditTargetScenario struct {
 	// Resource type the actions apply to. Scenarios that are not scoped to a specific resource type (e.g. leaving an organization) are grouped under \"other\".
 	TargetType string `json:"targetType"`
 	// Actions that can be audited against this target type, sorted alphabetically.
-	Actions []string `json:"actions"`
+	Actions              []string `json:"actions"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -98,7 +98,7 @@ func (o *AuditTargetScenario) SetActions(v []string) {
 }
 
 func (o AuditTargetScenario) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -131,10 +131,10 @@ func (o *AuditTargetScenario) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -196,5 +196,3 @@ func (v *NullableAuditTargetScenario) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

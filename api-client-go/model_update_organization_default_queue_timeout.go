@@ -22,7 +22,7 @@ var _ MappedNullable = &UpdateOrganizationDefaultQueueTimeout{}
 // UpdateOrganizationDefaultQueueTimeout struct for UpdateOrganizationDefaultQueueTimeout
 type UpdateOrganizationDefaultQueueTimeout struct {
 	// Default minutes to wait for runner assignment before cancelling sandbox creation. Null disables the default. A number must be a positive integer.
-	DefaultQueueTimeout NullableInt32 `json:"defaultQueueTimeout"`
+	DefaultQueueTimeout  NullableInt32 `json:"defaultQueueTimeout"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -73,7 +73,7 @@ func (o *UpdateOrganizationDefaultQueueTimeout) SetDefaultQueueTimeout(v int32) 
 }
 
 func (o UpdateOrganizationDefaultQueueTimeout) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -104,10 +104,10 @@ func (o *UpdateOrganizationDefaultQueueTimeout) UnmarshalJSON(data []byte) (err 
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -168,5 +168,3 @@ func (v *NullableUpdateOrganizationDefaultQueueTimeout) UnmarshalJSON(src []byte
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

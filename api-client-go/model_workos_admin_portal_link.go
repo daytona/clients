@@ -22,7 +22,7 @@ var _ MappedNullable = &WorkosAdminPortalLink{}
 // WorkosAdminPortalLink struct for WorkosAdminPortalLink
 type WorkosAdminPortalLink struct {
 	// Single-purpose WorkOS Admin Portal URL. Expires five minutes after issuance; open it immediately.
-	Link string `json:"link"`
+	Link                 string `json:"link"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -71,7 +71,7 @@ func (o *WorkosAdminPortalLink) SetLink(v string) {
 }
 
 func (o WorkosAdminPortalLink) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -102,10 +102,10 @@ func (o *WorkosAdminPortalLink) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -166,5 +166,3 @@ func (v *NullableWorkosAdminPortalLink) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

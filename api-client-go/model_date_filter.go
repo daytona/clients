@@ -28,7 +28,7 @@ type DateFilter struct {
 	// Match values strictly greater than this timestamp (ISO 8601).
 	Gt *time.Time `json:"gt,omitempty"`
 	// Match values strictly less than this timestamp (ISO 8601).
-	Lt *time.Time `json:"lt,omitempty"`
+	Lt                   *time.Time `json:"lt,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -180,7 +180,7 @@ func (o *DateFilter) SetLt(v time.Time) {
 }
 
 func (o DateFilter) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -268,5 +268,3 @@ func (v *NullableDateFilter) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

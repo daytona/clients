@@ -159,6 +159,16 @@ public class UpdateSandboxStateDto {
   @javax.annotation.Nullable
   private Boolean recoverable;
 
+  public static final String SERIALIZED_NAME_INCARNATION = "incarnation";
+  @SerializedName(SERIALIZED_NAME_INCARNATION)
+  @javax.annotation.Nullable
+  private Integer incarnation;
+
+  public static final String SERIALIZED_NAME_FABRIC_FENCED = "fabricFenced";
+  @SerializedName(SERIALIZED_NAME_FABRIC_FENCED)
+  @javax.annotation.Nullable
+  private Boolean fabricFenced;
+
   public UpdateSandboxStateDto() {
   }
 
@@ -218,6 +228,45 @@ public class UpdateSandboxStateDto {
     this.recoverable = recoverable;
   }
 
+
+  public UpdateSandboxStateDto incarnation(@javax.annotation.Nullable Integer incarnation) {
+    this.incarnation = incarnation;
+    return this;
+  }
+
+  /**
+   * Physical gang-member incarnation producing this report.
+   * minimum: 1
+   * @return incarnation
+   */
+  @javax.annotation.Nullable
+  public Integer getIncarnation() {
+    return incarnation;
+  }
+
+  public void setIncarnation(@javax.annotation.Nullable Integer incarnation) {
+    this.incarnation = incarnation;
+  }
+
+
+  public UpdateSandboxStateDto fabricFenced(@javax.annotation.Nullable Boolean fabricFenced) {
+    this.fabricFenced = fabricFenced;
+    return this;
+  }
+
+  /**
+   * The runner has restored an idle-closed fabric state for this failed member.
+   * @return fabricFenced
+   */
+  @javax.annotation.Nullable
+  public Boolean getFabricFenced() {
+    return fabricFenced;
+  }
+
+  public void setFabricFenced(@javax.annotation.Nullable Boolean fabricFenced) {
+    this.fabricFenced = fabricFenced;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -275,13 +324,15 @@ public class UpdateSandboxStateDto {
     UpdateSandboxStateDto updateSandboxStateDto = (UpdateSandboxStateDto) o;
     return Objects.equals(this.state, updateSandboxStateDto.state) &&
         Objects.equals(this.errorReason, updateSandboxStateDto.errorReason) &&
-        Objects.equals(this.recoverable, updateSandboxStateDto.recoverable)&&
+        Objects.equals(this.recoverable, updateSandboxStateDto.recoverable) &&
+        Objects.equals(this.incarnation, updateSandboxStateDto.incarnation) &&
+        Objects.equals(this.fabricFenced, updateSandboxStateDto.fabricFenced)&&
         Objects.equals(this.additionalProperties, updateSandboxStateDto.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(state, errorReason, recoverable, additionalProperties);
+    return Objects.hash(state, errorReason, recoverable, incarnation, fabricFenced, additionalProperties);
   }
 
   @Override
@@ -291,6 +342,8 @@ public class UpdateSandboxStateDto {
     sb.append("    state: ").append(toIndentedString(state)).append("\n");
     sb.append("    errorReason: ").append(toIndentedString(errorReason)).append("\n");
     sb.append("    recoverable: ").append(toIndentedString(recoverable)).append("\n");
+    sb.append("    incarnation: ").append(toIndentedString(incarnation)).append("\n");
+    sb.append("    fabricFenced: ").append(toIndentedString(fabricFenced)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -310,7 +363,7 @@ public class UpdateSandboxStateDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("state", "errorReason", "recoverable"));
+    openapiFields = new HashSet<String>(Arrays.asList("state", "errorReason", "recoverable", "incarnation", "fabricFenced"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("state"));

@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.CreateBuildInfo;
 import io.daytona.api.client.model.CreateSandbox;
+import io.daytona.api.client.model.CreateSandboxCpu;
+import io.daytona.api.client.model.CreateSandboxMemory;
+import io.daytona.api.client.model.CreateSandboxDisk;
 import io.daytona.api.client.model.SandboxVolume;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.internal.EventDispatcher;
@@ -208,11 +211,11 @@ public class Daytona implements AutoCloseable {
             }
 
             if (params.getResources() != null) {
-                if (params.getResources().getCpu() != null) body.setCpu(params.getResources().getCpu());
+                if (params.getResources().getCpu() != null) body.setCpu(new CreateSandboxCpu(params.getResources().getCpu()));
                 if (params.getResources().getGpu() != null) body.setGpu(params.getResources().getGpu());
                 if (params.getResources().getGpuType() != null) body.setGpuType(params.getResources().getGpuType());
-                if (params.getResources().getMemory() != null) body.setMemory(params.getResources().getMemory());
-                if (params.getResources().getDisk() != null) body.setDisk(params.getResources().getDisk());
+                if (params.getResources().getMemory() != null) body.setMemory(new CreateSandboxMemory(params.getResources().getMemory()));
+                if (params.getResources().getDisk() != null) body.setDisk(new CreateSandboxDisk(params.getResources().getDisk()));
             }
         }
 

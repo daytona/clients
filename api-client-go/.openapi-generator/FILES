@@ -23,6 +23,7 @@ configuration.go
 go.mod
 go.sum
 model_account_provider.go
+model_add_gang_nodes.go
 model_announcement.go
 model_api_key_list.go
 model_api_key_response.go
@@ -46,6 +47,9 @@ model_create_runner.go
 model_create_runner_response.go
 model_create_runner_sandbox_class.go
 model_create_sandbox.go
+model_create_sandbox_cpu.go
+model_create_sandbox_disk.go
+model_create_sandbox_memory.go
 model_create_sandbox_snapshot.go
 model_create_secret.go
 model_create_snapshot.go
@@ -56,6 +60,9 @@ model_daytona_configuration.go
 model_directory_sync_status.go
 model_docker_registry.go
 model_fork_sandbox.go
+model_gang_membership_operation.go
+model_gang_node_failure.go
+model_gang_node_resources.go
 model_generate_workos_admin_portal_link.go
 model_gpu_capacity.go
 model_gpu_capacity_response.go
@@ -101,10 +108,14 @@ model_region_quota.go
 model_region_type.go
 model_region_usage_overview.go
 model_registry_push_access_dto.go
+model_remove_gang_nodes.go
+model_replace_gang_node.go
 model_resize_sandbox.go
 model_resolve_sandbox_secrets_200_response_inner.go
 model_runner.go
 model_runner_class.go
+model_runner_fabric_health.go
+model_runner_fabric_rail.go
 model_runner_full.go
 model_runner_health_metrics.go
 model_runner_healthcheck.go
@@ -115,11 +126,13 @@ model_sandbox.go
 model_sandbox_class.go
 model_sandbox_created_webhook.go
 model_sandbox_desired_state.go
+model_sandbox_gang_member_failed_webhook.go
 model_sandbox_identity.go
 model_sandbox_labels.go
 model_sandbox_list_item.go
 model_sandbox_list_sort_direction.go
 model_sandbox_list_sort_field.go
+model_sandbox_node.go
 model_sandbox_state.go
 model_sandbox_state_updated_webhook.go
 model_sandbox_volume.go
