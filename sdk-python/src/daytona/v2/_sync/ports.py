@@ -58,7 +58,8 @@ class PortsService:
         A sandbox that is deleted or being deleted raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
-        :param port: TCP port inside the sandbox (1–65535).
+        :param port: TCP port inside the sandbox (1–65535, except the sandbox
+            daemon's reserved ports 2280, 2281 and 22220).
         :param public: When ``True`` the endpoint is publicly accessible
             without any credential.
         :returns: :class:`~daytona.v2.types.PreviewEndpoint` with the URL.
@@ -107,9 +108,13 @@ class PortsService:
         Token contents are not used to infer access permissions.
 
         A port that is not exposed yet is exposed first (privately, as
-        :meth:`expose` does): this call registers a preview endpoint. A sandbox
-        that is deleted or being deleted raises
-        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
+        :meth:`expose` does): this call registers a preview endpoint. The
+        sandbox daemon's ports 2280, 2281 and 22220 are never preview ports:
+        they are refused with :class:`~daytona.v2.errors.BadRequestError`
+        before any request, as by :meth:`expose` and
+        :meth:`signed_preview_link`. A sandbox that is deleted or being
+        deleted raises :class:`~daytona.v2.errors.ConflictError`
+        (``CONFLICT``).
         """
         return self._bridge.call(lambda: self._impl.preview_link(port))
 
@@ -128,7 +133,8 @@ class PortsService:
         A sandbox that is deleted or being deleted raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
-        :param port: TCP port inside the sandbox (1–65535).
+        :param port: TCP port inside the sandbox (1–65535, except the sandbox
+            daemon's reserved ports 2280, 2281 and 22220).
         :param expires_in_seconds: Requested token lifetime in seconds (positive
             integer). Omit for the server default (60 s).
         :returns: :class:`~daytona.v2.types.SignedPreviewLink` with ``url``,

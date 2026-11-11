@@ -113,7 +113,10 @@ class Sandbox:
         ``toolbox:exec`` covers the git operations except writing git config:
         ``git.set_config()`` with such a token raises :class:`ForbiddenError`
         (403); ``git.get_config()`` still works. ``ports`` names the private-preview
-        ports the token may reach (omitted = all, ``[]`` = none). ``ttl_seconds``
+        ports the token may reach (omitted = all, ``[]`` = none); the sandbox
+        daemon's ports 2280, 2281 and 22220 are never preview ports and are
+        refused with :class:`~daytona.v2.errors.BadRequestError` before any
+        request. ``ttl_seconds``
         overrides the deployment's default lifetime, capped server-side; an
         unknown operation or an over-cap TTL is a 400, never a silent
         narrowing. The token cannot be refreshed and cannot mint further
@@ -402,7 +405,9 @@ class Sandbox:
         if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
-        changes nothing. A sandbox that is deleted or being deleted raises
+        changes nothing. An empty label key is refused with
+        :class:`~daytona.v2.errors.BadRequestError` before any request. A
+        sandbox that is deleted or being deleted raises
         :class:`ConflictError` (``CONFLICT``).
         """
         return self._bridge.call(lambda: self._impl.set_labels(labels))

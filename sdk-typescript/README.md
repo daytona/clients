@@ -434,7 +434,9 @@ Use `sandbox.setLabels(labels)` to replace the label set. Pass `{}` to clear
 every label but `name`. It resolves to the applied label map. The reserved
 `name` label that `findByName()` matches is kept unless the new labels set it:
 the sandbox is read first to learn it (one more request, not atomic with the
-write), and it cannot be removed.
+write), and it cannot be removed. A label key must not be empty:
+`setLabels()`, the `create*()` methods and `search({ labels })` refuse one with
+`BadRequestError` before any request.
 
 ```ts
 const labels = await sandbox.setLabels({ team: 'sdk', env: 'ci' })
@@ -466,6 +468,12 @@ const result = await sandbox.volumes.pull(volume.id, {
 `VolumeMount` names a `volumeId`, `mountPath`, optional `subpath` and optional
 `readOnly`. Only bucket volumes support `readOnly: true`. macOS accepts
 read-write disk volumes only, without `persistent: true`.
+
+`mountPath` is an absolute path with no `..` component. The API normalizes it
+(repeated slashes, `.` components and a trailing slash are removed) and
+refuses `/`, any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+`/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or
+`/usr`, and one with a control character, with `BadRequestError` (400).
 
 Create a volume with `daytona.v2.volumes.create({ name: 'data' })`; the server
 chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
@@ -931,7 +939,10 @@ the additional remote/branch controls to the sandbox.
 `previewLink(port)`,
 `signedPreviewLink(port, { expiresInSeconds })`,
 `expireSignedPreviewLink(port, token)`, paginated `listEndpoints(options)`, and
-`iterEndpoints(options)`.
+`iterEndpoints(options)`. The sandbox daemon's ports 2280, 2281 and 22220 are
+never preview ports: `expose()`, `previewLink()`, `signedPreviewLink()` and
+`createAccessToken({ ports })` refuse them with `BadRequestError` before any
+request.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
 exported from `@daytona/sdk/v2`) with its requests.
@@ -971,11 +982,11 @@ Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
 `status()` and `waitUntilReady()` throw `NotFoundError` (404).
 
 Some environment variable names are reserved for the platform, among them
-every `DAYTONA_*` name other than `DAYTONA_SANDBOX_TOKEN`,
-`DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`. A
-sandbox `env` that sets a reserved name fails the create with `BadRequestError`
-(400) naming the key; the same rule applies to the keys an
-`updateEnv()` call sets or unsets.
+every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
+and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
+that sets a reserved name fails the create with `BadRequestError` (400) naming
+the key. `updateEnv()` also refuses reserved names in the keys it sets or
+unsets, by the sandbox's own list, which still accepts `DAYTONA_SANDBOX_TOKEN`.
 
 ### Waiting for lifecycle states
 

@@ -380,8 +380,8 @@ never prompts:
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
   inclusive; end bounds are exclusive. Values are RFC3339 timestamps.
 - Sandbox search accepts repeatable `--label KEY=VALUE`, merged with
-  `--labels '{"key":"value"}'`; conflicting values across the two flags
-  are a usage error (exit 2). `--region` is checked against the region
+  `--labels '{"key":"value"}'`; conflicting values across the two flags,
+  or an empty label key, are a usage error (exit 2). `--region` is checked against the region
   catalog: an unknown region is a usage error (exit 2), and a parent expands
   to itself and its children in the search API's `region_ids` filter.
 - Organization and project names (`org create`, `org update --name`,
@@ -403,6 +403,11 @@ never prompts:
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
   `--permission`, `--allow-domain`, …). `--label` and `--env` take one
   `KEY=VALUE` each and keep commas inside the value; repeat them for more.
+  An empty key is a usage error (exit 2). `sandbox create --env` cannot set
+  a name the platform reserves, among them every `DAYTONA_*` name other than
+  `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`
+  (`DAYTONA_SANDBOX_TOKEN` included): the API refuses the create, naming the
+  key.
 - Long operations wait for completion by default; `--no-wait` returns the
   accepted resource immediately. `sandbox create*`, `start`, `stop`, `pause`,
   `resume`, `fork` and `delete` print the sandbox as `sandbox get` does in both
@@ -431,7 +436,15 @@ never prompts:
   `sandbox create-macos --volume` takes `VOLUME:MOUNT_PATH[:SUBPATH]`:
   a macOS sandbox mounts disk volumes read-write only. Use the `volumes`
   array in `--file` JSON for the same options; an explicit `--volume`
-  replaces that array.
+  replaces that array. `MOUNT_PATH` is an absolute path with no `..`
+  component; the API normalizes it (repeated slashes, `.` components and a
+  trailing slash are removed) and refuses `/`, any path on or beneath
+  `/bin`, `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`,
+  `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`, and one
+  with a control character.
+- `sandbox port preview-url` refuses the sandbox daemon's ports 2280, 2281
+  and 22220, which are never preview ports, as a usage error (exit 2) before
+  any request; `preview-url expire` still takes them.
 - `sandbox create --allow-domain api.example.com --allow-cidr 10.1.0.0/16`
   (or `sandbox create-macos` with the same flags) sets a `network_policy`: a domain list implies default-deny (allowed
   domains are reachable on HTTP/HTTPS only) and `--allow-cidr` opens addresses

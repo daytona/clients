@@ -27,6 +27,7 @@ from ._core import (
     expect_port_list,
     page_params,
     parse_timestamp,
+    preview_port,
 )
 from ._gen.api import SandboxPort as PreviewEndpointDto
 from ._transport import AsyncTransport
@@ -193,12 +194,13 @@ class AsyncPortsService:
         A sandbox that is deleted or being deleted raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
-        :param port: TCP port inside the sandbox (1–65535).
+        :param port: TCP port inside the sandbox (1–65535, except the sandbox
+            daemon's reserved ports 2280, 2281 and 22220).
         :param public: When ``True`` the endpoint is publicly accessible
             without any credential.
         :returns: :class:`~daytona.v2.types.PreviewEndpoint` with the URL.
         """
-        _assert_port(port)
+        preview_port(port)
         if not isinstance(public, bool):
             raise create_error("public must be a boolean", 400, "BAD_REQUEST", "SDK")
         payload = expect_preview_endpoint(
@@ -221,11 +223,15 @@ class AsyncPortsService:
         Token contents are not used to infer access permissions.
 
         A port that is not exposed yet is exposed first (privately, as
-        :meth:`expose` does): this call registers a preview endpoint. A sandbox
-        that is deleted or being deleted raises
-        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
+        :meth:`expose` does): this call registers a preview endpoint. The
+        sandbox daemon's ports 2280, 2281 and 22220 are never preview ports:
+        they are refused with :class:`~daytona.v2.errors.BadRequestError`
+        before any request, as by :meth:`expose` and
+        :meth:`signed_preview_link`. A sandbox that is deleted or being
+        deleted raises :class:`~daytona.v2.errors.ConflictError`
+        (``CONFLICT``).
         """
-        _assert_port(port)
+        preview_port(port)
         try:
             resolved = _preview_endpoint_from_api(
                 expect_preview_endpoint(
@@ -271,7 +277,8 @@ class AsyncPortsService:
         A sandbox that is deleted or being deleted raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
-        :param port: TCP port inside the sandbox (1–65535).
+        :param port: TCP port inside the sandbox (1–65535, except the sandbox
+            daemon's reserved ports 2280, 2281 and 22220).
         :param expires_in_seconds: Requested token lifetime in seconds (positive
             integer). Omit for the server default (60 s).
         :returns: :class:`~daytona.v2.types.SignedPreviewLink` with ``url``,
@@ -282,7 +289,7 @@ class AsyncPortsService:
             link = await sandbox.ports.signed_preview_link(8080, expires_in_seconds=300)
             # Hand link.url to a browser or another tool — no headers needed.
         """
-        _assert_port(port)
+        preview_port(port)
         if expires_in_seconds is not None:
             _assert_signed_preview_ttl(expires_in_seconds)
         body = {} if expires_in_seconds is None else {"expires_in_seconds": expires_in_seconds}

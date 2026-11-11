@@ -609,7 +609,8 @@ class Daytona:
 
         Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
         cursor, an unknown ``sandbox_class``/``sort`` value or region, a
-        non-object ``labels`` or a ``min`` above its ``max``; 501
+        non-object ``labels`` or one with an empty key, or a ``min`` above its
+        ``max``; 501
         (:class:`SearchNotConfiguredError` with
         ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
         disabled; 503 (:class:`SearchUnavailableError` with

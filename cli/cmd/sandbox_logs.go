@@ -111,13 +111,13 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview-url <sandbox-id> <port>",
 		Short: "Mint a preview URL for a sandbox port",
-		Long:  "Mint a preview URL for a sandbox port.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
+		Long:  "Mint a preview URL for a sandbox port. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flags().Changed("ttl") && !signed {
 				return cerr.Usage("--ttl requires --signed")
 			}
-			port, err := parsePortArg(args[1])
+			port, err := parsePreviewPortArg(args[1])
 			if err != nil {
 				return err
 			}
@@ -198,6 +198,22 @@ func redactInError(err error, secret string) error {
 		out.Hint, out.Source = strings.ReplaceAll(ce.Hint, secret, "[redacted]"), ce.Source
 	}
 	return out
+}
+
+// reservedPreviewPorts are the sandbox daemon's own ports: the API never
+// makes them preview ports.
+var reservedPreviewPorts = map[int]bool{2280: true, 2281: true, 22220: true}
+
+// parsePreviewPortArg is parsePortArg for a port a preview URL is minted for.
+func parsePreviewPortArg(raw string) (int, error) {
+	port, err := parsePortArg(raw)
+	if err != nil {
+		return 0, err
+	}
+	if reservedPreviewPorts[port] {
+		return 0, cerr.Usage("port %d is reserved for the sandbox daemon and is never a preview port", port)
+	}
+	return port, nil
 }
 
 // parsePortArg checks a <port> argument (1-65535) before any request.

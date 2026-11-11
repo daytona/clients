@@ -9,6 +9,7 @@ import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import type { HttpClientOptions, TransportAuth } from './http.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertPreviewPort } from './Ports.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import { deepFrozen } from './frozen.js'
 import { isRfc3339 } from './rfc3339.js'
@@ -106,9 +107,8 @@ export class SandboxAuth {
     const ports: unknown = options.ports
     if (ports !== undefined && !Array.isArray(ports)) throw badRequest('ports must be an array of port numbers')
     for (const port of (ports ?? []) as unknown[]) {
-      if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
-        throw badRequest(`port must be an integer in 1..65535, got ${port}`)
-      }
+      if (typeof port !== 'number') throw badRequest(`port must be an integer in 1..65535, got ${String(port)}`)
+      assertPreviewPort(port)
     }
     if (options.ttlSeconds !== undefined && (!Number.isInteger(options.ttlSeconds) || options.ttlSeconds <= 0)) {
       throw badRequest('ttlSeconds must be a positive integer')

@@ -49,6 +49,7 @@ from ._core import (
     TransportPayload,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
+    check_label_keys,
     enum_str,
     expect_object,
     expect_system_metrics,
@@ -61,6 +62,7 @@ from ._core import (
     parse_snapshot,
     parse_timestamp,
     path_segment,
+    preview_port,
     rfc3339,
     sandbox_state,
     wait_budget_seconds,
@@ -828,7 +830,9 @@ class AsyncSandbox:
         if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
-        changes nothing. A sandbox that is deleted or being deleted raises
+        changes nothing. An empty label key is refused with
+        :class:`~daytona.v2.errors.BadRequestError` before any request. A
+        sandbox that is deleted or being deleted raises
         :class:`ConflictError` (``CONFLICT``).
         """
         body = _validated_labels(labels)
@@ -1847,7 +1851,10 @@ class AsyncSandbox:
         ``toolbox:exec`` covers the git operations except writing git config:
         ``git.set_config()`` with such a token raises :class:`ForbiddenError`
         (403); ``git.get_config()`` still works. ``ports`` names the private-preview
-        ports the token may reach (omitted = all, ``[]`` = none). ``ttl_seconds``
+        ports the token may reach (omitted = all, ``[]`` = none); the sandbox
+        daemon's ports 2280, 2281 and 22220 are never preview ports and are
+        refused with :class:`~daytona.v2.errors.BadRequestError` before any
+        request. ``ttl_seconds``
         overrides the deployment's default lifetime, capped server-side; an
         unknown operation or an over-cap TTL is a 400, never a silent
         narrowing. The token cannot be refreshed and cannot mint further
@@ -1865,9 +1872,7 @@ class AsyncSandbox:
         if ports is not None:
             if isinstance(ports, (str, bytes)) or not isinstance(ports, Sequence):
                 raise create_error("ports must be a list of port numbers", 400, "BAD_REQUEST", "SDK")
-            for port in ports:
-                _assert_port(port)
-            body["ports"] = list(ports)
+            body["ports"] = [preview_port(port) for port in ports]
         if ttl_seconds is not None:
             if not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
                 raise create_error("ttl_seconds must be a positive integer", 400, "BAD_REQUEST", "SDK")
@@ -2217,11 +2222,6 @@ def _parse_activity_clock(value: Optional[datetime]) -> Optional[datetime]:
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
-def _assert_port(port: int) -> None:
-    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
-        raise create_error(f"port must be an integer in 1..65535, got {port!r}", 400, "BAD_REQUEST", "SDK")
-
-
 def _sandbox_toolbox_base(sandbox_data: Mapping[str, JsonValue]) -> Optional[str]:
     value = sandbox_data.get("toolbox_proxy_url") or sandbox_data.get("toolboxProxyUrl")
     return str(value).rstrip("/") if isinstance(value, str) and value else None
@@ -2274,6 +2274,7 @@ def _validated_labels(labels: object) -> Dict[str, str]:
                 "labels must be a mapping of string keys to string values", 400, "BAD_REQUEST", "SDK"
             )
         validated[key] = value
+    check_label_keys(validated)
     return validated
 
 

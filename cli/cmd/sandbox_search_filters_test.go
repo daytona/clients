@@ -34,6 +34,7 @@ func TestSandboxSearch_refusesLabelsWhenMalformedOrConflicting(t *testing.T) {
 		{"--labels", `{"team":"infra"}`, "--label", "team=app"},
 		{"--label", "bad"}, {"--label", "=value"},
 		{"--labels", `{"team":1}`}, {"--labels", `{"team":null}`}, {"--labels", `[]`}, {"--labels", `null`},
+		{"--labels", `{"":"x"}`},
 	} {
 		t.Run(strings.Join(flags, " "), func(t *testing.T) {
 			// Given

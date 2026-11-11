@@ -45,7 +45,7 @@ import {
 import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertIfMatchOptions, assertKnownOptions, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, assertLabelKeys, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
 import type { IfMatchOptions } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
@@ -232,6 +232,7 @@ function labelsBody(labels: unknown): Record<string, string> {
   if (!isPlainStringRecord(labels)) throw badRequest('setLabels requires a Record<string, string>')
   const output = emptyStringMap()
   for (const [key, value] of Object.entries(labels)) output[key] = value
+  assertLabelKeys(output)
   return output
 }
 
@@ -1127,7 +1128,8 @@ export class Sandbox {
    * `name` key the sandbox is read first (one more request, which also
    * refreshes this handle's metadata) and the `name` label it reports, if any,
    * is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
-   * be removed. A sandbox that is deleted or being deleted throws
+   * be removed. An empty label key is refused with `BadRequestError` before
+   * any request. A sandbox that is deleted or being deleted throws
    * `ConflictError` (`CONFLICT`).
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {

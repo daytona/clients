@@ -356,8 +356,8 @@ export class Daytona {
    * both pages or on neither, and creates or deletes mid-walk shift later pages.
    *
    * Errors: 400 ({@link BadRequestError}) for a malformed or mismatched cursor,
-   * an unknown `states`/`sandboxClass`/`sort` value or region, a non-object `labels` or a `min`
-   * above its `max`; 501 ({@link SearchNotConfiguredError} with
+   * an unknown `states`/`sandboxClass`/`sort` value or region, a non-object `labels` or one
+   * with an empty key, or a `min` above its `max`; 501 ({@link SearchNotConfiguredError} with
    * `code === 'SEARCH_NOT_CONFIGURED'`) when search is not configured;
    * 503 ({@link SearchUnavailableError} with `code === 'SEARCH_UNAVAILABLE'`)
    * when search is unavailable. The error body is the unified envelope

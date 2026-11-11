@@ -279,6 +279,14 @@ export interface NetworkPolicyInput {
 
 export interface VolumeMount {
   readonly volumeId: string
+  /**
+   * An absolute path with no `..` component. The API normalizes it (repeated
+   * slashes, `.` components and a trailing slash are removed) and refuses `/`
+   * and any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+   * `/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys`
+   * or `/usr`, or one with a control character: the create throws
+   * `BadRequestError` (400).
+   */
   readonly mountPath: string
   readonly subpath?: string
   /** Mount without write access. Only bucket volumes support `true`. */
@@ -657,7 +665,11 @@ export interface CreateAccessTokenOptions {
    * `git.getConfig()` still works.
    */
   readonly operations?: readonly string[]
-  /** Private-preview ports the token may reach. Omitted = all; `[]` = none. */
+  /**
+   * Private-preview ports the token may reach. Omitted = all; `[]` = none.
+   * The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports
+   * and are refused with `BadRequestError` before any request.
+   */
   readonly ports?: readonly number[]
   /** Token lifetime in seconds; omitted = the deployment default, capped server-side. */
   readonly ttlSeconds?: number

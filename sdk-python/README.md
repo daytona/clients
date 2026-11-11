@@ -480,7 +480,9 @@ start is a `date`. Collection fields on result dataclasses are tuples,
 including `items` on list, search and log pages; mapping fields remain plain dicts.
 
 Use `sandbox.set_labels({...})` to replace the label set (`{}` clears every
-label but `name`). The reserved `name` label that `find_by_name()` matches is
+label but `name`). A label key must not be empty: `set_labels()`, the
+`create*()` methods and `search(labels=...)` refuse one with `BadRequestError`
+before any request. The reserved `name` label that `find_by_name()` matches is
 kept unless the new labels set it: the sandbox is read first to learn it (one
 more request, not atomic with the write), and it cannot be removed. Use `sandbox.entrypoint_logs()` to read the sandbox's
 entrypoint-session log as plain text. On `AsyncDaytona` prefix these with
@@ -510,6 +512,12 @@ sandbox = d.v2.create(
     volumes=[VolumeMount(volume_id=volume.id, mount_path="/mnt/data", subpath="project")],
 )
 ```
+
+`mount_path` is an absolute path with no `..` component. The API normalizes
+it (repeated slashes, `.` components and a trailing slash are removed) and
+refuses `/`, any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+`/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or
+`/usr`, and one with a control character, with `BadRequestError` (400).
 
 `create_from_build(..., volumes=[...])` accepts the same mounts. To mount an
 S3 bucket you own, create a bucket volume for it in the dashboard or with
@@ -1001,7 +1009,10 @@ otherwise refuse it. `status()` returns a `GitStatus`; `history()`,
 visibility of an exposed port), `preview_link(port)`,
 `signed_preview_link(port, expires_in_seconds=...)`,
 `expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
-`iter_endpoints(...)`.
+`iter_endpoints(...)`. The sandbox daemon's ports 2280, 2281 and 22220 are
+never preview ports: `expose()`, `preview_link()`, `signed_preview_link()` and
+`create_access_token(ports=...)` refuse them with `BadRequestError` before any
+request.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.
@@ -1041,11 +1052,11 @@ Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
 `status()` and `wait_until_ready()` raise `NotFoundError` (404).
 
 Some environment variable names are reserved for the platform, among them
-every `DAYTONA_*` name other than `DAYTONA_SANDBOX_TOKEN`,
-`DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`. A
-sandbox `env` that sets a reserved name fails the create with `BadRequestError`
-(400) naming the key; the same rule applies to the keys an
-`update_env()` call sets or unsets.
+every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
+and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
+that sets a reserved name fails the create with `BadRequestError` (400) naming
+the key. `update_env()` also refuses reserved names in the keys it sets or
+unsets, by the sandbox's own list, which still accepts `DAYTONA_SANDBOX_TOKEN`.
 
 ### Waiting for lifecycle states
 

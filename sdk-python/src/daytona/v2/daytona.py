@@ -52,6 +52,7 @@ from ._core import (
     RequestSpec,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
+    check_label_keys,
     expect_object,
     finite_number,
     gib_to_mib,
@@ -1088,7 +1089,8 @@ class AsyncDaytona:
 
         Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
         cursor, an unknown ``sandbox_class``/``sort`` value or region, a
-        non-object ``labels`` or a ``min`` above its ``max``; 501
+        non-object ``labels`` or one with an empty key, or a ``min`` above its
+        ``max``; 501
         (:class:`SearchNotConfiguredError` with
         ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
         disabled; 503 (:class:`SearchUnavailableError` with
@@ -1661,6 +1663,8 @@ def _labels_with_name(config: CreateConfig) -> dict[str, str] | None:
     the name :meth:`AsyncDaytona.find_by_name` matches on.
     """
     labels = _string_map(config.get("labels"))
+    if labels is not None:
+        check_label_keys(labels)
     named = _named_create(config.get("name"))
     if named is None:
         return labels

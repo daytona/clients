@@ -1852,6 +1852,31 @@ def signal_spec(
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 
+# The sandbox daemon's own ports: the API never makes them preview ports.
+RESERVED_PREVIEW_PORTS: Final = (2280, 2281, 22220)
+
+
+def preview_port(port: object) -> int:
+    """A port a preview endpoint, preview URL or access token may name:
+    1-65535, except the sandbox daemon's reserved ports."""
+    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+        raise create_error(f"port must be an integer in 1..65535, got {port!r}", 400, "BAD_REQUEST", "SDK")
+    if port in RESERVED_PREVIEW_PORTS:
+        raise create_error(
+            f"port {port} is reserved for the sandbox daemon and is never a preview port",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return port
+
+
+def check_label_keys(labels: Mapping[str, str]) -> None:
+    """Refuse an empty label key before any request: the API refuses it."""
+    if "" in labels:
+        raise create_error("label keys must not be empty", 400, "BAD_REQUEST", "SDK")
+
+
 # The largest terminal dimension the sandbox takes (an unsigned 16-bit value).
 TERMINAL_DIMENSION_MAX: Final = 65535
 
@@ -2260,6 +2285,7 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
                 raise create_error("labels must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
             if not value:
                 raise create_error("labels must name at least one pair", 400, "BAD_REQUEST", "SDK")
+            check_label_keys(value)
             params[wire] = json.dumps(dict(value), separators=(",", ":"))
         elif f.name in _SEARCH_TIMESTAMP_FIELDS:
             params[wire] = query_text(search_timestamp(value), f.name)
