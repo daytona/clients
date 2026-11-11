@@ -462,6 +462,20 @@ def test_a_source_redirected_by_a_symlink_after_it_was_added_is_refused(tmp_path
         write_builder_context(builder, tmp_path / "context.tar")
 
 
+def test_a_source_whose_parent_was_swapped_for_a_symlink_is_refused(tmp_path: Path) -> None:
+    # Given proj/src added to a builder, then proj replaced by a link to
+    # another tree that also has a src.
+    (tmp_path / "other" / "src").mkdir(parents=True)
+    (tmp_path / "other" / "src" / "secret.txt").write_text("s")
+    (tmp_path / "proj" / "src").mkdir(parents=True)
+    builder = ImageBuilder.from_registry("alpine").add_local_dir(tmp_path / "proj" / "src", "/app")
+    (tmp_path / "proj").rename(tmp_path / "proj.old")
+    (tmp_path / "proj").symlink_to(tmp_path / "other", target_is_directory=True)
+    # When archived, then the redirected source is refused, not followed.
+    with pytest.raises(BadRequestError, match="local source changed since it was added"):
+        write_builder_context(builder, tmp_path / "context.tar")
+
+
 @pytest.mark.anyio
 async def test_a_temporary_root_inside_the_source_is_not_archived(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

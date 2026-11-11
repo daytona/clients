@@ -157,10 +157,11 @@ def collect_builder_entries(builder: ImageBuilder, cancel: Event | None = None) 
                 "BAD_REQUEST",
                 "SDK",
             ) from error
-        # A path that was not a link when it was added and is one now has been
-        # redirected: refused, so a swap between declaration and build cannot
-        # pull in another tree.
-        if not source.link and os.path.islink(source.path):
+        # A path that was not a link when it was added and is one now, or whose
+        # real path moved (an ancestor swapped for a link), has been redirected:
+        # refused, so a swap between declaration and build cannot pull in
+        # another tree. TypeScript refuses the same.
+        if not source.link and (os.path.islink(source.path) or os.path.realpath(source.path) != source.real):
             raise create_error(
                 f"local source changed since it was added: {json.dumps(str(source.path), ensure_ascii=False)}",
                 400,

@@ -79,9 +79,11 @@ export async function archiveBuilder(builder: ImageBuilder): Promise<Archive> {
     // that would dangle under `.daytona-context/<n>/`. Links inside an added
     // directory are archived as links (contextEntries).
     let real: string
+    let realBytes: Buffer
     let info: import('node:fs').Stats
     try {
-      real = decodeContextPath(await fs.realpath(source.localPath, { encoding: 'buffer' }))
+      realBytes = await fs.realpath(source.localPath, { encoding: 'buffer' })
+      real = decodeContextPath(realBytes)
       info = await fs.stat(real)
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP')) {
@@ -89,10 +91,11 @@ export async function archiveBuilder(builder: ImageBuilder): Promise<Archive> {
       }
       throw error
     }
-    // A path that was not a link when it was added and is one now has been
-    // redirected: refused, so a swap between declaration and build cannot pull
-    // in another tree (as Python refuses it).
-    if (!source.link && (await fs.lstat(source.localPath).then((stats) => stats.isSymbolicLink(), () => false))) {
+    // A path that was not a link when it was added and is one now, or whose
+    // real path moved (an ancestor swapped for a link), has been redirected:
+    // refused, so a swap between declaration and build cannot pull in another
+    // tree (as Python refuses it).
+    if (!source.link && (!realBytes.equals(source.real) || await fs.lstat(source.localPath).then((stats) => stats.isSymbolicLink(), () => false))) {
       throw badRequest(`local source changed since it was added: ${JSON.stringify(source.localPath)}`)
     }
     switch (source.kind) {

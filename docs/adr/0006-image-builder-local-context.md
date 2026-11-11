@@ -144,7 +144,8 @@ A source path that is
 a symbolic link when it is added is followed to its current target, as `docker
 build` follows the context path it is given: a symlinked `requirements.txt` is
 copied as its content. A source path that was not a symbolic link when it was
-added and is one at build time is refused with `local source changed since it
+added, and at build time is one or resolves to another real path (a parent
+directory swapped for a link), is refused with `local source changed since it
 was added: "<path>"`, so a swap between declaration and build cannot redirect
 the copy to another tree. Symbolic
 links inside an added directory are archived as links; one whose target is

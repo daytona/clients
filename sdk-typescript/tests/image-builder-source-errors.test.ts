@@ -208,3 +208,22 @@ posixNonRoot('refuses a source redirected by a symlink after it was added', asyn
     await expect(archiveBuilder(builder)).rejects.toThrow(/local source changed since it was added/)
   } finally { await fs.rm(base, { recursive: true, force: true }) }
 })
+
+posixNonRoot('refuses a source whose parent was swapped for a symlink after it was added', async () => {
+  // Given proj/src added to a builder, then proj replaced by a link to another
+  // tree that also has a src.
+  const fs = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const base = await fs.mkdtemp(join(tmpdir(), 'swapped-'))
+  try {
+    await fs.mkdir(join(base, 'other', 'src'), { recursive: true })
+    await fs.writeFile(join(base, 'other', 'src', 'secret.txt'), 's')
+    await fs.mkdir(join(base, 'proj', 'src'), { recursive: true })
+    const builder = ImageBuilder.fromRegistry('alpine').addLocalDir(join(base, 'proj', 'src'), '/app')
+    await fs.rename(join(base, 'proj'), join(base, 'proj.old'))
+    await fs.symlink(join(base, 'other'), join(base, 'proj'))
+    // When archived, then the redirected source is refused, not followed.
+    await expect(archiveBuilder(builder)).rejects.toThrow(/local source changed since it was added/)
+  } finally { await fs.rm(base, { recursive: true, force: true }) }
+})

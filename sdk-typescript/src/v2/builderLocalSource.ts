@@ -16,6 +16,8 @@ export type LocalSource = {
   readonly archivePath: string
   /** Whether the declared path itself was a symbolic link (see contextArchive). */
   readonly link: boolean
+  /** Its real path when added, as bytes (empty for a link): a non-link source whose real path differs at build time had an ancestor swapped (see contextArchive). */
+  readonly real: Uint8Array
 }
 
 /** @internal */
@@ -69,5 +71,7 @@ export function localSource(localPath: string, kind: LocalSource['kind'], positi
   // and glob matching, even in JSON form.
   const filename = /[\x00-\x1f\x7f-\x9f$\\*?\[\]'"]/.test(basename) ? 'file' : basename
   const link = fs.lstatSync(absolute, { throwIfNoEntry: false })?.isSymbolicLink() ?? false
-  return Object.freeze({ localPath: absolute, kind, archivePath: kind === 'file' ? `${archiveRoot}/${filename}` : archiveRoot, link })
+  // Native, as the build's fs.promises.realpath; a followed link needs none.
+  const real = link ? new Uint8Array() : fs.realpathSync.native(absolute, { encoding: 'buffer' })
+  return Object.freeze({ localPath: absolute, kind, archivePath: kind === 'file' ? `${archiveRoot}/${filename}` : archiveRoot, link, real })
 }
