@@ -938,7 +938,7 @@ describe('Daytona', () => {
       }),
     )
     const error = status === 404 ? new DaytonaNotFoundError('deleted', 404) : new DaytonaError('unavailable', 500)
-    mockSandboxApi.getSandbox.mockRejectedValue(error)
+    mockSandboxApi.getSandbox.mockRejectedValueOnce(error)
     if (status === 404) {
       await instance.list().next()
       expect(mockSandboxCtor.mock.calls.at(-1)?.[0].id).toBe('live')

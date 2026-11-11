@@ -456,7 +456,7 @@ class TestDaytonaGetAndList:
             assert len(values) == 1
             assert values[0].id == sandbox_dto.id
         else:
-            with pytest.raises(Exception):
+            with pytest.raises(DaytonaError):
                 next(daytona.list())
 
     def test_list_hydrates_gang_nodes(self, env_with_api_key, sandbox_dto):

@@ -395,6 +395,43 @@ describe('Process', () => {
     expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
   })
 
+  it('stops forwarding buffered output when cancellation returns before socket closure', async () => {
+    const { process } = await makeProcess()
+    const ws = { terminate: jest.fn() }
+    mockCreateSandboxWebSocket.mockResolvedValue(ws)
+    let markStreaming!: () => void
+    const streaming = new Promise<void>((resolve) => {
+      markStreaming = resolve
+    })
+    let emitOutput!: (chunk: string) => void
+    let emitError!: (chunk: string) => void
+    let finishStream!: () => void
+    mockStdDemuxStream.mockImplementation(
+      (_socket, stdout, stderr) =>
+        new Promise<void>((resolve) => {
+          emitOutput = stdout
+          emitError = stderr
+          finishStream = resolve
+          markStreaming()
+        }),
+    )
+    const onStdout = jest.fn()
+    const onStderr = jest.fn()
+    const controller = new AbortController()
+    const logs = process.getSessionCommandLogs('s1', 'c1', onStdout, onStderr, controller.signal)
+    await streaming
+    emitOutput('before cancellation')
+    controller.abort()
+    await logs
+    // Simulate a later close event flushing the demuxer's buffered bytes.
+    emitOutput('buffered stdout')
+    emitError('buffered stderr')
+    finishStream()
+    expect(onStdout.mock.calls).toEqual([['before cancellation']])
+    expect(onStderr).not.toHaveBeenCalled()
+    expect(ws.terminate).toHaveBeenCalledTimes(1)
+  })
+
   it('closes a socket returned after its log request was already aborted', async () => {
     const { process } = await makeProcess()
     let connect!: (ws: unknown) => void

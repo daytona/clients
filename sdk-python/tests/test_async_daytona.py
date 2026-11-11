@@ -785,7 +785,7 @@ class TestAsyncDaytonaGetAndList:
             assert len(values) == 1
             assert values[0].id == sandbox_dto.id
         else:
-            with pytest.raises(Exception):
+            with pytest.raises(DaytonaError):
                 await anext(daytona.list())
 
     @pytest.mark.asyncio
