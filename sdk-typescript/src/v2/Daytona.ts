@@ -225,7 +225,7 @@ export class Daytona {
     * `resources.cpu` (cores), `resources.memory` (GiB) and `resources.disk` (GiB)
     * size the sandbox; each omitted
    * axis uses the Mac model's default size (`defaultSize` in `macModels.list()`);
-   * a create from a captured image gets the image's disk size, and a smaller
+   * a create from a captured image that omits `disk` gets the image's disk size, and a smaller
    * `disk` is refused. The size is fixed at creation, and the sandbox reports
    * it once a Mac takes the sandbox. `name`,
    * `idempotencyKey`, `waitSeconds` and `createTimeoutSeconds` behave as on

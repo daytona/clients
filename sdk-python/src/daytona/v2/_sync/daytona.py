@@ -351,7 +351,7 @@ class Daytona:
         cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
         macOS included; memory and disk must convert to whole MiB). Each
         omitted value uses the Mac model's default size (``default_size`` in
-        ``mac_models.list()``); a create from a captured image gets the
+        ``mac_models.list()``); a create from a captured image that omits ``disk`` gets the
         image's disk size, and a smaller ``disk`` is refused. The size is fixed
         at creation, and the sandbox reports it once a Mac takes the sandbox.
 

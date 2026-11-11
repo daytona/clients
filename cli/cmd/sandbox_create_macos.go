@@ -19,7 +19,7 @@ func newSandboxCreateMacosCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create-macos", short: "Create a macOS sandbox on a reserved Mac",
 		long: "Create a macOS sandbox on a reserved Mac (POST /sandboxes/macos). The SDK twin is create_macos(image, …).\n" +
-			"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image gets the image's disk size.\n" +
+			"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image without --disk gets the image's disk size.\n" +
 			"Stop and pause need --persistent. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it; a Mac failure can lose its most recent writes.\n" +
 			"Examples:\n" +
 			"  daytona sandbox create-macos --image base-macos\n" +

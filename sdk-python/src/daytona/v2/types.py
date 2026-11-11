@@ -435,7 +435,7 @@ class MacosResources:
     ``memory`` is GiB, at least 4; ``disk`` is GiB, at least 80, macOS included.
     Memory and disk must convert to a whole number of MiB (``value * 1024``).
     Omitted values use the model's ``default_size`` (``mac_models.list()``); a
-    create from a captured image gets the image's disk size. The size is fixed
+    create from a captured image that omits ``disk`` gets the image's disk size. The size is fixed
     at creation.
     """
 

@@ -649,7 +649,9 @@ or through auto-reserve, finds no fitting Mac in the region). Buying a
 reservation when the organization holds its Mac reservation limit throws
 `LimitExceededError` with `limit === 'max_mac_reservations'` instead.
 `MAC_DISK_FULL` never buys a reservation. Starting a stopped macOS sandbox
-(`start()`) uses its disk and size on any Mac of the organization. With no Mac
+(`start()`) uses its disk and size on any Mac of the organization; it throws
+`NO_FREE_SLOT` when no Mac has space for its size and `MAC_DISK_FULL` when the
+Mac with space is low on free disk space. With no Mac
 reservation in the region and auto-reserve on, the start buys one, so it can
 fail as a create that buys one does, `LimitExceededError` with
 `limit === 'max_mac_reservations'` included. A start, `fork()` or

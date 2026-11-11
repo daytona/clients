@@ -73,7 +73,7 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 		"--reservation ID|new",
 		"--auto-renew renew while a sandbox is active; create-macos requires --reservation new",
 		"--persistent keep the disk and machine across stop/start on any Mac of the organization, and memory across pause/resume; delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it, though a Mac failure can lose its most recent writes; an ephemeral sandbox ends with its reservation or a failed Mac.",
-		"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image gets the image's disk size.",
+		"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image without --disk gets the image's disk size.",
 		"--on-lifecycle-timeout ACTION action when --lifecycle-timeout elapses: delete, or stop with --persistent",
 		"--on-idle-timeout ACTION action when --idle-timeout elapses: delete, or stop with --persistent",
 		"--lifecycle-timeout DURATION wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start",
