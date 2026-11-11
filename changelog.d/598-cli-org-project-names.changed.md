@@ -2,4 +2,5 @@
 `project create` and `project update --name` refuse, before any request, a
 name that is blank, longer than 64 characters after trimming, contains control
 characters, or is the reserved project name `default`, as the API does. A
-rename to the current name is still sent when that name is longer.
+rename that sends the current name back unchanged is always sent, as the API
+accepts it.

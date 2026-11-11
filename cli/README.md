@@ -388,7 +388,7 @@ never prompts:
   `project create`, `project update --name`) are 1 to 64 characters after
   trimming, with no control characters, and a project cannot be named
   `default`. Any other name is a usage error (exit 2) before any request;
-  a rename may still send the current name unchanged when it is longer.
+  a rename that sends the current name back unchanged is always sent.
 - Billing amounts are integer cents plus a currency. One-time top-ups use
   `--amount-cents`; automatic top-up and low-balance settings use
   `--threshold-cents` (and automatic top-up also uses `--target-cents`).

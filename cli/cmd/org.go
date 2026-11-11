@@ -284,7 +284,7 @@ shows a picker at a terminal.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
-			if err := checkNewOrgProjectName("organization", args[0]); err != nil {
+			if err := checkOrgProjectName("organization", args[0]); err != nil {
 				return err
 			}
 			mc, err := a.Client(cmd.Context())
@@ -300,7 +300,7 @@ shows a picker at a terminal.`,
 	})
 	upd := &cobra.Command{
 		Use: "update <id|name> --name <new>", Short: "Rename an organization",
-		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\nthe current name is accepted unchanged even when it is longer.",
+		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\nthe current name sent back unchanged is always accepted.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -308,10 +308,7 @@ shows a picker at a terminal.`,
 			if name == "" {
 				return cerr.Usage("--name is required")
 			}
-			tooLong, err := checkOrgProjectName("organization", name)
-			if err != nil {
-				return err
-			}
+			refusal := checkOrgProjectName("organization", name)
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
 				return err
@@ -320,7 +317,7 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			if err := checkRenamedOrgName(cmd.Context(), mc, id, name, tooLong); err != nil {
+			if err := checkRenamedOrgName(cmd.Context(), mc, id, name, refusal); err != nil {
 				return err
 			}
 			var out api.Raw[gen.Organization]

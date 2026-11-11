@@ -157,7 +157,7 @@ func newProjectCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
-			if err := checkNewOrgProjectName("project", args[0]); err != nil {
+			if err := checkOrgProjectName("project", args[0]); err != nil {
 				return err
 			}
 			org, err := a.RequireOrg(ctx, pickOrg(a))
@@ -177,7 +177,7 @@ func newProjectCmd() *cobra.Command {
 	})
 	upd := &cobra.Command{
 		Use: "update <id|name> --name <new>", Short: "Rename a project",
-		Long: "Rename a project. The name is 1 to 64 characters after trimming, with no control characters, and\nnot `default`; the current name is accepted unchanged even when it is longer.",
+		Long: "Rename a project. The name is 1 to 64 characters after trimming, with no control characters, and\nnot `default`; the current name sent back unchanged is always accepted.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -186,10 +186,7 @@ func newProjectCmd() *cobra.Command {
 			if name == "" {
 				return cerr.Usage("--name is required")
 			}
-			tooLong, err := checkOrgProjectName("project", name)
-			if err != nil {
-				return err
-			}
+			refusal := checkOrgProjectName("project", name)
 			project, orgID, mc, err := resolveProjectID(cmd, args[0])
 			if err != nil {
 				return err
@@ -198,7 +195,7 @@ func newProjectCmd() *cobra.Command {
 			if looksLikeProjectUUID(args[0]) {
 				current = ""
 			}
-			if err := checkRenamedProjectName(ctx, mc, orgID, project.Id.String(), current, name, tooLong); err != nil {
+			if err := checkRenamedProjectName(ctx, mc, orgID, project.Id.String(), current, name, refusal); err != nil {
 				return err
 			}
 			var p api.Raw[gen.Project]
