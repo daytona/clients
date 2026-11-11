@@ -656,7 +656,8 @@ skipping exist only in the TypeScript tool).
     `followBuildLogs()`'s `signal` omits it;
   - TypeScript refuses `null` where Python's `None` omits, for now
     (accepting it later is additive): `images.get()` / `snapshots.get()`
-    `wait` and `timeoutSeconds`, `images.pull()` `timeoutSeconds`,
+    `wait` and `timeoutSeconds`, `images.pull()` and
+    `images.buildFromContext()` `timeoutSeconds`,
     `volumes.create()` `sizeGib` and `type`, `ports.signedPreviewLink()`
     `expiresInSeconds`, `createAccessToken()` `ttlSeconds` / `operations` /
     `ports`, `followBuildLogs()` (client and sandbox) `cursor` /

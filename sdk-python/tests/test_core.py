@@ -3880,6 +3880,21 @@ async def test_ports_is_in_use_rejects_non_integer_segments_before_request() -> 
     assert transport.specs == []
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("port", [0, -1, 65536, True])
+async def test_ports_is_in_use_refuses_a_port_outside_the_tcp_range_before_request(port: int) -> None:
+    transport = RecordingTransport([])
+    ports = AsyncPortsService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=r"port must be an integer in 1\.\.65535") as exc_info:
+        await ports.is_in_use(port)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == code_names.BAD_REQUEST
+    assert exc_info.value.source == "SDK"
+    assert transport.specs == []
+
+
 def test_process_handle_is_json_rehydratable():
     process = AsyncProcessService("s", RecordingTransport([]))  # type: ignore[arg-type]
     handle = process.connect("p")

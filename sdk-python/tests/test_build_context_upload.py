@@ -11,7 +11,7 @@ import re
 import tarfile
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +28,7 @@ from daytona.v2._sync.services import ImagesService
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.errors import (
     BadRequestError,
+    ClientTimeoutError,
     ConflictError,
     ConnectionError,
     DaytonaError,
@@ -286,6 +287,11 @@ async def test_a_part_is_streamed_in_bounded_chunks_with_a_fixed_length(
     # chunks are the part's bytes.
     chunks = [chunk async for chunk in source.chunks(4096, 4096)]
     assert max(len(chunk) for chunk in chunks) <= 1000
+    # And a chunk is sent in pieces, each of them progress on a slow link.
+    monkeypatch.setattr(_context_upload, "_PART_PIECE", 300)
+    pieces = [piece async for piece in source.chunks(4096, 4096)]
+    assert max(len(piece) for piece in pieces) <= 300
+    assert b"".join(pieces) == data[4096:8192]
     assert b"".join(chunks) == data[4096:8192]
     # And on the wire each part carries its own length and is not chunked.
     with storage_peer() as peer:
@@ -293,6 +299,50 @@ async def test_a_part_is_streamed_in_bounded_chunks_with_a_fixed_length(
         puts = [(headers, body) for m, _, headers, body in peer.requests if m == "PUT"]
         assert puts and all(headers.get("Content-Length") == str(len(body)) for headers, body in puts)
         assert all("Transfer-Encoding" not in headers for headers, _ in puts)
+
+
+@pytest.mark.anyio
+async def test_a_part_that_keeps_moving_is_not_cut_by_the_request_timeout(
+    sync: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Given a part sent in pieces 150 ms apart and a 500 ms request timeout.
+    monkeypatch.setattr(_context_upload, "_PART_PIECE", 2048)
+    original = _context_upload._Source.chunks
+
+    async def slow(self: _context_upload._Source, offset: int, length: int) -> AsyncIterator[bytes]:
+        async for piece in original(self, offset, length):
+            await anyio.sleep(0.15)
+            yield piece
+
+    monkeypatch.setattr(_context_upload._Source, "chunks", slow)
+    data = archive(10_000)
+    with storage_peer(part_size=len(data)) as peer:
+        # When the part takes over a second in all, it is not cut.
+        started = time.monotonic()
+        image = await build(peer, data, sync, request_timeout=0.5)
+        assert time.monotonic() - started > 1.0
+        assert peer.bodies("PUT", "/bucket/part/") == [data]
+        assert image.id == "img-ctx"
+
+
+@pytest.mark.anyio
+async def test_a_part_that_stops_moving_fails_with_client_timeout_after_its_retries(sync: bool) -> None:
+    # Given storage that takes the body but does not answer for longer than
+    # the request timeout.
+    with storage_peer(part_size=1 << 20, on_put=lambda _: time.sleep(1.0)) as peer:
+        # When the part is uploaded, every attempt stalls and the last one
+        # fails as the client's timeout, naming no part URL.
+        with pytest.raises(ClientTimeoutError) as error:
+            await build(peer, archive(), sync, request_timeout=0.3)
+        assert str(error.value) == "build context part 1 made no progress for 0.3 s"
+        assert (error.value.status_code, error.value.code, error.value.source) == (
+            408,
+            "REQUEST_TIMEOUT",
+            "SDK",
+        )
+        assert SIGNATURE not in str(error.value)
+        assert len(peer.bodies("PUT", "/bucket/part/")) == 3
+        assert peer.bodies("POST", "/build-contexts/") == []
 
 
 @pytest.mark.anyio
@@ -307,7 +357,7 @@ async def test_a_file_that_shrinks_during_the_upload_is_refused(tmp_path: Path) 
         # When its part is uploaded, it fails as a changed context.
         async with httpx.AsyncClient(timeout=5) as client:
             with pytest.raises(BadRequestError, match="changed while it was being uploaded") as error:
-                await _context_upload._put_part(client, source, 0, part)
+                await _context_upload._put_part(client, source, 0, part, 5.0)
         assert SIGNATURE not in str(error.value)
 
 
@@ -455,7 +505,7 @@ async def test_unreachable_storage_is_a_connection_error_without_its_url() -> No
     # When it is uploaded.
     async with httpx.AsyncClient(timeout=1) as client:
         with pytest.raises(ConnectionError) as error:
-            await _context_upload._put_part(client, _context_upload._Source(b"abc"), 0, part)
+            await _context_upload._put_part(client, _context_upload._Source(b"abc"), 0, part, 1.0)
     # Then the error names neither the URL nor the transport exception.
     assert SIGNATURE not in str(error.value) and error.value.__cause__ is None
 
@@ -662,10 +712,10 @@ async def test_a_complete_outlives_the_request_timeout(sync: bool, monkeypatch: 
 @pytest.mark.anyio
 async def test_a_complete_that_timed_out_is_retried(sync: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     # Given an API whose first complete outlasts the complete timeout.
-    monkeypatch.setattr(_context_upload, "_COMPLETE_TIMEOUT_SECONDS", 0.3)
-    with storage_peer(complete_delays=[1.0]) as peer:
+    monkeypatch.setattr(_context_upload, "_COMPLETE_TIMEOUT_SECONDS", 0.6)
+    with storage_peer(complete_delays=[1.5]) as peer:
         # When the context is built, the complete is sent again and succeeds.
-        image = await build(peer, archive(), sync, request_timeout=0.1)
+        image = await build(peer, archive(), sync, request_timeout=0.3)
         assert completes(peer) == 2
         assert image.id == "img-ctx"
 
@@ -742,7 +792,7 @@ async def test_a_name_with_an_idle_expiry_is_refused_before_any_request(sync: bo
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize(("timeout", "expected"), [(None, None), (0, None), (30.0, 30.0)])
+@pytest.mark.parametrize(("timeout", "expected"), [(None, None), (0, 0), (30.0, 30.0)])
 async def test_the_build_request_takes_the_timeout(
     monkeypatch: pytest.MonkeyPatch, timeout: float | None, expected: float | None
 ) -> None:

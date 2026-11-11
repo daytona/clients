@@ -153,12 +153,13 @@ export class PortsService {
   /**
    * Whether `port` currently has a listener.
    *
-   * This endpoint accepts 3000-9999 and rejects anything else with
-   * `BAD_REQUEST`, so this deliberately does not clamp or pre-validate: a
-   * caller asking about port 80 should see that error rather than a silent
-   * `false` that reads like "nothing is listening there".
+   * A port outside 1-65535 is refused with `BadRequestError` before any
+   * request. The sandbox answers only for ports 3000-9999 and refuses any
+   * other with `BAD_REQUEST`, so a port such as 80 throws rather than
+   * resolving to a `false` that reads like "nothing is listening there".
    */
   public async isInUse(port: number): Promise<boolean> {
+    assertPort(port)
     const response = await this.requireToolbox().get<unknown>(`/port/${portSegment(port)}/in-use`)
     return checkResponse<toolbox.PortInUseResponse>(response, { isInUse: 'boolean' }, 'port in use').isInUse
   }

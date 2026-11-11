@@ -45,9 +45,18 @@ export interface ImagePullOptions extends BuildImageOptions {
 }
 
 const BUILD_IMAGE_OPTION_KEYS = optionKeys<BuildImageOptions>()({ name: true, idleExpirySeconds: true, region: true, cpuArch: true })
-export type BuildFromContextOptions = BuildImageOptions & { readonly dockerfile?: string }
+export type BuildFromContextOptions = BuildImageOptions & {
+  /** The Dockerfile's path inside the archive (default `Dockerfile`). */
+  readonly dockerfile?: string
+  /**
+   * Bounds the build request that follows the upload, in seconds, replacing
+   * the client's request timeout for it; `0`, or a value above about 24.8
+   * days, is no limit. The upload keeps its own bounds.
+   */
+  readonly timeoutSeconds?: number
+}
 
-const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, dockerfile: true })
+const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, dockerfile: true, timeoutSeconds: true })
 const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, wait: true, timeoutSeconds: true })
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
 
@@ -57,6 +66,13 @@ const IMAGE_HOLD_READ_SLACK_MS = 5_000
 
 // Python's `anonymous` defaults to `False` (the contract's default) and refuses
 // `None`, so `null` is refused here too; only an omitted value takes the default.
+// A per-call timeout in axios milliseconds: `0`, or a value above the longest
+// timer, is no limit, as for every 2.x timeout.
+function perCallTimeoutMs(timeoutSeconds: number): number {
+  const timeoutMs = Math.ceil(timeoutSeconds * 1000)
+  return timeoutMs > MAX_TIMER_DELAY_MS ? 0 : timeoutMs
+}
+
 function listImagesAnonymous(value: unknown): boolean | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'boolean') throw badRequest('anonymous must be a boolean')
@@ -114,8 +130,9 @@ export class ImagesService {
    * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
    * The archive is uploaded straight to storage in parts and verified by the
    * API before the build starts; an identical archive the project already
-   * uploaded is reused without uploading it again. Resolves once the build is
-   * submitted; wait with `get(id, { wait: 'ready' })`.
+   * uploaded is reused without uploading it again. `timeoutSeconds` bounds
+   * the build request after the upload (see {@link BuildFromContextOptions}).
+   * Resolves once the build is submitted; wait with `get(id, { wait: 'ready' })`.
    */
   public async buildFromContext(context: BuildContext, options: BuildFromContextOptions = {}): Promise<Image> {
     assertKnownOptions('BuildFromContextOptions', options, BUILD_FROM_CONTEXT_OPTION_KEYS)
@@ -124,6 +141,7 @@ export class ImagesService {
       throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
     }
     // Checked before the upload, as build() checks them before its request.
+    const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
     const imageOptions = imageOptionsBody(options)
     const upload = await uploadBuildContext(this.http, context, { dockerfile: options.dockerfile ?? 'Dockerfile', region: imageOptions.region_id })
     const request: api.CreateImageRequest = {
@@ -132,7 +150,7 @@ export class ImagesService {
       context_upload_id: upload.id,
       region_id: upload.regionId,
     }
-    const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
+    const { data } = await this.http.post<api.CreateImageResponse>('/images', request, timeoutSeconds === undefined ? undefined : { timeout: perCallTimeoutMs(timeoutSeconds) })
     // Checked before the read: no request ever goes to /images/undefined.
     return this.get(acknowledgedId(data, 'image create'))
   }

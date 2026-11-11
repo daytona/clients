@@ -25,7 +25,7 @@ import httpx
 from typing_extensions import Buffer
 
 from ._core import RequestSpec, path_segment
-from ._transport import AsyncTransport
+from ._transport import AsyncTransport, _per_call_seconds
 from .errors import (
     BadRequestError,
     ClientTimeoutError,
@@ -42,8 +42,10 @@ BuildContext = Union[Buffer, str, os.PathLike[str]]
 MAX_CONTEXT_BYTES = 1 << 30
 _HASH_CHUNK = 1 << 20
 _PART_CHUNK = 1 << 20
+# A part body is sent in pieces this size, so each piece written is progress
+# the no-progress limit sees, even on a slow link.
+_PART_PIECE = 64 << 10
 _PART_ATTEMPTS = 3
-_PART_TIMEOUT_SECONDS = 300.0
 # Parts in flight at once; each streams one chunk at a time, so memory stays a
 # few chunks whatever the part size.
 _PART_CONCURRENCY = 4
@@ -164,7 +166,16 @@ class _Source:
             )
 
     async def chunks(self, offset: int, length: int) -> AsyncIterator[bytes]:
-        """Yield ``length`` bytes from ``offset`` in chunks of at most ``_PART_CHUNK``."""
+        """Yield ``length`` bytes from ``offset`` in pieces of at most ``_PART_PIECE``.
+
+        A file is read ``_PART_CHUNK`` at a time and sent in pieces, so a slow
+        link still shows progress between reads."""
+        async for chunk in self._chunks(offset, length):
+            view = memoryview(chunk)
+            for start in range(0, len(view), _PART_PIECE):
+                yield bytes(view[start : start + _PART_PIECE])
+
+    async def _chunks(self, offset: int, length: int) -> AsyncIterator[bytes]:
         end = offset + length
         if self._data is not None:
             for start in range(offset, end, _PART_CHUNK):
@@ -247,9 +258,20 @@ def _changed_while_uploading() -> BadRequestError:
     )
 
 
-async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, part: _Part) -> None:
+async def _put_part(
+    client: httpx.AsyncClient, source: _Source, offset: int, part: _Part, idle_seconds: float
+) -> None:
+    """PUT one part, up to ``_PART_ATTEMPTS`` times.
+
+    An attempt fails once no bytes move for ``idle_seconds`` (``0``: never):
+    connecting, every piece written and the wait for storage's answer each have
+    that bound (the client's per-phase timeouts), so a large part on a slow
+    link is never cut while it moves.
+    """
     status: Optional[int] = None
+    stalled = False
     for attempt in range(_PART_ATTEMPTS):
+        stalled = False
         try:
             # A presigned PUT needs a fixed length, so the stream is not chunked.
             # Streamed and closed unread: only the status is used, so storage's
@@ -264,8 +286,9 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
                 stream=True,
             )
             await response.aclose()
-        except httpx.HTTPError:
+        except httpx.HTTPError as error:
             # The exception text names the URL, so it is not chained.
+            stalled = isinstance(error, httpx.TimeoutException)
             status = None
         else:
             status = response.status_code
@@ -284,6 +307,13 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
                 )
         if attempt + 1 < _PART_ATTEMPTS:
             await _sleep(0.5 * 2**attempt)
+    if stalled:
+        raise ClientTimeoutError(
+            f"build context part {part.number} made no progress for {idle_seconds:g} s",
+            status_code=408,
+            code="REQUEST_TIMEOUT",
+            source="SDK",
+        ) from None
     if status is None:
         raise ConnectionError(
             f"build context part {part.number} could not reach storage", source="SDK"
@@ -330,16 +360,21 @@ async def upload_build_context(
         or sum(part.bytes for part in parts) != source.size
     ):
         raise _malformed("build context upload parts do not cover the archive")
+    # A part fails once no bytes move for the client's request timeout (as
+    # the file transfers); it is never bounded by a total deadline.
+    idle_seconds = _per_call_seconds(transport.request_timeout_seconds)
     with _redact_part_urls.active([part.url for part in parts]):
         async with httpx.AsyncClient(
-            timeout=_PART_TIMEOUT_SECONDS, follow_redirects=False, trust_env=True
+            timeout=httpx.Timeout(idle_seconds or None), follow_redirects=False, trust_env=True
         ) as client:
-            await _put_parts(client, source, parts)
+            await _put_parts(client, source, parts, idle_seconds)
     await _complete(transport, upload_id, region_id)
     return upload_id, region_id
 
 
-async def _put_parts(client: httpx.AsyncClient, source: _Source, parts: Sequence[_Part]) -> None:
+async def _put_parts(
+    client: httpx.AsyncClient, source: _Source, parts: Sequence[_Part], idle_seconds: float
+) -> None:
     """Upload every part, at most ``_PART_CONCURRENCY`` at a time; the first failure cancels the rest."""
     limiter = anyio.Semaphore(_PART_CONCURRENCY)
     failures: list[Exception] = []
@@ -347,7 +382,7 @@ async def _put_parts(client: httpx.AsyncClient, source: _Source, parts: Sequence
     async def put(part: _Part, offset: int, scope: anyio.CancelScope) -> None:
         async with limiter:
             try:
-                await _put_part(client, source, offset, part)
+                await _put_part(client, source, offset, part, idle_seconds)
             except Exception as error:
                 failures.append(error)
                 scope.cancel()

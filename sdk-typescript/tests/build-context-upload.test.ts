@@ -37,6 +37,7 @@ let rewriteUpload: ((upload: Record<string, unknown>) => unknown) | undefined
 let completeStatuses: number[]
 let completeDelays: number[]
 let createResponse: unknown
+let imagesDelayMs: number
 let uploadId: string
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
 const defaultIsNode = contextUploadRuntime.isNode
@@ -82,6 +83,7 @@ beforeEach(async () => {
   completeStatuses = []
   completeDelays = []
   createResponse = { id: 'img-ctx', status: 'pending' }
+  imagesDelayMs = 0
   uploadId = UPLOAD_ID
   contextUploadRuntime.sleep = async () => {}
   contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
@@ -124,7 +126,11 @@ beforeEach(async () => {
         if (status !== 200) return reply(status, { message: 'not now', code: 'UNAVAILABLE', source: 'API' })
         return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
       }
-      if (request.url === '/images') return reply(202, createResponse)
+      if (request.url === '/images') {
+        await delay(imagesDelayMs)
+        if (response.destroyed) return
+        return reply(202, createResponse)
+      }
       if (request.url === '/images/img-ctx') return reply(200, imageWire({ id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' }))
       reply(404, { message: 'not found', code: 'NOT_FOUND', source: 'API' })
     })
@@ -458,6 +464,24 @@ it('refuses a name with an idle expiry before any request', async () => {
   expect(seen).toEqual([])
 })
 
+it('bounds the build request by timeoutSeconds instead of the request timeout (as Python timeout)', async () => {
+  // Given a build request that answers after 300 ms.
+  imagesDelayMs = 300
+  // A longer timeoutSeconds outlives a shorter request timeout, and 0 is no limit.
+  await expect(service(100).buildFromContext(archive(), { timeoutSeconds: 5 })).resolves.toMatchObject({ id: 'img-ctx' })
+  await expect(service(100).buildFromContext(archive(), { timeoutSeconds: 0 })).resolves.toMatchObject({ id: 'img-ctx' })
+  // A shorter one cuts the request although the request timeout would not.
+  const error = await service(5_000).buildFromContext(archive(), { timeoutSeconds: 0.05 }).catch((caught: unknown) => caught)
+  expect(error).toMatchObject({ name: 'ClientTimeoutError', source: 'SDK' })
+})
+
+it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '30', null])('refuses timeoutSeconds %p before any request', async (timeoutSeconds) => {
+  // SAFETY: deliberately invalid values, as plain JavaScript can pass.
+  const pending = service().buildFromContext(archive(), { timeoutSeconds } as never)
+  await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'timeoutSeconds must be a non-negative number of seconds' })
+  expect(seen).toEqual([])
+})
+
 it('refuses an unknown option before any request', async () => {
   // SAFETY: a deliberately misspelled option, as plain JavaScript can pass.
   const options = { dockerFile: 'alt/Dockerfile' } as never
@@ -509,6 +533,53 @@ it.each([
   await expect(pending).rejects.toBeInstanceOf(BadRequestError)
   await expect(pending).rejects.toThrow('image create response')
   expect(seen.filter((request) => request.url.startsWith('/images/'))).toEqual([])
+})
+
+it('keeps a part that moves slowly past the request timeout: no total cap, only a no-progress limit (as Python and the CLI)', async () => {
+  // Given storage that reads each 64 KiB piece 60 ms apart, and a 150 ms request timeout.
+  partSize = 4 * 64 * 1024
+  const original = contextUploadRuntime.fetch
+  const received: number[] = []
+  contextUploadRuntime.fetch = async (_input, init) => {
+    const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+    let bytes = 0
+    for (;;) {
+      await delay(60)
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+    }
+    received.push(bytes)
+    return new Response(null, { status: 200 })
+  }
+  try {
+    // When a part takes about 300 ms in all, it is not cut.
+    const started = Date.now()
+    await service(150).buildFromContext(archive(partSize - 12))
+    expect(Date.now() - started).toBeGreaterThanOrEqual(240)
+    expect(received).toEqual([partSize])
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it('fails a part with ClientTimeoutError once no bytes move for the request timeout, after its retries', async () => {
+  // Given storage that never reads the body nor answers.
+  const original = contextUploadRuntime.fetch
+  let attempts = 0
+  contextUploadRuntime.fetch = (_input, init) => new Promise((_resolve, reject) => {
+    attempts++
+    init.signal?.addEventListener('abort', () => reject(new TypeError(`fetch failed for ${baseUrl}/bucket/part/1?${SIGNATURE}`)), { once: true })
+  })
+  try {
+    const error = await service(100).buildFromContext(archive()).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ name: 'ClientTimeoutError', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'build context part 1 made no progress for 0.1 s' })
+    expect(String(error)).not.toContain(SIGNATURE)
+    expect(attempts).toBe(3)
+    expect(completes()).toEqual([])
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
 })
 
 it('hashes incrementally to the same digest as node:crypto', () => {
