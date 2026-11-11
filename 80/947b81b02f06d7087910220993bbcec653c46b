@@ -1,0 +1,25 @@
+cli/cmd/sandbox_ssh_test.go
+  s_dda305198a66db::t_a1860402124807 147-166
+upgrade/typescript/src/dockerfile-image.ts
+  s_dda305198a66db::t_baccd67224beab 62-63,65
+cli/cmd/sandbox_ssh.go
+  s_dda305198a66db::t_a1860402124807 176-178,200,206-207,215-225,230-233
+upgrade/typescript/tests/dockerfile-image-suggestions.test.ts
+  s_dda305198a66db::t_baccd67224beab 87-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "80947b81b02f06d7087910220993bbcec653c46b",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
