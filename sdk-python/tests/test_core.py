@@ -5906,7 +5906,7 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
             {},
             {},
             {},
-            {"items": [{"file": "/tmp/a", "line": 3, "content": "a needle"}], "nextCursor": "fn"},
+            {"items": [{"file": "/tmp/a", "line": 3, "content": "a needle"}], "skipped": ["/tmp/locked"]},
             {"files": ["/tmp/a"]},
             [{"file": "/tmp/a", "success": True}],
             {},
@@ -6012,7 +6012,7 @@ async def test_git_filesystem_process_and_interpreter_shape_transport_requests(m
     await fs.remove("/tmp/a", recursive=True)
     await fs.move("/tmp/a", "/tmp/b")
     matches = await fs.grep("/tmp", "needle")
-    assert matches.next_cursor == "fn"
+    assert matches.skipped == ("/tmp/locked",)
     assert matches.items == (FileMatch(file="/tmp/a", line=3, content="a needle"),)
     assert (await fs.glob("/tmp", "*.txt")).items == ("/tmp/a",)
     assert (await fs.replace(["/tmp/a"], "old", "new")).items == (ReplaceResult(file="/tmp/a", success=True),)

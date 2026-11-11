@@ -83,13 +83,19 @@ func newImageDeleteCommand() *cobra.Command {
 	}
 }
 
+// imageNameRulesHelp is the name rule every command that names an image shows.
+const imageNameRulesHelp = "A name may not start with a resource id prefix (img_, snap_, sbx_, vol_, fn_): 400 IMAGE_NAME_RESERVED.\n"
+
 func newImageCaptureCommand() *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
 		Use:   "capture <sandbox>",
 		Short: "Capture a sandbox filesystem as an image",
-		Long:  "Capture only a sandbox disk as an image. For memory capture, use `daytona snapshot create`.\nA macOS sandbox must be persistent and stopped; the capture answers DISK_NOT_READY while its disk is not ready yet (retry later).\nExample:\n  daytona image capture <sandbox> --name saved-image",
-		Args:  cobra.ExactArgs(1),
+		Long: "Capture only a sandbox disk as an image. For memory capture, use `daytona snapshot create`.\n" +
+			"A macOS sandbox must be persistent and stopped; the capture answers DISK_NOT_READY while its disk is not ready yet (retry later).\n" +
+			imageNameRulesHelp + "A --name that already exists answers 409 IMAGE_NAME_TAKEN.\n" +
+			"Example:\n  daytona image capture <sandbox> --name saved-image",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
@@ -137,6 +143,7 @@ func newImagePromoteCommand() *cobra.Command {
 		Short: "Name an anonymous image, making it permanent",
 		Long: "Name an anonymous image, making it permanent (PATCH /images/{id}).\n" +
 			"Promotion only: an image that already has a name answers 409 — renaming a named image is not offered.\n" +
+			imageNameRulesHelp + "A name that already exists answers 409 IMAGE_NAME_TAKEN.\n" +
 			"Example:\n  daytona image promote img_abc123 saved-image",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

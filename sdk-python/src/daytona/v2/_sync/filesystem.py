@@ -73,14 +73,24 @@ class FileSystemService:
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
 
-    def glob(self, path: str, pattern: str, /) -> ListResult[str]:
-        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
+    def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
+        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
+
+        Directories below ``path`` that the sandbox user cannot read are not
+        searched; ``skipped`` lists their absolute paths (at most 1000). Only an
+        unreadable ``path`` itself raises
+        :class:`~daytona.v2.errors.FileAccessDeniedError`.
+        """
         return self._bridge.call(lambda: self._impl.glob(path, pattern))
 
-    def grep(self, path: str, pattern: str, /) -> ListResult[FileMatch]:
+    def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
-        Returns matches with one-based line numbers.
+        Returns matches with one-based line numbers, as the sandbox user sees
+        them. Directories and files below ``path`` that the sandbox user cannot
+        read are not searched; ``skipped`` lists their absolute paths (at most
+        1000). Only an unreadable ``path`` itself raises
+        :class:`~daytona.v2.errors.FileAccessDeniedError`.
         """
         return self._bridge.call(lambda: self._impl.grep(path, pattern))
 

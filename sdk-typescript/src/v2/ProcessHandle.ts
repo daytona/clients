@@ -191,7 +191,11 @@ export class ProcessHandle {
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/signals`, body)
   }
 
-  /** Resize a PTY. */
+  /**
+   * Resize a PTY. `cols` and `rows` are each an integer from 1 to 65535; a
+   * Windows sandbox takes at most 32767 and refuses a larger value with
+   * `BadRequestError`.
+   */
   public async resize(cols: number, rows: number): Promise<void> {
     if (this.kind !== undefined && this.kind !== 'pty') throw invalidPtyVerbError('resize', this.kind)
     const body = { cols: terminalDimension(cols, 'cols'), rows: terminalDimension(rows, 'rows') }

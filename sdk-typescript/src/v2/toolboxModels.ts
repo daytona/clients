@@ -118,6 +118,11 @@ export function strList(input: WireRecord, field: string, description: string): 
   return [...value]
 }
 
+/** `skipped` of a file search response; absent (daemons that predate it) reads as none skipped. */
+export function searchSkipped(input: WireRecord, description: string): string[] {
+  return optional(input, 'skipped', strList, description) ?? []
+}
+
 /** An optional field: absent or `null` reads as absent; any other value is checked by `read`. */
 export function optional<T>(input: WireRecord, field: string, read: (input: WireRecord, field: string, description: string) => T, description: string): T | undefined {
   const value = input[field]

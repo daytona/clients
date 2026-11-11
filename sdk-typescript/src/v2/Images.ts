@@ -272,7 +272,9 @@ export class ImagesService {
    * Name an ANONYMOUS image, making it permanent (`PATCH /images/{id}`).
    * Promotion only: an image that already has a name answers 409 — renaming a
    * named image is not offered (sandboxes reference images by id, so a rename
-   * would silently relabel every sandbox created from it).
+   * would silently relabel every sandbox created from it). A name that already
+   * exists throws `ImageNameTakenError`; a reserved prefix (`img_`, `snap_`,
+   * `sbx_`, `vol_`, `fn_`) throws `ImageNameReservedError`.
    */
   public async promote(imageId: string, name: string): Promise<Image> {
     const path = `/images/${pathSegment(imageId, 'imageId')}`

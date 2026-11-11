@@ -7260,10 +7260,10 @@ describe('toolbox service request shaping', () => {
     expect(transport.post.mock.calls[0]).toEqual(['/files/folder', undefined, { params: { path: '/tmp/new', mode: '0700' } }])
     await fs.move('/tmp/a', '/tmp/b')
     expect(transport.post.mock.calls[1]).toEqual(['/files/move', undefined, { params: { source: '/tmp/a', destination: '/tmp/b' } }])
-    await expect(fs.grep('/tmp', 'needle')).resolves.toEqual({ items: [{ file: '/tmp/a', line: 3, content: 'a needle' }], nextCursor: 'n' })
+    await expect(fs.grep('/tmp', 'needle')).resolves.toStrictEqual({ items: [{ file: '/tmp/a', line: 3, content: 'a needle' }], skipped: [] })
     await expect(fs.list('/tmp/plain')).resolves.toEqual({ items: [fileInfoWire('b')] })
     expect(transport.get.mock.calls[4]).toEqual(['/files', { params: { path: '/tmp/plain' } }])
-    await expect(fs.glob('/tmp', '*.txt')).resolves.toEqual({ items: ['/tmp/a'] })
+    await expect(fs.glob('/tmp', '*.txt')).resolves.toStrictEqual({ items: ['/tmp/a'], skipped: [] })
     await expect(fs.replace(['/tmp/a'], 'old', 'new')).resolves.toStrictEqual({ items: [{ file: '/tmp/a', success: true }] })
   })
 

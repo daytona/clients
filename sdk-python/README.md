@@ -60,6 +60,14 @@ error message. `images.build()` remains non-waiting. Both take the same image
 options (`name`, `region`, `cpu_arch`, `idle_expiry_seconds`), and their
 submission is an ordinary request, bounded by `request_timeout`.
 
+Image names may not start with a resource id prefix (`img_`, `snap_`, `sbx_`,
+`vol_`, `fn_`): such a name raises `ImageNameReservedError`. A named
+`images.pull()` whose name already exists for different content or import
+options (source, region, CPU architecture) raises `ImageNameTakenError` (409
+`IMAGE_NAME_TAKEN`) and changes nothing; an identical one returns the existing
+image (a failed one is imported again). Capturing or promoting to a name that
+exists raises `ImageNameTakenError` too.
+
 `with Daytona(...) as d:` releases the client's connection pools when the block
 ends (also on cancellation). A short script may instead let the interpreter
 finish — teardown drops the sockets. In a long-lived process, prefer one
@@ -787,6 +795,8 @@ a stream error raises its typed error. The sandbox ends the stream with
 short, or one that ends without `eof`, raises `ConnectionError`: call
 `stream_logs(cursor=...)` again with the last event's cursor. `timeout=` is the
 caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
+With `encoding="base64"`, `logs()` and `stream_logs()` return each frame's
+`data` as standard padded base64, which `base64.b64decode()` decodes.
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
 runs that support one (omitted or `0`: no deadline); `kill(escalate_after=)` is in seconds too. Signals are
 bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
@@ -800,7 +810,7 @@ way to recover a parsed `InterpreterResult` on another worker.
 
 `pty.start(command=None, *, terminal=TerminalSize(cols=..., rows=...), ...)`
 starts an interactive terminal (80×24 when `terminal` is omitted; `cols` and
-`rows` are 1 to 65535) with `TERM=xterm-256color` unless `env` sets `TERM`; it also
+`rows` are 1 to 65535; a Windows sandbox refuses more than 32767) with `TERM=xterm-256color` unless `env` sets `TERM`; it also
 takes `cwd`, `env`, `name`, `user`, `shell`, `login`, `stdin` (default
 `"open"`), `execution_timeout` and `keep_logs` (default `"until_cleanup"`).
 `pty.list()` is the PTY-only view of `process.list(kind="pty")`, and
@@ -896,7 +906,11 @@ new URLs use the new key, which is never
 returned to the client. `list()`, `grep()`, `glob()` and `replace()` return one
 `ListResult` page (of `FileInfo`, `FileMatch`, path strings and
 `ReplaceResult`, iterable over its items); these methods have no
-page-draining iterator and take no cursor argument. `read_text()`
+page-draining iterator and take no cursor argument. `grep()` and `glob()` run
+as the sandbox user and return a `FileSearchResult`, a `ListResult` whose
+`skipped` tuple lists the absolute paths below the root that user cannot read
+(not searched; at most 1000); only an unreadable root raises
+`FileAccessDeniedError`. `read_text()`
 decodes strictly as UTF-8 and keeps a leading byte-order mark.
 
 `watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
@@ -988,7 +1002,13 @@ keyword-only. Pass `allow_empty=True` to create an empty commit when Git would
 otherwise refuse it. `status()` returns a `GitStatus`; `history()`,
 `list_remotes()` and `list_branches()` return one `ListResult` page of
 `GitCommit`, `GitRemote` and branch-name items. A clone, pull or push
-`timeout=` bounds the whole request.
+`timeout=` bounds the whole request. `delete_branch(path, name)` is a safe
+deletion: an unmerged branch raises `ConflictError`; pass `force=True` to
+delete it anyway. Expected git failures raise typed errors:
+`GitAuthFailedError` (401), `GitRepoNotFoundError` and
+`GitBranchNotFoundError` (404), `GitBranchExistsError` (409), and
+`ConflictError` for an unmerged branch, a checked-out branch or a checkout
+that would overwrite local changes.
 
 ### Ports, LSP, computer use
 
@@ -998,6 +1018,8 @@ visibility of an exposed port), `preview_link(port)`,
 `signed_preview_link(port, expires_in_seconds=...)`,
 `expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
 `iter_endpoints(...)`.
+A visibility change takes effect immediately on event delivery; at most 30 s
+if an event is missed.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.

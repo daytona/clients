@@ -142,7 +142,7 @@ func newSandboxExecSubcommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&cwd, "cwd", "", "working directory inside the sandbox")
 	cmd.Flags().StringArrayVar(&envPairs, "env", nil, "environment variable to set (KEY=VALUE, repeatable)")
-	cmd.Flags().BoolVar(&tty, "tty", false, "run the command in a PTY and attach interactively")
+	cmd.Flags().BoolVar(&tty, "tty", false, "run the command in a PTY sized to this terminal and attach interactively (1-65535 columns and rows; a Windows sandbox refuses more than 32767)")
 	cmd.Flags().StringVar(&user, "user", "", "sandbox OS user to run the command as")
 	cmd.Flags().DurationVar(&executionTimeout, "execution-timeout", 0, "server-side execution deadline (positive Go duration, rounded up to milliseconds)")
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long the command may run before the CLI stops waiting (Go duration; exit 8)")

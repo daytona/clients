@@ -32,6 +32,11 @@ func hintFor(ae *APIError) string {
 			// would misdiagnose a first login that was never provisioned.
 			return ""
 		}
+		if ae.Code == CodeFileAccessDenied {
+			// The sandbox's file routes run as the sandbox user; the
+			// credential was accepted.
+			return "the sandbox user cannot access that path; pick a path that user can read and write, or change its permissions inside the sandbox"
+		}
 		if ae.Code == CodeUserSuspended {
 			// The account was deprovisioned by its organization's identity
 			// provider; the message says so, and no credential fixes it.
