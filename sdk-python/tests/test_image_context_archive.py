@@ -462,6 +462,25 @@ def test_a_source_redirected_by_a_symlink_after_it_was_added_is_refused(tmp_path
         write_builder_context(builder, tmp_path / "context.tar")
 
 
+def test_a_source_under_an_unchanged_symlinked_ancestor_is_archived(tmp_path: Path) -> None:
+    # Given sources added through a directory link that stays as it was (a
+    # symlinked home or workspace).
+    (tmp_path / "real" / "sub").mkdir(parents=True)
+    (tmp_path / "real" / "sub" / "f.txt").write_text("f")
+    (tmp_path / "link").symlink_to(tmp_path / "real", target_is_directory=True)
+    builder = (
+        ImageBuilder.from_registry("alpine")
+        .add_local_file(tmp_path / "link" / "sub" / "f.txt", "/f.txt")
+        .add_local_dir(tmp_path / "link" / "sub", "/sub")
+    )
+    # When archived, then both sources are copied.
+    write_builder_context(builder, tmp_path / "context.tar")
+    with tarfile.open(tmp_path / "context.tar") as archive:
+        names = archive.getnames()
+    assert ".daytona-context/1/f.txt" in names
+    assert ".daytona-context/2/f.txt" in names
+
+
 def test_a_source_whose_parent_was_swapped_for_a_symlink_is_refused(tmp_path: Path) -> None:
     # Given proj/src added to a builder, then proj replaced by a link to
     # another tree that also has a src.

@@ -209,6 +209,30 @@ posixNonRoot('refuses a source redirected by a symlink after it was added', asyn
   } finally { await fs.rm(base, { recursive: true, force: true }) }
 })
 
+posixNonRoot('archives sources under an unchanged symlinked ancestor', async () => {
+  // Given sources added through a directory link that stays as it was (a
+  // symlinked home or workspace).
+  const fs = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const base = await fs.mkdtemp(join(tmpdir(), 'linked-'))
+  try {
+    await fs.mkdir(join(base, 'real', 'sub'), { recursive: true })
+    await fs.writeFile(join(base, 'real', 'sub', 'f.txt'), 'f')
+    await fs.symlink(join(base, 'real'), join(base, 'link'))
+    const builder = ImageBuilder.fromRegistry('alpine')
+      .addLocalFile(join(base, 'link', 'sub', 'f.txt'), '/f.txt')
+      .addLocalDir(join(base, 'link', 'sub'), '/sub')
+    // When archived, then both sources are copied.
+    const archive = await archiveBuilder(builder)
+    try {
+      const bytes = await fs.readFile(archive.path)
+      expect(bytes.includes('.daytona-context/1/f.txt')).toBe(true)
+      expect(bytes.includes('.daytona-context/2/f.txt')).toBe(true)
+    } finally { await archive.cleanup() }
+  } finally { await fs.rm(base, { recursive: true, force: true }) }
+})
+
 posixNonRoot('refuses a source whose parent was swapped for a symlink after it was added', async () => {
   // Given proj/src added to a builder, then proj replaced by a link to another
   // tree that also has a src.
