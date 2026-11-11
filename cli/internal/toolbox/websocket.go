@@ -93,6 +93,12 @@ func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 			}
 			return nil, err
 		}
+		// Control frames (close, ping, pong) are never fragmented (RFC 6455
+		// section 5.5): one that is would end the stream on half a frame.
+		if opcode >= 0x8 && !fin {
+			_ = c.Close()
+			return nil, &WebSocketCloseError{Code: 1002, Reason: "fragmented control frame"}
+		}
 		switch opcode {
 		case 0x1, 0x2:
 			if inFragment {

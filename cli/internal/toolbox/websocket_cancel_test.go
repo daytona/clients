@@ -161,6 +161,28 @@ func TestWebSocketReadMessage_onlyANormalCloseIsAnEndOfStream(t *testing.T) {
 	}
 }
 
+func TestWebSocketReadMessage_refusesAFragmentedControlFrame(t *testing.T) {
+	// Given a server that sends a normal close frame without its FIN bit.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, rw, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", wsAccept(r.Header.Get("Sec-WebSocket-Key")))
+		_ = rw.Flush()
+		_, _ = conn.Write([]byte{0x08, 0x02, 0x03, 0xE8})
+	}))
+	defer srv.Close()
+	ws, err := dialWebSocket(t.Context(), srv.URL, nil)
+	require.NoError(t, err)
+	defer ws.conn.Close()
+	// When
+	_, err = ws.ReadMessage()
+	// Then it is a protocol error, not the end of the stream.
+	require.Equal(t, &WebSocketCloseError{Code: 1002, Reason: "fragmented control frame"}, err)
+}
+
 func TestWebSocketReadMessage_distinguishesCloseFrameFromDroppedTransport(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
