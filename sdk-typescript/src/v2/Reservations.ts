@@ -94,7 +94,7 @@ export class ReservationsService {
    * this call. Pass your own key if you may retry, so a retry after a lost
    * response returns the same reservation instead of reserving a second Mac.
    * Fails with `ConflictError` `code === 'NO_MAC_AVAILABLE'` when no Mac of
-   * that model is free in the region.
+   * that model is free in the region, and throws `LimitExceededError` (a `RateLimitError`) with `limit === 'max_mac_reservations'` when the organization holds its Mac reservation limit.
    */
   public async create(options: CreateReservationOptions): Promise<MacReservation> {
     assertOptionsObject('CreateReservationOptions', options)
@@ -108,7 +108,7 @@ export class ReservationsService {
   }
 
   /**
-   * Reserve count Macs of one model in region in one request. minCount (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code === 'NO_MAC_AVAILABLE' when fewer than minCount are free. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+   * Reserve count Macs of one model in region in one request. minCount (default count) is the fewest to accept: with fewer Macs free or fewer left under the organization's Mac reservation limit, the request reserves as many as are free and fit, or none, throwing LimitExceededError (a RateLimitError) limit === 'max_mac_reservations' when fewer than minCount fit under the limit (checked first), or ConflictError code === 'NO_MAC_AVAILABLE' when fewer than minCount are free. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
    */
   public async createBulk(options: CreateReservationsBulkOptions): Promise<MacReservationBatch> {
     assertOptionsObject('CreateReservationsBulkOptions', options)
@@ -158,7 +158,7 @@ export class ReservationsService {
   }
 
   /**
-   * Renew the reservation for its next period, which the server charges. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+   * Renew the reservation for its next period, which the server charges. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period. Throws LimitExceededError (a RateLimitError) with limit === 'max_mac_reservations' when the renewal would keep the organization over its Mac reservation limit.
    */
   public async renew(id: string, options: RenewReservationOptions = {}): Promise<MacReservation> {
     assertKnownOptions('RenewReservationOptions', options, RENEW_RESERVATION_KEYS)

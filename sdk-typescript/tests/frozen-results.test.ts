@@ -45,6 +45,7 @@ it.each([
   ['getProjectBudget', (client: Daytona) => client.v2.getProjectBudget(), { monthly_limit_cents: 1, period_start_date: null, created_at: null, updated_at: null }],
   ['getLimits', (client: Daytona) => client.v2.getLimits({ organizationId: 'o' }), {
     sandboxes: { concurrent: USAGE, total: USAGE }, image_builds: { concurrent: USAGE },
+    sandbox_timeout: { max_seconds: 3600, ceiling_seconds: 86400 }, mac_reservations: USAGE,
     storage: { volumes: USAGE, images: USAGE, snapshots: USAGE }, secrets_per_project: USAGE, api_keys_per_project: USAGE, api_keys_per_organization: USAGE,
   }],
   ['images.get (a class model)', (client: Daytona) => client.v2.images.get('img'), imageWire()],

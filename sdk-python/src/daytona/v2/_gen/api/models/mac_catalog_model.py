@@ -34,9 +34,9 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class MacCatalogModel(BaseModel):
     """
-    One registry model in one region.
+    One Mac model in one region.
     """ # noqa: E501
-    available: StrictInt = Field(description="Macs of this model currently available to reserve in this region. Advisory only: another purchase may consume the capacity first. Zero when the model has no price.")
+    available: StrictInt = Field(description="Macs of this model that a purchase in this region can reserve now. Another purchase can take a Mac first. 0 when the model has no price.")
     model: MacModel
     price: Optional[MacPrice]
     additional_properties: Dict[str, Any] = {}

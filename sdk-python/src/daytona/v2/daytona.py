@@ -512,6 +512,9 @@ class AsyncDaytona:
         ``NO_MAC_AVAILABLE``). ``name``, ``idempotency_key``, ``wait_seconds``
         and ``create_timeout_seconds`` behave as on :meth:`create`, and like
         :meth:`create` this never raises because of how its wait ended.
+        A reservation it buys (``reservation="new"`` or auto-reserve) raises
+        :class:`LimitExceededError` (a :class:`RateLimitError`) with
+        ``limit == "max_mac_reservations"`` when the organization holds its Mac reservation limit.
 
         Creating macOS sandboxes requires macOS access enabled for the organization;
         otherwise the API answers ``403``

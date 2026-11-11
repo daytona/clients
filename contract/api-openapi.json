@@ -89,6 +89,15 @@
           "type": "string"
         }
       },
+      "OrganizationRegionId": {
+        "description": "The organization region ID",
+        "in": "path",
+        "name": "region_id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
       "PortNumber": {
         "description": "The port number",
         "in": "path",
@@ -105,6 +114,16 @@
         "name": "project_id",
         "required": true,
         "schema": {
+          "type": "string"
+        }
+      },
+      "RegionProxyTokenId": {
+        "description": "The region proxy token ID",
+        "in": "path",
+        "name": "proxy_token_id",
+        "required": true,
+        "schema": {
+          "format": "uuid",
           "type": "string"
         }
       },
@@ -130,6 +149,24 @@
         "description": "The reservation ID",
         "in": "path",
         "name": "id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RoleId": {
+        "description": "The role ID",
+        "in": "path",
+        "name": "role_id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RunnerId": {
+        "description": "The runner ID",
+        "in": "path",
+        "name": "runner_id",
         "required": true,
         "schema": {
           "type": "string"
@@ -425,6 +462,7 @@
           "MANAGEMENT_PLANE_ELSEWHERE",
           "NOT_SUPPORTED_FOR_CLASS",
           "INVALID_FOR_SOURCE",
+          "ROLE_IN_USE",
           "USAGE_UNAVAILABLE",
           "BAD_RANGE",
           "BAD_RESOLUTION",
@@ -439,6 +477,7 @@
           "RESERVATION_NOT_FOUND",
           "NO_MAC_AVAILABLE",
           "MAC_DISK_FULL",
+          "DISK_NOT_READY",
           "AUTO_RESERVE_LIMIT_REACHED",
           "IDEMPOTENCY_KEY_REUSED",
           "INSUFFICIENT_BALANCE",
@@ -467,6 +506,15 @@
           "V0_SANDBOX_NOT_IMPORTABLE",
           "V0_BACKUP_REGISTRY_UNCONFIGURED",
           "V0_MIGRATION_DEFAULT_PROJECT_ONLY",
+          "INVALID_PARENT_REGION",
+          "INVALID_SANDBOX_CIDR",
+          "INVALID_PREVIEW_DOMAIN",
+          "INVALID_TOOLBOX_PROXY_URL",
+          "REGION_NOT_FOUND",
+          "REGION_LIMIT_REACHED",
+          "REGION_NOT_EMPTY",
+          "REGION_SUBNETS_EXHAUSTED",
+          "RUNNER_HAS_SANDBOXES",
           "NOT_FOUND",
           "UNAUTHORIZED",
           "FORBIDDEN",
@@ -2296,7 +2344,7 @@
             ]
           },
           "cores": {
-            "description": "CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of them when it runs one. The first successful claim fixes the size; request and limit are equal.",
+            "description": "CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).",
             "format": "int32",
             "minimum": 4,
             "type": [
@@ -2305,7 +2353,7 @@
             ]
           },
           "create_timeout_seconds": {
-            "description": "Seconds the sandbox may take to reach `running`. Defaults to 3600; creating from a saved disk may allow additional restore time, up to 86400. `-1` uses the maximum. The sandbox is deleted if the timeout expires, including time spent waiting for capacity. A reservation bought by this request remains purchased and charged.",
+            "description": "Seconds the sandbox can take to reach `running`: 3600 by default, or\n86400 for an image captured on an earlier version of macOS sandboxes.\n`-1` uses the maximum, 86400. After this time, the platform deletes the\nsandbox. The time includes the wait for a Mac. A reservation that this\ncreate bought stays bought and charged after that delete.",
             "format": "int64",
             "type": [
               "integer",
@@ -2313,7 +2361,7 @@
             ]
           },
           "disk_mib": {
-            "description": "Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.",
+            "description": "Disk for this sandbox in MiB, macOS included, at least 81920. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`). For a create from a captured image, omitted or null uses the image's `disk_mib`, and a smaller value returns 400. The disk and the disk volumes must fit the disk space of the sandbox's Mac (`sandbox_disk_mib` in `GET /mac-models`).",
             "format": "int32",
             "minimum": 81920,
             "type": [
@@ -2339,7 +2387,7 @@
             ]
           },
           "image": {
-            "description": "The macOS image, by name or `img_\u2026` ID: a platform macOS base image, typically `base-macos`, or a project macOS image in the requested region. Creating from a saved sandbox disk can take longer than creating from a base image.",
+            "description": "The macOS image, by name or `img_\u2026` id: a platform macOS image,\ntypically `base-macos`, or a macOS image of this project in the\nrequest's region, such as an image captured from a macOS sandbox.",
             "example": "base-macos",
             "type": "string"
           },
@@ -2354,7 +2402,7 @@
             "type": "object"
           },
           "lifecycle_policy": {
-            "description": "Sandbox lifecycle policy: idle stop/delete budgets and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.",
+            "description": "Sandbox lifecycle policy: idle stop and delete timeouts and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.",
             "oneOf": [
               {
                 "type": "null"
@@ -2365,7 +2413,7 @@
             ]
           },
           "memory_mib": {
-            "description": "Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when the reservation's Mac runs up to two sandboxes (its model's `max_sandboxes` in `GET /mac-models`), or all of it when it runs one. The first successful claim fixes the size; request and limit are equal.",
+            "description": "Memory for this sandbox in MiB, at least 4096. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).",
             "format": "int32",
             "minimum": 4096,
             "type": [
@@ -2392,7 +2440,7 @@
             ]
           },
           "persistent": {
-            "description": "Keep the macOS sandbox disk across stop/start and memory across pause/resume. Start and resume require the same Mac and an active reservation. Deleting the sandbox erases its disk. At reservation end, the disk is saved as an anonymous image when possible. Create from that image to continue on another Mac.",
+            "description": "Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.",
             "type": "boolean"
           },
           "ports": {
@@ -2410,7 +2458,7 @@
             ]
           },
           "reservation": {
-            "description": "Omitted uses any fitting Mac reservation of this organization in the region. \"new\" buys the cheapest available model that fits. A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.",
+            "description": "Omitted uses any Mac reservation of the organization in the region that fits this size. \"new\" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.",
             "example": "new",
             "type": [
               "string",
@@ -2425,7 +2473,7 @@
             "type": "array"
           },
           "volumes": {
-            "description": "Disk volumes to attach: at most 8, each read-write. A sandbox with volumes cannot be persistent. A bucket volume returns 400.",
+            "description": "Disk volumes to attach, as on Linux: at most 8, each read-write. Each\nvolume uses its `size_gib` (100 GiB when omitted) of disk space on the\nsandbox's Mac, beside the sandbox's disk. A sandbox with volumes cannot\nbe persistent. A bucket volume returns 400.",
             "items": {
               "$ref": "#/components/schemas/VolumeMount"
             },
@@ -2474,6 +2522,40 @@
         ],
         "type": "object"
       },
+      "CreateOrganizationRegionRequest": {
+        "additionalProperties": false,
+        "description": "The body of an organization-region create.",
+        "properties": {
+          "name": {
+            "description": "The display name, 1 to 100 characters.",
+            "type": "string"
+          },
+          "parent_region_id": {
+            "description": "The ID of a parent region from the organization's parent regions.",
+            "type": "string"
+          },
+          "sandbox_cidr": {
+            "description": "The private IPv4 range sandbox addresses are allocated from, a prefix\nlength between 12 and 20. Default `10.213.0.0/16`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subnet_prefix_length": {
+            "description": "The prefix length of each runner's subnet, between 22 and 28 and longer\nthan the prefix length of `sandbox_cidr`. Default 24.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "parent_region_id"
+        ],
+        "type": "object"
+      },
       "CreateOrganizationRequest": {
         "properties": {
           "name": {
@@ -2483,6 +2565,40 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "CreateOrganizationRoleRequest": {
+        "properties": {
+          "description": {
+            "description": "The role's purpose.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "name": {
+            "description": "The role name, unique in the organization ignoring case. Leading and\ntrailing whitespace is removed and internal whitespace runs collapse\nto one space; the result must be 1 to 64 characters.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_permissions": {
+            "description": "The organization permissions the role grants.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "project_permissions": {
+            "description": "The project permissions the role grants.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "project_permissions",
+          "organization_permissions"
         ],
         "type": "object"
       },
@@ -2544,6 +2660,62 @@
         ],
         "type": "object"
       },
+      "CreateRegionProxyTokenRequest": {
+        "additionalProperties": false,
+        "description": "The body of a proxy-token create. Name `expires_at` or set `no_expiry`.",
+        "properties": {
+          "expires_at": {
+            "description": "When the token expires; must be in the future.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The display name, 1 to 100 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "no_expiry": {
+            "description": "Whether the token never expires.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "CreateRegionRegistrationTokenRequest": {
+        "additionalProperties": false,
+        "description": "The body of a registration-token create.",
+        "properties": {
+          "expires_in_seconds": {
+            "description": "Seconds until the token expires, 300 to 2592000. Default 604800.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_uses": {
+            "description": "How many runners the token may enroll, 1 to 1000. Default 100.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The display name, 1 to 100 characters.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateReservationRequest": {
         "additionalProperties": false,
         "description": "POST /reservations body.",
@@ -2590,7 +2762,7 @@
             "type": "integer"
           },
           "min_count": {
-            "description": "The fewest Macs to accept, 1 to `count`. Omitted means `count`: all or nothing. With fewer than `count` Macs free but at least `min_count`, the request reserves as many as are free.",
+            "description": "The fewest Macs to accept, 1 to `count`. Omitted means `count`: all or nothing. With fewer than `count` Macs free, or fewer left under the organization's Mac reservation limit, but at least `min_count`, the request reserves as many as it can.",
             "format": "int32",
             "type": [
               "integer",
@@ -3491,7 +3663,7 @@
             "type": "boolean"
           },
           "disk_mib": {
-            "description": "The disk size in MiB that a macOS sandbox created from this image gets\nwhen the create omits `disk_mib`. Set for saved macOS sandbox disks;\nnull for every other image.",
+            "description": "The disk size in MiB that a macOS sandbox created from this image gets\nwhen the create omits `disk_mib`; a create cannot ask for less. Set for\nimages captured from a macOS sandbox; null for other images.",
             "format": "int64",
             "type": [
               "integer",
@@ -3699,7 +3871,7 @@
             "type": "boolean"
           },
           "disk_mib": {
-            "description": "The disk size in MiB that a macOS sandbox created from this image gets\nwhen the create omits `disk_mib`. Set for saved macOS sandbox disks;\nnull for every other image.",
+            "description": "The disk size in MiB that a macOS sandbox created from this image gets\nwhen the create omits `disk_mib`; a create cannot ask for less. Set for\nimages captured from a macOS sandbox; null for other images.",
             "format": "int64",
             "type": [
               "integer",
@@ -4087,6 +4259,13 @@
             "description": "The organization name.",
             "type": "string"
           },
+          "role_names": {
+            "description": "The display names of `roles`, in the same order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "roles": {
             "description": "The role identifiers granted on acceptance.",
             "items": {
@@ -4100,6 +4279,7 @@
           "org_id",
           "org_name",
           "roles",
+          "role_names",
           "email",
           "expires_at"
         ],
@@ -4425,10 +4605,10 @@
         "type": "object"
       },
       "MacCatalogModel": {
-        "description": "One registry model in one region.",
+        "description": "One Mac model in one region.",
         "properties": {
           "available": {
-            "description": "Macs of this model currently available to reserve in this region. Advisory only: another purchase may consume the capacity first. Zero when the model has no price.",
+            "description": "Macs of this model that a purchase in this region can reserve now. Another purchase can take a Mac first. 0 when the model has no price.",
             "format": "int64",
             "type": "integer"
           },
@@ -4469,7 +4649,7 @@
             "type": "string"
           },
           "models": {
-            "description": "One entry per registry model, in `GET /mac-models` order.",
+            "description": "One entry per Mac model, in `GET /mac-models` order.",
             "items": {
               "$ref": "#/components/schemas/MacCatalogModel"
             },
@@ -4492,7 +4672,7 @@
             "type": "integer"
           },
           "default_size": {
-            "description": "The size a create gives each size field it omits: half of each of the model's cores, memory, and sandbox disk room (the disk rounded down to a whole GiB) when `max_sandboxes` is 2, all of it when `max_sandboxes` is 1. Null when `max_sandboxes` is 0.",
+            "description": "The default size: the cores, memory and disk that a create gives each size field it omits. A create from a captured image gets the image's disk size instead. Null when this Mac model takes no sandbox.",
             "oneOf": [
               {
                 "type": "null"
@@ -4503,7 +4683,7 @@
             ]
           },
           "disk_mib": {
-            "description": "Physical SSD capacity in MiB, not free space or a per-sandbox disk allowance.",
+            "description": "Size of the Mac's SSD in MiB. Sandboxes use the disk space in `sandbox_disk_mib`.",
             "format": "int32",
             "type": "integer"
           },
@@ -4512,7 +4692,7 @@
             "type": "string"
           },
           "max_sandboxes": {
-            "description": "Most sandboxes a Mac of this model runs at once: 2 when its cores, memory, and sandbox disk room each fit two minimum-sized sandboxes (4 cores, 4096 MiB, 81920 MiB of disk), 1 when they fit one, and 0 when they fit none. The sizes of the running sandboxes must also fit the Mac.",
+            "description": "Most sandboxes on one Mac of this model at once. Stopped sandboxes do not count. The sizes of the sandboxes on one Mac must fit that Mac. 0 when this Mac model takes no sandbox.",
             "format": "int32",
             "type": "integer"
           },
@@ -4526,7 +4706,7 @@
             "type": "string"
           },
           "sandbox_disk_mib": {
-            "description": "Disk room for sandboxes on one Mac of this model, in MiB. The disks of all sandboxes on the Mac, stopped sandboxes included, add up to at most this. Zero until the model's disk room is measured.",
+            "description": "Disk space for sandboxes on one Mac of this model, in MiB. The disks and disk volumes of the sandboxes on one Mac must fit in it. 0 until this Mac model's disk space is known.",
             "format": "int32",
             "type": "integer"
           }
@@ -4610,7 +4790,7 @@
             "type": "boolean"
           },
           "capacity": {
-            "description": "The reserved model\u2019s CPU, memory, and sandbox disk capacity, fixed at purchase. Null when capacity information is unavailable; such a reservation accepts no new sandbox.",
+            "description": "The cores, memory and disk space for sandboxes of this reservation's Mac, set at purchase. Null when unknown; such a reservation accepts no new sandbox.",
             "oneOf": [
               {
                 "type": "null"
@@ -4662,10 +4842,10 @@
           },
           "origin": {
             "$ref": "#/components/schemas/MacReservationOrigin",
-            "description": "How the lease was bought: `explicit` by `POST /reservations` or a\ncreate with `reservation: \"new\"`, and `auto` by a macOS create under\nthe organization's auto-reserve setting."
+            "description": "How the reservation was bought: `explicit` by `POST /reservations` or a\ncreate with `reservation: \"new\"`, and `auto` by a macOS create or start\nunder the organization's auto-reserve setting."
           },
           "pending_mac_started_at": {
-            "description": "When the reservation last began waiting for a Mac: at its first\ncharge, or when it moved after its Mac was lost. Kept after a Mac\nclaims it.",
+            "description": "When the reservation last began to wait for a Mac: at its first\ncharge, or when it moved after a Mac failure. Kept after a Mac takes\nit.",
             "format": "date-time",
             "type": [
               "string",
@@ -4673,7 +4853,7 @@
             ]
           },
           "period_end": {
-            "description": "When the reservation ends unless renewed. Absent until a Mac first claims it\n(period 1 starts at the claim, so waiting for a Mac is not paid time).",
+            "description": "When the reservation ends unless renewed. Absent until a Mac first takes\nthe reservation; period 1 starts then, so the wait for a Mac is not paid\ntime.",
             "format": "date-time",
             "type": [
               "string",
@@ -4708,7 +4888,7 @@
             "type": "string"
           },
           "reissued_at": {
-            "description": "Set when the reservation moved to another Mac after its Mac was lost.",
+            "description": "Set when the reservation moved to another Mac after a Mac failure.",
             "format": "date-time",
             "type": [
               "string",
@@ -4728,7 +4908,7 @@
           },
           "resources_used": {
             "$ref": "#/components/schemas/MacResources",
-            "description": "CPU and memory held by the sandboxes on this reservation's Mac,\nincluding paused sandboxes and sandboxes still being deleted, and the\ndisk its sandboxes hold, stopped sandboxes included. Sandboxes that no\nMac has claimed yet are not counted."
+            "description": "The cores, memory and disk space in use on this reservation's Mac.\nPaused sandboxes and sandboxes with status `deleting` count."
           },
           "slots_used": {
             "description": "macOS sandboxes currently occupying this reservation's Mac.",
@@ -4818,7 +4998,7 @@
         "x-daytona-open-enum": true
       },
       "MacResources": {
-        "description": "CPU cores, memory, and sandbox disk capacity or usage, in cores and MiB.\nA Mac core is one CPU of the Mac (Apple Silicon has no SMT).",
+        "description": "CPU cores, memory and disk, in cores and MiB.\nA Mac core is one CPU of the Mac (Apple Silicon has no SMT).",
         "properties": {
           "cores": {
             "description": "CPU cores.",
@@ -4847,7 +5027,7 @@
         "description": "An organization's macOS settings.",
         "properties": {
           "macos_auto_reserve": {
-            "description": "Whether a macOS create buys a Mac reservation when the organization holds none in the region. On unless an admin turns it off.",
+            "description": "Whether a macOS create or start buys a Mac reservation when the organization has none in the region. On unless an admin turns it off.",
             "type": "boolean"
           },
           "macos_auto_reserve_disabled_at": {
@@ -5147,7 +5327,7 @@
             "type": "string"
           },
           "max_sandbox_timeout_seconds": {
-            "description": "The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.",
+            "description": "The organization's own cap on sandbox timeouts, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. The plan maximum bounds this value; `GET /orgs/{id}/limits` reports the cap in effect.",
             "format": "int32",
             "type": [
               "integer",
@@ -5376,6 +5556,10 @@
             "$ref": "#/components/schemas/ImageBuildLimits",
             "description": "Concurrent image-build limits."
           },
+          "mac_reservations": {
+            "$ref": "#/components/schemas/UsageLimit",
+            "description": "Mac reservations the organization holds: pending, active or ending. Renewals do not count again."
+          },
           "members": {
             "$ref": "#/components/schemas/MemberLimits",
             "description": "Organization member limits. Omitted for project-scoped callers."
@@ -5383,6 +5567,10 @@
           "sandbox_resources": {
             "$ref": "#/components/schemas/SandboxResourceLimits",
             "description": "Per-sandbox resource maximums for Linux sandboxes."
+          },
+          "sandbox_timeout": {
+            "$ref": "#/components/schemas/SandboxTimeoutLimits",
+            "description": "Sandbox timeout maximums."
           },
           "sandboxes": {
             "$ref": "#/components/schemas/SandboxLimits",
@@ -5399,6 +5587,7 @@
         },
         "required": [
           "sandboxes",
+          "sandbox_timeout",
           "image_builds",
           "storage",
           "secrets_per_project",
@@ -5566,6 +5755,327 @@
         ],
         "type": "object"
       },
+      "OrganizationRegion": {
+        "description": "A region an organization created on its own infrastructure.",
+        "properties": {
+          "created_at": {
+            "description": "When the region was created.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "The region ID. Generated when the region is created; pass it as the\nregion of a sandbox create.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "parent_region_id": {
+            "description": "The ID of the parent region this region was created under.",
+            "type": "string"
+          },
+          "preview_domain": {
+            "description": "The base domain of the region's preview URLs, or `null` when none is\nset.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runner_count": {
+            "description": "The number of runners enrolled in the region.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "sandbox_cidr": {
+            "description": "The private IPv4 range sandbox addresses are allocated from.",
+            "example": "10.213.0.0/16",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RegionStatus",
+            "description": "Whether the region accepts new sandboxes."
+          },
+          "subnet_prefix_length": {
+            "description": "The prefix length of the subnet each runner receives from\n`sandbox_cidr`.",
+            "example": 24,
+            "format": "int32",
+            "type": "integer"
+          },
+          "toolbox_proxy_url": {
+            "description": "The base URL of the region's proxy, or `null` when none is\nset.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "description": "When the region last changed.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "parent_region_id",
+          "status",
+          "sandbox_cidr",
+          "subnet_prefix_length",
+          "runner_count",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "OrganizationRegionPage": {
+        "description": "A page of organization regions.",
+        "properties": {
+          "next_cursor": {
+            "description": "The cursor for the next page, or `null` on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "regions": {
+            "description": "The regions on this page, ordered by ID.",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationRegion"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "regions"
+        ],
+        "type": "object"
+      },
+      "OrganizationRole": {
+        "properties": {
+          "created_at": {
+            "description": "When the role was created, or `null` for a built-in role.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "description": "The role's purpose.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The role ID: a built-in role's identifier, or a custom role's UUID.",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/OrganizationRoleKind",
+            "description": "Whether the role is built in or defined by the organization."
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "organization_permissions": {
+            "description": "The organization permissions the role grants.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "permissions": {
+            "description": "Every permission the role grants: the project permissions, then the\norganization permissions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "project_permissions": {
+            "description": "The project permissions the role grants.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "updated_at": {
+            "description": "When the role was last changed, or `null` for a built-in role.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "kind",
+          "project_permissions",
+          "organization_permissions",
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "OrganizationRoleKind": {
+        "description": "Whether a role is part of the platform catalog or defined by the\norganization. The server may add kinds later.",
+        "enum": [
+          "built_in",
+          "custom"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "OrganizationRoleList": {
+        "properties": {
+          "max_custom_roles": {
+            "description": "The most custom roles the organization can define.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "roles": {
+            "description": "The built-in roles, then the organization's custom roles.",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationRole"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles",
+          "max_custom_roles"
+        ],
+        "type": "object"
+      },
+      "OrganizationRoleUpdate": {
+        "description": "A role update's result: the role and the keys the update revoked.",
+        "properties": {
+          "revoked_api_keys": {
+            "description": "The number of API keys the update revoked.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrganizationRole",
+            "description": "The updated role."
+          }
+        },
+        "required": [
+          "role",
+          "revoked_api_keys"
+        ],
+        "type": "object"
+      },
+      "OrganizationRunner": {
+        "description": "A runner enrolled in an organization region.",
+        "properties": {
+          "admin_state": {
+            "$ref": "#/components/schemas/OrganizationRunnerAdminState",
+            "description": "Whether the runner accepts new sandboxes."
+          },
+          "enrolled_at": {
+            "description": "When the runner enrolled.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "The runner ID.",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "description": "When the runner was last heard from, or `null` when never.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node_name": {
+            "description": "The Kubernetes node name the runner enrolled with.",
+            "type": "string"
+          },
+          "region_id": {
+            "description": "The region the runner is enrolled in.",
+            "type": "string"
+          },
+          "sandbox_count": {
+            "description": "The number of sandboxes on the runner.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationRunnerStatus",
+            "description": "Whether the runner is connected."
+          },
+          "updated_at": {
+            "description": "When the runner was last cordoned or uncordoned, or when it enrolled.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "description": "The runner software version, or `null` when not reported yet.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "region_id",
+          "node_name",
+          "status",
+          "admin_state",
+          "sandbox_count",
+          "enrolled_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "OrganizationRunnerAdminState": {
+        "description": "Whether a runner accepts new sandboxes.",
+        "enum": [
+          "active",
+          "cordoned"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "OrganizationRunnerPage": {
+        "description": "A page of a region's runners.",
+        "properties": {
+          "next_cursor": {
+            "description": "The cursor for the next page, or `null` on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runners": {
+            "description": "The runners on this page.",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationRunner"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "runners"
+        ],
+        "type": "object"
+      },
+      "OrganizationRunnerStatus": {
+        "description": "Whether a runner is connected.",
+        "enum": [
+          "online",
+          "offline",
+          "lost"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "OrganizationServiceAccount": {
         "properties": {
           "archived_at": {
@@ -5708,6 +6218,40 @@
           "header_names",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "ParentRegion": {
+        "description": "A parent region the organization may create a region under.",
+        "properties": {
+          "id": {
+            "description": "The parent region ID, for `parent_region_id`.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ParentRegionList": {
+        "description": "The parent regions the organization may create a region under.",
+        "properties": {
+          "parent_regions": {
+            "description": "The parent regions, ordered by ID.",
+            "items": {
+              "$ref": "#/components/schemas/ParentRegion"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "parent_regions"
         ],
         "type": "object"
       },
@@ -5902,6 +6446,11 @@
               "null"
             ]
           },
+          "max_mac_reservations": {
+            "description": "The most Mac reservations the organization can hold at once.",
+            "format": "int64",
+            "type": "integer"
+          },
           "max_members": {
             "description": "The member limit, or `null` when unlimited.",
             "format": "int64",
@@ -5920,6 +6469,14 @@
           },
           "max_sandbox_memory_mib": {
             "description": "The memory limit of one Linux sandbox in MiB, or `null` when only the platform maximum applies.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_sandbox_timeout_seconds": {
+            "description": "The longest timeout a sandbox may have on this plan, in seconds, or `null` when the plan sets no maximum.",
             "format": "int64",
             "type": [
               "integer",
@@ -6033,6 +6590,35 @@
         "required": [
           "roles"
         ],
+        "type": "object"
+      },
+      "PreviewOrganizationRoleUpdateRequest": {
+        "properties": {
+          "description": {
+            "description": "The new role purpose.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "name": {
+            "description": "The new role name. Whitespace is normalized as on create; the result\nmust be 1 to 64 characters.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_permissions": {
+            "description": "The complete new set of organization permissions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "project_permissions": {
+            "description": "The complete new set of project permissions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "PreviewServiceAccountUpdateRequest": {
@@ -6775,6 +7361,80 @@
         ],
         "type": "object"
       },
+      "RegionInstallation": {
+        "description": "The non-secret values an installation in the region needs.",
+        "properties": {
+          "api_url": {
+            "description": "The API URL runners enroll against, or `null` when not configured.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bootstrap_image": {
+            "description": "The image that runs the bootstrap script, or `null` when not\nconfigured.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bus_url": {
+            "description": "The message bus address the region's runners connect out to, or `null`\nwhen not configured. Allow it in your firewall.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chart": {
+            "description": "The Helm chart that installs the region's runners, as an OCI reference.",
+            "type": "string"
+          },
+          "chart_version": {
+            "description": "The chart version to install, or `null` for the latest.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installer_image": {
+            "description": "The installer image, or `null` when not configured.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proxy_image": {
+            "description": "The proxy image, or `null` when not configured.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region_id": {
+            "description": "The region ID.",
+            "type": "string"
+          },
+          "terraform_module": {
+            "description": "The Terraform module, as an OCI reference, or `null` when not\nconfigured.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usage_reporting_url": {
+            "description": "The address the region's runners report sandbox usage to, or `null`\nwhen not configured. Allow it in your firewall.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "region_id",
+          "chart"
+        ],
+        "type": "object"
+      },
       "RegionList": {
         "description": "The caller's regions.",
         "properties": {
@@ -6832,6 +7492,218 @@
           "region_multipliers"
         ],
         "type": "object"
+      },
+      "RegionProxyToken": {
+        "description": "A token the region's own proxy authenticates with.",
+        "properties": {
+          "created_at": {
+            "description": "When the token was created.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "When the token expires, or `null` when it does not.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "The proxy token ID.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "last_used_at": {
+            "description": "When the token last authenticated, or `null` when it never has.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The display name, or `null` when none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region_id": {
+            "description": "The region the token is bound to.",
+            "type": "string"
+          },
+          "rotated_from": {
+            "description": "The ID of the token this one replaced, or `null`.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "description": "When the token last changed: a rotation shortens the replaced token's\nlifetime.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "region_id",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "RegionProxyTokenPage": {
+        "description": "A page of the region's live proxy tokens.",
+        "properties": {
+          "next_cursor": {
+            "description": "The cursor for the next page, or `null` on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proxy_tokens": {
+            "description": "The proxy tokens, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/RegionProxyToken"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "proxy_tokens"
+        ],
+        "type": "object"
+      },
+      "RegionProxyTokenWithToken": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RegionProxyToken",
+            "description": "The proxy token."
+          },
+          {
+            "properties": {
+              "token": {
+                "description": "The secret, returned only when the token is created.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "token"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "A newly created proxy token and its one-time secret."
+      },
+      "RegionStatus": {
+        "enum": [
+          "active",
+          "disabled"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "RegistrationToken": {
+        "description": "A token that enrolls runners into one region until it expires or its uses\nrun out.",
+        "properties": {
+          "created_at": {
+            "description": "When the token was created.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "When the token stops enrolling runners.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "The registration token ID.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "max_uses": {
+            "description": "How many runners the token may enroll.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "description": "The display name.",
+            "type": "string"
+          },
+          "region_id": {
+            "description": "The region the token enrolls runners into.",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "When the token last changed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "uses": {
+            "description": "How many runners the token has enrolled.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "region_id",
+          "name",
+          "expires_at",
+          "max_uses",
+          "uses",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "RegistrationTokenPage": {
+        "description": "A page of the region's live registration tokens.",
+        "properties": {
+          "next_cursor": {
+            "description": "The cursor for the next page, or `null` on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "registration_tokens": {
+            "description": "The registration tokens, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/RegistrationToken"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "registration_tokens"
+        ],
+        "type": "object"
+      },
+      "RegistrationTokenWithToken": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RegistrationToken",
+            "description": "The registration token."
+          },
+          {
+            "properties": {
+              "token": {
+                "description": "The secret, returned only when the token is created.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "token"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "A newly created registration token and its one-time secret."
       },
       "Registry": {
         "description": "Registry credential metadata returned by list and get endpoints. Passwords\nare write-only and never returned.",
@@ -6975,6 +7847,41 @@
         ],
         "type": "object"
       },
+      "RoleChangeImpact": {
+        "properties": {
+          "affected_members": {
+            "description": "The number of members who hold the role.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "affected_service_accounts": {
+            "description": "The number of active service accounts that hold the role.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pending_invitations": {
+            "description": "The number of pending invitations that grant the role.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revoked_api_keys": {
+            "description": "The number of API keys the update would revoke.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked_api_keys",
+          "affected_members",
+          "affected_service_accounts",
+          "pending_invitations"
+        ],
+        "type": "object"
+      },
       "RoleList": {
         "properties": {
           "roles": {
@@ -6988,6 +7895,40 @@
         "required": [
           "roles"
         ],
+        "type": "object"
+      },
+      "RotateRegionProxyTokenRequest": {
+        "additionalProperties": false,
+        "description": "The body of a proxy-token rotation: the successor's lifetime, and how long\nthe replaced token keeps working.",
+        "properties": {
+          "expires_at": {
+            "description": "When the successor expires; must be in the future.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The successor's display name, 1 to 100 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "no_expiry": {
+            "description": "Whether the successor never expires.",
+            "type": "boolean"
+          },
+          "overlap_seconds": {
+            "description": "Seconds the replaced token keeps working, 0 to 86400. Default 0.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "Sandbox": {
@@ -7141,7 +8082,7 @@
             "type": "string"
           },
           "persistent": {
-            "description": "Whether the macOS sandbox retains writable state across stops.",
+            "description": "Whether the sandbox keeps its disk across stop and start.",
             "type": [
               "boolean",
               "null"
@@ -7159,7 +8100,7 @@
             "type": "string"
           },
           "reservation_id": {
-            "description": "The macOS reservation of the current or latest successful claim; null\nbefore the first claim and absent for other sandbox classes.",
+            "description": "The Mac reservation that the macOS sandbox runs on, or ran on last.\nNull before the sandbox first reaches a Mac; absent for other sandbox\nclasses.",
             "type": [
               "string",
               "null"
@@ -7365,7 +8306,7 @@
             "type": "string"
           },
           "reservation_id": {
-            "description": "The macOS reservation selected by a successful claim; null until a Mac\nclaims the sandbox.",
+            "description": "The Mac reservation that the sandbox runs on; null until the sandbox\nreaches a Mac.",
             "type": [
               "string",
               "null"
@@ -7381,7 +8322,7 @@
             "type": "string"
           },
           "wait_cap_seconds": {
-            "description": "Maximum server-side create wait in seconds.",
+            "description": "Maximum server-side create wait in seconds. `0` when the server skipped\nthe hold because the organization already has its limit of held\ncreates; wait for the rest of `wait_seconds` client-side.",
             "format": "int64",
             "minimum": 0,
             "type": "integer"
@@ -7736,6 +8677,26 @@
         ],
         "type": "string",
         "x-daytona-open-enum": true
+      },
+      "SandboxTimeoutLimits": {
+        "description": "The longest sandbox timeout the organization allows now, and how high its own cap may go.",
+        "properties": {
+          "ceiling_seconds": {
+            "description": "The highest value the organization's own cap may be set to, in seconds: the plan maximum, or the platform maximum when there is no plan maximum.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "max_seconds": {
+            "description": "The longest `timeout_seconds` a sandbox may have now, in seconds: the organization's own cap, bounded by the plan maximum.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_seconds",
+          "ceiling_seconds"
+        ],
+        "type": "object"
       },
       "SandboxUsage": {
         "description": "Current resource use for a sandbox.",
@@ -8690,7 +9651,7 @@
         "description": "The macOS settings to change: any non-empty subset of the fields.",
         "properties": {
           "macos_auto_reserve": {
-            "description": "Whether new macOS creates may automatically reserve capacity.",
+            "description": "Whether a macOS create or start buys a Mac reservation when the organization has none in the region.",
             "type": [
               "boolean",
               "null"
@@ -8723,11 +9684,39 @@
         ],
         "type": "object"
       },
+      "UpdateOrganizationRegionRequest": {
+        "additionalProperties": false,
+        "description": "The body of an organization-region update. An omitted field keeps its\nvalue; `null` clears `toolbox_proxy_url` or `preview_domain`.",
+        "properties": {
+          "name": {
+            "description": "The new display name, 1 to 100 characters.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preview_domain": {
+            "description": "The base domain of the region's preview URLs. Must be unique, must not\nbe a public suffix such as `co.uk`, and must not be, or be inside, a\ndomain the platform serves.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toolbox_proxy_url": {
+            "description": "The base URL of the region's proxy. Must be an `https://` URL.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "UpdateOrganizationRequest": {
         "additionalProperties": false,
         "properties": {
           "max_sandbox_timeout_seconds": {
-            "description": "The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.",
+            "description": "The longest timeout a sandbox in this organization may have, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. A value above that maximum is rejected.",
             "format": "int64",
             "type": [
               "integer",
@@ -8737,6 +9726,35 @@
           "name": {
             "description": "The replacement organization name.",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateOrganizationRoleRequest": {
+        "properties": {
+          "description": {
+            "description": "The new role purpose.",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "name": {
+            "description": "The new role name. Whitespace is normalized as on create; the result\nmust be 1 to 64 characters.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_permissions": {
+            "description": "The complete new set of organization permissions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "project_permissions": {
+            "description": "The complete new set of project permissions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -11173,6 +12191,21 @@
               }
             }
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The roles the invitation grants no longer exist (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           }
@@ -12117,7 +13150,7 @@
                 }
               }
             },
-            "description": "The organization is a personal organization (`CONFLICT`). The organization still holds a live Mac lease (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`)",
+            "description": "The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -12358,7 +13391,7 @@
         ]
       },
       "post": {
-        "description": "Only some organization permissions can be held by an organization API key; a request that names any other is refused, naming the permissions at fault.",
+        "description": "Only some organization permissions can be held by an organization API key, and only ones the current member holds; a request that names any other is refused, naming the permissions at fault.",
         "operationId": "create_org_api_key",
         "parameters": [
           {
@@ -17668,6 +18701,71 @@
         ]
       }
     },
+    "/orgs/{org_id}/parent-regions": {
+      "get": {
+        "description": "Lists the regions the organization can create its own regions under.",
+        "operationId": "list_parent_regions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParentRegionList"
+                }
+              }
+            },
+            "description": "The parent regions",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "read:regions"
+            ]
+          }
+        ],
+        "summary": "List parent regions",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
     "/orgs/{org_id}/preview-warning": {
       "patch": {
         "description": "Turns the preview warning page off or on for the organization's sandbox previews. When plan requirements are enforced, turning it off requires this setting to be included in the organization's plan; turning it on does not.",
@@ -17933,6 +19031,2337 @@
         "tags": [
           "projects"
         ]
+      }
+    },
+    "/orgs/{org_id}/regions": {
+      "get": {
+        "operationId": "list_organization_regions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRegionPage"
+                }
+              }
+            },
+            "description": "The page of organization regions",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A query parameter is malformed (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "read:regions"
+            ]
+          }
+        ],
+        "summary": "List organization regions",
+        "tags": [
+          "regions"
+        ]
+      },
+      "post": {
+        "description": "Creates a region whose sandboxes run on the organization's own infrastructure, under one of the organization's parent regions. The region ID is generated.",
+        "operationId": "create_organization_region",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationRegionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRegion"
+                }
+              }
+            },
+            "description": "The created organization region",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is malformed (`BAD_REQUEST`). The parent region does not accept organization regions (`INVALID_PARENT_REGION`). The sandbox range or subnet prefix length is invalid (`INVALID_SANDBOX_CIDR`).",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/EntitlementRequired"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The organization has reached its region limit (`REGION_LIMIT_REACHED`).",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "write:regions"
+            ]
+          }
+        ],
+        "summary": "Create an organization region",
+        "tags": [
+          "regions"
+        ],
+        "x-required-entitlement": "byoc_regions"
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}": {
+      "delete": {
+        "description": "Deletes a region that has no runners and no sandboxes left.",
+        "operationId": "delete_organization_region",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Organization region deleted",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Runners or sandboxes remain in the region (`REGION_NOT_EMPTY`).",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "delete:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "delete:regions"
+            ]
+          }
+        ],
+        "summary": "Delete an organization region",
+        "tags": [
+          "regions"
+        ]
+      },
+      "get": {
+        "operationId": "get_organization_region",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRegion"
+                }
+              }
+            },
+            "description": "The organization region",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "read:regions"
+            ]
+          }
+        ],
+        "summary": "Get an organization region",
+        "tags": [
+          "regions"
+        ]
+      },
+      "patch": {
+        "operationId": "update_organization_region",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationRegionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRegion"
+                }
+              }
+            },
+            "description": "The organization region",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is malformed (`BAD_REQUEST`). The proxy URL is not an https URL (`INVALID_TOOLBOX_PROXY_URL`). The preview domain is malformed or overlaps another domain (`INVALID_PREVIEW_DOMAIN`).",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "write:regions"
+            ]
+          }
+        ],
+        "summary": "Update an organization region",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/installation": {
+      "get": {
+        "description": "Returns the non-secret values an installation of the region's runners and proxy needs.",
+        "operationId": "get_organization_region_installation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionInstallation"
+                }
+              }
+            },
+            "description": "The region installation",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "read:regions"
+            ]
+          }
+        ],
+        "summary": "Get an organization region installation",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/proxy-tokens": {
+      "get": {
+        "operationId": "list_region_proxy_tokens",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionProxyTokenPage"
+                }
+              }
+            },
+            "description": "The page of region proxy tokens",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A query parameter is malformed (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "read:regions"
+            ]
+          }
+        ],
+        "summary": "List region proxy tokens",
+        "tags": [
+          "regions"
+        ]
+      },
+      "post": {
+        "description": "Creates the token the region's own proxy authenticates with. The secret is returned only once.",
+        "operationId": "create_region_proxy_token",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRegionProxyTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionProxyTokenWithToken"
+                }
+              }
+            },
+            "description": "The created region proxy token",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is malformed (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "write:regions"
+            ]
+          }
+        ],
+        "summary": "Create a region proxy token",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/proxy-tokens/{proxy_token_id}": {
+      "delete": {
+        "description": "Revokes the token and disconnects the proxy that holds it.",
+        "operationId": "delete_region_proxy_token",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/RegionProxyTokenId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Region proxy token deleted",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region proxy token not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "delete:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "delete:regions"
+            ]
+          }
+        ],
+        "summary": "Delete a region proxy token",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/proxy-tokens/{proxy_token_id}/rotation": {
+      "post": {
+        "description": "Creates a successor token. The replaced token keeps working for `overlap_seconds`.",
+        "operationId": "rotate_region_proxy_token",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/RegionProxyTokenId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateRegionProxyTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionProxyTokenWithToken"
+                }
+              }
+            },
+            "description": "The created region proxy token",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is malformed (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region proxy token not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The proxy token was already rotated (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "write:regions"
+            ]
+          }
+        ],
+        "summary": "Rotate a region proxy token",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/registration-tokens": {
+      "get": {
+        "operationId": "list_region_registration_tokens",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationTokenPage"
+                }
+              }
+            },
+            "description": "The page of registration tokens",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A query parameter is malformed (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:regions"
+            ]
+          },
+          {
+            "org_key": [
+              "read:regions"
+            ]
+          }
+        ],
+        "summary": "List region registration tokens",
+        "tags": [
+          "regions"
+        ]
+      },
+      "post": {
+        "description": "Creates a token that enrolls runners into the region. The secret is returned only once.",
+        "operationId": "create_region_registration_token",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRegionRegistrationTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationTokenWithToken"
+                }
+              }
+            },
+            "description": "The created registration token",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is malformed (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "write:runners"
+            ]
+          }
+        ],
+        "summary": "Create a region registration token",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/registration-tokens/{registration_token_id}": {
+      "delete": {
+        "description": "Revokes the token. Runners it already enrolled keep working.",
+        "operationId": "delete_region_registration_token",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "description": "The registration token ID",
+            "in": "path",
+            "name": "registration_token_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Registration token deleted",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Registration token not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "delete:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "delete:runners"
+            ]
+          }
+        ],
+        "summary": "Delete a region registration token",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/runners": {
+      "get": {
+        "operationId": "list_region_runners",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRunnerPage"
+                }
+              }
+            },
+            "description": "The page of region runners",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A query parameter is malformed (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Region not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "read:runners"
+            ]
+          }
+        ],
+        "summary": "List region runners",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/runners/{runner_id}": {
+      "delete": {
+        "description": "Removes the runner from the region and revokes its credentials. Its ID is never reused.",
+        "operationId": "delete_region_runner",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/RunnerId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Runner deleted",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Runner not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The runner still has sandboxes (`RUNNER_HAS_SANDBOXES`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "delete:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "delete:runners"
+            ]
+          }
+        ],
+        "summary": "Delete a region runner",
+        "tags": [
+          "regions"
+        ]
+      },
+      "get": {
+        "operationId": "get_region_runner",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/RunnerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRunner"
+                }
+              }
+            },
+            "description": "The region runner",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Runner not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "read:runners"
+            ]
+          }
+        ],
+        "summary": "Get a region runner",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/runners/{runner_id}/cordon": {
+      "post": {
+        "description": "Stops new sandboxes from being placed on the runner. Its running sandboxes keep running.",
+        "operationId": "cordon_region_runner",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/RunnerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRunner"
+                }
+              }
+            },
+            "description": "The region runner",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Runner not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The runner hasn't connected yet (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "write:runners"
+            ]
+          }
+        ],
+        "summary": "Cordon a region runner",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/regions/{region_id}/runners/{runner_id}/uncordon": {
+      "post": {
+        "description": "Lets new sandboxes be placed on the runner again.",
+        "operationId": "uncordon_region_runner",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationRegionId"
+          },
+          {
+            "$ref": "#/components/parameters/RunnerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRunner"
+                }
+              }
+            },
+            "description": "The region runner",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Runner not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The runner hasn't connected yet (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization regions are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:runners"
+            ]
+          },
+          {
+            "org_key": [
+              "write:runners"
+            ]
+          }
+        ],
+        "summary": "Uncordon a region runner",
+        "tags": [
+          "regions"
+        ]
+      }
+    },
+    "/orgs/{org_id}/roles": {
+      "get": {
+        "description": "Returns the built-in roles in catalog order, then the organization's custom roles by name.",
+        "operationId": "list_organization_roles",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRoleList"
+                }
+              }
+            },
+            "description": "The organization roles",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:organization"
+            ]
+          }
+        ],
+        "summary": "List organization roles",
+        "tags": [
+          "roles"
+        ]
+      },
+      "post": {
+        "description": "Defines a custom role from the permission vocabulary. The role can grant only permissions the current member holds.",
+        "operationId": "create_organization_role",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRole"
+                }
+              }
+            },
+            "description": "The created organization role",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is invalid, names an unknown permission, or omits a permission every role must include (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/EntitlementRequired"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A role with the same name already exists (`CONFLICT`). The organization has reached its custom role limit (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:roles"
+            ]
+          }
+        ],
+        "summary": "Create an organization role",
+        "tags": [
+          "roles"
+        ],
+        "x-required-entitlement": "custom_roles"
+      }
+    },
+    "/orgs/{org_id}/roles/{role_id}": {
+      "delete": {
+        "description": "Deletes a custom role that no member, service account, or pending invitation holds.",
+        "operationId": "delete_organization_role",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role deleted",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The required permission is missing, or the role is built in (`FORBIDDEN`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization or role not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A member, service account, or pending invitation holds the role (`ROLE_IN_USE`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "delete:roles"
+            ]
+          }
+        ],
+        "summary": "Delete an organization role",
+        "tags": [
+          "roles"
+        ]
+      },
+      "get": {
+        "operationId": "get_organization_role",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRole"
+                }
+              }
+            },
+            "description": "The organization role",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization or role not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:organization"
+            ]
+          }
+        ],
+        "summary": "Get an organization role",
+        "tags": [
+          "roles"
+        ]
+      },
+      "patch": {
+        "description": "Updates a custom role; a permission array in the request replaces the stored array. Narrowing a role revokes its holders' API keys that exceed their new permissions. An update that only removes permissions does not require the custom roles entitlement.",
+        "operationId": "update_organization_role",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRoleUpdate"
+                }
+              }
+            },
+            "description": "The organization role",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is invalid, names an unknown permission, or omits a permission every role must include (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/EntitlementRequired"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization or role not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A role with the same name already exists (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:roles"
+            ]
+          }
+        ],
+        "summary": "Update an organization role",
+        "tags": [
+          "roles"
+        ],
+        "x-required-entitlement": "custom_roles"
+      }
+    },
+    "/orgs/{org_id}/roles/{role_id}/update-preview": {
+      "post": {
+        "description": "Reports what the same update would change, without applying it. A preview that only removes permissions does not require the custom roles entitlement.",
+        "operationId": "preview_organization_role_update",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewOrganizationRoleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleChangeImpact"
+                }
+              }
+            },
+            "description": "The role change impact",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is invalid, names an unknown permission, or omits a permission every role must include (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/EntitlementRequired"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Organization or role not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A role with the same name already exists (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:roles"
+            ]
+          }
+        ],
+        "summary": "Preview an organization role update",
+        "tags": [
+          "roles"
+        ],
+        "x-required-entitlement": "custom_roles"
       }
     },
     "/orgs/{org_id}/service-accounts": {
@@ -20939,6 +24368,21 @@
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The organization's Mac reservation limit could not be verified (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -21097,6 +24541,21 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The organization's Mac reservation limit could not be verified (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           },
           "503": {
             "content": {
@@ -21424,6 +24883,9 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           },
           "503": {
             "content": {
@@ -21786,7 +25248,7 @@
                 }
               }
             },
-            "description": "The ID list is empty or exceeds 200 entries (`BAD_REQUEST`)",
+            "description": "The ID list is empty or exceeds 200 entries (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -21983,7 +25445,7 @@
     },
     "/sandboxes/macos": {
       "post": {
-        "description": "Creates a macOS sandbox using an organization reservation. Acceptance does not guarantee immediate capacity: concurrent requests may compete for room, and the sandbox may wait or time out.",
+        "description": "Creates a macOS sandbox on a Mac reservation of the organization. The sizes of the sandboxes on one Mac must fit that Mac. An accepted create can wait for space on a Mac until `create_timeout_seconds`.",
         "operationId": "create_macos_sandbox",
         "requestBody": {
           "content": {
@@ -22082,7 +25544,7 @@
                 }
               }
             },
-            "description": "The image, reservation, or available capacity cannot satisfy the request (`CONFLICT`)",
+            "description": "The image or the reservation cannot serve this create (`CONFLICT`). The Macs of the organization have no space for this size (`NO_FREE_SLOT`), or the Mac with space is low on free disk space (`MAC_DISK_FULL`). The organization has no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`), or found no Mac to reserve (`NO_MAC_AVAILABLE`). The idempotency key was used for a create of another size (`IDEMPOTENCY_KEY_REUSED`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -22106,6 +25568,21 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The organization's Mac reservation limit could not be verified (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           },
           "503": {
             "content": {
@@ -22232,7 +25709,7 @@
             }
           },
           {
-            "description": "Label containment filter: a JSON-encoded object `{\"k\":\"v\",...}`; only\nsandboxes whose labels contain every pair match. A malformed or\nnon-object value answers 400.",
+            "description": "Label containment filter: a JSON-encoded object `{\"k\":\"v\",...}`; only\nsandboxes whose labels contain every pair match. A malformed or\nnon-object value answers 400. The whole query string, URL-encoded,\nmay be at most 12,288 bytes; a longer one answers 400.",
             "in": "query",
             "name": "labels",
             "required": false,
@@ -22436,7 +25913,7 @@
                 }
               }
             },
-            "description": "A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "description": "A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -22555,7 +26032,7 @@
                 }
               }
             },
-            "description": "A fork of this macOS sandbox is still copying its disk; retry once the fork is stopped or running (`CONFLICT`)",
+            "description": "A fork of this macOS sandbox is in progress; retry the delete later (`CONFLICT`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -23080,7 +26557,7 @@
               }
             }
           },
-          "description": "Optional body; omit it entirely for a memory fork with the default name"
+          "description": "Optional body; omit it for a fork with the default name and the default `memory`."
         },
         "responses": {
           "202": {
@@ -23154,7 +26631,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). A macOS source's Mac has no room for the fork (`NO_FREE_SLOT`) or no free disk space (`MAC_DISK_FULL`)",
+            "description": "The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -23280,7 +26757,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support image capture, or the region cannot store a macOS image (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, or the image name already exists (`CONFLICT`). A macOS sandbox must instead be persistent and stopped, on an active reservation, with no capture of it in progress (`SNAPSHOT_IN_PROGRESS`)",
+            "description": "The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, or the image name already exists (`CONFLICT`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -24709,7 +28186,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support resuming (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not paused, its saved state is unavailable, or its macOS reservation is ending (`CONFLICT`)",
+            "description": "The sandbox class does not support resuming (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not paused, its saved state is unavailable, or its Mac reservation is ending (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -25160,7 +28637,7 @@
     },
     "/sandboxes/{sandbox_id}/start": {
       "post": {
-        "description": "macOS: Start the stored disk at its fixed size on the same Mac and live reservation. This operation never buys a reservation or moves the disk.",
+        "description": "macOS: Starts the sandbox with its disk and size on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. If the organization has no Mac reservation in the region and auto-reserve is on, the start buys one.",
         "operationId": "start_sandbox",
         "parameters": [
           {
@@ -25194,7 +28671,7 @@
                 }
               }
             },
-            "description": "The organization is suspended (`ORG_SUSPENDED`), or the project reached its monthly budget (`PROJECT_BUDGET_EXCEEDED`)",
+            "description": "The organization is suspended (`ORG_SUSPENDED`), or the project reached its monthly budget (`PROJECT_BUDGET_EXCEEDED`). The organization's balance is too low for the Mac reservation auto-reserve buys (`INSUFFICIENT_BALANCE`), or that reservation's charge did not succeed (`CHARGE_FAILED`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -25239,7 +28716,7 @@
                 }
               }
             },
-            "description": "The sandbox cannot be started in its current configuration, or a macOS sandbox's reservation or local disk is unavailable (`CONFLICT`). The sandbox's Mac has no room (`NO_FREE_SLOT`) or no free disk space (`MAC_DISK_FULL`). A saved image of the sandbox's disk is still in progress (`SNAPSHOT_IN_PROGRESS`)",
+            "description": "The sandbox cannot be started in its current configuration (`CONFLICT`). The sandbox's disk is not ready yet; retry the start later (`DISK_NOT_READY`). The Macs of the organization have no space for this size (`NO_FREE_SLOT`), or the Mac with space is low on free disk space (`MAC_DISK_FULL`). The organization has no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`), or found no Mac to reserve (`NO_MAC_AVAILABLE`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -25288,7 +28765,7 @@
     },
     "/sandboxes/{sandbox_id}/stop": {
       "post": {
-        "description": "Stops a persistent macOS sandbox and keeps its disk on the same Mac until deletion, reservation end, or loss of the Mac. A non-persistent sandbox cannot be stopped.",
+        "description": "Stops a persistent sandbox and keeps its disk. A sandbox that is not\npersistent cannot be stopped.",
         "operationId": "stop_sandbox",
         "parameters": [
           {
@@ -26771,7 +30248,7 @@
       "name": "registries"
     },
     {
-      "description": "Reserve capacity for macOS sandboxes.",
+      "description": "Reserve Macs for macOS sandboxes.",
       "name": "reservations"
     },
     {
@@ -26954,6 +30431,11 @@
       "source": "DAYTONA_API",
       "status": 400
     },
+    "DISK_NOT_READY": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
     "ECR_ACCOUNT_MISMATCH": {
       "extras": [],
       "source": "DAYTONA_API",
@@ -27059,6 +30541,26 @@
       "status": 402
     },
     "INVALID_FOR_SOURCE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "INVALID_PARENT_REGION": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "INVALID_PREVIEW_DOMAIN": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "INVALID_SANDBOX_CIDR": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "INVALID_TOOLBOX_PROXY_URL": {
       "extras": [],
       "source": "DAYTONA_API",
       "status": 400
@@ -27196,6 +30698,26 @@
       "source": "DAYTONA_API",
       "status": 400
     },
+    "REGION_LIMIT_REACHED": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
+    "REGION_NOT_EMPTY": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
+    "REGION_NOT_FOUND": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 404
+    },
+    "REGION_SUBNETS_EXHAUSTED": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
     "REGION_UNAVAILABLE": {
       "extras": [],
       "source": "DAYTONA_API",
@@ -27205,6 +30727,16 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 404
+    },
+    "ROLE_IN_USE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
+    "RUNNER_HAS_SANDBOXES": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
     },
     "SEARCH_NOT_CONFIGURED": {
       "extras": [],

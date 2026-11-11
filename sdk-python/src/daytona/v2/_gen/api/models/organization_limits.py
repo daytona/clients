@@ -23,6 +23,7 @@ from daytona.v2._gen.api.models.image_build_limits import ImageBuildLimits
 from daytona.v2._gen.api.models.member_limits import MemberLimits
 from daytona.v2._gen.api.models.sandbox_limits import SandboxLimits
 from daytona.v2._gen.api.models.sandbox_resource_limits import SandboxResourceLimits
+from daytona.v2._gen.api.models.sandbox_timeout_limits import SandboxTimeoutLimits
 from daytona.v2._gen.api.models.storage_limits import StorageLimits
 from daytona.v2._gen.api.models.usage_limit import UsageLimit
 from typing import Optional, Set
@@ -43,13 +44,15 @@ class OrganizationLimits(BaseModel):
     api_keys_per_organization: UsageLimit
     api_keys_per_project: UsageLimit
     image_builds: ImageBuildLimits
+    mac_reservations: Optional[UsageLimit] = None
     members: Optional[MemberLimits] = None
     sandbox_resources: Optional[SandboxResourceLimits] = None
+    sandbox_timeout: SandboxTimeoutLimits
     sandboxes: SandboxLimits
     secrets_per_project: UsageLimit
     storage: StorageLimits
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["api_keys_per_organization", "api_keys_per_project", "image_builds", "members", "sandbox_resources", "sandboxes", "secrets_per_project", "storage"]
+    __properties: ClassVar[List[str]] = ["api_keys_per_organization", "api_keys_per_project", "image_builds", "mac_reservations", "members", "sandbox_resources", "sandbox_timeout", "sandboxes", "secrets_per_project", "storage"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -103,12 +106,18 @@ class OrganizationLimits(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of image_builds
         if self.image_builds:
             _dict['image_builds'] = self.image_builds.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of mac_reservations
+        if self.mac_reservations:
+            _dict['mac_reservations'] = self.mac_reservations.to_dict()
         # override the default output from pydantic by calling `to_dict()` of members
         if self.members:
             _dict['members'] = self.members.to_dict()
         # override the default output from pydantic by calling `to_dict()` of sandbox_resources
         if self.sandbox_resources:
             _dict['sandbox_resources'] = self.sandbox_resources.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of sandbox_timeout
+        if self.sandbox_timeout:
+            _dict['sandbox_timeout'] = self.sandbox_timeout.to_dict()
         # override the default output from pydantic by calling `to_dict()` of sandboxes
         if self.sandboxes:
             _dict['sandboxes'] = self.sandboxes.to_dict()
@@ -138,8 +147,10 @@ class OrganizationLimits(BaseModel):
             "api_keys_per_organization": UsageLimit.from_dict(obj["api_keys_per_organization"]) if obj.get("api_keys_per_organization") is not None else None,
             "api_keys_per_project": UsageLimit.from_dict(obj["api_keys_per_project"]) if obj.get("api_keys_per_project") is not None else None,
             "image_builds": ImageBuildLimits.from_dict(obj["image_builds"]) if obj.get("image_builds") is not None else None,
+            **({"mac_reservations": UsageLimit.from_dict(obj["mac_reservations"]) if obj["mac_reservations"] is not None else None} if "mac_reservations" in obj else {}),
             **({"members": MemberLimits.from_dict(obj["members"]) if obj["members"] is not None else None} if "members" in obj else {}),
             **({"sandbox_resources": SandboxResourceLimits.from_dict(obj["sandbox_resources"]) if obj["sandbox_resources"] is not None else None} if "sandbox_resources" in obj else {}),
+            "sandbox_timeout": SandboxTimeoutLimits.from_dict(obj["sandbox_timeout"]) if obj.get("sandbox_timeout") is not None else None,
             "sandboxes": SandboxLimits.from_dict(obj["sandboxes"]) if obj.get("sandboxes") is not None else None,
             "secrets_per_project": UsageLimit.from_dict(obj["secrets_per_project"]) if obj.get("secrets_per_project") is not None else None,
             "storage": StorageLimits.from_dict(obj["storage"]) if obj.get("storage") is not None else None

@@ -34,7 +34,7 @@ class UpdateOrganizationRequest(BaseModel):
     """
     UpdateOrganizationRequest
     """ # noqa: E501
-    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(default=None, description="The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.")
+    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(default=None, description="The longest timeout a sandbox in this organization may have, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. A value above that maximum is rejected.")
     name: Optional[StrictStr] = Field(default=None, description="The replacement organization name.")
     __properties: ClassVar[List[str]] = ["max_sandbox_timeout_seconds", "name"]
 
