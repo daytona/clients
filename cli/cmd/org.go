@@ -300,7 +300,7 @@ shows a picker at a terminal.`,
 	})
 	upd := &cobra.Command{
 		Use: "update <id|name> --name <new>", Short: "Rename an organization",
-		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\nthe current name sent back unchanged is always accepted.",
+		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\na rename to the current name is sent and left to the API.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
