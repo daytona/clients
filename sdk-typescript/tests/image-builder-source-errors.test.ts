@@ -12,6 +12,7 @@ import { ImagesService } from '../src/v2/Images.js'
 import { INTERNAL } from '../src/v2/internal.js'
 import { archiveBuilder, archiveDirectory } from '../src/v2/contextArchive.js'
 import { BadRequestError } from '../src/v2/errors/DaytonaError.js'
+import { parseTar } from './contextTar.js'
 
 const methods = ['addLocalFile', 'addLocalDir', 'pipInstallFromRequirements'] as const
 let root: string
@@ -226,9 +227,8 @@ posixNonRoot('archives sources under an unchanged symlinked ancestor', async () 
     // When archived, then both sources are copied.
     const archive = await archiveBuilder(builder)
     try {
-      const bytes = await fs.readFile(archive.path)
-      expect(bytes.includes('.daytona-context/1/f.txt')).toBe(true)
-      expect(bytes.includes('.daytona-context/2/f.txt')).toBe(true)
+      const names = parseTar(await fs.readFile(archive.path)).map((entry) => entry.name)
+      expect(names).toEqual(expect.arrayContaining(['.daytona-context/1/f.txt', '.daytona-context/2/f.txt']))
     } finally { await archive.cleanup() }
   } finally { await fs.rm(base, { recursive: true, force: true }) }
 })
