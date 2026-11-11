@@ -548,7 +548,7 @@ def _model_types(annotation: object) -> List[object]:
 
 
 def _expect_model_from_dict(
-    value: TransportPayload | ModelT,
+    value: object,
     model_type: type[ModelT],
     description: str,
     from_dict: Callable[[JsonObject], ModelT | None],
@@ -1995,15 +1995,17 @@ def list_shape(
 ) -> Tuple[List[JsonObject], Optional[str]]:
     """The items of a list response: a bare array or an envelope whose
     ``items`` is an array; anything else is malformed."""
+    items: List[JsonValue]
     if isinstance(payload, list):
-        items: JsonValue = payload
+        items = payload
         cursor_holder: JsonObject = {}
     else:
         cursor_holder = expect_object(payload)
-        items = cursor_holder.get("items")
-        if not isinstance(items, list):
-            problem = "is required" if items is None else "must be a list"
+        raw_items = cursor_holder.get("items")
+        if not isinstance(raw_items, list):
+            problem = "is required" if raw_items is None else "must be a list"
             raise create_error(f"expected {description}: items {problem}", 400, "BAD_REQUEST", "SDK")
+        items = raw_items
     obj = cursor_holder
     for index, item in enumerate(items):
         if not isinstance(item, dict):

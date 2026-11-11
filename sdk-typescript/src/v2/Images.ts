@@ -48,11 +48,27 @@ export interface ImagePullOptions extends BuildImageOptions {
 }
 
 const BUILD_IMAGE_OPTION_KEYS = optionKeys<BuildImageOptions>()({ name: true, idleExpirySeconds: true, region: true, cpuArch: true })
-export type BuildFromContextOptions = BuildImageOptions & { readonly dockerfile?: string }
+export type BuildFromContextOptions = BuildImageOptions & {
+  /** The Dockerfile's path inside the archive (default `Dockerfile`). */
+  readonly dockerfile?: string
+  /**
+   * Bounds the build request that follows the upload, in seconds, replacing
+   * the client's request timeout for it; `0`, or a value above about 24.8
+   * days, is no limit. The upload keeps its own bounds.
+   */
+  readonly timeoutSeconds?: number
+}
 
-const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, dockerfile: true })
+const BUILD_FROM_CONTEXT_OPTION_KEYS = optionKeys<BuildFromContextOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, dockerfile: true, timeoutSeconds: true })
 const IMAGE_PULL_OPTION_KEYS = optionKeys<ImagePullOptions>()({ ...BUILD_IMAGE_OPTION_KEYS, wait: true, timeoutSeconds: true })
 const LIST_IMAGES_OPTION_KEYS = optionKeys<ListImagesOptions>()({ cursor: true, limit: true, name: true, anonymous: true, sandboxId: true, platform: true })
+
+// A per-call timeout in seconds as axios milliseconds: `0`, or a value above
+// the longest timer, is no limit, as for every 2.x timeout.
+function axiosTimeoutMs(timeoutSeconds: number): number {
+  const timeoutMs = Math.ceil(timeoutSeconds * 1000)
+  return timeoutMs > MAX_TIMER_DELAY_MS ? 0 : timeoutMs
+}
 
 const IMAGE_LONGPOLL_MAX_MS = 60_000
 const IMAGE_POLL_MIN_INTERVAL_MS = 1_000
@@ -132,13 +148,12 @@ export class ImagesService {
    * `.tar` file or directory, up to 1 GiB.
    * Directories honour the Dockerfile-specific ignore file, else `.dockerignore`.
    * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
-   * The archive is uploaded in parts and verified before the build starts.
-   * Part uploads are outside the client's request timeout; each completion
-   * attempt uses the greater of that timeout and 600 seconds (client timeout 0
-   * is unbounded). No single total request timeout bounds the upload.
-   * `name` and `idleExpirySeconds` cannot be combined: idle expiry applies only
-   * to anonymous images. An identical archive the project already
-   * uploaded is reused without uploading it again. Resolves once the build is
+   * The archive is uploaded straight to storage in parts and verified by the
+   * API before the build starts; an identical archive the project already
+   * uploaded is reused without uploading it again. `name` and
+   * `idleExpirySeconds` cannot be combined: idle expiry applies only to
+   * anonymous images. `timeoutSeconds` bounds the build request after the
+   * upload (see {@link BuildFromContextOptions}). Resolves once the build is
    * submitted; wait with `get(id, { wait: 'ready' })`.
    */
   public async buildFromContext(context: BuildContext, options: BuildFromContextOptions = {}): Promise<Image> {
@@ -149,6 +164,8 @@ export class ImagesService {
     if (imageOptions.name !== undefined && imageOptions.idle_expiry_seconds !== undefined) {
       throw badRequest('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds')
     }
+    // Checked before the upload, as build() checks them before its request.
+    const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
     const dockerfile = options.dockerfile ?? 'Dockerfile'
     if (typeof dockerfile !== 'string' || isBlank(dockerfile)) throw badRequest('dockerfile must be a non-empty path')
     const expanded = typeof context === 'string' && contextUploadRuntime.isNode() ? expandHome(context) : context
@@ -163,7 +180,7 @@ export class ImagesService {
       context_upload_id: upload.id,
       region_id: upload.regionId,
     }
-    const { data } = await this.http.post<api.CreateImageResponse>('/images', request)
+    const { data } = await this.http.post<api.CreateImageResponse>('/images', request, timeoutSeconds === undefined ? undefined : { timeout: axiosTimeoutMs(timeoutSeconds) })
     // Checked before the read: no request ever goes to /images/undefined.
     return this.get(acknowledgedId(data, 'image create'))
   }

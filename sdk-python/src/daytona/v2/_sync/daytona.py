@@ -356,10 +356,11 @@ class Daytona:
         cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
         macOS included; memory and disk must convert to whole MiB). Each
         omitted value uses the Mac model's default size (``default_size`` in
-        ``mac_models.list()``); a create from a captured image uses the
-        image's disk size. The sandbox reports its size.
+        ``mac_models.list()``); a create from a captured image that omits ``disk`` gets the
+        image's disk size, and a smaller ``disk`` is refused. The size is fixed
+        at creation, and the sandbox reports it once a Mac takes the sandbox.
 
-        ``persistent``: A persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.
+        ``persistent`` keeps the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with its Mac when that Mac fails.
 
         ``volumes`` attaches disk volumes read-write. A sandbox with volumes
         cannot be persistent; bucket volumes and ``read_only`` are rejected
@@ -369,7 +370,7 @@ class Daytona:
         ``None`` uses any fitting reservation of the organization in the region (or
         lets the organization's auto-reserve buy one), ``"new"`` buys a reservation of
         the cheapest model that fits.
-        A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+        A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until ``create_timeout_seconds``.
         ``auto_renew`` is allowed only with ``reservation="new"``. With no reservation
         to use it raises :class:`ConflictError` (``NO_ACTIVE_RESERVATION``,
         ``NO_FREE_SLOT``, ``MAC_DISK_FULL``, ``AUTO_RESERVE_LIMIT_REACHED``,

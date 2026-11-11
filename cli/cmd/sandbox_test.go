@@ -66,6 +66,7 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 			args: []string{"sandbox", "start", "11111111-1111-1111-1111-111111111111"},
 			expected: []expectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "stopped")},
+				macReservationsRead("region-b", "active"),
 				{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/start", status: 202, response: `{"status":"pending","id":"11111111-1111-1111-1111-111111111111"}`},
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "running")},
 			},

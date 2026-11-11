@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/input"
+	"github.com/daytona/clients/cli/internal/output"
 	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/spf13/cobra"
 )
@@ -30,8 +32,48 @@ func newSandboxStartCommand() *cobra.Command {
 			// Running, or on its way there: nothing to send, only the wait.
 			return nil, resolved.Detail.Id, "running", nil
 		}
+		if resolved.Detail.Class == workload.ClassMacOS {
+			if err := confirmMacStartPurchase(cmd, resolved); err != nil {
+				return nil, "", "", err
+			}
+		}
 		return sandboxJobAction[gen.AsyncOperation](cmd, resolved, "start")
 	})
+}
+
+// confirmMacStartPurchase asks before a macOS start that can buy a Mac
+// reservation: the API's auto-reserve buys one when the organization holds no
+// live reservation in the sandbox's region. A start the organization's
+// reservations already serve asks nothing. When the reservations cannot be
+// read, it asks, as create-macos does without a reservation.
+func confirmMacStartPurchase(cmd *cobra.Command, resolved workload.ResolvedSandbox) error {
+	a := FromContext(cmd.Context())
+	if a.Mode.AssumeYes {
+		return nil
+	}
+	region := resolved.Detail.RegionId
+	fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.MacReservation]], error) {
+		return getRawList[gen.MacReservation](ctx, resolved.Client, "/reservations", listQuery(pageFlags{limit: maxPageLimit}, cursor), "reservations")
+	}
+	reservations, err := collectPaged(cmd.Context(), "", fetch)
+	if err == nil {
+		for _, r := range reservations.Items {
+			if r.V.RegionId == region && liveMacReservation(string(r.V.Status)) {
+				return nil
+			}
+		}
+	}
+	return a.Confirm("buy", "a 24-hour Mac reservation in "+region+" billed to the organization if needed to start this sandbox (auto-reserve buys one when the organization holds none in the region)")
+}
+
+// liveMacReservation reports whether a reservation in this status can still
+// serve a start, so that the start buys none.
+func liveMacReservation(status string) bool {
+	switch status {
+	case "pending_charge", "pending_mac", "active":
+		return true
+	}
+	return false
 }
 
 func newSandboxStopCommand() *cobra.Command {

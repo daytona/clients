@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import { ImagesService } from '../src/v2/Images.js'
 import { createHttpClient } from '../src/v2/http.js'
 import { INTERNAL } from '../src/v2/internal.js'
-import { contextUploadRuntime } from '../src/v2/contextUpload.js'
+import { contextUploadRuntime, streamsParts } from '../src/v2/contextUpload.js'
 import { Sha256 } from '../src/v2/sha256.js'
 import { imageWire } from './artifactFixtures.js'
 import { BadRequestError, ConflictError, ConnectionError, DaytonaError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
@@ -37,9 +37,11 @@ let rewriteUpload: ((upload: Record<string, unknown>) => unknown) | undefined
 let completeStatuses: number[]
 let completeDelays: number[]
 let createResponse: unknown
+let imagesDelayMs: number
 let uploadId: string
 const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
 const defaultIsNode = contextUploadRuntime.isNode
+const defaultStreamsParts = contextUploadRuntime.streamsParts
 const tempDirs: string[] = []
 
 async function tempDir(): Promise<string> {
@@ -82,10 +84,12 @@ beforeEach(async () => {
   completeStatuses = []
   completeDelays = []
   createResponse = { id: 'img-ctx', status: 'pending' }
+  imagesDelayMs = 0
   uploadId = UPLOAD_ID
   contextUploadRuntime.sleep = async () => {}
   contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
   contextUploadRuntime.isNode = defaultIsNode
+  contextUploadRuntime.streamsParts = defaultStreamsParts
   server = createServer((request, response) => {
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -124,7 +128,11 @@ beforeEach(async () => {
         if (status !== 200) return reply(status, { message: 'not now', code: 'UNAVAILABLE', source: 'API' })
         return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
       }
-      if (request.url === '/images') return reply(202, createResponse)
+      if (request.url === '/images') {
+        await delay(imagesDelayMs)
+        if (response.destroyed) return
+        return reply(202, createResponse)
+      }
       if (request.url === '/images/img-ctx') return reply(200, imageWire({ id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' }))
       reply(404, { message: 'not found', code: 'NOT_FOUND', source: 'API' })
     })
@@ -458,6 +466,24 @@ it('refuses a name with an idle expiry before any request', async () => {
   expect(seen).toEqual([])
 })
 
+it('bounds the build request by timeoutSeconds instead of the request timeout (as Python timeout)', async () => {
+  // Given a build request that answers after 300 ms.
+  imagesDelayMs = 300
+  // A longer timeoutSeconds outlives a shorter request timeout, and 0 is no limit.
+  await expect(service(100).buildFromContext(archive(), { timeoutSeconds: 5 })).resolves.toMatchObject({ id: 'img-ctx' })
+  await expect(service(100).buildFromContext(archive(), { timeoutSeconds: 0 })).resolves.toMatchObject({ id: 'img-ctx' })
+  // A shorter one cuts the request although the request timeout would not.
+  const error = await service(5_000).buildFromContext(archive(), { timeoutSeconds: 0.05 }).catch((caught: unknown) => caught)
+  expect(error).toMatchObject({ name: 'ClientTimeoutError', source: 'SDK' })
+})
+
+it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '30', null])('refuses timeoutSeconds %p before any request', async (timeoutSeconds) => {
+  // SAFETY: deliberately invalid values, as plain JavaScript can pass.
+  const pending = service().buildFromContext(archive(), { timeoutSeconds } as never)
+  await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'timeoutSeconds must be a non-negative number of seconds' })
+  expect(seen).toEqual([])
+})
+
 it('refuses an unknown option before any request', async () => {
   // SAFETY: a deliberately misspelled option, as plain JavaScript can pass.
   const options = { dockerFile: 'alt/Dockerfile' } as never
@@ -511,6 +537,88 @@ it.each([
   expect(seen.filter((request) => request.url.startsWith('/images/'))).toEqual([])
 })
 
+// Guards against a total deadline coming back: the old code had none in
+// TypeScript, so this passes there too; the stall test below proves the bound.
+it('keeps a part that moves slowly past the request timeout: no total cap, only a no-progress limit (as Python and the CLI)', async () => {
+  // Given storage that reads each 64 KiB piece 60 ms apart, and a 150 ms request timeout.
+  partSize = 4 * 64 * 1024
+  const original = contextUploadRuntime.fetch
+  const received: number[] = []
+  contextUploadRuntime.fetch = async (_input, init) => {
+    const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+    let bytes = 0
+    for (;;) {
+      await delay(60)
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+    }
+    received.push(bytes)
+    return new Response(null, { status: 200 })
+  }
+  try {
+    // When a part takes about 300 ms in all, it is not cut.
+    const started = Date.now()
+    await service(150).buildFromContext(archive(partSize - 12))
+    expect(Date.now() - started).toBeGreaterThanOrEqual(240)
+    expect(received).toEqual([partSize])
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it('fails a part with ClientTimeoutError once no bytes move for the request timeout, after its retries', async () => {
+  // Given storage that never reads the body nor answers.
+  const original = contextUploadRuntime.fetch
+  let attempts = 0
+  contextUploadRuntime.fetch = (_input, init) => new Promise((_resolve, reject) => {
+    attempts++
+    init.signal?.addEventListener('abort', () => reject(new TypeError(`fetch failed for ${baseUrl}/bucket/part/1?${SIGNATURE}`)), { once: true })
+  })
+  try {
+    const error = await service(100).buildFromContext(archive()).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ name: 'ClientTimeoutError', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'build context part 1 made no progress for 0.1 s' })
+    expect(String(error)).not.toContain(SIGNATURE)
+    expect(attempts).toBe(3)
+    expect(completes()).toEqual([])
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it.each([
+  ['Node.js', true, 'ReadableStream'],
+  ['Bun, Deno or a browser', false, 'Uint8Array'],
+])('sends an in-memory part in %s as a %s', async (_runtime, streams, kind) => {
+  // Given a runtime that does (or does not) send a stream with its length.
+  contextUploadRuntime.streamsParts = () => streams
+  const original = contextUploadRuntime.fetch
+  const bodies: string[] = []
+  contextUploadRuntime.fetch = async (input, init) => {
+    bodies.push(init.body instanceof ReadableStream ? 'ReadableStream' : init.body instanceof Uint8Array ? 'Uint8Array' : typeof init.body)
+    return original(input, init)
+  }
+  try {
+    const data = archive(10_000)
+    await service().buildFromContext(data)
+    // Then each part goes as that kind, and storage gets the archive whole.
+    expect(new Set(bodies)).toEqual(new Set([kind]))
+    expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it.each([
+  ['Node.js', { process: { versions: { node: '22.0.0' }, release: { name: 'node' } } }, true],
+  ['Bun', { process: { versions: { node: '24.3.0', bun: '1.3.0' }, release: { name: 'node' } } }, false],
+  ['Deno', { process: { versions: { node: '22.0.0' }, release: { name: 'node' } }, Deno: {} }, false],
+  ['a browser', {}, false],
+])('streams an in-memory part only in Node.js itself: %s', (_runtime, globals, expected) => {
+  // Given the runtime globals each one reports.
+  expect(streamsParts(globals)).toBe(expected)
+})
+
 it('hashes incrementally to the same digest as node:crypto', () => {
   const data = new Uint8Array(200_003).map((_, i) => (i * 31 + 7) & 0xff)
   for (const size of [0, 1, 55, 56, 63, 64, 65, 119, 120, 128, 1000, data.byteLength]) {
@@ -527,6 +635,7 @@ it('declares the digest of a Blob without node:crypto', async () => {
   // Given a runtime that is not Node.js, such as a browser.
   const data = archive(10_000)
   contextUploadRuntime.isNode = () => false
+  contextUploadRuntime.streamsParts = () => false
   // When a Blob context is built, it is hashed incrementally and declared.
   await service().buildFromContext(new Blob([Buffer.from(data)]))
   expect(json('POST', '/build-contexts')).toMatchObject({ sha256: createHash('sha256').update(data).digest('hex') })

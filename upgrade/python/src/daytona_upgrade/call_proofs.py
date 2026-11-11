@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from .collection_proofs import dictionary_members, literal_collection_kind
 from .config_members import factory_kind
 from .context_managers import context_call
+from .dockerfile_images import DOCKERFILE_IMAGE, is_dockerfile_image_call
 from .expression_names import dotted
 from .external_calls import external_call_kind
 from .field_arguments import instance_kind
@@ -51,6 +52,8 @@ class CallProofs:
             return context
         if function == "module:logging.getLogger":
             return "logger"
+        if is_dockerfile_image_call(function, resolver.mapping):
+            return DOCKERFILE_IMAGE
         if (
             function == "call:importlib.import_module"
             and len(node.args) == 1

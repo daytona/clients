@@ -3881,6 +3881,21 @@ async def test_ports_is_in_use_rejects_non_integer_segments_before_request() -> 
     assert transport.specs == []
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("port", [0, -1, 65536, True])
+async def test_ports_is_in_use_refuses_a_port_outside_the_tcp_range_before_request(port: int) -> None:
+    transport = RecordingTransport([])
+    ports = AsyncPortsService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match=r"port must be an integer in 1\.\.65535") as exc_info:
+        await ports.is_in_use(port)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.code == code_names.BAD_REQUEST
+    assert exc_info.value.source == "SDK"
+    assert transport.specs == []
+
+
 def test_process_handle_is_json_rehydratable():
     process = AsyncProcessService("s", RecordingTransport([]))  # type: ignore[arg-type]
     handle = process.connect("p")
@@ -13037,7 +13052,7 @@ async def test_create_macos_posts_the_create_macos_sandbox_request_body():
     await client.create_macos(
         "sequoia-xcode",
         name="mac-1",
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         persistent=True,
         reservation="new",
         auto_renew=False,
@@ -13051,7 +13066,7 @@ async def test_create_macos_posts_the_create_macos_sandbox_request_body():
     assert api.specs[1].json_body == {
         "image": "sequoia-xcode",
         "name": "mac-1",
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         "persistent": True,
         "env": {"A": "B"},
         "ports": [{"port": 8080, "proto": "tcp"}],
@@ -13148,7 +13163,7 @@ async def test_create_macos_sends_supplied_size_axes_exactly_and_omits_absent_on
         "base-macos",
         reservation="mac-region:res-1",
         resources=MacosResources(cpu=10, memory=16),
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         persistent=True,
     )
     await client.create_macos("base-macos", resources=MacosResources(memory=4.5))
@@ -13159,7 +13174,7 @@ async def test_create_macos_sends_supplied_size_axes_exactly_and_omits_absent_on
     assert bodies[0] == {"image": "base-macos", "wait_seconds": 60}
     assert bodies[1] == {
         "image": "base-macos",
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         "persistent": True,
         "reservation": "mac-region:res-1",
         "cores": 10,
@@ -13275,7 +13290,7 @@ async def test_create_macos_rejects_invalid_requests_before_posting():
         (
             lambda: client.create_macos(
                 "base-macos",
-                # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+                # macOS keeps persistent (stop/start and reservation ends keep the disk).
                 persistent=True,
                 lifecycle_policy={"future_option": True},
             ),

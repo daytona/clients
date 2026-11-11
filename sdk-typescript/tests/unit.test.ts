@@ -11540,6 +11540,9 @@ describe('toolbox endpoint e2e', () => {
     await expect(ports.list()).resolves.toEqual({ items: [3000, 8080] })
     await expect(ports.isInUse(3999)).resolves.toBe(true)
     await expect(ports.isInUse(39.5)).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
+    for (const port of [0, -1, 65536]) {
+      await expect(ports.isInUse(port)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: `port must be an integer in 1..65535, got ${port}` })
+    }
     await expect(ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: 'preview-token' })
     await expect(ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://signed', token: 'signed-token', expiresAt: '2026-01-01T00:00:00Z' })
     await expect(ports.expose(8080, { public: true })).resolves.toEqual({ port: 8080, public: true, url: 'https://p', createdAt: '2026-01-01T00:00:00Z' })
@@ -11547,6 +11550,7 @@ describe('toolbox endpoint e2e', () => {
     await ports.unexpose(8080)
     expect(transport.get.mock.calls[0]).toEqual(['/port'])
     expect(transport.get.mock.calls[1]).toEqual(['/port/3999/in-use'])
+    expect(transport.get).toHaveBeenCalledTimes(2)
     expect(portsApi.get).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080')
     expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080/preview-url')
   expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080/signed-preview-urls', { expires_in_seconds: 300 })

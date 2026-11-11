@@ -15,6 +15,7 @@
     "config",
     "cloudApiUrls",
     "dataTraps",
+    "dockerfileImage",
     "receivers",
     "suggestions",
     "v0Exports"
@@ -180,6 +181,23 @@
           "text": {
             "$ref": "#/$defs/text"
           }
+        }
+      }
+    },
+    "dockerfileImage": {
+      "description": "The 0.x static call that builds an image from a Dockerfile and its directory, and the parameter that takes it. A suggestion with a dockerfileImage alternative uses it when the call's parameters provably pass that call's result.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "py",
+        "ts"
+      ],
+      "properties": {
+        "py": {
+          "$ref": "#/$defs/dockerfileImageCall"
+        },
+        "ts": {
+          "$ref": "#/$defs/dockerfileImageCall"
         }
       }
     },
@@ -389,6 +407,27 @@
         },
         "startsWorkflow": {
           "type": "boolean"
+        },
+        "dockerfileImage": {
+          "description": "The v2 form and notes for a call whose image parameter provably is the result of the dockerfileImage call. parameters names the 0.x class whose instance the call takes as its first argument and whose keyword carries the image (null where the language passes a plain object).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parameters",
+            "v2",
+            "notes"
+          ],
+          "properties": {
+            "parameters": {
+              "$ref": "#/$defs/languageText"
+            },
+            "v2": {
+              "$ref": "#/$defs/languageText"
+            },
+            "notes": {
+              "$ref": "#/$defs/languageStrings"
+            }
+          }
         }
       },
       "allOf": [
@@ -416,6 +455,26 @@
           }
         }
       ]
+    },
+    "dockerfileImageCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "method",
+        "parameter"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/text"
+        },
+        "method": {
+          "$ref": "#/$defs/text"
+        },
+        "parameter": {
+          "$ref": "#/$defs/text"
+        }
+      }
     }
   }
 }

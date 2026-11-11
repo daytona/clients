@@ -580,7 +580,9 @@ one with `daytona.v2.createMacos(image, options)` (`POST /sandboxes/macos`).
 such as `base-macos`. Set `resources: { cpu, memory, disk }`: `cpu` is an
 integer number of physical cores (at least 4), `memory` is GiB (at least 4),
 and `disk` is GiB (at least 80, including macOS). Omitted values use the
-model's default sandbox size.
+model's default sandbox size (`defaultSize`). A create from a captured image
+that omits `disk` gets the image's disk size, and a smaller `disk` is refused.
+The size is fixed at creation.
 The resulting sandbox reports its assigned resources (`sandbox.memory` and
 `sandbox.disk` in exact GiB, `sandbox.reservationId` for the reservation).
 `name`, `idempotencyKey`, `waitSeconds` and
@@ -612,9 +614,9 @@ await daytona.v2.createMacos('base-macos', { resources: { cpu: 4, memory: 8, dis
 
 A reservation reserves one physical Mac of a named model. Set CPU, memory,
 and disk sizes when creating each sandbox. `daytona.v2.macModels.list()` lists
-each model's resources, sandbox disk room, `maxSandboxes`, and `defaultSize`.
-Omitted sizes use the model's default size; a create from a captured image
-uses the image's disk size instead.
+each model's resources, sandbox disk space, `maxSandboxes`, and `defaultSize`,
+the size that omitted values use. The disks and disk volumes of the sandboxes
+on one Mac at once must fit its `sandboxDiskMib`.
 Reserve a Mac, then create a sandbox using the model's default size:
 
 ```ts
@@ -622,7 +624,13 @@ const reservation = await daytona.v2.reservations.create({ region: '<region>', m
 await daytona.v2.createMacos('base-macos', { region: '<region>', reservation: reservation.id, persistent: true })
 ```
 
-Stop and pause need a persistent sandbox (`persistent: true`): a persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.
+Stop and pause need a persistent sandbox (`persistent: true`), which keeps its
+disk and machine across stop and start, and its memory across pause and
+resume. A start can run on any Mac of the organization; after a start on a
+different Mac, iCloud asks the user to sign in again. Delete erases the disk.
+A reservation end or a Mac failure stops a persistent sandbox that has started
+and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends
+with its reservation, or with its Mac when that Mac fails.
 
 `reservation` picks the Mac reservation. Omitted, the sandbox goes on any reservation of your
 organization in the region with room for its size, or, when none has room and
@@ -667,9 +675,15 @@ of reservations; or `NO_MAC_AVAILABLE` when buying a reservation, with `reservat
 or through auto-reserve, finds no fitting Mac in the region). Buying a
 reservation when the organization holds its Mac reservation limit throws
 `LimitExceededError` with `limit === 'max_mac_reservations'` instead.
-`MAC_DISK_FULL` never buys a reservation. Starting a stopped macOS sandbox can run on
-any Mac of the organization; with no Mac reservation in the region and auto-reserve on,
-the start buys one. Reservations report `model`,
+`MAC_DISK_FULL` never buys a reservation. Starting a stopped macOS sandbox
+(`start()`) uses its disk and size on any Mac of the organization; it throws
+`NO_FREE_SLOT` when no Mac has space for its size and `MAC_DISK_FULL` when the
+Mac with space is low on free disk space. With no Mac
+reservation in the region and auto-reserve on, the start buys one, so it can
+fail as a create that buys one does, `LimitExceededError` with
+`limit === 'max_mac_reservations'` included. A start, `fork()` or
+`captureImage()` throws `ConflictError` with `code === 'DISK_NOT_READY'` while
+the sandbox's disk is not ready yet; retry later. Reservations report `model`,
 `capacity`, `resourcesUsed`, `origin` (`explicit` or `auto`), `autoRenew`
 and `renewalError`; `reservations.update(id, { autoRenew })` changes renewal
 on a live reservation.
@@ -681,17 +695,16 @@ throws `LimitExceededError` with `limit === 'max_mac_reservations'`.
 
 `pause()` and `resume()` work on persistent macOS sandboxes. `pause()` saves
 the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the
-sandbox in `assigned` and waits for `started`. A paused sandbox keeps its Mac
-slot, but pausing stops its reservation from auto-renewing: a reservation that
-holds only paused sandboxes lapses at the end of its period.
+sandbox in `assigned` and waits for `started`. A paused sandbox keeps its
+memory on its Mac. With auto-renew on, it keeps its reservation renewing;
+otherwise the sandbox is stopped, with its disk, before the reservation ends.
 `sandbox.macBootMode` reports how the macOS sandbox resumed; `sandbox.error`
 provides additional details when resuming fails.
 
 A macOS `fork()` copies the disk only: omit `memory` or pass `memory: false`
 (`memory: true` answers `NOT_SUPPORTED_FOR_CLASS`). A fork of a running macOS
 sandbox boots with a fresh machine identity; a fork of a paused or stopped
-one remains `stopped`. A fork needs sufficient reservation capacity and disk
-space; insufficient resources can produce `NO_FREE_SLOT` or `MAC_DISK_FULL`.
+one remains `stopped`.
 
 ### Processes
 

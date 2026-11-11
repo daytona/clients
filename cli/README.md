@@ -169,7 +169,9 @@ uploaded. Before any request, a directory context must contain the selected
 Dockerfile (`Dockerfile` by default, or `--dockerfile` inside the context).
 Plain tar contexts are checked for that entry too; compressed or unrecognized
 archives are checked by the server. A `--context` tar file is uploaded as is,
-and `sandbox cp` never filters. `image create --ref` refuses empty or blank
+and `sandbox cp` never filters. A large context is uploaded in parts; a part
+has no time limit while it keeps moving, and is retried, then fails (exit 8),
+once no bytes move for 60 seconds. `image create --ref` refuses empty or blank
 references locally.
 
 `daytona image logs <id-or-name>` accepts an image name or id. Without
@@ -186,7 +188,11 @@ continues. `--execution-timeout DURATION` sets the remote execution deadline
 Ctrl-C or SIGTERM instead forwards INT to the process, escalating to KILL
 after one second, best effort. `--tty` requires terminal stdin and stdout,
 replays output from startup, defaults an unavailable or zero terminal size to
-80×24, and forwards terminal resizes on Unix.
+80×24, and forwards terminal resizes on Unix. A `--tty` session or `process
+attach` ends normally when the sandbox closes it normally and then reports the
+process's exit; when the sandbox closes it for another reason (an expired
+replay position, a client too slow to keep up), the CLI fails with that reason
+(exit 1).
 
 `sandbox ssh [CLI FLAGS] <id> [SSH OPTIONS] [-- COMMAND [ARGS...]]` applies CLI
 flags only before the sandbox id; arguments after it are forwarded to OpenSSH.
@@ -196,7 +202,11 @@ a prompt; subsequent key changes are refused. This is trust on first use:
 an attacker intercepting the first connection could supply the trusted key.
 SSH options you forward after the sandbox id (for example
 `-o StrictHostKeyChecking=no` or `-o UserKnownHostsFile=…`) override this
-policy.
+policy. The gateway login carries your credential, so the CLI replaces it with
+`<redacted>` wherever `ssh` prints it on stderr (an authentication failure,
+`-v` output). Standard output is passed through byte for byte and is not
+redacted: `-G`, which prints the resolved configuration there, includes the
+credential in its `user` line, so do not log that output.
 
 ### macOS sandboxes
 
@@ -227,10 +237,12 @@ daytona reservation update RESERVATION_ID --auto-renew=false
 ```
 
 `mac-model list` shows each model's `MAX_SANDBOXES` and `DEFAULT_SIZE`.
-Each omitted `--cores`, `--memory`, or `--disk` uses the model's `DEFAULT_SIZE`;
-a create from a captured image uses the image's disk size. For `--disk`, the
-total is the model's sandbox disk room (`SANDBOX_DISK_MIB` in `mac-model list`),
-not the Mac's whole SSD. Sandbox sizes do not change the reservation.
+Each omitted `--cores`, `--memory`, or `--disk` uses the model's
+`DEFAULT_SIZE`; a create from a captured image without `--disk` gets the
+image's disk size, and a smaller `--disk` is refused. The
+disks and disk volumes of the sandboxes on one Mac at once must fit the model's sandbox
+disk space (`SANDBOX_DISK_MIB` in `mac-model list`), not the Mac's whole SSD.
+Sandbox sizes do not change the reservation.
 The size is fixed at creation, and `daytona
 sandbox get` shows the associated reservation as `reservation_id`. `--disk` is the
 whole sandbox disk in MiB, macOS included, at least 81920. Without `--model`, a
@@ -258,14 +270,28 @@ new`) and its volumes (at most 8, read-write, not with `--persistent`) before
 asking to buy anything.
 
 `sandbox create-macos` with no `--reservation`, or with `--reservation new`,
-may buy a 24-hour Mac reservation billed to your organization. These commands,
+may buy a 24-hour Mac reservation billed to your organization, and so may
+`sandbox start` of a stopped macOS sandbox when the organization holds no live
+reservation in its region (auto-reserve buys one). These commands,
 `reservation create`, `reservation renew`, and `reservation update
 --auto-renew=true` ask for confirmation at a
 terminal; off a terminal, pass `--yes` or set `DAYTONA_YES=1`. Using an
-existing reservation ID or `reservation create --dry-run` does not prompt.
+existing reservation ID, a `sandbox start` that a live reservation in the
+region serves, or `reservation create --dry-run` does not prompt.
 `reservation update --auto-renew=false` needs no confirmation.
 
-Stop and pause need a persistent sandbox (`--persistent`): a persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.
+Stop and pause need a persistent sandbox (`--persistent`), which keeps its
+disk and machine across stop and start, and its memory across pause and
+resume. `sandbox start` can run it on any Mac of the organization; after a
+start on a different Mac, iCloud asks the user to sign in again. With no Mac
+reservation in the region and auto-reserve on, `sandbox start` buys one, and
+can be refused at the organization's Mac reservation limit
+(`max_mac_reservations`). Delete erases the disk. A reservation end or a Mac
+failure stops a persistent sandbox that has started and never deletes it; a Mac
+failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with
+its Mac when that Mac fails. A paused sandbox keeps an auto-renewing
+reservation renewing; otherwise it is stopped, with its disk, before the
+reservation ends.
 
 ## Command reference
 

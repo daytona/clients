@@ -94,19 +94,17 @@ class ImagesService:
         file, up to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it.
         Directories are archived deterministically with BuildKit ignore rules:
         ``<dockerfile>.dockerignore`` takes precedence over ``.dockerignore``.
-        The Dockerfile and the ignore files are always included. The
-        archive is uploaded in parts and verified before the build starts;
-        parts have a 300-second idle timeout, and each completion attempt uses
-        the greater of the client's request timeout and 600 seconds (client
-        timeout ``0`` means no bound). An identical archive the project already
-        uploaded is reused without uploading it again. ``timeout`` (seconds)
-        bounds only the build submission request (``POST /images``), not the
-        upload; omitted or ``0`` uses the client's request timeout. The other
-        arguments are those of :meth:`build`. ``name`` and
-        ``idle_expiry_seconds`` cannot be combined: idle expiry applies only to
-        anonymous images.
-        Returns as soon as the build is submitted;
-        wait with :meth:`get` (``wait="ready"``).
+        The Dockerfile and the ignore files are always included. The archive
+        is uploaded straight to storage in parts and verified by the API
+        before the build starts; an identical archive the project already
+        uploaded is reused without uploading it again. The other arguments
+        are those of :meth:`build`. ``name`` and ``idle_expiry_seconds``
+        cannot be combined: idle expiry applies only to anonymous images.
+        ``timeout`` bounds the build request that follows the upload, in
+        seconds, replacing the client's request timeout for it; ``0``, or a
+        value above about 24.8 days, is no limit. The upload keeps its own
+        bounds. Returns as soon as the build is submitted; wait with
+        :meth:`get` (``wait="ready"``).
         """
         return self._bridge.call(
             lambda: self._impl.build_from_context(
