@@ -643,6 +643,7 @@ def test_proxy_refresh_updates_existing_node_clients(mock_toolbox_api_client, mo
 
         update = SandboxListItem.model_validate(update.model_dump())
     sandbox._Sandbox__process_sandbox_dto(update)
+    assert len(sandbox.nodes) == len(handles) == 2
     assert all(node is old for node, old in zip(sandbox.nodes, handles))
     assert all(node.process is old for node, old in zip(sandbox.nodes, processes))
     assert all(node._toolbox_api._toolbox_base_url == "https://new.example/toolbox" for node in handles)

@@ -199,6 +199,8 @@ jobs:
         run: bash hack/stable-v2-release.test.sh
       - name: Homebrew tap dispatch
         run: bash hack/homebrew-tap-dispatch.test.sh
+      - name: Java resource-array postprocessing
+        run: bash hack/java-client/postprocess.test.sh
       - name: CLI release assets and install-v0.sh
         run: bash cli/hack/stage-release-assets.test.sh
 

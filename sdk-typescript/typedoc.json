@@ -11,6 +11,7 @@
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeExternals": true,
+  "excludeInternal": true,
   "excludeNotDocumented": false,
   "plugin": ["typedoc-plugin-markdown", "./hooks/typedoc-custom.mjs", "typedoc-plugin-merge-modules"],
   "theme": "markdown",

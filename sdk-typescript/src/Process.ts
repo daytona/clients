@@ -472,7 +472,14 @@ export class Process {
       })
       const socket = await Promise.race([connection, interrupted])
       if (!socket) return
-      await Promise.race([stdDemuxStream(socket, onStdout, onStderr), interrupted])
+      // Socket teardown may flush buffered bytes after cancellation returns.
+      const forwardOutput = (callback?: (chunk: string) => void) =>
+        signal && callback
+          ? (chunk: string) => {
+              if (!signal.aborted) callback(chunk)
+            }
+          : callback
+      await Promise.race([stdDemuxStream(socket, forwardOutput(onStdout), forwardOutput(onStderr)), interrupted])
     } finally {
       signal?.removeEventListener('abort', abort)
     }
