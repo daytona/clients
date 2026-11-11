@@ -25,7 +25,7 @@ Lightweight data-plane handle for one node in a multi-node Sandbox.
 - `process` _Process_
 - `rank` _number_
 - `state` _SandboxState_
-- `warnings` _string\[\] = \[\]_
+- `warnings` _string\[\] = \[\]_ - Advisory RDMA and session-cleanup warnings for this node.
 
 
 
@@ -35,7 +35,7 @@ Lightweight data-plane handle for one node in a multi-node Sandbox.
 
 ```ts
 new SandboxNode(
-   node: SandboxNode, 
+   node: import("@daytona/api-client").SandboxNode,
    toolboxProxyUrl: string, 
    clientConfig: Configuration, 
    sandboxApi: SandboxApi, 
@@ -46,7 +46,7 @@ new SandboxNode(
 
 **Parameters**:
 
-- `node` _SandboxNode_
+- `node` _API SandboxNode DTO_ - Node data from the API response (rank, id, state and resources), not an SDK node handle.
 - `toolboxProxyUrl` _string_
 - `clientConfig` _Configuration_
 - `sandboxApi` _SandboxApi_
@@ -114,14 +114,37 @@ Revoke an SSH access token for this node.
 #### update()
 
 ```ts
-update(node: SandboxNode): void;
+update(node: import("@daytona/api-client").SandboxNode): void;
 ```
 
 Refresh health and address metadata without replacing the data-plane clients.
 
 **Parameters**:
 
-- `node` _SandboxNode_
+- `node` _API SandboxNode DTO_ - Node data from the API response, not an SDK node handle.
+
+
+**Returns**:
+
+- `void`
+
+**Throws**:
+
+If the node rank or id differs from this handle.
+
+#### updateToolboxProxyUrl()
+
+```ts
+updateToolboxProxyUrl(toolboxProxyUrl: string): void;
+```
+
+**`Internal`**
+
+Refresh routing while preserving existing process and filesystem handles.
+
+**Parameters**:
+
+- `toolboxProxyUrl` _string_
 
 
 **Returns**:

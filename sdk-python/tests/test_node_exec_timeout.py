@@ -216,3 +216,27 @@ async def test_stream_setup_is_bounded_with_a_positive_execution_limit(kind):
     collection, nodes = make_nodes(kind)
     await invoke(kind, collection, timeout=1, on_stdout=lambda _chunk: None)
     assert nodes[0].process.create_session.call_args.kwargs == {"request_timeout": 10}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["sync", "async"])
+async def test_advisory_probe_failure_does_not_prevent_command(kind):
+    collection, nodes = make_nodes(kind, count=2)
+    nodes[0].process.exec.side_effect = [
+        RuntimeError("probe unavailable"),
+        ExecuteResponse.model_construct(exit_code=0, result="done"),
+    ]
+    results = await invoke(kind, collection)
+    assert results[0].exit_code == 0
+    nodes[0].process.exec.assert_any_call("workload")
+    assert nodes[0].warnings
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["sync", "async"])
+async def test_successful_stream_survives_cleanup_failure(kind):
+    collection, nodes = make_nodes(kind)
+    nodes[0].process.delete_session.side_effect = RuntimeError("cleanup unavailable")
+    results = await invoke(kind, collection, on_stdout=lambda _chunk: None)
+    assert results[0].result == "done"
+    assert "session" in " ".join(nodes[0].warnings).lower()

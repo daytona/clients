@@ -924,6 +924,29 @@ describe('Daytona', () => {
     expect(mockSandboxCtor.mock.calls.at(-1)?.[0]).toEqual(expect.objectContaining({ nodes }))
   })
 
+  it.each([404, 500])('handles hydration failures without hiding other errors (status=%s)', async (status) => {
+    const { Daytona } = await import('../Daytona')
+    const { DaytonaNotFoundError, DaytonaError } = await import('../errors/DaytonaError')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+    mockSandboxApi.listSandboxes.mockResolvedValue(
+      createApiResponse({
+        items: [
+          { id: 'gone', gpu: 16, labels: {} },
+          { id: 'live', gpu: 0, labels: {}, toolboxProxyUrl: 'http://proxy' },
+        ],
+        nextCursor: null,
+      }),
+    )
+    const error = status === 404 ? new DaytonaNotFoundError('deleted', 404) : new DaytonaError('unavailable', 500)
+    mockSandboxApi.getSandbox.mockRejectedValue(error)
+    if (status === 404) {
+      await instance.list().next()
+      expect(mockSandboxCtor.mock.calls.at(-1)?.[0].id).toBe('live')
+    } else {
+      await expect(instance.list().next()).rejects.toBe(error)
+    }
+  })
+
   it('serializes label filters when listing sandboxes', async () => {
     const { Daytona } = await import('../Daytona')
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })

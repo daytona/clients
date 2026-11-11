@@ -14,9 +14,12 @@ import { FileSystemApi, ProcessApi } from '@daytona/toolbox-api-client'
 import { Daytona } from './Daytona'
 import { FileSystem } from './FileSystem'
 import { Process } from './Process'
+import { DaytonaError, DaytonaInvalidArgumentError } from './errors/DaytonaError'
 
 /** Lightweight data-plane handle for one node in a multi-node Sandbox. */
 export class SandboxNode {
+  private readonly clientConfig: Configuration
+  private readonly axiosInstance: ReturnType<typeof Daytona.createAxiosInstance>
   public readonly rank: number
   public readonly id: string
   public cpu!: number
@@ -28,12 +31,16 @@ export class SandboxNode {
   public failure?: SandboxNodeDto['failure']
   public readonly fs: FileSystem
   public readonly process: Process
+  /** Advisory RDMA and session-cleanup warnings for this node. */
   public readonly warnings: string[] = []
   public fabricAddress?: string
   public fabricPrefixLength?: number
   public fabricHealthy?: boolean
   public fabricUnhealthySince?: string
 
+  /**
+   * @param node - Node data from the API response (rank, id, state and resources), not an SDK node handle.
+   */
   constructor(
     node: SandboxNodeDto,
     toolboxProxyUrl: string,
@@ -42,15 +49,18 @@ export class SandboxNode {
     language?: string,
     requestTimeoutMs?: number,
   ) {
+    if (!node.id || node.id === '.' || node.id === '..') {
+      throw new DaytonaInvalidArgumentError('Sandbox node id must be a non-empty path segment other than . or ..')
+    }
     this.rank = node.rank
     this.id = node.id
     this.update(node)
 
     const nodeConfig = structuredClone(clientConfig)
     const nodeAxios = Daytona.createAxiosInstance(requestTimeoutMs)
-    const basePath = `${toolboxProxyUrl.replace(/\/+$/, '')}/${this.id}`
-    nodeConfig.basePath = basePath
-    nodeAxios.defaults.baseURL = basePath
+    this.clientConfig = nodeConfig
+    this.axiosInstance = nodeAxios
+    this.updateToolboxProxyUrl(toolboxProxyUrl)
     const getPreviewToken = async () => (await this.getPreviewLink(1)).token
 
     this.fs = new FileSystem(nodeConfig, new FileSystemApi(nodeConfig, '', nodeAxios))
@@ -63,10 +73,16 @@ export class SandboxNode {
     )
   }
 
-  /** Refresh health and address metadata without replacing the data-plane clients. */
+  /**
+   * Refresh health and address metadata without replacing the data-plane clients.
+   * @param node - Node data from the API response, not an SDK node handle.
+   * @throws {DaytonaError} If the node rank or id differs from this handle.
+   */
   public update(node: SandboxNodeDto): void {
     if (node.rank !== this.rank || node.id !== this.id) {
-      throw new Error(`Sandbox node identity changed from rank ${this.rank}/${this.id} to ${node.rank}/${node.id}`)
+      throw new DaytonaError(
+        `Sandbox node identity changed from rank ${this.rank}/${this.id} to ${node.rank}/${node.id}`,
+      )
     }
     this.cpu = node.cpu
     this.gpu = node.gpu
@@ -79,6 +95,13 @@ export class SandboxNode {
     this.fabricPrefixLength = node.fabricPrefixLength
     this.fabricHealthy = node.fabricHealthy
     this.fabricUnhealthySince = node.fabricUnhealthySince
+  }
+
+  /** @internal Refresh routing while preserving existing process and filesystem handles. */
+  public updateToolboxProxyUrl(toolboxProxyUrl: string): void {
+    const basePath = `${toolboxProxyUrl.replace(/\/+$/, '')}/${encodeURIComponent(this.id)}`
+    this.clientConfig.basePath = basePath
+    this.axiosInstance.defaults.baseURL = basePath
   }
 
   /** Get a preview URL for a port on this node. */

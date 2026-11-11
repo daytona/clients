@@ -23,6 +23,7 @@ import {
   DaytonaAuthenticationError,
   createAxiosDaytonaError,
   DaytonaError,
+  DaytonaNotFoundError,
   DaytonaInvalidArgumentError,
   DaytonaQueueTimeoutError,
   DaytonaTimeoutError,
@@ -890,6 +891,8 @@ export class Daytona implements AsyncDisposable {
 
   /**
    * Iterates over Sandboxes matching the given query.
+   * Multi-node GPU sandboxes currently use whole 8-GPU nodes. A gang deleted
+   * between listing and fetching its node details is skipped.
    *
    * @param {ListSandboxesQuery} [query] - Optional filters, sorting, and per-page size.
    * @returns {AsyncIterableIterator<Sandbox>}
@@ -978,9 +981,16 @@ export class Daytona implements AsyncDisposable {
 
         for (const sandbox of response.data.items) {
           // SandboxListItem deliberately stays lightweight and does not carry
-          // internal member rows. Hydrate only gang heads so every public
-          // Sandbox instance still satisfies nodes[i].rank === i.
-          const sandboxWithNodes = sandbox.gpu > 8 ? (await sandboxApi.getSandbox(sandbox.id)).data : sandbox
+          // internal member rows. This release uses whole 8-GPU nodes, so
+          // gangs have more than 8 GPUs. Ordinary sandboxes need no extra GET.
+          let sandboxWithNodes: SandboxDto | typeof sandbox
+          try {
+            sandboxWithNodes = sandbox.gpu > 8 ? (await sandboxApi.getSandbox(sandbox.id)).data : sandbox
+          } catch (error) {
+            // A listed gang may be deleted before its hydration GET.
+            if (error instanceof DaytonaNotFoundError) continue
+            throw error
+          }
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
           const hydratedSandbox = await ensureToolboxProxyUrl(sandboxWithNodes)
           yield new Sandbox(

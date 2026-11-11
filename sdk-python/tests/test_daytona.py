@@ -440,6 +440,25 @@ class TestDaytonaGetAndList:
         second_call_kwargs = daytona._sandbox_api.list_sandboxes.call_args_list[1].kwargs
         assert second_call_kwargs["cursor"] == "cursor-2"
 
+    @pytest.mark.parametrize("status", [404, 500])
+    def test_list_hydration_only_skips_not_found(self, env_with_api_key, sandbox_dto, status):
+        from daytona_api_client.exceptions import ApiException, NotFoundException
+
+        daytona = _make_daytona()
+        listed = sandbox_dto.model_copy(update={"gpu": 16, "nodes": []})
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.list_sandboxes.return_value = MagicMock(items=[listed, sandbox_dto], next_cursor=None)
+        daytona._sandbox_api.get_sandbox.side_effect = (
+            NotFoundException(status=404) if status == 404 else ApiException(status=500)
+        )
+        if status == 404:
+            values = list(daytona.list())
+            assert len(values) == 1
+            assert values[0].id == sandbox_dto.id
+        else:
+            with pytest.raises(Exception):
+                next(daytona.list())
+
     def test_list_hydrates_gang_nodes(self, env_with_api_key, sandbox_dto):
         from daytona_api_client import SandboxNode
 

@@ -23,11 +23,19 @@ sed -i "s|setUserAgent(\"OpenAPI-Generator/[^\"]*\")|setUserAgent(\"${CLIENT_NAM
 
 # OpenAPI Generator 7.21.0 emits a primitive cast for these array branches.
 # Preserve the JsonArray; scalar branches keep their existing adapters.
-for RESOURCE in Cpu Memory Disk; do
-  MODEL_FILE="${API_CLIENT%/*}/model/CreateSandbox${RESOURCE}.java"
-  if [ -f "$MODEL_FILE" ]; then
+if [ "$CLIENT_NAME" = api-client-java ]; then
+  for RESOURCE in Cpu Memory Disk; do
+    MODEL_FILE="${API_CLIENT%/*}/model/CreateSandbox${RESOURCE}.java"
+    if [ ! -f "$MODEL_FILE" ]; then
+      echo "ERROR: Required resource model missing: $MODEL_FILE" >&2
+      exit 1
+    fi
     sed -i 's/JsonPrimitive primitive = adapterListInteger\.toJsonTree((List<Integer>)value\.getActualInstance())\.getAsJsonPrimitive();/JsonElement primitive = adapterListInteger.toJsonTree((List<Integer>)value.getActualInstance());/' "$MODEL_FILE"
-  fi
-done
+    if ! grep -Fq 'JsonElement primitive = adapterListInteger.toJsonTree((List<Integer>)value.getActualInstance());' "$MODEL_FILE" || grep -Fq 'adapterListInteger.toJsonTree((List<Integer>)value.getActualInstance()).getAsJsonPrimitive()' "$MODEL_FILE"; then
+      echo "ERROR: Resource-array serialization needs review after generator drift: $MODEL_FILE" >&2
+      exit 1
+    fi
+  done
+fi
 
 echo "Postprocessed Java client at $PROJECT_ROOT (User-Agent: ${CLIENT_NAME}/${VERSION})"

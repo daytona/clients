@@ -439,16 +439,40 @@ export class Process {
 
     const url = `${this.clientConfig.basePath.replace(/^http/, 'ws')}/process/session/${sessionId}/command/${commandId}/logs?follow=true`
 
-    const ws = await createSandboxWebSocket(url, this.clientConfig.baseOptions?.headers || {}, this.getPreviewToken)
-    const stream = stdDemuxStream(ws, onStdout, onStderr)
-    const abort = () => {
-      if (typeof ws.terminate === 'function') ws.terminate()
-      else ws.close()
+    if (signal?.aborted) return
+    let ws: Awaited<ReturnType<typeof createSandboxWebSocket>> | undefined
+    let finishAbort!: () => void
+    const interrupted = new Promise<undefined>((resolve) => {
+      finishAbort = () => resolve(undefined)
+    })
+    const closeSocket = () => {
+      // Canceling a Node socket before demux attaches can emit an error.
+      ws?.once?.('error', () => undefined)
+      if (typeof ws?.terminate === 'function') ws.terminate()
+      else ws?.close()
     }
-    if (signal?.aborted) abort()
-    else signal?.addEventListener('abort', abort, { once: true })
+    const abort = () => {
+      finishAbort()
+      closeSocket()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
     try {
-      await stream
+      const connection = createSandboxWebSocket(
+        url,
+        this.clientConfig.baseOptions?.headers || {},
+        this.getPreviewToken,
+      ).then((socket) => {
+        ws = socket
+        // Setup may finish after cancellation (for example after obtaining a preview token).
+        if (signal?.aborted) {
+          closeSocket()
+          return undefined
+        }
+        return socket
+      })
+      const socket = await Promise.race([connection, interrupted])
+      if (!socket) return
+      await Promise.race([stdDemuxStream(socket, onStdout, onStderr), interrupted])
     } finally {
       signal?.removeEventListener('abort', abort)
     }

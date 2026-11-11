@@ -129,6 +129,40 @@ const makeSandbox = (
 }
 
 describe('node SSH access', () => {
+  it.each(['', '.', '..'])('rejects an invalid node path id %j before constructing a handle', (id) => {
+    const { SandboxNode } = require('../SandboxNode') as typeof import('../SandboxNode')
+    const { DaytonaInvalidArgumentError } = require('../errors/DaytonaError') as typeof import('../errors/DaytonaError')
+    expect(
+      () =>
+        new SandboxNode(
+          { ...baseDto.nodes![0], id },
+          'http://proxy',
+          { basePath: 'http://proxy' } as Configuration,
+          {} as never,
+        ),
+    ).toThrow(DaytonaInvalidArgumentError)
+  })
+
+  it.each([true, false])('refreshes existing node proxy URLs (full response=%s)', async (full) => {
+    const { ProcessApi } = await import('@daytona/toolbox-api-client')
+    const { sandbox } = makeSandbox({
+      nodeCount: 2,
+      nodes: [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker-1' }],
+    })
+    const handles = [...sandbox.nodes]
+    const configs = (ProcessApi as jest.Mock).mock.calls.slice(-2).map((args: unknown[]) => args[0] as Configuration)
+    const update: Partial<SandboxDto> = { ...baseDto, nodeCount: 2, toolboxProxyUrl: 'https://new.example/toolbox' }
+    delete update.nodes
+    if (full) update.nodes = [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker-1' }]
+    ;(sandbox as unknown as { processSandboxDto(dto: Partial<SandboxDto>): void }).processSandboxDto(update)
+    expect(sandbox.nodes[0]).toBe(handles[0])
+    expect(sandbox.nodes[1]).toBe(handles[1])
+    expect(configs.map((config) => config.basePath)).toEqual([
+      'https://new.example/toolbox/sb-1',
+      'https://new.example/toolbox/worker-1',
+    ])
+  })
+
   it.each([
     [0, undefined],
     [1, undefined],
@@ -285,6 +319,23 @@ describe('all-node execution deadlines', () => {
     await sandbox.nodes.process.executeCommand('workload', { timeout: 1 })
     for (const process of processes)
       expect(process.executeCommand.mock.calls[0].slice(1)).toEqual([undefined, undefined, 5])
+  })
+
+  it('still executes when the advisory RDMA probe fails', async () => {
+    const { sandbox, processes } = makeNodes(2)
+    processes[0].executeCommand.mockRejectedValueOnce(new Error('probe timed out'))
+    const results = await sandbox.nodes.process.executeCommand('workload')
+    expect(results[0].exitCode).toBe(0)
+    expect(processes[0].executeCommand).toHaveBeenCalledWith('workload')
+    expect(sandbox.nodes[0].warnings.join(' ')).toMatch(/unable|could not|failed/i)
+  })
+
+  it('returns completed command results when session cleanup fails', async () => {
+    const { sandbox, processes } = makeNodes()
+    processes[0].deleteSession.mockRejectedValueOnce(new Error('cleanup unavailable'))
+    const results = await sandbox.nodes.process.executeCommand('workload', { onStdout: jest.fn() })
+    expect(results[0].result).toBe('done')
+    expect(sandbox.nodes[0].warnings.join(' ')).toMatch(/cleanup|session/i)
   })
 
   it.each([undefined, 0, 10])('cleans up a completed stream and its timer (timeout=%s)', async (timeout) => {
