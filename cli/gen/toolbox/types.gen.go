@@ -862,7 +862,8 @@ type ComputerUseRecordingsResponse struct {
 	Recordings []ComputerUseRecording `json:"recordings"`
 }
 
-// ComputerUseResolution A desktop resolution in pixels.
+// ComputerUseResolution A desktop resolution in pixels. Only 1024x768, 1280x720 and 1920x1080
+// are accepted; any other pair is `400 BAD_REQUEST`.
 type ComputerUseResolution struct {
 	// Height Height in pixels.
 	Height int32 `json:"height"`

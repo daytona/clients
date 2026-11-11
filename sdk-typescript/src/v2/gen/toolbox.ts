@@ -2309,7 +2309,10 @@ export interface components {
             /** @description The current and retained recordings. */
             recordings: components["schemas"]["ComputerUseRecording"][];
         };
-        /** @description A desktop resolution in pixels. */
+        /**
+         * @description A desktop resolution in pixels. Only 1024x768, 1280x720 and 1920x1080
+         *     are accepted; any other pair is `400 BAD_REQUEST`.
+         */
         ComputerUseResolution: {
             /**
              * Format: int32
@@ -4622,6 +4625,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description `PAYLOAD_TOO_LARGE` — the body exceeds the JSON body limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description `UNSUPPORTED_MEDIA_TYPE` — a non-empty body without `Content-Type: application/json` */
             415: {
                 headers: {
@@ -4988,6 +5000,15 @@ export interface operations {
             };
             /** @description `DESKTOP_NOT_READY` — the desktop is already starting or failed and needs restart; `CONFLICT` — the desktop is running at a different resolution */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `PAYLOAD_TOO_LARGE` — the body exceeds the JSON body limit */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

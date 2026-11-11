@@ -33,7 +33,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class ComputerUseResolution(BaseModel):
     """
-    A desktop resolution in pixels.
+    A desktop resolution in pixels. Only 1024x768, 1280x720 and 1920x1080 are accepted; any other pair is `400 BAD_REQUEST`.
     """ # noqa: E501
     height: Annotated[int, Field(strict=True, ge=0)] = Field(description="Height in pixels.")
     width: Annotated[int, Field(strict=True, ge=0)] = Field(description="Width in pixels.")

@@ -1252,7 +1252,7 @@
       },
       "ComputerUseResolution": {
         "additionalProperties": false,
-        "description": "A desktop resolution in pixels.",
+        "description": "A desktop resolution in pixels. Only 1024x768, 1280x720 and 1920x1080\nare accepted; any other pair is `400 BAD_REQUEST`.",
         "properties": {
           "height": {
             "description": "Height in pixels.",
@@ -5408,6 +5408,16 @@
             },
             "description": "`CONFLICT` \u2014 a concurrent restart brought the desktop up at a different resolution; retry the restart"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`PAYLOAD_TOO_LARGE` \u2014 the body exceeds the JSON body limit"
+          },
           "415": {
             "content": {
               "application/json": {
@@ -6085,6 +6095,16 @@
               }
             },
             "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart; `CONFLICT` \u2014 the desktop is running at a different resolution"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`PAYLOAD_TOO_LARGE` \u2014 the body exceeds the JSON body limit"
           },
           "415": {
             "content": {
