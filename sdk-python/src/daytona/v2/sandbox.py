@@ -1831,7 +1831,10 @@ class AsyncSandbox:
         ``toolbox:exec``, ``toolbox:fs``, ``toolbox:git``, ``toolbox:lsp``,
         ``desktop``, ``ssh``, ``sandbox:stop``, ``sandbox:pause``,
         ``sandbox:delete``); omitted means the minter's full grantable set, and
-        ``[]`` is a valid ports-only grant. ``ports`` names the private-preview
+        ``[]`` is a valid ports-only grant. ``toolbox:git`` without
+        ``toolbox:exec`` covers the git operations except writing git config:
+        ``git.set_config()`` with such a token raises :class:`ForbiddenError`
+        (403); ``git.get_config()`` still works. ``ports`` names the private-preview
         ports the token may reach (omitted = all, ``[]`` = none). ``ttl_seconds``
         overrides the deployment's default lifetime, capped server-side; an
         unknown operation or an over-cap TTL is a 400, never a silent

@@ -308,6 +308,13 @@ class AsyncGitService:
         path: Optional[str] = None,
         scope: GitConfigScope = "global",
     ) -> None:
+        """Set a git config value.
+
+        A sandbox access token needs ``toolbox:exec`` as well as
+        ``toolbox:git`` for this (``toolbox`` covers both): without
+        ``toolbox:exec`` it raises :class:`ForbiddenError` (403), while
+        :meth:`get_config` still works.
+        """
         body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": _config_scope(scope)}
         if path is not None:
             body["path"] = path

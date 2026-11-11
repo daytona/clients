@@ -651,7 +651,10 @@ export interface CreateAccessTokenOptions {
    * `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`, `desktop`,
    * `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the
    * minter's full grantable set; `[]` is a valid ports-only grant. Unknown
-   * operations are a 400, never a silent narrowing.
+   * operations are a 400, never a silent narrowing. `toolbox:git` without
+   * `toolbox:exec` covers the git operations except writing git config:
+   * `git.setConfig()` with such a token throws `ForbiddenError` (403);
+   * `git.getConfig()` still works.
    */
   readonly operations?: readonly string[]
   /** Private-preview ports the token may reach. Omitted = all; `[]` = none. */
