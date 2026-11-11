@@ -33,10 +33,6 @@ export class ImageBuilder {
       if (endsWithContinuation(source.dockerfile)) {
         throw badRequest('ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction')
       }
-      // An earlier step ending in the base's escape character (Python checks the same).
-      if (steps.length > 1 && endsWithContinuation([source.dockerfile, ...steps.slice(0, -1).map(renderStep)].join('\n'))) {
-        throw badRequest("ImageBuilder step ends with the Dockerfile's escape character; the next step would be joined to it")
-      }
     }
     deepFrozen(source)
     deepFrozen(steps)
@@ -67,7 +63,7 @@ export class ImageBuilder {
   }
 
   public runCommands(...commands: readonly string[]): ImageBuilder {
-    return this.append({ type: 'run', commands: assertTextList(commands, 'ImageBuilder.runCommands commands').map((command) => lineText(command, 'ImageBuilder.runCommands command')) })
+    return this.append({ type: 'run', commands: assertTextList(commands, 'ImageBuilder.runCommands commands').map((command) => this.rawLine(command, 'ImageBuilder.runCommands command')) })
   }
 
   public pipInstall(...packages: readonly string[]): ImageBuilder {
@@ -98,6 +94,21 @@ export class ImageBuilder {
     if (arguments.length > 1) throw badRequest('ImageBuilder.pipInstallFromRequirements takes only the path; put pip options in a runCommands line')
     const source = localSource(path, 'file', localSourcesOf(this).length + 1)
     return this.copy(source, '/.requirements.txt').runCommands('python -m pip install -r /.requirements.txt')
+  }
+
+  /**
+   * A raw instruction line (RUN, WORKDIR, USER), also refused when it ends with
+   * the base Dockerfile's escape character, since BuildKit would join the next
+   * line to it (a trailing `\\` is refused by lineText for every base). Python
+   * refuses the same values.
+   */
+  private rawLine(value: unknown, label: string): string {
+    const text = lineText(value, label)
+    const escape = this.source.type === 'dockerfile' ? dockerfileEscape(this.source.dockerfile) : '\\'
+    if (escape !== '\\' && endsWithContinuation(`# escape=${escape}\nRUN ${text}`)) {
+      throw badRequest(`${label} ${JSON.stringify(text)} ends with the Dockerfile's escape character; the next instruction would be joined to it`)
+    }
+    return text
   }
 
   private copy(source: LocalSource, remotePath: string): ImageBuilder {
@@ -133,11 +144,11 @@ export class ImageBuilder {
   }
 
   public workdir(path: string): ImageBuilder {
-    return this.append({ type: 'workdir', path: lineText(path, 'ImageBuilder.workdir path') })
+    return this.append({ type: 'workdir', path: this.rawLine(path, 'ImageBuilder.workdir path') })
   }
 
   public user(name: string): ImageBuilder {
-    return this.append({ type: 'user', name: lineText(name, 'ImageBuilder.user name') })
+    return this.append({ type: 'user', name: this.rawLine(name, 'ImageBuilder.user name') })
   }
 
   public cmd(...args: readonly string[]): ImageBuilder {

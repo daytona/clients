@@ -39,27 +39,17 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        # Checked as each step is added: a base, or an earlier step, ending in a
-        # line continuation would swallow it (and every later step) silently.
-        # Only a Dockerfile base can select an escape character other than `\`;
-        # a raw step ending in `\` is refused where it is added.
-        if self._steps and self._dockerfile is not None:
-            if ends_with_continuation(self._dockerfile):
-                raise create_error(
-                    "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
-                    400,
-                    "BAD_REQUEST",
-                    "SDK",
-                )
-            if len(self._steps) > 1 and ends_with_continuation(
-                "\n".join((self._dockerfile, *self._steps[:-1]))
-            ):
-                raise create_error(
-                    "ImageBuilder step ends with the Dockerfile's escape character; the next step would be joined to it",
-                    400,
-                    "BAD_REQUEST",
-                    "SDK",
-                )
+        # Checked when the first step is added: a base ending in a line
+        # continuation would swallow it (and every later step) silently. A raw
+        # step line ending in the escape character is refused where it is
+        # added (_raw_line).
+        if self._steps and self._dockerfile is not None and ends_with_continuation(self._dockerfile):
+            raise create_error(
+                "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
 
     # One rule in both SDKs: every value must be a string that is not blank by
     # Python's whitespace set, and text rendered raw into a Dockerfile line
@@ -146,7 +136,7 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        cleaned = tuple(self._line_text(command, "ImageBuilder.run_commands command") for command in commands)
+        cleaned = tuple(self._raw_line(command, "ImageBuilder.run_commands command") for command in commands)
         return replace(
             self,
             _steps=self._steps + tuple(f"RUN {command}" for command in cleaned),
@@ -213,13 +203,11 @@ class ImageBuilder:
     def workdir(self, path: str, /) -> Self:
         return replace(
             self,
-            _steps=self._steps + (f"WORKDIR {self._line_text(path, 'ImageBuilder.workdir path')}",),
+            _steps=self._steps + (f"WORKDIR {self._raw_line(path, 'ImageBuilder.workdir path')}",),
         )
 
     def user(self, name: str, /) -> Self:
-        return replace(
-            self, _steps=self._steps + (f"USER {self._line_text(name, 'ImageBuilder.user name')}",)
-        )
+        return replace(self, _steps=self._steps + (f"USER {self._raw_line(name, 'ImageBuilder.user name')}",))
 
     def cmd(self, *args: str) -> Self:
         return self._json_command("CMD", args)
@@ -257,6 +245,22 @@ class ImageBuilder:
             raise AssertionError("image builder has no source")
         layers = [base, *self._steps]
         return "\n".join(layers).rstrip() + "\n"
+
+    def _raw_line(self, value: object, label: str) -> str:
+        """A raw instruction line (RUN, WORKDIR, USER), also refused when it ends
+        with the base Dockerfile's escape character, since BuildKit would join
+        the next line to it (a trailing ``\\`` is refused by _line_text for
+        every base). TypeScript refuses the same values."""
+        text = self._line_text(value, label)
+        escape = dockerfile_escape(self._dockerfile) if self._dockerfile is not None else "\\"
+        if escape != "\\" and ends_with_continuation(f"# escape={escape}\nRUN {text}"):
+            raise create_error(
+                f"{label} {json.dumps(text, ensure_ascii=False)} ends with the Dockerfile's escape character; the next instruction would be joined to it",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return text
 
     @classmethod
     def _line_text(cls, value: object, label: str) -> str:

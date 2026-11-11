@@ -91,9 +91,10 @@ paths, remote paths and `build_from_context(context, /)`. The optional
   escape character (`\\`) ends no line, comment and whitespace-only lines
   inside a continuation are skipped, and an escape character alone on the
   last line carries nothing to join. A shared fixture generated from BuildKit
-  holds both SDKs to it. The same holds for a step added after an earlier step
-  that ends in the base's escape character (for example a backtick under
-  `# escape=\``). An unterminated heredoc in the base is not detected.
+  holds both SDKs to it. A raw line (a `RUN` command, `WORKDIR`, `USER`) that
+  ends in the base's escape character (for example a backtick under
+  `# escape=\``) is refused where it is added, for the same reason. An
+  unterminated heredoc in the base is not detected.
 - **Builders stay immutable**: each call returns a new builder; the earlier
   one is unchanged.
 - **Local files require the default Dockerfile escape character (`\`).** A

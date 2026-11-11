@@ -322,6 +322,25 @@
       "request": {
         "dockerfile": "FROM alpine\n# note \\\nWORKDIR /w\n"
       }
+    },
+    {
+      "name": "an escaped backtick under a backtick escape is not a continuation",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a``",
+            "echo b"
+          ]
+        ]
+      ],
+      "dockerfile": "# escape=`\nFROM alpine\nRUN echo a``\nRUN echo b\n",
+      "request": {
+        "dockerfile": "# escape=`\nFROM alpine\nRUN echo a``\nRUN echo b\n"
+      }
     }
   ],
   "refused": [
@@ -841,7 +860,7 @@
       "tsError": "ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction"
     },
     {
-      "name": "a step ending in the base's backtick escape, then another step",
+      "name": "a command ending in the base's backtick escape",
       "source": {
         "dockerfile": "# escape=`\nFROM alpine"
       },
@@ -851,13 +870,88 @@
           [
             "echo one `"
           ]
-        ],
-        [
-          "workdir",
-          "/srv"
         ]
       ],
-      "error": "ImageBuilder step ends with the Dockerfile's escape character; the next step would be joined to it"
+      "error": "ImageBuilder.run_commands command \"echo one `\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"echo one `\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "the first of two commands ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a`",
+            "echo b"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo a`\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"echo a`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "the middle of three commands ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a",
+            "echo b`",
+            "echo c"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo b`\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"echo b`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "a workdir ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/w`"
+        ]
+      ],
+      "error": "ImageBuilder.workdir path \"/w`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "a user ending in the base's backtick escape after spaces",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "app ` "
+        ]
+      ],
+      "error": "ImageBuilder.user name \"app `\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "a command that is only the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "`",
+            "echo b"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"`\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
     }
   ]
 }
