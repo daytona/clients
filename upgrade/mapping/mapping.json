@@ -191,6 +191,18 @@
       "text": "A sandbox created on v0 can only be used through .v0: move every call in this workflow to v2 together."
     }
   ],
+  "dockerfileImage": {
+    "py": {
+      "type": "Image",
+      "method": "from_dockerfile",
+      "parameter": "image"
+    },
+    "ts": {
+      "type": "Image",
+      "method": "fromDockerfile",
+      "parameter": "image"
+    }
+  },
   "receivers": {
     "client": {
       "py": {
@@ -532,7 +544,8 @@
       "notes": [
         "Python: async methods require await; async transfer progress callbacks may be awaitable",
         "Python: async upload_file_stream additionally accepts AsyncIterable[bytes]",
-        "Python and TypeScript: v2 filesystem transfers do not accept the v0 positional timeout"
+        "Python and TypeScript: v2 filesystem transfers do not accept the v0 positional timeout",
+        "Python and TypeScript: v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
       ]
     },
     "sandbox.git": {
@@ -1061,10 +1074,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "mode becomes keyword-only; request_timeout is removed"
+          "mode becomes keyword-only; request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "mode moves into an options object"
+          "mode moves into an options object",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1084,10 +1099,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "recursive becomes keyword-only; request_timeout is removed"
+          "recursive becomes keyword-only; request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "recursive moves into an options object"
+          "recursive moves into an options object",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1109,12 +1126,14 @@
         "py": [
           "The disk-transfer form requires local_path; timeout is removed",
           "For the bytes-returning overload use fs.read_bytes(remote_path)",
-          "v2 does not create missing local parent directories; create them first"
+          "v2 does not create missing local parent directories; create them first",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "The disk-transfer form requires localPath; positional timeout is removed",
           "For the buffer-returning overload use fs.readBytes(remotePath), which returns Uint8Array",
-          "v2 does not create missing local parent directories; create them first"
+          "v2 does not create missing local parent directories; create them first",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1136,12 +1155,14 @@
         "py": [
           "No chunk-iterator download method",
           "Use fs.download_file(remote_path, local_path) for streaming to disk",
-          "For a custom HTTP stream use fs.presigned_download_url(remote_path)"
+          "For a custom HTTP stream use fs.presigned_download_url(remote_path)",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "No Readable-returning download method",
           "Use fs.downloadFile(remotePath, localPath) for streaming to disk",
-          "For a custom HTTP stream use fs.presignedDownloadUrl(remotePath)"
+          "For a custom HTTP stream use fs.presignedDownloadUrl(remotePath)",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1164,13 +1185,15 @@
           "Convert FileDownloadRequest objects to remote path strings; timeout is removed",
           "Returns BulkReadResult with files and errors, buffering contents in memory",
           "For local destinations call fs.download_file(remote_path, local_path) per file",
-          "v0 created missing local parent directories; v2 does not, so create them first"
+          "v0 created missing local parent directories; v2 does not, so create them first",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "Convert download request objects to remote path strings; positional timeout is removed",
           "Returns BulkReadResult with files and errors, buffering contents in memory",
           "For local destinations call fs.downloadFile(remotePath, localPath) per file",
-          "v0 created missing local parent directories; v2 does not, so create them first"
+          "v0 created missing local parent directories; v2 does not, so create them first",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1191,10 +1214,12 @@
       "notes": {
         "py": [
           "Read matches from result.items; each match is a FileMatch with file, line and content attributes",
-          "request_timeout is removed"
+          "request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Read matches from result.items"
+          "Read matches from result.items",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1214,10 +1239,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "request_timeout is removed"
+          "request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Renamed to stat; same argument, returns the v2 FileInfo type"
+          "Renamed to stat; same argument, returns the v2 FileInfo type",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1238,10 +1265,12 @@
       "notes": {
         "py": [
           "Read entries from result.items",
-          "depth becomes keyword-only; request_timeout is removed"
+          "depth becomes keyword-only; request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Read entries from result.items"
+          "Read entries from result.items",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1261,10 +1290,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "request_timeout is removed"
+          "request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Renamed to move; same arguments"
+          "Renamed to move; same arguments",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1285,10 +1316,12 @@
       "notes": {
         "py": [
           "Read replacement results from result.items; each result is a ReplaceResult with file, success and error attributes",
-          "request_timeout is removed"
+          "request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Read replacement results from result.items"
+          "Read replacement results from result.items",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1308,10 +1341,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Read matching paths from result.items; request_timeout is removed"
+          "Read matching paths from result.items; request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Read matching paths from result.items"
+          "Read matching paths from result.items",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1331,10 +1366,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "mode, owner and group become keyword-only; request_timeout is removed"
+          "mode, owner and group become keyword-only; request_timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
-          "Renamed to chmod; the permissions object becomes FilePermissionsOptions"
+          "Renamed to chmod; the permissions object becomes FilePermissionsOptions",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1355,11 +1392,13 @@
       "notes": {
         "py": [
           "For the bytes overload use fs.write_bytes(remote_path, content)",
-          "timeout is removed"
+          "timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "For the Buffer overload use fs.writeBytes(remotePath, content)",
-          "Positional timeout is removed"
+          "Positional timeout is removed",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1381,12 +1420,14 @@
         "py": [
           "No arbitrary file-like or AsyncIterable upload method",
           "Use fs.upload_file(local_path, remote_path) for a streamed local file",
-          "For custom streaming use fs.presigned_upload_url(remote_path)"
+          "For custom streaming use fs.presigned_upload_url(remote_path)",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "No arbitrary Readable upload method",
           "Use fs.uploadFile(localPath, remotePath) for a streamed local file",
-          "For custom streaming use fs.presignedUploadUrl(remotePath)"
+          "For custom streaming use fs.presignedUploadUrl(remotePath)",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -1408,12 +1449,14 @@
         "py": [
           "Convert FileUpload entries to a remote-path-to-bytes mapping; timeout is removed",
           "Returns BulkWriteResult with files and errors",
-          "For local source paths call fs.upload_file(local_path, remote_path) per file"
+          "For local source paths call fs.upload_file(local_path, remote_path) per file",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "Convert FileUpload entries to a remote-path-to-Uint8Array record; positional timeout is removed",
           "Returns BulkWriteResult with files and errors",
-          "For local source paths call fs.uploadFile(localPath, remotePath) per file"
+          "For local source paths call fs.uploadFile(localPath, remotePath) per file",
+          "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
       "anchor": "sandbox-fs",
@@ -3793,7 +3836,27 @@
         ]
       },
       "anchor": "client",
-      "startsWorkflow": true
+      "startsWorkflow": true,
+      "dockerfileImage": {
+        "v2": {
+          "py": "{client}.v2.images.build_from_context(context, dockerfile=dockerfile, region=region)",
+          "ts": "{client}.v2.images.buildFromContext(context, { dockerfile, region })"
+        },
+        "notes": {
+          "py": [
+            "Build the image first, then create the sandbox from it: wait with images.get(image.id, wait=\"ready\") and pass image.id to create(image.id, region=region)",
+            "v0 Image.from_dockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory as a tar archive (its bytes or the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile",
+            "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+            "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error)"
+          ],
+          "ts": [
+            "Build the image first, then create the sandbox from it: wait with images.get(image.id, { wait: 'ready' }) and pass image.id to create(image.id, { region })",
+            "v0 Image.fromDockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory as a tar archive (its bytes, a Blob, or in Node.js the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile",
+            "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+            "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error)"
+          ]
+        }
+      }
     },
     {
       "id": "client.createAxiosInstance",
@@ -4046,7 +4109,25 @@
         ]
       },
       "anchor": "client-snapshot",
-      "startsWorkflow": false
+      "startsWorkflow": false,
+      "dockerfileImage": {
+        "v2": {
+          "py": "{client}.v2.images.build_from_context(context, dockerfile=dockerfile, name=name, region=region)",
+          "ts": "{client}.v2.images.buildFromContext(context, { dockerfile, name, region })"
+        },
+        "notes": {
+          "py": [
+            "A v0 snapshot is a v2 image, not a v2 sandbox-state snapshot",
+            "v0 Image.from_dockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory as a tar archive (its bytes or the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile",
+            "Translate region_id to region; build_from_context returns once the build is submitted: observe readiness with images.get(image.id, wait=\"ready\") and logs with follow_build_logs"
+          ],
+          "ts": [
+            "A v0 snapshot is a v2 image, not a v2 sandbox-state snapshot",
+            "v0 Image.fromDockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory as a tar archive (its bytes, a Blob, or in Node.js the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile",
+            "Translate regionId to region; buildFromContext resolves once the build is submitted: observe readiness with images.get(image.id, { wait: 'ready' }) and logs with followBuildLogs"
+          ]
+        }
+      }
     },
     {
       "id": "client.snapshot.delete",

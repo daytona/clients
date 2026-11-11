@@ -122,6 +122,13 @@ for (const [receiver, metadata] of Object.entries(mapping.receivers)) {
       const after = entry.v2[language] === null ? 'None' : code(withNamedArguments(entry.v2[language]));
       const notes = [entry.v2[language] === null ? 'none' : entry.category, ...entry.notes[language]].map(cell).join('; ');
       lines.push(`| ${code(before)} | ${after} | ${notes} |`);
+      const dockerfile = entry.dockerfileImage;
+      if (dockerfile && dockerfile.v2[language] !== null) {
+        const proof = mapping.dockerfileImage[language];
+        const variantBefore = `${receiverName(receiver, language)}.${entry.v0[language]}(...)`;
+        const variantNotes = [`differs; when ${proof.parameter} is ${proof.type}.${proof.method}(...)`, ...dockerfile.notes[language]].map(cell).join('; ');
+        lines.push(`| ${code(variantBefore)} with ${code(`${proof.type}.${proof.method}(...)`)} | ${code(withNamedArguments(dockerfile.v2[language]))} | ${variantNotes} |`);
+      }
     }
     lines.push('');
   }

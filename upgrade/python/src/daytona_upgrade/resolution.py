@@ -83,6 +83,13 @@ class Resolver:
             for kind, receiver in self.mapping.receivers.items():
                 if name in receiver.types:
                     return "type:" + kind
+            if (
+                self.mapping.dockerfile_image is not None
+                and name == self.mapping.dockerfile_image.type
+            ):
+                # The 0.x Image class, as `import daytona; daytona.Image` reads
+                # it: its Dockerfile call is then provable (dockerfile_image).
+                return "module:" + module + "." + name
             if name == "DaytonaConfig":
                 return "type:config"
             if name == "common" and module in self.mapping.modules:

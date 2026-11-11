@@ -18,6 +18,7 @@ from .call_sites import Call as Call
 from .call_sites import record_arguments, record_factory_reference
 from .class_field_mutations import record_class_mutations
 from .classflow import class_bindings
+from .dockerfile_images import passes_dockerfile_image
 from .field_effects import apply_effects, escape_fields, precise_write_arguments
 from .field_safety import class_mutations
 from .importflow import ImportVisitor
@@ -44,6 +45,12 @@ class Flow(ImportVisitor):
         super().__init__()
         self.resolver = resolver
         self.context = context
+        # The methods whose calls may take a 0.x Dockerfile image.
+        self.dockerfile_methods = frozenset(
+            suggestion.method
+            for suggestion in resolver.mapping.suggestions
+            if suggestion.dockerfile_form is not None and suggestion.method is not None
+        )
         self.env: dict[str, str] = {
             key: value
             for key, value in context.index.exports.get(context.module, {}).items()
@@ -213,6 +220,12 @@ class Flow(ImportVisitor):
                     self.statement,
                     self.binding,
                     self.scope,
+                    node.func.attr in self.dockerfile_methods
+                    and passes_dockerfile_image(
+                        node,
+                        self.resolver.mapping,
+                        lambda value: self.resolver.infer(value, self.env),
+                    ),
                 )
             )
         for argument in node.args:

@@ -91,3 +91,32 @@ for (const [id, languages] of FORK_ROWS) {
     });
   }
 }
+
+test('every filesystem row says v2 sandbox paths are absolute, in the same words for both tools', () => {
+  // Given: the 0.x filesystem rows, whose relative paths v2 refuses.
+  const rows = mapping.suggestions.filter((entry) => entry.receiver === 'sandbox.fs');
+  assert.ok(rows.length > 0);
+  // When / Then: each language's notes carry the one shared note, and the guide shows it.
+  const note = 'v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory';
+  for (const entry of rows) {
+    for (const language of ['py', 'ts']) assert.ok(entry.notes[language].includes(note), `${entry.id} ${language}`);
+  }
+  assert.ok(mapping.receivers['sandbox.fs'].notes.includes(`Python and TypeScript: ${note}`));
+  const section = guide.slice(guide.indexOf('<a id="sandbox-fs"></a>'), guide.indexOf('<a id="sandbox-git"></a>'));
+  assert.ok(section.includes(note));
+});
+
+test('the Dockerfile-image forms name the 0.x call they replace', () => {
+  // Given: rows with a form for a create that passes a 0.x Dockerfile image.
+  const rows = mapping.suggestions.filter((entry) => entry.dockerfileImage !== undefined);
+  assert.deepEqual(rows.map((entry) => entry.id).sort(), ['client.create', 'client.snapshot.create']);
+  for (const entry of rows) {
+    for (const language of ['py', 'ts']) {
+      const { type, method } = mapping.dockerfileImage[language];
+      // Then: each builds from a context and its notes name the 0.x call.
+      assert.match(entry.dockerfileImage.v2[language], language === 'py' ? /\.build_from_context\(/ : /\.buildFromContext\(/);
+      assert.ok(entry.dockerfileImage.notes[language].some((note) => note.includes(`${type}.${method}(path)`)));
+      assert.ok(guide.includes(`with \`${type}.${method}(...)\``));
+    }
+  }
+});

@@ -72,6 +72,20 @@ class Suggestion:
     notes: tuple[str, ...]
     anchor: str
     starts_workflow: bool
+    # The form and notes for a call whose image parameter provably is a 0.x
+    # Dockerfile image (``Mapping.dockerfile_image``).
+    dockerfile_form: str | None = None
+    dockerfile_notes: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class DockerfileImage:
+    """The 0.x static call that builds an image from a Dockerfile and its
+    directory, and the create parameter that takes its result."""
+
+    type: str
+    method: str
+    parameter: str
 
 
 @dataclass(frozen=True)
@@ -97,6 +111,7 @@ class Mapping:
     root_alias_categories: dict[str, str] = field(default_factory=dict)
     # Every extra the 2.x distribution defines; others are dropped on migration.
     known_extras: tuple[str, ...] = ()
+    dockerfile_image: DockerfileImage | None = None
 
     @property
     def root_imports(self) -> tuple[str, ...]:
@@ -148,9 +163,16 @@ def load_mapping(path: Path | None = None, tool_version: str | None = None) -> M
             tuple(entry["notes"]["py"]),
             entry["anchor"],
             entry.get("startsWorkflow", False),
+            entry["dockerfileImage"]["v2"]["py"]
+            if "dockerfileImage" in entry
+            else None,
+            tuple(entry["dockerfileImage"]["notes"]["py"])
+            if "dockerfileImage" in entry
+            else None,
         )
         for entry in raw["suggestions"]
     )
+    dockerfile_image = raw.get("dockerfileImage", {}).get("py")
     return Mapping(
         tuple(raw["rootNames"]["py"]),
         tuple(raw["movedClientMembers"]["py"]),
@@ -179,6 +201,13 @@ def load_mapping(path: Path | None = None, tool_version: str | None = None) -> M
             for alias, category in raw.get("rootAliasCategories", {}).items()
         },
         tuple(package["knownExtras"]),
+        DockerfileImage(
+            dockerfile_image["type"],
+            dockerfile_image["method"],
+            dockerfile_image["parameter"],
+        )
+        if dockerfile_image
+        else None,
     )
 
 
