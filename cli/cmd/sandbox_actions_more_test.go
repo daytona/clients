@@ -544,8 +544,12 @@ func TestSandboxStart_macosAsksBeforeAutoReserveCanBuy(t *testing.T) {
 		"unreadable":     {method: http.MethodGet, path: "/reservations", query: "limit=200", status: 403, response: `{"code":"FORBIDDEN","message":"missing read:reservations","source":"DAYTONA_API"}`},
 	} {
 		t.Run(name, func(t *testing.T) {
-			// Off a terminal without --yes: refused before any start request.
+			// Off a terminal without --yes: refused after the reservation read
+			// and before any start request.
+			readDone := false
+			read.check = func(*testing.T, *http.Request, []byte) { readDone = true }
 			_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{stopped, read})
+			require.True(t, readDone, "the reservations were not read before the refusal")
 			require.Error(t, err)
 			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 			require.Contains(t, err.Error(), "24-hour Mac reservation in region-b")
@@ -584,4 +588,19 @@ func TestSandboxStart_macosFindsALiveReservationOnALaterPage(t *testing.T) {
 		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "pending")},
 	})
 	require.NoError(t, err)
+}
+
+func TestSandboxStart_macosPendingReservationsAreLive(t *testing.T) {
+	id := testMacSandboxID
+	for _, status := range []string{"pending_charge", "pending_mac", "active"} {
+		t.Run(status, func(t *testing.T) {
+			_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+				macReservationsRead("region-b", status),
+				{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "pending")},
+			})
+			require.NoError(t, err)
+		})
+	}
 }
