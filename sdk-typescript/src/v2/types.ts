@@ -508,9 +508,11 @@ export interface CreateMacosSandboxOptions extends CreateRequestBaseOptions {
   /** Physical cores and GiB; omitted axes use the platform defaults. */
   readonly resources?: MacosResources
   /**
-   * Preserve the sandbox's disk when stopped. Start or resume to continue;
-   * delete to remove it. At reservation end, the disk is saved as an anonymous
-   * image that can be used to create another sandbox.
+   * Keep the sandbox's disk and machine across stop and start, and its memory
+   * across pause and resume. A start can run on any Mac of the organization;
+   * after a start on a different Mac, iCloud asks the user to sign in again. A
+   * reservation end or a Mac failure stops a started sandbox and never deletes
+   * it. Delete to remove it.
    */
   readonly persistent?: boolean
   /**

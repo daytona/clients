@@ -224,9 +224,8 @@ export class Daytona {
    * A reservation it buys (`reservation: 'new'` or auto-reserve) throws `LimitExceededError` (a `RateLimitError`) with `limit === 'max_mac_reservations'` when the organization holds its Mac reservation limit.
     * `resources.cpu` (cores), `resources.memory` (GiB) and `resources.disk` (GiB)
     * size the sandbox; each omitted
-   * axis uses half of the claiming Mac, rounded down, on a model that runs two sandboxes,
-   * or all of it on a model that runs one. The first successful
-   * claim fixes the size, which the sandbox reports from then on. `name`,
+   * axis uses the Mac model's default size (`defaultSize` in `macModels.list()`); a create
+   * from a captured image uses the image's disk size. The sandbox reports its size. `name`,
    * `idempotencyKey`, `waitSeconds` and `createTimeoutSeconds` behave as on
    * {@link create}. `networkPolicy` sets the outbound network policy as on
    * {@link create}; a sandbox with a policy runs only on a Mac that can
