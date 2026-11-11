@@ -116,7 +116,7 @@ func newReservationCreateCommand() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&model, "model", "", "Mac model slug from mac-model list (default: the region's default model; no upgrade)")
 	f.IntVar(&count, "count", 0, "how many Macs to reserve, 1 to 100 (calls POST /reservations/bulk; default: one Mac through POST /reservations)")
-	f.IntVar(&minCount, "min-count", 0, "the fewest Macs to accept when fewer than --count are free (default: --count, all or nothing)")
+	f.IntVar(&minCount, "min-count", 0, "the fewest Macs to accept when fewer than --count are free or fit under the organization's Mac reservation limit (default: --count, all or nothing)")
 	f.BoolVar(&autoRenew, "auto-renew", false, autoRenewUsage)
 	f.StringVar(&idempotencyKey, "idempotency-key", "", "a retry with the same key returns the first reservation instead of buying another (default: a fresh key per invocation)")
 	f.BoolVar(&dryRun, "dry-run", false, "print the price and the free Macs from GET /mac-catalog and reserve nothing")

@@ -67,6 +67,26 @@ func hintFor(ae *APIError) string {
 	case ae.Status == http.StatusTooManyRequests && ae.Code == CodeLimitExceeded:
 		limit, _ := ae.Body["limit"].(string)
 		cur, max := ae.Body["current"], ae.Body["max"]
+		if limit == "max_mac_reservations" {
+			currentCount, currentOK := intExtra(ae.Body, "current")
+			maxCount, maxOK := intExtra(ae.Body, "max")
+			if currentOK && maxOK {
+				if currentCount >= maxCount {
+					return fmt.Sprintf("organization limit max_mac_reservations reached (%d of %d) — a Mac reservation frees at the end of its period: let an active one lapse with `daytona reservation update RESERVATION_ID --auto-renew=false`, or upgrade the plan; `daytona org limits` shows the current usage", currentCount, maxCount)
+				}
+				remaining := maxCount - currentCount
+				fit := "Mac reservations fit"
+				if remaining == 1 {
+					fit = "Mac reservation fits"
+				}
+				// Only a bulk purchase is refused below the cap, and only it
+				// takes --count and --min-count.
+				if path, _, _ := strings.Cut(ae.Path, "?"); strings.HasSuffix(path, "/reservations/bulk") {
+					return fmt.Sprintf("only %d more %s under the organization limit (%d of %d held) — lower --count or set --min-count", remaining, fit, currentCount, maxCount)
+				}
+				return fmt.Sprintf("only %d more %s under the organization limit (%d of %d held)", remaining, fit, currentCount, maxCount)
+			}
+		}
 		if limit != "" && cur != nil && max != nil {
 			hint := fmt.Sprintf("organization limit %s reached (%v of %v) — %s or ask for a higher limit", limit, cur, max, limitRemedy(limit))
 			if limitShownByOrgLimits(limit) {

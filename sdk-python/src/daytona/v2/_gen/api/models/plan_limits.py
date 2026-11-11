@@ -35,11 +35,13 @@ class PlanLimits(BaseModel):
     PlanLimits
     """ # noqa: E501
     max_concurrent_sandboxes: Optional[StrictInt] = Field(default=None, description="The concurrent sandbox limit, or `null` when unlimited.")
+    max_mac_reservations: Optional[StrictInt] = Field(default=None, description="The most Mac reservations the organization can hold at once.")
     max_members: Optional[StrictInt] = Field(default=None, description="The member limit, or `null` when unlimited.")
     max_sandbox_cores: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="The CPU limit of one Linux sandbox in cores (1 core = 2 vCPUs), or `null` when only the platform maximum applies.")
     max_sandbox_memory_mib: Optional[StrictInt] = Field(default=None, description="The memory limit of one Linux sandbox in MiB, or `null` when only the platform maximum applies.")
+    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(default=None, description="The longest timeout a sandbox may have on this plan, in seconds, or `null` when the plan sets no maximum.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["max_concurrent_sandboxes", "max_members", "max_sandbox_cores", "max_sandbox_memory_mib"]
+    __properties: ClassVar[List[str]] = ["max_concurrent_sandboxes", "max_mac_reservations", "max_members", "max_sandbox_cores", "max_sandbox_memory_mib", "max_sandbox_timeout_seconds"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -109,6 +111,11 @@ class PlanLimits(BaseModel):
         if self.max_sandbox_memory_mib is None and "max_sandbox_memory_mib" in self.model_fields_set:
             _dict['max_sandbox_memory_mib'] = None
 
+        # set to None if max_sandbox_timeout_seconds (nullable) is None
+        # and model_fields_set contains the field
+        if self.max_sandbox_timeout_seconds is None and "max_sandbox_timeout_seconds" in self.model_fields_set:
+            _dict['max_sandbox_timeout_seconds'] = None
+
         return _dict
 
     @classmethod
@@ -122,9 +129,11 @@ class PlanLimits(BaseModel):
 
         _obj = cls.model_validate({
             **({"max_concurrent_sandboxes": obj["max_concurrent_sandboxes"]} if "max_concurrent_sandboxes" in obj else {}),
+            **({"max_mac_reservations": obj["max_mac_reservations"]} if "max_mac_reservations" in obj else {}),
             **({"max_members": obj["max_members"]} if "max_members" in obj else {}),
             **({"max_sandbox_cores": obj["max_sandbox_cores"]} if "max_sandbox_cores" in obj else {}),
-            **({"max_sandbox_memory_mib": obj["max_sandbox_memory_mib"]} if "max_sandbox_memory_mib" in obj else {})
+            **({"max_sandbox_memory_mib": obj["max_sandbox_memory_mib"]} if "max_sandbox_memory_mib" in obj else {}),
+            **({"max_sandbox_timeout_seconds": obj["max_sandbox_timeout_seconds"]} if "max_sandbox_timeout_seconds" in obj else {})
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

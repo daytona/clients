@@ -8482,6 +8482,8 @@ describe('toolbox service request shaping', () => {
       total: { limit: 400, usage: 11 },
     },
     sandbox_resources: { max_cores: 4, max_memory_mib: 8192 },
+    sandbox_timeout: { max_seconds: 3600, ceiling_seconds: 86400 },
+    mac_reservations: { limit: 10, usage: 4 },
     image_builds: { concurrent: { limit: null, usage: 0 } },
     storage: {
       images: { limit: null, usage: 4 },
@@ -8496,6 +8498,7 @@ describe('toolbox service request shaping', () => {
   const organizationLimits: OrganizationLimits = {
     sandboxes: { concurrent: { limit: 100, usage: 3 }, total: { limit: 400, usage: 11 } },
     sandboxResources: { maxCores: 4, maxMemoryMib: 8192 }, imageBuilds: { concurrent: { usage: 0 } },
+    macReservations: { limit: 10, usage: 4 },
     storage: { images: { usage: 4 }, snapshots: { usage: 0 }, volumes: { usage: 1 } },
     secretsPerProject: { limit: 500, usage: 2 }, apiKeysPerProject: { limit: 100, usage: 1 },
     apiKeysPerOrganization: { limit: 100, usage: 0 },

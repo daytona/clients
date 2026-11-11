@@ -52,6 +52,7 @@ from daytona.v2 import (
     SandboxTerminalStateError,
     Secret,
     Snapshot,
+    UsageLimit,
     codes,
 )
 from daytona.v2 import _codes as code_names
@@ -5441,6 +5442,8 @@ _ORGANIZATION_LIMITS_PAYLOAD = {
         "total": {"limit": 400, "usage": 11},
     },
     "sandbox_resources": {"max_cores": 4, "max_memory_mib": 8192},
+    "sandbox_timeout": {"max_seconds": 3600, "ceiling_seconds": 86400},
+    "mac_reservations": {"limit": 10, "usage": 4},
     "image_builds": {"concurrent": {"limit": None, "usage": 0}},
     "storage": {
         "images": {"limit": None, "usage": 4},
@@ -5467,6 +5470,7 @@ async def test_get_limits_looks_up_the_key_organization_once() -> None:
     org_id = _CURRENT_API_KEY_PAYLOAD["context"]["org_id"]  # type: ignore[index]
     assert isinstance(limits, OrganizationLimits)
     assert limits.sandboxes.concurrent.limit == 100
+    assert limits.mac_reservations == UsageLimit(limit=10, usage=4)
     assert limits.members is None
     assert transport.specs == [
         RequestSpec("GET", "/api-keys/current"),

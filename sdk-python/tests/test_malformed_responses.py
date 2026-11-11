@@ -165,6 +165,7 @@ _BUDGET_NULLS: JsonObject = {
 _USAGE: JsonObject = {"limit": None, "usage": 1}
 _LIMITS: JsonObject = {
     "sandboxes": {"concurrent": _USAGE, "total": _USAGE},
+    "sandbox_timeout": {"max_seconds": 3600, "ceiling_seconds": 86400},
     "image_builds": {"concurrent": _USAGE},
     "storage": {"volumes": _USAGE, "images": _USAGE, "snapshots": _USAGE},
     "secrets_per_project": _USAGE,
@@ -1261,7 +1262,7 @@ async def test_an_access_token_expiry_follows_the_rfc_3339_rule(expires_at: str,
                 assert token.expires_at == datetime(2030, 1, 1, tzinfo=timezone.utc)
 
 
-@pytest.mark.parametrize("field", ["members", "sandbox_resources"])
+@pytest.mark.parametrize("field", ["members", "sandbox_resources", "mac_reservations"])
 async def test_null_optional_organization_limits_read_as_absent(field: str) -> None:
     # The TypeScript twin is in malformed-responses.test.ts.
     with FakeApi([PlannedResponse(200, {**_LIMITS, field: None})]) as api:
