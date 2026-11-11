@@ -8,6 +8,7 @@ import { contents, invoke, temporaryProject } from './helpers.js';
 
 const prefix = "import { Daytona, type DaytonaConfig } from '@daytonaio/sdk';\n";
 const unresolved = 'cannot verify the API URL of this DaytonaConfig; if it targets Daytona Cloud, rerun with --drop-api-url';
+const asserted = '--drop-api-url asserts Cloud usage; review this unchanged call manually.';
 
 it.each(['', ': DaytonaConfig'].flatMap(type => [
   'function run() { return new Daytona(cfg).create(); }',
@@ -118,5 +119,5 @@ it.each([
   // Then
   expect(result.code).toBe(0);
   expect(contents(root)['index.ts']).toContain('new Daytona(cfg).v0.create()');
-  expect(JSON.parse(result.output).items).toContainEqual(expect.objectContaining({ kind: 'config-field', message: unresolved }));
+  expect(JSON.parse(result.output).items).toContainEqual(expect.objectContaining({ kind: 'config-field', message: asserted }));
 });

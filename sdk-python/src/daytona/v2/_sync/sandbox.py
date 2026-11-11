@@ -225,9 +225,11 @@ class Sandbox:
         typed ``BuildLogEvent``. Either callback may return an awaitable, which
         is awaited before the next event. ``timeout`` (seconds) bounds this
         observation only; cancelling the awaiting task closes the stream, not
-        the build. Discovery failures, including a 404 for a sandbox with no
-        image build, raise ``BuildLogInterruptedError`` with the HTTP status
-        and last cursor. They do not fall back to another log source.
+        the build. An HTTP error of the initial discovery request, including a
+        404 for a sandbox with no image build, raises its typed error
+        (``NotFoundError``, ...) unchanged; once the follower is running, a
+        failure raises ``BuildLogInterruptedError`` with the last cursor. It
+        does not fall back to another log source.
         """
         return self._bridge.call(
             lambda: self._impl.follow_build_logs(
@@ -565,9 +567,12 @@ class Sandbox:
         return InterpreterService(self._bridge.call_sync(lambda: self._impl.interpreter), self._bridge)
 
     @property
-    def labels(self) -> Mapping[str, str]:
+    def labels(self) -> Optional[Mapping[str, str]]:
         """The sandbox labels: a fresh copy on every read (changing it changes
-        nothing); replace them with :meth:`set_labels`.
+        nothing); replace them with :meth:`set_labels`. ``None`` until the API
+        has reported them: a ``create*()`` or ``fork()`` handle whose wait read
+        nothing holds only what the create response carries (call
+        :meth:`refresh_data` to load them).
         """
         return self._impl.labels
 
@@ -629,8 +634,8 @@ class Sandbox:
         return self._impl.raw_sandbox_class
 
     @property
-    def raw_state(self) -> str:
-        """Wire status string exactly as the server sent it (``""`` before any read).
+    def raw_state(self) -> Optional[str]:
+        """Wire status string exactly as the server sent it (``None`` before any read).
 
         Informational only — the SDK never branches on this value.  Use
         :attr:`state` for all flow-control logic; ``raw_state`` is useful for

@@ -66,12 +66,13 @@ class _ActiveRequestSpan:
         self._closed = True
         if status_code is not None:
             self._span.set_attribute("http.response.status_code", status_code)
-            if status_code >= 400:
+            # A redirect fails too: the SDK follows none.
+            if status_code >= 300:
                 self._span.set_status(self._status_factory(self._error_status))
         if error is not None:
             self._span.record_exception(error)
             self._span.set_status(self._status_factory(self._error_status))
-        elif status_code is None or status_code < 400:
+        elif status_code is None or status_code < 300:
             self._span.set_status(self._status_factory(self._ok_status))
         self._context_manager.__exit__(None, None, None)
 

@@ -1,10 +1,10 @@
 {
   "$schema": "./mapping.schema.json",
   "docs": {
-    "base": "https://www.daytona.com/docs",
+    "base": "https://github.com/daytona/clients/blob/main/upgrade/MIGRATION.md",
     "placeholder": false
   },
-  "v0Version": "0.230.0",
+  "v0Version": "0.231.1",
   "packages": {
     "py": {
       "old": [
@@ -14,6 +14,10 @@
       ],
       "new": "daytona",
       "extras": [
+        "v0-sdk"
+      ],
+      "knownExtras": [
+        "otel",
         "v0-sdk"
       ],
       "specifier": ">=2,<3",
@@ -2881,7 +2885,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Returns ComputerUseLifecycleResult instead of ComputerUseStartResponse",
+          "Returns ComputerUseLifecycleResponse instead of ComputerUseStartResponse",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -2905,7 +2909,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Returns ComputerUseLifecycleResult instead of ComputerUseStopResponse",
+          "Returns ComputerUseLifecycleResponse instead of ComputerUseStopResponse",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -2977,7 +2981,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Moves under service and returns ComputerUseProcessRestartResult",
+          "Moves under service and returns ComputerUseProcessRestartResponse",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -3001,7 +3005,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Moves under service and returns ComputerUseProcessLogs",
+          "Moves under service and returns ComputerUseProcessLogsResponse",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -3025,7 +3029,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Moves under service and returns ComputerUseProcessErrors",
+          "Moves under service and returns ComputerUseProcessErrorsResponse",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -3221,8 +3225,8 @@
         "ts": "type"
       },
       "v2": {
-        "py": "{sandbox}.computer_use.keyboard.type(text=text, delay=None if delay is None else delay / 1000)",
-        "ts": "{sandbox}.computerUse.keyboard.type({ text, delaySeconds: delay === undefined ? undefined : delay / 1000 })"
+        "py": "{sandbox}.computer_use.keyboard.type([[text@0!|text=$]][[delay@1|, delay=None if $ is None else $ / 1000|, delay=$ / 1000|, delay=0|]])",
+        "ts": "{sandbox}.computerUse.keyboard.type({ [[text@0!|text: $]][[delay@1|, delaySeconds: $ === undefined ? undefined : $ / 1000|, delaySeconds: $ / 1000|, delaySeconds: 0|]] })"
       },
       "category": "differs",
       "notes": {
@@ -3245,8 +3249,8 @@
         "ts": "press"
       },
       "v2": {
-        "py": "{sandbox}.computer_use.keyboard.key(key=key, modifiers=modifiers)",
-        "ts": "{sandbox}.computerUse.keyboard.key({ key, modifiers })"
+        "py": "{sandbox}.computer_use.keyboard.key([[key@0!|key=$]][[modifiers@1|, modifiers=$]])",
+        "ts": "{sandbox}.computerUse.keyboard.key({ [[key@0!|key: $]][[modifiers@1|, modifiers: $]] })"
       },
       "category": "differs",
       "notes": {
@@ -3270,8 +3274,8 @@
         "ts": "hotkey"
       },
       "v2": {
-        "py": "{sandbox}.computer_use.keyboard.hotkey(keys=keys)",
-        "ts": "{sandbox}.computerUse.keyboard.hotkey({ keys })"
+        "py": "{sandbox}.computer_use.keyboard.hotkey([[keys@0!|keys=$]])",
+        "ts": "{sandbox}.computerUse.keyboard.hotkey({ [[keys@0!|keys: $]] })"
       },
       "category": "differs",
       "notes": {
@@ -3346,7 +3350,7 @@
       "notes": {
         "py": [
           "Moves to screen.screenshot with keyword-only show_cursor",
-          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+          "Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout"
         ],
         "ts": [
           "Moves to screen.screenshot with an options object",
@@ -3371,7 +3375,7 @@
       "notes": {
         "py": [
           "The region becomes a ComputerUseRegion (from daytona.v2 import ComputerUseRegion) passed as region= to screen.screenshot",
-          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+          "Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout"
         ],
         "ts": [
           "Region and showCursor merge into one screen.screenshot options object",
@@ -3398,7 +3402,7 @@
           "Expand options into keyword-only arguments or omit them when options is None",
           "Compression applies only when format, quality or scale is set; when options sets none of them, pass format=\"png\" to keep a compressed image",
           "Only png and jpeg formats are supported",
-          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+          "Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout"
         ],
         "ts": [
           "Moves to screen.screenshot with format restricted to png or jpeg",
@@ -3426,7 +3430,7 @@
           "Pass the region as a ComputerUseRegion (from daytona.v2 import ComputerUseRegion) and expand options into keyword-only arguments, omitting options fields when None",
           "Compression applies only when format, quality or scale is set; when options sets none of them, pass format=\"png\" to keep a compressed image",
           "Only png and jpeg formats are supported",
-          "Returns a ComputerUseScreenshot dataclass and removes request_timeout"
+          "Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout"
         ],
         "ts": [
           "Region and compression options merge into one screen.screenshot options object",
@@ -3452,7 +3456,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Returns ComputerUseDisplayInfo with required display fields",
+          "Returns ComputerUseDisplayInfoResponse with required display fields",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -3476,7 +3480,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Returns ComputerUseDisplayWindows with required window fields",
+          "Returns ComputerUseDisplayWindowsResponse with required window fields",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -3548,7 +3552,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Returns a ComputerUseRecordingList dataclass containing recording dataclasses",
+          "Returns a ComputerUseRecordingsResponse dataclass containing recording dataclasses",
           "request_timeout is no longer accepted"
         ],
         "ts": [
@@ -3825,7 +3829,7 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{client}.v2.delete(sandbox[[timeout@1|, timeout=60 if $ is None else $|, timeout=$]])",
+        "py": "{client}.v2.delete(sandbox[[timeout@1|, timeout=60 if $ is None else $|, timeout=$|, timeout=$|, timeout=60]])",
         "ts": "{client}.v2.delete(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -3954,7 +3958,7 @@
         "ts": "start"
       },
       "v2": {
-        "py": "{client}.v2.start(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
+        "py": "{client}.v2.start(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$|, timeout=$|, timeout=0]])",
         "ts": "{client}.v2.start(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -3979,7 +3983,7 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "{client}.v2.stop(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$]])",
+        "py": "{client}.v2.stop(sandbox[[timeout@1|, timeout=0 if $ is None else $|, timeout=$|, timeout=$|, timeout=0]])",
         "ts": "{client}.v2.stop(sandbox[[timeout@1|, { timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -4610,7 +4614,7 @@
         "ts": "delete"
       },
       "v2": {
-        "py": "{sandbox}.delete([[timeout@0|timeout=60 if $ is None else $|timeout=$]])",
+        "py": "{sandbox}.delete([[timeout@0|timeout=60 if $ is None else $|timeout=$|timeout=$|timeout=60]])",
         "ts": "{sandbox}.delete([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -4687,7 +4691,7 @@
         "ts": "fork"
       },
       "v2": {
-        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400]])",
+        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400|, wait_seconds=30 * 86_400]])",
         "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })"
       },
       "category": "differs",
@@ -4714,7 +4718,7 @@
         "ts": "_experimental_fork"
       },
       "v2": {
-        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400]])",
+        "py": "{sandbox}.fork([[name@0|name=$, ]]memory=False[[timeout@1|, wait_seconds=30 * 86_400 if $ in (None, 0) else $|, wait_seconds=$|, wait_seconds=30 * 86_400|, wait_seconds=30 * 86_400]])",
         "ts": "{sandbox}.fork({ [[params@0|...$, ]]memory: false[[timeout@1|, waitSeconds: $ === 0 ? 30 * 86_400 : $|, waitSeconds: $|, waitSeconds: 30 * 86_400]] })"
       },
       "category": "differs",
@@ -5255,7 +5259,7 @@
         "ts": "start"
       },
       "v2": {
-        "py": "{sandbox}.start([[timeout@0|timeout=0 if $ is None else $|timeout=$]])",
+        "py": "{sandbox}.start([[timeout@0|timeout=0 if $ is None else $|timeout=$|timeout=$|timeout=0]])",
         "ts": "{sandbox}.start([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -5280,7 +5284,7 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "{sandbox}.stop([[timeout@0|timeout=0 if $ is None else $|timeout=$]])",
+        "py": "{sandbox}.stop([[timeout@0|timeout=0 if $ is None else $|timeout=$|timeout=$|timeout=0]])",
         "ts": "{sandbox}.stop([[timeout@0|{ timeoutSeconds: $ }]])"
       },
       "category": "differs",
@@ -5459,7 +5463,7 @@
         "ts": "waitUntilStarted"
       },
       "v2": {
-        "py": "{sandbox}.wait(until=\"started\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$]])",
+        "py": "{sandbox}.wait(until=\"started\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$|, timeout=$|, timeout=0]])",
         "ts": "{sandbox}.wait({ until: 'started'[[timeout@0|, timeoutSeconds: $]] })"
       },
       "category": "differs",
@@ -5484,7 +5488,7 @@
         "ts": "waitUntilStopped"
       },
       "v2": {
-        "py": "{sandbox}.wait(until=\"stopped\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$]])",
+        "py": "{sandbox}.wait(until=\"stopped\"[[timeout@0|, timeout=0 if $ is None else $|, timeout=$|, timeout=$|, timeout=0]])",
         "ts": "{sandbox}.wait({ until: 'stopped'[[timeout@0|, timeoutSeconds: $]] })"
       },
       "category": "differs",

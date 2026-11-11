@@ -92,7 +92,9 @@ macOS accepts read-write disk volumes only, without `persistent: true`.
 
 `sandbox.volumes` lazily caches a `SandboxVolumesService` and clears it
 when the sandbox connection is refreshed. `pull()` preserves the caller's
-request identity, accepts a nullable `manifestId`, and makes one request
+request identity, maps the generated wire type's nullable `manifestId` to
+the public `PullVolumeResult`'s optional `manifestId` (`undefined` for
+`null`), and makes one request
 without automatic retries. Its HTTP deadline includes read slack beyond the
 requested wait. `timeoutSeconds` accepts 0–30 seconds, including fractions;
 the wire `waitMs` is floored, with every positive input producing at least 1 ms.
@@ -100,8 +102,9 @@ the wire `waitMs` is floored, with every positive input producing at least 1 ms.
 `tests/unit.test.ts` covers management, create mappings and route telemetry.
 
 `npm run gen:contract` restores volume aliases in the API and toolbox alias
-layers. Keep those aliases in `scripts/gen-contract.mjs`; the pull response
-must preserve `manifestId: null` rather than optionalizing it.
+layers. Keep those aliases in `scripts/gen-contract.mjs`; the generated pull
+response type must keep `manifestId: null` rather than optionalizing it (the
+wire carries `null`; only the public result reads it as `undefined`).
 
 ### Layout and runtime
 
@@ -155,7 +158,7 @@ must preserve `manifestId: null` rather than optionalizing it.
   repopulates `src/v0/`, writes `src/v0/_bundle.ts`, appends the `...V0`
   aliases for names also exported by v2, and merges the v0 runtime dependency
   set into `package.json`. Re-running it replaces the bundle in place.
-- Names also exported by v0 at the pinned tag (`v0.230.0`) on the v2 surface are committed as
+- Names also exported by v0 at the pinned tag (`v0.231.1`) on the v2 surface are committed as
   `...V2` aliases: `DaytonaError`, `Image`, `LspServer`, and `Sandbox`.
   `scripts/bundle-v0.mjs` fails when this set and the pinned release's shared
   value exports disagree.

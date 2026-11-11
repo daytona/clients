@@ -13,7 +13,6 @@ import (
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +22,28 @@ func init() {
 		auth.InstallProjectResolver(a)
 		auth.InstallWorkload(a)
 		auth.InstallPlatformToken(a)
+		a.StaticKeyProjectFn = func(ctx context.Context) (app.StaticKeyProject, bool, error) {
+			if !a.HasExplicitCredential() && a.CredentialSource != "profile-token" {
+				return app.StaticKeyProject{}, false, nil
+			}
+			mc, err := a.Client(ctx)
+			if err != nil {
+				return app.StaticKeyProject{}, false, err
+			}
+			key, err := mgmt.CurrentProjectKey(ctx, mc)
+			if err != nil {
+				switch cerr.ExitCode(err) {
+				case cerr.ExitAuth, cerr.ExitForbidden, cerr.ExitNotFound:
+					// Not a project API key (or this API does not describe keys).
+					return app.StaticKeyProject{}, false, nil
+				}
+				return app.StaticKeyProject{}, false, err
+			}
+			return app.StaticKeyProject{
+				ID: key.ProjectId.String(), Name: key.Context.ProjectName,
+				OrgID: key.Context.OrgId.String(), OrgName: key.Context.OrgName,
+			}, true, nil
+		}
 		// --org may be a NAME. Resolve it against the caller's orgs; an
 		// unambiguous match yields the id, an ambiguous one is a usage error.
 		// A value that matches nothing is passed through unchanged — the
@@ -138,6 +159,22 @@ name could not be resolved to an ID.`,
 				} else {
 					kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 				}
+			} else if a.HasExplicitCredential() || a.CredentialSource == "profile-token" {
+				key, ok, err := whoamiStaticKey(ctx, a, &scope)
+				if err != nil {
+					return err
+				}
+				if ok {
+					out["api_key"] = key
+					out["org_id"], out["project_id"] = scope.orgID, scope.projectID
+					delete(out, "org_ref")
+					delete(out, "project_ref")
+					out["context_resolved"] = true
+					kv = append(kv, [2]string{"Organization", fmt.Sprintf("%s (%s)", key.V.Context.OrgName, scope.orgID)})
+					kv = append(kv, [2]string{"Project", fmt.Sprintf("%s (%s)", key.V.Context.ProjectName, scope.projectID)})
+					return a.Printer().Object(out, kv)
+				}
+				kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 			} else {
 				kv = append(kv, [2]string{"Organization", scopeLabel(scope.orgID, scope.orgRef)})
 			}
@@ -145,81 +182,6 @@ name could not be resolved to an ID.`,
 			return a.Printer().Object(out, kv)
 		},
 	}
-}
-
-// whoamiScope is the selected organization and project: IDs only when
-// resolved, the name as given in the *Ref fields.
-type whoamiScope struct {
-	orgID, orgRef, projectID, projectRef string
-	resolved                             bool
-}
-
-func scopeLabel(id, ref string) string {
-	switch {
-	case id != "":
-		return id
-	case ref != "":
-		return ref + " (unresolved)"
-	}
-	return ""
-}
-
-func whoamiScopeRefs(ctx context.Context, a *app.App) whoamiScope {
-	scope := whoamiScope{resolved: true}
-	rawOrg := strings.TrimSpace(a.Profile.OrgID)
-	switch {
-	case rawOrg == "":
-	case looksLikeUUIDRef(rawOrg):
-		scope.orgID = rawOrg
-	default:
-		scope.orgRef = rawOrg
-		if a.OrgResolver == nil {
-			scope.resolved = false
-			break
-		}
-		// A resolver passes a name it cannot resolve through unchanged; only
-		// an ID it returns counts as resolved.
-		resolvedOrgID, err := a.OrgResolver(ctx, rawOrg)
-		if err != nil || !looksLikeUUIDRef(resolvedOrgID) {
-			scope.resolved = false
-			break
-		}
-		// Re-key the remembered project under the id BEFORE reading it,
-		// or `--org <name>` without `--project` reports no project while
-		// `project use` had remembered one for exactly this org.
-		if a.Profile.ProjectByOrg != nil {
-			if project, ok := a.Profile.ProjectByOrg[rawOrg]; ok {
-				delete(a.Profile.ProjectByOrg, rawOrg)
-				a.Profile.ProjectByOrg[resolvedOrgID] = project
-			}
-		}
-		a.Profile.OrgID = resolvedOrgID
-		scope.orgID = resolvedOrgID
-	}
-	rawProject := strings.TrimSpace(a.Profile.ProjectID())
-	switch {
-	case rawProject == "":
-	case looksLikeUUIDRef(rawProject):
-		scope.projectID = rawProject
-	default:
-		scope.projectRef = rawProject
-		if a.ProjectResolver == nil || scope.orgID == "" {
-			scope.resolved = false
-			break
-		}
-		resolvedProjectID, err := a.ProjectResolver(ctx, scope.orgID, rawProject)
-		if err != nil || !looksLikeUUIDRef(resolvedProjectID) {
-			scope.resolved = false
-			break
-		}
-		scope.projectID = resolvedProjectID
-	}
-	return scope
-}
-
-func looksLikeUUIDRef(value string) bool {
-	_, err := uuid.Parse(strings.TrimSpace(value))
-	return err == nil
 }
 
 func credentialLabel(a *app.App) string {

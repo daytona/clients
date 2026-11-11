@@ -54,6 +54,14 @@ class ServiceOwners(Flow):
         ):
             return self.owner(node.value)
         definition = self.resolver.mapping.receivers.get(kind)
+        # A handle a sandbox call produced (`sandbox.create_lsp_server(...)`)
+        # is owned by that call's sandbox; a new sandbox (a fork) is not.
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and self.sandbox_produced(kind)
+        ):
+            return self.owner(node.func.value)
         if (
             isinstance(node, ast.Attribute)
             and definition
@@ -64,6 +72,16 @@ class ServiceOwners(Flow):
         ):
             return self.owner(node.value)
         return None
+
+    def sandbox_produced(self, kind: str) -> bool:
+        definition = self.resolver.mapping.receivers.get(kind)
+        return (
+            kind != "sandbox"
+            and definition is not None
+            and any(
+                producer.startswith("sandbox") for producer in definition.produced_by
+            )
+        )
 
     def record(self, target: ast.AST, owner: tuple[str, str] | None) -> None:
         """Attach a value's provenance only while the owner identity still holds."""
@@ -157,11 +175,14 @@ class ServiceOwners(Flow):
 
     def render(self, template: str, call: Call) -> str:
         """Use a known sandbox, or express the replacement on the service itself."""
-        if not call.kind.startswith("sandbox."):
+        produced = self.sandbox_produced(call.kind)
+        if not call.kind.startswith("sandbox.") and not produced:
             return template
         sandbox = self.sandboxes.get((call.node.lineno, call.node.col_offset))
         if sandbox:
             return template.replace("{sandbox}", sandbox)
+        if produced:
+            return template
         attributes: list[str] = []
         kind = call.kind
         while kind.startswith("sandbox."):

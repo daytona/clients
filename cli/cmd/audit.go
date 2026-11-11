@@ -6,9 +6,11 @@ package cmd
 import (
 	"context"
 	"net/url"
+	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -21,6 +23,13 @@ func newAuditCmd() *cobra.Command {
 	var status int
 	cmd := &cobra.Command{Use: "audit", Short: "Organization audit logs", GroupID: GroupManagement}
 	list := &cobra.Command{Use: "list", Short: "List audit log entries", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		for _, bound := range []struct{ flag, value string }{{"start-at", startAt}, {"end-at", endAt}} {
+			if cmd.Flags().Changed(bound.flag) {
+				if _, err := time.Parse(time.RFC3339, bound.value); err != nil {
+					return cerr.Usage("--%s must be an RFC3339 timestamp", bound.flag)
+				}
+			}
+		}
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		orgID, err := a.RequireOrg(ctx, pickOrg(a))

@@ -480,7 +480,6 @@ class NetworkPolicyInfo:
     desired: Optional[NetworkPolicy]
     desired_revision: int
     etag: str
-    http_status: int
     applied: Optional[NetworkPolicy] = None
     applied_revision: Optional[int] = None
     applied_start_id: Optional[str] = None
@@ -493,7 +492,6 @@ class SandboxSecretsInfo:
     secrets: tuple[str, ...]
     desired_revision: int
     etag: str
-    http_status: int
     applied_revision: Optional[int] = None
     status: Optional[str] = None
     error: Optional[str] = None
@@ -508,12 +506,13 @@ class _SandboxInfo:
     id: str
     name: Optional[str] = None
     state: SandboxState = "unknown"
-    raw_state: str = ""
+    raw_state: Optional[str] = None
     image: Optional[ImageRef] = None
     snapshot: Optional[SnapshotRef] = None
     image_build_id: Optional[str] = None
     region: Optional[str] = None
-    labels: Mapping[str, str] = field(default_factory=dict)
+    # None until the API reports them (a create or fork handle).
+    labels: Optional[Mapping[str, str]] = None
     cpu: Optional[float] = None
     cpu_max: Optional[float] = None
     memory: Optional[float] = None
@@ -539,10 +538,11 @@ class _SandboxInfo:
 
 
 class ArtifactRefJSON(TypedDict):
-    """An image or snapshot reference inside :class:`SandboxHandleJSON`."""
+    """An image or snapshot reference inside :class:`SandboxHandleJSON`
+    (``name`` is present only when known)."""
 
     id: str
-    name: Optional[str]
+    name: NotRequired[str]
 
 
 class SandboxLifecycleJSON(TypedDict, total=False):
@@ -876,7 +876,6 @@ class RegistryImageSource:
 class DockerfileImageSource:
     """An image built from a Dockerfile and its uploaded build context."""
 
-    context_object: str
     dockerfile: str
     type: Literal["dockerfile"] = "dockerfile"
 
@@ -897,11 +896,24 @@ class ManifestImageSource:
     type: Literal["manifest"] = "manifest"
 
 
+@dataclass(frozen=True, kw_only=True, slots=True)
+class UnknownImageSource:
+    """A source kind this SDK release does not know (a later API added it).
+
+    ``raw_type`` is the wire ``source.type``; the source's other fields are not
+    read. Handle it as "some other source" rather than treating it as an error.
+    """
+
+    raw_type: str
+    type: Literal["unknown"] = "unknown"
+
+
 ImageSource = Union[
     RegistryImageSource,
     DockerfileImageSource,
     NamedImageSource,
     ManifestImageSource,
+    UnknownImageSource,
 ]
 
 
@@ -1030,7 +1042,7 @@ class ProcessInfo:
     pid: Optional[int] = None
     session_id: Optional[str] = None
     shell_command: Optional[str] = None
-    argv: Optional[List[str]] = None
+    argv: Optional[tuple[str, ...]] = None
     code: Optional[str] = None
     language: Optional[str] = None
     shell: Optional[str] = None
@@ -1172,7 +1184,7 @@ class FilesystemEvent:
 class LogPage:
     """A cursor-addressed process log page."""
 
-    items: List[LogFrame]
+    items: tuple[LogFrame, ...]
     next_cursor: str
     """The cursor to pass to the next ``logs()`` call to continue after this page."""
     truncated_head: bool
@@ -1191,9 +1203,9 @@ class BulkWriteFile:
 
 @dataclass(frozen=True, kw_only=True)
 class BulkWriteResult:
-    files: List[BulkWriteFile]
+    files: tuple[BulkWriteFile, ...]
     """The files written."""
-    errors: List[str]
+    errors: tuple[str, ...]
     """One message per file that was not written."""
 
 
@@ -1208,7 +1220,7 @@ class BulkReadError:
 @dataclass(frozen=True, kw_only=True)
 class BulkReadResult:
     files: Dict[str, bytes]
-    errors: List[BulkReadError] = field(default_factory=list)
+    errors: tuple[BulkReadError, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1266,7 +1278,7 @@ class GitStatus:
     ahead: int
     behind: int
     branch_published: bool
-    file_status: List[GitFileStatus]
+    file_status: tuple[GitFileStatus, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1313,7 +1325,7 @@ class ProcessResult(WaitResult):
     stdout: str = ""
     stderr: str = ""
     output: str = ""
-    logs: List[LogFrame] = field(default_factory=list)
+    logs: tuple[LogFrame, ...] = ()
     """The log frames the output was collected from."""
 
 
@@ -1334,7 +1346,7 @@ class InterpreterLogs:
 class InterpreterError:
     name: str
     value: str
-    traceback: List[str] = field(default_factory=list)
+    traceback: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1353,7 +1365,7 @@ class InterpreterResult:
     """Interpreter run result."""
 
     process: InterpreterProcess
-    results: List[InterpreterOutput] = field(default_factory=list)
+    results: tuple[InterpreterOutput, ...] = ()
     logs: InterpreterLogs = field(default_factory=InterpreterLogs)
     error: Optional[InterpreterError] = None
 

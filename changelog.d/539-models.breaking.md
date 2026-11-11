@@ -6,8 +6,8 @@ and their arrays (JSON fields such as `Volume.options` at every depth; live
 `Sandbox` handles are not frozen). Examples: `Image.sandboxClass` /
 `layerCount`, `Secret.allowedDomains`, `ProjectBudget.monthlyLimitCents`, and
 `ProjectApiKeyWithContext` → `ProjectApiKey`. Python `Image.source` is one of
-the frozen `RegistryImageSource`, `DockerfileImageSource`, `NamedImageSource`
-and `ManifestImageSource` (read `image.source.ref`, not
+the frozen `RegistryImageSource`, `DockerfileImageSource`, `NamedImageSource`,
+`ManifestImageSource` and `UnknownImageSource` (read `image.source.ref`, not
 `image.source["ref"]`), with the same `type` discriminator as TypeScript. A
 sandbox or snapshot class the SDK does not know reads as `"unknown"`, with the
 API's value in `raw_sandbox_class` / `rawSandboxClass`. A lifecycle policy's

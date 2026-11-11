@@ -55,17 +55,18 @@ describe('sandbox observed metadata', () => {
   })
 
   it.each([
-    { response: { id: 'sbx' }, expected: { sandboxId: 'sbx' } },
-    { response: { id: 'sbx', status: '' }, expected: { sandboxId: 'sbx' } },
-    { response: { id: 'sbx', status: 'future' }, expected: { sandboxId: 'sbx', state: 'unknown', rawState: 'future' } },
-    { response: { id: 'sbx', persistent: false, spot: false, cpu: 0, labels: {} }, expected: { sandboxId: 'sbx', persistent: false, spot: false, cpu: 0 } },
+    { response: { id: 'sbx' }, expected: { sandboxId: 'sbx', labels: {} } },
+    { response: { id: 'sbx', status: '' }, expected: { sandboxId: 'sbx', labels: {} } },
+    { response: { id: 'sbx', status: 'future' }, expected: { sandboxId: 'sbx', state: 'unknown', rawState: 'future', labels: {} } },
+    { response: { id: 'sbx', persistent: false, spot: false, cpu: 0, labels: {} }, expected: { sandboxId: 'sbx', persistent: false, spot: false, cpu: 0, labels: {} } },
   ])('serializes only known fields: $response', ({ response, expected }) => {
     // Given an observation containing absent, empty, unknown, or falsy values.
     const sandbox = createSandbox(response)
     // When serialized.
     const json = sandbox.toJSON()
     // Then the object itself (before JSON.stringify) follows the presence rules;
-    // partial data without a class leaves it out.
+    // partial data without a class leaves it out, and labels a read reported
+    // (none counts) are known.
     expect(json).toEqual(expected)
     expect(Object.values(json)).not.toContain(undefined)
   })
@@ -81,9 +82,10 @@ describe('sandbox observed metadata', () => {
     // When serialized for persistence.
     const json = sandbox.toJSON()
     // Then only the documented metadata is present, timestamps verbatim (as Python writes them).
+    expect(json.image).not.toHaveProperty('name')
     expect(json).toEqual({
       sandboxId: 'sbx', sandboxClass: 'linux', rawSandboxClass: 'linux', state: 'started', rawState: 'running',
-      image: { id: 'img', name: null }, snapshot: { id: 'snap', name: 'backup' }, labels: { owner: 'team' },
+      image: { id: 'img' }, snapshot: { id: 'snap', name: 'backup' }, labels: { owner: 'team' },
       spotEvictedAt: '2026-05-01T13:30:00.123456+01:30', lifecyclePolicy: { timeoutSeconds: 30, lastActivityAt: '2026-05-01T13:30:00+01:30' },
     })
   })

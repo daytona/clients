@@ -8,6 +8,7 @@ import (
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/app"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/input"
 	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/spf13/cobra"
@@ -35,12 +36,49 @@ func decodeAndCreateMacos(cmd *cobra.Command, a *app.App, _ sandboxCreateFlags, 
 	if err != nil {
 		return err
 	}
+	if err := checkMacosCreate(req); err != nil {
+		return err
+	}
 	if req.Reservation == nil || *req.Reservation == "" || *req.Reservation == "new" {
 		if err := a.Confirm("buy", "a 24-hour Mac reservation billed to the organization if needed to create this sandbox"); err != nil {
 			return err
 		}
 	}
 	return postCreate(cmd, a, req, headers)
+}
+
+// checkMacosCreate refuses, before the purchase confirmation and any request,
+// what the API would refuse in a macOS create (flags and --file alike).
+func checkMacosCreate(req gen.CreateMacosSandboxRequest) error {
+	minimums := []struct {
+		value *int32
+		flag  string
+		min   int32
+	}{{req.Cores, "--cores (cores)", 4}, {req.MemoryMib, "--memory (memory_mib)", 4096}, {req.DiskMib, "--disk (disk_mib)", 81920}}
+	for _, m := range minimums {
+		if m.value != nil && *m.value < m.min {
+			return cerr.Usage("%s must be at least %d, got %d", m.flag, m.min, *m.value)
+		}
+	}
+	if req.AutoRenew != nil && (req.Reservation == nil || *req.Reservation != "new") {
+		return cerr.Usage("--auto-renew (auto_renew) applies only with --reservation new")
+	}
+	if req.Volumes == nil {
+		return nil
+	}
+	volumes := *req.Volumes
+	if len(volumes) > 8 {
+		return cerr.Usage("a macOS sandbox mounts at most 8 volumes, got %d", len(volumes))
+	}
+	for _, v := range volumes {
+		if v.ReadOnly != nil && *v.ReadOnly {
+			return cerr.Usage("volume %q: a macOS sandbox cannot mount a volume read-only", v.Volume)
+		}
+	}
+	if len(volumes) > 0 && req.Persistent != nil && *req.Persistent {
+		return cerr.Usage("a macOS sandbox with volumes cannot be persistent")
+	}
+	return nil
 }
 
 func macosCreateLifecycleFlags(f *pflag.FlagSet, flags *sandboxCreateFlags) {

@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/daytona/clients/cli/internal/app"
+	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,27 +46,35 @@ func TestAPIURL_resolutionMatchesTheSDKs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"--api-key", "k"}, tc.args...)
-			require.Equal(t, tc.want, whoamiAPIURL(t, cfgDir(t), tc.env, args...))
+			require.Equal(t, tc.want, whoamiAPIURL(t, cfgDir(t), tc.env, tc.args...))
 		})
 	}
 }
 
 // A login saves the URL it resolved, so a profile made against a test
-// environment keeps pointing at it once the variable is gone; a variable set
-// later still overrides the saved URL for that invocation.
+// environment keeps pointing at it once the variable is gone. An override
+// cannot send its saved credential to another API.
 func TestAPIURL_loginSavesTheResolvedURLInTheProfile(t *testing.T) {
+	f, other := newFakeAPI(t), newFakeAPI(t)
 	d := cfgDir(t)
-	_, errb, code := run(t, d, map[string]string{"DAYTONA_V2_API_URL": "http://preview.test/"}, "login", "--token", "dtn_k")
+	_, errb, code := run(t, d, map[string]string{"DAYTONA_V2_API_URL": f.srv.URL + "/"}, "login", "--token", "dtn_k")
 	require.Equal(t, 0, code, errb)
-	require.Contains(t, errb, "http://preview.test")
+	require.Contains(t, errb, f.srv.URL)
 
-	require.Equal(t, "http://preview.test", whoamiAPIURL(t, d, nil))
-	require.Equal(t, "http://other.test", whoamiAPIURL(t, d, map[string]string{"DAYTONA_V2_API_URL": "http://other.test"}))
-	require.Equal(t, "http://preview.test", whoamiAPIURL(t, d, map[string]string{"DAYTONA_API_URL": "http://v0.test"}))
+	require.Equal(t, f.srv.URL, whoamiAPIURL(t, d, nil))
+	_, errb, code = run(t, d, map[string]string{"DAYTONA_V2_API_URL": other.srv.URL}, "whoami")
+	require.Equal(t, cerr.ExitUsage, code, errb)
+	require.Empty(t, other.requests)
+	require.Equal(t, f.srv.URL, whoamiAPIURL(t, d, map[string]string{"DAYTONA_API_URL": "http://v0.test"}))
 
 	d2 := cfgDir(t)
 	_, errb, code = run(t, d2, nil, "login", "--token", "dtn_k")
 	require.Equal(t, 0, code, errb)
-	require.Equal(t, app.DefaultAPIURL, whoamiAPIURL(t, d2, nil))
+	store, err := config.Open(d2)
+	require.NoError(t, err)
+	cfg, err := store.LoadConfig()
+	require.NoError(t, err)
+	profile, ok := cfg.Profile("default")
+	require.True(t, ok)
+	require.Equal(t, app.DefaultAPIURL, profile.APIURL)
 }

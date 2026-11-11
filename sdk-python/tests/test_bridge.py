@@ -34,6 +34,8 @@ from daytona.v2._transport import AsyncResponseStream, AsyncTransport
 from daytona.v2.errors import ConnectionError as SdkConnectionError
 from daytona.v2.errors import DaytonaError, NotFoundError
 
+pytestmark = pytest.mark.timing
+
 ROOT = Path(__file__).resolve().parents[1]
 
 requires_fork = pytest.mark.skipif(not hasattr(os, "fork"), reason="fork() unavailable")

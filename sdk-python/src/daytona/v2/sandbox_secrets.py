@@ -34,7 +34,6 @@ def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsIn
         secrets=tuple(_required_string_list(payload.get("secrets"), field_name="secrets")),
         desired_revision=_required_int(payload.get("desired_revision"), field_name="desired_revision"),
         etag=etag,
-        http_status=response.status_code,
         applied_revision=_optional_int(payload.get("applied_revision"), field_name="applied_revision"),
         status=_optional_str(payload.get("status")),
         error=_optional_str(payload.get("error")),

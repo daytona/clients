@@ -288,7 +288,10 @@ await (await daytona.v2.get('sandbox-id')).followBuildLogs({
 union (`event.type` selects the variant), including states, gaps and source
 unavailability. Without it, these diagnostics appear as `[build logs: …]`
 messages in `onLogs`. Both callbacks may return promises and are awaited before
-checkpointing. Build failure is a result, not a connection error.
+checkpointing. Build failure is a result, not a connection error. An event
+kind a later API adds is skipped (it does not move the cursor). An HTTP error of
+the first request, such as `NotFoundError` for an unknown image, is thrown as
+that typed error rather than as `BuildLogInterruptedError`.
 `outputComplete` describes the requested cursor-to-end interval; gaps keep it
 false even after reconnection. `sandbox.buildLogs()` remains a one-shot string
 of currently retained output.
@@ -386,12 +389,21 @@ make asynchronous callback work cancellation-aware when needed.
   `memoryMax`, `disk`, `diskMax`, `sandboxClass`, `region`,
   `persistent`, `spot`, `spotEvictedAt`,
   `lifecyclePolicy`, `forkedFrom`, `user`, and `error` (network policy is read through `getNetworkPolicy()`).
+  A handle from `create*()` or `fork()` whose wait did not read the sandbox
+  (`waitSeconds: 0`, or a wait that ended early) holds only what the create
+  response carries: fields it does not report are `undefined` (unknown),
+  `labels` included, until `refreshData()` reads them; `state` is `'unknown'` before a
+  status is known. Absent values are `undefined` throughout the SDK's models,
+  never `null`.
 
 Resource models use readonly camelCase fields: for example, images expose
 `sandboxClass`, `layerCount` and `availableIn`; snapshots expose `sandboxClass`
 and `memoryBytes`; volumes expose `sizeGib` and `usedBytes`. Closed SDK
 enums map unrecognized values to `unknown` and preserve the original in a
-`raw…` sibling, such as `sandbox.rawSandboxClass`. Timestamps are RFC 3339
+`raw…` sibling, such as `sandbox.rawSandboxClass`. An image's `source` is an
+`ImageSource` (exported from `@daytona/sdk/v2`) told apart by `source.type`; a
+source kind a later API adds reads as its `unknown` member, with the reported
+kind in `rawType`, never as an error. Timestamps are RFC 3339
 strings; budget period dates are `YYYY-MM-DD` strings.
 
 For an automatically deleted temporary sandbox:
@@ -449,7 +461,7 @@ accepts an ID only and turns off the name lookup.
 Pulling an attachment is separate from the `daytona.v2.volumes` management
 service. IDs contain 1–128 ASCII letters, digits, underscores or hyphens.
 The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
-nullable `manifestId`. Unknown statuses map to `unknown` with the original
+an optional `manifestId` (`undefined` when there is none). Unknown statuses map to `unknown` with the original
 value in `rawStatus`.
 
 Zero timeout submits a new request, or returns a known request's last
@@ -988,7 +1000,8 @@ catch as broadly or narrowly as you need. `code` and `source` are open
 vocabularies: a code this release does not know is kept as sent and the error
 is the class for its HTTP status; the `codes` namespace lists the known codes
 per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,
-`codes.isKnownErrorCode`, …). The standard errors' constructors take the
+`codes.isKnownErrorCode`, …). The SDK never follows an HTTP redirect: a 3xx
+response throws `DaytonaError` with its `statusCode` (source `SDK`). The standard errors' constructors take the
 message plus an `ErrorOptions` object (`statusCode`, `code`, `source`,
 `traceId`, `cause`, …), so tests can build the errors your code handles. A few
 specialised errors build their own message from what identifies them instead:

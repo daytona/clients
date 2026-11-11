@@ -136,7 +136,11 @@ def test_includes_captured_call_when_closure_surrounds_producer(
     result = guidance(flow, load_mapping())
     # Then the captured call belongs to the workflow and gets its own note.
     assert members == [member]
-    call_items = [item for item in result.items if "suggestion" in item]
+    call_items = [
+        item
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert len(call_items) == 2
     assert {item["suggestion"]["receiver"] for item in call_items} == {
         "client",
@@ -196,7 +200,7 @@ def test_preserves_unknown_call_when_no_lexical_sandbox_capture_exists(
     assert not any(
         item["suggestion"]["id"] == "sandbox.stop"
         for item in result.items
-        if "suggestion" in item
+        if "suggestion" in item and item["kind"] != "workflow"
     )
 
 

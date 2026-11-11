@@ -50,7 +50,7 @@ it('removes a statically resolved Cloud URL through Object.assign', async () => 
   const result = await invoke(root);
   // Then
   expect(result.code).toBe(0);
-  expect(contents(root)['index.ts']).toContain("Object.assign(cfg, {  apiKey: 'k' })");
+  expect(contents(root)['index.ts']).toContain("Object.assign(cfg, { apiKey: 'k' })");
 });
 
 it('removes Cloud config fields through a stable constructor alias', async () => {

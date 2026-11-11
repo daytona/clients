@@ -31,7 +31,7 @@ dependencies = [
   "httpx>=0.24",
   "pydantic>=2.14.2,<3",
   "typing-extensions>=4.6",
-  "websockets>=12",
+  "websockets>=13",
 ]
 
 [project.urls]
@@ -51,6 +51,7 @@ otel = [
 dev = [
   "pytest>=9.2.0",
   "pytest-cov>=5",
+  "pytest-xdist>=3.6",
   "respx>=0.20",
   # Pin lint rules for reproducible checks; update the version and any required
   # lint fixes together.
@@ -145,3 +146,6 @@ omit = ["src/daytona/v2/_gen/*", "src/daytona/v0/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "timing: asserts tight real-time budgets (tens of ms) that fail on a loaded machine; CI runs these serially, after the parallel pass",
+]

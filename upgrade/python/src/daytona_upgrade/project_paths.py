@@ -19,6 +19,8 @@ from ._requirements import SKIP, is_requirements
 from .manifests import _at
 from .models import Item
 from .safety import _REPOSITORY_ENV
+from .source_suffixes import PACKAGE_INITIALIZERS
+from .source_suffixes import PYTHON_SOURCE_SUFFIXES as PYTHON_SOURCE_SUFFIXES
 
 
 def environment_base(base: Path) -> Path:
@@ -116,14 +118,22 @@ def shadowing_module(
         if manifest in sources:
             roots.update(_import_roots(manifest, sources[manifest]))
         candidates.update(
-            parent / name for name in files if Path(name).suffix in {".py", ".pyi"}
+            parent / name
+            for name in files
+            if Path(name).suffix in PYTHON_SOURCE_SUFFIXES
         )
     if not scan_tree:
         # A single file runs with its directory first on sys.path, so a sibling
         # module or package of the SDK's name shadows the SDK.
         for name in ("daytona", "daytona_sdk"):
             candidates.update(
-                (base / name / "__init__.py", base / f"{name}.py", base / f"{name}.pyi")
+                (
+                    *(
+                        base / name / initializer
+                        for initializer in PACKAGE_INITIALIZERS
+                    ),
+                    *(base / f"{name}{suffix}" for suffix in PYTHON_SOURCE_SUFFIXES),
+                )
             )
     items: list[Item] = []
     for path in sorted(candidates):
@@ -135,17 +145,28 @@ def shadowing_module(
         ):
             continue
         for root, prefix in roots.items():
-            if prefix in {"daytona", "daytona_sdk"} and path == root / "__init__.py":
+            if (
+                prefix in {"daytona", "daytona_sdk"}
+                and path.parent == root
+                and path.name in PACKAGE_INITIALIZERS
+            ):
                 return LocalModule(prefix, root.relative_to(base)), ()
-            if not prefix and root in path.parents and path.suffix in {".py", ".pyi"}:
+            if (
+                not prefix
+                and root in path.parents
+                and path.suffix in PYTHON_SOURCE_SUFFIXES
+            ):
                 parts = path.relative_to(root).parts
                 if len(parts) > 1 and parts[0] in {"daytona", "daytona_sdk"}:
                     return LocalModule(
                         parts[0], (root / parts[0]).relative_to(base)
                     ), ()
-        location = path.parent if path.name == "__init__.py" else path
+        location = path.parent if path.name in PACKAGE_INITIALIZERS else path
         name = location.name if location != path else path.stem
-        if name not in {"daytona", "daytona_sdk"} or path.suffix not in {".py", ".pyi"}:
+        if (
+            name not in {"daytona", "daytona_sdk"}
+            or path.suffix not in PYTHON_SOURCE_SUFFIXES
+        ):
             continue
         if roots.get(location.parent) == "":
             return LocalModule(name, location.relative_to(base)), ()

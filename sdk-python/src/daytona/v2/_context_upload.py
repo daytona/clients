@@ -31,6 +31,7 @@ from .errors import (
     ConnectionError,
     DaytonaError,
     ServiceUnavailableError,
+    redirect_error,
 )
 from .types import JsonObject
 
@@ -198,7 +199,13 @@ def _parts(payload: Mapping[str, object]) -> list[_Part]:
         if not isinstance(item, Mapping):
             raise _malformed("build context upload response has a malformed part")
         number, size, url = item.get("part_number"), item.get("bytes"), item.get("url")
-        if not isinstance(number, int) or not isinstance(size, int) or not isinstance(url, str):
+        if (
+            not isinstance(number, int)
+            or isinstance(number, bool)
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or not isinstance(url, str)
+        ):
             raise _malformed("build context upload response has a malformed part")
         parts.append(_Part(number, size, url))
     return parts
@@ -225,11 +232,18 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
     for attempt in range(_PART_ATTEMPTS):
         try:
             # A presigned PUT needs a fixed length, so the stream is not chunked.
-            response = await client.put(
-                part.url,
-                content=source.chunks(offset, part.bytes),
-                headers={"Content-Length": str(part.bytes)},
+            # Streamed and closed unread: only the status is used, so storage's
+            # response body is never buffered (as TypeScript cancels it).
+            response = await client.send(
+                client.build_request(
+                    "PUT",
+                    part.url,
+                    content=source.chunks(offset, part.bytes),
+                    headers={"Content-Length": str(part.bytes)},
+                ),
+                stream=True,
             )
+            await response.aclose()
         except httpx.HTTPError:
             # The exception text names the URL, so it is not chained.
             status = None
@@ -237,6 +251,9 @@ async def _put_part(client: httpx.AsyncClient, source: _Source, offset: int, par
             status = response.status_code
             if 200 <= status < 300:
                 return
+            if 300 <= status < 400:
+                # The SDK follows no redirect, a storage URL's included.
+                raise redirect_error(status)
             if status < 500 and status not in (408, 429):
                 raise BadRequestError(
                     f"storage refused build context part {part.number} (HTTP {status}); "
@@ -279,13 +296,15 @@ async def upload_build_context(
     created = await transport.send(RequestSpec("POST", "/build-contexts", json_body=body))
     if not isinstance(created, Mapping):
         raise _malformed("build context upload response is not an object")
+    # Every field read is checked first, whatever the state (as TypeScript).
     upload_id = _text(created, "id")
     region_id = _text(created, "region_id")
-    if created.get("state") == "ready":
+    state = _text(created, "state")
+    parts = _parts(created)
+    if state == "ready":
         return upload_id, region_id
     # Checked before any part is sent: the id becomes a path segment of complete.
     path_segment(upload_id, "build context upload id")
-    parts = _parts(created)
     if (
         any(part.number != index + 1 or part.bytes <= 0 for index, part in enumerate(parts))
         or sum(part.bytes for part in parts) != source.size

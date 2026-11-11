@@ -83,28 +83,22 @@ func TestPlatformTokenIsNotReusedForAnotherAPIURL(t *testing.T) {
 		cr.Profiles["default"] = pc
 		return false, true, nil
 	}))
-	is := installIssuer(t, other, 300)
-	other.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})
-	other.handle("GET", "/sandboxes", func(w http.ResponseWriter, r *http.Request) {
-		require.NotEqual(t, "Bearer pt_saved", r.Header.Get("Authorization"))
-		_, _ = w.Write([]byte(`{"sandboxes":[],"next_cursor":null}`))
-	})
-
+	// When: a URL override would otherwise reuse the saved login.
 	_, errb, code := run(t, d, nil, "sandbox", "list", "-o", "json", "--api-url", other.srv.URL)
 
-	require.Equal(t, 0, code, errb)
-	require.Len(t, is.exchanges, 1, "the other API must mint its own platform token")
+	// Then: refuse before discovery, exchange, refresh, or any API request.
+	require.Equal(t, cerr.ExitUsage, code, errb)
+	require.Contains(t, errb, "saved credential was issued for "+saved.srv.URL)
+	require.Contains(t, errb, "it is not sent to "+other.srv.URL)
 	require.Empty(t, saved.requests)
-	for _, r := range other.requests {
-		require.NotEqual(t, "Bearer pt_saved", r.Auth, r.Path)
-	}
+	require.Empty(t, other.requests)
 	cr, err := st.LoadCredentials()
 	require.NoError(t, err)
 	byURL := map[string]string{}
 	for _, tok := range cr.Profiles["default"].PlatformTokens {
 		byURL[tok.APIURL] = tok.Token
 	}
-	require.Equal(t, map[string]string{saved.srv.URL: "pt_saved", other.srv.URL: "pt_x"}, byURL)
+	require.Equal(t, map[string]string{saved.srv.URL: "pt_saved"}, byURL)
 
 	// The saved API still gets its own cached token back.
 	saved.on("GET", "/regions", 200, map[string]any{"regions": []any{}, "default_region_id": nil})

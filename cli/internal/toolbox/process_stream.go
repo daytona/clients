@@ -36,7 +36,7 @@ type ProcessResult struct {
 	Exit    tbgen.ExitResult
 }
 
-func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (ProcessResult, error) {
+func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (_ ProcessResult, err error) {
 	encoding := opts.LogEncoding
 	if encoding == "" {
 		encoding = "text"
@@ -48,9 +48,15 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	query := url.Values{}
 	query.Set("waitMs", fmt.Sprintf("%d", inline.Milliseconds()))
 	query.Set("logs", encoding)
-	process, err := c.CreateProcess(ctx, opts.Request, query)
+	process, err := c.createStreamProcess(ctx, opts.Request, query)
 	if err != nil {
 		return ProcessResult{}, err
+	}
+	// Retain the identity even on a later stream failure so callers can
+	// interrupt the process when their own invocation is cancelled.
+	created := ProcessResult{Process: process}
+	if ctx.Err() != nil {
+		return created, ctx.Err()
 	}
 	var pump *stdinPump
 	// Feed stdin only while the process can still read it. A command that
@@ -59,12 +65,21 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	// error of the command; pumpStdin treats that code as end-of-input too.
 	if opts.Stdin != nil && process.State != tbgen.StateTerminal {
 		pump = c.startStdinPump(ctx, process.Id, opts.Stdin)
+		defer func() {
+			// On failure stop feeding stdin first: the process's output is
+			// no longer followed, and waiting for the upload could stall.
+			if err != nil {
+				pump.cancel()
+			}
+			err = errors.Join(err, pump.finish(err == nil))
+			pump.cancel()
+		}()
 	}
 	cursor := ""
 	if process.Logs != nil {
 		cursor = process.Logs.NextCursor
 		if err := WriteLogFrames(process.Logs.Frames, encoding, opts.Stdout, opts.Stderr); err != nil {
-			return ProcessResult{}, err
+			return created, err
 		}
 	}
 	result := resultFromProcess(process)
@@ -72,7 +87,7 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	if process.State != tbgen.StateTerminal || !eof {
 		followResult, followCursor, followEOF, err := c.FollowProcessLogs(ctx, process.Id, cursor, encoding, 0, opts.Stdout, opts.Stderr)
 		if err != nil {
-			return ProcessResult{}, err
+			return created, err
 		}
 		cursor = followCursor
 		eof = followEOF
@@ -83,14 +98,9 @@ func (c *Client) StreamProcess(ctx context.Context, opts StreamProcessOptions) (
 	if result.Reason == nil || !eof {
 		pagedResult, err := c.finishProcessLogs(ctx, process.Id, cursor, encoding, opts.Stdout, opts.Stderr, result, opts.Timeout)
 		if err != nil {
-			return ProcessResult{}, err
+			return created, err
 		}
 		result = pagedResult
-	}
-	if pump != nil {
-		if err := pump.finish(); err != nil {
-			return ProcessResult{}, err
-		}
 	}
 	return ProcessResult{Process: process, Exit: normalizeExit(result)}, nil
 }
@@ -119,19 +129,20 @@ func (c *Client) startStdinPump(ctx context.Context, processID string, reader io
 	return p
 }
 
-func (p *stdinPump) finish() error {
+func (p *stdinPump) finish(drain bool) error {
 	select {
 	case err := <-p.done:
 		return ignoreExpectedPumpShutdown(err)
 	default:
 	}
-	if p.regular {
+	if drain && p.regular {
 		return ignoreExpectedPumpShutdown(<-p.done)
 	}
 	if p.closer != nil {
 		_ = p.closer.Close()
-		return ignoreExpectedPumpShutdown(<-p.done)
 	}
+	// io.Closer does not promise to unblock Read. Never join an arbitrary
+	// reader after a stream failure (or after closing a non-regular reader).
 	p.cancel()
 	select {
 	case err := <-p.done:

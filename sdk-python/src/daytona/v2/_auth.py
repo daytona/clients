@@ -149,7 +149,7 @@ class ProjectTokenAuth:
             if span is not None:
                 span.finish(error=error)
             raise
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             if span is not None:
                 span.finish(status_code=response.status_code)
             raise error_from_response(

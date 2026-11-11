@@ -97,8 +97,11 @@ describe('resumable build logs', () => {
     const sandbox = lazySandbox(client, 'registry-sbx')
     const onLogs = jest.fn()
     const pending = follow ? sandbox.followBuildLogs({ onLogs, cursor: cursor(0) }) : sandbox.buildLogs()
-    await expect(pending).rejects.toBeInstanceOf(follow ? BuildLogInterruptedError : NotFoundError)
-    await expect(pending).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND', ...(follow ? { cursor: cursor(0) } : {}) })
+    // The discovery request's HTTP error is the answer in both cases: its
+    // mapped typed error, never wrapped as an interruption.
+    await expect(pending).rejects.toBeInstanceOf(NotFoundError)
+    await expect(pending).rejects.not.toBeInstanceOf(BuildLogInterruptedError)
+    await expect(pending).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' })
     expect(onLogs).not.toHaveBeenCalled()
     expect(fetch.mock.calls.map(call => String(call[0]))).toEqual(['https://api.example/sandboxes/registry-sbx/build-logs-url'])
   })
@@ -332,7 +335,6 @@ describe('resumable build logs', () => {
     ['gap', { reason: null, requested_offset: '0', first_available_offset: '3', dropped_bytes: '3' }, cursor(3)],
     ['gap', { reason: 'truncated', requested_offset: '0', first_available_offset: '3', dropped_bytes: '2' }, cursor(3)],
     ['unavailable', {}, undefined],
-    ['unknown', {}, undefined],
   ] as const)('rejects malformed %s without retry', async (name, data, id) => {
     const { client, fetch } = setup([event(name, data, id)])
     await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
@@ -565,12 +567,40 @@ describe('resumable build logs', () => {
     expect(messages).toEqual([{ event: 'state', id: undefined, data: { status: 'ready', error: null } }])
   })
 
-  it('rejects unknown events before delivering bytes or retrying', async () => {
-    const { client, fetch } = setup([event('unknown_log', { data_base64: 'eA==' })])
+  it('skips events it does not know, unparsed and without moving the cursor', async () => {
+    // A later API's event kinds (one with an id, one with data that is not
+    // even JSON, one with no event name) come between known events.
+    const wire = event('progress', { percent: 40 }, cursor(99))
+      + log('ab', 0)
+      + 'event: future_kind\ndata: not json\n\n'
+      + 'data: {"type":"message"}\n\n'
+      + done(2)
+    const { client, fetch } = setup([wire])
     const output: string[] = []
-    await expect(client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
-    expect(output).toEqual([])
+    const events: string[] = []
+    const result = await client.images.followBuildLogs('image', { onLogs: text => { output.push(text) }, onEvent: event => { events.push(event.type) } })
+    expect(output.join('')).toBe('ab')
+    expect(events).toEqual(['log', 'done'])
+    expect(result).toMatchObject({ cursor: cursor(2), outputComplete: true })
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not take an unknown event id as a resume checkpoint', async () => {
+    // The stream ends right after an unknown event that carries an id: the
+    // reconnect resumes from the last log's cursor, not from that id.
+    jest.useFakeTimers()
+    const { client, fetch } = setup([log('ab', 0) + event('progress', { percent: 40 }, cursor(99)), done(2)])
+    const output: string[] = []
+    const result = await advance(client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } }))
+    expect(output.join('')).toBe('ab')
+    expect(result.cursor).toBe(cursor(2))
+    expect(new URL(String(fetch.mock.calls[2]?.[0])).searchParams.get('cursor')).toBe(cursor(2))
+  })
+
+  it('keeps an unknown event out of the parsed stream', async () => {
+    const messages = []
+    for await (const message of buildLogMessages(response(event('progress', { percent: 40 }, cursor(5)) + event('state', { status: 'ready' })))) messages.push(message)
+    expect(messages).toEqual([{ event: 'state', id: undefined, data: { status: 'ready' } }])
   })
 
   it.each([400, 401, 403, 404, 409])('does not fall back on HTTP %s', async status => {

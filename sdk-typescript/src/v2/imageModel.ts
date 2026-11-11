@@ -8,7 +8,7 @@ import type { ArtifactRetention, ImageOrigin, ImageSource, ImageStatus } from '.
 /** SDK-owned image metadata, independent of the wire DTO. */
 export interface ImageModel {
   readonly id: string
-  readonly name: string | null
+  readonly name?: string
   readonly anonymous: boolean
   readonly availableIn: readonly string[]
   readonly bytes?: number
@@ -29,5 +29,5 @@ export interface ImageModel {
   readonly platform: boolean
   readonly default: boolean
   readonly deprecated: boolean
-  readonly diskMib: number | null
+  readonly diskMib?: number
 }

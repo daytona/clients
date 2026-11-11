@@ -37,6 +37,9 @@ func parseOptionalExpiry(value string) (*time.Time, error) {
 		if d <= 0 {
 			return nil, cerr.Usage("--expires must be greater than zero")
 		}
+		if d%time.Second != 0 {
+			return nil, cerr.Usage("--expires duration must be a whole number of seconds")
+		}
 		t := time.Now().Add(d)
 		return &t, nil
 	}

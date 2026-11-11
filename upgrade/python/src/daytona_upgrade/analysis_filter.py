@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Final
 from .mock_filter import unresolved_mock_targets
 from .models import Mapping
 from .resolution import relative_module
+from .source_suffixes import PACKAGE_INITIALIZERS
 from .wildcard_exports import UnresolvedExports, declared_exports
 
 if TYPE_CHECKING:
@@ -78,7 +79,9 @@ def plan_analysis(
             seeds.add(module)
         targets: set[str] = set()
         current = module
-        if layout.files.get(module, "").endswith(("/__init__.py", "/__init__.pyi")):
+        if layout.files.get(module, "").endswith(
+            tuple("/" + name for name in PACKAGE_INITIALIZERS)
+        ):
             current += ".__init__"
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

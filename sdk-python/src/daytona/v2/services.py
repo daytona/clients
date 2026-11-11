@@ -50,7 +50,6 @@ from ._core import (
     json_object_from_mapping,
     optional_query_text,
     page_params,
-    parse_image,
     parse_snapshot,
     path_segment,
     region_selector,
@@ -121,7 +120,8 @@ async def _iter_pages(
         for item in page.items:
             yield item
         next_cursor = page.next_cursor
-        if next_cursor is None or next_cursor == current_cursor or next_cursor in seen_cursors:
+        # An empty cursor ends the list too, as in TypeScript.
+        if not next_cursor or next_cursor == current_cursor or next_cursor in seen_cursors:
             return
         seen_cursors.add(next_cursor)
         current_cursor = next_cursor
@@ -395,8 +395,7 @@ class AsyncImagesService:
         if optional_query_text(name, "name") is not None:
             params["name"] = name
         response = await self._transport.send(RequestSpec("GET", "/images", params=params))
-        page = expect_images_page(response)
-        return ListResult(items=[parse_image(item) for item in page.images], next_cursor=page.next_cursor)
+        return expect_images_page(response)
 
     async def iter(
         self,

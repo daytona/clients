@@ -18,6 +18,7 @@ const prefix = "import { Daytona } from '@daytonaio/sdk';\n" +
   "const config = { apiKey: 'key' };\n";
 const mutator = "export function mutate(c) { c.apiUrl = 'https://self.example'; }\n";
 const unresolved = 'cannot verify the API URL of this DaytonaConfig; if it targets Daytona Cloud, rerun with --drop-api-url';
+const asserted = '--drop-api-url asserts Cloud usage; review this unchanged call manually.';
 
 it.each(aliases)('refuses migration when a config alias escapes: %s', async alias => {
   // Given a Cloud config whose alias is passed to a mutator before construction.
@@ -41,7 +42,7 @@ it.each(aliases)('reports manual review when an escaped config alias is asserted
   const result = await invoke(root, ['--json', '--drop-api-url']);
   // Then the escape remains visible as a manual item instead of silently verified.
   expect(result.code).toBe(0);
-  expect(JSON.parse(result.output).items).toContainEqual(expect.objectContaining({ kind: 'config-field', message: unresolved }));
+  expect(JSON.parse(result.output).items).toContainEqual(expect.objectContaining({ kind: 'config-field', message: asserted }));
 });
 
 it.each(['let', 'var', 'const'].flatMap(kind => [false, true].map(drop => ({ kind, drop }))))(
