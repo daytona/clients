@@ -37,12 +37,12 @@ class MacModel(BaseModel):
     """ # noqa: E501
     cores: StrictInt = Field(description="CPU cores in the Mac. A Mac core is one CPU (Apple Silicon has no SMT).")
     default_size: Optional[MacResources]
-    disk_mib: StrictInt = Field(description="Physical SSD capacity in MiB, not free space or a per-sandbox disk allowance.")
+    disk_mib: StrictInt = Field(description="Size of the Mac's SSD in MiB. Sandboxes use the disk space in `sandbox_disk_mib`.")
     id: StrictStr = Field(description="Mac model slug accepted by POST /reservations.")
-    max_sandboxes: StrictInt = Field(description="Most sandboxes a Mac of this model runs at once: 2 when its cores, memory, and sandbox disk room each fit two minimum-sized sandboxes (4 cores, 4096 MiB, 81920 MiB of disk), 1 when they fit one, and 0 when they fit none. The sizes of the running sandboxes must also fit the Mac.")
+    max_sandboxes: StrictInt = Field(description="Most sandboxes on one Mac of this model at once. Stopped sandboxes do not count. The sizes of the sandboxes on one Mac must fit that Mac. 0 when this Mac model takes no sandbox.")
     memory_mib: StrictInt = Field(description="Physical memory in MiB.")
     name: StrictStr = Field(description="Display name of the Mac model.")
-    sandbox_disk_mib: StrictInt = Field(description="Disk room for sandboxes on one Mac of this model, in MiB. The disks of all sandboxes on the Mac, stopped sandboxes included, add up to at most this. Zero until the model's disk room is measured.")
+    sandbox_disk_mib: StrictInt = Field(description="Disk space for sandboxes on one Mac of this model, in MiB. The disks and disk volumes of the sandboxes on one Mac must fit in it. 0 until this Mac model's disk space is known.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["cores", "default_size", "disk_mib", "id", "max_sandboxes", "memory_mib", "name", "sandbox_disk_mib"]
 
