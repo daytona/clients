@@ -123,3 +123,54 @@ permissionTest.each(['', 'data\n', 'data\n!**/keep\n', 'data\n!data/keep\n'])('h
     else await (await pending).cleanup()
   } finally { await promises.chmod(data, 0o755) }
 })
+
+const posixNonRoot = process.platform !== 'win32' && process.getuid?.() !== 0 ? it : it.skip
+posixNonRoot('refuses an unreadable context root or ignore file with a typed error', async () => {
+  // Given a context root that cannot be listed, and one whose .dockerignore cannot be read.
+  const fs = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const base = await fs.mkdtemp(join(tmpdir(), 'unreadable-'))
+  const locked = join(base, 'locked')
+  const ignored = join(base, 'ignored')
+  await fs.mkdir(locked)
+  await fs.writeFile(join(locked, 'Dockerfile'), 'FROM alpine\n')
+  await fs.mkdir(ignored)
+  await fs.writeFile(join(ignored, 'Dockerfile'), 'FROM alpine\n')
+  await fs.writeFile(join(ignored, '.dockerignore'), 'x\n')
+  await fs.chmod(locked, 0)
+  await fs.chmod(join(ignored, '.dockerignore'), 0)
+  try {
+    // When archived, then both are BadRequestErrors naming the path.
+    const { archiveDirectory } = await import('../src/v2/contextArchive.js')
+    await expect(archiveDirectory(locked, 'Dockerfile')).rejects.toThrow(/build context directory is not readable/)
+    await expect(archiveDirectory(ignored, 'Dockerfile')).rejects.toThrow(/build context file is not readable/)
+  } finally {
+    await fs.chmod(locked, 0o755)
+    await fs.chmod(join(ignored, '.dockerignore'), 0o644)
+    await fs.rm(base, { recursive: true, force: true })
+  }
+})
+
+posixNonRoot('treats an unreachable tar path as a tar path, not a directory', async () => {
+  // Given a tar path under a directory the user cannot search, and a link loop.
+  const fs = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const base = await fs.mkdtemp(join(tmpdir(), 'unreachable-'))
+  await fs.mkdir(join(base, 'noexec'))
+  await fs.writeFile(join(base, 'noexec', 'c.tar'), 'x')
+  await fs.chmod(join(base, 'noexec'), 0o600)
+  await fs.symlink(join(base, 'loop2'), join(base, 'loop1'))
+  await fs.symlink(join(base, 'loop1'), join(base, 'loop2'))
+  try {
+    // When probed, then none of them raises: the tar upload owns the typed error.
+    const { isContextDirectory } = await import('../src/v2/contextArchive.js')
+    for (const path of [join(base, 'noexec', 'c.tar'), join(base, 'loop1'), join(base, 'x'.repeat(300))]) {
+      await expect(isContextDirectory(path)).resolves.toBe(false)
+    }
+  } finally {
+    await fs.chmod(join(base, 'noexec'), 0o755)
+    await fs.rm(base, { recursive: true, force: true })
+  }
+})

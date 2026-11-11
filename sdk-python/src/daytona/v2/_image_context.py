@@ -33,8 +33,10 @@ from .image import ImageBuilder
 
 def _regular_file(root: Path, relative: str) -> Path:
     filename = root / relative
-    resolved = filename.resolve(strict=True)
     quoted = json.dumps(str(filename), ensure_ascii=False)
+    if filename.exists() and not os.access(filename, os.R_OK):
+        raise create_error(f"build context file is not readable: {quoted}", 400, "BAD_REQUEST", "SDK")
+    resolved = filename.resolve(strict=True)
     if not resolved.is_relative_to(root):
         raise create_error(f"build context file leaves its local source: {quoted}", 400, "BAD_REQUEST", "SDK")
     if not resolved.is_file():
@@ -44,6 +46,11 @@ def _regular_file(root: Path, relative: str) -> Path:
 
 def _directory_filter(root: Path, dockerfile: str | None) -> Filter:
     utf8_path(str(root))
+    # Listing is probed up front: an unreadable root is a typed refusal, as an
+    # unreadable directory found by the walk is.
+    if not os.access(root, os.R_OK | os.X_OK):
+        quoted = json.dumps(str(root), ensure_ascii=False)
+        raise create_error(f"build context directory is not readable: {quoted}", 400, "BAD_REQUEST", "SDK")
     candidates = [".dockerignore"]
     always: tuple[str, ...] = ()
     if dockerfile is not None:
@@ -198,7 +205,10 @@ async def prepared_context(
                 yield destination
             finally:
                 destination.unlink(missing_ok=True)
-    elif isinstance(expanded, Path) and expanded.is_dir():
+    # os.path.isdir swallows every OSError on all supported Pythons (Path.is_dir
+    # raises EACCES/ENAMETOOLONG before 3.14): the tar-path upload then reports
+    # its own typed error.
+    elif isinstance(expanded, Path) and os.path.isdir(expanded):
         with TemporaryDirectory(prefix="daytona-build-") as directory:
             destination = Path(directory) / "context.tar"
             cancel = Event()

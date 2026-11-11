@@ -14,10 +14,27 @@ export async function contextEntries(root: string, dockerfile?: string): Promise
   const pathSpecifier = 'node:path'
   const fs: typeof import('node:fs/promises') = await import(/* @vite-ignore */ /* webpackIgnore: true */ fsSpecifier)
   const path: typeof import('node:path') = await import(/* @vite-ignore */ /* webpackIgnore: true */ pathSpecifier)
-  const absolute = decodeContextPath(await fs.realpath(path.resolve(utf8ContextPath(root)), { encoding: 'buffer' }))
+  const denied = (error: unknown): boolean => typeof error === 'object' && error !== null && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')
+  const given = path.resolve(utf8ContextPath(root))
+  let absolute: string
+  try {
+    absolute = decodeContextPath(await fs.realpath(given, { encoding: 'buffer' }))
+    // Listing is probed up front: an unreadable root is a typed refusal, as
+    // an unreadable directory found by the walk is.
+    await fs.access(absolute, fs.constants.R_OK | fs.constants.X_OK)
+  } catch (error) {
+    if (denied(error)) throw badRequest(`build context directory is not readable: ${JSON.stringify(given)}`)
+    throw error
+  }
   const realRoot = absolute
   const regularFile = async (relative: string): Promise<string> => {
     const filename = path.join(absolute, relative)
+    try {
+      await fs.access(filename, fs.constants.R_OK)
+    } catch (error) {
+      if (denied(error)) throw badRequest(`build context file is not readable: ${JSON.stringify(filename)}`)
+      throw error
+    }
     const resolved = decodeContextPath(await fs.realpath(filename, { encoding: 'buffer' }))
     const inside = path.relative(realRoot, resolved)
     if (inside === '..' || inside.startsWith(`..${path.sep}`)) throw badRequest(`build context file leaves its local source: ${JSON.stringify(filename)}`)

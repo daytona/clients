@@ -372,3 +372,55 @@ def test_pip_install_from_requirements_refuses_0x_pip_options(tmp_path: Path) ->
         ImageBuilder.from_registry("alpine").pip_install_from_requirements(  # type: ignore[call-arg]  # the 0.x keyword is gone
             requirements, index_url="https://private.example/simple"
         )
+
+
+_POSIX_NON_ROOT = os.name == "posix" and hasattr(os, "geteuid") and os.geteuid() != 0
+
+
+@pytest.mark.skipif(not _POSIX_NON_ROOT, reason="needs POSIX permissions enforced for the user")
+def test_an_unreadable_context_root_or_ignore_file_is_a_typed_refusal(tmp_path: Path) -> None:
+    # Given a context root that cannot be listed, and one whose .dockerignore
+    # cannot be read.
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "Dockerfile").write_text("FROM alpine\n")
+    ignored = tmp_path / "ignored"
+    ignored.mkdir()
+    (ignored / "Dockerfile").write_text("FROM alpine\n")
+    (ignored / ".dockerignore").write_text("x\n")
+    locked.chmod(0)
+    (ignored / ".dockerignore").chmod(0)
+    try:
+        # When archived, then both raise BadRequestError naming the path.
+        with pytest.raises(BadRequestError, match="build context directory is not readable"):
+            write_directory_context(locked, "Dockerfile", tmp_path / "a.tar")
+        with pytest.raises(BadRequestError, match="build context file is not readable"):
+            write_directory_context(ignored, "Dockerfile", tmp_path / "b.tar")
+        with pytest.raises(BadRequestError, match="build context directory is not readable"):
+            write_builder_context(
+                ImageBuilder.from_registry("alpine").add_local_dir(tmp_path / "locked", "/app"),
+                tmp_path / "c.tar",
+            )
+    finally:
+        locked.chmod(0o755)
+        (ignored / ".dockerignore").chmod(0o644)
+
+
+@pytest.mark.anyio
+@pytest.mark.skipif(not _POSIX_NON_ROOT, reason="needs POSIX permissions enforced for the user")
+async def test_an_unreachable_tar_path_is_the_tar_upload_error(tmp_path: Path) -> None:
+    # Given a tar path under a directory the user cannot search, and a link loop.
+    parent = tmp_path / "noexec"
+    parent.mkdir()
+    (parent / "c.tar").write_bytes(b"x")
+    parent.chmod(0o600)
+    (tmp_path / "loop1").symlink_to(tmp_path / "loop2")
+    (tmp_path / "loop2").symlink_to(tmp_path / "loop1")
+    try:
+        # When prepared, then the directory probe does not raise: the path goes
+        # on to the tar upload, which owns the typed error.
+        for path in (parent / "c.tar", tmp_path / "loop1", tmp_path / ("x" * 300)):
+            async with prepared_context(path, "Dockerfile") as context:
+                assert context == path
+    finally:
+        parent.chmod(0o755)

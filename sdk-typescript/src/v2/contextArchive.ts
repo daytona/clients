@@ -33,11 +33,12 @@ export async function isContextDirectory(context: string): Promise<boolean> {
   if (!contextUploadRuntime.isNode()) return false
   utf8ContextPath(context)
   const { fs } = await nodeModules()
+  // Any stat failure means "not a directory here": the tar-path upload then
+  // reports its own typed error, as it did before directories were accepted.
   try {
     return (await fs.stat(context)).isDirectory()
-  } catch (error) {
-    if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return false
-    throw error
+  } catch {
+    return false
   }
 }
 
