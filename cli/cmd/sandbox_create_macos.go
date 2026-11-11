@@ -19,8 +19,8 @@ func newSandboxCreateMacosCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create-macos", short: "Create a macOS sandbox on a reserved Mac",
 		long: "Create a macOS sandbox on a reserved Mac (POST /sandboxes/macos). The SDK twin is create_macos(image, …).\n" +
-			"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image uses the image's disk size.\n" +
-			"Stop and pause need --persistent: a persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.\n" +
+			"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image without --disk gets the image's disk size.\n" +
+			"Stop and pause need --persistent. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it; a Mac failure can lose its most recent writes.\n" +
 			"Examples:\n" +
 			"  daytona sandbox create-macos --image base-macos\n" +
 			"  daytona sandbox create-macos --image base-macos --reservation RESERVATION_ID --cores 10 --memory 16384 --disk 163840 --persistent\n" +
@@ -93,7 +93,7 @@ func macosCreateFlags(f *pflag.FlagSet, flags *sandboxCreateFlags) {
 	f.Int32Var(&flags.memory, "memory", 0, "memory in MiB, minimum 4096 (default: the Mac model's default size)")
 	f.Int32Var(&flags.disk, "disk", 0, "whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac model's default size, or the image's disk size for a captured image)")
 	f.StringArrayVar(&flags.env, "env", nil, "environment variable KEY=VALUE (repeatable)")
-	f.BoolVar(&flags.persistent, "persistent", false, "keep the disk and machine across stop/start and memory across pause/resume; a start can run on any Mac of the organization; reservation end or a Mac failure stops the sandbox and never deletes it")
+	f.BoolVar(&flags.persistent, "persistent", false, "keep the disk and machine across stop/start on any Mac of the organization, and memory across pause/resume; delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it, though a Mac failure can lose its most recent writes; an ephemeral sandbox ends with its reservation or a failed Mac.")
 	f.StringVar(&flags.reservation, "reservation", "", "target an existing reservation by ID; new buys the cheapest fitting model; omitted may buy if none fits (confirmation required unless --yes)")
 	f.BoolVar(&flags.autoRenew, "auto-renew", false, autoRenewUsage)
 	flagPlaceholder(f, "cores", "N")

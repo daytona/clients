@@ -13052,7 +13052,7 @@ async def test_create_macos_posts_the_create_macos_sandbox_request_body():
     await client.create_macos(
         "sequoia-xcode",
         name="mac-1",
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         persistent=True,
         reservation="new",
         auto_renew=False,
@@ -13066,7 +13066,7 @@ async def test_create_macos_posts_the_create_macos_sandbox_request_body():
     assert api.specs[1].json_body == {
         "image": "sequoia-xcode",
         "name": "mac-1",
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         "persistent": True,
         "env": {"A": "B"},
         "ports": [{"port": 8080, "proto": "tcp"}],
@@ -13163,7 +13163,7 @@ async def test_create_macos_sends_supplied_size_axes_exactly_and_omits_absent_on
         "base-macos",
         reservation="mac-region:res-1",
         resources=MacosResources(cpu=10, memory=16),
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         persistent=True,
     )
     await client.create_macos("base-macos", resources=MacosResources(memory=4.5))
@@ -13174,7 +13174,7 @@ async def test_create_macos_sends_supplied_size_axes_exactly_and_omits_absent_on
     assert bodies[0] == {"image": "base-macos", "wait_seconds": 60}
     assert bodies[1] == {
         "image": "base-macos",
-        # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+        # macOS keeps persistent (stop/start and reservation ends keep the disk).
         "persistent": True,
         "reservation": "mac-region:res-1",
         "cores": 10,
@@ -13290,7 +13290,7 @@ async def test_create_macos_rejects_invalid_requests_before_posting():
         (
             lambda: client.create_macos(
                 "base-macos",
-                # macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
+                # macOS keeps persistent (stop/start and reservation ends keep the disk).
                 persistent=True,
                 lifecycle_policy={"future_option": True},
             ),

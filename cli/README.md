@@ -237,10 +237,12 @@ daytona reservation update RESERVATION_ID --auto-renew=false
 ```
 
 `mac-model list` shows each model's `MAX_SANDBOXES` and `DEFAULT_SIZE`.
-Each omitted `--cores`, `--memory`, or `--disk` uses the model's `DEFAULT_SIZE`;
-a create from a captured image uses the image's disk size. For `--disk`, the
-total is the model's sandbox disk room (`SANDBOX_DISK_MIB` in `mac-model list`),
-not the Mac's whole SSD. Sandbox sizes do not change the reservation.
+Each omitted `--cores`, `--memory`, or `--disk` uses the model's
+`DEFAULT_SIZE`; a create from a captured image without `--disk` gets the
+image's disk size, and a smaller `--disk` is refused. The
+disks and disk volumes of the sandboxes on one Mac at once must fit the model's sandbox
+disk space (`SANDBOX_DISK_MIB` in `mac-model list`), not the Mac's whole SSD.
+Sandbox sizes do not change the reservation.
 The size is fixed at creation, and `daytona
 sandbox get` shows the associated reservation as `reservation_id`. `--disk` is the
 whole sandbox disk in MiB, macOS included, at least 81920. Without `--model`, a
@@ -275,7 +277,18 @@ terminal; off a terminal, pass `--yes` or set `DAYTONA_YES=1`. Using an
 existing reservation ID or `reservation create --dry-run` does not prompt.
 `reservation update --auto-renew=false` needs no confirmation.
 
-Stop and pause need a persistent sandbox (`--persistent`): a persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.
+Stop and pause need a persistent sandbox (`--persistent`), which keeps its
+disk and machine across stop and start, and its memory across pause and
+resume. `sandbox start` can run it on any Mac of the organization; after a
+start on a different Mac, iCloud asks the user to sign in again. With no Mac
+reservation in the region and auto-reserve on, `sandbox start` buys one, and
+can be refused at the organization's Mac reservation limit
+(`max_mac_reservations`). Delete erases the disk. A reservation end or a Mac
+failure stops a persistent sandbox that has started and never deletes it; a Mac
+failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with
+its Mac when that Mac fails. A paused sandbox keeps an auto-renewing
+reservation renewing; otherwise it is stopped, with its disk, before the
+reservation ends.
 
 ## Command reference
 
