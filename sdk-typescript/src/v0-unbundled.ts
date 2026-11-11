@@ -22,7 +22,7 @@ function unavailable(): never {
   throw new Error(V0_UNBUNDLED)
 }
 
-// The shapes below mirror v0.230.0 closely enough for the root's
+// The shapes below mirror v0.231.1 closely enough for the root's
 // types: `list()` is synchronous and returns an async iterator; the nested
 // services' methods are async.
 class V0SnapshotNamespace {

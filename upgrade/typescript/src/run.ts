@@ -43,8 +43,11 @@ export function emptyReport(options: Options): Report {
 export type RunResult = { readonly report: Report; readonly changes: readonly Change[]; readonly code: number };
 export async function run(options: Options, mapping: Mapping): Promise<RunResult> {
   const base = emptyReport(options);
-  if (!existsSync(options.root) || !statSync(options.root).isDirectory()) {
-    return { report: { ...base, refused: { reason: 'bad-arguments', message: 'Project path must be an existing directory.' } }, changes: [], code: 2 };
+  if (!existsSync(options.root)) {
+    return { report: { ...base, refused: { reason: 'bad-arguments', message: `Path does not exist: ${options.root}` } }, changes: [], code: 2 };
+  }
+  if (!statSync(options.root).isDirectory()) {
+    return { report: { ...base, refused: { reason: 'bad-arguments', message: 'Project path is a file; pass the directory that contains it (the project root).' } }, changes: [], code: 2 };
   }
   const safety = base.dryRun ? {} : gitSafety(options.root, options.force);
   if (safety.refusal) return { report: { ...base, refused: safety.refusal }, changes: [], code: 2 };

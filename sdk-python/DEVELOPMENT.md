@@ -66,7 +66,7 @@ scripts/bundle-v0.sh --clean
 ```
 
 - `TAG` defaults to the pinned 0.x tag in `scripts/v0-sdk-version` (line 1,
-  today `v0.230.0`; line 2 is the commit the tag peels to, which the scripts
+  today `v0.231.1`; line 2 is the commit the tag peels to, which the scripts
   verify), the single source of truth for releases. Bumping the v0
   namespace is a two-line PR to that file plus a 2.x release. Passing `TAG` or
   setting `DAYTONA_V0_TAG=<tag>` (shape `vX.Y.Z`) overrides it for testing only.

@@ -36,7 +36,7 @@ it.each([
   'this.client.create = function () { this.snapshot = other; }; this.client.create();',
   'unknown(this.client); this.client.create();',
   'this.client.create(this.client);',
-])('requires review when a property client or its method loses proof: %s', async effect => {
+])('suggests the service call as the default pass moves it when a property client escapes: %s', async effect => {
   // Given a mutated or escaped field, not merely a direct SDK method call.
   const root = temporaryProject({ 'app.ts': `import { Daytona } from '@daytonaio/sdk';
 class Worker {
@@ -45,8 +45,8 @@ class Worker {
 }` });
   // When
   const result = await invoke(root, ['--suggest-v2', '--json']);
-  // Then the service call is not given an unproven suggestion.
+  // Then the service call gets the suggestion its `.v0` form gets after the
+  // default pass, which moves it on the same client proof.
   const report: Report = JSON.parse(result.output);
-  expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(false);
-  expect(report.items).toContainEqual(expect.objectContaining({ kind: 'fixme' }));
+  expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(true);
 });

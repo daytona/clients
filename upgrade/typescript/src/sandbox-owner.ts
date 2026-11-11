@@ -28,6 +28,15 @@ export function sandboxOwner(node: Node, use: Node, receivers: Receivers): Node 
       });
       return accessible ? expression : undefined;
     }
+    // A handle a sandbox call produced (`sandbox.createLspServer(...)`) is
+    // owned by that call's sandbox; a new sandbox (a fork) is not.
+    if (Node.isCallExpression(value)) {
+      const callee = value.getExpression();
+      const produced = receivers.suggestion(value);
+      const handle = produced && Object.entries(receivers.mapping.receivers)
+        .some(([kind, receiver]) => kind !== 'sandbox' && receiver.producedBy?.includes(produced.id));
+      if (handle && isMemberAccess(callee)) return owner(callee.getExpression());
+    }
     if (isMemberAccess(value)) {
       const kind = receivers.kind(value);
       if (kind && receivers.mapping.receivers[kind]?.attr?.ts === memberName(value)) {

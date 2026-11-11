@@ -17,7 +17,12 @@ from .compose_includes import include_entries
 from .compose_projects import ComposeContext, load_compose_projects
 from .environment import EnvironmentWrite
 from .models import Item
-from .project_paths import environment_base, is_environment, is_manifest
+from .project_paths import (
+    PYTHON_SOURCE_SUFFIXES,
+    environment_base,
+    is_environment,
+    is_manifest,
+)
 from .regular_files import DISCOVERY_LIMIT, INPUT_LIMIT, read_regular_bytes
 from .source_encoding import FileEncodingError, decode_source
 
@@ -85,7 +90,8 @@ def discover(root: Path, items: list[Item]) -> tuple[ProjectFile, ...]:
     for path in paths:
         if (path.is_symlink() and path not in compose) or not (
             path in compose
-            or path.suffix in {".py", ".pyi", ".ipynb", ".yaml", ".yml"}
+            or path.suffix in PYTHON_SOURCE_SUFFIXES
+            or path.suffix in {".ipynb", ".yaml", ".yml"}
             or path in requirements.paths
             or is_manifest(path)
             or is_environment(Path(os.path.relpath(path.resolve(), environment_root)))
@@ -109,7 +115,7 @@ def discover(root: Path, items: list[Item]) -> tuple[ProjectFile, ...]:
             source, encoding = decode_source(
                 path,
                 data,
-                python=path.suffix in {".py", ".pyi"}
+                python=path.suffix in PYTHON_SOURCE_SUFFIXES
                 and path not in requirements.paths,
             )
         except FileEncodingError as error:

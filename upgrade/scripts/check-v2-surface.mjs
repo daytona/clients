@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { hasLiteralArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withoutOptionalArguments } from './optional-arguments.mjs';
+import { hasLiteralArguments, hasNoneArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withNoneArguments, withoutOptionalArguments } from './optional-arguments.mjs';
 
 const sdkRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -62,17 +62,21 @@ async function main() {
   const forms = mapping.suggestions.flatMap((entry) => {
     const optional = ['py', 'ts'].filter((lang) => entry.v2[lang] !== null && hasOptionalArguments(entry.v2[lang]));
     if (optional.length === 0) return [entry];
-    const variant = (render) => Object.fromEntries(['py', 'ts'].map((lang) => [lang, entry.v2[lang] === null ? null : render(entry.v2[lang])]));
+    const variant = (render) => Object.fromEntries(['py', 'ts'].map((lang) => [lang, entry.v2[lang] === null ? null : render(entry.v2[lang], lang)]));
     const literals = ['py', 'ts'].some((lang) => entry.v2[lang] !== null && hasLiteralArguments(entry.v2[lang]))
       ? [
         { ...entry, id: `${entry.id} (literal)`, v2: variant((form) => withLiteralArguments(form, '5')) },
         { ...entry, id: `${entry.id} (zero)`, v2: variant((form) => withLiteralArguments(form, '0')) },
       ]
       : [];
+    const nones = ['py', 'ts'].some((lang) => entry.v2[lang] !== null && hasNoneArguments(entry.v2[lang]))
+      ? [{ ...entry, id: `${entry.id} (none)`, v2: variant((form, lang) => withNoneArguments(form, lang === 'py' ? 'None' : 'null')) }]
+      : [];
     return [
       { ...entry, v2: variant(withNamedArguments) },
       { ...entry, id: `${entry.id} (defaults)`, v2: variant(withoutOptionalArguments) },
       ...literals,
+      ...nones,
     ];
   });
   const expanded = { ...mapping, suggestions: [...forms, ...notes] };

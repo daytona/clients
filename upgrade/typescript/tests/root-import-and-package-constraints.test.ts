@@ -83,5 +83,15 @@ it('refuses a nonexistent project path as bad arguments', async () => {
   const result = await invoke(missing, ['--json']);
   // Then
   expect(result.code).toBe(2);
-  expect(JSON.parse(result.output)).toMatchObject({ refused: { reason: 'bad-arguments' } });
+  expect(JSON.parse(result.output)).toMatchObject({ refused: { reason: 'bad-arguments', message: `Path does not exist: ${missing}` } });
+});
+
+it('refuses a file path and names the directory to pass instead', async () => {
+  // Given
+  const file = join(temporaryProject({ 'index.ts': "import { Daytona } from '@daytona/sdk';\n" }), 'index.ts');
+  // When
+  const result = await invoke(file, ['--json']);
+  // Then
+  expect(result.code).toBe(2);
+  expect(JSON.parse(result.output)).toMatchObject({ refused: { reason: 'bad-arguments', message: expect.stringContaining('pass the directory that contains it') } });
 });

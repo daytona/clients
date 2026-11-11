@@ -270,7 +270,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   v0's runtime imports that its manifests leave undeclared
   (`@opentelemetry/resources`, `@opentelemetry/otlp-exporter-base`) are pinned
   to the single version v0's `yarn.lock` resolves — what the published v0
-  package declares (3.0.0 / 0.300.0 at `v0.230.0`) — so strict layouts
+  package declares (3.0.0 / 0.300.0 at `v0.231.1`) — so strict layouts
   (pnpm) resolve them; an ambiguous lockfile fails the bundle. The bundle also
   rewrites v0's `getPackageInfo()` to the bundled release, so its
   `X-Daytona-SDK-Version` / `User-Agent` report it (bundled one directory
@@ -457,9 +457,12 @@ skipping exist only in the TypeScript tool).
   `MOVED_TO_V0` in `sdk-typescript/src/Daytona.ts`); a test in each SDK pins them
   to the mapping.
 - The tools never rewrite v0 code to v2: `--suggest-v2` only writes
-  `daytona-v2:` comments. `docs.base` in the mapping is the Daytona docs home
-  until the migration guide has its own page; `sdk_publish.yaml` refuses to
-  publish the tool while `docs.placeholder` is true.
+  `daytona-v2:` comments. `docs.base` in the mapping is the generated guide
+  on GitHub (`upgrade/MIGRATION.md` on `main`) until the Daytona docs publish
+  it (docs/RELEASING.md, "The migration guide"); every suggestion links
+  `docs.base#<anchor>`, and `upgrade/scripts/docs-links.test.mjs` checks each
+  anchor exists in the guide. `sdk_publish.yaml` refuses to publish the tool
+  while `docs.placeholder` is true.
 - **Lockstep versions.** `sdk_publish.yaml` publishes the tool with the SDKs at
   the same version (`publish_upgrade`), and the tool targets that SDK
   release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable

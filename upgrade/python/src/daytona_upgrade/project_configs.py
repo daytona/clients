@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from .config_origins import ConfigOrigins
 from .resolution import ProjectIndex, dotted, relative_module
+from .source_suffixes import PACKAGE_INITIALIZERS
 
 if TYPE_CHECKING:
     from .flow import Flow
@@ -55,7 +56,7 @@ class ProjectConfigs:
                 if isinstance(node, ast.ImportFrom):
                     current = module
                     if origins.flow.context.file.endswith(
-                        ("/__init__.py", "/__init__.pyi")
+                        tuple("/" + name for name in PACKAGE_INITIALIZERS)
                     ):
                         current += ".__init__"
                     target = relative_module(current, node)

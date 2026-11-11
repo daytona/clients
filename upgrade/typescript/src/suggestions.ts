@@ -5,7 +5,7 @@
 
 import { Node, SyntaxKind, ts } from 'ts-morph';
 import type { SourceFile, CallExpression } from 'ts-morph';
-import type { Edit, Item, Mapping, Receiver, SuggestionReport } from './model.js';
+import type { Edit, Item, Mapping, Receiver, Suggestion, SuggestionReport } from './model.js';
 import { assertNever } from './model.js';
 import { applyEdits, commentEdit, displayText, location, removeSuggestionLines, statement, unwrap } from './edits.js';
 import { Receivers } from './receivers.js';
@@ -14,6 +14,7 @@ import { initializer } from './edits.js';
 import { bindingIsStable } from './stable-bindings.js';
 import { isMemberAccess, memberName } from './member-access.js';
 import { sandboxOwner } from './sandbox-owner.js';
+import { objectIdentity } from './object-identity.js';
 import { suggestionCommentEdits } from './comment-tokens.js';
 import { errorImportSuggestions } from './error-import-suggestions.js';
 import { renderOptionalArguments, withNamedArguments } from './optional-arguments.js';
@@ -82,10 +83,53 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
     }
     return undefined;
   };
+  // Code that already holds the 0.x client (`client.v0`) and hands it out
+  // (an argument, an alias) or writes one of its members may replace its
+  // services.
+  const escapedV0 = new Map<Node, boolean>();
+  const v0Escapes = (v0: Node): boolean => {
+    if (!isMemberAccess(v0)) return true;
+    const client = objectIdentity(v0.getExpression());
+    const cached = escapedV0.get(client);
+    if (cached !== undefined) return cached;
+    const escapes = source.getDescendants().some(node => {
+      if (!isMemberAccess(node) || memberName(node) !== 'v0' || objectIdentity(node.getExpression()) !== client) return false;
+      const parent = node.getParent();
+      if (parent === undefined || !isMemberAccess(parent) || parent.getExpression() !== node) return true;
+      const write = parent.getParent();
+      return Node.isBinaryExpression(write) && write.getLeft() === parent &&
+        write.getOperatorToken().getKind() >= SyntaxKind.FirstAssignment && write.getOperatorToken().getKind() <= SyntaxKind.LastAssignment;
+    });
+    escapedV0.set(client, escapes);
+    return escapes;
+  };
+  // The default pass moves `client.<member>` to `client.v0.<member>` on this
+  // proof alone; a call directly on that member (or on the client), before or
+  // after that move, is the mapping row the migrated code gets, so suggest it
+  // the same way.
+  const rootProvenEntry = (access: Node): Suggestion | undefined => {
+    let candidate: Node = access;
+    while (isMemberAccess(candidate)) {
+      const member = memberName(candidate);
+      const owner = candidate.getExpression();
+      if (member !== undefined && mapping.movedClientMembers.ts.includes(member) &&
+          (isMemberAccess(owner) && memberName(owner) === 'v0' ? receivers.client(owner.getExpression()) && !v0Escapes(owner) : receivers.client(owner, member))) {
+        const method = memberName(access);
+        if (candidate === access) return mapping.suggestions.find(row => row.receiver === 'client' && row.v0.ts === method);
+        if (isMemberAccess(access) && access.getExpression() === candidate) {
+          const service = Object.entries(mapping.receivers).find(([, kind]) => kind.parent === 'client' && kind.attr?.ts === member)?.[0];
+          return mapping.suggestions.find(row => row.receiver === service && row.v0.ts === method);
+        }
+        return undefined;
+      }
+      candidate = candidate.getExpression();
+    }
+    return undefined;
+  };
   for (const call of source.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const entry = receivers.suggestion(call);
     const access = call.getExpression();
     if (!isMemberAccess(access)) continue;
+    const entry = receivers.suggestion(call) ?? rootProvenEntry(access);
     if (!entry) {
       // Use the default pass's proof seam, not a receiver-name heuristic: a
       // proven root access can still have an unprovable service below it.
@@ -108,7 +152,9 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
       continue;
     }
     const client = ownerClient ? displayText(ownerClient.getText()) : 'daytona';
-    const ownerSandbox = entry.receiver.startsWith('sandbox') ? sandboxOwner(access.getExpression(), call, receivers) : undefined;
+    // A handle a sandbox call produced (an LSP server, a PTY) is not its sandbox.
+    const sandboxProduced = mapping.receivers[entry.receiver]?.producedBy?.some(id => id.startsWith('sandbox')) === true;
+    const ownerSandbox = entry.receiver.startsWith('sandbox') || sandboxProduced ? sandboxOwner(access.getExpression(), call, receivers) : undefined;
     const sandbox = ownerSandbox ? displayText(ownerSandbox.getText()) : receiver;
     // A typed service can be proven without its sandbox. Render its own path,
     // not a guessed sandbox that would turn `files` into `files.fs`.
@@ -119,8 +165,8 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
       if (service?.attr?.ts) servicePath.unshift(service.attr.ts);
       kind = service?.parent;
     }
-    if (!ownerSandbox && servicePath.length && entry.v2.ts?.includes('{sandbox}') &&
-      entry.v2.ts.replaceAll(`{sandbox}.${servicePath.join('.')}.`, `${receiver}.`).includes('{sandbox}')) {
+    if (!ownerSandbox && entry.v2.ts?.includes('{sandbox}') && (sandboxProduced || servicePath.length > 0 &&
+      entry.v2.ts.replaceAll(`{sandbox}.${servicePath.join('.')}.`, `${receiver}.`).includes('{sandbox}'))) {
       const form = displayText(withNamedArguments(entry.v2.ts).replaceAll('{sandbox}', 'sandbox').replaceAll('{client}', client));
       const message = `move this call to the owning sandbox: ${form}`;
       items.push({ ...location(call, root), kind: 'fixme', message });

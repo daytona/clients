@@ -28,8 +28,8 @@ the constructor in `try` to detect missing credentials, access `.v0` inside that
 | TypeScript | `import { Sandbox } from '@daytonaio/sdk'` | `import { Sandbox } from '@daytona/sdk/v0'` |
 
 Install the SDK release you migrate to, with the v0 SDK extra for Python. Until SDK 2.0.0
-is out, that is the exact alpha, e.g. `uv add 'daytona[v0-sdk]==2.0.0a8'` and
-`npm install @daytona/sdk@2.0.0-alpha.8`; after it, `uv add 'daytona[v0-sdk]>=2,<3'` and
+is out, that is the exact alpha, e.g. `uv add 'daytona[v0-sdk]==2.0.0aN'` and
+`npm install @daytona/sdk@2.0.0-alpha.N`; after it, `uv add 'daytona[v0-sdk]>=2,<3'` and
 `npm install @daytona/sdk@^2.0.0`.
 SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.
 
@@ -46,8 +46,8 @@ uvx daytona-upgrade  # Python
 ```
 
 Each tool release migrates to the SDK release of the same version. Until SDK 2.0.0
-is out, run the exact alpha you are migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.8`
-or `uvx daytona-upgrade@2.0.0a8`.
+is out, run the exact alpha you are migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.N`
+or `uvx daytona-upgrade@2.0.0aN`.
 
 The tools update dependencies and proven client calls. Review each
 `FIXME(daytona-upgrade)` item before running the result.
@@ -507,13 +507,13 @@ v2 moves process operations under the computer-use service attribute
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computer_use.start(...)` | `{sandbox}.computer_use.start()` | differs; Returns ComputerUseLifecycleResult instead of ComputerUseStartResponse; request_timeout is no longer accepted |
-| `sandbox.computer_use.stop(...)` | `{sandbox}.computer_use.stop()` | differs; Returns ComputerUseLifecycleResult instead of ComputerUseStopResponse; request_timeout is no longer accepted |
+| `sandbox.computer_use.start(...)` | `{sandbox}.computer_use.start()` | differs; Returns ComputerUseLifecycleResponse instead of ComputerUseStartResponse; request_timeout is no longer accepted |
+| `sandbox.computer_use.stop(...)` | `{sandbox}.computer_use.stop()` | differs; Returns ComputerUseLifecycleResponse instead of ComputerUseStopResponse; request_timeout is no longer accepted |
 | `sandbox.computer_use.get_status(...)` | `{sandbox}.computer_use.status()` | differs; Returns a discriminated desktop status with desktop and optional failure cause; request_timeout is no longer accepted |
 | `sandbox.computer_use.get_process_status(...)` | `{sandbox}.computer_use.service.status(process_name)` | differs; Moves under service and returns ComputerUseProcessRunningStatus; request_timeout is no longer accepted |
-| `sandbox.computer_use.restart_process(...)` | `{sandbox}.computer_use.service.restart(process_name)` | differs; Moves under service and returns ComputerUseProcessRestartResult; request_timeout is no longer accepted |
-| `sandbox.computer_use.get_process_logs(...)` | `{sandbox}.computer_use.service.logs(process_name)` | differs; Moves under service and returns ComputerUseProcessLogs; request_timeout is no longer accepted |
-| `sandbox.computer_use.get_process_errors(...)` | `{sandbox}.computer_use.service.errors(process_name)` | differs; Moves under service and returns ComputerUseProcessErrors; request_timeout is no longer accepted |
+| `sandbox.computer_use.restart_process(...)` | `{sandbox}.computer_use.service.restart(process_name)` | differs; Moves under service and returns ComputerUseProcessRestartResponse; request_timeout is no longer accepted |
+| `sandbox.computer_use.get_process_logs(...)` | `{sandbox}.computer_use.service.logs(process_name)` | differs; Moves under service and returns ComputerUseProcessLogsResponse; request_timeout is no longer accepted |
+| `sandbox.computer_use.get_process_errors(...)` | `{sandbox}.computer_use.service.errors(process_name)` | differs; Moves under service and returns ComputerUseProcessErrorsResponse; request_timeout is no longer accepted |
 
 ### TypeScript
 
@@ -602,10 +602,10 @@ v2 compression format is restricted to png or jpeg
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computer_use.screenshot.take_full_screen(...)` | `{sandbox}.computer_use.screen.screenshot(show_cursor=show_cursor)` | differs; Moves to screen.screenshot with keyword-only show_cursor; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
-| `sandbox.computer_use.screenshot.take_region(...)` | `{sandbox}.computer_use.screen.screenshot(region=ComputerUseRegion(x=region.x, y=region.y, width=region.width, height=region.height), show_cursor=show_cursor)` | differs; The region becomes a ComputerUseRegion (from daytona.v2 import ComputerUseRegion) passed as region= to screen.screenshot; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
-| `sandbox.computer_use.screenshot.take_compressed(...)` | `{sandbox}.computer_use.screen.screenshot(format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Expand options into keyword-only arguments or omit them when options is None; Compression applies only when format, quality or scale is set; when options sets none of them, pass format="png" to keep a compressed image; Only png and jpeg formats are supported; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
-| `sandbox.computer_use.screenshot.take_compressed_region(...)` | `{sandbox}.computer_use.screen.screenshot(region=ComputerUseRegion(x=region.x, y=region.y, width=region.width, height=region.height), format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Pass the region as a ComputerUseRegion (from daytona.v2 import ComputerUseRegion) and expand options into keyword-only arguments, omitting options fields when None; Compression applies only when format, quality or scale is set; when options sets none of them, pass format="png" to keep a compressed image; Only png and jpeg formats are supported; Returns a ComputerUseScreenshot dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_full_screen(...)` | `{sandbox}.computer_use.screen.screenshot(show_cursor=show_cursor)` | differs; Moves to screen.screenshot with keyword-only show_cursor; Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_region(...)` | `{sandbox}.computer_use.screen.screenshot(region=ComputerUseRegion(x=region.x, y=region.y, width=region.width, height=region.height), show_cursor=show_cursor)` | differs; The region becomes a ComputerUseRegion (from daytona.v2 import ComputerUseRegion) passed as region= to screen.screenshot; Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_compressed(...)` | `{sandbox}.computer_use.screen.screenshot(format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Expand options into keyword-only arguments or omit them when options is None; Compression applies only when format, quality or scale is set; when options sets none of them, pass format="png" to keep a compressed image; Only png and jpeg formats are supported; Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout |
+| `sandbox.computer_use.screenshot.take_compressed_region(...)` | `{sandbox}.computer_use.screen.screenshot(region=ComputerUseRegion(x=region.x, y=region.y, width=region.width, height=region.height), format=options.fmt, quality=options.quality, scale=options.scale, show_cursor=options.show_cursor)` | differs; Pass the region as a ComputerUseRegion (from daytona.v2 import ComputerUseRegion) and expand options into keyword-only arguments, omitting options fields when None; Compression applies only when format, quality or scale is set; when options sets none of them, pass format="png" to keep a compressed image; Only png and jpeg formats are supported; Returns a ComputerUseScreenshotResponse dataclass and removes request_timeout |
 
 ### TypeScript
 
@@ -627,8 +627,8 @@ v2 requires display and window fields that were optional in v0
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `sandbox.computer_use.display.get_info(...)` | `{sandbox}.computer_use.display.info()` | differs; Returns ComputerUseDisplayInfo with required display fields; request_timeout is no longer accepted |
-| `sandbox.computer_use.display.get_windows(...)` | `{sandbox}.computer_use.display.windows()` | differs; Returns ComputerUseDisplayWindows with required window fields; request_timeout is no longer accepted |
+| `sandbox.computer_use.display.get_info(...)` | `{sandbox}.computer_use.display.info()` | differs; Returns ComputerUseDisplayInfoResponse with required display fields; request_timeout is no longer accepted |
+| `sandbox.computer_use.display.get_windows(...)` | `{sandbox}.computer_use.display.windows()` | differs; Returns ComputerUseDisplayWindowsResponse with required window fields; request_timeout is no longer accepted |
 
 ### TypeScript
 
@@ -652,7 +652,7 @@ v2 download returns bytes in Python or Uint8Array in TypeScript instead of strea
 | --- | --- | --- |
 | `sandbox.computer_use.recording.start(...)` | `{sandbox}.computer_use.recording.start(label=label)` | differs; label becomes keyword-only and request_timeout is removed; Returns a ComputerUseRecording dataclass |
 | `sandbox.computer_use.recording.stop(...)` | `{sandbox}.computer_use.recording.stop(id=recording_id)` | differs; recording_id becomes keyword-only id and request_timeout is removed; Returns a ComputerUseRecording dataclass |
-| `sandbox.computer_use.recording.list(...)` | `{sandbox}.computer_use.recording.list()` | differs; Returns a ComputerUseRecordingList dataclass containing recording dataclasses; request_timeout is no longer accepted |
+| `sandbox.computer_use.recording.list(...)` | `{sandbox}.computer_use.recording.list()` | differs; Returns a ComputerUseRecordingsResponse dataclass containing recording dataclasses; request_timeout is no longer accepted |
 | `sandbox.computer_use.recording.get(...)` | `{sandbox}.computer_use.recording.get(recording_id)` | differs; Returns a ComputerUseRecording dataclass; The keyword recording_id becomes id and request_timeout is removed |
 | `sandbox.computer_use.recording.delete(...)` | `{sandbox}.computer_use.recording.delete(recording_id)` | differs; The keyword recording_id becomes id and request_timeout is removed |
 | `sandbox.computer_use.recording.download(...)` | `{sandbox}.computer_use.recording.download(recording_id)` | differs; Returns bytes in memory instead of streaming to local_path; Write the returned bytes to the desired file separately; The keyword recording_id becomes id |

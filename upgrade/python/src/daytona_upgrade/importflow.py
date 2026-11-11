@@ -15,6 +15,7 @@ from .client_parameters import PARAMETERS
 from .instance_fields import imported_class_fields
 from .proof_mutations import invalidate
 from .resolution import foreign_constructor, relative_module
+from .source_suffixes import PACKAGE_INITIALIZERS
 from .wildcard_exports import UnresolvedExports
 
 if TYPE_CHECKING:
@@ -24,10 +25,7 @@ if TYPE_CHECKING:
 def import_owner(context: SourceContext, node: ast.ImportFrom) -> str:
     """Resolve relative imports against the package containing the real file."""
     current = context.module
-    if context.file.replace("\\", "/").split("/")[-1] in {
-        "__init__.py",
-        "__init__.pyi",
-    }:
+    if context.file.replace("\\", "/").split("/")[-1] in PACKAGE_INITIALIZERS:
         current = (current + "." if current else "") + "__init__"
     return relative_module(current, node)
 
