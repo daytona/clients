@@ -1,0 +1,21 @@
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_35c1b93d4ebbc5::t_c7ce085179f78d 10,188-193
+sdk-python/tests/test_dockerignore.py
+  s_35c1b93d4ebbc5::t_73b06e79620474 340-352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "670ad044c94aeee34c0096b24196727a8598a8fd",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
