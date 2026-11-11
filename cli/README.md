@@ -230,7 +230,7 @@ daytona reservation update RESERVATION_ID --auto-renew=false
 Each omitted `--cores`, `--memory`, or `--disk` uses the model's
 `DEFAULT_SIZE`; a create from a captured image without `--disk` gets the
 image's disk size, and a smaller `--disk` is refused. The
-disks and disk volumes of the sandboxes on one Mac must fit the model's sandbox
+disks and disk volumes of the sandboxes on one Mac at once must fit the model's sandbox
 disk space (`SANDBOX_DISK_MIB` in `mac-model list`), not the Mac's whole SSD.
 Sandbox sizes do not change the reservation.
 The size is fixed at creation, and `daytona

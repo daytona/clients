@@ -664,7 +664,7 @@ A reservation reserves one physical Mac of a named model. Set CPU, memory,
 and disk sizes when creating each sandbox. `d.v2.mac_models.list()` lists each
 model's resources, sandbox disk space, `max_sandboxes`, and `default_size`,
 the size that omitted values use. The disks and disk volumes of the sandboxes
-on one Mac must fit its `sandbox_disk_mib`.
+on one Mac at once must fit its `sandbox_disk_mib`.
 Reserve a Mac, then create a sandbox using the model's default size:
 
 ```python

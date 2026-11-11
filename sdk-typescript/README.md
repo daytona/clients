@@ -589,7 +589,7 @@ A reservation reserves one physical Mac of a named model. Set CPU, memory,
 and disk sizes when creating each sandbox. `daytona.v2.macModels.list()` lists
 each model's resources, sandbox disk space, `maxSandboxes`, and `defaultSize`,
 the size that omitted values use. The disks and disk volumes of the sandboxes
-on one Mac must fit its `sandboxDiskMib`.
+on one Mac at once must fit its `sandboxDiskMib`.
 Reserve a Mac, then create a sandbox using the model's default size:
 
 ```ts
