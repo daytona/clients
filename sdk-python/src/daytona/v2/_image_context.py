@@ -149,6 +149,16 @@ def write_builder_context(builder: ImageBuilder, destination: Path, *, cancel: E
                 "BAD_REQUEST",
                 "SDK",
             ) from error
+        # A path that was not a link when it was added and is one now has been
+        # redirected: refused, so a swap between declaration and build cannot
+        # pull in another tree.
+        if not source.link and os.path.islink(source.path):
+            raise create_error(
+                f"local source changed since it was added: {json.dumps(str(source.path), ensure_ascii=False)}",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         match source.kind:
             case "file":
                 if not stat.S_ISREG(info.st_mode):

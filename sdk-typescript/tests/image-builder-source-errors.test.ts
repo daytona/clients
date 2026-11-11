@@ -190,3 +190,21 @@ it('refuses a blank context path and an ImageBuilder passed as the context', asy
   await expect(images.buildFromContext(ImageBuilder.fromRegistry('alpine') as never)).rejects.toBeInstanceOf(BadRequestError)
   expect(requests).toEqual([])
 })
+
+posixNonRoot('refuses a source redirected by a symlink after it was added', async () => {
+  // Given a directory added to a builder, then replaced by a link elsewhere.
+  const fs = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const base = await fs.mkdtemp(join(tmpdir(), 'redirected-'))
+  try {
+    await fs.mkdir(join(base, 'secret'))
+    await fs.writeFile(join(base, 'secret', 'key'), 'k')
+    await fs.mkdir(join(base, 'project'))
+    const builder = ImageBuilder.fromRegistry('alpine').addLocalDir(join(base, 'project'), '/app')
+    await fs.rmdir(join(base, 'project'))
+    await fs.symlink(join(base, 'secret'), join(base, 'project'))
+    // When archived, then the redirected path is refused, not followed.
+    await expect(archiveBuilder(builder)).rejects.toThrow(/local source changed since it was added/)
+  } finally { await fs.rm(base, { recursive: true, force: true }) }
+})

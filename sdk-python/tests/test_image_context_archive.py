@@ -446,3 +446,17 @@ async def test_a_blank_path_like_context_is_refused() -> None:
     with pytest.raises(BadRequestError, match="build context path must be a non-empty string"):
         async with prepared_context(Blank(), "Dockerfile"):
             pass
+
+
+def test_a_source_redirected_by_a_symlink_after_it_was_added_is_refused(tmp_path: Path) -> None:
+    # Given a directory added to a builder, then replaced by a link elsewhere.
+    (tmp_path / "secret").mkdir()
+    (tmp_path / "secret" / "key").write_text("k")
+    project = tmp_path / "project"
+    project.mkdir()
+    builder = ImageBuilder.from_registry("alpine").add_local_dir(project, "/app")
+    project.rmdir()
+    project.symlink_to(tmp_path / "secret", target_is_directory=True)
+    # When archived, then the redirected path is refused, not followed.
+    with pytest.raises(BadRequestError, match="local source changed since it was added"):
+        write_builder_context(builder, tmp_path / "context.tar")

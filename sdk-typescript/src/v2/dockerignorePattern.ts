@@ -63,50 +63,48 @@ export function checkPattern(text: string, raw: string): void {
 
 /** Go's matchChunk: validates the whole chunk even after the match has failed. */
 function matchChunk(chunk: readonly string[], name: readonly string[], syntax: () => never): [string[], boolean] {
-  let rest = [...chunk]
-  let left = [...name]
+  // Indices, not slices: a long chunk is walked once (slicing per rune made
+  // this quadratic in the chunk's length).
+  let at = 0
+  let left = 0
   let failed = false
   const escaped = (): string => {
-    if (rest.length === 0 || rest[0] === '-' || rest[0] === ']') syntax()
-    if (rest[0] === '\\') rest = rest.slice(1)
-    if (rest.length < 2) syntax()
-    const ch = rest[0]
-    rest = rest.slice(1)
-    return ch
+    if (at >= chunk.length || chunk[at] === '-' || chunk[at] === ']') syntax()
+    if (chunk[at] === '\\') at++
+    if (chunk.length - at < 2) syntax()
+    return chunk[at++]
   }
-  while (rest.length > 0) {
-    failed = failed || left.length === 0
-    const ch = rest[0]
-    rest = rest.slice(1)
+  while (at < chunk.length) {
+    failed = failed || left >= name.length
+    const ch = chunk[at++]
     if (ch === '[') {
-      const rune: number = failed ? 0 : left[0].codePointAt(0) ?? 0
-      if (!failed) left = left.slice(1)
-      const negated = rest[0] === '^'
-      if (negated) rest = rest.slice(1)
+      const rune: number = failed ? 0 : name[left].codePointAt(0) ?? 0
+      if (!failed) left++
+      const negated = chunk[at] === '^'
+      if (negated) at++
       let count = 0
       let matched = false
       while (true) {
-        if (rest[0] === ']' && count > 0) { rest = rest.slice(1); break }
+        if (chunk[at] === ']' && count > 0) { at++; break }
         const lo = escaped().codePointAt(0) ?? 0
         let hi = lo
-        if (rest[0] === '-') { rest = rest.slice(1); hi = escaped().codePointAt(0) ?? 0 }
+        if (chunk[at] === '-') { at++; hi = escaped().codePointAt(0) ?? 0 }
         matched = matched || (lo <= rune && rune <= hi)
         count++
       }
       failed = failed || matched === negated
     } else if (ch === '?') {
-      if (!failed) { failed = left[0] === '/'; left = left.slice(1) }
+      if (!failed) { failed = name[left] === '/'; left++ }
     } else {
       let literal = ch
       if (ch === '\\') {
-        if (rest.length === 0) syntax()
-        literal = rest[0]
-        rest = rest.slice(1)
+        if (at >= chunk.length) syntax()
+        literal = chunk[at++]
       }
-      if (!failed) { failed = literal !== left[0]; left = left.slice(1) }
+      if (!failed) { failed = literal !== name[left]; left++ }
     }
   }
-  return [left, !failed]
+  return [name.slice(left), !failed]
 }
 
 function escapeLiteral(text: string): string {

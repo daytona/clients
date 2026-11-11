@@ -23,6 +23,9 @@ class LocalSource:
     path: Path
     kind: Literal["file", "dir"]
     archive_path: str
+    # Whether the declared path itself was a symbolic link: a path that was not
+    # one must not become one before the build (it would redirect the copy).
+    link: bool = False
 
 
 def expand_home(path: str) -> str:
@@ -98,4 +101,4 @@ def local_source(path: str | os.PathLike[str], kind: Literal["file", "dir"], ind
             "BAD_REQUEST",
             "SDK",
         )
-    return LocalSource(path=absolute, kind=kind, archive_path=archive_path)
+    return LocalSource(path=absolute, kind=kind, archive_path=archive_path, link=os.path.islink(absolute))

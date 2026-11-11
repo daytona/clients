@@ -89,6 +89,12 @@ export async function archiveBuilder(builder: ImageBuilder): Promise<Archive> {
       }
       throw error
     }
+    // A path that was not a link when it was added and is one now has been
+    // redirected: refused, so a swap between declaration and build cannot pull
+    // in another tree (as Python refuses it).
+    if (!source.link && (await fs.lstat(source.localPath).then((stats) => stats.isSymbolicLink(), () => false))) {
+      throw badRequest(`local source changed since it was added: ${JSON.stringify(source.localPath)}`)
+    }
     switch (source.kind) {
       case 'file':
         if (!info.isFile()) throw badRequest(`local source is not a regular file: ${JSON.stringify(source.localPath)}`)

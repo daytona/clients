@@ -100,9 +100,13 @@ def translate_class(source: str, start: int) -> tuple[str, int]:
     negated = source.startswith("^", index)
     index += int(negated)
     items: list[_Range | _AsciiSet | _UnicodeCategory] = []
+    # Once no `:]` follows, none follows any later item either: remembered, so
+    # a long run of `[:` items is scanned once, not once per item.
+    no_close = False
     while index < len(source) and (source[index] != "]" or not items):
-        if source.startswith("[:", index):
+        if not no_close and source.startswith("[:", index):
             end = source.find(":]", index + 2)
+            no_close = end < 0
             if end >= 0:
                 name = source[index + 2 : end]
                 ranges = _POSIX.get(name.removeprefix("^"))

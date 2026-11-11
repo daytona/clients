@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -380,3 +381,12 @@ def test_matcher_refuses_what_go_refuses(case: dict[str, str]) -> None:
     with pytest.raises(BadRequestError) as raised:
         Matcher(read_patterns(case["ignore"]))
     assert str(raised.value) == case["error"]
+
+
+def test_a_long_run_of_posix_class_openers_compiles_in_linear_time() -> None:
+    # `[` followed by many `[:` with no `:]` used to be scanned once per item.
+    pattern = "[" + "[:" * 30000 + "]"
+    started = perf_counter()
+    with contextlib.suppress(BadRequestError, PatternError):
+        Matcher((pattern,)).excluded("x")
+    assert perf_counter() - started < 2

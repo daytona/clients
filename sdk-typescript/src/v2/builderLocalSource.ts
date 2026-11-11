@@ -14,6 +14,8 @@ export type LocalSource = {
   readonly localPath: string
   readonly kind: 'file' | 'dir'
   readonly archivePath: string
+  /** Whether the declared path itself was a symbolic link (see contextArchive). */
+  readonly link: boolean
 }
 
 /** @internal */
@@ -66,5 +68,6 @@ export function localSource(localPath: string, kind: LocalSource['kind'], positi
   // COPY sources go through BuildKit's shell-word lexer (variables, quotes)
   // and glob matching, even in JSON form.
   const filename = /[\x00-\x1f\x7f-\x9f$\\*?\[\]'"]/.test(basename) ? 'file' : basename
-  return Object.freeze({ localPath: absolute, kind, archivePath: kind === 'file' ? `${archiveRoot}/${filename}` : archiveRoot })
+  const link = fs.lstatSync(absolute, { throwIfNoEntry: false })?.isSymbolicLink() ?? false
+  return Object.freeze({ localPath: absolute, kind, archivePath: kind === 'file' ? `${archiveRoot}/${filename}` : archiveRoot, link })
 }

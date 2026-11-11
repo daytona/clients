@@ -54,9 +54,13 @@ export function translateClass(source: string, start: number, pattern: string): 
   const negated = source[index] === '^'
   if (negated) index++
   const items: Item[] = []
+  // Once no `:]` follows, none follows any later item either: remembered, so a
+  // long run of `[:` items is scanned once, not once per item.
+  let noClose = false
   while (index < source.length && (source[index] !== ']' || items.length === 0)) {
-    if (source.startsWith('[:', index)) {
+    if (!noClose && source.startsWith('[:', index)) {
       const end = source.indexOf(':]', index + 2)
+      if (end === -1) noClose = true
       if (end !== -1) {
         const name = source.slice(index + 2, end)
         const ranges = Object.entries(POSIX).find(([key]) => key === name.replace(/^\^/, ''))?.[1]
