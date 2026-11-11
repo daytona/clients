@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unicode/utf8"
 )
 
 // maxWebSocketFrame bounds a single inbound frame: PTY output arrives in
@@ -39,12 +40,14 @@ func (e *WebSocketCloseError) Error() string {
 }
 
 // closeFrameError reads a close frame's payload: nil for a normal closure (no
-// status, or 1000), else a *WebSocketCloseError.
+// status, or 1000 with a valid reason), else a *WebSocketCloseError. A close
+// frame cut short, or whose reason is not UTF-8, is malformed (RFC 6455
+// section 7.1.6), whatever its status.
 func closeFrameError(payload []byte) error {
 	if len(payload) == 0 {
 		return nil
 	}
-	if len(payload) < 2 {
+	if len(payload) < 2 || !utf8.Valid(payload[2:]) {
 		return &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}
 	}
 	code := int(binary.BigEndian.Uint16(payload[:2]))
@@ -57,7 +60,7 @@ func closeFrameError(payload []byte) error {
 			return r
 		}
 		return -1
-	}, strings.ToValidUTF8(string(payload[2:]), ""))
+	}, string(payload[2:]))
 	return &WebSocketCloseError{Code: code, Reason: reason}
 }
 

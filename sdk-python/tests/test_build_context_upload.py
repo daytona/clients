@@ -348,6 +348,27 @@ async def test_a_part_that_stops_moving_fails_with_client_timeout_after_its_retr
 
 
 @pytest.mark.anyio
+async def test_a_stalled_archive_read_fails_the_part_as_a_client_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given an archive whose read stops producing bytes (a hung network file
+    # system), which httpx's socket timeouts do not see.
+    async def stalled(self: _context_upload._Source, offset: int, length: int) -> AsyncIterator[bytes]:
+        await anyio.sleep(3600)
+        yield b""
+
+    monkeypatch.setattr(_context_upload._Source, "chunks", stalled)
+    with storage_peer() as peer:
+        # When the context is built with a 0.2 s request timeout, every
+        # attempt stalls and the last one fails as the client's timeout.
+        started = time.monotonic()
+        with pytest.raises(ClientTimeoutError, match="build context part 1 made no progress for 0.2 s"):
+            await build(peer, archive(), False, request_timeout=0.2)
+        assert time.monotonic() - started < 10
+        assert peer.bodies("POST", "/build-contexts/") == []
+
+
+@pytest.mark.anyio
 async def test_a_file_that_shrinks_during_the_upload_is_refused(tmp_path: Path) -> None:
     # Given a context file truncated after it was declared.
     path = tmp_path / "ctx.tar"

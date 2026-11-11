@@ -43,11 +43,11 @@ func TestSSHExitError_signalDeathAndPassthrough(t *testing.T) {
 func TestRunSSHCommand_aBackgroundedChildHoldingStderrIsNotAFailure(t *testing.T) {
 	var stderr bytes.Buffer
 	started := time.Now()
-	err := runSSHCommand(t.Context(), "/bin/sh", []string{"-c", "echo up >&2; sleep 5 & exit 0"}, &stderr)
+	err := runSSHCommand(t.Context(), "/bin/sh", []string{"-c", "echo up >&2; sleep 5 >/dev/null & exit 0"}, &stderr)
 	require.NoError(t, err)
 	require.Less(t, time.Since(started), 4*time.Second)
 	require.Equal(t, "up\n", stderr.String())
 
-	err = sshExitError(t.Context(), runSSHCommand(t.Context(), "/bin/sh", []string{"-c", "sleep 5 & exit 3"}, io.Discard))
+	err = sshExitError(t.Context(), runSSHCommand(t.Context(), "/bin/sh", []string{"-c", "sleep 5 >/dev/null & exit 3"}, io.Discard))
 	require.Equal(t, 3, cerr.ExitCode(err))
 }

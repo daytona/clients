@@ -40,7 +40,7 @@ const COMPLETE_ATTEMPTS = 3
  */
 export const contextUploadRuntime = {
   isNode,
-  streamsParts,
+  streamsParts: (): boolean => streamsParts(),
   fetch: (input: string, init: RequestInit): Promise<Response> => globalThis.fetch(input, init),
   sleep: (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms)),
   // The API reads the whole stored archive back (up to 1 GiB) before it answers.
@@ -49,14 +49,18 @@ export const contextUploadRuntime = {
 
 /**
  * Whether a part is sent as a stream of exactly its length: Node.js itself.
- * Bun and Deno, which also report `process.versions.node`, may send a stream
- * without its length, which a presigned PUT refuses, so an in-memory part
- * goes whole there, as in a browser.
+ * Bun and Deno, which also report `process.versions.node` (and Bun a
+ * `process.release.name` of `node`), may send a stream without its length,
+ * which a presigned PUT refuses, so an in-memory part goes whole there, as in
+ * a browser.
+ * @internal
  */
-function streamsParts(): boolean {
-  // SAFETY: every member is optional, and the result is only compared to a string.
-  return (globalThis as { process?: { release?: { name?: unknown } } }).process?.release?.name === 'node'
+export function streamsParts(runtime: RuntimeGlobals = globalThis as RuntimeGlobals): boolean {
+  return typeof runtime.process?.versions?.node === 'string' && runtime.process.versions.bun === undefined && runtime.Deno === undefined
 }
+
+/** The runtime globals {@link streamsParts} reads; every member is optional. */
+type RuntimeGlobals = { readonly process?: { readonly versions?: { readonly node?: unknown; readonly bun?: unknown } }; readonly Deno?: unknown }
 
 function isNode(): boolean {
   // SAFETY: every member is optional, and the result is only compared to a string.

@@ -249,6 +249,25 @@ def _text(payload: Mapping[str, object], key: str) -> str:
     return value
 
 
+class _PartStalled(Exception):
+    """Reading a part's next piece made no progress for the idle bound."""
+
+
+async def _paced(pieces: AsyncIterator[bytes], idle_seconds: float) -> AsyncIterator[bytes]:
+    """``pieces``, each one awaited for at most ``idle_seconds`` (``0``: no
+    bound): httpx's timeouts bound the socket, not reading the archive, so a
+    stalled read (a hung network file system) is bounded here."""
+    while True:
+        with anyio.move_on_after(idle_seconds or None) as scope:
+            try:
+                piece = await pieces.__anext__()
+            except StopAsyncIteration:
+                return
+        if scope.cancelled_caught:
+            raise _PartStalled
+        yield piece
+
+
 def _changed_while_uploading() -> BadRequestError:
     return BadRequestError(
         "build context changed while it was being uploaded",
@@ -264,9 +283,10 @@ async def _put_part(
     """PUT one part, up to ``_PART_ATTEMPTS`` times.
 
     An attempt fails once no bytes move for ``idle_seconds`` (``0``: never):
-    connecting, every piece written and the wait for storage's answer each have
-    that bound (the client's per-phase timeouts), so a large part on a slow
-    link is never cut while it moves.
+    connecting, reading and writing every piece, and the wait for storage's
+    answer each have that bound (the client's per-phase timeouts, and
+    :func:`_paced` for reading the archive), so a large part on a slow link is
+    never cut while it moves.
     """
     status: Optional[int] = None
     stalled = False
@@ -280,15 +300,15 @@ async def _put_part(
                 client.build_request(
                     "PUT",
                     part.url,
-                    content=source.chunks(offset, part.bytes),
+                    content=_paced(source.chunks(offset, part.bytes), idle_seconds),
                     headers={"Content-Length": str(part.bytes)},
                 ),
                 stream=True,
             )
             await response.aclose()
-        except httpx.HTTPError as error:
+        except (httpx.HTTPError, _PartStalled) as error:
             # The exception text names the URL, so it is not chained.
-            stalled = isinstance(error, httpx.TimeoutException)
+            stalled = isinstance(error, (httpx.TimeoutException, _PartStalled))
             status = None
         else:
             status = response.status_code

@@ -543,8 +543,9 @@ skipping exist only in the TypeScript tool).
   retried, and the last stalled attempt is `ClientTimeoutError`; each part
   is sent in 64 KiB pieces (Python httpx per-phase timeouts in
   `_context_upload.py`, TypeScript an `IdleWatchdog` over a streamed body in
-  `contextUpload.ts`), except an in-memory part outside Node.js (a browser,
-  Bun, Deno), which is sent whole and has no idle bound. The CLI bounds a
+  `contextUpload.ts`); the one exception is a TypeScript in-memory part in a
+  browser, Bun or Deno, which is sent whole and has no idle bound (Python
+  pieces every part, and also bounds reading the archive). The CLI bounds a
   part the same way, at 60 s.
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,

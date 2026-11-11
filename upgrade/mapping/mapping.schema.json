@@ -15,6 +15,7 @@
     "config",
     "cloudApiUrls",
     "dataTraps",
+    "dockerfileImage",
     "receivers",
     "suggestions",
     "v0Exports"

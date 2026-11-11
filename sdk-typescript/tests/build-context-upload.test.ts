@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import { ImagesService } from '../src/v2/Images.js'
 import { createHttpClient } from '../src/v2/http.js'
 import { INTERNAL } from '../src/v2/internal.js'
-import { contextUploadRuntime } from '../src/v2/contextUpload.js'
+import { contextUploadRuntime, streamsParts } from '../src/v2/contextUpload.js'
 import { Sha256 } from '../src/v2/sha256.js'
 import { imageWire } from './artifactFixtures.js'
 import { BadRequestError, ConflictError, ConnectionError, DaytonaError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
@@ -607,6 +607,16 @@ it.each([
   } finally {
     contextUploadRuntime.fetch = original
   }
+})
+
+it.each([
+  ['Node.js', { process: { versions: { node: '22.0.0' }, release: { name: 'node' } } }, true],
+  ['Bun', { process: { versions: { node: '24.3.0', bun: '1.3.0' }, release: { name: 'node' } } }, false],
+  ['Deno', { process: { versions: { node: '22.0.0' }, release: { name: 'node' } }, Deno: {} }, false],
+  ['a browser', {}, false],
+])('streams an in-memory part only in Node.js itself: %s', (_runtime, globals, expected) => {
+  // Given the runtime globals each one reports.
+  expect(streamsParts(globals)).toBe(expected)
 })
 
 it('hashes incrementally to the same digest as node:crypto', () => {

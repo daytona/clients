@@ -7,16 +7,16 @@ import { expect, it } from 'vitest';
 import type { Report } from '../src/model.js';
 import { invoke, temporaryProject } from './helpers.js';
 
-function project(source: string): string {
+function project(source: string, dependency = '"@daytonaio/sdk":"^0.231.1"'): string {
   return temporaryProject({
-    'package.json': '{"type":"module","dependencies":{"@daytonaio/sdk":"^0.231.1"}}',
+    'package.json': `{"type":"module","dependencies":{${dependency}}}`,
     'tsconfig.json': '{"compilerOptions":{"strict":true,"module":"NodeNext","moduleResolution":"NodeNext"}}',
     'app.ts': source,
   });
 }
 
-async function suggestions(source: string): Promise<readonly { readonly id: string; readonly v2: string | null; readonly notes: readonly string[] }[]> {
-  const result = await invoke(project(source), ['--suggest-v2', '--json']);
+async function suggestions(source: string, dependency?: string): Promise<readonly { readonly id: string; readonly v2: string | null; readonly notes: readonly string[] }[]> {
+  const result = await invoke(project(source, dependency), ['--suggest-v2', '--json']);
   expect(result.code, result.errors).toBe(0);
   const report: Report = JSON.parse(result.output);
   return report.items.flatMap(item => item.suggestion && !item.suggestion.id.startsWith('workflow:') ? [item.suggestion] : []);
@@ -68,7 +68,7 @@ it('proves the Dockerfile image after the default pass moved it to the v0 module
 import { Image as V0Image } from '@daytona/sdk/v0';
 const client = new Daytona();
 await client.v0.snapshot.create({ name: 'web', image: V0Image.fromDockerfile('Dockerfile') });
-`);
+`, '"@daytona/sdk":"^2.0.0"');
   // Then the build-context form is suggested.
   expect(found.map(({ v2 }) => v2)).toEqual(['client.v2.images.buildFromContext(context, { dockerfile, name, region })']);
 });

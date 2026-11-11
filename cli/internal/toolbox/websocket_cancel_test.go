@@ -127,6 +127,7 @@ func TestWebSocketReadMessage_onlyANormalCloseIsAnEndOfStream(t *testing.T) {
 		{"policy close", append([]byte{0x03, 0xF0}, "cursor expired\x1b[2J"...), &WebSocketCloseError{Code: 1008, Reason: "cursor expired[2J"}},
 		{"going away", []byte{0x03, 0xE9}, &WebSocketCloseError{Code: 1001}},
 		{"truncated status", []byte{0x03}, &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}},
+		{"normal closure with an invalid UTF-8 reason", []byte{0x03, 0xE8, 0xff, 0xfe}, &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given a server that closes with this payload.

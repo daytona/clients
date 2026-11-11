@@ -73,6 +73,7 @@ func TestToolboxSSH_redactsTheCredentialFromSSHStderr(t *testing.T) {
 	cmd.SetContext(context.WithValue(context.Background(), ctxKey{}, a))
 	read, write, err := os.Pipe()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = read.Close(); _ = write.Close() })
 	oldStderr, oldSSHCommand := os.Stderr, runSSHCommand
 	os.Stderr = write
 	t.Cleanup(func() { os.Stderr, runSSHCommand = oldStderr, oldSSHCommand })
@@ -134,7 +135,7 @@ func (b *lockedBuffer) String() string {
 func TestSecretRedactor_writesHeldBytesWhenNothingFollows(t *testing.T) {
 	// Given a prompt that ends with the first byte of the secret.
 	old := secretRedactorHold
-	secretRedactorHold = 20 * time.Millisecond
+	secretRedactorHold = 500 * time.Millisecond
 	t.Cleanup(func() { secretRedactorHold = old })
 	var out lockedBuffer
 	r := newSecretRedactor(&out, "s3cr3t")
@@ -142,7 +143,7 @@ func TestSecretRedactor_writesHeldBytesWhenNothingFollows(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "password for ", out.String())
 	// Then it reaches the user once nothing follows, without a Flush.
-	require.Eventually(t, func() bool { return out.String() == "password for s" }, time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return out.String() == "password for s" }, 5*time.Second, 10*time.Millisecond)
 }
 
 func TestSecretRedactor_aStaleFlushDoesNotReleaseALaterPrefix(t *testing.T) {

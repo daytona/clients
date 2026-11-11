@@ -116,7 +116,11 @@ test('the Dockerfile-image forms name the 0.x call they replace', () => {
       // Then: each builds from a context and its notes name the 0.x call.
       assert.match(entry.dockerfileImage.v2[language], language === 'py' ? /\.build_from_context\(/ : /\.buildFromContext\(/);
       assert.ok(entry.dockerfileImage.notes[language].some((note) => note.includes(`${type}.${method}(path)`)));
-      assert.ok(guide.includes(`with \`${type}.${method}(...)\``));
+      // And: the guide's row for this call and language shows that form.
+      const receiver = entry.receiver === 'client' ? 'client' : 'client.snapshot';
+      const row = guide.split('\n').find((line) => line.startsWith(`| \`${receiver}.${entry.v0[language]}(...)\` with \`${type}.${method}(...)\``));
+      assert.ok(row, `${entry.id} ${language}: no guide row`);
+      assert.ok(row.includes(entry.dockerfileImage.v2[language].replace(/\?/g, '')), `${entry.id} ${language}: guide row lacks the form`);
     }
   }
 });
