@@ -61,8 +61,12 @@ export function parseMapping(value: unknown): Mapping {
       v0: { ts: tsName(entry['v0']) }, v2: { ts: tsName(entry['v2']) },
       // A language without a v2 form has no equivalent there.
       category: tsName(entry['v2']) === null ? 'none' : category(entry['category']), notes: { ts: strings(object(entry['notes'])['ts']) },
-      anchor: string(entry['anchor']), startsWorkflow: entry['startsWorkflow'] === true };
+      anchor: string(entry['anchor']), startsWorkflow: entry['startsWorkflow'] === true,
+      ...(entry['dockerfileImage'] === undefined ? {} : { dockerfileImage: {
+        v2: { ts: tsName(object(entry['dockerfileImage'])['v2']) },
+        notes: { ts: strings(object(object(entry['dockerfileImage'])['notes'])['ts']) } } }) };
   });
+  const dockerfileImage = data['dockerfileImage'] === undefined ? undefined : ts(data['dockerfileImage']);
   return {
     docs: { base: string(docs['base']), placeholder: docs['placeholder'] === true },
     v0Version: string(data['v0Version']),
@@ -80,6 +84,8 @@ export function parseMapping(value: unknown): Mapping {
       return { id: string(trap['id']), text: string(trap['text']),
         ...(trap['short'] === undefined ? {} : { short: string(trap['short']) }) };
     }),
+    ...(dockerfileImage === undefined ? {} : { dockerfileImage: { ts: {
+      type: string(dockerfileImage['type']), method: string(dockerfileImage['method']), parameter: string(dockerfileImage['parameter']) } } }),
   };
 }
 export function loadMapping(): Mapping {

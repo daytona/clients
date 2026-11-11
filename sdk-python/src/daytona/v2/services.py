@@ -222,8 +222,11 @@ class AsyncImagesService:
         archive is uploaded straight to storage in parts and verified by the
         API before the build starts; an identical archive the project already
         uploaded is reused without uploading it again. The other arguments
-        are those of :meth:`build`. Returns as soon as the build is submitted;
-        wait with :meth:`get` (``wait="ready"``).
+        are those of :meth:`build`. ``timeout`` bounds the build request that
+        follows the upload, in seconds, replacing the client's request timeout
+        for it; ``0``, or a value above about 24.8 days, is no limit. The
+        upload keeps its own bounds. Returns as soon as the build is
+        submitted; wait with :meth:`get` (``wait="ready"``).
         """
         # Checked before the upload: the API refuses the pair only at the build.
         if name is not None and idle_expiry_seconds is not None:
@@ -250,7 +253,7 @@ class AsyncImagesService:
                     "POST",
                     "/images",
                     json_body=body,
-                    timeout=request_timeout or None,
+                    timeout=request_timeout,
                 )
             )
         )

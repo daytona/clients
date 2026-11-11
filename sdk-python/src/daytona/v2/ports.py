@@ -134,6 +134,15 @@ class AsyncPortsService:
         return ListResult(items=list(payload.ports))
 
     async def is_in_use(self, port: int, /) -> bool:
+        """Whether ``port`` currently has a listener.
+
+        A port outside 1–65535 is refused with
+        :class:`~daytona.v2.errors.BadRequestError` before
+        any request. The sandbox answers only for ports 3000–9999 and refuses
+        any other with ``BAD_REQUEST``, so a port such as 80 raises rather than
+        returning a ``False`` that reads like "nothing is listening there".
+        """
+        _assert_port(port)
         payload = expect_is_port_in_use_response(
             await self._require_toolbox().send(RequestSpec("GET", f"/port/{_port_segment(port)}/in-use"))
         )

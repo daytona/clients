@@ -52,14 +52,18 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const notes = mapping.suggestions.flatMap((entry) => ['py', 'ts'].flatMap((language) =>
+  // A row's form for a 0.x Dockerfile image is checked like any other form.
+  const rows = mapping.suggestions.flatMap((entry) => entry.dockerfileImage === undefined ? [entry] : [entry, {
+    ...entry, id: `${entry.id} (dockerfile image)`, v2: entry.dockerfileImage.v2, notes: entry.dockerfileImage.notes,
+  }]);
+  const notes = rows.flatMap((entry) => ['py', 'ts'].flatMap((language) =>
     noteForms(entry, language).map((form, index) => ({
       ...entry, id: `${entry.id} notes.${language}[${index}]`,
       v2: { py: null, ts: null, [language]: form },
     }))));
   // A form with optional arguments is checked both ways: every argument
   // passed (by its v0 name) and every one left out.
-  const forms = mapping.suggestions.flatMap((entry) => {
+  const forms = rows.flatMap((entry) => {
     const optional = ['py', 'ts'].filter((lang) => entry.v2[lang] !== null && hasOptionalArguments(entry.v2[lang]));
     if (optional.length === 0) return [entry];
     const variant = (render) => Object.fromEntries(['py', 'ts'].map((lang) => [lang, entry.v2[lang] === null ? null : render(entry.v2[lang], lang)]));

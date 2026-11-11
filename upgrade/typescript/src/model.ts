@@ -19,6 +19,8 @@ export type Suggestion = {
   readonly category: Category;
   readonly notes: { readonly ts: readonly string[] };
   readonly anchor: string; readonly startsWorkflow: boolean;
+  /** The form and notes for a call whose image parameter provably is a 0.x Dockerfile image. */
+  readonly dockerfileImage?: { readonly v2: { readonly ts: string | null }; readonly notes: { readonly ts: readonly string[] } };
 };
 export type Mapping = {
   readonly docs: { readonly base: string; readonly placeholder: boolean };
@@ -36,6 +38,8 @@ export type Mapping = {
   readonly receivers: Readonly<Record<string, Receiver>>;
   readonly suggestions: readonly Suggestion[];
   readonly dataTraps: readonly { readonly id: string; readonly text: string; readonly short?: string }[];
+  /** The 0.x static call that builds an image from a Dockerfile, and the create parameter that takes it. */
+  readonly dockerfileImage?: { readonly ts: { readonly type: string; readonly method: string; readonly parameter: string } };
 };
 export type SuggestionReport = {
   readonly id: string; readonly receiver: string; readonly v0: string;

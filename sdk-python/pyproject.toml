@@ -109,8 +109,10 @@ files = ["src/daytona"]
 # The bundled v0 SDK (publish-time copy, never committed) is typed by its own
 # project, not by this gate.
 exclude = ["src/daytona/v0/"]
-# Existing default-code findings need a separate source-fix migration; this gate adds the Any policies.
-disable_error_code = ["arg-type", "assignment", "return-value", "union-attr"]
+# Existing arg-type / assignment / return-value findings need a separate
+# source-fix migration; this gate adds the Any policies. union-attr is on:
+# a member read on an Optional (or other union) value must be narrowed first.
+disable_error_code = ["arg-type", "assignment", "return-value"]
 warn_return_any = true
 disallow_any_explicit = true
 

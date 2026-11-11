@@ -18,6 +18,7 @@ from .call_sites import Call as Call
 from .call_sites import record_arguments, record_factory_reference
 from .class_field_mutations import record_class_mutations
 from .classflow import class_bindings
+from .dockerfile_images import passes_dockerfile_image
 from .field_effects import apply_effects, escape_fields, precise_write_arguments
 from .field_safety import class_mutations
 from .importflow import ImportVisitor
@@ -44,6 +45,14 @@ class Flow(ImportVisitor):
         super().__init__()
         self.resolver = resolver
         self.context = context
+        # The calls that may take a 0.x Dockerfile image, by receiver kind and
+        # method, with the 0.x parameters class that carries it.
+        self.dockerfile_parameters = {
+            (suggestion.receiver, suggestion.method): suggestion.dockerfile_parameters
+            for suggestion in resolver.mapping.suggestions
+            if suggestion.dockerfile_parameters is not None
+            and suggestion.method is not None
+        }
         self.env: dict[str, str] = {
             key: value
             for key, value in context.index.exports.get(context.module, {}).items()
@@ -204,15 +213,26 @@ class Flow(ImportVisitor):
         )
         member_writes = member_write_effects(node, self)
         if not self.previewing_loop and isinstance(node.func, ast.Attribute):
+            kind = receiver_kind(node.func, self)
+            parameters = self.dockerfile_parameters.get(
+                (kind.removesuffix(".v0"), node.func.attr)
+            )
             self.calls.append(
                 Call(
                     node,
-                    receiver_kind(node.func, self),
+                    kind,
                     self.text.segment(node.func.value) or "",
                     node.func.attr,
                     self.statement,
                     self.binding,
                     self.scope,
+                    parameters is not None
+                    and passes_dockerfile_image(
+                        node,
+                        parameters,
+                        self.resolver.mapping,
+                        lambda value: self.resolver.infer(value, self.env),
+                    ),
                 )
             )
         for argument in node.args:

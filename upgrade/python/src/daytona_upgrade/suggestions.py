@@ -91,10 +91,15 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             continue
         emitted.add(key)
         client, sandbox = (single_line(value) for value in receivers(call, owners))
+        # A 0.x Dockerfile image needs its build context: the row's own form for it.
+        dockerfile = call.dockerfile_image and entry.dockerfile_form is not None
+        entry_form = entry.dockerfile_form if dockerfile else entry.form
+        entry_notes = (entry.dockerfile_notes or ()) if dockerfile else entry.notes
+        category = "differs" if dockerfile else entry.category
         form = (
             owners.render(
                 render_optional_arguments(
-                    entry.form,
+                    entry_form,
                     lambda name, position, node=call.node: _single(
                         call_argument(node, name, position, flow.text.segment)
                     ),
@@ -103,14 +108,14 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             )
             .replace("{client}", client)
             .replace("{sandbox}", sandbox)
-            if entry.form
+            if entry_form
             else None
         )
         notes = [
             owners.render(note, call)
             .replace("{client}", client)
             .replace("{sandbox}", sandbox)
-            for note in entry.notes
+            for note in entry_notes
         ]
         docs = mapping.docs + "#" + entry.anchor
         manual_client = (
@@ -140,9 +145,9 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             if manual
             else "daytona-v2: " + (form or "none: No v2 equivalent")
         )
-        if entry.category != "direct":
+        if category != "direct":
             block.extend(
-                f"daytona-v2:   {'none' if entry.category == 'none' else 'differs'}: {note}"
+                f"daytona-v2:   {'none' if category == 'none' else 'differs'}: {note}"
                 for note in notes
             )
         block.append("daytona-v2:   docs: " + docs)
@@ -151,7 +156,7 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             "receiver": entry.receiver,
             "v0": call.receiver + "." + call.method,
             "v2": form,
-            "category": entry.category,
+            "category": category,
             "notes": notes,
             "docs": docs,
         }

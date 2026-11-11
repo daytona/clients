@@ -169,7 +169,9 @@ uploaded. Before any request, a directory context must contain the selected
 Dockerfile (`Dockerfile` by default, or `--dockerfile` inside the context).
 Plain tar contexts are checked for that entry too; compressed or unrecognized
 archives are checked by the server. A `--context` tar file is uploaded as is,
-and `sandbox cp` never filters. `image create --ref` refuses empty or blank
+and `sandbox cp` never filters. A large context is uploaded in parts; a part
+has no time limit while it keeps moving, and is retried, then fails (exit 8),
+once no bytes move for 60 seconds. `image create --ref` refuses empty or blank
 references locally.
 
 `daytona image logs <id-or-name>` accepts an image name or id. Without
@@ -186,7 +188,11 @@ continues. `--execution-timeout DURATION` sets the remote execution deadline
 Ctrl-C or SIGTERM instead forwards INT to the process, escalating to KILL
 after one second, best effort. `--tty` requires terminal stdin and stdout,
 replays output from startup, defaults an unavailable or zero terminal size to
-80×24, and forwards terminal resizes on Unix.
+80×24, and forwards terminal resizes on Unix. A `--tty` session or `process
+attach` ends normally when the sandbox closes it normally and then reports the
+process's exit; when the sandbox closes it for another reason (an expired
+replay position, a client too slow to keep up), the CLI fails with that reason
+(exit 1).
 
 `sandbox ssh [CLI FLAGS] <id> [SSH OPTIONS] [-- COMMAND [ARGS...]]` applies CLI
 flags only before the sandbox id; arguments after it are forwarded to OpenSSH.
@@ -196,7 +202,11 @@ a prompt; subsequent key changes are refused. This is trust on first use:
 an attacker intercepting the first connection could supply the trusted key.
 SSH options you forward after the sandbox id (for example
 `-o StrictHostKeyChecking=no` or `-o UserKnownHostsFile=…`) override this
-policy.
+policy. The gateway login carries your credential, so the CLI replaces it with
+`<redacted>` wherever `ssh` prints it on stderr (an authentication failure,
+`-v` output). Standard output is passed through byte for byte and is not
+redacted: `-G`, which prints the resolved configuration there, includes the
+credential in its `user` line, so do not log that output.
 
 ### macOS sandboxes
 

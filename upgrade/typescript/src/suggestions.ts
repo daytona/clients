@@ -18,6 +18,7 @@ import { objectIdentity } from './object-identity.js';
 import { suggestionCommentEdits } from './comment-tokens.js';
 import { errorImportSuggestions } from './error-import-suggestions.js';
 import { renderOptionalArguments, withNamedArguments } from './optional-arguments.js';
+import { passesDockerfileImage } from './dockerfile-image.js';
 
 function referencesBinding(node: Node, binding: Node, seen: Set<Node> = new Set()): boolean {
   const value = unwrap(node);
@@ -193,9 +194,12 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
       const serviceForm = !ownerSandbox && servicePath.length ? filled.replaceAll(`{sandbox}.${servicePath.join('.')}`, receiver) : filled;
       return displayText(serviceForm.replaceAll('{client}', client).replaceAll('{sandbox}', sandbox));
     };
+    // A 0.x Dockerfile image needs its build context: the row's own form for it.
+    const variant = entry.dockerfileImage !== undefined && passesDockerfileImage(call, mapping) ? entry.dockerfileImage : undefined;
+    const form = variant?.v2.ts ?? entry.v2.ts;
     const suggestion: SuggestionReport = { id: entry.id, receiver: entry.receiver, v0: displayText(access.getText()),
-      v2: entry.v2.ts === null ? null : substitute(entry.v2.ts), category: entry.category,
-      notes: entry.notes.ts.map(substitute), docs: `${mapping.docs.base}#${entry.anchor}` };
+      v2: form === null ? null : substitute(form), category: variant === undefined ? entry.category : 'differs',
+      notes: (variant?.notes.ts ?? entry.notes.ts).map(substitute), docs: `${mapping.docs.base}#${entry.anchor}` };
     found.push({ call, suggestion, startsWorkflow: entry.startsWorkflow });
     const owner = statement(call);
     const ids = blockIds.get(owner) ?? new Set<string>();

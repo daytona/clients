@@ -11,7 +11,9 @@
 
 import type { AxiosInstance } from 'axios'
 import { pathSegment } from './pathSegment.js'
-import { badRequest } from './options.js'
+import { badRequest, boundedTimerDelay } from './options.js'
+import { IdleWatchdog } from './bodyLimit.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from './http.js'
 import { binaryBytes, isArrayBuffer } from './filesystemInputs.js'
 import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
@@ -22,7 +24,9 @@ export type BuildContext = Uint8Array | ArrayBuffer | ArrayBufferView | Blob | s
 
 export const MAX_CONTEXT_BYTES = 1024 * 1024 * 1024
 const HASH_CHUNK = 8 * 1024 * 1024
-const PART_CHUNK = 1024 * 1024
+// A Node.js part body is streamed in pieces this size, so each piece sent is
+// progress the no-progress limit sees, even on a slow link.
+const PROGRESS_CHUNK = 64 * 1024
 const PART_ATTEMPTS = 3
 // Parts in flight at once. Each streams its bytes, so memory stays a few
 // chunks whatever the part size.
@@ -30,16 +34,33 @@ const PART_CONCURRENCY = 4
 const COMPLETE_ATTEMPTS = 3
 
 /**
- * Test seams: the storage client, the pause between attempts, the complete timeout, and the runtime check.
+ * Test seams: the storage client, the pause between attempts, the complete
+ * timeout, and the runtime checks.
  * @internal
  */
 export const contextUploadRuntime = {
   isNode,
+  streamsParts: (): boolean => streamsParts(),
   fetch: (input: string, init: RequestInit): Promise<Response> => globalThis.fetch(input, init),
   sleep: (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms)),
   // The API reads the whole stored archive back (up to 1 GiB) before it answers.
   completeTimeoutMs: 10 * 60 * 1000,
 }
+
+/**
+ * Whether a part is sent as a stream of exactly its length: Node.js itself.
+ * Bun and Deno, which also report `process.versions.node` (and Bun a
+ * `process.release.name` of `node`), may send a stream without its length,
+ * which a presigned PUT refuses, so an in-memory part goes whole there, as in
+ * a browser.
+ * @internal
+ */
+export function streamsParts(runtime: RuntimeGlobals = globalThis as RuntimeGlobals): boolean {
+  return typeof runtime.process?.versions?.node === 'string' && runtime.process.versions.bun === undefined && runtime.Deno === undefined
+}
+
+/** The runtime globals {@link streamsParts} reads; every member is optional. */
+type RuntimeGlobals = { readonly process?: { readonly versions?: { readonly node?: unknown; readonly bun?: unknown } }; readonly Deno?: unknown }
 
 function isNode(): boolean {
   // SAFETY: every member is optional, and the result is only compared to a string.
@@ -52,19 +73,35 @@ interface NodeFileHandle {
   close(): Promise<void>
 }
 
-/** A part's request body: a view, a lazy `Blob` slice, or a stream of exactly its length. */
-type PartBody = Uint8Array<ArrayBuffer> | Blob | ReadableStream<Uint8Array>
-
 /**
  * The archive, read by offset: a `Blob` slice, or (Node.js) a file handle.
- * A part body is created per attempt and never holds a whole part in memory.
+ * A part body is created per attempt and never holds a whole part in memory:
+ * in Node.js a stream over `read`, elsewhere (no streamed request bodies) the
+ * in-memory source's `part`, a view or a lazy `Blob` slice.
  */
 interface ContextSource {
   readonly size: number
   read(offset: number, length: number): Promise<Uint8Array>
-  part(offset: number, length: number): PartBody
+  part?(offset: number, length: number): Uint8Array<ArrayBuffer> | Blob
   changed(): Promise<boolean>
   close(): Promise<void>
+}
+
+/** A stream of exactly `length` bytes from `offset`; `progress` runs before each piece is read. */
+function partStream(source: ContextSource, offset: number, length: number, progress: () => void): ReadableStream<Uint8Array> {
+  let sent = 0
+  return new ReadableStream<Uint8Array>({
+    pull: async (controller) => {
+      progress()
+      const chunk = await source.read(offset + sent, Math.min(PROGRESS_CHUNK, length - sent))
+      // A short read means the file shrank; the request fails and putPart
+      // reports it as a changed context.
+      if (chunk.byteLength === 0) return controller.error(badRequest('build context changed while it was being uploaded'))
+      controller.enqueue(chunk)
+      sent += chunk.byteLength
+      if (sent === length) controller.close()
+    },
+  })
 }
 
 function blobSource(blob: Blob): ContextSource {
@@ -92,21 +129,6 @@ async function fileSource(path: string): Promise<ContextSource> {
   }
   return {
     size: info.size,
-    part: (offset, length) => {
-      let sent = 0
-      return new ReadableStream<Uint8Array>({
-        pull: async (controller) => {
-          const chunk = new Uint8Array(Math.min(PART_CHUNK, length - sent))
-          const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, offset + sent)
-          // A short read means the file shrank; the request fails and putPart
-          // reports it as a changed context.
-          if (bytesRead === 0) return controller.error(badRequest('build context changed while it was being uploaded'))
-          controller.enqueue(chunk.subarray(0, bytesRead))
-          sent += bytesRead
-          if (sent === length) controller.close()
-        },
-      })
-    },
     changed: async () => {
       const now = await handle.stat().catch(() => undefined)
       return now === undefined || now.size !== info.size || now.mtimeMs !== info.mtimeMs
@@ -178,29 +200,46 @@ async function sha256Hex(source: ContextSource): Promise<string> {
   return hash.digest('hex')
 }
 
-async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart, signal: AbortSignal): Promise<void> {
+/**
+ * PUT one part, up to `PART_ATTEMPTS` times. An attempt fails once no bytes
+ * move for `idleMs` (`0`: never): connecting, every piece of a streamed body,
+ * and the wait for storage's answer each restart the countdown, so a large
+ * part on a slow link is never cut while it moves. An in-memory part outside
+ * Node.js (a browser, Bun, Deno) is sent whole and its progress cannot be
+ * seen, so that attempt is not bounded.
+ */
+async function putPart(source: ContextSource, offset: number, part: api.BuildContextUploadPart, signal: AbortSignal, idleMs: number): Promise<void> {
   const changed = (): BadRequestError => badRequest('build context changed while it was being uploaded')
   const cancelled = (): TransferCancelledError => new TransferCancelledError('build context upload cancelled')
   let status: number | undefined
+  let stalled = false
   for (let attempt = 0; attempt < PART_ATTEMPTS; attempt++) {
     if (signal.aborted) throw cancelled()
-    const body = source.part(offset, part.bytes)
+    const inMemory = contextUploadRuntime.streamsParts() ? undefined : source.part?.(offset, part.bytes)
+    const watchdog = new IdleWatchdog(inMemory === undefined ? idleMs : 0, signal, () => new DOMException('no bytes moved', 'AbortError'))
+    const body = inMemory ?? partStream(source, offset, part.bytes, () => watchdog.kick())
     if (!(body instanceof ReadableStream) && (body instanceof Blob ? body.size : body.byteLength) !== part.bytes) throw changed()
     // A presigned PUT needs a fixed length, so a streamed body is not chunked.
     const init: RequestInit & { duplex?: 'half' } =
       body instanceof ReadableStream
-        ? { method: 'PUT', body, redirect: 'manual', signal, headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
-        : { method: 'PUT', body, redirect: 'manual', signal }
+        ? { method: 'PUT', body, redirect: 'manual', signal: watchdog.signal, headers: { 'content-length': String(part.bytes) }, duplex: 'half' }
+        : { method: 'PUT', body, redirect: 'manual', signal: watchdog.signal }
+    stalled = false
     try {
+      watchdog.kick()
       const response = await contextUploadRuntime.fetch(part.url, init)
+      watchdog.dispose()
       status = response.status
       await response.body?.cancel().catch(() => undefined)
     } catch {
       if (signal.aborted) throw cancelled()
+      stalled = watchdog.fired()
       // A streamed part fails to read once its file shrinks.
       if (await source.changed()) throw changed()
       // The failure names the URL, so it is not kept as a cause.
       status = undefined
+    } finally {
+      watchdog.dispose()
     }
     if (status !== undefined && status >= 200 && status < 300) return
     // The SDK follows no redirect, a storage URL's included (as Python).
@@ -210,12 +249,15 @@ async function putPart(source: ContextSource, offset: number, part: api.BuildCon
     }
     if (attempt + 1 < PART_ATTEMPTS) await contextUploadRuntime.sleep(500 * 2 ** attempt)
   }
+  if (stalled) {
+    throw new ClientTimeoutError(`build context part ${part.part_number} made no progress for ${idleMs / 1000} s`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+  }
   if (status === undefined) throw new ConnectionError(`build context part ${part.part_number} could not reach storage`)
   throw new ServiceUnavailableError(`storage did not accept build context part ${part.part_number} (HTTP ${status})`, { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'SDK' })
 }
 
 /** Upload every part, at most `PART_CONCURRENCY` at a time; the first failure aborts the rest and is thrown. */
-async function putParts(source: ContextSource, parts: readonly api.BuildContextUploadPart[]): Promise<void> {
+async function putParts(source: ContextSource, parts: readonly api.BuildContextUploadPart[], idleMs: number): Promise<void> {
   const offsets: number[] = []
   let total = 0
   let ordered = true
@@ -232,7 +274,7 @@ async function putParts(source: ContextSource, parts: readonly api.BuildContextU
     while (failure === undefined && next < parts.length) {
       const index = next++
       try {
-        await putPart(source, offsets[index], parts[index], abort.signal)
+        await putPart(source, offsets[index], parts[index], abort.signal, idleMs)
       } catch (error) {
         if (failure === undefined) {
           failure = { error }
@@ -320,7 +362,9 @@ export async function uploadBuildContext(
     if (upload.ready) return { id: upload.id, regionId: upload.regionId }
     // Checked before any part is sent: the id becomes a path segment of complete.
     pathSegment(upload.id, 'build context upload id')
-    await putParts(source, upload.parts)
+    // A part fails once no bytes move for the client's request timeout (as
+    // the file transfers); it is never bounded by a total deadline.
+    await putParts(source, upload.parts, boundedTimerDelay(http.defaults.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS))
     await complete(http, upload.id, upload.regionId)
     return { id: upload.id, regionId: upload.regionId }
   } finally {

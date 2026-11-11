@@ -425,13 +425,16 @@ func TestPostImageDirect_uploadsPartsInParallelUpToTheLimit(t *testing.T) {
 	require.True(t, p.completed)
 }
 
+func shortenImageContextPartIdle(t *testing.T, d time.Duration) {
+	t.Helper()
+	old := imageContextPartIdle
+	imageContextPartIdle = d
+	t.Cleanup(func() { imageContextPartIdle = old })
+}
+
 func TestPostImageDirect_retriesAPartThatTimedOut(t *testing.T) {
 	p := newDirectUploadPeer(t, 4)
-	old := imageContextStorage
-	short := *imageContextStorage
-	short.Timeout = 100 * time.Millisecond
-	imageContextStorage = &short
-	t.Cleanup(func() { imageContextStorage = old })
+	shortenImageContextPartIdle(t, 100*time.Millisecond)
 	p.beforePut = func(part string, index int) {
 		if part == "1" && index == 0 {
 			time.Sleep(500 * time.Millisecond)
@@ -441,6 +444,50 @@ func TestPostImageDirect_retriesAPartThatTimedOut(t *testing.T) {
 	require.Equal(t, 2, p.partPuts["1"])
 	require.Equal(t, []byte("0123"), p.parts["1"])
 	require.True(t, p.completed)
+}
+
+// Guards against a total deadline coming back (the old five-minute cap would
+// also pass this); the stall test below proves the no-progress bound.
+func TestPostImageDirect_aPartThatKeepsMovingHasNoTotalDeadline(t *testing.T) {
+	// Given a part body that yields a byte every 60 ms, and a 150 ms
+	// no-progress limit.
+	p := newDirectUploadPeer(t, 8)
+	shortenImageContextPartIdle(t, 150*time.Millisecond)
+	old := imageContextPartBody
+	imageContextPartBody = func(r io.Reader) io.Reader { return slowReader{r} }
+	t.Cleanup(func() { imageContextPartBody = old })
+	// When a part takes far longer than the limit in all, it is not cut.
+	started := time.Now()
+	require.NoError(t, p.post(t, writeContextFile(t, []byte("0123456789"))))
+	require.Greater(t, time.Since(started), 400*time.Millisecond)
+	require.Equal(t, 1, p.partPuts["1"])
+	require.Equal(t, []byte("01234567"), p.parts["1"])
+	require.True(t, p.completed)
+}
+
+// slowReader reads one byte at a time, 60 ms apart.
+type slowReader struct{ r io.Reader }
+
+func (s slowReader) Read(b []byte) (int, error) {
+	time.Sleep(60 * time.Millisecond)
+	return s.r.Read(b[:min(len(b), 1)])
+}
+
+func TestPostImageDirect_aPartThatStopsMovingTimesOutAfterItsRetries(t *testing.T) {
+	p := newDirectUploadPeer(t, 4)
+	shortenImageContextPartIdle(t, 100*time.Millisecond)
+	p.beforePut = func(part string, _ int) {
+		if part == "1" {
+			time.Sleep(400 * time.Millisecond)
+		}
+	}
+	err := p.post(t, writeContextFile(t, []byte("0123456789")))
+	var cliErr *cerr.Error
+	require.ErrorAs(t, err, &cliErr)
+	require.Equal(t, cerr.ExitTimeout, cliErr.Code)
+	require.Equal(t, "build context part 1 made no progress for 100ms", cliErr.Error())
+	require.Equal(t, imageContextPartAttempts, p.partPuts["1"])
+	require.False(t, p.completed)
 }
 
 func TestPostImageDirect_completeOutlivesTheClientTimeout(t *testing.T) {

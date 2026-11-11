@@ -537,7 +537,17 @@ skipping exist only in the TypeScript tool).
   (`IdleWatchdog`), kicked by upload progress where the runtime reports it
   (Node's http adapter, a streamed `fetch` body) and by every response chunk;
   where it cannot see upload progress (the fetch adapter, a request body over
-  64 KiB) the bound starts at the response headers.
+  64 KiB) the bound starts at the response headers. Build-context part
+  uploads (straight to storage, outside the transports) follow the same
+  rule: an attempt fails once no bytes move for the request timeout, is
+  retried, and the last stalled attempt is `ClientTimeoutError`; each part
+  is sent in 64 KiB pieces (Python httpx per-phase timeouts in
+  `_context_upload.py`, TypeScript an `IdleWatchdog` over a streamed body in
+  `contextUpload.ts`); the one exception is a TypeScript in-memory part in a
+  browser, Bun or Deno, which is sent whole and has no idle bound (Python
+  pieces every part, and also bounds reading the archive: its file reads run
+  in worker threads abandoned on cancellation). The CLI bounds a
+  part the same way, at 60 s.
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
   error bodies): `max_response_bytes` / `maxResponseBytes` on the client
@@ -656,7 +666,8 @@ skipping exist only in the TypeScript tool).
     `followBuildLogs()`'s `signal` omits it;
   - TypeScript refuses `null` where Python's `None` omits, for now
     (accepting it later is additive): `images.get()` / `snapshots.get()`
-    `wait` and `timeoutSeconds`, `images.pull()` `timeoutSeconds`,
+    `wait` and `timeoutSeconds`, `images.pull()` and
+    `images.buildFromContext()` `timeoutSeconds`,
     `volumes.create()` `sizeGib` and `type`, `ports.signedPreviewLink()`
     `expiresInSeconds`, `createAccessToken()` `ttlSeconds` / `operations` /
     `ports`, `followBuildLogs()` (client and sandbox) `cursor` /
