@@ -47,8 +47,9 @@ type BuilderStep =
 // One rule in both SDKs: every value must be a string that is not blank by
 // Python's whitespace set, and text rendered raw into a Dockerfile line (the
 // registry ref, the Dockerfile, commands, packages, env keys, the workdir) is
-// stripped with that set; an env value, rendered as a JSON string, is kept as
-// given. Python applies the same rule to those. `user()`, `cmd()` and
+// stripped with that set; an env value is kept as given and rendered so the
+// image holds it literally (see envValueLiteral). Python applies the same rule
+// to those. `user()`, `cmd()` and
 // `entrypoint()` are TypeScript-only for now: the user is stripped, and the
 // cmd / entrypoint arguments, rendered as JSON strings, are kept as given.
 function assertText(value: unknown, label: string): string {
@@ -78,7 +79,7 @@ function renderStep(step: BuilderStep): string {
     case 'run':
       return step.commands.map((command) => `RUN ${command}`).join('\n')
     case 'env':
-      return Object.entries(step.entries).map(([key, value]) => `ENV ${key}=${JSON.stringify(value)}`).join('\n')
+      return Object.entries(step.entries).map(([key, value]) => `ENV ${key}=${envValueLiteral(value)}`).join('\n')
     case 'workdir':
       return `WORKDIR ${step.path}`
     case 'user':
@@ -109,6 +110,24 @@ function shellQuote(value: string): string {
 }
 
 /**
+ * An env value as a double-quoted Dockerfile word that the image keeps
+ * literally: `"` and `\` are escaped (as in JSON) and so is `$`, so nothing is
+ * substituted. A control character (C0 or DEL) has no literal form there
+ * (Docker keeps `\n` as two characters), so it is refused. Python renders the
+ * same bytes.
+ */
+function envValue(value: unknown, label: string): string {
+  const text = assertText(value, label)
+  // The value is not echoed: it may be a secret.
+  if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} must not contain a control character`)
+  return text
+}
+
+function envValueLiteral(value: string): string {
+  return JSON.stringify(value).replace(/\$/g, () => '\\$')
+}
+
+/**
  * An env name, stripped: it renders as `ENV name=value`, so `=`, whitespace
  * (Python's set) or a control character (C0 or DEL) would change the
  * instruction, or add one. Python refuses the same names.
@@ -119,6 +138,22 @@ function envName(value: string, label: string): string {
     throw badRequest(`${label} ${JSON.stringify(name)} must not contain '=', whitespace or a control character`)
   }
   return name
+}
+
+const DIRECTIVE = /^[ \t]*#[ \t]*([A-Za-z]+)[ \t]*=[ \t]*([^ \t]*)[ \t]*$/
+const ESCAPE_DIRECTIVE_REFUSED = 'ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash'
+
+/**
+ * The escape character a Dockerfile's parser directives select, if any.
+ * Directives are the leading `# name=value` lines (Python reads the same).
+ */
+function escapeDirective(dockerfile: string): string | undefined {
+  for (const line of dockerfile.split('\n')) {
+    const match = DIRECTIVE.exec(line.replace(/\r$/, ''))
+    if (match === null) return undefined
+    if (match[1]?.toLowerCase() === 'escape') return match[2]
+  }
+  return undefined
 }
 
 export class ImageBuilder {
@@ -157,13 +192,17 @@ export class ImageBuilder {
       throw badRequest('ImageBuilder.env takes a name and a value, or a mapping of names to values')
     }
     const pairs: ReadonlyArray<readonly [string, string]> = typeof nameOrValues === 'string'
-      ? [[envName(nameOrValues, 'ImageBuilder.env name'), assertText(value, 'ImageBuilder.env value')]]
-      : Object.entries(nameOrValues).map(([key, entryValue]) => [envName(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')] as const)
+      ? [[envName(nameOrValues, 'ImageBuilder.env name'), envValue(value, 'ImageBuilder.env value')]]
+      : Object.entries(nameOrValues).map(([key, entryValue]) => [envName(key, 'ImageBuilder.env key'), envValue(entryValue, 'ImageBuilder.env value')] as const)
     // Keys are stripped: two that collide afterwards would silently keep one.
     const seen = new Set<string>()
     for (const [key] of pairs) {
       if (seen.has(key)) throw badRequest(`ImageBuilder.env key ${JSON.stringify(key)} appears more than once after stripping`)
       seen.add(key)
+    }
+    if (this.source.type === 'dockerfile') {
+      const escape = escapeDirective(this.source.dockerfile)
+      if (escape !== undefined && escape !== '\\') throw badRequest(ESCAPE_DIRECTIVE_REFUSED)
     }
     const entries = Object.fromEntries(pairs)
     return new ImageBuilder(this.source, [...this.steps, { type: 'env', entries }])

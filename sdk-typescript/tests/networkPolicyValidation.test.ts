@@ -41,6 +41,30 @@ describe('network policy validation parity', () => {
     expect(serializeNetworkPolicyInput({ allowDomains: ['api.example.com'] })).toEqual({ allow_domains: ['api.example.com'] })
   })
 
+  // Shared with the Python SDK's test_network_policy_validation.py: an open
+  // policy ignores allowCidrs, so a CIDR list without blockAll true or a domain
+  // list is refused rather than creating an open sandbox.
+  it.each([
+    [{ allowCidrs: ['10.0.0.0/8'] }],
+    [{ allowCidrs: ['10.0.0.0/8'], blockAll: false }],
+    [{ allowCidrs: ['10.0.0.0/8'], blockAll: null }],
+    [{ allowCidrs: ['10.0.0.0/8'], allowDomains: null }],
+  ] as const)('refuses the open CIDR-only policy %j', (policy) => {
+    expect(() => serializeNetworkPolicyInput(policy)).toThrow(expect.objectContaining({
+      name: 'BadRequestError', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      message: 'network_policy allow_cidrs restricts egress only with block_all set to true or with allow_domains; without them the policy is open',
+    }))
+  })
+
+  it.each([
+    [{ allowCidrs: ['10.0.0.0/8'], blockAll: true }, { allow_cidrs: ['10.0.0.0/8'], block_all: true }],
+    [{ allowCidrs: ['10.0.0.0/8'], allowDomains: ['a.example'] }, { allow_cidrs: ['10.0.0.0/8'], allow_domains: ['a.example'] }],
+    [{ allowCidrs: ['10.0.0.0/8'], allowDomains: [] }, { allow_cidrs: ['10.0.0.0/8'], allow_domains: [] }],
+    [{ allowCidrs: [] }, { allow_cidrs: [] }],
+  ] as const)('sends the CIDR policy %j', (policy, body) => {
+    expect(serializeNetworkPolicyInput(policy)).toEqual(body)
+  })
+
   it('blockAll null is treated as omitted', () => {
     expect(serializeNetworkPolicyInput({ allowDomains: ['api.example.com'], blockAll: null })).toEqual({
       allow_domains: ['api.example.com'],

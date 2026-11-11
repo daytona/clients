@@ -19,7 +19,10 @@ from ..filesystem import *
 
 
 class FileSystemService:
-    """Sandbox filesystem namespace."""
+    """Sandbox filesystem namespace. All sandbox paths must be absolute strings
+    starting with ``/``; relative paths are refused with ``BadRequestError``.
+    Local upload/download paths are not subject to this rule.
+    """
 
     _async_type = _async.AsyncFileSystemService
 
@@ -39,6 +42,7 @@ class FileSystemService:
     def chmod(
         self,
         path: str,
+        /,
         *,
         mode: Optional[str] = None,
         owner: Optional[str] = None,
@@ -51,6 +55,7 @@ class FileSystemService:
         self,
         remote_path: str,
         local_path: str | os.PathLike[str],
+        /,
         *,
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
@@ -68,30 +73,30 @@ class FileSystemService:
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
 
-    def glob(self, path: str, pattern: str) -> ListResult[str]:
+    def glob(self, path: str, pattern: str, /) -> ListResult[str]:
         """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
         return self._bridge.call(lambda: self._impl.glob(path, pattern))
 
-    def grep(self, path: str, pattern: str) -> ListResult[FileMatch]:
+    def grep(self, path: str, pattern: str, /) -> ListResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
         Returns matches with one-based line numbers.
         """
         return self._bridge.call(lambda: self._impl.grep(path, pattern))
 
-    def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
+    def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
         return self._bridge.call(lambda: self._impl.list(path, depth=depth))
 
-    def mkdir(self, path: str, *, mode: str = "0755") -> None:
+    def mkdir(self, path: str, /, *, mode: str = "0755") -> None:
         """Create a directory."""
         return self._bridge.call(lambda: self._impl.mkdir(path, mode=mode))
 
-    def move(self, source: str, destination: str) -> None:
+    def move(self, source: str, destination: str, /) -> None:
         """Move or rename files."""
         return self._bridge.call(lambda: self._impl.move(source, destination))
 
-    def presigned_download_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
+    def presigned_download_url(self, path: str, /, *, expires_in_seconds: int = 3600) -> str:
         """Return a pre-signed download URL for a sandbox file.
 
         The signature is minted by the API; ``expires_in_seconds``
@@ -101,7 +106,7 @@ class FileSystemService:
             lambda: self._impl.presigned_download_url(path, expires_in_seconds=expires_in_seconds)
         )
 
-    def presigned_upload_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
+    def presigned_upload_url(self, path: str, /, *, expires_in_seconds: int = 3600) -> str:
         """Return a pre-signed upload URL for a sandbox file.
 
         The signature is minted by the API; ``expires_in_seconds``
@@ -111,7 +116,7 @@ class FileSystemService:
             lambda: self._impl.presigned_upload_url(path, expires_in_seconds=expires_in_seconds)
         )
 
-    def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+    def read_bytes(self, path: str, /, *, max_response_bytes: Optional[int] = None) -> bytes:
         """Read a file as bytes, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
@@ -126,7 +131,9 @@ class FileSystemService:
         """
         return self._bridge.call(lambda: self._impl.read_bytes(path, max_response_bytes=max_response_bytes))
 
-    def read_many(self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None) -> BulkReadResult:
+    def read_many(
+        self, paths: Sequence[str], /, *, max_response_bytes: Optional[int] = None
+    ) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning.
 
         The whole response is held in memory. For large files, or content from a
@@ -140,7 +147,7 @@ class FileSystemService:
         """
         return self._bridge.call(lambda: self._impl.read_many(paths, max_response_bytes=max_response_bytes))
 
-    def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
+    def read_text(self, path: str, /, *, max_response_bytes: Optional[int] = None) -> str:
         r"""Read a UTF-8 text file (see :meth:`read_bytes` for its bounds).
 
         Decoding is strict (invalid UTF-8 raises ``UnicodeDecodeError``) and a
@@ -148,15 +155,15 @@ class FileSystemService:
         """
         return self._bridge.call(lambda: self._impl.read_text(path, max_response_bytes=max_response_bytes))
 
-    def remove(self, path: str, *, recursive: bool = False) -> None:
+    def remove(self, path: str, /, *, recursive: bool = False) -> None:
         """Remove a file, or a directory with ``recursive=True``."""
         return self._bridge.call(lambda: self._impl.remove(path, recursive=recursive))
 
-    def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
+    def replace(self, files: Sequence[str], pattern: str, new_value: str, /) -> ListResult[ReplaceResult]:
         """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
         return self._bridge.call(lambda: self._impl.replace(files, pattern, new_value))
 
-    def stat(self, path: str) -> FileInfo:
+    def stat(self, path: str, /) -> FileInfo:
         """Return file metadata."""
         return self._bridge.call(lambda: self._impl.stat(path))
 
@@ -164,6 +171,7 @@ class FileSystemService:
         self,
         local_path: str | os.PathLike[str],
         remote_path: str,
+        /,
         *,
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
@@ -180,6 +188,7 @@ class FileSystemService:
         self,
         path: str,
         on_event: WatchEventCallback,
+        /,
         *,
         recursive: bool = False,
         on_overflow: Optional[WatchOverflowCallback] = None,
@@ -211,15 +220,15 @@ class FileSystemService:
         self._bridge.post(result._impl._publish)
         return result
 
-    def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
-        """Write bytes to a file, optionally via temp-file + rename."""
+    def write_bytes(self, path: str, content: Buffer, /, *, atomic: bool = False) -> None:
+        """Write a bytes-like buffer to an absolute path, optionally atomically."""
         return self._bridge.call(lambda: self._impl.write_bytes(path, content, atomic=atomic))
 
-    def write_many(self, files: Mapping[str, bytes], *, atomic: bool = False) -> BulkWriteResult:
-        """Write several files in one request, optionally atomically per file."""
+    def write_many(self, files: Mapping[str, Buffer], /, *, atomic: bool = False) -> BulkWriteResult:
+        """Write absolute paths mapped to bytes-like buffers, optionally atomically per file."""
         return self._bridge.call(lambda: self._impl.write_many(files, atomic=atomic))
 
-    def write_text(self, path: str, content: str, *, atomic: bool = False) -> None:
+    def write_text(self, path: str, content: str, /, *, atomic: bool = False) -> None:
         """Write a UTF-8 text file, optionally via temp-file + rename."""
         return self._bridge.call(lambda: self._impl.write_text(path, content, atomic=atomic))
 

@@ -166,7 +166,29 @@ it.each([
 it('refuses a setLabels answer with a non-string label', async () => {
   const api = await startFakeApi([{ status: 200, body: { id: 'src', labels: { team: 1 } } }])
   try {
-    await expect(source(api).setLabels({ team: 'a' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox labels response has a labels.team that is not a string' })
+    await expect(source(api).setLabels({ team: 'a', name: 'src' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'sandbox labels response has a labels.team that is not a string' })
+  } finally {
+    await api.close()
+  }
+})
+
+// Shared with the Python SDK's test_argument_checks.py: setLabels() keeps the
+// reserved `name` label unless the new labels set it, reading the sandbox
+// first; with no stored name nothing is added.
+it.each([
+  [{ name: 'box', team: 'a' }, { team: 'b' }, { team: 'b', name: 'box' }],
+  [{ team: 'a' }, { team: 'b' }, { team: 'b' }],
+  [{ name: 'box' }, {}, { name: 'box' }],
+  // The read reports no labels (none): no name is sent.
+  [undefined, { team: 'b' }, { team: 'b' }],
+] as const)('keeps the name label: stored %j, set %j', async (stored, given, sent) => {
+  const base = { id: 'src', class: 'linux', name: 'src', status: 'stopped', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
+  const detail = stored === undefined ? base : { ...base, labels: stored }
+  const api = await startFakeApi([{ status: 200, body: detail }, { status: 200, body: { id: 'src', labels: sent } }])
+  try {
+    await expect(source(api).setLabels({ ...given })).resolves.toEqual(sent)
+    expect(api.requests.map((request) => request.method)).toEqual(['GET', 'PUT'])
+    expect(JSON.parse(api.requests[1]?.body ?? '')).toEqual({ labels: sent })
   } finally {
     await api.close()
   }
@@ -839,7 +861,8 @@ it('reads secrets.set allowedDomains once', async () => {
   const api = await startFakeApi([{ status: 200, body: { name: 'K', allowed_domains: ['*'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } }])
   const client = clientAt(api.url)
   let reads = 0
-  const options = { get allowedDomains() { reads += 1; return reads === 1 ? ['*'] : [5] } }
+  // ifNotExists: no read of the stored description first.
+  const options = { ifNotExists: true, get allowedDomains() { reads += 1; return reads === 1 ? ['*'] : [5] } }
   try {
     await client.v2.secrets.set('K', 'v', options as never)
     expect(reads).toBe(1)

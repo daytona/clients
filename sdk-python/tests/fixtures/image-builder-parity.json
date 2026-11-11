@@ -133,6 +133,64 @@
       "request": {
         "dockerfile": "FROM alpine\nWORKDIR /app\n"
       }
+    },
+    {
+      "name": "env values are literal: $ is escaped, quotes and backslashes as in JSON",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "DOL": "$PATH",
+            "BRACE": "${HOME}/x",
+            "Q": "a\"b\\c\\$d",
+            "U": "\u00e9 \u2028"
+          }
+        ]
+      ],
+      "dockerfile": "FROM alpine\nENV DOL=\"\\$PATH\"\nENV BRACE=\"\\${HOME}/x\"\nENV Q=\"a\\\"b\\\\c\\\\\\$d\"\nENV U=\"\u00e9 \u2028\"\n",
+      "request": {
+        "dockerfile": "FROM alpine\nENV DOL=\"\\$PATH\"\nENV BRACE=\"\\${HOME}/x\"\nENV Q=\"a\\\"b\\\\c\\\\\\$d\"\nENV U=\"\u00e9 \u2028\"\n"
+      }
+    },
+    {
+      "name": "env value by name is literal",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "PATH",
+            "/opt/bin:$PATH"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM alpine\nENV PATH=\"/opt/bin:\\$PATH\"\n",
+      "request": {
+        "dockerfile": "FROM alpine\nENV PATH=\"/opt/bin:\\$PATH\"\n"
+      }
+    },
+    {
+      "name": "env under a backslash escape directive",
+      "source": {
+        "dockerfile": "# syntax=docker/dockerfile:1\n# escape=\\\nFROM alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "$x"
+          }
+        ]
+      ],
+      "dockerfile": "# syntax=docker/dockerfile:1\n# escape=\\\nFROM alpine\nENV A=\"\\$x\"\n",
+      "request": {
+        "dockerfile": "# syntax=docker/dockerfile:1\n# escape=\\\nFROM alpine\nENV A=\"\\$x\"\n"
+      }
     }
   ],
   "refused": [
@@ -413,6 +471,112 @@
         ]
       ],
       "error": "ImageBuilder.workdir path \"/a\u007f\" must not contain a control character"
+    },
+    {
+      "name": "env value with a newline",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\ny"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value must not contain a control character"
+    },
+    {
+      "name": "env value with a tab",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\ty"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value must not contain a control character"
+    },
+    {
+      "name": "env value with a NUL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\u0000"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value must not contain a control character"
+    },
+    {
+      "name": "env value with a DEL",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "x\u007f"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env value must not contain a control character"
+    },
+    {
+      "name": "env value by name with a newline",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "A",
+            "x\ny"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.env value must not contain a control character"
+    },
+    {
+      "name": "env under a backtick escape directive",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "$x"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+    },
+    {
+      "name": "env under an indented backtick escape directive",
+      "source": {
+        "dockerfile": "\t# Escape = `\nFROM alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {
+            "A": "$x"
+          }
+        ]
+      ],
+      "error": "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
     }
   ]
 }

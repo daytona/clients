@@ -10,7 +10,7 @@ import type { HttpClientOptions } from './http.js'
 import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL } from './internal.js'
-import { BadRequestError } from './errors/DaytonaError.js'
+import { BadRequestError, ClientClosedError } from './errors/DaytonaError.js'
 import type { ImageBuilder } from './Image.js'
 import { Sandbox } from './Sandbox.js'
 import type { SandboxConnectOptionsFromCreate } from './Sandbox.js'
@@ -54,6 +54,7 @@ export class Daytona {
   private readonly hubEventsConfig: EventsHubConfig
   private readonly hubIdentityKey: string
   private hub: WaitHub | undefined
+  private readonly hubApi: AxiosInstance
   private closed = false
 
   constructor(config: DaytonaConfig = {}) {
@@ -61,10 +62,16 @@ export class Daytona {
     this.apiKey = connection.apiKey
     this.apiUrl = connection.apiUrl
     this.hubIdentityKey = connection.hubIdentityKey
-    this.httpOptions = connection.httpOptions
+    this.httpOptions = { ...connection.httpOptions, ensureOpen: () => {
+      if (this.closed) throw new ClientClosedError()
+    } }
     this.maxResponseBytes = connection.maxResponseBytes
     this.apiTransport = new HttpTransport(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
     this.api = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, this.httpOptions)
+    // A shared events hub outlives the client that created it: its instance has
+    // no closed-client check, so closing this client never breaks the waits of
+    // another client attached to the same hub (each wait checks its own client).
+    this.hubApi = createHttpClient(this.apiUrl, this.apiKey, connection.requestTimeoutMs, connection.httpOptions)
     this.images = new ImagesService(INTERNAL, this.api, this.apiTransport)
     this.snapshots = new SnapshotsService(INTERNAL, this.api)
     this.volumes = new VolumesService(INTERNAL, this.api)
@@ -76,6 +83,9 @@ export class Daytona {
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 
+  // None once closed: a handle built from a completed response (a create that
+  // finished during close()) is still returned; its requests then throw
+  // ClientClosedError.
   private acquireHub(): WaitHub | undefined {
     if (this.closed) return undefined
     if (this.hub?.closed) this.hub = undefined
@@ -89,13 +99,15 @@ export class Daytona {
         config: this.hubEventsConfig,
         // The client's own instance: its maxResponseBytes caps the hub's
         // ticket mint and long-poll fallback (neither is a file transfer).
-        _api: this.api,
+        _api: this.hubApi,
         maxResponseBytes: this.maxResponseBytes,
       })
     }
     return this.hub
   }
 
+  /** Close this client. New requests on stored clients and their handles throw
+   * `ClientClosedError`; closing the root lets `root.v2` build a fresh client. */
   public async close(): Promise<void> {
     this.closed = true
     const hub = this.hub
@@ -371,6 +383,7 @@ export class Daytona {
     }
     // A wrong type or a blank id is refused before any request, as in Python.
     if (!(sandbox instanceof Sandbox)) throw badRequest('sandbox must be a Sandbox or a non-empty sandbox id')
+    if (this.closed) throw new ClientClosedError()
     const hub = this.acquireHub()
     if (hub !== undefined) sandbox.attachHub(hub)
     return sandbox

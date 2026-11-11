@@ -136,6 +136,7 @@ export {
   LimitExceededError,
   PreconditionRequiredError,
   ConnectionError,
+  ClientClosedError,
   ClientTimeoutError,
   NotSupportedError,
   ProcessNotFoundError,

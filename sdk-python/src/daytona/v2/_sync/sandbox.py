@@ -120,7 +120,7 @@ class Sandbox:
             )
         )
 
-    def create_snapshot(self, name: str) -> Snapshot:
+    def create_snapshot(self, name: str, /) -> Snapshot:
         return self._bridge.call(lambda: self._impl.create_snapshot(name))
 
     def delete(self, *, timeout: float = 60) -> None:
@@ -186,8 +186,10 @@ class Sandbox:
         :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
         :param timeout: Caller wait budget in seconds. Omit to wait until the process
             ends. Does not kill the process; use ``execution_timeout`` for that.
+        :param stdin: Only ``"closed"`` (default); ``"open"`` is refused, as by
+            :meth:`process.run`.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
-            the process tree when this expires.
+            the process tree when this expires. Omitted or ``0`` means no deadline.
         :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
             (default) or ``"until_cleanup"``.
         :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
@@ -354,6 +356,7 @@ class Sandbox:
     def run_code(
         self,
         code: str,
+        /,
         *,
         language: Optional[str] = None,
         context: str | InterpreterContext | InterpreterContextJSON | None = None,
@@ -375,11 +378,17 @@ class Sandbox:
             )
         )
 
-    def set_labels(self, labels: Mapping[str, str]) -> Mapping[str, str]:
-        """Replace the sandbox label set; pass ``{}`` to clear all labels.
+    def set_labels(self, labels: Mapping[str, str], /) -> Mapping[str, str]:
+        """Replace the sandbox's labels; pass ``{}`` to clear all but ``name``.
 
-        Returns the labels the API applied, as a fresh plain ``dict`` (typed
-        ``Mapping``, as :attr:`labels` is): changing it changes nothing.
+        The reserved ``name`` label, which :meth:`Daytona.find_by_name` and a
+        ``name`` label search match, is kept unless ``labels`` sets it: without
+        a ``name`` key the sandbox is read first (one more request, which also
+        refreshes this handle's metadata) and the ``name`` label it reports,
+        if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
+        label cannot be removed. Returns the labels the API applied, as a fresh
+        plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
+        changes nothing.
         """
         return self._bridge.call(lambda: self._impl.set_labels(labels))
 

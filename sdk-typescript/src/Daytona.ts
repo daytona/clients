@@ -25,7 +25,7 @@ import {
   registerErrorClasses,
 } from './errors.js'
 import type { DaytonaConfig } from './types.js'
-import { snapshotConfig, v0ApiUrl, warnTargetDeprecated } from './root-config.js'
+import { V0_API_URL, snapshotConfig, v0ApiUrl, warnTargetDeprecated } from './root-config.js'
 
 export { DEFAULT_V2_API_URL }
 export { V0_API_URL, ROOT_CONFIG_ROUTING, TARGET_DEPRECATION, resetTargetDeprecationWarningForTests } from './root-config.js'
@@ -47,6 +47,27 @@ type V0ErrorConstructor = (abstract new (...args: never[]) => Error) & Function
 type V0Exports = { readonly [name: string]: unknown }
 
 const V0_NAMESPACE_MISSING = 'The v0 namespace is not included in this build of @daytona/sdk'
+
+const LEGACY_URL_WARNED = Symbol.for('@daytona/sdk/legacy-api-url-warned')
+
+function warnLegacyApiUrl(): void {
+  const runtime: { readonly process?: {
+    readonly env?: Readonly<Record<string, string | undefined>>
+    readonly emitWarning?: (message: string, options: { type: string; code: string }) => void
+  } } = globalThis
+  const name = 'DAYTONA_API_URL'
+  const value = runtime.process?.env?.[name]?.trim().replace(/\/+$/, '')
+  if (!value || Reflect.get(globalThis, LEGACY_URL_WARNED) === true) return
+  const normalized = value.replace(/^([^:]+):\/\/([^/]+)(.*)$/, (_match: string, scheme: string, host: string, path: string) => `${scheme.toLowerCase()}://${host.toLowerCase()}${path}`)
+  if (normalized === V0_API_URL || normalized === DEFAULT_V2_API_URL) return
+  Reflect.set(globalThis, LEGACY_URL_WARNED, true)
+  const message = 'DAYTONA_API_URL is set, but SDK 2.x ignores it and connects to Daytona Cloud ' +
+    '(DAYTONA_V2_API_URL selects the v2 endpoint). For a custom API URL, stay on SDK 0.x.'
+  // A runtime with a shimmed `process.env` but no emitWarning (a browser
+  // bundle) still gets the warning.
+  if (typeof runtime.process?.emitWarning === 'function') runtime.process.emitWarning(message, { type: 'UserWarning', code: 'DAYTONA_LEGACY_API_URL' })
+  else console.warn(message)
+}
 
 // The catalog's NOT_IMPLEMENTED shape (501 → NotSupportedError): this build
 // does not implement the v0 namespace. Not a server error.
@@ -157,6 +178,7 @@ export class Daytona {
   private v0Client?: DaytonaV0Client
 
   constructor(config?: DaytonaConfig) {
+    warnLegacyApiUrl()
     this.config = snapshotConfig(config ?? {})
     credentialSafeDiagnostics(this.config, () => ({ type: 'DaytonaConfig' }))
     credentialSafeDiagnostics(this, () => ({ type: 'Daytona' }))
@@ -203,6 +225,7 @@ export class Daytona {
    * processes should call it. Idempotent; a later `root.v0` / `root.v2` builds
    * a fresh client. Both are closed even if one fails; the first error is
    * re-thrown (Python parity).
+   * Stored v2 clients and their handles throw `ClientClosedError` on new requests.
    */
   public async close(): Promise<void> {
     // Drop the cached clients first (like Python's root close()), so a later

@@ -45,7 +45,7 @@ class LspServer:
     def __exit__(self, *exc: object) -> None:
         self._bridge.call(lambda: self._impl.__aexit__(*exc))
 
-    def close_document(self, uri: str) -> None:
+    def close_document(self, uri: str, /) -> None:
         """Notify the server that the document at ``uri`` was closed."""
         return self._bridge.call(lambda: self._impl.close_document(uri))
 
@@ -53,22 +53,23 @@ class LspServer:
         self,
         uri: str,
         position: LspPosition | Mapping[str, int],
+        /,
         *,
         context: Optional[LspCompletionContext] = None,
     ) -> LspCompletionList:
         return self._bridge.call(lambda: self._impl.completions(uri, position, context=context))
 
-    def document_symbols(self, uri: str) -> list[LspSymbol]:
+    def document_symbols(self, uri: str, /) -> list[LspSymbol]:
         return self._bridge.call(lambda: self._impl.document_symbols(uri))
 
-    def open_document(self, uri: str) -> None:
+    def open_document(self, uri: str, /) -> None:
         """Notify the server that the document at ``uri`` was opened."""
         return self._bridge.call(lambda: self._impl.open_document(uri))
 
     def stop(self) -> None:
         return self._bridge.call(lambda: self._impl.stop())
 
-    def workspace_symbols(self, query: str) -> list[LspSymbol]:
+    def workspace_symbols(self, query: str, /) -> list[LspSymbol]:
         return self._bridge.call(lambda: self._impl.workspace_symbols(query))
 
 
@@ -90,7 +91,7 @@ class LspService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def start(self, language_id: str, path_to_project: str) -> LspServer:
+    def start(self, language_id: str, path_to_project: str, /) -> LspServer:
         return LspServer(
             self._bridge.call(lambda: self._impl.start(language_id, path_to_project)), self._bridge
         )

@@ -116,6 +116,7 @@ def test_codes_namespace_has_the_typescript_member_names() -> None:
         "PROXY_ERROR_CODES",
         "ROUTER_CODE_EXTRAS",
         "ROUTER_ERROR_CODES",
+        "SDK_ERROR_CODES",
         "is_known_error_code",
     ]
     assert {name for name in dir(codes) if not name.startswith("_")} == set(codes.__all__)

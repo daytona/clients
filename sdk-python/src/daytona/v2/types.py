@@ -356,7 +356,7 @@ class SearchResult(Generic[T]):
         object.__setattr__(self, "raw_total_relation", raw_total_relation)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SandboxEventsConfig:
     """Configuration for the sandbox-state events hub.
 
@@ -371,7 +371,7 @@ class SandboxEventsConfig:
     idle_close: Optional[float] = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DaytonaConfig:
     """Configuration for the v2 Daytona client.
 
@@ -1439,6 +1439,7 @@ class AsyncInterpreterContext:
     async def run(
         self,
         code: str,
+        /,
         *,
         cwd: Optional[str] = None,
         timeout: Optional[float] = None,

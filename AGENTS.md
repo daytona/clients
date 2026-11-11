@@ -259,8 +259,8 @@ Both packages are a thin ROOT over one namespace per API major version:
   never deprecates it. `sdk-python/tests/test_v0_bundle.py` and
   `sdk-typescript/scripts/v0-bundle-smoke.cjs` run against the real bundle in
   sdk-ci and publish (skipped without a bundle). `d.v0` always passes `V0_API_URL`, so
-  `DAYTONA_API_URL` (the 0.x SDK's variable) never reaches v0; nothing in 2.x
-  reads it. Python: v0's dependencies are the `v0-sdk`
+  `DAYTONA_API_URL` (the 0.x SDK's variable) never reaches v0; 2.x reads it
+  only for the one-time non-Cloud warning. Python: v0's dependencies are the `v0-sdk`
   extra (never plain `v0`: pip < 26 on 3.10 parses `extra == 'v0'` as a
   version and crashes every install), committed EMPTY and filled by the bundle; hatch `artifacts` keeps the
   ignored tree in wheel/sdist. TypeScript: `src/v0` compiles separately
@@ -309,7 +309,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   error class is not keyed. `exports` gives `.` and `./v2` conditional types
   (`require.types` → the CJS declarations in `dist/cjs`), checked by the
   node16 fixture `sdk-typescript/scripts/cjs-types-fixture/` in the tarball smoke.
-- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DEFAULT_V2_API_URL` (the CLI's default, `app.DefaultAPIURL`, must stay equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` (passed explicitly as `api_url`/`apiUrl`). `DAYTONA_API_URL` belongs to the 0.x SDKs and CLI: nothing in 2.x reads it. Blank = unset; no config field.
+- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DEFAULT_V2_API_URL` (the CLI's default, `app.DefaultAPIURL`, must stay equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` (passed explicitly as `api_url`/`apiUrl`). `DAYTONA_API_URL` belongs to the 0.x SDKs and CLI: 2.x reads it only to warn once per process when it names a non-Cloud URL (the SDKs ignore it). Blank = unset; no config field.
 - **Ambient configuration is normalised the same way in both SDKs.**
   `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`, `DAYTONA_PROJECT_ID` and
   `DAYTONA_V2_API_URL` are trimmed and a blank value is unset; explicit config
@@ -725,6 +725,18 @@ skipping exist only in the TypeScript tool).
   and `tests/public-surface-generated.test.ts` walk everything reachable from
   the entry points and fail on a new violation or a stale entry in their
   `ALLOWED` lists, which only shrink.
+- **Sandbox fs paths are absolute.** Every remote path of `sandbox.fs` must
+  start with `/` and is refused locally otherwise (Python `sandbox_path`, TS
+  `sandboxPath`); git pathspecs stay relative to the repository. A path list is
+  a real sequence / array of strings, never a bare string, and bytes are any
+  bytes-like value (Python buffer, TS `ArrayBuffer` or view), sent exactly.
+- **A closed v2 client raises `ClientClosedError`** (`CLIENT_CLOSED`, source
+  `SDK`, no HTTP status) for every new request through it or its handles, in
+  Python sync, async and TypeScript; `root.v2` after `root.close()` builds a
+  fresh client. A shared events hub is not closed by one of its clients.
+- **Blocking runs refuse `stdin="open"`**; `start()` / `session.start()` send
+  `keep_logs` `on_exit_ttl` when none is given; an execution timeout of `0` is
+  omitted (no deadline); PTYs get `TERM=xterm-256color` unless `env` sets it.
 - **Signals are bare names on the surface, `SIG*` on the wire** — the mapping
   lives in exactly one place per SDK (`signal_spec` / `signalWire`), and wait
   results and process metadata strip the prefix on the way back

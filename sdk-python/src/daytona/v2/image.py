@@ -4,14 +4,33 @@
 from __future__ import annotations
 
 import json
+import re
 import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import overload
+from typing import Final, overload
 
 from typing_extensions import Self
 
 from .errors import create_error
+
+_DIRECTIVE: Final = re.compile(r"[ \t]*#[ \t]*([A-Za-z]+)[ \t]*=[ \t]*([^ \t]*)[ \t]*")
+_ESCAPE_DIRECTIVE_REFUSED: Final = (
+    "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+)
+
+
+def _escape_directive(dockerfile: str) -> str | None:
+    """The escape character a Dockerfile's parser directives select, if any.
+    Directives are the leading ``# name=value`` lines (TypeScript reads the
+    same)."""
+    for line in dockerfile.split("\n"):
+        match = _DIRECTIVE.fullmatch(line.removesuffix("\r"))
+        if match is None:
+            return None
+        if match.group(1).lower() == "escape":
+            return match.group(2)
+    return None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -38,11 +57,11 @@ class ImageBuilder:
     # JSON string, is kept as given. TypeScript applies the same rule.
 
     @classmethod
-    def from_registry(cls, ref: str) -> Self:
+    def from_registry(cls, ref: str, /) -> Self:
         return cls(_registry_ref=cls._line_text(ref, "ImageBuilder.from_registry ref"))
 
     @classmethod
-    def from_dockerfile(cls, content: str) -> Self:
+    def from_dockerfile(cls, content: str, /) -> Self:
         return cls(_dockerfile=cls._require_text(content, "ImageBuilder.from_dockerfile content", strip=True))
 
     def pip_install(self, *packages: str) -> Self:
@@ -85,7 +104,7 @@ class ImageBuilder:
             entries = (
                 (
                     self._env_name(name_or_values, "ImageBuilder.env name"),
-                    self._require_text(value, "ImageBuilder.env value"),
+                    self._env_value(value, "ImageBuilder.env value"),
                 ),
             )
         elif isinstance(name_or_values, Mapping):
@@ -100,7 +119,7 @@ class ImageBuilder:
             entries = tuple(
                 (
                     self._env_name(key, "ImageBuilder.env key"),
-                    self._require_text(entry_value, "ImageBuilder.env value"),
+                    self._env_value(entry_value, "ImageBuilder.env value"),
                 )
                 for key, entry_value in name_or_values.items()
             )
@@ -122,15 +141,15 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
+        if self._dockerfile is not None and _escape_directive(self._dockerfile) not in (None, "\\"):
+            raise create_error(_ESCAPE_DIRECTIVE_REFUSED, 400, "BAD_REQUEST", "SDK")
         return type(self)(
             _registry_ref=self._registry_ref,
             _dockerfile=self._dockerfile,
             # ensure_ascii=False: TS renders with JSON.stringify, which leaves non-ASCII
             # as is; keep Dockerfile output consistent across SDKs and preserve values.
             _steps=self._steps
-            + tuple(
-                f"ENV {key}={json.dumps(entry_value, ensure_ascii=False)}" for key, entry_value in entries
-            ),
+            + tuple(f"ENV {key}={self._env_value_literal(entry_value)}" for key, entry_value in entries),
         )
 
     def workdir(self, path: str, /) -> Self:
@@ -176,6 +195,31 @@ class ImageBuilder:
                 "SDK",
             )
         return text
+
+    @classmethod
+    def _env_value(cls, value: object, label: str) -> str:
+        """An env value, kept as given: a control character (C0 or DEL) has no
+        literal form in a double-quoted Dockerfile word (Docker keeps ``\\n``
+        as two characters), so it is refused. TypeScript refuses the same
+        values."""
+        text = cls._require_text(value, label)
+        # The value is not echoed: it may be a secret.
+        if any(char < " " or char == "\x7f" for char in text):
+            raise create_error(
+                f"{label} must not contain a control character",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return text
+
+    @staticmethod
+    def _env_value_literal(value: str) -> str:
+        """An env value as a double-quoted Dockerfile word that the image keeps
+        literally: ``"`` and ``\\`` are escaped (as in JSON) and so is ``$``, so
+        nothing is substituted. ``ensure_ascii=False``: non-ASCII is kept as
+        is, as TypeScript renders it; both SDKs render the same bytes."""
+        return json.dumps(value, ensure_ascii=False).replace("$", "\\$")
 
     @classmethod
     def _env_name(cls, value: object, label: str) -> str:

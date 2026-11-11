@@ -428,7 +428,7 @@ class Daytona:
         """
         return self._bridge.call(lambda: self._impl.current_api_key())
 
-    def delete(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+    def delete(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
         """Delete a sandbox by handle or id and wait until it is destroyed; see :meth:`Sandbox.delete`."""
         return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox), timeout=timeout))
 
@@ -458,7 +458,7 @@ class Daytona:
         )
 
     def get(
-        self, sandbox_id: str, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
+        self, sandbox_id: str, /, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
     ) -> Sandbox:
         """Fetch a sandbox by id.
 
@@ -532,11 +532,11 @@ class Daytona:
         """Return the actions the audit log can record for each target type."""
         return self._bridge.call(lambda: self._impl.list_audit_actions())
 
-    def pause(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+    def pause(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
         """Pause a sandbox by handle or id; see :meth:`Sandbox.pause`."""
         return self._bridge.call(lambda: self._impl.pause(_rt.unwrap(sandbox), timeout=timeout))
 
-    def resume(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+    def resume(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
         """Resume a sandbox by handle or id; see :meth:`Sandbox.resume`."""
         return self._bridge.call(lambda: self._impl.resume(_rt.unwrap(sandbox), timeout=timeout))
 
@@ -649,10 +649,10 @@ class Daytona:
             Sandbox,
         )  # type: ignore[return-value]
 
-    def start(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+    def start(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
         """Start a sandbox by handle or id; see :meth:`Sandbox.start`."""
         return self._bridge.call(lambda: self._impl.start(_rt.unwrap(sandbox), timeout=timeout))
 
-    def stop(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
+    def stop(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
         """Stop a sandbox by handle or id and wait until it is stopped; see :meth:`Sandbox.stop`."""
         return self._bridge.call(lambda: self._impl.stop(_rt.unwrap(sandbox), timeout=timeout))

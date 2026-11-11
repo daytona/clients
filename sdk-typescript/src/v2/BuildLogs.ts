@@ -63,7 +63,7 @@ export class BuildLogInterruptedError extends DaytonaError {
   public readonly cursor?: string
 
   constructor(message: string, options?: BuildLogInterruptedErrorOptions) {
-    const { cursor, ...rest } = errorOptions(options) ?? {}
+    const { cursor, ...rest } = errorOptions(options, ['cursor']) ?? {}
     super(message, { ...rest, code: rest.code ?? 'BUILD_LOG_INTERRUPTED', source: rest.source ?? 'SDK' })
     this.cursor = cursor
   }

@@ -64,7 +64,10 @@ export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
 
 /** The SDK's own invalid-input error: status 400, code `BAD_REQUEST`, source `SDK`. */
 export function badRequest(message: string): BadRequestError {
-  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  const options = { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }
+  // Internal diagnostics must not inherit the invalid options being reported.
+  Object.setPrototypeOf(options, null)
+  return new BadRequestError(message, options)
 }
 
 /**

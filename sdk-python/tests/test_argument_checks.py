@@ -311,13 +311,15 @@ async def test_create_timeout_seconds_none_is_omitted() -> None:
 
 
 # Python's str.isspace() set: U+001C and U+0085 are whitespace here and not to
-# JavaScript's trim(); U+FEFF is the reverse. TypeScript follows this set.
-@pytest.mark.parametrize(("name", "stamped"), [("\x1c\x85", False), ("\ufeff", True)])
-async def test_a_blank_name_follows_python_whitespace(name: str, stamped: bool) -> None:
-    body, key = await _create_body(name)
+# JavaScript's trim(); U+FEFF is the reverse. TypeScript follows this set: a
+# blank name is refused, any other is stamped.
+async def test_a_blank_name_follows_python_whitespace() -> None:
+    with pytest.raises(BadRequestError, match="^name must be a non-empty string when given$"):
+        await _create_body("\x1c\x85")
+    body, key = await _create_body("\ufeff")
     labels = body.get("labels")
-    assert (isinstance(labels, dict) and "name" in labels) is stamped
-    assert key.startswith("name") is stamped
+    assert isinstance(labels, dict) and labels["name"] == "\ufeff"
+    assert key.startswith("name")
 
 
 async def test_a_server_408_during_the_build_wait_keeps_its_source(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -678,14 +680,59 @@ async def test_a_path_id_or_name_must_be_a_non_blank_string(
 
 
 async def test_set_labels_takes_labels_positionally_and_returns_a_plain_dict() -> None:
-    with FakeApi([PlannedResponse(200, {"id": "sbx", "labels": {"team": "ml"}})] * 2) as fake:
+    labels = {"team": "ml", "name": "box"}
+    with FakeApi([PlannedResponse(200, {"id": "sbx", "labels": labels})]) as fake:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             sandbox = lazy_sandbox(root.v2, "sbx")
-            applied = await sandbox.set_labels({"team": "ml"})
-            by_keyword = await sandbox.set_labels(labels={"team": "ml"})
-    assert type(applied) is dict and applied == {"team": "ml"} == by_keyword
-    assert [json.loads(request.body) for request in fake.requests] == [{"labels": {"team": "ml"}}] * 2
+            applied = await sandbox.set_labels(labels)
+    assert type(applied) is dict and applied == labels
+    assert [json.loads(request.body) for request in fake.requests] == [{"labels": labels}]
+
+
+_SANDBOX_DETAIL: dict[str, object] = {
+    "id": "sbx",
+    "class": "linux",
+    "name": "sbx",
+    "status": "stopped",
+    "cpu": 1,
+    "cores_max": 1,
+    "memory_mib": 1024,
+    "disk_mib": 1024,
+    "port_map": [],
+    "region_id": "region-a",
+}
+
+
+# Shared with the TypeScript SDK's malformed-responses.test.ts: set_labels()
+# keeps the reserved `name` label unless the new labels set it, reading the
+# sandbox first; with no stored name nothing is added.
+@pytest.mark.parametrize(
+    ("stored", "given", "sent"),
+    [
+        ({"name": "box", "team": "a"}, {"team": "b"}, {"team": "b", "name": "box"}),
+        ({"team": "a"}, {"team": "b"}, {"team": "b"}),
+        ({"name": "box"}, {}, {"name": "box"}),
+        (None, {"team": "b"}, {"team": "b"}),
+    ],
+)
+async def test_set_labels_keeps_the_name_label(
+    stored: dict[str, str] | None, given: dict[str, str], sent: dict[str, str]
+) -> None:
+    # stored None: the read reports no labels (none), so no name is sent.
+    detail = dict(_SANDBOX_DETAIL) if stored is None else {**_SANDBOX_DETAIL, "labels": stored}
+    with FakeApi(
+        [
+            PlannedResponse(200, detail),
+            PlannedResponse(200, {"id": "sbx", "labels": sent}),
+        ]
+    ) as fake:  # type: ignore[arg-type]
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            applied = await lazy_sandbox(root.v2, "sbx").set_labels(given)
+    assert applied == sent
+    assert [request.method for request in fake.requests] == ["GET", "PUT"]
+    assert json.loads(fake.requests[1].body) == {"labels": sent}
 
 
 @pytest.mark.parametrize(

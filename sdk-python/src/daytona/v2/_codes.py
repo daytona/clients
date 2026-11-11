@@ -305,6 +305,8 @@ ROUTER_ERROR_CODES = frozenset(
     }
 )
 
+SDK_ERROR_CODES = frozenset({"CLIENT_CLOSED"})
+
 GENERIC_ERROR_CODES = frozenset(
     {
         BAD_GATEWAY,

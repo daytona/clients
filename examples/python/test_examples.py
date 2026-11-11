@@ -34,6 +34,7 @@ sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 from _common import IMAGE, IMAGE_NAME, IMAGE_WAIT_SECONDS, RUN, image_name
 
 from daytona.v2 import (
+    BadRequestError,
     GitCommitResponse,
     GitStatus,
     ImageBuilder,
@@ -73,6 +74,13 @@ class Mount(NamedTuple):
     mount_path: str
     subpath: Optional[str]
     read_only: bool
+
+
+def _absolute(path: str) -> str:
+    """The SDK refuses a relative sandbox path; the fake does too."""
+    if not path.startswith("/"):
+        raise BadRequestError(f"path must be an absolute path (starting with '/'): {path}")
+    return path
 
 
 class FakeWorld:
@@ -347,11 +355,11 @@ class FakeWorld:
             return held[at]
 
         def list_dir(path: str, **_: object) -> ListResult[SimpleNamespace]:
-            # `.` (or empty) is the relative root, `/` the absolute one.
-            relative = path.removeprefix("./").rstrip("/")
-            if relative in ("", "."):
-                prefix = "/" if path.startswith("/") else ""
-                held, _at, _read_only = self.file_store(prefix or ".", mounts, disk)
+            # The SDK refuses a relative path, as the real one does.
+            relative = _absolute(path).rstrip("/")
+            if relative == "":
+                prefix = "/"
+                held, _at, _read_only = self.file_store(prefix, mounts, disk)
             else:
                 held, at, _read_only = self.file_store(relative, mounts, disk)
                 prefix = at + "/"
@@ -371,8 +379,8 @@ class FakeWorld:
         sandbox.interpreter = interpreter
 
         fs = create_autospec(FileSystemService, instance=True)
-        fs.write_bytes.side_effect = lambda path, data, **_: write(path, data)
-        fs.read_bytes.side_effect = lambda path, **_: read(path)
+        fs.write_bytes.side_effect = lambda path, data, **_: write(_absolute(path), data)
+        fs.read_bytes.side_effect = lambda path, **_: read(_absolute(path))
 
         def replace(
             paths: list[str], pattern: str, new_value: str, **_: object
@@ -608,13 +616,15 @@ def test_build_logs_fails_when_a_deliberately_broken_build_unexpectedly_succeeds
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
 
 
-def test_the_fake_lists_its_own_disk_from_the_relative_and_absolute_roots() -> None:
+def test_the_fake_lists_its_own_disk_and_refuses_relative_paths() -> None:
     # Twin in volume-lifecycle.ts (examples.test.ts).
     world = FakeWorld()
     box = world._create_from_build(ImageBuilder.from_registry("python:3.12"), name="b")
-    box.fs.write_bytes("notes.txt", b"n")
+    with pytest.raises(BadRequestError, match="absolute"):
+        box.fs.write_bytes("notes.txt", b"n")
+    with pytest.raises(BadRequestError, match="absolute"):
+        box.fs.list(".")
     box.fs.write_bytes("/root.txt", b"r")
-    assert [entry.name for entry in box.fs.list(".").items] == ["notes.txt"]
     assert [entry.name for entry in box.fs.list("/").items] == ["root.txt"]
 
 

@@ -23,7 +23,7 @@ import { requireSessionId, Session } from './Session.js'
 import type { CreateSessionOptions, SessionJSON } from './Session.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { pathSegment, refuseDotSegment } from './pathSegment.js'
 
@@ -65,6 +65,8 @@ function killAllTimeoutMs(timeoutSeconds: number | undefined): number | undefine
   return Math.max(1, Math.ceil(Math.round(timeoutSeconds * 1000 * 1e6) / 1e6))
 }
 const DEFAULT_TERMINAL_SIZE = { cols: 80, rows: 24 } as const
+/** The `TERM` a PTY gets unless the caller's `env` sets one. */
+const DEFAULT_PTY_TERM = 'xterm-256color'
 
 /** A serialized handle's optional `kind`: anything present but a string is refused. */
 function requireOptionalKind(value: unknown): unknown {
@@ -112,11 +114,14 @@ export class ProcessService {
    *
    * @param command Shell command string, `{ cmd }`, or shell-free `{ argv }`.
    * @param options.executionTimeoutSeconds Server-side deadline in seconds;
-   *   kills the process tree on expiry.
+   *   kills the process tree on expiry. Omitted or `0` means no deadline.
+   * @param options.keepLogs How long the sandbox keeps the process record and
+   *   log: `'on_exit_ttl'` (default, a while after the process exits),
+   *   `'until_cleanup'` (until it is deleted) or `'none'` (no log).
    */
   public async start(command: ProcessCommand, options: ProcessStartOptions = {}): Promise<ProcessHandle> {
     assertKnownOptions('ProcessStartOptions', options, START_OPTION_KEYS)
-    return startProcess(this.transport, this.sandboxId, { ...options, ...commandSpec(command) })
+    return startProcess(this.transport, this.sandboxId, { ...options, ...commandSpec(command), stdin: options.stdin ?? 'closed', keepLogs: options.keepLogs ?? 'on_exit_ttl' })
   }
 
   /**
@@ -141,7 +146,9 @@ export class ProcessService {
    * @param options.timeoutSeconds Caller wait budget in seconds; omitted or 0
    *   waits unbounded. Expiry does not kill the process.
    * @param options.executionTimeoutSeconds Server-side deadline in seconds;
-   *   kills the process tree on expiry.
+   *   kills the process tree on expiry. Omitted or `0` means no deadline.
+   * @param options.stdin Only `'closed'` (default): `run()` returns no handle
+   *   to write to, so `'open'` is refused; use {@link start} for that.
    * @param options.keepLogs `'on_exit_ttl'` (default) or `'until_cleanup'`;
    *   the output is read back from the log, so `'none'` is refused.
    * @returns Output, stdout, stderr, logs and the exit result.
@@ -258,14 +265,20 @@ export class PtyService {
     this.transport = transport
   }
 
-  /** Start a detached PTY process; without `command` it runs the sandbox shell. The terminal defaults to 80×24. */
+  /**
+   * Start a detached PTY process; without `command` it runs the sandbox shell.
+   * The terminal defaults to 80×24, and `TERM` is `xterm-256color` unless
+   * `env` sets it.
+   */
   public async start(command?: string, options: PtyStartOptions = {}): Promise<ProcessHandle> {
     assertKnownOptions('PtyStartOptions', options, PTY_START_OPTION_KEYS)
     // Omitted starts the default shell; anything but a string is refused.
     if (command !== undefined && typeof command !== 'string') throw badRequest('command must be a string')
-    const { terminal, stdin, keepLogs, ...rest } = options
+    const { terminal, stdin, keepLogs, env, ...rest } = options
+    if (env !== undefined && !isPlainStringRecord(env)) throw badRequest('env must be a plain object of string to string')
     return startProcess(this.transport, this.process.sandboxId, {
       ...rest,
+      env: { TERM: DEFAULT_PTY_TERM, ...env },
       ...(command === undefined ? {} : { cmd: command }),
       kind: 'pty',
       terminal: terminalSpec(terminal ?? DEFAULT_TERMINAL_SIZE),

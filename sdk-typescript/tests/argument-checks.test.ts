@@ -185,19 +185,19 @@ it('takes createTimeoutSeconds null as omitted, as Python takes None', async () 
 })
 
 // Python's str.isspace() set: U+001C and U+0085 are whitespace there and not
-// to JavaScript's trim(); U+FEFF is the reverse. Both SDKs follow Python.
-it.each([
-  ['\u001c\u0085', false],
-  ['\ufeff', true],
-])('treats the name %j as %s a real name, as Python does', async (name, stamped) => {
+// to JavaScript's trim(); U+FEFF is the reverse. Both SDKs follow Python: a
+// blank name is refused, any other is stamped.
+it('refuses the name "\u001c\u0085" as blank and stamps "\ufeff", as Python does', async () => {
   const api = await startFakeApi([{ status: 200, body: { id: 'sbx', status: 'running' } }])
   const client = clientAt(api.url)
   try {
-    await client.v2.create({ name, waitSeconds: 0 })
+    await expect(client.v2.create({ name: '\u001c\u0085', waitSeconds: 0 })).rejects.toMatchObject({ message: 'name must be a non-empty string when given', code: 'BAD_REQUEST' })
+    expect(api.requests).toHaveLength(0)
+    await client.v2.create({ name: '\ufeff', waitSeconds: 0 })
     const request = sentRequest(api, 1)
     const body = JSON.parse(request.body) as { labels?: Record<string, string> }
-    expect(body.labels?.name !== undefined).toBe(stamped)
-    expect(String(request.headers['idempotency-key']).startsWith('name')).toBe(stamped)
+    expect(body.labels?.name).toBe('\ufeff')
+    expect(String(request.headers['idempotency-key']).startsWith('name')).toBe(true)
   } finally {
     await client.close()
     await api.close()

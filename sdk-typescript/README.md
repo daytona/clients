@@ -78,6 +78,13 @@ it 10 s after the last wait instead, and `events.idleCloseSeconds` overrides
 either (values above about 24 days clamp to that maximum). `await daytona.close()`
 releases this client's reference at once; the shared socket closes when the
 last client sharing it closes.
+New requests on a stored v2 client or any of its handles after closing throw
+`ClientClosedError` (`CLIENT_CLOSED`, source `SDK`, no HTTP status).
+Accessing `root.v2` after `await root.close()` builds a fresh working client.
+Error constructors that take `ErrorOptions` reject unknown option keys and a
+`statusCode` that is not an integer number (or `undefined`) with `TypeError`.
+A non-Cloud `DAYTONA_API_URL` emits a warning once per process: SDK 2.x ignores
+this legacy variable. Use SDK 0.x for a custom API URL.
 
 The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_ORGANIZATION_ID` (scopes a JWT for the v0 namespace),
@@ -89,7 +96,7 @@ throws `BadRequestError` instead of falling back to the environment.
 `DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint, as
 `daytona region list` in the CLI shows them, or a test environment);
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`
-always targets Daytona's v0 API URL. SDK 2.x never reads `DAYTONA_API_URL`, the
+always targets Daytona's v0 API URL. SDK 2.x never routes using `DAYTONA_API_URL`, the
 0.x SDK's variable.
 `daytona.v2` reads `DAYTONA_*` variables from the process environment only;
 `daytona.v0` keeps the 0.x SDK's behaviour of also reading `.env.local` /
@@ -145,8 +152,8 @@ default one has `default: true`. When no default is configured, the create
 throws `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
 
 SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x: the root
-rejects `apiUrl`, and SDK 2.x (`daytona.v0` included) never reads
-`DAYTONA_API_URL`.
+rejects `apiUrl`, and SDK 2.x (`daytona.v0` included) never routes with
+`DAYTONA_API_URL` (a non-Cloud value only gets a one-time warning).
 
 `daytona.v0` is the v0 SDK's own `Daytona` client, the same instance on every
 access, so code written against the v0 SDK keeps its types, `instanceof`
@@ -213,7 +220,8 @@ requested, so the same key (or the same name) creates a fresh sandbox afterwards
 Sandbox names are **not unique** display metadata. Passing `name` to any
 `create*()` also gives it permanent **get-or-create** behavior: repeating
 `create('py312', { name: 'example-user' })` with the same options returns the
-same sandbox. Its `accessToken` is returned only on the first call.
+same sandbox. Its `accessToken` is returned only on the first call. A blank
+name is rejected before any request: omit `name` for a generated one.
 
 The SDK supplies a stable idempotency key derived from the name unless you
 pass `idempotencyKey`. Python and TypeScript use the same derivation. The
@@ -351,7 +359,9 @@ make asynchronous callback work cancellation-aware when needed.
   or auto-retry around stale `If-Match`. Domain allow-lists imply default-deny:
   omitting `blockAll` while setting `allowDomains` lets the API normalize it to
   `true`, while an explicit `blockAll: false` is rejected locally with
-  `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. `blockAll: true` with
+  `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allowCidrs` needs
+  `blockAll: true` or `allowDomains`: without them the policy is open and
+  ignores `allowCidrs`, so the SDK refuses it locally. `blockAll: true` with
   `allowCidrs` and no `allowDomains` is the CIDR-only mode, which is **not a
   DNS exfiltration boundary**: DNS A lookups can include any name, but only
   answers inside `allowCidrs` come back, so a sandbox can
@@ -418,8 +428,11 @@ For an automatically deleted temporary sandbox:
 
 ### Sandbox labels and entrypoint logs
 
-Use `sandbox.setLabels(labels)` to replace the full label set. Pass `{}` to
-clear all labels. It resolves to the applied label map.
+Use `sandbox.setLabels(labels)` to replace the label set. Pass `{}` to clear
+every label but `name`. It resolves to the applied label map. The reserved
+`name` label that `findByName()` matches is kept unless the new labels set it:
+the sandbox is read first to learn it (one more request, not atomic with the
+write), and it cannot be removed.
 
 ```ts
 const labels = await sandbox.setLabels({ team: 'sdk', env: 'ci' })
@@ -495,6 +508,10 @@ const sandbox = await daytona.v2.createFromBuild(builder, {
   waitSeconds: 60,
 })
 ```
+
+`ImageBuilder.env()` values are literal: the image gets exactly the string you
+pass (`$PATH` is not expanded); a blank value, or one with a control character
+(such as a newline), is rejected.
 
 `createFromBuild()` always waits for the image build before creating a sandbox.
 `buildTimeoutSeconds` bounds only the build (omitted, `0` or a value above about
@@ -645,7 +662,13 @@ frames it read them from (`logs`), and how the process ended (`reason`,
 reported them; `reason` is always set (`'unknown'` with the value on
 `rawReason` for one this release does not know). `run()` reads the output back
 from the process log, so its `keepLogs` takes `'on_exit_ttl'` (default) or
-`'until_cleanup'`, not `'none'`.
+`'until_cleanup'`, not `'none'`. It returns no handle to write to, so it
+refuses `stdin: 'open'`: use `start()` for a process that reads stdin.
+
+`process.start()` (and `session.start()`) sends `keepLogs: 'on_exit_ttl'`
+unless you pass another value: the sandbox keeps the record and log for a while
+after the process exits; `'until_cleanup'` keeps them until the process is
+deleted, and `'none'` keeps no log.
 
 `process.start()` returns a detached `ProcessHandle` you can serialize
 (`toJSON()`, a `ProcessHandleJSON` the Python SDK reads too) and reconnect to
@@ -665,7 +688,8 @@ normally has the whole log; a stream cut short, or one that ends without
 `eof`, throws `ConnectionError`: call `streamLogs({ cursor })` again with the
 last event's cursor. Every duration is in seconds: `timeoutSeconds` is the caller wait
 budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
-deadline for server-managed runs that support one, and
+deadline for server-managed runs that support one (omitted or `0`: no
+deadline), and
 `kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
 (`'TERM'`), in `kill()` and in what `wait()` and `get()` report. Reconnected
 `kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
@@ -673,7 +697,8 @@ deadline for server-managed runs that support one, and
 
 `pty.start(command?, { terminal: { cols, rows }, cwd, env, name, user, shell,
 login, stdin, executionTimeoutSeconds, keepLogs })` starts an interactive
-terminal (80×24 when `terminal` is omitted; `stdin` defaults to `'open'`,
+terminal (80×24 when `terminal` is omitted; `cols` and `rows` are 1 to 65535;
+`TERM` is `xterm-256color` unless `env` sets it; `stdin` defaults to `'open'`,
 `keepLogs` to `'until_cleanup'`); `pty.attach()` takes the same options and also
 connects to it. `pty.list()` is the PTY-only view of
 `process.list({ kind: 'pty' })`, and `pty.delete(id)` kills then cleans up that
@@ -753,6 +778,12 @@ await handle.kill() // Linux with process containment: also stops the server
 ```
 
 ### Files
+
+All sandbox filesystem paths are absolute strings starting with `/`; relative
+paths are refused locally with `BadRequestError`. Local upload/download paths
+may be relative. Path lists must be arrays of strings, not a bare string.
+`writeText()` requires a string; `writeBytes()` and `writeMany()` accept
+`ArrayBuffer` and any `ArrayBuffer` view, using only the view's byte range.
 
 `readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,
 `remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches, and
@@ -842,6 +873,10 @@ shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
 
 ### Git
+
+`add()`, `restore()` and `reset({ files })` require an array of string
+pathspecs, not a bare string. Repository paths and pathspecs may remain relative;
+the filesystem's absolute-path rule does not apply to git.
 
 `clone()`, `pull()` and `push()` use a dedicated **30-minute** remote-operation
 deadline by default, and each accepts a per-call `timeoutSeconds` override:

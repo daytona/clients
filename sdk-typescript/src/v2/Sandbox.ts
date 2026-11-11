@@ -682,6 +682,7 @@ export class Sandbox {
   }
 
   private async waitForState(states: readonly SandboxWaitState[], options: SandboxStateWaitOptions = {}): Promise<void> {
+    this.httpOptions?.ensureOpen?.()
     await waitForSandboxState({
       id: this.id,
       region: this.region,
@@ -1086,10 +1087,27 @@ export class Sandbox {
     return new Snapshot(INTERNAL, snapshot)
   }
 
-  /** Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to the applied labels. */
+  /**
+   * Replace the sandbox's labels; pass `{}` to clear all but `name`. Resolves
+   * to the applied labels. The reserved `name` label, which `findByName()` and
+   * a `name` label search match, is kept unless `labels` sets it: without a
+   * `name` key the sandbox is read first (one more request, which also
+   * refreshes this handle's metadata) and the `name` label it reports, if any,
+   * is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
+   * be removed.
+   */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const body = labelsBody(labels)
+    // The reserved `name` label is kept unless `labels` sets it (the body is a
+    // null-prototype map, so `in` sees only its own keys).
+    if (!('name' in body)) {
+      await this.refreshData()
+      // A detail read always sets labels (absent means none); the type also
+      // allows the unknown labels of a handle no read has filled.
+      const current = this.labels
+      if (current !== undefined && Object.prototype.hasOwnProperty.call(current, 'name')) body.name = current.name
+    }
     const requestConfig = { daytona: { routeTemplate: '/sandboxes/{id}/labels', sandboxId: this.id } } as AxiosRequestConfig
     const response = await this.api.put<{ labels?: unknown }>(
       `/sandboxes/${strictUriEncode(this.id)}/labels`,

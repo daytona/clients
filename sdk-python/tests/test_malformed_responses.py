@@ -268,7 +268,7 @@ async def test_a_non_string_label_is_a_contract_error() -> None:
             with _sdk_bad_request("labels"):
                 await root.v2.get("src")
             with _sdk_bad_request(r"^sandbox labels response has a labels\.team that is not a string$"):
-                await lazy_sandbox(root.v2, "src").set_labels(labels={"team": "a"})
+                await lazy_sandbox(root.v2, "src").set_labels({"team": "a", "name": "src"})
 
 
 @pytest.mark.parametrize("call", ["get_network_policy", "get_secrets"])

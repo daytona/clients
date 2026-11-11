@@ -67,7 +67,7 @@ class InterpreterContext:
         return self._bridge.call(lambda: self._impl.close())
 
     def run(
-        self, code: str, *, cwd: Optional[str] = None, timeout: Optional[float] = None
+        self, code: str, /, *, cwd: Optional[str] = None, timeout: Optional[float] = None
     ) -> InterpreterResult:
         """Execute code inside this interpreter context.
 

@@ -162,13 +162,19 @@ function run(command: string, env: { [name: string]: string }, dockerfile: strin
   return result(0, '')
 }
 
+/** The SDK refuses a relative sandbox path; the fake does too. */
+function absolute(path: string): string {
+  if (!path.startsWith('/')) throw new Error(`path must be an absolute path (starting with '/'): ${path}`)
+  return path
+}
+
 function sandbox(name: string, env: { [name: string]: string }, dockerfile: string, mounts: readonly Mount[] = []) {
   const id = `sbx-${record.sandboxes.length}`
   record.sandboxes.push(id)
   record.mounts.push({ sandboxId: id, mounts: [...mounts] })
   const disk: FileStore = new Map()
   // The `fs` calls go through the same mount-aware store as the commands.
-  const at = (path: string) => fileStore(path, mounts, disk)
+  const at = (path: string) => fileStore(absolute(path), mounts, disk)
   const write = (path: string, data: Uint8Array): void => {
     const { store, key, readOnly } = at(path)
     if (readOnly) throw new Error(readOnlyFailure(path))
@@ -195,14 +201,13 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     fs: {
       mkdir: async () => undefined,
       list: async (dir: string) => {
-        // The entries directly below `dir`, from the store that holds `dir`:
-        // `.` (or empty) is the relative root, `/` the absolute one.
-        const relative = dir.replace(/^(?:\.\/)+/, '').replace(/\/+$/, '')
-        const root = relative === '' || relative === '.'
-        const { store, key } = at(root ? (dir.startsWith('/') ? '/' : '.') : relative)
-        const prefix = root ? (dir.startsWith('/') ? '/' : '') : `${key}/`
+        // The entries directly below `dir`, from the store that holds `dir`;
+        // a relative path is refused, as the SDK refuses it.
+        const trimmed = absolute(dir).replace(/\/+$/, '')
+        const { store, key } = at(trimmed === '' ? '/' : trimmed)
+        const prefix = trimmed === '' ? '/' : `${key}/`
         const names = [...store.keys()]
-          .filter((path) => path.startsWith(prefix) && (prefix !== '' || !path.startsWith('/')))
+          .filter((path) => path.startsWith(prefix))
           .map((path) => path.slice(prefix.length).split('/')[0])
         return { items: [...new Set(names)].map((name) => ({ name })) }
       },

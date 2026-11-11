@@ -14,7 +14,7 @@ import { DEFAULT_MAX_RESPONSE_BYTES, maxResponseBytesOption } from './bodyLimit.
 /**
  * The default Daytona Cloud v2 API, used unless `DAYTONA_V2_API_URL` (a
  * regional endpoint or a test environment) selects another one. `DAYTONA_API_URL` belongs to
- * the 0.x SDK; SDK 2.x never reads it.
+ * the 0.x SDK; SDK 2.x ignores it for routing (the root warns on custom values).
  */
 export const DEFAULT_V2_API_URL = 'https://api.daytona.com'
 
