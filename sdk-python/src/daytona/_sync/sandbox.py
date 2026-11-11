@@ -385,7 +385,7 @@ class SandboxNodeCollection(list[SandboxNode]):
     def _generation(self, deadline: float | None = None) -> int:
         sandbox = self._require_sandbox()
         sandbox.refresh_data(request_timeout=self._remaining(deadline))
-        self._remaining(deadline)
+        _ = self._remaining(deadline)
         generation = sandbox.topology_generation
         if generation is None:
             raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
@@ -393,17 +393,17 @@ class SandboxNodeCollection(list[SandboxNode]):
 
     def _wait(self, operation: GangMembershipOperation, deadline: float | None) -> GangMembershipOperation:
         sandbox = self._require_sandbox()
-        self._remaining(deadline)
+        _ = self._remaining(deadline)
         while operation.status not in {"COMPLETED", "FAILED"}:
             time.sleep(min(1.0, self._remaining(deadline) or 1.0))
             operation = sandbox._sandbox_api.get_gang_membership_operation(
                 sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
             )
-            self._remaining(deadline)
+            _ = self._remaining(deadline)
         if operation.status == "FAILED":
             raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
         sandbox.refresh_data(request_timeout=self._remaining(deadline))
-        self._remaining(deadline)
+        _ = self._remaining(deadline)
         return operation
 
     @intercept_errors(message_prefix="Failed to add Sandbox nodes: ")
