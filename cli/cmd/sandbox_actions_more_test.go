@@ -572,3 +572,16 @@ func TestSandboxStart_linuxReadsNoReservations(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestSandboxStart_macosFindsALiveReservationOnALaterPage(t *testing.T) {
+	id := testMacSandboxID
+	elsewhere := strings.Replace(macReservationFixture(`"m4-10c-16g"`, m4Capacity), `"region_id":"region-a"`, `"region_id":"region-c"`, 1)
+	_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+		{method: http.MethodGet, path: "/reservations", query: "limit=200", status: 200, response: `{"reservations":[` + elsewhere + `],"next_cursor":"page-2"}`},
+		{method: http.MethodGet, path: "/reservations", query: "cursor=page-2&limit=200", status: 200, response: `{"reservations":[` + strings.Replace(macReservationFixture(`"m4-10c-16g"`, m4Capacity), `"region_id":"region-a"`, `"region_id":"region-b"`, 1) + `]}`},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "pending")},
+	})
+	require.NoError(t, err)
+}
