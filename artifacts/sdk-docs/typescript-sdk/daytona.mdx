@@ -111,7 +111,7 @@ Daytona.fork
 #### \[asyncDispose\]()
 
 ```ts
-asyncDispose: Promise<void>;
+[Symbol.asyncDispose](): Promise<void>;
 ```
 
 **Returns**:
@@ -312,6 +312,8 @@ list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox>;
 ```
 
 Iterates over Sandboxes matching the given query.
+Multi-node GPU sandboxes currently use whole 8-GPU nodes. A gang deleted
+between listing and fetching its node details is skipped.
 
 **Parameters**:
 

@@ -1323,9 +1323,10 @@ Execute a command on every node, keyed by rank.
 ``timeout`` limits execution on each rank in seconds; None or 0 disables
 the limit. Streaming deadlines are enforced by the SDK, which deletes its
 temporary session to stop the command. Cleanup requires API connectivity.
-Bounded setup precedes the execution deadline: a 5-second RDMA probe
+Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
 and, with a positive timeout, a 10-second session-creation request.
 A timeout raises DaytonaTimeoutError; completed peer work is not undone.
+Cleanup errors after command completion are recorded in each node's warnings.
 
 ## SandboxNodeFileSystem
 

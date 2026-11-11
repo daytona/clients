@@ -18,6 +18,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.RunnerFabricHealth;
 import io.daytona.api.client.model.RunnerHealthMetrics;
 import io.daytona.api.client.model.RunnerServiceHealth;
 import java.io.IOException;
@@ -87,6 +88,14 @@ public class RunnerHealthcheckTest {
     @Test
     public void appVersionTest() {
         // TODO: test appVersion
+    }
+
+    /**
+     * Test the property 'fabric'
+     */
+    @Test
+    public void fabricTest() {
+        // TODO: test fabric
     }
 
 }

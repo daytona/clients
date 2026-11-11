@@ -226,15 +226,19 @@ class SandboxNodeProcess:
         ``timeout`` limits execution on each rank in seconds; None or 0 disables
         the limit. Streaming deadlines are enforced by the SDK, which deletes its
         temporary session to stop the command. Cleanup requires API connectivity.
-        Bounded setup precedes the execution deadline: a 5-second RDMA probe
+        Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
         and, with a positive timeout, a 10-second session-creation request.
         A timeout raises DaytonaTimeoutError; completed peer work is not undone.
+        Cleanup errors after command completion are recorded in each node's warnings.
         """
         validate_node_exec_timeout(timeout)
 
         def execute_node(node: SandboxNode) -> ExecuteResponse:
-            check = node.process.exec(_RDMA_USERSPACE_CHECK, timeout=5) if len(self._nodes) > 1 else None
-            warning = "" if check is None or check.exit_code == 0 else _RDMA_USERSPACE_WARNING
+            try:
+                check = node.process.exec(_RDMA_USERSPACE_CHECK, timeout=5) if len(self._nodes) > 1 else None
+                warning = "" if check is None or check.exit_code == 0 else _RDMA_USERSPACE_WARNING
+            except Exception:  # An advisory diagnostic must not prevent the user's command.
+                warning = "WARNING: Could not check RDMA userspace; continuing without verification."
             if warning and warning not in node.warnings:
                 node.warnings.append(warning)
 
@@ -311,7 +315,7 @@ class SandboxNodeProcess:
                         except Exception as cleanup_error:
                             if failure is not None:
                                 raise failure from cleanup_error
-                            raise
+                            node.warnings.append(f"Session {session_id} cleanup failed: {cleanup_error}")
 
                 result = asyncio.run(execute_with_cleanup())
             if warning:
@@ -1934,6 +1938,8 @@ class Sandbox(SandboxDto):
         if new_proxy_url:
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
+                for node in self.nodes:
+                    node._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
         self.sandbox_class: str | None = (
             sandbox_dto.sandbox_class.value

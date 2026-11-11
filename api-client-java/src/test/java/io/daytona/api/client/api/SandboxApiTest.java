@@ -14,10 +14,12 @@
 package io.daytona.api.client.api;
 
 import io.daytona.api.client.ApiException;
+import io.daytona.api.client.model.AddGangNodes;
 import java.math.BigDecimal;
 import io.daytona.api.client.model.CreateSandbox;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
 import io.daytona.api.client.model.ForkSandbox;
+import io.daytona.api.client.model.GangMembershipOperation;
 import io.daytona.api.client.model.ListSandboxesResponse;
 import io.daytona.api.client.model.MetricsResponse;
 import java.time.OffsetDateTime;
@@ -26,6 +28,8 @@ import io.daytona.api.client.model.PaginatedLogs;
 import io.daytona.api.client.model.PaginatedTraces;
 import io.daytona.api.client.model.PortPreviewUrl;
 import io.daytona.api.client.model.RegionQuota;
+import io.daytona.api.client.model.RemoveGangNodes;
+import io.daytona.api.client.model.ReplaceGangNode;
 import io.daytona.api.client.model.ResizeSandbox;
 import io.daytona.api.client.model.ResolveSandboxSecrets200ResponseInner;
 import io.daytona.api.client.model.Sandbox;
@@ -59,6 +63,20 @@ import java.util.Map;
 public class SandboxApiTest {
 
     private final SandboxApi api = new SandboxApi();
+
+    /**
+     * Append nodes to a multi-node sandbox
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void addSandboxNodesTest() throws ApiException {
+        String sandboxIdOrName = null;
+        AddGangNodes addGangNodes = null;
+        String xDaytonaOrganizationID = null;
+        GangMembershipOperation response = api.addSandboxNodes(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
 
     /**
      * Archive sandbox
@@ -197,6 +215,20 @@ public class SandboxApiTest {
         String sandboxIdOrName = null;
         String xDaytonaOrganizationID = null;
         Url response = api.getBuildLogsUrl(sandboxIdOrName, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * Get a gang membership operation
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void getGangMembershipOperationTest() throws ApiException {
+        String sandboxIdOrName = null;
+        String operationId = null;
+        String xDaytonaOrganizationID = null;
+        GangMembershipOperation response = api.getGangMembershipOperation(sandboxIdOrName, operationId, xDaytonaOrganizationID);
         // TODO: test validations
     }
 
@@ -496,6 +528,20 @@ public class SandboxApiTest {
     }
 
     /**
+     * Remove the highest ranks from a multi-node sandbox
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void removeSandboxNodesTest() throws ApiException {
+        String sandboxIdOrName = null;
+        RemoveGangNodes removeGangNodes = null;
+        String xDaytonaOrganizationID = null;
+        GangMembershipOperation response = api.removeSandboxNodes(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
      * Replace sandbox labels
      *
      * @throws ApiException if the Api call fails
@@ -506,6 +552,21 @@ public class SandboxApiTest {
         SandboxLabels sandboxLabels = null;
         String xDaytonaOrganizationID = null;
         SandboxLabels response = api.replaceLabels(sandboxIdOrName, sandboxLabels, xDaytonaOrganizationID);
+        // TODO: test validations
+    }
+
+    /**
+     * Replace a failed multi-node sandbox rank
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void replaceSandboxNodeTest() throws ApiException {
+        String sandboxIdOrName = null;
+        String rank = null;
+        ReplaceGangNode replaceGangNode = null;
+        String xDaytonaOrganizationID = null;
+        GangMembershipOperation response = api.replaceSandboxNode(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID);
         // TODO: test validations
     }
 
@@ -650,6 +711,8 @@ public class SandboxApiTest {
 
     /**
      * Stop sandbox
+     *
+     * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
      *
      * @throws ApiException if the Api call fails
      */

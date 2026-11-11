@@ -38,6 +38,7 @@ from daytona_api_client import Sandbox as SandboxDto
 from daytona_api_client import SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
 from daytona_api_client import VolumesApi as VolumesApi
 from daytona_api_client import WarmPoolsApi
+from daytona_api_client.exceptions import NotFoundException
 from daytona_toolbox_api_client import ApiClient as ToolboxApiClient
 
 from .._utils.enum import to_enum
@@ -56,6 +57,7 @@ from ..common.daytona import (
 )
 from ..common.errors import (
     DaytonaAuthenticationError,
+    DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
     DaytonaTimeoutError,
     DaytonaValidationError,
@@ -731,6 +733,9 @@ class Daytona:
     ) -> Iterator[Sandbox]:
         """Iterates over Sandboxes matching the given query.
 
+        Multi-node GPU sandboxes currently use whole 8-GPU nodes.
+        A gang deleted between listing and fetching its node details is skipped.
+
         Args:
             query: Optional filters, sorting, and per-page size.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
@@ -762,15 +767,20 @@ class Daytona:
             response = self._fetch_sandbox_page(q, cursor, request_timeout)
             for sandbox in response.items:
                 # SandboxListItem intentionally omits internal member rows.
-                # Hydrate only gang heads so Sandbox.nodes is always complete.
-                sandbox_with_nodes = (
-                    self._sandbox_api.get_sandbox(
-                        sandbox.id,
-                        _request_timeout=http_timeout(request_timeout),
+                # This release uses whole 8-GPU nodes, so gangs have more than 8 GPUs.
+                # Hydrate those heads without adding a GET for ordinary sandboxes.
+                try:
+                    sandbox_with_nodes = (
+                        self._sandbox_api.get_sandbox(
+                            sandbox.id,
+                            _request_timeout=http_timeout(request_timeout),
+                        )
+                        if sandbox.gpu > 8
+                        else sandbox
                     )
-                    if sandbox.gpu > 8
-                    else sandbox
-                )
+                except (NotFoundException, DaytonaNotFoundError):
+                    # A listed gang may be deleted before its hydration GET.
+                    continue
                 language = self._validate_language_label(
                     sandbox_with_nodes.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)
                 ).value

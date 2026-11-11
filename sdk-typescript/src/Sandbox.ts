@@ -123,11 +123,18 @@ async function executeOnNodes(
   }
   const entries = await Promise.all(
     nodes.map(async (node): Promise<[number, ExecuteResponse]> => {
-      const check =
-        nodes.length > 1 ? await node.process.executeCommand(RDMA_USERSPACE_CHECK, undefined, undefined, 5) : undefined
-      const warning = check === undefined || check.exitCode === 0 ? '' : RDMA_USERSPACE_WARNING
-      if (warning && !node.warnings.includes(RDMA_USERSPACE_WARNING.trim())) {
-        node.warnings.push(RDMA_USERSPACE_WARNING.trim())
+      let warning = ''
+      try {
+        const check =
+          nodes.length > 1
+            ? await node.process.executeCommand(RDMA_USERSPACE_CHECK, undefined, undefined, 5)
+            : undefined
+        if (check !== undefined && check.exitCode !== 0) warning = RDMA_USERSPACE_WARNING
+      } catch {
+        warning = 'WARNING: Could not check RDMA userspace; continuing without verification.\n'
+      }
+      if (warning && !node.warnings.includes(warning.trim())) {
+        node.warnings.push(warning.trim())
       }
       if (warning) options.onStderr?.(`[rank ${node.rank}] ${warning}`)
 
@@ -212,7 +219,7 @@ async function executeOnNodes(
             ? node.process.deleteSession(sessionId, 10)
             : node.process.deleteSession(sessionId)
           await cleanup.catch((cleanupError) => {
-            if (!failed) throw cleanupError
+            if (!failed) node.warnings.push(`Session ${sessionId} cleanup failed: ${String(cleanupError)}`)
             if (failure instanceof Error && failure.cause === undefined) failure.cause = cleanupError
           })
         }
@@ -1916,6 +1923,7 @@ export class Sandbox {
       }
       this.axiosInstance.defaults.baseURL = baseUrl + this.id
       this.clientConfig.basePath = this.axiosInstance.defaults.baseURL
+      for (const node of this.nodes) node.updateToolboxProxyUrl(newProxyUrl)
     }
     if (newProxyUrl) {
       this.toolboxProxyUrl = newProxyUrl
@@ -1949,7 +1957,7 @@ export class Sandbox {
             },
           ]
     if (rawNodes.some((node, index) => node.rank !== index) || rawNodes[0]?.id !== sandboxDto.id) {
-      throw new Error('Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head')
+      throw new DaytonaError('Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head')
     }
     const language = sandboxDto.labels?.[CODE_TOOLBOX_LANGUAGE_LABEL]
     const existing = new Map(this.nodes.map((node) => [node.id, node]))

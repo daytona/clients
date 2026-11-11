@@ -40,6 +40,17 @@ export function load(app) {
     page.contents = page.contents.replace(/title: ""/, `title: "${title}"`)
 
     page.contents = transformContent(page.contents)
+    // The markdown plugin renders this computed method as a property. Keep
+    // the generated reference consistent with the callable SDK symbol method.
+    if (page.model?.name === 'Daytona') {
+      page.contents = page.contents.replace('asyncDispose: Promise<void>;', '[Symbol.asyncDispose](): Promise<void>;')
+    }
+    // Preserve the wire type's namespace when it shares the SDK handle's name.
+    if (page.model?.name === 'SandboxNode') {
+      page.contents = page.contents
+        .replace(/\bnode: SandboxNode\b(,?)[ \t]*/g, 'node: import("@daytona/api-client").SandboxNode$1')
+        .replace(/- `node` _SandboxNode_/g, '- `node` _API SandboxNode DTO_')
+    }
     page.filename = transformFilename(page.filename)
   })
 }

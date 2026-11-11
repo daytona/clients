@@ -75,6 +75,37 @@ describe('Process', () => {
     jest.clearAllMocks()
   })
 
+  it('aborts log streaming while connection setup is pending and closes a late socket', async () => {
+    const { process } = await makeProcess()
+    const ws = { terminate: jest.fn(), close: jest.fn() }
+    let finishSetup!: (socket: typeof ws) => void
+    mockCreateSandboxWebSocket.mockReturnValue(new Promise((resolve) => (finishSetup = resolve)))
+    mockStdDemuxStream.mockResolvedValue(undefined)
+    const controller = new AbortController()
+    const reason = new Error('cancelled by caller')
+    let settled = false
+    const pending = process.getSessionCommandLogs('s1', 'c1', jest.fn(), jest.fn(), controller.signal).then(
+      () => {
+        settled = true
+        return undefined
+      },
+      (error: unknown) => {
+        settled = true
+        return error
+      },
+    )
+    controller.abort(reason)
+    // Drain promise continuations without completing the connection setup.
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve()
+    const settledBeforeSetup = settled
+    finishSetup(ws)
+    const outcome = await pending
+    expect(settledBeforeSetup).toBe(true)
+    expect(outcome).toBeUndefined()
+    expect(ws.terminate).toHaveBeenCalledTimes(1)
+    expect(mockStdDemuxStream).not.toHaveBeenCalled()
+  })
+
   it('executeCommand sends command and returns result', async () => {
     const { process, apiClient } = await makeProcess()
 
@@ -340,18 +371,23 @@ describe('Process', () => {
     const { process } = await makeProcess()
     let finishStream!: () => void
     const ws = { terminate: jest.fn(() => finishStream()) }
+    let markStreaming!: () => void
+    const streaming = new Promise<void>((resolve) => {
+      markStreaming = resolve
+    })
     mockCreateSandboxWebSocket.mockResolvedValue(ws)
     mockStdDemuxStream.mockImplementation(
       () =>
         new Promise<void>((resolve) => {
           finishStream = resolve
+          markStreaming()
         }),
     )
     const controller = new AbortController()
     const remove = jest.spyOn(controller.signal, 'removeEventListener')
 
     const logs = process.getSessionCommandLogs('s1', 'c1', jest.fn(), jest.fn(), controller.signal)
-    await Promise.resolve()
+    await streaming
     controller.abort()
     await logs
 
@@ -362,20 +398,14 @@ describe('Process', () => {
   it('closes a socket returned after its log request was already aborted', async () => {
     const { process } = await makeProcess()
     let connect!: (ws: unknown) => void
-    let finishStream!: () => void
-    const ws = { close: jest.fn(() => finishStream()) }
+    const ws = { close: jest.fn() }
     mockCreateSandboxWebSocket.mockImplementation(
       () =>
         new Promise((resolve) => {
           connect = resolve
         }),
     )
-    mockStdDemuxStream.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finishStream = resolve
-        }),
-    )
+    mockStdDemuxStream.mockResolvedValue(undefined)
     const controller = new AbortController()
 
     const logs = process.getSessionCommandLogs('s1', 'c1', jest.fn(), jest.fn(), controller.signal)

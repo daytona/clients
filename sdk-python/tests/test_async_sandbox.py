@@ -668,3 +668,20 @@ def test_lightweight_event_preserves_gang_metadata(mock_async_toolbox_api_client
     assert sandbox.degraded is True
     assert sandbox.topology_generation == 7
     assert len(sandbox.nodes) == 2
+
+
+@pytest.mark.parametrize("with_nodes", [True, False])
+def test_proxy_refresh_updates_existing_node_clients(mock_async_toolbox_api_client, mock_async_sandbox_api, with_nodes):
+    dto = make_sandbox_dto(node_count=2, toolbox_proxy_url="https://old.example/toolbox")
+    sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+    handles = list(sandbox.nodes)
+    processes = [node.process for node in handles]
+    update = dto.model_copy(update={"toolbox_proxy_url": "https://new.example/toolbox"})
+    if not with_nodes:
+        from daytona_api_client_async import SandboxListItem
+
+        update = SandboxListItem.model_validate(update.model_dump())
+    sandbox._AsyncSandbox__process_sandbox_dto(update)
+    assert all(node is old for node, old in zip(sandbox.nodes, handles))
+    assert all(node.process is old for node, old in zip(sandbox.nodes, processes))
+    assert all(node._toolbox_api._toolbox_base_url == "https://new.example/toolbox" for node in handles)

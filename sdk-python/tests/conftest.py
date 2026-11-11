@@ -58,7 +58,18 @@ def make_sandbox_dto(
             SyncSandboxNodeDto.from_dict({**node_defaults, **node})
             for node in cast(
                 list[dict[str, Any]],
-                kwargs.get("nodes", [{"rank": 0, "id": cast(str, kwargs.get("id", sandbox_id))}]),
+                kwargs.get(
+                    "nodes",
+                    [
+                        {
+                            "rank": rank,
+                            "id": (
+                                cast(str, kwargs.get("id", sandbox_id)) if rank == 0 else f"{sandbox_id}-worker-{rank}"
+                            ),
+                        }
+                        for rank in range(node_count)
+                    ],
+                ),
             )
         ],
         node_count=node_count,
