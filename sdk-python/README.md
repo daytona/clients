@@ -1055,8 +1055,9 @@ Some environment variable names are reserved for the platform, among them
 every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
 and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
 that sets a reserved name fails the create with `BadRequestError` (400) naming
-the key. `update_env()` also refuses reserved names in the keys it sets or
-unsets, by the sandbox's own list, which still accepts `DAYTONA_SANDBOX_TOKEN`.
+the key. `update_env()` refuses reserved `DAYTONA_*` names in the keys it sets or
+unsets too (`DAYTONA_SANDBOX_ID`, for one), except `DAYTONA_SANDBOX_TOKEN`,
+which it can set.
 
 ### Waiting for lifecycle states
 

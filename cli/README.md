@@ -387,8 +387,9 @@ never prompts:
 - Organization and project names (`org create`, `org update --name`,
   `project create`, `project update --name`) are 1 to 64 characters after
   trimming, with no control characters, and a project cannot be named
-  `default`. Any other name is a usage error (exit 2) before any request;
-  a rename that sends the current name back unchanged is always sent.
+  `default`. Any other name is a usage error (exit 2): before any request on a
+  create, after one read of the current name on a rename, which sends the
+  current name back unchanged whatever it holds.
 - Billing amounts are integer cents plus a currency. One-time top-ups use
   `--amount-cents`; automatic top-up and low-balance settings use
   `--threshold-cents` (and automatic top-up also uses `--target-cents`).

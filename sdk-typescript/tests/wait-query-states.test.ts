@@ -8,23 +8,31 @@ import { SandboxStatus } from '../src/v2/gen/api-enums'
 import { waitForSandboxState, waitQueryState } from '../src/v2/sandboxWait'
 import type { SandboxWaitState } from '../src/v2/types'
 
-// Every wait state, checked for completeness at compile time.
-const WAIT_STATES = ['queued', 'starting', 'started', 'pausing', 'paused', 'stopping', 'stopped', 'destroying', 'destroyed'] as const satisfies readonly SandboxWaitState[]
-const everyWaitStateListed: [Exclude<SandboxWaitState, (typeof WAIT_STATES)[number]>] extends [never] ? true : never = true
+// Every wait state and the status it is sent as, checked for completeness at
+// compile time.
+const EXPECTED = {
+  queued: 'queued',
+  starting: 'booting',
+  started: 'running',
+  pausing: 'pausing',
+  paused: 'paused',
+  stopping: 'stopping',
+  stopped: 'stopped',
+  destroying: 'deleting',
+  destroyed: 'deleted',
+} as const satisfies Record<SandboxWaitState, string>
+const WAIT_STATES = Object.keys(EXPECTED) as SandboxWaitState[]
 
 // The API answers a `wait` / `wait_exact` query naming anything but a status of
 // the contract's SandboxStatus with 400, so the mapping must stay inside it.
 describe('sandbox wait targets', () => {
-  it('lists every wait state', () => {
-    expect(everyWaitStateListed).toBe(true)
-  })
-
   it('declares the thirteen contract statuses', () => {
     expect(SandboxStatus).toHaveLength(13)
   })
 
   it.each(WAIT_STATES)('sends %s as a contract status', (state) => {
-    expect(SandboxStatus).toContain(waitQueryState(state))
+    expect(waitQueryState(state)).toBe(EXPECTED[state])
+    expect(SandboxStatus).toContain(EXPECTED[state])
   })
 
   it.each(['running', 'deleted', 'creating', 'error', 'unknown', 'STARTED'])('refuses %s before any request', async (state) => {

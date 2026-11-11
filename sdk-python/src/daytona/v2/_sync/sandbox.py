@@ -408,7 +408,8 @@ class Sandbox:
         changes nothing. An empty label key is refused with
         :class:`~daytona.v2.errors.BadRequestError` before any request. A
         sandbox that is deleted or being deleted raises
-        :class:`ConflictError` (``CONFLICT``).
+        :class:`ConflictError` (``CONFLICT``), unless the read finds it already
+        gone (:class:`NotFoundError`).
         """
         return self._bridge.call(lambda: self._impl.set_labels(labels))
 

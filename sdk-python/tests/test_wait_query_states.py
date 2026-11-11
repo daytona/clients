@@ -20,10 +20,27 @@ from daytona.v2.types import SandboxWaitState
 
 _CONTRACT_STATUSES = {member.value for member in SandboxStatus} - {"unknown_default_open_api"}
 
+_EXPECTED = {
+    "queued": "queued",
+    "starting": "booting",
+    "started": "running",
+    "pausing": "pausing",
+    "paused": "paused",
+    "stopping": "stopping",
+    "stopped": "stopped",
+    "destroying": "deleting",
+    "destroyed": "deleted",
+}
+
 
 @pytest.mark.parametrize("state", get_args(SandboxWaitState))
 def test_wait_state_is_sent_as_a_contract_status(state: SandboxWaitState) -> None:
-    assert _wait_query_state(state) in _CONTRACT_STATUSES
+    assert _wait_query_state(state) == _EXPECTED[state]
+    assert _EXPECTED[state] in _CONTRACT_STATUSES
+
+
+def test_every_wait_state_has_an_expected_status() -> None:
+    assert set(_EXPECTED) == set(get_args(SandboxWaitState))
 
 
 def test_contract_declares_the_thirteen_statuses() -> None:
