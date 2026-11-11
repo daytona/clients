@@ -254,6 +254,7 @@ export class Process {
    * long-running commands and monitor process status.
    *
    * @param {string} sessionId - Unique identifier for the new session
+   * @param {number} [timeout] - Optional HTTP request timeout in seconds; 0 disables it.
    * @returns {Promise<void>}
    *
    * @example
@@ -265,10 +266,9 @@ export class Process {
    * await process.deleteSession(sessionId);
    */
   @WithInstrumentation()
-  public async createSession(sessionId: string): Promise<void> {
-    await this.apiClient.createSession({
-      sessionId,
-    })
+  public async createSession(sessionId: string, timeout?: number): Promise<void> {
+    if (timeout === undefined) await this.apiClient.createSession({ sessionId })
+    else await this.apiClient.createSession({ sessionId }, { timeout: timeout * 1000 })
   }
 
   /**
@@ -401,6 +401,7 @@ export class Process {
    * @param {string} commandId - Unique identifier of the command
    * @param {function} onStdout - Callback function to handle stdout log chunks
    * @param {function} onStderr - Callback function to handle stderr log chunks
+   * @param {AbortSignal} [signal] - Stop the local log stream without deleting the remote session
    * @returns {Promise<void>}
    *
    * @example
@@ -415,6 +416,7 @@ export class Process {
     commandId: string,
     onStdout: (chunk: string) => void,
     onStderr: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<void>
 
   @WithInstrumentation()
@@ -423,6 +425,7 @@ export class Process {
     commandId: string,
     onStdout?: (chunk: string) => void,
     onStderr?: (chunk: string) => void,
+    signal?: AbortSignal,
   ): Promise<SessionCommandLogsResponse | void> {
     if (!onStdout && !onStderr) {
       const response = await this.apiClient.getSessionCommandLogs(sessionId, commandId)
@@ -437,8 +440,18 @@ export class Process {
     const url = `${this.clientConfig.basePath.replace(/^http/, 'ws')}/process/session/${sessionId}/command/${commandId}/logs?follow=true`
 
     const ws = await createSandboxWebSocket(url, this.clientConfig.baseOptions?.headers || {}, this.getPreviewToken)
-
-    await stdDemuxStream(ws, onStdout, onStderr)
+    const stream = stdDemuxStream(ws, onStdout, onStderr)
+    const abort = () => {
+      if (typeof ws.terminate === 'function') ws.terminate()
+      else ws.close()
+    }
+    if (signal?.aborted) abort()
+    else signal?.addEventListener('abort', abort, { once: true })
+    try {
+      await stream
+    } finally {
+      signal?.removeEventListener('abort', abort)
+    }
   }
 
   /**
@@ -526,6 +539,7 @@ export class Process {
    * Delete a session from the Sandbox.
    *
    * @param {string} sessionId - Unique identifier of the session to delete
+   * @param {number} [timeout] - HTTP cleanup request timeout in seconds; 0 disables the request deadline
    * @returns {Promise<void>}
    *
    * @example
@@ -533,8 +547,9 @@ export class Process {
    * await process.deleteSession('my-session');
    */
   @WithInstrumentation()
-  public async deleteSession(sessionId: string): Promise<void> {
-    await this.apiClient.deleteSession(sessionId)
+  public async deleteSession(sessionId: string, timeout?: number): Promise<void> {
+    if (timeout === undefined) await this.apiClient.deleteSession(sessionId)
+    else await this.apiClient.deleteSession(sessionId, { timeout: timeout * 1000 })
   }
 
   /**

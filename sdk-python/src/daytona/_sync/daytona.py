@@ -22,7 +22,16 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.semconv.attributes import service_attributes
 
-from daytona_api_client import ApiClient, ConfigApi, Configuration, CreateBuildInfo, CreateSandbox
+from daytona_api_client import (
+    ApiClient,
+    ConfigApi,
+    Configuration,
+    CreateBuildInfo,
+    CreateSandbox,
+    CreateSandboxCpu,
+    CreateSandboxDisk,
+    CreateSandboxMemory,
+)
 from daytona_api_client import GpuType as SyncGpuType
 from daytona_api_client import ObjectStorageApi
 from daytona_api_client import Sandbox as SandboxDto
@@ -571,9 +580,12 @@ class Daytona:
                 )
 
             if params.resources:
-                sandbox_data.cpu = params.resources.cpu
-                sandbox_data.memory = params.resources.memory
-                sandbox_data.disk = params.resources.disk
+                if params.resources.cpu is not None:
+                    sandbox_data.cpu = CreateSandboxCpu(params.resources.cpu)
+                if params.resources.memory is not None:
+                    sandbox_data.memory = CreateSandboxMemory(params.resources.memory)
+                if params.resources.disk is not None:
+                    sandbox_data.disk = CreateSandboxDisk(params.resources.disk)
                 sandbox_data.gpu = params.resources.gpu
                 if params.resources.gpu_type is not None:
                     gpu_types = (
@@ -749,9 +761,21 @@ class Daytona:
             first_page = False
             response = self._fetch_sandbox_page(q, cursor, request_timeout)
             for sandbox in response.items:
-                language = self._validate_language_label(sandbox.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)).value
+                # SandboxListItem intentionally omits internal member rows.
+                # Hydrate only gang heads so Sandbox.nodes is always complete.
+                sandbox_with_nodes = (
+                    self._sandbox_api.get_sandbox(
+                        sandbox.id,
+                        _request_timeout=http_timeout(request_timeout),
+                    )
+                    if sandbox.gpu > 8
+                    else sandbox
+                )
+                language = self._validate_language_label(
+                    sandbox_with_nodes.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)
+                ).value
                 yield Sandbox(
-                    sandbox,
+                    sandbox_with_nodes,
                     self._toolbox_api_client,
                     self._sandbox_api,
                     language,

@@ -24,6 +24,7 @@ common.ts
 configuration.ts
 index.ts
 models/account-provider.ts
+models/add-gang-nodes.ts
 models/announcement.ts
 models/api-key-list.ts
 models/api-key-response.ts
@@ -46,6 +47,9 @@ models/create-region.ts
 models/create-runner-response.ts
 models/create-runner-sandbox-class.ts
 models/create-runner.ts
+models/create-sandbox-cpu.ts
+models/create-sandbox-disk.ts
+models/create-sandbox-memory.ts
 models/create-sandbox-snapshot.ts
 models/create-sandbox.ts
 models/create-secret.ts
@@ -57,6 +61,9 @@ models/daytona-configuration.ts
 models/directory-sync-status.ts
 models/docker-registry.ts
 models/fork-sandbox.ts
+models/gang-membership-operation.ts
+models/gang-node-failure.ts
+models/gang-node-resources.ts
 models/generate-workos-admin-portal-link.ts
 models/gpu-capacity-response.ts
 models/gpu-capacity.ts
@@ -103,9 +110,13 @@ models/region-type.ts
 models/region-usage-overview.ts
 models/region.ts
 models/registry-push-access-dto.ts
+models/remove-gang-nodes.ts
+models/replace-gang-node.ts
 models/resize-sandbox.ts
 models/resolve-sandbox-secrets200-response-inner.ts
 models/runner-class.ts
+models/runner-fabric-health.ts
+models/runner-fabric-rail.ts
 models/runner-full.ts
 models/runner-health-metrics.ts
 models/runner-healthcheck.ts
@@ -116,11 +127,13 @@ models/runner.ts
 models/sandbox-class.ts
 models/sandbox-created-webhook.ts
 models/sandbox-desired-state.ts
+models/sandbox-gang-member-failed-webhook.ts
 models/sandbox-identity.ts
 models/sandbox-labels.ts
 models/sandbox-list-item.ts
 models/sandbox-list-sort-direction.ts
 models/sandbox-list-sort-field.ts
+models/sandbox-node.ts
 models/sandbox-state-updated-webhook.ts
 models/sandbox-state.ts
 models/sandbox-volume.ts

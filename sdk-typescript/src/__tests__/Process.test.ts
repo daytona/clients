@@ -264,6 +264,22 @@ describe('Process', () => {
     expect(execResult.cmdId).toBe('c1')
   })
 
+  it.each([0, 10])('createSession supports a bounded setup request (timeout=%s)', async (timeout) => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.createSession.mockResolvedValue(createApiResponse(undefined))
+    await process.createSession('s1', timeout)
+    expect(apiClient.createSession).toHaveBeenCalledWith({ sessionId: 's1' }, { timeout: timeout * 1000 })
+  })
+
+  it.each([0, 10])('deleteSession supports a bounded cleanup request (timeout=%s)', async (timeout) => {
+    const { process, apiClient } = await makeProcess()
+    apiClient.deleteSession.mockResolvedValue(createApiResponse(undefined))
+
+    await process.deleteSession('s1', timeout)
+
+    expect(apiClient.deleteSession).toHaveBeenCalledWith('s1', { timeout: timeout * 1000 })
+  })
+
   it('executeSessionCommand converts timeout seconds to milliseconds', async () => {
     const { process, apiClient } = await makeProcess()
 
@@ -318,6 +334,69 @@ describe('Process', () => {
     await process.getSessionCommandLogs('s1', 'c1', onStdout, onStderr)
     expect(mockCreateSandboxWebSocket).toHaveBeenCalled()
     expect(mockStdDemuxStream).toHaveBeenCalledWith(ws, onStdout, onStderr)
+  })
+
+  it('aborts a local log socket independently of remote session cleanup', async () => {
+    const { process } = await makeProcess()
+    let finishStream!: () => void
+    const ws = { terminate: jest.fn(() => finishStream()) }
+    mockCreateSandboxWebSocket.mockResolvedValue(ws)
+    mockStdDemuxStream.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStream = resolve
+        }),
+    )
+    const controller = new AbortController()
+    const remove = jest.spyOn(controller.signal, 'removeEventListener')
+
+    const logs = process.getSessionCommandLogs('s1', 'c1', jest.fn(), jest.fn(), controller.signal)
+    await Promise.resolve()
+    controller.abort()
+    await logs
+
+    expect(ws.terminate).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+  })
+
+  it('closes a socket returned after its log request was already aborted', async () => {
+    const { process } = await makeProcess()
+    let connect!: (ws: unknown) => void
+    let finishStream!: () => void
+    const ws = { close: jest.fn(() => finishStream()) }
+    mockCreateSandboxWebSocket.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          connect = resolve
+        }),
+    )
+    mockStdDemuxStream.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStream = resolve
+        }),
+    )
+    const controller = new AbortController()
+
+    const logs = process.getSessionCommandLogs('s1', 'c1', jest.fn(), jest.fn(), controller.signal)
+    controller.abort()
+    connect(ws)
+    await logs
+
+    expect(ws.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes its abort listener when a log stream completes normally', async () => {
+    const { process } = await makeProcess()
+    const ws = { terminate: jest.fn() }
+    mockCreateSandboxWebSocket.mockResolvedValue(ws)
+    mockStdDemuxStream.mockResolvedValue(undefined)
+    const controller = new AbortController()
+
+    await process.getSessionCommandLogs('s1', 'c1', jest.fn(), jest.fn(), controller.signal)
+    controller.abort()
+
+    expect(ws.terminate).not.toHaveBeenCalled()
   })
 
   it('getEntrypointLogs returns buffered logs', async () => {

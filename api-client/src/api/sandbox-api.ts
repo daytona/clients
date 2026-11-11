@@ -22,11 +22,15 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { AddGangNodes } from '../models';
+// @ts-ignore
 import type { CreateSandbox } from '../models';
 // @ts-ignore
 import type { CreateSandboxSnapshot } from '../models';
 // @ts-ignore
 import type { ForkSandbox } from '../models';
+// @ts-ignore
+import type { GangMembershipOperation } from '../models';
 // @ts-ignore
 import type { ListSandboxesResponse } from '../models';
 // @ts-ignore
@@ -41,6 +45,10 @@ import type { PaginatedTraces } from '../models';
 import type { PortPreviewUrl } from '../models';
 // @ts-ignore
 import type { RegionQuota } from '../models';
+// @ts-ignore
+import type { RemoveGangNodes } from '../models';
+// @ts-ignore
+import type { ReplaceGangNode } from '../models';
 // @ts-ignore
 import type { ResizeSandbox } from '../models';
 // @ts-ignore
@@ -82,6 +90,55 @@ import type { Url } from '../models';
  */
 export const SandboxApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @summary Append nodes to a multi-node sandbox
+         * @param {string} sandboxIdOrName 
+         * @param {AddGangNodes} addGangNodes 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        addSandboxNodes: async (sandboxIdOrName: string, addGangNodes: AddGangNodes, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxIdOrName' is not null or undefined
+            assertParamExists('addSandboxNodes', 'sandboxIdOrName', sandboxIdOrName)
+            // verify required parameter 'addGangNodes' is not null or undefined
+            assertParamExists('addSandboxNodes', 'addGangNodes', addGangNodes)
+            const localVarPath = `/sandbox/{sandboxIdOrName}/nodes`
+                .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(addGangNodes, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @summary Archive sandbox
@@ -520,6 +577,54 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getBuildLogsUrl', 'sandboxIdOrName', sandboxIdOrName)
             const localVarPath = `/sandbox/{sandboxIdOrName}/build-logs-url`
                 .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get a gang membership operation
+         * @param {string} sandboxIdOrName 
+         * @param {string} operationId 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getGangMembershipOperation: async (sandboxIdOrName: string, operationId: string, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxIdOrName' is not null or undefined
+            assertParamExists('getGangMembershipOperation', 'sandboxIdOrName', sandboxIdOrName)
+            // verify required parameter 'operationId' is not null or undefined
+            assertParamExists('getGangMembershipOperation', 'operationId', operationId)
+            const localVarPath = `/sandbox/{sandboxIdOrName}/membership-operations/{operationId}`
+                .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
+                .replace(`{${"operationId"}}`, encodeURIComponent(String(operationId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1625,6 +1730,55 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary Remove the highest ranks from a multi-node sandbox
+         * @param {string} sandboxIdOrName 
+         * @param {RemoveGangNodes} removeGangNodes 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        removeSandboxNodes: async (sandboxIdOrName: string, removeGangNodes: RemoveGangNodes, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxIdOrName' is not null or undefined
+            assertParamExists('removeSandboxNodes', 'sandboxIdOrName', sandboxIdOrName)
+            // verify required parameter 'removeGangNodes' is not null or undefined
+            assertParamExists('removeSandboxNodes', 'removeGangNodes', removeGangNodes)
+            const localVarPath = `/sandbox/{sandboxIdOrName}/nodes/remove`
+                .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(removeGangNodes, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Replace sandbox labels
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {SandboxLabels} sandboxLabels 
@@ -1666,6 +1820,59 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(sandboxLabels, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Replace a failed multi-node sandbox rank
+         * @param {string} sandboxIdOrName 
+         * @param {string} rank 
+         * @param {ReplaceGangNode} replaceGangNode 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        replaceSandboxNode: async (sandboxIdOrName: string, rank: string, replaceGangNode: ReplaceGangNode, xDaytonaOrganizationID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sandboxIdOrName' is not null or undefined
+            assertParamExists('replaceSandboxNode', 'sandboxIdOrName', sandboxIdOrName)
+            // verify required parameter 'rank' is not null or undefined
+            assertParamExists('replaceSandboxNode', 'rank', rank)
+            // verify required parameter 'replaceGangNode' is not null or undefined
+            assertParamExists('replaceSandboxNode', 'replaceGangNode', replaceGangNode)
+            const localVarPath = `/sandbox/{sandboxIdOrName}/nodes/{rank}/replace`
+                .replace(`{${"sandboxIdOrName"}}`, encodeURIComponent(String(sandboxIdOrName)))
+                .replace(`{${"rank"}}`, encodeURIComponent(String(rank)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearer required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            // authentication oauth2 required
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            if (xDaytonaOrganizationID != null) {
+                localVarHeaderParameter['X-Daytona-Organization-ID'] = String(xDaytonaOrganizationID);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(replaceGangNode, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2054,7 +2261,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
          * 
          * @summary Set sandbox TTL
          * @param {string} sandboxIdOrName ID or name of the sandbox
-         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -2143,7 +2350,7 @@ export const SandboxApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * 
+         * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
          * @summary Stop sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -2489,6 +2696,21 @@ export const SandboxApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @summary Append nodes to a multi-node sandbox
+         * @param {string} sandboxIdOrName 
+         * @param {AddGangNodes} addGangNodes 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async addSandboxNodes(sandboxIdOrName: string, addGangNodes: AddGangNodes, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GangMembershipOperation>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.addSandboxNodes(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.addSandboxNodes']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Archive sandbox
          * @param {string} sandboxIdOrName 
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -2633,6 +2855,21 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getBuildLogsUrl(sandboxIdOrName, xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SandboxApi.getBuildLogsUrl']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get a gang membership operation
+         * @param {string} sandboxIdOrName 
+         * @param {string} operationId 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getGangMembershipOperation(sandboxIdOrName: string, operationId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GangMembershipOperation>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getGangMembershipOperation(sandboxIdOrName, operationId, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.getGangMembershipOperation']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -2938,6 +3175,21 @@ export const SandboxApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Remove the highest ranks from a multi-node sandbox
+         * @param {string} sandboxIdOrName 
+         * @param {RemoveGangNodes} removeGangNodes 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async removeSandboxNodes(sandboxIdOrName: string, removeGangNodes: RemoveGangNodes, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GangMembershipOperation>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.removeSandboxNodes(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.removeSandboxNodes']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Replace sandbox labels
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {SandboxLabels} sandboxLabels 
@@ -2949,6 +3201,22 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.replaceLabels(sandboxIdOrName, sandboxLabels, xDaytonaOrganizationID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SandboxApi.replaceLabels']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Replace a failed multi-node sandbox rank
+         * @param {string} sandboxIdOrName 
+         * @param {string} rank 
+         * @param {ReplaceGangNode} replaceGangNode 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async replaceSandboxNode(sandboxIdOrName: string, rank: string, replaceGangNode: ReplaceGangNode, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GangMembershipOperation>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.replaceSandboxNode(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SandboxApi.replaceSandboxNode']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3073,7 +3341,7 @@ export const SandboxApiFp = function(configuration?: Configuration) {
          * 
          * @summary Set sandbox TTL
          * @param {string} sandboxIdOrName ID or name of the sandbox
-         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3099,7 +3367,7 @@ export const SandboxApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * 
+         * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
          * @summary Stop sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3211,6 +3479,18 @@ export const SandboxApiFp = function(configuration?: Configuration) {
 export const SandboxApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = SandboxApiFp(configuration)
     return {
+        /**
+         * 
+         * @summary Append nodes to a multi-node sandbox
+         * @param {string} sandboxIdOrName 
+         * @param {AddGangNodes} addGangNodes 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        addSandboxNodes(sandboxIdOrName: string, addGangNodes: AddGangNodes, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<GangMembershipOperation> {
+            return localVarFp.addSandboxNodes(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
         /**
          * 
          * @summary Archive sandbox
@@ -3328,6 +3608,18 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          */
         getBuildLogsUrl(sandboxIdOrName: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Url> {
             return localVarFp.getBuildLogsUrl(sandboxIdOrName, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get a gang membership operation
+         * @param {string} sandboxIdOrName 
+         * @param {string} operationId 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getGangMembershipOperation(sandboxIdOrName: string, operationId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<GangMembershipOperation> {
+            return localVarFp.getGangMembershipOperation(sandboxIdOrName, operationId, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3578,6 +3870,18 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary Remove the highest ranks from a multi-node sandbox
+         * @param {string} sandboxIdOrName 
+         * @param {RemoveGangNodes} removeGangNodes 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        removeSandboxNodes(sandboxIdOrName: string, removeGangNodes: RemoveGangNodes, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<GangMembershipOperation> {
+            return localVarFp.removeSandboxNodes(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Replace sandbox labels
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {SandboxLabels} sandboxLabels 
@@ -3587,6 +3891,19 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          */
         replaceLabels(sandboxIdOrName: string, sandboxLabels: SandboxLabels, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<SandboxLabels> {
             return localVarFp.replaceLabels(sandboxIdOrName, sandboxLabels, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Replace a failed multi-node sandbox rank
+         * @param {string} sandboxIdOrName 
+         * @param {string} rank 
+         * @param {ReplaceGangNode} replaceGangNode 
+         * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        replaceSandboxNode(sandboxIdOrName: string, rank: string, replaceGangNode: ReplaceGangNode, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig): AxiosPromise<GangMembershipOperation> {
+            return localVarFp.replaceSandboxNode(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3686,7 +4003,7 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
          * 
          * @summary Set sandbox TTL
          * @param {string} sandboxIdOrName ID or name of the sandbox
-         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+         * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3706,7 +4023,7 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.startSandbox(sandboxIdOrName, xDaytonaOrganizationID, options).then((request) => request(axios, basePath));
         },
         /**
-         * 
+         * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
          * @summary Stop sandbox
          * @param {string} sandboxIdOrName ID or name of the sandbox
          * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
@@ -3795,6 +4112,19 @@ export const SandboxApiFactory = function (configuration?: Configuration, basePa
  * SandboxApi - object-oriented interface
  */
 export class SandboxApi extends BaseAPI {
+    /**
+     * 
+     * @summary Append nodes to a multi-node sandbox
+     * @param {string} sandboxIdOrName 
+     * @param {AddGangNodes} addGangNodes 
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public addSandboxNodes(sandboxIdOrName: string, addGangNodes: AddGangNodes, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).addSandboxNodes(sandboxIdOrName, addGangNodes, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Archive sandbox
@@ -3921,6 +4251,19 @@ export class SandboxApi extends BaseAPI {
      */
     public getBuildLogsUrl(sandboxIdOrName: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return SandboxApiFp(this.configuration).getBuildLogsUrl(sandboxIdOrName, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get a gang membership operation
+     * @param {string} sandboxIdOrName 
+     * @param {string} operationId 
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getGangMembershipOperation(sandboxIdOrName: string, operationId: string, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).getGangMembershipOperation(sandboxIdOrName, operationId, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4190,6 +4533,19 @@ export class SandboxApi extends BaseAPI {
 
     /**
      * 
+     * @summary Remove the highest ranks from a multi-node sandbox
+     * @param {string} sandboxIdOrName 
+     * @param {RemoveGangNodes} removeGangNodes 
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public removeSandboxNodes(sandboxIdOrName: string, removeGangNodes: RemoveGangNodes, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).removeSandboxNodes(sandboxIdOrName, removeGangNodes, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Replace sandbox labels
      * @param {string} sandboxIdOrName ID or name of the sandbox
      * @param {SandboxLabels} sandboxLabels 
@@ -4199,6 +4555,20 @@ export class SandboxApi extends BaseAPI {
      */
     public replaceLabels(sandboxIdOrName: string, sandboxLabels: SandboxLabels, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
         return SandboxApiFp(this.configuration).replaceLabels(sandboxIdOrName, sandboxLabels, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Replace a failed multi-node sandbox rank
+     * @param {string} sandboxIdOrName 
+     * @param {string} rank 
+     * @param {ReplaceGangNode} replaceGangNode 
+     * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public replaceSandboxNode(sandboxIdOrName: string, rank: string, replaceGangNode: ReplaceGangNode, xDaytonaOrganizationID?: string, options?: RawAxiosRequestConfig) {
+        return SandboxApiFp(this.configuration).replaceSandboxNode(sandboxIdOrName, rank, replaceGangNode, xDaytonaOrganizationID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4307,7 +4677,7 @@ export class SandboxApi extends BaseAPI {
      * 
      * @summary Set sandbox TTL
      * @param {string} sandboxIdOrName ID or name of the sandbox
-     * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+     * @param {number} ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
      * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -4329,7 +4699,7 @@ export class SandboxApi extends BaseAPI {
     }
 
     /**
-     * 
+     * Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
      * @summary Stop sandbox
      * @param {string} sandboxIdOrName ID or name of the sandbox
      * @param {string} [xDaytonaOrganizationID] Use with JWT to specify the organization ID

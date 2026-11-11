@@ -18,6 +18,15 @@
 import type { CreateBuildInfo } from './create-build-info';
 // May contain unused imports in some cases
 // @ts-ignore
+import type { CreateSandboxCpu } from './create-sandbox-cpu';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { CreateSandboxDisk } from './create-sandbox-disk';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { CreateSandboxMemory } from './create-sandbox-memory';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { GpuType } from './gpu-type';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -76,10 +85,7 @@ export interface CreateSandbox {
      * The target (region) where the sandbox will be created
      */
     'target'?: string;
-    /**
-     * CPU cores allocated to the sandbox
-     */
-    'cpu'?: number;
+    'cpu'?: CreateSandboxCpu;
     /**
      * GPU units allocated to the sandbox
      */
@@ -92,14 +98,8 @@ export interface CreateSandbox {
      * GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
      */
     'spot'?: boolean;
-    /**
-     * Memory allocated to the sandbox in GB
-     */
-    'memory'?: number;
-    /**
-     * Disk space allocated to the sandbox in GB
-     */
-    'disk'?: number;
+    'memory'?: CreateSandboxMemory;
+    'disk'?: CreateSandboxDisk;
     /**
      * Auto-stop interval in minutes (0 means disabled)
      */

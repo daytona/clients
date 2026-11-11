@@ -54,6 +54,7 @@ if TYPE_CHECKING:
 
     # import models into sdk package
     from daytona_api_client_async.models.account_provider import AccountProvider
+    from daytona_api_client_async.models.add_gang_nodes import AddGangNodes
     from daytona_api_client_async.models.announcement import Announcement
     from daytona_api_client_async.models.api_key_list import ApiKeyList
     from daytona_api_client_async.models.api_key_response import ApiKeyResponse
@@ -77,6 +78,9 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_runner_response import CreateRunnerResponse
     from daytona_api_client_async.models.create_runner_sandbox_class import CreateRunnerSandboxClass
     from daytona_api_client_async.models.create_sandbox import CreateSandbox
+    from daytona_api_client_async.models.create_sandbox_cpu import CreateSandboxCpu
+    from daytona_api_client_async.models.create_sandbox_disk import CreateSandboxDisk
+    from daytona_api_client_async.models.create_sandbox_memory import CreateSandboxMemory
     from daytona_api_client_async.models.create_sandbox_snapshot import CreateSandboxSnapshot
     from daytona_api_client_async.models.create_secret import CreateSecret
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
@@ -87,6 +91,9 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.directory_sync_status import DirectorySyncStatus
     from daytona_api_client_async.models.docker_registry import DockerRegistry
     from daytona_api_client_async.models.fork_sandbox import ForkSandbox
+    from daytona_api_client_async.models.gang_membership_operation import GangMembershipOperation
+    from daytona_api_client_async.models.gang_node_failure import GangNodeFailure
+    from daytona_api_client_async.models.gang_node_resources import GangNodeResources
     from daytona_api_client_async.models.generate_workos_admin_portal_link import GenerateWorkosAdminPortalLink
     from daytona_api_client_async.models.gpu_capacity import GpuCapacity
     from daytona_api_client_async.models.gpu_capacity_response import GpuCapacityResponse
@@ -132,10 +139,14 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.region_type import RegionType
     from daytona_api_client_async.models.region_usage_overview import RegionUsageOverview
     from daytona_api_client_async.models.registry_push_access_dto import RegistryPushAccessDto
+    from daytona_api_client_async.models.remove_gang_nodes import RemoveGangNodes
+    from daytona_api_client_async.models.replace_gang_node import ReplaceGangNode
     from daytona_api_client_async.models.resize_sandbox import ResizeSandbox
     from daytona_api_client_async.models.resolve_sandbox_secrets200_response_inner import ResolveSandboxSecrets200ResponseInner
     from daytona_api_client_async.models.runner import Runner
     from daytona_api_client_async.models.runner_class import RunnerClass
+    from daytona_api_client_async.models.runner_fabric_health import RunnerFabricHealth
+    from daytona_api_client_async.models.runner_fabric_rail import RunnerFabricRail
     from daytona_api_client_async.models.runner_full import RunnerFull
     from daytona_api_client_async.models.runner_health_metrics import RunnerHealthMetrics
     from daytona_api_client_async.models.runner_healthcheck import RunnerHealthcheck
@@ -146,11 +157,13 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.sandbox_class import SandboxClass
     from daytona_api_client_async.models.sandbox_created_webhook import SandboxCreatedWebhook
     from daytona_api_client_async.models.sandbox_desired_state import SandboxDesiredState
+    from daytona_api_client_async.models.sandbox_gang_member_failed_webhook import SandboxGangMemberFailedWebhook
     from daytona_api_client_async.models.sandbox_identity import SandboxIdentity
     from daytona_api_client_async.models.sandbox_labels import SandboxLabels
     from daytona_api_client_async.models.sandbox_list_item import SandboxListItem
     from daytona_api_client_async.models.sandbox_list_sort_direction import SandboxListSortDirection
     from daytona_api_client_async.models.sandbox_list_sort_field import SandboxListSortField
+    from daytona_api_client_async.models.sandbox_node import SandboxNode
     from daytona_api_client_async.models.sandbox_state import SandboxState
     from daytona_api_client_async.models.sandbox_state_updated_webhook import SandboxStateUpdatedWebhook
     from daytona_api_client_async.models.sandbox_volume import SandboxVolume
@@ -235,6 +248,7 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "ApiException": "daytona_api_client_async.exceptions",
     # models
     "AccountProvider": "daytona_api_client_async.models.account_provider",
+    "AddGangNodes": "daytona_api_client_async.models.add_gang_nodes",
     "Announcement": "daytona_api_client_async.models.announcement",
     "ApiKeyList": "daytona_api_client_async.models.api_key_list",
     "ApiKeyResponse": "daytona_api_client_async.models.api_key_response",
@@ -258,6 +272,9 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateRunnerResponse": "daytona_api_client_async.models.create_runner_response",
     "CreateRunnerSandboxClass": "daytona_api_client_async.models.create_runner_sandbox_class",
     "CreateSandbox": "daytona_api_client_async.models.create_sandbox",
+    "CreateSandboxCpu": "daytona_api_client_async.models.create_sandbox_cpu",
+    "CreateSandboxDisk": "daytona_api_client_async.models.create_sandbox_disk",
+    "CreateSandboxMemory": "daytona_api_client_async.models.create_sandbox_memory",
     "CreateSandboxSnapshot": "daytona_api_client_async.models.create_sandbox_snapshot",
     "CreateSecret": "daytona_api_client_async.models.create_secret",
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",
@@ -268,6 +285,9 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "DirectorySyncStatus": "daytona_api_client_async.models.directory_sync_status",
     "DockerRegistry": "daytona_api_client_async.models.docker_registry",
     "ForkSandbox": "daytona_api_client_async.models.fork_sandbox",
+    "GangMembershipOperation": "daytona_api_client_async.models.gang_membership_operation",
+    "GangNodeFailure": "daytona_api_client_async.models.gang_node_failure",
+    "GangNodeResources": "daytona_api_client_async.models.gang_node_resources",
     "GenerateWorkosAdminPortalLink": "daytona_api_client_async.models.generate_workos_admin_portal_link",
     "GpuCapacity": "daytona_api_client_async.models.gpu_capacity",
     "GpuCapacityResponse": "daytona_api_client_async.models.gpu_capacity_response",
@@ -313,10 +333,14 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "RegionType": "daytona_api_client_async.models.region_type",
     "RegionUsageOverview": "daytona_api_client_async.models.region_usage_overview",
     "RegistryPushAccessDto": "daytona_api_client_async.models.registry_push_access_dto",
+    "RemoveGangNodes": "daytona_api_client_async.models.remove_gang_nodes",
+    "ReplaceGangNode": "daytona_api_client_async.models.replace_gang_node",
     "ResizeSandbox": "daytona_api_client_async.models.resize_sandbox",
     "ResolveSandboxSecrets200ResponseInner": "daytona_api_client_async.models.resolve_sandbox_secrets200_response_inner",
     "Runner": "daytona_api_client_async.models.runner",
     "RunnerClass": "daytona_api_client_async.models.runner_class",
+    "RunnerFabricHealth": "daytona_api_client_async.models.runner_fabric_health",
+    "RunnerFabricRail": "daytona_api_client_async.models.runner_fabric_rail",
     "RunnerFull": "daytona_api_client_async.models.runner_full",
     "RunnerHealthMetrics": "daytona_api_client_async.models.runner_health_metrics",
     "RunnerHealthcheck": "daytona_api_client_async.models.runner_healthcheck",
@@ -327,11 +351,13 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "SandboxClass": "daytona_api_client_async.models.sandbox_class",
     "SandboxCreatedWebhook": "daytona_api_client_async.models.sandbox_created_webhook",
     "SandboxDesiredState": "daytona_api_client_async.models.sandbox_desired_state",
+    "SandboxGangMemberFailedWebhook": "daytona_api_client_async.models.sandbox_gang_member_failed_webhook",
     "SandboxIdentity": "daytona_api_client_async.models.sandbox_identity",
     "SandboxLabels": "daytona_api_client_async.models.sandbox_labels",
     "SandboxListItem": "daytona_api_client_async.models.sandbox_list_item",
     "SandboxListSortDirection": "daytona_api_client_async.models.sandbox_list_sort_direction",
     "SandboxListSortField": "daytona_api_client_async.models.sandbox_list_sort_field",
+    "SandboxNode": "daytona_api_client_async.models.sandbox_node",
     "SandboxState": "daytona_api_client_async.models.sandbox_state",
     "SandboxStateUpdatedWebhook": "daytona_api_client_async.models.sandbox_state_updated_webhook",
     "SandboxVolume": "daytona_api_client_async.models.sandbox_volume",
@@ -430,6 +456,7 @@ __all__ = [
     "WarmPoolsApi",
     "WebhooksApi",
     "AccountProvider",
+    "AddGangNodes",
     "Announcement",
     "ApiKeyList",
     "ApiKeyResponse",
@@ -453,6 +480,9 @@ __all__ = [
     "CreateRunnerResponse",
     "CreateRunnerSandboxClass",
     "CreateSandbox",
+    "CreateSandboxCpu",
+    "CreateSandboxDisk",
+    "CreateSandboxMemory",
     "CreateSandboxSnapshot",
     "CreateSecret",
     "CreateSnapshot",
@@ -463,6 +493,9 @@ __all__ = [
     "DirectorySyncStatus",
     "DockerRegistry",
     "ForkSandbox",
+    "GangMembershipOperation",
+    "GangNodeFailure",
+    "GangNodeResources",
     "GenerateWorkosAdminPortalLink",
     "GpuCapacity",
     "GpuCapacityResponse",
@@ -508,10 +541,14 @@ __all__ = [
     "RegionType",
     "RegionUsageOverview",
     "RegistryPushAccessDto",
+    "RemoveGangNodes",
+    "ReplaceGangNode",
     "ResizeSandbox",
     "ResolveSandboxSecrets200ResponseInner",
     "Runner",
     "RunnerClass",
+    "RunnerFabricHealth",
+    "RunnerFabricRail",
     "RunnerFull",
     "RunnerHealthMetrics",
     "RunnerHealthcheck",
@@ -522,11 +559,13 @@ __all__ = [
     "SandboxClass",
     "SandboxCreatedWebhook",
     "SandboxDesiredState",
+    "SandboxGangMemberFailedWebhook",
     "SandboxIdentity",
     "SandboxLabels",
     "SandboxListItem",
     "SandboxListSortDirection",
     "SandboxListSortField",
+    "SandboxNode",
     "SandboxState",
     "SandboxStateUpdatedWebhook",
     "SandboxVolume",

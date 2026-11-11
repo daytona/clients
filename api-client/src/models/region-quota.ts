@@ -49,6 +49,10 @@ export interface RegionQuota {
      * Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
      */
     'maxSandboxLifespan': number | null;
+    /**
+     * Maximum derived GPU node count; zero disables multi-node sandboxes.
+     */
+    'maxNodesPerSandbox': number;
 }
 
 

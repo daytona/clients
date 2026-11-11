@@ -11,7 +11,14 @@ from typing import Protocol
 from daytona_api_client import SandboxListSortDirection, SandboxListSortField, SandboxState
 from daytona_api_client_async import GpuType
 
+from .errors import DaytonaValidationError
+
 TOOLBOX_PORT: int = 2280
+
+
+def validate_node_exec_timeout(timeout: object) -> None:
+    if timeout is not None and (isinstance(timeout, bool) or not isinstance(timeout, int) or timeout < 0):
+        raise DaytonaValidationError("timeout must be a non-negative integer")
 
 
 @dataclass
@@ -47,6 +54,31 @@ class Resources:
     disk: int | None = None
     gpu: int | None = None
     gpu_type: GpuType | list[GpuType] | None = None
+
+
+@dataclass
+class CreateSandboxResources:
+    """Resources used when creating a Sandbox from an image.
+
+    ``cpu``, ``memory``, and ``disk`` are per-node values. A scalar applies to
+    every node; a list is ordered by node rank and must match the derived node
+    count. ``Resources`` remains the scalar-only type for snapshots and resize.
+    """
+
+    cpu: int | list[int] | None = None
+    memory: int | list[int] | None = None
+    disk: int | list[int] | None = None
+    gpu: int | None = None
+    gpu_type: GpuType | list[GpuType] | None = None
+
+
+@dataclass(frozen=True)
+class NodeResources:
+    """CPU, memory, and disk allocated to one appended Sandbox node."""
+
+    cpu: int
+    memory: int
+    disk: int
 
 
 @dataclass

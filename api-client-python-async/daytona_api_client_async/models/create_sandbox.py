@@ -21,6 +21,9 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona_api_client_async.models.create_build_info import CreateBuildInfo
+from daytona_api_client_async.models.create_sandbox_cpu import CreateSandboxCpu
+from daytona_api_client_async.models.create_sandbox_disk import CreateSandboxDisk
+from daytona_api_client_async.models.create_sandbox_memory import CreateSandboxMemory
 from daytona_api_client_async.models.gpu_type import GpuType
 from daytona_api_client_async.models.sandbox_volume import SandboxVolume
 from pydantic import TypeAdapter
@@ -46,12 +49,12 @@ class CreateSandbox(BaseModel):
     outbound_proxy_url: Optional[StrictStr] = Field(default=None, description="Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.", serialization_alias="outboundProxyUrl")
     otel_endpoint_override: Optional[StrictStr] = Field(default=None, description="OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.", serialization_alias="otelEndpointOverride")
     target: Optional[StrictStr] = Field(default=None, description="The target (region) where the sandbox will be created")
-    cpu: Optional[StrictInt] = Field(default=None, description="CPU cores allocated to the sandbox")
+    cpu: Optional[CreateSandboxCpu] = None
     gpu: Optional[StrictInt] = Field(default=None, description="GPU units allocated to the sandbox")
     gpu_type: Optional[List[GpuType]] = Field(default=None, description="Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.", serialization_alias="gpuType")
     spot: Optional[StrictBool] = Field(default=False, description="GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.")
-    memory: Optional[StrictInt] = Field(default=None, description="Memory allocated to the sandbox in GB")
-    disk: Optional[StrictInt] = Field(default=None, description="Disk space allocated to the sandbox in GB")
+    memory: Optional[CreateSandboxMemory] = None
+    disk: Optional[CreateSandboxDisk] = None
     auto_stop_interval: Optional[StrictInt] = Field(default=None, description="Auto-stop interval in minutes (0 means disabled)", serialization_alias="autoStopInterval")
     auto_pause_interval: Optional[StrictInt] = Field(default=None, description="Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.", serialization_alias="autoPauseInterval")
     auto_archive_interval: Optional[StrictInt] = Field(default=None, description="Auto-archive interval in minutes (0 means the maximum interval will be used)", serialization_alias="autoArchiveInterval")
@@ -105,6 +108,15 @@ class CreateSandbox(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of cpu
+        if self.cpu:
+            _dict['cpu'] = self.cpu.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of memory
+        if self.memory:
+            _dict['memory'] = self.memory.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of disk
+        if self.disk:
+            _dict['disk'] = self.disk.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in volumes (list)
         _items = []
         if self.volumes:
@@ -145,12 +157,12 @@ class CreateSandbox(BaseModel):
             "outbound_proxy_url": obj.get("outboundProxyUrl"),
             "otel_endpoint_override": obj.get("otelEndpointOverride"),
             "target": obj.get("target"),
-            "cpu": obj.get("cpu"),
+            "cpu": CreateSandboxCpu.from_dict(obj["cpu"]) if obj.get("cpu") is not None else None,
             "gpu": obj.get("gpu"),
             "gpu_type": obj.get("gpuType"),
             "spot": obj.get("spot") if obj.get("spot") is not None else False,
-            "memory": obj.get("memory"),
-            "disk": obj.get("disk"),
+            "memory": CreateSandboxMemory.from_dict(obj["memory"]) if obj.get("memory") is not None else None,
+            "disk": CreateSandboxDisk.from_dict(obj["disk"]) if obj.get("disk") is not None else None,
             "auto_stop_interval": obj.get("autoStopInterval"),
             "auto_pause_interval": obj.get("autoPauseInterval"),
             "auto_archive_interval": obj.get("autoArchiveInterval"),

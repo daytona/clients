@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from copy import deepcopy
 from importlib.metadata import version
 from types import TracebackType
-from typing import Callable, TypeVar, cast, overload
+from typing import Callable, cast, overload
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -26,6 +26,9 @@ from daytona_api_client_async import (
     Configuration,
     CreateBuildInfo,
     CreateSandbox,
+    CreateSandboxCpu,
+    CreateSandboxDisk,
+    CreateSandboxMemory,
     ObjectStorageApi,
 )
 from daytona_api_client_async import Sandbox as SandboxDto
@@ -76,8 +79,6 @@ from .volume import AsyncVolumeService
 from .warm_pool import AsyncWarmPoolService
 
 _MISSING_HAPPY_EYEBALLS_DELAY = object()
-
-_SandboxDtoT = TypeVar("_SandboxDtoT", SandboxDto, SandboxListItem)
 
 
 def _destroyed_by_lifecycle(sandbox: SandboxDto) -> bool:
@@ -704,9 +705,12 @@ class AsyncDaytona:
                 )
 
             if params.resources:
-                sandbox_data.cpu = params.resources.cpu
-                sandbox_data.memory = params.resources.memory
-                sandbox_data.disk = params.resources.disk
+                if params.resources.cpu is not None:
+                    sandbox_data.cpu = CreateSandboxCpu(params.resources.cpu)
+                if params.resources.memory is not None:
+                    sandbox_data.memory = CreateSandboxMemory(params.resources.memory)
+                if params.resources.disk is not None:
+                    sandbox_data.disk = CreateSandboxDisk(params.resources.disk)
                 sandbox_data.gpu = params.resources.gpu
                 if params.resources.gpu_type is not None:
                     sandbox_data.gpu_type = (
@@ -880,9 +884,21 @@ class AsyncDaytona:
             first_page = False
             response = await self._fetch_sandbox_page(q, cursor, request_timeout)
             for sandbox in response.items:
-                language = self._validate_language_label(sandbox.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)).value
+                # SandboxListItem intentionally omits internal member rows.
+                # Hydrate only gang heads so Sandbox.nodes is always complete.
+                sandbox_with_nodes = (
+                    await self._sandbox_api.get_sandbox(
+                        sandbox.id,
+                        _request_timeout=http_timeout(request_timeout),
+                    )
+                    if sandbox.gpu > 8
+                    else sandbox
+                )
+                language = self._validate_language_label(
+                    sandbox_with_nodes.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)
+                ).value
                 yield AsyncSandbox(
-                    await self._ensure_toolbox_proxy_url(sandbox),
+                    await self._ensure_toolbox_proxy_url(sandbox_with_nodes),
                     self._toolbox_api_client,
                     self._sandbox_api,
                     language,
@@ -951,7 +967,13 @@ class AsyncDaytona:
             raise DaytonaValidationError(f"Invalid {CODE_TOOLBOX_LANGUAGE_LABEL}: {language}")
         return enum_language
 
-    async def _ensure_toolbox_proxy_url(self, sandbox: _SandboxDtoT) -> _SandboxDtoT:
+    @overload
+    async def _ensure_toolbox_proxy_url(self, sandbox: SandboxDto) -> SandboxDto: ...
+
+    @overload
+    async def _ensure_toolbox_proxy_url(self, sandbox: SandboxListItem) -> SandboxListItem: ...
+
+    async def _ensure_toolbox_proxy_url(self, sandbox: SandboxDto | SandboxListItem) -> SandboxDto | SandboxListItem:
         if sandbox.toolbox_proxy_url:
             return sandbox
 
