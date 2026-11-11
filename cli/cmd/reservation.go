@@ -116,7 +116,7 @@ func newReservationUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update ID",
 		Short: "Turn a Mac reservation's auto-renew on or off",
-		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use on it; stopped and paused sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.\n" +
+		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use or paused on it; stopped sandboxes do not renew it. With auto-renew off, the reservation ends at period_end, and its paused sandboxes are stopped with their disks before then.\n" +
 			"Enabling auto-renew commits future charges: asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1). Disabling it needs no confirmation.\n" +
 			"Examples:\n" +
 			"  " + reservationUpdateExample + "\n" +

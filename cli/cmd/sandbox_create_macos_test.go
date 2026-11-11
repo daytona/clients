@@ -67,14 +67,13 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 	require.NoError(t, err)
 	text := squashSpaces(help)
 	for _, line := range []string{
-		"--cores N CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
-		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: half of the Mac's sandbox disk capacity, rounded down to a whole GiB, on a model that runs two sandboxes; all of it on a model that runs one)",
-		"--memory MIB memory in MiB, minimum 4096 (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
+		"--cores N CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: the Mac model's default size)",
+		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac model's default size, or the image's disk size for a captured image)",
+		"--memory MIB memory in MiB, minimum 4096 (default: the Mac model's default size)",
 		"--reservation ID|new",
 		"--auto-renew renew while a sandbox is active; create-macos requires --reservation new",
-		// macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
-		"--persistent keep the disk across stop/start on the same Mac; delete erases it, and reservation end saves it as an image before the Mac is erased. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged.",
-		"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one.",
+		"--persistent keep the disk and machine across stop/start on any Mac of the organization, and memory across pause/resume; delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox and never deletes it; an ephemeral sandbox ends with its reservation or a failed Mac.",
+		"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image gets the image's disk size.",
 		"--on-lifecycle-timeout ACTION action when --lifecycle-timeout elapses: delete, or stop with --persistent",
 		"--on-idle-timeout ACTION action when --idle-timeout elapses: delete, or stop with --persistent",
 		"--lifecycle-timeout DURATION wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start",

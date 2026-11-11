@@ -429,14 +429,14 @@ class Resources:
 
 @dataclass(frozen=True, kw_only=True)
 class MacosResources:
-    """macOS sandbox size; each omitted value uses the claiming Mac's default.
+    """macOS sandbox size; each omitted value uses the Mac model's default size.
 
     ``cpu`` is physical Mac CPU cores (Apple Silicon has no SMT), at least 4.
     ``memory`` is GiB, at least 4; ``disk`` is GiB, at least 80, macOS included.
     Memory and disk must convert to a whole number of MiB (``value * 1024``).
-    Omitted values use half of the claiming Mac, rounded down, on a model that
-    runs two sandboxes, or all of it on a model that runs one; the first
-    successful claim fixes the size.
+    Omitted values use the model's ``default_size`` (``mac_models.list()``); a
+    create from a captured image gets the image's disk size. The size is fixed
+    at creation.
     """
 
     cpu: Optional[int] = None

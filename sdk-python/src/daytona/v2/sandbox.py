@@ -1304,6 +1304,16 @@ class AsyncSandbox:
         terminal state raises :class:`SandboxTerminalStateError`. Whether the
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
+
+        A stopped macOS sandbox starts with its disk and size on any Mac of the
+        organization; after a start on a different Mac, iCloud asks the user to
+        sign in again. ``DISK_NOT_READY`` means its disk is not ready yet; retry
+        later. When the organization has no Mac reservation in the region and
+        auto-reserve is on, the start buys one, so it can fail as a create that
+        buys one does: :class:`LimitExceededError` with
+        ``limit == "max_mac_reservations"`` at the organization's Mac
+        reservation limit, ``AUTO_RESERVE_LIMIT_REACHED``,
+        ``NO_MAC_AVAILABLE`` or ``INSUFFICIENT_BALANCE``.
         """
         timeout = _validate_timeout(timeout)
         await self.refresh_data()
@@ -1338,8 +1348,10 @@ class AsyncSandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
         then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
-        keeps its Mac slot but does not keep its reservation renewing. Which
-        sandboxes can pause is the API's decision.
+        keeps its memory on its Mac. With auto-renew on, it keeps its
+        reservation renewing; otherwise the sandbox is stopped, with its disk,
+        before the reservation ends. Which sandboxes can pause is the API's
+        decision.
         """
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/pause"))
@@ -1370,9 +1382,8 @@ class AsyncSandbox:
         fork boots fresh. A macOS fork copies the disk only: omit ``memory``
         or pass ``memory=False`` (``memory=True`` is refused with
         ``NOT_SUPPORTED_FOR_CLASS``); a fork of a running macOS sandbox boots
-        with a fresh machine identity. A fork needs available capacity for
-        its size; insufficient capacity can answer ``NO_FREE_SLOT`` or
-        ``MAC_DISK_FULL``.
+        with a fresh machine identity. A macOS fork answers ``DISK_NOT_READY``
+        while the source's disk is not ready yet; retry later.
 
         ``wait_seconds`` (default 60; ``0`` returns as soon as the API accepts
         the fork; a value above about 24.8 days, the timer maximum, waits with
@@ -1680,8 +1691,8 @@ class AsyncSandbox:
 
         The result boots new sandboxes (``daytona.create(image.id)``); a Linux
         sandbox keeps running. A macOS
-        sandbox must be persistent and stopped; it cannot start until the
-        snapshot is ``ready``.
+        sandbox must be persistent and stopped; the capture answers
+        ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
 
         ``name`` makes the image named and permanent. ``idle_expiry_seconds`` is
         the idle-retention window of an ANONYMOUS capture: it is deleted once

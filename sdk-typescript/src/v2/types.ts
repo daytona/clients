@@ -508,9 +508,12 @@ export interface CreateMacosSandboxOptions extends CreateRequestBaseOptions {
   /** Physical cores and GiB; omitted axes use the platform defaults. */
   readonly resources?: MacosResources
   /**
-   * Preserve the sandbox's disk when stopped. Start or resume to continue;
-   * delete to remove it. At reservation end, the disk is saved as an anonymous
-   * image that can be used to create another sandbox.
+   * Keep the sandbox's disk and machine across stop and start, and its memory
+   * across pause and resume. A start can run on any Mac of the organization;
+   * after a start on a different Mac, iCloud asks the user to sign in again.
+   * Delete erases the disk. A reservation end or a Mac failure stops a
+   * persistent sandbox and never deletes it; a Mac failure can lose its most
+   * recent writes.
    */
   readonly persistent?: boolean
   /**
@@ -519,8 +522,8 @@ export interface CreateMacosSandboxOptions extends CreateRequestBaseOptions {
    * auto-reserve setting allows it, the server buys a reservation. `'new'`: buy a
    * reservation of the cheapest model that fits. Any other value is a reservation
    * id as `reservations.list()` returns it.
-   * A reservation ID selects that reservation. Acceptance does not guarantee
-   * immediate capacity; the sandbox can wait for room or time out.
+   * A reservation ID uses only that reservation. An accepted create can wait
+   * for space on a Mac until `createTimeoutSeconds`.
    */
   readonly reservation?: 'new' | (string & {})
   /**

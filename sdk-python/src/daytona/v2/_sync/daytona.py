@@ -350,12 +350,12 @@ class Daytona:
         ``resources`` sizes the sandbox (:class:`MacosResources`: physical CPU
         cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
         macOS included; memory and disk must convert to whole MiB). Each
-        omitted value uses half of the claiming Mac, rounded down, on a model
-        that runs two sandboxes, or all of it on a model that runs one. The
-        first successful claim fixes the size, which the sandbox reports from
-        then on.
+        omitted value uses the Mac model's default size (``default_size`` in
+        ``mac_models.list()``); a create from a captured image gets the
+        image's disk size, and a smaller ``disk`` is refused. The size is fixed
+        at creation, and the sandbox reports it once a Mac takes the sandbox.
 
-        ``persistent``: Stop keeps the disk on the same Mac. Start and resume use that Mac. Delete erases the disk. At reservation end, the disk is saved as an anonymous image before the Mac is erased; a lost Mac saves it if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+        ``persistent`` keeps the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with its Mac when that Mac fails.
 
         ``volumes`` attaches disk volumes read-write. A sandbox with volumes
         cannot be persistent; bucket volumes and ``read_only`` are rejected
@@ -365,7 +365,7 @@ class Daytona:
         ``None`` uses any fitting reservation of the organization in the region (or
         lets the organization's auto-reserve buy one), ``"new"`` buys a reservation of
         the cheapest model that fits.
-        A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+        A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until ``create_timeout_seconds``.
         ``auto_renew`` is allowed only with ``reservation="new"``. With no reservation
         to use it raises :class:`ConflictError` (``NO_ACTIVE_RESERVATION``,
         ``NO_FREE_SLOT``, ``MAC_DISK_FULL``, ``AUTO_RESERVE_LIMIT_REACHED``,

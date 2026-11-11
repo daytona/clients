@@ -700,7 +700,18 @@ export class Sandbox {
     }, states, options)
   }
 
-  /** Start a stopped sandbox, or resume a paused one, and wait until it is started. */
+  /**
+   * Start a stopped sandbox, or resume a paused one, and wait until it is started.
+   *
+   * A stopped macOS sandbox starts with its disk and size on any Mac of the
+   * organization; after a start on a different Mac, iCloud asks the user to
+   * sign in again. `DISK_NOT_READY` means its disk is not ready yet; retry
+   * later. When the organization has no Mac reservation in the region and
+   * auto-reserve is on, the start buys one, so it can fail as a create that
+   * buys one does: `LimitExceededError` with `limit === 'max_mac_reservations'`
+   * at the organization's Mac reservation limit, `AUTO_RESERVE_LIMIT_REACHED`,
+   * `NO_MAC_AVAILABLE` or `INSUFFICIENT_BALANCE`.
+   */
   public async start(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60
@@ -731,7 +742,10 @@ export class Sandbox {
 
   /**
    * Pause the sandbox with its memory and wait until it is paused.
-   * A return to started means the pause failed.
+   * A return to started means the pause failed. A paused macOS sandbox keeps
+   * its memory on its Mac. With auto-renew on, it keeps its reservation
+   * renewing; otherwise the sandbox is stopped, with its disk, before the
+   * reservation ends.
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -769,8 +783,8 @@ export class Sandbox {
    * A macOS fork copies the disk only: omit `memory` or pass `memory: false`
    * (`memory: true` is refused with `NOT_SUPPORTED_FOR_CLASS`). A fork of a
    * running macOS sandbox boots with a fresh machine identity; a fork of a
-   * paused or stopped one rests `stopped`. The fork may wait for capacity,
-   * as a create does; insufficient capacity can return `NO_FREE_SLOT`.
+   * paused or stopped one rests `stopped`. A macOS fork answers
+   * `DISK_NOT_READY` while the source's disk is not ready yet; retry later.
    */
   public async fork(options: ForkOptions = {}): Promise<Sandbox> {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
@@ -1062,7 +1076,8 @@ export class Sandbox {
    * Snapshot this sandbox's filesystem as a new {@link Image}
    * (`POST /sandboxes/{id}/images`). The result boots new sandboxes
    * (`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
-   * stopped; it cannot start until the snapshot is `ready`.
+   * stopped; the capture answers `DISK_NOT_READY` while its disk is not ready
+   * yet (retry later).
    */
   public async captureImage(options: CaptureImageOptions = {}): Promise<Image> {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)

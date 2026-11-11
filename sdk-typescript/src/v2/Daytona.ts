@@ -218,15 +218,16 @@ export class Daytona {
    * `reservation` picks the Mac reservation: omitted uses any fitting reservation of the
    * organization in the region (or lets the organization's auto-reserve buy
    * one), `'new'` buys a reservation of the cheapest model that fits, and a
-   * reservation id targets that reservation at claim. With no reservation to use it fails
+   * reservation id uses only that reservation. With no reservation to use it fails
    * with `ConflictError` (`NO_ACTIVE_RESERVATION`, `NO_FREE_SLOT`,
    * `MAC_DISK_FULL`, `AUTO_RESERVE_LIMIT_REACHED`, `NO_MAC_AVAILABLE`).
    * A reservation it buys (`reservation: 'new'` or auto-reserve) throws `LimitExceededError` (a `RateLimitError`) with `limit === 'max_mac_reservations'` when the organization holds its Mac reservation limit.
     * `resources.cpu` (cores), `resources.memory` (GiB) and `resources.disk` (GiB)
     * size the sandbox; each omitted
-   * axis uses half of the claiming Mac, rounded down, on a model that runs two sandboxes,
-   * or all of it on a model that runs one. The first successful
-   * claim fixes the size, which the sandbox reports from then on. `name`,
+   * axis uses the Mac model's default size (`defaultSize` in `macModels.list()`);
+   * a create from a captured image gets the image's disk size, and a smaller
+   * `disk` is refused. The size is fixed at creation, and the sandbox reports
+   * it once a Mac takes the sandbox. `name`,
    * `idempotencyKey`, `waitSeconds` and `createTimeoutSeconds` behave as on
    * {@link create}. `networkPolicy` sets the outbound network policy as on
    * {@link create}; a sandbox with a policy runs only on a Mac that can
