@@ -2599,7 +2599,7 @@ type CreateOrganizationRegionRequest struct {
 
 // CreateOrganizationRequest defines model for CreateOrganizationRequest.
 type CreateOrganizationRequest struct {
-	// Name The organization name.
+	// Name The organization name: at most 64 characters after trimming, with no control characters.
 	Name string `json:"name"`
 }
 
@@ -2647,7 +2647,7 @@ type CreateProjectApiKeyRequest struct {
 
 // CreateProjectRequest defines model for CreateProjectRequest.
 type CreateProjectRequest struct {
-	// Name The project name.
+	// Name The project name: at most 64 characters after trimming, with no control characters. `default` is reserved.
 	Name string `json:"name"`
 }
 
@@ -2791,9 +2791,9 @@ type CreateSandboxRequest struct {
 	// Env Sandbox-specific environment variables (real values, verbatim). Names
 	// must be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the
 	// platform reserves for its own use, including every `DAYTONA_*` name
-	// other than `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`,
-	// `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`, fail the create
-	// with 400 naming the key.
+	// other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
+	// `DAYTONA_DOCKER_START` (so `DAYTONA_SANDBOX_TOKEN` too), fail the
+	// create with 400 naming the key.
 	Env *map[string]string `json:"env,omitempty"`
 
 	// IdempotencyKey Key used to replay the same create operation safely.
@@ -3829,8 +3829,9 @@ type MintSandboxAccessTokenRequest struct {
 	Operations *[]string `json:"operations,omitempty"`
 
 	// Ports Private-preview ports the token may reach: 1 to 65535, at most 128,
-	// with duplicates collapsed. Omitted grants all ports, and `[]` grants
-	// none.
+	// with duplicates collapsed. The sandbox daemon's ports 2280, 2281 and
+	// 22220 are never preview ports and are refused. Omitted grants all
+	// ports, and `[]` grants none.
 	Ports *[]int32 `json:"ports,omitempty"`
 
 	// TtlSeconds Token lifetime in seconds. Omitted = the deployment default
@@ -4292,6 +4293,10 @@ type OrganizationRoleUpdate struct {
 type OrganizationRunner struct {
 	// AdminState Whether the runner accepts new sandboxes.
 	AdminState OrganizationRunnerAdminState `json:"admin_state"`
+
+	// BilledCores The cores the runner is billed at per hour: its logical CPUs ÷ 2.
+	// `null` before the runner first reports its CPUs.
+	BilledCores *float64 `json:"billed_cores,omitempty"`
 
 	// EnrolledAt When the runner enrolled.
 	EnrolledAt time.Time `json:"enrolled_at"`
@@ -6290,7 +6295,7 @@ type UpdateOrganizationRequest struct {
 	// MaxSandboxTimeoutSeconds The longest timeout a sandbox in this organization may have, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. A value above that maximum is rejected.
 	MaxSandboxTimeoutSeconds *int64 `json:"max_sandbox_timeout_seconds,omitempty"`
 
-	// Name The replacement organization name.
+	// Name The replacement organization name: at most 64 characters after trimming, with no control characters.
 	Name *string `json:"name,omitempty"`
 }
 
@@ -6341,7 +6346,7 @@ type UpdateProjectLifecyclePolicyRequest struct {
 
 // UpdateProjectRequest defines model for UpdateProjectRequest.
 type UpdateProjectRequest struct {
-	// Name The new project name.
+	// Name The new project name: at most 64 characters after trimming, with no control characters. `default` is reserved.
 	Name string `json:"name"`
 }
 
@@ -6688,7 +6693,11 @@ type Volume struct {
 
 // VolumeMount A volume attachment as requested on `POST /sandboxes`.
 type VolumeMount struct {
-	// MountPath The absolute path inside the sandbox.
+	// MountPath The absolute path inside the sandbox, with no `..`. It is normalized
+	// (repeated slashes, `.` components and a trailing slash removed) and
+	// may not be `/` or be on or beneath a system directory: `/bin`,
+	// `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
+	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
 	MountPath string `json:"mount_path"`
 
 	// ReadOnly Mount without write access. Supported only for bucket volumes.
@@ -7200,7 +7209,9 @@ type SearchSandboxesParams struct {
 	// Class Comma-separated sandbox classes.
 	Class *[]SandboxClass `form:"class,omitempty" json:"class,omitempty"`
 
-	// RegionIds Comma-separated region slugs. Defaults to every region.
+	// RegionIds Comma-separated region IDs. A broader region (a geo group, or
+	// `earth`) matches every region inside it. An unknown region answers
+	// 400. Defaults to every region.
 	RegionIds *string `form:"region_ids,omitempty" json:"region_ids,omitempty"`
 
 	// ImageRef Exact image reference.

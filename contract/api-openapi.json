@@ -2559,7 +2559,9 @@
       "CreateOrganizationRequest": {
         "properties": {
           "name": {
-            "description": "The organization name.",
+            "description": "The organization name: at most 64 characters after trimming, with no control characters.",
+            "maxLength": 64,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -2651,7 +2653,9 @@
       "CreateProjectRequest": {
         "properties": {
           "name": {
-            "description": "The project name.",
+            "description": "The project name: at most 64 characters after trimming, with no control characters. `default` is reserved.",
+            "maxLength": 64,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -2951,7 +2955,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Sandbox-specific environment variables (real values, verbatim). Names\nmust be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the\nplatform reserves for its own use, including every `DAYTONA_*` name\nother than `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`,\n`DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`, fail the create\nwith 400 naming the key.",
+            "description": "Sandbox-specific environment variables (real values, verbatim). Names\nmust be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the\nplatform reserves for its own use, including every `DAYTONA_*` name\nother than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and\n`DAYTONA_DOCKER_START` (so `DAYTONA_SANDBOX_TOKEN` too), fail the\ncreate with 400 naming the key.",
             "propertyNames": {
               "type": "string"
             },
@@ -5125,7 +5129,7 @@
             ]
           },
           "ports": {
-            "description": "Private-preview ports the token may reach: 1 to 65535, at most 128,\nwith duplicates collapsed. Omitted grants all ports, and `[]` grants\nnone.",
+            "description": "Private-preview ports the token may reach: 1 to 65535, at most 128,\nwith duplicates collapsed. The sandbox daemon's ports 2280, 2281 and\n22220 are never preview ports and are refused. Omitted grants all\nports, and `[]` grants none.",
             "example": [
               3000
             ],
@@ -5974,6 +5978,14 @@
           "admin_state": {
             "$ref": "#/components/schemas/OrganizationRunnerAdminState",
             "description": "Whether the runner accepts new sandboxes."
+          },
+          "billed_cores": {
+            "description": "The cores the runner is billed at per hour: its logical CPUs \u00f7 2.\n`null` before the runner first reports its CPUs.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "enrolled_at": {
             "description": "When the runner enrolled.",
@@ -9724,7 +9736,9 @@
             ]
           },
           "name": {
-            "description": "The replacement organization name.",
+            "description": "The replacement organization name: at most 64 characters after trimming, with no control characters.",
+            "maxLength": 64,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -9803,7 +9817,9 @@
       "UpdateProjectRequest": {
         "properties": {
           "name": {
-            "description": "The new project name.",
+            "description": "The new project name: at most 64 characters after trimming, with no control characters. `default` is reserved.",
+            "maxLength": 64,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -10537,7 +10553,7 @@
         "description": "A volume attachment as requested on `POST /sandboxes`.",
         "properties": {
           "mount_path": {
-            "description": "The absolute path inside the sandbox.",
+            "description": "The absolute path inside the sandbox, with no `..`. It is normalized\n(repeated slashes, `.` components and a trailing slash removed) and\nmay not be `/` or be on or beneath a system directory: `/bin`,\n`/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,\n`/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.",
             "example": "/mnt/data",
             "type": "string"
           },
@@ -13228,7 +13244,7 @@
         ]
       },
       "patch": {
-        "description": "Updates the fields present in the request body. The name is trimmed and must contain 1 to 100 characters with no control characters.",
+        "description": "Updates the fields present in the request body. The name is trimmed and must contain 1 to 64 characters with no control characters. Sending the current name unchanged is accepted even when it is longer.",
         "operationId": "update_org",
         "parameters": [
           {
@@ -25248,7 +25264,7 @@
                 }
               }
             },
-            "description": "The ID list is empty or exceeds 200 entries (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
+            "description": "The ID list is empty or exceeds 200 entries, or the wait target is not a sandbox status (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -25682,7 +25698,7 @@
             "style": "form"
           },
           {
-            "description": "Comma-separated region slugs. Defaults to every region.",
+            "description": "Comma-separated region IDs. A broader region (a geo group, or\n`earth`) matches every region inside it. An unknown region answers\n400. Defaults to every region.",
             "in": "query",
             "name": "region_ids",
             "required": false,
@@ -26095,6 +26111,21 @@
               }
             },
             "description": "The sandbox",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The wait target is not a sandbox status (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -26771,12 +26802,14 @@
         "security": [
           {
             "api_key": [
-              "write:images"
+              "write:images",
+              "write:sandboxes"
             ]
           },
           {
             "platform_token": [
-              "write:images"
+              "write:images",
+              "write:sandboxes"
             ]
           }
         ],
@@ -26850,6 +26883,21 @@
               }
             },
             "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -26940,6 +26988,21 @@
               }
             },
             "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27451,6 +27514,21 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -27606,6 +27684,21 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -27685,7 +27778,7 @@
                 }
               }
             },
-            "description": "The port is outside 1 through 65535, or the body is invalid (`BAD_REQUEST`)",
+            "description": "The port is outside 1 through 65535 or is reserved for the sandbox daemon (2280, 2281, 22220), or the body is invalid (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27707,6 +27800,21 @@
               }
             },
             "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27768,7 +27876,7 @@
                 }
               }
             },
-            "description": "The port is outside 1 through 65535 (`BAD_REQUEST`)",
+            "description": "The port is outside 1 through 65535 or is reserved for the sandbox daemon (2280, 2281, 22220) (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27790,6 +27898,21 @@
               }
             },
             "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27885,7 +28008,7 @@
                 }
               }
             },
-            "description": "The port or expiry is outside the supported range (`BAD_REQUEST`)",
+            "description": "The port or expiry is outside the supported range, or the port is reserved for the sandbox daemon (2280, 2281, 22220) (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27907,6 +28030,21 @@
               }
             },
             "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -28093,6 +28231,21 @@
               }
             },
             "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -28620,12 +28773,14 @@
         "security": [
           {
             "api_key": [
-              "write:snapshots"
+              "write:snapshots",
+              "write:sandboxes"
             ]
           },
           {
             "platform_token": [
-              "write:snapshots"
+              "write:snapshots",
+              "write:sandboxes"
             ]
           }
         ],

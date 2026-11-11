@@ -527,7 +527,7 @@ export interface paths {
         head?: never;
         /**
          * Update an organization
-         * @description Updates the fields present in the request body. The name is trimmed and must contain 1 to 100 characters with no control characters.
+         * @description Updates the fields present in the request body. The name is trimmed and must contain 1 to 64 characters with no control characters. Sending the current name unchanged is accepted even when it is longer.
          */
         patch: operations["update_org"];
         trace?: never;
@@ -3716,7 +3716,7 @@ export interface components {
             subnet_prefix_length?: number | null;
         };
         CreateOrganizationRequest: {
-            /** @description The organization name. */
+            /** @description The organization name: at most 64 characters after trimming, with no control characters. */
             name: string;
         };
         CreateOrganizationRoleRequest: {
@@ -3763,7 +3763,7 @@ export interface components {
             sync_to_v0?: boolean | null;
         };
         CreateProjectRequest: {
-            /** @description The project name. */
+            /** @description The project name: at most 64 characters after trimming, with no control characters. `default` is reserved. */
             name: string;
         };
         /** @description The body of a proxy-token create. Name `expires_at` or set `no_expiry`. */
@@ -3931,9 +3931,9 @@ export interface components {
              * @description Sandbox-specific environment variables (real values, verbatim). Names
              *     must be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the
              *     platform reserves for its own use, including every `DAYTONA_*` name
-             *     other than `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`,
-             *     `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`, fail the create
-             *     with 400 naming the key.
+             *     other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
+             *     `DAYTONA_DOCKER_START` (so `DAYTONA_SANDBOX_TOKEN` too), fail the
+             *     create with 400 naming the key.
              */
             env?: {
                 [key: string]: string;
@@ -5041,8 +5041,9 @@ export interface components {
             operations?: string[] | null;
             /**
              * @description Private-preview ports the token may reach: 1 to 65535, at most 128,
-             *     with duplicates collapsed. Omitted grants all ports, and `[]` grants
-             *     none.
+             *     with duplicates collapsed. The sandbox daemon's ports 2280, 2281 and
+             *     22220 are never preview ports and are refused. Omitted grants all
+             *     ports, and `[]` grants none.
              * @example [
              *       3000
              *     ]
@@ -5425,6 +5426,12 @@ export interface components {
         OrganizationRunner: {
             /** @description Whether the runner accepts new sandboxes. */
             admin_state: components["schemas"]["OrganizationRunnerAdminState"];
+            /**
+             * Format: double
+             * @description The cores the runner is billed at per hour: its logical CPUs ÷ 2.
+             *     `null` before the runner first reports its CPUs.
+             */
+            billed_cores?: number | null;
             /**
              * Format: date-time
              * @description When the runner enrolled.
@@ -7183,7 +7190,7 @@ export interface components {
              * @description The longest timeout a sandbox in this organization may have, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. A value above that maximum is rejected.
              */
             max_sandbox_timeout_seconds?: number | null;
-            /** @description The replacement organization name. */
+            /** @description The replacement organization name: at most 64 characters after trimming, with no control characters. */
             name?: string;
         };
         UpdateOrganizationRoleRequest: {
@@ -7231,7 +7238,7 @@ export interface components {
             ephemeral?: null | components["schemas"]["UpdateEphemeralLifecycleDefaults"];
         };
         UpdateProjectRequest: {
-            /** @description The new project name. */
+            /** @description The new project name: at most 64 characters after trimming, with no control characters. `default` is reserved. */
             name: string;
         };
         /** @description PATCH /reservations/{id} body. */
@@ -7661,7 +7668,11 @@ export interface components {
         /** @description A volume attachment as requested on `POST /sandboxes`. */
         VolumeMount: {
             /**
-             * @description The absolute path inside the sandbox.
+             * @description The absolute path inside the sandbox, with no `..`. It is normalized
+             *     (repeated slashes, `.` components and a trailing slash removed) and
+             *     may not be `/` or be on or beneath a system directory: `/bin`,
+             *     `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
+             *     `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
              * @example /mnt/data
              */
             mount_path: string;
@@ -16654,7 +16665,7 @@ export interface operations {
                     "application/json": components["schemas"]["SandboxList"];
                 };
             };
-            /** @description The ID list is empty or exceeds 200 entries (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
+            /** @description The ID list is empty or exceeds 200 entries, or the wait target is not a sandbox status (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -16890,7 +16901,11 @@ export interface operations {
                 status?: components["schemas"]["SandboxStatus"][];
                 /** @description Comma-separated sandbox classes. */
                 class?: components["schemas"]["SandboxClass"][];
-                /** @description Comma-separated region slugs. Defaults to every region. */
+                /**
+                 * @description Comma-separated region IDs. A broader region (a geo group, or
+                 *     `earth`) matches every region inside it. An unknown region answers
+                 *     400. Defaults to every region.
+                 */
                 region_ids?: string;
                 /** @description Exact image reference. */
                 image_ref?: string;
@@ -17020,6 +17035,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Sandbox"];
+                };
+            };
+            /** @description The wait target is not a sandbox status (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -17497,6 +17522,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     update_sandbox_lifecycle_policy: {
@@ -17539,6 +17574,16 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description Sandbox not found */
             404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
@@ -17835,6 +17880,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     get_sandbox_port: {
@@ -17883,6 +17938,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     set_sandbox_port: {
@@ -17923,7 +17988,7 @@ export interface operations {
                     "application/json": components["schemas"]["SandboxPort"];
                 };
             };
-            /** @description The port is outside 1 through 65535, or the body is invalid (`BAD_REQUEST`) */
+            /** @description The port is outside 1 through 65535 or is reserved for the sandbox daemon (2280, 2281, 22220), or the body is invalid (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -17937,6 +18002,16 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description Sandbox not found */
             404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
@@ -18017,7 +18092,7 @@ export interface operations {
                     "application/json": components["schemas"]["PreviewUrl"];
                 };
             };
-            /** @description The port is outside 1 through 65535 (`BAD_REQUEST`) */
+            /** @description The port is outside 1 through 65535 or is reserved for the sandbox daemon (2280, 2281, 22220) (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -18031,6 +18106,16 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description Sandbox not found */
             404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
@@ -18080,7 +18165,7 @@ export interface operations {
                     "application/json": components["schemas"]["SignedPreviewUrl"];
                 };
             };
-            /** @description The port or expiry is outside the supported range (`BAD_REQUEST`) */
+            /** @description The port or expiry is outside the supported range, or the port is reserved for the sandbox daemon (2280, 2281, 22220) (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -18094,6 +18179,16 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description Sandbox not found */
             404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
@@ -18202,6 +18297,16 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description Sandbox not found */
             404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
