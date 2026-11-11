@@ -270,11 +270,14 @@ new`) and its volumes (at most 8, read-write, not with `--persistent`) before
 asking to buy anything.
 
 `sandbox create-macos` with no `--reservation`, or with `--reservation new`,
-may buy a 24-hour Mac reservation billed to your organization. These commands,
+may buy a 24-hour Mac reservation billed to your organization, and so may
+`sandbox start` of a stopped macOS sandbox when the organization holds no live
+reservation in its region (auto-reserve buys one). These commands,
 `reservation create`, `reservation renew`, and `reservation update
 --auto-renew=true` ask for confirmation at a
 terminal; off a terminal, pass `--yes` or set `DAYTONA_YES=1`. Using an
-existing reservation ID or `reservation create --dry-run` does not prompt.
+existing reservation ID, a `sandbox start` that a live reservation in the
+region serves, or `reservation create --dry-run` does not prompt.
 `reservation update --auto-renew=false` needs no confirmation.
 
 Stop and pause need a persistent sandbox (`--persistent`), which keeps its
