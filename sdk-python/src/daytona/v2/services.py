@@ -271,6 +271,14 @@ class AsyncImagesService:
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
+        # images.build() archives builders; here a context is bytes or a path.
+        if isinstance(context, ImageBuilder):
+            raise create_error(
+                "build_from_context() takes the bytes or path of a build context; build an ImageBuilder with images.build()",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         async with prepared_context(context, dockerfile) as archive:
             upload_id, upload_region = await upload_build_context(
                 self._transport, archive, dockerfile=dockerfile, region=region_selector(region)

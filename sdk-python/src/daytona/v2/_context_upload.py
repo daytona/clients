@@ -138,7 +138,9 @@ class _Source:
         elif isinstance(context, (str, os.PathLike)):
             self._data = None
             self._path = Path(context)
-            if not self._path.is_file():
+            # os.path.isfile, not Path.is_file: it swallows EACCES and
+            # ENAMETOOLONG on every supported Python, so they are refused here.
+            if not os.path.isfile(self._path):
                 raise BadRequestError(
                     f"build context {str(self._path)!r} is not a file; pass a tar archive",
                     status_code=400,

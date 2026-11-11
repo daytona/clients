@@ -261,3 +261,15 @@ async def test_context_path_reports_utf8_error_when_it_contains_a_lone_surrogate
         given.replace("\ud800", "�"), ensure_ascii=False
     )
     assert peer.requests == []
+
+
+@pytest.mark.anyio
+async def test_build_from_context_refuses_an_image_builder_before_any_request() -> None:
+    # A builder is built with images.build(); TypeScript refuses it the same way.
+    from daytona.v2 import ImageBuilder
+    from daytona.v2.errors import BadRequestError
+
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match=r"images\.build\(\)"):
+            await build(peer, ImageBuilder.from_registry("alpine"), False)
+        assert peer.requests == []

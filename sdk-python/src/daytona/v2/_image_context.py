@@ -34,8 +34,20 @@ from .image import ImageBuilder
 def _regular_file(root: Path, relative: str) -> Path:
     filename = root / relative
     quoted = json.dumps(str(filename), ensure_ascii=False)
-    if filename.exists() and not os.access(filename, os.R_OK):
-        raise create_error(f"build context file is not readable: {quoted}", 400, "BAD_REQUEST", "SDK")
+    try:
+        filename.lstat()
+    except PermissionError as error:
+        # A parent directory that cannot be searched.
+        raise create_error(
+            f"build context file is not readable: {quoted}", 400, "BAD_REQUEST", "SDK"
+        ) from error
+    except OSError:
+        pass  # Missing or a loop: resolve() below raises what the caller maps.
+    else:
+        # Only an existing target can be unreadable; a dangling link or loop is
+        # reported by resolve() below.
+        if os.path.exists(filename) and not os.access(filename, os.R_OK):
+            raise create_error(f"build context file is not readable: {quoted}", 400, "BAD_REQUEST", "SDK")
     resolved = filename.resolve(strict=True)
     if not resolved.is_relative_to(root):
         raise create_error(f"build context file leaves its local source: {quoted}", 400, "BAD_REQUEST", "SDK")
@@ -191,6 +203,10 @@ async def prepared_context(
     """Keep a generated tar alive until upload/build returns, including failure."""
     if not isinstance(dockerfile, str) or not dockerfile.strip():
         raise create_error("dockerfile must be a non-empty path", 400, "BAD_REQUEST", "SDK")
+    # A blank path would become `.`: the working directory must never be
+    # archived by accident (TypeScript refuses it as a missing tar file).
+    if isinstance(context, str) and not context.strip():
+        raise create_error("build context path must be a non-empty string", 400, "BAD_REQUEST", "SDK")
     expanded = Path(expand_home(os.fspath(context))) if isinstance(context, (str, os.PathLike)) else context
     if isinstance(expanded, Path):
         utf8_path(str(expanded))
@@ -206,8 +222,8 @@ async def prepared_context(
             finally:
                 destination.unlink(missing_ok=True)
     # os.path.isdir swallows every OSError on all supported Pythons (Path.is_dir
-    # raises EACCES/ENAMETOOLONG before 3.14): the tar-path upload then reports
-    # its own typed error.
+    # raises EACCES/ENAMETOOLONG before 3.14); the tar-path upload then refuses
+    # a path it cannot stat with a BadRequestError.
     elif isinstance(expanded, Path) and os.path.isdir(expanded):
         with TemporaryDirectory(prefix="daytona-build-") as directory:
             destination = Path(directory) / "context.tar"

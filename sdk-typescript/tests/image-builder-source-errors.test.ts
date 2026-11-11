@@ -8,6 +8,8 @@ import promises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ImageBuilder } from '../src/v2/Image.js'
+import { ImagesService } from '../src/v2/Images.js'
+import { INTERNAL } from '../src/v2/internal.js'
 import { archiveBuilder, archiveDirectory } from '../src/v2/contextArchive.js'
 import { BadRequestError } from '../src/v2/errors/DaytonaError.js'
 
@@ -143,8 +145,10 @@ posixNonRoot('refuses an unreadable context root or ignore file with a typed err
   try {
     // When archived, then both are BadRequestErrors naming the path.
     const { archiveDirectory } = await import('../src/v2/contextArchive.js')
-    await expect(archiveDirectory(locked, 'Dockerfile')).rejects.toThrow(/build context directory is not readable/)
-    await expect(archiveDirectory(ignored, 'Dockerfile')).rejects.toThrow(/build context file is not readable/)
+    const { BadRequestError } = await import('../src/v2/errors/DaytonaError.js')
+    const typed = { constructor: BadRequestError, statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }
+    await expect(archiveDirectory(locked, 'Dockerfile')).rejects.toMatchObject({ ...typed, message: expect.stringContaining('build context directory is not readable') })
+    await expect(archiveDirectory(ignored, 'Dockerfile')).rejects.toMatchObject({ ...typed, message: expect.stringContaining('build context file is not readable') })
   } finally {
     await fs.chmod(locked, 0o755)
     await fs.chmod(join(ignored, '.dockerignore'), 0o644)
@@ -173,4 +177,16 @@ posixNonRoot('treats an unreachable tar path as a tar path, not a directory', as
     await fs.chmod(join(base, 'noexec'), 0o755)
     await fs.rm(base, { recursive: true, force: true })
   }
+})
+
+it('refuses a blank context path and an ImageBuilder passed as the context', async () => {
+  // A blank path is a missing tar file (never the working directory), and a
+  // builder is built with images.build(): both are refused before any request.
+  const axios = (await import('axios')).default
+  const requests: string[] = []
+  const http = axios.create({ adapter: async (config) => { requests.push(String(config.url)); throw new Error('no request expected') } })
+  const images = new ImagesService(INTERNAL, http)
+  await expect(images.buildFromContext('')).rejects.toBeInstanceOf(BadRequestError)
+  await expect(images.buildFromContext(ImageBuilder.fromRegistry('alpine') as never)).rejects.toBeInstanceOf(BadRequestError)
+  expect(requests).toEqual([])
 })

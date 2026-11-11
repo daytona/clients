@@ -424,3 +424,12 @@ async def test_an_unreachable_tar_path_is_the_tar_upload_error(tmp_path: Path) -
                 assert context == path
     finally:
         parent.chmod(0o755)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("context", ["", "  "])
+async def test_a_blank_context_path_is_refused_not_the_working_directory(context: str) -> None:
+    # A blank path would become `.`: it must never archive the working directory.
+    with pytest.raises(BadRequestError, match="build context path must be a non-empty string"):
+        async with prepared_context(context, "Dockerfile"):
+            pass
