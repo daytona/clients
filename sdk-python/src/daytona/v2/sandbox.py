@@ -828,7 +828,8 @@ class AsyncSandbox:
         if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
-        changes nothing.
+        changes nothing. A sandbox that is deleted or being deleted raises
+        :class:`ConflictError` (``CONFLICT``).
         """
         body = _validated_labels(labels)
         if "name" not in body:
@@ -1552,7 +1553,8 @@ class AsyncSandbox:
         arming it on a sandbox with no idle policy requires ``on_idle_timeout``.
         Setting either action to ``"delete"`` — or touching a pair whose current
         or resulting action is ``"delete"`` — requires the API key to hold
-        ``delete:sandboxes`` in addition to ``write:sandboxes``.
+        ``delete:sandboxes`` in addition to ``write:sandboxes``. A sandbox that
+        is deleted or being deleted raises :class:`ConflictError` (``CONFLICT``).
         """
         requested: LifecyclePolicyOptions = {}
         if timeout_seconds is not None:
@@ -1603,9 +1605,10 @@ class AsyncSandbox:
         ``idle_timeout_at`` re-anchors to now + ``idle_expiry_seconds``. The
         wall-clock ``timeout_at`` is NOT affected. Succeeds whether or not an
         idle timeout is armed (an unarmed sandbox echoes
-        ``idle_timeout_at=None``), and in any state — a never-started sandbox
-        already carries its creation-time activity stamp, which the reset
-        advances.
+        ``idle_timeout_at=None``), and in any state but deleting or deleted —
+        a never-started sandbox already carries its creation-time activity
+        stamp, which the reset advances. A sandbox that is deleted or being
+        deleted raises :class:`ConflictError` (``CONFLICT``).
 
         The echo is the full post-reset lifecycle, the same shape
         :meth:`update_lifecycle_policy` returns. Advance-only: a newer concurrent

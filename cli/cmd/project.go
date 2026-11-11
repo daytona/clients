@@ -151,10 +151,15 @@ func newProjectCmd() *cobra.Command {
 		},
 	})
 	c.AddCommand(&cobra.Command{
-		Use: "create <name>", Short: "Create a project in the selected organization", Args: cobra.ExactArgs(1),
+		Use: "create <name>", Short: "Create a project in the selected organization",
+		Long: "Create a project in the selected organization. The name is 1 to 64 characters after trimming, with no\ncontrol characters; `default` is reserved.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
+			if err := checkNewOrgProjectName("project", args[0]); err != nil {
+				return err
+			}
 			org, err := a.RequireOrg(ctx, pickOrg(a))
 			if err != nil {
 				return err
@@ -171,7 +176,9 @@ func newProjectCmd() *cobra.Command {
 		},
 	})
 	upd := &cobra.Command{
-		Use: "update <id|name> --name <new>", Short: "Rename a project", Args: cobra.ExactArgs(1),
+		Use: "update <id|name> --name <new>", Short: "Rename a project",
+		Long: "Rename a project. The name is 1 to 64 characters after trimming, with no control characters, and\nnot `default`; the current name is accepted unchanged even when it is longer.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
@@ -179,8 +186,19 @@ func newProjectCmd() *cobra.Command {
 			if name == "" {
 				return cerr.Usage("--name is required")
 			}
-			project, _, mc, err := resolveProjectID(cmd, args[0])
+			tooLong, err := checkOrgProjectName("project", name)
 			if err != nil {
+				return err
+			}
+			project, orgID, mc, err := resolveProjectID(cmd, args[0])
+			if err != nil {
+				return err
+			}
+			current := project.Name
+			if looksLikeProjectUUID(args[0]) {
+				current = ""
+			}
+			if err := checkRenamedProjectName(ctx, mc, orgID, project.Id.String(), current, name, tooLong); err != nil {
 				return err
 			}
 			var p api.Raw[gen.Project]
@@ -190,7 +208,7 @@ func newProjectCmd() *cobra.Command {
 			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}})
 		},
 	}
-	upd.Flags().String("name", "", "new name")
+	upd.Flags().String("name", "", "new name (1 to 64 characters)")
 	c.AddCommand(upd)
 	c.AddCommand(&cobra.Command{
 		Use: "delete <id|name>", Short: "Delete a project (refused while it still holds resources)", Args: cobra.ExactArgs(1),

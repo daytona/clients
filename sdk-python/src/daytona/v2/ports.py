@@ -151,6 +151,11 @@ class AsyncPortsService:
     async def list_endpoints(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> ListResult[PreviewEndpoint]:
+        """One page of the sandbox's preview endpoints.
+
+        A sandbox that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
+        """
         params = page_params(cursor, limit)
         payload = expect_endpoint_list_resp(
             await self._require_api().send(RequestSpec("GET", self._ports_path(), params=params))
@@ -185,6 +190,8 @@ class AsyncPortsService:
         needs the token from :meth:`preview_link` (see
         :class:`~daytona.v2.types.PreviewLink`) or a :meth:`signed_preview_link`
         URL.
+        A sandbox that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
         :param port: TCP port inside the sandbox (1–65535).
         :param public: When ``True`` the endpoint is publicly accessible
@@ -214,7 +221,9 @@ class AsyncPortsService:
         Token contents are not used to infer access permissions.
 
         A port that is not exposed yet is exposed first (privately, as
-        :meth:`expose` does): this call registers a preview endpoint.
+        :meth:`expose` does): this call registers a preview endpoint. A sandbox
+        that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
         """
         _assert_port(port)
         try:
@@ -259,6 +268,8 @@ class AsyncPortsService:
         The default lifetime is 60 seconds. Pass a longer ``expires_in_seconds``
         for multi-step use (the deployment caps the maximum, typically 7 days).
         Revoke the link early with :meth:`expire_signed_preview_link`.
+        A sandbox that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
         :param port: TCP port inside the sandbox (1–65535).
         :param expires_in_seconds: Requested token lifetime in seconds (positive
@@ -294,6 +305,8 @@ class AsyncPortsService:
     async def expire_signed_preview_link(self, port: int, token: str, /) -> None:
         """Revoke a signed preview link before its natural expiry.
 
+        Unlike minting, revoking still works while the sandbox is being deleted.
+
         :param port: TCP port the link was issued for.
         :param token: The ``token`` field from :class:`~daytona.v2.types.SignedPreviewLink`.
         """
@@ -309,6 +322,7 @@ class AsyncPortsService:
         )
 
     async def unexpose(self, port: int, /) -> None:
+        """Remove a port's preview endpoint; this still works while the sandbox is being deleted."""
         _assert_port(port)
         await self._require_api().send(RequestSpec("DELETE", self._port_path(port)))
 

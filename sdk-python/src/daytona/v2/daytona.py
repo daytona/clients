@@ -1058,7 +1058,9 @@ class AsyncDaytona:
         Every parameter is optional and they combine as AND. ``q`` is free text
         over name and image (or an exact id); ``name_prefix``/``id_prefix`` match
         the start of the name or id; ``states``, ``sandbox_class`` and
-        ``region`` accept a single value or a list (any-of). ``states`` are the
+        ``region`` accept a single value or a list (any-of). A ``region`` that
+        contains other regions (a geo group, or ``earth``) matches every
+        region inside it. ``states`` are the
         SDK's sandbox states (``started``, ``stopped``, ``error``, ...), each
         sent as the API status names it covers; ``"unknown"`` is refused.
         ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
@@ -1085,8 +1087,8 @@ class AsyncDaytona:
         deletes mid-walk shift later pages.
 
         Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
-        cursor, an unknown ``sandbox_class``/``sort`` value, a non-object
-        ``labels`` or a ``min`` above its ``max``; 501
+        cursor, an unknown ``sandbox_class``/``sort`` value or region, a
+        non-object ``labels`` or a ``min`` above its ``max``; 501
         (:class:`SearchNotConfiguredError` with
         ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
         disabled; 503 (:class:`SearchUnavailableError` with

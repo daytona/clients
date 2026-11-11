@@ -988,7 +988,8 @@ export class Sandbox {
    *
    * Setting either action to `'delete'` — or touching a pair whose current or
    * resulting action is `'delete'` — requires the API key to hold
-   * `delete:sandboxes` in addition to `write:sandboxes`.
+   * `delete:sandboxes` in addition to `write:sandboxes`. A sandbox that is
+   * deleted or being deleted throws `ConflictError` (`CONFLICT`).
    */
   public async updateLifecyclePolicy(options: LifecyclePolicyOptions): Promise<SandboxLifecycle> {
     assertOptionsObject('LifecyclePolicyOptions', options)
@@ -1020,8 +1021,9 @@ export class Sandbox {
    * `idleTimeoutAt` re-anchors to now + `idleExpirySeconds`. The wall-clock
    * `timeoutAt` is NOT affected. Succeeds whether or not an idle timeout is
    * armed (an unarmed sandbox echoes `idleTimeoutAt: undefined`), and in any
-   * state — a never-started sandbox already carries its creation-time
-   * activity stamp, which the reset advances.
+   * state but deleting or deleted — a never-started sandbox already carries
+   * its creation-time activity stamp, which the reset advances. A sandbox
+   * that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
    * The echo is the full post-reset lifecycle, the same shape
    * `updateLifecyclePolicy()` returns. Advance-only: a newer concurrent activity bump
@@ -1125,7 +1127,8 @@ export class Sandbox {
    * `name` key the sandbox is read first (one more request, which also
    * refreshes this handle's metadata) and the `name` label it reports, if any,
    * is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
-   * be removed.
+   * be removed. A sandbox that is deleted or being deleted throws
+   * `ConflictError` (`CONFLICT`).
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')

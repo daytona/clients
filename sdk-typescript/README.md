@@ -342,7 +342,9 @@ make asynchronous callback work cancellation-aware when needed.
   `region`, `labels`, resource/timestamp bounds, `sort`, `order`, and other
   search options. `states` accepts a public state or array, for example
   `{ states: ['started', 'paused'] }`; `unknown` is not searchable.
-  Timestamp filters are half-open:
+  `region` takes region IDs; a region that contains other regions (a geo
+  group, or `earth`) matches every region inside it, and an unknown region is
+  a `BadRequestError`. Timestamp filters are half-open:
   `createdStartAt` / `createdEndAt`, `updatedStartAt` / `updatedEndAt`, and
   `lastActivityStartAt` / `lastActivityEndAt`; each start is inclusive and
   each end is exclusive.
@@ -1067,6 +1069,12 @@ example the maximum number of concurrent sandboxes) throws
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
 and counts as `limit`, `current` and `max`. Other rate-limited requests keep
 throwing plain `RateLimitError`.
+
+On a sandbox that is deleted or being deleted, `setLabels()`,
+`updateLifecyclePolicy()`, `resetIdleTimer()` and the preview-endpoint calls
+(`ports.expose()`, `ports.listEndpoints()`, `ports.previewLink()`,
+`ports.signedPreviewLink()`) throw `ConflictError` (`CONFLICT`);
+`ports.unexpose()` and `ports.expireSignedPreviewLink()` still work.
 
 ## Versioning and releases
 

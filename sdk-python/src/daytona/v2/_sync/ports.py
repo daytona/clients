@@ -39,6 +39,8 @@ class PortsService:
     def expire_signed_preview_link(self, port: int, token: str, /) -> None:
         """Revoke a signed preview link before its natural expiry.
 
+        Unlike minting, revoking still works while the sandbox is being deleted.
+
         :param port: TCP port the link was issued for.
         :param token: The ``token`` field from :class:`~daytona.v2.types.SignedPreviewLink`.
         """
@@ -53,6 +55,8 @@ class PortsService:
         needs the token from :meth:`preview_link` (see
         :class:`~daytona.v2.types.PreviewLink`) or a :meth:`signed_preview_link`
         URL.
+        A sandbox that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
         :param port: TCP port inside the sandbox (1–65535).
         :param public: When ``True`` the endpoint is publicly accessible
@@ -83,6 +87,11 @@ class PortsService:
     def list_endpoints(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> ListResult[PreviewEndpoint]:
+        """One page of the sandbox's preview endpoints.
+
+        A sandbox that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
+        """
         return self._bridge.call(lambda: self._impl.list_endpoints(cursor=cursor, limit=limit))
 
     def preview_link(self, port: int, /) -> PreviewLink:
@@ -98,7 +107,9 @@ class PortsService:
         Token contents are not used to infer access permissions.
 
         A port that is not exposed yet is exposed first (privately, as
-        :meth:`expose` does): this call registers a preview endpoint.
+        :meth:`expose` does): this call registers a preview endpoint. A sandbox
+        that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
         """
         return self._bridge.call(lambda: self._impl.preview_link(port))
 
@@ -114,6 +125,8 @@ class PortsService:
         The default lifetime is 60 seconds. Pass a longer ``expires_in_seconds``
         for multi-step use (the deployment caps the maximum, typically 7 days).
         Revoke the link early with :meth:`expire_signed_preview_link`.
+        A sandbox that is deleted or being deleted raises
+        :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
         :param port: TCP port inside the sandbox (1–65535).
         :param expires_in_seconds: Requested token lifetime in seconds (positive
@@ -131,4 +144,5 @@ class PortsService:
         )
 
     def unexpose(self, port: int, /) -> None:
+        """Remove a port's preview endpoint; this still works while the sandbox is being deleted."""
         return self._bridge.call(lambda: self._impl.unexpose(port))

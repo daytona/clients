@@ -384,6 +384,11 @@ never prompts:
   are a usage error (exit 2). `--region` is checked against the region
   catalog: an unknown region is a usage error (exit 2), and a parent expands
   to itself and its children in the search API's `region_ids` filter.
+- Organization and project names (`org create`, `org update --name`,
+  `project create`, `project update --name`) are 1 to 64 characters after
+  trimming, with no control characters, and a project cannot be named
+  `default`. Any other name is a usage error (exit 2) before any request;
+  a rename may still send the current name unchanged when it is longer.
 - Billing amounts are integer cents plus a currency. One-time top-ups use
   `--amount-cents`; automatic top-up and low-balance settings use
   `--threshold-cents` (and automatic top-up also uses `--target-cents`).

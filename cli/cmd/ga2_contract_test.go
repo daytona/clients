@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 
+	gen "github.com/daytona/clients/cli/gen/api"
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/stretchr/testify/assert"
@@ -180,6 +181,14 @@ func TestSandboxWait_forValidatesAndAcceptsSDKNames(t *testing.T) {
 				check: func(t *testing.T, r *http.Request, _ []byte) { assert.Equal(t, wire, r.URL.Query().Get(key)) }},
 		})
 		require.NoError(t, err, value)
+	}
+}
+
+// Every `sandbox wait --for` value maps to a status of the contract's
+// SandboxStatus enum: the API refuses any other wait target with 400.
+func TestSandboxWait_targetsAreContractStatuses(t *testing.T) {
+	for value, wire := range sandboxWaitTargets {
+		require.True(t, gen.SandboxStatus(wire).Valid(), "--for %s sends %s", value, wire)
 	}
 }
 

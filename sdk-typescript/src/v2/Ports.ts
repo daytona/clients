@@ -164,6 +164,11 @@ export class PortsService {
     return checkResponse<toolbox.PortInUseResponse>(response, { isInUse: 'boolean' }, 'port in use').isInUse
   }
 
+  /**
+   * One page of the sandbox's preview endpoints.
+   *
+   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
+   */
   public async listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>> {
     options = snapshotOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS) ?? {}
     const page = await this.requireApi()
@@ -195,6 +200,7 @@ export class PortsService {
    * endpoints need no credential. Programmatic access to a private one needs the
    * token from {@link previewLink} (see {@link PreviewLink}) or a
    * {@link signedPreviewLink} URL.
+   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
    * @param port TCP port inside the sandbox (1–65535).
    * @param options.public When `true` the endpoint is publicly accessible without
@@ -221,7 +227,8 @@ export class PortsService {
    * or if minting fails, the route token is passed through unchanged.
    *
    * A port that is not exposed yet is exposed first (privately, as
-   * {@link expose} does): this call registers a preview endpoint.
+   * {@link expose} does): this call registers a preview endpoint. A sandbox
+   * that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    */
   public async previewLink(port: number): Promise<PreviewLink> {
     assertPort(port)
@@ -266,6 +273,7 @@ export class PortsService {
    * The default lifetime is 60 seconds. Pass a longer `expiresInSeconds` for
    * multi-step use (the deployment caps the maximum, typically 7 days).
    * Revoke the link early with {@link expireSignedPreviewLink}.
+   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
    * @param port TCP port inside the sandbox (1–65535).
    * @param options.expiresInSeconds Requested token lifetime in seconds (positive
@@ -293,6 +301,8 @@ export class PortsService {
   /**
    * Revoke a signed preview link before its natural expiry.
    *
+   * Unlike minting, revoking still works while the sandbox is being deleted.
+   *
    * @param port TCP port the link was issued for.
    * @param token The `token` field from {@link SignedPreviewLink}.
    */
@@ -303,6 +313,7 @@ export class PortsService {
     await this.requireApi().post(`${this.portPath(port)}/signed-preview-urls/revoke`, { token })
   }
 
+  /** Remove a port's preview endpoint; this still works while the sandbox is being deleted. */
   public async unexpose(port: number): Promise<void> {
     assertPort(port)
     await this.requireApi().delete(this.portPath(port))

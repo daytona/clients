@@ -396,7 +396,9 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...
   `states` takes the SDK's sandbox states (`states=["started", "paused"]`);
-  `"unknown"` is not searchable. Timestamp filters are `created_start_at` /
+  `"unknown"` is not searchable. `region` takes region IDs; a region that
+  contains other regions (a geo group, or `earth`) matches every region inside
+  it, and an unknown region is a `BadRequestError`. Timestamp filters are `created_start_at` /
   `created_end_at`, `updated_start_at` / `updated_end_at`, and
   `last_activity_start_at` / `last_activity_end_at`; starts are inclusive and
   ends are exclusive.
@@ -1151,6 +1153,12 @@ example the maximum number of concurrent sandboxes) raises
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
 and counts as `limit`, `current` and `max`. Other rate-limited requests keep
 raising plain `RateLimitError`.
+
+On a sandbox that is deleted or being deleted, `set_labels()`,
+`update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls
+(`ports.expose()`, `ports.list_endpoints()`, `ports.preview_link()`,
+`ports.signed_preview_link()`) raise `ConflictError` (`CONFLICT`);
+`ports.unexpose()` and `ports.expire_signed_preview_link()` still work.
 
 ## Versioning and releases
 

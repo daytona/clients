@@ -721,7 +721,11 @@ export interface SandboxSearchFilters {
   readonly states?: Exclude<SandboxState, 'unknown'> | readonly Exclude<SandboxState, 'unknown'>[]
   /** A single value or a list (any-of). */
   readonly sandboxClass?: SandboxClass | readonly SandboxClass[]
-  /** A single value or a list (any-of) over region slugs. */
+  /**
+   * A single value or a list (any-of) over region IDs. A region that contains
+   * other regions (a geo group, or `earth`) matches every region inside it; an
+   * unknown region is a `BadRequestError` from the API.
+   */
   readonly region?: string | readonly string[]
   readonly imageRef?: string
   readonly imageRefPrefix?: string
