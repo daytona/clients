@@ -1,0 +1,14 @@
+cli/cmd/sandbox_actions_more_test.go
+  h_e7759ddd73fa65 547-550,552,592-606
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72df899cc0438e0e6fe6e0071b7cd6960cd43a42",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

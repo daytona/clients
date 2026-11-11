@@ -1,0 +1,37 @@
+changelog.d/builder-trailing-backslash.fixed.md
+  s_35c1b93d4ebbc5::t_9aca62b6861800 4-6
+docs/adr/0006-image-builder-local-context.md
+  s_35c1b93d4ebbc5::t_aba9094ea429d3 86-91,136-141
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_35c1b93d4ebbc5::t_5a05126b5c012c 26-27,29-31,33-47,49,51-52,54,57-58,60,62-64,70-71,74-77,79-81
+sdk-python/src/daytona/v2/_image_text.py
+  s_35c1b93d4ebbc5::t_23d437f6d1a78e 44-59
+sdk-python/src/daytona/v2/image.py
+  s_35c1b93d4ebbc5::t_619cea4b0ea192 17,42-50
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_35c1b93d4ebbc5::t_08d68ba1f7e0f3 6-31,33-35,309-324,330-346,352-360,365-367,661-663,828-841
+sdk-python/tests/test_dockerignore.py
+  s_35c1b93d4ebbc5::t_9c3f9a2a70289e 23,387-399,401-402
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_9d251a1f96a99e 10,30-34
+sdk-typescript/src/v2/builderText.ts
+  s_35c1b93d4ebbc5::t_16d474aa70b032 133-148
+sdk-typescript/tests/dockerignore.test.ts
+  s_35c1b93d4ebbc5::t_f4e6df6f7d9971 301
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cfd7562551b7b3fa4efbf392b75f893a99c1156d",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

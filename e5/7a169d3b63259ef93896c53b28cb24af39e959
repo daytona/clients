@@ -1,0 +1,191 @@
+sdk-python/src/daytona/v2/_sync/services.py
+  s_4929c45be34f88::t_08403e598bda81 97
+  s_b692442113fa39::t_ed36f559d97243 98
+  s_35c1b93d4ebbc5::t_02aea0ed84c4ee 99-107
+AGENTS.md
+  s_35c1b93d4ebbc5::t_5fec16f8a88075 539-549,668-669
+changelog.d/595-macos-disk-not-ready.changed.md
+  s_35c1b93d4ebbc5::t_5a4e6a41feaf14 1-3
+changelog.d/595-macos-paused-renewal.changed.md
+  s_35c1b93d4ebbc5::t_818b8885b3448e 1-3
+changelog.d/595-macos-start-auto-reserve.changed.md
+  s_35c1b93d4ebbc5::t_14697995a215ee 1-5
+changelog.d/596-cli-macos-start-confirm.changed.md
+  s_35c1b93d4ebbc5::t_9bf994b819418f 1-6
+changelog.d/build-context-part-progress.fixed.md
+  s_35c1b93d4ebbc5::t_dcfd060f257f3f 1-8
+changelog.d/build-from-context-timeout-zero.changed.md
+  s_35c1b93d4ebbc5::t_5a653312d92f17 1-4
+changelog.d/build-from-context-timeout.added.md
+  s_35c1b93d4ebbc5::t_04b2296d4f52f5 1-4
+changelog.d/cli-attach-close-code.breaking.md
+  s_35c1b93d4ebbc5::t_23cfe118574cb0 1-6
+changelog.d/cli-build-context-part-progress.fixed.md
+  s_35c1b93d4ebbc5::t_de50e6739f11c3 1-3
+changelog.d/cli-ssh-credential-redaction.security.md
+  s_35c1b93d4ebbc5::t_90cb4c4383c8aa 1-4
+changelog.d/ports-in-use-range.changed.md
+  s_35c1b93d4ebbc5::t_9105315fbf16b3 1-5
+changelog.d/upgrade-absolute-fs-paths.changed.md
+  s_35c1b93d4ebbc5::t_fa4816c5ecba52 1-5
+changelog.d/upgrade-dockerfile-image-suggestions.added.md
+  s_35c1b93d4ebbc5::t_b081c5ff045985 1-8
+cli/README.md
+  s_35c1b93d4ebbc5::t_4ffd9db5000d7e 172-174,191-195,205-209,240-245,273-275,279-280,283-294
+cli/cmd/image.go
+  s_35c1b93d4ebbc5::t_807409871ef56c 91
+cli/cmd/image_direct_upload.go
+  s_35c1b93d4ebbc5::t_33ca1fd253ed69 49-57,60-61,68-84,253-275,277-279,281,283-284,286-287,311-313
+cli/cmd/image_direct_upload_test.go
+  s_35c1b93d4ebbc5::t_8310430d3d56ec 428-434,437,449-492
+cli/cmd/org.go
+  s_35c1b93d4ebbc5::t_ab5cd3f27830e7 189-190
+cli/cmd/reservation.go
+  s_35c1b93d4ebbc5::t_3b73f636415a1a 119,147
+cli/cmd/reservation_test.go
+  s_35c1b93d4ebbc5::t_f7fc49bbaeaa47 250
+cli/cmd/sandbox_actions.go
+  s_35c1b93d4ebbc5::t_bca439252e4ec7 7,19,35-39,44-78
+cli/cmd/sandbox_actions_more_test.go
+  s_35c1b93d4ebbc5::t_655a1b869cd4dc 10,114,125,376,530-606
+cli/cmd/sandbox_create_macos.go
+  s_35c1b93d4ebbc5::t_9e46c63dd76289 22-23,96
+cli/cmd/sandbox_create_macos_test.go
+  s_35c1b93d4ebbc5::t_2cff6ad44de11d 75-76
+cli/cmd/sandbox_ssh.go
+  s_35c1b93d4ebbc5::t_18af848217d56e 7,10,14,16,60-67,142,146-243
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  s_35c1b93d4ebbc5::t_a6a989e190ebaf 9,11,26,40-53
+cli/cmd/sandbox_ssh_flags_test.go
+  s_35c1b93d4ebbc5::t_c09dee65763f62 52
+cli/cmd/sandbox_ssh_test.go
+  s_35c1b93d4ebbc5::t_2fd1cc88587d05 9,13,15,39,60-171
+cli/cmd/sandbox_test.go
+  s_35c1b93d4ebbc5::t_3912ef42e6cc52 69
+cli/internal/toolbox/terminal_attach_test.go
+  s_35c1b93d4ebbc5::t_2a9426a67edf11 66-103
+cli/internal/toolbox/websocket.go
+  s_35c1b93d4ebbc5::t_55f11d3806efbd 14,16-17,27-67,78-80,96-105,118-120
+cli/internal/toolbox/websocket_cancel_test.go
+  s_35c1b93d4ebbc5::t_9bd4fbc3bc4c91 12,119-206
+sdk-python/README.md
+  s_35c1b93d4ebbc5::t_202bb1696cb192 657-659,693-695,703-709,756-764,776-779,786
+sdk-python/pyproject.toml
+  s_35c1b93d4ebbc5::t_f3bb9505c7a36b 112-115
+sdk-python/src/daytona/v2/_context_upload.py
+  s_35c1b93d4ebbc5::t_aac31238ea5218 28,45-47,171-180,189-192,195-197,202-207,264-282,292-302,304,306,315,321,323,342-348,395-397,400,402,407-409,417
+sdk-python/src/daytona/v2/_core.py
+  s_35c1b93d4ebbc5::t_49537aa45a7cb9 551,1998,2000,2004-2006,2008
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_35c1b93d4ebbc5::t_b9cb640caf2501 359-361,363,373
+sdk-python/src/daytona/v2/_sync/ports.py
+  s_35c1b93d4ebbc5::t_938d72c882c97d 65-72
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_35c1b93d4ebbc5::t_4b39a4e60558e8 76-77,252-253,292-295,404-417
+sdk-python/src/daytona/v2/daytona.py
+  s_35c1b93d4ebbc5::t_0c062ab2c6b1aa 494-496,498,508
+sdk-python/src/daytona/v2/ports.py
+  s_35c1b93d4ebbc5::t_66bb2e9d42d758 137-145
+sdk-python/src/daytona/v2/sandbox.py
+  s_35c1b93d4ebbc5::t_88fb97c75e7f5b 1307-1320,1355-1358,1389-1390,1698-1699
+sdk-python/src/daytona/v2/services.py
+  s_35c1b93d4ebbc5::t_5b51c316d01f4d 253-263,293
+sdk-python/src/daytona/v2/types.py
+  s_35c1b93d4ebbc5::t_69e230ff158db7 437-439
+sdk-python/tests/test_build_context_upload.py
+  s_35c1b93d4ebbc5::t_4d3b05a4f8c69c 14,31,290-294,304-393,406,554,761-762,764,841
+sdk-python/tests/test_core.py
+  s_35c1b93d4ebbc5::t_0536e8b339bbdb 3884-3898,13055,13069,13166,13177,13293
+sdk-typescript/README.md
+  s_35c1b93d4ebbc5::t_3515b670b570e1 583-585,617-619,627-633,678-686,698-700,707
+sdk-typescript/src/v2/Daytona.ts
+  s_35c1b93d4ebbc5::t_04f092c014f441 221,227-230
+sdk-typescript/src/v2/Images.ts
+  s_35c1b93d4ebbc5::t_7c76cbc3f04148 51-60,62,66-72,151-156,167-168,183
+sdk-typescript/src/v2/Ports.ts
+  s_35c1b93d4ebbc5::t_7dc469216a80af 156-159,162
+sdk-typescript/src/v2/Sandbox.ts
+  s_35c1b93d4ebbc5::t_64f3691f948408 703-719,750-753,791-792,1084-1085
+sdk-typescript/src/v2/contextUpload.ts
+  s_35c1b93d4ebbc5::t_859e697a0287ee 14-16,27-29,37-38,43,50-64,78-80,85,90-106,203-211,215,218-220,225-227,229,231,236,241-242,252-254,260,277,365-367
+sdk-typescript/src/v2/types.ts
+  s_35c1b93d4ebbc5::t_2ea7df849d350a 513-516,525-526
+sdk-typescript/tests/build-context-upload.test.ts
+  s_35c1b93d4ebbc5::t_e9e2eaace4922a 17,40,44,87,92,131-135,469-486,540-621,638
+sdk-typescript/tests/unit.test.ts
+  s_35c1b93d4ebbc5::t_87b1af36819da9 11543-11545,11553
+upgrade/MIGRATION.md
+  s_35c1b93d4ebbc5::t_d3f46315512d35 88,100,121,133,318-319,324-338,344-358
+upgrade/mapping/mapping.json
+  s_35c1b93d4ebbc5::t_f14cfaf7404440 194-205,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1218,1221-1222,1242-1243,1246-1247,1268-1269,1272-1273,1293-1294,1297-1298,1319-1320,1323-1324,1344-1345,1348-1349,1369-1370,1373-1374,1395-1396,1400-1401,1423-1424,1429-1430,1452-1453,1458-1459,3843-3867,4124-4146
+upgrade/mapping/mapping.schema.json
+  s_35c1b93d4ebbc5::t_a3de845cc392a0 18,187-203,410-430,458-477
+upgrade/python/src/daytona_upgrade/call_proofs.py
+  s_35c1b93d4ebbc5::t_0819e5e1c7e45a 15,55-56
+upgrade/python/src/daytona_upgrade/call_sites.py
+  s_35c1b93d4ebbc5::t_364f8787f91e93 41-42
+upgrade/python/src/daytona_upgrade/dockerfile_images.py
+  s_35c1b93d4ebbc5::t_9fa0efb0e10de2 1-68
+upgrade/python/src/daytona_upgrade/flow.py
+  s_35c1b93d4ebbc5::t_0599ec55f647ab 21,48-55,216-219,223,229-235
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_35c1b93d4ebbc5::t_7f8e37d9503b57 194-205,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1218,1221-1222,1242-1243,1246-1247,1268-1269,1272-1273,1293-1294,1297-1298,1319-1320,1323-1324,1344-1345,1348-1349,1369-1370,1373-1374,1395-1396,1400-1401,1423-1424,1429-1430,1452-1453,1458-1459,3843-3867,4124-4146
+upgrade/python/src/daytona_upgrade/models.py
+  s_35c1b93d4ebbc5::t_c1dcc72257af6e 75-90,116-133,185-193,197,226-232
+upgrade/python/src/daytona_upgrade/resolution.py
+  s_35c1b93d4ebbc5::t_efe90950143c57 86-90
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_35c1b93d4ebbc5::t_e91228563ab88d 94-98,102,111,118,148,150,159
+upgrade/python/tests/test_dockerfile_image_suggestions.py
+  s_35c1b93d4ebbc5::t_b565b77ab4d430 1-117
+upgrade/scripts/check-v2-surface.mjs
+  s_35c1b93d4ebbc5::t_f0db0d084d20e6 55-59,66
+upgrade/scripts/gen-guide.mjs
+  s_35c1b93d4ebbc5::t_b83478426a92b5 125-131
+upgrade/scripts/migration-notes.test.mjs
+  s_35c1b93d4ebbc5::t_9a58c4bb284be2 94-126
+upgrade/typescript/src/dockerfile-image.ts
+  s_35c1b93d4ebbc5::t_1c56a2bc29c248 1-80
+upgrade/typescript/src/mapping.json
+  s_35c1b93d4ebbc5::t_2bfc20c030816b 194-205,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1218,1221-1222,1242-1243,1246-1247,1268-1269,1272-1273,1293-1294,1297-1298,1319-1320,1323-1324,1344-1345,1348-1349,1369-1370,1373-1374,1395-1396,1400-1401,1423-1424,1429-1430,1452-1453,1458-1459,3843-3867,4124-4146
+upgrade/typescript/src/mapping.ts
+  s_35c1b93d4ebbc5::t_df93708f2d4646 64-67,69,87-88
+upgrade/typescript/src/model.ts
+  s_35c1b93d4ebbc5::t_f6b3d56314b2bb 22-23,41-42
+upgrade/typescript/src/suggestions.ts
+  s_35c1b93d4ebbc5::t_fec3cfd0ebb867 21,197-199,201-202
+upgrade/typescript/tests/dockerfile-image-suggestions.test.ts
+  s_35c1b93d4ebbc5::t_6ce74c38bead23 1-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e57a169d3b63259ef93896c53b28cb24af39e959",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_4929c45be34f88": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f74fc8ffeudH6W2SyBdsF2e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_b692442113fa39": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e36ee9c59ffe5jSUkvTDr7Pz2N",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

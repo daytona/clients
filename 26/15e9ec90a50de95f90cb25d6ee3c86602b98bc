@@ -1,0 +1,39 @@
+sdk-python/src/daytona/v2/_dockerignore_class.py
+  s_35c1b93d4ebbc5::t_6544dd9379141e 103-105,107,109
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_046a242e6251ae 152-161
+sdk-python/src/daytona/v2/_image_source.py
+  s_35c1b93d4ebbc5::t_1e14c168b5279e 26-28,104
+sdk-python/tests/test_dockerignore.py
+  s_35c1b93d4ebbc5::t_7f21aa6acd5e64 8,384-392
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_aed0f23e8b8e7a 449-462
+sdk-typescript/src/v2/builderLocalSource.ts
+  s_35c1b93d4ebbc5::t_f7dfb5d2c8d377 17-18,71-72
+sdk-typescript/src/v2/contextArchive.ts
+  s_35c1b93d4ebbc5::t_eaed19007e2ae6 92-97
+sdk-typescript/src/v2/dockerignoreClass.ts
+  s_35c1b93d4ebbc5::t_80458f229fe949 57-59,61,63
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_35c1b93d4ebbc5::t_90a0f02df1bffc 66-69,72-75,77-79,81-84,88,91,97,101-102,104,107
+sdk-typescript/tests/dockerignore.test.ts
+  s_35c1b93d4ebbc5::t_ee4598720b3e98 298-305
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  s_35c1b93d4ebbc5::t_bb6af569fa77da 193-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2615e9ec90a50de95f90cb25d6ee3c86602b98bc",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
