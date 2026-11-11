@@ -839,6 +839,25 @@
       ],
       "error": "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
       "tsError": "ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction"
+    },
+    {
+      "name": "a step ending in the base's backtick escape, then another step",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo one `"
+          ]
+        ],
+        [
+          "workdir",
+          "/srv"
+        ]
+      ],
+      "error": "ImageBuilder step ends with the Dockerfile's escape character; the next step would be joined to it"
     }
   ]
 }

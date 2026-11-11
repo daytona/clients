@@ -18,6 +18,7 @@ from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Event
+from typing import TypeVar
 
 import anyio
 from typing_extensions import assert_never
@@ -29,6 +30,8 @@ from ._image_source import expand_home, utf8_path
 from ._image_text import dockerfile_escape
 from .errors import TransferCancelledError, create_error
 from .image import ImageBuilder
+
+_T = TypeVar("_T")
 
 
 def _regular_file(root: Path, relative: str) -> Path:
@@ -121,6 +124,11 @@ def _directory_entries(
 
 def write_builder_context(builder: ImageBuilder, destination: Path, *, cancel: Event | None = None) -> None:
     """Write the builder's Dockerfile and positional sources to a PAX tar."""
+    _write_archive(collect_builder_entries(builder, cancel), destination, cancel)
+
+
+def collect_builder_entries(builder: ImageBuilder, cancel: Event | None = None) -> list[_Entry]:
+    """The archive entries of a builder: its Dockerfile and positional sources."""
     dockerfile = builder.to_dockerfile()
     # Appended COPY basenames are escaped for the default Dockerfile lexer.
     if builder._local_sources and dockerfile_escape(dockerfile) != "\\":
@@ -186,26 +194,30 @@ def write_builder_context(builder: ImageBuilder, destination: Path, *, cancel: E
                 )
             case unreachable:
                 assert_never(unreachable)
-    _write_archive(entries, destination, cancel)
+    return entries
 
 
 def write_directory_context(
     root: Path, dockerfile: str, destination: Path, *, cancel: Event | None = None
 ) -> None:
     """Archive a directory with Dockerfile-specific ignore-file precedence."""
+    _write_archive(collect_directory_entries(root, dockerfile, cancel), destination, cancel)
+
+
+def collect_directory_entries(root: Path, dockerfile: str, cancel: Event | None = None) -> list[_Entry]:
+    """The archive entries of a directory context."""
     absolute = Path(os.path.realpath(expand_home(os.fspath(root))))
-    entries = [
+    return [
         _Entry(relative, path, relative)
         for relative, path in _directory_entries(absolute, dockerfile, cancel)
     ]
-    _write_archive(entries, destination, cancel)
 
 
-async def _write_in_thread(writer: Callable[[], None], cancel: Event) -> None:
+async def _write_in_thread(writer: Callable[[], _T], cancel: Event) -> _T:
     """Join the owned worker even when native asyncio cancellation interrupts us."""
     worker = asyncio.create_task(anyio.to_thread.run_sync(writer))
     try:
-        await asyncio.shield(worker)
+        return await asyncio.shield(worker)
     except BaseException:  # Cleanup must join on cancellation and on writer failure, then re-raise.
         cancel.set()
         with anyio.CancelScope(shield=True):
@@ -232,13 +244,15 @@ async def prepared_context(
     expanded = Path(expand_home(os.fspath(context))) if isinstance(context, (str, os.PathLike)) else context
     if isinstance(expanded, Path):
         utf8_path(str(expanded))
+    # Entries are collected before the temporary directory exists: a temporary
+    # root inside the source tree must not be archived (TypeScript orders it
+    # the same way).
     if isinstance(expanded, ImageBuilder):
+        cancel = Event()
+        entries = await _write_in_thread(partial(collect_builder_entries, expanded, cancel), cancel)
         with TemporaryDirectory(prefix="daytona-build-") as directory:
             destination = Path(directory) / "context.tar"
-            cancel = Event()
-            await _write_in_thread(
-                partial(write_builder_context, expanded, destination, cancel=cancel), cancel
-            )
+            await _write_in_thread(partial(_write_archive, entries, destination, cancel), cancel)
             try:
                 yield destination
             finally:
@@ -247,12 +261,13 @@ async def prepared_context(
     # raises EACCES/ENAMETOOLONG before 3.14); the tar-path upload then refuses
     # a path it cannot stat with a BadRequestError.
     elif isinstance(expanded, Path) and os.path.isdir(expanded):
+        cancel = Event()
+        entries = await _write_in_thread(
+            partial(collect_directory_entries, expanded, dockerfile, cancel), cancel
+        )
         with TemporaryDirectory(prefix="daytona-build-") as directory:
             destination = Path(directory) / "context.tar"
-            cancel = Event()
-            await _write_in_thread(
-                partial(write_directory_context, expanded, dockerfile, destination, cancel=cancel), cancel
-            )
+            await _write_in_thread(partial(_write_archive, entries, destination, cancel), cancel)
             try:
                 yield destination
             finally:

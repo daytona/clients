@@ -29,8 +29,14 @@ export class ImageBuilder {
   ) {
     // Checked when the first step is added: a base ending in a line
     // continuation would swallow it (and every later step) silently.
-    if (steps.length > 0 && source.type === 'dockerfile' && endsWithContinuation(source.dockerfile)) {
-      throw badRequest('ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction')
+    if (steps.length > 0 && source.type === 'dockerfile') {
+      if (endsWithContinuation(source.dockerfile)) {
+        throw badRequest('ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction')
+      }
+      // An earlier step ending in the base's escape character (Python checks the same).
+      if (steps.length > 1 && endsWithContinuation([source.dockerfile, ...steps.slice(0, -1).map(renderStep)].join('\n'))) {
+        throw badRequest("ImageBuilder step ends with the Dockerfile's escape character; the next step would be joined to it")
+      }
     }
     deepFrozen(source)
     deepFrozen(steps)

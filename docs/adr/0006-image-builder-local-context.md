@@ -91,7 +91,9 @@ paths, remote paths and `build_from_context(context, /)`. The optional
   escape character (`\\`) ends no line, comment and whitespace-only lines
   inside a continuation are skipped, and an escape character alone on the
   last line carries nothing to join. A shared fixture generated from BuildKit
-  holds both SDKs to it. An unterminated heredoc in the base is not detected.
+  holds both SDKs to it. The same holds for a step added after an earlier step
+  that ends in the base's escape character (for example a backtick under
+  `# escape=\``). An unterminated heredoc in the base is not detected.
 - **Builders stay immutable**: each call returns a new builder; the earlier
   one is unchanged.
 - **Local files require the default Dockerfile escape character (`\`).** A
@@ -123,7 +125,9 @@ paths, remote paths and `build_from_context(context, /)`. The optional
   under its archive path. The archive goes through the build-context upload
   (the same code as `build_from_context`), and `POST /images` names the
   verified upload with `context_upload_id` and the upload's `region_id`. The
-   temporary file is removed when the call returns or fails. On Python
+   temporary file is removed when the call returns or fails. The entries are
+  collected before the temporary directory is created, so a temporary root
+  inside the source tree is never archived. On Python
    cancellation the archive writer is signalled to stop and awaited before
    its temporary directory is removed. The 1 GiB
   context limit applies.

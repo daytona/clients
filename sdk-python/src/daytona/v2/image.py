@@ -39,15 +39,27 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
-        # Checked when the first step is added: a base ending in a line
-        # continuation would swallow it (and every later step) silently.
-        if self._steps and self._dockerfile is not None and ends_with_continuation(self._dockerfile):
-            raise create_error(
-                "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
-                400,
-                "BAD_REQUEST",
-                "SDK",
-            )
+        # Checked as each step is added: a base, or an earlier step, ending in a
+        # line continuation would swallow it (and every later step) silently.
+        # Only a Dockerfile base can select an escape character other than `\`;
+        # a raw step ending in `\` is refused where it is added.
+        if self._steps and self._dockerfile is not None:
+            if ends_with_continuation(self._dockerfile):
+                raise create_error(
+                    "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
+            if len(self._steps) > 1 and ends_with_continuation(
+                "\n".join((self._dockerfile, *self._steps[:-1]))
+            ):
+                raise create_error(
+                    "ImageBuilder step ends with the Dockerfile's escape character; the next step would be joined to it",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                )
 
     # One rule in both SDKs: every value must be a string that is not blank by
     # Python's whitespace set, and text rendered raw into a Dockerfile line

@@ -10,6 +10,7 @@ import io
 import json
 import os
 import tarfile
+from collections.abc import Iterable
 from pathlib import Path
 
 import anyio
@@ -116,21 +117,13 @@ async def test_temporary_context_archive_is_removed(
     from daytona.v2 import _image_context
 
     destinations: list[Path] = []
-    original = _image_context.write_builder_context
-    original_directory = _image_context.write_directory_context
+    original = _image_context._write_archive
 
-    def record(builder: ImageBuilder, destination: Path, *, cancel: Event | None = None) -> None:
+    def record(entries: Iterable[object], destination: Path, cancel: Event | None = None) -> None:
         destinations.append(destination)
-        original(builder, destination, cancel=cancel)
+        original(entries, destination, cancel)  # type: ignore[arg-type]  # the recorder passes them through
 
-    def record_directory(
-        root: Path, dockerfile: str, destination: Path, *, cancel: Event | None = None
-    ) -> None:
-        destinations.append(destination)
-        original_directory(root, dockerfile, destination, cancel=cancel)
-
-    monkeypatch.setattr(_image_context, "write_builder_context", record)
-    monkeypatch.setattr(_image_context, "write_directory_context", record_directory)
+    monkeypatch.setattr(_image_context, "_write_archive", record)
     source = tmp_path / "file"
     source.write_text("local")
     (tmp_path / "Dockerfile").write_text("FROM alpine\n")

@@ -460,3 +460,29 @@ def test_a_source_redirected_by_a_symlink_after_it_was_added_is_refused(tmp_path
     # When archived, then the redirected path is refused, not followed.
     with pytest.raises(BadRequestError, match="local source changed since it was added"):
         write_builder_context(builder, tmp_path / "context.tar")
+
+
+@pytest.mark.anyio
+async def test_a_temporary_root_inside_the_source_is_not_archived(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Given a project whose temporary directory lives inside it.
+    import tempfile
+
+    project = tmp_path / "proj"
+    (project / ".tmp").mkdir(parents=True)
+    (project / "a.txt").write_text("a")
+    monkeypatch.setattr(tempfile, "tempdir", str(project / ".tmp"))
+    builder = ImageBuilder.from_registry("alpine").add_local_dir(project, "/app")
+    names = []
+    # When prepared twice, then neither archive holds the SDK's own temporary
+    # directory, and both are byte-identical (the upload is reused).
+    digests = []
+    for _ in range(2):
+        async with prepared_context(builder, "Dockerfile") as context:
+            data = Path(str(context)).read_bytes()
+            digests.append(hashlib.sha256(data).hexdigest())
+            with tarfile.open(str(context)) as archive:
+                names = archive.getnames()
+    assert not any("daytona-build-" in name for name in names)
+    assert digests[0] == digests[1]
