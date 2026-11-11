@@ -349,23 +349,46 @@ async def test_a_part_that_stops_moving_fails_with_client_timeout_after_its_retr
 
 @pytest.mark.anyio
 async def test_a_stalled_archive_read_fails_the_part_as_a_client_timeout(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    # Given an archive whose read stops producing bytes (a hung network file
-    # system), which httpx's socket timeouts do not see.
-    async def stalled(self: _context_upload._Source, offset: int, length: int) -> AsyncIterator[bytes]:
-        await anyio.sleep(3600)
-        yield b""
+    # Given a context file whose reads block in the worker thread (a hung
+    # network file system), which httpx's socket timeouts do not see.
+    path = tmp_path / "ctx.tar"
+    path.write_bytes(archive())
+    release = threading.Event()
+    closed = threading.Event()
 
-    monkeypatch.setattr(_context_upload._Source, "chunks", stalled)
-    with storage_peer() as peer:
-        # When the context is built with a 0.2 s request timeout, every
-        # attempt stalls and the last one fails as the client's timeout.
-        started = time.monotonic()
-        with pytest.raises(ClientTimeoutError, match="build context part 1 made no progress for 0.2 s"):
-            await build(peer, archive(), False, request_timeout=0.2)
-        assert time.monotonic() - started < 10
-        assert peer.bodies("POST", "/build-contexts/") == []
+    class HungFile:
+        def seek(self, offset: int) -> int:
+            return offset
+
+        def read(self, size: int) -> bytes:
+            release.wait()
+            return b""
+
+        def close(self) -> None:
+            closed.set()
+
+    real_open = Path.open
+
+    def hung_open(self: Path, *args: object, **kwargs: object) -> object:
+        return HungFile() if self == path else real_open(self, *args, **kwargs)  # type: ignore[call-overload]
+
+    monkeypatch.setattr(Path, "open", hung_open)
+    monkeypatch.setattr(_context_upload._Source, "sha256", lambda self: "0" * 64)
+    try:
+        with storage_peer() as peer:
+            # When the context is built with a 0.2 s request timeout, every
+            # attempt stalls and the last one fails as the client's timeout.
+            started = time.monotonic()
+            with pytest.raises(ClientTimeoutError, match="build context part 1 made no progress for 0.2 s"):
+                await build(peer, path, False, request_timeout=0.2)
+            assert time.monotonic() - started < 10
+            assert peer.bodies("POST", "/build-contexts/") == []
+    finally:
+        release.set()
+    # And each abandoned handle is closed once its read returns.
+    assert closed.wait(5)
 
 
 @pytest.mark.anyio

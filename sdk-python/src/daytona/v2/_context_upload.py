@@ -184,15 +184,25 @@ class _Source:
         assert self._path is not None
         handle = await anyio.to_thread.run_sync(self._path.open, "rb")
         try:
-            await anyio.to_thread.run_sync(handle.seek, offset)
+            # Abandoned on cancellation, so the part's idle bound (_paced)
+            # can cut a read that hangs (a stalled network file system); the
+            # worker thread finishes the read on its own.
+            await anyio.to_thread.run_sync(handle.seek, offset, abandon_on_cancel=True)
             remaining = length
             while remaining > 0:
-                chunk = await anyio.to_thread.run_sync(handle.read, min(_PART_CHUNK, remaining))
+                chunk = await anyio.to_thread.run_sync(
+                    handle.read, min(_PART_CHUNK, remaining), abandon_on_cancel=True
+                )
                 if not chunk:
                     raise _changed_while_uploading()
                 remaining -= len(chunk)
                 yield chunk
-        finally:
+        except BaseException:
+            # An abandoned read may still hold the handle: close it from a
+            # thread of its own, which waits for that read, never this task.
+            threading.Thread(target=handle.close, daemon=True).start()
+            raise
+        else:
             await anyio.to_thread.run_sync(handle.close)
 
     def sha256(self) -> str:

@@ -545,7 +545,8 @@ skipping exist only in the TypeScript tool).
   `_context_upload.py`, TypeScript an `IdleWatchdog` over a streamed body in
   `contextUpload.ts`); the one exception is a TypeScript in-memory part in a
   browser, Bun or Deno, which is sent whole and has no idle bound (Python
-  pieces every part, and also bounds reading the archive). The CLI bounds a
+  pieces every part, and also bounds reading the archive: its file reads run
+  in worker threads abandoned on cancellation). The CLI bounds a
   part the same way, at 60 s.
   **Every response body the SDK buffers whole is capped**, through both
   transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
