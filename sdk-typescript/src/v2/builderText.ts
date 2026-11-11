@@ -137,8 +137,11 @@ function directive(text: string): readonly [string, string] | null {
   if (end === 0) return null
   const rest = trimStart(text.slice(end), DIRECTIVE_SPACE)
   if (!rest.startsWith('=')) return null
-  const value = trimEnd(trimStart(rest.slice(1), DIRECTIVE_SPACE), DIRECTIVE_SPACE)
-  return value === '' || value.includes('\n') ? null : [text.slice(0, end), value]
+  const after = rest.slice(1)
+  if (after === '' || after.includes('\n')) return null
+  // BuildKit's `\s*=\s*(.+?)\s*$` backtracks so a value of only space keeps
+  // its last character: `# syntax= ` is a directive (and parsing goes on).
+  return [text.slice(0, end), trimEnd(trimStart(after, DIRECTIVE_SPACE), DIRECTIVE_SPACE) || after[after.length - 1]]
 }
 
 /**

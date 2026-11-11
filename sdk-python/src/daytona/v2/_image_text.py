@@ -25,8 +25,12 @@ def _directive(text: str) -> tuple[str, str] | None:
     rest = text[name.end() :].lstrip(_DIRECTIVE_SPACE)
     if not rest.startswith("="):
         return None
-    value = rest[1:].strip(_DIRECTIVE_SPACE)
-    return None if not value or "\n" in value else (name.group(), value)
+    after = rest[1:]
+    if not after or "\n" in after:
+        return None
+    # BuildKit's `\s*=\s*(.+?)\s*$` backtracks so a value of only space keeps
+    # its last character: `# syntax= ` is a directive (and parsing goes on).
+    return name.group(), after.strip(_DIRECTIVE_SPACE) or after[-1]
 
 
 def dockerfile_escape(dockerfile: str) -> str:

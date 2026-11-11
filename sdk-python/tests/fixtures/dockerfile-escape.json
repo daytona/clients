@@ -10,7 +10,7 @@
       "escape": "`"
     },
     {
-      "dockerfile": "#\u00a0escape=`\nFROM a\n",
+      "dockerfile": "# escape=`\nFROM a\n",
       "escape": "`"
     },
     {
@@ -22,7 +22,7 @@
       "escape": "`"
     },
     {
-      "dockerfile": "# syntax=x\n\u00a0# escape=`\nFROM a\n",
+      "dockerfile": "# syntax=x\n # escape=`\nFROM a\n",
       "escape": "`"
     },
     {
@@ -34,7 +34,7 @@
       "escape": "\\"
     },
     {
-      "dockerfile": "\ufeff# escape=`\nFROM a\n",
+      "dockerfile": "﻿# escape=`\nFROM a\n",
       "escape": "`"
     },
     {
@@ -56,6 +56,50 @@
     {
       "dockerfile": "#escape=\\\nFROM a\n",
       "escape": "\\"
+    },
+    {
+      "dockerfile": "# syntax= \n# escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# check= \n# escape=`\nFROM a\nRUN x`\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "# syntax=\t\t\n# escape=`\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "﻿ #\tescape =`\n #\tfoo\t=  \n\t\t#\t\tsyntax\t=\t \t\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "﻿\f#\fescape\t=\f`\t\t\n #syntax\f=\t   \nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": " #\u000bsyntax  =\t\t\t \n #escape =  `  \n\t\t#  check  =     \nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "﻿ # escape  =\t\t` \n\t\t# foo\f=\n\t\t#escape  =\fskip=all\t\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "#\t\tEscape\t\t= ` \n\t\t#\tfoo\t=\t\t\t\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "\t\t#\tescape\f=\f`\n# foo=\t\t\t\n\f#\tsyntax\f=\u000bx\nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "﻿\u000b# escape  = `\t\t\n\t#\tEscape =  \nFROM a\n",
+      "escape": "`"
+    },
+    {
+      "dockerfile": "﻿ #\t\tEscape=  `\n#\tcheck  =`  \n\u000b#\u000bfoo\f=\t\t\t\nFROM a\n",
+      "escape": "`"
     }
   ]
 }

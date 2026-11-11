@@ -232,10 +232,10 @@ class Daytona:
         """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it.
 
         For a builder with local files, submission first reads and uploads a
-        deterministic build context. Upload parts have a 300-second idle
-        timeout; each completion attempt uses the greater of the client's
-        request timeout and 600 seconds (client timeout ``0`` means no bound).
-        The upload is not bounded by one total request timeout.
+        deterministic build context. Each upload part fails once no bytes
+        move for the client's request timeout (``0``: never); each completion
+        attempt uses the greater of that timeout and 600 seconds. No total
+        deadline bounds the upload.
         It then sends the build request, bounded by the client's request
         timeout. The build itself is always awaited, bounded by
         ``build_timeout`` (seconds; ``None``, ``0`` or a value above about

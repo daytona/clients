@@ -64,9 +64,9 @@ class ImagesService:
         without waiting for the build (``get(image.id, wait="ready")``).
         Local files recorded by the builder are read at build time, archived
         deterministically and uploaded as a build context before submission.
-        Upload parts have a 300-second idle timeout; each completion attempt
-        uses the greater of the client's request timeout and 600 seconds
-        (client timeout ``0`` means no bound), not one total upload deadline.
+        Each upload part fails once no bytes move for the client's request
+        timeout (``0``: never); each completion attempt uses the greater of
+        that timeout and 600 seconds. No total deadline bounds the upload.
         With local files, ``name`` and ``idle_expiry_seconds`` cannot be
         combined: idle expiry applies only to anonymous images.
         """
