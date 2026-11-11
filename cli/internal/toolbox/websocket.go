@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
+	"unicode"
 )
 
 // maxWebSocketFrame bounds a single inbound frame: PTY output arrives in
@@ -20,6 +22,44 @@ import (
 const maxWebSocketFrame = 16 << 20
 
 const wsGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+// WebSocketCloseError is a close frame whose status is not a normal closure
+// (1000, or no status at all): the server ended the stream early, for example
+// with a policy close (1008) for an expired cursor or a slow consumer.
+type WebSocketCloseError struct {
+	Code   int
+	Reason string
+}
+
+func (e *WebSocketCloseError) Error() string {
+	if e.Reason == "" {
+		return fmt.Sprintf("the server closed the stream (websocket close %d)", e.Code)
+	}
+	return fmt.Sprintf("the server closed the stream: %s (websocket close %d)", e.Reason, e.Code)
+}
+
+// closeFrameError reads a close frame's payload: nil for a normal closure (no
+// status, or 1000), else a *WebSocketCloseError.
+func closeFrameError(payload []byte) error {
+	if len(payload) == 0 {
+		return nil
+	}
+	if len(payload) < 2 {
+		return &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}
+	}
+	code := int(binary.BigEndian.Uint16(payload[:2]))
+	if code == 1000 {
+		return nil
+	}
+	// The reason is the server's text: printable characters only.
+	reason := strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) {
+			return r
+		}
+		return -1
+	}, strings.ToValidUTF8(string(payload[2:]), ""))
+	return &WebSocketCloseError{Code: code, Reason: reason}
+}
 
 type WebSocketConn struct {
 	conn net.Conn
@@ -31,7 +71,9 @@ type WebSocketConn struct {
 // fragments (RFC 6455 section 5.4). Fragment state is an explicit flag, not the
 // buffer length: a fragment may legally be EMPTY, so `len(message)` cannot
 // tell "no message in progress" from "first fragment carried no bytes".
-// Control frames (ping/pong/close) may interleave with the fragments.
+// Control frames (ping/pong/close) may interleave with the fragments. A close
+// frame with a normal status (1000, or none) ends the stream with io.EOF; any
+// other status is a *WebSocketCloseError.
 func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 	var (
 		inFragment bool
@@ -59,6 +101,9 @@ func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 			message = append(message[:0], payload...)
 		case 0x8:
 			_ = c.Close()
+			if err := closeFrameError(payload); err != nil {
+				return nil, err
+			}
 			return nil, io.EOF
 		case 0x9:
 			if err := c.writeFrame(0xA, payload); err != nil {

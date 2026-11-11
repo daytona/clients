@@ -4,12 +4,16 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
@@ -53,7 +57,14 @@ func newSandboxSSHSubcommand() *cobra.Command {
 				return err
 			}
 			defer invocation.Cleanup()
-			return sshExitError(cmd.Context(), runSSHCommand(cmd.Context(), sshBinary, invocation.Args))
+			// OpenSSH prints the gateway username, which carries the
+			// credential, in its own messages (an authentication failure,
+			// -v output): its stderr is passed through with the credential
+			// replaced.
+			stderr := newSecretRedactor(os.Stderr, toolClient.Credential())
+			runErr := runSSHCommand(cmd.Context(), sshBinary, invocation.Args, stderr)
+			_ = stderr.Flush()
+			return sshExitError(cmd.Context(), runErr)
 		},
 	}
 	cmd.Flags().SetInterspersed(false)
@@ -128,10 +139,64 @@ func optionNeedsValue(arg string) bool {
 	}
 }
 
-var runSSHCommand = func(ctx context.Context, binary string, args []string) error {
+var runSSHCommand = func(ctx context.Context, binary string, args []string, stderr io.Writer) error {
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = stderr
+	// A process ssh left behind (a ControlPersist master) may hold the stderr
+	// pipe open; do not wait for it once ssh itself has exited.
+	cmd.WaitDelay = time.Second
 	return cmd.Run()
+}
+
+// secretRedacted replaces a secret in redacted output.
+const secretRedacted = "<redacted>"
+
+// secretRedactor writes a stream through with every occurrence of a secret
+// replaced. A write that ends with the start of the secret holds those bytes
+// back until the next write (or Flush) shows whether the secret follows, so
+// a secret split across writes is replaced too.
+type secretRedactor struct {
+	mu      sync.Mutex
+	w       io.Writer
+	secret  []byte
+	pending []byte
+}
+
+func newSecretRedactor(w io.Writer, secret string) *secretRedactor {
+	return &secretRedactor{w: w, secret: []byte(secret)}
+}
+
+func (r *secretRedactor) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.secret) == 0 {
+		return r.w.Write(p)
+	}
+	data := bytes.ReplaceAll(append(r.pending, p...), r.secret, []byte(secretRedacted))
+	held := 0
+	for n := min(len(r.secret)-1, len(data)); n > 0; n-- {
+		if bytes.HasSuffix(data, r.secret[:n]) {
+			held = n
+			break
+		}
+	}
+	r.pending = append([]byte(nil), data[len(data)-held:]...)
+	if _, err := r.w.Write(data[:len(data)-held]); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// Flush writes the bytes held back: the stream ended without the secret.
+func (r *secretRedactor) Flush() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.pending) == 0 {
+		return nil
+	}
+	_, err := r.w.Write(r.pending)
+	r.pending = nil
+	return err
 }

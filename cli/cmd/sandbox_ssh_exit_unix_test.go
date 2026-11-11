@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"context"
+	"io"
 	"os/exec"
 	"syscall"
 	"testing"
@@ -21,7 +22,7 @@ import (
 func TestSSHExitError_interruptedCLIWinsOverTheKilledClient(t *testing.T) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	time.AfterFunc(50*time.Millisecond, func() { cancel(errSignalled{Signal: syscall.SIGTERM}) })
-	err := sshExitError(ctx, runSSHCommand(ctx, "/bin/sleep", []string{"5"}))
+	err := sshExitError(ctx, runSSHCommand(ctx, "/bin/sleep", []string{"5"}, io.Discard))
 	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
 	require.Equal(t, cerr.ExitTerminated, interruptedExitCode(ctx, cerr.ExitCode(err)))
 }

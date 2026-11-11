@@ -46,14 +46,40 @@ var imageContextCompleteBackoff = func(attempt int) time.Duration {
 	return time.Duration(1<<attempt) * time.Second
 }
 
+// imageContextPartIdle is how long a part attempt may go without moving a
+// byte (connecting, sending the body, waiting for storage's answer) before it
+// fails: the CLI's request timeout. A part has no total deadline, so a large
+// part on a slow link is never cut while it moves. Tests shorten it.
+var imageContextPartIdle = 60 * time.Second
+
+// errImageContextPartStalled ends a part attempt that stopped moving.
+var errImageContextPartStalled = errors.New("build context part made no progress")
+
 // imageContextStorage uploads the parts. It is not the API client: the part
 // URLs carry their own signature and must never receive the API credential,
-// and its errors are never returned as they name the URL.
+// and its errors are never returned as they name the URL. It has no total
+// timeout: each attempt is bounded by imageContextPartIdle instead.
 var imageContextStorage = &http.Client{
-	Timeout: 5 * time.Minute,
 	CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	},
+}
+
+// imageContextPartBody wraps a part's body before it is sent; tests slow it.
+var imageContextPartBody = func(r io.Reader) io.Reader { return r }
+
+// progressReader calls progress after every read that returned bytes.
+type progressReader struct {
+	r        io.Reader
+	progress func()
+}
+
+func (p progressReader) Read(b []byte) (int, error) {
+	n, err := p.r.Read(b)
+	if n > 0 {
+		p.progress()
+	}
+	return n, err
 }
 
 // stagedImageContext is the archive as a file that can be hashed and read by
@@ -224,26 +250,46 @@ func retryableComplete(err error) bool {
 	return errors.As(err, &urlErr)
 }
 
+// putImageContextPartAttempt sends one attempt of a part. It fails with
+// errImageContextPartStalled as its context's cause once no bytes move for
+// imageContextPartIdle.
+func putImageContextPartAttempt(ctx context.Context, file *os.File, offset int64, part gen.BuildContextUploadPart) (int, bool, error) {
+	attemptCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	idle := time.AfterFunc(imageContextPartIdle, func() { cancel(errImageContextPartStalled) })
+	defer idle.Stop()
+	body := progressReader{r: imageContextPartBody(io.NewSectionReader(file, offset, part.Bytes)), progress: func() { idle.Reset(imageContextPartIdle) }}
+	req, err := http.NewRequestWithContext(attemptCtx, http.MethodPut, part.Url, body)
+	if err != nil {
+		return 0, false, err
+	}
+	req.ContentLength = part.Bytes
+	resp, err := imageContextStorage.Do(req)
+	if err != nil {
+		return 0, errors.Is(context.Cause(attemptCtx), errImageContextPartStalled), err
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+	return resp.StatusCode, false, nil
+}
+
 func putImageContextPart(ctx context.Context, file *os.File, offset int64, part gen.BuildContextUploadPart) error {
+	if _, err := http.NewRequest(http.MethodPut, part.Url, nil); err != nil {
+		return cerr.New(cerr.ExitFailure, "build context part %d has an unusable upload URL", part.PartNumber)
+	}
 	status := 0
+	stalled := false
 	for attempt := 0; attempt < imageContextPartAttempts; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPut, part.Url, io.NewSectionReader(file, offset, part.Bytes))
+		var err error
+		status, stalled, err = putImageContextPartAttempt(ctx, file, offset, part)
 		if err != nil {
-			return cerr.New(cerr.ExitFailure, "build context part %d has an unusable upload URL", part.PartNumber)
-		}
-		req.ContentLength = part.Bytes
-		resp, err := imageContextStorage.Do(req)
-		if err != nil {
-			// The storage client's own timeout also matches
-			// context.DeadlineExceeded; only the caller's context ends the upload.
+			// Only the caller's context ends the upload; a stalled attempt is
+			// retried.
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			status = 0
 		} else {
-			_, _ = io.Copy(io.Discard, resp.Body)
-			_ = resp.Body.Close()
-			status = resp.StatusCode
 			if status >= 200 && status < 300 {
 				return nil
 			}
@@ -261,6 +307,9 @@ func putImageContextPart(ctx context.Context, file *os.File, offset int64, part 
 			case <-time.After(imageContextPartBackoff(attempt)):
 			}
 		}
+	}
+	if stalled {
+		return cerr.New(cerr.ExitTimeout, "build context part %d made no progress for %s", part.PartNumber, imageContextPartIdle)
 	}
 	if status == 0 {
 		return cerr.New(cerr.ExitFailure, "build context part %d could not reach storage", part.PartNumber)

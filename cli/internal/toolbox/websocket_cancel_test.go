@@ -115,6 +115,48 @@ func TestDialWebSocket_keepsTransportOpen_whenContextCanceledAfterHandoff(t *tes
 	require.Equal(t, []byte("still connected"), msg)
 }
 
+func TestWebSocketReadMessage_onlyANormalCloseIsAnEndOfStream(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload []byte
+		want    error
+	}{
+		{"no status", nil, nil},
+		{"normal closure", []byte{0x03, 0xE8}, nil},
+		{"normal closure with a reason", append([]byte{0x03, 0xE8}, "done"...), nil},
+		{"policy close", append([]byte{0x03, 0xF0}, "cursor expired\x1b[2J"...), &WebSocketCloseError{Code: 1008, Reason: "cursor expired[2J"}},
+		{"going away", []byte{0x03, 0xE9}, &WebSocketCloseError{Code: 1001}},
+		{"truncated status", []byte{0x03}, &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given a server that closes with this payload.
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, rw, err := w.(http.Hijacker).Hijack()
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+				_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", wsAccept(r.Header.Get("Sec-WebSocket-Key")))
+				_ = rw.Flush()
+				writeServerFrame(conn, 0x8, tc.payload)
+			}))
+			defer srv.Close()
+			ws, err := dialWebSocket(t.Context(), srv.URL, nil)
+			require.NoError(t, err)
+			defer ws.conn.Close()
+			// When
+			_, err = ws.ReadMessage()
+			// Then a normal close is the end of the stream, any other an error.
+			if tc.want == nil {
+				require.ErrorIs(t, err, io.EOF)
+				return
+			}
+			require.Equal(t, tc.want, err)
+			require.NotErrorIs(t, err, io.EOF)
+		})
+	}
+}
+
 func TestWebSocketReadMessage_distinguishesCloseFrameFromDroppedTransport(t *testing.T) {
 	for _, tc := range []struct {
 		name       string

@@ -49,7 +49,7 @@ func TestSSH_appliesCLIFlagsAndForwardsSSHFlags_whenSeparatedBySandboxID(t *test
 	old := runSSHCommand
 	t.Cleanup(func() { runSSHCommand = old })
 	called := false
-	runSSHCommand = func(_ context.Context, _ string, args []string) error {
+	runSSHCommand = func(_ context.Context, _ string, args []string, _ io.Writer) error {
 		called = true
 		a := FromContext(ssh.Context())
 		require.True(t, a.Globals.Quiet)
