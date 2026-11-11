@@ -376,6 +376,14 @@
     {
       "base": "# escape=`\nFROM a\n\u3000\n\\ \n\u3000",
       "joins": false
+    },
+    {
+      "base": "# escape=-\nFROM a\nRUN a -",
+      "joins": false
+    },
+    {
+      "base": "# escape=ab\nFROM a\nRUN a ab",
+      "joins": false
     }
   ]
 }

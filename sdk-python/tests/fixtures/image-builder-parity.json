@@ -341,6 +341,59 @@
       "request": {
         "dockerfile": "# escape=`\nFROM alpine\nRUN echo a``\nRUN echo b\n"
       }
+    },
+    {
+      "name": "an empty env mapping adds no step (a registry base stays an import)",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {}
+        ]
+      ],
+      "dockerfile": "FROM alpine\n",
+      "request": {
+        "source": {
+          "type": "registry",
+          "ref": "alpine"
+        }
+      }
+    },
+    {
+      "name": "an empty env mapping after a base ending in a continuation adds nothing to join",
+      "source": {
+        "dockerfile": "FROM alpine\nRUN a \\"
+      },
+      "steps": [
+        [
+          "env",
+          {}
+        ]
+      ],
+      "dockerfile": "FROM alpine\nRUN a \\\n",
+      "request": {
+        "dockerfile": "FROM alpine\nRUN a \\\n"
+      }
+    },
+    {
+      "name": "an escape directive BuildKit refuses is passed through",
+      "source": {
+        "dockerfile": "# escape=-\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a -"
+          ]
+        ]
+      ],
+      "dockerfile": "# escape=-\nFROM alpine\nRUN echo a -\n",
+      "request": {
+        "dockerfile": "# escape=-\nFROM alpine\nRUN echo a -\n"
+      }
     }
   ],
   "refused": [

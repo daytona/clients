@@ -138,6 +138,8 @@ export class ImageBuilder {
     if (this.source.type === 'dockerfile' && dockerfileEscape(this.source.dockerfile) !== '\\') {
       throw badRequest('ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash')
     }
+    // An empty mapping adds no step, as in Python.
+    if (pairs.length === 0) return this
     // Keep Object.entries order: recreating an object would sort integer-like
     // keys again after envName strips them. Python preserves its dict order.
     return this.append({ type: 'env', entries: pairs })

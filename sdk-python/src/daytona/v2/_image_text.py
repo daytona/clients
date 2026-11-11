@@ -11,7 +11,22 @@ from .errors import create_error
 
 # Go's unicode.IsSpace (Latin-1 and the Unicode White_Space set).
 _GO_SPACE = "\t\n\v\f\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
-_DIRECTIVE = re.compile(r"([a-zA-Z][a-zA-Z0-9]*)[\t\n\f\r ]*=[\t\n\f\r ]*([^\n]+?)[\t\n\f\r ]*")
+# The whitespace DirectiveParser trims around `=` and after the value.
+_DIRECTIVE_SPACE = "\t\n\f\r "
+_DIRECTIVE_NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9]*")
+
+
+def _directive(text: str) -> tuple[str, str] | None:
+    """DirectiveParser's ``name = value`` (after ``#``), or None. Linear: no
+    backtracking regex runs over the value (TypeScript scans the same way)."""
+    name = _DIRECTIVE_NAME.match(text)
+    if name is None:
+        return None
+    rest = text[name.end() :].lstrip(_DIRECTIVE_SPACE)
+    if not rest.startswith("="):
+        return None
+    value = rest[1:].strip(_DIRECTIVE_SPACE)
+    return None if not value or "\n" in value else (name.group(), value)
 
 
 def dockerfile_escape(dockerfile: str) -> str:
@@ -29,15 +44,15 @@ def dockerfile_escape(dockerfile: str) -> str:
         line = line.rstrip("\r\n").lstrip(_GO_SPACE)
         if not line.startswith("#"):
             break
-        match = _DIRECTIVE.fullmatch(line[1:].lstrip(_GO_SPACE))
+        match = _directive(line[1:].lstrip(_GO_SPACE))
         if match is None:
             break
-        name = match[1].lower()
+        name = match[0].lower()
         if name not in ("syntax", "escape", "check") or name in seen:
             break
         seen.add(name)
         if name == "escape":
-            escape = match[2]
+            escape = match[1]
     return escape
 
 
@@ -49,10 +64,13 @@ def ends_with_continuation(dockerfile: str) -> bool:
     ``([^E])E[ \t]*$|^E[ \t]*$`` for the escape character ``E`` (so an escaped
     escape, ``\\``, ends no line), comment lines and whitespace-only lines
     inside a continuation are skipped, and leading space is Go's
-    ``unicode.IsSpace``. TypeScript reads the same. Heredocs are not followed.
+    ``unicode.IsSpace``. An escape token other than ``\\`` or a backtick joins
+    nothing: BuildKit refuses that Dockerfile. TypeScript reads the same, and
+    both scan linearly. Heredocs are not followed.
     """
-    escape = re.escape(dockerfile_escape(dockerfile))
-    continuation = re.compile(rf"([^{escape}]){escape}[ \t]*\Z|^{escape}[ \t]*\Z")
+    escape = dockerfile_escape(dockerfile)
+    if escape not in ("\\", "`"):
+        return False
     # pending: the last instruction continues; carried: it holds text, so a
     # joined line would change it (an escape alone on a line carries nothing).
     pending = carried = False
@@ -64,11 +82,13 @@ def ends_with_continuation(dockerfile: str) -> bool:
             continue
         if pending and not stripped:
             continue
-        text = line if pending else stripped
+        text = (line if pending else stripped).rstrip(" \t")
         # BuildKit's ReplaceAll(line, "$1"): what the line adds to the instruction.
-        added, count = continuation.subn(lambda match: match.group(1) or "", text)
+        before = text[:-1]
+        matched = text.endswith(escape) and not before.endswith(escape)
+        added = before if matched else text
         carried = (carried and pending) or bool(added.strip(_GO_SPACE))
-        pending = count > 0
+        pending = matched
     return pending and carried
 
 

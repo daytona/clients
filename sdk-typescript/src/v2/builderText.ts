@@ -108,7 +108,38 @@ export function envValue(value: unknown, label: string): string {
 }
 
 // Go's unicode.IsSpace (Latin-1 and the Unicode White_Space set).
-const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/
+const GO_SPACE = new Set('\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000')
+// The whitespace DirectiveParser trims around `=` and after the value.
+const DIRECTIVE_SPACE = new Set('\t\n\f\r ')
+
+// Linear scans (no backtracking regex on caller text).
+function trimStart(text: string, chars: ReadonlySet<string>): string {
+  let start = 0
+  while (start < text.length && chars.has(text[start])) start++
+  return text.slice(start)
+}
+
+function trimEnd(text: string, chars: ReadonlySet<string>): string {
+  let end = text.length
+  while (end > 0 && chars.has(text[end - 1])) end--
+  return text.slice(0, end)
+}
+
+/** A line as bufio.ScanLines yields it: the first line's BOM dropped, trailing CR/LF removed. */
+function scannedLine(raw: string, index: number): string {
+  return trimEnd(index === 0 && raw.startsWith('\ufeff') ? raw.slice(1) : raw, new Set('\r\n'))
+}
+
+/** DirectiveParser's `name = value` (after `#`), or null when the line is not one. */
+function directive(text: string): readonly [string, string] | null {
+  let end = 0
+  while (end < text.length && (/[a-zA-Z]/.test(text[end]) || (end > 0 && /[0-9]/.test(text[end])))) end++
+  if (end === 0) return null
+  const rest = trimStart(text.slice(end), DIRECTIVE_SPACE)
+  if (!rest.startsWith('=')) return null
+  const value = trimEnd(trimStart(rest.slice(1), DIRECTIVE_SPACE), DIRECTIVE_SPACE)
+  return value === '' || value.includes('\n') ? null : [text.slice(0, end), value]
+}
 
 /**
  * The escape character BuildKit reads from the parser directives: a port of
@@ -119,14 +150,14 @@ export function dockerfileEscape(dockerfile: string): string {
   let escape = '\\'
   const seen = new Set<string>()
   for (const [index, raw] of dockerfile.split('\n').entries()) {
-    const line = (index === 0 ? raw.replace(/^\ufeff/, '') : raw).replace(/[\r\n]+$/, '').replace(GO_SPACE, '')
+    const line = trimStart(scannedLine(raw, index), GO_SPACE)
     if (!line.startsWith('#')) break
-    const match = /^([a-zA-Z][a-zA-Z0-9]*)[\t\n\f\r ]*=[\t\n\f\r ]*([^\n]+?)[\t\n\f\r ]*$/.exec(line.slice(1).replace(GO_SPACE, ''))
+    const match = directive(trimStart(line.slice(1), GO_SPACE))
     if (match === null) break
-    const name = match[1].toLowerCase()
+    const name = match[0].toLowerCase()
     if (!['syntax', 'escape', 'check'].includes(name) || seen.has(name)) break
     seen.add(name)
-    if (name === 'escape') escape = match[2]
+    if (name === 'escape') escape = match[1]
   }
   return escape
 }
@@ -135,27 +166,29 @@ export function dockerfileEscape(dockerfile: string): string {
  * Whether BuildKit would join a line appended to `dockerfile` into its last
  * instruction: a port of BuildKit v0.31.2's Parse loop (continuation rule
  * `([^E])E[ \t]*$|^E[ \t]*$`, comment and whitespace-only lines skipped inside a
- * continuation, Go's unicode.IsSpace). Python reads the same. Heredocs are not
- * followed. @internal
+ * continuation, Go's unicode.IsSpace). An escape token other than `\` or a
+ * backtick joins nothing: BuildKit refuses that Dockerfile. Python reads the
+ * same. Heredocs are not followed. @internal
  */
 export function endsWithContinuation(dockerfile: string): boolean {
-  const escape = dockerfileEscape(dockerfile).replace(/[\\^$.*+?()[\]{}|-]/g, '\\$&')
-  const continuation = new RegExp(`([^${escape}])${escape}[ \\t]*$|^${escape}[ \\t]*$`, 'u')
+  const escape = dockerfileEscape(dockerfile)
+  if (escape !== '\\' && escape !== '`') return false
   // pending: the last instruction continues; carried: it holds text, so a
   // joined line would change it (an escape alone on a line carries nothing).
   let pending = false
   let carried = false
   for (const [index, raw] of dockerfile.split('\n').entries()) {
-    const line = (index === 0 ? raw.replace(/^\ufeff/, '') : raw).replace(/[\r\n]+$/, '')
-    const stripped = line.replace(GO_SPACE, '')
+    const line = scannedLine(raw, index)
+    const stripped = trimStart(line, GO_SPACE)
     // A comment ends no instruction and continues none.
     if (stripped.startsWith('#')) continue
     if (pending && stripped === '') continue
-    const text = pending ? line : stripped
-    const matched = continuation.test(text)
+    const text = trimEnd(pending ? line : stripped, new Set(' \t'))
     // BuildKit's ReplaceAll(line, "$1"): what the line adds to the instruction.
-    const added = matched ? text.replace(continuation, (_match, kept: string | undefined) => kept ?? '') : text
-    carried = (carried && pending) || added.replace(GO_SPACE, '').replace(/[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/, '') !== ''
+    const before = text.slice(0, -1)
+    const matched = text.endsWith(escape) && !before.endsWith(escape)
+    const added = matched ? before : text
+    carried = (carried && pending) || trimEnd(trimStart(added, GO_SPACE), GO_SPACE) !== ''
     pending = matched
   }
   return pending && carried
