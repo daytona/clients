@@ -178,8 +178,7 @@ func newProjectCmd() *cobra.Command {
 	})
 	upd := &cobra.Command{
 		Use: "update <id|name> --name <new>", Short: "Rename a project",
-		Long: "Rename a project. The name is 1 to 64 characters after trimming, with no control characters, and\nnot `default`; a rename to the current name is sent and left to the API (the default project
-cannot be renamed).",
+		Long: "Rename a project. The name is 1 to 64 characters after trimming, with no control characters, and\nnot `default`; a rename to the current name is sent and left to the API (the default project\ncannot be renamed).",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
