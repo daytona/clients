@@ -708,6 +708,15 @@ def test_an_oversized_non_contiguous_view_is_refused(monkeypatch: pytest.MonkeyP
         _context_upload._Source(view)
 
 
+def test_an_empty_multi_dimensional_view_is_an_empty_context() -> None:
+    import ctypes
+
+    view = memoryview(((ctypes.c_ubyte * 4) * 0)())
+    assert view.shape == (0, 4)
+    with pytest.raises(BadRequestError, match="build context is empty"):
+        _context_upload._Source(view)
+
+
 def test_a_released_view_is_refused_as_a_bad_request() -> None:
     view = memoryview(b"FROM alpine\n")
     view.release()

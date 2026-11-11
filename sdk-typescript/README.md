@@ -510,8 +510,8 @@ const sandbox = await daytona.v2.createFromBuild(builder, {
 ```
 
 `ImageBuilder.env()` values are literal: the image gets exactly the string you
-pass (`$PATH` is not expanded), and a value with a control character (such as a
-newline) is rejected.
+pass (`$PATH` is not expanded); a blank value, or one with a control character
+(such as a newline), is rejected.
 
 `createFromBuild()` always waits for the image build before creating a sandbox.
 `buildTimeoutSeconds` bounds only the build (omitted, `0` or a value above about

@@ -1093,7 +1093,7 @@ export class Sandbox {
    * a `name` label search match, is kept unless `labels` sets it: without a
    * `name` key the sandbox is read first (one more request, which also
    * refreshes this handle's metadata) and the `name` label it reports, if any,
-   * is sent along (labels the read does not report are unknown); the read and the write are not atomic. The `name` label cannot
+   * is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
    * be removed.
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
@@ -1103,7 +1103,8 @@ export class Sandbox {
     // null-prototype map, so `in` sees only its own keys).
     if (!('name' in body)) {
       await this.refreshData()
-      // Labels the read did not report are unknown: no name label to keep.
+      // A detail read always sets labels (absent means none); the type also
+      // allows the unknown labels of a handle no read has filled.
       const current = this.labels
       if (current !== undefined && Object.prototype.hasOwnProperty.call(current, 'name')) body.name = current.name
     }

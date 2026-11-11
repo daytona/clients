@@ -298,6 +298,14 @@ it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own len
   expect(inPartOrder(puts())).toEqual(Buffer.from(data))
 })
 
+it('uploads a view of shared memory as a copy of its bytes', async () => {
+  const data = archive(10_000)
+  const shared = new Uint8Array(new SharedArrayBuffer(data.byteLength))
+  shared.set(data)
+  await service().buildFromContext(shared)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
 it('uploads an ArrayBuffer from another realm', async () => {
   const data = archive(10_000)
   const foreign = runInNewContext(`new ArrayBuffer(${data.byteLength})`) as ArrayBuffer

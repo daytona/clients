@@ -128,7 +128,9 @@ class _Source:
                     code="BAD_REQUEST",
                     source="SDK",
                 )
-            if not view.c_contiguous:
+            # An empty view is copied too (free): a multi-dimensional one of
+            # zero bytes cannot be cast.
+            if not view.c_contiguous or view.nbytes == 0:
                 view = memoryview(view.tobytes())
             self._data: Optional[memoryview] = view.cast("B")
             self._path: Optional[Path] = None

@@ -125,11 +125,19 @@ async function fileSource(path: string): Promise<ContextSource> {
   }
 }
 
+function copyBytes(value: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(value.byteLength)
+  copy.set(value)
+  return copy
+}
+
 async function sourceOf(context: BuildContext): Promise<ContextSource> {
   if (typeof context !== 'string') {
     if (ArrayBuffer.isView(context) || isArrayBuffer(context)) {
-      // Every bytes-like value, as the filesystem writes take it: its exact byte range.
-      const bytes = binaryBytes('context', context)
+      // Every bytes-like value, as the filesystem writes take it: its exact byte
+      // range. Shared memory is copied once: fetch refuses it as a body.
+      const given = binaryBytes('context', context)
+      const bytes = isArrayBuffer(given.buffer) ? given : copyBytes(given)
       return {
         size: bytes.byteLength,
         read: async (offset, length) => bytes.subarray(offset, offset + length),

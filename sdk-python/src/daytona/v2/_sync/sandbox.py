@@ -385,7 +385,7 @@ class Sandbox:
         ``name`` label search match, is kept unless ``labels`` sets it: without
         a ``name`` key the sandbox is read first (one more request, which also
         refreshes this handle's metadata) and the ``name`` label it reports,
-        if any, is sent along (labels the read does not report are unknown); the read and the write are not atomic. The ``name``
+        if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
         changes nothing.

@@ -825,7 +825,7 @@ class AsyncSandbox:
         ``name`` label search match, is kept unless ``labels`` sets it: without
         a ``name`` key the sandbox is read first (one more request, which also
         refreshes this handle's metadata) and the ``name`` label it reports,
-        if any, is sent along (labels the read does not report are unknown); the read and the write are not atomic. The ``name``
+        if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
         changes nothing.
@@ -833,7 +833,8 @@ class AsyncSandbox:
         body = _validated_labels(labels)
         if "name" not in body:
             await self.refresh_data()
-            # Labels the read did not report are unknown: no name label to keep.
+            # A detail read always sets labels (absent means none); the type also
+            # allows the unknown labels of a handle no read has filled.
             labels_now = self.labels
             current = None if labels_now is None else labels_now.get("name")
             if current is not None:

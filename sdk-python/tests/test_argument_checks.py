@@ -719,7 +719,7 @@ _SANDBOX_DETAIL: dict[str, object] = {
 async def test_set_labels_keeps_the_name_label(
     stored: dict[str, str] | None, given: dict[str, str], sent: dict[str, str]
 ) -> None:
-    # stored None: the read reports no labels (unknown), so no name is sent.
+    # stored None: the read reports no labels (none), so no name is sent.
     detail = dict(_SANDBOX_DETAIL) if stored is None else {**_SANDBOX_DETAIL, "labels": stored}
     with FakeApi(
         [

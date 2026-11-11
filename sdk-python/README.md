@@ -580,8 +580,8 @@ sandbox = d.v2.create_from_build(
 ```
 
 `ImageBuilder.env()` values are literal: the image gets exactly the string you
-pass (`$PATH` is not expanded), and a value with a control character (such as a
-newline) is rejected.
+pass (`$PATH` is not expanded); a blank value, or one with a control character
+(such as a newline), is rejected.
 
 `wait_seconds` is the create wait budget in whole seconds (default 60). The
 server holds create for up to its own short cap, then the SDK waits for the
