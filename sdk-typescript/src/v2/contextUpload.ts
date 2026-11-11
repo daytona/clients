@@ -137,6 +137,8 @@ async function sourceOf(context: BuildContext): Promise<ContextSource> {
       // Every bytes-like value, as the filesystem writes take it: its exact byte
       // range. Shared memory is copied once: fetch refuses it as a body.
       const given = binaryBytes('context', context)
+      // Checked before shared memory is copied (the later check covers every source).
+      if (given.byteLength > MAX_CONTEXT_BYTES) throw badRequest(`build context exceeds the 1 GiB limit (${given.byteLength} bytes)`)
       const bytes = isArrayBuffer(given.buffer) ? given : copyBytes(given)
       return {
         size: bytes.byteLength,
