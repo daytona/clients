@@ -707,6 +707,17 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   V0_SANDBOX_NOT_IMPORTABLE: ConflictError,
   V0_BACKUP_REGISTRY_UNCONFIGURED: ServiceUnavailableError,
   V0_MIGRATION_DEFAULT_PROJECT_ONLY: ForbiddenError,
+  DISK_NOT_READY: ConflictError,
+  INVALID_PARENT_REGION: BadRequestError,
+  INVALID_PREVIEW_DOMAIN: BadRequestError,
+  INVALID_SANDBOX_CIDR: BadRequestError,
+  INVALID_TOOLBOX_PROXY_URL: BadRequestError,
+  REGION_LIMIT_REACHED: ConflictError,
+  REGION_NOT_EMPTY: ConflictError,
+  REGION_NOT_FOUND: NotFoundError,
+  REGION_SUBNETS_EXHAUSTED: ConflictError,
+  ROLE_IN_USE: ConflictError,
+  RUNNER_HAS_SANDBOXES: ConflictError,
 }
 
 export const PROXY_ERROR_CLASS: Record<ProxyErrorCode, typeof DaytonaError> = {

@@ -5442,6 +5442,7 @@ _ORGANIZATION_LIMITS_PAYLOAD = {
         "total": {"limit": 400, "usage": 11},
     },
     "sandbox_resources": {"max_cores": 4, "max_memory_mib": 8192},
+    "sandbox_timeout": {"max_seconds": 86400, "ceiling_seconds": 604800},
     "image_builds": {"concurrent": {"limit": None, "usage": 0}},
     "storage": {
         "images": {"limit": None, "usage": 4},

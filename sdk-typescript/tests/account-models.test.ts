@@ -63,6 +63,7 @@ describe('account response models', () => {
       storage: { volumes: usage, images: usage, snapshots: usage }, secrets_per_project: usage,
       api_keys_per_project: usage, api_keys_per_organization: usage,
       sandbox_resources: { max_cores: 4.5, max_memory_mib: 4608 },
+      sandbox_timeout: { max_seconds: 86400, ceiling_seconds: 604800 },
       members: { limit: 10, usage: 2, pending_invitations: 3 },
     } }])
     const client = clientAt(api.url)

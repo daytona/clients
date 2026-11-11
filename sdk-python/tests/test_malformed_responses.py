@@ -165,6 +165,7 @@ _BUDGET_NULLS: JsonObject = {
 _USAGE: JsonObject = {"limit": None, "usage": 1}
 _LIMITS: JsonObject = {
     "sandboxes": {"concurrent": _USAGE, "total": _USAGE},
+    "sandbox_timeout": {"max_seconds": 86400, "ceiling_seconds": 604800},
     "image_builds": {"concurrent": _USAGE},
     "storage": {"volumes": _USAGE, "images": _USAGE, "snapshots": _USAGE},
     "secrets_per_project": _USAGE,

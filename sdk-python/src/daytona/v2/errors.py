@@ -890,6 +890,17 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.V0_SANDBOX_NOT_IMPORTABLE: ConflictError,
     codes.V0_BACKUP_REGISTRY_UNCONFIGURED: ServiceUnavailableError,
     codes.V0_MIGRATION_DEFAULT_PROJECT_ONLY: ForbiddenError,
+    codes.DISK_NOT_READY: ConflictError,
+    codes.INVALID_PARENT_REGION: BadRequestError,
+    codes.INVALID_PREVIEW_DOMAIN: BadRequestError,
+    codes.INVALID_SANDBOX_CIDR: BadRequestError,
+    codes.INVALID_TOOLBOX_PROXY_URL: BadRequestError,
+    codes.REGION_LIMIT_REACHED: ConflictError,
+    codes.REGION_NOT_EMPTY: ConflictError,
+    codes.REGION_NOT_FOUND: NotFoundError,
+    codes.REGION_SUBNETS_EXHAUSTED: ConflictError,
+    codes.ROLE_IN_USE: ConflictError,
+    codes.RUNNER_HAS_SANDBOXES: ConflictError,
 }
 
 PROXY_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {

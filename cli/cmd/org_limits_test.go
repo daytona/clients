@@ -25,6 +25,7 @@ func limitsFixture() map[string]any {
 			Total:      gen.UsageLimit{Usage: 9, Limit: &total},
 		},
 		"sandbox_resources": map[string]any{"max_cores": 2.5, "max_memory_mib": 8192},
+		"sandbox_timeout":   map[string]any{"max_seconds": 86400, "ceiling_seconds": 604800},
 		"image_builds":      map[string]any{"concurrent": usageLimit(1, nil)},
 		"members":           map[string]any{"usage": 3, "limit": 5, "pending_invitations": 1},
 		"storage": gen.StorageLimits{
