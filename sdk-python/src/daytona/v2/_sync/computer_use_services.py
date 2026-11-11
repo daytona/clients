@@ -92,20 +92,20 @@ class AddonProcessesService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def errors(self, name: str) -> ComputerUseProcessErrors:
+    def errors(self, name: str, /) -> ComputerUseProcessErrors:
         return self._bridge.call(lambda: self._impl.errors(name))
 
-    def logs(self, name: str) -> ComputerUseProcessLogs:
+    def logs(self, name: str, /) -> ComputerUseProcessLogs:
         return self._bridge.call(lambda: self._impl.logs(name))
 
-    def restart(self, name: str) -> ComputerUseProcessRestartResult:
+    def restart(self, name: str, /) -> ComputerUseProcessRestartResult:
         return self._bridge.call(lambda: self._impl.restart(name))
 
     @overload
     def status(self) -> dict[str, ComputerUseProcessStatus]: ...
 
     @overload
-    def status(self, name: str) -> ComputerUseProcessRunningStatus: ...
+    def status(self, name: str, /) -> ComputerUseProcessRunningStatus: ...
 
     def status(
         self, name: str | None = None
@@ -233,10 +233,10 @@ class RecordingService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def delete(self, id: str) -> None:
+    def delete(self, id: str, /) -> None:
         return self._bridge.call(lambda: self._impl.delete(id))
 
-    def download(self, id: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+    def download(self, id: str, /, *, max_response_bytes: Optional[int] = None) -> bytes:
         """Download a recording, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
@@ -252,7 +252,7 @@ class RecordingService:
         """
         return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))
 
-    def get(self, id: str) -> ComputerUseRecording:
+    def get(self, id: str, /) -> ComputerUseRecording:
         return self._bridge.call(lambda: self._impl.get(id))
 
     def list(self) -> ComputerUseRecordingList:

@@ -24,7 +24,7 @@ async function main(): Promise<boolean> {
     assertStarted(sandbox)
     const git = sandbox.git
     const proc = sandbox.process
-    const repo = 'demo-repo'
+    const repo = '/tmp/demo-repo'
 
     // git needs to be installed in the image; python:3.x-slim ships without it.
     section('ensure git is available')

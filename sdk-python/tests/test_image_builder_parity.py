@@ -265,15 +265,22 @@ def test_local_source_expands_home_without_resolving_links(
         builder._local_sources[0].archive_path = "changed"
 
 
-def test_requirements_keyword_is_preserved_when_porting_0x(tmp_path: Path) -> None:
-    # Given the keyword accepted by the 0.x image builder.
+def test_requirements_keyword_is_refused_when_porting_0x(tmp_path: Path) -> None:
+    # Given: required leading v2 parameters are positional-only, unlike 0.x.
     requirements = tmp_path / "requirements.txt"
     requirements.write_text("numpy\n")
-    # When called by keyword, then it produces the requirements installation.
-    builder = ImageBuilder.from_registry("alpine").pip_install_from_requirements(
-        requirements_txt=requirements
-    )
-    assert builder.to_dockerfile().endswith("RUN python -m pip install -r /.requirements.txt\n")
+    builder = ImageBuilder.from_registry("alpine")
+    # When: called by keyword, then Python refuses it before accessing the path.
+    with pytest.raises(TypeError, match="positional-only"):
+        builder.pip_install_from_requirements(requirements_txt=requirements)
+
+
+def test_debian_slim_optional_version_when_called_by_keyword() -> None:
+    # Given: only required leading v2 parameters are positional-only.
+    # When: the optional version is supplied by keyword.
+    builder = ImageBuilder.debian_slim(python_version="3.12")
+    # Then: the requested Python series is selected.
+    assert builder.to_dockerfile().startswith("FROM python:3.12-slim-bookworm\n")
 
 
 def test_user_is_positional_only_when_called_by_keyword() -> None:

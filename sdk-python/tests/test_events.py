@@ -3197,11 +3197,12 @@ class TestEndpointLearnedThroughTheTransport:
                 assert len(api.specs) == 1
             await client.close()
 
-    async def test_wait_after_close_polls_without_minting_a_new_ticket(
+    async def test_wait_after_close_is_refused_without_minting_a_new_ticket(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import daytona.v2._events as events_module
         from daytona.v2.daytona import AsyncDaytona
+        from daytona.v2.errors import ClientClosedError
         from daytona.v2.types import DaytonaConfig
 
         fc = FakeConnector()
@@ -3222,16 +3223,11 @@ class TestEndpointLearnedThroughTheTransport:
 
         with respx.mock:
             ticket = ticket_mock("region-a")
-            ws = fc.prepare()
-            task = asyncio.create_task(sandbox.wait(timeout=3))
-            await drain()
-            ws.inject(
-                {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
-            )
-            await asyncio.wait_for(task, timeout=1)
+            with pytest.raises(ClientClosedError):
+                await sandbox.wait(timeout=3)
 
         assert ticket.call_count == 0
-        assert len(api.specs) == 1
+        assert len(api.specs) == 0
         assert fc.connection_count() == 0
 
 

@@ -11,7 +11,6 @@ import json
 import ntpath
 import os
 import posixpath
-import re
 import stat
 from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import asynccontextmanager
@@ -27,6 +26,7 @@ from ._context_upload import BuildContext
 from ._dockerignore import Filter, Matcher, read_patterns, walk_archive_entries
 from ._image_archive import _Entry, _write_archive
 from ._image_source import expand_home, utf8_path
+from ._image_text import dockerfile_escape
 from .errors import TransferCancelledError, create_error
 from .image import ImageBuilder
 
@@ -90,38 +90,6 @@ def _directory_entries(
         if dockerfile is None and relative.rstrip("/") == ".dockerignore":
             continue
         yield relative, path
-
-
-# Go's unicode.IsSpace (Latin-1 and the Unicode White_Space set).
-_GO_SPACE = "\t\n\v\f\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
-_DIRECTIVE = re.compile(r"([a-zA-Z][a-zA-Z0-9]*)[\t\n\f\r ]*=[\t\n\f\r ]*([^\n]+?)[\t\n\f\r ]*")
-
-
-def dockerfile_escape(dockerfile: str) -> str:
-    """The escape character BuildKit reads from the parser directives.
-
-    A port of BuildKit's processLine + DirectiveParser.ParseLine (v0.31.2):
-    lines as bufio.ScanLines splits them, a first-line BOM dropped, trailing
-    CR/LF and leading Unicode space trimmed, a `#`, more leading space, then
-    `name = value`; the first line that is not a known directive ends them.
-    """
-    escape = "\\"
-    seen: set[str] = set()
-    for index, line in enumerate(dockerfile.split("\n")):
-        line = line.removeprefix("\ufeff") if index == 0 else line
-        line = line.rstrip("\r\n").lstrip(_GO_SPACE)
-        if not line.startswith("#"):
-            break
-        match = _DIRECTIVE.fullmatch(line[1:].lstrip(_GO_SPACE))
-        if match is None:
-            break
-        name = match[1].lower()
-        if name not in ("syntax", "escape", "check") or name in seen:
-            break
-        seen.add(name)
-        if name == "escape":
-            escape = match[2]
-    return escape
 
 
 def write_builder_context(builder: ImageBuilder, destination: Path, *, cancel: Event | None = None) -> None:

@@ -13,6 +13,7 @@ import { assertKnownOptions, optionKeys } from './options.js'
 import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire, envelopeList, listItems, malformedResponse, record, strList } from './toolboxModels.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
 import { deepFrozen } from './frozen.js'
+import { pathSequence } from './filesystemInputs.js'
 
 export interface CloneOptions {
   /** Where to clone to, inside the sandbox. */
@@ -131,9 +132,9 @@ export class GitService {
     return gitStatusFromWire(await this.transport.get<toolbox.GitStatus>('/git/status', { params: { path } }))
   }
 
-  /** Stage files. */
+  /** Stage an array of string pathspecs (not a bare string). */
   public async add(path: string, files: readonly string[]): Promise<void> {
-    const body: toolbox.AddRequest = { path, files: [...files] }
+    const body: toolbox.AddRequest = { path, files: pathSequence('files', files) }
     await this.transport.post<void>('/git/add', body)
   }
 
@@ -143,7 +144,7 @@ export class GitService {
       path,
       mode: options.mode,
       target: options.target,
-      files: options.files === undefined ? undefined : [...options.files],
+      files: options.files === undefined ? undefined : pathSequence('files', options.files),
     })
   }
 
@@ -151,7 +152,7 @@ export class GitService {
     assertKnownOptions('RestoreOptions', options, RESTORE_OPTION_KEYS)
     await this.transport.post<void>('/git/restore', {
       path,
-      files: [...files],
+      files: pathSequence('files', files),
       staged: options.staged,
       worktree: options.worktree,
       source: options.source,

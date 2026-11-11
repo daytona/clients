@@ -38,6 +38,10 @@ becomes a build context, and which 0.x helpers 2.x keeps.
 | `debian_slim(python_version=None)` | `debianSlim(pythonVersion?)` | the 0.x `debian_slim` base (below) |
 | `user(name)`, `cmd(*args)`, `entrypoint(*args)` | `user(name)`, `cmd(...args)`, `entrypoint(...args)` | `USER name`, `CMD [...]`, `ENTRYPOINT [...]` |
 
+Python's required leading arguments are positional-only, including the local
+paths, remote paths and `build_from_context(context, /)`. The optional
+`debian_slim(python_version=None)` remains callable by keyword.
+
 - **Paths are checked when the method is called.** Only `~` and `~/` (also
   `~\` on Windows) expand to the current user's home; `~user` stays literal.
   The path is made absolute. Blank paths and non-string values are refused
@@ -87,7 +91,13 @@ becomes a build context, and which 0.x helpers 2.x keeps.
   appended-name escaping assumes `\`. Building such a builder raises
   `BadRequestError` before reading local files, with
   `local files need the default Dockerfile escape character`. Builders without
-  local files are unaffected.
+  local files are unaffected by this local-file restriction. `env()` also
+  requires the default escape character, with its own error:
+  `ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash`.
+  Both checks use the same BuildKit parser-directive reader (including its
+  BOM, whitespace and known-directive rules). Env values are literal: `$`,
+  quotes and backslashes are escaped; C0 and DEL controls are refused without
+  printing the value.
 - **TypeScript needs Node.js for local files.** The local-file methods read
   the file system; in a runtime without it (a browser, a worker) they raise
   `NotSupportedError`. Builders without local files work everywhere.

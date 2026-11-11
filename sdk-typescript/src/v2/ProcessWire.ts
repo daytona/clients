@@ -15,7 +15,7 @@ import { knownOrUnknown } from './knownValue.js'
 import { MAX_INT32, MAX_TIMER_DELAY_MS } from './options.js'
 import { bool, int, int32, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
-import { assertKnownOptions, badRequest, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 
@@ -186,10 +186,13 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
 }
 
 
-/** A terminal's `cols` / `rows`: an int32 of at least 1, as the contract states. */
+/** The largest terminal dimension the sandbox takes (an unsigned 16-bit value). */
+export const TERMINAL_DIMENSION_MAX = 65535
+
+/** A terminal's `cols` / `rows`: an integer from 1 to 65535. */
 export function terminalDimension(value: unknown, name: 'cols' | 'rows'): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > MAX_INT32) {
-    throw badRequest(`${name} must be an integer between 1 and ${MAX_INT32}`)
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > TERMINAL_DIMENSION_MAX) {
+    throw badRequest(`${name} must be an integer between 1 and ${TERMINAL_DIMENSION_MAX}`)
   }
   return value
 }
@@ -197,6 +200,19 @@ export function terminalDimension(value: unknown, name: 'cols' | 'rows'): number
 export function terminalSpec(terminal: TerminalSize): TerminalSize {
   assertKnownOptions('TerminalSize', terminal, TERMINAL_SIZE_KEYS)
   return { cols: terminalDimension(terminal.cols, 'cols'), rows: terminalDimension(terminal.rows, 'rows') }
+}
+
+/** A process `env`: a plain object of strings (a `Map`, an array or a non-string value is refused, not mangled). */
+function processEnv(env: unknown): Record<string, string> {
+  if (!isPlainStringRecord(env)) throw badRequest('env must be a plain object of string to string')
+  return { ...env }
+}
+
+/** `run()` returns no handle to write to, so it cannot keep stdin open. */
+export function runStdin(stdin: unknown): 'closed' {
+  if (stdin === undefined || stdin === 'closed') return 'closed'
+  const shown = typeof stdin === 'string' ? `'${stdin}'` : 'other than \'closed\''
+  throw badRequest(`stdin ${shown} is not supported by run(); it returns no handle to write to. Use start() for a process with open stdin`)
 }
 
 /** `run()` reads the output back from the retained log, so it cannot honour `'none'`. */
@@ -222,14 +238,15 @@ export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
       { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
     )
   }
-  // Above the longest timer there is no deadline, as for every SDK duration.
-  const timeoutMs = aboveTimerMaximum('executionTimeoutSeconds', spec.executionTimeoutSeconds)
+  // 0 and a value above the longest timer mean no deadline, as for every SDK
+  // duration: timeoutMs is omitted (a 0 on the wire is not relied on).
+  const timeoutMs = aboveTimerMaximum('executionTimeoutSeconds', spec.executionTimeoutSeconds) || spec.executionTimeoutSeconds === 0
     ? undefined
     : exactMs('executionTimeoutSeconds', spec.executionTimeoutSeconds)
   const body: toolbox.CreateProcessRequest = {
     shellCommand: spec.cmd, argv: spec.argv === undefined ? undefined : [...spec.argv], code: spec.code, kind: spec.kind,
     name: spec.name, tag: spec.tag === undefined ? undefined : processTag(spec.tag),
-    sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : { ...spec.env },
+    sessionId: spec.sessionId, cwd: spec.cwd, env: spec.env === undefined ? undefined : processEnv(spec.env),
     user: spec.user, shell: spec.shell, login: spec.login,
     // Sessions take no stdin mode.
     stdin: spec.kind === 'session' ? undefined : spec.stdin,

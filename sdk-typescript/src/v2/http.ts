@@ -224,6 +224,8 @@ type AuthorizationHeaderOptions = {
 }
 
 export interface HttpClientOptions {
+  /** Shared by every transport owned by one v2 client. */
+  readonly ensureOpen?: () => void
   readonly authProvider?: HttpAuthProvider
   readonly connectionPoolMaxsize?: number
   readonly otelEnabled?: boolean
@@ -1289,6 +1291,7 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     configurable: true,
   })
   instance.interceptors.request.use(async (config) => {
+    options?.ensureOpen?.()
     const daytonaConfig = config as DaytonaAxiosRequestConfig
     // No responseType: the SDK reads the bytes and decodes them itself (kept
     // on a retry, whose config already says arraybuffer).
@@ -1551,6 +1554,7 @@ export class HttpTransport {
   }
 
   public async resolveToken(): Promise<string | undefined> {
+    this.options?.ensureOpen?.()
     if (this.options?.auth) return this.options.auth.bearer()
     if (this.options?.authProvider) {
       return bearerCredentialFromAuthorizationHeader(await this.options.authProvider.authorizationHeader())
@@ -1563,6 +1567,7 @@ export class HttpTransport {
   }
 
   public async bearerToken(options: AuthorizationHeaderOptions = {}): Promise<string | undefined> {
+    this.options?.ensureOpen?.()
     if (this.options?.auth) return this.options.auth.bearer()
     if (this.options?.authProvider) {
       return bearerCredentialFromAuthorizationHeader(await this.options.authProvider.authorizationHeader(options))
@@ -1580,6 +1585,7 @@ export class HttpTransport {
    * the request runs untouched on the instance's static credential.
    */
   private async withAuth<T>(config: AxiosRequestConfig | undefined, run: (config?: AxiosRequestConfig) => Promise<T>): Promise<T> {
+    this.options?.ensureOpen?.()
     const auth = this.options?.auth
     if (!auth) return run(config)
     // One deadline for the whole call: the bearer (a token mint), the request,
@@ -1666,6 +1672,7 @@ export class HttpTransport {
   }
 
   public async fetch(path: string, init?: FetchRequestInit, checkStatus = true): Promise<Response> {
+    this.options?.ensureOpen?.()
     const relativePath = assertRelativeRequestPath(path)
     const meta = requestMeta({ url: relativePath }, this.options ?? {})
     // Until the response headers arrive (a stream's body is not bounded), by

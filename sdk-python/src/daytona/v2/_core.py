@@ -1180,11 +1180,12 @@ def process_create_spec(
             "SDK",
         )
     execution_timeout_ms = None
-    if execution_timeout is not None and not above_timer_maximum(
-        checked_seconds(execution_timeout, "execution_timeout")
-    ):
-        execution_timeout_ms = timeout_millis_from_seconds(execution_timeout, "execution_timeout")
-    # Above the timer maximum the process has no deadline (timeoutMs omitted).
+    if execution_timeout is not None:
+        seconds = checked_seconds(execution_timeout, "execution_timeout")
+        # 0 and a value above the timer maximum mean no deadline: timeoutMs is
+        # omitted (a 0 on the wire is not relied on to mean "no limit").
+        if seconds != 0 and not above_timer_maximum(seconds):
+            execution_timeout_ms = timeout_millis_from_seconds(seconds, "execution_timeout")
     body: JsonObject = {"kind": kind}
     if command is not None:
         body["shellCommand"] = command
@@ -1207,7 +1208,7 @@ def process_create_spec(
         "tag": None if tag is None else process_tag(tag),
         "sessionId": session_id,
         "cwd": cwd,
-        "env": dict(env) if env is not None else None,
+        "env": None if env is None else _process_env(env),
         "user": user,
         "shell": shell,
         "login": login,
@@ -1326,6 +1327,15 @@ def process_list_spec(
         if value is not None:
             params[key] = value
     return RequestSpec("GET", "/processes", params=params)
+
+
+def _process_env(env: object) -> Dict[str, str]:
+    """A process ``env``: a mapping of strings (anything else is refused, not mangled)."""
+    if not isinstance(env, Mapping) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in env.items()
+    ):
+        raise create_error("env must be a mapping of strings to strings", 400, "BAD_REQUEST", "SDK")
+    return dict(env)
 
 
 _PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
@@ -1842,11 +1852,16 @@ def signal_spec(
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 
+# The largest terminal dimension the sandbox takes (an unsigned 16-bit value).
+TERMINAL_DIMENSION_MAX: Final = 65535
+
+
 def terminal_dimension(value: object, name: str) -> int:
-    """A terminal's ``cols`` / ``rows``: an int32 of at least 1, as the
-    contract states."""
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= INT32_MAX:
-        raise create_error(f"{name} must be an integer between 1 and {INT32_MAX}", 400, "BAD_REQUEST", "SDK")
+    """A terminal's ``cols`` / ``rows``: an integer from 1 to 65535."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= TERMINAL_DIMENSION_MAX:
+        raise create_error(
+            f"{name} must be an integer between 1 and {TERMINAL_DIMENSION_MAX}", 400, "BAD_REQUEST", "SDK"
+        )
     return value
 
 
@@ -2505,7 +2520,7 @@ def _parse_log_frame(payload: LogFrameDto) -> LogFrame:
 
 def _parse_terminal(value: ToolboxTerminalSize | None) -> Optional[TerminalSize]:
     """A process record's terminal: int32 dimensions of at least 1, as the
-    request's (:func:`terminal_dimension`); anything else is malformed."""
+    contract states; anything else is malformed."""
     if value is None:
         return None
     for name, dimension in (("cols", value.cols), ("rows", value.rows)):

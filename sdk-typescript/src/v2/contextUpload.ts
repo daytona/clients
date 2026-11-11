@@ -12,12 +12,13 @@
 import type { AxiosInstance } from 'axios'
 import { pathSegment } from './pathSegment.js'
 import { badRequest } from './options.js'
+import { binaryBytes, isArrayBuffer } from './filesystemInputs.js'
 import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
 import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, isRedirectStatus, NotSupportedError, redirectError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
 
-/** A build context: tar bytes, a `Blob`, or (Node.js) a `.tar` file or directory path. */
-export type BuildContext = Uint8Array | Blob | string
+/** A build context: tar bytes (an `ArrayBuffer` or any view), a `Blob`, or (Node.js) a `.tar` file or directory path. */
+export type BuildContext = Uint8Array | ArrayBuffer | ArrayBufferView | Blob | string
 
 export const MAX_CONTEXT_BYTES = 1024 * 1024 * 1024
 const HASH_CHUNK = 8 * 1024 * 1024
@@ -124,14 +125,26 @@ async function fileSource(path: string): Promise<ContextSource> {
   }
 }
 
+function copyBytes(value: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(value.byteLength)
+  copy.set(value)
+  return copy
+}
+
 async function sourceOf(context: BuildContext): Promise<ContextSource> {
   if (typeof context !== 'string') {
-    if (context instanceof Uint8Array) {
+    if (ArrayBuffer.isView(context) || isArrayBuffer(context)) {
+      // Every bytes-like value, as the filesystem writes take it: its exact byte
+      // range. Shared memory is copied once: fetch refuses it as a body.
+      const given = binaryBytes('context', context)
+      // Checked before shared memory is copied (the later check covers every source).
+      if (given.byteLength > MAX_CONTEXT_BYTES) throw badRequest(`build context exceeds the 1 GiB limit (${given.byteLength} bytes)`)
+      const bytes = isArrayBuffer(given.buffer) ? given : copyBytes(given)
       return {
-        size: context.byteLength,
-        read: async (offset, length) => context.subarray(offset, offset + length),
+        size: bytes.byteLength,
+        read: async (offset, length) => bytes.subarray(offset, offset + length),
         // SAFETY: a view of the caller's bytes; fetch only reads it.
-        part: (offset, length) => context.subarray(offset, offset + length) as Uint8Array<ArrayBuffer>,
+        part: (offset, length) => bytes.subarray(offset, offset + length) as Uint8Array<ArrayBuffer>,
         changed: async () => false,
         close: async () => undefined,
       }

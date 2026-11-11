@@ -32,6 +32,7 @@ from _repo import _repo_file
 from daytona.v2 import (
     AuditActionGroup,
     AuditActionList,
+    ClientClosedError,
     DockerfileImageSource,
     FilesystemEvent,
     FilesystemEventType,
@@ -2175,7 +2176,7 @@ async def test_filesystem_read_many_parses_multipart_successes_and_errors():
     transport = Transport()
     fs = AsyncFileSystemService(transport)  # type: ignore[arg-type]
 
-    result = await fs.read_many(["dir/ü.txt", "/nope.txt"])
+    result = await fs.read_many(["/dir/ü.txt", "/nope.txt"])
 
     assert result.files == {"dir/ü.txt": b"hello\r\n--DAYTONA-FILE-BOUNDARY\r\nworld"}
     assert len(result.errors) == 1
@@ -2187,7 +2188,7 @@ async def test_filesystem_read_many_parses_multipart_successes_and_errors():
         (
             "POST",
             "/files/bulk-download",
-            {"transfer": True, "json": {"paths": ["dir/ü.txt", "/nope.txt"]}},
+            {"transfer": True, "json": {"paths": ["/dir/ü.txt", "/nope.txt"]}},
         )
     ]
 
@@ -2217,7 +2218,7 @@ async def test_filesystem_read_many_keeps_payload_bytes_that_look_like_the_bound
 
     fs = AsyncFileSystemService(Transport())  # type: ignore[arg-type]
 
-    result = await fs.read_many(["bin.dat"])
+    result = await fs.read_many(["/bin.dat"])
 
     assert result.files == {"bin.dat": payload}
     assert result.errors == ()
@@ -5215,7 +5216,7 @@ async def test_image_service_shapes_build_pull_list_and_tar_context():
     }
     assert build_spec.timeout is None
 
-    assert (await service.pull(image="python:3.12", name="pulled", region="eu")).id == "img-pull"
+    assert (await service.pull("python:3.12", name="pulled", region="eu")).id == "img-pull"
     assert transport.specs[2].json_body == {
         "name": "pulled",
         "source": {"type": "registry", "ref": "python:3.12"},
@@ -5229,7 +5230,7 @@ async def test_image_service_shapes_build_pull_list_and_tar_context():
 
 @pytest.mark.anyio
 async def test_images_pull_accepts_ref_positionally() -> None:
-    """pull("ref", name=...) is identical to pull(image="ref", name=...) on the wire."""
+    """pull("ref", name=...): the ref is positional-only."""
     transport = RecordingTransport(
         [
             _image_operation_payload("img-pos"),
@@ -5822,8 +5823,8 @@ async def test_secret_services_shape_routes():
     # set with ["*"] sends allowed_domains: ["*"]
     transport2 = RecordingTransport([_secret_payload("WIDE")])
     secret2 = AsyncSecretsService(transport2)  # type: ignore[arg-type]
-    await secret2.set("WIDE", "val", allowed_domains=["*"])
-    assert transport2.specs[0].json_body == {"value": "val", "allowed_domains": ["*"]}
+    await secret2.set("WIDE", "val", allowed_domains=["*"], description="")
+    assert transport2.specs[0].json_body == {"value": "val", "allowed_domains": ["*"], "description": ""}
 
 
 def test_secret_set_without_allowed_domains_raises_type_error():
@@ -6629,12 +6630,11 @@ async def test_every_create_surface_stamps_the_name_label_and_derives_the_key(me
 
 
 @pytest.mark.anyio
-async def test_explicit_idempotency_key_wins_over_the_name_and_a_blank_name_derives_nothing() -> None:
+async def test_explicit_idempotency_key_wins_over_the_name() -> None:
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport(
         [
             {"id": "sbx", "status": "running", "wait_cap_seconds": 3},
-            {"id": "sbx2", "status": "running", "wait_cap_seconds": 3},
             {"id": "sbx3", "status": "running", "wait_cap_seconds": 3},
         ]
     )
@@ -6644,15 +6644,58 @@ async def test_explicit_idempotency_key_wins_over_the_name_and_a_blank_name_deri
     assert api.specs[0].headers["Idempotency-Key"] == "my-key"
     assert api.specs[0].json_body["labels"] == {"name": "example-user"}, "the label is stamped regardless"
 
-    # A blank name is no name (the API generates one): no label, random key.
-    await client.create(Image.base("py312"), name="   ")
-    assert "labels" not in api.specs[1].json_body
-    assert uuid.UUID(api.specs[1].headers["Idempotency-Key"])
-
     # No name at all: random key, as before.
     await client.create(Image.base("py312"))
-    assert uuid.UUID(api.specs[2].headers["Idempotency-Key"])
-    assert api.specs[2].headers["Idempotency-Key"] != api.specs[1].headers["Idempotency-Key"]
+    assert uuid.UUID(api.specs[1].headers["Idempotency-Key"])
+
+
+# Shared with the TypeScript SDK's client-input-lifecycle.test.ts: a create
+# whose request completes while the client closes still returns its handle
+# (the sandbox exists); the handle's later requests raise ClientClosedError.
+@pytest.mark.anyio
+async def test_a_create_that_completes_during_close_returns_its_handle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+
+    class ClosingTransport(RecordingTransport):
+        async def send(self, spec: RequestSpec):
+            client._closed = True
+            return await super().send(spec)
+
+    bind_api(client, ClosingTransport([{"id": "sbx", "status": "running", "wait_cap_seconds": 3}]))
+    sandbox = await client.create(Image.base("py312"), wait_seconds=0)
+    assert sandbox.id == "sbx"
+    assert sandbox._hub is None
+    with pytest.raises(ClientClosedError):
+        await sandbox.wait(timeout=0.01)
+    await client.close()
+
+
+# Shared with the TypeScript SDK's unit.test.ts: a blank name is refused before
+# any request on every create, as fork() and find_by_name() refuse one.
+@pytest.mark.anyio
+@pytest.mark.parametrize("name", ["", "   ", "\t\n"])
+async def test_a_blank_create_name_is_refused(name: str) -> None:
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    api = RecordingTransport([])
+    bind_api(client, api)
+
+    for call in (
+        lambda: client.create(Image.base("py312"), name=name),
+        lambda: client.create_from_snapshot("snap", name=name),
+        lambda: client.create_macos("macos-15", name=name),
+        lambda: client.create_from_build(ImageBuilder.from_registry("python:3.12"), name=name),
+    ):
+        with pytest.raises(BadRequestError, match="^name must be a non-empty string when given$") as raised:
+            await call()
+        assert (raised.value.status_code, raised.value.code, raised.value.source) == (
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    assert api.specs == []
 
 
 @pytest.mark.anyio

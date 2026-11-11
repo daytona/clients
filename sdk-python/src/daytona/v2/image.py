@@ -9,12 +9,17 @@ import re
 import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import overload
+from typing import Final, overload
 
 from typing_extensions import Self
 
 from ._image_source import LocalSource, local_source
+from ._image_text import dockerfile_escape, require_text
 from .errors import create_error
+
+_ESCAPE_DIRECTIVE_REFUSED: Final = (
+    "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -38,16 +43,16 @@ class ImageBuilder:
     # One rule in both SDKs: every value must be a string that is not blank by
     # Python's whitespace set, and text rendered raw into a Dockerfile line
     # (the registry ref, the Dockerfile, commands, packages, env keys, the
-    # workdir) is stripped with that set; an env value, which is rendered as a
-    # JSON string, is kept as given. TypeScript applies the same rule.
+    # workdir) is stripped with that set; an env value is kept literal, with
+    # dollar signs escaped. TypeScript applies the same rule.
 
     @classmethod
-    def from_registry(cls, ref: str) -> Self:
+    def from_registry(cls, ref: str, /) -> Self:
         return cls(_registry_ref=cls._line_text(ref, "ImageBuilder.from_registry ref"))
 
     @classmethod
-    def from_dockerfile(cls, content: str) -> Self:
-        return cls(_dockerfile=cls._require_text(content, "ImageBuilder.from_dockerfile content", strip=True))
+    def from_dockerfile(cls, content: str, /) -> Self:
+        return cls(_dockerfile=require_text(content, "ImageBuilder.from_dockerfile content", strip=True))
 
     @classmethod
     def debian_slim(cls, python_version: str | None = None) -> Self:
@@ -71,7 +76,7 @@ class ImageBuilder:
             "echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections",
         )
 
-    def add_local_file(self, local_path: str | os.PathLike[str], remote_path: str) -> Self:
+    def add_local_file(self, local_path: str | os.PathLike[str], remote_path: str, /) -> Self:
         source = local_source(local_path, "file", len(self._local_sources) + 1)
         remote = self._line_text(remote_path, "ImageBuilder.add_local_file remote_path")
         # The appended name is the file's own, not a Dockerfile word: BuildKit
@@ -80,11 +85,11 @@ class ImageBuilder:
         filename = re.sub(r"""([\\$'"])""", r"\\\1", source.path.name)
         return self._copy(source, remote + filename if remote.endswith("/") else remote)
 
-    def add_local_dir(self, local_path: str | os.PathLike[str], remote_path: str) -> Self:
+    def add_local_dir(self, local_path: str | os.PathLike[str], remote_path: str, /) -> Self:
         source = local_source(local_path, "dir", len(self._local_sources) + 1)
         return self._copy(source, self._line_text(remote_path, "ImageBuilder.add_local_dir remote_path"))
 
-    def pip_install_from_requirements(self, requirements_txt: str | os.PathLike[str]) -> Self:
+    def pip_install_from_requirements(self, requirements_txt: str | os.PathLike[str], /) -> Self:
         source = local_source(requirements_txt, "file", len(self._local_sources) + 1)
         return self._copy(source, "/.requirements.txt").run_commands(
             "python -m pip install -r /.requirements.txt"
@@ -137,7 +142,7 @@ class ImageBuilder:
             entries = (
                 (
                     self._env_name(name_or_values, "ImageBuilder.env name"),
-                    self._require_text(value, "ImageBuilder.env value"),
+                    self._env_value(value, "ImageBuilder.env value"),
                 ),
             )
         elif isinstance(name_or_values, Mapping):
@@ -152,7 +157,7 @@ class ImageBuilder:
             entries = tuple(
                 (
                     self._env_name(key, "ImageBuilder.env key"),
-                    self._require_text(entry_value, "ImageBuilder.env value"),
+                    self._env_value(entry_value, "ImageBuilder.env value"),
                 )
                 for key, entry_value in name_or_values.items()
             )
@@ -174,14 +179,14 @@ class ImageBuilder:
                 "BAD_REQUEST",
                 "SDK",
             )
+        if self._dockerfile is not None and dockerfile_escape(self._dockerfile) != "\\":
+            raise create_error(_ESCAPE_DIRECTIVE_REFUSED, 400, "BAD_REQUEST", "SDK")
         return replace(
             self,
             # ensure_ascii=False: TS renders with JSON.stringify, which leaves non-ASCII
             # as is; keep Dockerfile output consistent across SDKs and preserve values.
             _steps=self._steps
-            + tuple(
-                f"ENV {key}={json.dumps(entry_value, ensure_ascii=False)}" for key, entry_value in entries
-            ),
+            + tuple(f"ENV {key}={self._env_value_literal(entry_value)}" for key, entry_value in entries),
         )
 
     def workdir(self, path: str, /) -> Self:
@@ -205,7 +210,7 @@ class ImageBuilder:
         label = f"ImageBuilder.{instruction.lower()} args"
         if not args:
             raise create_error(f"{label} requires at least one value", 400, "BAD_REQUEST", "SDK")
-        cleaned = tuple(self._require_text(arg, label) for arg in args)
+        cleaned = tuple(require_text(arg, label) for arg in args)
         return replace(
             self, _steps=self._steps + (f"{instruction} {json.dumps(cleaned, ensure_ascii=False)}",)
         )
@@ -237,7 +242,7 @@ class ImageBuilder:
         """Text rendered raw into one Dockerfile line, stripped: a line break
         would end the instruction and start another, so no control character
         (C0 or DEL) is allowed. TypeScript refuses the same values."""
-        text = cls._require_text(value, label, strip=True)
+        text = require_text(value, label, strip=True)
         if any(char < " " or char == "\x7f" for char in text):
             raise create_error(
                 f"{label} {json.dumps(text, ensure_ascii=False)} must not contain a control character",
@@ -258,11 +263,36 @@ class ImageBuilder:
         return text
 
     @classmethod
+    def _env_value(cls, value: object, label: str) -> str:
+        """An env value, kept as given: a control character (C0 or DEL) has no
+        literal form in a double-quoted Dockerfile word (Docker keeps ``\\n``
+        as two characters), so it is refused. TypeScript refuses the same
+        values."""
+        text = require_text(value, label)
+        # The value is not echoed: it may be a secret.
+        if any(char < " " or char == "\x7f" for char in text):
+            raise create_error(
+                f"{label} must not contain a control character",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return text
+
+    @staticmethod
+    def _env_value_literal(value: str) -> str:
+        """An env value as a double-quoted Dockerfile word that the image keeps
+        literally: ``"`` and ``\\`` are escaped (as in JSON) and so is ``$``, so
+        nothing is substituted. ``ensure_ascii=False``: non-ASCII is kept as
+        is, as TypeScript renders it; both SDKs render the same bytes."""
+        return json.dumps(value, ensure_ascii=False).replace("$", "\\$")
+
+    @classmethod
     def _env_name(cls, value: object, label: str) -> str:
         """An env name, stripped: it renders as ``ENV name=value``, so ``=``,
         whitespace (Python's set) or a control character (C0 or DEL) would
         change the instruction, or add one. TypeScript refuses the same names."""
-        name = cls._require_text(value, label, strip=True)
+        name = require_text(value, label, strip=True)
         if any(char == "=" or char.isspace() or char < " " or char == "\x7f" for char in name):
             raise create_error(
                 f"{label} {json.dumps(name, ensure_ascii=False)} must not contain '=', whitespace or a control character",
@@ -271,15 +301,3 @@ class ImageBuilder:
                 "SDK",
             )
         return name
-
-    @staticmethod
-    def _require_text(value: object, label: str, *, strip: bool = False) -> str:
-        """A string that is not blank (Python's whitespace set), stripped when
-        it is rendered raw; anything else is :class:`BadRequestError`."""
-        if not isinstance(value, str) or not value.strip():
-            raise create_error(f"{label} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-        # A Dockerfile is UTF-8 text: a surrogate has no UTF-8 form, and the two
-        # SDKs would render it differently. TypeScript refuses it the same way.
-        if any("\ud800" <= char <= "\udfff" for char in value):
-            raise create_error(f"{label} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
-        return value.strip() if strip else value

@@ -12,6 +12,8 @@ import type { TarEntry } from './contextTar.js'
 import { localSourcesOf } from './ImageBuilder.js'
 import type { ImageBuilder } from './ImageBuilder.js'
 import { decodeContextPath, utf8ContextPath } from './contextPath.js'
+import { dockerfileEscape } from './builderText.js'
+export { dockerfileEscape } from './builderText.js'
 
 type Archive = { readonly path: string; cleanup(): Promise<void> }
 
@@ -53,30 +55,6 @@ async function archive(entries: readonly TarEntry[]): Promise<Archive> {
   } finally {
     if (!completed) await cleanup()
   }
-}
-
-// Go's unicode.IsSpace (Latin-1 and the Unicode White_Space set).
-const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/
-
-/**
- * The escape character BuildKit reads from the parser directives: a port of
- * BuildKit's processLine + DirectiveParser.ParseLine (v0.31.2), as Python's
- * dockerfile_escape. @internal
- */
-export function dockerfileEscape(dockerfile: string): string {
-  let escape = '\\'
-  const seen = new Set<string>()
-  for (const [index, raw] of dockerfile.split('\n').entries()) {
-    const line = (index === 0 ? raw.replace(/^\ufeff/, '') : raw).replace(/[\r\n]+$/, '').replace(GO_SPACE, '')
-    if (!line.startsWith('#')) break
-    const match = /^([a-zA-Z][a-zA-Z0-9]*)[\t\n\f\r ]*=[\t\n\f\r ]*([^\n]+?)[\t\n\f\r ]*$/.exec(line.slice(1).replace(GO_SPACE, ''))
-    if (match === null) break
-    const name = match[1].toLowerCase()
-    if (!['syntax', 'escape', 'check'].includes(name) || seen.has(name)) break
-    seen.add(name)
-    if (name === 'escape') escape = match[2]
-  }
-  return escape
 }
 
 /** Build a temporary deterministic tar from a builder's local sources. @internal */

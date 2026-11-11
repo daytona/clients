@@ -78,6 +78,8 @@ class DaytonaError(_shared.DaytonaError):
         request_id: Optional[str] = None,
         retry_after_ms: Optional[int] = None,
     ) -> None:
+        if status_code is not None and (not isinstance(status_code, int) or isinstance(status_code, bool)):
+            raise TypeError("status_code must be an integer or None")
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -99,6 +101,27 @@ class DaytonaError(_shared.DaytonaError):
         self.region = region
         self.request_id = request_id
         self.retry_after_ms = retry_after_ms
+
+
+class ClientClosedError(DaytonaError):
+    """A request was started on a closed client; no HTTP status applies."""
+
+    def __init__(
+        self,
+        message: str = "Daytona client is closed",
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code if code is not None else "CLIENT_CLOSED",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
 
 
 class BadRequestError(DaytonaError, _shared.DaytonaBadRequestError):
@@ -918,9 +941,9 @@ SOURCE_ERROR_CLASSES: Dict[str, Dict[str, Type[DaytonaError]]] = {
     "DAYTONA_ROUTER": ROUTER_ERROR_CLASSES,
     # SDK-synthesized errors (timeouts, terminal states) reuse the process API's typed
     # classes so a caller's `except` clauses need not branch on who raised.
-    # Every SDK-minted code today is generic, so the table is vestigial until
-    # the SDK mints a process-specific code. Mirror any change in DaytonaError.ts.
-    "SDK": DAEMON_ERROR_CLASSES,
+    # Local-only codes live alongside these without inventing an HTTP status.
+    # Mirror any change in DaytonaError.ts.
+    "SDK": {**DAEMON_ERROR_CLASSES, "CLIENT_CLOSED": ClientClosedError},
 }
 
 

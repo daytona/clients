@@ -246,11 +246,95 @@ async def test_pty_start_nests_the_terminal_size_and_defaults_to_80_by_24(
         "user": "dev",
         "shell": "zsh",
         "login": True,
+        "env": {"TERM": "xterm-256color"},
         "stdin": "open",
         "timeoutMs": 2500,
         "keepLogs": "until_cleanup",
         "terminal": expected,
     }
+
+
+# Shared with the TypeScript SDK's unit.test.ts: a PTY gets TERM=xterm-256color
+# unless the caller's env sets TERM.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        ({"A": "1"}, {"TERM": "xterm-256color", "A": "1"}),
+        ({"TERM": "linux"}, {"TERM": "linux"}),
+    ],
+)
+async def test_pty_start_sends_a_default_term(env: dict[str, str], expected: dict[str, str]) -> None:
+    transport = Transport([_process(kind="pty")])
+    pty = AsyncPtyService(AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    await pty.start(env=env)
+
+    body = transport.specs[0].json_body
+    assert isinstance(body, dict) and body["env"] == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("env", [["A=1"], {"A": 1}, {1: "a"}])
+async def test_process_starts_refuse_an_env_that_is_not_strings(env: object) -> None:
+    transport = Transport()
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    for call in (
+        lambda: AsyncPtyService(process).start(env=env),  # type: ignore[arg-type]
+        lambda: process.start("true", env=env),  # type: ignore[arg-type]
+        lambda: process.run("true", env=env),  # type: ignore[arg-type]
+    ):
+        with pytest.raises(BadRequestError, match="^env must be a mapping of strings to strings$"):
+            await call()
+    assert transport.specs == []
+
+
+# Shared with the TypeScript SDK's unit.test.ts: execution_timeout=0 means no
+# deadline, so timeoutMs is omitted (as above the timer maximum).
+@pytest.mark.anyio
+@pytest.mark.parametrize("execution_timeout", [0, 0.0, 10**9])
+async def test_execution_timeout_zero_sends_no_deadline(execution_timeout: float) -> None:
+    transport = Transport([_process(), _process(kind="pty"), _process()])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    await process.start("sleep 1", execution_timeout=execution_timeout)
+    await AsyncPtyService(process).start(execution_timeout=execution_timeout)
+    await process.connect_session("shell-1").start("sleep 1", execution_timeout=execution_timeout)
+
+    for spec in transport.specs:
+        assert isinstance(spec.json_body, dict) and "timeoutMs" not in spec.json_body
+
+
+# Shared with the TypeScript SDK's unit.test.ts: run() returns no handle to
+# write to, so stdin="open" is refused before any request; start() keeps it.
+@pytest.mark.anyio
+async def test_blocking_runs_refuse_open_stdin() -> None:
+    transport = Transport()
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    session = process.connect_session("shell-1")
+    for call in (
+        lambda: process.run("cat", stdin="open"),
+        lambda: session.run("cat", stdin="open"),
+    ):
+        with pytest.raises(BadRequestError, match="stdin='open' is not supported by run") as info:
+            await call()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert transport.specs == []
+
+
+# Shared with the TypeScript SDK's unit.test.ts: start() sends one explicit
+# keep_logs default, whether or not the process is named.
+@pytest.mark.anyio
+@pytest.mark.parametrize("name", [None, "job"])
+async def test_start_sends_an_explicit_keep_logs_default(name: Optional[str]) -> None:
+    transport = Transport([_process(), _process()])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    await process.start("true", name=name)
+    await process.connect_session("shell-1").start("true", name=name)
+
+    for spec in transport.specs:
+        assert isinstance(spec.json_body, dict) and spec.json_body["keepLogs"] == "on_exit_ttl"
 
 
 @pytest.mark.anyio
@@ -2552,17 +2636,17 @@ async def test_dot_segments_are_refused_as_path_ids_before_any_request(
 
 
 # Shared with the TypeScript SDK's unit.test.ts: terminal cols / rows are
-# int32 values of at least 1, on pty.start() and resize().
+# integers from 1 to 65535, on pty.start() and resize().
 @pytest.mark.anyio
-@pytest.mark.parametrize("bad", [0, -1, 1.5, True, 2**31, "80"])
+@pytest.mark.parametrize("bad", [0, -1, 1.5, True, 65536, 2**31, "80"])
 @pytest.mark.parametrize("field", ["cols", "rows"])
-async def test_terminal_dimensions_are_positive_int32(bad: object, field: str) -> None:
+async def test_terminal_dimensions_are_from_1_to_65535(bad: object, field: str) -> None:
     from daytona.v2.types import TerminalSize
 
     sizes = {"cols": 80, "rows": 24, field: bad}
     transport = Transport()
     process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
-    message = rf"{field} must be an integer between 1 and 2147483647"
+    message = rf"{field} must be an integer between 1 and 65535"
     with pytest.raises(BadRequestError, match=message):
         await AsyncPtyService(process).start(terminal=TerminalSize(**sizes))  # type: ignore[arg-type]
     handle = process.connect({"sandboxId": "sbx", "processId": "p", "kind": "pty"})
@@ -2572,14 +2656,17 @@ async def test_terminal_dimensions_are_positive_int32(bad: object, field: str) -
 
 
 @pytest.mark.anyio
-async def test_terminal_dimensions_up_to_int32_are_sent() -> None:
+async def test_terminal_dimensions_up_to_65535_are_sent() -> None:
     from daytona.v2.types import TerminalSize
 
-    transport = Transport([_process(kind="pty")])
+    transport = Transport([_process(kind="pty"), _process(kind="pty")])
     process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
-    await AsyncPtyService(process).start(terminal=TerminalSize(cols=1, rows=2**31 - 1))
+    await AsyncPtyService(process).start(terminal=TerminalSize(cols=1, rows=65535))
     body = transport.specs[0].json_body
-    assert isinstance(body, dict) and body["terminal"] == {"cols": 1, "rows": 2**31 - 1}
+    assert isinstance(body, dict) and body["terminal"] == {"cols": 1, "rows": 65535}
+    handle = process.connect({"sandboxId": "sbx", "processId": "p", "kind": "pty"})
+    await handle.resize(65535, 1)
+    assert transport.specs[1].json_body == {"cols": 65535, "rows": 1}
 
 
 @pytest.mark.parametrize(

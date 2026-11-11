@@ -20,7 +20,8 @@ from test_image_context_upload import build_builder
 from typing_extensions import assert_never
 
 from daytona.v2 import BadRequestError, ImageBuilder
-from daytona.v2._image_context import dockerfile_escape, write_builder_context
+from daytona.v2._image_context import write_builder_context
+from daytona.v2._image_text import dockerfile_escape
 
 Step = (
     tuple[Literal["file", "dir"], str, str]

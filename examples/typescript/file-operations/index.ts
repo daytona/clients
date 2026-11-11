@@ -3,7 +3,7 @@
  *
  * Uses the single-file helpers `fs.writeBytes(path, bytes)` and
  * `fs.writeText(path, text)` to write, and `fs.readBytes(path)` (returns a
- * Uint8Array) to read. Paths are relative to the sandbox's working directory.
+ * Uint8Array) to read. Sandbox paths are absolute.
  *
  * Run (from examples):
  *     DAYTONA_API_KEY=dtn_... \
@@ -20,12 +20,12 @@ async function main() {
   let ok = true
   try {
     assertStarted(sandbox)
-    const dir = 'project-files'
+    const dir = '/tmp/project-files'
 
     section('mkdir + list')
     await sandbox.fs.mkdir(dir, { mode: '755' })
-    const before = (await sandbox.fs.list('.')).items
-    info(`entries in cwd: ${before.map((f) => f.name).join(', ')}`)
+    const before = (await sandbox.fs.list('/tmp')).items
+    info(`entries in /tmp: ${before.map((f) => f.name).join(', ')}`)
 
     section('writeBytes / writeText (from memory)')
     const config = JSON.stringify({ name: 'demo', version: '1.0.0', settings: { debug: true } }, null, 2)
@@ -36,7 +36,7 @@ async function main() {
     section('run: verify + run the uploaded script')
     info((await sandbox.process.run(`ls -la ${dir}`)).output.trim())
     await sandbox.process.run(`chmod +x ${dir}/script.sh`)
-    const scriptOut = await sandbox.process.run(`./${dir}/script.sh`)
+    const scriptOut = await sandbox.process.run(`${dir}/script.sh`)
     info(`script output: ${scriptOut.output.trim()}`)
     if (scriptOut.exitCode === 0) pass('the uploaded script ran')
     else {

@@ -682,6 +682,48 @@ async def test_a_buffer_context_is_read_without_copying_it() -> None:
         assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data
 
 
+# Shared with the TypeScript SDK's build-context-upload.test.ts: every
+# bytes-like value is a context, read as its exact bytes.
+@pytest.mark.anyio
+async def test_any_bytes_like_context_is_accepted() -> None:
+    import array
+
+    data = archive(1_000)
+    for context in (array.array("B", data), memoryview(bytearray(data)).cast("B")):
+        source = _context_upload._Source(context)
+        assert source.size == len(data)
+        assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data
+    # A wider item type is sized in bytes, not items.
+    wide = array.array("i", range(300))
+    source = _context_upload._Source(wide)
+    assert source.size == len(wide.tobytes())
+    assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == wide.tobytes()
+
+
+def test_an_oversized_non_contiguous_view_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Sized from the view itself, before it would be copied to a contiguous one.
+    monkeypatch.setattr(_context_upload, "MAX_CONTEXT_BYTES", 10)
+    view = memoryview(bytes(range(64)))[::2]
+    with pytest.raises(BadRequestError, match=r"exceeds the 1 GiB limit \(32 bytes\)"):
+        _context_upload._Source(view)
+
+
+def test_an_empty_multi_dimensional_view_is_an_empty_context() -> None:
+    import ctypes
+
+    view = memoryview(((ctypes.c_ubyte * 4) * 0)())
+    assert view.shape == (0, 4)
+    with pytest.raises(BadRequestError, match="build context is empty"):
+        _context_upload._Source(view)
+
+
+def test_a_released_view_is_refused_as_a_bad_request() -> None:
+    view = memoryview(b"FROM alpine\n")
+    view.release()
+    with pytest.raises(BadRequestError, match="context must be"):
+        _context_upload._Source(view)
+
+
 @pytest.mark.anyio
 async def test_a_non_contiguous_view_is_still_accepted() -> None:
     data = archive(1_000)

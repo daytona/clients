@@ -90,7 +90,7 @@ class ProcessHandle:
         """Read a cursor-replayable process log page."""
         return self._bridge.call(lambda: self._impl.logs(cursor=cursor, limit=limit, encoding=encoding))
 
-    def resize(self, cols: int, rows: int) -> None:
+    def resize(self, cols: int, rows: int, /) -> None:
         """Resize a PTY process."""
         return self._bridge.call(lambda: self._impl.resize(cols, rows))
 
@@ -121,7 +121,7 @@ class ProcessHandle:
         """
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
 
-    def write_stdin(self, data: Union[str, bytes]) -> None:
+    def write_stdin(self, data: Union[str, bytes], /) -> None:
         """Write to the stdin of an exec or PTY process created with stdin='open'."""
         return self._bridge.call(lambda: self._impl.write_stdin(data))
 
@@ -144,11 +144,11 @@ class ProcessService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def connect(self, process: Union[str, ProcessHandleJSON]) -> ProcessHandle:
+    def connect(self, process: Union[str, ProcessHandleJSON], /) -> ProcessHandle:
         """Reconnect a process by id or by ``handle.to_json()``, without a request."""
         return ProcessHandle(self._impl.connect(process), self._bridge)
 
-    def connect_session(self, session: str | SessionJSON) -> Session:
+    def connect_session(self, session: str | SessionJSON, /) -> Session:
         """Reconnect a shell session by id or by ``session.to_json()``, without a request."""
         from .session import Session
 
@@ -180,7 +180,7 @@ class ProcessService:
             self._bridge,
         )
 
-    def get(self, process_id: str) -> ProcessInfo:
+    def get(self, process_id: str, /) -> ProcessInfo:
         """Fetch current process metadata by id or live name alias."""
         return self._bridge.call(lambda: self._impl.get(process_id))
 
@@ -269,8 +269,10 @@ class ProcessService:
         :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
         :param timeout: Caller wait budget in seconds. Omit to wait until the process
             ends. Does not kill the process on expiry.
+        :param stdin: Only ``"closed"`` (default): ``run()`` returns no handle to
+            write to, so ``"open"`` is refused; use :meth:`start` for that.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
-            the process tree when this expires.
+            the process tree when this expires. Omitted or ``0`` means no deadline.
         :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
             (default) or ``"until_cleanup"``. ``"none"`` is not accepted: the output is
             read back from the log; use :meth:`start` for a process without one.
@@ -314,7 +316,7 @@ class ProcessService:
         login: Optional[bool] = None,
         stdin: StdinMode = "closed",
         execution_timeout: Optional[float] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: KeepLogs = "on_exit_ttl",
         tag: Optional[str] = None,
     ) -> ProcessHandle:
         """Start a detached process and return a handle immediately.
@@ -336,8 +338,13 @@ class ProcessService:
         :param cwd: Working directory inside the sandbox.
         :param env: Extra environment variables merged into the process environment.
         :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param stdin: ``"open"`` keeps stdin open for ``handle.write_stdin()``;
+            ``"closed"`` (default) gives the process an empty stdin.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
-            the process tree when this expires.
+            the process tree when this expires. Omitted or ``0`` means no deadline.
+        :param keep_logs: How long the sandbox keeps the process record and log:
+            ``"on_exit_ttl"`` (default, a while after the process exits),
+            ``"until_cleanup"`` (until it is deleted) or ``"none"`` (no log).
         :returns: Bound :class:`ProcessHandle` — logs, wait, and kill are available
             immediately.
 
@@ -385,11 +392,11 @@ class PtyService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def connect(self, process: Union[str, ProcessHandleJSON]) -> ProcessHandle:
+    def connect(self, process: Union[str, ProcessHandleJSON], /) -> ProcessHandle:
         """Reconnect a PTY by id or by ``handle.to_json()``, without a request."""
         return ProcessHandle(self._impl.connect(process), self._bridge)
 
-    def delete(self, process: Union[str, ProcessHandleJSON]) -> None:
+    def delete(self, process: Union[str, ProcessHandleJSON], /) -> None:
         """Stop a PTY and delete it and its log."""
         return self._bridge.call(lambda: self._impl.delete(process))
 
@@ -414,8 +421,9 @@ class PtyService:
     ) -> ProcessHandle:
         """Start a detached PTY process; without ``command`` it runs the sandbox shell.
 
-        ``terminal`` defaults to 80 columns by 24 rows. ``execution_timeout`` is
-        a server-side deadline in seconds.
+        ``terminal`` defaults to 80 columns by 24 rows. ``TERM`` is
+        ``xterm-256color`` unless ``env`` sets it. ``execution_timeout`` is a
+        server-side deadline in seconds; omitted or ``0`` means no deadline.
         """
         return ProcessHandle(
             self._bridge.call(

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createDaytonaError, DaytonaError, isJsonMediaType } from './errors/DaytonaError.js'
+import { createDaytonaError, DaytonaError, errorOptionsFromEnvelope, isJsonMediaType } from './errors/DaytonaError.js'
 import type { BulkReadError, BulkReadResult } from './types.js'
 import { malformedResponse, optional, record, str } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
@@ -206,5 +206,5 @@ export function bulkReadHttpError(status: number, body: Uint8Array, contentType:
   const message = typeof envelope?.message === 'string' ? envelope.message : text || `bulk download failed with status ${status}`
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
-  return createDaytonaError(message, status, code, source, envelope)
+  return createDaytonaError(message, status, code, source, errorOptionsFromEnvelope(envelope))
 }

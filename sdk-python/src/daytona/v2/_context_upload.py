@@ -22,6 +22,7 @@ from typing import AsyncIterator, Iterator, Mapping, Optional, Sequence, Union
 
 import anyio
 import httpx
+from typing_extensions import Buffer
 
 from ._core import RequestSpec, path_segment
 from ._transport import AsyncTransport
@@ -35,8 +36,8 @@ from .errors import (
 )
 from .types import JsonObject
 
-BuildContext = Union[bytes, bytearray, memoryview, str, os.PathLike[str]]
-"""A build context: archive bytes, a ``.tar`` file path, or a directory path."""
+BuildContext = Union[Buffer, str, os.PathLike[str]]
+"""A build context: archive bytes (any bytes-like value), a ``.tar`` file path, or a directory path."""
 
 MAX_CONTEXT_BYTES = 1 << 30
 _HASH_CHUNK = 1 << 20
@@ -102,15 +103,34 @@ _redact_part_urls = _RedactPartUrls()
 logging.getLogger("httpx").addFilter(_redact_part_urls)
 
 
+def _is_buffer(value: object) -> bool:
+    try:
+        memoryview(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 class _Source:
     """The archive, streamed by offset so a file is held one chunk at a time, never a whole part."""
 
     def __init__(self, context: BuildContext) -> None:
-        if isinstance(context, (bytes, bytearray, memoryview)):
-            # A view, not a copy, so a 1 GiB buffer is not duplicated; only a
+        if not isinstance(context, (str, os.PathLike)) and _is_buffer(context):
+            # Every bytes-like value, as the filesystem writes take it. A view,
+            # not a copy, so a 1 GiB buffer is not duplicated; only a
             # non-contiguous view, which cannot be cast to bytes, is copied.
             view = memoryview(context)
-            if not view.c_contiguous:
+            # Checked before a non-contiguous view is copied.
+            if view.nbytes > MAX_CONTEXT_BYTES:
+                raise BadRequestError(
+                    f"build context exceeds the 1 GiB limit ({view.nbytes} bytes)",
+                    status_code=400,
+                    code="BAD_REQUEST",
+                    source="SDK",
+                )
+            # An empty view is copied too (free): a multi-dimensional one of
+            # zero bytes cannot be cast.
+            if not view.c_contiguous or view.nbytes == 0:
                 view = memoryview(view.tobytes())
             self._data: Optional[memoryview] = view.cast("B")
             self._path: Optional[Path] = None

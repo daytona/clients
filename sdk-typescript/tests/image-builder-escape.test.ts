@@ -11,6 +11,7 @@ import { archiveBuilder } from '../src/v2/contextArchive.js'
 import { BadRequestError } from '../src/v2/errors/DaytonaError.js'
 import { parseTar } from './contextTar.js'
 import { contextUploadServer } from './contextUploadServer.js'
+import escapeCases from '../../sdk-python/tests/fixtures/dockerfile-escape.json'
 
 let root: string
 beforeEach(async () => { root = await fs.mkdtemp(join(tmpdir(), 'builder-escape-')) })
@@ -65,4 +66,34 @@ it('leaves a non-default escape unchanged when there are no local sources', asyn
     await api.images.build(builder)
     expect(api.json('POST', '/images')).toEqual({ dockerfile: '# escape=`\nFROM alpine\n' })
   } finally { await api.close() }
+})
+
+describe.each(['name', 'mapping'] as const)('env via %s', (kind) => {
+  it.each(escapeCases.cases)('uses BuildKit parser directives for $dockerfile', (testCase) => {
+    // Given: BuildKit's shared cases include empty directives, unknown names,
+    // BOMs and Unicode whitespace that main's former simple regex misread.
+    const builder = ImageBuilder.fromDockerfile(testCase.dockerfile)
+    // When: env adds a literal value under the selected parser escape.
+    const add = () => kind === 'name' ? builder.env('TOKEN', '$HOME') : builder.env({ TOKEN: '$HOME' })
+    // Then: only backslash escapes can preserve the value literally.
+    if (testCase.escape === '\\') {
+      expect(add().toDockerfile().split('\n').slice(-2)).toEqual(['ENV TOKEN="\\$HOME"', ''])
+    } else {
+      expect(add).toThrow(expect.objectContaining({
+        constructor: BadRequestError,
+        message: 'ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash',
+      }))
+    }
+  })
+
+  it.each([...Array.from({ length: 32 }, (_, code) => code), 127])('refuses control character %i without echoing the value', (code) => {
+    // Given: a secret value containing a C0 or DEL character.
+    const builder = ImageBuilder.fromRegistry('alpine')
+    const value = `secret${String.fromCharCode(code)}value`
+    // When: either env overload receives it, then the refusal never includes it.
+    const add = () => kind === 'name' ? builder.env('TOKEN', value) : builder.env({ TOKEN: value })
+    expect(add).toThrow(expect.objectContaining({
+      constructor: BadRequestError, message: 'ImageBuilder.env value must not contain a control character',
+    }))
+  })
 })

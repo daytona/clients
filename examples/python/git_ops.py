@@ -30,7 +30,7 @@ def main() -> int:
             return 1
         git = sandbox.git
         proc = sandbox.process
-        repo = "demo-repo"
+        repo = "/tmp/demo-repo"
 
         # python:3.x-slim ships without git; install it on demand.
         section("ensure git is available")

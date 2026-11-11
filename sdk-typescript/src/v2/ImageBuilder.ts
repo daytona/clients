@@ -7,7 +7,7 @@ import type * as api from './gen/api-types.js'
 import { badRequest, isPlainRecord } from './options.js'
 import { strip } from './pyText.js'
 import { deepFrozen } from './frozen.js'
-import { assertText, assertTextList, envName, lineText, rawText, renderStep, shellQuote } from './builderText.js'
+import { assertTextList, dockerfileEscape, envName, envValue, lineText, rawText, renderStep, shellQuote } from './builderText.js'
 import type { BuilderSource, BuilderStep } from './builderText.js'
 import { localSource } from './builderLocalSource.js'
 import type { LocalSource } from './builderLocalSource.js'
@@ -106,12 +106,15 @@ export class ImageBuilder {
       throw badRequest('ImageBuilder.env takes a name and a value, or a mapping of names to values')
     }
     const pairs: ReadonlyArray<readonly [string, string]> = typeof nameOrValues === 'string'
-      ? [[envName(nameOrValues, 'ImageBuilder.env name'), assertText(value, 'ImageBuilder.env value')]]
-      : Object.entries(nameOrValues).map(([key, entryValue]) => [envName(key, 'ImageBuilder.env key'), assertText(entryValue, 'ImageBuilder.env value')] as const)
+      ? [[envName(nameOrValues, 'ImageBuilder.env name'), envValue(value, 'ImageBuilder.env value')]]
+      : Object.entries(nameOrValues).map(([key, entryValue]) => [envName(key, 'ImageBuilder.env key'), envValue(entryValue, 'ImageBuilder.env value')] as const)
     const seen = new Set<string>()
     for (const [key] of pairs) {
       if (seen.has(key)) throw badRequest(`ImageBuilder.env key ${JSON.stringify(key)} appears more than once after stripping`)
       seen.add(key)
+    }
+    if (this.source.type === 'dockerfile' && dockerfileEscape(this.source.dockerfile) !== '\\') {
+      throw badRequest('ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash')
     }
     // Keep Object.entries order: recreating an object would sort integer-like
     // keys again after envName strips them. Python preserves its dict order.

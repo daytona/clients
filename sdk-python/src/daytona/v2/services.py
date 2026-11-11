@@ -146,6 +146,7 @@ class AsyncImagesService:
     async def follow_build_logs(
         self,
         image_id: str,
+        /,
         *,
         on_logs: BuildLogsCallback,
         on_event: Optional[BuildLogEventCallback] = None,
@@ -292,6 +293,7 @@ class AsyncImagesService:
     async def pull(
         self,
         image: str,
+        /,
         *,
         name: Optional[str] = None,
         idle_expiry_seconds: Optional[int] = None,
@@ -325,6 +327,7 @@ class AsyncImagesService:
     async def get(
         self,
         image_id: str,
+        /,
         *,
         wait: Literal["ready"] | None = None,
         timeout: Optional[float] = None,
@@ -348,7 +351,7 @@ class AsyncImagesService:
             lambda image: image.status,
         )
 
-    async def promote(self, image_id: str, name: str) -> Image:
+    async def promote(self, image_id: str, name: str, /) -> Image:
         """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``).
 
         Promotion only: an image that already has a name answers 409 — renaming
@@ -361,7 +364,7 @@ class AsyncImagesService:
         await self._transport.send(RequestSpec("PATCH", path, json_body={"name": name}))
         return await self.get(image_id)
 
-    async def delete(self, image_id: str) -> None:
+    async def delete(self, image_id: str, /) -> None:
         await self._transport.send(RequestSpec("DELETE", f"/images/{_path(image_id, 'image_id')}"))
 
     async def list(
@@ -563,6 +566,7 @@ class AsyncSnapshotsService:
     async def get(
         self,
         snapshot_id: str,
+        /,
         *,
         wait: Optional[Literal["ready"]] = None,
         timeout: Optional[float] = None,
@@ -577,7 +581,7 @@ class AsyncSnapshotsService:
             lambda snapshot: snapshot.status,
         )
 
-    async def delete(self, snapshot_id: str) -> None:
+    async def delete(self, snapshot_id: str, /) -> None:
         """Delete a snapshot (409 while sandboxes still depend on it)."""
         await self._transport.send(RequestSpec("DELETE", f"/snapshots/{_path(snapshot_id, 'snapshot_id')}"))
 
@@ -623,7 +627,7 @@ class AsyncVolumesService:
         ):
             yield item
 
-    async def get(self, name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume:
+    async def get(self, name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
         path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         # A truthy string must never act as True (it would create a volume).
@@ -682,7 +686,7 @@ class AsyncVolumesService:
             raise create_error("volume response is missing its id", 400, "BAD_REQUEST", "SDK")
         return created
 
-    async def delete(self, name_or_id: str, *, id_only: bool = False) -> None:
+    async def delete(self, name_or_id: str, /, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
         path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         if not isinstance(id_only, bool):
@@ -804,14 +808,14 @@ class AsyncReservationsService:
         ):
             yield item
 
-    async def get(self, reservation_id: str) -> MacReservation:
+    async def get(self, reservation_id: str, /) -> MacReservation:
         return _mac_reservation(
             await self._transport.send(
                 RequestSpec("GET", f"/reservations/{_path(reservation_id, 'reservation_id')}")
             )
         )
 
-    async def renew(self, reservation_id: str, *, idempotency_key: Optional[str] = None) -> MacReservation:
+    async def renew(self, reservation_id: str, /, *, idempotency_key: Optional[str] = None) -> MacReservation:
         """Renew the reservation for its next period, which the server charges.
 
         The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
@@ -821,7 +825,7 @@ class AsyncReservationsService:
         headers = _idempotency_headers(idempotency_key)
         return _mac_reservation(await self._transport.send(RequestSpec("POST", path, headers=headers)))
 
-    async def update(self, reservation_id: str, *, auto_renew: bool) -> MacReservation:
+    async def update(self, reservation_id: str, /, *, auto_renew: bool) -> MacReservation:
         """Turn the reservation's auto-renewal on or off.
 
         Turning it on needs macOS access enabled for the organization;
@@ -1028,7 +1032,7 @@ class AsyncSecretsService:
         async for item in _iter_pages(lambda next_cursor: self.list(cursor=next_cursor, limit=limit), cursor):
             yield item
 
-    async def get(self, name: str) -> Secret:
+    async def get(self, name: str, /) -> Secret:
         """Fetch one secret's metadata (never its value)."""
         return expect_secret(
             await self._transport.send(RequestSpec("GET", f"/secrets/{_path(name, 'name')}"))
@@ -1038,6 +1042,7 @@ class AsyncSecretsService:
         self,
         name: str,
         value: str,
+        /,
         *,
         allowed_domains: Sequence[str],
         description: Optional[str] = None,
@@ -1045,14 +1050,20 @@ class AsyncSecretsService:
     ) -> Secret:
         """Create or update a write-only secret.
 
-        ``allowed_domains``: The hosts where this secret's value may be sent
-        (exact or ``*.`` wildcard), or ``["*"]`` for any verified host.
-        ``"*"`` lets the value reach any HTTPS host, including one a
-        compromised sandbox controls.
+        ``value`` must not be empty. ``allowed_domains``: The hosts where this
+        secret's value may be sent (exact or ``*.`` wildcard), or ``["*"]`` for
+        any verified host. ``"*"`` lets the value reach any HTTPS host,
+        including one a compromised sandbox controls. ``description`` omitted
+        (or ``None``) keeps the stored description of an existing secret, read
+        first with :meth:`get` (one more request, not atomic with the write; an
+        error from it other than not-found fails the call; no read with
+        ``if_not_exists=True``); ``""`` clears it.
         """
         path = f"/secrets/{_path(name, 'name')}"
         if not isinstance(value, str):
             raise create_error("value must be a string", 400, "BAD_REQUEST", "SDK")
+        if not value:
+            raise create_error("value must not be empty", 400, "BAD_REQUEST", "SDK")
         if description is not None and not isinstance(description, str):
             raise create_error("description must be a string", 400, "BAD_REQUEST", "SDK")
         if not isinstance(if_not_exists, bool):
@@ -1067,6 +1078,12 @@ class AsyncSecretsService:
             # The API rejects an empty list (`["*"]` is any verified host).
             raise create_error("allowed_domains must not be empty", 400, "BAD_REQUEST", "SDK")
         body: JsonObject = {"value": value, "allowed_domains": list(allowed_domains)}
+        if description is None and not if_not_exists:
+            # The API replaces the whole secret: keep the stored description.
+            try:
+                description = (await self.get(name)).description
+            except NotFoundError:
+                description = None
         if description is not None:
             body["description"] = description
         headers = {"If-None-Match": "*"} if if_not_exists else {}
@@ -1074,6 +1091,6 @@ class AsyncSecretsService:
             await self._transport.send(RequestSpec("PUT", path, json_body=body, headers=headers))
         )
 
-    async def delete(self, name: str) -> None:
+    async def delete(self, name: str, /) -> None:
         """Delete a secret."""
         await self._transport.send(RequestSpec("DELETE", f"/secrets/{_path(name, 'name')}"))

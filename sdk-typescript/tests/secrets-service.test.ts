@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
+import { createHttpClient } from '../src/v2/http.js'
 import { SecretsService } from '../src/v2/Secret.js'
 import { INTERNAL } from '../src/v2/internal'
 
@@ -40,5 +41,44 @@ describe('secret metadata', () => {
     // Then
     expect(requests).toEqual([{ path: '/secrets/API%2FTOKEN', ifNoneMatch: '*',
       body: { value: 'value', allowed_domains: ['api.example.com'], description: 'API access' } }])
+  })
+
+  // Shared with the Python SDK's test_services.py: an omitted description keeps
+  // the stored one (the API replaces the whole secret); '' clears it.
+  it.each([
+    ['omitted, stored', { description: 'kept' }, {}, ['GET', 'PUT'], 'kept'],
+    ['omitted, null stored', { description: null }, {}, ['GET', 'PUT'], undefined],
+    ['omitted, new secret', undefined, {}, ['GET', 'PUT'], undefined],
+    ['null, stored', { description: 'kept' }, { description: null }, ['GET', 'PUT'], 'kept'],
+    ['empty', { description: 'kept' }, { description: '' }, ['PUT'], ''],
+    ['given', { description: 'kept' }, { description: 'new' }, ['PUT'], 'new'],
+    ['omitted, ifNotExists', { description: 'kept' }, { ifNotExists: true }, ['PUT'], undefined],
+  ] as const)('keeps or replaces the description: %s', async (_name, stored, options, methods, sent) => {
+    // Given
+    const requests: { method?: string; body: unknown }[] = []
+    // The API client's own error mapping turns the 404 into NotFoundError.
+    const http = createHttpClient('http://api.invalid', 'key')
+    http.defaults.adapter = async (config) => {
+      requests.push({ method: config.method?.toUpperCase(), body: config.data === undefined ? undefined : JSON.parse(config.data as string) })
+      if (config.method === 'get' && stored === undefined) {
+        const response = { config, status: 404, statusText: 'Not Found', headers: { 'content-type': 'application/json' }, data: { code: 'NOT_FOUND', message: 'not found' } }
+        throw new AxiosError('Request failed with status code 404', AxiosError.ERR_BAD_REQUEST, config, undefined, response)
+      }
+      return { config, status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, data: { ...wire, ...(stored ?? {}) } }
+    }
+    // When
+    await new SecretsService(INTERNAL, http).set('TOKEN', 'value', { allowedDomains: ['*'], ...options } as never)
+    // Then
+    expect(requests.map((request) => request.method)).toEqual(methods)
+    const put = requests[requests.length - 1]?.body as Record<string, unknown>
+    if (sent === undefined) expect(put).not.toHaveProperty('description')
+    else expect(put.description).toBe(sent)
+  })
+
+  it('refuses an empty value before any request', async () => {
+    const adapter = jest.fn()
+    const http = axios.create({ adapter })
+    await expect(new SecretsService(INTERNAL, http).set('TOKEN', '', { allowedDomains: ['*'] })).rejects.toMatchObject({ message: 'value must not be empty', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    expect(adapter).not.toHaveBeenCalled()
   })
 })

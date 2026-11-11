@@ -22,7 +22,7 @@ export type BuilderStep =
   | { readonly type: 'entrypoint'; readonly args: readonly string[] }
   | { readonly type: 'copy'; readonly archivePath: string; readonly remotePath: string }
 
-// Use Python's whitespace set for parity; JSON-rendered values stay as given.
+// Use Python's whitespace set for parity; env values stay literal, as given.
 /** @internal */
 export function assertText(value: unknown, label: string): string {
   if (typeof value !== 'string' || isBlank(value)) throw badRequest(`${label} must be a non-empty string`)
@@ -52,7 +52,7 @@ export function renderStep(step: BuilderStep): string {
     case 'run':
       return step.commands.map((command) => `RUN ${command}`).join('\n')
     case 'env':
-      return step.entries.map(([key, value]) => `ENV ${key}=${JSON.stringify(value)}`).join('\n')
+      return step.entries.map(([key, value]) => `ENV ${key}=${JSON.stringify(value).replace(/\$/g, () => '\\$')}`).join('\n')
     case 'workdir':
       return `WORKDIR ${step.path}`
     case 'user':
@@ -97,4 +97,36 @@ export function envName(value: string, label: string): string {
     throw badRequest(`${label} ${JSON.stringify(name)} must not contain '=', whitespace or a control character`)
   }
   return name
+}
+
+/** Env values are literal Dockerfile words; C0 and DEL have no literal form. @internal */
+export function envValue(value: unknown, label: string): string {
+  const text = assertText(value, label)
+  // Do not echo the value: it may be a secret.
+  if (/[\x00-\x1f\x7f]/.test(text)) throw badRequest(`${label} must not contain a control character`)
+  return text
+}
+
+// Go's unicode.IsSpace (Latin-1 and the Unicode White_Space set).
+const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/
+
+/**
+ * The escape character BuildKit reads from the parser directives: a port of
+ * BuildKit's processLine + DirectiveParser.ParseLine (v0.31.2), as Python's
+ * dockerfile_escape. Shared by env rendering and local COPY escaping. @internal
+ */
+export function dockerfileEscape(dockerfile: string): string {
+  let escape = '\\'
+  const seen = new Set<string>()
+  for (const [index, raw] of dockerfile.split('\n').entries()) {
+    const line = (index === 0 ? raw.replace(/^\ufeff/, '') : raw).replace(/[\r\n]+$/, '').replace(GO_SPACE, '')
+    if (!line.startsWith('#')) break
+    const match = /^([a-zA-Z][a-zA-Z0-9]*)[\t\n\f\r ]*=[\t\n\f\r ]*([^\n]+?)[\t\n\f\r ]*$/.exec(line.slice(1).replace(GO_SPACE, ''))
+    if (match === null) break
+    const name = match[1].toLowerCase()
+    if (!['syntax', 'escape', 'check'].includes(name) || seen.has(name)) break
+    seen.add(name)
+    if (name === 'escape') escape = match[2]
+  }
+  return escape
 }

@@ -128,7 +128,8 @@ export class ImagesService {
 
   /**
    * Build an image from a Dockerfile inside a build-context tar archive: its
-   * bytes, a `Blob`, or (Node.js) the path of a `.tar` file or directory, up to 1 GiB.
+   * bytes (an `ArrayBuffer` or any view), a `Blob`, or (Node.js) the path of a
+   * `.tar` file or directory, up to 1 GiB.
    * Directories honour the Dockerfile-specific ignore file, else `.dockerignore`.
    * `dockerfile` is the Dockerfile's path inside it (default `Dockerfile`).
    * The archive is uploaded in parts and verified before the build starts.

@@ -103,13 +103,13 @@ describe('shell sessions', () => {
     const post = jest.spyOn(transport, 'post').mockResolvedValue(terminal)
     const get = jest.spyOn(transport, 'get')
     const session = new ProcessService(INTERNAL, transport, 'sandbox-1').connectSession('shell-1')
-    const options: SessionRunOptions = { stdin: 'open', timeoutSeconds: 0.1, executionTimeoutSeconds: 0.2001, name: 'job', keepLogs: 'until_cleanup' }
+    const options: SessionRunOptions = { stdin: 'closed', timeoutSeconds: 0.1, executionTimeoutSeconds: 0.2001, name: 'job', keepLogs: 'until_cleanup' }
     // When
     const result = await session.run('echo hello', options)
     // Then
     expect(post).toHaveBeenCalledTimes(1)
     expect(post).toHaveBeenCalledWith('/processes?waitMs=100&logs=text', {
-      kind: 'exec', sessionId: 'shell-1', shellCommand: 'echo hello', stdin: 'open', timeoutMs: 201, name: 'job', keepLogs: 'until_cleanup',
+      kind: 'exec', sessionId: 'shell-1', shellCommand: 'echo hello', stdin: 'closed', timeoutMs: 201, name: 'job', keepLogs: 'until_cleanup',
     }, { timeout: 100 + WAIT_READ_SLACK_MS })
     expect(get).not.toHaveBeenCalled()
     expect(result).toMatchObject({ processId: 'command-1', reason: 'exited', exitCode: 0, stdout: 'hello', stderr: 'warning', output: 'hellowarning' })
@@ -124,7 +124,7 @@ describe('shell sessions', () => {
     await session.run('true', keepLogs === undefined ? {} : { keepLogs })
     // Then
     expect(post).toHaveBeenCalledWith('/processes?waitMs=60000&logs=text', {
-      kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', keepLogs: 'on_exit_ttl',
+      kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', stdin: 'closed', keepLogs: 'on_exit_ttl',
     }, { timeout: 65_000 })
   })
 
@@ -185,7 +185,7 @@ describe('shell sessions', () => {
     expect(handle.toJSON()).toEqual({ sandboxId: 'sandbox-1', processId: 'command-1', kind: 'exec' })
   })
 
-  it('uses only the bound identity when start options are omitted', async () => {
+  it('uses only the bound identity and the default keepLogs when start options are omitted', async () => {
     // Given
     const transport = new HttpTransport('http://toolbox.invalid')
     const post = jest.spyOn(transport, 'post').mockResolvedValue(createdWire({ id: 'command-1' }))
@@ -193,7 +193,7 @@ describe('shell sessions', () => {
     // When
     await session.start('true')
     // Then
-    expect(post).toHaveBeenCalledWith('/processes', { kind: 'exec', sessionId: 'shell-1', shellCommand: 'true' }, undefined)
+    expect(post).toHaveBeenCalledWith('/processes', { kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', stdin: 'closed', keepLogs: 'on_exit_ttl' }, undefined)
   })
 
   it('returns the live cwd when getting the encoded session process', async () => {

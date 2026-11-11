@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { runInNewContext } from 'node:vm'
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import type { IncomingHttpHeaders, Server } from 'node:http'
@@ -294,6 +295,36 @@ it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own len
   expect(puts().length).toBeGreaterThan(1)
   expect(puts().every((request) => request.headers['content-length'] === String(request.body.byteLength))).toBe(true)
   expect(puts().every((request) => request.headers['transfer-encoding'] === undefined)).toBe(true)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+it('uploads a view of shared memory as a copy of its bytes', async () => {
+  const data = archive(10_000)
+  const shared = new Uint8Array(new SharedArrayBuffer(data.byteLength))
+  shared.set(data)
+  await service().buildFromContext(shared)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+it('uploads an ArrayBuffer from another realm', async () => {
+  const data = archive(10_000)
+  const foreign = runInNewContext(`new ArrayBuffer(${data.byteLength})`) as ArrayBuffer
+  new Uint8Array(foreign).set(data)
+  expect(foreign instanceof ArrayBuffer).toBe(false)
+  await service().buildFromContext(foreign)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+// Shared with the Python SDK's test_build_context_upload.py: every bytes-like
+// value is a context, read as its exact byte range.
+it.each(['arraybuffer', 'dataview', 'int8array'] as const)('uploads a %s context as its exact bytes', async (kind) => {
+  const data = archive(10_000)
+  const padded = new Uint8Array(data.byteLength + 2)
+  padded.set(data, 1)
+  const context = kind === 'arraybuffer'
+    ? data.slice().buffer
+    : kind === 'dataview' ? new DataView(padded.buffer, 1, data.byteLength) : new Int8Array(padded.buffer, 1, data.byteLength)
+  await service().buildFromContext(context)
   expect(inPartOrder(puts())).toEqual(Buffer.from(data))
 })
 

@@ -47,6 +47,50 @@ def test_domains_default_block_all_true() -> None:
     }
 
 
+# Shared with the TypeScript SDK's networkPolicyValidation.test.ts: an open
+# policy ignores allow_cidrs, so a CIDR list without block_all True or a domain
+# list is refused rather than creating an open sandbox.
+@pytest.mark.parametrize(
+    "policy",
+    [
+        {"allow_cidrs": ["10.0.0.0/8"]},
+        {"allow_cidrs": ["10.0.0.0/8"], "block_all": False},
+        {"allow_cidrs": ["10.0.0.0/8"], "block_all": None},
+        {"allow_cidrs": ["10.0.0.0/8"], "allow_domains": None},
+    ],
+)
+def test_an_open_cidr_only_policy_is_refused(policy: dict[str, object]) -> None:
+    with pytest.raises(
+        BadRequestError,
+        match=r"^network_policy allow_cidrs restricts egress only with block_all set to true or with "
+        r"allow_domains; without them the policy is open$",
+    ) as raised:
+        serialize_network_policy_input(policy)  # type: ignore[arg-type]
+    assert (raised.value.status_code, raised.value.code, raised.value.source) == (400, "BAD_REQUEST", "SDK")
+
+
+@pytest.mark.parametrize(
+    ("policy", "body"),
+    [
+        (
+            {"allow_cidrs": ["10.0.0.0/8"], "block_all": True},
+            {"allow_cidrs": ["10.0.0.0/8"], "block_all": True},
+        ),
+        (
+            {"allow_cidrs": ["10.0.0.0/8"], "allow_domains": ["a.example"]},
+            {"allow_cidrs": ["10.0.0.0/8"], "allow_domains": ["a.example"]},
+        ),
+        (
+            {"allow_cidrs": ["10.0.0.0/8"], "allow_domains": []},
+            {"allow_cidrs": ["10.0.0.0/8"], "allow_domains": []},
+        ),
+        ({"allow_cidrs": []}, {"allow_cidrs": []}),
+    ],
+)
+def test_a_restricting_cidr_policy_is_sent(policy: dict[str, object], body: dict[str, object]) -> None:
+    assert serialize_network_policy_input(policy) == body  # type: ignore[arg-type]
+
+
 def test_block_all_none_is_omitted() -> None:
     assert serialize_network_policy_input({"allow_domains": ["api.example.com"], "block_all": None}) == {
         "allow_domains": ["api.example.com"]
