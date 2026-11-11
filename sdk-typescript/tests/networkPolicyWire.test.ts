@@ -119,9 +119,10 @@ describe('network policy wire contract', () => {
     try {
       const policy = await lazySandbox(client, 'sbx').getNetworkPolicy()
       expect(sentRequest(api, 1).path).toBe('/sandboxes/sbx/network-policy')
-      expect(policy).toMatchObject({ etag: '"np-7"', httpStatus: 200, desiredRevision: 7, appliedRevision: 6, appliedStartId: 'start-1', status: 'pending' })
+      expect(policy).toMatchObject({ etag: '"np-7"', desiredRevision: 7, appliedRevision: 6, appliedStartId: 'start-1', status: 'pending' })
+      expect(policy).not.toHaveProperty('httpStatus')
       expect(policy.desired).toMatchObject({ version: 2, blockAll: true, allowCidrs: ['1.2.3.4/32'], allowDomains: ['api.example.com'] })
-      expect(policy.applied).toMatchObject({ version: 2, blockAll: false, allowCidrs: [], allowDomains: null })
+      expect(policy.applied).toMatchObject({ version: 2, blockAll: false, allowCidrs: [], allowDomains: undefined })
     } finally {
       await api.close()
     }
@@ -160,8 +161,8 @@ describe('network policy wire contract', () => {
     try {
       const updated = await lazySandbox(client, 'sbx').updateNetworkPolicy({ blockAll: true, allowCidrs: [], allowDomains: [] }, { ifMatch: '"np-1"' })
       const reset = await lazySandbox(client, 'sbx').resetNetworkPolicy({ ifMatch: '"np-2"' })
-      expect(updated).toMatchObject({ etag: '"np-2"', httpStatus: 202, desiredRevision: 2, status: 'pending' })
-      expect(reset).toMatchObject({ etag: '"np-3"', httpStatus: 202, desiredRevision: 3, status: 'applied' })
+      expect(updated).toMatchObject({ etag: '"np-2"', desiredRevision: 2, status: 'pending' })
+      expect(reset).toMatchObject({ etag: '"np-3"', desiredRevision: 3, status: 'applied' })
     } finally {
       await api.close()
     }
@@ -193,7 +194,7 @@ describe('network policy wire contract', () => {
     ])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
-      await expect(lazySandbox(client, 'sbx').getNetworkPolicy()).resolves.toMatchObject({ etag: '"np-4"', httpStatus: 200, desiredRevision: 4 })
+      await expect(lazySandbox(client, 'sbx').getNetworkPolicy()).resolves.toMatchObject({ etag: '"np-4"', desiredRevision: 4 })
     } finally {
       await api.close()
     }

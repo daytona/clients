@@ -55,13 +55,12 @@ def _isolated_context_id(language: str) -> str:
 def _json_identity(value: object) -> Optional[tuple[str, str, str]]:
     """``(sandbox_id, context_id, language)`` of a serialized context.
 
-    Reads the camelCase ``to_json()`` shape (shared with the TypeScript SDK)
-    and the snake_case keys earlier 2.x pre-releases wrote.
+    Reads only the camelCase ``to_json()`` shape, shared with the TypeScript SDK.
     """
     if not isinstance(value, Mapping):
         return None
-    sandbox_id = value.get("sandboxId", value.get("sandbox_id"))
-    context_id = value.get("contextId", value.get("context_id"))
+    sandbox_id = value.get("sandboxId")
+    context_id = value.get("contextId")
     language = value.get("language")
     if isinstance(sandbox_id, str) and isinstance(context_id, str) and isinstance(language, str):
         return sandbox_id, context_id, language
@@ -93,7 +92,7 @@ def _session_identity(value: object, *, requested_id: Optional[str] = None) -> t
 def _timed_out_result() -> InterpreterResult:
     return InterpreterResult(
         process=InterpreterProcess(reason="timed_out"),
-        results=[],
+        results=(),
         logs=InterpreterLogs(),
         error=None,
     )
@@ -491,7 +490,7 @@ class AsyncInterpreterService:
                 signal=wait.signal,
                 raw_reason=wait.raw_reason,
             ),
-            results=results,
+            results=tuple(results),
             logs=InterpreterLogs(stdout=stdout, stderr=stderr),
             error=error,
         )
@@ -585,7 +584,7 @@ def _parse_error(payload: str) -> Optional[InterpreterError]:
     return InterpreterError(
         name=str(decoded.get("ename") or ""),
         value=str(decoded.get("evalue") or ""),
-        traceback=[str(item) for item in traceback] if isinstance(traceback, list) else [],
+        traceback=tuple(str(item) for item in traceback) if isinstance(traceback, list) else (),
     )
 
 

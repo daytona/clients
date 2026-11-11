@@ -6,7 +6,7 @@
 // allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
 
 import { queryText } from './pageParams.js'
-import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
+import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, isRedirectStatus, redirectError, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
 import { isRfc3339 } from './rfc3339.js'
 import { MAX_TIMER_DELAY_MS, boundedTimerDelay, badRequest, waitDeadline } from './options.js'
@@ -72,6 +72,10 @@ export class BuildLogInterruptedError extends DaytonaError {
 class ProtocolError extends Error {}
 class Retry extends Error {
   constructor(message: string, readonly retryAfter = 0) { super(message) }
+}
+/** The initial discovery request's HTTP error, raised to the caller unchanged. */
+class DiscoveryFailure extends Error {
+  constructor(readonly error: DaytonaError) { super(error.message) }
 }
 class CallbackError extends Error {
   constructor(readonly cause: unknown) { super('build log callback failed') }
@@ -145,8 +149,16 @@ type Message = { id?: string } & (
   | { event: 'error'; data: api.BuildLogError }
 )
 
-/** Construct generated wire DTOs at the JSON boundary; tolerate extra fields. */
-function parseMessage(event: string, id: string | undefined, json: string): Message {
+const KNOWN_EVENTS: ReadonlySet<string> = new Set(['state', 'log', 'gap', 'unavailable', 'source_changed', 'done', 'error'])
+
+/**
+ * Construct generated wire DTOs at the JSON boundary; tolerate extra fields.
+ * An event this release does not know (a later API added it) is skipped
+ * unparsed (`undefined`), and its ID is not a checkpoint, so the cursor does
+ * not move, as watches skip theirs (and as Python).
+ */
+function parseMessage(event: string, id: string | undefined, json: string): Message | undefined {
+  if (!KNOWN_EVENTS.has(event)) return undefined
   const data = jsonObject(json)
   switch (event) {
     case 'state': return { event, id, data: {
@@ -238,12 +250,12 @@ export async function* buildLogMessages(response: Response): AsyncIterable<Messa
         used = 0
         if (value === '') {
           if (data.length) {
-            let message: Message
+            let message: Message | undefined
             try { message = parseMessage(event, id, data.join('\n')) } catch (error) {
               if (error instanceof ProtocolError) throw error
               throw new ProtocolError('invalid event JSON')
             }
-            yield message
+            if (message !== undefined) yield message
           } else if (id !== undefined) throw new ProtocolError('event ID without data')
           event = 'message'; id = undefined; data = []; size = 0
           continue
@@ -446,6 +458,11 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
 }
 
 async function httpError(response: Response, deadline: number | undefined): Promise<DaytonaError> {
+  // The SDK follows no redirect; its body is never read.
+  if (response.type === 'opaqueredirect' || isRedirectStatus(response.status)) {
+    await cancelResponse(response)
+    return redirectError(response.status)
+  }
   try {
     const body = await finiteBody(response, deadline, 'error')
     return errorFromEnvelopeBody(body, response.headers.get('content-type'), response.status, `build log HTTP ${response.status}`, true)
@@ -568,7 +585,17 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
       let response: Response | undefined
       let delay: number
       try {
-      if (!target) target = destination(api, await discovery(api, path, controller.signal), path)
+        if (!target) {
+          let payload: api.BuildLogsUrl
+          try { payload = await discovery(api, path, controller.signal) } catch (error) {
+            // An HTTP error of the discovery request (a 404 for an unknown
+            // image, a 401, ...) is the caller's answer: raised as its mapped
+            // typed error, not wrapped as an interruption (as Python).
+            if (error instanceof DaytonaError && error.statusCode !== undefined && !(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw new DiscoveryFailure(error)
+            throw error
+          }
+          target = destination(api, payload, path)
+        }
         const query = new URLSearchParams({ follow: 'true', format: 'sse' })
         if (observer.cursor !== undefined) query.set('cursor', observer.cursor)
         const deadline = requestDeadline(target.defaultTimeout)
@@ -604,6 +631,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
     }
   } catch (cause) {
     if (cause instanceof BuildLogInterruptedError) throw cause
+    if (cause instanceof DiscoveryFailure && !controller.signal.aborted) throw cause.error
     let code = cause instanceof CallbackError ? 'BUILD_LOG_CALLBACK_ERROR' : cause instanceof ProtocolError ? 'BUILD_LOG_PROTOCOL_ERROR' : cause instanceof DaytonaError ? cause.code : undefined
     if (controller.signal.aborted) code = options.signal?.aborted ? 'BUILD_LOG_CANCELED' : 'REQUEST_TIMEOUT'
     throw new BuildLogInterruptedError(cause instanceof Error ? cause.message : String(cause), {

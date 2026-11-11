@@ -110,7 +110,7 @@ async def test_get_decodes_every_capture_status(
 async def test_get_decodes_absent_optional_fields_as_none() -> None:
     info = await _get({"secrets": [], "desired_revision": 0})
 
-    assert info == SandboxSecretsInfo(secrets=(), desired_revision=0, etag='"sv-3"', http_status=200)
+    assert info == SandboxSecretsInfo(secrets=(), desired_revision=0, etag='"sv-3"')
 
 
 async def test_every_contract_response_property_is_decoded() -> None:
@@ -131,7 +131,7 @@ async def test_every_contract_response_property_is_decoded() -> None:
     assert all(value is not None for value in decoded.values()), decoded
     # Same drift check as the TS suite: the SDK type carries exactly the
     # contract's properties plus its own response metadata, no more.
-    sdk_fields = {field.name for field in dataclasses.fields(info)} - {"etag", "http_status"}
+    sdk_fields = {field.name for field in dataclasses.fields(info)} - {"etag"}
     assert sdk_fields == set(schema["properties"])
 
 
@@ -244,4 +244,5 @@ async def test_detach_all_sends_an_explicit_empty_array_with_if_match() -> None:
         '"sv-3"',
     )
     assert json_body(request) == {"secrets": []}
-    assert (info.secrets, info.desired_revision, info.etag, info.http_status) == ((), 4, '"sv-4"', 202)
+    assert (info.secrets, info.desired_revision, info.etag) == ((), 4, '"sv-4"')
+    assert not hasattr(info, "http_status")

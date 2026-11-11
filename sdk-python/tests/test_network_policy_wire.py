@@ -88,7 +88,7 @@ async def test_get_network_policy_returns_etag_and_read_side_versions() -> None:
 
     assert api.requests[0].path == "/sandboxes/sbx/network-policy"
     assert policy.etag == '"np-7"'
-    assert policy.http_status == 200
+    assert not hasattr(policy, "http_status")
     assert policy.desired is not None and policy.desired.version == 2
     assert policy.applied is not None and policy.applied.version == 2
     assert policy.applied_start_id == "start-1"
@@ -136,9 +136,7 @@ async def test_update_and_reset_network_policy_use_exact_path_headers_and_actual
         finally:
             await client.close()
 
-    assert updated.http_status == 202
     assert updated.etag == '"np-2"'
-    assert reset.http_status == 202
     assert reset.etag == '"np-3"'
     assert api.requests[0].path == "/sandboxes/sbx/network-policy"
     assert api.requests[0].headers["If-Match"] == '"np-1"'
@@ -266,7 +264,7 @@ async def test_network_policy_response_parser_accepts_non_api_200_compat_success
         finally:
             await client.close()
 
-    assert policy.http_status == 200
+    assert not hasattr(policy, "http_status")
     assert policy.etag == '"np-4"'
 
 

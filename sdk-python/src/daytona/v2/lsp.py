@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import TracebackType
-from typing import List, Mapping, Optional, Union
+from typing import Mapping, Optional, Union
 
 from typing_extensions import Self
 
@@ -76,7 +76,7 @@ class LspCompletionItem:
 @dataclass(frozen=True, kw_only=True)
 class LspCompletionList:
     is_incomplete: bool
-    items: List[LspCompletionItem]
+    items: tuple[LspCompletionItem, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -137,7 +137,7 @@ def _expect_completion_list(value: TransportPayload) -> LspCompletionList:
             "SDK",
         ) from exc
     return LspCompletionList(
-        is_incomplete=model.is_incomplete, items=[_completion_item(item) for item in model.items]
+        is_incomplete=model.is_incomplete, items=tuple(_completion_item(item) for item in model.items)
     )
 
 

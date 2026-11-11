@@ -40,7 +40,7 @@ describe('sandbox secret wire contract', () => {
     try {
       const info = await lazySandbox(client, 'sbx').getSecrets()
       expect(sentRequest(api, 1).path).toBe('/sandboxes/sbx/secrets')
-      expect(info).toMatchObject({ etag: '"sv-7"', httpStatus: 200, desiredRevision: 7, appliedRevision: 6, status: 'pending' })
+      expect(info).toMatchObject({ etag: '"sv-7"', desiredRevision: 7, appliedRevision: 6, status: 'pending' })
       expect(info.secrets).toEqual(['OPENAI_API_KEY', 'GITHUB_TOKEN'])
     } finally {
       await api.close()
@@ -66,7 +66,7 @@ describe('sandbox secret wire contract', () => {
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
     try {
       const updated = await lazySandbox(client, 'sbx').replaceSecrets(['OPENAI_API_KEY'], { ifMatch: '"sv-1"' })
-      expect(updated).toMatchObject({ etag: '"sv-2"', httpStatus: 202, desiredRevision: 2, status: 'pending' })
+      expect(updated).toMatchObject({ etag: '"sv-2"', desiredRevision: 2, status: 'pending' })
     } finally {
       await api.close()
     }

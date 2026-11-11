@@ -162,7 +162,7 @@ class AsyncPortsService:
             page = await self.list_endpoints(cursor=current, limit=limit)
             for item in page.items:
                 yield item
-            if page.next_cursor is None or page.next_cursor == current or page.next_cursor in seen:
+            if not page.next_cursor or page.next_cursor == current or page.next_cursor in seen:
                 return
             seen.add(page.next_cursor)
             current = page.next_cursor

@@ -127,7 +127,6 @@ from daytona.v2.errors import (
     PayloadTooLargeError,
     ProcessNotFoundError,
     ProjectBudgetExceededError,
-    RateLimitedError,
     RateLimitError,
     SandboxNotRunningError,
     SearchNotConfiguredError,
@@ -922,7 +921,7 @@ def _image_page_payload(image_id: str) -> dict[str, object]:
         ({"type": "registry", "ref": "python:3.12"}, RegistryImageSource(ref="python:3.12")),
         (
             {"type": "dockerfile", "context_object": "ctx", "dockerfile": "Dockerfile"},
-            DockerfileImageSource(context_object="ctx", dockerfile="Dockerfile"),
+            DockerfileImageSource(dockerfile="Dockerfile"),
         ),
         ({"type": "named", "name": "base"}, NamedImageSource(name="base")),
         ({"type": "manifest", "name": "base"}, ManifestImageSource(name="base")),
@@ -1556,7 +1555,7 @@ async def test_filesystem_write_many_shapes_indexed_multipart_request():
     result = await fs.write_many({"/tmp/a.txt": b"AAA", "/tmp/b.txt": b"BB"})
 
     assert [(item.path, item.bytes) for item in result.files] == [("/tmp/a.txt", 3), ("/tmp/b.txt", 2)]
-    assert result.errors == ["file[2]: missing .path metadata"]
+    assert result.errors == ("file[2]: missing .path metadata",)
     assert transport.specs[0].method == "POST"
     assert transport.specs[0].path == "/files/bulk-upload"
     assert transport.specs[0].timeout is None
@@ -2221,7 +2220,7 @@ async def test_filesystem_read_many_keeps_payload_bytes_that_look_like_the_bound
     result = await fs.read_many(["bin.dat"])
 
     assert result.files == {"bin.dat": payload}
-    assert result.errors == []
+    assert result.errors == ()
 
 
 @pytest.mark.anyio
@@ -6201,9 +6200,9 @@ async def test_interpreter_context_to_json_is_identity_only_and_rebinds_cleanly(
     # The camelCase identity the TypeScript SDK writes and reads too.
     assert serialized == {"sandboxId": "sbx", "contextId": "ctx", "language": "python"}
     assert json.loads(json.dumps(serialized)) == serialized
-    # A snake_case identity from an earlier pre-release still reconnects.
-    legacy = interpreter.connect_context({"sandbox_id": "sbx", "context_id": "ctx", "language": "python"})  # type: ignore[arg-type]
-    assert legacy == context
+    # The snake_case identity of earlier pre-releases is refused, as in TypeScript.
+    with pytest.raises(BadRequestError, match="needs string sandboxId, contextId and language"):
+        interpreter.connect_context({"sandbox_id": "sbx", "context_id": "ctx", "language": "python"})  # type: ignore[arg-type]
 
     rebound = interpreter.connect_context(serialized)
     result = await rebound.run("print(1)")
@@ -7619,7 +7618,7 @@ def test_unified_error_envelope_message_trace_and_extras_are_surfaced():
             "firstAvailableCursor": "cursor-1",
         },
     )
-    assert isinstance(err, RateLimitedError)
+    assert type(err) is RateLimitError
     assert str(err) == "retry this request later"
     assert err.trace_id == "0af7651916cd43dd8448eb211c80319c"
     assert err.retry_after_seconds == 7

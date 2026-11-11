@@ -309,9 +309,17 @@ export class Sandbox {
   /** @internal */
   public get toolboxProxyUrl(): string | undefined { return this.toolboxProxyUrlValue }
   public get name(): string | undefined { return this.observed.name }
-  public get image(): ImageRef | null { return this.observed.image ?? null }
-  public get snapshot(): SnapshotRef | null { return this.observed.snapshot ?? null }
-  public get labels(): Readonly<Record<string, string>> { return this.observed.labels ?? {} }
+  /** The image the sandbox booted; undefined for a snapshot restore or before it is known. */
+  public get image(): ImageRef | undefined { return this.observed.image }
+  /** The memory snapshot the sandbox resumed; undefined when it booted an image or before it is known. */
+  public get snapshot(): SnapshotRef | undefined { return this.observed.snapshot }
+  /**
+   * The sandbox labels; undefined until the API has reported them (a
+   * `create*()` or `fork()` handle whose wait read nothing holds only what the
+   * create response carries: call `refreshData()` to load them). Replace them
+   * with `setLabels()`.
+   */
+  public get labels(): Readonly<Record<string, string>> | undefined { return this.observed.labels }
   /** Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU). */
   public get cpu(): number | undefined { return this.observed.cpu }
   /** CPU limit (the boot shape), in cores; undefined when the API did not report it. */
@@ -320,7 +328,8 @@ export class Sandbox {
   public get memoryMax(): number | undefined { return this.observed.memoryMax }
   public get disk(): number | undefined { return this.observed.disk }
   public get diskMax(): number | undefined { return this.observed.diskMax }
-  public get state(): SandboxState | undefined { return this.observed.state }
+  /** The last observed state; `unknown` before any read and for a state this SDK does not know. */
+  public get state(): SandboxState { return this.observed.state ?? 'unknown' }
   public get rawState(): string | undefined { return this.observed.rawState }
   public get error(): string | undefined { return this.observed.error }
   public get imageBuildId(): string | undefined { return this.observed.imageBuildId }
@@ -330,10 +339,10 @@ export class Sandbox {
   public get user(): string | undefined { return this.observed.user }
   public get region(): string | undefined { return this.observed.region }
   /**
-   * macOS only: how the sandbox resumed, as reported by the API. Null
+   * macOS only: how the sandbox resumed, as reported by the API. Undefined
    * for any other class and for a sandbox not resumed since it last booted.
    */
-  public get macBootMode(): MacBootMode | null {
+  public get macBootMode(): MacBootMode | undefined {
     return this.observed.macBootMode
   }
   /** macOS only: whether the sandbox preserves its disk when stopped; undefined on a
@@ -684,7 +693,8 @@ export class Sandbox {
       current: () => ({ state: this.state ?? 'unknown', rawState: this.rawState ?? '', reason: this.error }),
       observe: (outcome) => {
         this.observed.state = outcome.state
-        this.observed.rawState = outcome.rawState
+        // A frame without a status leaves the wire status unknown (never '').
+        this.observed.rawState = outcome.rawState || undefined
       },
     }, states, options)
   }
@@ -1086,8 +1096,9 @@ export class Sandbox {
       { labels: body },
       requestConfig,
     ).then((result) => checkResponse<{ readonly labels: unknown }>(result.data, { labels: 'object' }, 'sandbox labels'))
-    this.observed.labels = parseLabels(response.labels, 'sandbox labels')
-    return this.labels
+    const applied = parseLabels(response.labels, 'sandbox labels')
+    this.observed.labels = applied
+    return applied
   }
 
   /** Return the sandbox entrypoint log as plain text. */
@@ -1123,9 +1134,11 @@ export class Sandbox {
 
   /**
    * Observe this sandbox's build without changing its execution lifetime.
-   * Discovery failures, including a 404 for a sandbox with no image build,
-   * throw BuildLogInterruptedError with the HTTP status and last cursor.
-   * They do not fall back to another log source.
+   * An HTTP error of the initial discovery request, including a 404 for a
+   * sandbox with no image build, throws its typed error (`NotFoundError`, ...)
+   * unchanged; once the follower is running, a failure throws
+   * BuildLogInterruptedError with the last cursor. It does not fall back to
+   * another log source.
    */
   public async followBuildLogs(options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')

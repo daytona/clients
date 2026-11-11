@@ -26,7 +26,6 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
     secrets: requiredStringArray(data.secrets, 'secrets'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
-    httpStatus: response.status,
     appliedRevision: optionalInteger(data.applied_revision, 'applied_revision'),
     status: optionalString(data.status),
     error: optionalString(data.error),

@@ -28,20 +28,38 @@ it('maps image metadata and nested sources without exposing wire fields', async 
     availableIn: ['region-a', 'region-b'], region: 'region-a',
     createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z',
   })
-  expect(image.source).toEqual({ type: 'dockerfile', contextObject: 'context-one', dockerfile: 'Dockerfile' })
+  expect(image.source).toEqual({ type: 'dockerfile', dockerfile: 'Dockerfile' })
+  expect(image.source).not.toHaveProperty('contextObject')
   for (const key of ['class', 'layer_count', 'cursor', 'future_field', 'rawSandboxClass']) {
     expect(image).not.toHaveProperty(key)
   }
 })
 
-it('normalizes absent image metadata while retaining its nullable name and disk size', () => {
+it('normalizes absent image metadata to undefined, name and disk size included', () => {
   // Given optional fields explicitly null on the wire.
   const wire = imageWire({ name: null, source: null, bytes: null, layer_count: null, error: null, expires_at: null, disk_mib: null })
   // When converting the response into an SDK model.
   const image = new Image(INTERNAL, wire)
   // Then absent optional values use undefined consistently.
-  expect(image).toMatchObject({ name: null, diskMib: null, source: undefined, bytes: undefined,
+  expect(image).toMatchObject({ name: undefined, diskMib: undefined, source: undefined, bytes: undefined,
     layerCount: undefined, error: undefined, expiresAt: undefined })
+})
+
+it('maps a source kind this release does not know to unknown, keeping the wire type', () => {
+  // A later API's source kind is no malformed response (as Python).
+  const image = new Image(INTERNAL, imageWire({ source: { type: 'oci_layout', uri: 'oci://example' } as never }))
+  expect(image.source).toEqual({ type: 'unknown', rawType: 'oci_layout' })
+  expect(Object.isFrozen(image.source)).toBe(true)
+})
+
+it.each([
+  [{ type: 'registry' }, 'image source'],
+  [{ type: 7 }, 'source.type'],
+  [{ type: '' }, 'source.type'],
+  [{ ref: 'alpine' }, 'source.type'],
+])('refuses a malformed source %j', (source, field) => {
+  // A known kind keeps every check; a type that is not a non-empty string is malformed.
+  expect(() => new Image(INTERNAL, imageWire({ source: source as never }))).toThrow(expect.objectContaining({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(field) }))
 })
 
 it.each(['linux', 'future-class'])('normalizes snapshot class %s and keeps the raw value', async (sandboxClass) => {

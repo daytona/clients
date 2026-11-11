@@ -145,21 +145,29 @@ def parse_computer_use_a11y_find_payload(value: TransportPayload) -> ComputerUse
     )
     raw_matches: List[JsonValue] = matches if isinstance(matches, list) else []
     return ComputerUseA11yFindResult(
-        matches=_parse_a11y_nodes(raw_matches, A11Y_MAX_DEPTH, description), truncated=wrapper.truncated
+        matches=tuple(_parse_a11y_nodes(raw_matches, A11Y_MAX_DEPTH, description)),
+        truncated=wrapper.truncated,
     )
 
 
 def _parse_a11y_nodes(
     roots: List[JsonValue], max_depth: int, description: str
 ) -> List[ComputerUseAccessibilityNodeInfo]:
-    """Map node trees with an explicit stack (each node's fields are read when
-    it is reached, its children appended to its list afterwards), so no step
+    """Map node trees with an explicit stack, freezing each node only after
+    its children have been built as tuples, so no step
     recurses whatever the response's depth. A node more than ``max_depth``
     levels below its root is the malformed-response error."""
     results: List[ComputerUseAccessibilityNodeInfo] = []
     stack: List[Tuple[JsonValue, int, List[ComputerUseAccessibilityNodeInfo]]] = [
         (node, 0, results) for node in reversed(roots)
     ]
+    pending: list[
+        tuple[
+            ComputerUseAccessibilityNode,
+            Optional[List[ComputerUseAccessibilityNodeInfo]],
+            List[ComputerUseAccessibilityNodeInfo],
+        ]
+    ] = []
     while stack:
         raw, depth, into = stack.pop()
         if depth > max_depth:
@@ -179,9 +187,14 @@ def _parse_a11y_nodes(
         if children is not None and not isinstance(children, list):
             raise create_error(f"expected {description}: children must be a list", 400, "BAD_REQUEST", "SDK")
         built: Optional[List[ComputerUseAccessibilityNodeInfo]] = None if children is None else []
-        into.append(_a11y_node_info(model, built))
+        pending.append((model, built, into))
         if built is not None and children:
             stack.extend((child, depth + 1, built) for child in reversed(children))
+    # Reverse traversal builds descendants first; reverse each sibling group
+    # back to wire order when freezing it.
+    for model, built, into in reversed(pending):
+        into.append(_a11y_node_info(model, None if built is None else tuple(reversed(built))))
+    results.reverse()
     return results
 
 
@@ -585,16 +598,20 @@ def _finite_or_none(value: Optional[float], description: str) -> Optional[float]
 
 def parse_computer_use_recording_list(payload: ComputerUseRecordingsResponse) -> ComputerUseRecordingList:
     return ComputerUseRecordingList(
-        recordings=[parse_computer_use_recording(item) for item in payload.recordings]
+        recordings=tuple(parse_computer_use_recording(item) for item in payload.recordings)
     )
 
 
-def parse_computer_use_displays(payload: ComputerUseDisplayInfoResponse) -> list[ComputerUseDisplayInfo]:
-    return [_parse_computer_use_display(display) for display in payload.displays]
+def parse_computer_use_displays(
+    payload: ComputerUseDisplayInfoResponse,
+) -> tuple[ComputerUseDisplayInfo, ...]:
+    return tuple(_parse_computer_use_display(display) for display in payload.displays)
 
 
-def parse_computer_use_windows(payload: ComputerUseDisplayWindowsResponse) -> list[ComputerUseWindowInfo]:
-    return [_parse_computer_use_window(window) for window in payload.windows]
+def parse_computer_use_windows(
+    payload: ComputerUseDisplayWindowsResponse,
+) -> tuple[ComputerUseWindowInfo, ...]:
+    return tuple(_parse_computer_use_window(window) for window in payload.windows)
 
 
 def _parse_computer_use_display(payload: ComputerUseDisplay) -> ComputerUseDisplayInfo:
@@ -622,7 +639,7 @@ def _parse_computer_use_window(payload: ComputerUseWindow) -> ComputerUseWindowI
 
 
 def _a11y_node_info(
-    payload: ComputerUseAccessibilityNode, children: Optional[List[ComputerUseAccessibilityNodeInfo]]
+    payload: ComputerUseAccessibilityNode, children: Optional[tuple[ComputerUseAccessibilityNodeInfo, ...]]
 ) -> ComputerUseAccessibilityNodeInfo:
     bounds_payload = payload.bounds
     return ComputerUseAccessibilityNodeInfo(
@@ -636,8 +653,8 @@ def _a11y_node_info(
             width=_i32(bounds_payload.width, "width", "computer-use accessibility node: bounds"),
             height=_i32(bounds_payload.height, "height", "computer-use accessibility node: bounds"),
         ),
-        states=payload.states,
-        actions=payload.actions,
+        states=tuple(payload.states),
+        actions=tuple(payload.actions) if payload.actions is not None else None,
         children=children,
         value=payload.value,
         value_truncated=bool(payload.value_truncated),
