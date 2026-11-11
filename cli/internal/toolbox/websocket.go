@@ -41,13 +41,14 @@ func (e *WebSocketCloseError) Error() string {
 
 // closeFrameError reads a close frame's payload: nil for a normal closure (no
 // status, or 1000 with a valid reason), else a *WebSocketCloseError. A close
-// frame cut short, or whose reason is not UTF-8, is malformed (RFC 6455
-// section 7.1.6), whatever its status.
+// frame cut short, longer than a control frame may be, or whose reason is not
+// UTF-8 is malformed (RFC 6455 sections 5.5 and 7.1.6), whatever its status.
 func closeFrameError(payload []byte) error {
 	if len(payload) == 0 {
 		return nil
 	}
-	if len(payload) < 2 || !utf8.Valid(payload[2:]) {
+	// A control frame carries at most 125 bytes (RFC 6455 section 5.5).
+	if len(payload) < 2 || len(payload) > 125 || !utf8.Valid(payload[2:]) {
 		return &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}
 	}
 	code := int(binary.BigEndian.Uint16(payload[:2]))

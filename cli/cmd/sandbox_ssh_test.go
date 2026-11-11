@@ -60,6 +60,10 @@ func TestToolboxSSH_buildsSSHInvocation(t *testing.T) {
 
 func TestToolboxSSH_redactsTheCredentialFromSSHStderr(t *testing.T) {
 	const key = "dtn_fixture_ssh_credential_0123456789"
+	// Held bytes must wait for the next write however slow the machine is.
+	oldHold := secretRedactorHold
+	secretRedactorHold = time.Hour
+	t.Cleanup(func() { secretRedactorHold = oldHold })
 	t.Setenv("DAYTONA_CONFIG_DIR", cfgDir(t))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
