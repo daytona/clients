@@ -19,6 +19,8 @@ from daytona.v2.errors import ClientTimeoutError, RequestTimeoutError
 from daytona.v2.services import AsyncImagesService
 from daytona.v2.types import Image
 
+pytestmark = pytest.mark.timing
+
 
 @dataclass(frozen=True, slots=True)
 class Peer:

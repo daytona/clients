@@ -1016,7 +1016,7 @@ for changes that add code.
 Each package's full suite, for reference and for reproducing a CI failure:
 
 ```bash
-(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q -n 8 -m "not timing" && .venv/bin/python -m pytest -x -q -m timing)
 (cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./...)
 python3 scripts/changelog/assemble.py check --dir changelog.d
