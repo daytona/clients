@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -43,6 +44,17 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 		dc, err := auth.StartDevice(ctx, anon.HTTP, p)
 		if err != nil {
 			return err
+		}
+		if a.Format != output.FormatTable || !app.WriterIsTerminal(a.Stdout) {
+			event := struct {
+				VerificationURI         string `json:"verification_uri,omitempty"`
+				VerificationURIComplete string `json:"verification_uri_complete,omitempty"`
+				UserCode                string `json:"user_code,omitempty"`
+				ExpiresIn               int64  `json:"expires_in,omitempty"`
+			}{dc.VerificationURI, dc.VerificationURIComplete, dc.UserCode, dc.ExpiresIn}
+			if err := json.NewEncoder(a.Stdout).Encode(event); err != nil {
+				return err
+			}
 		}
 		// Flatten IdP-provided text before rendering to the terminal.
 		fmt.Fprintln(a.Stderr, auth.FormatDevicePrompt(&auth.DeviceCode{
@@ -95,7 +107,9 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 			prof.OrgID, prof.ProjectByOrg, prof.Identity = cur.OrgID, cur.ProjectByOrg, cur.Identity
 			previous = *cur
 		}
-		c.Upsert(prof)
+		if err := c.Upsert(prof); err != nil {
+			return false, false, err
+		}
 		if c.ActiveProfile == "" {
 			c.ActiveProfile = name
 		}

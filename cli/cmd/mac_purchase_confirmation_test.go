@@ -29,6 +29,7 @@ func macPurchaseAPI(t *testing.T) *fakeAPI {
 	t.Helper()
 	f := newFakeAPI(t)
 	f.on(http.MethodPost, "/sandboxes/macos", 202, macPurchaseCreated)
+	f.on(http.MethodGet, "/sandboxes/33333333-3333-3333-3333-333333333333", 200, sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending"))
 	f.on(http.MethodPost, "/reservations", 201, macReservationFixture(`"m4-10c-16g"`, m4Capacity))
 	f.on(http.MethodPost, "/reservations/bulk", 200, `{"requested":2,"reserved":2,"reservations":[`+macReservationFixture(`"m4-10c-16g"`, m4Capacity)+`,`+macReservationFixture(`"m4-10c-16g"`, m4Capacity)+`]}`)
 	return f
@@ -86,7 +87,12 @@ func TestMacPurchase_posts_when_consentIsExplicit(t *testing.T) {
 				_, stderr, code := run(t, dir, env, args...)
 				// Then
 				require.Zero(t, code, stderr)
-				require.Len(t, f.requests, 1)
+				if args[0] == "sandbox" {
+					require.Len(t, f.requests, 2)
+					require.Equal(t, http.MethodGet, f.requests[1].Method)
+				} else {
+					require.Len(t, f.requests, 1)
+				}
 				require.Equal(t, http.MethodPost, f.requests[0].Method)
 			})
 		}
@@ -116,7 +122,8 @@ func TestMacPurchase_postsWithoutConsent_when_existingReservation(t *testing.T) 
 			_, stderr, code := run(t, cfgDir(t), map[string]string{"DAYTONA_V2_API_URL": f.srv.URL, "DAYTONA_API_KEY": "k"}, args...)
 			// Then
 			require.Zero(t, code, stderr)
-			require.Len(t, f.requests, 1)
+			require.Len(t, f.requests, 2)
+			require.Equal(t, http.MethodGet, f.requests[1].Method)
 			require.Equal(t, "region-a:res-1", f.requests[0].Body["reservation"])
 		})
 	}

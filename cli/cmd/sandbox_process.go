@@ -218,7 +218,15 @@ func newSandboxProcessAttachCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return interactiveAttachAndWait(cmd.Context(), toolClient, args[1], cursor)
+			proc, err := toolClient.GetProcess(cmd.Context(), args[1])
+			if err != nil {
+				return err
+			}
+			result, err := toolClient.AttachTerminal(cmd.Context(), toolboxclient.ProcessAttachment{ID: proc.V.Id, Cursor: cursor})
+			if err != nil {
+				return err
+			}
+			return exitError(result)
 		},
 	}
 	cmd.Flags().StringVar(&cursor, "cursor", "", "replay from this cursor before the live stream")
@@ -243,35 +251,6 @@ func exitResultKV(processID string, result tbgen.ExitResult) [][2]string {
 	}
 	if result.Signal != nil {
 		kv = append(kv, [2]string{"signal", *result.Signal})
-	}
-	return kv
-}
-
-func processKV(proc tbgen.ProcessDto) [][2]string {
-	kv := [][2]string{{"id", proc.Id}, {"kind", string(proc.Kind)}, {"state", string(proc.State)}}
-	if proc.Name != nil && *proc.Name != "" {
-		kv = append(kv, [2]string{"name", *proc.Name})
-	}
-	if proc.Pid != nil {
-		kv = append(kv, [2]string{"pid", strconv.Itoa(int(*proc.Pid))})
-	}
-	if proc.SessionId != nil && *proc.SessionId != "" {
-		kv = append(kv, [2]string{"session_id", *proc.SessionId})
-	}
-	kv = append(kv, [2]string{"created_at", proc.CreatedAt}, [2]string{"cwd", proc.Cwd})
-	if proc.State == tbgen.StateTerminal {
-		if proc.ExitCode != nil {
-			kv = append(kv, [2]string{"exit_code", strconv.Itoa(int(*proc.ExitCode))})
-		}
-		if proc.Reason != nil {
-			kv = append(kv, [2]string{"exit_reason", string(*proc.Reason)})
-		}
-		if proc.Signal != nil && *proc.Signal != "" {
-			kv = append(kv, [2]string{"signal", *proc.Signal})
-		}
-		if proc.ExitedAt != nil && *proc.ExitedAt != "" {
-			kv = append(kv, [2]string{"exited_at", *proc.ExitedAt})
-		}
 	}
 	return kv
 }

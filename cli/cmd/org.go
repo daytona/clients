@@ -25,7 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var selectPrompt = ui.Select
+var selectPrompt = ui.SelectContext
 
 func init() {
 	Register(newOrgCmd)
@@ -47,7 +47,7 @@ func pickOrg(a *app.App) func(ctx context.Context) (string, error) {
 		if len(opts) == 0 {
 			return "", cerr.New(cerr.ExitNotFound, "you are not a member of any organization")
 		}
-		return selectPrompt("Select an organization", opts)
+		return selectPrompt(ctx, "Select an organization", opts)
 	}
 }
 
@@ -70,7 +70,7 @@ func pickProject(a *app.App) func(ctx context.Context) (string, error) {
 		if len(opts) == 0 {
 			return "", cerr.New(cerr.ExitNotFound, "no projects in this organization")
 		}
-		projectID, err := selectPrompt("Select a project", opts)
+		projectID, err := selectPrompt(ctx, "Select a project", opts)
 		if err != nil {
 			return "", err
 		}

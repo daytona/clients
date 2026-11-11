@@ -234,7 +234,7 @@ func TestReservationRenew_sendsAKeyPerInvocation(t *testing.T) {
 
 func TestReservationUpdate_setsAutoRenew(t *testing.T) {
 	for _, value := range []string{"false", "true"} {
-		_, _, err := runCLI(t, []string{"reservation", "update", "region-a:res-1", "--auto-renew=" + value}, []expectedRequest{{
+		_, _, err := runCLI(t, []string{"reservation", "update", "region-a:res-1", "--auto-renew=" + value, "--yes"}, []expectedRequest{{
 			method: http.MethodPatch, path: "/reservations/region-a:res-1", status: 200,
 			bodyJSON: `{"auto_renew":` + value + `}`, response: macReservationFixture(`"m4-10c-16g"`, m4Capacity),
 		}})

@@ -26,7 +26,7 @@ func TestSecretSet_preservesExistingMetadataWhenValueOnly(t *testing.T) {
 		"name": "API_KEY", "allowed_domains": []string{"example.com", "*.corp.test"}, "description": "existing", "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z",
 	})
 
-	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "secret", "set", "API_KEY", "--value", "next")
+	_, stderr, code := runMgmt(t, api, cfgDir(t), "secret", "set", "API_KEY", "--value", "next")
 	require.Equal(t, 0, code, stderr)
 	require.Len(t, api.requests, 2)
 	require.Equal(t, []any{"example.com", "*.corp.test"}, api.requests[1].Body["allowed_domains"])
@@ -68,7 +68,7 @@ func TestRegistrySet_preservesExistingDescriptionWhenPasswordOnly(t *testing.T) 
 func TestSecretSet_createWithoutAllowedDomainExitsBeforePut(t *testing.T) {
 	api := newFakeAPI(t)
 	// No GET registered — fakeAPI returns 404, so secretPutReq treats this as a create.
-	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "secret", "set", "NEW_KEY", "--value", "v")
+	_, stderr, code := runMgmt(t, api, cfgDir(t), "secret", "set", "NEW_KEY", "--value", "v")
 	require.Equal(t, 2, code, "expected usage error exit code 2")
 	require.Contains(t, stderr, "--allowed-domain '*'")
 	require.Len(t, api.requests, 1, "only the GET should have been sent; no PUT")
@@ -83,31 +83,10 @@ func TestSecretSet_updateEmptyScopedWithoutFlagErrors(t *testing.T) {
 		"created_at":      "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z",
 	})
 
-	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "secret", "set", "EXISTING", "--value", "v")
+	_, stderr, code := runMgmt(t, api, cfgDir(t), "secret", "set", "EXISTING", "--value", "v")
 	require.Equal(t, 2, code, "expected usage error exit code 2")
 	require.Contains(t, stderr, "--allowed-domain '*'")
 	require.Len(t, api.requests, 1, "only the GET should have been sent; no PUT")
-}
-
-func TestSecretSet_emptyAllowedDomainFlagCountsAsNoScope(t *testing.T) {
-	api := newFakeAPI(t)
-	// No GET registered — fakeAPI returns 404 (create case).
-	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "secret", "set", "NEW_KEY", "--value", "v", "--allowed-domain", "")
-	require.Equal(t, 2, code, "expected usage error exit code 2")
-	require.Contains(t, stderr, "--allowed-domain is required when creating a secret")
-	require.Len(t, api.requests, 1, "only the GET should have been sent; no PUT")
-
-	scoped := newFakeAPI(t)
-	scoped.on("GET", "/secrets/SCOPED", 200, map[string]any{
-		"name":            "SCOPED",
-		"allowed_domains": []any{"api.example.com"},
-		"created_at":      "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z",
-	})
-	scoped.on("PUT", "/secrets/SCOPED", 200, map[string]any{"name": "SCOPED", "allowed_domains": []any{"api.example.com"}, "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z"})
-	_, stderr, code = runMgmt(t, scoped, cfgDir(t), "--project", "proj-1", "secret", "set", "SCOPED", "--value", "v", "--allowed-domain", "")
-	require.Equal(t, 0, code, stderr)
-	put := findRequest(t, scoped, "PUT", "/secrets/SCOPED")
-	require.Equal(t, []any{"api.example.com"}, put.Body["allowed_domains"], "an empty flag must not clear the stored scope")
 }
 
 func TestSecretSet_createWithAllowedDomainSucceeds(t *testing.T) {

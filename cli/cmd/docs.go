@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
@@ -22,11 +23,14 @@ func init() {
 			Long: `Prints documentation for the CLI. With --full the entire command tree is
 rendered as Markdown on stdout — one page an agent or a human can read in a
 single pass. With --dir the same reference is written as one Markdown file per
-command.`,
+command. --full and --dir cannot be combined.`,
 			GroupID:     GroupOther,
 			Args:        cobra.NoArgs,
 			Annotations: map[string]string{annotationProfileOptional: "true"},
 			RunE: func(cmd *cobra.Command, _ []string) error {
+				if cmd.Flags().Changed("full") && cmd.Flags().Changed("dir") {
+					return cerr.Usage("--full and --dir cannot be combined")
+				}
 				root := cmd.Root()
 				root.DisableAutoGenTag = true
 				if dir != "" {

@@ -19,28 +19,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Format is the value of --output.
-type Format string
-
-const (
-	FormatTable Format = "table"
-	FormatJSON  Format = "json"
-	FormatYAML  Format = "yaml"
-)
-
-// ParseFormat validates --output.
-func ParseFormat(s string) (Format, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "", "table":
-		return FormatTable, nil
-	case "json":
-		return FormatJSON, nil
-	case "yaml", "yml":
-		return FormatYAML, nil
-	}
-	return "", fmt.Errorf("unknown --output %q (want table|json|yaml)", s)
-}
-
 // Printer renders to an io.Writer in one Format.
 type Printer struct {
 	W      io.Writer

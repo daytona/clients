@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
@@ -116,6 +117,14 @@ func exitError(result tbgen.ExitResult) error {
 	return err
 }
 
+// signalNumbers contains only numbers shared by Linux and macOS. Without
+// a process OS at every exit-mapping call site, other signals must exit 1.
+var signalNumbers = map[string]int{
+	"HUP": 1, "INT": 2, "QUIT": 3, "ILL": 4, "TRAP": 5, "ABRT": 6, "FPE": 8,
+	"KILL": 9, "SEGV": 11, "PIPE": 13, "ALRM": 14, "TERM": 15,
+	"XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF": 27, "WINCH": 28,
+}
+
 func processExitError(result tbgen.ExitResult) error {
 	if result.Reason == nil {
 		return exitCodeError(result)
@@ -127,13 +136,10 @@ func processExitError(result tbgen.ExitResult) error {
 		}
 		return cerr.New(int(*result.ExitCode), "process exited with code %d", *result.ExitCode)
 	case tbgen.ReasonSignaled:
-		if result.Signal != nil && *result.Signal == "INT" {
-			return cerr.New(cerr.ExitInterrupted, "process interrupted")
+		if result.Signal == nil {
+			return cerr.New(cerr.ExitFailure, "process terminated by signal")
 		}
-		if result.Signal != nil {
-			return cerr.New(cerr.ExitFailure, "process terminated by signal %s", *result.Signal)
-		}
-		return cerr.New(cerr.ExitFailure, "process terminated by signal")
+		return signalExitError(*result.Signal)
 	case tbgen.ReasonTimedOut:
 		return cerr.New(cerr.ExitTimeout, "timed out waiting for the process to finish")
 	case tbgen.ReasonLost, tbgen.ReasonFailed:
@@ -146,9 +152,24 @@ func processExitError(result tbgen.ExitResult) error {
 	}
 }
 
-// exitCodeError reports a nonzero exit code when the reason is absent or
-// unknown: `reason` is optional on the wire, the exit code still decides.
+func signalExitError(signal string) error {
+	number, ok := signalNumbers[strings.TrimPrefix(strings.ToUpper(signal), "SIG")]
+	switch {
+	case ok && number == 2:
+		return cerr.New(cerr.ExitInterrupted, "process interrupted")
+	case ok:
+		return cerr.New(128+number, "process terminated by signal %s", signal)
+	}
+	return cerr.New(cerr.ExitFailure, "process terminated by signal %s", signal)
+}
+
+// exitCodeError reports the result when the reason is absent or unknown:
+// `reason` is optional on the wire, so a reported signal, then the exit code,
+// decides.
 func exitCodeError(result tbgen.ExitResult) error {
+	if result.Signal != nil && strings.TrimSpace(*result.Signal) != "" {
+		return signalExitError(*result.Signal)
+	}
 	if result.ExitCode == nil || *result.ExitCode == 0 {
 		return nil
 	}

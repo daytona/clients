@@ -58,9 +58,11 @@ func newSessionTestApp(t *testing.T, apiURL string) *app.App {
 			return ""
 		}
 	}
-	a, err := app.Load(app.Globals{APIURL: apiURL, Profile: "default", ProfileMayBeNew: true}, io.Discard, io.Discard, getenv)
+	// The profile is saved before the App loads, as after a real login: its
+	// saved URL is the API its credential belongs to.
+	st, err := config.Open(configDir)
 	require.NoError(t, err)
-	require.NoError(t, a.Store.Update(func(cfg *config.Config, creds *config.Credentials) (bool, bool, error) {
+	require.NoError(t, st.Update(func(cfg *config.Config, creds *config.Credentials) (bool, bool, error) {
 		cfg.Upsert(config.Profile{Name: "default", APIURL: apiURL})
 		if creds.Profiles == nil {
 			creds.Profiles = map[string]config.ProfileCredentials{}
@@ -68,5 +70,7 @@ func newSessionTestApp(t *testing.T, apiURL string) *app.App {
 		creds.Profiles["default"] = config.ProfileCredentials{}
 		return true, true, nil
 	}))
+	a, err := app.Load(app.Globals{APIURL: apiURL, Profile: "default", ProfileMayBeNew: true}, io.Discard, io.Discard, getenv)
+	require.NoError(t, err)
 	return a
 }
