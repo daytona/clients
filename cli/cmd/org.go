@@ -309,6 +309,10 @@ shows a picker at a terminal.`,
 				return cerr.Usage("--name is required")
 			}
 			refusal := checkOrgProjectName("organization", name)
+			if strings.TrimSpace(name) == "" {
+				// A blank name is never the current one.
+				return refusal
+			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
 				return err

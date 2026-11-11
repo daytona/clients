@@ -149,3 +149,22 @@ func TestProjectUpdate_currentNameAndUnlistedProjectGoToTheAPI(t *testing.T) {
 	require.NotEqual(t, 0, code)
 	require.Equal(t, "PATCH", f.requests[len(f.requests)-1].Method, errb)
 }
+
+// A blank name is refused before any request; a caller that may not read the
+// current name is left to the API.
+func TestRename_blankRefusedLocallyAndForbiddenReadDefersToTheAPI(t *testing.T) {
+	t.Setenv("DAYTONA_TEST_SKIP_CONTRACT", "1")
+	f := newFakeAPI(t)
+	f.on("GET", "/orgs/"+testOrgA, 403, map[string]any{"code": "FORBIDDEN", "message": "permission denied", "source": "DAYTONA_API"})
+	f.on("PATCH", "/orgs/"+testOrgA, 200, organizationFixture(testOrgA, strings.Repeat("o", 70), false))
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+
+	_, errb, code := run(t, d, nil, "org", "update", testOrgA, "--name", "   ")
+	require.Equal(t, cerr.ExitUsage, code, errb)
+	require.Empty(t, f.requests)
+
+	_, errb, code = run(t, d, nil, "org", "update", testOrgA, "--name", strings.Repeat("o", 70), "-o", "json")
+	require.Equal(t, 0, code, errb)
+	require.Equal(t, "PATCH", f.requests[len(f.requests)-1].Method)
+}

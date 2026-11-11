@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/spf13/cobra"
@@ -187,6 +188,10 @@ func newProjectCmd() *cobra.Command {
 				return cerr.Usage("--name is required")
 			}
 			refusal := checkOrgProjectName("project", name)
+			if strings.TrimSpace(name) == "" {
+				// A blank name is never the current one.
+				return refusal
+			}
 			project, orgID, mc, err := resolveProjectID(cmd, args[0])
 			if err != nil {
 				return err

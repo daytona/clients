@@ -38,12 +38,16 @@ func checkOrgProjectName(kind, name string) error {
 // checkRenamedOrgName refuses an organization rename the API would refuse.
 // The API accepts the current name sent back unchanged (after trimming)
 // whatever it holds, so a refused name is looked up first, which costs one
-// read.
+// read. A caller that may not read it (403) is left to the API, which applies
+// the same rule.
 func checkRenamedOrgName(ctx context.Context, mc *mgmtClient, orgID, name string, refusal error) error {
 	if refusal == nil {
 		return nil
 	}
 	org, err := mgmt.GetOrg(ctx, mc, orgID)
+	if cerr.ExitCode(err) == cerr.ExitForbidden {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -62,6 +66,9 @@ func checkRenamedProjectName(ctx context.Context, mc *mgmtClient, orgID, project
 	}
 	if current == "" {
 		projects, err := mgmt.ListProjects(ctx, mc, orgID)
+		if cerr.ExitCode(err) == cerr.ExitForbidden {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
