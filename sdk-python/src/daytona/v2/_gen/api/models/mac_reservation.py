@@ -49,14 +49,14 @@ class MacReservation(BaseModel):
     model: Optional[StrictStr] = Field(default=None, description="The reserved Mac model, fixed at purchase, including renewal and replacement. Null when model information is unavailable; such a reservation accepts no new sandbox.")
     org_id: StrictStr = Field(description="The organization ID.")
     origin: MacReservationOrigin
-    pending_mac_started_at: Optional[datetime] = Field(default=None, description="When the reservation last began waiting for a Mac: at its first charge, or when it moved after its Mac was lost. Kept after a Mac claims it.")
-    period_end: Optional[datetime] = Field(default=None, description="When the reservation ends unless renewed. Absent until a Mac first claims it (period 1 starts at the claim, so waiting for a Mac is not paid time).")
+    pending_mac_started_at: Optional[datetime] = Field(default=None, description="When the reservation last began to wait for a Mac: at its first charge, or when it moved after a Mac failure. Kept after a Mac takes it.")
+    period_end: Optional[datetime] = Field(default=None, description="When the reservation ends unless renewed. Absent until a Mac first takes the reservation; period 1 starts then, so the wait for a Mac is not paid time.")
     period_n: StrictInt = Field(description="The current paid period (1-based).")
     period_seconds: StrictInt = Field(description="The period length in seconds.")
     period_started_at: Optional[datetime] = Field(default=None, description="When the current period started.")
     project_id: StrictStr = Field(description="The project whose key bought the reservation. The reservation serves every project of the organization; this project's monthly budget gates its renewals, manual and automatic, which answer `PROJECT_BUDGET_EXCEEDED` while the project is held.")
     region_id: StrictStr = Field(description="The reservation region.")
-    reissued_at: Optional[datetime] = Field(default=None, description="Set when the reservation moved to another Mac after its Mac was lost.")
+    reissued_at: Optional[datetime] = Field(default=None, description="Set when the reservation moved to another Mac after a Mac failure.")
     renewal_error: Optional[StrictStr] = Field(default=None, description="Why the renewal of the next period failed (billing refused it, or the balance was too low); the reservation ends at `period_end` unless renewed by hand. Null when no renewal has failed.")
     renewal_pending: StrictBool = Field(description="A renewal charge is still waiting for billing's answer.")
     resources_used: MacResources

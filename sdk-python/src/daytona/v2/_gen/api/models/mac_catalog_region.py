@@ -37,7 +37,7 @@ class MacCatalogRegion(BaseModel):
     """ # noqa: E501
     default_model: StrictStr = Field(description="The model a purchase that names none reserves.")
     id: StrictStr = Field(description="The region ID.")
-    models: List[MacCatalogModel] = Field(description="One entry per registry model, in `GET /mac-models` order.")
+    models: List[MacCatalogModel] = Field(description="One entry per Mac model, in `GET /mac-models` order.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["default_model", "id", "models"]
 

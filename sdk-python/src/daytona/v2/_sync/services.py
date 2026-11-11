@@ -465,7 +465,8 @@ class ReservationsService:
         ``auto_renew`` defaults server-side to the organization's auto-reserve
         setting. Raises :class:`ConflictError` with
         ``code == "NO_MAC_AVAILABLE"`` when no Mac of that model is free in the
-        region.
+        region, and :class:`LimitExceededError` (a :class:`RateLimitError`) with
+        ``limit == "max_mac_reservations"`` when the organization holds its Mac reservation limit.
         """
         return self._bridge.call(
             lambda: self._impl.create(
@@ -485,7 +486,7 @@ class ReservationsService:
     ) -> MacReservationBatch:
         """Reserve count Macs of one model in region in one request.
 
-        min_count (default count) is the fewest to accept: with fewer Macs free, the request reserves as many as are free, or none, failing with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+        min_count (default count) is the fewest to accept: with fewer Macs free or fewer left under the organization's Mac reservation limit, the request reserves as many as are free and fit, or none, failing with LimitExceededError (a RateLimitError) limit == "max_mac_reservations" when fewer than min_count fit under the limit (checked first), or with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
         """
         return self._bridge.call(
             lambda: self._impl.create_bulk(
@@ -515,6 +516,7 @@ class ReservationsService:
         """Renew the reservation for its next period, which the server charges.
 
         The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+        Raises LimitExceededError (a RateLimitError) with limit == "max_mac_reservations" when the renewal would keep the organization over its Mac reservation limit.
         """
         return self._bridge.call(lambda: self._impl.renew(reservation_id, idempotency_key=idempotency_key))
 

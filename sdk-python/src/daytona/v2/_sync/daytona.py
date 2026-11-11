@@ -355,12 +355,11 @@ class Daytona:
         ``resources`` sizes the sandbox (:class:`MacosResources`: physical CPU
         cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
         macOS included; memory and disk must convert to whole MiB). Each
-        omitted value uses half of the claiming Mac, rounded down, on a model
-        that runs two sandboxes, or all of it on a model that runs one. The
-        first successful claim fixes the size, which the sandbox reports from
-        then on.
+        omitted value uses the Mac model's default size (``default_size`` in
+        ``mac_models.list()``); a create from a captured image uses the
+        image's disk size. The sandbox reports its size.
 
-        ``persistent``: Stop keeps the disk on the same Mac. Start and resume use that Mac. Delete erases the disk. At reservation end, the disk is saved as an anonymous image before the Mac is erased; a lost Mac saves it if it comes back within 7 days. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged. Create a sandbox from an image to continue on another Mac.
+        ``persistent``: A persistent sandbox keeps its disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it. Delete erases the disk.
 
         ``volumes`` attaches disk volumes read-write. A sandbox with volumes
         cannot be persistent; bucket volumes and ``read_only`` are rejected
@@ -377,6 +376,9 @@ class Daytona:
         ``NO_MAC_AVAILABLE``). ``name``, ``idempotency_key``, ``wait_seconds``
         and ``create_timeout_seconds`` behave as on :meth:`create`, and like
         :meth:`create` this never raises because of how its wait ended.
+        A reservation it buys (``reservation="new"`` or auto-reserve) raises
+        :class:`LimitExceededError` (a :class:`RateLimitError`) with
+        ``limit == "max_mac_reservations"`` when the organization holds its Mac reservation limit.
 
         Creating macOS sandboxes requires macOS access enabled for the organization;
         otherwise the API answers ``403``

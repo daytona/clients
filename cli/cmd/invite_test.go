@@ -115,7 +115,7 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 		_, _ = w.Write([]byte(ok))
 	}
 	f.handle("POST", "/invitations/lookup", func(w http.ResponseWriter, r *http.Request) {
-		wantToken(w, r, `{"id":"22222222-2222-2222-2222-222222222222","org_id":"33333333-3333-3333-3333-333333333333","org_name":"Acme","roles":["developer"],"invited_by":"Alice","email":"new@example.com","expires_at":"2026-10-20T00:00:00Z"}`)
+		wantToken(w, r, `{"id":"22222222-2222-2222-2222-222222222222","org_id":"33333333-3333-3333-3333-333333333333","org_name":"Acme","roles":["developer"],"role_names":["Developer"],"invited_by":"Alice","email":"new@example.com","expires_at":"2026-10-20T00:00:00Z"}`)
 	})
 	f.handle("POST", "/invitations/accept", func(w http.ResponseWriter, r *http.Request) {
 		wantToken(w, r, fixtureJSON(organizationMemberFixture("33333333-3333-3333-3333-333333333333", "new@example.com", "New User")))

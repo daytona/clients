@@ -31,6 +31,7 @@ const ORGANIZATION_LIMITS: ResponseFields = {
   storage: nested({ volumes: nested(USAGE), images: nested(USAGE), snapshots: nested(USAGE) }),
   secrets_per_project: nested(USAGE), api_keys_per_project: nested(USAGE), api_keys_per_organization: nested(USAGE),
   sandbox_resources: nested({ max_cores: 'number', max_memory_mib: 'integer' }, true),
+  mac_reservations: nested(USAGE, true),
   members: nested({ ...USAGE, pending_invitations: 'integer' }, true),
 }
 
@@ -106,6 +107,7 @@ export function organizationLimits(value: api.OrganizationLimits): OrganizationL
       maxCores: data.sandbox_resources.max_cores,
       maxMemoryMib: data.sandbox_resources.max_memory_mib,
     },
+    macReservations: data.mac_reservations == null ? undefined : usageLimit(data.mac_reservations),
     members: data.members == null ? undefined : {
       ...usageLimit(data.members),
       pendingInvitations: data.members.pending_invitations,

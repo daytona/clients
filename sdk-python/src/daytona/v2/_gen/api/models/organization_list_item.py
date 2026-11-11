@@ -40,7 +40,7 @@ class OrganizationListItem(BaseModel):
     created_at: datetime = Field(description="When the organization was created.")
     from_v0: StrictBool = Field(description="Whether the organization was migrated from Daytona v0.")
     id: StrictStr = Field(description="The organization ID.")
-    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(description="The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.")
+    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(description="The organization's own cap on sandbox timeouts, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. The plan maximum bounds this value; `GET /orgs/{id}/limits` reports the cap in effect.")
     name: StrictStr = Field(description="The organization name.")
     personal: StrictBool = Field(description="Whether this is the user's personal organization.")
     preview_warning_disabled: StrictBool = Field(description="Whether sandbox previews skip the warning page.")

@@ -36,7 +36,7 @@ class CreateReservationsBulkRequest(BaseModel):
     """ # noqa: E501
     auto_renew: Optional[StrictBool] = Field(default=None, description="Renew each reservation near each period end while a macOS sandbox is active on it. Defaults to the organization's auto-reserve setting.")
     count: StrictInt = Field(description="How many Macs to reserve, 1 to 100.")
-    min_count: Optional[StrictInt] = Field(default=None, description="The fewest Macs to accept, 1 to `count`. Omitted means `count`: all or nothing. With fewer than `count` Macs free but at least `min_count`, the request reserves as many as are free.")
+    min_count: Optional[StrictInt] = Field(default=None, description="The fewest Macs to accept, 1 to `count`. Omitted means `count`: all or nothing. With fewer than `count` Macs free, or fewer left under the organization's Mac reservation limit, but at least `min_count`, the request reserves as many as it can.")
     model: Optional[StrictStr] = Field(default=None, description="Mac model slug from GET /mac-models. Omitted, null, or blank uses the region's default model, initially m4-10c-16g. If that model is unavailable, the purchase fails; it never upgrades to another model.")
     region_id: StrictStr = Field(description="Region slug whose Macs to reserve. Blank or `local` names no region: when this API serves exactly one region with Macs, the reservations are made there; otherwise the project, organization, then platform default applies.")
     __properties: ClassVar[List[str]] = ["auto_renew", "count", "min_count", "model", "region_id"]
