@@ -728,6 +728,12 @@ export class Sandbox {
     await this.refreshData()
     if (this.state === 'stopping' || this.state === 'pausing') {
       // The in-flight operation must finish before start or resume.
+      if (deadline !== undefined) {
+        timeoutSeconds = (deadline - Date.now()) / 1000
+        if (timeoutSeconds <= 0) {
+          throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        }
+      }
       await this.waitForState(['started', 'paused', 'stopped'], { timeoutSeconds })
       if (deadline !== undefined) {
         timeoutSeconds = (deadline - Date.now()) / 1000

@@ -12665,6 +12665,33 @@ async def test_start_keeps_one_budget_across_the_inflight_operation_and_startup(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("transition", ["stopping", "pausing"])
+@pytest.mark.parametrize("initial_read_seconds", [2.0, 6.0])
+async def test_start_charges_the_initial_read_to_its_transition_wait(
+    monkeypatch, transition, initial_read_seconds
+):
+    now = 0.0
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: now)
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    payload = _sandbox_detail_payload("mac", transition, sandbox_class="macos", persistent=True)
+
+    class SlowReadTransport(RecordingTransport):
+        async def send(self, spec):
+            nonlocal now
+            now += initial_read_seconds if not self.specs else 1.0
+            return await super().send(spec)
+
+    api = SlowReadTransport([payload] * 12)
+    sandbox = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    with pytest.raises(RequestTimeoutError):
+        await sandbox.start(timeout=5)
+    assert now == max(5.0, initial_read_seconds)
+    assert all(spec.method == "GET" for spec in api.specs)
+    if initial_read_seconds > 5:
+        assert len(api.specs) == 1
+
+
+@pytest.mark.anyio
 async def test_pause_that_returns_to_running_and_resume_that_ends_stopped_fail():
     mac_payload = _sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)
     api = RecordingTransport(

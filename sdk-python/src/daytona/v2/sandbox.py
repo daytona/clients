@@ -1332,6 +1332,10 @@ class AsyncSandbox:
         await self.refresh_data()
         if self.state in ("stopping", "pausing"):
             # The in-flight operation must finish before start or resume.
+            if deadline is not None:
+                timeout = deadline - _clock.monotonic()
+                if timeout <= 0:
+                    raise _wait_timed_out()
             await self._wait_for_state(["started", "paused", "stopped"], timeout=timeout)
             if deadline is not None:
                 timeout = deadline - _clock.monotonic()

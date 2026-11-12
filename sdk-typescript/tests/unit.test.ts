@@ -10532,6 +10532,36 @@ describe('macOS sandboxes and reservations', () => {
     expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/start'])
   })
 
+  it.each([
+    ['stopping', 2000], ['pausing', 2000],
+    ['stopping', 6000], ['pausing', 6000],
+  ] as const)('charges a %s initial read taking %i ms to the transition wait', async (sourceStatus, initialReadMs) => {
+    jest.useFakeTimers({ now: 0 })
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post')
+    const get = jest.spyOn(api, 'get')
+      .mockImplementationOnce(async () => {
+        jest.setSystemTime(initialReadMs)
+        return { data: { ...macResponse, status: sourceStatus } }
+      })
+      .mockResolvedValue({ data: { ...macResponse, status: sourceStatus } })
+    let outcome: unknown
+    void sandbox.start({ timeoutSeconds: 5 }).then(
+      () => { outcome = 'started' },
+      (error: unknown) => { outcome = error },
+    )
+
+    await jest.advanceTimersByTimeAsync(0)
+    await jest.advanceTimersByTimeAsync(Math.max(0, 5000 - initialReadMs))
+
+    expect(outcome).toBeInstanceOf(RequestTimeoutError)
+    expect(Date.now()).toBe(Math.max(5000, initialReadMs))
+    expect(post).not.toHaveBeenCalled()
+    if (initialReadMs > 5000) expect(get).toHaveBeenCalledTimes(1)
+  })
+
   it('fails a macOS pause that returns to running and a resume that ends stopped', async () => {
     const client = macClient()
     const api = clientInstance(client)
