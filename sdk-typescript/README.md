@@ -342,7 +342,9 @@ make asynchronous callback work cancellation-aware when needed.
   `region`, `labels`, resource/timestamp bounds, `sort`, `order`, and other
   search options. `states` accepts a public state or array, for example
   `{ states: ['started', 'paused'] }`; `unknown` is not searchable.
-  Timestamp filters are half-open:
+  `region` takes region IDs; a region that contains other regions (a geo
+  group, or `earth`) matches every region inside it, and an unknown region is
+  a `BadRequestError`. Timestamp filters are half-open:
   `createdStartAt` / `createdEndAt`, `updatedStartAt` / `updatedEndAt`, and
   `lastActivityStartAt` / `lastActivityEndAt`; each start is inclusive and
   each end is exclusive.
@@ -432,7 +434,9 @@ Use `sandbox.setLabels(labels)` to replace the label set. Pass `{}` to clear
 every label but `name`. It resolves to the applied label map. The reserved
 `name` label that `findByName()` matches is kept unless the new labels set it:
 the sandbox is read first to learn it (one more request, not atomic with the
-write), and it cannot be removed.
+write), and it cannot be removed. A label key must not be empty:
+`setLabels()`, the `create*()` methods and `search({ labels })` refuse one with
+`BadRequestError` before any request.
 
 ```ts
 const labels = await sandbox.setLabels({ team: 'sdk', env: 'ci' })
@@ -464,6 +468,12 @@ const result = await sandbox.volumes.pull(volume.id, {
 `VolumeMount` names a `volumeId`, `mountPath`, optional `subpath` and optional
 `readOnly`. Only bucket volumes support `readOnly: true`. macOS accepts
 read-write disk volumes only, without `persistent: true`.
+
+`mountPath` is an absolute path with no `..` component. The API normalizes it
+(repeated slashes, `.` components and a trailing slash are removed) and
+refuses `/`, any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+`/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or
+`/usr`, and one with a control character, with `BadRequestError` (400).
 
 Create a volume with `daytona.v2.volumes.create({ name: 'data' })`; the server
 chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
@@ -570,7 +580,9 @@ non-terminal response pauses up to one second before retrying. Omitted or zero
 `timeoutSeconds` sends one hold of the server's default length and returns what
 the server reports.
 `sandbox.captureImage({ name, idleExpirySeconds })` captures an
-image from a sandbox.
+image from a sandbox, and `sandbox.createSnapshot(name)` a snapshot. Both need
+`write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
+they throw `ForbiddenError` (403).
 
 ### macOS sandboxes
 
@@ -954,7 +966,10 @@ the additional remote/branch controls to the sandbox.
 `previewLink(port)`,
 `signedPreviewLink(port, { expiresInSeconds })`,
 `expireSignedPreviewLink(port, token)`, paginated `listEndpoints(options)`, and
-`iterEndpoints(options)`.
+`iterEndpoints(options)`. The sandbox daemon's ports 2280, 2281 and 22220 are
+never preview ports: `expose()`, `previewLink()`, `signedPreviewLink()` and
+`createAccessToken({ ports })` refuse them with `BadRequestError` before any
+request.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
 exported from `@daytona/sdk/v2`) with its requests.
@@ -994,11 +1009,12 @@ Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
 `status()` and `waitUntilReady()` throw `NotFoundError` (404).
 
 Some environment variable names are reserved for the platform, among them
-every `DAYTONA_*` name other than `DAYTONA_SANDBOX_TOKEN`,
-`DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`. A
-sandbox `env` that sets a reserved name fails the create with `BadRequestError`
-(400) naming the key; the same rule applies to the keys an
-`updateEnv()` call sets or unsets.
+every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
+and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
+that sets a reserved name fails the create with `BadRequestError` (400) naming
+the key. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
+unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
+differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 
 ### Waiting for lifecycle states
 
@@ -1057,7 +1073,11 @@ in the Python SDK: `BadRequestError`, `AuthenticationError` (401),
 `RequestTimeoutError` (408), `ClientTimeoutError` (the client's own request
 timeout), `ConnectionError`, … They also expose `traceId` (v0 errors carry
 none), and the status-level bases have code-specific subclasses so you can
-catch as broadly or narrowly as you need. `code` and `source` are open
+catch as broadly or narrowly as you need. A call into a sandbox that is not
+running (a stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git`
+or the other in-sandbox namespaces, throws `SandboxNotRunningError` (409,
+`SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview URLs
+answer 409 too. Start the sandbox and retry. `code` and `source` are open
 vocabularies: a code this release does not know is kept as sent and the error
 is the class for its HTTP status; the `codes` namespace lists the known codes
 per source (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`,
@@ -1088,6 +1108,12 @@ example the maximum number of concurrent sandboxes) throws
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
 and counts as `limit`, `current` and `max`. Other rate-limited requests keep
 throwing plain `RateLimitError`.
+
+On a sandbox that is deleted or being deleted, `setLabels()`,
+`updateLifecyclePolicy()`, `resetIdleTimer()` and the preview-endpoint calls
+(`ports.expose()`, `ports.listEndpoints()`, `ports.previewLink()`,
+`ports.signedPreviewLink()`) throw `ConflictError` (`CONFLICT`);
+`ports.unexpose()` and `ports.expireSignedPreviewLink()` still work.
 
 ## Versioning and releases
 

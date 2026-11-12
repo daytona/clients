@@ -49,6 +49,7 @@ from ._core import (
     TransportPayload,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
+    check_label_keys,
     enum_str,
     expect_object,
     expect_system_metrics,
@@ -61,6 +62,7 @@ from ._core import (
     parse_snapshot,
     parse_timestamp,
     path_segment,
+    preview_port,
     rfc3339,
     sandbox_state,
     wait_budget_seconds,
@@ -828,7 +830,11 @@ class AsyncSandbox:
         if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
-        changes nothing.
+        changes nothing. An empty label key is refused with
+        :class:`~daytona.v2.errors.BadRequestError` before any request. A
+        sandbox that is deleted or being deleted raises
+        :class:`ConflictError` (``CONFLICT``); one the API no longer finds raises
+        :class:`NotFoundError`.
         """
         body = _validated_labels(labels)
         if "name" not in body:
@@ -1340,7 +1346,10 @@ class AsyncSandbox:
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
         sandboxes can stop (today: persistent macOS sandboxes) is the API's
-        decision; a refusal surfaces as its typed error.
+        decision; a refusal surfaces as its typed error. While it is stopped,
+        toolbox calls (process, files, git, …) and its preview URLs answer
+        :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
+        :meth:`start` it first.
         """
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/stop"))
@@ -1549,7 +1558,8 @@ class AsyncSandbox:
         arming it on a sandbox with no idle policy requires ``on_idle_timeout``.
         Setting either action to ``"delete"`` — or touching a pair whose current
         or resulting action is ``"delete"`` — requires the API key to hold
-        ``delete:sandboxes`` in addition to ``write:sandboxes``.
+        ``delete:sandboxes`` in addition to ``write:sandboxes``. A sandbox that
+        is deleted or being deleted raises :class:`ConflictError` (``CONFLICT``).
         """
         requested: LifecyclePolicyOptions = {}
         if timeout_seconds is not None:
@@ -1600,9 +1610,10 @@ class AsyncSandbox:
         ``idle_timeout_at`` re-anchors to now + ``idle_expiry_seconds``. The
         wall-clock ``timeout_at`` is NOT affected. Succeeds whether or not an
         idle timeout is armed (an unarmed sandbox echoes
-        ``idle_timeout_at=None``), and in any state — a never-started sandbox
-        already carries its creation-time activity stamp, which the reset
-        advances.
+        ``idle_timeout_at=None``), and in any state but deleting or deleted —
+        a never-started sandbox already carries its creation-time activity
+        stamp, which the reset advances. A sandbox that is deleted or being
+        deleted raises :class:`ConflictError` (``CONFLICT``).
 
         The echo is the full post-reset lifecycle, the same shape
         :meth:`update_lifecycle_policy` returns. Advance-only: a newer concurrent
@@ -1697,6 +1708,8 @@ class AsyncSandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
+        The credential needs ``write:sandboxes`` in addition to ``write:images``;
+        without it the capture raises :class:`ForbiddenError` (403).
 
         ``name`` makes the image named and permanent. ``idle_expiry_seconds`` is
         the idle-retention window of an ANONYMOUS capture: it is deleted once
@@ -1721,6 +1734,13 @@ class AsyncSandbox:
         )
 
     async def create_snapshot(self, name: str, /) -> Snapshot:
+        """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
+        (``POST /sandboxes/{id}/snapshots``).
+
+        The credential needs ``write:sandboxes`` in addition to
+        ``write:snapshots``; without it the capture raises
+        :class:`ForbiddenError` (403).
+        """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         created = expect_create_snapshot_resp(
@@ -1828,8 +1848,14 @@ class AsyncSandbox:
         ``toolbox:exec``, ``toolbox:fs``, ``toolbox:git``, ``toolbox:lsp``,
         ``desktop``, ``ssh``, ``sandbox:stop``, ``sandbox:pause``,
         ``sandbox:delete``); omitted means the minter's full grantable set, and
-        ``[]`` is a valid ports-only grant. ``ports`` names the private-preview
-        ports the token may reach (omitted = all, ``[]`` = none). ``ttl_seconds``
+        ``[]`` is a valid ports-only grant. ``toolbox:git`` without
+        ``toolbox:exec`` covers the git operations except writing git config:
+        ``git.set_config()`` with such a token raises :class:`ForbiddenError`
+        (403); ``git.get_config()`` still works. ``ports`` names the private-preview
+        ports the token may reach (omitted = all, ``[]`` = none); the sandbox
+        daemon's ports 2280, 2281 and 22220 are never preview ports and are
+        refused with :class:`~daytona.v2.errors.BadRequestError` before any
+        request. ``ttl_seconds``
         overrides the deployment's default lifetime, capped server-side; an
         unknown operation or an over-cap TTL is a 400, never a silent
         narrowing. The token cannot be refreshed and cannot mint further
@@ -1847,9 +1873,7 @@ class AsyncSandbox:
         if ports is not None:
             if isinstance(ports, (str, bytes)) or not isinstance(ports, Sequence):
                 raise create_error("ports must be a list of port numbers", 400, "BAD_REQUEST", "SDK")
-            for port in ports:
-                _assert_port(port)
-            body["ports"] = list(ports)
+            body["ports"] = [preview_port(port) for port in ports]
         if ttl_seconds is not None:
             if not isinstance(ttl_seconds, int) or isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
                 raise create_error("ttl_seconds must be a positive integer", 400, "BAD_REQUEST", "SDK")
@@ -2199,11 +2223,6 @@ def _parse_activity_clock(value: Optional[datetime]) -> Optional[datetime]:
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
-def _assert_port(port: int) -> None:
-    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
-        raise create_error(f"port must be an integer in 1..65535, got {port!r}", 400, "BAD_REQUEST", "SDK")
-
-
 def _sandbox_toolbox_base(sandbox_data: Mapping[str, JsonValue]) -> Optional[str]:
     value = sandbox_data.get("toolbox_proxy_url") or sandbox_data.get("toolboxProxyUrl")
     return str(value).rstrip("/") if isinstance(value, str) and value else None
@@ -2256,6 +2275,7 @@ def _validated_labels(labels: object) -> Dict[str, str]:
                 "labels must be a mapping of string keys to string values", 400, "BAD_REQUEST", "SDK"
             )
         validated[key] = value
+    check_label_keys(validated)
     return validated
 
 

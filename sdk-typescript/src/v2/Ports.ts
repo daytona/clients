@@ -54,6 +54,17 @@ function assertPort(port: number): void {
   }
 }
 
+/** The sandbox daemon's own ports: the API never makes them preview ports. */
+const RESERVED_PREVIEW_PORTS: readonly number[] = Object.freeze([2280, 2281, 22220])
+
+/** @internal A port a preview endpoint, preview URL or access token may name. */
+export function assertPreviewPort(port: number): void {
+  assertPort(port)
+  if (RESERVED_PREVIEW_PORTS.includes(port)) {
+    throw badRequest(`port ${port} is reserved for the sandbox daemon and is never a preview port`)
+  }
+}
+
 function portSegment(port: number): string {
   if (!Number.isInteger(port)) {
     throw new BadRequestError(`port must be an integer, got ${String(port)}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
@@ -164,6 +175,11 @@ export class PortsService {
     return checkResponse<toolbox.PortInUseResponse>(response, { isInUse: 'boolean' }, 'port in use').isInUse
   }
 
+  /**
+   * One page of the sandbox's preview endpoints.
+   *
+   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
+   */
   public async listEndpoints(options: ListEndpointsOptions = {}): Promise<ListResult<PreviewEndpoint>> {
     options = snapshotOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS) ?? {}
     const page = await this.requireApi()
@@ -195,15 +211,17 @@ export class PortsService {
    * endpoints need no credential. Programmatic access to a private one needs the
    * token from {@link previewLink} (see {@link PreviewLink}) or a
    * {@link signedPreviewLink} URL.
+   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
-   * @param port TCP port inside the sandbox (1–65535).
+   * @param port TCP port inside the sandbox (1–65535, except the sandbox
+   *   daemon's reserved ports 2280, 2281 and 22220).
    * @param options.public When `true` the endpoint is publicly accessible without
    *   any credential.
    * @returns {@link PreviewEndpoint} with the URL.
    */
   public async expose(port: number, options: ExposePortOptions = {}): Promise<PreviewEndpoint> {
     assertKnownOptions('ExposePortOptions', options, EXPOSE_PORT_KEYS)
-    assertPort(port)
+    assertPreviewPort(port)
     if (options.public !== undefined && typeof options.public !== 'boolean') throw badRequest('public must be a boolean')
     const isPublic = options.public ?? false
     const body: api.SetSandboxPortRequest = { public: isPublic }
@@ -221,10 +239,14 @@ export class PortsService {
    * or if minting fails, the route token is passed through unchanged.
    *
    * A port that is not exposed yet is exposed first (privately, as
-   * {@link expose} does): this call registers a preview endpoint.
+   * {@link expose} does): this call registers a preview endpoint. The sandbox
+   * daemon's ports 2280, 2281 and 22220 are never preview ports: they are
+   * refused with `BadRequestError` before any request, as by {@link expose}
+   * and {@link signedPreviewLink}. A sandbox that is deleted or being deleted
+   * throws `ConflictError` (`CONFLICT`).
    */
   public async previewLink(port: number): Promise<PreviewLink> {
-    assertPort(port)
+    assertPreviewPort(port)
     const endpoint = await this.requireApi().get<api.PreviewEndpoint>(this.portPath(port))
       .then((response) => mapPreviewEndpoint(response.data))
       .catch((error: unknown) => {
@@ -266,8 +288,10 @@ export class PortsService {
    * The default lifetime is 60 seconds. Pass a longer `expiresInSeconds` for
    * multi-step use (the deployment caps the maximum, typically 7 days).
    * Revoke the link early with {@link expireSignedPreviewLink}.
+   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
-   * @param port TCP port inside the sandbox (1–65535).
+   * @param port TCP port inside the sandbox (1–65535, except the sandbox
+   *   daemon's reserved ports 2280, 2281 and 22220).
    * @param options.expiresInSeconds Requested token lifetime in seconds (positive
    *   integer). Omit for the server default (60 s).
    * @returns {@link SignedPreviewLink} with `url`, `token`, and `expiresAt`.
@@ -280,7 +304,7 @@ export class PortsService {
    */
   public async signedPreviewLink(port: number, options: SignedPreviewLinkOptions = {}): Promise<SignedPreviewLink> {
     assertKnownOptions('SignedPreviewLinkOptions', options, SIGNED_PREVIEW_LINK_KEYS)
-    assertPort(port)
+    assertPreviewPort(port)
     if (options.expiresInSeconds !== undefined) assertSignedPreviewTtl(options.expiresInSeconds)
     const path = `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports/${port}/signed-preview-urls`
     const body = options.expiresInSeconds === undefined ? {} : { expires_in_seconds: options.expiresInSeconds }
@@ -293,6 +317,8 @@ export class PortsService {
   /**
    * Revoke a signed preview link before its natural expiry.
    *
+   * Unlike minting, revoking still works while the sandbox is being deleted.
+   *
    * @param port TCP port the link was issued for.
    * @param token The `token` field from {@link SignedPreviewLink}.
    */
@@ -303,6 +329,7 @@ export class PortsService {
     await this.requireApi().post(`${this.portPath(port)}/signed-preview-urls/revoke`, { token })
   }
 
+  /** Remove a port's preview endpoint; this still works while the sandbox is being deleted. */
   public async unexpose(port: number): Promise<void> {
     assertPort(port)
     await this.requireApi().delete(this.portPath(port))

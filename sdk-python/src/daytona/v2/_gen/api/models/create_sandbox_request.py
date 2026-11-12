@@ -45,7 +45,7 @@ class CreateSandboxRequest(BaseModel):
     create_timeout_seconds: Optional[StrictInt] = Field(default=None, description="Seconds allowed for the sandbox to reach `running`. Defaults to 3600; `-1` uses the maximum.")
     disk_max_mib: Optional[StrictInt] = Field(default=None, description="Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when restoring a snapshot, it must equal the captured disk size or be absent.")
     disk_mib: Optional[StrictInt] = Field(default=None, description="Writable disk size in MiB.")
-    env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Sandbox-specific environment variables (real values, verbatim). Names must be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the platform reserves for its own use, including every `DAYTONA_*` name other than `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`, fail the create with 400 naming the key.")
+    env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Sandbox-specific environment variables (real values, verbatim). Names must be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the platform reserves for its own use, including every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START` (so `DAYTONA_SANDBOX_TOKEN` too), fail the create with 400 naming the key.")
     idempotency_key: Optional[StrictStr] = Field(default=None, description="Key used to replay the same create operation safely.")
     image: Optional[StrictStr] = Field(default=None, description="Image name or `img_…` id. Omit to boot the platform default image.")
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="User-defined labels.")

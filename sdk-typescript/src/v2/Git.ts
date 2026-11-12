@@ -231,6 +231,12 @@ export class GitService {
     return value
   }
 
+  /**
+   * Set a git config value. A sandbox access token needs `toolbox:exec` as
+   * well as `toolbox:git` for this (`toolbox` covers both): without
+   * `toolbox:exec` it throws `ForbiddenError` (403), while {@link getConfig}
+   * still works.
+   */
   public async setConfig(key: string, value: string, options: GitConfigOptions = {}): Promise<void> {
     assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
     await this.transport.post<void>('/git/config', {

@@ -183,6 +183,13 @@ class GitService:
     def set_config(
         self, key: str, value: str, /, *, path: Optional[str] = None, scope: GitConfigScope = "global"
     ) -> None:
+        """Set a git config value.
+
+        A sandbox access token needs ``toolbox:exec`` as well as
+        ``toolbox:git`` for this (``toolbox`` covers both): without
+        ``toolbox:exec`` it raises :class:`ForbiddenError` (403), while
+        :meth:`get_config` still works.
+        """
         return self._bridge.call(lambda: self._impl.set_config(key, value, path=path, scope=scope))
 
     def status(self, path: str, /) -> GitStatus:

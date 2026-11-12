@@ -75,6 +75,8 @@ class Sandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
+        The credential needs ``write:sandboxes`` in addition to ``write:images``;
+        without it the capture raises :class:`ForbiddenError` (403).
 
         ``name`` makes the image named and permanent. ``idle_expiry_seconds`` is
         the idle-retention window of an ANONYMOUS capture: it is deleted once
@@ -107,8 +109,14 @@ class Sandbox:
         ``toolbox:exec``, ``toolbox:fs``, ``toolbox:git``, ``toolbox:lsp``,
         ``desktop``, ``ssh``, ``sandbox:stop``, ``sandbox:pause``,
         ``sandbox:delete``); omitted means the minter's full grantable set, and
-        ``[]`` is a valid ports-only grant. ``ports`` names the private-preview
-        ports the token may reach (omitted = all, ``[]`` = none). ``ttl_seconds``
+        ``[]`` is a valid ports-only grant. ``toolbox:git`` without
+        ``toolbox:exec`` covers the git operations except writing git config:
+        ``git.set_config()`` with such a token raises :class:`ForbiddenError`
+        (403); ``git.get_config()`` still works. ``ports`` names the private-preview
+        ports the token may reach (omitted = all, ``[]`` = none); the sandbox
+        daemon's ports 2280, 2281 and 22220 are never preview ports and are
+        refused with :class:`~daytona.v2.errors.BadRequestError` before any
+        request. ``ttl_seconds``
         overrides the deployment's default lifetime, capped server-side; an
         unknown operation or an over-cap TTL is a 400, never a silent
         narrowing. The token cannot be refreshed and cannot mint further
@@ -121,6 +129,13 @@ class Sandbox:
         )
 
     def create_snapshot(self, name: str, /) -> Snapshot:
+        """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
+        (``POST /sandboxes/{id}/snapshots``).
+
+        The credential needs ``write:sandboxes`` in addition to
+        ``write:snapshots``; without it the capture raises
+        :class:`ForbiddenError` (403).
+        """
         return self._bridge.call(lambda: self._impl.create_snapshot(name))
 
     def delete(self, *, timeout: float = 60) -> None:
@@ -319,9 +334,10 @@ class Sandbox:
         ``idle_timeout_at`` re-anchors to now + ``idle_expiry_seconds``. The
         wall-clock ``timeout_at`` is NOT affected. Succeeds whether or not an
         idle timeout is armed (an unarmed sandbox echoes
-        ``idle_timeout_at=None``), and in any state — a never-started sandbox
-        already carries its creation-time activity stamp, which the reset
-        advances.
+        ``idle_timeout_at=None``), and in any state but deleting or deleted —
+        a never-started sandbox already carries its creation-time activity
+        stamp, which the reset advances. A sandbox that is deleted or being
+        deleted raises :class:`ConflictError` (``CONFLICT``).
 
         The echo is the full post-reset lifecycle, the same shape
         :meth:`update_lifecycle_policy` returns. Advance-only: a newer concurrent
@@ -389,7 +405,11 @@ class Sandbox:
         if any, is sent along (a read without labels reports none); the read and the write are not atomic. The ``name``
         label cannot be removed. Returns the labels the API applied, as a fresh
         plain ``dict`` (typed ``Mapping``, as :attr:`labels` is): changing it
-        changes nothing.
+        changes nothing. An empty label key is refused with
+        :class:`~daytona.v2.errors.BadRequestError` before any request. A
+        sandbox that is deleted or being deleted raises
+        :class:`ConflictError` (``CONFLICT``); one the API no longer finds raises
+        :class:`NotFoundError`.
         """
         return self._bridge.call(lambda: self._impl.set_labels(labels))
 
@@ -425,7 +445,10 @@ class Sandbox:
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
         sandboxes can stop (today: persistent macOS sandboxes) is the API's
-        decision; a refusal surfaces as its typed error.
+        decision; a refusal surfaces as its typed error. While it is stopped,
+        toolbox calls (process, files, git, …) and its preview URLs answer
+        :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
+        :meth:`start` it first.
         """
         return self._bridge.call(lambda: self._impl.stop(timeout=timeout))
 
@@ -464,7 +487,8 @@ class Sandbox:
         arming it on a sandbox with no idle policy requires ``on_idle_timeout``.
         Setting either action to ``"delete"`` — or touching a pair whose current
         or resulting action is ``"delete"`` — requires the API key to hold
-        ``delete:sandboxes`` in addition to ``write:sandboxes``.
+        ``delete:sandboxes`` in addition to ``write:sandboxes``. A sandbox that
+        is deleted or being deleted raises :class:`ConflictError` (``CONFLICT``).
         """
         return self._bridge.call(
             lambda: self._impl.update_lifecycle_policy(

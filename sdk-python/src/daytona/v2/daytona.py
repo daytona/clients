@@ -52,6 +52,7 @@ from ._core import (
     RequestSpec,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
+    check_label_keys,
     expect_object,
     finite_number,
     gib_to_mib,
@@ -1063,7 +1064,9 @@ class AsyncDaytona:
         Every parameter is optional and they combine as AND. ``q`` is free text
         over name and image (or an exact id); ``name_prefix``/``id_prefix`` match
         the start of the name or id; ``states``, ``sandbox_class`` and
-        ``region`` accept a single value or a list (any-of). ``states`` are the
+        ``region`` accept a single value or a list (any-of). A ``region`` that
+        contains other regions (a geo group, or ``earth``) matches every
+        region inside it. ``states`` are the
         SDK's sandbox states (``started``, ``stopped``, ``error``, ...), each
         sent as the API status names it covers; ``"unknown"`` is refused.
         ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
@@ -1090,8 +1093,9 @@ class AsyncDaytona:
         deletes mid-walk shift later pages.
 
         Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
-        cursor, an unknown ``sandbox_class``/``sort`` value, a non-object
-        ``labels`` or a ``min`` above its ``max``; 501
+        cursor, an unknown ``sandbox_class``/``sort`` value or region, a
+        non-object ``labels`` or one with an empty key, or a ``min`` above its
+        ``max``; 501
         (:class:`SearchNotConfiguredError` with
         ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
         disabled; 503 (:class:`SearchUnavailableError` with
@@ -1664,6 +1668,8 @@ def _labels_with_name(config: CreateConfig) -> dict[str, str] | None:
     the name :meth:`AsyncDaytona.find_by_name` matches on.
     """
     labels = _string_map(config.get("labels"))
+    if labels is not None:
+        check_label_keys(labels)
     named = _named_create(config.get("name"))
     if named is None:
         return labels

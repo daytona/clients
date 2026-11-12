@@ -333,7 +333,8 @@ export class Daytona {
    * Every option is optional and they combine as AND. `q` is free text over
    * name and image (or an exact id); `namePrefix`/`idPrefix` select prefixes.
    * `states`, `sandboxClass`, and `region` accept a single value or a list
-   * (any-of). States use public names such as `started`; `creating` matches
+   * (any-of); a `region` that contains other regions (a geo group, or `earth`)
+   * matches every region inside it. States use public names such as `started`; `creating` matches
    * pending or assigned sandboxes, and `error` matches failed or lost sandboxes.
    * `unknown` is not searchable. `labels` is a containment match; the
    * `min*`/`max*` bounds are inclusive, the `*StartAt` timestamp bounds are
@@ -359,8 +360,8 @@ export class Daytona {
    * both pages or on neither, and creates or deletes mid-walk shift later pages.
    *
    * Errors: 400 ({@link BadRequestError}) for a malformed or mismatched cursor,
-   * an unknown `states`/`sandboxClass`/`sort` value, a non-object `labels` or a `min`
-   * above its `max`; 501 ({@link SearchNotConfiguredError} with
+   * an unknown `states`/`sandboxClass`/`sort` value or region, a non-object `labels` or one
+   * with an empty key, or a `min` above its `max`; 501 ({@link SearchNotConfiguredError} with
    * `code === 'SEARCH_NOT_CONFIGURED'`) when search is not configured;
    * 503 ({@link SearchUnavailableError} with `code === 'SEARCH_UNAVAILABLE'`)
    * when search is unavailable. The error body is the unified envelope
