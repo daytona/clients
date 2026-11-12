@@ -1,0 +1,16 @@
+changelog.d/desktop-resolution.added.md
+  h_e7759ddd73fa65 7
+sdk-typescript/src/v2/ComputerUse.ts
+  h_e7759ddd73fa65 58-65,74-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d50ef44e1d6137a64d28dea9c0755f9dfef37bf",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
