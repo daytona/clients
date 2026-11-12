@@ -2138,7 +2138,9 @@ async def test_running_macos_fork_returns_a_stopped_handle_when_its_wait_budget_
         {"id": "f", "status": "pending", "forked_from": "mac", "toolbox_proxy_url": "https://proxy.example"},
         _sandbox_detail_payload("f", "stopped", sandbox_class="macos"),
     ])
-    sandbox = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    sandbox = lazy_sandbox(client, "mac")
+    sandbox._api = api  # type: ignore[attr-defined]
     fork = await sandbox.fork() if wait_seconds is None else await sandbox.fork(wait_seconds=wait_seconds)
     assert (fork.id, fork.state) == ("f", "stopped")
     assert [(spec.method, spec.path) for spec in api.specs] == [
