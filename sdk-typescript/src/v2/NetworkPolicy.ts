@@ -4,12 +4,14 @@
  */
 
 import type { AxiosResponse } from 'axios'
-import { BadRequestError, InternalServerError } from './errors/DaytonaError.js'
+import { BadRequestError } from './errors/DaytonaError.js'
 import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput } from './types.js'
+import { badRequest } from './options.js'
+import { deepFrozen } from './frozen.js'
 
 const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains'])
 
-export function createNetworkPolicyCreateField(options: Record<string, unknown>): Record<string, unknown> | null | undefined {
+export function createNetworkPolicyCreateField(options: { readonly networkPolicy?: NetworkPolicyInput | null }): Record<string, unknown> | null | undefined {
   if (!Object.prototype.hasOwnProperty.call(options, 'networkPolicy')) return undefined
   const value = options.networkPolicy
   if (value === undefined) return undefined
@@ -34,8 +36,10 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
     }
     blockAll = input.blockAll
   }
+  let allowCidrs: string[] | undefined
   if (input.allowCidrs !== undefined) {
-    body.allow_cidrs = requestStringArray(input.allowCidrs, 'networkPolicy.allowCidrs')
+    allowCidrs = requestStringArray(input.allowCidrs, 'networkPolicy.allowCidrs')
+    body.allow_cidrs = allowCidrs
   }
   let allowDomains: string[] | null | undefined
   if (input.allowDomains !== undefined) {
@@ -50,6 +54,11 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
       { statusCode: 400, code: 'NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL', source: 'SDK' },
     )
   }
+  // Without a domain list the API leaves blockAll false, and an open policy
+  // ignores allowCidrs: refused, so an allow list never creates an open sandbox.
+  if (allowCidrs !== undefined && allowCidrs.length > 0 && blockAll !== true && (allowDomains === undefined || allowDomains === null)) {
+    throw badRequest('network_policy allow_cidrs restricts egress only with block_all set to true or with allow_domains; without them the policy is open')
+  }
   if (blockAll !== undefined) {
     body.block_all = blockAll
   }
@@ -60,19 +69,18 @@ export function parseNetworkPolicyResponse(response: AxiosResponse<unknown>): Ne
   const data = recordValue(response.data, 'network policy response')
   const etagHeader = response.headers.etag
   if (typeof etagHeader !== 'string' || etagHeader.length === 0) {
-    throw new InternalServerError('network policy response is missing ETag', { statusCode: 500, source: 'SDK' })
+    throw badRequest('network_policy response is missing the ETag header')
   }
-  return {
+  return deepFrozen({
     desired: optionalNetworkPolicy(data.desired, 'desired'),
     desiredRevision: requiredInteger(data.desired_revision, 'desired_revision'),
     etag: etagHeader,
-    httpStatus: response.status,
     applied: optionalNetworkPolicy(data.applied, 'applied'),
     appliedRevision: optionalInteger(data.applied_revision, 'applied_revision'),
     appliedStartId: optionalString(data.applied_start_id),
     status: optionalString(data.status),
     error: optionalString(data.error),
-  }
+  })
 }
 
 function optionalNetworkPolicy(value: unknown, fieldName: string): NetworkPolicy | undefined {
@@ -95,24 +103,24 @@ function requestStringArray(value: unknown, fieldName: string): string[] {
 
 function responseStringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
-    throw new InternalServerError(`${fieldName} must be an array of strings`, { statusCode: 500, source: 'SDK' })
+    throw badRequest(`${fieldName} must be an array of strings`)
   }
   return [...value]
 }
 
-function optionalResponseStringArray(value: unknown, fieldName: string): string[] | null {
-  if (value === undefined || value === null) return null
+function optionalResponseStringArray(value: unknown, fieldName: string): string[] | undefined {
+  if (value === undefined || value === null) return undefined
   return responseStringArray(value, fieldName)
 }
 
 function requiredBoolean(value: unknown, fieldName: string): boolean {
   if (typeof value === 'boolean') return value
-  throw new InternalServerError(`${fieldName} must be a boolean`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be a boolean`)
 }
 
 function requiredInteger(value: unknown, fieldName: string): number {
   if (typeof value === 'number' && Number.isInteger(value)) return value
-  throw new InternalServerError(`${fieldName} must be an integer`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an integer`)
 }
 
 function optionalInteger(value: unknown, fieldName: string): number | undefined {
@@ -126,7 +134,7 @@ function optionalString(value: unknown): string | undefined {
 
 function recordValue(value: unknown, fieldName: string): Record<string, unknown> {
   if (isRecord(value)) return value
-  throw new InternalServerError(`${fieldName} must be an object`, { statusCode: 500, source: 'SDK' })
+  throw badRequest(`${fieldName} must be an object`)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

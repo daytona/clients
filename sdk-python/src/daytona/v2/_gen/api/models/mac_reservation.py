@@ -49,22 +49,21 @@ class MacReservation(BaseModel):
     model: Optional[StrictStr] = Field(default=None, description="The reserved Mac model, fixed at purchase, including renewal and replacement. Null when model information is unavailable; such a reservation accepts no new sandbox.")
     org_id: StrictStr = Field(description="The organization ID.")
     origin: MacReservationOrigin
-    pending_mac_started_at: Optional[datetime] = Field(default=None, description="When the reservation last began waiting for a Mac: at its first charge, or when it moved after its Mac was lost. Kept after a Mac claims it.")
-    period_end: Optional[datetime] = Field(default=None, description="When the reservation ends unless renewed. Absent until a Mac first claims it (period 1 starts at the claim, so waiting for a Mac is not paid time).")
+    pending_mac_started_at: Optional[datetime] = Field(default=None, description="When the reservation last began to wait for a Mac: at its first charge, or when it moved after a Mac failure. Kept after a Mac takes it.")
+    period_end: Optional[datetime] = Field(default=None, description="When the reservation ends unless renewed. Absent until a Mac first takes the reservation; period 1 starts then, so the wait for a Mac is not paid time.")
     period_n: StrictInt = Field(description="The current paid period (1-based).")
     period_seconds: StrictInt = Field(description="The period length in seconds.")
     period_started_at: Optional[datetime] = Field(default=None, description="When the current period started.")
     project_id: StrictStr = Field(description="The project whose key bought the reservation. The reservation serves every project of the organization; this project's monthly budget gates its renewals, manual and automatic, which answer `PROJECT_BUDGET_EXCEEDED` while the project is held.")
     region_id: StrictStr = Field(description="The reservation region.")
-    reissued_at: Optional[datetime] = Field(default=None, description="Set when the reservation moved to another Mac after its Mac was lost.")
+    reissued_at: Optional[datetime] = Field(default=None, description="Set when the reservation moved to another Mac after a Mac failure.")
     renewal_error: Optional[StrictStr] = Field(default=None, description="Why the renewal of the next period failed (billing refused it, or the balance was too low); the reservation ends at `period_end` unless renewed by hand. Null when no renewal has failed.")
     renewal_pending: StrictBool = Field(description="A renewal charge is still waiting for billing's answer.")
     resources_used: MacResources
-    sandboxes_per_mac: StrictInt = Field(description="Most sandboxes this reservation's Mac runs at once, subject to CPU, memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.")
     slots_used: StrictInt = Field(description="macOS sandboxes currently occupying this reservation's Mac.")
     status: MacReservationStatus
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["activated_at", "auto_renew", "capacity", "created_at", "end_reason", "ended_at", "id", "model", "org_id", "origin", "pending_mac_started_at", "period_end", "period_n", "period_seconds", "period_started_at", "project_id", "region_id", "reissued_at", "renewal_error", "renewal_pending", "resources_used", "sandboxes_per_mac", "slots_used", "status"]
+    __properties: ClassVar[List[str]] = ["activated_at", "auto_renew", "capacity", "created_at", "end_reason", "ended_at", "id", "model", "org_id", "origin", "pending_mac_started_at", "period_end", "period_n", "period_seconds", "period_started_at", "project_id", "region_id", "reissued_at", "renewal_error", "renewal_pending", "resources_used", "slots_used", "status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -203,7 +202,6 @@ class MacReservation(BaseModel):
             **({"renewal_error": obj["renewal_error"]} if "renewal_error" in obj else {}),
             "renewal_pending": obj.get("renewal_pending"),
             "resources_used": MacResources.from_dict(obj["resources_used"]) if obj.get("resources_used") is not None else None,
-            "sandboxes_per_mac": obj.get("sandboxes_per_mac"),
             "slots_used": obj.get("slots_used"),
             "status": obj.get("status")
         })

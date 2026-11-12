@@ -16,9 +16,8 @@ from ._core import (
     expect_object,
     is_json_value,
     loads_json,
-    refuse_dot_segment,
+    path_segment,
     timeout_millis_from_seconds,
-    toolbox_path_id,
     wait_budget,
 )
 from ._transport import AsyncTransport
@@ -56,13 +55,12 @@ def _isolated_context_id(language: str) -> str:
 def _json_identity(value: object) -> Optional[tuple[str, str, str]]:
     """``(sandbox_id, context_id, language)`` of a serialized context.
 
-    Reads the camelCase ``to_json()`` shape (shared with the TypeScript SDK)
-    and the snake_case keys earlier 2.x pre-releases wrote.
+    Reads only the camelCase ``to_json()`` shape, shared with the TypeScript SDK.
     """
     if not isinstance(value, Mapping):
         return None
-    sandbox_id = value.get("sandboxId", value.get("sandbox_id"))
-    context_id = value.get("contextId", value.get("context_id"))
+    sandbox_id = value.get("sandboxId")
+    context_id = value.get("contextId")
     language = value.get("language")
     if isinstance(sandbox_id, str) and isinstance(context_id, str) and isinstance(language, str):
         return sandbox_id, context_id, language
@@ -94,7 +92,7 @@ def _session_identity(value: object, *, requested_id: Optional[str] = None) -> t
 def _timed_out_result() -> InterpreterResult:
     return InterpreterResult(
         process=InterpreterProcess(reason="timed_out"),
-        results=[],
+        results=(),
         logs=InterpreterLogs(),
         error=None,
     )
@@ -214,7 +212,13 @@ class AsyncInterpreterService:
     ) -> AsyncInterpreterContext:
         """Create an interpreter context: kernel state of its own.
 
-        ``cwd`` and ``env`` apply to every run in the context.
+        ``language`` is ``"python"``, ``"typescript"`` or ``"javascript"``
+        (case-sensitive); any other value raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError` (400) before a
+        kernel is provisioned, while
+        :class:`~daytona.v2.errors.KernelUnavailableError` (503) means a
+        supported language's kernel failed to install or start. ``cwd`` and
+        ``env`` apply to every run in the context.
         """
         return await self._create_context(language=language, context_id=context_id, cwd=cwd, env=env)
 
@@ -252,6 +256,7 @@ class AsyncInterpreterService:
     def connect_context(
         self,
         context: str | AsyncInterpreterContext | InterpreterContextJSON,
+        /,
         *,
         language: str | None = None,
     ) -> AsyncInterpreterContext:
@@ -283,7 +288,9 @@ class AsyncInterpreterService:
             contexts.append(self._bind_context(context_id, kernel))
         return contexts
 
-    async def delete_context(self, context: AsyncInterpreterContext | InterpreterContextJSON | str) -> None:
+    async def delete_context(
+        self, context: AsyncInterpreterContext | InterpreterContextJSON | str, /
+    ) -> None:
         if isinstance(context, (AsyncInterpreterContext, Mapping)):
             context_id, _ = self._context_identity(context)
         else:
@@ -294,7 +301,7 @@ class AsyncInterpreterService:
             )
         try:
             await self._transport.send(
-                RequestSpec("DELETE", f"/sessions/{toolbox_path_id(context_id, 'interpreter context id')}")
+                RequestSpec("DELETE", f"/sessions/{path_segment(context_id, 'interpreter context id')}")
             )
         except DaytonaError as error:
             if error.code == codes.SESSION_NOT_FOUND:
@@ -305,6 +312,7 @@ class AsyncInterpreterService:
     async def run(
         self,
         code: str,
+        /,
         *,
         language: Optional[str] = None,
         context: str | AsyncInterpreterContext | InterpreterContextJSON | None = None,
@@ -320,7 +328,13 @@ class AsyncInterpreterService:
         context by handle, ``to_json()`` identity or id; an id needs
         ``language``. ``isolated=True`` runs in a throwaway context. ``env``
         applies to context-free and isolated runs; a context takes its
-        environment when it is created.
+        environment when it is created. For a context-free or isolated run, an
+        unsupported ``language`` raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError`, as in
+        :meth:`create_context`. With a context handle or ``to_json()``
+        identity, a ``language`` that differs from the context's language
+        raises :class:`~daytona.v2.errors.BadRequestError` before any request;
+        a bare context id takes ``language`` as the context's language.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on
@@ -407,7 +421,9 @@ class AsyncInterpreterService:
             raise create_error(
                 "interpreter context id must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
             )
-        refuse_dot_segment(context_id, "interpreter context id")
+        # Closing deletes the context through its path id, so one that could
+        # not be closed (blank, `.`/`..`, a surrogate) is not bound either.
+        path_segment(context_id, "interpreter context id")
         if not isinstance(language, str) or not language:
             raise create_error(
                 "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
@@ -490,7 +506,7 @@ class AsyncInterpreterService:
                 signal=wait.signal,
                 raw_reason=wait.raw_reason,
             ),
-            results=results,
+            results=tuple(results),
             logs=InterpreterLogs(stdout=stdout, stderr=stderr),
             error=error,
         )
@@ -584,7 +600,7 @@ def _parse_error(payload: str) -> Optional[InterpreterError]:
     return InterpreterError(
         name=str(decoded.get("ename") or ""),
         value=str(decoded.get("evalue") or ""),
-        traceback=[str(item) for item in traceback] if isinstance(traceback, list) else [],
+        traceback=tuple(str(item) for item in traceback) if isinstance(traceback, list) else (),
     )
 
 

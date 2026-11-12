@@ -115,8 +115,8 @@ func TestObjectYAML(t *testing.T) {
 }
 
 func TestParseFormat(t *testing.T) {
-	if f, _ := ParseFormat(""); f != FormatTable {
-		t.Fatal()
+	if _, err := ParseFormat(""); err == nil {
+		t.Fatal("an explicit empty format should fail")
 	}
 	if _, err := ParseFormat("xml"); err == nil {
 		t.Fatal("xml should fail")

@@ -30,6 +30,8 @@ from typing import (
 )
 from urllib.parse import quote
 
+from typing_extensions import Buffer
+
 from ._body_limit import validated_max_response_bytes
 from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
@@ -44,12 +46,14 @@ from ._core import (
     list_shape,
     parse_bulk_read_result,
     parse_bulk_write_result,
-    parse_file_match,
+    parse_glob_response,
+    parse_grep_response,
     parse_replace_result,
     parse_sse_events_bounded,
     sse_json,
     stream_event_too_large,
 )
+from ._filesystem_inputs import buffer_bytes, path_sequence, sandbox_path
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
 from .errors import ConnectionError, DaytonaError, TransferCancelledError, create_error
@@ -58,6 +62,7 @@ from .types import (
     BulkWriteResult,
     FileInfo,
     FileMatch,
+    FileSearchResult,
     FilesystemEvent,
     JsonObject,
     JsonValue,
@@ -343,7 +348,10 @@ FileUrlSigner = Callable[[str, str, int], Awaitable[TransportPayload]]
 
 
 class AsyncFileSystemService:
-    """Sandbox filesystem namespace."""
+    """Sandbox filesystem namespace. All sandbox paths must be absolute strings
+    starting with ``/``; relative paths are refused with ``BadRequestError``.
+    Local upload/download paths are not subject to this rule.
+    """
 
     # The synchronous watch_dir() publishes the watch once it has built its
     # own handle (see AsyncWatchHandle._publish).
@@ -358,7 +366,7 @@ class AsyncFileSystemService:
         self._transport = _transport
         self._file_url_signer = _file_url_signer
 
-    async def read_bytes(self, path: str, *, max_response_bytes: Optional[int] = None) -> bytes:
+    async def read_bytes(self, path: str, /, *, max_response_bytes: Optional[int] = None) -> bytes:
         """Read a file as bytes, holding the whole file in memory.
 
         No total deadline (it fails only when no bytes move for the client's
@@ -371,7 +379,7 @@ class AsyncFileSystemService:
         content from a sandbox you do not trust, use :meth:`download_file`,
         which streams to disk with progress and cancellation.
         """
-        spec = file_download_spec(path, timeout=None)
+        spec = file_download_spec(sandbox_path(path), timeout=None)
         if max_response_bytes is not None:
             spec = replace(
                 spec,
@@ -379,7 +387,7 @@ class AsyncFileSystemService:
             )
         return await self._transport.raw(spec)
 
-    async def read_text(self, path: str, *, max_response_bytes: Optional[int] = None) -> str:
+    async def read_text(self, path: str, /, *, max_response_bytes: Optional[int] = None) -> str:
         """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds).
 
         Decoding is strict (invalid UTF-8 raises ``UnicodeDecodeError``) and a
@@ -387,15 +395,20 @@ class AsyncFileSystemService:
         """
         return (await self.read_bytes(path, max_response_bytes=max_response_bytes)).decode("utf-8")
 
-    async def write_bytes(self, path: str, content: bytes, *, atomic: bool = False) -> None:
-        """Write bytes to a file, optionally via temp-file + rename."""
-        await self._transport.send(file_upload_spec(path, content, timeout=None, atomic=atomic))
+    async def write_bytes(self, path: str, content: Buffer, /, *, atomic: bool = False) -> None:
+        """Write a bytes-like buffer to an absolute path, optionally atomically."""
+        spec = file_upload_spec(
+            sandbox_path(path), buffer_bytes(content, "content"), timeout=None, atomic=atomic
+        )
+        await self._transport.send(spec)
 
-    async def write_text(self, path: str, content: str, *, atomic: bool = False) -> None:
+    async def write_text(self, path: str, content: str, /, *, atomic: bool = False) -> None:
         """Write a UTF-8 text file, optionally via temp-file + rename."""
+        if not isinstance(content, str):
+            raise create_error("content must be a string", 400, "BAD_REQUEST", "SDK")
         await self.write_bytes(path, content.encode("utf-8"), atomic=atomic)
 
-    async def presigned_download_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
+    async def presigned_download_url(self, path: str, /, *, expires_in_seconds: int = 3600) -> str:
         """Return a pre-signed download URL for a sandbox file.
 
         The signature is minted by the API; ``expires_in_seconds``
@@ -403,7 +416,7 @@ class AsyncFileSystemService:
         """
         return await self._presigned_url("GET", "/files/download", path, expires_in_seconds)
 
-    async def presigned_upload_url(self, path: str, *, expires_in_seconds: int = 3600) -> str:
+    async def presigned_upload_url(self, path: str, /, *, expires_in_seconds: int = 3600) -> str:
         """Return a pre-signed upload URL for a sandbox file.
 
         The signature is minted by the API; ``expires_in_seconds``
@@ -411,9 +424,17 @@ class AsyncFileSystemService:
         """
         return await self._presigned_url("POST", "/files/upload", path, expires_in_seconds)
 
-    async def write_many(self, files: Mapping[str, bytes], *, atomic: bool = False) -> BulkWriteResult:
-        """Write several files in one request, optionally atomically per file."""
-        spec = file_bulk_upload_spec(files, timeout=None, atomic=atomic)
+    async def write_many(self, files: Mapping[str, Buffer], /, *, atomic: bool = False) -> BulkWriteResult:
+        """Write absolute paths mapped to bytes-like buffers, optionally atomically per file."""
+        if not isinstance(files, Mapping):
+            raise create_error(
+                "files must be a mapping of paths to bytes-like values", 400, "BAD_REQUEST", "SDK"
+            )
+        contents = {
+            sandbox_path(path, "files key"): buffer_bytes(content, f"files[{path!r}]")
+            for path, content in files.items()
+        }
+        spec = file_bulk_upload_spec(contents, timeout=None, atomic=atomic)
         payload = await self._transport.send(spec)
         if isinstance(payload, bytes):
             raise create_error("expected JSON object", 400, "BAD_REQUEST", "SDK")
@@ -423,12 +444,14 @@ class AsyncFileSystemService:
         self,
         local_path: str | os.PathLike[str],
         remote_path: str,
+        /,
         *,
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
         atomic: bool = False,
     ) -> None:
         """Stream a local file into the sandbox without buffering it whole in memory."""
+        sandbox_path(remote_path, "remote_path")
         _raise_if_transfer_cancelled(cancel, operation="upload")
         source_path = Path(local_path)
         total_bytes = source_path.stat().st_size
@@ -468,6 +491,7 @@ class AsyncFileSystemService:
         self,
         remote_path: str,
         local_path: str | os.PathLike[str],
+        /,
         *,
         on_progress: TransferProgressCallback | None = None,
         cancel: TransferCancelSignal | None = None,
@@ -481,6 +505,7 @@ class AsyncFileSystemService:
         sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
         between chunks, and raises ``TransferCancelledError``.
         """
+        sandbox_path(remote_path, "remote_path")
         destination_path = Path(local_path)
         bytes_written = 0
         progress_calls = 0
@@ -533,7 +558,7 @@ class AsyncFileSystemService:
             await stream.close()
 
     async def read_many(
-        self, paths: Sequence[str], *, max_response_bytes: Optional[int] = None
+        self, paths: Sequence[str], /, *, max_response_bytes: Optional[int] = None
     ) -> BulkReadResult:
         """Read multiple files, buffering each returned file in memory before returning.
 
@@ -551,7 +576,10 @@ class AsyncFileSystemService:
             if max_response_bytes is None
             else validated_max_response_bytes("max_response_bytes", max_response_bytes)
         )
-        spec = bulk_download_spec(paths, timeout=None)
+        checked_paths = [
+            sandbox_path(path, f"paths[{index}]") for index, path in enumerate(path_sequence(paths, "paths"))
+        ]
+        spec = bulk_download_spec(checked_paths, timeout=None)
         request_kwargs = {"json": spec.json_body}
         if spec.timeout is not None:
             request_kwargs["timeout"] = spec.timeout
@@ -563,10 +591,12 @@ class AsyncFileSystemService:
             )
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
-    async def list(self, path: str, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
+    async def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
-        params: Dict[str, JsonValue] = {"path": path}
+        params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if depth is not None:
+            if isinstance(depth, bool) or not isinstance(depth, int):
+                raise create_error("depth must be an integer", 400, "BAD_REQUEST", "SDK")
             params["depth"] = depth
         raw_items, next_cursor = list_shape(
             await self._transport.send(RequestSpec("GET", "/files", params=params)),
@@ -575,66 +605,79 @@ class AsyncFileSystemService:
         items = [expect_file_info(item) for item in raw_items]
         return ListResult(items=items, next_cursor=next_cursor)
 
-    async def stat(self, path: str) -> FileInfo:
+    async def stat(self, path: str, /) -> FileInfo:
         """Return file metadata."""
         return expect_file_info(
-            await self._transport.send(RequestSpec("GET", "/files/info", params={"path": path}))
+            await self._transport.send(RequestSpec("GET", "/files/info", params={"path": sandbox_path(path)}))
         )
 
-    async def mkdir(self, path: str, *, mode: str = "0755") -> None:
+    async def mkdir(self, path: str, /, *, mode: str = "0755") -> None:
         """Create a directory."""
-        await self._transport.send(RequestSpec("POST", "/files/folder", params={"path": path, "mode": mode}))
+        await self._transport.send(
+            RequestSpec("POST", "/files/folder", params={"path": sandbox_path(path), "mode": mode})
+        )
 
-    async def remove(self, path: str, *, recursive: bool = False) -> None:
+    async def remove(self, path: str, /, *, recursive: bool = False) -> None:
         """Remove a file, or a directory with ``recursive=True``."""
         await self._transport.send(
-            RequestSpec("DELETE", "/files", params={"path": path, "recursive": recursive})
+            RequestSpec("DELETE", "/files", params={"path": sandbox_path(path), "recursive": recursive})
         )
 
-    async def move(self, source: str, destination: str) -> None:
+    async def move(self, source: str, destination: str, /) -> None:
         """Move or rename files."""
         await self._transport.send(
-            RequestSpec("POST", "/files/move", params={"source": source, "destination": destination})
+            RequestSpec(
+                "POST",
+                "/files/move",
+                params={
+                    "source": sandbox_path(source, "source"),
+                    "destination": sandbox_path(destination, "destination"),
+                },
+            )
         )
 
-    async def grep(self, path: str, pattern: str) -> ListResult[FileMatch]:
+    async def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
-        Returns matches with one-based line numbers.
+        Returns matches with one-based line numbers, as the sandbox user sees
+        them. Directories and files below ``path`` that the sandbox user cannot
+        read are not searched; ``skipped`` lists their absolute paths (at most
+        1000). Only an unreadable ``path`` itself raises
+        :class:`~daytona.v2.errors.FileAccessDeniedError`.
         """
-        items, next_cursor = list_shape(
+        return parse_grep_response(
             await self._transport.send(
-                RequestSpec("GET", "/files/find", params={"path": path, "pattern": pattern})
-            ),
-            description="grep response",
-        )
-        return ListResult(items=[parse_file_match(item) for item in items], next_cursor=next_cursor)
-
-    async def glob(self, path: str, pattern: str) -> ListResult[str]:
-        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
-        payload = await self._transport.send(
-            RequestSpec("GET", "/files/search", params={"path": path, "pattern": pattern})
-        )
-        # The contract's SearchResponse: { files } only.
-        if not isinstance(payload, dict):
-            raise create_error("expected glob response", 400, "BAD_REQUEST", "SDK")
-        raw = payload.get("files")
-        if not isinstance(raw, list):
-            raise create_error("expected glob response: files is required", 400, "BAD_REQUEST", "SDK")
-        if not all(isinstance(item, str) for item in raw):
-            raise create_error(
-                "expected glob response: files must be a list of strings", 400, "BAD_REQUEST", "SDK"
+                RequestSpec("GET", "/files/find", params={"path": sandbox_path(path), "pattern": pattern})
             )
-        return ListResult([str(item) for item in raw], None)
+        )
 
-    async def replace(self, files: Sequence[str], pattern: str, new_value: str) -> ListResult[ReplaceResult]:
+    async def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
+        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
+
+        Directories below ``path`` that the sandbox user cannot read are not
+        searched; ``skipped`` lists their absolute paths (at most 1000). Only an
+        unreadable ``path`` itself raises
+        :class:`~daytona.v2.errors.FileAccessDeniedError`.
+        """
+        return parse_glob_response(
+            await self._transport.send(
+                RequestSpec("GET", "/files/search", params={"path": sandbox_path(path), "pattern": pattern})
+            )
+        )
+
+    async def replace(
+        self, files: Sequence[str], pattern: str, new_value: str, /
+    ) -> ListResult[ReplaceResult]:
         """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
+        checked_files = [
+            sandbox_path(path, f"files[{index}]") for index, path in enumerate(path_sequence(files, "files"))
+        ]
         items, next_cursor = list_shape(
             await self._transport.send(
                 RequestSpec(
                     "POST",
                     "/files/replace",
-                    json_body={"files": list(files), "pattern": pattern, "newValue": new_value},
+                    json_body={"files": checked_files, "pattern": pattern, "newValue": new_value},
                 )
             ),
             description="replace response",
@@ -644,13 +687,14 @@ class AsyncFileSystemService:
     async def chmod(
         self,
         path: str,
+        /,
         *,
         mode: Optional[str] = None,
         owner: Optional[str] = None,
         group: Optional[str] = None,
     ) -> None:
         """Set file permissions and ownership."""
-        params: Dict[str, JsonValue] = {"path": path}
+        params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if mode is not None:
             params["mode"] = mode
         if owner is not None:
@@ -663,6 +707,7 @@ class AsyncFileSystemService:
         self,
         path: str,
         on_event: WatchEventCallback,
+        /,
         *,
         recursive: bool = False,
         on_overflow: Optional[WatchOverflowCallback] = None,
@@ -683,6 +728,11 @@ class AsyncFileSystemService:
         than the client's ``max_response_bytes`` ends the watch with
         ``PayloadTooLargeError``.
         """
+        sandbox_path(path)
+        if not isinstance(recursive, bool):
+            raise create_error("recursive must be a boolean", 400, "BAD_REQUEST", "SDK")
+        if not callable(on_event):
+            raise create_error("on_event must be callable", 400, "BAD_REQUEST", "SDK")
         stream = await self._transport.open_stream(_watch_spec(path, recursive=recursive))
         handle = AsyncWatchHandle(stream, on_exit)
         ready = asyncio.Event()
@@ -835,6 +885,7 @@ class AsyncFileSystemService:
         return handle
 
     async def _presigned_url(self, method: str, route: str, path: str, expires_in_seconds: int) -> str:
+        sandbox_path(path)
         # Validate before any network: the server would answer 400 for an
         # out-of-range ``expires`` anyway, but a bad argument is the caller's
         # bug and should not cost a round trip or depend on clock skew.

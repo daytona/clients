@@ -15,12 +15,7 @@
 import { join } from 'node:path'
 import ts from 'typescript'
 
-// Client, sandbox lifecycle and platform services, settled with their area.
-const ALLOWED: ReadonlySet<string> = new Set([
-  'Daytona', 'DockerService', 'Image', 'ImageBuilder', 'ImagesService', 'MacModelsService', 'PortsService',
-  'ReservationsService', 'Sandbox', 'SandboxVolumesService', 'SecretService', 'Snapshot', 'SnapshotsService',
-  'VolumeService',
-])
+const ALLOWED: ReadonlySet<string> = new Set<string>()
 
 const INTERNAL_TYPES = /\b(?:HttpTransport|HttpTransportConfig|HttpClientOptions|ComputerUseTransport|ProcessBinding|ContextExecutionQueue|Axios[A-Za-z]*|toolbox\.|api\.)/
 

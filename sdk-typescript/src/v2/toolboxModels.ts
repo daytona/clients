@@ -14,6 +14,8 @@ import type {
 } from './types.js'
 import { BadRequestError } from './errors/DaytonaError.js'
 import { deepFrozen } from './frozen.js'
+import { isRfc3339 } from './rfc3339.js'
+import { MAX_INT32 } from './options.js'
 
 export type WireRecord = Readonly<Record<string, unknown>>
 
@@ -67,7 +69,6 @@ export function int(input: WireRecord, field: string, description: string): numb
 }
 
 const MIN_INT32 = -(2 ** 31)
-const MAX_INT32 = 2 ** 31 - 1
 
 /** A signed 32-bit integer, for the contract's `int32` fields. */
 export function int32(input: WireRecord, field: string, description: string): number {
@@ -117,28 +118,15 @@ export function strList(input: WireRecord, field: string, description: string): 
   return [...value]
 }
 
+/** `skipped` of a file search response; absent (daemons that predate it) reads as none skipped. */
+export function searchSkipped(input: WireRecord, description: string): string[] {
+  return optional(input, 'skipped', strList, description) ?? []
+}
+
 /** An optional field: absent or `null` reads as absent; any other value is checked by `read`. */
 export function optional<T>(input: WireRecord, field: string, read: (input: WireRecord, field: string, description: string) => T, description: string): T | undefined {
   const value = input[field]
   return value === undefined || value === null ? undefined : read(input, field, description)
-}
-
-// RFC 3339 with the offset's hours 00-23 and minutes 00-59, as the Python SDK
-// parses it; the date and time fields are range-checked below (no leap
-// second, which Python's datetime cannot represent).
-const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
-
-/** Whether `value` is an RFC 3339 timestamp (with a valid date and time). */
-export function isRfc3339(value: string): boolean {
-  const match = RFC3339.exec(value)
-  if (match === null) return false
-  const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number) as [number, number, number, number, number, number]
-  // setUTCFullYear, not Date.UTC: Date.UTC maps years 0-99 to 1900-1999.
-  const date = new Date(0)
-  date.setUTCFullYear(year, month - 1, day)
-  // Year 0000 has no Python datetime, so neither SDK accepts it.
-  return year >= 1 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-    && hour <= 23 && minute <= 59 && second <= 59
 }
 
 /** A required RFC 3339 timestamp string. */

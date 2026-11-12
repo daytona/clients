@@ -74,7 +74,18 @@ export const API_ERROR_CODES = Object.freeze([
   'READ_ONLY_UNSUPPORTED',
   'UNSUPPORTED_VOLUME_TYPE',
   'CREATE_BODY_TOO_LARGE',
+  'INVALID_PARENT_REGION',
+  'INVALID_PREVIEW_DOMAIN',
+  'INVALID_SANDBOX_CIDR',
+  'INVALID_TOOLBOX_PROXY_URL',
+  'REGION_LIMIT_REACHED',
+  'REGION_NOT_EMPTY',
+  'REGION_NOT_FOUND',
+  'REGION_SUBNETS_EXHAUSTED',
   'REGION_UNAVAILABLE',
+  'RUNNER_HAS_SANDBOXES',
+  'DISK_NOT_READY',
+  'ROLE_IN_USE',
   'ECR_ACCOUNT_MISMATCH',
   'ECR_CREDENTIALS_INVALID',
   'ECR_OWNERSHIP_UNVERIFIABLE',
@@ -181,9 +192,12 @@ export type ApiErrorCode = (typeof API_ERROR_CODES)[number]
 export type ProxyErrorCode = (typeof PROXY_ERROR_CODES)[number]
 export type RouterErrorCode = (typeof ROUTER_ERROR_CODES)[number]
 export type GenericErrorCode = (typeof GENERIC_ERROR_CODES)[number]
-export type ErrorCode = DaemonErrorCode | ApiErrorCode | ProxyErrorCode | RouterErrorCode | GenericErrorCode
+/** Local SDK codes without an HTTP status. */
+export const SDK_ERROR_CODES = Object.freeze(['CLIENT_CLOSED'] as const)
+export type ErrorCode = DaemonErrorCode | ApiErrorCode | ProxyErrorCode | RouterErrorCode | GenericErrorCode | (typeof SDK_ERROR_CODES)[number]
 
-export const CODE_STATUS: Readonly<Record<ErrorCode, number>> = Object.freeze({
+// Every catalog code has its status; the SDK-only codes have none.
+export const CODE_STATUS: Readonly<Record<Exclude<ErrorCode, (typeof SDK_ERROR_CODES)[number]>, number>> & Readonly<Partial<Record<(typeof SDK_ERROR_CODES)[number], number>>> = Object.freeze({
   PROCESS_NOT_FOUND: 404,
   PROCESS_START_FAILED: 400,
   PROCESS_TERMINAL: 409,
@@ -240,7 +254,18 @@ export const CODE_STATUS: Readonly<Record<ErrorCode, number>> = Object.freeze({
   READ_ONLY_UNSUPPORTED: 400,
   UNSUPPORTED_VOLUME_TYPE: 400,
   CREATE_BODY_TOO_LARGE: 413,
+  INVALID_PARENT_REGION: 400,
+  INVALID_PREVIEW_DOMAIN: 400,
+  INVALID_SANDBOX_CIDR: 400,
+  INVALID_TOOLBOX_PROXY_URL: 400,
+  REGION_LIMIT_REACHED: 409,
+  REGION_NOT_EMPTY: 409,
+  REGION_NOT_FOUND: 404,
+  REGION_SUBNETS_EXHAUSTED: 409,
   REGION_UNAVAILABLE: 409,
+  RUNNER_HAS_SANDBOXES: 409,
+  DISK_NOT_READY: 409,
+  ROLE_IN_USE: 409,
   ECR_ACCOUNT_MISMATCH: 400,
   ECR_CREDENTIALS_INVALID: 400,
   ECR_OWNERSHIP_UNVERIFIABLE: 502,
@@ -373,6 +398,7 @@ const ERROR_CODES: ReadonlySet<string> = new Set<string>([
   ...PROXY_ERROR_CODES,
   ...ROUTER_ERROR_CODES,
   ...GENERIC_ERROR_CODES,
+  ...SDK_ERROR_CODES,
 ])
 
 /** Whether `code` is in one of the catalogs above. */

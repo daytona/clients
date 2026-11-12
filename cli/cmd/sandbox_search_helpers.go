@@ -127,7 +127,7 @@ func writeSandboxSearchResult(p output.Printer, list sandboxSearchResult) error 
 func sandboxSearchTable(items []gen.SandboxListItem) output.Table {
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, []string{item.Id, item.Name, string(item.Class), item.Status, item.RegionId, sandboxArtifactSummary(item.Image, item.Snapshot), formatTimePtr(item.LastActivityAt)})
+		rows = append(rows, []string{item.Id, item.Name, string(item.Class), item.Status, item.RegionId, sandboxArtifactSummary(item.Image, item.Snapshot, item.ImageRef), formatTimePtr(item.LastActivityAt)})
 	}
 	return output.Table{Headers: []string{"ID", "NAME", "CLASS", "STATUS", "REGION", "ARTIFACT", "LAST_ACTIVITY"}, Rows: rows}
 }

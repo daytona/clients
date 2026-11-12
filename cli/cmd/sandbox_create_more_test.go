@@ -21,9 +21,12 @@ func TestSandboxCreate_linuxWithoutImageOmitsImage(t *testing.T) {
 		method:   http.MethodPost,
 		path:     "/sandboxes",
 		status:   202,
-		bodyJSON: `{"name":"example-user"}`,
+		bodyJSON: `{"name":"example-user","labels":{"name":"example-user"}}`,
+		check: func(t *testing.T, r *http.Request, _ []byte) {
+			assert.Equal(t, "name:example-user", r.Header.Get("Idempotency-Key"))
+		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"example-user","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
 
@@ -35,7 +38,7 @@ func TestSandboxCreate_linuxWithoutImageOmitsImage(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"memory_mib":256}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 }
 
@@ -46,8 +49,11 @@ func TestSandboxCreate_linuxWithNoFlagsSendsEmptyBody(t *testing.T) {
 		path:     "/sandboxes",
 		status:   202,
 		bodyJSON: `{}`,
+		check: func(t *testing.T, r *http.Request, _ []byte) {
+			assert.Regexp(t, uuidRe, r.Header.Get("Idempotency-Key"))
+		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 }
 
@@ -104,35 +110,38 @@ func TestSandboxCreate_fileBaseWithFlagOverride(t *testing.T) {
 		method:   http.MethodPost,
 		path:     "/sandboxes",
 		status:   202,
-		bodyJSON: `{"image":"flag-wins","name":"file-name","memory_mib":512}`,
+		bodyJSON: `{"image":"flag-wins","name":"file-name","labels":{"name":"file-name"},"memory_mib":512}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"file-name","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
 }
 func TestSandboxCreate_waitAndCreateTTLShape(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"sandbox", "create", "--image", "python:3.12", "--wait", "9s", "--create-ttl", "10m", "--no-wait"}, []expectedRequest{{
+	stdout, _, err := runCLI(t, []string{"sandbox", "create", "--image", "python:3.12", "--server-wait", "9s", "--create-ttl", "10m"}, []expectedRequest{{
 		method:   http.MethodPost,
 		path:     "/sandboxes",
 		status:   202,
 		bodyJSON: `{"image":"python:3.12","wait_seconds":9,"create_timeout_seconds":600}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")}})
 	require.NoError(t, err)
-	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+	require.Equal(t, "running", requireJSONStdout(t, stdout)["status"])
 }
 
 func TestSandboxCreate_durationKeywordsAndValidation(t *testing.T) {
-	_, _, err := runCLI(t, []string{"sandbox", "create", "--create-ttl", "max", "--wait", "0s", "--no-wait"}, []expectedRequest{{
+	_, _, err := runCLI(t, []string{"sandbox", "create", "--create-ttl", "max", "--server-wait", "0s"}, []expectedRequest{{
 		method:   http.MethodPost,
 		path:     "/sandboxes",
 		status:   202,
 		bodyJSON: `{"wait_seconds":0,"create_timeout_seconds":-1}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")}})
 	require.NoError(t, err)
 	for _, args := range [][]string{
-		{"--wait", "9"},                  // a unit is required
+		{"--server-wait", "9"},           // a unit is required
+		{"--server-wait", "1s"},          // cannot combine with --no-wait
 		{"--create-ttl", "-1"},           // the sentinel is the keyword `max`
 		{"--create-ttl", "0s"},           // zero is not a deadline
 		{"--idle-timeout", "off"},        // `off` exists on update only
@@ -163,20 +172,25 @@ func TestSandboxCreate_lifecycleActionsFollowTheClass(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","reservation":"region-a:res-1","persistent":true,"lifecycle_policy":{"timeout_seconds":3600,"on_timeout":"stop"}}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"33333333-3333-3333-3333-333333333333","name":"macbox","status":"pending","wait_cap_seconds":3,"reservation_id":null}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/33333333-3333-3333-3333-333333333333", status: 200, response: sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending")}})
 	require.NoError(t, err)
 }
 
 func TestSandboxCreate_noWaitReturnsImmediately(t *testing.T) {
+	// Given: the acknowledgement contains a credential; the detail has metadata.
+	detail := sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")
+	// When
 	stdout, _, err := runCLI(t, []string{"sandbox", "create", "--image", "python:3.12", "--no-wait"}, []expectedRequest{{
 		method:   http.MethodPost,
 		path:     "/sandboxes",
 		status:   202,
 		bodyJSON: `{"image":"python:3.12"}`,
-		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3,"access_token":"fixture-access-token"}`,
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: detail}})
+	// Then
 	require.NoError(t, err)
-	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+	require.JSONEq(t, detail, stdout)
+	require.NotContains(t, requireJSONStdout(t, stdout), "access_token")
 }
 
 func TestSandboxCreateFromSnapshot_linuxRouteAndBody(t *testing.T) {
@@ -184,11 +198,15 @@ func TestSandboxCreateFromSnapshot_linuxRouteAndBody(t *testing.T) {
 		method:   http.MethodPost,
 		path:     "/sandboxes/from-snapshot",
 		status:   202,
-		bodyJSON: `{"snapshot":"snap_abc123","name":"restored"}`,
+		bodyJSON: `{"snapshot":"snap_abc123","name":"restored","labels":{"name":"restored"}}`,
+		check: func(t *testing.T, r *http.Request, _ []byte) {
+			assert.Equal(t, "name:restored", r.Header.Get("Idempotency-Key"))
+		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"restored","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
-	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+	require.JSONEq(t, sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending"), stdout)
+	require.NotContains(t, requireJSONStdout(t, stdout), "access_token")
 }
 
 func TestSandboxCreate_allResourceFlags(t *testing.T) {
@@ -216,9 +234,8 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 		"--on-lifecycle-timeout", "delete",
 		"--idle-timeout", "10m",
 		"--on-idle-timeout", "delete",
-		"--wait", "9s",
+		"--server-wait", "9s",
 		"--create-ttl", "10m",
-		"--no-wait",
 	}, []expectedRequest{{
 		method: http.MethodPost,
 		path:   "/sandboxes",
@@ -227,6 +244,7 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 			m := mustJSON(t, string(body))
 			assert.Equal(t, "python:3.12", m["image"])
 			assert.Equal(t, "full", m["name"])
+			assert.Equal(t, map[string]any{"name": "full"}, m["labels"])
 			assert.EqualValues(t, 2.5, m["cores_max"])
 			assert.EqualValues(t, 1.5, m["cpu"])
 			assert.EqualValues(t, 4096, m["memory_max_mib"])
@@ -248,9 +266,10 @@ func TestSandboxCreate_allResourceFlags(t *testing.T) {
 			assert.False(t, hasBlockAll, "omitted --block-all is left for the API to normalize")
 		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"full","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")}})
 	require.NoError(t, err)
-	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+	require.Equal(t, "running", requireJSONStdout(t, stdout)["status"])
 }
 
 func TestSandboxCreate_linuxLimitFlags(t *testing.T) {
@@ -273,7 +292,7 @@ func TestSandboxCreate_linuxLimitFlags(t *testing.T) {
 			assert.EqualValues(t, 10240, m["disk_max_mib"])
 		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 }
 
@@ -289,7 +308,7 @@ func TestSandboxCreate_fileIdempotencyKeyAlsoSetsHeader(t *testing.T) {
 			assert.JSONEq(t, `{"image":"from-file","idempotency_key":"idem-file"}`, string(body))
 		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"file-name","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
 }
@@ -306,7 +325,7 @@ func TestSandboxCreate_flagIdempotencyKeyOverridesFileBodyKey(t *testing.T) {
 			assert.JSONEq(t, `{"image":"from-file"}`, string(body))
 		},
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"file-name","status":"pending","wait_cap_seconds":3}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")}})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
 }
@@ -339,6 +358,7 @@ func TestSandboxCreate_cidrOnlyNetworkPolicy(t *testing.T) {
 			},
 			response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"x","status":"pending","wait_cap_seconds":3}`,
 		},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
@@ -370,6 +390,7 @@ func TestSandboxCreate_allowCIDRAcceptsBlockAllFromFile(t *testing.T) {
 			},
 			response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"x","status":"pending","wait_cap_seconds":3}`,
 		},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending")},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])

@@ -116,7 +116,8 @@ func newReservationUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update ID",
 		Short: "Turn a Mac reservation's auto-renew on or off",
-		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use on it; stopped and paused sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.\n" +
+		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use or paused on it; stopped sandboxes do not renew it. With auto-renew off, the reservation ends at period_end, and its paused sandboxes are stopped with their disks before then.\n" +
+			"Enabling auto-renew commits future charges: asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1). Disabling it needs no confirmation.\n" +
 			"Examples:\n" +
 			"  " + reservationUpdateExample + "\n" +
 			"  daytona reservation update RESERVATION_ID --auto-renew=true",
@@ -126,6 +127,11 @@ func newReservationUpdateCommand() *cobra.Command {
 				return cerr.Usage("reservation update needs --auto-renew=true or --auto-renew=false; example: " + reservationUpdateExample)
 			}
 			a := FromContext(cmd.Context())
+			if autoRenew {
+				if err := a.Confirm("enable auto-renew", "reservation "+args[0]+", with future periods billed to the organization"); err != nil {
+					return err
+				}
+			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
@@ -138,7 +144,7 @@ func newReservationUpdateCommand() *cobra.Command {
 			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
-	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use on the reservation; false lets it end at period_end")
+	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use or paused on the reservation; false lets it end at period_end")
 	return cmd
 }
 
@@ -194,7 +200,6 @@ func reservationKV(reservation gen.MacReservation) [][2]string {
 		{"memory_mib_total", usage.memTotal},
 		{"disk_mib_used", usage.diskUsed},
 		{"disk_mib_total", usage.diskTotal},
-		{"sandboxes_per_mac", strconv.Itoa(int(reservation.SandboxesPerMac))},
 		{"slots_used", strconv.FormatInt(reservation.SlotsUsed, 10)},
 		{"auto_renew", strconv.FormatBool(reservation.AutoRenew)},
 		{"period_end", formatTimePtr(reservation.PeriodEnd)},

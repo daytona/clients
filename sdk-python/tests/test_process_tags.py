@@ -16,8 +16,8 @@ from daytona.v2 import ProcessKillIncompleteError, RequestTimeoutError
 from daytona.v2._core import WAIT_READ_SLACK_SECONDS
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.process import AsyncProcessService, AsyncPtyService
-from daytona.v2.sandbox import AsyncSandbox
-from daytona.v2.types import JsonObject, SandboxInfo
+from daytona.v2.sandbox import AsyncSandbox, sandbox_info_from_id
+from daytona.v2.types import JsonObject
 
 BASE = "http://toolbox.invalid"
 
@@ -71,7 +71,7 @@ async def test_creation_sends_tag_only_when_given(
         case "pty":
             await AsyncPtyService(process).start("sh", tag=tag)
         case "exec":
-            sandbox = AsyncSandbox(SandboxInfo(id="sandbox"), None, transport)
+            sandbox = AsyncSandbox(sandbox_info_from_id("sandbox"), None, transport)
             await sandbox.exec("echo ok", tag=tag)
         case unreachable:
             assert_never(unreachable)
@@ -209,7 +209,7 @@ async def test_a_tag_that_is_not_a_safe_identifier_is_refused_before_any_request
             case "pty":
                 await AsyncPtyService(process).start("sh", tag=tag)  # type: ignore[arg-type]
             case "exec":
-                await AsyncSandbox(SandboxInfo(id="sandbox"), None, transport).exec("echo ok", tag=tag)  # type: ignore[arg-type]
+                await AsyncSandbox(sandbox_info_from_id("sandbox"), None, transport).exec("echo ok", tag=tag)  # type: ignore[arg-type]
             case "list":
                 await process.list(tag=tag)  # type: ignore[arg-type]
             case _:

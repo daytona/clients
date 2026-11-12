@@ -39,7 +39,7 @@ class Organization(BaseModel):
     created_at: datetime = Field(description="When the organization was created.")
     from_v0: StrictBool = Field(description="Whether the organization was migrated from Daytona v0.")
     id: StrictStr = Field(description="The organization ID.")
-    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(description="The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.")
+    max_sandbox_timeout_seconds: Optional[StrictInt] = Field(description="The organization's own cap on sandbox timeouts, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. The plan maximum bounds this value; `GET /orgs/{id}/limits` reports the cap in effect.")
     name: StrictStr = Field(description="The organization name.")
     personal: StrictBool = Field(description="Whether this is the user's personal organization.")
     preview_warning_disabled: StrictBool = Field(description="Whether sandbox previews skip the warning page.")
@@ -49,9 +49,8 @@ class Organization(BaseModel):
     suspended_reason: Optional[StrictStr] = Field(default=None, description="The member-visible suspension reason, when available.")
     updated_at: datetime = Field(description="When the organization was last updated.")
     v0_membership_sync_enabled: StrictBool = Field(description="Whether membership changes sync with the Daytona v0 organization of the same ID. When true, removing a member also removes them from the Daytona v0 organization.")
-    v1_membership_sync_enabled: StrictBool = Field(description="Deprecated: use `v0_membership_sync_enabled`, which carries the same value.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["budget_stop_grace_seconds", "created_at", "from_v0", "id", "max_sandbox_timeout_seconds", "name", "personal", "preview_warning_disabled", "sso_linked", "sso_organization_id", "suspended", "suspended_reason", "updated_at", "v0_membership_sync_enabled", "v1_membership_sync_enabled"]
+    __properties: ClassVar[List[str]] = ["budget_stop_grace_seconds", "created_at", "from_v0", "id", "max_sandbox_timeout_seconds", "name", "personal", "preview_warning_disabled", "sso_linked", "sso_organization_id", "suspended", "suspended_reason", "updated_at", "v0_membership_sync_enabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -141,8 +140,7 @@ class Organization(BaseModel):
             "suspended": obj.get("suspended"),
             **({"suspended_reason": obj["suspended_reason"]} if "suspended_reason" in obj else {}),
             "updated_at": obj.get("updated_at"),
-            "v0_membership_sync_enabled": obj.get("v0_membership_sync_enabled"),
-            "v1_membership_sync_enabled": obj.get("v1_membership_sync_enabled")
+            "v0_membership_sync_enabled": obj.get("v0_membership_sync_enabled")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

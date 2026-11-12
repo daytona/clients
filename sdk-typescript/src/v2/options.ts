@@ -5,6 +5,7 @@
 
 import { BadRequestError, nonOptionsDescription } from './errors/DaytonaError.js'
 import { enumerableSymbolKey } from './symbolKeys.js'
+import type { KeyedObject } from './symbolKeys.js'
 
 /**
  * Runtime validation of the options objects the SDK defines.
@@ -63,7 +64,93 @@ export const RENAMED_OPTIONS: Readonly<Record<string, string>> = Object.freeze({
 
 /** The SDK's own invalid-input error: status 400, code `BAD_REQUEST`, source `SDK`. */
 export function badRequest(message: string): BadRequestError {
-  return new BadRequestError(message, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  const options = { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }
+  // Internal diagnostics must not inherit the invalid options being reported.
+  Object.setPrototypeOf(options, null)
+  return new BadRequestError(message, options)
+}
+
+/**
+ * A caller string sent as a header value: non-empty printable ASCII with no
+ * leading or trailing whitespace, else `BadRequestError` naming `name`, before
+ * any request. It is never stripped: an idempotency key or an ETag the SDK
+ * altered would not be the caller's value. Python applies the same rule
+ * (`header_text`), so both SDKs refuse the same values: neither sends header
+ * bytes the other would not, and neither fails with a transport error (Python's
+ * HTTP client refuses padded header values) for one. `region` goes through
+ * `createRegion`, which first takes a blank value or `local` as the default
+ * region (not sent).
+ * @internal
+ */
+export function headerText(value: string, name: string): string {
+  if (value.length === 0) throw badRequest(`${name} must be a non-empty string`)
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index)
+    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
+  }
+  if (value.startsWith(' ') || value.endsWith(' ')) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
+  return value
+}
+
+export interface IfMatchOptions {
+  readonly ifMatch: string
+}
+
+const IF_MATCH_KEYS = optionKeys<IfMatchOptions>()({ ifMatch: true })
+
+/** @internal */
+export function assertIfMatchOptions(options: IfMatchOptions | undefined): void {
+  assertKnownOptions('IfMatchOptions', options, IF_MATCH_KEYS)
+  if (typeof options?.ifMatch !== 'string' || options.ifMatch.length === 0) {
+    throw badRequest('ifMatch must be a non-empty string (the etag of the last read)')
+  }
+  // It is sent as the If-Match header.
+  headerText(options.ifMatch, 'ifMatch')
+}
+
+/**
+ * Whether `value` is a plain object (prototype `Object.prototype` or `null`)
+ * whose enumerable keys are all its own and whose values are all strings. A
+ * `Map`, a class instance or inherited keys would otherwise be dropped silently.
+ * @internal
+ */
+export function isPlainStringRecord(value: unknown): value is Readonly<Record<string, string>> {
+  if (!isPlainRecord(value)) return false
+  for (const key in value) {
+    if (typeof Reflect.get(value, key) !== 'string') return false
+  }
+  return true
+}
+
+/**
+ * Whether `value` is a plain object (prototype `Object.prototype` or `null`)
+ * whose enumerable keys are all its own strings: JavaScript's counterpart of a Python
+ * mapping argument. A `Map`, a `Date`, a class instance or inherited keys
+ * would otherwise be read as empty.
+ * @internal
+ */
+export function isPlainRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const prototype: unknown = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return false
+  // No mapping argument has symbol keys: an own enumerable one would be
+  // dropped silently (as `enumerableKeys` refuses one on an options object).
+  if (enumerableSymbolKey(value as KeyedObject, prototype as KeyedObject | null) !== undefined) return false
+  for (const key in value) {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) return false
+  }
+  return true
+}
+
+/** @internal */
+export function assertLabels(labels: unknown): asserts labels is Readonly<Record<string, string>> {
+  if (!isPlainStringRecord(labels)) throw badRequest('labels must be a plain object of string to string')
+  assertLabelKeys(labels)
+}
+
+/** @internal Refuse an empty label key before any request: the API refuses it. */
+export function assertLabelKeys(labels: Readonly<Record<string, string>>): void {
+  if (Object.keys(labels).includes('')) throw badRequest('label keys must not be empty')
 }
 
 /**
@@ -85,12 +172,12 @@ export function enumerableKeys<T>(typeName: string, options: NonNullable<T>): st
  * Throw `BadRequestError` (status 400, code `BAD_REQUEST`, source `SDK`) for
  * the first key `known` does not list. A renamed key names its replacement.
  */
-export function assertKnownKeys<T>(typeName: string, keys: Iterable<string>, known: OptionKeys<T>): void {
+export function assertKnownKeys<T>(typeName: string, keys: Iterable<string>, known: OptionKeys<T>, renamed: Readonly<Record<string, string>> = RENAMED_OPTIONS): void {
   for (const key of keys) {
     if (Object.prototype.hasOwnProperty.call(known, key)) continue
-    const renamed = RENAMED_OPTIONS[key]
-    throw badRequest(renamed !== undefined && Object.prototype.hasOwnProperty.call(known, renamed)
-      ? `${typeName}: \`${key}\` was renamed to \`${renamed}\` (seconds)`
+    const replacement = renamed[key]
+    throw badRequest(replacement !== undefined && Object.prototype.hasOwnProperty.call(known, replacement)
+      ? `${typeName}: \`${key}\` was renamed to \`${replacement}\` (seconds)`
       : `${typeName} has no option \`${key}\``)
   }
 }
@@ -101,10 +188,10 @@ export function assertKnownKeys<T>(typeName: string, keys: Iterable<string>, kno
  * else (`null`, a boolean, a string, an array, a function: a positional
  * argument from an older signature) names the type and is refused too.
  */
-export function assertKnownOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>): void {
+export function assertKnownOptions<T>(typeName: string, options: T | undefined, known: OptionKeys<T>, renamed: Readonly<Record<string, string>> = RENAMED_OPTIONS): void {
   if (options === undefined) return
   assertOptionsObject(typeName, options)
-  assertKnownKeys(typeName, enumerableKeys(typeName, options), known)
+  assertKnownKeys(typeName, enumerableKeys(typeName, options), known, renamed)
 }
 
 /**
@@ -150,11 +237,33 @@ export function optionalSeconds(name: string, value: number | undefined): number
   return value
 }
 
+/** The contract's int32 ceiling (MiB sizes, ports, terminal sizes). @internal */
+export const MAX_INT32 = 2 ** 31 - 1
+
 /**
  * The largest delay a JavaScript timer can arm: a larger one fires after
  * about 1 ms instead (Node clamps it, browsers overflow).
  */
-export const MAX_TIMER_DELAY_MS = 2_147_483_647
+export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
+
+/**
+ * The deadline of a wait budget in seconds, the one rule for every wait both
+ * SDKs bound (Python's `wait_budget_seconds` and `wait_budget`): `undefined`
+ * (no deadline) for an omitted budget, `0`, or one above the timer maximum
+ * (about 24.8 days); otherwise `now + seconds`. A value that is not a
+ * non-negative finite number is `BadRequestError` naming `name`.
+ * @internal
+ */
+export function waitDeadline(seconds: number | undefined, now: number = Date.now(), name = 'timeoutSeconds'): number | undefined {
+  if (seconds === undefined) return undefined
+  // The toolbox's waits pass the caller's value straight through; the others
+  // have checked it with their own message already.
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+    throw badRequest(`${name} must be a non-negative finite number of seconds`)
+  }
+  if (seconds === 0 || seconds * 1000 > MAX_TIMER_DELAY_MS) return undefined
+  return now + seconds * 1000
+}
 
 /**
  * A request-timeout budget in milliseconds as a timer delay: `0` (and any

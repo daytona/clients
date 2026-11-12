@@ -97,8 +97,11 @@ describe('resumable build logs', () => {
     const sandbox = lazySandbox(client, 'registry-sbx')
     const onLogs = jest.fn()
     const pending = follow ? sandbox.followBuildLogs({ onLogs, cursor: cursor(0) }) : sandbox.buildLogs()
-    await expect(pending).rejects.toBeInstanceOf(follow ? BuildLogInterruptedError : NotFoundError)
-    await expect(pending).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND', ...(follow ? { cursor: cursor(0) } : {}) })
+    // The discovery request's HTTP error is the answer in both cases: its
+    // mapped typed error, never wrapped as an interruption.
+    await expect(pending).rejects.toBeInstanceOf(NotFoundError)
+    await expect(pending).rejects.not.toBeInstanceOf(BuildLogInterruptedError)
+    await expect(pending).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' })
     expect(onLogs).not.toHaveBeenCalled()
     expect(fetch.mock.calls.map(call => String(call[0]))).toEqual(['https://api.example/sandboxes/registry-sbx/build-logs-url'])
   })
@@ -171,6 +174,82 @@ describe('resumable build logs', () => {
     const { client, fetch } = setup([event('state', { status: 'pending', deadline_at: deadline })])
     await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([[3_000_000, true], [2_000_000, false]] as const)('treats a budget of %d s as no deadline only above the timer maximum', async (budget, completes) => {
+    // The clock moves 30 days once the first chunk is delivered: 2,000,000 s
+    // (23 days) is a real deadline that then passes, 3,000,000 s (above the
+    // timer maximum) is none. The Python twin is in tests/test_build_logs.py.
+    let offset = 0
+    const realNow = performance.now.bind(performance)
+    jest.spyOn(performance, 'now').mockImplementation(() => realNow() + offset)
+    const { client } = setup([log('a', 0) + log('b', 1) + done(2)])
+    const output: string[] = []
+    const pending = client.images.followBuildLogs('image', { timeoutSeconds: budget, onLogs: text => { output.push(text); offset += 30 * 86_400_000 } })
+    if (completes) {
+      await expect(pending).resolves.toMatchObject({ outputComplete: true })
+      expect(output).toEqual(['a', 'b'])
+    } else {
+      await expect(pending).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' })
+    }
+  })
+
+  it('hands callbacks frozen events, so none can rewrite the result the call returns', async () => {
+    const { client } = setup([log('a', 0) + done(1)])
+    const events: BuildLogEvent[] = []
+    const writes: unknown[] = []
+    const result = await client.images.followBuildLogs('image', {
+      onLogs: () => undefined,
+      onEvent: event => {
+        events.push(event)
+        try {
+          if (event.type === 'done') (event.result as { status: string }).status = 'rewritten'
+          else (event as { type: string }).type = 'rewritten'
+        } catch (error) { writes.push(error) }
+      },
+    })
+    expect(events.map(event => event.type)).toEqual(['log', 'done'])
+    // Every write throws (ES modules are strict) and changes nothing.
+    expect(writes).toHaveLength(2)
+    expect(result).toMatchObject({ status: 'ready', outputComplete: true })
+    expect(Object.isFrozen(result) && events.every(event => Object.isFrozen(event))).toBe(true)
+  })
+
+  it.each([[600, true], [601, false]] as const)('treats build-log JSON nested %d deep as within the shared limit: %s', async (depth, accepted) => {
+    // Both SDKs refuse JSON nested deeper than JSON_MAX_DEPTH (600): a done
+    // event (depth 1) carrying an unknown field nested to `depth`. The Python
+    // twin is in tests/test_build_logs.py.
+    const nested = '['.repeat(depth - 1) + ']'.repeat(depth - 1)
+    const frame = `event: done\ndata: {"status": "ready", "reason": "terminal", "output_complete": true, "extra": ${nested}}\n\n`
+    const { client } = setup([frame])
+    const pending = client.images.followBuildLogs('image', { onLogs: () => undefined })
+    if (accepted) await expect(pending).resolves.toMatchObject({ status: 'ready' })
+    else await expect(pending).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
+  })
+
+  it('refuses a numeric state deadline_at as a protocol error, as Python does', async () => {
+    const { client } = setup(['event: state\ndata: {"status": "building", "deadline_at": 5}\n\n'])
+    await expect(client.images.followBuildLogs('image', { onLogs: () => undefined })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
+  })
+
+  it.each([
+    ['utf-16 is not read', 'utf-16le', 'build log HTTP 409'],
+    ['utf-8 with a BOM is read', 'utf-8-bom', 'sandbox is not running'],
+  ] as const)('reads an HTTP error body as UTF-8, as Python does: %s', async (_name, encoding, message) => {
+    const text = JSON.stringify({ error: 'sandbox is not running', code: 'SANDBOX_NOT_RUNNING' })
+    const body = encoding === 'utf-16le' ? Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]) : Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(text, 'utf8')])
+    const { client } = setup([new Response(body, { status: 409, headers: { 'content-type': 'application/json' } })])
+    await expect(client.images.followBuildLogs('image', { onLogs: () => undefined })).rejects.toMatchObject({ statusCode: 409, message })
+  })
+
+  it('reads the stream media type case-insensitively', async () => {
+    const bytes = new TextEncoder().encode(log('tail', 0) + done(4))
+    const reply = new Response(bytes, { headers: { 'content-type': 'Text/Event-Stream; charset=utf-8' } })
+    const { client } = setup([reply])
+    const output: string[] = []
+    const result = await client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } })
+    expect(result).toMatchObject({ reason: 'terminal', outputComplete: true })
+    expect(output).toEqual(['tail'])
   })
 
   it('accepts an expired server deadline followed by final bytes and explicit done', async () => {
@@ -256,7 +335,6 @@ describe('resumable build logs', () => {
     ['gap', { reason: null, requested_offset: '0', first_available_offset: '3', dropped_bytes: '3' }, cursor(3)],
     ['gap', { reason: 'truncated', requested_offset: '0', first_available_offset: '3', dropped_bytes: '2' }, cursor(3)],
     ['unavailable', {}, undefined],
-    ['unknown', {}, undefined],
   ] as const)('rejects malformed %s without retry', async (name, data, id) => {
     const { client, fetch } = setup([event(name, data, id)])
     await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
@@ -299,6 +377,16 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ['invalid UTF-8', new Uint8Array([0x7b, 0x22, 0x75, 0x72, 0x6c, 0x22, 0x3a, 0x22, 0xff, 0x22, 0x7d])],
+    ['a leading BOM', new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('{"url": "https://logs.example/build-logs/images/image"}')])],
+  ] as const)('refuses a discovery body with %s as a protocol error, as Python does', async (_name, body) => {
+    const { client, fetch } = setup([])
+    fetch.mockImplementation(async () => new Response(body, { headers: { 'content-type': 'application/json' } }))
+    await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR', message: 'invalid build log discovery JSON' })
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a repeated checkpoint before delivering advancing bytes', async () => {
     const wire = log('a', 0) + event('log', { data_base64: 'Yg==', start_offset: '1', next_offset: '2' }, cursor(1))
     const { client, fetch } = setup([wire])
@@ -308,10 +396,16 @@ describe('resumable build logs', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
-  it.each(['', 'a\0b', 'a\rb', 'a\nb', 'a'.repeat(2049)])('rejects unsafe or oversized caller cursor without HTTP: %j', async checkpoint => {
+  it.each(['', 'a\0b', 'a\rb', 'a\nb', 'a\tb', 'a\x7fb', 'a'.repeat(2049), 5])('rejects unsafe or oversized caller cursor without HTTP: %j', async checkpoint => {
+    // One cursor rule in both SDKs: a caller's cursor that breaks it is BadRequestError naming it.
     const { client, fetch } = setup([])
-    await expect(client.images.followBuildLogs('image', { cursor: checkpoint, onLogs: () => {} })).rejects.toBeInstanceOf(BuildLogInterruptedError)
+    await expect(client.images.followBuildLogs('image', { cursor: checkpoint as never, onLogs: () => {} })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringMatching(/^cursor must be/) })
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('refuses a server cursor with a tab as a protocol error, as Python does', async () => {
+    const { client } = setup([event('log', { data_base64: 'eA==', start_offset: '0', next_offset: '1' }, 'a\tb')])
+    await expect(client.images.followBuildLogs('image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
   })
 
   it.each(['abc', 'opaque+/= token', '☃:opaque'])('preserves an opaque resumed cursor %j without decoding it', async checkpoint => {
@@ -473,12 +567,40 @@ describe('resumable build logs', () => {
     expect(messages).toEqual([{ event: 'state', id: undefined, data: { status: 'ready', error: null } }])
   })
 
-  it('rejects unknown events before delivering bytes or retrying', async () => {
-    const { client, fetch } = setup([event('unknown_log', { data_base64: 'eA==' })])
+  it('skips events it does not know, unparsed and without moving the cursor', async () => {
+    // A later API's event kinds (one with an id, one with data that is not
+    // even JSON, one with no event name) come between known events.
+    const wire = event('progress', { percent: 40 }, cursor(99))
+      + log('ab', 0)
+      + 'event: future_kind\ndata: not json\n\n'
+      + 'data: {"type":"message"}\n\n'
+      + done(2)
+    const { client, fetch } = setup([wire])
     const output: string[] = []
-    await expect(client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
-    expect(output).toEqual([])
+    const events: string[] = []
+    const result = await client.images.followBuildLogs('image', { onLogs: text => { output.push(text) }, onEvent: event => { events.push(event.type) } })
+    expect(output.join('')).toBe('ab')
+    expect(events).toEqual(['log', 'done'])
+    expect(result).toMatchObject({ cursor: cursor(2), outputComplete: true })
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not take an unknown event id as a resume checkpoint', async () => {
+    // The stream ends right after an unknown event that carries an id: the
+    // reconnect resumes from the last log's cursor, not from that id.
+    jest.useFakeTimers()
+    const { client, fetch } = setup([log('ab', 0) + event('progress', { percent: 40 }, cursor(99)), done(2)])
+    const output: string[] = []
+    const result = await advance(client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } }))
+    expect(output.join('')).toBe('ab')
+    expect(result.cursor).toBe(cursor(2))
+    expect(new URL(String(fetch.mock.calls[2]?.[0])).searchParams.get('cursor')).toBe(cursor(2))
+  })
+
+  it('keeps an unknown event out of the parsed stream', async () => {
+    const messages = []
+    for await (const message of buildLogMessages(response(event('progress', { percent: 40 }, cursor(5)) + event('state', { status: 'ready' })))) messages.push(message)
+    expect(messages).toEqual([{ event: 'state', id: undefined, data: { status: 'ready' } }])
   })
 
   it.each([400, 401, 403, 404, 409])('does not fall back on HTTP %s', async status => {
@@ -635,7 +757,7 @@ describe('resumable build logs', () => {
     jest.useFakeTimers()
     const { client, fetch } = setup(['', '', ''])
     const start = performance.now()
-    await expect(advance(client.images.followBuildLogs('image', { timeout: 600, onLogs: () => {} }))).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' })
+    await expect(advance(client.images.followBuildLogs('image', { timeoutSeconds: 0.6, onLogs: () => {} }))).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' })
     expect(performance.now() - start).toBe(600)
     expect(fetch).toHaveBeenCalledTimes(3)
   })
@@ -653,7 +775,7 @@ describe('resumable build logs', () => {
     jest.useFakeTimers()
     const { client, fetch } = setup([log('a', 0) + done(1)])
     await expect(advance(client.images.followBuildLogs('image', {
-      timeout: 100,
+      timeoutSeconds: 0.1,
       onLogs: () => new Promise<void>(() => {}),
     }))).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', cursor: undefined })
     expect(fetch).toHaveBeenCalledTimes(2)
@@ -731,7 +853,7 @@ describe('real HTTP build-log ownership', () => {
     try {
       const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0.05 }))
       const output: string[] = []
-      const result = await client.images.followBuildLogs('image', { timeout: 2000, onLogs: text => { output.push(text) }, onEvent: () => {} })
+      const result = await client.images.followBuildLogs('image', { timeoutSeconds: 2, onLogs: text => { output.push(text) }, onEvent: () => {} })
       expect(result).toMatchObject({ reason: 'deadline', rawReason: 'deadline', cursor: cursor(5), outputComplete: false })
       expect(output).toEqual(['final'])
       expect(requests).toBe(2)
@@ -799,7 +921,7 @@ describe('real HTTP build-log ownership', () => {
     try {
       const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key' }))
       const output: string[] = []
-      await expect(client.images.followBuildLogs('image', { timeout: 250, onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', cursor: cursor(1) })
+      await expect(client.images.followBuildLogs('image', { timeoutSeconds: 0.25, onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT', cursor: cursor(1) })
       await closed
       expect(output).toEqual(['a'])
       expect(requests).toHaveLength(2)

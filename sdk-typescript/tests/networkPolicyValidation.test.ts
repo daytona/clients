@@ -12,7 +12,7 @@ import {
   ServiceUnavailableError,
 } from '../src/v2/index'
 
-import { type PlannedResponse, startFakeApi } from './networkPolicyTestServer'
+import { sentRequest, startFakeApi, type PlannedResponse } from './networkPolicyTestServer'
 import { lazySandbox } from './lazySandbox'
 
 function withApiUrl<T>(apiUrl: string, callback: () => T): T {
@@ -39,6 +39,30 @@ describe('network policy validation parity', () => {
 
   it('domains default blockAll to true by omitting the field on create', async () => {
     expect(serializeNetworkPolicyInput({ allowDomains: ['api.example.com'] })).toEqual({ allow_domains: ['api.example.com'] })
+  })
+
+  // Shared with the Python SDK's test_network_policy_validation.py: an open
+  // policy ignores allowCidrs, so a CIDR list without blockAll true or a domain
+  // list is refused rather than creating an open sandbox.
+  it.each([
+    [{ allowCidrs: ['10.0.0.0/8'] }],
+    [{ allowCidrs: ['10.0.0.0/8'], blockAll: false }],
+    [{ allowCidrs: ['10.0.0.0/8'], blockAll: null }],
+    [{ allowCidrs: ['10.0.0.0/8'], allowDomains: null }],
+  ] as const)('refuses the open CIDR-only policy %j', (policy) => {
+    expect(() => serializeNetworkPolicyInput(policy)).toThrow(expect.objectContaining({
+      name: 'BadRequestError', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+      message: 'network_policy allow_cidrs restricts egress only with block_all set to true or with allow_domains; without them the policy is open',
+    }))
+  })
+
+  it.each([
+    [{ allowCidrs: ['10.0.0.0/8'], blockAll: true }, { allow_cidrs: ['10.0.0.0/8'], block_all: true }],
+    [{ allowCidrs: ['10.0.0.0/8'], allowDomains: ['a.example'] }, { allow_cidrs: ['10.0.0.0/8'], allow_domains: ['a.example'] }],
+    [{ allowCidrs: ['10.0.0.0/8'], allowDomains: [] }, { allow_cidrs: ['10.0.0.0/8'], allow_domains: [] }],
+    [{ allowCidrs: [] }, { allow_cidrs: [] }],
+  ] as const)('sends the CIDR policy %j', (policy, body) => {
+    expect(serializeNetworkPolicyInput(policy)).toEqual(body)
   })
 
   it('blockAll null is treated as omitted', () => {
@@ -69,7 +93,7 @@ describe('network policy validation parity', () => {
     try {
       let thrown: unknown
       try {
-        await client.updateNetworkPolicy('sbx', { allowDomains: null }, { ifMatch: '"np-7"' })
+      await lazySandbox(client, 'sbx').updateNetworkPolicy({ allowDomains: null }, { ifMatch: '"np-7"' })
       } catch (error) {
         thrown = error
       }
@@ -78,16 +102,14 @@ describe('network policy validation parity', () => {
     } finally {
       await api.close()
     }
-    expect(api.requests).toHaveLength(1)
-    expect(api.requests[0]?.headers['if-match']).toBe('"np-7"')
+    expect(sentRequest(api, 1).headers['if-match']).toBe('"np-7"')
   })
 
   it.each(['linux', 'macos'] as const)('reads network policy for a %s sandbox', async (sandboxClass) => {
     // Given
     const api = await startFakeApi([{ status: 200, headers: { ETag: '"np-1"' }, body: { desired_revision: 1 } }])
     const client = withApiUrl(api.url, () => new Daytona({ apiKey: 'key' }))
-    const sandbox = lazySandbox(client, 'sbx')
-    sandbox.sandboxClass = sandboxClass
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass })
     try {
       // When
       const policy = await sandbox.getNetworkPolicy()

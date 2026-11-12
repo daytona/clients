@@ -78,6 +78,8 @@ class DaytonaError(_shared.DaytonaError):
         request_id: Optional[str] = None,
         retry_after_ms: Optional[int] = None,
     ) -> None:
+        if status_code is not None and (not isinstance(status_code, int) or isinstance(status_code, bool)):
+            raise TypeError("status_code must be an integer or None")
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -101,6 +103,27 @@ class DaytonaError(_shared.DaytonaError):
         self.retry_after_ms = retry_after_ms
 
 
+class ClientClosedError(DaytonaError):
+    """A request was started on a closed client; no HTTP status applies."""
+
+    def __init__(
+        self,
+        message: str = "Daytona client is closed",
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=status_code,
+            code=code if code is not None else "CLIENT_CLOSED",
+            source=source if source is not None else "SDK",
+            **fields,
+        )
+
+
 class BadRequestError(DaytonaError, _shared.DaytonaBadRequestError):
     """HTTP 400."""
 
@@ -119,23 +142,6 @@ class NotFoundError(DaytonaError, _shared.DaytonaNotFoundError):
 
 class RequestTimeoutError(DaytonaError, _shared.DaytonaTimeoutError):
     """HTTP 408."""
-
-
-class SandboxCreateTimeoutError(RequestTimeoutError):
-    """``create()`` ran out of caller budget while the sandbox was still starting.
-
-    The sandbox was created and is left running; ``sandbox_id`` lets the
-    caller pick it up (``d.v2.get(sandbox_id)``) or delete it.
-    """
-
-    def __init__(self, sandbox_id: str) -> None:
-        super().__init__(
-            f"sandbox {sandbox_id} did not start within the requested timeout",
-            status_code=408,
-            code="REQUEST_TIMEOUT",
-            source="SDK",
-        )
-        self.sandbox_id = sandbox_id
 
 
 class DockerWaitTimeoutError(RequestTimeoutError):
@@ -183,7 +189,7 @@ class DockerNotReadyError(ConflictError):
 
 
 class SandboxTerminalStateError(ConflictError):
-    """``wait_for_state()`` saw the sandbox reach a terminal state before any target.
+    """A lifecycle wait (``wait()``, ``start()``, ``stop()``, ...) saw the sandbox reach a terminal state first.
 
     ``state`` is the observed public sandbox state (e.g. ``"destroyed"``).
     ``reason`` is the server's explanation of that state, when it gave one
@@ -241,7 +247,9 @@ class UnprocessableEntityError(DaytonaError, _shared.DaytonaUnprocessableEntityE
 
 
 class RateLimitError(DaytonaError, _shared.DaytonaRateLimitError):
-    """HTTP 429."""
+    """HTTP 429. ``RATE_LIMITED`` and ``TOO_MANY_REQUESTS`` raise this class
+    itself (read ``code`` to tell them apart); ``LIMIT_EXCEEDED`` and
+    ``OVERLOADED`` raise its subclasses."""
 
 
 class LimitExceededError(RateLimitError):
@@ -534,10 +542,6 @@ class ProjectBudgetExceededError(DaytonaError):
     """
 
 
-class RateLimitedError(RateLimitError):
-    pass
-
-
 class OverloadedError(RateLimitError):
     pass
 
@@ -667,7 +671,10 @@ class SearchUnavailableError(ServiceUnavailableError):
 
 
 class SandboxNotRunningError(ConflictError):
-    pass
+    """``SANDBOX_NOT_RUNNING`` (409, source ``DAYTONA_PROXY``): a toolbox call
+    (process, files, git, …) or a preview URL request reached a sandbox that
+    is not running, such as a stopped one. Start the sandbox and retry. Not a
+    :class:`NotFoundError`: the sandbox exists."""
 
 
 class ImageNotFoundError(NotFoundError):
@@ -817,7 +824,18 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.BUCKET_DELETE_FAILED: BucketDeleteFailedError,
     codes.BUCKET_NOT_EMPTY: BucketNotEmptyError,
     codes.CREATE_BODY_TOO_LARGE: PayloadTooLargeError,
+    codes.INVALID_PARENT_REGION: BadRequestError,
+    codes.INVALID_PREVIEW_DOMAIN: BadRequestError,
+    codes.INVALID_SANDBOX_CIDR: BadRequestError,
+    codes.INVALID_TOOLBOX_PROXY_URL: BadRequestError,
+    codes.REGION_LIMIT_REACHED: ConflictError,
+    codes.REGION_NOT_EMPTY: ConflictError,
+    codes.REGION_NOT_FOUND: NotFoundError,
+    codes.REGION_SUBNETS_EXHAUSTED: ConflictError,
     codes.REGION_UNAVAILABLE: ConflictError,
+    codes.RUNNER_HAS_SANDBOXES: ConflictError,
+    codes.DISK_NOT_READY: ConflictError,
+    codes.ROLE_IN_USE: ConflictError,
     codes.ECR_ACCOUNT_MISMATCH: BadRequestError,
     codes.ECR_CREDENTIALS_INVALID: BadRequestError,
     codes.ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
@@ -862,7 +880,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
     codes.OVERLOADED: OverloadedError,
     codes.PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
-    codes.RATE_LIMITED: RateLimitedError,
+    codes.RATE_LIMITED: RateLimitError,
     codes.READ_ONLY_UNSUPPORTED: ReadOnlyUnsupportedError,
     codes.SEARCH_NOT_CONFIGURED: SearchNotConfiguredError,
     codes.SEARCH_UNAVAILABLE: SearchUnavailableError,
@@ -937,9 +955,9 @@ SOURCE_ERROR_CLASSES: Dict[str, Dict[str, Type[DaytonaError]]] = {
     "DAYTONA_ROUTER": ROUTER_ERROR_CLASSES,
     # SDK-synthesized errors (timeouts, terminal states) reuse the process API's typed
     # classes so a caller's `except` clauses need not branch on who raised.
-    # Every SDK-minted code today is generic, so the table is vestigial until
-    # the SDK mints a process-specific code. Mirror any change in DaytonaError.ts.
-    "SDK": DAEMON_ERROR_CLASSES,
+    # Local-only codes live alongside these without inventing an HTTP status.
+    # Mirror any change in DaytonaError.ts.
+    "SDK": {**DAEMON_ERROR_CLASSES, "CLIENT_CLOSED": ClientClosedError},
 }
 
 
@@ -969,6 +987,16 @@ def create_error(
         or error_class_from_status(status_code)
     )
     return cls(message, status_code=status_code, code=code, source=source, **fields)
+
+
+def redirect_error(status_code: int) -> DaytonaError:
+    """The error for a 3xx response (internal): the SDK follows no redirect,
+    whatever the body says, as in TypeScript."""
+    return create_error(
+        f"HTTP {status_code}: unexpected redirect (the SDK does not follow redirects)",
+        status_code,
+        source="SDK",
+    )
 
 
 # An async operation that is cancelled may still hold a typed outcome the

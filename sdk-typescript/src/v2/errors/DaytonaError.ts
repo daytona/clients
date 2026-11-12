@@ -127,27 +127,54 @@ export function nonOptionsDescription(value: unknown): string | undefined {
  * is refused. Internal: every error constructor that reads options runs it
  * first.
  */
-export function errorOptions<T extends object>(options: T | undefined): T | undefined {
+export function errorOptions<T extends object>(options: T | undefined, extraKeys: readonly string[] = []): T | undefined {
   if (options === undefined) return undefined
   const given = nonOptionsDescription(options)
   if (given !== undefined) {
     throw new BadRequestError(`error options must be an options object, got ${given}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+  // A refusal is a TypeError: constructing an SDK error here would recurse.
   // No error options type declares a symbol key: an enumerable one, own or
-  // inherited, is refused, as the options guard (`enumerableKeys`) does. The
-  // walk stops before Object.prototype: every options literal the SDK builds
-  // itself inherits from it (this function's own BadRequestError included),
-  // so a key there would turn every error into this one, and a string key
-  // there is not refused either (it is copied, as `for...in` reads it).
+  // inherited, is refused. Both walks stop before Object.prototype: every
+  // options literal the SDK builds itself inherits from it, so an unknown key
+  // a library put there would turn every SDK error into this one (a string key
+  // there is skipped, never refused).
   // SAFETY: nonOptionsDescription has established an options object (an
   // object literal, a class instance or a prototype-based object).
-  const symbol = enumerableSymbolKey(options as unknown as KeyedObject, Object.prototype as KeyedObject)
+  const keyed = options as unknown as KeyedObject
+  const symbol = enumerableSymbolKey(keyed, Object.prototype as KeyedObject)
   if (symbol !== undefined) {
-    throw new BadRequestError(`ErrorOptions has no option \`${String(symbol)}\``, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw new TypeError(`ErrorOptions has no option \`${String(symbol)}\``)
   }
   const copy: Record<string, unknown> = {}
-  for (const key in options) copy[key] = (options as Record<string, unknown>)[key]
+  for (const key in options) {
+    if (!definedBelowObjectPrototype(keyed, key)) continue
+    const known = Object.prototype.hasOwnProperty.call(ERROR_OPTION_KEYS, key) || extraKeys.includes(key)
+    if (!known) throw new TypeError(`ErrorOptions has no option \`${key}\``)
+    copy[key] = options[key]
+  }
+  if (copy.statusCode !== undefined && (typeof copy.statusCode !== 'number' || !Number.isInteger(copy.statusCode))) {
+    throw new TypeError('statusCode must be an integer or undefined')
+  }
   return copy as T
+}
+
+// Every key of ErrorOptions, exactly: the mapped type fails to compile when
+// a key is missing or one ErrorOptions lacks is listed.
+const ERROR_OPTION_KEY_LIST: { readonly [K in keyof Required<ErrorOptions>]: true } = {
+  statusCode: true, code: true, source: true, traceId: true, retryAfterSeconds: true, feature: true,
+  entitlement: true, replacement: true, firstAvailableCursor: true, stated: true, actual: true,
+  region: true, limit: true, current: true, max: true, maxBytes: true, bytes: true, requestId: true,
+  retryAfterMs: true, cause: true,
+}
+const ERROR_OPTION_KEYS = Object.freeze(ERROR_OPTION_KEY_LIST)
+
+/** Whether `key` is an own key of `value` or of a prototype before Object.prototype. */
+function definedBelowObjectPrototype(value: KeyedObject, key: string): boolean {
+  for (let current: KeyedObject | null = value; current !== null && current !== Object.prototype; current = Object.getPrototypeOf(current) as KeyedObject | null) {
+    if (Object.prototype.hasOwnProperty.call(current, key)) return true
+  }
+  return false
 }
 
 /**
@@ -254,24 +281,18 @@ export function registerV2ErrorClass(key: string, errorClass: abstract new (...a
 }
 
 export class BadRequestError extends DaytonaError {}
+/** A new request on a closed client; no HTTP status applies. */
+export class ClientClosedError extends DaytonaError {
+  constructor(message = 'Daytona client is closed', options?: ErrorOptions) {
+    const parsed = errorOptions(options) ?? {}
+    super(message, { ...parsed, code: parsed.code ?? 'CLIENT_CLOSED', source: parsed.source ?? 'SDK' })
+  }
+}
 export class AuthenticationError extends DaytonaError {}
 export class ForbiddenError extends DaytonaError {}
 export class NotFoundError extends DaytonaError {}
 export class RequestTimeoutError extends DaytonaError {}
 
-/**
- * `create()` ran out of caller budget while the sandbox was still starting.
- * The sandbox was created and is left running; `sandboxId` lets the caller
- * pick it up (`daytona.get(sandboxId)`) or delete it.
- */
-export class SandboxCreateTimeoutError extends RequestTimeoutError {
-  public readonly sandboxId: string
-
-  constructor(sandboxId: string) {
-    super(`sandbox ${sandboxId} did not start within the requested timeout`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
-    this.sandboxId = sandboxId
-  }
-}
 export class ConflictError extends DaytonaError {}
 
 /**
@@ -299,7 +320,7 @@ export interface SandboxTerminalStateErrorOptions {
 }
 
 /**
- * `waitForState()` saw the sandbox reach a terminal state before any target.
+ * A lifecycle wait (`wait()`, `start()`, `stop()`, ...) saw the sandbox reach a terminal state first.
  * `state` is the observed public sandbox state (e.g. `'destroyed'`).
  */
 export class SandboxTerminalStateError extends ConflictError {
@@ -312,7 +333,7 @@ export class SandboxTerminalStateError extends ConflictError {
   public readonly reason?: string
 
   constructor(sandboxId: string, state: SandboxState, options?: SandboxTerminalStateErrorOptions) {
-    const { rawState, reason } = errorOptions(options) ?? {}
+    const { rawState, reason } = errorOptions(options, ['rawState', 'reason']) ?? {}
     super(`sandbox ${sandboxId} reached terminal state ${state}${reason ? `: ${reason}` : ''}`, { statusCode: 409, code: 'CONFLICT', source: 'SDK' })
     this.state = state
     this.rawState = rawState
@@ -345,6 +366,11 @@ export class UnsupportedMediaTypeError extends DaytonaError {}
 export class UnprocessableEntityError extends DaytonaError {}
 export class ServiceUnavailableError extends DaytonaError {}
 export class InternalServerError extends DaytonaError {}
+/**
+ * HTTP 429. `RATE_LIMITED` and `TOO_MANY_REQUESTS` throw this class itself
+ * (read `code` to tell them apart); `LIMIT_EXCEEDED` and `OVERLOADED` throw its
+ * subclasses.
+ */
 export class RateLimitError extends DaytonaError {}
 
 /**
@@ -476,7 +502,6 @@ export class OrgSuspendedError extends DaytonaError {}
  * next calendar month (UTC) begins.
  */
 export class ProjectBudgetExceededError extends DaytonaError {}
-export class RateLimitedError extends RateLimitError {}
 export class OverloadedError extends RateLimitError {}
 export class NotSupportedForClassError extends ConflictError {}
 export class FeatureNotEnabledError extends ForbiddenError {}
@@ -508,7 +533,7 @@ export class ImageBuildFailedError extends ConflictError {
   public readonly buildError?: string
 
   constructor(message: string, options?: ImageBuildFailedErrorOptions) {
-    const { imageId, buildError, ...rest } = errorOptions(options) ?? {}
+    const { imageId, buildError, ...rest } = errorOptions(options, ['imageId', 'buildError']) ?? {}
     super(message, rest)
     this.imageId = imageId
     this.buildError = buildError
@@ -554,6 +579,12 @@ export class PlanRequiresSalesError extends BadRequestError {}
 export class AutomaticTopUpNotAvailableError extends ConflictError {}
 export class SearchNotConfiguredError extends NotSupportedError {}
 export class SearchUnavailableError extends ServiceUnavailableError {}
+/**
+ * `SANDBOX_NOT_RUNNING` (409, source `DAYTONA_PROXY`): a toolbox call (process,
+ * files, git, …) or a preview URL request reached a sandbox that is not
+ * running, such as a stopped one. Start the sandbox and retry. Not a
+ * `NotFoundError`: the sandbox exists.
+ */
 export class SandboxNotRunningError extends ConflictError {}
 
 export const DAEMON_ERROR_CLASS: Record<DaemonErrorCode, typeof DaytonaError> = {
@@ -616,7 +647,18 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   READ_ONLY_UNSUPPORTED: ReadOnlyUnsupportedError,
   UNSUPPORTED_VOLUME_TYPE: UnsupportedVolumeTypeError,
   CREATE_BODY_TOO_LARGE: PayloadTooLargeError,
+  INVALID_PARENT_REGION: BadRequestError,
+  INVALID_PREVIEW_DOMAIN: BadRequestError,
+  INVALID_SANDBOX_CIDR: BadRequestError,
+  INVALID_TOOLBOX_PROXY_URL: BadRequestError,
+  REGION_LIMIT_REACHED: ConflictError,
+  REGION_NOT_EMPTY: ConflictError,
+  REGION_NOT_FOUND: NotFoundError,
+  REGION_SUBNETS_EXHAUSTED: ConflictError,
   REGION_UNAVAILABLE: ConflictError,
+  RUNNER_HAS_SANDBOXES: ConflictError,
+  DISK_NOT_READY: ConflictError,
+  ROLE_IN_USE: ConflictError,
   ECR_ACCOUNT_MISMATCH: BadRequestError,
   ECR_CREDENTIALS_INVALID: BadRequestError,
   ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
@@ -660,7 +702,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
   OVERLOADED: OverloadedError,
   PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
-  RATE_LIMITED: RateLimitedError,
+  RATE_LIMITED: RateLimitError,
   SEARCH_NOT_CONFIGURED: SearchNotConfiguredError,
   SEARCH_UNAVAILABLE: SearchUnavailableError,
   SIGNUP_NOT_INVITED: ForbiddenError,
@@ -733,7 +775,7 @@ const SOURCE_ERROR_CLASS: Readonly<Record<string, Readonly<Record<string, typeof
   DAYTONA_ROUTER: ROUTER_ERROR_CLASS,
   // SDK-synthesized errors reuse the toolbox error classes so callers can
   // handle timeouts and terminal states consistently across error sources.
-  SDK: DAEMON_ERROR_CLASS,
+  SDK: { ...DAEMON_ERROR_CLASS, CLIENT_CLOSED: ClientClosedError },
 }
 
 const STATUS_ERROR_CLASS: Record<number, typeof DaytonaError> = {
@@ -811,6 +853,24 @@ export function createDaytonaError(message: string, statusCode?: number, code?: 
     ownClass(GENERIC_ERROR_CLASS, code ?? '') ??
     errorClassFromStatusCode(statusCode)
   return new ErrorClass(message, { ...extra, statusCode, code, source })
+}
+
+/**
+ * The error for a 3xx response (and a browser's opaque redirect, whose status
+ * reads 0): the SDK follows no redirect, whatever the body says, as in Python.
+ * @internal
+ */
+export function redirectError(status: number | undefined): DaytonaError {
+  const shown = status === undefined || status === 0 ? 'HTTP redirect' : `HTTP ${status}`
+  return createDaytonaError(`${shown}: unexpected redirect (the SDK does not follow redirects)`, status || undefined, undefined, 'SDK')
+}
+
+/**
+ * Whether a status is a redirect the SDK refuses: a 3xx, or the 0 of a fetch
+ * response that is opaque (a browser's manual redirect). @internal
+ */
+export function isRedirectStatus(status: number | undefined): boolean {
+  return status === 0 || (status !== undefined && status >= 300 && status < 400)
 }
 
 /**
@@ -895,6 +955,7 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
   if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
+  if (isRedirectStatus(status)) return redirectError(status)
   const fallback = typeof error.response?.data === 'string' ? error.response.data : (json ? undefined : errorBodyText(error.response?.data)) || error.message
   return createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
 }
@@ -932,6 +993,7 @@ function errorFromEnvelope(
   fallbackMessage: string,
   emptyProseIsAbsent: boolean,
 ): DaytonaError {
+  if (isRedirectStatus(status)) return redirectError(status)
   const parsed = dataObject(body)
   const code = typeof parsed?.code === 'string' ? parsed.code : undefined
   const source = typeof parsed?.source === 'string' ? parsed.source : undefined
@@ -950,6 +1012,10 @@ function errorFromEnvelope(
  * the error keeps its status's class and says the body was too large).
  */
 export async function errorFromFetchResponse(response: Response, limit = 0, onChunk?: () => void): Promise<DaytonaError> {
+  if (isRedirectStatus(response.status) || response.type === 'opaqueredirect') {
+    await response.body?.cancel().catch(() => undefined)
+    return redirectError(response.status)
+  }
   const text = await readFetchText(response, limit, onChunk)
   if (text === undefined) {
     return createDaytonaError(
@@ -997,7 +1063,7 @@ export async function readFetchText(response: Response, limit: number, onChunk?:
   return bytes === undefined ? undefined : new TextDecoder().decode(bytes)
 }
 
-export function statusForCode(code: ErrorCode): number {
+export function statusForCode(code: ErrorCode): number | undefined {
   return CODE_STATUS[code]
 }
 
@@ -1024,7 +1090,6 @@ for (const [key, errorClass] of [
   ['ForbiddenError', ForbiddenError],
   ['NotFoundError', NotFoundError],
   ['RequestTimeoutError', RequestTimeoutError],
-  ['SandboxCreateTimeoutError', SandboxCreateTimeoutError],
   ['ConflictError', ConflictError],
   ['DockerWaitTimeoutError', DockerWaitTimeoutError],
   ['SandboxTerminalStateError', SandboxTerminalStateError],
@@ -1044,6 +1109,7 @@ for (const [key, errorClass] of [
   ['SnapshotTooLargeError', SnapshotTooLargeError],
   ['PreconditionRequiredError', PreconditionRequiredError],
   ['ConnectionError', ConnectionError],
+  ['ClientClosedError', ClientClosedError],
   ['ClientTimeoutError', ClientTimeoutError],
   ['TransferCancelledError', TransferCancelledError],
   ['SandboxCreateRequestTimeoutError', SandboxCreateRequestTimeoutError],
@@ -1079,7 +1145,6 @@ for (const [key, errorClass] of [
   ['DesktopNotReadyError', DesktopNotReadyError],
   ['OrgSuspendedError', OrgSuspendedError],
   ['ProjectBudgetExceededError', ProjectBudgetExceededError],
-  ['RateLimitedError', RateLimitedError],
   ['OverloadedError', OverloadedError],
   ['NotSupportedForClassError', NotSupportedForClassError],
   ['ImageNotFoundError', ImageNotFoundError],

@@ -109,10 +109,9 @@ func TestReplacementDoesNotRevokeAnotherAPIOrigin(t *testing.T) {
 	require.Len(t, cr.Profiles[a.Profile.Name].WorkloadKeys, 2)
 }
 
-// A login key minted while --api-url overrides the saved URL belongs to the
-// override origin it was minted on: it is reused there and never offered to
-// the saved URL, which mints its own.
-func TestLoginKeyMintedUnderOverrideStaysWithThatOrigin(t *testing.T) {
+// A login is bound to its saved URL: with --api-url naming another API, the
+// CLI neither mints a key there nor sends the login's token there.
+func TestLoginIsNotUsedUnderAnotherAPIURL(t *testing.T) {
 	saved, override := &lifecycleAPI{}, &lifecycleAPI{}
 	savedSrv := httptest.NewServer(http.HandlerFunc(saved.serve))
 	defer savedSrv.Close()
@@ -122,28 +121,18 @@ func TestLoginKeyMintedUnderOverrideStaysWithThatOrigin(t *testing.T) {
 
 	a.Profile.APIURL = overrideSrv.URL // what --api-url resolves to
 	_, err := WorkloadCredential(t.Context(), a, lifecycleProject, "")
-	require.NoError(t, err)
-	require.Len(t, override.requests, 1)
-	cr, err := a.Store.LoadCredentials()
-	require.NoError(t, err)
-	require.Equal(t, overrideSrv.URL, cr.Profiles[a.Profile.Name].WorkloadKeys[0].APIURL)
-	key, ok, err := cachedWorkloadKeyAny(a, lifecycleProject)
-	require.NoError(t, err)
-	require.True(t, ok, "reused under the same override")
-	require.NotEmpty(t, key)
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.Contains(t, err.Error(), "is not sent to "+overrideSrv.URL)
+	require.Empty(t, override.requests)
+	_, _, err = a.WorkloadClient(t.Context(), nil)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 
 	a.Profile.APIURL = savedSrv.URL
-	_, ok, err = cachedWorkloadKeyAny(a, lifecycleProject)
-	require.NoError(t, err)
-	require.False(t, ok, "never offered to the saved URL")
 	_, err = WorkloadCredential(t.Context(), a, lifecycleProject, "")
 	require.NoError(t, err)
 	require.Len(t, saved.requests, 1)
-	require.Empty(t, override.revoked)
-	require.Empty(t, saved.revoked, "the override key is not superseded through the saved URL")
-	cr, err = a.Store.LoadCredentials()
-	require.NoError(t, err)
-	require.Len(t, cr.Profiles[a.Profile.Name].WorkloadKeys, 2)
+	require.Empty(t, override.requests)
 }
 
 func TestLoginMintCacheFailureRevokesTheUntrackedKey(t *testing.T) {

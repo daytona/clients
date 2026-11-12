@@ -27,9 +27,9 @@ class InterpreterService:
 
     _async_type = _async.AsyncInterpreterService
 
-    def __init__(self, impl: _async.AsyncInterpreterService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncInterpreterService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"InterpreterService({self._impl!r})"
@@ -41,7 +41,7 @@ class InterpreterService:
         return hash(self._impl)
 
     def connect_context(
-        self, context: str | InterpreterContext | InterpreterContextJSON, *, language: str | None = None
+        self, context: str | InterpreterContext | InterpreterContextJSON, /, *, language: str | None = None
     ) -> InterpreterContext:
         """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
         from .types import InterpreterContext
@@ -61,7 +61,16 @@ class InterpreterService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterContext:
-        """Create an interpreter context: kernel state of its own."""
+        """Create an interpreter context: kernel state of its own.
+
+        ``language`` is ``"python"``, ``"typescript"`` or ``"javascript"``
+        (case-sensitive); any other value raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError` (400) before a
+        kernel is provisioned, while
+        :class:`~daytona.v2.errors.KernelUnavailableError` (503) means a
+        supported language's kernel failed to install or start. ``cwd`` and
+        ``env`` apply to every run in the context.
+        """
         from .types import InterpreterContext
 
         return InterpreterContext(
@@ -71,7 +80,7 @@ class InterpreterService:
             self._bridge,
         )
 
-    def delete_context(self, context: InterpreterContext | InterpreterContextJSON | str) -> None:
+    def delete_context(self, context: InterpreterContext | InterpreterContextJSON | str, /) -> None:
         return self._bridge.call(lambda: self._impl.delete_context(_rt.unwrap(context)))
 
     def list_contexts(self) -> list[InterpreterContext]:
@@ -84,6 +93,7 @@ class InterpreterService:
     def run(
         self,
         code: str,
+        /,
         *,
         language: Optional[str] = None,
         context: str | InterpreterContext | InterpreterContextJSON | None = None,
@@ -92,7 +102,28 @@ class InterpreterService:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
-        """Execute code and return the parsed interpreter result."""
+        """Execute code and return the parsed interpreter result.
+
+        Without ``context`` (or ``isolated``) runs share kernel state per
+        ``language`` (default ``"python"``). ``context`` selects an interpreter
+        context by handle, ``to_json()`` identity or id; an id needs
+        ``language``. ``isolated=True`` runs in a throwaway context. ``env``
+        applies to context-free and isolated runs; a context takes its
+        environment when it is created. For a context-free or isolated run, an
+        unsupported ``language`` raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError`, as in
+        :meth:`create_context`. With a context handle or ``to_json()``
+        identity, a ``language`` that differs from the context's language
+        raises :class:`~daytona.v2.errors.BadRequestError` before any request;
+        a bare context id takes ``language`` as the context's language.
+
+        A rehydrated ``kind='code'`` process handle can still replay logs and
+        wait/kill, but it does not reconstruct this decomposed result on
+        another worker. A vanished explicit context surfaces the API's typed
+        ``SESSION_NOT_FOUND`` error; callers decide whether to recreate the
+        context and what to rerun. ``timeout`` is the caller wait budget in
+        seconds; ``0`` waits unbounded.
+        """
         return self._bridge.call(
             lambda: self._impl.run(
                 code,

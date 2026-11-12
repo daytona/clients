@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Final, Optional
+from typing import Dict, Optional
 
 import anyio
 import httpx
 
 from . import _clock
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, send_buffered
-from ._core import error_from_response, is_json_media_type, loads_json
+from ._core import MAX_SAFE_INTEGER, error_from_response, is_json_media_type, loads_json
 from ._otel import OpenTelemetrySupport
 from .errors import ClientTimeoutError, ConnectionError, DaytonaError, create_error
 
@@ -149,7 +149,7 @@ class ProjectTokenAuth:
             if span is not None:
                 span.finish(error=error)
             raise
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             if span is not None:
                 span.finish(status_code=response.status_code)
             raise error_from_response(
@@ -167,7 +167,6 @@ class ProjectTokenAuth:
 
 
 # The largest integer both SDKs read exactly (JavaScript's Number.MAX_SAFE_INTEGER).
-_MAX_SAFE_INTEGER: Final = 2**53 - 1
 
 
 @dataclass(frozen=True)
@@ -202,7 +201,7 @@ def _token_exchange(body: bytes, content_type: Optional[str]) -> _TokenExchange:
     if not isinstance(access_token, str) or access_token == "":
         raise _bad_exchange("access_token must be a non-empty string")
     expires_in = _whole_number(payload.get("expires_in"))
-    if expires_in is None or not 0 < expires_in <= _MAX_SAFE_INTEGER:
+    if expires_in is None or not 0 < expires_in <= MAX_SAFE_INTEGER:
         raise _bad_exchange("expires_in must be a positive integer")
     return _TokenExchange(access_token=access_token, expires_in=expires_in)
 

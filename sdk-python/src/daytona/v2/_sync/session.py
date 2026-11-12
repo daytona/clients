@@ -24,13 +24,24 @@ if TYPE_CHECKING:
 
 
 class Session:
-    """One persistent shell whose commands run one at a time, in order."""
+    """One persistent shell whose commands run one at a time, in order.
+
+    Directory changes, exports and functions carry over between commands.
+    Set cwd and env when calling ``process.create_session()``. Interrupt a
+    running command with ``handle.kill(signal="INT")``; the session survives.
+    Sessions do not survive a sandbox stop/start. After ``set -x`` or
+    ``set -v``, later commands' stderr also includes the session's command
+    execution traces.
+
+    Returned by ``process.create_session()`` / ``process.connect_session()``,
+    never constructed directly.
+    """
 
     _async_type = _async.AsyncSession
 
-    def __init__(self, impl: _async.AsyncSession, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSession, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"Session({self._impl!r})"
@@ -67,6 +78,7 @@ class Session:
     def run(
         self,
         command: str,
+        /,
         *,
         stdin: StdinMode = "closed",
         timeout: Optional[float] = None,
@@ -74,7 +86,18 @@ class Session:
         name: Optional[str] = None,
         keep_logs: Optional[RunKeepLogs] = None,
     ) -> ProcessResult:
-        """Run a command in this shell and collect output; timeouts are seconds."""
+        """Run a command in this shell and collect output; timeouts are seconds.
+
+        ``timeout`` bounds the caller's wait without stopping the command;
+        ``execution_timeout`` stops the command without ending the session
+        (omitted or ``0``: no deadline). ``stdin="open"`` is refused: use
+        :meth:`start` for a command that reads stdin. A
+        command that has not stopped 5 s after its timeout (the shell could
+        not interrupt it and it runs no process to kill) ends the session
+        instead. In dash, BusyBox ``sh`` and mksh an interrupt leaves only the
+        innermost shell function or sourced file, as it does in bash older than
+        4.4 (macOS's ``/bin/bash``) when a DEBUG trap is set.
+        """
         return self._bridge.call(
             lambda: self._impl.run(
                 command,
@@ -89,13 +112,21 @@ class Session:
     def start(
         self,
         command: str,
+        /,
         *,
         stdin: StdinMode = "closed",
         execution_timeout: Optional[float] = None,
         name: Optional[str] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: KeepLogs = "on_exit_ttl",
     ) -> ProcessHandle:
-        """Queue a command and return its handle without waiting for exit."""
+        """Queue a command and return its handle without waiting for exit.
+
+        Interrupt it with ``handle.kill(signal="INT")``; the shell survives.
+        ``execution_timeout`` is a server-side deadline in seconds (omitted or
+        ``0``: none); the clock starts when the command starts, after any queued
+        commands ahead of it. ``keep_logs`` defaults to ``"on_exit_ttl"``, as
+        for :meth:`ProcessService.start`.
+        """
         from .process import ProcessHandle
 
         return ProcessHandle(

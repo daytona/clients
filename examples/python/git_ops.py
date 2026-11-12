@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import RUN, client, failed, info, passed, sandbox_image, section
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
 
 REPO_URL = "https://github.com/octocat/Hello-World"
@@ -26,9 +26,11 @@ def main() -> int:
 
     ok = True
     try:
+        if not require_started(sandbox):
+            return 1
         git = sandbox.git
         proc = sandbox.process
-        repo = "demo-repo"
+        repo = "/tmp/demo-repo"
 
         # python:3.x-slim ships without git; install it on demand.
         section("ensure git is available")

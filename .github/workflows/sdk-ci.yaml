@@ -8,6 +8,7 @@ on:
       - 'sdk-python/**'
       - 'sdk-typescript/**'
       - 'contract/**'
+      - 'cli/internal/dockerignore/**'
       - 'scripts/**'
       - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
@@ -18,6 +19,7 @@ on:
       - 'sdk-python/**'
       - 'sdk-typescript/**'
       - 'contract/**'
+      - 'cli/internal/dockerignore/**'
       - 'scripts/**'
       - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
@@ -94,7 +96,8 @@ jobs:
           cd sdk-python
           python -m pip install --upgrade pip >/dev/null
           python -m pip install -e ".[dev,v0-sdk]" >/dev/null
-          python -m pytest -q -p no:cacheprovider
+          python -m pytest -q -p no:cacheprovider -n 8 -m "not timing"
+          python -m pytest -q -p no:cacheprovider -m timing
 
   # Run the publish-time bundle against the pinned v0 release, so a change on
   # either side that breaks it fails here and not in the publish run.
@@ -363,7 +366,13 @@ jobs:
       - name: Type check
         run: mypy
       - name: Test
-        run: pytest --cov=daytona --cov-report=xml
+        # Most tests wait on real timeouts against local sockets rather than
+        # use the CPU, so twice as many workers as the runner's 4 vCPUs pays
+        # off. Tests marked `timing` assert budgets of tens of milliseconds
+        # that the parallel workers' load would break: they run alone after.
+        run: |
+          pytest -n 8 -m "not timing" --cov=daytona --cov-report=
+          pytest -m timing --cov=daytona --cov-append --cov-report=xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.python == '3.12'
         with:

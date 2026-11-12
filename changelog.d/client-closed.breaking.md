@@ -1,0 +1,1 @@
+**Closed clients** — New requests on stored v2 clients and their handles raise `ClientClosedError` (`CLIENT_CLOSED`, source `SDK`, no HTTP status). Accessing the root's v2 namespace after closing still builds a fresh client.

@@ -20,7 +20,12 @@ from .dependency_versions import (
     target_constraint,
 )
 from .models import Mapping
-from .requirement_rendering import render_requirement
+from .requirement_rendering import (
+    dropped_extra_message,
+    preserved_extra_message,
+    render_requirement,
+    target_extras,
+)
 from .toml_values import render_declaration as _render
 from .toml_values import toml_string as _string
 
@@ -41,6 +46,8 @@ class Migration:
         self.mapping = mapping
         self.changes: list[tuple[str, str]] = []
         self.manual: list[tuple[int, str]] = []
+        # The "Dropped the … extra" items, withdrawn if the manifest is preserved.
+        self.dropped: list[tuple[int, str]] = []
         self.resolver_review: list[tuple[int, str]] = []
         self.line = 0
         self.found = False
@@ -94,6 +101,18 @@ class Migration:
                 for extra in (parsed["extras"] or "[]")[1:-1].split(",")
                 if extra.strip()
             }
+            unknown = target_extras(
+                [
+                    extra.strip()
+                    for extra in (parsed["extras"] or "[]")[1:-1].split(",")
+                    if extra.strip()
+                ],
+                self.mapping,
+            )[1]
+            for extra in unknown:
+                self.manual.append(
+                    (self.line, preserved_extra_message(extra, name, self.mapping))
+                )
             if (
                 kept
                 and {_normalized(extra) for extra in self.mapping.extras} <= present
@@ -126,17 +145,35 @@ class Migration:
         if result is None:
             self.unparsed_requirement()
             return source
+        self._dropped_extras(
+            parsed["name"],
+            [
+                part.strip()
+                for part in (parsed["extras"] or "[]")[1:-1].split(",")
+                if part.strip()
+            ],
+        )
         if result != source:
             self.changes.append((source.strip(), result.strip()))
         return result
 
+    def _dropped_extras(self, name: str, extras: list[str]) -> None:
+        for extra in target_extras(extras, self.mapping)[1]:
+            item = (self.line, dropped_extra_message(extra, name, self.mapping))
+            self.manual.append(item)
+            self.dropped.append(item)
+
     def _written(self, name: str, specifier: str, existing: str | None) -> str:
         """The requirement a rewrite of this declaration would write: its own
         extras first, then the mapping's (as render_requirement merges them)."""
-        names = [
-            part.strip() for part in (existing or "[]")[1:-1].split(",") if part.strip()
-        ]
-        names.extend(extra for extra in self.mapping.extras if extra not in names)
+        names, _ = target_extras(
+            [
+                part.strip()
+                for part in (existing or "[]")[1:-1].split(",")
+                if part.strip()
+            ],
+            self.mapping,
+        )
         extras = f"[{','.join(names)}]" if names else ""
         return (
             self.mapping.package_new
@@ -228,8 +265,19 @@ class Migration:
             updated["version"] = version
         extras = updated.get("extras")
         if isinstance(extras, Array):
+            _, dropped = target_extras(
+                [str(extra) for extra in extras if isinstance(extra, String)],
+                self.mapping,
+            )
+            for index in reversed(range(len(extras))):
+                if isinstance(extras[index], String) and str(extras[index]) in dropped:
+                    del extras[index]
+            self._dropped_extras(name, dropped)
+            present = {
+                _normalized(str(extra)) for extra in extras if isinstance(extra, String)
+            }
             for extra in self.mapping.extras:
-                if extra not in extras:
+                if _normalized(extra) not in present:
                     extras.append(extra)
         else:
             added = tomlkit.array()

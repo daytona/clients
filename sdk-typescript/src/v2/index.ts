@@ -9,7 +9,7 @@
 // The v2 client class is not exported: SDK 2.x builds a client only
 // through the root (`new Daytona().v2` from '@daytona/sdk'). Its instance type
 // is the root's `DaytonaV2Client`.
-export { DEFAULT_V2_API_URL, NAME_LABEL, idempotencyKeyForName } from './Daytona.js'
+export { DEFAULT_V2_API_URL } from './Daytona.js'
 export { Image, ImageBuilder, Snapshot } from './Image.js'
 export { Image as ImageV2 } from './Image.js'
 export type { OtelApiLike } from './http.js'
@@ -39,6 +39,7 @@ export type {
   CloneOptions,
   CommitOptions,
   CredentialOptions,
+  DeleteBranchOptions,
   GitConfigOptions,
   InitOptions,
   PushOptions,
@@ -67,15 +68,19 @@ export type { PtyDuplex } from './Process.js'
 export { Session } from './Session.js'
 export type { CreateSessionOptions, SessionRunOptions, SessionStartOptions, SessionJSON } from './Session.js'
 export { ImagesService } from './Images.js'
+export type { BuildFromContextOptions, GetArtifactOptions, ImagePullOptions, ListImagesOptions } from './Images.js'
 export { SnapshotsService } from './Snapshots.js'
+export type { ListSnapshotsOptions } from './Snapshots.js'
 export { ReservationsService } from './Reservations.js'
 export { MacModelsService } from './MacModels.js'
-export { SecretService } from './Secret.js'
-export { VolumeService } from './Volume.js'
+export type { MacCatalogOptions } from './macTypes.js'
+export { SecretsService } from './Secret.js'
+export { VolumesService } from './Volume.js'
 export { SandboxVolumesService } from './SandboxVolumes.js'
 export type { PullVolumeOptions, PullVolumeResult } from './SandboxVolumes.js'
-export type { ListVolumesOptions, Volume, VolumeRefOptions } from './Volume.js'
+export type { ListVolumesOptions, Volume, GetVolumeOptions, CreateVolumeOptions, DeleteVolumeOptions } from './Volume.js'
 export type { ListSecretsOptions, Secret, SetSecretOptions } from './Secret.js'
+export type { BuildContext } from './contextUpload.js'
 export { DISABLED } from './types.js'
 export * as codes from './codes.js'
 export {
@@ -116,7 +121,6 @@ export {
   RequestTimeoutError,
   SandboxCreateConnectionError,
   SandboxCreateRequestTimeoutError,
-  SandboxCreateTimeoutError,
   SandboxTerminalStateError,
   DockerNotReadyError,
   DockerWaitTimeoutError,
@@ -133,6 +137,7 @@ export {
   LimitExceededError,
   PreconditionRequiredError,
   ConnectionError,
+  ClientClosedError,
   ClientTimeoutError,
   NotSupportedError,
   ProcessNotFoundError,
@@ -150,7 +155,6 @@ export {
   StdinClosedError,
   StdinUnavailableError,
   ProtectedProcessError,
-  RateLimitedError,
   UnsupportedOperationError,
   SessionNotFoundError,
   SessionEndedError,
@@ -190,18 +194,25 @@ export {
 export { DaytonaError as DaytonaErrorV2 } from './errors/DaytonaError.js'
 export type { ErrorOptions, ImageBuildFailedErrorOptions, SandboxTerminalStateErrorOptions } from './errors/DaytonaError.js'
 export type { UpdateEnvOptions } from './Sandbox.js'
+export type { IfMatchOptions } from './options.js'
 export type {
   SandboxEventsConfig,
   Resources,
+  MacosResources,
+  LifecycleWaitOptions,
+  ForkOptions,
+  CreateFromBuildOptions,
+  FindByNameOptions,
+  JsonValue,
   SandboxState,
   SandboxWaitState,
-  ArtifactClass,
   ArtifactRetention,
   MacBootMode,
   ImageStatus,
   ImageOrigin,
   ImageSource,
   SnapshotKind,
+  SnapshotClass,
   SandboxClass,
   ImageRef,
   SnapshotRef,
@@ -214,14 +225,12 @@ export type {
   CaptureImageOptions,
   LifecyclePolicyOptions,
   SandboxLifecycle,
-  SandboxLifecycleDto,
-  SandboxInfo,
   SandboxConnectOptions,
   SandboxHandleJSON,
   WaitOptions,
-  WaitForStateOptions,
   ProcessHandleJSON,
   ListResult,
+  FileSearchResult,
   SearchResult,
   SandboxSearchFilters,
   SearchSandboxesOptions,
@@ -235,19 +244,20 @@ export type {
   NetworkPolicyInfo,
   SandboxSecretsInfo,
   CpuArch,
-  CpuTypeInfo,
   AuditActionList,
   AuditActionGroup,
-  ProjectApiKeyWithContext,
+  ProjectApiKey,
+  ProjectApiKeyContext,
+  UsageLimit,
+  SandboxLimits,
+  ImageBuildLimits,
+  StorageLimits,
+  SandboxResourceLimits,
+  MemberLimits,
   ProjectBudget,
   OrganizationLimits,
   GetLimitsOptions,
-  ImageDto,
-  SandboxStateSnapshot,
-  SnapshotDetail,
-  SandboxDto,
   ListSandboxesOptions,
-  ListSandboxesQuery,
   VolumeMount,
   VolumeState,
   VolumeType,
@@ -319,6 +329,10 @@ export type {
   ListReservationsOptions,
   MacCatalog,
   MacModel,
+  MacResources,
+  MacPrice,
+  MacCatalogModel,
+  MacCatalogRegion,
   MacReservation,
   MacReservationBatch,
   MacReservationEndReason,
@@ -385,9 +399,7 @@ export type {
   ExposePortOptions,
   ListEndpointsOptions,
   SignedPreviewLinkOptions,
-  SetPortPublicOptions,
 } from './Ports.js'
-export type { PortInUseResponse, PortListResponse } from './Ports.js'
 export type {
   LspCompletionsOptions,
   LspCompletionContext,

@@ -8,7 +8,7 @@ from typing import Final, Sequence
 import httpx
 
 from . import _codes as codes
-from ._core import parse_json_bytes
+from ._core import finite_number, parse_json_response
 from .errors import create_error
 from .types import JsonObject, JsonValue, NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput
 
@@ -33,11 +33,13 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
         if raw_block_all is not None and not isinstance(raw_block_all, bool):
             raise create_error("network_policy.block_all must be a boolean", 400, "BAD_REQUEST", "SDK")
         block_all = raw_block_all
+    allow_cidrs: list[str] | None = None
     if "allow_cidrs" in value:
-        body["allow_cidrs"] = _request_string_list(
+        allow_cidrs = _request_string_list(
             value["allow_cidrs"],
             field_name="network_policy.allow_cidrs",
         )
+        body["allow_cidrs"] = allow_cidrs
     allow_domains: list[str] | None = None
     allow_domains_present = "allow_domains" in value
     if "allow_domains" in value:
@@ -59,22 +61,34 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
             codes.NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL,
             "SDK",
         )
+    # Without a domain list the API leaves block_all false, and an open policy
+    # ignores allow_cidrs: refused, so an allow list never creates an open sandbox.
+    if allow_cidrs and block_all is not True and allow_domains is None:
+        raise create_error(
+            "network_policy allow_cidrs restricts egress only with block_all set to true or with "
+            "allow_domains; without them the policy is open",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
     if block_all is not None:
         body["block_all"] = block_all
     return body
 
 
 def parse_network_policy_response(response: httpx.Response) -> NetworkPolicyInfo:
-    payload = _expect_response_object(parse_json_bytes(response.content))
+    payload = _expect_response_object(
+        parse_json_response(response.content, what="network policy response"),
+        field_name="network policy response",
+    )
     etag = response.headers.get("etag")
     if not isinstance(etag, str) or not etag:
-        raise create_error("network_policy response is missing ETag", 500, None, "SDK")
+        raise create_error("network_policy response is missing the ETag header", 400, "BAD_REQUEST", "SDK")
     desired_revision = _required_int(payload.get("desired_revision"), field_name="desired_revision")
     return NetworkPolicyInfo(
         desired=_optional_policy(payload.get("desired"), field_name="desired"),
         desired_revision=desired_revision,
         etag=etag,
-        http_status=response.status_code,
         applied=_optional_policy(payload.get("applied"), field_name="applied"),
         applied_revision=_optional_int(payload.get("applied_revision"), field_name="applied_revision"),
         applied_start_id=_optional_str(payload.get("applied_start_id")),
@@ -86,25 +100,33 @@ def parse_network_policy_response(response: httpx.Response) -> NetworkPolicyInfo
 def _optional_policy(value: JsonValue, *, field_name: str) -> NetworkPolicy | None:
     if value is None:
         return None
-    payload = _expect_response_object(value)
+    payload = _expect_response_object(value, field_name=field_name)
     return NetworkPolicy(
         version=_required_int(payload.get("version"), field_name=f"{field_name}.version"),
         block_all=_required_bool(payload.get("block_all"), field_name=f"{field_name}.block_all"),
-        allow_cidrs=_response_string_list(
-            payload.get("allow_cidrs"),
-            field_name=f"{field_name}.allow_cidrs",
+        allow_cidrs=tuple(
+            _response_string_list(
+                payload.get("allow_cidrs"),
+                field_name=f"{field_name}.allow_cidrs",
+            )
         ),
-        allow_domains=_optional_response_string_list(
-            payload.get("allow_domains"),
-            field_name=f"{field_name}.allow_domains",
+        allow_domains=_tuple_or_none(
+            _optional_response_string_list(
+                payload.get("allow_domains"),
+                field_name=f"{field_name}.allow_domains",
+            )
         ),
     )
 
 
-def _expect_response_object(value: JsonValue) -> JsonObject:
+def _tuple_or_none(values: list[str] | None) -> tuple[str, ...] | None:
+    return None if values is None else tuple(values)
+
+
+def _expect_response_object(value: JsonValue, *, field_name: str) -> JsonObject:
     if isinstance(value, dict):
         return value
-    raise create_error("expected JSON object", 500, None, "SDK")
+    raise create_error(f"{field_name} must be an object", 400, "BAD_REQUEST", "SDK")
 
 
 def _request_string_list(value: JsonValue, *, field_name: str) -> list[str]:
@@ -120,11 +142,11 @@ def _request_string_list(value: JsonValue, *, field_name: str) -> list[str]:
 
 def _response_string_list(value: JsonValue, *, field_name: str) -> list[str]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
-        raise create_error(f"{field_name} must be an array of strings", 500, None, "SDK")
+        raise create_error(f"{field_name} must be an array of strings", 400, "BAD_REQUEST", "SDK")
     items: list[str] = []
     for item in value:
         if not isinstance(item, str):
-            raise create_error(f"{field_name} must be an array of strings", 500, None, "SDK")
+            raise create_error(f"{field_name} must be an array of strings", 400, "BAD_REQUEST", "SDK")
         items.append(item)
     return items
 
@@ -138,13 +160,15 @@ def _optional_response_string_list(value: JsonValue, *, field_name: str) -> list
 def _required_bool(value: JsonValue, *, field_name: str) -> bool:
     if isinstance(value, bool):
         return value
-    raise create_error(f"{field_name} must be a boolean", 500, None, "SDK")
+    raise create_error(f"{field_name} must be a boolean", 400, "BAD_REQUEST", "SDK")
 
 
 def _required_int(value: JsonValue, *, field_name: str) -> int:
-    if isinstance(value, int) and not isinstance(value, bool):
+    # An integer too large for a double is refused, as in TypeScript, whose
+    # JSON.parse reads it as Infinity, which its integer check then refuses.
+    if isinstance(value, int) and finite_number(value):
         return value
-    raise create_error(f"{field_name} must be an integer", 500, None, "SDK")
+    raise create_error(f"{field_name} must be an integer", 400, "BAD_REQUEST", "SDK")
 
 
 def _optional_int(value: JsonValue, *, field_name: str) -> int | None:

@@ -24,6 +24,7 @@ from ._core import (
     parse_process_page,
     parse_sse_events_bounded,
     parse_wait,
+    path_segment,
     process_create_spec,
     process_kill_spec,
     process_list_spec,
@@ -34,7 +35,6 @@ from ._core import (
     stdin_spec,
     stream_event_too_large,
     timeout_millis_from_seconds,
-    toolbox_path_id,
     wait_budget,
     wait_spec,
 )
@@ -89,6 +89,32 @@ def _run_keep_logs(keep_logs: Optional[RunKeepLogs]) -> RunKeepLogs:
             "SDK",
         )
     return keep_logs
+
+
+# The TERM a PTY gets unless the caller's env sets one.
+DEFAULT_PTY_TERM = "xterm-256color"
+
+
+def _pty_env(env: Optional[Mapping[str, str]]) -> Mapping[str, str]:
+    if env is not None and (
+        not isinstance(env, Mapping)
+        or not all(isinstance(key, str) and isinstance(value, str) for key, value in env.items())
+    ):
+        raise create_error("env must be a mapping of strings to strings", 400, "BAD_REQUEST", "SDK")
+    return {"TERM": DEFAULT_PTY_TERM, **(env or {})}
+
+
+def _run_stdin(stdin: StdinMode) -> StdinMode:
+    """``run()`` returns no handle to write to, so it cannot keep stdin open."""
+    if stdin != "closed":
+        raise create_error(
+            f"stdin={stdin!r} is not supported by run(); it returns no handle to write to. "
+            "Use start() for a process with open stdin",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return stdin
 
 
 # Wait budget for run() when the caller set no process timeout: the server's
@@ -253,7 +279,7 @@ class AsyncProcessHandle:
         """Fetch current process metadata."""
         return parse_process(
             expect_process_dto(
-                await self._send(RequestSpec("GET", f"/processes/{toolbox_path_id(self.id, 'process id')}"))
+                await self._send(RequestSpec("GET", f"/processes/{path_segment(self.id, 'process id')}"))
             )
         )
 
@@ -297,7 +323,7 @@ class AsyncProcessHandle:
                     await self._send(
                         RequestSpec(
                             "GET",
-                            f"/processes/{toolbox_path_id(self.id, 'process id')}",
+                            f"/processes/{path_segment(self.id, 'process id')}",
                             timeout=None
                             if deadline is None
                             else deadline - _clock.monotonic() + WAIT_READ_SLACK_SECONDS,
@@ -325,7 +351,12 @@ class AsyncProcessHandle:
         limit: Optional[int] = None,
         encoding: LogEncoding = "text",
     ) -> LogPage:
-        """Read a cursor-replayable process log page."""
+        """Read a cursor-replayable process log page.
+
+        With ``encoding="base64"`` each frame's ``data`` is standard padded
+        base64 (RFC 4648 section 4, ``+/`` alphabet with ``=`` padding), which
+        :func:`base64.b64decode` decodes.
+        """
         return parse_log_page(
             await self._send(logs_spec(self.id, cursor=cursor, limit=limit, encoding=encoding, follow=False))
         )
@@ -346,6 +377,8 @@ class AsyncProcessHandle:
         ``eof``, so an iteration that ends normally has the whole log; a stream
         cut short, or one that ends without ``eof``, raises ``ConnectionError``:
         resume with ``stream_logs(cursor=...)`` from the last event's cursor.
+        With ``encoding="base64"`` each frame's ``data`` is standard padded
+        base64, which :func:`base64.b64decode` decodes.
         """
         transport = self._require_transport()
         # Every event is bounded by the client's max_response_bytes as its bytes
@@ -368,7 +401,7 @@ class AsyncProcessHandle:
         # that ends without one was cut short, like a watch stream that ends.
         raise ConnectionError("process log stream ended before eof; resume from the last event's cursor")
 
-    async def write_stdin(self, data: Union[str, bytes]) -> None:
+    async def write_stdin(self, data: Union[str, bytes], /) -> None:
         """Write to the stdin of an exec or PTY process created with stdin='open'."""
         self._require_stdin_kind("write_stdin")
         await self._send(stdin_spec(self.id, data, eof=False))
@@ -395,8 +428,13 @@ class AsyncProcessHandle:
             )
         )
 
-    async def resize(self, cols: int, rows: int) -> None:
-        """Resize a PTY process."""
+    async def resize(self, cols: int, rows: int, /) -> None:
+        """Resize a PTY process.
+
+        ``cols`` and ``rows`` are each an integer from 1 to 65535; a Windows
+        sandbox takes at most 32767 and refuses a larger value with
+        :class:`~daytona.v2.errors.BadRequestError`.
+        """
         self._require_pty_kind("resize")
         await self._send(resize_spec(self.id, cols=cols, rows=rows))
 
@@ -517,7 +555,7 @@ class AsyncProcessService:
         )
         return AsyncSession(self._sandbox_id, handle.id, self._transport)
 
-    def connect_session(self, session: str | SessionJSON) -> AsyncSession:
+    def connect_session(self, session: str | SessionJSON, /) -> AsyncSession:
         """Reconnect a shell session by id or by ``session.to_json()``, without a request."""
         if isinstance(session, Mapping):
             identity = AsyncSession._from_json(session)
@@ -539,7 +577,7 @@ class AsyncProcessService:
         login: Optional[bool] = None,
         stdin: StdinMode = "closed",
         execution_timeout: Optional[float] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: KeepLogs = "on_exit_ttl",
         tag: Optional[str] = None,
     ) -> AsyncProcessHandle:
         """Start a detached process and return a handle immediately.
@@ -561,8 +599,13 @@ class AsyncProcessService:
         :param cwd: Working directory inside the sandbox.
         :param env: Extra environment variables merged into the process environment.
         :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param stdin: ``"open"`` keeps stdin open for ``handle.write_stdin()``;
+            ``"closed"`` (default) gives the process an empty stdin.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
-            the process tree when this expires.
+            the process tree when this expires. Omitted or ``0`` means no deadline.
+        :param keep_logs: How long the sandbox keeps the process record and log:
+            ``"on_exit_ttl"`` (default, a while after the process exits),
+            ``"until_cleanup"`` (until it is deleted) or ``"none"`` (no log).
         :returns: Bound :class:`ProcessHandle` — logs, wait, and kill are available
             immediately.
 
@@ -583,7 +626,7 @@ class AsyncProcessService:
             login=login,
             stdin=stdin,
             execution_timeout=execution_timeout,
-            keep_logs=keep_logs,
+            keep_logs="on_exit_ttl" if keep_logs is None else keep_logs,
             tag=tag,
         )
 
@@ -689,8 +732,10 @@ class AsyncProcessService:
         :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
         :param timeout: Caller wait budget in seconds. Omit to wait until the process
             ends. Does not kill the process on expiry.
+        :param stdin: Only ``"closed"`` (default): ``run()`` returns no handle to
+            write to, so ``"open"`` is refused; use :meth:`start` for that.
         :param execution_timeout: Server-side deadline in seconds. The sandbox kills
-            the process tree when this expires.
+            the process tree when this expires. Omitted or ``0`` means no deadline.
         :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
             (default) or ``"until_cleanup"``. ``"none"`` is not accepted: the output is
             read back from the log; use :meth:`start` for a process without one.
@@ -718,7 +763,7 @@ class AsyncProcessService:
             user=user,
             shell=shell,
             login=login,
-            stdin=stdin,
+            stdin=_run_stdin(stdin),
             execution_timeout=execution_timeout,
             terminal=None,
             keep_logs=_run_keep_logs(keep_logs),
@@ -760,10 +805,10 @@ class AsyncProcessService:
             stdout=stdout,
             stderr=stderr,
             output=output,
-            logs=logs,
+            logs=tuple(logs),
         )
 
-    def connect(self, process: Union[str, ProcessHandleJSON]) -> AsyncProcessHandle:
+    def connect(self, process: Union[str, ProcessHandleJSON], /) -> AsyncProcessHandle:
         """Reconnect a process by id or by ``handle.to_json()``, without a request."""
         if isinstance(process, Mapping):
             if _required_id(process.get("sandboxId"), "sandboxId") != self._sandbox_id:
@@ -776,12 +821,12 @@ class AsyncProcessService:
             )
         return AsyncProcessHandle(self._sandbox_id, _required_id(process, "processId"), self._transport)
 
-    async def get(self, process_id: str) -> ProcessInfo:
+    async def get(self, process_id: str, /) -> ProcessInfo:
         """Fetch current process metadata by id or live name alias."""
         return parse_process(
             expect_process_dto(
                 await self._transport.send(
-                    RequestSpec("GET", f"/processes/{toolbox_path_id(process_id, 'process id')}")
+                    RequestSpec("GET", f"/processes/{path_segment(process_id, 'process id')}")
                 )
             )
         )
@@ -855,14 +900,16 @@ class AsyncPtyService:
     ) -> AsyncProcessHandle:
         """Start a detached PTY process; without ``command`` it runs the sandbox shell.
 
-        ``terminal`` defaults to 80 columns by 24 rows. ``execution_timeout`` is
-        a server-side deadline in seconds.
+        ``terminal`` defaults to 80 columns by 24 rows (see
+        :class:`~daytona.v2.types.TerminalSize` for the limits). ``TERM`` is
+        ``xterm-256color`` unless ``env`` sets it. ``execution_timeout`` is a
+        server-side deadline in seconds; omitted or ``0`` means no deadline.
         """
         return await self._process._start_process(
             command,
             kind="pty",
             cwd=cwd,
-            env=env,
+            env=_pty_env(env),
             name=name,
             user=user,
             shell=shell,
@@ -874,14 +921,14 @@ class AsyncPtyService:
             tag=tag,
         )
 
-    def connect(self, process: Union[str, ProcessHandleJSON]) -> AsyncProcessHandle:
+    def connect(self, process: Union[str, ProcessHandleJSON], /) -> AsyncProcessHandle:
         """Reconnect a PTY by id or by ``handle.to_json()``, without a request."""
         return self._process.connect(process)
 
     async def list(self) -> ListResult[ProcessInfo]:
         return await self._process.list(kind="pty")
 
-    async def delete(self, process: Union[str, ProcessHandleJSON]) -> None:
+    async def delete(self, process: Union[str, ProcessHandleJSON], /) -> None:
         """Stop a PTY and delete it and its log."""
         handle = self.connect(process)
         # The pty namespace only owns PTYs: refuse to kill an exec/code process by id.

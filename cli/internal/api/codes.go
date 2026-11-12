@@ -39,6 +39,7 @@ const (
 
 	CodeProcessTerminal   = "PROCESS_TERMINAL"
 	CodeCursorExpired     = "CURSOR_EXPIRED"
+	CodeFileAccessDenied  = "FILE_ACCESS_DENIED"
 	CodeSandboxNotRunning = "SANDBOX_NOT_RUNNING"
 
 	CodeRegionMismatch         = "REGION_MISMATCH"
@@ -79,6 +80,7 @@ var SpecialAPICodes = []string{
 var SpecialDaemonCodes = []string{
 	CodeProcessTerminal,
 	CodeCursorExpired,
+	CodeFileAccessDenied,
 }
 
 var SpecialProxyCodes = []string{

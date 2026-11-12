@@ -5,9 +5,9 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, responseTooLargeError } from './errors/DaytonaError.js'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, isRedirectStatus, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
-import { boundedTimerDelay, badRequest } from './options.js'
+import { MAX_INT32, boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
@@ -224,6 +224,8 @@ type AuthorizationHeaderOptions = {
 }
 
 export interface HttpClientOptions {
+  /** Shared by every transport owned by one v2 client. */
+  readonly ensureOpen?: () => void
   readonly authProvider?: HttpAuthProvider
   readonly connectionPoolMaxsize?: number
   readonly otelEnabled?: boolean
@@ -636,6 +638,8 @@ async function fetchRequestForAttempt(
       body: watchedBody(requestInitWithoutFactory.method, body, watchBody),
       headers,
       signal,
+      // The SDK follows no redirect: a 3xx is a typed error (as Python).
+      redirect: 'manual',
     },
     canRetryUnauthorized: bodyFactory !== undefined || !isReadableStreamBody(body),
   }
@@ -657,6 +661,8 @@ function fetchRequestWithoutFactory(
       body: watchedBody(requestInitWithoutFactory.method, requestInitWithoutFactory.body, watchBody),
       headers,
       signal,
+      // The SDK follows no redirect: a 3xx is a typed error (as Python).
+      redirect: 'manual',
     },
     canRetryUnauthorized: !isReadableStreamBody(requestInitWithoutFactory.body),
   }
@@ -693,8 +699,9 @@ function finalizeSpan(bundle: OtelBundle, span: Span, statusCode?: number, error
     return
   }
   // Callers that disable `checkStatus` still got an HTTP failure: the span
-  // must say so even though no exception travelled with it.
-  if (statusCode !== undefined && statusCode >= 400) {
+  // must say so even though no exception travelled with it (a redirect
+  // fails too: the SDK follows none).
+  if (statusCode !== undefined && statusCode >= 300) {
     span.setStatus({ code: bundle.api.SpanStatusCode.ERROR, message: `HTTP ${statusCode}` })
     span.end()
     return
@@ -1012,6 +1019,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
           project_id: this.projectId,
         }),
         signal: timeout.signal,
+        redirect: 'manual',
       })
       if (!response.ok) {
         const error = await errorFromFetchResponse(response, this.maxResponseBytes)
@@ -1283,6 +1291,7 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
     configurable: true,
   })
   instance.interceptors.request.use(async (config) => {
+    options?.ensureOpen?.()
     const daytonaConfig = config as DaytonaAxiosRequestConfig
     // No responseType: the SDK reads the bytes and decodes them itself (kept
     // on a retry, whose config already says arraybuffer).
@@ -1545,6 +1554,7 @@ export class HttpTransport {
   }
 
   public async resolveToken(): Promise<string | undefined> {
+    this.options?.ensureOpen?.()
     if (this.options?.auth) return this.options.auth.bearer()
     if (this.options?.authProvider) {
       return bearerCredentialFromAuthorizationHeader(await this.options.authProvider.authorizationHeader())
@@ -1557,6 +1567,7 @@ export class HttpTransport {
   }
 
   public async bearerToken(options: AuthorizationHeaderOptions = {}): Promise<string | undefined> {
+    this.options?.ensureOpen?.()
     if (this.options?.auth) return this.options.auth.bearer()
     if (this.options?.authProvider) {
       return bearerCredentialFromAuthorizationHeader(await this.options.authProvider.authorizationHeader(options))
@@ -1574,6 +1585,7 @@ export class HttpTransport {
    * the request runs untouched on the instance's static credential.
    */
   private async withAuth<T>(config: AxiosRequestConfig | undefined, run: (config?: AxiosRequestConfig) => Promise<T>): Promise<T> {
+    this.options?.ensureOpen?.()
     const auth = this.options?.auth
     if (!auth) return run(config)
     // One deadline for the whole call: the bearer (a token mint), the request,
@@ -1646,7 +1658,8 @@ export class HttpTransport {
     return this.withAuth(config, async (requestConfig) =>
       this.http.post<T>(assertRelativeRequestPath(path), body, {
         ...requestConfig,
-        validateStatus: (status) => status !== 401,
+        // A redirect is never the caller's to interpret: the SDK follows none.
+        validateStatus: (status) => status !== 401 && !isRedirectStatus(status),
       }),
     )
   }
@@ -1659,6 +1672,7 @@ export class HttpTransport {
   }
 
   public async fetch(path: string, init?: FetchRequestInit, checkStatus = true): Promise<Response> {
+    this.options?.ensureOpen?.()
     const relativePath = assertRelativeRequestPath(path)
     const meta = requestMeta({ url: relativePath }, this.options ?? {})
     // Until the response headers arrive (a stream's body is not bounded), by
@@ -2118,14 +2132,6 @@ export function sandboxState(status: string | undefined): SandboxState {
   }
 }
 
-export function gbToMib(gb: number): number {
-  return Math.round(gb * 1024)
-}
-
-export function mibToGb(mib: number | undefined): number {
-  return Math.max(1, Math.ceil((mib ?? 1024) / 1024))
-}
-
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -2201,7 +2207,7 @@ const LIFECYCLE_WIRE_NAMES: Record<LifecycleField, string> = {
  * The server rejects durations above 2147483647 seconds. Check this before
  * sending a request; organization-specific timeout limits remain server-side.
  */
-export const LIFECYCLE_MAX_SECS = 2147483647
+export const LIFECYCLE_MAX_SECS = MAX_INT32
 
 /**
  * Validate a lifecycle policy and render its snake_case wire object, or undefined when empty.

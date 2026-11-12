@@ -79,15 +79,17 @@ holder.client.create();
   expect(contents(root)['app.ts']).not.toContain('\nholder.client.v0.create');
 });
 
-it.each(['unknown(daytona);', 'daytona.create(daytona);'])('drops SDK sub-object proofs when the client is passed as an argument: %s', async escape => {
-  // Given external code that can replace the SDK client's sub-objects.
-  const root = temporaryProject({ ...manifest, 'app.ts': prefix + `${escape} daytona.snapshot.get("base");` });
-  // When
-  const result = await invoke(root, ['--suggest-v2', '--json']);
-  // Then suggestions never invent a proven service receiver after an escape.
-  const report: Report = JSON.parse(result.output);
-  expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(false);
-  expect(report.items).toContainEqual(expect.objectContaining({ kind: 'fixme' }));
+it.each(['unknown(daytona);', 'daytona.create(daytona);'])('suggests a root service call after the client is passed as an argument: %s', async escape => {
+  // Given external code that receives the client before its service is used.
+  const code = (v0: string) => prefix + `${escape.replace('daytona.create', `daytona${v0}.create`)} daytona${v0}.snapshot.get("base");`;
+  // When: before and after the default pass, which moves the call to .v0 on the same client proof.
+  const before: Report = JSON.parse((await invoke(temporaryProject({ ...manifest, 'app.ts': code('') }), ['--suggest-v2', '--json'])).output);
+  const after: Report = JSON.parse((await invoke(temporaryProject({ ...manifest, 'app.ts': code('.v0') }), ['--suggest-v2', '--json'])).output);
+  // Then both modes give the same suggestion, and no ownership FIXME.
+  for (const report of [before, after]) {
+    expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(true);
+    expect(report.items.filter(item => item.kind === 'fixme')).toEqual([]);
+  }
 });
 
 it('suggests service calls when a typed SDK parameter invokes a root method', async () => {
@@ -106,14 +108,34 @@ async function work(client: Daytona) { await client.create(); await client.snaps
 it.each([
   'daytona.create = function () { this.snapshot = other; }; daytona.create();',
   'class Local extends Daytona { create() { this.snapshot = other; } } const local = new Local(); local.create();',
-])('keeps custom method effects when %s', async effect => {
+])('suggests the service call after a custom method effect: %s', async effect => {
   // Given a replaced SDK method or a user-defined subclass method.
   const receiver = effect.startsWith('class') ? 'local' : 'daytona';
   const root = temporaryProject({ ...manifest, 'app.ts': prefix + `${effect} ${receiver}.snapshot.get('base');` });
   // When
   const result = await invoke(root, ['--suggest-v2', '--json']);
-  // Then a custom implementation never gains the SDK method exemption.
+  // Then the service call is suggested as the default pass moves it (to
+  // `.v0.snapshot`, the 0.x client's own service), with no ownership FIXME.
   const report: Report = JSON.parse(result.output);
-  expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(false);
-  expect(report.items).toContainEqual(expect.objectContaining({ kind: 'fixme' }));
+  expect(report.items.some(item => item.suggestion?.id === 'client.snapshot.get')).toBe(true);
+  expect(report.items.filter(item => item.kind === 'fixme')).toEqual([]);
+});
+
+it('flags the server-chosen volume type on volume suggestions', async () => {
+  // Given 0.x volume calls, which always made disk volumes.
+  const root = temporaryProject({ ...manifest, 'app.ts': prefix + "await daytona.volume.create('data');\nawait daytona.volume.get('data', true);\n" });
+  // When
+  const result = await invoke(root, ['--suggest-v2', '--json']);
+  // Then both suggestions keep the call without a type and ask for a review of it.
+  const report: Report = JSON.parse(result.output);
+  expect(result.code, result.output).toBe(0);
+  const notes = new Map(report.items.flatMap(item => item.suggestion ? [[item.suggestion.id, item.suggestion.notes]] as const : []));
+  expect(notes.get('client.volume.create')?.at(-1)).toBe(
+    "Review the volume type: v0 volumes were always disk volumes, v2 lets the server choose, so pass type: 'disk' (with sizeGib) to keep a disk volume")
+  expect(notes.get('client.volume.get')?.at(-1)).toBe(
+    "Review the volume type: v0 volumes were always disk volumes, create: true lets the server choose, so to keep a disk volume call volumes.get(nameOrId) and, when it throws NotFoundError, volumes.create({ name, type: 'disk' })")
+  expect(report.items.filter(item => item.kind === 'fixme')).toEqual([])
+  // And the written comments carry it (a --json suggestion run writes nothing).
+  expect((await invoke(root, ['--suggest-v2'])).code).toBe(0)
+  expect(contents(root)['app.ts']).toContain('daytona-v2:   differs: Review the volume type')
 });

@@ -209,6 +209,10 @@ func hintFor(status int, env daemonErrorEnvelope) string {
 	case http.StatusUnauthorized:
 		return "credential rejected — toolbox calls need a project credential for this sandbox"
 	case http.StatusForbidden:
+		if env.Code == api.CodeFileAccessDenied {
+			// File routes run as the sandbox user; the credential was accepted.
+			return "the sandbox user cannot access that path — use a path that user can access, or change its permissions inside the sandbox"
+		}
 		return "this credential is not allowed to do that on the sandbox"
 	case http.StatusNotFound:
 		return "check the sandbox id, process id, or file path"

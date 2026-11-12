@@ -13,7 +13,7 @@ import types
 import typing
 from collections.abc import Callable
 from dataclasses import dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import (
     AsyncIterable,
@@ -30,6 +30,7 @@ from typing import (
     TypeGuard,
     TypeVar,
     Union,
+    get_args,
 )
 from urllib.parse import quote, unquote
 
@@ -75,8 +76,9 @@ from ._gen.toolbox import (
 from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
-from ._timestamps import parse_optional_timestamp, parse_timestamp
-from .errors import DaytonaError, UnsupportedOperationError, create_error
+from ._timestamps import parse_optional_timestamp, rfc3339_timestamp
+from ._timestamps import parse_timestamp as parse_wire_timestamp
+from .errors import DaytonaError, UnsupportedOperationError, create_error, redirect_error
 from .types import (
     DISABLED,
     ArtifactRetention,
@@ -84,9 +86,11 @@ from .types import (
     BulkReadResult,
     BulkWriteFile,
     BulkWriteResult,
+    DockerfileImageSource,
     DockerStatus,
     FileInfo,
     FileMatch,
+    FileSearchResult,
     GitCommitResponse,
     GitFileStatus,
     GitStatus,
@@ -99,14 +103,18 @@ from .types import (
     ListResult,
     LogFrame,
     LogPage,
+    ManifestImageSource,
+    NamedImageSource,
     ProcessInfo,
     ProcessKind,
     ProcessStateFilter,
+    RegistryImageSource,
     ReplaceResult,
     SandboxLifecycle,
-    SandboxSearchFilters,
     SandboxState,
-    SearchSandboxesQuery,
+    SearchOrder,
+    SearchSandboxesOptions,
+    SearchSort,
     SearchTimestamp,
     SearchTotalRelation,
     Snapshot,
@@ -251,6 +259,70 @@ def loads_json(text: Union[str, bytes], description: str = "JSON response") -> J
     return value
 
 
+_CPU_ARCHITECTURES = ("amd64", "arm64")
+
+
+def image_options_body(
+    *, name: object = None, idle_expiry_seconds: object = None, region: object = None, cpu_arch: object = None
+) -> JsonObject:
+    """The image options of a build, pull or capture as wire fields, each
+    checked before any request (as in TypeScript); ``None`` is omitted."""
+    body: JsonObject = {}
+    for key, wire, value in (
+        ("name", "name", name),
+        ("region", "region_id", region),
+        ("cpu_arch", "cpu_arch", cpu_arch),
+    ):
+        if key == "region":
+            # The region rule of create: blank or local selects the default
+            # region (no region_id); any other value follows the header rule
+            # and is sent as given.
+            selected = region_selector(value)
+            if selected is not None:
+                body[wire] = selected
+            continue
+        if value is None:
+            continue
+        if not isinstance(value, str):
+            raise create_error(f"{key} must be a string", 400, "BAD_REQUEST", "SDK")
+        # A blank name names nothing: refused, as promote() refuses it.
+        if key == "name" and not value.strip():
+            raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        # The contract's architectures only: SDK inputs are closed.
+        if key == "cpu_arch" and value not in _CPU_ARCHITECTURES:
+            raise create_error('cpu_arch must be "amd64" or "arm64"', 400, "BAD_REQUEST", "SDK")
+        body[wire] = value
+    if idle_expiry_seconds is not None:
+        # The contract: -1 (the maximum) or 1 and up, an int64 both SDKs carry
+        # exactly; 0 and anything below -1 are refused, and the server holds
+        # the maximum.
+        if (
+            isinstance(idle_expiry_seconds, bool)
+            or not isinstance(idle_expiry_seconds, int)
+            or not (idle_expiry_seconds == -1 or 1 <= idle_expiry_seconds <= MAX_SAFE_INTEGER)
+        ):
+            raise create_error(
+                "idle_expiry_seconds must be -1 (the maximum) or a positive integer number of seconds",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        body["idle_expiry_seconds"] = idle_expiry_seconds
+    return body
+
+
+def parse_json_response(content: bytes, *, what: str) -> JsonValue:
+    """A JSON response body; one that is not JSON (or not UTF-8) breaks the
+    contract: the SDK's :class:`BadRequestError` naming the response."""
+    if not content:
+        return {}
+    try:
+        # A body nested too deeply names the response too.
+        return loads_json(content.decode("utf-8"), what)
+    except ValueError as error:
+        raise create_error(f"{what} is not JSON", 400, "BAD_REQUEST", "SDK") from error
+
+
 def is_json_media_type(content_type: Optional[str]) -> bool:
     """Whether a response's media type is exactly ``application/json`` (type
     and subtype compared case-insensitively, parameters ignored), as the
@@ -267,21 +339,6 @@ def refuse_dot_segment(value: str, name: str) -> None:
         raise create_error(f"{name} must not be '.' or '..'", 400, "BAD_REQUEST", "SDK")
 
 
-def toolbox_path_id(value: str, name: str) -> str:
-    """A toolbox id or name as one percent-encoded request-path segment (see
-    :func:`refuse_dot_segment`). A surrogate code point has no UTF-8 form, so
-    it is refused too, as TypeScript's ``toolboxPathId`` does. A Python string
-    holds code points, so two surrogate code points are no astral character
-    and are refused as well; astral characters are kept. Anything but a string
-    is refused first, as in TypeScript."""
-    if not isinstance(value, str):
-        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
-    refuse_dot_segment(value, name)
-    if any("\ud800" <= char <= "\udfff" for char in value):
-        raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")
-    return quote(value, safe="")
-
-
 def parse_json_bytes(content: bytes) -> JsonValue:
     if not content:
         return {}
@@ -293,7 +350,13 @@ def error_from_response(status_code: int, body: bytes, *, content_type: Optional
     it is a JSON object declared as ``application/json``; any other body is
     only the message. A JSON body nested deeper than :data:`JSON_MAX_DEPTH`
     is unreadable, as an oversized one is: the error carries no code or
-    details from it."""
+    details from it.
+
+    The SDK never follows a redirect: a 3xx response is a
+    :class:`DaytonaError` carrying its status (source ``SDK``), whatever its
+    body says."""
+    if 300 <= status_code < 400:
+        return redirect_error(status_code)
     payload: Optional[JsonObject] = None
     if is_json_media_type(content_type):
         try:
@@ -373,8 +436,120 @@ def _first_validation_error_line(error: ValidationError) -> str:
     return f"{path}: {message}" if path else message
 
 
+def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Optional[str]:
+    """The first contract-required key absent from ``value`` (nested models and
+    list items included), or ``None``.
+
+    The generated ``from_dict`` reads a required key with ``obj.get``, so an
+    absent required-but-nullable field would pass as ``null``: the contract
+    allows an explicit ``null``, not a missing key.
+    """
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            # `path` ends in the list's `.`: an item reads `items[0].key`.
+            missing = _missing_required_key(item, model_type, f"{path.removesuffix('.')}[{index}].")
+            if missing is not None:
+                return missing
+        return None
+    model_fields = getattr(model_type, "model_fields", None)
+    if not isinstance(value, dict) or not isinstance(model_fields, dict):
+        return None
+    for name, info in model_fields.items():
+        key = info.alias or name
+        if info.is_required() and key not in value:
+            return f"{path}{key}"
+        child = value.get(key)
+        if child is None:
+            continue
+        for candidate in _model_types(info.annotation):
+            missing = _missing_required_key(child, candidate, f"{path}{key}.")
+            if missing is not None:
+                return missing
+    return None
+
+
+def field_violation(value: object, model_type: object, path: str = "") -> Optional[str]:
+    """What breaks the contract in the first date, date-time or number field
+    of a generated model (nested models and list items included) whose value
+    is present and not ``null``, as ``"has a <path> that is not ..."``, or
+    ``None``.
+
+    TypeScript refuses both: a timestamp is a string (the generated models
+    would read a number as a Unix time), and an integer too large for a
+    double is not a number (``JSON.parse`` reads it as ``Infinity``).
+    """
+    model_fields = getattr(model_type, "model_fields", None)
+    if not isinstance(value, dict) or not isinstance(model_fields, dict):
+        return None
+    for name, info in model_fields.items():
+        key = info.alias or name
+        child = value.get(key)
+        if isinstance(child, str) and _names(info.annotation, (datetime,)) and not rfc3339_timestamp(child):
+            # Every date-time field is an RFC 3339 timestamp (the generated
+            # model alone would also read a date, or one without an offset);
+            # TypeScript declares the same fields `'timestamp'`.
+            return f"has a {path}{key} that is not an RFC 3339 timestamp"
+        if isinstance(child, str) and _names(info.annotation, (date,)) and not _calendar_date(child):
+            # A `date` field is a real calendar date written YYYY-MM-DD (the
+            # generated model would also read a date-time); as TypeScript.
+            return f"has a {path}{key} that is not a YYYY-MM-DD date"
+        if child is not None:
+            found = _field_violation_in(child, info.annotation, f"{path}{key}")
+            if found is not None:
+                return found
+    return None
+
+
+def _calendar_date(value: str) -> bool:
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _field_violation_in(value: object, annotation: object, path: str) -> Optional[str]:
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            found = None if item is None else _field_violation_in(item, annotation, f"{path}[{index}]")
+            if found is not None:
+                return found
+        return None
+    if _names(annotation, (date, datetime)) and not isinstance(value, str):
+        return f"has a {path} that is not a string"
+    if isinstance(value, int) and not isinstance(value, bool) and not finite_number(value):
+        if _names(annotation, (int,)):
+            return f"has a {path} that is not an integer"
+        if _names(annotation, (float,)):
+            return f"has a {path} that is not a number"
+    for candidate in _model_types(annotation):
+        found = field_violation(value, candidate, f"{path}.")
+        if found is not None:
+            return found
+    return None
+
+
+def _names(annotation: object, types: Tuple[type, ...]) -> bool:
+    """Whether an annotation is one of ``types`` (through Optional / List /
+    Annotated)."""
+    return annotation in types or any(_names(argument, types) for argument in get_args(annotation))
+
+
+def _model_types(annotation: object) -> List[object]:
+    """The generated API models an annotation names (through Optional / List)."""
+    module = getattr(annotation, "__module__", "")
+    if isinstance(annotation, type) and module.startswith("daytona.v2._gen.api"):
+        return [annotation]
+    found: List[object] = []
+    for argument in get_args(annotation):
+        found.extend(_model_types(argument))
+    return found
+
+
 def _expect_model_from_dict(
-    value: TransportPayload | ModelT,
+    value: object,
     model_type: type[ModelT],
     description: str,
     from_dict: Callable[[JsonObject], ModelT | None],
@@ -383,6 +558,16 @@ def _expect_model_from_dict(
         return value
     if not isinstance(value, dict):
         raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    if model_type.__module__.startswith("daytona.v2._gen.api"):
+        missing = _missing_required_key(value, model_type, "")
+        if missing is not None:
+            # A list item's path keeps its index; a nested key reads `a.b`.
+            raise create_error(
+                f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK"
+            )
+        violation = field_violation(value, model_type)
+        if violation is not None:
+            raise create_error(f"{description} {violation}", 400, "BAD_REQUEST", "SDK")
     _check_container_fields(value, model_type, description)
     try:
         parsed = from_dict(value)
@@ -713,26 +898,74 @@ def parse_lifecycle(payload: JsonObject | LifecyclePolicy) -> SandboxLifecycle:
         return SandboxLifecycle(
             timeout_seconds=model.timeout_seconds,
             on_timeout=model.on_timeout.value if model.on_timeout is not None else None,
-            timeout_at=model.timeout_at,
+            timeout_at=parse_timestamp(model.timeout_at),
             idle_expiry_seconds=model.idle_expiry_seconds,
             on_idle_timeout=model.on_idle_timeout.value if model.on_idle_timeout is not None else None,
-            idle_timeout_at=model.idle_timeout_at,
-            last_activity_at=model.last_activity_at,
+            idle_timeout_at=parse_timestamp(model.idle_timeout_at),
+            last_activity_at=parse_timestamp(model.last_activity_at),
             last_activity_source=model.last_activity_source,
         )
     raw_payload = payload
     nested = raw_payload.get("lifecycle_policy")
     data: JsonObject = nested if isinstance(nested, dict) else raw_payload
+
+    def stamp(key: str) -> Optional[datetime]:
+        # The responses that reach here were checked (RFC 3339 timestamps); a
+        # present value that still does not parse is the malformed response,
+        # never a silent None.
+        value = data.get(key)
+        parsed = parse_timestamp(value)
+        if value is not None and parsed is None:
+            raise create_error(
+                f"sandbox lifecycle policy has a {key} that is not an RFC 3339 timestamp",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return parsed
+
     return SandboxLifecycle(
         timeout_seconds=_optional_int(data.get("timeout_seconds")),
         on_timeout=_optional_str(data.get("on_timeout")),
-        timeout_at=_optional_str(data.get("timeout_at")),
+        timeout_at=stamp("timeout_at"),
         idle_expiry_seconds=_optional_int(data.get("idle_expiry_seconds")),
         on_idle_timeout=_optional_str(data.get("on_idle_timeout")),
-        idle_timeout_at=_optional_str(data.get("idle_timeout_at")),
-        last_activity_at=_optional_str(data.get("last_activity_at")),
+        idle_timeout_at=stamp("idle_timeout_at"),
+        last_activity_at=stamp("last_activity_at"),
         last_activity_source=_optional_str(data.get("last_activity_source")),
     )
+
+
+def parse_timestamp(value: object) -> Optional[datetime]:
+    """A wire timestamp as a timezone-aware ``datetime``; ``None`` when absent
+    or not an RFC 3339 timestamp (the one rule: ``rfc3339_timestamp``).
+
+    Accepts the RFC 3339 strings of a raw body and the ``datetime`` values of a
+    validated wire model (one without an offset is taken as UTC).
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and rfc3339_timestamp(value):
+        text = value.strip()
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
+        # Python 3.10's fromisoformat takes at most six fraction digits.
+        match = re.match(r"^(.*T\d{2}:\d{2}:\d{2})\.(\d+)(.*)$", text)
+        if match is not None:
+            text = f"{match.group(1)}.{match.group(2)[:6].ljust(6, '0')}{match.group(3)}"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+
+
+def rfc3339(value: datetime) -> str:
+    """The RFC 3339 (UTC, ``Z``) rendering of a timestamp, as both SDKs serialise it."""
+    aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _lifecycle_enabled(body: JsonObject, name: str) -> bool:
@@ -744,6 +977,9 @@ def _optional_int(value: JsonValue) -> Optional[int]:
 
 
 def _optional_str(value: JsonValue) -> Optional[str]:
+    # A generated str-enum member (from a model's to_dict()) is its plain value.
+    if isinstance(value, Enum):
+        value = value.value
     return value if isinstance(value, str) else None
 
 
@@ -773,7 +1009,7 @@ def expect_file_info(value: TransportPayload) -> FileInfo:
         permissions=model.permissions,
         owner=model.owner,
         group=model.group,
-        modified_at=parse_timestamp(model.modified_at, "file info response: modifiedAt"),
+        modified_at=parse_wire_timestamp(model.modified_at, "file info response: modifiedAt"),
         mod_time=model.mod_time,
     )
 
@@ -790,7 +1026,7 @@ def _cpu_utilization(value: float) -> float:
 def expect_system_metrics(value: TransportPayload) -> SystemMetrics:
     model = _expect_model_from_dict(value, MetricsModel, "system metrics", MetricsModel.from_dict)
     return SystemMetrics(
-        timestamp=parse_timestamp(model.timestamp, "system metrics: timestamp"),
+        timestamp=parse_wire_timestamp(model.timestamp, "system metrics: timestamp"),
         cpu_count=model.cpu_count,
         cpu_utilization=_cpu_utilization(model.cpu_utilization),
         memory_usage_bytes=model.memory_usage_bytes,
@@ -879,10 +1115,10 @@ def expect_status_response(value: TransportPayload) -> GitStatus:
         ahead=model.ahead,
         behind=model.behind,
         branch_published=model.branch_published,
-        file_status=[
+        file_status=tuple(
             GitFileStatus(name=item.name, staging=item.staging, worktree=item.worktree, extra=item.extra)
             for item in model.file_status
-        ],
+        ),
     )
 
 
@@ -945,11 +1181,12 @@ def process_create_spec(
             "SDK",
         )
     execution_timeout_ms = None
-    if execution_timeout is not None and not above_timer_maximum(
-        checked_seconds(execution_timeout, "execution_timeout")
-    ):
-        execution_timeout_ms = timeout_millis_from_seconds(execution_timeout, "execution_timeout")
-    # Above the timer maximum the process has no deadline (timeoutMs omitted).
+    if execution_timeout is not None:
+        seconds = checked_seconds(execution_timeout, "execution_timeout")
+        # 0 and a value above the timer maximum mean no deadline: timeoutMs is
+        # omitted (a 0 on the wire is not relied on to mean "no limit").
+        if seconds != 0 and not above_timer_maximum(seconds):
+            execution_timeout_ms = timeout_millis_from_seconds(seconds, "execution_timeout")
     body: JsonObject = {"kind": kind}
     if command is not None:
         body["shellCommand"] = command
@@ -972,7 +1209,7 @@ def process_create_spec(
         "tag": None if tag is None else process_tag(tag),
         "sessionId": session_id,
         "cwd": cwd,
-        "env": dict(env) if env is not None else None,
+        "env": None if env is None else _process_env(env),
         "user": user,
         "shell": shell,
         "login": login,
@@ -1042,14 +1279,14 @@ def parse_process(payload: ProcessDto) -> ProcessInfo:
         raw_stdin=raw_stdin,
         keep_logs=_process_keep_logs_or_unknown(raw_keep_logs),
         raw_keep_logs=raw_keep_logs,
-        created_at=parse_timestamp(payload.created_at, "process response: createdAt"),
+        created_at=parse_wire_timestamp(payload.created_at, "process response: createdAt"),
         system=payload.system is True,
         name=payload.name,
         tag=payload.tag,
         pid=int32_field(payload.pid, "pid", "process response"),
         session_id=payload.session_id,
         shell_command=payload.shell_command,
-        argv=payload.argv,
+        argv=tuple(payload.argv) if payload.argv is not None else None,
         code=payload.code,
         language=payload.language,
         shell=payload.shell,
@@ -1091,6 +1328,15 @@ def process_list_spec(
         if value is not None:
             params[key] = value
     return RequestSpec("GET", "/processes", params=params)
+
+
+def _process_env(env: object) -> Dict[str, str]:
+    """A process ``env``: a mapping of strings (anything else is refused, not mangled)."""
+    if not isinstance(env, Mapping) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in env.items()
+    ):
+        raise create_error("env must be a mapping of strings to strings", 400, "BAD_REQUEST", "SDK")
+    return dict(env)
 
 
 _PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
@@ -1156,9 +1402,15 @@ def parse_process_page(payload: ProcessPagePayload) -> ListResult[ProcessInfo]:
 # longer caller budget as no limit, like the client's request timeout.
 MAX_BOUNDED_TIMEOUT_SECONDS = 2_147_483.647
 
-# The largest millisecond value the SDKs put on the wire: the largest integer
-# JavaScript represents exactly, so both SDKs refuse the same durations.
-MAX_WIRE_MILLISECONDS = 2**53 - 1
+#: The same bound in whole seconds: the largest wait a request body carries
+#: (both SDKs send this for a wait with no deadline).
+MAX_WIRE_WAIT_SECONDS: int = 2_147_483
+#: The contract's int32 ceiling (MiB sizes, ports).
+INT32_MAX: int = 2_147_483_647
+#: The largest integer both SDKs represent exactly (JavaScript's safe
+#: integers): an int64 the API accepts, and the largest millisecond value the
+#: SDKs put on the wire, so both SDKs refuse the same durations.
+MAX_SAFE_INTEGER: int = 2**53 - 1
 
 
 def checked_seconds(value: object, name: str = "timeout") -> float | int:
@@ -1186,7 +1438,7 @@ def timeout_millis_from_seconds(timeout: Optional[float], name: str = "timeout")
     if seconds == 0:
         return 0
     # The largest wire value both SDKs send exactly (a JavaScript safe integer).
-    if seconds * 1000 > MAX_WIRE_MILLISECONDS:
+    if seconds * 1000 > MAX_SAFE_INTEGER:
         raise create_error(f"{name} is too large", 400, "BAD_REQUEST", "SDK")
     if isinstance(seconds, int):
         return seconds * 1000
@@ -1208,6 +1460,27 @@ def wait_budget(timeout: Optional[float]) -> Optional[float]:
     return 0 if above_timer_maximum(seconds) else timeout
 
 
+def wait_budget_seconds(value: object, *, name: str = "timeout") -> float:
+    """A wait budget in seconds: ``0.0`` for no deadline (``0``, or a value
+    above the timer maximum, an integer too large for a float included), else
+    the budget. Anything but a non-negative finite number is the SDK's
+    :class:`BadRequestError`; integers are compared without converting them,
+    so a huge one never overflows.
+    """
+    valid = (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and value >= 0
+        and (isinstance(value, int) or math.isfinite(value))
+    )
+    if not valid:
+        raise create_error(
+            f"{name} must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
+        )
+    assert isinstance(value, (int, float))
+    return 0.0 if above_timer_maximum(value) else float(value)
+
+
 def finite_number(value: object) -> TypeGuard[Union[int, float]]:
     """Whether ``value`` is a number a double can carry: an ``int`` or
     ``float`` (not a ``bool``) that is finite. An ``int`` too large for a
@@ -1225,7 +1498,7 @@ def _exact_timeout_ms(value: Optional[int]) -> Optional[int]:
     """A process record's ``timeoutMs``: converted to seconds, so it must be
     an integer a double carries exactly (up to 2^53 - 1), as TypeScript reads
     it; anything larger is the malformed-response error."""
-    if value is not None and not 0 <= value <= 2**53 - 1:
+    if value is not None and not 0 <= value <= MAX_SAFE_INTEGER:
         raise create_error(
             "expected process response: timeoutMs must be a non-negative safe integer",
             400,
@@ -1252,7 +1525,7 @@ def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = Fa
     bounded = None if unbounded or timeout is None or timeout == 0 else timeout + WAIT_READ_SLACK_SECONDS
     return RequestSpec(
         "GET",
-        f"/processes/{toolbox_path_id(process_id, 'process id')}/wait",
+        f"/processes/{path_segment(process_id, 'process id')}/wait",
         params=params,
         timeout=bounded,
         unbounded_read=bounded is None,
@@ -1267,14 +1540,14 @@ def int32_field(
     with TypeScript's messages (``int32`` / ``nonNegativeInt32``)."""
     if value is None:
         return value
-    if non_negative and not 0 <= value <= 2**31 - 1:
+    if non_negative and not 0 <= value <= INT32_MAX:
         raise create_error(
             f"expected {description}: {field} must be a non-negative 32-bit integer",
             400,
             "BAD_REQUEST",
             "SDK",
         )
-    if not -(2**31) <= value <= 2**31 - 1:
+    if not -INT32_MAX - 1 <= value <= INT32_MAX:
         raise create_error(
             f"expected {description}: {field} must be a signed 32-bit integer", 400, "BAD_REQUEST", "SDK"
         )
@@ -1313,7 +1586,7 @@ def logs_spec(
             headers["Last-Event-ID"] = cursor
     return RequestSpec(
         "GET",
-        f"/processes/{toolbox_path_id(process_id, 'process id')}/logs",
+        f"/processes/{path_segment(process_id, 'process id')}/logs",
         params=params,
         timeout=None,
         headers=headers,
@@ -1334,7 +1607,7 @@ def parse_log_page(payload: ProcessLogPayload) -> LogPage:
     _require_list_field(payload, "frames", "process log page")
     page = payload if isinstance(payload, ProcessLogsResponse) else expect_process_log_page(payload)
     return LogPage(
-        items=[_parse_log_frame(item) for item in page.frames],
+        items=tuple(_parse_log_frame(item) for item in page.frames),
         next_cursor=page.next_cursor,
         truncated_head=page.truncated_head,
         eof=page.eof,
@@ -1561,9 +1834,7 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
         body["encoding"] = "base64"
     else:
         body["data"] = data
-    return RequestSpec(
-        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/stdin", json_body=body
-    )
+    return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/stdin", json_body=body)
 
 
 def signal_spec(
@@ -1579,19 +1850,44 @@ def signal_spec(
     if escalate_after_ms is not None:
         body["escalateAfterMs"] = escalate_after_ms
         body["escalateTo"] = f"SIG{escalate_to}"
-    return RequestSpec(
-        "POST", f"/processes/{toolbox_path_id(process_id, 'process id')}/signals", json_body=body
-    )
+    return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 
-_MAX_INT32: Final = 2**31 - 1
+# The sandbox daemon's own ports: the API never makes them preview ports.
+RESERVED_PREVIEW_PORTS: Final = (2280, 2281, 22220)
+
+
+def preview_port(port: object) -> int:
+    """A port a preview endpoint, preview URL or access token may name:
+    1-65535, except the sandbox daemon's reserved ports."""
+    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+        raise create_error(f"port must be an integer in 1..65535, got {port!r}", 400, "BAD_REQUEST", "SDK")
+    if port in RESERVED_PREVIEW_PORTS:
+        raise create_error(
+            f"port {port} is reserved for the sandbox daemon and is never a preview port",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return port
+
+
+def check_label_keys(labels: Mapping[str, str]) -> None:
+    """Refuse an empty label key before any request: the API refuses it."""
+    if "" in labels:
+        raise create_error("label keys must not be empty", 400, "BAD_REQUEST", "SDK")
+
+
+# The largest terminal dimension the sandbox takes (an unsigned 16-bit value).
+TERMINAL_DIMENSION_MAX: Final = 65535
 
 
 def terminal_dimension(value: object, name: str) -> int:
-    """A terminal's ``cols`` / ``rows``: an int32 of at least 1, as the
-    contract states."""
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= _MAX_INT32:
-        raise create_error(f"{name} must be an integer between 1 and {_MAX_INT32}", 400, "BAD_REQUEST", "SDK")
+    """A terminal's ``cols`` / ``rows``: an integer from 1 to 65535."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= TERMINAL_DIMENSION_MAX:
+        raise create_error(
+            f"{name} must be an integer between 1 and {TERMINAL_DIMENSION_MAX}", 400, "BAD_REQUEST", "SDK"
+        )
     return value
 
 
@@ -1600,13 +1896,13 @@ def resize_spec(process_id: str, *, cols: int, rows: int) -> RequestSpec:
     rows = terminal_dimension(rows, "rows")
     return RequestSpec(
         "POST",
-        f"/processes/{toolbox_path_id(process_id, 'process id')}/resize",
+        f"/processes/{path_segment(process_id, 'process id')}/resize",
         json_body={"cols": cols, "rows": rows},
     )
 
 
 def delete_process_spec(process_id: str) -> RequestSpec:
-    return RequestSpec("DELETE", f"/processes/{toolbox_path_id(process_id, 'process id')}")
+    return RequestSpec("DELETE", f"/processes/{path_segment(process_id, 'process id')}")
 
 
 def file_download_spec(path: str, *, timeout: Optional[float]) -> RequestSpec:
@@ -1660,14 +1956,68 @@ def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:
         payload, BulkUploadResponse, "bulk upload response", BulkUploadResponse.from_dict
     )
     return BulkWriteResult(
-        files=[BulkWriteFile(path=item.path, bytes=item.bytes) for item in model.files],
-        errors=list(model.errors),
+        files=tuple(BulkWriteFile(path=item.path, bytes=item.bytes) for item in model.files),
+        errors=tuple(model.errors),
     )
 
 
 def parse_file_match(payload: JsonValue) -> FileMatch:
     model = _expect_model_from_dict(payload, MatchModel, "grep match", MatchModel.from_dict)
     return FileMatch(file=model.file, line=model.line, content=model.content)
+
+
+def _string_list(value: JsonValue, field: str, description: str) -> List[str]:
+    if not isinstance(value, list):
+        problem = "is required" if value is None else "must be a list"
+        raise create_error(f"expected {description}: {field} {problem}", 400, "BAD_REQUEST", "SDK")
+    strings: List[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise create_error(
+                f"expected {description}: {field}[{index}] must be a string", 400, "BAD_REQUEST", "SDK"
+            )
+        strings.append(item)
+    return strings
+
+
+def _search_skipped(payload: JsonObject, description: str) -> Tuple[str, ...]:
+    # Absent from daemons that predate the field: nothing was reported skipped.
+    raw = payload.get("skipped")
+    return () if raw is None else tuple(_string_list(raw, "skipped", description))
+
+
+def parse_grep_response(payload: TransportPayload) -> FileSearchResult[FileMatch]:
+    """``GET /files/find``: ``{items, skipped}``, or the bare ``Match`` array
+    daemons sent before ``skipped`` existed."""
+    description = "grep response"
+    skipped: Tuple[str, ...] = ()
+    raw_items: List[JsonValue]
+    if isinstance(payload, list):
+        raw_items = payload
+    elif isinstance(payload, dict):
+        listed = payload.get("items")
+        if not isinstance(listed, list):
+            problem = "is required" if listed is None else "must be a list"
+            raise create_error(f"expected {description}: items {problem}", 400, "BAD_REQUEST", "SDK")
+        raw_items = listed
+        skipped = _search_skipped(payload, description)
+    else:
+        raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    for index, item in enumerate(raw_items):
+        if not isinstance(item, dict):
+            raise create_error(
+                f"expected {description}: items[{index}] must be an object", 400, "BAD_REQUEST", "SDK"
+            )
+    return FileSearchResult(items=[parse_file_match(item) for item in raw_items], skipped=skipped)
+
+
+def parse_glob_response(payload: TransportPayload) -> FileSearchResult[str]:
+    """``GET /files/search``: ``{files, skipped}``."""
+    description = "glob response"
+    if not isinstance(payload, dict):
+        raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    files = _string_list(payload.get("files"), "files", description)
+    return FileSearchResult(items=files, skipped=_search_skipped(payload, description))
 
 
 def parse_replace_result(payload: JsonValue) -> ReplaceResult:
@@ -1691,7 +2041,7 @@ def parse_bulk_read_result(content: bytes, *, content_type: Optional[str] = None
             continue
         if part_name == "error":
             errors.append(_bulk_read_error(body))
-    return BulkReadResult(files=files, errors=errors)
+    return BulkReadResult(files=files, errors=tuple(errors))
 
 
 def _bulk_read_error(body: bytes) -> BulkReadError:
@@ -1725,15 +2075,17 @@ def list_shape(
 ) -> Tuple[List[JsonObject], Optional[str]]:
     """The items of a list response: a bare array or an envelope whose
     ``items`` is an array; anything else is malformed."""
+    items: List[JsonValue]
     if isinstance(payload, list):
-        items: JsonValue = payload
+        items = payload
         cursor_holder: JsonObject = {}
     else:
         cursor_holder = expect_object(payload)
-        items = cursor_holder.get("items")
-        if not isinstance(items, list):
-            problem = "is required" if items is None else "must be a list"
+        raw_items = cursor_holder.get("items")
+        if not isinstance(raw_items, list):
+            problem = "is required" if raw_items is None else "must be a list"
             raise create_error(f"expected {description}: items {problem}", 400, "BAD_REQUEST", "SDK")
+        items = raw_items
     obj = cursor_holder
     for index, item in enumerate(items):
         if not isinstance(item, dict):
@@ -1747,7 +2099,14 @@ def list_shape(
     return [expect_object(item) for item in items], cursor or None
 
 
-_SEARCH_LIST_FIELDS = ("status", "sandbox_class", "region")
+_SEARCH_LIST_FIELDS = ("sandbox_class", "region")
+_SEARCH_BOOLEAN_FIELDS = ("spot",)
+_SEARCH_NUMBER_FIELDS = ("min_cores", "max_cores")
+_SEARCH_INTEGER_FIELDS = ("min_memory_mib", "max_memory_mib", "min_disk_mib", "max_disk_mib")
+_SEARCH_CHOICES: Dict[str, Tuple[str, ...]] = {
+    "sort": get_args(SearchSort),
+    "order": get_args(SearchOrder),
+}
 _SEARCH_TIMESTAMP_FIELDS = (
     "created_start_at",
     "created_end_at",
@@ -1756,46 +2115,205 @@ _SEARCH_TIMESTAMP_FIELDS = (
     "last_activity_start_at",
     "last_activity_end_at",
 )
-_SEARCH_WIRE_NAMES = {"sandbox_class": "class", "region": "region_ids"}
+_SEARCH_WIRE_NAMES = {"states": "status", "sandbox_class": "class", "region": "region_ids"}
 
 
-def search_filters_present(filters: SandboxSearchFilters) -> bool:
-    """True when any ``GET /sandboxes/search``-only filter is set (the ``list()`` routing rule)."""
-    return any(getattr(filters, f.name) is not None for f in fields(SandboxSearchFilters))
+# SDK sandbox state -> the API status names it covers (the search ``status`` filter).
+_STATE_WIRE_STATUSES: Dict[str, Tuple[str, ...]] = {
+    "queued": ("queued",),
+    "creating": ("pending", "assigned"),
+    "starting": ("booting",),
+    "started": ("running",),
+    "pausing": ("pausing",),
+    "paused": ("paused",),
+    "stopping": ("stopping",),
+    "stopped": ("stopped",),
+    "destroying": ("deleting",),
+    "destroyed": ("deleted",),
+    "error": ("failed", "lost"),
+}
+
+
+def _wire_statuses(states: object) -> str:
+    """The search ``status`` filter for SDK states: each state's API status names, comma-joined."""
+    items = [states] if isinstance(states, str) else list(states) if isinstance(states, Sequence) else None
+    if not items:
+        raise create_error("states must name at least one sandbox state", 400, "BAD_REQUEST", "SDK")
+    wire: list[str] = []
+    for state in items:
+        statuses = _STATE_WIRE_STATUSES.get(state) if isinstance(state, str) else None
+        if statuses is None:
+            raise create_error(
+                f"states entries must be known sandbox states, got {state!r}", 400, "BAD_REQUEST", "SDK"
+            )
+        wire.extend(status for status in statuses if status not in wire)
+    return ",".join(wire)
 
 
 def search_timestamp(value: SearchTimestamp) -> str:
-    """RFC 3339 form of a search bound; naive datetimes are taken as UTC.
+    """The wire form of a search bound, as TypeScript's ``searchTimestamp``.
 
-    Anything other than a ``datetime`` or a ``str`` is the SDK's own
-    :class:`BadRequestError` (mirrors the TypeScript ``searchTimestamp``, which
-    also rejects an invalid ``Date``) — never an ``AttributeError`` from the
-    formatter, and no request goes out.
+    A string is checked (an RFC 3339 timestamp without a leap second) and sent
+    exactly as written. A ``datetime`` is sent in UTC, so its UTC instant must
+    fall in years 0001-9999; a naive one (``utcoffset()`` is ``None``, a
+    ``tzinfo`` that returns ``None`` included) is taken as UTC. Anything else,
+    and a ``datetime`` whose conversion fails (its ``tzinfo`` raising, an
+    instant outside years 0001-9999 in UTC) or whose rendered form fails the
+    string rule, is the same :class:`BadRequestError`, before any request: as
+    TypeScript's ``Date`` branch, the rendered form is checked like a string.
     """
+    invalid = create_error(
+        "timestamp bounds must be a datetime or an RFC 3339 timestamp without a leap second"
+        " (year 0001-9999, a real calendar date)",
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
     if isinstance(value, datetime):
-        aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-        return aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-    if isinstance(value, str):
+        rendered: object
+        try:
+            # Only the calls on the caller's object: a tzinfo may raise anything,
+            # and a datetime subclass may render anything.
+            aware = value if value.utcoffset() is not None else value.replace(tzinfo=timezone.utc)
+            rendered = aware.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        except Exception as error:
+            raise invalid from error
+        if isinstance(rendered, str) and rfc3339_timestamp(rendered):
+            return rendered
+        raise invalid
+    # An RFC 3339 timestamp without a leap second (the contract's date-time), the same rule TypeScript checks.
+    if isinstance(value, str) and rfc3339_timestamp(value):
         return value
-    raise create_error("timestamp bounds must be a datetime or an RFC 3339 string", 400, "BAD_REQUEST", "SDK")
+    raise invalid
 
 
-def _comma_list(name: str, value: Union[str, Sequence[str]]) -> str:
-    items = [value] if isinstance(value, str) else list(value)
+def _comma_list(name: str, value: object) -> str:
+    # A string or a sequence of strings (not a mapping, whose keys would be
+    # sent), as TypeScript takes a string or an array.
+    if isinstance(value, str):
+        items: list[object] = [value]
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        items = list(value)
+    else:
+        raise create_error(f"{name} must be a string or a list of strings", 400, "BAD_REQUEST", "SDK")
     # An empty list is not "no filter": the server reads an empty parameter as
     # absent, so `status=[]` would silently become an unfiltered search (and
     # change `list()` pagination). Refuse it here, like `[""]`.
     if not items:
         raise create_error(f"{name} must name at least one value", 400, "BAD_REQUEST", "SDK")
+    texts: list[str] = []
     for item in items:
         if not isinstance(item, str) or not item or "," in item:
             raise create_error(
                 f"{name} entries must be non-empty strings without commas", 400, "BAD_REQUEST", "SDK"
             )
-    return ",".join(items)
+        texts.append(item)
+    return ",".join(texts)
 
 
-def search_params(query: SearchSandboxesQuery) -> Dict[str, JsonValue]:
+def has_surrogate(value: str) -> bool:
+    """Whether ``value`` holds a surrogate code point, which has no UTF-8 form
+    (the HTTP client would raise ``UnicodeEncodeError`` encoding it)."""
+    return any("\ud800" <= char <= "\udfff" for char in value)
+
+
+def query_text(value: str, name: str) -> str:
+    """A caller string sent as a query value: one with a lone surrogate is
+    :class:`BadRequestError` naming ``name``, before any request, as in TypeScript."""
+    if has_surrogate(value):
+        raise create_error(f"{name} must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
+def header_text(value: str, name: str) -> str:
+    """A caller string sent as a header value: non-empty printable ASCII with
+    no leading or trailing whitespace, else :class:`BadRequestError` naming
+    ``name``, before any request. It is never stripped: an idempotency key or
+    an ETag the SDK altered would not be the caller's value. TypeScript applies
+    the same rule (``headerText``), so both SDKs refuse the same values:
+    neither sends header bytes the other would not, and neither fails with a
+    transport error (the HTTP client refuses padded header values) for one.
+    ``region`` is checked through :func:`region_selector`, which first takes a
+    blank value or ``local`` as the default region (not sent)."""
+    if not value:
+        raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    if not all(" " <= char <= "~" for char in value) or value[0] == " " or value[-1] == " ":
+        raise create_error(
+            f"{name} must be printable ASCII with no leading or trailing whitespace",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return value
+
+
+def region_selector(region: object) -> Optional[str]:
+    """The region ``create*()``, ``create_from_build()``, ``find_by_name()``
+    and ``images.build()`` / ``pull()`` select: ``None``, a blank or
+    whitespace-only string, or ``local`` in any letter case and with any
+    surrounding whitespace select the default region and are not sent (no
+    ``x-daytona-region`` header, no ``region_id`` field); any other value is
+    sent as given and must follow :func:`header_text`'s rule (printable ASCII,
+    no leading or trailing whitespace). As TypeScript's ``selectRegion``. The
+    reservation calls send ``region`` as given, since their contract reads a
+    blank value or ``local`` as no region; the search and Mac-catalog filters
+    list regions, where ``local`` has no meaning."""
+    if region is None:
+        return None
+    if not isinstance(region, str):
+        raise create_error("region must be a string", 400, "BAD_REQUEST", "SDK")
+    if not region.strip() or region.strip().lower() == "local":
+        return None
+    return header_text(region, "region")
+
+
+def path_segment(value: object, name: str) -> str:
+    """Every id or name a call puts into a request path (client, lifecycle,
+    platform services and toolbox alike) as one percent-encoded segment: a
+    string (else "must be a string") that is not blank by Python's whitespace
+    (else "must be a non-empty string"), is not ``.`` or ``..`` (see
+    :func:`refuse_dot_segment`) and has no surrogate code point (no UTF-8
+    form; ``quote()`` would raise ``UnicodeEncodeError``). A Python string
+    holds code points, so two surrogate code points are no astral character
+    and are refused as well; astral characters are kept. Each is a
+    :class:`BadRequestError` naming ``name``, before any request, with the
+    messages of TypeScript's ``pathSegment``."""
+    if not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
+    if not value.strip():
+        raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    refuse_dot_segment(value, name)
+    if has_surrogate(value):
+        raise create_error(f"{name} must not contain a surrogate code point", 400, "BAD_REQUEST", "SDK")
+    return quote(value, safe="")
+
+
+def page_params(cursor: object, limit: object) -> Dict[str, JsonValue]:
+    """The ``cursor`` / ``limit`` query of a list: a string cursor and an
+    integer limit from 1 to 200 (the contract's range), else
+    :class:`BadRequestError` naming the parameter, before any request."""
+    params: Dict[str, JsonValue] = {}
+    if cursor is not None:
+        if not isinstance(cursor, str):
+            raise create_error("cursor must be a string", 400, "BAD_REQUEST", "SDK")
+        params["cursor"] = query_text(cursor, "cursor")
+    if limit is not None:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+            raise create_error("limit must be an integer from 1 to 200", 400, "BAD_REQUEST", "SDK")
+        params["limit"] = limit
+    return params
+
+
+def optional_query_text(value: object, name: str) -> Optional[str]:
+    """A string query filter, or ``None``; anything else is :class:`BadRequestError`."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
+    return query_text(value, name)
+
+
+def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
     """Wire query for ``GET /sandboxes/search``: lists comma-joined, labels JSON, timestamps RFC 3339."""
     params: Dict[str, JsonValue] = {}
     for f in fields(query):
@@ -1803,52 +2321,106 @@ def search_params(query: SearchSandboxesQuery) -> Dict[str, JsonValue]:
         if value is None:
             continue
         wire = _SEARCH_WIRE_NAMES.get(f.name, f.name)
-        if f.name in _SEARCH_LIST_FIELDS:
-            params[wire] = _comma_list(f.name, value)
+        if f.name == "states":
+            params[wire] = _wire_statuses(value)
+        elif f.name in _SEARCH_LIST_FIELDS:
+            joined = _comma_list(f.name, value)
+            # The contract's classes only: SDK inputs are closed.
+            if f.name == "sandbox_class" and any(
+                item not in ("linux", "macos") for item in joined.split(",")
+            ):
+                raise create_error(
+                    'sandbox_class entries must be "linux" or "macos"', 400, "BAD_REQUEST", "SDK"
+                )
+            params[wire] = query_text(joined, f.name)
         elif f.name == "labels":
-            if not isinstance(value, Mapping):
+            if not isinstance(value, Mapping) or not all(
+                isinstance(key, str) and isinstance(item, str) for key, item in value.items()
+            ):
                 raise create_error("labels must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
             if not value:
                 raise create_error("labels must name at least one pair", 400, "BAD_REQUEST", "SDK")
+            check_label_keys(value)
             params[wire] = json.dumps(dict(value), separators=(",", ":"))
         elif f.name in _SEARCH_TIMESTAMP_FIELDS:
-            params[wire] = search_timestamp(value)
-        elif isinstance(value, bool):
+            params[wire] = query_text(search_timestamp(value), f.name)
+        elif f.name in _SEARCH_BOOLEAN_FIELDS:
+            if not isinstance(value, bool):
+                raise create_error(f"{f.name} must be a boolean", 400, "BAD_REQUEST", "SDK")
             params[wire] = "true" if value else "false"
-        else:
+        elif f.name in _SEARCH_NUMBER_FIELDS:
+            if not finite_number(value):
+                raise create_error(f"{f.name} must be a finite number", 400, "BAD_REQUEST", "SDK")
             params[wire] = value
+        elif f.name in _SEARCH_INTEGER_FIELDS:
+            # An int64 both SDKs carry exactly.
+            if isinstance(value, bool) or not isinstance(value, int) or abs(value) > MAX_SAFE_INTEGER:
+                raise create_error(f"{f.name} must be an integer", 400, "BAD_REQUEST", "SDK")
+            params[wire] = value
+        elif f.name in _SEARCH_CHOICES:
+            # The contract's values only: SDK inputs are closed.
+            if value not in _SEARCH_CHOICES[f.name]:
+                choices = ", ".join(_SEARCH_CHOICES[f.name])
+                raise create_error(f"{f.name} must be one of {choices}", 400, "BAD_REQUEST", "SDK")
+            params[wire] = value
+        elif f.name in ("cursor", "limit"):
+            params.update(
+                page_params(value if f.name == "cursor" else None, value if f.name == "limit" else None)
+            )
+        else:
+            params[wire] = optional_query_text(value, f.name)
     return params
 
 
 def parse_search_page(
     payload: JsonValue,
+    check_sandbox: Callable[[JsonValue], object],
 ) -> Tuple[List[JsonObject], Optional[str], int, SearchTotalRelation, str]:
     """Split a ``GET /sandboxes/search`` body into items, cursor, total, and relation.
 
-    The search contract is an object with a
-    ``sandboxes`` array: a body that is not an object, or whose ``sandboxes`` is missing or
-    not an array, is the SDK's own :class:`BadRequestError` rather than an
-    empty page — an ``items`` array is NOT accepted as a stand-in. Unknown
-    extra fields (top-level and per item) are tolerated as everywhere else.
+    The search contract is an object with a ``sandboxes`` array of sandbox
+    objects (each checked by ``check_sandbox``, as a detail is), a
+    non-negative integer ``total``, a string ``total_relation`` and a string or null
+    ``next_cursor``. Anything else is the SDK's own :class:`BadRequestError`
+    naming the field, never an empty or truncated page — an ``items`` array is
+    NOT accepted as a stand-in. Unknown extra fields are tolerated.
     """
-    obj = expect_object(payload)
-    raw_sandboxes = obj.get("sandboxes")
+
+    def malformed(detail: str) -> Exception:
+        return create_error(f"search response {detail}", 400, "BAD_REQUEST", "SDK")
+
+    if not isinstance(payload, dict):
+        raise malformed("is not a JSON object")
+    raw_sandboxes = payload.get("sandboxes")
     if not isinstance(raw_sandboxes, list):
-        raise create_error("search response is missing the sandboxes array", 400, "BAD_REQUEST", "SDK")
+        raise malformed("is missing the sandboxes array")
+    for item in raw_sandboxes:
+        check_sandbox(item)
     items = [expect_object(item) for item in raw_sandboxes]
-    cursor = obj.get("next_cursor")
-    next_cursor = cursor if isinstance(cursor, str) else None
-    total_raw = obj.get("total")
-    total = int(total_raw) if isinstance(total_raw, (int, float)) and not isinstance(total_raw, bool) else 0
-    relation_raw = obj.get("total_relation")
-    raw_total_relation = relation_raw if isinstance(relation_raw, str) else "eq"
+    total = payload.get("total")
+    if total is None:
+        raise malformed("is missing its total")
+    if not isinstance(total, int) or not finite_number(total):
+        raise malformed("has a total that is not an integer")
+    if total < 0:
+        # The contract's int64 with minimum 0.
+        raise malformed("has a negative total")
+    raw_total_relation = payload.get("total_relation")
+    if raw_total_relation is None:
+        raise malformed("is missing its total_relation")
+    if not isinstance(raw_total_relation, str):
+        raise malformed("has a total_relation that is not a string")
+    # A cursor of the wrong type would silently end search() / find_by_name() early.
+    cursor = payload.get("next_cursor")
+    if cursor is not None and not isinstance(cursor, str):
+        raise malformed("has a next_cursor that is not a string")
     total_relation: SearchTotalRelation = (
         raw_total_relation if raw_total_relation == "eq" or raw_total_relation == "gte" else "unknown"
     )
-    return items, next_cursor, total, total_relation, raw_total_relation
+    return items, cursor, total, total_relation, raw_total_relation
 
 
-def sandbox_state(status: str) -> SandboxState:
+def sandbox_state(status: Optional[str]) -> SandboxState:
     states: dict[str, SandboxState] = {
         "queued": "queued",
         "pending": "creating",
@@ -1864,7 +2436,7 @@ def sandbox_state(status: str) -> SandboxState:
         "failed": "error",
         "lost": "error",
     }
-    return states.get(status, "unknown")
+    return "unknown" if status is None else states.get(status, "unknown")
 
 
 def artifact_ref_from_wire(value: object) -> ImageRef | SnapshotRef | None:
@@ -1903,17 +2475,13 @@ def _snapshot_kind(value: str) -> SnapshotKind:
 def _image_source(value: object) -> ImageSource | None:
     match value:
         case {"type": "registry", "ref": str(ref)}:
-            return {"type": "registry", "ref": ref}
-        case {"type": "dockerfile", "context_object": str(context_object), "dockerfile": str(dockerfile)}:
-            return {
-                "type": "dockerfile",
-                "context_object": context_object,
-                "dockerfile": dockerfile,
-            }
+            return RegistryImageSource(ref=ref)
+        case {"type": "dockerfile", "dockerfile": str(dockerfile)}:
+            return DockerfileImageSource(dockerfile=dockerfile)
         case {"type": "named", "name": str(name)}:
-            return {"type": "named", "name": name}
+            return NamedImageSource(name=name)
         case {"type": "manifest", "name": str(name)}:
-            return {"type": "manifest", "name": name}
+            return ManifestImageSource(name=name)
         case _:
             return None
 
@@ -1928,47 +2496,54 @@ def parse_image(value: object) -> Image:
         region=str(data["region_id"]),
         anonymous=data.get("anonymous") is True,
         retention=_artifact_retention(raw_retention),
-        var_class=str(data.get("class") or data.get("var_class") or ""),
-        available_in=_optional_str_list(data.get("region_ids")) or [],
+        raw_retention=raw_retention,
+        sandbox_class=_wire_string(data.get("class") or data.get("var_class")),
+        available_in=tuple(_optional_str_list(data.get("region_ids")) or ()),
         origin=str(data["origin"]),
-        created_at=_isoformat_or_none(data.get("created_at")),
-        updated_at=_isoformat_or_none(data.get("updated_at")),
+        created_at=_required_timestamp(data.get("created_at"), "created_at"),
+        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at"), "updated_at"),
         error=_optional_str(data.get("error")),
-        expires_at=_isoformat_or_none(data.get("expires_at")),
+        expires_at=parse_timestamp(data.get("expires_at")),
         source=_image_source(data.get("source")),
         bytes=_optional_int(data.get("bytes")),
         layer_count=_optional_int(data.get("layer_count")),
         format_version=_optional_int(data.get("format_version")),
         format_outdated=data.get("format_outdated") is True,
-        cursor=_optional_str(data.get("cursor")),
         platform=data.get("platform") is True,
         default=data.get("default") is True,
         deprecated=data.get("deprecated") is True,
         disk_mib=_optional_int(data.get("disk_mib")),
-        raw_retention=raw_retention,
     )
 
 
 def parse_snapshot(value: object) -> Snapshot:
     data = value.to_dict() if hasattr(value, "to_dict") and callable(value.to_dict) else expect_object(value)
     raw_kind = _wire_string(data.get("kind"))
+    raw_class = _wire_string(data.get("class") or data.get("var_class"))
     return Snapshot(
         id=str(data["id"]),
         name=str(data["name"]),
         status=str(data["status"]),
         region=str(data["region_id"]),
         kind=_snapshot_kind(raw_kind),
-        var_class=_wire_string(data.get("class") or data.get("var_class")),
-        available_in=_optional_str_list(data.get("region_ids")) or [],
-        created_at=_isoformat_or_none(data.get("created_at")),
-        updated_at=_isoformat_or_none(data.get("updated_at")),
-        error=_optional_str(data.get("error")),
         raw_kind=raw_kind,
+        sandbox_class="linux" if raw_class == "linux" else "unknown",
+        raw_sandbox_class=raw_class,
+        available_in=tuple(_optional_str_list(data.get("region_ids")) or ()),
+        created_at=_required_timestamp(data.get("created_at"), "created_at"),
+        updated_at=_required_timestamp(data.get("updated_at") or data.get("created_at"), "updated_at"),
+        error=_optional_str(data.get("error")),
         bytes=_optional_int(data.get("bytes")),
         memory_bytes=_optional_int(data.get("memory_bytes")),
         sandbox_id=_optional_str(data.get("sandbox_id")),
-        cursor=_optional_str(data.get("cursor")),
     )
+
+
+def _required_timestamp(value: object, field_name: str) -> datetime:
+    parsed = parse_timestamp(value)
+    if parsed is None:
+        raise create_error(f"API returned an invalid {field_name} timestamp", 400, "BAD_REQUEST", "SDK")
+    return parsed
 
 
 def parse_docker_status(payload: DockerStatusModel) -> DockerStatus:
@@ -1984,21 +2559,25 @@ def parse_docker_status(payload: DockerStatusModel) -> DockerStatus:
     )
 
 
-def _isoformat_or_none(value: JsonValue | object) -> str | None:
-    if isinstance(value, str):
-        return value
-    isoformat = getattr(value, "isoformat", None)
-    if callable(isoformat):
-        return str(isoformat()).replace("+00:00", "Z")
-    return None
+def gib_to_mib(gib: object, *, label: str) -> int:
+    """GiB as the wire's MiB: ``gib * 1024`` must be a whole number, never rounded."""
+    mib = gib * 1024 if isinstance(gib, (int, float)) and not isinstance(gib, bool) else math.nan
+    # An int needs no float check: math.isfinite() and int() raise OverflowError past the float range.
+    if not (isinstance(mib, int) or (math.isfinite(mib) and mib == int(mib))):
+        raise create_error(
+            f"{label} must be a GiB value that converts to a whole number of MiB", 400, "BAD_REQUEST", "SDK"
+        )
+    # A size is positive, as the cpu values are.
+    if mib <= 0:
+        raise create_error(f"{label} must be a positive number of GiB", 400, "BAD_REQUEST", "SDK")
+    return int(mib)
 
 
-def gb_to_mib(gb: float) -> int:
-    return round(gb * 1024)
-
-
-def mib_to_gb(mib: int) -> int:
-    return max(1, (mib + 1023) // 1024)
+def mib_to_gib(mib: object) -> Optional[float]:
+    """The wire's MiB as GiB, exactly (``mib / 1024``); ``None`` when absent."""
+    if not isinstance(mib, int) or isinstance(mib, bool) or not finite_number(mib):
+        return None
+    return mib / 1024
 
 
 def snapshot_state(image_status: str, dockerfile: bool = False) -> str:
@@ -2024,13 +2603,13 @@ def _parse_log_frame(payload: LogFrameDto) -> LogFrame:
 
 def _parse_terminal(value: ToolboxTerminalSize | None) -> Optional[TerminalSize]:
     """A process record's terminal: int32 dimensions of at least 1, as the
-    request's (:func:`terminal_dimension`); anything else is malformed."""
+    contract states; anything else is malformed."""
     if value is None:
         return None
     for name, dimension in (("cols", value.cols), ("rows", value.rows)):
-        if not 1 <= dimension <= _MAX_INT32:
+        if not 1 <= dimension <= INT32_MAX:
             raise create_error(
-                f"expected process response: terminal: {name} must be an integer between 1 and {_MAX_INT32}",
+                f"expected process response: terminal: {name} must be an integer between 1 and {INT32_MAX}",
                 400,
                 "BAD_REQUEST",
                 "SDK",

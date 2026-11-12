@@ -4,7 +4,8 @@ and `InterpreterContextJSON` (`{ sandboxId, contextId, language }`) are the
 same camelCase JSON in both SDKs, so a handle stored by one reconnects in the
 other through `process.connect()`, `process.connect_session()` /
 `connectSession()` and `interpreter.connect_context()` / `connectContext()`
-(Python still reads the snake_case context identity it wrote before).
+(Python no longer reads the snake_case context identity earlier pre-releases
+wrote: both SDKs refuse it with `BadRequestError`).
 Python removes `ProcessHandleRef`, `ProcessHandle.from_json()` / `ref()` /
 `bind()`, `Session.from_json()`, the handle's duplicate `process_id`
 attribute and `InterpreterContext.bind()`; contexts gain `to_json()`.

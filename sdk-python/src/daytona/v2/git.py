@@ -18,6 +18,7 @@ from ._core import (
     expect_status_response,
     list_shape,
 )
+from ._filesystem_inputs import path_sequence
 from ._gen.toolbox import CommitInfo
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
@@ -53,6 +54,7 @@ class AsyncGitService:
         self,
         url: str,
         path: str,
+        /,
         *,
         branch: Optional[str] = None,
         commit_id: Optional[str] = None,
@@ -81,6 +83,7 @@ class AsyncGitService:
     async def init(
         self,
         path: str,
+        /,
         *,
         bare: bool = False,
         initial_branch: Optional[str] = None,
@@ -90,21 +93,21 @@ class AsyncGitService:
             body["initial_branch"] = initial_branch
         await self._transport.send(RequestSpec("POST", "/git/init", json_body=body))
 
-    async def status(self, path: str) -> GitStatus:
+    async def status(self, path: str, /) -> GitStatus:
         """Return git status."""
         response = await _json_payload(
             self._transport, RequestSpec("GET", "/git/status", params={"path": path})
         )
         return expect_status_response(response)
 
-    async def list_branches(self, path: str) -> ListResult[str]:
+    async def list_branches(self, path: str, /) -> ListResult[str]:
         """List branch names as {items, next_cursor}."""
         payload = expect_branch_list(
             await _json_payload(self._transport, RequestSpec("GET", "/git/branches", params={"path": path}))
         )
-        return ListResult(list(payload.branches), None)
+        return ListResult(items=list(payload.branches))
 
-    async def list_remotes(self, path: str) -> ListResult[GitRemote]:
+    async def list_remotes(self, path: str, /) -> ListResult[GitRemote]:
         """List the configured remotes; URLs come back with any credentials removed."""
         payload = expect_object(
             await _json_payload(self._transport, RequestSpec("GET", "/git/remotes", params={"path": path}))
@@ -121,48 +124,62 @@ class AsyncGitService:
                     "BAD_REQUEST",
                     "SDK",
                 )
-        return ListResult([_git_remote(remote) for remote in raw], None)
+        return ListResult(items=[_git_remote(remote) for remote in raw])
 
-    async def history(self, path: str) -> ListResult[GitCommit]:
+    async def history(self, path: str, /) -> ListResult[GitCommit]:
         """List commits, newest first."""
         items, next_cursor = list_shape(
             await _json_payload(self._transport, RequestSpec("GET", "/git/history", params={"path": path})),
             description="git history response",
         )
-        return ListResult([_git_commit(_expect_commit_info(item)) for item in items], next_cursor)
+        return ListResult(
+            items=[_git_commit(_expect_commit_info(item)) for item in items], next_cursor=next_cursor
+        )
 
-    async def create_branch(self, path: str, name: str) -> None:
+    async def create_branch(self, path: str, name: str, /) -> None:
         """Create a branch."""
         await self._transport.send(
             RequestSpec("POST", "/git/branches", json_body={"path": path, "name": name})
         )
 
-    async def add_remote(self, path: str, name: str, url: str) -> None:
+    async def add_remote(self, path: str, name: str, url: str, /) -> None:
         await self._transport.send(
             RequestSpec("POST", "/git/remotes", json_body={"path": path, "name": name, "url": url})
         )
 
-    async def delete_branch(self, path: str, name: str) -> None:
-        """Delete a branch."""
-        await self._transport.send(
-            RequestSpec("DELETE", "/git/branches", json_body={"path": path, "name": name})
-        )
+    async def delete_branch(self, path: str, name: str, /, *, force: bool = False) -> None:
+        """Delete a branch.
 
-    async def checkout_branch(self, path: str, branch: str) -> None:
+        The default is a safe deletion (``git branch -d``): a branch that is
+        not merged raises :class:`~daytona.v2.errors.ConflictError`
+        (``CONFLICT``). ``force=True`` deletes it anyway (``git branch -D``).
+        The checked-out branch is never deleted, even with ``force=True``
+        (``ConflictError``); a branch that does not exist raises
+        :class:`~daytona.v2.errors.GitBranchNotFoundError`.
+        """
+        if not isinstance(force, bool):
+            raise create_error("force must be a boolean", 400, "BAD_REQUEST", "SDK")
+        body: JsonObject = {"path": path, "name": name}
+        if force:
+            body["force"] = True
+        await self._transport.send(RequestSpec("DELETE", "/git/branches", json_body=body))
+
+    async def checkout_branch(self, path: str, branch: str, /) -> None:
         """Checkout a branch."""
         await self._transport.send(
             RequestSpec("POST", "/git/checkout", json_body={"path": path, "branch": branch})
         )
 
-    async def add(self, path: str, files: Sequence[str]) -> None:
-        """Stage files."""
+    async def add(self, path: str, files: Sequence[str], /) -> None:
+        """Stage a sequence of string pathspecs (not a bare string)."""
         await self._transport.send(
-            RequestSpec("POST", "/git/add", json_body={"path": path, "files": list(files)})
+            RequestSpec("POST", "/git/add", json_body={"path": path, "files": path_sequence(files, "files")})
         )
 
     async def reset(
         self,
         path: str,
+        /,
         *,
         mode: Optional[str] = None,
         target: Optional[str] = None,
@@ -174,19 +191,20 @@ class AsyncGitService:
         if target is not None:
             body["target"] = target
         if files is not None:
-            body["files"] = list(files)
+            body["files"] = path_sequence(files, "files")
         await self._transport.send(RequestSpec("POST", "/git/reset", json_body=body))
 
     async def restore(
         self,
         path: str,
         files: Sequence[str],
+        /,
         *,
         staged: Optional[bool] = None,
         worktree: Optional[bool] = None,
         source: Optional[str] = None,
     ) -> None:
-        body: JsonObject = {"path": path, "files": list(files)}
+        body: JsonObject = {"path": path, "files": path_sequence(files, "files")}
         if staged is not None:
             body["staged"] = staged
         if worktree is not None:
@@ -199,6 +217,7 @@ class AsyncGitService:
         self,
         path: str,
         message: str,
+        /,
         *,
         author: str,
         email: str,
@@ -226,6 +245,7 @@ class AsyncGitService:
     async def pull(
         self,
         path: str,
+        /,
         *,
         username: Optional[str] = None,
         password: Optional[str] = None,
@@ -248,6 +268,7 @@ class AsyncGitService:
     async def push(
         self,
         path: str,
+        /,
         *,
         username: Optional[str] = None,
         password: Optional[str] = None,
@@ -271,6 +292,7 @@ class AsyncGitService:
     async def get_config(
         self,
         key: str,
+        /,
         *,
         path: Optional[str] = None,
         scope: GitConfigScope = "global",
@@ -292,10 +314,18 @@ class AsyncGitService:
         self,
         key: str,
         value: str,
+        /,
         *,
         path: Optional[str] = None,
         scope: GitConfigScope = "global",
     ) -> None:
+        """Set a git config value.
+
+        A sandbox access token needs ``toolbox:exec`` as well as
+        ``toolbox:git`` for this (``toolbox`` covers both): without
+        ``toolbox:exec`` it raises :class:`ForbiddenError` (403), while
+        :meth:`get_config` still works.
+        """
         body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": _config_scope(scope)}
         if path is not None:
             body["path"] = path

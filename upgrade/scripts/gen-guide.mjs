@@ -6,6 +6,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
+import { withNamedArguments } from './optional-arguments.mjs';
 
 const { values } = parseArgs({ options: { check: { type: 'boolean', default: false } } });
 const root = new URL('../', import.meta.url);
@@ -59,8 +60,8 @@ const lines = [
   "| TypeScript | `import { Sandbox } from '@daytonaio/sdk'` | `import { Sandbox } from '@daytona/sdk/v0'` |",
   '',
   'Install the SDK release you migrate to, with the v0 SDK extra for Python. Until SDK 2.0.0',
-  "is out, that is the exact alpha, e.g. `uv add 'daytona[v0-sdk]==2.0.0a8'` and",
-  '`npm install @daytona/sdk@2.0.0-alpha.8`; after it, `uv add ' + `'${mapping.packages.py.requirement}'\`` + ' and',
+  "is out, that is the exact alpha, e.g. `uv add 'daytona[v0-sdk]==2.0.0aN'` and",
+  '`npm install @daytona/sdk@2.0.0-alpha.N`; after it, `uv add ' + `'${mapping.packages.py.requirement}'\`` + ' and',
   `\`npm install ${mapping.packages.ts.new}@${mapping.packages.ts.range}\`.`,
   'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.',
   '',
@@ -77,8 +78,8 @@ const lines = [
   '```',
   '',
   'Each tool release migrates to the SDK release of the same version. Until SDK 2.0.0',
-  'is out, run the exact alpha you are migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.8`',
-  'or `uvx daytona-upgrade@2.0.0a8`.',
+  'is out, run the exact alpha you are migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.N`',
+  'or `uvx daytona-upgrade@2.0.0aN`.',
   '',
   'The tools update dependencies and proven client calls. Review each',
   '`FIXME(daytona-upgrade)` item before running the result.',
@@ -118,9 +119,16 @@ for (const [receiver, metadata] of Object.entries(mapping.receivers)) {
     lines.push(`### ${heading}`, '', '| v0 call | v2 equivalent | Notes |', '| --- | --- | --- |');
     for (const entry of rows) {
       const before = `${receiverName(receiver, language)}.${entry.v0[language]}(...)`;
-      const after = entry.v2[language] === null ? 'None' : code(entry.v2[language]);
+      const after = entry.v2[language] === null ? 'None' : code(withNamedArguments(entry.v2[language]));
       const notes = [entry.v2[language] === null ? 'none' : entry.category, ...entry.notes[language]].map(cell).join('; ');
       lines.push(`| ${code(before)} | ${after} | ${notes} |`);
+      const dockerfile = entry.dockerfileImage;
+      if (dockerfile && dockerfile.v2[language] !== null) {
+        const proof = mapping.dockerfileImage[language];
+        const variantBefore = `${receiverName(receiver, language)}.${entry.v0[language]}(...)`;
+        const variantNotes = [`differs; when ${proof.parameter} is ${proof.type}.${proof.method}(...)`, ...dockerfile.notes[language]].map(cell).join('; ');
+        lines.push(`| ${code(variantBefore)} with ${code(`${proof.type}.${proof.method}(...)`)} | ${code(withNamedArguments(dockerfile.v2[language]))} | ${variantNotes} |`);
+      }
     }
     lines.push('');
   }

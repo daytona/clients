@@ -16,7 +16,7 @@ import (
 
 func limitsFixture() map[string]any {
 	usageLimit := func(usage int, limit any) map[string]any { return map[string]any{"usage": usage, "limit": limit} }
-	concurrent, total, snapshots := int64(10), int64(50), int64(100)
+	concurrent, total, snapshots, macReservations := int64(10), int64(50), int64(100), int64(10)
 	return map[string]any{
 		// Generated types supply every required contract field, including
 		// fields that this CLI does not display in its table.
@@ -25,8 +25,10 @@ func limitsFixture() map[string]any {
 			Total:      gen.UsageLimit{Usage: 9, Limit: &total},
 		},
 		"sandbox_resources": map[string]any{"max_cores": 2.5, "max_memory_mib": 8192},
+		"sandbox_timeout":   map[string]any{"max_seconds": 3600, "ceiling_seconds": 86400},
 		"image_builds":      map[string]any{"concurrent": usageLimit(1, nil)},
 		"members":           map[string]any{"usage": 3, "limit": 5, "pending_invitations": 1},
+		"mac_reservations":  gen.UsageLimit{Usage: 4, Limit: &macReservations},
 		"storage": gen.StorageLimits{
 			Images:    gen.UsageLimit{Usage: 5},
 			Snapshots: gen.UsageLimit{Usage: 7, Limit: &snapshots},
@@ -65,7 +67,7 @@ func TestOrgLimits(t *testing.T) {
 	}
 	for _, want := range []string{"Concurrent sandboxes", "4 / 10", "9 / 50", "1 / unlimited", "Members", "3 + 1 pending / 5",
 		"Cores per sandbox", "max 2.5", "Memory per sandbox (MiB)", "max 8192",
-		"Images", "5 / unlimited", "Snapshots", "7 / 100"} {
+		"Images", "5 / unlimited", "Snapshots", "7 / 100", "Mac reservations", "4 / 10"} {
 		if !has(out, want) {
 			t.Fatalf("table lacks %q:\n%s", want, out)
 		}
@@ -122,6 +124,23 @@ func TestOrgLimitsWithoutMembers(t *testing.T) {
 	}
 }
 
+func TestOrgLimitsWithoutMacReservations(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	body := limitsFixture()
+	delete(body, "mac_reservations")
+	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, body)
+
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "org", "limits", "--org", testOrgA)
+
+	if code != 0 {
+		t.Fatalf("%d %s", code, errb)
+	}
+	if has(out, "Mac reservations") {
+		t.Fatalf("table must omit the Mac reservations row when the API omits the group:\n%s", out)
+	}
+}
+
 func currentKeyFixture() map[string]any {
 	return map[string]any{
 		"id":                  "33333333-3333-3333-3333-333333333333",
@@ -130,7 +149,6 @@ func currentKeyFixture() map[string]any {
 		"created_at":          "2026-10-23T10:00:00Z",
 		"project_permissions": []string{"read:limits"},
 		"sync_to_v0":          false,
-		"sync_to_v1":          false,
 		"context":             map[string]any{"org_id": testOrgA, "org_name": "Acme", "project_name": "default"},
 	}
 }

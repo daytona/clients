@@ -4,12 +4,43 @@
 package cmd
 
 import (
+	"strconv"
 	"strings"
 
+	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/output"
 )
+
+func processKV(proc tbgen.ProcessDto) [][2]string {
+	kv := [][2]string{{"id", proc.Id}, {"kind", string(proc.Kind)}, {"state", string(proc.State)}}
+	if proc.Name != nil && *proc.Name != "" {
+		kv = append(kv, [2]string{"name", *proc.Name})
+	}
+	if proc.Pid != nil {
+		kv = append(kv, [2]string{"pid", strconv.Itoa(int(*proc.Pid))})
+	}
+	if proc.SessionId != nil && *proc.SessionId != "" {
+		kv = append(kv, [2]string{"session_id", *proc.SessionId})
+	}
+	kv = append(kv, [2]string{"created_at", proc.CreatedAt}, [2]string{"cwd", proc.Cwd})
+	if proc.State == tbgen.StateTerminal {
+		if proc.ExitCode != nil {
+			kv = append(kv, [2]string{"exit_code", strconv.Itoa(int(*proc.ExitCode))})
+		}
+		if proc.Reason != nil {
+			kv = append(kv, [2]string{"exit_reason", string(*proc.Reason)})
+		}
+		if proc.Signal != nil && *proc.Signal != "" {
+			kv = append(kv, [2]string{"signal", *proc.Signal})
+		}
+		if proc.ExitedAt != nil && *proc.ExitedAt != "" {
+			kv = append(kv, [2]string{"exited_at", *proc.ExitedAt})
+		}
+	}
+	return kv
+}
 
 // Toolbox-derived JSON and YAML output is the toolbox API's JSON with every
 // key converted to snake_case (the toolbox speaks camelCase) and signal

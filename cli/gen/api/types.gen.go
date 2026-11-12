@@ -40,6 +40,7 @@ const (
 	CREATEBODYTOOLARGE                  ApiErrorCode = "CREATE_BODY_TOO_LARGE"
 	CREATETTLOUTOFRANGE                 ApiErrorCode = "CREATE_TTL_OUT_OF_RANGE"
 	DEFAULTIMAGENOTCONFIGURED           ApiErrorCode = "DEFAULT_IMAGE_NOT_CONFIGURED"
+	DISKNOTREADY                        ApiErrorCode = "DISK_NOT_READY"
 	ECRACCOUNTMISMATCH                  ApiErrorCode = "ECR_ACCOUNT_MISMATCH"
 	ECRCREDENTIALSINVALID               ApiErrorCode = "ECR_CREDENTIALS_INVALID"
 	ECROWNERSHIPUNVERIFIABLE            ApiErrorCode = "ECR_OWNERSHIP_UNVERIFIABLE"
@@ -64,6 +65,10 @@ const (
 	INSUFFICIENTBALANCE                 ApiErrorCode = "INSUFFICIENT_BALANCE"
 	INTERNALSERVERERROR                 ApiErrorCode = "INTERNAL_SERVER_ERROR"
 	INVALIDFORSOURCE                    ApiErrorCode = "INVALID_FOR_SOURCE"
+	INVALIDPARENTREGION                 ApiErrorCode = "INVALID_PARENT_REGION"
+	INVALIDPREVIEWDOMAIN                ApiErrorCode = "INVALID_PREVIEW_DOMAIN"
+	INVALIDSANDBOXCIDR                  ApiErrorCode = "INVALID_SANDBOX_CIDR"
+	INVALIDTOOLBOXPROXYURL              ApiErrorCode = "INVALID_TOOLBOX_PROXY_URL"
 	INVOICENOTFINALIZED                 ApiErrorCode = "INVOICE_NOT_FINALIZED"
 	INVOICENOTFOUND                     ApiErrorCode = "INVOICE_NOT_FOUND"
 	INVOICENOTPAYABLE                   ApiErrorCode = "INVOICE_NOT_PAYABLE"
@@ -94,9 +99,15 @@ const (
 	PROJECTBUDGETEXCEEDED               ApiErrorCode = "PROJECT_BUDGET_EXCEEDED"
 	RATELIMITED                         ApiErrorCode = "RATE_LIMITED"
 	READONLYUNSUPPORTED                 ApiErrorCode = "READ_ONLY_UNSUPPORTED"
+	REGIONLIMITREACHED                  ApiErrorCode = "REGION_LIMIT_REACHED"
+	REGIONNOTEMPTY                      ApiErrorCode = "REGION_NOT_EMPTY"
+	REGIONNOTFOUND                      ApiErrorCode = "REGION_NOT_FOUND"
+	REGIONSUBNETSEXHAUSTED              ApiErrorCode = "REGION_SUBNETS_EXHAUSTED"
 	REGIONUNAVAILABLE                   ApiErrorCode = "REGION_UNAVAILABLE"
 	REQUESTTIMEOUT                      ApiErrorCode = "REQUEST_TIMEOUT"
 	RESERVATIONNOTFOUND                 ApiErrorCode = "RESERVATION_NOT_FOUND"
+	ROLEINUSE                           ApiErrorCode = "ROLE_IN_USE"
+	RUNNERHASSANDBOXES                  ApiErrorCode = "RUNNER_HAS_SANDBOXES"
 	SEARCHNOTCONFIGURED                 ApiErrorCode = "SEARCH_NOT_CONFIGURED"
 	SEARCHUNAVAILABLE                   ApiErrorCode = "SEARCH_UNAVAILABLE"
 	SECRETALREADYEXISTS                 ApiErrorCode = "SECRET_ALREADY_EXISTS"
@@ -184,6 +195,8 @@ func (e ApiErrorCode) Valid() bool {
 		return true
 	case DEFAULTIMAGENOTCONFIGURED:
 		return true
+	case DISKNOTREADY:
+		return true
 	case ECRACCOUNTMISMATCH:
 		return true
 	case ECRCREDENTIALSINVALID:
@@ -231,6 +244,14 @@ func (e ApiErrorCode) Valid() bool {
 	case INTERNALSERVERERROR:
 		return true
 	case INVALIDFORSOURCE:
+		return true
+	case INVALIDPARENTREGION:
+		return true
+	case INVALIDPREVIEWDOMAIN:
+		return true
+	case INVALIDSANDBOXCIDR:
+		return true
+	case INVALIDTOOLBOXPROXYURL:
 		return true
 	case INVOICENOTFINALIZED:
 		return true
@@ -292,11 +313,23 @@ func (e ApiErrorCode) Valid() bool {
 		return true
 	case READONLYUNSUPPORTED:
 		return true
+	case REGIONLIMITREACHED:
+		return true
+	case REGIONNOTEMPTY:
+		return true
+	case REGIONNOTFOUND:
+		return true
+	case REGIONSUBNETSEXHAUSTED:
+		return true
 	case REGIONUNAVAILABLE:
 		return true
 	case REQUESTTIMEOUT:
 		return true
 	case RESERVATIONNOTFOUND:
+		return true
+	case ROLEINUSE:
+		return true
+	case RUNNERHASSANDBOXES:
 		return true
 	case SEARCHNOTCONFIGURED:
 		return true
@@ -1115,6 +1148,63 @@ func (e OidcProvider) Valid() bool {
 	}
 }
 
+// Defines values for OrganizationRoleKind.
+const (
+	BuiltIn OrganizationRoleKind = "built_in"
+	Custom  OrganizationRoleKind = "custom"
+)
+
+// Valid indicates whether the value is a known member of the OrganizationRoleKind enum.
+func (e OrganizationRoleKind) Valid() bool {
+	switch e {
+	case BuiltIn:
+		return true
+	case Custom:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OrganizationRunnerAdminState.
+const (
+	OrganizationRunnerAdminStateActive   OrganizationRunnerAdminState = "active"
+	OrganizationRunnerAdminStateCordoned OrganizationRunnerAdminState = "cordoned"
+)
+
+// Valid indicates whether the value is a known member of the OrganizationRunnerAdminState enum.
+func (e OrganizationRunnerAdminState) Valid() bool {
+	switch e {
+	case OrganizationRunnerAdminStateActive:
+		return true
+	case OrganizationRunnerAdminStateCordoned:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OrganizationRunnerStatus.
+const (
+	OrganizationRunnerStatusLost    OrganizationRunnerStatus = "lost"
+	OrganizationRunnerStatusOffline OrganizationRunnerStatus = "offline"
+	OrganizationRunnerStatusOnline  OrganizationRunnerStatus = "online"
+)
+
+// Valid indicates whether the value is a known member of the OrganizationRunnerStatus enum.
+func (e OrganizationRunnerStatus) Valid() bool {
+	switch e {
+	case OrganizationRunnerStatusLost:
+		return true
+	case OrganizationRunnerStatusOffline:
+		return true
+	case OrganizationRunnerStatusOnline:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PaymentMethodBrand.
 const (
 	PaymentMethodBrandAmex            PaymentMethodBrand = "amex"
@@ -1244,6 +1334,24 @@ const (
 func (e PublicImageSource1Type) Valid() bool {
 	switch e {
 	case PublicImageSource1TypeNamed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RegionStatus.
+const (
+	RegionStatusActive   RegionStatus = "active"
+	RegionStatusDisabled RegionStatus = "disabled"
+)
+
+// Valid indicates whether the value is a known member of the RegionStatus enum.
+func (e RegionStatus) Valid() bool {
+	switch e {
+	case RegionStatusActive:
+		return true
+	case RegionStatusDisabled:
 		return true
 	default:
 		return false
@@ -2387,13 +2495,17 @@ type CreateMacosSandboxRequest struct {
 	// auto-reserve setting.
 	AutoRenew *bool `json:"auto_renew,omitempty"`
 
-	// Cores CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses half of the claiming Mac's cores, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of them when it is 1. The first successful claim fixes the size; request and limit are equal.
+	// Cores CPU cores for this sandbox, at least 4. A Mac core is one CPU of the Mac (Apple Silicon has no SMT). Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).
 	Cores *int32 `json:"cores,omitempty"`
 
-	// CreateTimeoutSeconds Seconds the sandbox may take to reach `running`. Defaults to 3600; creating from a saved disk may allow additional restore time, up to 86400. `-1` uses the maximum. The sandbox is deleted if the timeout expires, including time spent waiting for capacity. A reservation bought by this request remains purchased and charged.
+	// CreateTimeoutSeconds Seconds the sandbox can take to reach `running`: 3600 by default, or
+	// 86400 for an image captured on an earlier version of macOS sandboxes.
+	// `-1` uses the maximum, 86400. After this time, the platform deletes the
+	// sandbox. The time includes the wait for a Mac. A reservation that this
+	// create bought stays bought and charged after that delete.
 	CreateTimeoutSeconds *int64 `json:"create_timeout_seconds,omitempty"`
 
-	// DiskMib Sandbox disk size in MiB, including macOS, at least 81920. Omitted or null uses half of the reserved Mac model's available sandbox disk capacity, rounded down to a whole GiB, when `sandboxes_per_mac` is 2, or all of it when it is 1. The size is fixed when the sandbox is created; request and limit are equal. A stopped sandbox retains its disk on the same Mac.
+	// DiskMib Disk for this sandbox in MiB, macOS included, at least 81920. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`). For a create from a captured image, omitted or null uses the image's `disk_mib`, and a smaller value returns 400. The disk and the disk volumes must fit the disk space of the sandbox's Mac (`sandbox_disk_mib` in `GET /mac-models`).
 	DiskMib *int32 `json:"disk_mib,omitempty"`
 
 	// Env Sandbox-specific environment variables. Names must be valid environment variable names.
@@ -2403,16 +2515,18 @@ type CreateMacosSandboxRequest struct {
 	// It also covers a reservation the create buys: a retry never buys two.
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 
-	// Image The macOS image, by name or `img_…` ID: a platform macOS base image, typically `base-macos`, or a project macOS image in the requested region. Creating from a saved sandbox disk can take longer than creating from a base image.
+	// Image The macOS image, by name or `img_…` id: a platform macOS image,
+	// typically `base-macos`, or a macOS image of this project in the
+	// request's region, such as an image captured from a macOS sandbox.
 	Image string `json:"image"`
 
 	// Labels User-defined labels. Not visible inside the sandbox.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// LifecyclePolicy Sandbox lifecycle policy: idle stop/delete budgets and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.
+	// LifecyclePolicy Sandbox lifecycle policy: idle stop and delete timeouts and a wall-clock deadline. Use `POST /sandboxes/{id}/pause` to pause a macOS sandbox. Project lifecycle defaults do not apply to macOS: omitted fields use platform defaults.
 	LifecyclePolicy *UpdateSandboxLifecyclePolicyRequest `json:"lifecycle_policy,omitempty"`
 
-	// MemoryMib Memory for this sandbox in MiB, at least 4096. Omitted or null uses half of the claiming Mac's memory, rounded down, when its reservation's `sandboxes_per_mac` is 2, or all of it when it is 1. The first successful claim fixes the size; request and limit are equal.
+	// MemoryMib Memory for this sandbox in MiB, at least 4096. Omitted or null uses the Mac model's default size (`default_size` in `GET /mac-models`).
 	MemoryMib *int32 `json:"memory_mib,omitempty"`
 
 	// Name Optional sandbox name (defaults to `sandbox-<short-id>`).
@@ -2422,7 +2536,7 @@ type CreateMacosSandboxRequest struct {
 	// first boot. Change it later with `PUT /sandboxes/{id}/network-policy`.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
 
-	// Persistent Keep the macOS sandbox disk across stop/start and memory across pause/resume. Start and resume require the same Mac and an active reservation. Deleting the sandbox erases its disk. At reservation end, the disk is saved as an anonymous image when possible. Create from that image to continue on another Mac.
+	// Persistent Keep the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization. After a start on a different Mac, iCloud asks the user to sign in again. A reservation end or a Mac failure stops a sandbox that has started and never deletes it.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// Ports Ports exposed when the sandbox starts.
@@ -2436,13 +2550,16 @@ type CreateMacosSandboxRequest struct {
 	// default region, then the organization's, then `earth`.
 	RegionId *string `json:"region_id,omitempty"`
 
-	// Reservation Omitted uses any fitting Mac reservation of this organization in the region. "new" buys the cheapest available model that fits. A reservation ID targets that reservation at claim. Acceptance does not reserve room; the sandbox can wait for room or time out.
+	// Reservation Omitted uses any Mac reservation of the organization in the region that fits this size. "new" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
 	Reservation *string `json:"reservation,omitempty"`
 
 	// Secrets Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.
 	Secrets *[]string `json:"secrets,omitempty"`
 
-	// Volumes Disk volumes to attach: at most 8, each read-write. A sandbox with volumes cannot be persistent. A bucket volume returns 400.
+	// Volumes Disk volumes to attach, as on Linux: at most 8, each read-write. Each
+	// volume uses its `size_gib` (100 GiB when omitted) of disk space on the
+	// sandbox's Mac, beside the sandbox's disk. A sandbox with volumes cannot
+	// be persistent. A bucket volume returns 400.
 	Volumes *[]VolumeMount `json:"volumes,omitempty"`
 
 	// WaitSeconds Seconds to hold the response until the sandbox is `running`, capped at 3 by default. Omitted uses the cap, `0` returns immediately, and a negative value returns 400. The response carries the status reached when the wait ends.
@@ -2463,10 +2580,44 @@ type CreateOrganizationApiKeyRequest struct {
 	OrgPermissions []string `json:"org_permissions"`
 }
 
+// CreateOrganizationRegionRequest The body of an organization-region create.
+type CreateOrganizationRegionRequest struct {
+	// Name The display name, 1 to 100 characters.
+	Name string `json:"name"`
+
+	// ParentRegionId The ID of a parent region from the organization's parent regions.
+	ParentRegionId string `json:"parent_region_id"`
+
+	// SandboxCidr The private IPv4 range sandbox addresses are allocated from, a prefix
+	// length between 12 and 20. Default `10.213.0.0/16`.
+	SandboxCidr *string `json:"sandbox_cidr,omitempty"`
+
+	// SubnetPrefixLength The prefix length of each runner's subnet, between 22 and 28 and longer
+	// than the prefix length of `sandbox_cidr`. Default 24.
+	SubnetPrefixLength *int32 `json:"subnet_prefix_length,omitempty"`
+}
+
 // CreateOrganizationRequest defines model for CreateOrganizationRequest.
 type CreateOrganizationRequest struct {
-	// Name The organization name.
+	// Name The organization name: at most 64 characters after trimming, with no control characters.
 	Name string `json:"name"`
+}
+
+// CreateOrganizationRoleRequest defines model for CreateOrganizationRoleRequest.
+type CreateOrganizationRoleRequest struct {
+	// Description The role's purpose.
+	Description *string `json:"description,omitempty"`
+
+	// Name The role name, unique in the organization ignoring case. Leading and
+	// trailing whitespace is removed and internal whitespace runs collapse
+	// to one space; the result must be 1 to 64 characters.
+	Name string `json:"name"`
+
+	// OrganizationPermissions The organization permissions the role grants.
+	OrganizationPermissions []string `json:"organization_permissions"`
+
+	// ProjectPermissions The project permissions the role grants.
+	ProjectPermissions []string `json:"project_permissions"`
 }
 
 // CreateProjectApiKeyRequest defines model for CreateProjectApiKeyRequest.
@@ -2492,16 +2643,35 @@ type CreateProjectApiKeyRequest struct {
 	// read permissions; `false` keeps the key on this platform only. Change
 	// it later by updating the API key.
 	SyncToV0 *bool `json:"sync_to_v0,omitempty"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`. Accepted with the same meaning; a
-	// request that sets both to different values is refused.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 *bool `json:"sync_to_v1,omitempty"`
 }
 
 // CreateProjectRequest defines model for CreateProjectRequest.
 type CreateProjectRequest struct {
-	// Name The project name.
+	// Name The project name: at most 64 characters after trimming, with no control characters. `default` is reserved.
+	Name string `json:"name"`
+}
+
+// CreateRegionProxyTokenRequest The body of a proxy-token create. Name `expires_at` or set `no_expiry`.
+type CreateRegionProxyTokenRequest struct {
+	// ExpiresAt When the token expires; must be in the future.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Name The display name, 1 to 100 characters.
+	Name *string `json:"name,omitempty"`
+
+	// NoExpiry Whether the token never expires.
+	NoExpiry *bool `json:"no_expiry,omitempty"`
+}
+
+// CreateRegionRegistrationTokenRequest The body of a registration-token create.
+type CreateRegionRegistrationTokenRequest struct {
+	// ExpiresInSeconds Seconds until the token expires, 300 to 2592000. Default 604800.
+	ExpiresInSeconds *int64 `json:"expires_in_seconds,omitempty"`
+
+	// MaxUses How many runners the token may enroll, 1 to 1000. Default 100.
+	MaxUses *int32 `json:"max_uses,omitempty"`
+
+	// Name The display name, 1 to 100 characters.
 	Name string `json:"name"`
 }
 
@@ -2530,7 +2700,7 @@ type CreateReservationsBulkRequest struct {
 	// Count How many Macs to reserve, 1 to 100.
 	Count int32 `json:"count"`
 
-	// MinCount The fewest Macs to accept, 1 to `count`. Omitted means `count`: all or nothing. With fewer than `count` Macs free but at least `min_count`, the request reserves as many as are free.
+	// MinCount The fewest Macs to accept, 1 to `count`. Omitted means `count`: all or nothing. With fewer than `count` Macs free, or fewer left under the organization's Mac reservation limit, but at least `min_count`, the request reserves as many as it can.
 	MinCount *int32 `json:"min_count,omitempty"`
 
 	// Model Mac model slug from GET /mac-models. Omitted, null, or blank uses the region's default model, initially m4-10c-16g. If that model is unavailable, the purchase fails; it never upgrades to another model.
@@ -2621,9 +2791,9 @@ type CreateSandboxRequest struct {
 	// Env Sandbox-specific environment variables (real values, verbatim). Names
 	// must be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the
 	// platform reserves for its own use, including every `DAYTONA_*` name
-	// other than `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`,
-	// `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`, fail the create
-	// with 400 naming the key.
+	// other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
+	// `DAYTONA_DOCKER_START` (so `DAYTONA_SANDBOX_TOKEN` too), fail the
+	// create with 400 naming the key.
 	Env *map[string]string `json:"env,omitempty"`
 
 	// IdempotencyKey Key used to replay the same create operation safely.
@@ -2940,8 +3110,8 @@ type Image struct {
 	Deprecated bool `json:"deprecated"`
 
 	// DiskMib The disk size in MiB that a macOS sandbox created from this image gets
-	// when the create omits `disk_mib`. Set for saved macOS sandbox disks;
-	// null for every other image.
+	// when the create omits `disk_mib`; a create cannot ask for less. Set for
+	// images captured from a macOS sandbox; null for other images.
 	DiskMib *int64 `json:"disk_mib,omitempty"`
 
 	// Error Build failure reason; null unless `status` is `failed`.
@@ -3050,8 +3220,8 @@ type ImageListItem struct {
 	Deprecated bool `json:"deprecated"`
 
 	// DiskMib The disk size in MiB that a macOS sandbox created from this image gets
-	// when the create omits `disk_mib`. Set for saved macOS sandbox disks;
-	// null for every other image.
+	// when the create omits `disk_mib`; a create cannot ask for less. Set for
+	// images captured from a macOS sandbox; null for other images.
 	DiskMib *int64 `json:"disk_mib,omitempty"`
 
 	// Error Build failure reason; null unless `status` is `failed`.
@@ -3245,6 +3415,9 @@ type InvitationLookup struct {
 	// OrgName The organization name.
 	OrgName string `json:"org_name"`
 
+	// RoleNames The display names of `roles`, in the same order.
+	RoleNames []string `json:"role_names"`
+
 	// Roles The role identifiers granted on acceptance.
 	Roles []string `json:"roles"`
 }
@@ -3408,9 +3581,9 @@ type MacCatalog struct {
 	Regions []MacCatalogRegion `json:"regions"`
 }
 
-// MacCatalogModel One registry model in one region.
+// MacCatalogModel One Mac model in one region.
 type MacCatalogModel struct {
-	// Available Macs of this model currently available to reserve in this region. Advisory only: another purchase may consume the capacity first. Zero when the model has no price.
+	// Available Macs of this model that a purchase in this region can reserve now. Another purchase can take a Mac first. 0 when the model has no price.
 	Available int64 `json:"available"`
 
 	// Model The Mac model, as `GET /mac-models` lists it.
@@ -3429,7 +3602,7 @@ type MacCatalogRegion struct {
 	// Id The region ID.
 	Id string `json:"id"`
 
-	// Models One entry per registry model, in `GET /mac-models` order.
+	// Models One entry per Mac model, in `GET /mac-models` order.
 	Models []MacCatalogModel `json:"models"`
 }
 
@@ -3438,16 +3611,16 @@ type MacModel struct {
 	// Cores CPU cores in the Mac. A Mac core is one CPU (Apple Silicon has no SMT).
 	Cores int32 `json:"cores"`
 
-	// DefaultSize The size a create gives each size field it omits: half of each of the model's cores, memory, and sandbox disk room (the disk rounded down to a whole GiB) when `max_sandboxes` is 2, all of it when `max_sandboxes` is 1. Null when `max_sandboxes` is 0.
+	// DefaultSize The default size: the cores, memory and disk that a create gives each size field it omits. A create from a captured image gets the image's disk size instead. Null when this Mac model takes no sandbox.
 	DefaultSize *MacResources `json:"default_size"`
 
-	// DiskMib Physical SSD capacity in MiB, not free space or a per-sandbox disk allowance.
+	// DiskMib Size of the Mac's SSD in MiB. Sandboxes use the disk space in `sandbox_disk_mib`.
 	DiskMib int32 `json:"disk_mib"`
 
 	// Id Mac model slug accepted by POST /reservations.
 	Id string `json:"id"`
 
-	// MaxSandboxes Most sandboxes a Mac of this model runs at once: 2 when its cores, memory, and sandbox disk room each fit two minimum-sized sandboxes (4 cores, 4096 MiB, 81920 MiB of disk), 1 when they fit one, and 0 when they fit none. The sizes of the running sandboxes must also fit the Mac.
+	// MaxSandboxes Most sandboxes on one Mac of this model at once. Stopped sandboxes do not count. The sizes of the sandboxes on one Mac must fit that Mac. 0 when this Mac model takes no sandbox.
 	MaxSandboxes int32 `json:"max_sandboxes"`
 
 	// MemoryMib Physical memory in MiB.
@@ -3456,7 +3629,7 @@ type MacModel struct {
 	// Name Display name of the Mac model.
 	Name string `json:"name"`
 
-	// SandboxDiskMib Disk room for sandboxes on one Mac of this model, in MiB. The disks of all sandboxes on the Mac, stopped sandboxes included, add up to at most this. Zero until the model's disk room is measured.
+	// SandboxDiskMib Disk space for sandboxes on one Mac of this model, in MiB. The disks and disk volumes of the sandboxes on one Mac must fit in it. 0 until this Mac model's disk space is known.
 	SandboxDiskMib int32 `json:"sandbox_disk_mib"`
 }
 
@@ -3493,7 +3666,7 @@ type MacReservation struct {
 	// instead.
 	AutoRenew bool `json:"auto_renew"`
 
-	// Capacity The reserved model’s CPU, memory, and sandbox disk capacity, fixed at purchase. Null when capacity information is unavailable; such a reservation accepts no new sandbox.
+	// Capacity The cores, memory and disk space for sandboxes of this reservation's Mac, set at purchase. Null when unknown; such a reservation accepts no new sandbox.
 	Capacity *MacResources `json:"capacity,omitempty"`
 
 	// CreatedAt When the reservation was created.
@@ -3514,18 +3687,19 @@ type MacReservation struct {
 	// OrgId The organization ID.
 	OrgId openapi_types.UUID `json:"org_id"`
 
-	// Origin How the lease was bought: `explicit` by `POST /reservations` or a
-	// create with `reservation: "new"`, and `auto` by a macOS create under
-	// the organization's auto-reserve setting.
+	// Origin How the reservation was bought: `explicit` by `POST /reservations` or a
+	// create with `reservation: "new"`, and `auto` by a macOS create or start
+	// under the organization's auto-reserve setting.
 	Origin MacReservationOrigin `json:"origin"`
 
-	// PendingMacStartedAt When the reservation last began waiting for a Mac: at its first
-	// charge, or when it moved after its Mac was lost. Kept after a Mac
-	// claims it.
+	// PendingMacStartedAt When the reservation last began to wait for a Mac: at its first
+	// charge, or when it moved after a Mac failure. Kept after a Mac takes
+	// it.
 	PendingMacStartedAt *time.Time `json:"pending_mac_started_at,omitempty"`
 
-	// PeriodEnd When the reservation ends unless renewed. Absent until a Mac first claims it
-	// (period 1 starts at the claim, so waiting for a Mac is not paid time).
+	// PeriodEnd When the reservation ends unless renewed. Absent until a Mac first takes
+	// the reservation; period 1 starts then, so the wait for a Mac is not paid
+	// time.
 	PeriodEnd *time.Time `json:"period_end,omitempty"`
 
 	// PeriodN The current paid period (1-based).
@@ -3546,7 +3720,7 @@ type MacReservation struct {
 	// RegionId The reservation region.
 	RegionId string `json:"region_id"`
 
-	// ReissuedAt Set when the reservation moved to another Mac after its Mac was lost.
+	// ReissuedAt Set when the reservation moved to another Mac after a Mac failure.
 	ReissuedAt *time.Time `json:"reissued_at,omitempty"`
 
 	// RenewalError Why the renewal of the next period failed (billing refused it, or the
@@ -3557,15 +3731,9 @@ type MacReservation struct {
 	// RenewalPending A renewal charge is still waiting for billing's answer.
 	RenewalPending bool `json:"renewal_pending"`
 
-	// ResourcesUsed CPU and memory held by the sandboxes on this reservation's Mac,
-	// including paused sandboxes and sandboxes still being deleted, and the
-	// disk its sandboxes hold, stopped sandboxes included. Sandboxes that no
-	// Mac has claimed yet are not counted.
+	// ResourcesUsed The cores, memory and disk space in use on this reservation's Mac.
+	// Paused sandboxes and sandboxes with status `deleting` count.
 	ResourcesUsed MacResources `json:"resources_used"`
-
-	// SandboxesPerMac Most sandboxes this reservation's Mac runs at once, subject to CPU,
-	// memory, and disk fit. Stopped sandboxes do not count. 0 when the reservation takes no new sandbox: its capacity is null, or fits no minimum-sized sandbox.
-	SandboxesPerMac int32 `json:"sandboxes_per_mac"`
 
 	// SlotsUsed macOS sandboxes currently occupying this reservation's Mac.
 	SlotsUsed int64 `json:"slots_used"`
@@ -3595,7 +3763,7 @@ type MacReservationOrigin string
 // MacReservationStatus defines model for MacReservationStatus.
 type MacReservationStatus string
 
-// MacResources CPU cores, memory, and sandbox disk capacity or usage, in cores and MiB.
+// MacResources CPU cores, memory and disk, in cores and MiB.
 // A Mac core is one CPU of the Mac (Apple Silicon has no SMT).
 type MacResources struct {
 	// Cores CPU cores.
@@ -3610,7 +3778,7 @@ type MacResources struct {
 
 // MacosSettings An organization's macOS settings.
 type MacosSettings struct {
-	// MacosAutoReserve Whether a macOS create buys a Mac reservation when the organization holds none in the region. On unless an admin turns it off.
+	// MacosAutoReserve Whether a macOS create or start buys a Mac reservation when the organization has none in the region. On unless an admin turns it off.
 	MacosAutoReserve bool `json:"macos_auto_reserve"`
 
 	// MacosAutoReserveDisabledAt When an admin last turned auto-reserve off; null while it is on.
@@ -3661,8 +3829,9 @@ type MintSandboxAccessTokenRequest struct {
 	Operations *[]string `json:"operations,omitempty"`
 
 	// Ports Private-preview ports the token may reach: 1 to 65535, at most 128,
-	// with duplicates collapsed. Omitted grants all ports, and `[]` grants
-	// none.
+	// with duplicates collapsed. The sandbox daemon's ports 2280, 2281 and
+	// 22220 are never preview ports and are refused. Omitted grants all
+	// ports, and `[]` grants none.
 	Ports *[]int32 `json:"ports,omitempty"`
 
 	// TtlSeconds Token lifetime in seconds. Omitted = the deployment default
@@ -3751,7 +3920,7 @@ type Organization struct {
 	// Id The organization ID.
 	Id openapi_types.UUID `json:"id"`
 
-	// MaxSandboxTimeoutSeconds The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.
+	// MaxSandboxTimeoutSeconds The organization's own cap on sandbox timeouts, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. The plan maximum bounds this value; `GET /orgs/{id}/limits` reports the cap in effect.
 	MaxSandboxTimeoutSeconds *int32 `json:"max_sandbox_timeout_seconds"`
 
 	// Name The organization name.
@@ -3783,11 +3952,6 @@ type Organization struct {
 	// same ID. When true, removing a member also removes them from the
 	// Daytona v0 organization.
 	V0MembershipSyncEnabled bool `json:"v0_membership_sync_enabled"`
-
-	// V1MembershipSyncEnabled Deprecated: use `v0_membership_sync_enabled`, which carries the same
-	// value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1MembershipSyncEnabled bool `json:"v1_membership_sync_enabled"`
 }
 
 // OrganizationApiKey An organization API key without its secret token.
@@ -3892,11 +4056,17 @@ type OrganizationLimits struct {
 	// ImageBuilds Concurrent image-build limits.
 	ImageBuilds ImageBuildLimits `json:"image_builds"`
 
+	// MacReservations Mac reservations the organization holds: pending, active or ending. Renewals do not count again.
+	MacReservations *UsageLimit `json:"mac_reservations,omitempty"`
+
 	// Members Organization member limits. Omitted for project-scoped callers.
 	Members *MemberLimits `json:"members,omitempty"`
 
 	// SandboxResources Per-sandbox resource maximums for Linux sandboxes.
 	SandboxResources *SandboxResourceLimits `json:"sandbox_resources,omitempty"`
+
+	// SandboxTimeout Sandbox timeout maximums.
+	SandboxTimeout SandboxTimeoutLimits `json:"sandbox_timeout"`
 
 	// Sandboxes Sandbox count limits.
 	Sandboxes SandboxLimits `json:"sandboxes"`
@@ -3923,7 +4093,7 @@ type OrganizationListItem struct {
 	// Id The organization ID.
 	Id openapi_types.UUID `json:"id"`
 
-	// MaxSandboxTimeoutSeconds The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.
+	// MaxSandboxTimeoutSeconds The organization's own cap on sandbox timeouts, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. The plan maximum bounds this value; `GET /orgs/{id}/limits` reports the cap in effect.
 	MaxSandboxTimeoutSeconds *int32 `json:"max_sandbox_timeout_seconds"`
 
 	// Membership The signed-in user's membership in this organization.
@@ -3958,11 +4128,6 @@ type OrganizationListItem struct {
 	// same ID. When true, removing a member also removes them from the
 	// Daytona v0 organization.
 	V0MembershipSyncEnabled bool `json:"v0_membership_sync_enabled"`
-
-	// V1MembershipSyncEnabled Deprecated: use `v0_membership_sync_enabled`, which carries the same
-	// value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1MembershipSyncEnabled bool `json:"v1_membership_sync_enabled"`
 }
 
 // OrganizationMember defines model for OrganizationMember.
@@ -4021,6 +4186,160 @@ type OrganizationPage struct {
 	// Organizations The organizations in this page.
 	Organizations []OrganizationListItem `json:"organizations"`
 }
+
+// OrganizationRegion A region an organization created on its own infrastructure.
+type OrganizationRegion struct {
+	// CreatedAt When the region was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Id The region ID. Generated when the region is created; pass it as the
+	// region of a sandbox create.
+	Id string `json:"id"`
+
+	// Name The display name.
+	Name string `json:"name"`
+
+	// ParentRegionId The ID of the parent region this region was created under.
+	ParentRegionId string `json:"parent_region_id"`
+
+	// PreviewDomain The base domain of the region's preview URLs, or `null` when none is
+	// set.
+	PreviewDomain *string `json:"preview_domain,omitempty"`
+
+	// RunnerCount The number of runners enrolled in the region.
+	RunnerCount int64 `json:"runner_count"`
+
+	// SandboxCidr The private IPv4 range sandbox addresses are allocated from.
+	SandboxCidr string `json:"sandbox_cidr"`
+
+	// Status Whether the region accepts new sandboxes.
+	Status RegionStatus `json:"status"`
+
+	// SubnetPrefixLength The prefix length of the subnet each runner receives from
+	// `sandbox_cidr`.
+	SubnetPrefixLength int32 `json:"subnet_prefix_length"`
+
+	// ToolboxProxyUrl The base URL of the region's proxy, or `null` when none is
+	// set.
+	ToolboxProxyUrl *string `json:"toolbox_proxy_url,omitempty"`
+
+	// UpdatedAt When the region last changed.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// OrganizationRegionPage A page of organization regions.
+type OrganizationRegionPage struct {
+	// NextCursor The cursor for the next page, or `null` on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Regions The regions on this page, ordered by ID.
+	Regions []OrganizationRegion `json:"regions"`
+}
+
+// OrganizationRole defines model for OrganizationRole.
+type OrganizationRole struct {
+	// CreatedAt When the role was created, or `null` for a built-in role.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Description The role's purpose.
+	Description string `json:"description"`
+
+	// Id The role ID: a built-in role's identifier, or a custom role's UUID.
+	Id string `json:"id"`
+
+	// Kind Whether the role is built in or defined by the organization.
+	Kind OrganizationRoleKind `json:"kind"`
+
+	// Name The display name.
+	Name string `json:"name"`
+
+	// OrganizationPermissions The organization permissions the role grants.
+	OrganizationPermissions []string `json:"organization_permissions"`
+
+	// Permissions Every permission the role grants: the project permissions, then the
+	// organization permissions.
+	Permissions []string `json:"permissions"`
+
+	// ProjectPermissions The project permissions the role grants.
+	ProjectPermissions []string `json:"project_permissions"`
+
+	// UpdatedAt When the role was last changed, or `null` for a built-in role.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+// OrganizationRoleKind Whether a role is part of the platform catalog or defined by the
+// organization. The server may add kinds later.
+type OrganizationRoleKind string
+
+// OrganizationRoleList defines model for OrganizationRoleList.
+type OrganizationRoleList struct {
+	// MaxCustomRoles The most custom roles the organization can define.
+	MaxCustomRoles int64 `json:"max_custom_roles"`
+
+	// Roles The built-in roles, then the organization's custom roles.
+	Roles []OrganizationRole `json:"roles"`
+}
+
+// OrganizationRoleUpdate A role update's result: the role and the keys the update revoked.
+type OrganizationRoleUpdate struct {
+	// RevokedApiKeys The number of API keys the update revoked.
+	RevokedApiKeys int64 `json:"revoked_api_keys"`
+
+	// Role The updated role.
+	Role OrganizationRole `json:"role"`
+}
+
+// OrganizationRunner A runner enrolled in an organization region.
+type OrganizationRunner struct {
+	// AdminState Whether the runner accepts new sandboxes.
+	AdminState OrganizationRunnerAdminState `json:"admin_state"`
+
+	// BilledCores The cores the runner is billed at per hour: its logical CPUs ÷ 2.
+	// `null` before the runner first reports its CPUs.
+	BilledCores *float64 `json:"billed_cores,omitempty"`
+
+	// EnrolledAt When the runner enrolled.
+	EnrolledAt time.Time `json:"enrolled_at"`
+
+	// Id The runner ID.
+	Id string `json:"id"`
+
+	// LastSeenAt When the runner was last heard from, or `null` when never.
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+
+	// NodeName The Kubernetes node name the runner enrolled with.
+	NodeName string `json:"node_name"`
+
+	// RegionId The region the runner is enrolled in.
+	RegionId string `json:"region_id"`
+
+	// SandboxCount The number of sandboxes on the runner.
+	SandboxCount int64 `json:"sandbox_count"`
+
+	// Status Whether the runner is connected.
+	Status OrganizationRunnerStatus `json:"status"`
+
+	// UpdatedAt When the runner was last cordoned or uncordoned, or when it enrolled.
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Version The runner software version, or `null` when not reported yet.
+	Version *string `json:"version,omitempty"`
+}
+
+// OrganizationRunnerAdminState Whether a runner accepts new sandboxes.
+type OrganizationRunnerAdminState string
+
+// OrganizationRunnerPage A page of a region's runners.
+type OrganizationRunnerPage struct {
+	// NextCursor The cursor for the next page, or `null` on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Runners The runners on this page.
+	Runners []OrganizationRunner `json:"runners"`
+}
+
+// OrganizationRunnerStatus Whether a runner is connected.
+type OrganizationRunnerStatus string
 
 // OrganizationServiceAccount defines model for OrganizationServiceAccount.
 type OrganizationServiceAccount struct {
@@ -4082,6 +4401,21 @@ type OtelConfig struct {
 
 	// UpdatedAt When the configuration was last updated, or null when it is unset.
 	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// ParentRegion A parent region the organization may create a region under.
+type ParentRegion struct {
+	// Id The parent region ID, for `parent_region_id`.
+	Id string `json:"id"`
+
+	// Name The display name.
+	Name string `json:"name"`
+}
+
+// ParentRegionList The parent regions the organization may create a region under.
+type ParentRegionList struct {
+	// ParentRegions The parent regions, ordered by ID.
+	ParentRegions []ParentRegion `json:"parent_regions"`
 }
 
 // PaymentMethod defines model for PaymentMethod.
@@ -4173,6 +4507,9 @@ type PlanLimits struct {
 	// MaxConcurrentSandboxes The concurrent sandbox limit, or `null` when unlimited.
 	MaxConcurrentSandboxes *int64 `json:"max_concurrent_sandboxes,omitempty"`
 
+	// MaxMacReservations The most Mac reservations the organization can hold at once.
+	MaxMacReservations *int64 `json:"max_mac_reservations,omitempty"`
+
 	// MaxMembers The member limit, or `null` when unlimited.
 	MaxMembers *int64 `json:"max_members,omitempty"`
 
@@ -4181,6 +4518,9 @@ type PlanLimits struct {
 
 	// MaxSandboxMemoryMib The memory limit of one Linux sandbox in MiB, or `null` when only the platform maximum applies.
 	MaxSandboxMemoryMib *int64 `json:"max_sandbox_memory_mib,omitempty"`
+
+	// MaxSandboxTimeoutSeconds The longest timeout a sandbox may have on this plan, in seconds, or `null` when the plan sets no maximum.
+	MaxSandboxTimeoutSeconds *int64 `json:"max_sandbox_timeout_seconds,omitempty"`
 }
 
 // PlanList defines model for PlanList.
@@ -4223,6 +4563,22 @@ type PortalIntent string
 type PreviewMemberUpdateRequest struct {
 	// Roles The member's complete new role set.
 	Roles []string `json:"roles"`
+}
+
+// PreviewOrganizationRoleUpdateRequest defines model for PreviewOrganizationRoleUpdateRequest.
+type PreviewOrganizationRoleUpdateRequest struct {
+	// Description The new role purpose.
+	Description *string `json:"description,omitempty"`
+
+	// Name The new role name. Whitespace is normalized as on create; the result
+	// must be 1 to 64 characters.
+	Name *string `json:"name,omitempty"`
+
+	// OrganizationPermissions The complete new set of organization permissions.
+	OrganizationPermissions *[]string `json:"organization_permissions,omitempty"`
+
+	// ProjectPermissions The complete new set of project permissions.
+	ProjectPermissions *[]string `json:"project_permissions,omitempty"`
 }
 
 // PreviewServiceAccountUpdateRequest The same body as the update, previewed without applying it.
@@ -4352,10 +4708,6 @@ type ProjectApiKey struct {
 	// read every sandbox, snapshot and registry of the organization on
 	// Daytona v0, which has no read permissions.
 	SyncToV0 bool `json:"sync_to_v0"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 bool `json:"sync_to_v1"`
 }
 
 // ProjectApiKeyContext The project and organization in which an API key acts.
@@ -4437,10 +4789,6 @@ type ProjectApiKeyWithContext struct {
 	// read every sandbox, snapshot and registry of the organization on
 	// Daytona v0, which has no read permissions.
 	SyncToV0 bool `json:"sync_to_v0"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 bool `json:"sync_to_v1"`
 }
 
 // ProjectApiKeyWithToken A newly created project API key and its one-time secret token.
@@ -4498,10 +4846,6 @@ type ProjectApiKeyWithToken struct {
 	// read every sandbox, snapshot and registry of the organization on
 	// Daytona v0, which has no read permissions.
 	SyncToV0 bool `json:"sync_to_v0"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 bool `json:"sync_to_v1"`
 
 	// Token The secret token, returned only when the key is created.
 	Token string `json:"token"`
@@ -4683,6 +5027,43 @@ type Region struct {
 	ParentRegionIds []string `json:"parent_region_ids"`
 }
 
+// RegionInstallation The non-secret values an installation in the region needs.
+type RegionInstallation struct {
+	// ApiUrl The API URL runners enroll against, or `null` when not configured.
+	ApiUrl *string `json:"api_url,omitempty"`
+
+	// BootstrapImage The image that runs the bootstrap script, or `null` when not
+	// configured.
+	BootstrapImage *string `json:"bootstrap_image,omitempty"`
+
+	// BusUrl The message bus address the region's runners connect out to, or `null`
+	// when not configured. Allow it in your firewall.
+	BusUrl *string `json:"bus_url,omitempty"`
+
+	// Chart The Helm chart that installs the region's runners, as an OCI reference.
+	Chart string `json:"chart"`
+
+	// ChartVersion The chart version to install, or `null` for the latest.
+	ChartVersion *string `json:"chart_version,omitempty"`
+
+	// InstallerImage The installer image, or `null` when not configured.
+	InstallerImage *string `json:"installer_image,omitempty"`
+
+	// ProxyImage The proxy image, or `null` when not configured.
+	ProxyImage *string `json:"proxy_image,omitempty"`
+
+	// RegionId The region ID.
+	RegionId string `json:"region_id"`
+
+	// TerraformModule The Terraform module, as an OCI reference, or `null` when not
+	// configured.
+	TerraformModule *string `json:"terraform_module,omitempty"`
+
+	// UsageReportingUrl The address the region's runners report sandbox usage to, or `null`
+	// when not configured. Allow it in your firewall.
+	UsageReportingUrl *string `json:"usage_reporting_url,omitempty"`
+}
+
 // RegionList The caller's regions.
 type RegionList struct {
 	// DefaultRegionId ID of the caller's default region: the project's default region, else
@@ -4708,6 +5089,144 @@ type RegionMultiplier struct {
 type RegionMultiplierList struct {
 	// RegionMultipliers Region price multipliers, with Earth first and the rest ordered by ID.
 	RegionMultipliers []RegionMultiplier `json:"region_multipliers"`
+}
+
+// RegionProxyToken A token the region's own proxy authenticates with.
+type RegionProxyToken struct {
+	// CreatedAt When the token was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// ExpiresAt When the token expires, or `null` when it does not.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Id The proxy token ID.
+	Id openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When the token last authenticated, or `null` when it never has.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+
+	// Name The display name, or `null` when none was given.
+	Name *string `json:"name,omitempty"`
+
+	// RegionId The region the token is bound to.
+	RegionId string `json:"region_id"`
+
+	// RotatedFrom The ID of the token this one replaced, or `null`.
+	RotatedFrom *openapi_types.UUID `json:"rotated_from,omitempty"`
+
+	// UpdatedAt When the token last changed: a rotation shortens the replaced token's
+	// lifetime.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// RegionProxyTokenPage A page of the region's live proxy tokens.
+type RegionProxyTokenPage struct {
+	// NextCursor The cursor for the next page, or `null` on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// ProxyTokens The proxy tokens, newest first.
+	ProxyTokens []RegionProxyToken `json:"proxy_tokens"`
+}
+
+// RegionProxyTokenWithToken A newly created proxy token and its one-time secret.
+type RegionProxyTokenWithToken struct {
+	// CreatedAt When the token was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// ExpiresAt When the token expires, or `null` when it does not.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Id The proxy token ID.
+	Id openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When the token last authenticated, or `null` when it never has.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+
+	// Name The display name, or `null` when none was given.
+	Name *string `json:"name,omitempty"`
+
+	// RegionId The region the token is bound to.
+	RegionId string `json:"region_id"`
+
+	// RotatedFrom The ID of the token this one replaced, or `null`.
+	RotatedFrom *openapi_types.UUID `json:"rotated_from,omitempty"`
+
+	// Token The secret, returned only when the token is created.
+	Token string `json:"token"`
+
+	// UpdatedAt When the token last changed: a rotation shortens the replaced token's
+	// lifetime.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// RegionStatus defines model for RegionStatus.
+type RegionStatus string
+
+// RegistrationToken A token that enrolls runners into one region until it expires or its uses
+// run out.
+type RegistrationToken struct {
+	// CreatedAt When the token was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// ExpiresAt When the token stops enrolling runners.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Id The registration token ID.
+	Id openapi_types.UUID `json:"id"`
+
+	// MaxUses How many runners the token may enroll.
+	MaxUses int32 `json:"max_uses"`
+
+	// Name The display name.
+	Name string `json:"name"`
+
+	// RegionId The region the token enrolls runners into.
+	RegionId string `json:"region_id"`
+
+	// UpdatedAt When the token last changed.
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Uses How many runners the token has enrolled.
+	Uses int32 `json:"uses"`
+}
+
+// RegistrationTokenPage A page of the region's live registration tokens.
+type RegistrationTokenPage struct {
+	// NextCursor The cursor for the next page, or `null` on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// RegistrationTokens The registration tokens, newest first.
+	RegistrationTokens []RegistrationToken `json:"registration_tokens"`
+}
+
+// RegistrationTokenWithToken A newly created registration token and its one-time secret.
+type RegistrationTokenWithToken struct {
+	// CreatedAt When the token was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// ExpiresAt When the token stops enrolling runners.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Id The registration token ID.
+	Id openapi_types.UUID `json:"id"`
+
+	// MaxUses How many runners the token may enroll.
+	MaxUses int32 `json:"max_uses"`
+
+	// Name The display name.
+	Name string `json:"name"`
+
+	// RegionId The region the token enrolls runners into.
+	RegionId string `json:"region_id"`
+
+	// Token The secret, returned only when the token is created.
+	Token string `json:"token"`
+
+	// UpdatedAt When the token last changed.
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Uses How many runners the token has enrolled.
+	Uses int32 `json:"uses"`
 }
 
 // Registry Registry credential metadata returned by list and get endpoints. Passwords
@@ -4776,10 +5295,41 @@ type Role struct {
 	Permissions []string `json:"permissions"`
 }
 
+// RoleChangeImpact defines model for RoleChangeImpact.
+type RoleChangeImpact struct {
+	// AffectedMembers The number of members who hold the role.
+	AffectedMembers int64 `json:"affected_members"`
+
+	// AffectedServiceAccounts The number of active service accounts that hold the role.
+	AffectedServiceAccounts int64 `json:"affected_service_accounts"`
+
+	// PendingInvitations The number of pending invitations that grant the role.
+	PendingInvitations int64 `json:"pending_invitations"`
+
+	// RevokedApiKeys The number of API keys the update would revoke.
+	RevokedApiKeys int64 `json:"revoked_api_keys"`
+}
+
 // RoleList defines model for RoleList.
 type RoleList struct {
 	// Roles The available roles.
 	Roles []Role `json:"roles"`
+}
+
+// RotateRegionProxyTokenRequest The body of a proxy-token rotation: the successor's lifetime, and how long
+// the replaced token keeps working.
+type RotateRegionProxyTokenRequest struct {
+	// ExpiresAt When the successor expires; must be in the future.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Name The successor's display name, 1 to 100 characters.
+	Name *string `json:"name,omitempty"`
+
+	// NoExpiry Whether the successor never expires.
+	NoExpiry *bool `json:"no_expiry,omitempty"`
+
+	// OverlapSeconds Seconds the replaced token keeps working, 0 to 86400. Default 0.
+	OverlapSeconds *int64 `json:"overlap_seconds,omitempty"`
 }
 
 // Sandbox A sandbox and its current configuration.
@@ -4850,7 +5400,7 @@ type Sandbox struct {
 	// Name The sandbox name.
 	Name string `json:"name"`
 
-	// Persistent Whether the macOS sandbox retains writable state across stops.
+	// Persistent Whether the sandbox keeps its disk across stop and start.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// PortMap Port assignments reported for the sandbox.
@@ -4859,8 +5409,9 @@ type Sandbox struct {
 	// RegionId The region the sandbox runs in.
 	RegionId string `json:"region_id"`
 
-	// ReservationId The macOS reservation of the current or latest successful claim; null
-	// before the first claim and absent for other sandbox classes.
+	// ReservationId The Mac reservation that the macOS sandbox runs on, or ran on last.
+	// Null before the sandbox first reaches a Mac; absent for other sandbox
+	// classes.
 	ReservationId *string `json:"reservation_id,omitempty"`
 
 	// Snapshot The snapshot the sandbox was created from; absent when it was
@@ -4943,8 +5494,8 @@ type SandboxCreateOperation struct {
 	// Name Sandbox name (caller-provided or the generated `sandbox-<short-id>`).
 	Name string `json:"name"`
 
-	// ReservationId The macOS reservation selected by a successful claim; null until a Mac
-	// claims the sandbox.
+	// ReservationId The Mac reservation that the sandbox runs on; null until the sandbox
+	// reaches a Mac.
 	ReservationId *string `json:"reservation_id,omitempty"`
 
 	// Status Initial lifecycle status — `pending`, or the sandbox's current status on
@@ -5076,7 +5627,7 @@ type SandboxListItem struct {
 	// Name The sandbox name.
 	Name string `json:"name"`
 
-	// Persistent Whether the macOS sandbox retains writable state across stops.
+	// Persistent Whether the sandbox keeps its disk across stop and start.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// PortMap Port assignments reported for the sandbox.
@@ -5085,8 +5636,9 @@ type SandboxListItem struct {
 	// RegionId The region the sandbox runs in.
 	RegionId string `json:"region_id"`
 
-	// ReservationId The macOS reservation of the current or latest successful claim; null
-	// before the first claim and absent for other sandbox classes.
+	// ReservationId The Mac reservation that the macOS sandbox runs on, or ran on last.
+	// Null before the sandbox first reaches a Mac; absent for other sandbox
+	// classes.
 	ReservationId *string `json:"reservation_id,omitempty"`
 
 	// Snapshot The snapshot the sandbox was created from; absent when it was
@@ -5217,6 +5769,15 @@ type SandboxSecrets struct {
 
 // SandboxStatus defines model for SandboxStatus.
 type SandboxStatus string
+
+// SandboxTimeoutLimits The longest sandbox timeout the organization allows now, and how high its own cap may go.
+type SandboxTimeoutLimits struct {
+	// CeilingSeconds The highest value the organization's own cap may be set to, in seconds: the plan maximum, or the platform maximum when there is no plan maximum.
+	CeilingSeconds int64 `json:"ceiling_seconds"`
+
+	// MaxSeconds The longest `timeout_seconds` a sandbox may have now, in seconds: the organization's own cap, bounded by the plan maximum.
+	MaxSeconds int64 `json:"max_seconds"`
+}
 
 // SandboxUsage Current resource use for a sandbox.
 type SandboxUsage struct {
@@ -5701,7 +6262,7 @@ type UpdateImageRequest struct {
 
 // UpdateMacosSettingsRequest The macOS settings to change: any non-empty subset of the fields.
 type UpdateMacosSettingsRequest struct {
-	// MacosAutoReserve Whether new macOS creates may automatically reserve capacity.
+	// MacosAutoReserve Whether a macOS create or start buys a Mac reservation when the organization has none in the region.
 	MacosAutoReserve *bool `json:"macos_auto_reserve,omitempty"`
 
 	// MacosAutoReserveMaxReservations Maximum number of automatically created reservations.
@@ -5714,13 +6275,44 @@ type UpdateMemberRequest struct {
 	Roles []string `json:"roles"`
 }
 
+// UpdateOrganizationRegionRequest The body of an organization-region update. An omitted field keeps its
+// value; `null` clears `toolbox_proxy_url` or `preview_domain`.
+type UpdateOrganizationRegionRequest struct {
+	// Name The new display name, 1 to 100 characters.
+	Name *string `json:"name,omitempty"`
+
+	// PreviewDomain The base domain of the region's preview URLs. Must be unique, must not
+	// be a public suffix such as `co.uk`, and must not be, or be inside, a
+	// domain the platform serves.
+	PreviewDomain *string `json:"preview_domain,omitempty"`
+
+	// ToolboxProxyUrl The base URL of the region's proxy. Must be an `https://` URL.
+	ToolboxProxyUrl *string `json:"toolbox_proxy_url,omitempty"`
+}
+
 // UpdateOrganizationRequest defines model for UpdateOrganizationRequest.
 type UpdateOrganizationRequest struct {
-	// MaxSandboxTimeoutSeconds The longest timeout a sandbox in this organization may have, in seconds; null uses the platform maximum.
+	// MaxSandboxTimeoutSeconds The longest timeout a sandbox in this organization may have, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. A value above that maximum is rejected.
 	MaxSandboxTimeoutSeconds *int64 `json:"max_sandbox_timeout_seconds,omitempty"`
 
-	// Name The replacement organization name.
+	// Name The replacement organization name: at most 64 characters after trimming, with no control characters.
 	Name *string `json:"name,omitempty"`
+}
+
+// UpdateOrganizationRoleRequest defines model for UpdateOrganizationRoleRequest.
+type UpdateOrganizationRoleRequest struct {
+	// Description The new role purpose.
+	Description *string `json:"description,omitempty"`
+
+	// Name The new role name. Whitespace is normalized as on create; the result
+	// must be 1 to 64 characters.
+	Name *string `json:"name,omitempty"`
+
+	// OrganizationPermissions The complete new set of organization permissions.
+	OrganizationPermissions *[]string `json:"organization_permissions,omitempty"`
+
+	// ProjectPermissions The complete new set of project permissions.
+	ProjectPermissions *[]string `json:"project_permissions,omitempty"`
 }
 
 // UpdatePreviewWarningRequest Turns the preview warning page off or on. Unknown fields are rejected.
@@ -5739,13 +6331,8 @@ type UpdateProjectApiKeyRequest struct {
 	// every sandbox, snapshot and registry of the organization on Daytona
 	// v0, which has no read permissions. Only a key a person minted in the
 	// organization's `default` project is ever copied; a key imported from
-	// Daytona v0 always is. Required (or the deprecated `sync_to_v1`).
+	// Daytona v0 always is. Required.
 	SyncToV0 *bool `json:"sync_to_v0,omitempty"`
-
-	// SyncToV1 Deprecated: use `sync_to_v0`. Accepted with the same meaning; a
-	// request that sets both to different values is refused.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	SyncToV1 *bool `json:"sync_to_v1,omitempty"`
 }
 
 // UpdateProjectLifecyclePolicyRequest A `PATCH` at block granularity: an absent block is kept, `null` clears it,
@@ -5759,7 +6346,7 @@ type UpdateProjectLifecyclePolicyRequest struct {
 
 // UpdateProjectRequest defines model for UpdateProjectRequest.
 type UpdateProjectRequest struct {
-	// Name The new project name.
+	// Name The new project name: at most 64 characters after trimming, with no control characters. `default` is reserved.
 	Name string `json:"name"`
 }
 
@@ -5962,10 +6549,6 @@ type V0MigrationSummary struct {
 	// v0 organization id it came from). Personal organizations included.
 	FromV0 bool `json:"from_v0"`
 
-	// FromV1 Deprecated: use `from_v0`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	FromV1 bool `json:"from_v1"`
-
 	// ImagesConverted Named images registered from Daytona v0 snapshots that are at the current
 	// image format.
 	ImagesConverted int64 `json:"images_converted"`
@@ -6025,10 +6608,6 @@ type V0Sandbox struct {
 
 	// V0Id The sandbox ID on Daytona v0.
 	V0Id string `json:"v0_id"`
-
-	// V1Id Deprecated: use `v0_id`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1Id string `json:"v1_id"`
 }
 
 // V0SandboxImport The result of importing a Daytona v0 sandbox.
@@ -6055,10 +6634,6 @@ type V0SandboxImport struct {
 	// the original sandbox. False means the label could not be set now; the
 	// import itself succeeded, and repeating the call retries the label.
 	V0Labeled bool `json:"v0_labeled"`
-
-	// V1Labeled Deprecated: use `v0_labeled`, which carries the same value.
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	V1Labeled bool `json:"v1_labeled"`
 
 	// Warnings Settings and values that could not be imported.
 	Warnings []string `json:"warnings"`
@@ -6118,7 +6693,11 @@ type Volume struct {
 
 // VolumeMount A volume attachment as requested on `POST /sandboxes`.
 type VolumeMount struct {
-	// MountPath The absolute path inside the sandbox.
+	// MountPath The absolute path inside the sandbox, with no `..`. It is normalized
+	// (repeated slashes, `.` components and a trailing slash removed) and
+	// may not be `/` or be on or beneath a system directory: `/bin`,
+	// `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
+	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
 	MountPath string `json:"mount_path"`
 
 	// ReadOnly Mount without write access. Supported only for bucket volumes.
@@ -6195,11 +6774,17 @@ type Limit = int64
 // OrganizationId defines model for OrganizationId.
 type OrganizationId = openapi_types.UUID
 
+// OrganizationRegionId defines model for OrganizationRegionId.
+type OrganizationRegionId = string
+
 // PortNumber defines model for PortNumber.
 type PortNumber = int32
 
 // ProjectId defines model for ProjectId.
 type ProjectId = string
+
+// RegionProxyTokenId defines model for RegionProxyTokenId.
+type RegionProxyTokenId = openapi_types.UUID
 
 // RegionTag defines model for RegionTag.
 type RegionTag = string
@@ -6209,6 +6794,12 @@ type RegistryHost = string
 
 // ReservationId defines model for ReservationId.
 type ReservationId = string
+
+// RoleId defines model for RoleId.
+type RoleId = string
+
+// RunnerId defines model for RunnerId.
+type RunnerId = string
 
 // SandboxId defines model for SandboxId.
 type SandboxId = string
@@ -6450,6 +7041,42 @@ type ListProjectsParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// ListOrganizationRegionsParams defines parameters for ListOrganizationRegions.
+type ListOrganizationRegionsParams struct {
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListRegionProxyTokensParams defines parameters for ListRegionProxyTokens.
+type ListRegionProxyTokensParams struct {
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListRegionRegistrationTokensParams defines parameters for ListRegionRegistrationTokens.
+type ListRegionRegistrationTokensParams struct {
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListRegionRunnersParams defines parameters for ListRegionRunners.
+type ListRegionRunnersParams struct {
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // ListServiceAccountsParams defines parameters for ListServiceAccounts.
 type ListServiceAccountsParams struct {
 	// Limit Maximum number of items to return, 1–200 (default 100)
@@ -6582,7 +7209,9 @@ type SearchSandboxesParams struct {
 	// Class Comma-separated sandbox classes.
 	Class *[]SandboxClass `form:"class,omitempty" json:"class,omitempty"`
 
-	// RegionIds Comma-separated region slugs. Defaults to every region.
+	// RegionIds Comma-separated region IDs. A broader region (a geo group, or
+	// `earth`) matches every region inside it. An unknown region answers
+	// 400. Defaults to every region.
 	RegionIds *string `form:"region_ids,omitempty" json:"region_ids,omitempty"`
 
 	// ImageRef Exact image reference.
@@ -6885,6 +7514,30 @@ type UpdatePreviewWarningJSONRequestBody = UpdatePreviewWarningRequest
 
 // CreateProjectJSONRequestBody defines body for CreateProject for application/json ContentType.
 type CreateProjectJSONRequestBody = CreateProjectRequest
+
+// CreateOrganizationRegionJSONRequestBody defines body for CreateOrganizationRegion for application/json ContentType.
+type CreateOrganizationRegionJSONRequestBody = CreateOrganizationRegionRequest
+
+// UpdateOrganizationRegionJSONRequestBody defines body for UpdateOrganizationRegion for application/json ContentType.
+type UpdateOrganizationRegionJSONRequestBody = UpdateOrganizationRegionRequest
+
+// CreateRegionProxyTokenJSONRequestBody defines body for CreateRegionProxyToken for application/json ContentType.
+type CreateRegionProxyTokenJSONRequestBody = CreateRegionProxyTokenRequest
+
+// RotateRegionProxyTokenJSONRequestBody defines body for RotateRegionProxyToken for application/json ContentType.
+type RotateRegionProxyTokenJSONRequestBody = RotateRegionProxyTokenRequest
+
+// CreateRegionRegistrationTokenJSONRequestBody defines body for CreateRegionRegistrationToken for application/json ContentType.
+type CreateRegionRegistrationTokenJSONRequestBody = CreateRegionRegistrationTokenRequest
+
+// CreateOrganizationRoleJSONRequestBody defines body for CreateOrganizationRole for application/json ContentType.
+type CreateOrganizationRoleJSONRequestBody = CreateOrganizationRoleRequest
+
+// UpdateOrganizationRoleJSONRequestBody defines body for UpdateOrganizationRole for application/json ContentType.
+type UpdateOrganizationRoleJSONRequestBody = UpdateOrganizationRoleRequest
+
+// PreviewOrganizationRoleUpdateJSONRequestBody defines body for PreviewOrganizationRoleUpdate for application/json ContentType.
+type PreviewOrganizationRoleUpdateJSONRequestBody = PreviewOrganizationRoleUpdateRequest
 
 // CreateServiceAccountJSONRequestBody defines body for CreateServiceAccount for application/json ContentType.
 type CreateServiceAccountJSONRequestBody = CreateServiceAccountRequest

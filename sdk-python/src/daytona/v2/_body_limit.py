@@ -19,19 +19,19 @@ from typing import AsyncIterator, Final, Iterator, Optional
 
 import httpx
 
-from .errors import ConnectionError, DaytonaError, create_error
+from ._core import MAX_SAFE_INTEGER
+from .errors import ConnectionError, DaytonaError, create_error, redirect_error
 
 #: The default cap on a buffered response body: 1 GiB.
 DEFAULT_MAX_RESPONSE_BYTES: Final = 1 << 30
 # The largest integer both SDKs read exactly (JavaScript's Number.MAX_SAFE_INTEGER).
-_MAX_SAFE_INTEGER: Final = 2**53 - 1
 
 
 def validated_max_response_bytes(name: str, value: object) -> int:
     """``value`` as a body limit: an ``int`` from 0 to 2**53 - 1, else ``BadRequestError``."""
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= _MAX_SAFE_INTEGER:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_SAFE_INTEGER:
         raise create_error(
-            f"{name} must be an integer from 0 (no limit) to {_MAX_SAFE_INTEGER}", 400, "BAD_REQUEST", "SDK"
+            f"{name} must be an integer from 0 (no limit) to {MAX_SAFE_INTEGER}", 400, "BAD_REQUEST", "SDK"
         )
     return value
 
@@ -45,6 +45,8 @@ def resolve_limit(per_call: Optional[int], client_limit: int) -> int:
 
 def too_large_error(status_code: int, limit: int) -> DaytonaError:
     """The error for a refused body: the status's own error for an error response."""
+    if 300 <= status_code < 400:
+        return redirect_error(status_code)
     if status_code >= 400:
         return create_error(
             f"HTTP {status_code}: the response body was too large to read "
@@ -87,6 +89,8 @@ def bounded_accept_encoding(value: Optional[str]) -> bool:
 
 
 def _unreadable(status_code: int, detail: str) -> DaytonaError:
+    if 300 <= status_code < 400:
+        return redirect_error(status_code)
     if status_code >= 400:
         return create_error(
             f"HTTP {status_code}: the response body could not be read ({detail})", status_code
@@ -232,6 +236,10 @@ class _Collector:
         self.body.extend(piece)
 
 
+def _is_redirect(response: httpx.Response) -> bool:
+    return 300 <= response.status_code < 400
+
+
 def _start(response: httpx.Response, limit: int) -> _Collector:
     if _declared_too_large(response, limit):
         raise too_large_error(response.status_code, limit)
@@ -274,9 +282,13 @@ async def decoded_chunks(response: httpx.Response) -> AsyncIterator[bytes]:
 async def read_body(response: httpx.Response, limit: int) -> bytes:
     """Read a streamed response's whole body under ``limit``; always closes it.
 
-    The wire bytes are decoded here, in bounded steps, never by httpx.
+    The wire bytes are decoded here, in bounded steps, never by httpx. A
+    redirect's body is never read (the SDK follows none; the caller raises
+    the redirect error from the status alone).
     """
     try:
+        if _is_redirect(response):
+            return b""
         collector = _start(response, limit)
         if not response.is_stream_consumed:
             async for raw in _raw_async(response):
@@ -289,6 +301,8 @@ async def read_body(response: httpx.Response, limit: int) -> bytes:
 def read_body_sync(response: httpx.Response, limit: int) -> bytes:
     """:func:`read_body` for a blocking client."""
     try:
+        if _is_redirect(response):
+            return b""
         collector = _start(response, limit)
         if not response.is_stream_consumed:
             for raw in response.iter_raw():

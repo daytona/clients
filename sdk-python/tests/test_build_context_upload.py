@@ -1,0 +1,876 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Direct build-context uploads over real HTTP, async and generated sync."""
+
+import hashlib
+import io
+import json
+import logging
+import re
+import tarfile
+import threading
+import time
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from threading import Thread
+
+import anyio
+import httpx
+import pytest
+
+from daytona.v2 import _context_upload
+from daytona.v2._bridge import SyncBridge
+from daytona.v2._sync.services import ImagesService
+from daytona.v2._transport import AsyncTransport
+from daytona.v2.errors import (
+    BadRequestError,
+    ClientTimeoutError,
+    ConflictError,
+    ConnectionError,
+    DaytonaError,
+    InternalServerError,
+    ServiceUnavailableError,
+)
+from daytona.v2.services import AsyncImagesService
+from daytona.v2.types import Image
+
+UPLOAD_ID = "0b6d2c8e-8a1f-4c1e-9d7a-3f0e5b2a9c41"
+SIGNATURE = "X-Amz-Signature=fixture-signature"
+
+
+def archive(size: int = 0) -> bytes:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w", format=tarfile.USTAR_FORMAT) as tar:
+        for name, data in (("Dockerfile", b"FROM alpine\n"), ("blob", b"x" * size)):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def part_number(path: str) -> int:
+    return int(path.split("?")[0].rsplit("/", 1)[-1])
+
+
+@dataclass
+class Peer:
+    url: str
+    part_size: int = 4096
+    ready: bool = False
+    put_statuses: list[int] = field(default_factory=list)
+    # Per part number, answered before ``put_statuses``.
+    part_statuses: dict[int, list[int]] = field(default_factory=dict)
+    # Runs in the server thread for each PUT, with the part number.
+    on_put: Callable[[int], None] | None = None
+    complete_statuses: list[int] = field(default_factory=list)
+    complete_delays: list[float] = field(default_factory=list)
+    # Rewrites the parts a declaration is answered with.
+    rewrite_parts: Callable[[list[dict[str, object]]], list[dict[str, object]]] | None = None
+    # Rewrites the whole declaration answer.
+    rewrite_upload: Callable[[dict[str, object]], object] | None = None
+    upload_id: str = UPLOAD_ID
+    requests: list[tuple[str, str, dict[str, str], bytes]] = field(default_factory=list)
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def bodies(self, method: str, prefix: str) -> list[bytes]:
+        return [body for m, path, _, body in self.requests if m == method and path.startswith(prefix)]
+
+    def json(self, method: str, path: str) -> dict[str, object]:
+        [body] = [body for m, p, _, body in self.requests if m == method and p == path]
+        return dict(json.loads(body))
+
+
+@contextmanager
+def storage_peer(**options: object) -> Iterator[Peer]:
+    holder: list[Peer] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def handle_any(self) -> None:
+            peer = holder[0]
+            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            peer.requests.append((self.command, self.path, dict(self.headers.items()), body))
+            if self.command == "PUT":
+                number = part_number(self.path)
+                if peer.on_put is not None:
+                    peer.on_put(number)
+                with peer.lock:
+                    statuses = peer.part_statuses.get(number) or peer.put_statuses
+                    status = statuses.pop(0) if statuses else 200
+                return self.reply(status, b"")
+            if self.path == "/build-contexts":
+                declared = json.loads(body)
+                if peer.ready:
+                    answer = self.upload("ready", declared, [])
+                    return self.reply(200, peer.rewrite_upload(answer) if peer.rewrite_upload else answer)
+                total, parts, offset, number = declared["bytes"], [], 0, 1
+                while offset < total:
+                    size = min(peer.part_size, total - offset)
+                    url = f"{peer.url}/bucket/part/{number}?{SIGNATURE}"
+                    parts.append({"part_number": number, "bytes": size, "url": url})
+                    offset, number = offset + size, number + 1
+                if peer.rewrite_parts is not None:
+                    parts = peer.rewrite_parts(parts)
+                answer = self.upload("uploading", declared, parts)
+                return self.reply(201, peer.rewrite_upload(answer) if peer.rewrite_upload else answer)
+            if self.path == f"/build-contexts/{UPLOAD_ID}/complete":
+                with peer.lock:
+                    delay = peer.complete_delays.pop(0) if peer.complete_delays else 0.0
+                    status = peer.complete_statuses.pop(0) if peer.complete_statuses else 200
+                time.sleep(delay)
+                if status != 200:
+                    return self.reply(status, {"message": "not now", "code": "UNAVAILABLE", "source": "API"})
+                return self.reply(
+                    200, self.upload("ready", {"dockerfile": "Dockerfile", "bytes": 1, "sha256": ""}, [])
+                )
+            if self.path == "/images":
+                return self.reply(202, {"id": "img-ctx", "status": "pending"})
+            if self.path == "/images/img-ctx":
+                return self.reply(
+                    200,
+                    {
+                        "id": "img-ctx",
+                        "name": "base",
+                        "anonymous": False,
+                        "class": "linux",
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "updated_at": "2026-01-02T00:00:00Z",
+                        "region_id": "region-c",
+                        "region_ids": [],
+                        "retention": "permanent",
+                        "origin": "dockerfile",
+                        "status": "pending",
+                        "format_version": 2,
+                        "format_outdated": False,
+                        "platform": False,
+                        "default": False,
+                        "deprecated": False,
+                    },
+                )
+            self.reply(404, {"message": "not found", "code": "NOT_FOUND", "source": "API"})
+
+        def upload(self, state: str, declared: dict[str, object], parts: list[object]) -> dict[str, object]:
+            return {
+                "id": holder[0].upload_id,
+                "state": state,
+                "region_id": "region-c",
+                "dockerfile": declared["dockerfile"],
+                "bytes": declared["bytes"],
+                "sha256": declared["sha256"],
+                "parts": parts,
+            }
+
+        do_GET = do_POST = do_PUT = handle_any
+
+        def reply(self, status: int, payload: object) -> None:
+            data = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                if 300 <= status < 400:
+                    # A redirect names a target a follower would request.
+                    self.send_header("Location", f"{holder[0].url}/bucket/redirected")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except OSError:
+                # The client gave up on this request (a timeout under test).
+                pass
+
+        def log_message(self, format: str, *args: str) -> None:
+            return
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        holder.append(Peer(f"http://127.0.0.1:{server.server_port}", **options))  # type: ignore[arg-type]
+        thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
+        thread.start()
+        try:
+            yield holder[0]
+        finally:
+            server.shutdown()
+            thread.join()
+
+
+@pytest.fixture(params=[False, True], ids=["async", "generated-sync"])
+def sync(request: pytest.FixtureRequest) -> bool:
+    return bool(request.param)
+
+
+async def build(
+    peer: Peer, context: object, sync: bool, request_timeout: float | None = None, **options: object
+) -> Image:
+    if sync:
+
+        def run() -> Image:
+            bridge = SyncBridge()
+
+            async def make_transport() -> AsyncTransport:
+                return AsyncTransport(peer.url, "offline", request_timeout=request_timeout)
+
+            transport = bridge.call(make_transport)
+            try:
+                return ImagesService(AsyncImagesService(transport), bridge).build_from_context(
+                    context, **options
+                )  # type: ignore[arg-type]
+            finally:
+                bridge.close(transport.close)
+
+        return await anyio.to_thread.run_sync(run)
+    transport = AsyncTransport(peer.url, "offline", request_timeout=request_timeout)
+    try:
+        return await AsyncImagesService(transport).build_from_context(context, **options)  # type: ignore[arg-type]
+    finally:
+        await transport.close()
+
+
+@pytest.fixture(autouse=True)
+def fast_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def no_sleep(_: float) -> None:
+        return
+
+    monkeypatch.setattr(_context_upload, "_sleep", no_sleep)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("as_file", [False, True], ids=["bytes", "file"])
+async def test_a_context_is_uploaded_in_parts_completed_and_built(
+    sync: bool, as_file: bool, tmp_path: Path
+) -> None:
+    # Given a context larger than one part, as bytes or as a tar file.
+    data = archive(10_000)
+    context: object = data
+    if as_file:
+        context = tmp_path / "ctx.tar"
+        context.write_bytes(data)
+    with storage_peer() as peer:
+        # When it is built from the context.
+        image = await build(peer, context, sync, dockerfile="Dockerfile", name="web", region="region-c")
+        # Then the declaration names the archive, the parts carry it whole and
+        # unauthenticated, the upload is completed and the build names it.
+        declared = peer.json("POST", "/build-contexts")
+        assert declared == {
+            "dockerfile": "Dockerfile",
+            "bytes": len(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "region_id": "region-c",
+        }
+        puts = [r for r in peer.requests if r[0] == "PUT"]
+        assert len(puts) == -(-len(data) // peer.part_size)
+        assert b"".join(body for _, _, _, body in sorted(puts, key=lambda put: part_number(put[1]))) == data
+        assert all("Authorization" not in headers for _, _, headers, _ in puts)
+        assert peer.json("POST", f"/build-contexts/{UPLOAD_ID}/complete") == {"region_id": "region-c"}
+        assert peer.json("POST", "/images") == {
+            "context_upload_id": UPLOAD_ID,
+            "region_id": "region-c",
+            "name": "web",
+        }
+        assert image.id == "img-ctx"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("as_file", [False, True], ids=["bytes", "file"])
+async def test_a_part_is_streamed_in_bounded_chunks_with_a_fixed_length(
+    monkeypatch: pytest.MonkeyPatch, as_file: bool, tmp_path: Path
+) -> None:
+    # Given parts several chunks long.
+    monkeypatch.setattr(_context_upload, "_PART_CHUNK", 1000)
+    data = archive(10_000)
+    context: object = data
+    if as_file:
+        context = tmp_path / "ctx.tar"
+        context.write_bytes(data)
+    source = _context_upload._Source(context)  # type: ignore[arg-type]
+    # When a part is read, no chunk is larger than the chunk size and the
+    # chunks are the part's bytes.
+    chunks = [chunk async for chunk in source.chunks(4096, 4096)]
+    assert max(len(chunk) for chunk in chunks) <= 1000
+    # And a chunk is sent in pieces, each of them progress on a slow link.
+    monkeypatch.setattr(_context_upload, "_PART_PIECE", 300)
+    pieces = [piece async for piece in source.chunks(4096, 4096)]
+    assert max(len(piece) for piece in pieces) <= 300
+    assert b"".join(pieces) == data[4096:8192]
+    assert b"".join(chunks) == data[4096:8192]
+    # And on the wire each part carries its own length and is not chunked.
+    with storage_peer() as peer:
+        await build(peer, context, False)
+        puts = [(headers, body) for m, _, headers, body in peer.requests if m == "PUT"]
+        assert puts and all(headers.get("Content-Length") == str(len(body)) for headers, body in puts)
+        assert all("Transfer-Encoding" not in headers for headers, _ in puts)
+
+
+@pytest.mark.anyio
+async def test_a_part_that_keeps_moving_is_not_cut_by_the_request_timeout(
+    sync: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Guards against a total deadline coming back (the old five-minute phase
+    # bound would also pass this); the stall test below proves the bound.
+    # Given a part sent in pieces 150 ms apart and a 500 ms request timeout.
+    monkeypatch.setattr(_context_upload, "_PART_PIECE", 2048)
+    original = _context_upload._Source.chunks
+
+    async def slow(self: _context_upload._Source, offset: int, length: int) -> AsyncIterator[bytes]:
+        async for piece in original(self, offset, length):
+            await anyio.sleep(0.15)
+            yield piece
+
+    monkeypatch.setattr(_context_upload._Source, "chunks", slow)
+    data = archive(10_000)
+    with storage_peer(part_size=len(data)) as peer:
+        # When the part takes over a second in all, it is not cut.
+        started = time.monotonic()
+        image = await build(peer, data, sync, request_timeout=0.5)
+        assert time.monotonic() - started > 1.0
+        assert peer.bodies("PUT", "/bucket/part/") == [data]
+        assert image.id == "img-ctx"
+
+
+@pytest.mark.anyio
+async def test_a_part_that_stops_moving_fails_with_client_timeout_after_its_retries(sync: bool) -> None:
+    # Given storage that takes the body but does not answer for longer than
+    # the request timeout.
+    with storage_peer(part_size=1 << 20, on_put=lambda _: time.sleep(1.0)) as peer:
+        # When the part is uploaded, every attempt stalls and the last one
+        # fails as the client's timeout, naming no part URL.
+        with pytest.raises(ClientTimeoutError) as error:
+            await build(peer, archive(), sync, request_timeout=0.3)
+        assert str(error.value) == "build context part 1 made no progress for 0.3 s"
+        assert (error.value.status_code, error.value.code, error.value.source) == (
+            408,
+            "REQUEST_TIMEOUT",
+            "SDK",
+        )
+        assert SIGNATURE not in str(error.value)
+        assert len(peer.bodies("PUT", "/bucket/part/")) == 3
+        assert peer.bodies("POST", "/build-contexts/") == []
+
+
+@pytest.mark.anyio
+async def test_a_stalled_archive_read_fails_the_part_as_a_client_timeout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # Given a context file whose reads block in the worker thread (a hung
+    # network file system), which httpx's socket timeouts do not see.
+    path = tmp_path / "ctx.tar"
+    path.write_bytes(archive())
+    release = threading.Event()
+    closed = threading.Event()
+
+    class HungFile:
+        def seek(self, offset: int) -> int:
+            return offset
+
+        def read(self, size: int) -> bytes:
+            release.wait()
+            return b""
+
+        def close(self) -> None:
+            closed.set()
+
+    real_open = Path.open
+
+    def hung_open(self: Path, *args: object, **kwargs: object) -> object:
+        return HungFile() if self == path else real_open(self, *args, **kwargs)  # type: ignore[call-overload]
+
+    monkeypatch.setattr(Path, "open", hung_open)
+    monkeypatch.setattr(_context_upload._Source, "sha256", lambda self: "0" * 64)
+    try:
+        with storage_peer() as peer:
+            # When the context is built with a 0.2 s request timeout, every
+            # attempt stalls and the last one fails as the client's timeout.
+            started = time.monotonic()
+            with pytest.raises(ClientTimeoutError, match="build context part 1 made no progress for 0.2 s"):
+                await build(peer, path, False, request_timeout=0.2)
+            assert time.monotonic() - started < 10
+            assert peer.bodies("POST", "/build-contexts/") == []
+    finally:
+        release.set()
+    # And each abandoned handle is closed once its read returns.
+    assert closed.wait(5)
+
+
+@pytest.mark.anyio
+async def test_a_file_that_shrinks_during_the_upload_is_refused(tmp_path: Path) -> None:
+    # Given a context file truncated after it was declared.
+    path = tmp_path / "ctx.tar"
+    path.write_bytes(archive(10_000))
+    source = _context_upload._Source(path)
+    path.write_bytes(b"short")
+    with storage_peer() as peer:
+        part = _context_upload._Part(1, 4096, f"{peer.url}/bucket/part/1?{SIGNATURE}")
+        # When its part is uploaded, it fails as a changed context.
+        async with httpx.AsyncClient(timeout=5) as client:
+            with pytest.raises(BadRequestError, match="changed while it was being uploaded") as error:
+                await _context_upload._put_part(client, source, 0, part, 5.0)
+        assert SIGNATURE not in str(error.value)
+
+
+@pytest.mark.anyio
+async def test_an_already_uploaded_context_is_built_without_uploading(sync: bool) -> None:
+    # Given an API that already holds a verified upload of the same archive.
+    with storage_peer(ready=True) as peer:
+        # When it is built from the context.
+        await build(peer, archive(), sync)
+        # Then nothing is uploaded or completed, and the build names that upload.
+        assert [m for m, *_ in peer.requests].count("PUT") == 0
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete")]
+        assert peer.json("POST", "/images")["context_upload_id"] == UPLOAD_ID
+
+
+@pytest.mark.anyio
+async def test_a_part_is_retried_after_a_storage_error(sync: bool) -> None:
+    # Given storage that fails the first attempt of a part.
+    data = archive()
+    with storage_peer(put_statuses=[503], part_size=1 << 20) as peer:
+        # When it is built from the context.
+        await build(peer, data, sync)
+        # Then the part is sent again and the upload completes.
+        assert peer.bodies("PUT", "/bucket/part/1") == [data, data]
+        assert [p for _, p, *_ in peer.requests if p.endswith("/complete")]
+
+
+@pytest.mark.anyio
+async def test_a_refused_part_fails_without_revealing_its_url(sync: bool) -> None:
+    # Given storage that refuses a part, as it does once its URL expired.
+    with storage_peer(put_statuses=[403], part_size=1 << 20) as peer:
+        # When it is built from the context.
+        with pytest.raises(BadRequestError) as error:
+            await build(peer, archive(), sync)
+        # Then the error names the part but neither the URL nor its signature,
+        # and nothing is completed or built.
+        assert "part 1" in str(error.value)
+        for text in (str(error.value), repr(error.value), repr(error.value.__cause__)):
+            assert SIGNATURE not in text and "/bucket/" not in text
+        assert error.value.__cause__ is None
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
+
+
+@pytest.mark.anyio
+async def test_a_redirected_part_is_the_redirect_error_and_is_not_retried(sync: bool) -> None:
+    # Given storage that answers a part with a redirect.
+    with storage_peer(put_statuses=[302], part_size=1 << 20) as peer:
+        with pytest.raises(DaytonaError) as error:
+            await build(peer, archive(), sync)
+        # Then the SDK follows no redirect (as TypeScript): one PUT, the
+        # redirect error with its status, nothing completed or built.
+        assert type(error.value) is DaytonaError
+        assert (error.value.status_code, error.value.source) == (302, "SDK")
+        assert len(peer.bodies("PUT", "/bucket/part/1")) == 1
+        assert not [p for _, p, *_ in peer.requests if p.startswith("/bucket/redirected")]
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
+
+
+def _without(key: str) -> Callable[[dict[str, object]], object]:
+    return lambda upload: {k: v for k, v in upload.items() if k != key}
+
+
+def _future_state_without_parts(upload: dict[str, object]) -> object:
+    return {**{k: v for k, v in upload.items() if k != "parts"}, "state": "future"}
+
+
+def _bool_part_numbers(upload: dict[str, object]) -> object:
+    parts = upload["parts"]
+    assert isinstance(parts, list)
+    return {**upload, "parts": [{**part, "part_number": True} for part in parts]}
+
+
+def _bad_urls(upload: dict[str, object]) -> object:
+    parts = upload["parts"]
+    assert isinstance(parts, list)
+    return {**upload, "parts": [{**part, "url": 5} for part in parts]}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("ready", "rewrite", "message"),
+    [
+        (True, _without("id"), "build context upload response has no id"),
+        (True, _without("region_id"), "build context upload response has no region_id"),
+        (True, _without("parts"), "build context upload response has no parts"),
+        (False, _without("state"), "build context upload response has no state"),
+        (False, _bool_part_numbers, "build context upload response has a malformed part"),
+        (False, _without("parts"), "build context upload response has no parts"),
+        (False, _future_state_without_parts, "build context upload response has no parts"),
+        (False, _bad_urls, "build context upload response has a malformed part"),
+        (False, lambda _u: [1], "build context upload response is not an object"),
+    ],
+)
+async def test_a_malformed_upload_response_is_refused_before_any_other_request(
+    sync: bool, ready: bool, rewrite: Callable[[dict[str, object]], object], message: str
+) -> None:
+    # The TypeScript twin checks the same fields with the same messages.
+    with storage_peer(ready=ready, rewrite_upload=rewrite) as peer:
+        with pytest.raises(BadRequestError) as error:
+            await build(peer, archive(), sync)
+        assert str(error.value) == message
+        assert (error.value.status_code, error.value.code, error.value.source) == (400, "BAD_REQUEST", "SDK")
+        assert peer.bodies("PUT", "/") == []
+        assert not [p for _, p, *_ in peer.requests if p.endswith("/complete") or p == "/images"]
+
+
+def _swapped(parts: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [parts[1], parts[0]]
+
+
+def _empty_part_added(parts: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [*parts, {**parts[-1], "part_number": len(parts) + 1, "bytes": 0}]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("rewrite", [_swapped, _empty_part_added])
+async def test_a_malformed_part_layout_is_refused_before_any_upload(
+    sync: bool, rewrite: Callable[[list[dict[str, object]]], list[dict[str, object]]]
+) -> None:
+    # Given a declaration answered with parts out of order, or with an empty part.
+    with storage_peer(part_size=4096, rewrite_parts=rewrite) as peer:
+        # When it is built from the context.
+        with pytest.raises(BadRequestError, match="do not cover the archive"):
+            await build(peer, archive(10_000), sync)
+        # Then nothing is uploaded, completed or built.
+        assert not [
+            p for m, p, *_ in peer.requests if m == "PUT" or p.endswith("/complete") or p == "/images"
+        ]
+
+
+@pytest.mark.anyio
+async def test_storage_that_keeps_failing_is_unavailable(sync: bool) -> None:
+    with storage_peer(put_statuses=[500, 502, 503], part_size=1 << 20) as peer:
+        with pytest.raises(ServiceUnavailableError) as error:
+            await build(peer, archive(), sync)
+        assert SIGNATURE not in str(error.value)
+        assert len(peer.bodies("PUT", "/bucket/part/1")) == 3
+
+
+@pytest.mark.anyio
+async def test_unreachable_storage_is_a_connection_error_without_its_url() -> None:
+    # Given a part whose URL points at a port nothing listens on.
+    part = _context_upload._Part(1, 3, f"http://127.0.0.1:9/bucket/part/1?{SIGNATURE}")
+    assert SIGNATURE not in repr(part)
+    # When it is uploaded.
+    async with httpx.AsyncClient(timeout=1) as client:
+        with pytest.raises(ConnectionError) as error:
+            await _context_upload._put_part(client, _context_upload._Source(b"abc"), 0, part, 1.0)
+    # Then the error names neither the URL nor the transport exception.
+    assert SIGNATURE not in str(error.value) and error.value.__cause__ is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("context", "message"),
+    [
+        (b"", "build context is empty"),
+        ("/nonexistent/ctx.tar", "is not a file"),
+        (42, "context must be the bytes of a tar archive or the path of a tar file"),
+    ],
+)
+async def test_an_unusable_context_is_refused_before_any_request(context: object, message: str) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match=message):
+            await build(peer, context, False)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"name": " "}, "name must be a non-empty string"),
+        ({"cpu_arch": "x86"}, 'cpu_arch must be "amd64" or "arm64"'),
+        ({"idle_expiry_seconds": 0}, "idle_expiry_seconds must be"),
+        ({"dockerfile": 42}, "dockerfile must be a non-empty path"),
+    ],
+    ids=["blank-name", "unknown-cpu-arch", "zero-idle-expiry", "non-string-dockerfile"],
+)
+async def test_an_invalid_option_is_refused_before_any_request(
+    sync: bool, options: dict[str, object], message: str
+) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match=re.escape(message)):
+            await build(peer, archive(), sync, **options)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("timeout", [-1, float("nan"), float("inf"), "30", True], ids=repr)
+async def test_an_invalid_timeout_is_refused_before_any_request(sync: bool, timeout: object) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="timeout must be a non-negative finite number"):
+            await build(peer, archive(), sync, timeout=timeout)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("region", "sent"), [(None, None), ("local", None), (" ", None), ("eu-1", "eu-1")])
+async def test_the_upload_is_declared_in_the_region_build_selects(
+    region: str | None, sent: str | None
+) -> None:
+    with storage_peer() as peer:
+        await build(peer, archive(), False, region=region)
+        assert peer.json("POST", "/build-contexts").get("region_id") == sent
+        # The build always names the region the upload was verified in.
+        assert peer.json("POST", "/images")["region_id"] == "region-c"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("upload_id", [".", ".."])
+async def test_an_upload_id_that_is_a_dot_segment_is_refused_before_any_part(upload_id: str) -> None:
+    with storage_peer(upload_id=upload_id) as peer:
+        with pytest.raises(BadRequestError, match="build context upload id"):
+            await build(peer, archive(10_000), False)
+        assert peer.bodies("PUT", "/") == []
+        assert not [path for _, path, _, _ in peer.requests if path.endswith("/complete")]
+
+
+@pytest.mark.anyio
+async def test_a_context_over_one_gib_is_refused_before_any_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(_context_upload, "MAX_CONTEXT_BYTES", 10)
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="exceeds the 1 GiB limit"):
+            await build(peer, archive(), False)
+        assert peer.requests == []
+
+
+def completes(peer: Peer) -> int:
+    return sum(1 for _, p, *_ in peer.requests if p.endswith("/complete"))
+
+
+@pytest.mark.anyio
+async def test_no_log_record_names_a_part_url(sync: bool, caplog: pytest.LogCaptureFixture) -> None:
+    # Given every logger at DEBUG, as an application that turns logging up has it.
+    caplog.set_level(logging.DEBUG)
+    with storage_peer() as peer:
+        # When a context of several parts is uploaded.
+        await build(peer, archive(10_000), sync)
+    # Then httpx logged the part requests, but no record names a part URL or
+    # its signature, and the redaction is released once the upload is done.
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("HTTP Request: PUT <build context part URL>" in message for message in messages)
+    assert any("/build-contexts" in message for message in messages)
+    for message in messages:
+        assert SIGNATURE not in message and "/bucket/" not in message
+    assert _context_upload._redact_part_urls._urls == {}
+
+
+def test_the_redaction_leaves_other_records_alone() -> None:
+    record = logging.LogRecord("httpx", logging.INFO, __file__, 1, "HTTP Request: %s %s", ("PUT", "x"), None)
+    url = f"http://127.0.0.1:1/bucket/part/1?{SIGNATURE}"
+    with _context_upload._redact_part_urls.active([url]):
+        assert _context_upload._redact_part_urls.filter(record)
+        assert record.getMessage() == "HTTP Request: PUT x"
+        record.args = ("PUT", httpx.URL(url))
+        _context_upload._redact_part_urls.filter(record)
+        assert record.getMessage() == "HTTP Request: PUT <build context part URL>"
+    record.args = ("PUT", url)
+    _context_upload._redact_part_urls.filter(record)
+    assert record.getMessage() == f"HTTP Request: PUT {url}"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("as_file", [False, True], ids=["bytes", "file"])
+async def test_parts_are_uploaded_in_parallel_up_to_the_limit(
+    sync: bool, as_file: bool, tmp_path: Path
+) -> None:
+    # Given storage that holds each PUT until the limit is in flight.
+    limit = _context_upload._PART_CONCURRENCY
+    lock, full = threading.Lock(), threading.Event()
+    in_flight, peak = [0], [0]
+
+    def hold(_: int) -> None:
+        with lock:
+            in_flight[0] += 1
+            peak[0] = max(peak[0], in_flight[0])
+            if in_flight[0] == limit:
+                full.set()
+        full.wait(5)
+        with lock:
+            in_flight[0] -= 1
+
+    data = archive(10_000)
+    context: object = data
+    if as_file:
+        context = tmp_path / "ctx.tar"
+        context.write_bytes(data)
+    with storage_peer(part_size=1024, on_put=hold) as peer:
+        # When a context of more parts than the limit is uploaded.
+        await build(peer, context, sync)
+        # Then exactly the limit was in flight at once, every part carries its
+        # own slice of the archive, and the upload is completed once.
+        assert peak[0] == limit
+        puts = [(path, body) for m, path, _, body in peer.requests if m == "PUT"]
+        assert len(puts) == -(-len(data) // 1024) > limit
+        for path, body in puts:
+            number = part_number(path)
+            assert body == data[(number - 1) * 1024 : number * 1024]
+        assert completes(peer) == 1
+
+
+@pytest.mark.anyio
+async def test_a_refused_part_among_parallel_parts_is_the_error_raised(sync: bool) -> None:
+    # Given storage that refuses the second of several parts.
+    with storage_peer(part_size=1024, part_statuses={2: [403]}) as peer:
+        # When the context is uploaded, that refusal is raised as itself.
+        with pytest.raises(BadRequestError, match="part 2 ") as error:
+            await build(peer, archive(10_000), sync)
+        assert SIGNATURE not in str(error.value)
+        assert completes(peer) == 0
+
+
+@pytest.mark.anyio
+async def test_a_complete_the_server_failed_is_retried(sync: bool) -> None:
+    with storage_peer(complete_statuses=[503, 502]) as peer:
+        image = await build(peer, archive(), sync)
+        assert completes(peer) == 3
+        assert image.id == "img-ctx"
+
+
+@pytest.mark.anyio
+async def test_a_complete_that_keeps_failing_gives_up(sync: bool) -> None:
+    with storage_peer(complete_statuses=[500, 500, 500]) as peer:
+        with pytest.raises(InternalServerError) as error:
+            await build(peer, archive(), sync)
+        assert error.value.status_code == 500
+        assert completes(peer) == _context_upload._COMPLETE_ATTEMPTS
+        assert not [p for _, p, *_ in peer.requests if p == "/images"]
+
+
+@pytest.mark.anyio
+async def test_a_complete_the_server_refused_is_not_retried(sync: bool) -> None:
+    with storage_peer(complete_statuses=[409]) as peer:
+        with pytest.raises(ConflictError):
+            await build(peer, archive(), sync)
+        assert completes(peer) == 1
+
+
+@pytest.mark.anyio
+async def test_a_complete_outlives_the_request_timeout(sync: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Given a short request timeout and an API that takes longer to verify.
+    monkeypatch.setattr(_context_upload, "_COMPLETE_TIMEOUT_SECONDS", 5.0)
+    with storage_peer(complete_delays=[0.5]) as peer:
+        # When the context is built, the one complete call is waited for.
+        await build(peer, archive(), sync, request_timeout=0.2)
+        assert completes(peer) == 1
+
+
+@pytest.mark.anyio
+async def test_a_complete_that_timed_out_is_retried(sync: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Given an API whose first complete outlasts the complete timeout.
+    monkeypatch.setattr(_context_upload, "_COMPLETE_TIMEOUT_SECONDS", 0.6)
+    with storage_peer(complete_delays=[1.5]) as peer:
+        # When the context is built, the complete is sent again and succeeds.
+        image = await build(peer, archive(), sync, request_timeout=0.3)
+        assert completes(peer) == 2
+        assert image.id == "img-ctx"
+
+
+@pytest.mark.anyio
+async def test_a_buffer_context_is_read_without_copying_it() -> None:
+    # Given a writable buffer and a view of it.
+    data = bytearray(archive(10_000))
+    for context in (data, memoryview(data)):
+        source = _context_upload._Source(context)
+        # When the archive is read, it is read from the caller's buffer.
+        assert source._data is not None and source._data.obj is data
+        assert source.sha256() == hashlib.sha256(data).hexdigest()
+        assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data
+
+
+# Shared with the TypeScript SDK's build-context-upload.test.ts: every
+# bytes-like value is a context, read as its exact bytes.
+@pytest.mark.anyio
+async def test_any_bytes_like_context_is_accepted() -> None:
+    import array
+
+    data = archive(1_000)
+    for context in (array.array("B", data), memoryview(bytearray(data)).cast("B")):
+        source = _context_upload._Source(context)
+        assert source.size == len(data)
+        assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data
+    # A wider item type is sized in bytes, not items.
+    wide = array.array("i", range(300))
+    source = _context_upload._Source(wide)
+    assert source.size == len(wide.tobytes())
+    assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == wide.tobytes()
+
+
+def test_an_oversized_non_contiguous_view_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Sized from the view itself, before it would be copied to a contiguous one.
+    monkeypatch.setattr(_context_upload, "MAX_CONTEXT_BYTES", 10)
+    view = memoryview(bytes(range(64)))[::2]
+    with pytest.raises(BadRequestError, match=r"exceeds the 1 GiB limit \(32 bytes\)"):
+        _context_upload._Source(view)
+
+
+def test_an_empty_multi_dimensional_view_is_an_empty_context() -> None:
+    import ctypes
+
+    view = memoryview(((ctypes.c_ubyte * 4) * 0)())
+    assert view.shape == (0, 4)
+    with pytest.raises(BadRequestError, match="build context is empty"):
+        _context_upload._Source(view)
+
+
+def test_a_released_view_is_refused_as_a_bad_request() -> None:
+    view = memoryview(b"FROM alpine\n")
+    view.release()
+    with pytest.raises(BadRequestError, match="context must be"):
+        _context_upload._Source(view)
+
+
+@pytest.mark.anyio
+async def test_a_non_contiguous_view_is_still_accepted() -> None:
+    data = archive(1_000)
+    view = memoryview(data)[::2]
+    source = _context_upload._Source(view)
+    assert source.size == len(data[::2])
+    assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data[::2]
+
+
+@pytest.mark.anyio
+async def test_a_name_with_an_idle_expiry_is_refused_before_any_request(sync: bool) -> None:
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="applies only to an anonymous image"):
+            await build(peer, archive(), sync, name="web", idle_expiry_seconds=60)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+async def test_an_invalid_option_is_reported_before_the_name_and_idle_pair(sync: bool) -> None:
+    # TypeScript reports the same error for the same call.
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="name must be a non-empty string"):
+            await build(peer, archive(), sync, name="", idle_expiry_seconds=60)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+async def test_no_name_with_an_idle_expiry_is_built(sync: bool) -> None:
+    # name=None is no name, as TypeScript's name: null is.
+    with storage_peer() as peer:
+        await build(peer, archive(), sync, name=None, idle_expiry_seconds=60)
+        body = peer.json("POST", "/images")
+        assert body["idle_expiry_seconds"] == 60
+        assert "name" not in body
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("timeout", "expected"), [(None, None), (0, 0), (30.0, 30.0)])
+async def test_the_build_request_takes_the_timeout(
+    monkeypatch: pytest.MonkeyPatch, timeout: float | None, expected: float | None
+) -> None:
+    sent: list[object] = []
+    original = AsyncTransport.send
+
+    async def record(self: AsyncTransport, spec: object) -> object:
+        sent.append(spec)
+        return await original(self, spec)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(AsyncTransport, "send", record)
+    with storage_peer() as peer:
+        await build(peer, archive(), False, timeout=timeout)
+    [spec] = [spec for spec in sent if getattr(spec, "path", None) == "/images" and spec.method == "POST"]  # type: ignore[attr-defined]
+    assert spec.timeout == expected  # type: ignore[attr-defined]
+    assert spec.unbounded_read is False  # type: ignore[attr-defined]

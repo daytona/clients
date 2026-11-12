@@ -17,7 +17,7 @@ from daytona.v2._sync import Daytona
 from daytona.v2._sync.sandbox import Sandbox
 from daytona.v2.daytona import AsyncDaytona, _on_event_loop
 from daytona.v2.sandbox import AsyncSandbox, sandbox_info_from_id
-from daytona.v2.types import SandboxInfo
+from daytona.v2.types import _SandboxInfo as SandboxInfo
 
 
 @overload

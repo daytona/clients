@@ -153,6 +153,7 @@ func TestImageLogs_followQuery(t *testing.T) {
 	stdout, _, err := runCLIWithResponseReplacement(t, []string{
 		"image", "logs", "11111111-1111-1111-1111-111111111111", "--follow",
 	}, []expectedRequest{
+		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
 		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111/build-logs-url", status: 200, response: `{"url":"__SERVER__/build-logs/images/11111111-1111-1111-1111-111111111111"}`},
 		{method: http.MethodGet, path: "/build-logs/images/11111111-1111-1111-1111-111111111111", query: "follow=true&format=text", status: 200, response: "text/plain:building...\n"},
 	})
@@ -171,6 +172,9 @@ func TestImageLogs_followStreamsSanitizedChunksBeforeInterrupt(t *testing.T) {
 		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
 		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
 		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, imageFixture("11111111-1111-1111-1111-111111111111", "ready"))
 		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
@@ -221,6 +225,9 @@ func TestImageLogs_followJSONStreamsNDJSONChunks(t *testing.T) {
 		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
 		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
 		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, imageFixture("11111111-1111-1111-1111-111111111111", "ready"))
 		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
@@ -273,6 +280,7 @@ func TestImageLogs_rejectsInvalidDiscoveryURLBeforeForwardingCredential(t *testi
 	_, _, err := runCLI(t, []string{
 		"image", "logs", "11111111-1111-1111-1111-111111111111",
 	}, []expectedRequest{
+		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
 		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111/build-logs-url", status: 200, response: `{"url":"https://alice:secret@logs.example/build-logs/images/11111111-1111-1111-1111-111111111111?token=secret"}`},
 	})
 	require.Error(t, err)
@@ -284,7 +292,7 @@ func TestImageBuild_directoryContextArchivesTar(t *testing.T) {
 	root := t.TempDir()
 	contextDir := filepath.Join(root, "context")
 	require.NoError(t, os.MkdirAll(contextDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(contextDir, "demo.txt"), []byte("payload"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(contextDir, "Dockerfile"), []byte("payload"), 0o600))
 	stdout, _, err := runCLI(t,
 		[]string{"image", "build", "img", "--dockerfile", "Dockerfile", "--context", contextDir, "--no-wait"},
 		[]expectedRequest{{
@@ -300,7 +308,7 @@ func TestImageBuild_directoryContextArchivesTar(t *testing.T) {
 				tr := tar.NewReader(bytes.NewReader([]byte(parts["context"])))
 				header, nextErr := tr.Next()
 				require.NoError(t, nextErr)
-				require.Equal(t, "demo.txt", header.Name)
+				require.Equal(t, "Dockerfile", header.Name)
 				content, readErr := io.ReadAll(tr)
 				require.NoError(t, readErr)
 				require.Equal(t, "payload", string(content))
@@ -325,7 +333,7 @@ func TestImageBuild_rejectsNonRegularContextEntries(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(root) })
 	contextDir := filepath.Join(root, "c")
-	require.NoError(t, os.MkdirAll(contextDir, 0o755))
+	writeContextFiles(t, contextDir, map[string]string{"Dockerfile": "FROM scratch"})
 	socketPath := filepath.Join(contextDir, "b.sock")
 	listener, err := net.Listen("unix", socketPath)
 	require.NoError(t, err)
@@ -335,7 +343,6 @@ func TestImageBuild_rejectsNonRegularContextEntries(t *testing.T) {
 	_, errb, code := run(t, d, nil,
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
-		"--project", testProjP1,
 		"image", "build", "img", "--dockerfile", "Dockerfile", "--context", contextDir, "--no-wait",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
@@ -347,17 +354,16 @@ func TestImageBuild_rejectsOversizedContextAsUsage(t *testing.T) {
 	root := t.TempDir()
 	contextPath := filepath.Join(root, "context.tar")
 	require.NoError(t, os.WriteFile(contextPath, nil, 0o600))
-	require.NoError(t, os.Truncate(contextPath, imageContextMaxBytes+1))
+	require.NoError(t, os.Truncate(contextPath, imageContextDirectMaxBytes+1))
 	f := newFakeAPI(t)
 	stdout, stderr, code := run(t, cfgDir(t), nil,
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
-		"--project", testProjP1,
 		"image", "build", "img", "--dockerfile", "Dockerfile", "--context", contextPath, "--no-wait",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Empty(t, stdout)
-	require.Contains(t, stderr, "64 MiB")
+	require.Contains(t, stderr, "1 GiB")
 	require.Empty(t, f.requests)
 }
 
@@ -533,7 +539,7 @@ func TestImageBuild_symlinkedDirectoryContextArchivesTargetContents(t *testing.T
 	root := t.TempDir()
 	actualDir := filepath.Join(root, "actual")
 	require.NoError(t, os.MkdirAll(actualDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(actualDir, "demo.txt"), []byte("payload"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(actualDir, "Dockerfile"), []byte("payload"), 0o600))
 	contextPath := filepath.Join(root, "context-link")
 	require.NoError(t, os.Symlink(actualDir, contextPath))
 	stdout, _, err := runCLI(t,
@@ -549,7 +555,7 @@ func TestImageBuild_symlinkedDirectoryContextArchivesTargetContents(t *testing.T
 				tr := tar.NewReader(bytes.NewReader([]byte(parts["context"])))
 				header, nextErr := tr.Next()
 				require.NoError(t, nextErr)
-				require.Equal(t, "demo.txt", header.Name)
+				require.Equal(t, "Dockerfile", header.Name)
 				content, readErr := io.ReadAll(tr)
 				require.NoError(t, readErr)
 				require.Equal(t, "payload", string(content))
@@ -722,6 +728,9 @@ func TestImageLogs_followHonoursTimeout(t *testing.T) {
 	defer close(hold)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, imageFixture("11111111-1111-1111-1111-111111111111", "ready"))
 		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
@@ -739,7 +748,7 @@ func TestImageLogs_followHonoursTimeout(t *testing.T) {
 	}))
 	defer srv.Close()
 	serverURL = srv.URL
-	_, errb, code := run(t, cfgDir(t), nil, "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "--timeout", "700ms", "--api-url", srv.URL, "--api-key", "k", "--project", testProjP1)
+	_, errb, code := run(t, cfgDir(t), nil, "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "--timeout", "700ms", "--api-url", srv.URL, "--api-key", "k")
 	if code != cerr.ExitTimeout || !has(errb, "timed out after") {
 		t.Fatalf("%d %s", code, errb)
 	}

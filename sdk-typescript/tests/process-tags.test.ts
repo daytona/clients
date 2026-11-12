@@ -9,6 +9,7 @@ import { errorFromFetchResponse } from '../src/v2/errors/DaytonaError'
 import { INTERNAL } from '../src/v2/internal'
 import { WAIT_READ_SLACK_MS } from '../src/v2/ProcessWire'
 import type { KillAllOptions, ProcessInfo, ProcessListOptions } from '../src/v2/types'
+import { createSandbox } from './helpers/sandbox'
 
 const terminal = {
   id: 'process-1', kind: 'exec', state: 'terminal', system: false, cwd: '/app', stdin: 'closed', keepLogs: 'until_cleanup',
@@ -21,7 +22,7 @@ const TAG_MESSAGE = "tag must be 1-128 of the characters A-Z, a-z, 0-9, '.', '_'
 describe('process tags', () => {
   afterEach(() => jest.restoreAllMocks())
 
-  const sandbox = () => new Sandbox('sandbox-1', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid' })
+  const sandbox = () => createSandbox('sandbox-1', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid' })
   const service = (transport: HttpTransport) => new ProcessService(INTERNAL, transport, 'sandbox-1')
 
   const starts = {

@@ -19,36 +19,6 @@ import ts from 'typescript'
 // Today's violations, as "<owner>.<member>: <generated type>" or
 // "export <name>". Remove an entry when its type becomes SDK-owned.
 const ALLOWED: ReadonlySet<string> = new Set([
-  // Client, sandbox lifecycle and platform services.
-  'Daytona.currentApiKey: ProjectApiKeyWithContext',
-  'Daytona.getLimits: OrganizationLimits',
-  'Daytona.getProjectBudget: ProjectBudget',
-  'Daytona.listAuditActions: AuditActionList',
-  'Image.constructor(image): ImageListItem',
-  'ImageBuilder.toRequestSource: CreateImageRequest',
-  'MacModelsService.catalog: MacCatalog',
-  'MacModelsService.list: MacModel',
-  'ReservationsService.createBulk: MacReservationBatch',
-  'SandboxDto.image: ImageReference',
-  'SandboxDto.snapshot: SnapshotReference',
-  'SecretService.get: Secret',
-  'SecretService.iter: Secret',
-  'SecretService.list: Secret',
-  'SecretService.set: Secret',
-  'Snapshot.constructor(snapshot): Snapshot',
-  'export AuditActionGroup',
-  'export AuditActionList',
-  'export MacCatalog',
-  'export MacModel',
-  'export MacReservationBatch',
-  'export OrganizationLimits',
-  'export PortInUseResponse',
-  'export PortListResponse',
-  'export ProjectApiKeyWithContext',
-  'export ProjectBudget',
-  'export SandboxStateSnapshot',
-  'export Secret',
-  'export SnapshotDetail',
 ])
 
 const root = join(__dirname, '..')
@@ -251,7 +221,15 @@ function generatedOnThePublicSurface(): Set<string> {
     if (symbol.flags & ts.SymbolFlags.Class) {
       walkStructure(owner, checker.getDeclaredTypeOfSymbol(symbol), 0)
       const constructorType = checker.getTypeOfSymbolAtLocation(symbol, declaration)
-      for (const signature of constructorType.getConstructSignatures()) visitSignature(`${owner}.constructor`, signature, 0)
+      for (const signature of constructorType.getConstructSignatures()) {
+        const constructor = signature.getDeclaration()
+        if (constructor !== undefined && !isPublic(constructor)) continue
+        const tokenType = constructor !== undefined && ts.isConstructorDeclaration(constructor) ? constructor.parameters[0]?.type : undefined
+        const tokenSymbol = tokenType !== undefined && ts.isTypeReferenceNode(tokenType) ? checker.getSymbolAtLocation(tokenType.typeName) : undefined
+        // The package does not expose the token, so these constructors are not caller surface.
+        if (tokenSymbol !== undefined && resolve(tokenSymbol).declarations?.some((node) => node.getSourceFile().fileName === join(root, 'src', 'v2', 'internal.ts'))) continue
+        visitSignature(`${owner}.constructor`, signature, 0)
+      }
       for (const property of constructorType.getProperties()) {
         const member = property.valueDeclaration
         if (member === undefined || property.getName() === 'prototype' || !isPublic(member) || !inSdk(member)) continue

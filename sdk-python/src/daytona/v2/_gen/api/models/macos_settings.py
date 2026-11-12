@@ -35,7 +35,7 @@ class MacosSettings(BaseModel):
     """
     An organization's macOS settings.
     """ # noqa: E501
-    macos_auto_reserve: StrictBool = Field(description="Whether a macOS create buys a Mac reservation when the organization holds none in the region. On unless an admin turns it off.")
+    macos_auto_reserve: StrictBool = Field(description="Whether a macOS create or start buys a Mac reservation when the organization has none in the region. On unless an admin turns it off.")
     macos_auto_reserve_disabled_at: Optional[datetime] = Field(default=None, description="When an admin last turned auto-reserve off; null while it is on.")
     macos_auto_reserve_disabled_by: Optional[StrictStr] = Field(default=None, description="The admin who last turned auto-reserve off; null while it is on, or when no admin was recorded.")
     macos_auto_reserve_max_reservations: StrictInt = Field(description="The most live auto-created reservations the org may hold at once.")

@@ -36,7 +36,7 @@ class MintSandboxAccessTokenRequest(BaseModel):
     `POST …/access-token` request. All fields optional; an absent (or empty) body is the full default mint.
     """ # noqa: E501
     operations: Optional[List[StrictStr]] = Field(default=None, description="Requested operation subset (the sandbox-operation vocabulary: `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`, `desktop`, `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the minter's full grantable set. An empty list is a valid ports-only grant. Unknown strings, and operations outside the minter's grantable set, are a 400 — never a silent narrowing.")
-    ports: Optional[List[Annotated[int, Field(le=65535, strict=True, ge=1)]]] = Field(default=None, description="Private-preview ports the token may reach: 1 to 65535, at most 128, with duplicates collapsed. Omitted grants all ports, and `[]` grants none.")
+    ports: Optional[List[Annotated[int, Field(le=65535, strict=True, ge=1)]]] = Field(default=None, description="Private-preview ports the token may reach: 1 to 65535, at most 128, with duplicates collapsed. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused. Omitted grants all ports, and `[]` grants none.")
     ttl_seconds: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Token lifetime in seconds. Omitted = the deployment default (3600 unless the deployment overrides it); values above the deployment cap (86400 by default) are a 400. `expires_at` in the response is authoritative.")
     __properties: ClassVar[List[str]] = ["operations", "ports", "ttl_seconds"]
 

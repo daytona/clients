@@ -809,7 +809,8 @@ jobs:
           else
             python -m pip install -e ".[dev]"
           fi
-          python -m pytest -q
+          python -m pytest -q -n 8 -m "not timing"
+          python -m pytest -q -m timing
           if [ -n "$V0_TAG" ]; then
             # d.v0 resolves through the bundle (an import smoke; no API is called).
             python -c "from daytona import Daytona, DaytonaConfig; d = Daytona(DaytonaConfig(api_key='smoke')); assert callable(d.v0.list); import daytona.v0._bundle as b; print(b.BUNDLED_FROM)"

@@ -1,0 +1,564 @@
+[
+  {
+    "ignore": "x[\\pz]",
+    "paths": [
+      "x ",
+      "x\u00a0",
+      "xa"
+    ],
+    "excluded": [
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x[\\Pz]",
+    "paths": [
+      "x ",
+      "x\u00a0",
+      "xa"
+    ],
+    "excluded": [
+      false,
+      false,
+      true
+    ]
+  },
+  {
+    "ignore": "x\\pc",
+    "paths": [
+      "x\u0378",
+      "x\u0007",
+      "xa"
+    ],
+    "excluded": [
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x\\Pc",
+    "paths": [
+      "x\u0378",
+      "x\u0007",
+      "xa"
+    ],
+    "excluded": [
+      false,
+      false,
+      true
+    ]
+  },
+  {
+    "ignore": "log[\\w-.]*",
+    "paths": [
+      "log-a",
+      "log.b",
+      "loga",
+      "log+"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x[\\s-~]",
+    "paths": [
+      "x ",
+      "x-",
+      "x~",
+      "xq",
+      "x5"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "x[\\s-A]",
+    "paths": [
+      "x ",
+      "x-",
+      "xA",
+      "x5",
+      "x:"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "x[0-[:alpha:]]",
+    "paths": [
+      "x5",
+      "x:",
+      "xq",
+      "x[",
+      "xa]",
+      "x:]",
+      "x5]"
+    ],
+    "excluded": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "ignore": "x[[:alpha:]--a]",
+    "paths": [
+      "xq",
+      "x-",
+      "x1",
+      "x_",
+      "x."
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "ignore": "x[\\pN-A]",
+    "paths": [
+      "x1",
+      "x-",
+      "xA",
+      "x:",
+      "x="
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "x[\\d-A]",
+    "paths": [
+      "x1",
+      "x-",
+      "xA",
+      "x:",
+      "x="
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "a[[b]",
+    "paths": [
+      "a[",
+      "ab",
+      "a[b",
+      "a]"
+    ],
+    "excluded": [
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "x[a&&b]",
+    "paths": [
+      "xa",
+      "x&",
+      "xb",
+      "xc"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x[a||b]",
+    "paths": [
+      "xa",
+      "x|",
+      "xb",
+      "xc"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x[a~~b]",
+    "paths": [
+      "xa",
+      "x~",
+      "xb",
+      "xc"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x\n\ufeff**",
+    "paths": [
+      "c d\u00e9/b*/-\u00e9",
+      "-/**",
+      "c dc d/*",
+      "*[/*",
+      "b",
+      "\u00ff**",
+      "a/\u00ff**/child"
+    ],
+    "excluded": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  {
+    "ignore": "**/keep",
+    "paths": [
+      "keep",
+      "a/keep",
+      "a/drop"
+    ],
+    "excluded": [
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "**\u00e9",
+    "paths": [
+      "\u00e9",
+      "a/caf\u00e9",
+      "a/e"
+    ],
+    "excluded": [
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "x\n\ufeff**\u00e9",
+    "paths": [
+      "\u00e9",
+      "a/*\u00e9",
+      "a/e"
+    ],
+    "excluded": [
+      false,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "*a*a*a*a*a*a*a*a*a*a*a*b",
+    "paths": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "excluded": [
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "*a*a*a*a*a*a*a*a*a*a*a*a",
+    "paths": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "excluded": [
+      true
+    ]
+  },
+  {
+    "ignore": "**/a/**/a/**/a/**/a/**/b",
+    "paths": [
+      "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"
+    ],
+    "excluded": [
+      false
+    ]
+  },
+  {
+    "ignore": "a*\\bb",
+    "paths": [
+      "ab",
+      "a-b",
+      "a_b",
+      "a\u00e9b",
+      "a\ud83d\ude00b"
+    ],
+    "excluded": [
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  {
+    "ignore": "a*\\Bb",
+    "paths": [
+      "ab",
+      "a-b",
+      "a_b",
+      "a\u00e9b",
+      "a\ud83d\ude00b"
+    ],
+    "excluded": [
+      true,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "a*\\Ab",
+    "paths": [
+      "ab",
+      "a-b",
+      "b"
+    ],
+    "excluded": [
+      false,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "a*\\z",
+    "paths": [
+      "a",
+      "ab",
+      "ab\n",
+      "a/b"
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "ignore": "a/**/b?",
+    "paths": [
+      "a/b\ud83d\ude00",
+      "a/x\ry/b\u00e9",
+      "a/x\ny/b\u00e9",
+      "a/b\n"
+    ],
+    "excluded": [
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  {
+    "ignore": "\\Q*a?\\E*",
+    "paths": [
+      "[^/]*a[^/]tail",
+      "*a?tail",
+      "abc"
+    ],
+    "excluded": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "*.[[:^digit:]]",
+    "paths": [
+      "a.1",
+      "a.b",
+      "a.]",
+      "a.d]"
+    ],
+    "excluded": [
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "log[[:^alnum:]]x",
+    "paths": [
+      "log-x",
+      "logax",
+      "log]x"
+    ],
+    "excluded": [
+      true,
+      false,
+      true
+    ]
+  },
+  {
+    "ignore": "[[:^digit:]]*",
+    "paths": [
+      "a",
+      "1",
+      "x]",
+      "1]"
+    ],
+    "excluded": [
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "b*[]\\pL]",
+    "paths": [
+      "bx",
+      "b]",
+      "bx]",
+      "b["
+    ],
+    "excluded": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "[\\x41-\\x43]",
+    "paths": [
+      "B",
+      "D"
+    ],
+    "excluded": [
+      true,
+      false
+    ]
+  },
+  {
+    "ignore": "\\pC",
+    "paths": [
+      "\u0378",
+      "\u0007"
+    ],
+    "excluded": [
+      true,
+      true
+    ]
+  },
+  {
+    "ignore": "\\PC",
+    "paths": [
+      "\u0378",
+      "\u0007"
+    ],
+    "excluded": [
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "[\\W]*[]]",
+    "paths": [
+      "x",
+      "W",
+      "Wx"
+    ],
+    "excluded": [
+      false,
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "[\\x2e]*[]]",
+    "paths": [
+      "x",
+      "x2e"
+    ],
+    "excluded": [
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "[\\S]*[]]",
+    "paths": [
+      "S",
+      "x"
+    ],
+    "excluded": [
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "[\\D]*[\\w-]",
+    "paths": [
+      "D",
+      "x"
+    ],
+    "excluded": [
+      false,
+      false
+    ]
+  },
+  {
+    "ignore": "node_modules\n[\\W]*[-]",
+    "paths": [
+      "keep.txt",
+      "node_modules",
+      "W-"
+    ],
+    "excluded": [
+      false,
+      true,
+      false
+    ]
+  }
+]

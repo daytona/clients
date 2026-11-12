@@ -9,7 +9,7 @@
  *       npx tsx typescript/git/index.ts
  */
 
-import { client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
+import { assertStarted, client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 // A small, stable public repo to clone shallowly.
 const REPO_URL = 'https://github.com/octocat/Hello-World'
@@ -21,9 +21,10 @@ async function main(): Promise<boolean> {
 
   let ok = true
   try {
+    assertStarted(sandbox)
     const git = sandbox.git
     const proc = sandbox.process
-    const repo = 'demo-repo'
+    const repo = '/tmp/demo-repo'
 
     // git needs to be installed in the image; python:3.x-slim ships without it.
     section('ensure git is available')

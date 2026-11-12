@@ -10,7 +10,7 @@ differ:
      as ordinary environment variables. Use for non-sensitive config
      (LOG_LEVEL, FEATURE_FLAGS, an app's own settings).
 
-  2. SECRETS   (``daytona.secret.set(name, value)`` + ``secrets=[name]``)
+  2. SECRETS   (``daytona.secrets.set(name, value)`` + ``secrets=[name]``)
      Project-scoped and write-only. The sandbox sees only a placeholder in
      an env var of the same name; the real value is never readable inside the
      sandbox and is used only in outgoing requests to the secret's allowed
@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import sys
 
-from _common import RUN, client, failed, info, passed, sandbox_image, section
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
 from daytona.v2 import Sandbox
 
@@ -48,8 +48,8 @@ def main() -> int:
     secret_created = False
     sandbox: Sandbox | None = None
     try:
-        section("secret.set(name, value) — create a project secret")
-        daytona.secret.set(
+        section("secrets.set(name, value) — create a project secret")
+        daytona.secrets.set(
             env_var_name,
             secret_value,
             # allowed_domains: where the secret's value may be sent
@@ -61,11 +61,11 @@ def main() -> int:
         secret_created = True
         info(f"set secret {env_var_name} (value is write-only; never returned)")
 
-        section("secret.iter() — metadata only, never values")
-        found = any(s.name == env_var_name for s in daytona.secret.iter())
+        section("secrets.iter() — metadata only, never values")
+        found = any(s.name == env_var_name for s in daytona.secrets.iter())
         info(f"{env_var_name} present={found}")
         if not found:
-            failed(f"secret {env_var_name} is missing from secret.iter()")
+            failed(f"secret {env_var_name} is missing from secrets.iter()")
             ok = False
 
         section("create a sandbox with BOTH env vars and the secret attached")
@@ -77,6 +77,8 @@ def main() -> int:
             wait_seconds=200,
         )
         info(f"created sandbox id={sandbox.id} state={sandbox.state}")
+        if not require_started(sandbox):
+            return 1
 
         section("env vars ARE readable inside the sandbox (real values)")
         for name, expected in (
@@ -119,7 +121,7 @@ def main() -> int:
                 ok = False
         if secret_created:
             try:
-                daytona.secret.delete(env_var_name)
+                daytona.secrets.delete(env_var_name)
                 info(f"deleted secret {env_var_name}")
             except Exception as e:
                 # A secret left behind in the project fails the example.

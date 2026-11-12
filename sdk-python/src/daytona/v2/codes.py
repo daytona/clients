@@ -32,6 +32,7 @@ __all__ = [
     "PROXY_ERROR_CODES",
     "ROUTER_CODE_EXTRAS",
     "ROUTER_ERROR_CODES",
+    "SDK_ERROR_CODES",
     "is_known_error_code",
 ]
 
@@ -45,6 +46,9 @@ PROXY_ERROR_CODES: frozenset[str] = _codes.PROXY_ERROR_CODES
 ROUTER_ERROR_CODES: frozenset[str] = _codes.ROUTER_ERROR_CODES
 #: The status-level codes every source may send (``NOT_FOUND``, ``CONFLICT``, ...).
 GENERIC_ERROR_CODES: frozenset[str] = _codes.GENERIC_ERROR_CODES
+
+#: Local SDK codes without an HTTP status.
+SDK_ERROR_CODES: frozenset[str] = _codes.SDK_ERROR_CODES
 
 #: The HTTP status each known code is sent with.
 CODE_STATUS: _Mapping[str, int] = _MappingProxyType(_codes.CODE_STATUS)
@@ -62,6 +66,7 @@ _KNOWN: frozenset[str] = frozenset(
     | _codes.PROXY_ERROR_CODES
     | _codes.ROUTER_ERROR_CODES
     | _codes.GENERIC_ERROR_CODES
+    | _codes.SDK_ERROR_CODES
 )
 
 

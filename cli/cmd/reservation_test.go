@@ -18,7 +18,7 @@ import (
 
 func macReservationFixture(model, capacity string) string {
 	return `{"id":"region-a:res-1","org_id":"11111111-1111-1111-1111-111111111111","project_id":"22222222-2222-2222-2222-222222222222",` +
-		`"region_id":"region-a","status":"active","origin":"explicit","auto_renew":true,"sandboxes_per_mac":2,"slots_used":1,` +
+		`"region_id":"region-a","status":"active","origin":"explicit","auto_renew":true,"slots_used":1,` +
 		`"period_n":1,"period_seconds":86400,"renewal_pending":false,"created_at":"2026-10-01T00:00:00Z","period_end":"2026-10-02T00:00:00Z",` +
 		`"model":` + model + `,"capacity":` + capacity + `,"resources_used":{"cores":5,"memory_mib":8192,"disk_mib":81920}}`
 }
@@ -171,6 +171,8 @@ func TestReservationGetAndList_printMissingCapacityWithDashes(t *testing.T) {
 	require.Equal(t, "-", rows["disk_mib_total"])
 	require.Equal(t, "81920", rows["disk_mib_used"])
 	require.Equal(t, "5", rows["cores_used"])
+	_, listed := rows["sandboxes_per_mac"]
+	require.False(t, listed, "the API no longer reports sandboxes_per_mac")
 
 	list := `{"reservations":[` + macReservationFixture(`"m4-10c-16g"`, m4Capacity) + `,` + missingCapacity + `]}`
 	stdout, _, err = runCLIWithOutput(t, "table", []string{"reservation", "list"}, []expectedRequest{{
@@ -232,7 +234,7 @@ func TestReservationRenew_sendsAKeyPerInvocation(t *testing.T) {
 
 func TestReservationUpdate_setsAutoRenew(t *testing.T) {
 	for _, value := range []string{"false", "true"} {
-		_, _, err := runCLI(t, []string{"reservation", "update", "region-a:res-1", "--auto-renew=" + value}, []expectedRequest{{
+		_, _, err := runCLI(t, []string{"reservation", "update", "region-a:res-1", "--auto-renew=" + value, "--yes"}, []expectedRequest{{
 			method: http.MethodPatch, path: "/reservations/region-a:res-1", status: 200,
 			bodyJSON: `{"auto_renew":` + value + `}`, response: macReservationFixture(`"m4-10c-16g"`, m4Capacity),
 		}})
@@ -245,6 +247,6 @@ func TestReservationUpdate_setsAutoRenew(t *testing.T) {
 
 	help, _, err := runCLI(t, []string{"reservation", "update", "--help"}, nil)
 	require.NoError(t, err)
-	require.Contains(t, squashSpaces(help), "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use on it; stopped and paused sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.")
+	require.Contains(t, squashSpaces(help), "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use or paused on it; stopped sandboxes do not renew it. With auto-renew off, the reservation ends at period_end, and its paused sandboxes are stopped with their disks before then.")
 	require.Contains(t, help, "Examples:\n  daytona reservation update RESERVATION_ID --auto-renew=false\n  daytona reservation update RESERVATION_ID --auto-renew=true")
 }

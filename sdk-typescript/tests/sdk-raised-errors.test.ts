@@ -36,13 +36,13 @@ describe('SDK-raised invalid-argument errors are BadRequestError', () => {
     await badRequest(() => client.findByName(' '))
   })
 
-  it('on a blank create source; a source of the wrong type stays a TypeError, as in Python', async () => {
+  it('on a blank create source and a source of the wrong type, as in Python', async () => {
     await badRequest(() => client.create('  '))
     await badRequest(() => client.create(''))
     await badRequest(() => client.createFromSnapshot('  '))
     await badRequest(() => client.createMacos('  '))
-    await expect(client.create(123 as never)).rejects.toBeInstanceOf(TypeError)
-    await expect(client.createFromSnapshot(123 as never)).rejects.toBeInstanceOf(TypeError)
+    await badRequest(() => client.create(123 as never))
+    await badRequest(() => client.createFromSnapshot(123 as never))
   })
 
   it('on image builders', async () => {
@@ -53,7 +53,7 @@ describe('SDK-raised invalid-argument errors are BadRequestError', () => {
     const sandbox = lazySandbox(client, 'sbx', { toolboxUrl: 'http://127.0.0.1:9', accessToken: 'token' })
     await badRequest(() => sandbox.setLabels({ a: 5 } as never))
     await badRequest(() => sandbox.interpreter.run('1', { timeoutSeconds: -1 }))
-    await badRequest(() => sandbox.waitForState([]))
+    await badRequest(() => sandbox.wait({ until: [] }))
   })
 })
 
@@ -76,20 +76,12 @@ describe('error construction guard', () => {
 
   it('throws no plain JavaScript errors beyond the deliberate ones', () => {
     expect(counts(/new (?:Error|TypeError|RangeError)\(/g)).toEqual({
-      // A wrong argument type for create / createFromBuild (a non-string or
-      // ImageBuilder source, a v0-shaped options object, a `target`): TypeError,
-      // as Python raises. A blank source is a BadRequestError.
-      'Daytona.ts': 8,
-      // A missing onLogs callback: TypeError, as Python raises.
-      'BuildLogs.ts': 1,
-      // An unreachable exhaustiveness check.
-      'Sandbox.ts': 1,
+      // Construction outside the SDK (no INTERNAL token): TypeError.
+      'internal.ts': 1,
       // Socket and ticket failures the events hub handles itself (reconnect or fallback).
       'events.ts': 5,
       // A non-Error rejection reason, wrapped.
       'http.ts': 2,
-      // A handle or service constructed without the SDK's INTERNAL token.
-      'internal.ts': 1,
     })
   })
 })

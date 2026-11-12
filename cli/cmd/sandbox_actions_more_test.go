@@ -32,9 +32,10 @@ func TestSandboxStop_noWait(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "stop", "11111111-1111-1111-1111-111111111111", "--no-wait"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "running")},
 		{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/stop", status: 202, response: `{"status":"stopping","id":"11111111-1111-1111-1111-111111111111"}`},
+		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "stopping")},
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, requireJSONStdout(t, stdout))
+	require.JSONEq(t, sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "stopping"), stdout)
 }
 
 func TestSandboxStop_invalidTimeoutFailsBeforeLookup(t *testing.T) {
@@ -171,6 +172,7 @@ func TestSandboxFork_noWaitHumanOutputShowsForkedID(t *testing.T) {
 	stdout, stderr, err := runCLIText(t, []string{"sandbox", "fork", "11111111-1111-1111-1111-111111111111", "--no-wait"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "paused")},
 		{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/fork", status: 202, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"11111111-1111-1111-1111-111111111111","status":"pending","id":"22222222-2222-2222-2222-222222222222"}`},
+		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "linux", "pending")},
 	})
 	require.NoError(t, err, stderr)
 	require.Contains(t, stdout, "22222222-2222-2222-2222-222222222222")
@@ -196,15 +198,18 @@ func TestSandboxDelete_requiresYesInNonInteractive(t *testing.T) {
 func TestSandboxStart_macosRouteNoWait(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "start", "22222222-2222-2222-2222-222222222222", "--no-wait"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "macos", "stopped")},
+		macReservationsRead("region-b", "active"),
 		{method: http.MethodPost, path: "/sandboxes/22222222-2222-2222-2222-222222222222/start", status: 202, response: `{"status":"pending","id":"22222222-2222-2222-2222-222222222222"}`},
+		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "macos", "pending")},
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, requireJSONStdout(t, stdout))
+	require.JSONEq(t, sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "macos", "pending"), stdout)
 }
 
 func TestSandboxStart_waitAllowsInitialStoppedRace(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "start", "11111111-1111-1111-1111-111111111111"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "stopped")},
+		macReservationsRead("region-b", "active"),
 		{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/start", status: 202, response: `{"status":"pending","id":"11111111-1111-1111-1111-111111111111"}`},
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "stopped")},
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "running"), check: func(t *testing.T, r *http.Request, _ []byte) {
@@ -230,18 +235,20 @@ func TestSandboxStop_macosRouteNoWait(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "stop", "22222222-2222-2222-2222-222222222222", "--no-wait"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "macos", "running")},
 		{method: http.MethodPost, path: "/sandboxes/22222222-2222-2222-2222-222222222222/stop", status: 202, response: `{"status":"stopping","id":"22222222-2222-2222-2222-222222222222"}`},
+		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "macos", "stopping")},
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, requireJSONStdout(t, stdout))
+	require.JSONEq(t, sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "macos", "stopping"), stdout)
 }
 
 func TestSandboxDelete_linuxRouteNoWait(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "delete", "22222222-2222-2222-2222-222222222222", "--yes", "--no-wait"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "linux", "running")},
 		{method: http.MethodDelete, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 202, response: `{"status":"deleting","id":"22222222-2222-2222-2222-222222222222"}`},
+		{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "linux", "deleting")},
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, requireJSONStdout(t, stdout))
+	require.JSONEq(t, sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "linux", "deleting"), stdout)
 }
 
 func TestSandboxUpdate_nothingToUpdate(t *testing.T) {
@@ -279,7 +286,6 @@ func TestSandboxUpdate_rejectsMacOSPauseLifecycleBeforePatch(t *testing.T) {
 	_, errb, code := run(t, d, nil,
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
-		"--project", testProjP1,
 		"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--idle-timeout", "2m", "--on-idle-timeout", "pause",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
@@ -294,7 +300,6 @@ func TestSandboxUpdate_buildsAndValidatesBothBodiesBeforeMutating(t *testing.T) 
 	_, errb, code := run(t, cfgDir(t), nil,
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
-		"--project", testProjP1,
 		"sandbox", "update", "22222222-2222-2222-2222-222222222222", "--label", "env=dev", "--idle-timeout", "2m", "--on-idle-timeout", "pause",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
@@ -455,6 +460,7 @@ func TestSandboxStart_macosRouteAndWait(t *testing.T) {
 	id := testMacSandboxID
 	stdout, _, err := runCLI(t, []string{"sandbox", "start", id}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+		macReservationsRead("region-b", "active"),
 		{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
 		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "macos", "running")},
 	})
@@ -467,9 +473,10 @@ func TestSandboxDelete_macosRoute(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "delete", id, "--yes", "--no-wait"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
 		{method: http.MethodDelete, path: "/sandboxes/" + id, status: 202, response: `{"status":"deleting","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 404, response: `{"code":"NOT_FOUND","message":"sandbox deleted","source":"DAYTONA_API"}`},
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, requireJSONStdout(t, stdout))
+	require.JSONEq(t, `{"status":"deleting","id":"`+id+`"}`, stdout)
 }
 
 func TestSandboxWait_macos(t *testing.T) {
@@ -606,4 +613,81 @@ func TestSandboxUpdate_fileLabelsDifferingOnlyInCase(t *testing.T) {
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 	})
 	require.NoError(t, err)
+}
+
+// macReservationsRead answers the reservation read of a macOS start with one
+// reservation in region, in status.
+func macReservationsRead(region, status string) expectedRequest {
+	reservation := strings.Replace(macReservationFixture(`"m4-10c-16g"`, m4Capacity), `"region_id":"region-a","status":"active"`, `"region_id":"`+region+`","status":"`+status+`"`, 1)
+	return expectedRequest{method: http.MethodGet, path: "/reservations", query: "limit=200", status: 200, response: `{"reservations":[` + reservation + `]}`}
+}
+
+func TestSandboxStart_macosAsksBeforeAutoReserveCanBuy(t *testing.T) {
+	id := testMacSandboxID
+	stopped := expectedRequest{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")}
+	for name, read := range map[string]expectedRequest{
+		"another region": macReservationsRead("region-a", "active"),
+		"only an ending": macReservationsRead("region-b", "ending"),
+		"unreadable":     {method: http.MethodGet, path: "/reservations", query: "limit=200", status: 403, response: `{"code":"FORBIDDEN","message":"missing read:reservations","source":"DAYTONA_API"}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			// Off a terminal without --yes: refused after the reservation read
+			// and before any start request.
+			readDone := false
+			read.check = func(*testing.T, *http.Request, []byte) { readDone = true }
+			_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{stopped, read})
+			require.True(t, readDone, "the reservations were not read before the refusal")
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+			require.Contains(t, err.Error(), "24-hour Mac reservation in region-b")
+		})
+	}
+}
+
+func TestSandboxStart_macosYesSkipsTheReservationRead(t *testing.T) {
+	id := testMacSandboxID
+	_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait", "--yes"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "pending")},
+	})
+	require.NoError(t, err)
+}
+
+func TestSandboxStart_linuxReadsNoReservations(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "stopped")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "pending")},
+	})
+	require.NoError(t, err)
+}
+
+func TestSandboxStart_macosFindsALiveReservationOnALaterPage(t *testing.T) {
+	id := testMacSandboxID
+	elsewhere := strings.Replace(macReservationFixture(`"m4-10c-16g"`, m4Capacity), `"region_id":"region-a"`, `"region_id":"region-c"`, 1)
+	_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+		{method: http.MethodGet, path: "/reservations", query: "limit=200", status: 200, response: `{"reservations":[` + elsewhere + `],"next_cursor":"page-2"}`},
+		{method: http.MethodGet, path: "/reservations", query: "cursor=page-2&limit=200", status: 200, response: `{"reservations":[` + strings.Replace(macReservationFixture(`"m4-10c-16g"`, m4Capacity), `"region_id":"region-a"`, `"region_id":"region-b"`, 1) + `]}`},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "pending")},
+	})
+	require.NoError(t, err)
+}
+
+func TestSandboxStart_macosPendingReservationsAreLive(t *testing.T) {
+	id := testMacSandboxID
+	for _, status := range []string{"pending_charge", "pending_mac", "active"} {
+		t.Run(status, func(t *testing.T) {
+			_, _, err := runCLI(t, []string{"sandbox", "start", id, "--no-wait"}, []expectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+				macReservationsRead("region-b", status),
+				{method: http.MethodPost, path: "/sandboxes/" + id + "/start", status: 202, response: `{"status":"pending","id":"` + id + `"}`},
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "pending")},
+			})
+			require.NoError(t, err)
+		})
+	}
 }

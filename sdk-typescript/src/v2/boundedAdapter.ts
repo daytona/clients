@@ -145,7 +145,8 @@ async function fetchAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
       body,
       signal: controller.signal,
       credentials: config.withCredentials === true ? 'include' : 'omit',
-      redirect: 'follow',
+      // The SDK follows no redirect: a 3xx is a typed error (as Python).
+      redirect: 'manual',
     })
   } catch (error) {
     done()
@@ -234,7 +235,7 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
     // The idle bound is enforced on a body this adapter reads; a streamed
     // response is read by the caller, so it cannot be a transfer here.
     if ((config as InternalAxiosRequestConfig & { daytona?: TransferMeta }).daytona?.transfer === true) throw streamTransferError()
-    if (http) return base(config)
+    if (http) return base({ ...config, maxRedirects: 0 })
     const streamed = await fetchAdapter(config)
     const accepts = config.validateStatus
     if (accepts === null || accepts === undefined || accepts(streamed.status)) return streamed
@@ -253,6 +254,8 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
     ...config,
     responseType: 'stream',
     maxContentLength: -1,
+    // The SDK follows no redirect: a 3xx is a typed error (as Python).
+    maxRedirects: 0,
     validateStatus: () => true,
     signal: watchdog?.signal ?? config.signal,
   }
@@ -292,7 +295,7 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
       const destroy = (response.request as { destroy?: () => void } | undefined)?.destroy
       if (typeof destroy === 'function') destroy.call(response.request)
     }
-    const tooLarge = (): AxiosError => response.status >= 400
+    const tooLarge = (): AxiosError => response.status >= 300
       ? new AxiosError(tooLargeErrorStatusMessage(response.status, limit), response.status >= 500 ? AxiosError.ERR_BAD_RESPONSE : AxiosError.ERR_BAD_REQUEST, config, response.request, { ...response, config, data: undefined })
       : new AxiosError(tooLargeMessage(limit), PAYLOAD_TOO_LARGE_AXIOS_CODE, config, response.request)
     let bytes: Uint8Array

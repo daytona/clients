@@ -23,6 +23,10 @@ namespaces (`process`, `interpreter`, `fs`, `git`, `ports`, `lsp`, and so on)
 have the same structure and the same method set in both languages. Compare
 [`../../sdk-python/src/daytona/v2/sandbox.py`](../../sdk-python/src/daytona/v2/sandbox.py)
 with [`../../sdk-typescript/src/v2/Sandbox.ts`](../../sdk-typescript/src/v2/Sandbox.ts).
+2.0 shipped with one exception: TypeScript's `ImageBuilder` had `user()`,
+`cmd()` and `entrypoint()`, which it offered before this rule was enforced
+and Python lacked. Python gained them with the builder's local files
+([0006](0006-image-builder-local-context.md)), which closed the exception.
 
 **Naming follows each language.** Python uses `snake_case` and keyword-only
 arguments; TypeScript uses `camelCase` and options objects. Durations are in
@@ -92,6 +96,30 @@ HTTP boundary only: a test in each SDK fails when a public export or a type in
 a public signature comes from them, apart from an explicit list of remaining
 exceptions that only shrinks.
 
+**SDK-owned models, one lifecycle contract.** The data values the SDKs
+return to callers (sandbox metadata, images, snapshots, volumes, secrets,
+reservations, links, tokens, list and search pages) are written by hand and
+immutable in both SDKs, with the same fields: frozen, keyword-only
+dataclasses in Python; readonly interfaces and model classes in TypeScript,
+deep-frozen at run time. Other public TypeScript types are not covered by
+this rule: options and configuration types the caller builds, and the
+toolbox area's types (`ProcessDto`, `LogFrame`, `ProcessHandleJSON`, …),
+which keep mutable fields until their area adopts it. The configuration
+types differ only where recorded (TypeScript's `otelApi`, which takes the
+caller's `@opentelemetry/api` module and has no Python counterpart). Two Python
+configuration classes are the exceptions to keyword-only: `DaytonaConfig`
+takes `api_key` positionally and `SandboxEventsConfig` takes its fields
+positionally. Because they can be built positionally, their field order is
+public and can't change in 2.x. The
+`ListResult` / `SearchResult` page envelopes are keyword-only dataclasses too
+and aren't iterable: `.items` is the one way to the entries. Lifecycle methods
+wait for the state they ask for (`stop()` for `stopped`, `delete()` for
+`destroyed`) with a 60-second default budget, `0` meaning no deadline;
+`create*()` and `fork()` return their handle however their wait ends and
+leave reading the state to the caller. A sandbox handle serializes to the
+same camelCase `SandboxHandleJSON` in both SDKs, so a snapshot written by one
+reads the same in the other.
+
 **Python is async-native, with a generated sync surface.** Python code is
 written once, as `async def` methods on classes named `Async*`
 (`AsyncDaytona`, `AsyncSandbox`). The synchronous surface (`Daytona`,
@@ -159,3 +187,6 @@ public with `'unknown'`, gives both safety and type precision.
   a value. Code that switches over an enum field should handle `'unknown'`.
 - Adding a value to a public enum is additive. Removing one, or making an open
   enum exact, is a breaking change.
+- Frozen models, page envelopes that aren't iterable (`.items` is the one way
+  in) and the positional fields of `DaytonaConfig` / `SandboxEventsConfig` are
+  fixed for 2.x. Changing any of them waits for the next major version.

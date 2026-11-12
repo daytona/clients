@@ -209,7 +209,7 @@ async def test_run_returns_the_collected_log_frames() -> None:
     )
     result = await AsyncProcessService("sbx", transport).run("echo ok")  # type: ignore[arg-type]
 
-    assert result.logs == [LogFrame(cursor="1", channel="stdout", data="ok", timestamp_ms=5)]
+    assert result.logs == (LogFrame(cursor="1", channel="stdout", data="ok", timestamp_ms=5),)
     assert (result.reason, result.exit_code, result.stdout) == ("exited", 0, "ok")
     assert isinstance(result, WaitResult)
 
@@ -246,11 +246,95 @@ async def test_pty_start_nests_the_terminal_size_and_defaults_to_80_by_24(
         "user": "dev",
         "shell": "zsh",
         "login": True,
+        "env": {"TERM": "xterm-256color"},
         "stdin": "open",
         "timeoutMs": 2500,
         "keepLogs": "until_cleanup",
         "terminal": expected,
     }
+
+
+# Shared with the TypeScript SDK's unit.test.ts: a PTY gets TERM=xterm-256color
+# unless the caller's env sets TERM.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        ({"A": "1"}, {"TERM": "xterm-256color", "A": "1"}),
+        ({"TERM": "linux"}, {"TERM": "linux"}),
+    ],
+)
+async def test_pty_start_sends_a_default_term(env: dict[str, str], expected: dict[str, str]) -> None:
+    transport = Transport([_process(kind="pty")])
+    pty = AsyncPtyService(AsyncProcessService("sbx", transport))  # type: ignore[arg-type]
+
+    await pty.start(env=env)
+
+    body = transport.specs[0].json_body
+    assert isinstance(body, dict) and body["env"] == expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("env", [["A=1"], {"A": 1}, {1: "a"}])
+async def test_process_starts_refuse_an_env_that_is_not_strings(env: object) -> None:
+    transport = Transport()
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    for call in (
+        lambda: AsyncPtyService(process).start(env=env),  # type: ignore[arg-type]
+        lambda: process.start("true", env=env),  # type: ignore[arg-type]
+        lambda: process.run("true", env=env),  # type: ignore[arg-type]
+    ):
+        with pytest.raises(BadRequestError, match="^env must be a mapping of strings to strings$"):
+            await call()
+    assert transport.specs == []
+
+
+# Shared with the TypeScript SDK's unit.test.ts: execution_timeout=0 means no
+# deadline, so timeoutMs is omitted (as above the timer maximum).
+@pytest.mark.anyio
+@pytest.mark.parametrize("execution_timeout", [0, 0.0, 10**9])
+async def test_execution_timeout_zero_sends_no_deadline(execution_timeout: float) -> None:
+    transport = Transport([_process(), _process(kind="pty"), _process()])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    await process.start("sleep 1", execution_timeout=execution_timeout)
+    await AsyncPtyService(process).start(execution_timeout=execution_timeout)
+    await process.connect_session("shell-1").start("sleep 1", execution_timeout=execution_timeout)
+
+    for spec in transport.specs:
+        assert isinstance(spec.json_body, dict) and "timeoutMs" not in spec.json_body
+
+
+# Shared with the TypeScript SDK's unit.test.ts: run() returns no handle to
+# write to, so stdin="open" is refused before any request; start() keeps it.
+@pytest.mark.anyio
+async def test_blocking_runs_refuse_open_stdin() -> None:
+    transport = Transport()
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+    session = process.connect_session("shell-1")
+    for call in (
+        lambda: process.run("cat", stdin="open"),
+        lambda: session.run("cat", stdin="open"),
+    ):
+        with pytest.raises(BadRequestError, match="stdin='open' is not supported by run") as info:
+            await call()
+        assert (info.value.status_code, info.value.code, info.value.source) == (400, "BAD_REQUEST", "SDK")
+    assert transport.specs == []
+
+
+# Shared with the TypeScript SDK's unit.test.ts: start() sends one explicit
+# keep_logs default, whether or not the process is named.
+@pytest.mark.anyio
+@pytest.mark.parametrize("name", [None, "job"])
+async def test_start_sends_an_explicit_keep_logs_default(name: Optional[str]) -> None:
+    transport = Transport([_process(), _process()])
+    process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    await process.start("true", name=name)
+    await process.connect_session("shell-1").start("true", name=name)
+
+    for spec in transport.specs:
+        assert isinstance(spec.json_body, dict) and spec.json_body["keepLogs"] == "on_exit_ttl"
 
 
 @pytest.mark.anyio
@@ -318,17 +402,17 @@ async def test_git_results_are_sdk_models() -> None:
         ahead=1,
         behind=0,
         branch_published=True,
-        file_status=[GitFileStatus(name="README.md", staging="M", worktree=" ", extra="")],
+        file_status=(GitFileStatus(name="README.md", staging="M", worktree=" ", extra=""),),
     )
-    assert (await git.history("/repo")).items == [
+    assert (await git.history("/repo")).items == (
         GitCommit(
             hash="h",
             message="m",
             author="A",
             email="a@example.invalid",
             timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        )
-    ]
+        ),
+    )
     with pytest.raises(BadRequestError, match="git status response"):
         await git.status("/repo")
 
@@ -358,12 +442,12 @@ async def test_lsp_completions_return_sdk_models_and_send_a_typed_context() -> N
         context=LspCompletionContext(trigger_kind=2, trigger_character="."),
     )
 
-    assert completions.items == [
+    assert completions.items == (
         LspCompletionItem(label="plain", kind=3, documentation="text"),
         LspCompletionItem(
             label="rich", documentation=LspMarkupContent(kind="markdown", value="**x**"), sort_text="a"
         ),
-    ]
+    )
     assert transport.specs[0].json_body == {
         "languageId": "python",
         "pathToProject": "/p",
@@ -920,7 +1004,7 @@ async def test_logs_returns_the_contract_page() -> None:
     page = await handle.logs()
 
     assert page == LogPage(
-        items=[LogFrame(cursor="c1", channel="stdout", data="x", timestamp_ms=1)],
+        items=(LogFrame(cursor="c1", channel="stdout", data="x", timestamp_ms=1),),
         next_cursor="c1",
         truncated_head=True,
         eof=False,
@@ -957,7 +1041,7 @@ async def test_write_many_returns_sdk_models() -> None:
     )  # type: ignore[arg-type]
 
     assert await fs.write_many({"/a": b"x"}) == BulkWriteResult(
-        files=[BulkWriteFile(path="/a", bytes=1)], errors=["b"]
+        files=(BulkWriteFile(path="/a", bytes=1),), errors=("b",)
     )
 
 
@@ -998,6 +1082,10 @@ async def test_malformed_filesystem_results_name_the_field(
         "2026-01-01T00:00:00",
         "Jan 1 2026",
         "0000-01-01T00:00:00Z",
+        # One rule for every timestamp both SDKs read: `T` (or `t`) joins date and time.
+        "0099-06-01 12:00:00+00:00",
+        # ASCII digits only.
+        "\u0662\u0660\u0662\u0666-01-01T00:00:00Z",
     ],
 )
 def test_timestamps_reject_what_is_not_rfc_3339_like_the_typescript_sdk(value: str) -> None:
@@ -1012,7 +1100,7 @@ def test_timestamps_reject_what_is_not_rfc_3339_like_the_typescript_sdk(value: s
     [
         ("2026-01-01T00:00:00.123456789Z", datetime(2026, 1, 1, 0, 0, 0, 123456, tzinfo=timezone.utc)),
         ("0001-01-01t00:00:00z", datetime(1, 1, 1, tzinfo=timezone.utc)),
-        ("0099-06-01 12:00:00+00:00", datetime(99, 6, 1, 12, tzinfo=timezone.utc)),
+        ("0099-06-01T12:00:00+00:00", datetime(99, 6, 1, 12, tzinfo=timezone.utc)),
     ],
 )
 def test_timestamps_accept_rfc_3339_variants_like_the_typescript_sdk(value: str, expected: datetime) -> None:
@@ -1315,7 +1403,7 @@ def test_read_many_reads_a_contract_error_part() -> None:
         _error_part(b'{"path": "/a", "message": "missing", "code": "FILE_NOT_FOUND"}')
     )
 
-    assert result.errors == [BulkReadError(path="/a", message="missing", code="FILE_NOT_FOUND", source=None)]
+    assert result.errors == (BulkReadError(path="/a", message="missing", code="FILE_NOT_FOUND", source=None),)
 
 
 @pytest.mark.anyio
@@ -1339,7 +1427,7 @@ def test_read_many_reads_a_contract_error_part() -> None:
         ("start", {"message": "ok", "status": {"wm": "x"}}, "status must be a map of process statuses"),
         ("glob", ["/a"], "expected glob response"),
         ("glob", {"items": ["/a"]}, "glob response: files is required"),
-        ("glob", {"files": [42]}, "files must be a list of strings"),
+        ("glob", {"files": [42]}, r"files\[0\] must be a string"),
     ],
 )
 async def test_response_paths_reject_what_breaks_the_contract(
@@ -1509,6 +1597,16 @@ def test_connect_context_refuses_an_identity_it_could_not_write_back(
         interpreter.connect_context(context_id, language=language)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize("context_id", ["  ", "\t\u2028", "a\ud800b"])
+def test_connect_context_refuses_an_id_it_could_not_close(context_id: str) -> None:
+    # Closing deletes the context through its path id: one that could not be
+    # closed is not bound either (twin in unit.test.ts).
+    interpreter = AsyncInterpreterService("sbx", Transport(), AsyncProcessService("sbx", Transport()))  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="^interpreter context id must "):
+        interpreter.connect_context(context_id, language="python")
+
+
 def test_a_reconnected_context_identity_round_trips() -> None:
     interpreter = AsyncInterpreterService("sbx", Transport(), AsyncProcessService("sbx", Transport()))  # type: ignore[arg-type]
 
@@ -1672,7 +1770,6 @@ def test_read_many_refuses_a_file_part_with_a_bad_filename_star(filename: str) -
         None,
         "",
         {"sandboxId": "sbx", "contextId": "", "language": "python"},
-        {"sandbox_id": "sbx", "context_id": "", "language": "python"},
     ],
 )
 async def test_delete_context_refuses_an_id_that_is_not_a_non_empty_string(context: object) -> None:
@@ -2539,17 +2636,17 @@ async def test_dot_segments_are_refused_as_path_ids_before_any_request(
 
 
 # Shared with the TypeScript SDK's unit.test.ts: terminal cols / rows are
-# int32 values of at least 1, on pty.start() and resize().
+# integers from 1 to 65535, on pty.start() and resize().
 @pytest.mark.anyio
-@pytest.mark.parametrize("bad", [0, -1, 1.5, True, 2**31, "80"])
+@pytest.mark.parametrize("bad", [0, -1, 1.5, True, 65536, 2**31, "80"])
 @pytest.mark.parametrize("field", ["cols", "rows"])
-async def test_terminal_dimensions_are_positive_int32(bad: object, field: str) -> None:
+async def test_terminal_dimensions_are_from_1_to_65535(bad: object, field: str) -> None:
     from daytona.v2.types import TerminalSize
 
     sizes = {"cols": 80, "rows": 24, field: bad}
     transport = Transport()
     process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
-    message = rf"{field} must be an integer between 1 and 2147483647"
+    message = rf"{field} must be an integer between 1 and 65535"
     with pytest.raises(BadRequestError, match=message):
         await AsyncPtyService(process).start(terminal=TerminalSize(**sizes))  # type: ignore[arg-type]
     handle = process.connect({"sandboxId": "sbx", "processId": "p", "kind": "pty"})
@@ -2559,14 +2656,17 @@ async def test_terminal_dimensions_are_positive_int32(bad: object, field: str) -
 
 
 @pytest.mark.anyio
-async def test_terminal_dimensions_up_to_int32_are_sent() -> None:
+async def test_terminal_dimensions_up_to_65535_are_sent() -> None:
     from daytona.v2.types import TerminalSize
 
-    transport = Transport([_process(kind="pty")])
+    transport = Transport([_process(kind="pty"), _process(kind="pty")])
     process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
-    await AsyncPtyService(process).start(terminal=TerminalSize(cols=1, rows=2**31 - 1))
+    await AsyncPtyService(process).start(terminal=TerminalSize(cols=1, rows=65535))
     body = transport.specs[0].json_body
-    assert isinstance(body, dict) and body["terminal"] == {"cols": 1, "rows": 2**31 - 1}
+    assert isinstance(body, dict) and body["terminal"] == {"cols": 1, "rows": 65535}
+    handle = process.connect({"sandboxId": "sbx", "processId": "p", "kind": "pty"})
+    await handle.resize(65535, 1)
+    assert transport.specs[1].json_body == {"cols": 65535, "rows": 1}
 
 
 @pytest.mark.parametrize(
@@ -2650,6 +2750,43 @@ async def test_a_surrogate_code_point_is_refused_as_a_path_id(bad: str) -> None:
         await AsyncProcessService("sbx", transport).get(bad)  # type: ignore[arg-type]
     with pytest.raises(BadRequestError, match="recording id must not contain a surrogate code point"):
         await AsyncComputerUseService(transport).recording.get(bad)  # type: ignore[arg-type]
+    assert transport.specs == []
+
+
+@pytest.mark.anyio
+async def test_a_toolbox_timestamp_with_a_fraction_of_a_second_is_read() -> None:
+    # A fraction is RFC 3339 too: a git commit timestamp with milliseconds is
+    # read, not refused (twin in unit.test.ts; the search-bound fixture holds
+    # the same value).
+    transport = Transport(
+        [
+            [
+                {
+                    "hash": "h",
+                    "message": "m",
+                    "author": "A",
+                    "email": "a@example.invalid",
+                    "timestamp": "2026-01-02T03:04:05.123Z",
+                }
+            ]
+        ]
+    )
+    commit = (await AsyncGitService(transport).history("/repo")).items[0]  # type: ignore[arg-type]
+    assert commit.timestamp == datetime(2026, 1, 2, 3, 4, 5, 123000, tzinfo=timezone.utc)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("blank", ["", " ", "\t\u2028"])
+async def test_a_blank_toolbox_path_id_is_refused(blank: str) -> None:
+    # One path-id check for every request path in both SDKs (path_segment):
+    # a blank toolbox id is refused as a blank client id is. Twin in unit.test.ts.
+    from daytona.v2.computer_use import AsyncComputerUseService
+
+    transport = Transport()
+    with pytest.raises(BadRequestError, match="^process id must be a non-empty string$"):
+        await AsyncProcessService("sbx", transport).get(blank)
+    with pytest.raises(BadRequestError, match="^recording id must be a non-empty string$"):
+        await AsyncComputerUseService(transport).recording.get(blank)
     assert transport.specs == []
 
 

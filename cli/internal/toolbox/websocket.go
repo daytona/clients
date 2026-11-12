@@ -5,20 +5,16 @@ package toolbox
 
 import (
 	"bufio"
-	"context"
 	"crypto/rand"
-	"crypto/sha1"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
-	"net/http"
-	"net/url"
 	"strings"
 	"sync"
-	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // maxWebSocketFrame bounds a single inbound frame: PTY output arrives in
@@ -28,86 +24,60 @@ const maxWebSocketFrame = 16 << 20
 
 const wsGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
+// WebSocketCloseError is a close frame whose status is not a normal closure
+// (1000, or no status at all): the server ended the stream early, for example
+// with a policy close (1008) for an expired cursor or a slow consumer.
+type WebSocketCloseError struct {
+	Code   int
+	Reason string
+}
+
+func (e *WebSocketCloseError) Error() string {
+	if e.Reason == "" {
+		return fmt.Sprintf("the server closed the stream (websocket close %d)", e.Code)
+	}
+	return fmt.Sprintf("the server closed the stream: %s (websocket close %d)", e.Reason, e.Code)
+}
+
+// closeFrameError reads a close frame's payload: nil for a normal closure (no
+// status, or 1000 with a valid reason), else a *WebSocketCloseError. A close
+// frame cut short, or whose reason is not UTF-8, is malformed (RFC 6455
+// section 7.1.6), whatever its status; ReadMessage refuses one longer than a
+// control frame may be before it gets here.
+func closeFrameError(payload []byte) error {
+	if len(payload) == 0 {
+		return nil
+	}
+	if len(payload) < 2 || !utf8.Valid(payload[2:]) {
+		return &WebSocketCloseError{Code: 1002, Reason: "malformed close frame"}
+	}
+	code := int(binary.BigEndian.Uint16(payload[:2]))
+	if code == 1000 {
+		return nil
+	}
+	// The reason is the server's text: printable characters only.
+	reason := strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) {
+			return r
+		}
+		return -1
+	}, string(payload[2:]))
+	return &WebSocketCloseError{Code: code, Reason: reason}
+}
+
 type WebSocketConn struct {
 	conn net.Conn
 	r    *bufio.Reader
 	wmu  sync.Mutex
 }
 
-// dialWebSocket opens a WebSocket; decorate (optional) may add headers to the
-// handshake request. Production callers go through Client.AttachWebSocket,
-// which passes the client-identity triple — dial from there, not from here.
-func dialWebSocket(ctx context.Context, rawURL string, decorate func(*http.Request)) (*WebSocketConn, error) {
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, fmt.Errorf("parse websocket URL: %w", err)
-	}
-	switch parsed.Scheme {
-	case "http":
-		parsed.Scheme = "ws"
-	case "https":
-		parsed.Scheme = "wss"
-	case "ws", "wss":
-	default:
-		return nil, fmt.Errorf("unsupported websocket scheme %q", parsed.Scheme)
-	}
-	conn, err := dialWebSocketConn(ctx, parsed)
-	if err != nil {
-		return nil, err
-	}
-	reader := bufio.NewReader(conn)
-	key, err := randomWebSocketKey()
-	if err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
-	if err != nil {
-		_ = conn.Close()
-		return nil, fmt.Errorf("build websocket request: %w", err)
-	}
-	req.Header.Set("Host", parsed.Host)
-	req.Header.Set("Connection", "Upgrade")
-	req.Header.Set("Upgrade", "websocket")
-	req.Header.Set("Sec-WebSocket-Version", "13")
-	req.Header.Set("Sec-WebSocket-Key", key)
-	if decorate != nil {
-		decorate(req)
-	}
-	if err := req.Write(conn); err != nil {
-		_ = conn.Close()
-		return nil, fmt.Errorf("write websocket handshake: %w", err)
-	}
-	resp, err := http.ReadResponse(reader, req)
-	if err != nil {
-		_ = conn.Close()
-		return nil, fmt.Errorf("read websocket handshake: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusSwitchingProtocols {
-		_ = conn.Close()
-		return nil, fmt.Errorf("websocket handshake failed: %s", resp.Status)
-	}
-	if !strings.EqualFold(resp.Header.Get("Upgrade"), "websocket") {
-		_ = conn.Close()
-		return nil, fmt.Errorf("websocket handshake failed: missing Upgrade: websocket")
-	}
-	if !strings.EqualFold(resp.Header.Get("Connection"), "Upgrade") {
-		_ = conn.Close()
-		return nil, fmt.Errorf("websocket handshake failed: missing Connection: Upgrade")
-	}
-	if resp.Header.Get("Sec-WebSocket-Accept") != expectedWebSocketAccept(key) {
-		_ = conn.Close()
-		return nil, fmt.Errorf("websocket handshake failed: bad accept key")
-	}
-	return &WebSocketConn{conn: conn, r: reader}, nil
-}
-
 // ReadMessage returns the next complete data message, reassembling
 // fragments (RFC 6455 section 5.4). Fragment state is an explicit flag, not the
 // buffer length: a fragment may legally be EMPTY, so `len(message)` cannot
 // tell "no message in progress" from "first fragment carried no bytes".
-// Control frames (ping/pong/close) may interleave with the fragments.
+// Control frames (ping/pong/close) may interleave with the fragments. A close
+// frame with a normal status (1000, or none) ends the stream with io.EOF; any
+// other status is a *WebSocketCloseError.
 func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 	var (
 		inFragment bool
@@ -116,7 +86,22 @@ func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 	for {
 		fin, opcode, payload, err := c.readFrame()
 		if err != nil {
+			// EOF is reserved for an actual WebSocket close frame. A peer
+			// dropping TCP has not confirmed the process stream completed.
+			if errors.Is(err, io.EOF) {
+				return nil, io.ErrUnexpectedEOF
+			}
 			return nil, err
+		}
+		// Control frames (close, ping, pong) are never fragmented and carry at
+		// most 125 bytes (RFC 6455 section 5.5).
+		if opcode >= 0x8 && (!fin || len(payload) > 125) {
+			_ = c.Close()
+			reason := "fragmented control frame"
+			if fin {
+				reason = "oversized control frame"
+			}
+			return nil, &WebSocketCloseError{Code: 1002, Reason: reason}
 		}
 		switch opcode {
 		case 0x1, 0x2:
@@ -130,6 +115,9 @@ func (c *WebSocketConn) ReadMessage() ([]byte, error) {
 			message = append(message[:0], payload...)
 		case 0x8:
 			_ = c.Close()
+			if err := closeFrameError(payload); err != nil {
+				return nil, err
+			}
 			return nil, io.EOF
 		case 0x9:
 			if err := c.writeFrame(0xA, payload); err != nil {
@@ -235,39 +223,6 @@ func (c *WebSocketConn) writeFrame(opcode byte, payload []byte) error {
 		return err
 	}
 	return nil
-}
-
-func dialWebSocketConn(ctx context.Context, parsed *url.URL) (net.Conn, error) {
-	dialer := &net.Dialer{Timeout: 30 * time.Second}
-	host := websocketDialAddress(parsed)
-	if parsed.Scheme == "wss" {
-		return (&tls.Dialer{NetDialer: dialer, Config: &tls.Config{ServerName: parsed.Hostname()}}).DialContext(ctx, "tcp", host)
-	}
-	return dialer.DialContext(ctx, "tcp", host)
-}
-
-func websocketDialAddress(parsed *url.URL) string {
-	if parsed.Port() != "" {
-		return parsed.Host
-	}
-	defaultPort := "80"
-	if parsed.Scheme == "wss" {
-		defaultPort = "443"
-	}
-	return net.JoinHostPort(parsed.Hostname(), defaultPort)
-}
-
-func randomWebSocketKey() (string, error) {
-	var raw [16]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", fmt.Errorf("generate websocket key: %w", err)
-	}
-	return base64.StdEncoding.EncodeToString(raw[:]), nil
-}
-
-func expectedWebSocketAccept(key string) string {
-	sum := sha1.Sum([]byte(key + wsGUID))
-	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
 func websocketPayloadLength(r io.Reader, lengthByte byte) (int, error) {

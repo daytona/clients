@@ -27,13 +27,15 @@ processes, files, Git, code execution, ports, LSP and computer use.
 
 ## The shared V2 model (both languages, one shape)
 
-- **Serializable handles.** `Sandbox` and `ProcessHandle` reconstruct from
-  plain JSON — built for RL rollouts that fan work across workers. A
-  rehydrated `kind:"code"` process handle can still replay logs and wait/kill,
-  but it does not reconstruct a decomposed `InterpreterResult` on another
-  worker.
+- **Serializable handles.** `sandbox.to_json()` / `toJSON()` returns a
+  `SandboxHandleJSON`: a credential-free snapshot of the sandbox's metadata,
+  the same in both SDKs. Another worker reconnects with `d.v2.get(id)`; a
+  process reconnects with `sandbox.process.connect(...)` — built for RL
+  rollouts that fan work across workers. A reconnected code process (`ProcessKind` `code`)
+  handle can still replay logs and wait/kill, but it does not reconstruct a
+  decomposed `InterpreterResult` on another worker.
 - **Detached vs awaited, typed apart.** `start()` → handle; `run()` → result.
-- **Shareable volumes.** The v2 client exposes `volume.create/get/list/delete`,
+- **Shareable volumes.** The v2 client exposes `volumes.create/get/list/delete`,
   with explicit `iter()` traversal for all pages. Attach volumes using the
   `volumes` create option and refresh mounted data with `sandbox.volumes.pull()`.
   The CLI exposes the `volume` command group and `--volume` on Linux and macOS
@@ -84,10 +86,10 @@ processes, files, Git, code execution, ports, LSP and computer use.
   `version: 2` field out of write input. The API rejects unsupported sandbox
   configurations.
 - **Runtime-managed sandbox secret attachments use the same compare-and-swap shape.**
-  Both SDKs expose sandbox-handle `get_secrets` / `replace_secrets`
-  (Python) and `getSecrets` / `replaceSecrets` (TypeScript), plus root-client
-  `get_sandbox_secrets` / `replace_sandbox_secrets` and `getSandboxSecrets` /
-  `replaceSandboxSecrets`, for `GET|PUT /sandboxes/{id}/secrets`. Responses carry
+  Both SDKs expose them on the sandbox handle: Python `sandbox.get_secrets()` /
+  `sandbox.replace_secrets(secrets=..., if_match=...)`, TypeScript
+  `sandbox.getSecrets()` / `sandbox.replaceSecrets(secrets, { ifMatch })`, for
+  `GET|PUT /sandboxes/{id}/secrets`. Responses carry
   the desired secret names, desired/applied revision state, the quoted desired
   ETag, the apply `status` (`pending`/`applied`/`failed`) with its `error`, and
   capture metadata; writes are full replacement only,

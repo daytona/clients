@@ -16,23 +16,22 @@ from typing import Iterator, Literal, Optional
 from .. import services as _async
 from .._bridge import SyncBridge
 from ..services import *
-from ..services import _EventCallback, _LogsCallback
 
 
-class ImageService:
+class ImagesService:
     """Image build/pull/list namespace."""
 
-    _async_type = _async.AsyncImageService
+    _async_type = _async.AsyncImagesService
 
-    def __init__(self, impl: _async.AsyncImageService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncImagesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"ImageService({self._impl!r})"
+        return f"ImagesService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, ImageService) and other._impl == self._impl
+        return isinstance(other, ImagesService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -45,13 +44,79 @@ class ImageService:
         name: Optional[str] = None,
         idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
-        cpu_arch: Optional[str] = None,
-        timeout: Optional[float] = None,
+        cpu_arch: Optional[CpuArch] = None,
     ) -> Image:
-        """Build (or import) an image from an :class:`ImageBuilder` declaration."""
+        """Build (or import) an image from an :class:`ImageBuilder` declaration.
+
+        The builder is the only way to say WHAT to build — ``ImageBuilder.
+        from_dockerfile(...)``, ``.from_registry(...)``, or the fluent
+        ``.run_commands`` / ``.env`` / ``.workdir`` chain — in both SDKs
+        (parity with TypeScript's ``images.build(builder, options)``). ``name``
+        omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
+        idle-retention window — deleted once that long has passed without a
+        sandbox being created from it (every create restarts the clock);
+        omitted ⇒ the maximum retention supported by the API. A ``name`` may
+        not start with a resource id prefix (``img_``, ``snap_``, ``sbx_``,
+        ``vol_``, ``fn_``; :class:`ImageNameReservedError`). A name that already
+        exists for different content or import options raises
+        :class:`ImageNameTakenError` and changes nothing; an identical named
+        import returns the existing image (a failed one is imported again).
+        ``region``
+        follows create's rule: omitted, blank or ``local`` (any case, any
+        surrounding whitespace) uses the project's default region and sends no
+        ``region_id``; any other value is sent as given and must be printable
+        ASCII with no leading or trailing whitespace. The submission is an
+        ordinary request, bounded by the client's request timeout; it returns
+        without waiting for the build (``get(image.id, wait="ready")``).
+        Local files recorded by the builder are read at build time, archived
+        deterministically and uploaded as a build context before submission.
+        Each upload part fails once no bytes move for the client's request
+        timeout (``0``: never); each completion attempt uses the greater of
+        that timeout and 600 seconds (``0``: no bound). No total deadline
+        bounds the upload.
+        With local files, ``name`` and ``idle_expiry_seconds`` cannot be
+        combined: idle expiry applies only to anonymous images.
+        """
         return self._bridge.call(
             lambda: self._impl.build(
-                builder,
+                builder, name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
+            )
+        )
+
+    def build_from_context(
+        self,
+        context: BuildContext,
+        /,
+        *,
+        dockerfile: str = "Dockerfile",
+        name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
+        region: Optional[str] = None,
+        cpu_arch: Optional[CpuArch] = None,
+        timeout: Optional[float] = None,
+    ) -> Image:
+        """Build an image from a directory or a build-context tar archive.
+
+        ``context`` is a directory path, archive bytes or the path of a ``.tar``
+        file, up to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it.
+        Directories are archived deterministically with BuildKit ignore rules:
+        ``<dockerfile>.dockerignore`` takes precedence over ``.dockerignore``.
+        The Dockerfile and the ignore files are always included. The archive
+        is uploaded straight to storage in parts and verified by the API
+        before the build starts; an identical archive the project already
+        uploaded is reused without uploading it again. The other arguments
+        are those of :meth:`build`. ``name`` and ``idle_expiry_seconds``
+        cannot be combined: idle expiry applies only to anonymous images.
+        ``timeout`` bounds the build request that follows the upload, in
+        seconds, replacing the client's request timeout for it; ``0``, or a
+        value above about 24.8 days, is no limit. The upload keeps its own
+        bounds. Returns as soon as the build is submitted; wait with
+        :meth:`get` (``wait="ready"``).
+        """
+        return self._bridge.call(
+            lambda: self._impl.build_from_context(
+                context,
+                dockerfile=dockerfile,
                 name=name,
                 idle_expiry_seconds=idle_expiry_seconds,
                 region=region,
@@ -60,19 +125,23 @@ class ImageService:
             )
         )
 
-    def delete(self, image_id: str) -> None:
+    def delete(self, image_id: str, /) -> None:
         return self._bridge.call(lambda: self._impl.delete(image_id))
 
     def follow_build_logs(
         self,
         image_id: str,
+        /,
         *,
-        on_logs: _LogsCallback,
-        on_event: Optional[_EventCallback] = None,
+        on_logs: BuildLogsCallback,
+        on_event: Optional[BuildLogEventCallback] = None,
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe a submitted image build. Timeout is in seconds, not execution TTL."""
+        """Observe a submitted image build. ``timeout`` is the observation budget
+        in seconds (not an execution TTL); omitted, ``0`` or a value above about
+        24.8 days adds no deadline.
+        """
         return self._bridge.call(
             lambda: self._impl.follow_build_logs(
                 image_id, on_logs=on_logs, on_event=on_event, cursor=cursor, timeout=timeout
@@ -80,8 +149,18 @@ class ImageService:
         )
 
     def get(
-        self, image_id: str, *, wait: Literal["ready"] | None = None, timeout: Optional[float] = None
+        self, image_id: str, /, *, wait: Literal["ready"] | None = None, timeout: Optional[float] = None
     ) -> Image:
+        """Fetch an image; ``wait="ready"`` waits for it to finish building.
+
+        With a positive ``timeout`` (seconds) the wait repeats the server's
+        long poll (each at most 60 s) until the image is ``ready``, ``failed``
+        or ``error`` and returns it (check its status); a budget above the
+        timer maximum waits without a deadline. A budget that runs out first
+        raises :class:`RequestTimeoutError`. Without one (omitted or ``0``), a
+        single long poll of the server's default length returns what the
+        server reports.
+        """
         return self._bridge.call(lambda: self._impl.get(image_id, wait=wait, timeout=timeout))
 
     def iter(
@@ -115,7 +194,13 @@ class ImageService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> ListResult[Image]:
-        """List images (``GET /images``)."""
+        """List images (``GET /images``).
+
+        ``platform`` picks the shared images Daytona publishes for every
+        project: ``"false"`` (the server default) lists the project's own
+        images, ``"true"`` lists only the non-deprecated platform images (the
+        default one carries ``default=True``), and ``"any"`` lists both.
+        """
         return self._bridge.call(
             lambda: self._impl.list(
                 anonymous=anonymous,
@@ -127,50 +212,77 @@ class ImageService:
             )
         )
 
-    def promote(self, image_id: str, name: str) -> Image:
-        """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``)."""
+    def promote(self, image_id: str, name: str, /) -> Image:
+        """Name an ANONYMOUS image, making it permanent (``PATCH /images/{id}``).
+
+        Promotion only: an image that already has a name answers 409 — renaming
+        a named image is not offered (sandboxes reference images by id, so a
+        rename would silently relabel every sandbox created from it). A name
+        that already exists raises :class:`ImageNameTakenError`; a reserved
+        prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
+        :class:`ImageNameReservedError`.
+        """
         return self._bridge.call(lambda: self._impl.promote(image_id, name))
 
     def pull(
         self,
         image: str,
+        /,
         *,
         name: Optional[str] = None,
+        idle_expiry_seconds: Optional[int] = None,
         region: Optional[str] = None,
+        cpu_arch: Optional[CpuArch] = None,
         wait: bool = True,
         timeout: Optional[float] = None,
     ) -> Image:
-        """Import a registry image, waiting until ready unless ``wait=False``."""
+        """Import a registry image, waiting until ready unless ``wait=False``.
+
+        Takes the same image options as :meth:`build`. ``timeout`` is the
+        total pull budget in seconds (submission and readiness); omitted,
+        zero or a value above about 24.8 days waits without a deadline. The submission is also bounded by the
+        client's request timeout. A failed import raises
+        :class:`ImageBuildFailedError` with the server's recorded error.
+        """
         return self._bridge.call(
-            lambda: self._impl.pull(image, name=name, region=region, wait=wait, timeout=timeout)
+            lambda: self._impl.pull(
+                image,
+                name=name,
+                idle_expiry_seconds=idle_expiry_seconds,
+                region=region,
+                cpu_arch=cpu_arch,
+                wait=wait,
+                timeout=timeout,
+            )
         )
 
 
-class SnapshotService:
+class SnapshotsService:
     """Sandbox snapshot namespace."""
 
-    _async_type = _async.AsyncSnapshotService
+    _async_type = _async.AsyncSnapshotsService
 
-    def __init__(self, impl: _async.AsyncSnapshotService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncSnapshotsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"SnapshotService({self._impl!r})"
+        return f"SnapshotsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, SnapshotService) and other._impl == self._impl
+        return isinstance(other, SnapshotsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def delete(self, snapshot_id: str) -> None:
+    def delete(self, snapshot_id: str, /) -> None:
         """Delete a snapshot (409 while sandboxes still depend on it)."""
         return self._bridge.call(lambda: self._impl.delete(snapshot_id))
 
     def get(
-        self, snapshot_id: str, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
+        self, snapshot_id: str, /, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
     ) -> Snapshot:
+        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does."""
         return self._bridge.call(lambda: self._impl.get(snapshot_id, wait=wait, timeout=timeout))
 
     def iter(
@@ -198,33 +310,39 @@ class SnapshotService:
         )
 
 
-class VolumeService:
+class VolumesService:
     """Volume management namespace."""
 
-    _async_type = _async.AsyncVolumeService
+    _async_type = _async.AsyncVolumesService
 
-    def __init__(self, impl: _async.AsyncVolumeService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncVolumesService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"VolumeService({self._impl!r})"
+        return f"VolumesService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, VolumeService) and other._impl == self._impl
+        return isinstance(other, VolumesService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def create(self, *, name: str, size_gib: Optional[int] = None) -> Volume:
-        """Create a volume."""
-        return self._bridge.call(lambda: self._impl.create(name=name, size_gib=size_gib))
+    def create(
+        self, *, name: str, size_gib: Optional[int] = None, type: Optional[Literal["disk", "bucket"]] = None
+    ) -> Volume:
+        """Create a volume.
 
-    def delete(self, volume_id: str, *, id_only: bool = False) -> None:
-        """Request deletion and return once the API accepts it."""
-        return self._bridge.call(lambda: self._impl.delete(volume_id, id_only=id_only))
+        ``type`` omitted lets the server choose the volume's type; ``size_gib``
+        (disk volumes only) omitted uses the server default.
+        """
+        return self._bridge.call(lambda: self._impl.create(name=name, size_gib=size_gib, type=type))
 
-    def get(self, name_or_id: str, *, create: bool = False, id_only: bool = False) -> Volume:
+    def delete(self, name_or_id: str, /, *, id_only: bool = False) -> None:
+        """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
+        return self._bridge.call(lambda: self._impl.delete(name_or_id, id_only=id_only))
+
+    def get(self, name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
         return self._bridge.call(lambda: self._impl.get(name_or_id, create=create, id_only=id_only))
 
@@ -236,29 +354,37 @@ class VolumeService:
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
 
 
-class SecretService:
-    """Project secret namespace."""
+class SecretsService:
+    """Project secret namespace.
 
-    _async_type = _async.AsyncSecretService
+    Project-scoped secrets: named key/value pairs stored
+    encrypted in the project. Attach one or more to a sandbox at creation via
+    the ``secrets`` create parameter (a list of names). Attached secrets are
+    available to outbound HTTPS requests to their allowed domains, not plain
+    HTTP requests. Their values never enter the sandbox and are never returned
+    by the API (write-only).
+    """
 
-    def __init__(self, impl: _async.AsyncSecretService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    _async_type = _async.AsyncSecretsService
+
+    def __init__(self, _impl: _async.AsyncSecretsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"SecretService({self._impl!r})"
+        return f"SecretsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, SecretService) and other._impl == self._impl
+        return isinstance(other, SecretsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def delete(self, name: str) -> None:
+    def delete(self, name: str, /) -> None:
         """Delete a secret."""
         return self._bridge.call(lambda: self._impl.delete(name))
 
-    def get(self, name: str) -> Secret:
+    def get(self, name: str, /) -> Secret:
         """Fetch one secret's metadata (never its value)."""
         return self._bridge.call(lambda: self._impl.get(name))
 
@@ -273,12 +399,23 @@ class SecretService:
         self,
         name: str,
         value: str,
+        /,
         *,
         allowed_domains: Sequence[str],
         description: Optional[str] = None,
         if_not_exists: bool = False,
     ) -> Secret:
-        """Create or update a write-only secret."""
+        """Create or update a write-only secret.
+
+        ``value`` must not be empty. ``allowed_domains``: The hosts where this
+        secret's value may be sent (exact or ``*.`` wildcard), or ``["*"]`` for
+        any verified host. ``"*"`` lets the value reach any HTTPS host,
+        including one a compromised sandbox controls. ``description`` omitted
+        (or ``None``) keeps the stored description of an existing secret, read
+        first with :meth:`get` (one more request, not atomic with the write; an
+        error from it other than not-found fails the call; no read with
+        ``if_not_exists=True``); ``""`` clears it.
+        """
         return self._bridge.call(
             lambda: self._impl.set(
                 name,
@@ -290,20 +427,29 @@ class SecretService:
         )
 
 
-class ReservationService:
-    """Dedicated-Mac reservations, which macOS sandboxes run on."""
+class ReservationsService:
+    """Dedicated-Mac reservations, which macOS sandboxes run on.
 
-    _async_type = _async.AsyncReservationService
+    A macOS sandbox runs on a Mac the organization has reserved: reserve one
+    here, or let a macOS create buy one (``reservation="new"``, or the
+    organization's auto-reserve). A reservation lasts 24-hour periods, each
+    charged when it starts. Reserving, renewing and turning auto-renew on need
+    macOS access enabled for the organization (otherwise ``403``
+    ``FEATURE_NOT_ENABLED``, raised as :class:`FeatureNotEnabledError`);
+    listing, reading and turning auto-renew off do not.
+    """
 
-    def __init__(self, impl: _async.AsyncReservationService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    _async_type = _async.AsyncReservationsService
+
+    def __init__(self, _impl: _async.AsyncReservationsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"ReservationService({self._impl!r})"
+        return f"ReservationsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, ReservationService) and other._impl == self._impl
+        return isinstance(other, ReservationsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -316,7 +462,20 @@ class ReservationService:
         idempotency_key: Optional[str] = None,
         auto_renew: Optional[bool] = None,
     ) -> MacReservation:
-        """Reserve a Mac of ``model`` in ``region``."""
+        """Reserve a Mac of ``model`` in ``region``.
+
+        ``model``: Mac model slug from GET /mac-models. Omitted uses the region's default model. An unavailable model is never upgraded.
+
+        The request always carries an ``Idempotency-Key``: ``idempotency_key``
+        when given, otherwise a random UUID the SDK generates for this call.
+        Pass your own key if you may retry, so a retry after a lost response
+        returns the same reservation instead of reserving a second Mac.
+        ``auto_renew`` defaults server-side to the organization's auto-reserve
+        setting. Raises :class:`ConflictError` with
+        ``code == "NO_MAC_AVAILABLE"`` when no Mac of that model is free in the
+        region, and :class:`LimitExceededError` (a :class:`RateLimitError`) with
+        ``limit == "max_mac_reservations"`` when the organization holds its Mac reservation limit.
+        """
         return self._bridge.call(
             lambda: self._impl.create(
                 region=region, model=model, idempotency_key=idempotency_key, auto_renew=auto_renew
@@ -333,7 +492,10 @@ class ReservationService:
         auto_renew: Optional[bool] = None,
         idempotency_key: Optional[str] = None,
     ) -> MacReservationBatch:
-        """Reserve count Macs of one model in region in one request."""
+        """Reserve count Macs of one model in region in one request.
+
+        min_count (default count) is the fewest to accept: with fewer Macs free or fewer left under the organization's Mac reservation limit, the request reserves as many as are free and fit, or none, failing with LimitExceededError (a RateLimitError) limit == "max_mac_reservations" when fewer than min_count fit under the limit (checked first), or with ConflictError code == "NO_MAC_AVAILABLE" when fewer than min_count are free. The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response returns the same reservations instead of reserving more Macs.
+        """
         return self._bridge.call(
             lambda: self._impl.create_bulk(
                 region=region,
@@ -345,7 +507,7 @@ class ReservationService:
             )
         )
 
-    def get(self, reservation_id: str) -> MacReservation:
+    def get(self, reservation_id: str, /) -> MacReservation:
         return self._bridge.call(lambda: self._impl.get(reservation_id))
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[MacReservation]:
@@ -358,29 +520,44 @@ class ReservationService:
         """One page of the organization's reservations."""
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
 
-    def renew(self, reservation_id: str, *, idempotency_key: Optional[str] = None) -> MacReservation:
-        """Renew the reservation for its next period, which the server charges."""
+    def renew(self, reservation_id: str, /, *, idempotency_key: Optional[str] = None) -> MacReservation:
+        """Renew the reservation for its next period, which the server charges.
+
+        The request always carries an Idempotency-Key: idempotency_key when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period.
+        Raises LimitExceededError (a RateLimitError) with limit == "max_mac_reservations" when the renewal would keep the organization over its Mac reservation limit.
+        """
         return self._bridge.call(lambda: self._impl.renew(reservation_id, idempotency_key=idempotency_key))
 
-    def update(self, reservation_id: str, *, auto_renew: bool) -> MacReservation:
-        """Turn the reservation's auto-renewal on or off."""
+    def update(self, reservation_id: str, /, *, auto_renew: bool) -> MacReservation:
+        """Turn the reservation's auto-renewal on or off.
+
+        Turning it on needs macOS access enabled for the organization;
+        turning it off works without it, so an organization can stop a reservation
+        renewing. Raises :class:`ConflictError` when the reservation is no longer live.
+        """
         return self._bridge.call(lambda: self._impl.update(reservation_id, auto_renew=auto_renew))
 
 
-class MacModelService:
-    """The Mac model registry (``GET /mac-models``)."""
+class MacModelsService:
+    """The Mac model registry (``GET /mac-models``).
 
-    _async_type = _async.AsyncMacModelService
+    Lists the models ``reservations.create(model=...)`` accepts, with each
+    model's CPU cores, physical memory, physical SSD capacity and sandbox
+    disk room in MiB, maximum sandbox count, and default sandbox size. ``catalog()`` adds free Macs
+    and prices.
+    """
 
-    def __init__(self, impl: _async.AsyncMacModelService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    _async_type = _async.AsyncMacModelsService
+
+    def __init__(self, _impl: _async.AsyncMacModelsService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
-        return f"MacModelService({self._impl!r})"
+        return f"MacModelsService({self._impl!r})"
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, MacModelService) and other._impl == self._impl
+        return isinstance(other, MacModelsService) and other._impl == self._impl
 
     def __hash__(self) -> int:
         return hash(self._impl)
@@ -389,6 +566,6 @@ class MacModelService:
         """Free Macs and prices per Mac model (GET /mac-catalog). available is advisory; price is null when pricing is unavailable."""
         return self._bridge.call(lambda: self._impl.catalog(region=region))
 
-    def list(self) -> List[MacModel]:
+    def list(self) -> Tuple[MacModel, ...]:
         """Every registered Mac model, ordered by ``id``."""
         return self._bridge.call(lambda: self._impl.list())

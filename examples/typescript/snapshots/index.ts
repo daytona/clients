@@ -1,7 +1,7 @@
 /* images — build a reusable image, then boot a sandbox from it. */
 
 import { ImageBuilder } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, IMAGE, RUN } from '../_common'
 
 async function waitForImageReady(daytona: ReturnType<typeof client>, imageName: string): Promise<void> {
   for (let attempt = 0; attempt < 120; attempt += 1) {
@@ -36,6 +36,7 @@ async function main() {
   section('create a sandbox from the registered image')
   const sandbox = await daytona.create(imageName, { name: `from-img-${RUN}`, waitSeconds: 200 })
   try {
+    assertStarted(sandbox)
     const py = await sandbox.process.run('python --version')
     info(`sandbox python: ${py.output.trim()}`)
     if (py.exitCode === 0) pass('sandbox booted from the image and runs')

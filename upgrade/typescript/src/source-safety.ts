@@ -10,7 +10,7 @@ import { sourceLocation } from './edits.js';
 import { isCloudApiUrl } from './cloud-api-url.js';
 import { constantKey, sourceEnvUrls } from './env-api-url.js';
 import type { EnvironmentContext } from './env-api-url.js';
-import { UNRESOLVED_CONFIG } from './config.js';
+import { ASSERTED_CONFIG, UNRESOLVED_CONFIG } from './config.js';
 
 // Generated files get URL safety checks only; never rewrite them.
 export function skippedSourceUrls(source: SourceFile, root: string, context: EnvironmentContext): readonly Item[] {
@@ -37,8 +37,8 @@ export function skippedSourceUrls(source: SourceFile, root: string, context: Env
     if (literal !== undefined && ++customLiterals > 5) return;
     const unresolved = literal === undefined;
     items.push({ ...sourceLocation(source, node.getStart(source.compilerNode), root),
-      kind: unresolved && context.dropApiUrl ? 'config-field' : 'custom-api-url', message: unresolved
-        ? UNRESOLVED_CONFIG : 'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.' });
+      kind: unresolved && context.dropApiUrl ? 'config-field' : 'custom-api-url', message: !unresolved
+        ? 'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.' : context.dropApiUrl ? ASSERTED_CONFIG : UNRESOLVED_CONFIG });
   };
   const pending: ts.Node[] = [source.compilerNode];
   for (let node = pending.pop(); node; node = pending.pop()) {

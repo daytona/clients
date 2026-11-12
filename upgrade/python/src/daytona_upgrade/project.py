@@ -21,6 +21,7 @@ from .project_discovery import module_name as module_name
 from .project_environment import ProjectEnvironment
 from .project_index import ProjectLayout
 from .project_paths import (
+    PYTHON_SOURCE_SUFFIXES,
     environment_base,
     is_manifest,
     shadowing_module,
@@ -67,7 +68,7 @@ def preflight(
                 for file in files
                 if not file.requirements
                 and (
-                    file.path.suffix in {".py", ".pyi"}
+                    file.path.suffix in PYTHON_SOURCE_SUFFIXES
                     or file.path.name == "pyproject.toml"
                 )
             },
@@ -91,13 +92,17 @@ def preflight(
                 continue
             notebooks[file.relative] = notebook
             sources[module_name(file.relative)] = notebook.combined
-        elif file.path.suffix in {".py", ".pyi"}:
+        elif file.path.suffix in PYTHON_SOURCE_SUFFIXES:
             sources[module_name(file.relative)] = file.source
     layout = ProjectLayout(
         {
             module_name(file.relative): file.relative
             for file in files
-            if not file.requirements and file.path.suffix in {".py", ".pyi", ".ipynb"}
+            if not file.requirements
+            and (
+                file.path.suffix in PYTHON_SOURCE_SUFFIXES
+                or file.path.suffix == ".ipynb"
+            )
         },
         read_collection(base),
         report_progress,
@@ -123,7 +128,9 @@ def preflight(
         )
         output = file.source
         context = SourceContext(file.relative, module_name(file.relative), index, base)
-        if not file.requirements and file.path.suffix in {".py", ".pyi", ".ipynb"}:
+        if not file.requirements and (
+            file.path.suffix in PYTHON_SOURCE_SUFFIXES or file.path.suffix == ".ipynb"
+        ):
             if file.relative in notebooks:
                 try:
                     items.extend(

@@ -30,6 +30,16 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data","size_gib":200}`, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
 		},
 		{
+			name:     "create volume of the server's type",
+			args:     []string{"volume", "create", "data"},
+			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data"}`, response: bucketVolumeFixture("55555555-5555-5555-5555-555555555555")}},
+		},
+		{
+			name:     "create volume of an explicit type",
+			args:     []string{"volume", "create", "data", "--type", "disk", "--size-gib", "200"},
+			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data","type":"disk","size_gib":200}`, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
+		},
+		{
 			name:     "list volumes",
 			args:     []string{"volume", "list"},
 			expected: []expectedRequest{{method: http.MethodGet, path: "/volumes", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeFixture("55555555-5555-5555-5555-555555555555") + `]}`}},

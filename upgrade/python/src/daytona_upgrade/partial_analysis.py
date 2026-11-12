@@ -14,7 +14,7 @@ from ._requirements import SKIP
 from .manifest_errors import ManifestParseError
 from .manifests import inspect_manifest
 from .models import Item, load_mapping
-from .project_paths import is_manifest
+from .project_paths import PYTHON_SOURCE_SUFFIXES, is_manifest
 
 
 def partial_analysis(root: Path) -> tuple[Item, ...]:
@@ -69,7 +69,7 @@ def partial_analysis(root: Path) -> tuple[Item, ...]:
                 path = parent / name
                 if (
                     path == root
-                    or path.suffix not in {".py", ".pyi"}
+                    or path.suffix not in PYTHON_SOURCE_SUFFIXES
                     or path.is_symlink()
                 ):
                     continue

@@ -12,8 +12,8 @@ import (
 )
 
 func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
-	created := `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"33333333-3333-3333-3333-333333333333","name":"macbox","status":"pending","wait_cap_seconds":3,"reservation_id":null}`
-	stdout, _, err := runCLI(t, []string{
+	created := `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"33333333-3333-3333-3333-333333333333","name":"macbox","status":"pending","wait_cap_seconds":3,"reservation_id":null,"access_token":"mac-create-secret"}`
+	stdout, stderr, err := runCLI(t, []string{
 		"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--cores", "10", "--memory", "16384", "--disk", "163840", "--persistent", "--secret", "API_KEY", "--no-wait",
 	}, []expectedRequest{{
 		method:   http.MethodPost,
@@ -21,9 +21,12 @@ func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","reservation":"region-a:res-1","cores":10,"memory_mib":16384,"disk_mib":163840,"persistent":true,"secrets":["API_KEY"]}`,
 		response: created,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/33333333-3333-3333-3333-333333333333", status: 200, response: sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending")}})
 	require.NoError(t, err)
-	require.Equal(t, "pending", requireJSONStdout(t, stdout)["status"])
+	require.JSONEq(t, sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending"), stdout)
+	require.NotContains(t, requireJSONStdout(t, stdout), "access_token")
+	require.NotContains(t, stdout, "mac-create-secret")
+	require.NotContains(t, stderr, "mac-create-secret")
 
 	// Unsized: every axis stays absent; --auto-renew rides with --reservation new.
 	_, _, err = runCLI(t, []string{"sandbox", "create-macos", "--yes", "--image", "base-macos", "--reservation", "new", "--auto-renew", "--on-lifecycle-timeout", "delete", "--lifecycle-timeout", "1h", "--no-wait"}, []expectedRequest{{
@@ -32,7 +35,7 @@ func TestSandboxCreateMacos_sizesReservationAndPersistence(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","reservation":"new","auto_renew":true,"lifecycle_policy":{"timeout_seconds":3600,"on_timeout":"delete"}}`,
 		response: created,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/33333333-3333-3333-3333-333333333333", status: 200, response: sandboxDetailFixture("33333333-3333-3333-3333-333333333333", "macos", "pending")}})
 	require.NoError(t, err)
 }
 
@@ -64,14 +67,13 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 	require.NoError(t, err)
 	text := squashSpaces(help)
 	for _, line := range []string{
-		"--cores N CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
-		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: half of the Mac's sandbox disk capacity, rounded down to a whole GiB, on a model that runs two sandboxes; all of it on a model that runs one)",
-		"--memory MIB memory in MiB, minimum 4096 (default: half of the Mac, rounded down, on a model that runs two sandboxes; all of it on a model that runs one)",
+		"--cores N CPU cores, minimum 4; a Mac core is one CPU of the Mac (default: the Mac model's default size)",
+		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac model's default size, or the image's disk size for a captured image)",
+		"--memory MIB memory in MiB, minimum 4096 (default: the Mac model's default size)",
 		"--reservation ID|new",
 		"--auto-renew renew while a sandbox is active; create-macos requires --reservation new",
-		// macOS keeps persistent (stop/start, snapshots, disk saved at reservation end).
-		"--persistent keep the disk across stop/start on the same Mac; delete erases it, and reservation end saves it as an image before the Mac is erased. If a Mac restarts before it is declared lost, a running persistent sandbox comes back stopped with its disk, a running ephemeral sandbox is lost, and stopped and paused sandboxes are unchanged.",
-		"Each omitted size uses half of the Mac's resources, rounded down, on a model that runs two sandboxes, or all of them on a model that runs one.",
+		"--persistent keep the disk and machine across stop/start on any Mac of the organization, and memory across pause/resume; delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it, though a Mac failure can lose its most recent writes; an ephemeral sandbox ends with its reservation or a failed Mac.",
+		"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image without --disk gets the image's disk size.",
 		"--on-lifecycle-timeout ACTION action when --lifecycle-timeout elapses: delete, or stop with --persistent",
 		"--on-idle-timeout ACTION action when --idle-timeout elapses: delete, or stop with --persistent",
 		"--lifecycle-timeout DURATION wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start",
@@ -111,7 +113,7 @@ func TestSandboxCreateMacos_sendsNetworkPolicy(t *testing.T) {
 		status:   202,
 		bodyJSON: `{"image":"base-macos","network_policy":{"block_all":true,"allow_cidrs":["93.184.215.14/32"],"allow_domains":["example.com"]}}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"0b0e5a52-31f6-4c2e-9a1e-4c1d1f6a7b02","name":"mac","status":"pending","wait_cap_seconds":3,"reservation_id":null}`,
-	}})
+	}, {method: http.MethodGet, path: "/sandboxes/0b0e5a52-31f6-4c2e-9a1e-4c1d1f6a7b02", status: 200, response: sandboxDetailFixture("0b0e5a52-31f6-4c2e-9a1e-4c1d1f6a7b02", "macos", "pending")}})
 	require.NoError(t, err)
 
 	// An allow list without default-deny would leave the sandbox open.

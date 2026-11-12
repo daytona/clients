@@ -19,7 +19,7 @@ import pytest
 from daytona.v2._auth import ProjectTokenAuth
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
-from daytona.v2.errors import BadRequestError, ConnectionError
+from daytona.v2.errors import BadRequestError, ClientClosedError
 
 pytestmark = pytest.mark.anyio
 
@@ -261,7 +261,7 @@ async def test_root_close_owns_active_streams_but_scope_close_does_not_cancel_si
         await root.close()
         assert all(owner.client.is_closed for owner in owners)
         assert all(owner.bodies[0].closed for owner in streams)
-        with pytest.raises(ConnectionError, match="closed"):
+        with pytest.raises(ClientClosedError, match="closed"):
             await scope.open_exclusive_stream(RequestSpec("GET", "/after-close"))
         assert len(owners) == 3
     finally:

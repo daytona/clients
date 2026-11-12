@@ -22,13 +22,18 @@ if TYPE_CHECKING:
 
 
 class ProcessHandle:
-    """Handle for one sandbox process."""
+    """Handle for one sandbox process.
+
+    Returned by ``process.start()`` / ``process.connect()`` and the PTY and
+    session namespaces, never constructed directly. :meth:`to_json` gives a
+    JSON-safe identity that ``sandbox.process.connect()`` accepts on any worker.
+    """
 
     _async_type = _async.AsyncProcessHandle
 
-    def __init__(self, impl: _async.AsyncProcessHandle, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncProcessHandle, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ProcessHandle({self._impl!r})"
@@ -56,7 +61,11 @@ class ProcessHandle:
         return self._bridge.call(lambda: self._impl.close_stdin())
 
     def delete(self) -> None:
-        """Delete the process record and retained logs, stopping it first."""
+        """Delete the process record and retained logs, stopping it first.
+
+        Raises ``UnsupportedOperationError`` for a running code cell and for a
+        session command that has not stopped within 5 s: delete its session.
+        """
         return self._bridge.call(lambda: self._impl.delete())
 
     def get(self) -> ProcessInfo:
@@ -78,17 +87,38 @@ class ProcessHandle:
     def logs(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None, encoding: LogEncoding = "text"
     ) -> LogPage:
-        """Read a cursor-replayable process log page."""
+        """Read a cursor-replayable process log page.
+
+        With ``encoding="base64"`` each frame's ``data`` is standard padded
+        base64 (RFC 4648 section 4, ``+/`` alphabet with ``=`` padding), which
+        :func:`base64.b64decode` decodes.
+        """
         return self._bridge.call(lambda: self._impl.logs(cursor=cursor, limit=limit, encoding=encoding))
 
-    def resize(self, cols: int, rows: int) -> None:
-        """Resize a PTY process."""
+    def resize(self, cols: int, rows: int, /) -> None:
+        """Resize a PTY process.
+
+        ``cols`` and ``rows`` are each an integer from 1 to 65535; a Windows
+        sandbox takes at most 32767 and refuses a larger value with
+        :class:`~daytona.v2.errors.BadRequestError`.
+        """
         return self._bridge.call(lambda: self._impl.resize(cols, rows))
 
     def stream_logs(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None, encoding: LogEncoding = "text"
     ) -> Iterator[StreamLogEvent]:
-        """Follow the process log as it is written, replaying from ``cursor``."""
+        """Follow the process log as it is written, replaying from ``cursor``.
+
+        Yields one :data:`StreamLogEvent` per server event: ``log`` (a frame),
+        ``state`` (the process became terminal), ``warning`` (frames before
+        ``first_available_cursor`` were evicted) and ``eof``. A stream error
+        raises the typed error for its code. The server ends the stream with
+        ``eof``, so an iteration that ends normally has the whole log; a stream
+        cut short, or one that ends without ``eof``, raises ``ConnectionError``:
+        resume with ``stream_logs(cursor=...)`` from the last event's cursor.
+        With ``encoding="base64"`` each frame's ``data`` is standard padded
+        base64, which :func:`base64.b64decode` decodes.
+        """
         return self._bridge.iterate(self._impl.stream_logs(cursor=cursor, limit=limit, encoding=encoding))
 
     def to_json(self) -> ProcessHandleJSON:
@@ -96,10 +126,14 @@ class ProcessHandle:
         return self._impl.to_json()
 
     def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
-        """Wait for terminal state using the process long-poll contract."""
+        """Wait for terminal state using the process long-poll contract.
+
+        ``timeout`` is the caller wait budget in seconds; ``0`` waits
+        unbounded.
+        """
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
 
-    def write_stdin(self, data: Union[str, bytes]) -> None:
+    def write_stdin(self, data: Union[str, bytes], /) -> None:
         """Write to the stdin of an exec or PTY process created with stdin='open'."""
         return self._bridge.call(lambda: self._impl.write_stdin(data))
 
@@ -109,9 +143,9 @@ class ProcessService:
 
     _async_type = _async.AsyncProcessService
 
-    def __init__(self, impl: _async.AsyncProcessService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncProcessService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"ProcessService({self._impl!r})"
@@ -122,11 +156,11 @@ class ProcessService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def connect(self, process: Union[str, ProcessHandleJSON]) -> ProcessHandle:
+    def connect(self, process: Union[str, ProcessHandleJSON], /) -> ProcessHandle:
         """Reconnect a process by id or by ``handle.to_json()``, without a request."""
         return ProcessHandle(self._impl.connect(process), self._bridge)
 
-    def connect_session(self, session: str | SessionJSON) -> Session:
+    def connect_session(self, session: str | SessionJSON, /) -> Session:
         """Reconnect a shell session by id or by ``session.to_json()``, without a request."""
         from .session import Session
 
@@ -142,7 +176,11 @@ class ProcessService:
         name: Optional[str] = None,
         tag: Optional[str] = None,
     ) -> Session:
-        """Create one persistent shell; cwd and env apply to all its commands."""
+        """Create one persistent shell; cwd and env apply to all its commands.
+
+        ``shell`` must be a POSIX shell (bash, sh, dash, zsh, ksh) on Linux
+        and macOS; another shell is refused when the session is created.
+        """
         from .session import Session
 
         return Session(
@@ -154,12 +192,27 @@ class ProcessService:
             self._bridge,
         )
 
-    def get(self, process_id: str) -> ProcessInfo:
+    def get(self, process_id: str, /) -> ProcessInfo:
         """Fetch current process metadata by id or live name alias."""
         return self._bridge.call(lambda: self._impl.get(process_id))
 
     def kill_all(self, *, tag: str, timeout: Optional[float] = None) -> List[str]:
-        """Kill every process with the tag and everything those processes started."""
+        """Kill every process with the tag and everything those processes started.
+
+        Returns their process ids once nothing started under the tag is running,
+        including detached descendants and survivors of exited processes. The tag
+        is reusable after this call. Records and logs are kept. Survivors of
+        deleted or expired records are killed too but not listed.
+
+        ``tag`` is a safe identifier (``[A-Za-z0-9._-]``, 1-128 characters, not
+        ``.`` or ``..``). ``timeout`` is how long to wait for them to exit, in
+        seconds: more than 0 and at most 60 (fractions allowed, default 10).
+        Anything else raises ``BadRequestError`` before any request.
+        Raises ``ProcessKillIncompleteError`` when some were still running at
+        the timeout, or another start or kill under the tag was in progress;
+        retrying is safe. Raises ``UnsupportedOperationError`` on macOS and
+        sandboxes without process containment.
+        """
         return self._bridge.call(lambda: self._impl.kill_all(tag=tag, timeout=timeout))
 
     def list(
@@ -195,7 +248,55 @@ class ProcessService:
         keep_logs: Optional[RunKeepLogs] = None,
         tag: Optional[str] = None,
     ) -> ProcessResult:
-        """Start a process, wait for its shell to exit, and collect its output."""
+        """Start a process, wait for its shell to exit, and collect its output.
+
+        The common case is one round trip: the sandbox starts the process, holds
+        the request until it exits (or ``timeout`` expires), and returns the
+        output inline. A process that outlives the wait window or produces more
+        output than fits in one page falls back to split calls automatically.
+
+        The result holds the output available when the call returns:
+        its per-process log is bounded, so very large output loses its oldest
+        frames, and a result that timed out collects only the first few log
+        pages.
+
+        **Shell selection.** A string ``command`` runs through the sandbox shell
+        (``bash``, else ``sh``; pin another with ``shell=``). Quote globs and brackets
+        (``pip install -e '.[test]'``) so the command means the same under any
+        shell. Use ``argv=`` to bypass the shell entirely, which is the safe
+        form for untrusted arguments. For persistent shell state, use :meth:`create_session`.
+
+        **Background processes.** The call returns when the shell exits. If the
+        command forks a background child that holds its output descriptors open
+        (e.g. ``python3 -m http.server 8000 &``), the call waits at most ~2
+        seconds for output to drain and then returns; output the child writes
+        later is not part of the result. For a long-running server prefer
+        :meth:`start`, which returns a :class:`ProcessHandle` immediately, or
+        redirect: ``nohup cmd > server.log 2>&1 &``.
+
+        :param command: Shell command string; mutually exclusive with ``argv``.
+        :param argv: Argument vector for shell-free execution.
+        :param cwd: Working directory inside the sandbox.
+        :param env: Extra environment variables merged into the process environment.
+        :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param timeout: Caller wait budget in seconds. Omit to wait until the process
+            ends. Does not kill the process on expiry.
+        :param stdin: Only ``"closed"`` (default): ``run()`` returns no handle to
+            write to, so ``"open"`` is refused; use :meth:`start` for that.
+        :param execution_timeout: Server-side deadline in seconds. The sandbox kills
+            the process tree when this expires. Omitted or ``0`` means no deadline.
+        :param keep_logs: How long the sandbox keeps the process log: ``"on_exit_ttl"``
+            (default) or ``"until_cleanup"``. ``"none"`` is not accepted: the output is
+            read back from the log; use :meth:`start` for a process without one.
+        :returns: :class:`~daytona.v2.types.ProcessResult` with ``stdout``, ``stderr``,
+            ``output``, ``logs``, ``exit_code``, and ``reason``.
+
+        Example::
+
+            result = sandbox.process.run("pip install httpx")
+            if result.exit_code != 0:
+                raise RuntimeError(result.stderr)
+        """
         return self._bridge.call(
             lambda: self._impl.run(
                 command,
@@ -227,10 +328,43 @@ class ProcessService:
         login: Optional[bool] = None,
         stdin: StdinMode = "closed",
         execution_timeout: Optional[float] = None,
-        keep_logs: Optional[KeepLogs] = None,
+        keep_logs: KeepLogs = "on_exit_ttl",
         tag: Optional[str] = None,
     ) -> ProcessHandle:
-        """Start a detached process and return a handle immediately."""
+        """Start a detached process and return a handle immediately.
+
+        Unlike :meth:`run`, this returns as soon as the sandbox has started the
+        process. Use the returned :class:`ProcessHandle` to stream logs
+        (``handle.stream_logs()``), wait for exit (``handle.wait()``), or kill
+        (``handle.kill()``). This is the right choice for long-running servers —
+        call ``start()`` once, then poll the port or stream logs to confirm the
+        server is ready.
+
+        **Shell selection.** A string ``command`` runs through the sandbox shell
+        (``bash``, else ``sh``; pin another with ``shell=``). Quote globs and brackets
+        (``pip install -e '.[test]'``). Use ``argv=`` to bypass the shell for
+        untrusted input. For persistent shell state, use :meth:`create_session`.
+
+        :param command: Shell command string; mutually exclusive with ``argv``.
+        :param argv: Argument vector for shell-free execution.
+        :param cwd: Working directory inside the sandbox.
+        :param env: Extra environment variables merged into the process environment.
+        :param shell: Shell binary to use (e.g. ``"bash"``); overrides auto-detection.
+        :param stdin: ``"open"`` keeps stdin open for ``handle.write_stdin()``;
+            ``"closed"`` (default) gives the process an empty stdin.
+        :param execution_timeout: Server-side deadline in seconds. The sandbox kills
+            the process tree when this expires. Omitted or ``0`` means no deadline.
+        :param keep_logs: How long the sandbox keeps the process record and log:
+            ``"on_exit_ttl"`` (default, a while after the process exits),
+            ``"until_cleanup"`` (until it is deleted) or ``"none"`` (no log).
+        :returns: Bound :class:`ProcessHandle` — logs, wait, and kill are available
+            immediately.
+
+        Example — start an HTTP server and wait for it to be ready::
+
+            handle = sandbox.process.start("python3 -m http.server 8000")
+            # poll or stream logs; the process keeps running in the background
+        """
         return ProcessHandle(
             self._bridge.call(
                 lambda: self._impl.start(
@@ -257,9 +391,9 @@ class PtyService:
 
     _async_type = _async.AsyncPtyService
 
-    def __init__(self, impl: _async.AsyncPtyService, bridge: SyncBridge) -> None:
-        self._impl = impl
-        self._bridge = bridge
+    def __init__(self, _impl: _async.AsyncPtyService, _bridge: SyncBridge) -> None:
+        self._impl = _impl
+        self._bridge = _bridge
 
     def __repr__(self) -> str:
         return f"PtyService({self._impl!r})"
@@ -270,11 +404,11 @@ class PtyService:
     def __hash__(self) -> int:
         return hash(self._impl)
 
-    def connect(self, process: Union[str, ProcessHandleJSON]) -> ProcessHandle:
+    def connect(self, process: Union[str, ProcessHandleJSON], /) -> ProcessHandle:
         """Reconnect a PTY by id or by ``handle.to_json()``, without a request."""
         return ProcessHandle(self._impl.connect(process), self._bridge)
 
-    def delete(self, process: Union[str, ProcessHandleJSON]) -> None:
+    def delete(self, process: Union[str, ProcessHandleJSON], /) -> None:
         """Stop a PTY and delete it and its log."""
         return self._bridge.call(lambda: self._impl.delete(process))
 
@@ -297,7 +431,13 @@ class PtyService:
         keep_logs: KeepLogs = "until_cleanup",
         tag: Optional[str] = None,
     ) -> ProcessHandle:
-        """Start a detached PTY process; without ``command`` it runs the sandbox shell."""
+        """Start a detached PTY process; without ``command`` it runs the sandbox shell.
+
+        ``terminal`` defaults to 80 columns by 24 rows (see
+        :class:`~daytona.v2.types.TerminalSize` for the limits). ``TERM`` is
+        ``xterm-256color`` unless ``env`` sets it. ``execution_timeout`` is a
+        server-side deadline in seconds; omitted or ``0`` means no deadline.
+        """
         return ProcessHandle(
             self._bridge.call(
                 lambda: self._impl.start(

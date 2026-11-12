@@ -70,6 +70,19 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         if (Node.isObjectLiteralExpression(value)) constraints(value);
       }
     }
+    // Both package names in the dependencies, or in one constraint section:
+    // every entry of the old name is left for manual reconciliation, so a
+    // dependency and its resolution never end up naming different packages.
+    const names = (entries: typeof object): string[] => entries.getProperties().filter(Node.isPropertyAssignment)
+      .map(entry => entry.getName().replaceAll('"', ''));
+    const legacy = (name: string): boolean => name !== mapping.packages.ts.new && mapping.packages.ts.old.includes(name);
+    const bothIn = (present: readonly string[]): boolean => present.includes(mapping.packages.ts.new) && present.some(legacy);
+    const dependencyNames = sections.filter(({ constraint }) => !constraint).flatMap(({ entries }) => names(entries));
+    // Some section (the dependencies together, or one constraint section)
+    // names both: every old-name entry stays. A dependency entry of the old
+    // name also stays when the new one is a dependency (hasRoot).
+    const both = bothIn(dependencyNames) || sections.some(({ constraint, entries }) => constraint && bothIn(names(entries)));
+    const duplicate = (constraint: boolean): boolean => both || !constraint && hasRoot;
     for (const { name: sectionName, entries, constraint } of sections) {
       for (const entry of entries.getProperties()) {
         if (!Node.isPropertyAssignment(entry)) continue;
@@ -131,9 +144,7 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'peer-dependency', message: `Update peer dependency ${name} manually for SDK 2.x.` });
           continue;
         }
-        const collision = constraint ? entries.getProperties().some(candidate => Node.isPropertyAssignment(candidate) &&
-          candidate.getName().replaceAll('"', '') === mapping.packages.ts.new) : hasRoot;
-        if (name !== mapping.packages.ts.new && collision) {
+        if (name !== mapping.packages.ts.new && duplicate(constraint)) {
           items.push({ ...detail, kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' });
           continue;
         }

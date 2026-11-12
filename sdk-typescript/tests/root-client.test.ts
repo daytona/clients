@@ -490,7 +490,7 @@ describe('v2 rejects unsupported options from untyped callers', () => {
     async (method) => {
       const v2 = new DaytonaV2({ apiKey: 'key' })
       const call = v2[method] as unknown as (first: string, options: Record<string, unknown>) => Promise<unknown>
-      await expect(call.call(v2, 'x', { target: 'eu' })).rejects.toThrow("v2 does not take 'target'; pass 'region' instead")
+      await expect(call.call(v2, 'x', { target: 'eu' })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: "v2 does not take 'target'; pass 'region' instead" })
     },
   )
 
@@ -561,7 +561,7 @@ describe('per-namespace API URL env vars (dev / non-prod)', () => {
     const server = createServer((req, res) => {
       seen.push(req.url ?? '')
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ sandboxes: [], next_cursor: null }))
+      res.end(JSON.stringify({ sandboxes: [], next_cursor: null, total: 0, total_relation: 'eq' }))
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const address = server.address()

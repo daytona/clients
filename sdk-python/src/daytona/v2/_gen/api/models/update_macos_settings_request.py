@@ -34,7 +34,7 @@ class UpdateMacosSettingsRequest(BaseModel):
     """
     The macOS settings to change: any non-empty subset of the fields.
     """ # noqa: E501
-    macos_auto_reserve: Optional[StrictBool] = Field(default=None, description="Whether new macOS creates may automatically reserve capacity.")
+    macos_auto_reserve: Optional[StrictBool] = Field(default=None, description="Whether a macOS create or start buys a Mac reservation when the organization has none in the region.")
     macos_auto_reserve_max_reservations: Optional[StrictInt] = Field(default=None, description="Maximum number of automatically created reservations.")
     __properties: ClassVar[List[str]] = ["macos_auto_reserve", "macos_auto_reserve_max_reservations"]
 

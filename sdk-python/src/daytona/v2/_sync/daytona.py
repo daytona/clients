@@ -18,18 +18,18 @@ from typing_extensions import Self
 from .. import daytona as _async
 from .._bridge import SyncBridge
 from ..daytona import *
-from ..daytona import _UNSET_NETWORK_POLICY, _UnsetNetworkPolicy
+from ..daytona import _UNSET_NETWORK_POLICY
 from . import _runtime as _rt
 
 if TYPE_CHECKING:
     from .sandbox import Sandbox
     from .services import (
-        ImageService,
-        MacModelService,
-        ReservationService,
-        SecretService,
-        SnapshotService,
-        VolumeService,
+        ImagesService,
+        MacModelsService,
+        ReservationsService,
+        SecretsService,
+        SnapshotsService,
+        VolumesService,
     )
 
 
@@ -52,46 +52,40 @@ class Daytona:
         return hash(self._impl)
 
     @property
-    def images(self) -> ImageService:
-        from .services import ImageService
+    def images(self) -> ImagesService:
+        from .services import ImagesService
 
-        return ImageService(self._impl.images, self._bridge)
-
-    @property
-    def snapshots(self) -> SnapshotService:
-        from .services import SnapshotService
-
-        return SnapshotService(self._impl.snapshots, self._bridge)
+        return ImagesService(self._impl.images, self._bridge)
 
     @property
-    def volume(self) -> VolumeService:
-        from .services import VolumeService
+    def snapshots(self) -> SnapshotsService:
+        from .services import SnapshotsService
 
-        return VolumeService(self._impl.volume, self._bridge)
-
-    @property
-    def secret(self) -> SecretService:
-        from .services import SecretService
-
-        return SecretService(self._impl.secret, self._bridge)
+        return SnapshotsService(self._impl.snapshots, self._bridge)
 
     @property
-    def secrets(self) -> SecretService:
-        from .services import SecretService
+    def volumes(self) -> VolumesService:
+        from .services import VolumesService
 
-        return SecretService(self._impl.secrets, self._bridge)
-
-    @property
-    def reservations(self) -> ReservationService:
-        from .services import ReservationService
-
-        return ReservationService(self._impl.reservations, self._bridge)
+        return VolumesService(self._impl.volumes, self._bridge)
 
     @property
-    def mac_models(self) -> MacModelService:
-        from .services import MacModelService
+    def secrets(self) -> SecretsService:
+        from .services import SecretsService
 
-        return MacModelService(self._impl.mac_models, self._bridge)
+        return SecretsService(self._impl.secrets, self._bridge)
+
+    @property
+    def reservations(self) -> ReservationsService:
+        from .services import ReservationsService
+
+        return ReservationsService(self._impl.reservations, self._bridge)
+
+    @property
+    def mac_models(self) -> MacModelsService:
+        from .services import MacModelsService
+
+        return MacModelsService(self._impl.mac_models, self._bridge)
 
     def __enter__(self) -> Self:
         self._bridge.call(self._impl.__aenter__)
@@ -110,27 +104,78 @@ class Daytona:
         /,
         *,
         name: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
-        cpu: Optional[float] = None,
-        memory: Optional[int] = None,
-        disk: Optional[int] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
+        user: Optional[str] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
         cpu_arch: Optional[str] = None,
         cpu_type: Optional[str] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> Sandbox:
-        """Create from a registered image name or ``img_…`` id."""
+        """Create a Linux sandbox from a registered image name or ``img_…`` id.
+
+        Omitting ``image`` boots the platform default image, the Linux image
+        Daytona marks as default (``images.list(platform="true")`` shows
+        it with ``default=True``); the returned sandbox's ``image`` names the
+        image the server booted. When no default is configured the create
+        fails with ``DEFAULT_IMAGE_NOT_CONFIGURED`` (400). An empty or
+        whitespace-only ``image`` is still an error, raised before any request.
+        Snapshots and image builds have their own methods:
+        :meth:`create_from_snapshot`, :meth:`create_from_build`.
+
+        **Waiting.** The server holds this create briefly, so a sandbox that
+        reaches ``started`` within that hold returns in one round trip; the SDK
+        waits for any remainder of ``wait_seconds`` (whole seconds, default 60;
+        ``0`` returns as soon as the API accepts the create).
+        ``create_timeout_seconds`` is the server's own budget for reaching
+        ``started`` before it deletes the sandbox. ``create()`` never raises
+        because of how its wait ended: when the budget runs out, or the sandbox
+        reaches ``error``, it returns the handle — check ``sandbox.state``. It
+        raises when the request itself fails (validation, authentication,
+        limits, :class:`SandboxCreateRequestTimeoutError`,
+        :class:`SandboxCreateConnectionError`).
+
+        **Names.** ``name`` is non-unique display metadata and the handle of the
+        one-sandbox-per-end-user pattern: a named create stamps
+        ``labels["name"] = name`` (:meth:`find_by_name` reads it back) and,
+        unless ``idempotency_key`` is given, derives its idempotency key from
+        the name. A repeated or retried ``create(image, name="example-user")``
+        at one regional API endpoint is therefore a get-or-create: the same
+        sandbox comes back, not a second one — until the first is deleted,
+        which releases the key. This is permanent behaviour of ``name=``. The
+        guarantee is scoped to a regional API endpoint (creates of one end user
+        that reach two regional API endpoints make two sandboxes; pin them to
+        one region), per class, and exact: a same-name create with different
+        arguments is a 409, never a silent replay of the first sandbox's
+        parameters. An explicit ``idempotency_key`` always wins.
+
+        **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
+        see :class:`Resources`). Burstable sandboxes start with the burst
+        ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment cap
+        when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
+        not the guaranteed ``cpu``. Tools that size themselves from the CPU
+        count (``pytest -n auto``, ``make -j$(nproc)``) start one worker per
+        visible CPU. Pass an explicit worker count when you need the guarantee
+        instead of the ceiling.
+
+        ``network_policy`` sets the sandbox's egress policy from its first boot
+        (``None`` sends an explicit "no policy"); change it later with
+        :meth:`Sandbox.update_network_policy`.
+
+        Creating Linux sandboxes requires Linux access enabled for the organization.
+        Otherwise a caller holding ``write:sandboxes`` gets
+        ``403`` ``FEATURE_NOT_ENABLED`` (raised as
+        :class:`FeatureNotEnabledError`).
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -141,19 +186,16 @@ class Daytona:
                     env=env,
                     labels=labels,
                     resources=resources,
-                    cpu=cpu,
-                    memory=memory,
-                    disk=disk,
                     ports=ports,
                     volumes=volumes,
                     secrets=secrets,
                     spot=spot,
+                    user=user,
                     lifecycle_policy=lifecycle_policy,
                     network_policy=network_policy,
                     cpu_arch=cpu_arch,
                     cpu_type=cpu_type,
                     region=region,
-                    toolbox_url=toolbox_url,
                     idempotency_key=idempotency_key,
                     wait_seconds=wait_seconds,
                     create_timeout_seconds=create_timeout_seconds,
@@ -167,17 +209,74 @@ class Daytona:
         builder: ImageBuilder,
         /,
         *,
+        name: Optional[str] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
+        resources: Optional[Resources] = None,
+        ports: Optional[Sequence[PortMapping]] = None,
+        volumes: Optional[Sequence[VolumeMount]] = None,
+        secrets: Optional[Sequence[str]] = None,
+        spot: Optional[bool] = None,
+        user: Optional[str] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
+        cpu_arch: Optional[str] = None,
+        cpu_type: Optional[str] = None,
+        region: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+        wait_seconds: int = 60,
+        create_timeout_seconds: Optional[int] = None,
         idle_expiry_seconds: Optional[int] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
-        **kwargs,
+        build_timeout: Optional[float] = None,
     ) -> Sandbox:
-        """Build an anonymous image first, then create the sandbox from it."""
+        """Build an anonymous image from ``builder``, wait for it, then create the sandbox from it.
+
+        For a builder with local files, submission first reads and uploads a
+        deterministic build context. Each upload part fails once no bytes
+        move for the client's request timeout (``0``: never); each completion
+        attempt uses the greater of that timeout and 600 seconds (``0``: no
+        bound). No total deadline bounds the upload.
+        It then sends the build request, bounded by the client's request
+        timeout. The build itself is always awaited, bounded by
+        ``build_timeout`` (seconds; ``None``, ``0`` or a value above about
+        24.8 days = no deadline). A failed
+        build (image status ``failed`` or ``error``) raises
+        :class:`ImageBuildFailedError` and a build that outlasts
+        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
+        no sandbox exists. Then the sandbox is created exactly as by
+        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        own wait, and the create never raises because of how that wait ended.
+
+        ``idle_expiry_seconds`` is the anonymous image's idle-retention window
+        (see ``images.build``). ``region`` and ``cpu_arch`` apply to both the
+        build and the create: a Dockerfile-built image boots only in its own
+        region, so it is built where the sandbox will run.
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
             self._bridge.call(
                 lambda: self._impl.create_from_build(
-                    builder, idle_expiry_seconds=idle_expiry_seconds, network_policy=network_policy, **kwargs
+                    builder,
+                    name=name,
+                    env=env,
+                    labels=labels,
+                    resources=resources,
+                    ports=ports,
+                    volumes=volumes,
+                    secrets=secrets,
+                    spot=spot,
+                    user=user,
+                    lifecycle_policy=lifecycle_policy,
+                    network_policy=network_policy,
+                    cpu_arch=cpu_arch,
+                    cpu_type=cpu_type,
+                    region=region,
+                    idempotency_key=idempotency_key,
+                    wait_seconds=wait_seconds,
+                    create_timeout_seconds=create_timeout_seconds,
+                    idle_expiry_seconds=idle_expiry_seconds,
+                    build_timeout=build_timeout,
                 )
             ),
             self._bridge,
@@ -189,16 +288,27 @@ class Daytona:
         /,
         *,
         name: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
+        labels: Optional[Mapping[str, str]] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
     ) -> Sandbox:
-        """Create a sandbox from a snapshot."""
+        """Create a Linux sandbox that resumes a memory snapshot (name or ``snap_…`` id).
+
+        The sandbox continues from the snapshot's memory and disk, so its size,
+        environment and attachments are the snapshot's own. ``name``,
+        ``idempotency_key``, ``wait_seconds`` and ``create_timeout_seconds``
+        behave as on :meth:`create`, and like :meth:`create` this never raises
+        because of how its wait ended.
+
+        Creating Linux sandboxes requires Linux access enabled for the organization.
+        Otherwise a caller holding ``write:sandboxes`` gets
+        ``403`` ``FEATURE_NOT_ENABLED`` (raised as
+        :class:`FeatureNotEnabledError`).
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
@@ -210,7 +320,6 @@ class Daytona:
                     lifecycle_policy=lifecycle_policy,
                     ports=ports,
                     region=region,
-                    toolbox_url=toolbox_url,
                     idempotency_key=idempotency_key,
                     wait_seconds=wait_seconds,
                     create_timeout_seconds=create_timeout_seconds,
@@ -224,36 +333,80 @@ class Daytona:
         image: str,
         /,
         *,
-        cpu: Optional[int] = None,
-        memory: Optional[float] = None,
-        disk: Optional[float] = None,
+        resources: Optional[MacosResources] = None,
         name: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
-        labels: Optional[Dict[str, str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        labels: Optional[Mapping[str, str]] = None,
         secrets: Optional[Sequence[str]] = None,
         ports: Optional[Sequence[PortMapping]] = None,
         persistent: Optional[bool] = None,
-        lifecycle_policy: Optional[LifecyclePolicyConfig] = None,
+        lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         reservation: Optional[str] = None,
         auto_renew: Optional[bool] = None,
         region: Optional[str] = None,
-        toolbox_url: Optional[str] = None,
         idempotency_key: Optional[str] = None,
         wait_seconds: int = 60,
         create_timeout_seconds: Optional[int] = None,
-        network_policy: NetworkPolicyInput | None | _UnsetNetworkPolicy = _UNSET_NETWORK_POLICY,
+        network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
     ) -> Sandbox:
-        """Create a macOS sandbox on a reserved Mac from a macOS image name."""
+        """Create a macOS sandbox on a reserved Mac from a macOS image name.
+
+        ``resources`` sizes the sandbox (:class:`MacosResources`: physical CPU
+        cores, at least 4; memory in GiB, at least 4; disk in GiB, at least 80,
+        macOS included; memory and disk must convert to whole MiB). Each
+        omitted value uses the Mac model's default size (``default_size`` in
+        ``mac_models.list()``); a create from a captured image that omits ``disk`` gets the
+        image's disk size, and a smaller ``disk`` is refused. The size is fixed
+        at creation, and the sandbox reports it once a Mac takes the sandbox.
+
+        ``persistent`` keeps the sandbox's disk and machine across stop and start, and its memory across pause and resume. A start can run on any Mac of the organization; after a start on a different Mac, iCloud asks the user to sign in again. Delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it; a Mac failure can lose its most recent writes. An ephemeral sandbox ends with its reservation, or with its Mac when that Mac fails.
+
+        ``volumes`` attaches disk volumes read-write. A sandbox with volumes
+        cannot be persistent; bucket volumes and ``read_only`` are rejected
+        with :class:`BadRequestError`.
+
+        ``reservation`` picks the Mac's reservation (``daytona.reservations``):
+        ``None`` uses any fitting reservation of the organization in the region (or
+        lets the organization's auto-reserve buy one), ``"new"`` buys a reservation of
+        the cheapest model that fits.
+        A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until ``create_timeout_seconds``.
+        ``auto_renew`` is allowed only with ``reservation="new"``. With no reservation
+        to use it raises :class:`ConflictError` (``NO_ACTIVE_RESERVATION``,
+        ``NO_FREE_SLOT``, ``MAC_DISK_FULL``, ``AUTO_RESERVE_LIMIT_REACHED``,
+        ``NO_MAC_AVAILABLE``). ``name``, ``idempotency_key``, ``wait_seconds``
+        and ``create_timeout_seconds`` behave as on :meth:`create`, and like
+        :meth:`create` this never raises because of how its wait ended.
+        A reservation it buys (``reservation="new"`` or auto-reserve) raises
+        :class:`LimitExceededError` (a :class:`RateLimitError`) with
+        ``limit == "max_mac_reservations"`` when the organization holds its Mac reservation limit.
+
+        Creating macOS sandboxes requires macOS access enabled for the organization;
+        otherwise the API answers ``403``
+        ``FEATURE_NOT_ENABLED`` (raised as :class:`FeatureNotEnabledError`).
+
+        ``secrets`` attaches project secrets by name, as on :meth:`create`.
+        Their values are available to HTTPS requests to the secret's allowed
+        domains without entering the sandbox. Attaching needs ``read:secrets``.
+
+        ``network_policy`` sets the sandbox's egress policy, as on
+        :meth:`create`: it applies from the sandbox's first boot. If the policy
+        cannot be enforced, the API answers ``503``. Change it later with
+        :meth:`Sandbox.update_network_policy`.
+
+        Find regions and their regional API endpoints with ``daytona region list`` (the CLI);
+        discover Mac models and prices with ``mac_models.catalog(region="<region>")``.
+        To select a regional API endpoint, set ``DAYTONA_V2_API_URL`` before
+        creating the client. An API that does not serve the region answers
+        :class:`ConflictError`; the SDK does not reroute.
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
             self._bridge.call(
                 lambda: self._impl.create_macos(
                     image,
-                    cpu=cpu,
-                    memory=memory,
-                    disk=disk,
+                    resources=resources,
                     name=name,
                     env=env,
                     labels=labels,
@@ -265,7 +418,6 @@ class Daytona:
                     reservation=reservation,
                     auto_renew=auto_renew,
                     region=region,
-                    toolbox_url=toolbox_url,
                     idempotency_key=idempotency_key,
                     wait_seconds=wait_seconds,
                     create_timeout_seconds=create_timeout_seconds,
@@ -275,147 +427,125 @@ class Daytona:
             self._bridge,
         )
 
-    def current_api_key(self) -> ProjectApiKeyWithContext:
-        """Describe the API key this client authenticates with."""
+    def current_api_key(self) -> ProjectApiKey:
+        """Describe the API key this client authenticates with.
+
+        Returns its name, masked display parts, the project and organization it
+        acts in, its permissions, expiry and last use. The token itself is
+        never returned.
+        """
         return self._bridge.call(lambda: self._impl.current_api_key())
 
-    def delete(self, sandbox: Union[Sandbox, str]) -> None:
-        """Request sandbox deletion."""
-        return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox)))
+    def delete(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
+        """Delete a sandbox by handle or id and wait until it is destroyed; see :meth:`Sandbox.delete`."""
+        return self._bridge.call(lambda: self._impl.delete(_rt.unwrap(sandbox), timeout=timeout))
 
-    def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> list[Sandbox]:
-        """Sandboxes created with ``name=name``, newest first; ``[]`` when none."""
+    def find_by_name(self, name: str, /, *, region: Optional[str] = None) -> tuple[Sandbox, ...]:
+        """Sandboxes created with ``name=name``, newest first; ``()`` when none.
+
+        Exact match on the ``labels["name"]`` every ``create*(name=…)`` stamps,
+        read through sandbox search. Names are not unique, so this is a tuple —
+        every match, read page by page: the one list method that is not a
+        single page. A get-or-create caller takes ``[0]`` when it is non-empty
+        and calls ``create(..., name=name)`` otherwise — and because that create
+        derives the same key as the first one, a lost race between two such
+        callers still yields one sandbox. A new sandbox becomes searchable
+        shortly after its create. Sandboxes that are ``destroyed`` or
+        ``destroying`` are left out. A deployment without search raises
+        :class:`SearchNotConfiguredError` (501).
+
+        ``region`` scopes the read the way it scopes a create: it is sent as
+        the same ``x-daytona-region`` selector ``create*()`` sends, and
+        ``"local"`` (or omitting it) means the default region — so the
+        lookup uses the same regional API endpoint as the named create.
+        """
         from .sandbox import Sandbox
 
-        return _rt.wrap_list(
+        return _rt.wrap_tuple(
             self._bridge.call(lambda: self._impl.find_by_name(name, region=region)), self._bridge, Sandbox
         )
 
-    def get(self, sandbox_id: str, *, toolbox_url: Optional[str] = None) -> Sandbox:
-        """Fetch a sandbox by id."""
+    def get(
+        self, sandbox_id: str, /, *, toolbox_url: Optional[str] = None, access_token: Optional[str] = None
+    ) -> Sandbox:
+        """Fetch a sandbox by id.
+
+        ``toolbox_url`` overrides the toolbox URL the API returns.
+        The SDK
+        sends this sandbox's toolbox credential there (the API key, a project
+        token, or a minted sandbox token), so pass only a URL you trust —
+        never one read from stored or user-supplied data.
+
+        ``access_token`` is a sandbox access token the handle sends to sandbox
+        services instead of minting its own; the handle never replaces it.
+
+        Both are checked before any request: ``toolbox_url`` must be a
+        non-blank string, and ``access_token`` (sent as a bearer credential)
+        non-empty printable ASCII with no surrounding whitespace, never
+        stripped; ``None`` omits either.
+        """
         from .sandbox import Sandbox
 
         return Sandbox(
-            self._bridge.call(lambda: self._impl.get(sandbox_id, toolbox_url=toolbox_url)), self._bridge
+            self._bridge.call(
+                lambda: self._impl.get(sandbox_id, toolbox_url=toolbox_url, access_token=access_token)
+            ),
+            self._bridge,
         )
 
     def get_limits(self, *, organization_id: Optional[str] = None) -> OrganizationLimits:
-        """Return the organization's limits and current usage."""
+        """Return the organization's limits and current usage.
+
+        A null ``limit`` means unlimited. With an API key the organization
+        defaults to the key's own, looked up once and cached; with
+        ``jwt_token`` authentication pass ``organization_id``. The credential
+        needs the ``read:limits`` permission. Member counts (``members``) are
+        not included: they are served to signed-in members only.
+        """
         return self._bridge.call(lambda: self._impl.get_limits(organization_id=organization_id))
 
-    def get_network_policy(self, sandbox: Union[Sandbox, str]) -> NetworkPolicyInfo:
-        return self._bridge.call(lambda: self._impl.get_network_policy(_rt.unwrap(sandbox)))
-
     def get_project_budget(self) -> ProjectBudget:
-        """Return the monthly spend budget of the API key's project."""
+        """Return the monthly spend budget of the API key's project.
+
+        An unset budget is returned with nullable limit and period fields. The key needs the
+        ``read:spending`` permission. Spend is calculated at list price, before
+        credits, and lags usage by several minutes. While the project is over
+        its budget, creating or starting a sandbox in it raises
+        ``ProjectBudgetExceededError``.
+        """
         return self._bridge.call(lambda: self._impl.get_project_budget())
 
-    def get_sandbox_secrets(self, sandbox: Union[Sandbox, str]) -> SandboxSecretsInfo:
-        """Read a sandbox's attached secret names and apply state; see :meth:`Sandbox.get_secrets`."""
-        return self._bridge.call(lambda: self._impl.get_sandbox_secrets(_rt.unwrap(sandbox)))
-
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Sandbox]:
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
         from .sandbox import Sandbox
 
         return _rt.wrap_iter(
             self._bridge.iterate(self._impl.iter(cursor=cursor, limit=limit)), self._bridge, Sandbox
         )
 
-    def list(
-        self,
-        *,
-        cursor: Optional[str] = None,
-        limit: Optional[int] = None,
-        id: Optional[str] = None,
-        name: Optional[str] = None,
-        q: Optional[str] = None,
-        status: Optional[Sequence[str]] = None,
-        sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
-        region: Optional[Sequence[str]] = None,
-        image_ref: Optional[str] = None,
-        image_ref_prefix: Optional[str] = None,
-        labels: Optional[Mapping[str, str]] = None,
-        spot: Optional[bool] = None,
-        forked_from: Optional[str] = None,
-        min_cores: Optional[float] = None,
-        max_cores: Optional[float] = None,
-        min_memory_mib: Optional[int] = None,
-        max_memory_mib: Optional[int] = None,
-        min_disk_mib: Optional[int] = None,
-        max_disk_mib: Optional[int] = None,
-        created_start_at: Optional[SearchTimestamp] = None,
-        created_end_at: Optional[SearchTimestamp] = None,
-        updated_start_at: Optional[SearchTimestamp] = None,
-        updated_end_at: Optional[SearchTimestamp] = None,
-        last_activity_start_at: Optional[SearchTimestamp] = None,
-        last_activity_end_at: Optional[SearchTimestamp] = None,
-        sort: Optional[SearchSort] = None,
-        order: Optional[SearchOrder] = None,
-    ) -> ListResult[Sandbox]:
-        """List sandboxes as one page ``{items, next_cursor}``."""
+    def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Sandbox]:
+        """List sandboxes as one page ``{items, next_cursor}`` (``GET /sandboxes``), newest first.
+
+        Read-your-writes: a sandbox you just created is in the result. Walk
+        further pages with :meth:`iter` or the returned cursor. Filtering is
+        :meth:`search`'s job.
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_page(
-            self._bridge.call(
-                lambda: self._impl.list(
-                    cursor=cursor,
-                    limit=limit,
-                    id=id,
-                    name=name,
-                    q=q,
-                    status=status,
-                    sandbox_class=sandbox_class,
-                    region=region,
-                    image_ref=image_ref,
-                    image_ref_prefix=image_ref_prefix,
-                    labels=labels,
-                    spot=spot,
-                    forked_from=forked_from,
-                    min_cores=min_cores,
-                    max_cores=max_cores,
-                    min_memory_mib=min_memory_mib,
-                    max_memory_mib=max_memory_mib,
-                    min_disk_mib=min_disk_mib,
-                    max_disk_mib=max_disk_mib,
-                    created_start_at=created_start_at,
-                    created_end_at=created_end_at,
-                    updated_start_at=updated_start_at,
-                    updated_end_at=updated_end_at,
-                    last_activity_start_at=last_activity_start_at,
-                    last_activity_end_at=last_activity_end_at,
-                    sort=sort,
-                    order=order,
-                )
-            ),
-            self._bridge,
-            Sandbox,
+            self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit)), self._bridge, Sandbox
         )  # type: ignore[return-value]
 
     def list_audit_actions(self) -> AuditActionList:
         """Return the actions the audit log can record for each target type."""
         return self._bridge.call(lambda: self._impl.list_audit_actions())
 
-    def pause(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
-        """Pause a sandbox (accepts a Sandbox or its id); see :meth:`Sandbox.pause`."""
+    def pause(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
+        """Pause a sandbox by handle or id; see :meth:`Sandbox.pause`."""
         return self._bridge.call(lambda: self._impl.pause(_rt.unwrap(sandbox), timeout=timeout))
 
-    def replace_sandbox_secrets(
-        self, sandbox: Union[Sandbox, str], *, secrets: Sequence[str], if_match: str
-    ) -> SandboxSecretsInfo:
-        """Replace a sandbox's attached secret names; see :meth:`Sandbox.replace_secrets`."""
-        return self._bridge.call(
-            lambda: self._impl.replace_sandbox_secrets(
-                _rt.unwrap(sandbox), secrets=secrets, if_match=if_match
-            )
-        )
-
-    def reset_network_policy(self, sandbox: Union[Sandbox, str], *, if_match: str) -> NetworkPolicyInfo:
-        return self._bridge.call(
-            lambda: self._impl.reset_network_policy(_rt.unwrap(sandbox), if_match=if_match)
-        )
-
-    def resume(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
-        """Resume a sandbox (accepts a Sandbox or its id)."""
+    def resume(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
+        """Resume a sandbox by handle or id; see :meth:`Sandbox.resume`."""
         return self._bridge.call(lambda: self._impl.resume(_rt.unwrap(sandbox), timeout=timeout))
 
     def search(
@@ -424,9 +554,9 @@ class Daytona:
         q: Optional[str] = None,
         name_prefix: Optional[str] = None,
         id_prefix: Optional[str] = None,
-        status: Optional[Sequence[str]] = None,
+        states: Optional[Union[SearchSandboxState, Sequence[SearchSandboxState]]] = None,
         sandbox_class: Optional[Union[SandboxClass, Sequence[SandboxClass]]] = None,
-        region: Optional[Sequence[str]] = None,
+        region: Optional[Union[str, Sequence[str]]] = None,
         image_ref: Optional[str] = None,
         image_ref_prefix: Optional[str] = None,
         labels: Optional[Mapping[str, str]] = None,
@@ -449,7 +579,49 @@ class Daytona:
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
     ) -> SearchResult[Sandbox]:
-        """Search sandboxes across every region (``GET /sandboxes/search``)."""
+        """Search sandboxes across every region (``GET /sandboxes/search``), one page.
+
+        Every parameter is optional and they combine as AND. ``q`` is free text
+        over name and image (or an exact id); ``name_prefix``/``id_prefix`` match
+        the start of the name or id; ``states``, ``sandbox_class`` and
+        ``region`` accept a single value or a list (any-of). A ``region`` that
+        contains other regions (a geo group, or ``earth``) matches every
+        region inside it. ``states`` are the
+        SDK's sandbox states (``started``, ``stopped``, ``error``, ...), each
+        sent as the API status names it covers; ``"unknown"`` is refused.
+        ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
+        inclusive, ``*_start_at`` timestamp bounds are inclusive, and
+        ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 timestamps
+        without a leap second (year 0001-9999, a real calendar date) or
+        ``datetime`` objects (naive values are taken as UTC). ``sort`` defaults
+        to ``created_at`` and ``order`` to ``desc``; ``limit`` must be an
+        integer from 1 to 200, else :class:`BadRequestError` before any
+        request. Returns a :class:`SearchResult` whose ``items``
+        are the same :class:`Sandbox` handles :meth:`list` returns.
+
+        Consistency: search is **eventually consistent**. Results may be briefly
+        stale after a create, update or delete, so a sandbox you
+        just created may not be in the result yet — use :meth:`get` or
+        :meth:`list` for read-your-writes. Results span every region.
+
+        Cursor: ``next_cursor`` is opaque and bound to the exact filter and sort
+        that produced it — presenting it with a different filter or sort is a
+        400, never a silent reset. Paging is best-effort under concurrent
+        mutation: each page reflects current results, so a sandbox whose sort field
+        (``status``, ``name``, ``memory_mib``, ``updated_at``, ...) changes between
+        two page fetches can appear on both pages or on neither, and creates or
+        deletes mid-walk shift later pages.
+
+        Errors: 400 (:class:`BadRequestError`) for a malformed or mismatched
+        cursor, an unknown ``sandbox_class``/``sort`` value or region, a
+        non-object ``labels`` or one with an empty key, or a ``min`` above its
+        ``max``; 501
+        (:class:`SearchNotConfiguredError` with
+        ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
+        disabled; 503 (:class:`SearchUnavailableError` with
+        ``code == "SEARCH_UNAVAILABLE"``) when search is unavailable. On 501/503
+        callers may fall back to :meth:`list`, which does not use search.
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_page(
@@ -458,7 +630,7 @@ class Daytona:
                     q=q,
                     name_prefix=name_prefix,
                     id_prefix=id_prefix,
-                    status=status,
+                    states=states,
                     sandbox_class=sandbox_class,
                     region=region,
                     image_ref=image_ref,
@@ -488,19 +660,10 @@ class Daytona:
             Sandbox,
         )  # type: ignore[return-value]
 
-    def start(self, sandbox: Union[Sandbox, str], *, timeout: float = 60) -> None:
-        """Start a sandbox (accepts a Sandbox or its id)."""
+    def start(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
+        """Start a sandbox by handle or id; see :meth:`Sandbox.start`."""
         return self._bridge.call(lambda: self._impl.start(_rt.unwrap(sandbox), timeout=timeout))
 
-    def stop(self, sandbox: Union[Sandbox, str]) -> None:
-        """Stop a persistent macOS sandbox (accepts a Sandbox or its id)."""
-        return self._bridge.call(lambda: self._impl.stop(_rt.unwrap(sandbox)))
-
-    def update_network_policy(
-        self, sandbox: Union[Sandbox, str], *, network_policy: NetworkPolicyInput, if_match: str
-    ) -> NetworkPolicyInfo:
-        return self._bridge.call(
-            lambda: self._impl.update_network_policy(
-                _rt.unwrap(sandbox), network_policy=network_policy, if_match=if_match
-            )
-        )
+    def stop(self, sandbox: Union[Sandbox, str], /, *, timeout: float = 60) -> None:
+        """Stop a sandbox by handle or id and wait until it is stopped; see :meth:`Sandbox.stop`."""
+        return self._bridge.call(lambda: self._impl.stop(_rt.unwrap(sandbox), timeout=timeout))

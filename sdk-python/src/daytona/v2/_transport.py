@@ -40,9 +40,16 @@ from ._body_limit import (
     send_buffered,
     send_buffered_sync,
 )
-from ._core import MultipartPart, RequestSpec, error_from_response, is_json_media_type, parse_json_bytes
+from ._core import (
+    MAX_BOUNDED_TIMEOUT_SECONDS,
+    MultipartPart,
+    RequestSpec,
+    error_from_response,
+    is_json_media_type,
+    parse_json_bytes,
+)
 from ._otel import OpenTelemetrySupport
-from .errors import ClientTimeoutError, ConnectionError, create_error
+from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
 _HTTP2_AVAILABLE = importlib.util.find_spec("h2") is not None
@@ -80,7 +87,6 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS: Final = 60.0
 # The largest request or per-call timeout that is still a bound, in seconds
 # (about 24.8 days): the TypeScript SDK's timers cannot arm a longer one, so
 # both SDKs read a larger value as no limit, like 0.
-_MAX_BOUNDED_TIMEOUT_SECONDS: Final = 2_147_483.647
 _RELATIVE_PATH_ERROR = "absolute request URLs are not allowed; pass a relative SDK path"
 
 
@@ -284,7 +290,7 @@ class SyncTransport:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
-        if spec.on_headers is not None and response.status_code < 400:
+        if spec.on_headers is not None and response.status_code < 300:
             spec.on_headers(response.headers)
         return _decode_response(response)
 
@@ -316,7 +322,7 @@ class SyncTransport:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             try:
                 body = read_body_sync(
                     response, resolve_limit(spec.max_response_bytes, self._max_response_bytes)
@@ -339,7 +345,7 @@ class SyncTransport:
     def request(self, method: str, path: str, **kwargs: Unpack[_RequestKwargs]) -> httpx.Response:
         """Return the raw httpx.Response after envelope-error handling.
 
-        Contract: any status >= 400 raises the typed SDK error; callers that
+        Contract: any status >= 300 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
         """
         try:
@@ -353,7 +359,7 @@ class SyncTransport:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
             raise ConnectionError(str(exc)) from exc
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             raise error_from_response(
                 response.status_code, response.content, content_type=response.headers.get("content-type")
             )
@@ -567,7 +573,7 @@ class _StreamOwners:
 
     def ensure_open(self) -> None:
         if self._closed:
-            raise ConnectionError("transport is closed")
+            raise ClientClosedError()
 
     def add(self, stream: AsyncResponseStream) -> None:
         if self._closed:
@@ -753,7 +759,7 @@ class AsyncTransport:
         # Every public client runs on THIS transport (the sync surface bridges
         # onto it), so this is where the events hub learns a sandbox's service endpoint
         # from the response's endpoint header.
-        if spec.on_headers is not None and response.status_code < 400:
+        if spec.on_headers is not None and response.status_code < 300:
             spec.on_headers(response.headers)
         return _decode_response(response)
 
@@ -772,6 +778,7 @@ class AsyncTransport:
         return _request_deadline(_transfer_idle_seconds(timeout, self._request_timeout_seconds))
 
     async def _request_token(self) -> Optional[str]:
+        self._stream_owners.ensure_open()
         if self.auth_provider is not None:
             return await self.auth_provider.bearer()
         if self._auth is not None:
@@ -872,7 +879,7 @@ class AsyncTransport:
             if span is not None:
                 span.finish(error=exc)
             raise
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             typed_error: BaseException | None = None
             try:
                 body = await read_body(
@@ -1009,7 +1016,7 @@ class AsyncTransport:
     ) -> httpx.Response:
         """Return the raw httpx.Response after envelope-error handling.
 
-        Contract: any status >= 400 raises the typed SDK error; callers that
+        Contract: any status >= 300 raises the typed SDK error; callers that
         need undecoded bodies (e.g. multipart bulk reads) rely on this.
         ``transfer=True`` marks a file transfer: no total deadline, but its
         idle bound (an explicit ``timeout`` in seconds, else the request
@@ -1097,7 +1104,7 @@ class AsyncTransport:
             raise
         if span is not None:
             span.finish(status_code=response.status_code)
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             raise error_from_response(
                 response.status_code, response.content, content_type=response.headers.get("content-type")
             )
@@ -1182,7 +1189,7 @@ def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
 
 def _per_call_seconds(seconds: float) -> float:
     """A per-call timeout as a total bound: ``0`` or above the timer maximum is none."""
-    return 0.0 if seconds <= 0 or seconds > _MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
+    return 0.0 if seconds <= 0 or seconds > MAX_BOUNDED_TIMEOUT_SECONDS else float(seconds)
 
 
 def _transfer_idle_seconds(timeout: Optional[float], request_timeout_seconds: float) -> float:
@@ -1306,7 +1313,7 @@ def _request_headers(
 
 
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
-    if response.status_code >= 400:
+    if response.status_code >= 300:
         raise error_from_response(
             response.status_code, response.content, content_type=response.headers.get("content-type")
         )

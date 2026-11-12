@@ -46,6 +46,7 @@ from daytona.v2._bridge import BridgeError, SyncBridge
 from daytona.v2._sync import Daytona
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import AsyncDaytona
+from daytona.v2.errors import ClientClosedError
 from daytona.v2.process import AsyncProcessService
 from daytona.v2.types import DaytonaConfig, ListResult
 
@@ -170,13 +171,21 @@ def test_plain_methods_run_on_the_bridge_loop_unless_loop_free(async_cls: type, 
         if isinstance(raw, (classmethod, staticmethod)) or name.startswith("__"):
             continue
         if isinstance(raw, property):
-            # computed state the loop mutates: always read on the loop
+            # Computed state the loop mutates is read on the loop; a field of an
+            # immutable snapshot the class lists in _SYNC_DIRECT_PROPERTIES is
+            # read directly (and stays readable after the client closes).
             twin_prop = inspect.getattr_static(sync_cls, name)
             assert isinstance(twin_prop, property), f"{sync_cls.__name__}.{name} is no longer a property"
             body = textwrap.dedent(inspect.getsource(twin_prop.fget))  # type: ignore[arg-type]
-            assert "self._bridge.call_sync(" in body, (
-                f"{sync_cls.__name__}.{name} reads loop-owned state off the loop"
-            )
+            if name in getattr(async_cls, "_SYNC_DIRECT_PROPERTIES", frozenset()):
+                # Any bridge access would stop working once the client closes.
+                assert "_bridge" not in body and "self._impl." in body, (
+                    f"{sync_cls.__name__}.{name} should read the snapshot directly"
+                )
+            else:
+                assert "self._bridge.call_sync(" in body, (
+                    f"{sync_cls.__name__}.{name} reads loop-owned state off the loop"
+                )
             continue
         if _is_internal_binder(raw) or inspect.iscoroutinefunction(raw) or inspect.isasyncgenfunction(raw):
             continue
@@ -350,7 +359,7 @@ def _sandbox(
 
 
 def _sandboxes(*sandboxes: dict[str, object], next_cursor: str | None = None) -> dict[str, object]:
-    return {"sandboxes": list(sandboxes), "next_cursor": next_cursor}
+    return {"sandboxes": list(sandboxes), "next_cursor": next_cursor, "total": 0, "total_relation": "eq"}
 
 
 def _process(process_id: str, state: str = "running") -> dict[str, object]:
@@ -463,8 +472,8 @@ def test_search_shape_wraps_items_and_keeps_every_page_field(server: _Server, sy
         "gte",
     )
 
-    page = sync_client.list(status=["running"])  # filters use sandbox search
-    assert isinstance(page, ListResult)
+    page = sync_client.search(states=["started"])
+    assert isinstance(page, SearchResult)
     assert [type(item).__name__ for item in page.items] == ["Sandbox", "Sandbox"]
     assert (page.total, page.total_relation) == (41, "gte")
 
@@ -483,8 +492,10 @@ def test_iterator_shape_streams_lazily(server: _Server, sync_client: Daytona) ->
 def test_property_shape_passes_data_through(server: _Server, sync_client: Daytona) -> None:
     server.routes[("GET", "/sandboxes/sb-1")] = _sandbox("sb-1")
     sandbox = sync_client.get("sb-1")
-    assert sandbox.toolbox_proxy_url == "http://toolbox.invalid/sandboxes/sb-1"
+    assert (sandbox.id, sandbox.region, sandbox.memory) == ("sb-1", "region-b", 1.0)
     assert sandbox.sandbox_class == "linux"
+    # The toolbox URL is a transport detail, not handle metadata.
+    assert not hasattr(sandbox, "toolbox_proxy_url")
 
 
 def test_sync_create_uses_the_create_response_toolbox_url_without_a_detail_fetch(
@@ -528,6 +539,7 @@ def test_sync_fork_takes_its_toolbox_from_the_fork_response(server: _Server, syn
         "access_token": "jwt",
         "token_type": "Bearer",
         "expires_at": "2099-01-01T00:00:00Z",
+        "operations": [],
     }
     server.routes[("GET", "/sandboxes/forked/system/metrics")] = {
         "timestamp": "2026-10-08T00:00:00Z",
@@ -540,13 +552,12 @@ def test_sync_fork_takes_its_toolbox_from_the_fork_response(server: _Server, syn
     }
 
     sandbox = lazy_sandbox(sync_client, "parent", toolbox_url="http://10.0.0.7:2280")
-    sandbox._impl.sandbox_class = "linux"
-    forked = sandbox.fork()
+    sandbox._impl._update(sandbox_class="linux")
+    forked = sandbox.fork(wait_seconds=0)
 
     assert forked.metrics().cpu_count == 8
     assert server.calls == [
         ("POST", "/sandboxes/parent/fork"),
-        ("GET", "/sandboxes/forked"),
         ("POST", "/sandboxes/forked/access-token"),
         ("GET", "/sandboxes/forked/system/metrics"),
     ]
@@ -561,6 +572,7 @@ def test_sync_list_without_toolbox_proxy_url_fetches_detail_once_before_building
         "access_token": "jwt",
         "token_type": "Bearer",
         "expires_at": "2099-01-01T00:00:00Z",
+        "operations": [],
     }
     server.routes[("GET", "/sandboxes/sb-1/system/metrics")] = {
         "timestamp": "2026-10-08T00:00:00Z",
@@ -604,6 +616,7 @@ def test_sync_daytona_toolbox_url_env_has_no_effect(monkeypatch: pytest.MonkeyPa
         "access_token": "jwt",
         "token_type": "Bearer",
         "expires_at": "2099-01-01T00:00:00Z",
+        "operations": [],
     }
     server.routes[("GET", "/sandboxes/sb-1/system/metrics")] = {
         "timestamp": "2026-10-08T00:00:00Z",
@@ -647,7 +660,7 @@ def test_rehydration_shape_round_trips_across_surfaces(server: _Server, sync_cli
 def test_argument_shape_unwraps_sync_handles_passed_back_in(server: _Server, sync_client: Daytona) -> None:
     """The inverse direction: a Sync handle given to the SDK must reach the
     async implementation as the async object it wraps."""
-    states = iter(["running", "deleting"])
+    states = iter(["running", "deleting", "deleted"])
     server.routes[("GET", "/sandboxes/sb-1")] = lambda request: httpx.Response(
         200, json=_sandbox("sb-1", next(states))
     )
@@ -658,7 +671,7 @@ def test_argument_shape_unwraps_sync_handles_passed_back_in(server: _Server, syn
     sync_client.delete(sandbox)  # would TypeError on an un-unwrapped wrapper
 
     assert ("DELETE", "/sandboxes/sb-1") in server.calls
-    assert sandbox.state == "destroying"
+    assert sandbox.state == "destroyed"
 
 
 def _leaves(value: object) -> list[object]:
@@ -762,7 +775,7 @@ def test_close_is_idempotent_including_inside_a_with_block(server: _Server) -> N
 def test_context_manager_shape_closes_on_exit(server: _Server) -> None:
     with Daytona(DaytonaConfig(api_key="k")) as client:
         assert client._bridge is not None
-    with pytest.raises(BridgeError, match="closed"):
+    with pytest.raises(ClientClosedError, match="closed"):
         client._bridge.call(lambda: client._impl.list())
 
 
@@ -800,3 +813,23 @@ def test_async_and_sync_surfaces_are_the_same_implementation() -> None:
     assert sync_module.Daytona._async_type is AsyncDaytona
     assert sync_module.ProcessService._async_type is AsyncProcessService
     assert isinstance(Daytona(_config_at("http://x.invalid", api_key="k"))._bridge, SyncBridge)
+
+
+def test_generated_sync_docstrings_carry_sync_examples() -> None:
+    # The sync twins copy the async docstrings in full; their example code is
+    # rewritten for the sync client, so none shows `await` or `async`.
+    import ast
+    from pathlib import Path
+
+    import daytona.v2._sync as sync_package
+
+    offenders: list[str] = []
+    for path in sorted(Path(sync_package.__file__).parent.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef, ast.Module)):
+                doc = ast.get_docstring(node) or ""
+                for needle in ("await ", "async with", "async for"):
+                    if needle in doc:
+                        offenders.append(f"{path.name}:{getattr(node, 'name', '<module>')}: {needle!r}")
+    assert offenders == []

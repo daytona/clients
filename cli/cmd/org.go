@@ -25,7 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var selectPrompt = ui.Select
+var selectPrompt = ui.SelectContext
 
 func init() {
 	Register(newOrgCmd)
@@ -47,7 +47,7 @@ func pickOrg(a *app.App) func(ctx context.Context) (string, error) {
 		if len(opts) == 0 {
 			return "", cerr.New(cerr.ExitNotFound, "you are not a member of any organization")
 		}
-		return selectPrompt("Select an organization", opts)
+		return selectPrompt(ctx, "Select an organization", opts)
 	}
 }
 
@@ -70,7 +70,7 @@ func pickProject(a *app.App) func(ctx context.Context) (string, error) {
 		if len(opts) == 0 {
 			return "", cerr.New(cerr.ExitNotFound, "no projects in this organization")
 		}
-		projectID, err := selectPrompt("Select a project", opts)
+		projectID, err := selectPrompt(ctx, "Select a project", opts)
 		if err != nil {
 			return "", err
 		}
@@ -183,12 +183,14 @@ func newOrgCmd() *cobra.Command {
 	c.AddCommand(&cobra.Command{
 		Use: "limits [id|name]", Short: "Show the organization's limits and current usage (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		Long: `Show the organization's limits — sandboxes, image
-builds, members, images, snapshots, secrets and API keys — each with
-the current usage it is checked against; "unlimited" means no limit applies.
-A request refused by one of them exits 6 with "LIMIT_EXCEEDED" naming the
-limit, the current count and the maximum. Requires read:organization, or
-read:limits with an API key. An API key reads its own organization when none
-is named, and its read leaves out the member counts.`,
+builds, Mac reservations, members, images, snapshots, secrets and API keys —
+each with the current usage it is checked against; "unlimited" means no limit
+applies. A request refused by one of them — a Mac reservation purchase
+included (reservation create or renew, or a sandbox create-macos or start
+that buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
+maximum. Requires read:organization, or read:limits with an API key. An API
+key reads its own organization when none is named, and its read leaves out
+the member counts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
@@ -277,9 +279,14 @@ shows a picker at a terminal.`,
 		},
 	})
 	c.AddCommand(&cobra.Command{
-		Use: "create <name>", Short: "Create an organization", Args: cobra.ExactArgs(1),
+		Use: "create <name>", Short: "Create an organization",
+		Long: "Create an organization. The name is 1 to 64 characters after trimming, with no control characters.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if err := checkOrgProjectName("organization", args[0]); err != nil {
+				return err
+			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
 				return err
@@ -292,12 +299,19 @@ shows a picker at a terminal.`,
 		},
 	})
 	upd := &cobra.Command{
-		Use: "update <id|name> --name <new>", Short: "Rename an organization", Args: cobra.ExactArgs(1),
+		Use: "update <id|name> --name <new>", Short: "Rename an organization",
+		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\na rename to the current name is sent and left to the API.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			name, _ := cmd.Flags().GetString("name")
 			if name == "" {
 				return cerr.Usage("--name is required")
+			}
+			refusal := checkOrgProjectName("organization", name)
+			if strings.TrimSpace(name) == "" {
+				// A blank name is never the current one.
+				return refusal
 			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
@@ -307,6 +321,9 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
+			if err := checkRenamedOrgName(cmd.Context(), mc, id, name, refusal); err != nil {
+				return err
+			}
 			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPatch, "/orgs/"+url.PathEscape(id), nil, gen.UpdateOrganizationRequest{Name: mgmt.Ref(name)}, &out); err != nil {
 				return err
@@ -314,7 +331,7 @@ shows a picker at a terminal.`,
 			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	}
-	upd.Flags().String("name", "", "new name")
+	upd.Flags().String("name", "", "new name (1 to 64 characters)")
 	c.AddCommand(upd)
 	c.AddCommand(&cobra.Command{
 		Use: "delete <id|name>", Short: "Delete an organization (personal orgs cannot be deleted)", Args: cobra.ExactArgs(1),
@@ -569,6 +586,9 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 			[2]string{"Images", usageLimitString(l.Storage.Images)},
 			[2]string{"Snapshots", usageLimitString(l.Storage.Snapshots)},
 		)
+	}
+	if m := l.MacReservations; m != nil {
+		rows = append(rows, [2]string{"Mac reservations", usageLimitString(*m)})
 	}
 	rows = append(rows,
 		[2]string{"API keys per organization", usageLimitString(l.ApiKeysPerOrganization)},

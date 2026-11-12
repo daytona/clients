@@ -34,7 +34,7 @@ func newSandboxCPSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cp <src> <dst>",
 		Short: "Copy files to or from a sandbox",
-		Long:  "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself.",
+		Long:  "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). A file copied onto an existing sandbox directory lands inside it, as with POSIX cp; a local directory needs -r. With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -45,6 +45,11 @@ func newSandboxCPSubcommand() *cobra.Command {
 				return cerr.Usage("sandbox cp supports exactly one remote endpoint")
 			case !srcRemote && !dstRemote:
 				return cerr.Usage("sandbox cp needs one endpoint in <sandbox-id>:/path form")
+			}
+			if dstRemote {
+				if err := checkLocalUploadSource(args[0], recursive); err != nil {
+					return err
+				}
 			}
 			if srcRemote {
 				toolClient, target, _, signer, err := sandboxClients(cmd.Context(), a, src.SandboxID)
@@ -68,6 +73,15 @@ func newSandboxCPSubcommand() *cobra.Command {
 				return recursiveUpload(cmd, toolClient, signer, target, args[0], dst.Path)
 			}
 			remotePath := destinationUploadPath(args[0], dst.Path)
+			if remotePath == dst.Path {
+				isDir, err := remoteIsDir(cmd.Context(), toolClient, dst.Path)
+				if err != nil {
+					return err
+				}
+				if isDir {
+					remotePath = path.Join(dst.Path, filepath.Base(args[0]))
+				}
+			}
 			signedURL, err := toolboxclient.SignFileURL(cmd.Context(), signer, string(target.Detail.Class), target.Detail.Id, http.MethodPost, remotePath, presignedTransferTTL)
 			if err != nil {
 				return err
@@ -77,6 +91,23 @@ func newSandboxCPSubcommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "copy a directory by uploading one tar archive, then extracting it remotely")
 	return cmd
+}
+
+// checkLocalUploadSource refuses, before anything is signed or sent, a local
+// source that does not exist or does not match -r (exit 2).
+func checkLocalUploadSource(localPath string, recursive bool) error {
+	info, err := os.Stat(localPath)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return cerr.Usage("%s: no such file or directory", localPath)
+	case err != nil:
+		return cerr.Usage("%s: %v", localPath, errors.Unwrap(err))
+	case info.IsDir() && !recursive:
+		return cerr.Usage("%s is a directory", localPath).WithHint("pass -r to copy a directory")
+	case !info.IsDir() && recursive:
+		return cerr.Usage("%s is not a directory; -r copies a directory", localPath).WithHint("drop -r to copy one file")
+	}
+	return nil
 }
 
 func recursiveDownload(cmd *cobra.Command, toolClient *toolboxclient.Client, remotePath, localPath string) error {

@@ -81,7 +81,11 @@ def test_guidance_when_proven_call_is_found() -> None:
     result = suggest(source)
     # Then executable syntax is identical and machine-readable guidance is precise.
     assert ast.dump(ast.parse(result.source)) == ast.dump(ast.parse(source))
-    entries = [item["suggestion"] for item in result.items if "suggestion" in item]
+    entries = [
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert len(entries) == 1
     assert {key: value for key, value in entries[0].items() if key != "notes"} == {
         "id": "client.create",
@@ -101,7 +105,11 @@ def test_nested_service_when_sandbox_is_produced() -> None:
     # When producing guidance.
     result = suggest(source)
     # Then service suggestions substitute the actual sandbox binding.
-    entries = [item["suggestion"] for item in result.items if "suggestion" in item]
+    entries = [
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert [entry["id"] for entry in entries] == [
         "client.create",
         "sandbox.fs.list_files",
@@ -118,7 +126,11 @@ def test_no_equivalent_when_mapping_explicitly_has_none() -> None:
     # When producing guidance.
     result = suggest(source)
     # Then the report preserves null rather than inventing a v2 call.
-    entries = [item["suggestion"] for item in result.items if "suggestion" in item]
+    entries = [
+        item["suggestion"]
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
     assert len(entries) == 1
     assert entries[0]["v2"] is None
     assert entries[0]["category"] == "none"
@@ -255,7 +267,9 @@ def test_git_remote_calls_carry_request_timeout_into_the_v2_timeout(
     entry = next(
         item["suggestion"]
         for item in result.items
-        if "suggestion" in item and item["suggestion"]["id"] == f"sandbox.git.{method}"
+        if "suggestion" in item
+        and item["kind"] != "workflow"
+        and item["suggestion"]["id"] == f"sandbox.git.{method}"
     )
     form = entry["v2"]
     assert form is not None and form.endswith(", timeout=request_timeout)")
@@ -264,3 +278,211 @@ def test_git_remote_calls_carry_request_timeout_into_the_v2_timeout(
         for note in entry["notes"]
     )
     assert "timeout=request_timeout" in result.source
+
+
+def _lifecycle_form(call: str, entry_id: str) -> str:
+    source = (
+        f"from daytona import Daytona\napi = Daytona()\nbox = api.v0.create()\n{call}\n"
+    )
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    form = next(
+        item["suggestion"]["v2"]
+        for item in result.items
+        if "suggestion" in item
+        and item["kind"] != "workflow"
+        and item["suggestion"]["id"] == entry_id
+    )
+    assert form is not None
+    return form
+
+
+@pytest.mark.parametrize(
+    ("call", "entry_id", "expected"),
+    [
+        # A 0.x call that used the default timeout: v2's default holds, and the
+        # suggestion names no variable the call did not have.
+        ("box.start()", "sandbox.start", "box.start()"),
+        ("box.stop()", "sandbox.stop", "box.stop()"),
+        ("box.delete()", "sandbox.delete", "box.delete()"),
+        ("box.pause()", "sandbox.pause", "box.pause()"),
+        (
+            "box.wait_for_sandbox_start()",
+            "sandbox.waitUntilStarted",
+            'box.wait(until="started")',
+        ),
+        ("box.fork()", "sandbox.fork", "box.fork(memory=False)"),
+        ("api.v0.delete(box)", "client.delete", "api.v2.delete(sandbox)"),
+        # A 0.x call that passed one keeps it, by its own source.
+        (
+            "box.start(120)",
+            "sandbox.start",
+            "box.start(timeout=120)",
+        ),
+        ("box.pause(timeout=5)", "sandbox.pause", "box.pause(timeout=5)"),
+        (
+            "box.fork(name='copy', timeout=30)",
+            "sandbox.fork",
+            "box.fork(name='copy', memory=False, wait_seconds=30)",
+        ),
+        # A numeric literal is computed; a variable keeps the expression.
+        (
+            "box.fork(timeout=0)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400)",
+        ),
+        (
+            "box.fork(timeout=budget)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400 if budget in (None, 0) else budget)",
+        ),
+        (
+            "box.start(budget)",
+            "sandbox.start",
+            "box.start(timeout=0 if budget is None else budget)",
+        ),
+        # An expression is parenthesized where the form computes with it.
+        (
+            "box.fork(timeout=5 if fast else 60)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400 if (5 if fast else 60) in (None, 0) else (5 if fast else 60))",
+        ),
+        (
+            "box.start(a or b)",
+            "sandbox.start",
+            "box.start(timeout=0 if (a or b) is None else (a or b))",
+        ),
+        ("box.pause(timeout=a or b)", "sandbox.pause", "box.pause(timeout=a or b)"),
+        # A literal None is folded to the value it meant in 0.x.
+        (
+            "box.wait_for_sandbox_stop(timeout=None)",
+            "sandbox.waitUntilStopped",
+            'box.wait(until="stopped", timeout=0)',
+        ),
+        ("box.start(None)", "sandbox.start", "box.start(timeout=0)"),
+        ("box.delete(timeout=None)", "sandbox.delete", "box.delete(timeout=60)"),
+        (
+            "box.fork(timeout=None)",
+            "sandbox.fork",
+            "box.fork(memory=False, wait_seconds=30 * 86_400)",
+        ),
+        (
+            "api.v0.delete(box, None)",
+            "client.delete",
+            "api.v2.delete(sandbox, timeout=60)",
+        ),
+        # Keyboard calls carry the call's own arguments; a delay is converted
+        # from milliseconds, parenthesized where it is an expression.
+        (
+            "box.computer_use.keyboard.type('hi')",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text='hi')",
+        ),
+        (
+            "box.computer_use.keyboard.type(message, delay=50)",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text=message, delay=50 / 1000)",
+        ),
+        (
+            "box.computer_use.keyboard.type(message, pause + 5)",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text=message, delay=None if (pause + 5) is None else (pause + 5) / 1000)",
+        ),
+        (
+            "box.computer_use.keyboard.type(message, delay=None)",
+            "sandbox.computerUse.keyboard.type",
+            "box.computer_use.keyboard.type(text=message)",
+        ),
+        (
+            "box.computer_use.keyboard.press('a', ['ctrl'])",
+            "sandbox.computerUse.keyboard.press",
+            "box.computer_use.keyboard.key(key='a', modifiers=['ctrl'])",
+        ),
+        (
+            "box.computer_use.keyboard.hotkey('ctrl+c')",
+            "sandbox.computerUse.keyboard.hotkey",
+            "box.computer_use.keyboard.hotkey(keys='ctrl+c')",
+        ),
+        # `sandbox` in a client form stands for the 0.x call's sandbox, as the
+        # guide says of every identifier but `{client}` / `{sandbox}`.
+        ("api.v0.stop(box)", "client.stop", "api.v2.stop(sandbox)"),
+        ("api.v0.stop(box, 30)", "client.stop", "api.v2.stop(sandbox, timeout=30)"),
+        (
+            "api.v0.delete(box, 30)",
+            "client.delete",
+            "api.v2.delete(sandbox, timeout=30)",
+        ),
+    ],
+)
+def test_lifecycle_suggestions_carry_only_the_timeout_the_call_passed(
+    call: str, entry_id: str, expected: str
+) -> None:
+    # The TypeScript tool renders the same forms (tests/optional-arguments.test.ts).
+    assert _lifecycle_form(call, entry_id) == expected
+
+
+def _suggest(source: str) -> list[tuple[int, str, str | None]]:
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    return [
+        (item["line"], item["kind"], item["suggestion"]["v2"])
+        for item in result.items
+        if "suggestion" in item and item["kind"] != "workflow"
+    ]
+
+
+def test_root_sandbox_calls_and_lsp_servers_render_on_their_sandbox() -> None:
+    # Given root sandbox calls and an LSP server created from a sandbox named box.
+    source = (
+        "from daytona import Daytona, LspServer, Sandbox\n"
+        "def main(sb: Sandbox):\n"
+        "    sb.refresh_data()\n"
+        "    box = Daytona().v0.create()\n"
+        "    server = box.create_lsp_server('python', '/x')\n"
+        "    server.start()\n"
+        "def other(lsp: LspServer):\n"
+        "    lsp.start()\n"
+    )
+    # When
+    items = _suggest(source)
+    # Then the root call is a plain suggestion, the server starts on box, and a
+    # server whose sandbox is unknown is a manual move (as in the TypeScript tool).
+    assert (3, "suggestion", "sb.refresh_data()") in items
+    assert (
+        6,
+        "suggestion",
+        "lsp = box.lsp.start(language_id, path_to_project)",
+    ) in items
+    assert (
+        8,
+        "fixme",
+        "lsp = sandbox.lsp.start(language_id, path_to_project)",
+    ) in items
+
+
+def test_workflow_items_carry_the_data_guide_link() -> None:
+    # Given
+    source = (
+        "from daytona import Daytona\nbox = Daytona().v0.create()\nbox.refresh_data()\n"
+    )
+    mapping = load_mapping()
+    result = transform_source(
+        source,
+        TransformOptions(mapping, "suggest-v2"),
+        SourceContext("app.py", "app", build_index({"app": source}, mapping)),
+    )
+    # Then the workflow item has the TypeScript tool's suggestion object.
+    workflow = next(item for item in result.items if item["kind"] == "workflow")
+    assert "suggestion" in workflow
+    suggestion = workflow["suggestion"]
+    assert suggestion["id"] == "workflow:box"
+    assert suggestion["docs"] == mapping.docs + "#data"
+    assert list(suggestion["notes"]) == list(mapping.data_traps)

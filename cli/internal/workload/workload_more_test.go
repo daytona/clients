@@ -102,6 +102,18 @@ func TestWaitForSandbox_deletedUsesWaitExact(t *testing.T) {
 	require.Equal(t, "deleted", detail.V.Status)
 }
 
+func TestWaitForSandbox_refusesANonStatusTargetBeforeAnyRequest(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s", r.URL)
+	}))
+	defer srv.Close()
+	for _, target := range []string{"", "started", "Running", "ready", "destroyed"} {
+		_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: target, Timeout: time.Second})
+		require.Error(t, err, target)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), target)
+	}
+}
+
 func TestWaitForImage_failedTerminal(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"region_ids":["region-a"],"created_at":"2026-09-13T00:00:00Z","id":"11111111-1111-1111-1111-111111111111","name":"img","region_id":"region-a","source":{"type":"registry","ref":"python:3.12"},"status":"failed"}`))

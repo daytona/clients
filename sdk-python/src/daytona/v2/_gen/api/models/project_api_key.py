@@ -50,9 +50,8 @@ class ProjectApiKey(BaseModel):
     service_account_id: Optional[StrictStr] = Field(default=None, description="The service account that owns the API key, when applicable.")
     service_account_name: Optional[StrictStr] = Field(default=None, description="The service account name, when applicable and available.")
     sync_to_v0: StrictBool = Field(description="Whether the v0 ↔ v2 key sync copies this key to Daytona v0 (for an organization that is kept in sync with Daytona v0). `true` for a live key a person minted in the organization's `default` project unless it was opted out by updating the API key, and always for a live key imported from Daytona v0. `false` for every key the sync never copies: keys in other projects, service-account keys, the dashboard's own key named `default`, and revoked or expired keys. A Daytona v0 copy can read every sandbox, snapshot and registry of the organization on Daytona v0, which has no read permissions.")
-    sync_to_v1: StrictBool = Field(description="Deprecated: use `sync_to_v0`, which carries the same value.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "created_by", "expires_at", "id", "imported_from", "key_prefix", "key_suffix", "last_used_at", "name", "project_id", "project_permissions", "revoked_at", "service_account_id", "service_account_name", "sync_to_v0", "sync_to_v1"]
+    __properties: ClassVar[List[str]] = ["created_at", "created_by", "expires_at", "id", "imported_from", "key_prefix", "key_suffix", "last_used_at", "name", "project_id", "project_permissions", "revoked_at", "service_account_id", "service_account_name", "sync_to_v0"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -173,8 +172,7 @@ class ProjectApiKey(BaseModel):
             **({"revoked_at": obj["revoked_at"]} if "revoked_at" in obj else {}),
             **({"service_account_id": obj["service_account_id"]} if "service_account_id" in obj else {}),
             **({"service_account_name": obj["service_account_name"]} if "service_account_name" in obj else {}),
-            "sync_to_v0": obj.get("sync_to_v0"),
-            "sync_to_v1": obj.get("sync_to_v1")
+            "sync_to_v0": obj.get("sync_to_v0")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -34,14 +34,13 @@ async def test_get_sandbox_secrets_returns_etag_and_runtime_fields() -> None:
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            info = await client.get_sandbox_secrets("sbx")
+            info = await lazy_sandbox(client, "sbx").get_secrets()
         finally:
             await client.close()
 
     assert api.requests[0].path == "/sandboxes/sbx/secrets"
     assert info.etag == '"sv-7"'
-    assert info.http_status == 200
-    assert info.secrets == ["OPENAI_API_KEY", "GITHUB_TOKEN"]
+    assert info.secrets == ("OPENAI_API_KEY", "GITHUB_TOKEN")
     assert info.applied_revision == 6
     assert info.status == "pending"
 
@@ -66,15 +65,13 @@ async def test_replace_sandbox_secrets_uses_exact_path_headers_and_202_status() 
     ) as api:
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
-            updated = await client.replace_sandbox_secrets(
-                "sbx",
+            updated = await lazy_sandbox(client, "sbx").replace_secrets(
                 secrets=["OPENAI_API_KEY"],
                 if_match='"sv-1"',
             )
         finally:
             await client.close()
 
-    assert updated.http_status == 202
     assert updated.etag == '"sv-2"'
     assert api.requests[0].path == "/sandboxes/sbx/secrets"
     assert api.requests[0].headers["If-Match"] == '"sv-1"'
@@ -121,8 +118,7 @@ async def test_replace_sandbox_secrets_rejects_plain_objects_before_any_request(
         client = AsyncDaytona(_config_at(api.url, api_key="key"))
         try:
             with pytest.raises(BadRequestError, match="sandbox secrets must be an array of strings"):
-                await client.replace_sandbox_secrets(
-                    "sbx",
+                await lazy_sandbox(client, "sbx").replace_secrets(
                     secrets={"NAME": "value"},
                     if_match='"sv-1"',
                 )

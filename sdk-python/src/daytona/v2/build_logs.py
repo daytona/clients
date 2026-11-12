@@ -11,7 +11,6 @@ import binascii
 import codecs
 import inspect
 import json
-import math
 import random
 import re
 import time
@@ -37,7 +36,16 @@ from pydantic import BaseModel
 from typing_extensions import Unpack
 
 from . import _clock
-from ._core import JSON_MAX_DEPTH, RequestSpec, is_json_media_type, loads_json, parse_error_payload
+from ._core import (
+    JSON_MAX_DEPTH,
+    RequestSpec,
+    _nested_deeper_than,
+    is_json_media_type,
+    loads_json,
+    parse_error_payload,
+    query_text,
+    wait_budget_seconds,
+)
 from ._gen.api import (
     BuildLogChunk,
     BuildLogDone,
@@ -54,6 +62,8 @@ from ._gen.api import (
 from ._gen.api import (
     BuildLogGapReason as BuildLogGapReasonEnum,
 )
+from ._timestamps import parse_timestamp as parse_wire_timestamp
+from ._timestamps import rfc3339_timestamp
 from ._transport import AsyncResponseStream, AsyncTransport
 from .errors import (
     ClientTimeoutError,
@@ -62,6 +72,7 @@ from .errors import (
     _attach_interrupt_error,
     _ErrorFields,
     create_error,
+    redirect_error,
 )
 from .types import JsonValue
 
@@ -93,7 +104,7 @@ def _build_log_gap_reason_or_unknown(value: str) -> BuildLogGapReason:
     return value if _is_build_log_gap_reason_known(value) else "unknown"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogFollowResult:
     status: str
     reason: BuildLogDoneReason
@@ -102,15 +113,15 @@ class BuildLogFollowResult:
     raw_reason: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogStateEvent:
     status: str
     error: str | None = None
-    deadline_at: str | None = None
+    deadline_at: datetime | None = None
     type: Literal["state"] = "state"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogChunkEvent:
     data_base64: str
     start_offset: str
@@ -119,7 +130,7 @@ class BuildLogChunkEvent:
     type: Literal["log"] = "log"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogGapEvent:
     requested_offset: str
     first_available_offset: str
@@ -130,25 +141,25 @@ class BuildLogGapEvent:
     raw_reason: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogUnavailableEvent:
     reason: str
     type: Literal["unavailable"] = "unavailable"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogSourceChangedEvent:
     reason: str
     type: Literal["source_changed"] = "source_changed"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogDoneEvent:
     result: BuildLogFollowResult
     type: Literal["done"] = "done"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class BuildLogErrorEvent:
     error: str
     code: str
@@ -169,8 +180,10 @@ BuildLogEvent = (
 
 # Callbacks may return an awaitable, which is awaited before the next event —
 # the same convention as the filesystem watch callbacks.
-_LogsCallback = Callable[[str], "None | Awaitable[None]"]
-_EventCallback = Callable[[BuildLogEvent], "None | Awaitable[None]"]
+BuildLogsCallback = Callable[[str], "None | Awaitable[None]"]
+"""Receives decoded build output; may return an awaitable, awaited before the next event."""
+BuildLogEventCallback = Callable[[BuildLogEvent], "None | Awaitable[None]"]
+"""Receives each typed :data:`BuildLogEvent`; may return an awaitable, awaited before the next event."""
 
 
 async def _invoke(result: None | Awaitable[None]) -> None:
@@ -220,6 +233,14 @@ class _CallbackError(Exception):
     pass
 
 
+class _DiscoveryFailure(Exception):
+    """The initial discovery request's HTTP error, raised to the caller unchanged."""
+
+    def __init__(self, error: DaytonaError) -> None:
+        super().__init__(str(error))
+        self.error = error
+
+
 _MAX_EVENT = 128 * 1024
 # Bound this SDK string API to 2 MiB of response-body bytes so a misbehaving
 # endpoint cannot turn a one-shot read into an unbounded allocation.
@@ -239,6 +260,16 @@ def _object(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise _ProtocolError("expected JSON object")
     return {key: item for key, item in value.items() if isinstance(key, str)}
+
+
+def _json(text: str | bytes) -> object:
+    """``json.loads`` for build-log JSON: the non-standard constants, and a
+    value nested deeper than ``JSON_MAX_DEPTH`` (the limit both SDKs apply to
+    every JSON body), are invalid JSON (``ValueError``)."""
+    value: JsonValue = json.loads(text, parse_constant=_invalid_json_constant)
+    if _nested_deeper_than(value, JSON_MAX_DEPTH):
+        raise ValueError("build log JSON is nested too deeply")
+    return value
 
 
 def _invalid_json_constant(_value: str) -> object:
@@ -270,13 +301,33 @@ def _offset(value: object) -> int:
     return int(text)
 
 
+def _cursor_ok(text: str) -> bool:
+    # Cursors are opaque. One rule in both SDKs and both directions: non-empty,
+    # bounded, and no C0 control character or DEL; their encoding and contents
+    # are not inferred.
+    return bool(text) and len(text) <= 2048 and re.search(r"[\x00-\x1f\x7f]", text) is None
+
+
 def _cursor(value: object) -> str:
+    """A server-sent cursor: one that breaks the rule is the protocol error."""
     text = _text(value)
-    # Cursors are opaque. Bound their size and exclude SSE framing characters,
-    # but do not infer their encoding or contents.
-    if not text or len(text) > 2048 or re.search(r"[\x00\r\n]", text):
+    if not _cursor_ok(text):
         raise _ProtocolError("invalid cursor")
     return text
+
+
+def _caller_cursor(value: object) -> str:
+    """A caller's resume cursor: one that breaks the rule is BadRequestError
+    naming it, before any request, as in TypeScript. It is sent as a query
+    value, so a lone surrogate is refused too."""
+    if not isinstance(value, str) or not _cursor_ok(value):
+        raise create_error(
+            "cursor must be a non-empty string of at most 2048 characters with no control characters",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return query_text(value, "cursor")
 
 
 def _bytes(value: object) -> bytes:
@@ -339,11 +390,14 @@ class _SseDecoder:
                 self._first_line = False
             self._line.clear()
             if not text:
-                if self._data:
+                if self._data and self._event not in _WIRE_MODELS:
+                    # An event this release does not know (a later API added
+                    # it): skipped unparsed, and its ID is not a checkpoint,
+                    # so the cursor does not move, as watches skip theirs.
+                    pass
+                elif self._data:
                     try:
-                        payload = _object(
-                            json.loads("\n".join(self._data), parse_constant=_invalid_json_constant)
-                        )
+                        payload = _object(_json("\n".join(self._data)))
                     except (ValueError, RecursionError) as exc:
                         raise _ProtocolError("invalid event JSON") from exc
                     yield self._event, self._ident, payload
@@ -372,7 +426,9 @@ def _messages(chunks: Iterable[bytes]) -> Iterator[tuple[str, str | None, dict[s
 class _Observer:
     """Sans-I/O protocol/decoder state, retained through reconnections."""
 
-    def __init__(self, on_logs: _LogsCallback, on_event: _EventCallback | None, cursor: str | None) -> None:
+    def __init__(
+        self, on_logs: BuildLogsCallback, on_event: BuildLogEventCallback | None, cursor: str | None
+    ) -> None:
         self.on_logs, self.on_event = on_logs, on_event
         self.cursor = _cursor(cursor) if cursor is not None else None
         # A resumed stream establishes its starting offset with its first event.
@@ -398,7 +454,8 @@ class _Observer:
     ) -> BuildLogFollowResult | None:
         model = _WIRE_MODELS.get(event)
         if model is None:
-            raise _ProtocolError("unknown build log event")
+            # The decoder skips unknown events; this guards direct callers.
+            return None
         try:
             model.model_validate(data)
         except ValueError as exc:
@@ -410,13 +467,13 @@ class _Observer:
             deadline = _optional_text(data.get("deadline_at"))
             error = _optional_text(data.get("error"))
             # The build deadline is metadata, not the caller's timeout.
-            try:
-                expires = datetime.fromisoformat(deadline.replace("Z", "+00:00")) if deadline else None
-                if expires is not None and expires.tzinfo is None:
-                    raise ValueError("missing timezone")
-            except ValueError as exc:
-                raise _ProtocolError("invalid build deadline") from exc
-            await self._emit(BuildLogStateEvent(status, error, deadline))
+            # An RFC 3339 timestamp, by the rule of every response timestamp.
+            if deadline is not None and not rfc3339_timestamp(deadline):
+                raise _ProtocolError("invalid build deadline")
+            expires = (
+                None if deadline is None else parse_wire_timestamp(deadline, "build log state: deadline_at")
+            )
+            await self._emit(BuildLogStateEvent(status=status, error=error, deadline_at=expires))
         elif event == "log":
             raw = _bytes(data.get("data_base64"))
             start, end = _offset(data.get("start_offset")), _offset(data.get("next_offset"))
@@ -424,7 +481,12 @@ class _Observer:
                 raise _ProtocolError("noncontiguous log offsets")
             checkpoint = _cursor(ident)
             await self._emit(
-                BuildLogChunkEvent(_text(data["data_base64"]), str(start), str(end), _text(ident)),
+                BuildLogChunkEvent(
+                    data_base64=_text(data["data_base64"]),
+                    start_offset=str(start),
+                    next_offset=str(end),
+                    cursor=_text(ident),
+                ),
                 self.decoder.decode(raw),
             )
             self.cursor, self.offset = checkpoint, end
@@ -444,28 +506,31 @@ class _Observer:
             carry = self.decoder.decode(b"", final=True)
             await self._emit(
                 BuildLogGapEvent(
-                    str(requested),
-                    str(first),
-                    str(dropped),
-                    _text(ident),
-                    _build_log_gap_reason_or_unknown(reason),
-                    "gap",
-                    reason,
+                    requested_offset=str(requested),
+                    first_available_offset=str(first),
+                    dropped_bytes=str(dropped),
+                    cursor=_text(ident),
+                    reason=_build_log_gap_reason_or_unknown(reason),
+                    raw_reason=reason,
                 ),
                 carry,
             )
             self.decoder.reset()
             self.cursor, self.offset, self.gap = checkpoint, first, True
         elif event == "unavailable":
-            await self._emit(BuildLogUnavailableEvent(_text(data.get("reason"))))
+            await self._emit(BuildLogUnavailableEvent(reason=_text(data.get("reason"))))
         elif event == "source_changed":
             reason = _text(data.get("reason"))
-            await self._emit(BuildLogSourceChangedEvent(reason))
+            await self._emit(BuildLogSourceChangedEvent(reason=reason))
             raise BuildLogInterruptedError(reason, cursor=self.cursor, code="BUILD_LOG_SOURCE_CHANGED")
         elif event == "error":
             error = _text(data.get("error"))
             code, retryable = _text(data.get("code")), _bool(data.get("retryable"))
-            await self._emit(BuildLogErrorEvent(error, code, retryable, _optional_text(data.get("trace_id"))))
+            await self._emit(
+                BuildLogErrorEvent(
+                    error=error, code=code, retryable=retryable, trace_id=_optional_text(data.get("trace_id"))
+                )
+            )
             if retryable:
                 raise _Retry(error)
             raise BuildLogInterruptedError(error, cursor=self.cursor, code=code)
@@ -480,13 +545,13 @@ class _Observer:
                         raise _ProtocolError("done advanced cursor without bytes")
                     checkpoint_cursor = _cursor(checkpoint)
             result = BuildLogFollowResult(
-                status,
-                _build_log_done_reason_or_unknown(reason),
-                complete and not self.gap,
-                checkpoint_cursor,
-                reason,
+                status=status,
+                reason=_build_log_done_reason_or_unknown(reason),
+                output_complete=complete and not self.gap,
+                cursor=checkpoint_cursor,
+                raw_reason=reason,
             )
-            await self._emit(BuildLogDoneEvent(result), self.decoder.decode(b"", final=True))
+            await self._emit(BuildLogDoneEvent(result=result), self.decoder.decode(b"", final=True))
             self.cursor = checkpoint_cursor
             return result
         else:
@@ -577,6 +642,9 @@ def _retry_after(headers: Mapping[str, str]) -> float:
 
 
 async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: Optional[str]) -> DaytonaError:
+    if 300 <= status < 400:
+        # The SDK follows no redirect, whatever the body says.
+        return redirect_error(status)
     body = bytearray()
     try:
         async for chunk in chunks:
@@ -594,7 +662,10 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
         # Only a body declared as application/json carries a code.
         return create_error(f"build log HTTP {status}", status)
     try:
-        payload = _object(loads_json(bytes(body), "build log error response"))
+        # UTF-8 with the BOM stripped and bad bytes replaced, as TypeScript's
+        # TextDecoder reads it: json.loads would also detect UTF-16 and UTF-32.
+        text = bytes(body).decode("utf-8", errors="replace").removeprefix("\ufeff")
+        payload = _object(loads_json(text, "build log error response"))
     except DaytonaError:
         # Nested past JSON_MAX_DEPTH: unreadable, as on the transport's error path.
         return create_error(
@@ -617,6 +688,9 @@ def _budget(deadline: float | None) -> float | None:
 
 async def _finite_http_error(stream: AsyncResponseStream, deadline: float | None) -> DaytonaError:
     """Bound diagnostic bodies without replacing a known HTTP denial by retry."""
+    if 300 <= stream.status_code < 400:
+        # The SDK follows no redirect; its body is never read.
+        return redirect_error(stream.status_code)
     budget = _budget(deadline)
     if budget is not None and budget <= 0:
         return create_error(f"build log HTTP {stream.status_code}", stream.status_code)
@@ -662,7 +736,10 @@ async def _discover(
         if scope.cancelled_caught or (deadline is not None and _clock.monotonic() >= deadline):
             raise ClientTimeoutError("build log discovery timed out")
         try:
-            return _object(json.loads(body, parse_constant=_invalid_json_constant))
+            # Strict UTF-8, as TypeScript decodes it: invalid UTF-8 and a leading
+            # BOM are not JSON (json.loads on bytes would strip a BOM and accept
+            # UTF-16 / UTF-32).
+            return _object(_json(body.decode("utf-8")))
         except (ValueError, RecursionError) as exc:
             raise _ProtocolError("invalid build log discovery JSON") from exc
     finally:
@@ -724,15 +801,21 @@ async def follow_build_logs(
     api: AsyncTransport,
     discovery_path: str,
     *,
-    on_logs: _LogsCallback,
-    on_event: _EventCallback | None = None,
+    on_logs: BuildLogsCallback,
+    on_event: BuildLogEventCallback | None = None,
     cursor: str | None = None,
     timeout: float | None = None,
 ) -> BuildLogFollowResult:
-    if timeout is not None and (not math.isfinite(timeout) or timeout < 0):
-        raise create_error("timeout must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+    # 0, None or above the timer maximum (a huge integer included) is no deadline.
+    if timeout is not None:
+        timeout = wait_budget_seconds(timeout) or None
+    # Invalid arguments are BadRequestError before any request, as in TypeScript.
     if not callable(on_logs):
-        raise TypeError("on_logs is required")
+        raise create_error("on_logs must be a callable", 400, "BAD_REQUEST", "SDK")
+    if on_event is not None and not callable(on_event):
+        raise create_error("on_event must be a callable when given", 400, "BAD_REQUEST", "SDK")
+    if cursor is not None:
+        cursor = _caller_cursor(cursor)
     caller_deadline = _clock.monotonic() + timeout if timeout else None
     observer: _Observer | None = None
     try:
@@ -773,7 +856,18 @@ async def follow_build_logs(
             with anyio.move_on_after(remaining()) as attempt:
                 try:
                     if target is None:
-                        discovery = await _discover(api, discovery_path, request_timeout())
+                        try:
+                            discovery = await _discover(api, discovery_path, request_timeout())
+                        except DaytonaError as exc:
+                            # An HTTP error of the discovery request (a 404 for an
+                            # unknown image, a 401, ...) is the caller's answer:
+                            # raised as its mapped typed error, not wrapped as an
+                            # interruption (as TypeScript).
+                            if exc.status_code is None or isinstance(
+                                exc, (ConnectionError, ClientTimeoutError)
+                            ):
+                                raise
+                            raise _DiscoveryFailure(exc) from exc
                         target = _destination(api, discovery, discovery_path)
                     params: dict[str, JsonValue] = {"follow": "true", "format": "sse"}
                     if state.cursor is not None:
@@ -794,7 +888,10 @@ async def follow_build_logs(
                         if stream.status_code == 429 or stream.status_code >= 500:
                             raise _Retry(f"build log HTTP {stream.status_code}", _retry_after(stream.headers))
                         raise await _finite_http_error(stream, request_deadline)
-                    if stream.headers.get("content-type", "").split(";")[0].strip() != "text/event-stream":
+                    if (
+                        stream.headers.get("content-type", "").split(";")[0].strip().lower()
+                        != "text/event-stream"
+                    ):
                         raise _ProtocolError("expected text/event-stream")
                     started = _clock.monotonic()
                     healthy = True
@@ -833,6 +930,8 @@ async def follow_build_logs(
             await _sleep(min(delay, budget) if budget is not None else delay)
     except BuildLogInterruptedError:
         raise
+    except _DiscoveryFailure as exc:
+        raise exc.error from exc.error.__cause__
     except KeyboardInterrupt as exc:
         raise BuildLogInterruptedError(
             "build log observation canceled",

@@ -31,7 +31,7 @@ version namespace:
 
 ## Volumes
 
-`services.AsyncVolumeService` implements the platform `volume` namespace:
+`services.AsyncVolumesService` implements the platform `volumes` namespace:
 list/iterate, get by name or ID (optionally create on a miss), create and
 delete. `volume.py` re-exports it. `types.py` owns `Volume`, `VolumeMount`,
 `VolumeState` and `VolumeType`. `_api_core.py` parses volume responses with
@@ -66,7 +66,7 @@ scripts/bundle-v0.sh --clean
 ```
 
 - `TAG` defaults to the pinned 0.x tag in `scripts/v0-sdk-version` (line 1,
-  today `v0.230.0`; line 2 is the commit the tag peels to, which the scripts
+  today `v0.231.1`; line 2 is the commit the tag peels to, which the scripts
   verify), the single source of truth for releases. Bumping the v0
   namespace is a two-line PR to that file plus a 2.x release. Passing `TAG` or
   setting `DAYTONA_V0_TAG=<tag>` (shape `vX.Y.Z`) overrides it for testing only.
@@ -128,16 +128,86 @@ print('ok')
 
 ### Delete completion
 
-`AsyncSandbox.delete()` (and its generated sync twin) requests deletion
-without waiting for completion. The v2 client's `delete()` delegates to it.
-`wait_for_state(['destroyed'])` waits for an observed lifecycle state, but
-deleting the sandbox's image or snapshot immediately afterwards can still
-raise `ConflictError` (409).
+`AsyncSandbox.delete(timeout=60)` (and its generated sync twin) requests
+deletion, then waits for `destroyed`. A typed 404 on any read during that wait
+also means completion; the handle is updated to `destroyed` (raw state
+`deleted`). Ordinary `refresh_data()` and other waits still propagate 404. The
+private waiter (`_wait_for_state`) treats `destroying` as progress when
+targeting `destroyed`. `stop()` similarly waits for `stopped`.
 
-The existing waiter treats `destroying` as progress when targeting
-`destroyed`. Its refresh still propagates a typed 404; the 404-to-`destroyed`
-mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
-`refresh_data()` or the waiter.
+All lifecycle methods take `timeout=` in seconds (default 60, `0` unbounded).
+The v2 client's methods delegate to the handle, including when given an id.
+Timeout raises `RequestTimeoutError` (source `SDK`); a terminal state raises
+`SandboxTerminalStateError`. Server errors decide class and persistence
+support, without client-side lifecycle prechecks.
+
+An observed `destroyed` state does not guarantee that deleting the sandbox's
+image or snapshot will succeed without a conflict. Callers must still handle
+`ConflictError` (409) from those operations.
+
+### Create, fork and public metadata
+
+Once the create or fork request has succeeded, create and fork return their
+handle however the wait ends: budget spent, terminal state or a failed read
+(any `DaytonaError`; `_wait_without_raising_for_its_end`). Non-SDK errors and
+cancellation propagate; a cancelled create may already have created a
+sandbox. A raised create or fork means the request itself failed, except for
+`SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+carry the idempotency key because a sandbox may exist), caller cancellation,
+and an unexpected non-SDK error during the wait. The fork's detail read counts
+against `wait_seconds`; if it fails, the handle is built from the fork
+response (id, status, `forked_from`, class) and no wait follows. Once a
+lifecycle wait has observed its target, a failed metadata refresh is
+suppressed. Create uses whole-second `wait_seconds`;
+fork permits fractions and uses `0` to skip waiting. Linux forks refresh the
+source before submission when waiting: running sources wait for `started`,
+paused sources retaining memory wait for `paused`, and other sources wait for
+`stopped`. macOS forks wait for `started` or `stopped`.
+
+`create_from_build()` submits the build as an ordinary request (bounded by
+`request_timeout`), then always waits for the image with its independent
+`build_timeout` budget (`None` or `0` is unbounded), starting after the
+submission, then creates with the caller's full `wait_seconds`. An image in
+`failed` or `error` is a failed build. Build failure raises `ImageBuildFailedError`
+with `image_id` and `build_error`; build timeout raises `RequestTimeoutError`.
+
+All create sizing lives in `resources` (`Resources` / `MacosResources`).
+`_core.gib_to_mib` refuses GiB values that do not convert to whole MiB, and
+`mib_to_gib` reads back exactly. Public models are frozen keyword-only
+dataclasses with tuples and timezone-aware datetimes, mapped from the
+generated wire models in `_api_core.py`. The handle's metadata is read-only
+properties over an immutable `_SandboxInfo` snapshot that `_update(...)`
+replaces; `gen_sync.py` emits direct getters for the names in
+`_SYNC_DIRECT_PROPERTIES`. Constructors of the exported handle and service
+classes take `_`-prefixed parameters and are internal; the model dataclasses
+stay constructible (keyword-only). `to_json()` returns a
+`SandboxHandleJSON` with known metadata but no URLs or credentials; callers
+reconnect with `get(json["sandboxId"])`.
+
+Long polls (sandbox waits, image pulls, `images.get` / `snapshots.get` with
+a budget) are governed by the wait budget, not `request_timeout`: each server
+hold is the smaller of its slice (60 s for artifacts) and the remaining
+budget, in whole milliseconds, and each read is capped at the smaller of the
+hold plus a few seconds of slack and the time left before the wait's
+deadline, so no read runs past it. That holds for sandbox waits
+(`_refresh_data_within(deadline=...)`, as TypeScript's `refreshDataWithin`),
+image pulls and artifact gets alike; a read the deadline cut is the wait
+running out (`RequestTimeoutError`, source `SDK`). Artifact gets repeat holds
+until the artifact settles, and raise that error when the budget runs out
+first, never returning an unsettled observation; a budget above the timer
+maximum repeats them without a deadline (`services._get_artifact`).
+`ListResult` / `SearchResult` copy
+`items` into a tuple in their constructors. A sandbox-token mint answered
+with 405/501 disables minting for the handle; a 404 falls back to the API
+credential for that request only.
+
+`list()` / `iter()` accept only `cursor` and `limit`. `search()` carries the
+filters, including public `states`, which map to the API's status vocabulary
+at the boundary. Named creates permanently support get-or-create; the
+name-key helpers are internal. `find_by_name()` returns all matches and is
+the explicit exception to the one-page list rule.
+
+### Other implementation notes
 
 - Interpreter runs code through
   `POST /processes {kind:"code", code, language, sessionId?}`.
@@ -269,10 +339,9 @@ mapping is local to `AsyncSandbox.delete()`'s single follow-up refresh, not
   Match discovered resources by UUID identity, including sandbox base58 IDs and
   region tags, because discovery canonicalizes the caller's ID spelling.
 - Reserved sandbox `env` names: platform-reserved prefixes plus every
-  `DAYTONA_*` name other than
-  `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
-  `DAYTONA_DOCKER_START`. The API rejects the create with `400` naming the
-  key.
+  `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
+  `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). The API rejects
+  the create with `400` naming the key.
 
 ## Local verification
 

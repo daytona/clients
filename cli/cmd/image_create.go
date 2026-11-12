@@ -23,10 +23,17 @@ func newImageImportCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Import an image from a registry ref",
-		Long:  "Import an image from a registry ref.\nExample:\n  daytona image create my-base --ref python:3.12",
-		Args:  cobra.ExactArgs(1),
+		Long: "Import an image from a registry ref.\n" +
+			imageNameRulesHelp +
+			"A name that already exists for different content or import options (ref, region, CPU architecture) answers\n" +
+			"409 IMAGE_NAME_TAKEN and changes nothing; repeating an identical import returns the existing image.\n" +
+			"Example:\n  daytona image create my-base --ref python:3.12",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if cmd.Flags().Changed("ref") && strings.TrimSpace(ref) == "" {
+				return cerr.Usage("--ref must be a non-empty registry reference")
+			}
 			body, err := input.Load(a.Globals.File, os.Stdin, false)
 			if err != nil {
 				return err
@@ -76,13 +83,17 @@ func newImageBuildCommand() *cobra.Command {
 		Long: "Build an image from a Dockerfile context: a directory, or a tar file uploaded as is.\n" +
 			"A directory is uploaded without what its ignore file excludes, with Docker's rules: <Dockerfile>.dockerignore\n" +
 			"next to the Dockerfile when it exists, else .dockerignore at the context root. The Dockerfile and the\n" +
-			"ignore file are always sent. The 64 MiB context limit counts what is uploaded.\n" +
+			"ignore file are always sent. The 1 GiB context limit counts what is uploaded.\n" +
+			imageNameRulesHelp +
 			"Example:\n  daytona image build my-base --dockerfile Dockerfile --context .",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			meta, dockerfile, contextFile, err := buildImageMultipartMeta(cmd, a, args[0], dockerfilePath, contextPath)
 			if err != nil {
+				return err
+			}
+			if err := checkImageDockerfile(contextFile, dockerfile); err != nil {
 				return err
 			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))

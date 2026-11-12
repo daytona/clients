@@ -5,12 +5,12 @@
  * sandbox at create time. This example demonstrates both and, crucially, how
  * they differ:
  *
- *   1. ENV VARS  (`envVars: { NAME: value }`)
+ *   1. ENV VARS  (`env: { NAME: value }`)
  *      Real values carried verbatim into the sandbox. Readable inside the
  *      sandbox as ordinary environment variables. Use for non-sensitive config
  *      (LOG_LEVEL, FEATURE_FLAGS, an app's own settings).
  *
- *   2. SECRETS   (`daytona.secret.set(name, value)` + `secrets: [name]`)
+ *   2. SECRETS   (`daytona.secrets.set(name, value)` + `secrets: [name]`)
  *      Project-scoped and write-only. The sandbox sees only a placeholder in
  *      an env var of the same name; the real value is never readable inside the
  *      sandbox and is used only in outgoing requests to the secret's allowed
@@ -27,7 +27,7 @@
  */
 
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
+import { assertStarted, client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 async function main(): Promise<boolean> {
   const daytona = client()
@@ -42,8 +42,8 @@ async function main(): Promise<boolean> {
   let secretCreated = false
   let sandbox: Sandbox | undefined
   try {
-    section('secret.set(name, value) — create a project secret')
-    await daytona.secret.set(secretName, secretValue, {
+    section('secrets.set(name, value) — create a project secret')
+    await daytona.secrets.set(secretName, secretValue, {
       // allowedDomains: where the secret's value may be sent
       allowedDomains: ['api.example.com'],
       description: 'demo secret for the secrets-env example',
@@ -53,9 +53,9 @@ async function main(): Promise<boolean> {
     secretCreated = true
     info(`set secret ${secretName} (value is write-only; never returned)`)
 
-    section('secret.iter() — metadata only, never values')
+    section('secrets.iter() — metadata only, never values')
     let found = false
-    for await (const s of daytona.secret.iter()) {
+    for await (const s of daytona.secrets.iter()) {
       if (s.name === secretName) {
         found = true
         break
@@ -63,7 +63,7 @@ async function main(): Promise<boolean> {
     }
     info(`${secretName} present=${found}`)
     if (!found) {
-      fail(`secret ${secretName} is missing from secret.iter()`)
+      fail(`secret ${secretName} is missing from secrets.iter()`)
       ok = false
     }
 
@@ -72,7 +72,7 @@ async function main(): Promise<boolean> {
       name: `secrets-env-${RUN}`,
       waitSeconds: 200,
       // Env vars: real values, injected verbatim into the sandbox.
-      envVars: {
+      env: {
         APP_ENV: 'production',
         LOG_LEVEL: 'debug',
         GREETING: `hello-${RUN}`,
@@ -81,6 +81,7 @@ async function main(): Promise<boolean> {
       secrets: [secretName],
     })
     info(`created sandbox id=${sandbox.id} state=${sandbox.state}`)
+    assertStarted(sandbox)
 
     section('env vars ARE readable inside the sandbox (real values)')
     for (const [name, expected] of [
@@ -127,7 +128,7 @@ async function main(): Promise<boolean> {
     }
     if (secretCreated) {
       try {
-        await daytona.secret.delete(secretName)
+        await daytona.secrets.delete(secretName)
         info(`deleted secret ${secretName}`)
       } catch (e) {
         // A secret left behind in the project fails the example.

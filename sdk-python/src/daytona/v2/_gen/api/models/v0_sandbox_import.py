@@ -40,10 +40,9 @@ class V0SandboxImport(BaseModel):
     secret_env_vars: List[StrictStr] = Field(description="Env variable names whose value on Daytona v0 is a sandbox secret. Daytona v0 never hands the value over, so the imported sandbox starts without them: set them on it. Empty when the call returned an existing import.")
     status: StrictStr = Field(description="The sandbox’s status. A fresh import remains `queued` until its image is ready.")
     v0_labeled: StrictBool = Field(description="Whether Daytona v0 confirmed the `daytona.io/migrated-to` label on the original sandbox. False means the label could not be set now; the import itself succeeded, and repeating the call retries the label.")
-    v1_labeled: StrictBool = Field(description="Deprecated: use `v0_labeled`, which carries the same value.")
     warnings: List[StrictStr] = Field(description="Settings and values that could not be imported.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["existing", "image_id", "sandbox_id", "secret_env_vars", "status", "v0_labeled", "v1_labeled", "warnings"]
+    __properties: ClassVar[List[str]] = ["existing", "image_id", "sandbox_id", "secret_env_vars", "status", "v0_labeled", "warnings"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -111,7 +110,6 @@ class V0SandboxImport(BaseModel):
             "secret_env_vars": obj.get("secret_env_vars"),
             "status": obj.get("status"),
             "v0_labeled": obj.get("v0_labeled"),
-            "v1_labeled": obj.get("v1_labeled"),
             "warnings": obj.get("warnings")
         })
         # store additional fields in additional_properties

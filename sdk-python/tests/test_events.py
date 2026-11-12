@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import gc
+import itertools
 import json
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -181,6 +182,22 @@ async def drain() -> None:
 async def _wait_for(predicate: Callable[[], bool]) -> None:
     while not predicate():
         await asyncio.sleep(0.01)
+
+
+async def _answer_every_subscribe(ws: FakeWS, sid: str) -> None:
+    """Answer each subscribe of ``sid`` with a pre-target snapshot."""
+    seen = version = 0
+    while True:
+        n = sum(
+            1
+            for f in ws.sent_frames()
+            if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+        )
+        if n > seen:
+            seen = n
+            version += 1
+            ws.inject({"type": "snapshot", "id": sid, "status": "booting", "version": version})
+        await asyncio.sleep(0.005)
 
 
 # ---------------------------------------------------------------------------
@@ -611,7 +628,9 @@ class TestHubTimeout:
     async def test_snapshot_before_probe_fires_skips_the_early_probe(self) -> None:
         fc = FakeConnector()
         hub = make_hub(fc)
-        hub._early_probe_s = 0.05
+        # Real time, with margins a loaded runner keeps: the snapshot arrives
+        # 0.3 s before the 0.5 s probe would fire.
+        hub._early_probe_s = 0.5
         polls = 0
 
         async def poll() -> WaitOutcome:
@@ -623,17 +642,17 @@ class TestHubTimeout:
             ticket_mock("region-a")
             ws = fc.prepare()
             task = asyncio.create_task(
-                hub.wait("abc-region-a", _started_predicate(), timeout=0.2, sandbox_poll_fn=poll)
+                hub.wait("abc-region-a", _started_predicate(), timeout=2.0, sandbox_poll_fn=poll)
             )
             await drain()
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.2)
             ws.inject(
                 {"type": "snapshot", "id": "abc-region-a", "status": "pending", "version": 1, "error": None}
             )
-            await asyncio.sleep(0.025)
+            await asyncio.sleep(0.25)
             await drain()
             assert not task.done()
-            result = await asyncio.wait_for(task, timeout=1)
+            result = await asyncio.wait_for(task, timeout=5)
 
         assert result.state == "started"
         assert polls == 1
@@ -701,7 +720,9 @@ class TestHubTimeout:
         hub = make_hub(fc)
         ws = fc.prepare()
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
-        hub._early_probe_s = 0.02
+        # Real time, with margins a loaded runner keeps (the earlier 20 ms
+        # probe, 15 ms and 10 ms sleeps, scaled by ten).
+        hub._early_probe_s = 0.2
         poll_calls = 0
 
         async def poll() -> WaitOutcome:
@@ -712,19 +733,19 @@ class TestHubTimeout:
         with respx.mock:
             ticket_mock("region-a")
             first = asyncio.create_task(
-                hub.wait("abc-region-a", _started_predicate(), timeout=0.2, sandbox_poll_fn=poll)
+                hub.wait("abc-region-a", _started_predicate(), timeout=2.0, sandbox_poll_fn=poll)
             )
             await drain()
             ws.inject(
                 {"type": "snapshot", "id": "abc-region-a", "status": "pending", "version": 1, "error": None}
             )
             await drain()
-            await asyncio.sleep(0.015)
+            await asyncio.sleep(0.15)
             second = asyncio.create_task(
-                hub.wait("abc-region-a", _started_predicate(), timeout=0.2, sandbox_poll_fn=poll)
+                hub.wait("abc-region-a", _started_predicate(), timeout=2.0, sandbox_poll_fn=poll)
             )
             await drain()
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
             await drain()
             assert poll_calls == 1
             ws.inject(
@@ -956,6 +977,447 @@ class TestHubReconcile:
                 {"type": "event", "id": "abc-region-a", "status": "running", "version": 2, "error": None}
             )
             await task
+
+    async def test_a_waiter_that_hears_no_event_is_resubscribed_while_keepalives_flow(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The server answers the subscribe with a pre-target snapshot, then
+        # sends only keepalives. Those hold the early probe off, and the
+        # reconcile timer is off; the stale sweep still asks again.
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
+        polls = 0
+
+        async def poll() -> WaitOutcome:
+            nonlocal polls
+            polls += 1
+            return WaitOutcome("started", "running")
+
+        def subscribes() -> int:
+            return sum(1 for f in ws.sent_frames() if f.get("type") == "subscribe")
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(
+                hub.wait("abc-region-a", _started_predicate(), timeout=5, sandbox_poll_fn=poll)
+            )
+            await asyncio.wait_for(_wait_for(lambda: subscribes() == 1), timeout=1)
+            ws.inject({"type": "snapshot", "id": "abc-region-a", "status": "booting", "version": 1})
+
+            async def keepalives() -> None:
+                while True:
+                    await asyncio.sleep(0.02)
+                    ws.inject({"type": "ping"})
+
+            pinger = asyncio.create_task(keepalives())
+            try:
+                await asyncio.wait_for(_wait_for(lambda: subscribes() == 2), timeout=1)
+                ws.inject({"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 2})
+                result = await asyncio.wait_for(task, timeout=1)
+            finally:
+                pinger.cancel()
+
+        assert result.state == "started"
+        assert polls == 0
+
+    def test_the_sweep_stays_within_the_subscribe_rate(self) -> None:
+        # The server takes 2,000 subscribe ids per second per socket.
+        hub = make_hub(FakeConnector())
+        assert hub._stale_sweep_cap() == 1_500
+        assert hub._stale_sweep_cap() / hub._stale_sweep_tick_s <= 0.75 * 2_000
+        # A shorter tick sends fewer ids per tick, not more per second.
+        hub._stale_sweep_tick_s = 0.3
+        assert hub._stale_sweep_cap() == 450
+        assert hub._stale_sweep_cap() / hub._stale_sweep_tick_s <= 0.75 * 2_000
+
+    async def test_one_tick_resubscribes_at_most_its_cap_oldest_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_sweep_max_ids = 2
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.2, 10.0
+        ids = ["a-region-a", "b-region-a", "c-region-a"]
+
+        def subscribed(frames: List[dict]) -> List[str]:
+            return [e["id"] for f in frames if f.get("type") == "subscribe" for e in f["ids"]]
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            tasks = [asyncio.create_task(hub.wait(i, _started_predicate(), timeout=5)) for i in ids]
+            await asyncio.wait_for(_wait_for(lambda: len(subscribed(ws.sent_frames())) == 3), timeout=1)
+            # `c` is the oldest: the others hear a snapshot later.
+            await asyncio.sleep(0.05)
+            for version, sid in enumerate(ids[:2], start=1):
+                ws.inject({"type": "snapshot", "id": sid, "status": "booting", "version": version})
+            await asyncio.sleep(0.3)
+            before = len(ws.sent_frames())
+            sock = next(iter(hub._sockets.values()))
+            sock.stale_task.cancel()  # type: ignore[union-attr]
+            hub._stale_sweep_tick_s = 0.0
+            sock.stale_task = asyncio.create_task(hub._stale_resubscribe_loop(sock))
+            await asyncio.wait_for(_wait_for(lambda: len(ws.sent_frames()) > before), timeout=1)
+            sock.stale_task.cancel()
+            swept = subscribed(ws.sent_frames()[before : before + 1])
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        assert swept == ["c-region-a", "a-region-a"]
+
+    async def test_the_sweep_sends_under_the_flush_lock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # A waiter that leaves while the sweep waits for the lock is not
+        # re-subscribed after its unsubscribe.
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: any(f.get("type") == "subscribe" for f in ws.sent_frames())), timeout=1
+            )
+            sock = next(iter(hub._sockets.values()))
+            async with sock.flush_send_lock:
+                await asyncio.sleep(0.25)  # the sweep finds the id stale and waits
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            await asyncio.sleep(0.2)
+
+        kinds = [f["type"] for f in ws.sent_frames() if f.get("type") in ("subscribe", "unsubscribe")]
+        assert kinds == ["subscribe", "unsubscribe"]
+
+    async def test_the_sweep_stops_without_waiters_and_a_new_waiter_restarts_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
+
+        def subscribes_for(sid: str) -> int:
+            return sum(
+                1
+                for f in ws.sent_frames()
+                if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+            )
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            first = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for("abc-region-a") == 1), timeout=1)
+            ws.inject({"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1})
+            await asyncio.wait_for(first, timeout=1)
+            sock = next(iter(hub._sockets.values()))
+            await asyncio.wait_for(
+                _wait_for(lambda: sock.stale_task is not None and sock.stale_task.done()), timeout=1
+            )
+            assert sock.ws is not None
+            assert not sock.heard_at
+
+            second = asyncio.create_task(hub.wait("def-region-a", _started_predicate(), timeout=5))
+            await drain()
+            assert sock.stale_task is not None and not sock.stale_task.done()
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for("def-region-a") >= 2), timeout=1)
+            second.cancel()
+            await asyncio.gather(second, return_exceptions=True)
+
+    async def test_a_young_wait_is_resubscribed_sooner_than_an_old_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Threshold = half the wait's age, between the two bounds: with
+        # 0.1 s / 0.4 s the re-subscribes come about 0.1, 0.2, 0.4, 0.8 s in,
+        # then every ~0.4 s.
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_min_s, hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.4, 0.01
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            # The server answers every subscribe at once (an unanswered one is
+            # not asked again until the ceiling has passed).
+            answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
+            await asyncio.sleep(1.6)
+            answering.cancel()
+            task.cancel()
+            await asyncio.gather(task, answering, return_exceptions=True)
+
+        at = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+        gaps = [b - a for a, b in itertools.pairwise(at)]
+        assert len(gaps) >= 5, gaps
+        assert gaps[0] < 0.2, gaps
+        assert all(g < 0.5 for g in gaps), gaps
+        assert gaps[-1] > 0.3, gaps
+
+    async def test_a_new_waiter_restarts_the_young_schedule(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        with respx.mock:
+            ticket_mock("region-a")
+            fc.prepare()
+            first = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            sock = next(iter(hub._sockets.values()))
+            started = sock.waited_since["abc-region-a"]
+            await asyncio.sleep(0.05)
+            second = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            assert sock.waited_since["abc-region-a"] > started
+            for task in (first, second):
+                task.cancel()
+            await asyncio.gather(first, second, return_exceptions=True)
+
+    async def test_a_moved_subscription_keeps_its_wait_start(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub.learn("abc-region-a", "endpoint-a")
+        with respx.mock:
+            ticket_mock("region-a")
+            fc.prepare()
+            fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            started = hub._sockets["endpoint-a"].waited_since["abc-region-a"]
+            hub.learn("abc-region-a", "endpoint-b")
+            await drain()
+            assert "endpoint-a" not in hub._sockets
+            assert hub._sockets["endpoint-b"].waited_since["abc-region-a"] == started
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_a_subscription_moved_onto_an_idle_connected_socket_is_swept(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_min_s, hub._stale_after_s, hub._stale_sweep_tick_s = 0.05, 0.1, 0.02
+
+        def subscribes_for(ws: FakeWS, sid: str) -> int:
+            return sum(
+                1
+                for f in ws.sent_frames()
+                if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+            )
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ticket_mock("region-b")
+            # Connect endpoint-b for another id, settle it: the socket stays
+            # open with no waiter, so its sweep stops.
+            hub.learn("other-region-b", "endpoint-b")
+            ws_b = fc.prepare()
+            other = asyncio.create_task(hub.wait("other-region-b", _started_predicate(), timeout=5))
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_b, "other-region-b") == 1), timeout=1)
+            ws_b.inject({"type": "snapshot", "id": "other-region-b", "status": "running", "version": 1})
+            await asyncio.wait_for(other, timeout=1)
+            sock_b = hub._sockets["endpoint-b"]
+            await asyncio.wait_for(
+                _wait_for(lambda: sock_b.stale_task is not None and sock_b.stale_task.done()), timeout=1
+            )
+
+            hub.learn("abc-region-a", "endpoint-a")
+            ws_a = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_a, "abc-region-a") == 1), timeout=1)
+            hub.learn("abc-region-a", "endpoint-b")
+            # The move's own subscribe, then the destination's sweep.
+            await asyncio.wait_for(_wait_for(lambda: subscribes_for(ws_b, "abc-region-a") >= 3), timeout=1)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    def _sweep_hub(self, monkeypatch: pytest.MonkeyPatch) -> tuple[FakeConnector, WaitHub]:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_min_s, hub._stale_after_s, hub._stale_sweep_tick_s = 0.05, 0.1, 0.01
+        hub._stale_after_slow_s, hub._stale_slow_after_s = 1.0, 0.5
+        return fc, hub
+
+    @staticmethod
+    def _subscribes_for(ws: FakeWS, sid: str) -> int:
+        return sum(
+            1
+            for f in ws.sent_frames()
+            if f.get("type") == "subscribe" and any(e["id"] == sid for e in f["ids"])
+        )
+
+    async def test_an_id_whose_answer_is_outstanding_is_not_asked_again_early(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The server answers nothing: until the ceiling (0.1 s) passes after
+        # the subscribe, the sweep does not ask again.
+        fc, hub = self._sweep_hub(monkeypatch)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            sent = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") >= 3), timeout=2
+            )
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        sent = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+        assert all(b - a >= 0.09 for a, b in itertools.pairwise(sent)), sent
+
+    async def test_an_id_queued_for_the_refused_retry_is_not_swept(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        fc, hub = self._sweep_hub(monkeypatch)
+        monkeypatch.setattr(events_module, "_REFUSED_RETRY_S", 0.3)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            ws.inject({"type": "error", "id": "abc-region-a", "code": "LIMIT"})
+            # Only the refused retry (at 0.3 s) asks again, not the sweep.
+            await asyncio.sleep(0.25)
+            assert self._subscribes_for(ws, "abc-region-a") == 1
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 2), timeout=1
+            )
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_an_old_wait_is_asked_again_less_often(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fc, hub = self._sweep_hub(monkeypatch)
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=10))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
+            await asyncio.sleep(2.0)
+            answering.cancel()
+            task.cancel()
+            await asyncio.gather(task, answering, return_exceptions=True)
+        at = [t for t, f in ws.sent_frame_records() if f.get("type") == "subscribe"]
+        young = [b - a for a, b in itertools.pairwise(at) if a - at[0] < 0.4]
+        old = [b - a for a, b in itertools.pairwise(at) if a - at[0] > 0.6]
+        assert young and max(young) < 0.2, young
+        assert old and min(old) > 0.8, old
+
+    async def test_another_ids_events_do_not_slow_this_wait(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Another id gets events all along; this id's event never comes. Its
+        # young schedule (ceiling 0.1 s) must hold regardless.
+        fc, hub = self._sweep_hub(monkeypatch)
+        hub._stale_slow_after_s = 10.0
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            other = asyncio.create_task(hub.wait("other-region-a", _started_predicate(), timeout=5))
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: self._subscribes_for(ws, "abc-region-a") == 1), timeout=1
+            )
+            answering = asyncio.create_task(_answer_every_subscribe(ws, "abc-region-a"))
+
+            async def other_events() -> None:
+                for version in range(1, 100):
+                    ws.inject(
+                        {"type": "event", "id": "other-region-a", "status": "booting", "version": version}
+                    )
+                    await asyncio.sleep(0.05)
+
+            streaming = asyncio.create_task(other_events())
+            await asyncio.sleep(1.0)
+            for t in (streaming, answering, task, other):
+                t.cancel()
+            await asyncio.gather(streaming, answering, task, other, return_exceptions=True)
+        at = [
+            t
+            for t, f in ws.sent_frame_records()
+            if f.get("type") == "subscribe" and any(e["id"] == "abc-region-a" for e in f["ids"])
+        ]
+        gaps = [b - a for a, b in itertools.pairwise(at)]
+        assert len(gaps) >= 5 and max(gaps) < 0.2, gaps
+
+    async def test_a_moved_wait_that_times_out_releases_the_destination(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub.learn("abc-region-a", "endpoint-a")
+        with respx.mock:
+            ticket_mock("region-a")
+            fc.prepare()
+            ws_b = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=0.3))
+            await drain()
+            hub.learn("abc-region-a", "endpoint-b")
+            await drain()
+            with pytest.raises(RequestTimeoutError):
+                await task
+            await asyncio.sleep(hub._subscribe_flush_s + 0.05)
+            sock = hub._sockets["endpoint-b"]
+            assert "abc-region-a" not in sock.subscriptions
+            assert "abc-region-a" not in sock.heard_at
+            assert "abc-region-a" not in sock.waited_since
+            assert any(
+                f.get("type") == "unsubscribe" and "abc-region-a" in f["ids"] for f in ws_b.sent_frames()
+            )
+
+    async def test_a_waiter_that_keeps_hearing_events_is_not_resubscribed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import daytona.v2._events as events_module
+
+        monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        hub._stale_after_s, hub._stale_sweep_tick_s = 0.1, 0.05
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await asyncio.wait_for(
+                _wait_for(lambda: any(f.get("type") == "subscribe" for f in ws.sent_frames())), timeout=1
+            )
+            # Events every 0.03 s for over three sweep ticks.
+            for version in range(1, 14):
+                ws.inject({"type": "event", "id": "abc-region-a", "status": "booting", "version": version})
+                await asyncio.sleep(0.03)
+            ws.inject({"type": "event", "id": "abc-region-a", "status": "running", "version": 14})
+            result = await asyncio.wait_for(task, timeout=1)
+
+        assert result.state == "started"
+        assert sum(1 for f in ws.sent_frames() if f.get("type") == "subscribe") == 1
 
     async def test_fallback_wait_uses_module_sleep_not_patched_asyncio_sleep(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1552,12 +2014,13 @@ class TestFallback:
         fc = FakeConnector()
         hub = make_hub(fc)
         ws = fc.prepare()
-        monkeypatch.setattr(events_module, "_NO_FRAME_TIMEOUT_S", 1.0)
-        hub._client_ping_after_s = 0.02
+        monkeypatch.setattr(events_module, "_NO_FRAME_TIMEOUT_S", 10.0)
+        # Real time, with margins a loaded runner keeps (scaled by ten).
+        hub._client_ping_after_s = 0.2
 
         with respx.mock:
             ticket_mock("region-a")
-            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=1.0))
+            task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=10.0))
             await drain()
             await asyncio.wait_for(
                 _wait_for(
@@ -1566,19 +2029,19 @@ class TestFallback:
                         == [{"type": "ping"}]
                     )
                 ),
-                timeout=1.0,
+                timeout=5.0,
             )
-            await asyncio.sleep(0.03)
+            await asyncio.sleep(0.3)
             assert [frame for frame in ws.sent_frames() if frame.get("type") == "ping"] == [{"type": "ping"}]
 
             ws.inject({"type": "pong"})
             await drain()
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
             assert [frame for frame in ws.sent_frames() if frame.get("type") == "ping"] == [{"type": "ping"}]
             # The pong re-armed the ping: after another quiet window, a second one.
             await asyncio.wait_for(
                 _wait_for(lambda: len([f for f in ws.sent_frames() if f.get("type") == "ping"]) == 2),
-                timeout=1.0,
+                timeout=5.0,
             )
 
             ws.inject(
@@ -1623,8 +2086,12 @@ class TestFallback:
         hub = make_hub(fc)
         ws = fc.prepare()
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
-        monkeypatch.setattr(events_module, "_EARLY_PROBE_S", 0.02)
-        hub._early_probe_s = 0.02
+        # Real time, with margins a loaded runner keeps: the probe would fire at
+        # 0.4 s; a frame at 0.3 s postpones it by the remaining quiet time to
+        # about 0.7 s, so at 0.52 s it has not run (120 ms after the original
+        # probe, 180 ms before the postponed one).
+        monkeypatch.setattr(events_module, "_EARLY_PROBE_S", 0.4)
+        hub._early_probe_s = 0.4
         poll_calls = 0
 
         async def poll() -> WaitOutcome:
@@ -1638,23 +2105,23 @@ class TestFallback:
                 hub.wait(
                     "abc-region-a",
                     _started_predicate(),
-                    timeout=0.2,
+                    timeout=4.0,
                     sandbox_poll_fn=poll,
                 )
             )
             await drain()
 
-            await asyncio.sleep(0.015)
+            await asyncio.sleep(0.3)
             ws.inject(
                 {"type": "snapshot", "id": "other-region-a", "status": "pending", "version": 1, "error": None}
             )
             await drain()
-            await asyncio.sleep(0.011)
+            await asyncio.sleep(0.22)
             await drain()
             assert poll_calls == 0
             assert not task.done()
 
-            result = await asyncio.wait_for(task, timeout=0.05)
+            result = await asyncio.wait_for(task, timeout=2.0)
 
         assert result.state == "started"
         assert poll_calls == 1
@@ -2566,8 +3033,8 @@ class TestEndpointLearnedThroughTheTransport:
 
         client = AsyncDaytona(DaytonaConfig(api_key="key"))
         sandbox = lazy_sandbox(client, "abc-region-a")
-        sandbox.sandbox_class = "macos"
-        sandbox.persistent = True
+        sandbox._update(sandbox_class="macos")
+        sandbox._update(persistent=True)
         with respx.mock:
             respx.post(f"{_API_URL}/sandboxes/abc-region-a/pause").mock(
                 return_value=httpx.Response(200, json={}, headers={"x-daytona-cell": "endpoint-a"})
@@ -2605,8 +3072,8 @@ class TestEndpointLearnedThroughTheTransport:
 
         client = AsyncDaytona(DaytonaConfig(api_key="key"))
         sandbox = lazy_sandbox(client, "abc-region-a")
-        sandbox.sandbox_class = "macos"
-        sandbox.persistent = True
+        sandbox._update(sandbox_class="macos")
+        sandbox._update(persistent=True)
         with respx.mock:
             respx.post(f"{_API_URL}/sandboxes/abc-region-a/pause").mock(
                 return_value=httpx.Response(200, json={}, headers=headers)
@@ -2633,8 +3100,8 @@ class TestEndpointLearnedThroughTheTransport:
 
         client = AsyncDaytona(DaytonaConfig(api_key="key"))
         sandbox = lazy_sandbox(client, "abc-region-a")
-        sandbox.sandbox_class = "macos"
-        sandbox.persistent = True
+        sandbox._update(sandbox_class="macos")
+        sandbox._update(persistent=True)
         with respx.mock:
             respx.post(f"{_API_URL}/sandboxes/abc-region-a/pause").mock(
                 return_value=httpx.Response(
@@ -2712,7 +3179,7 @@ class TestEndpointLearnedThroughTheTransport:
         from daytona.v2.types import DaytonaConfig
 
         monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
-        for timeout in (3, None):
+        for timeout in (3, 0):
             fc = FakeConnector()
             monkeypatch.setattr(events_module, "_default_connector", fc)
             client = AsyncDaytona(DaytonaConfig(api_key=_API_KEY))
@@ -2722,7 +3189,7 @@ class TestEndpointLearnedThroughTheTransport:
             with respx.mock(assert_all_called=False):
                 ticket_mock("region-a")
                 ws = fc.prepare()
-                task = asyncio.create_task(sandbox.wait_for_state(["started"], timeout=timeout))
+                task = asyncio.create_task(sandbox.wait(timeout=timeout))
                 await drain()
                 ws.inject({"type": "error", "id": "abc-region-a", "code": "NOT_FOUND", "was_known": False})
                 with pytest.raises(NotFoundError):
@@ -2730,11 +3197,12 @@ class TestEndpointLearnedThroughTheTransport:
                 assert len(api.specs) == 1
             await client.close()
 
-    async def test_wait_after_close_polls_without_minting_a_new_ticket(
+    async def test_wait_after_close_is_refused_without_minting_a_new_ticket(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import daytona.v2._events as events_module
         from daytona.v2.daytona import AsyncDaytona
+        from daytona.v2.errors import ClientClosedError
         from daytona.v2.types import DaytonaConfig
 
         fc = FakeConnector()
@@ -2755,16 +3223,11 @@ class TestEndpointLearnedThroughTheTransport:
 
         with respx.mock:
             ticket = ticket_mock("region-a")
-            ws = fc.prepare()
-            task = asyncio.create_task(sandbox.wait_for_state(["started"], timeout=3))
-            await drain()
-            ws.inject(
-                {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
-            )
-            await asyncio.wait_for(task, timeout=1)
+            with pytest.raises(ClientClosedError):
+                await sandbox.wait(timeout=3)
 
         assert ticket.call_count == 0
-        assert len(api.specs) == 1
+        assert len(api.specs) == 0
         assert fc.connection_count() == 0
 
 
@@ -2831,7 +3294,7 @@ class TestPublicWaitForStateProbeBehavior:
                 fc.prepare()
                 with pytest.raises(RequestTimeoutError):
                     await asyncio.wait_for(
-                        sandbox.wait_for_state(["started"], timeout=0.15),
+                        sandbox.wait(timeout=0.15),
                         timeout=1.0,
                     )
             assert len(api.specs) <= 3
@@ -2870,7 +3333,7 @@ class TestPublicWaitForStateProbeBehavior:
             with respx.mock:
                 ticket_mock("region-a")
                 ws = fc.prepare()
-                task = asyncio.create_task(sandbox.wait_for_state(["started"], timeout=0.1))
+                task = asyncio.create_task(sandbox.wait(timeout=0.1))
                 await drain()
                 await asyncio.sleep(0.02)
                 ws.inject(
@@ -2938,7 +3401,7 @@ class TestPublicWaitForStateProbeBehavior:
                 ticket_mock("region-a")
                 fc.prepare()
                 await asyncio.wait_for(
-                    sandbox.wait_for_state(["started", "stopped"], timeout=2.6),
+                    sandbox.wait(until=["started", "stopped"], timeout=2.6),
                     timeout=3.5,
                 )
             assert len(api.specs) >= 2
@@ -2957,3 +3420,88 @@ async def _resolve(sandbox: object) -> object:
 
 async def _resolve_client(impl: object) -> object:
     return impl._acquire_hub()  # type: ignore[attr-defined]
+
+
+@pytest.mark.anyio
+async def test_a_frame_nested_too_deeply_is_skipped_and_the_hub_keeps_reading() -> None:
+    # A frame the decoder cannot unwind is skipped like any undecodable one,
+    # never a RecursionError out of the hub's reader.
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait("[" * 100_000 + "]" * 100_000)
+        await drain()
+        ws.inject(
+            {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
+        )
+        result = await task
+    assert result.state == "started"
+
+
+def _nested_snapshot(depth: int, version: int) -> str:
+    # A running snapshot (depth 1) carrying an unknown field nested to `depth`.
+    nested = "[" * (depth - 1) + "]" * (depth - 1)
+    return f'{{"type": "snapshot", "id": "abc-region-a", "status": "running", "version": {version}, "extra": {nested}}}'
+
+
+@pytest.mark.anyio
+async def test_a_frame_nested_past_json_max_depth_is_skipped_and_a_later_snapshot_resolves() -> None:
+    # JSON_MAX_DEPTH (600) is the limit in both SDKs: a 601-deep frame is
+    # skipped like an undecodable one, so it cannot resolve the wait. The
+    # TypeScript twin is in tests/events.test.ts.
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait(_nested_snapshot(601, 1))
+        await drain()
+        assert not task.done()
+        ws.inject(
+            {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 2, "error": None}
+        )
+        result = await task
+    assert result.state == "started"
+
+
+@pytest.mark.anyio
+async def test_a_frame_nested_exactly_json_max_depth_is_read() -> None:
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait(_nested_snapshot(600, 1))
+        result = await asyncio.wait_for(task, 5)
+    assert result.state == "started"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+async def test_a_frame_with_a_non_json_constant_is_skipped_and_the_hub_keeps_reading(constant: str) -> None:
+    # Not JSON: skipped like any undecodable frame.
+    fc = FakeConnector()
+    hub = make_hub(fc)
+    with respx.mock:
+        ticket_mock("region-a")
+        ws = fc.prepare()
+        task = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+        await drain()
+        ws._rx.put_nowait(
+            f'{{"type": "snapshot", "id": "abc-region-a", "status": "running", "version": {constant}, "error": null}}'
+        )
+        await drain()
+        assert not task.done()
+        ws.inject(
+            {"type": "snapshot", "id": "abc-region-a", "status": "running", "version": 1, "error": None}
+        )
+        result = await task
+    assert result.state == "started"

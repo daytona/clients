@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from daytona.v2._gen import api as api_models
 from daytona.v2._gen import toolbox as toolbox_models
+from daytona.v2._gen.api.models.build_context_upload import BuildContextUpload
 from daytona.v2._gen.api.models.lookup_invitation_request import LookupInvitationRequest
 from daytona.v2._gen.api.models.preview_url import PreviewUrl
 from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyWithToken
@@ -89,7 +90,6 @@ def test_flattened_all_of_credentials_are_redacted() -> None:
             "project_permissions": [],
             "created_at": "2026-01-01T00:00:00Z",
             "sync_to_v0": False,
-            "sync_to_v1": False,
             "token": SECRET,
         }
     )
@@ -130,6 +130,7 @@ def test_generated_redaction_matches_the_marking_of_the_contract() -> None:
         "SetOtelConfigRequest": {"headers"},
         "CloneRequest": {"username", "password"},
         "SignedPreviewUrl": {"token", "url"},
+        "BuildContextUploadPart": {"url"},
     }.items():
         assert props <= expected[model], model
 
@@ -154,6 +155,27 @@ def test_signed_preview_url_hides_the_token_in_the_hostname() -> None:
     for diagnostic in (signed.to_str(), repr(signed)):
         assert token not in diagnostic
     assert signed.to_dict()["url"] == f"https://8080-{token}.example.test/"
+
+
+def test_build_context_part_urls_stay_out_of_diagnostics() -> None:
+    url = f"https://bucket.example.test/ctx?partNumber=1&X-Amz-Signature={SECRET}"
+    upload = BuildContextUpload.from_dict(
+        {
+            "id": "7f2c9a8e-0d6b-4c43-9a51-3f0d2c1b5e77",
+            "state": "uploading",
+            "region_id": "eu",
+            "dockerfile": "Dockerfile",
+            "bytes": 1,
+            "sha256": "0" * 64,
+            "parts": [{"part_number": 1, "bytes": 1, "url": url}],
+        }
+    )
+    assert upload is not None
+
+    for model in (upload, upload.parts[0]):
+        for diagnostic in (model.to_str(), repr(model)):
+            assert SECRET not in diagnostic
+    assert upload.to_dict()["parts"][0]["url"] == url
 
 
 def test_credential_named_extras_are_redacted() -> None:

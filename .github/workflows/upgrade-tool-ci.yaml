@@ -153,13 +153,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: ${{ matrix.python }}
+      # uv installs the interpreter itself: the runner image no longer
+      # carries every supported version (3.9 is gone from Ubuntu 26.04).
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Install
         run: |
           set -euo pipefail
-          python -m pip install --upgrade uv
+          uv python install "$UV_PYTHON"
           uv sync --locked
       # ruff checks source, not the interpreter (target-version is pinned): once is enough.
       - name: Lint

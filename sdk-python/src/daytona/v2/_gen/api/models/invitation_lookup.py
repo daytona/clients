@@ -41,9 +41,10 @@ class InvitationLookup(BaseModel):
     invited_by: Optional[StrictStr] = Field(default=None, description="The inviter's display name, else their email; `null` when the inviting account no longer exists.")
     org_id: StrictStr = Field(description="The organization ID.")
     org_name: StrictStr = Field(description="The organization name.")
+    role_names: List[StrictStr] = Field(description="The display names of `roles`, in the same order.")
     roles: List[StrictStr] = Field(description="The role identifiers granted on acceptance.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["email", "expires_at", "id", "invited_by", "org_id", "org_name", "roles"]
+    __properties: ClassVar[List[str]] = ["email", "expires_at", "id", "invited_by", "org_id", "org_name", "role_names", "roles"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -116,6 +117,7 @@ class InvitationLookup(BaseModel):
             **({"invited_by": obj["invited_by"]} if "invited_by" in obj else {}),
             "org_id": obj.get("org_id"),
             "org_name": obj.get("org_name"),
+            "role_names": obj.get("role_names"),
             "roles": obj.get("roles")
         })
         # store additional fields in additional_properties

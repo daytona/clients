@@ -7,7 +7,7 @@ from typing import Final, Sequence
 
 import httpx
 
-from ._core import parse_json_bytes
+from ._core import finite_number, parse_json_response
 from .errors import create_error
 from .types import JsonObject, JsonValue, SandboxSecretsInfo
 
@@ -26,15 +26,14 @@ def serialize_sandbox_secrets_input(secrets: Sequence[str]) -> JsonObject:
 
 
 def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsInfo:
-    payload = _expect_response_object(parse_json_bytes(response.content))
+    payload = _expect_response_object(parse_json_response(response.content, what="sandbox secrets response"))
     etag = response.headers.get("etag")
     if not isinstance(etag, str) or not etag:
-        raise create_error("sandbox secrets response is missing ETag", 500, None, "SDK")
+        raise create_error("sandbox secrets response is missing the ETag header", 400, "BAD_REQUEST", "SDK")
     return SandboxSecretsInfo(
-        secrets=_required_string_list(payload.get("secrets"), field_name="secrets"),
+        secrets=tuple(_required_string_list(payload.get("secrets"), field_name="secrets")),
         desired_revision=_required_int(payload.get("desired_revision"), field_name="desired_revision"),
         etag=etag,
-        http_status=response.status_code,
         applied_revision=_optional_int(payload.get("applied_revision"), field_name="applied_revision"),
         status=_optional_str(payload.get("status")),
         error=_optional_str(payload.get("error")),
@@ -49,24 +48,29 @@ def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsIn
 def _expect_response_object(value: JsonValue) -> JsonObject:
     if isinstance(value, dict):
         return value
-    raise create_error("expected JSON object", 500, None, "SDK")
+    raise create_error("expected a JSON object response", 400, "BAD_REQUEST", "SDK")
 
 
 def _required_string_list(value: JsonValue, *, field_name: str) -> list[str]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
-        raise create_error(f"{field_name} must be an array of strings", 500, None, "SDK")
+        raise create_error(f"{field_name} must be an array of strings", 400, "BAD_REQUEST", "SDK")
     items: list[str] = []
     for item in value:
         if not isinstance(item, str):
-            raise create_error(f"{field_name} must be an array of strings", 500, None, "SDK")
+            raise create_error(f"{field_name} must be an array of strings", 400, "BAD_REQUEST", "SDK")
         items.append(item)
     return items
 
 
 def _required_int(value: JsonValue, *, field_name: str) -> int:
-    if isinstance(value, int) and not isinstance(value, bool):
+    # What matches TypeScript: an integer too large for a double is refused
+    # (its JSON.parse reads it as Infinity, which its integer check refuses).
+    # A number written with a zero fraction (`3.0`) is a float here and is
+    # refused, as every Python integer check refuses it; TypeScript cannot
+    # tell `3.0` from `3`, so only Python refuses it.
+    if isinstance(value, int) and finite_number(value):
         return value
-    raise create_error(f"{field_name} must be an integer", 500, None, "SDK")
+    raise create_error(f"{field_name} must be an integer", 400, "BAD_REQUEST", "SDK")
 
 
 def _optional_int(value: JsonValue, *, field_name: str) -> int | None:

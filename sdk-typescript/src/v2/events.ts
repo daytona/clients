@@ -10,6 +10,7 @@
  * instances via ref-counting; WebSockets are shared by waits for the same destination.
  */
 
+import { nestedDeeperThan } from './jsonDepth.js'
 import type { AxiosHeaderValue, AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { createHttpClient, inBrowser, sandboxState } from './http.js'
@@ -107,7 +108,31 @@ const DEFAULT_CLOSE_GRACE_MS = 1_000
 const DEFAULT_EARLY_PROBE_MS = 10_000
 const DEFAULT_CLIENT_PING_AFTER_MS = 5_000
 const DEFAULT_SUBSCRIBE_FLUSH_MS = 50
-const WAITER_PIN_INTERVAL_MS = 2_147_483_647
+const DEFAULT_STALE_AFTER_MIN_MS = 1_000
+const DEFAULT_STALE_AFTER_SLOW_MS = 15_000
+const DEFAULT_STALE_SLOW_AFTER_MS = 60_000
+/**
+ * An id a waiter holds that has heard no state frame (and sent no subscribe)
+ * for its stale threshold is re-subscribed at the next sweep tick; the server
+ * answers with a fresh snapshot. This bounds the delay a missed event adds to
+ * a wait, which neither the early probe (held off while the socket is live,
+ * keepalives included) nor the reconcile timer does. The threshold is half the
+ * wait's age, at least `DEFAULT_STALE_AFTER_MIN_MS` and at most this: a young
+ * wait (a create just past the server's hold, most of which start within a few
+ * seconds) is re-subscribed about 1, 2, 4 and 8 s in, then every ~3 s. The
+ * ceiling rises to `DEFAULT_STALE_AFTER_SLOW_MS` once the wait is older than
+ * `DEFAULT_STALE_SLOW_AFTER_MS`: a long wait on a resting sandbox then costs a
+ * snapshot every ~15 s, not every ~3 s.
+ */
+const DEFAULT_STALE_AFTER_MS = 3_000
+const DEFAULT_STALE_SWEEP_TICK_MS = 1_000
+/** Ids the sweep re-subscribes per 1 s tick at most, about 1,500 per second per
+ *  socket (one client and region): under the server's per-socket subscribe
+ *  rate (2,000 ids/s) even with the tick's jitter, leaving room for fresh
+ *  subscribes and refused retries. Past it the oldest go first and the rest
+ *  wait a tick. */
+const STALE_SWEEP_IDS_PER_SECOND = 1_500
+const WAITER_PIN_INTERVAL_MS = MAX_TIMER_DELAY_MS
 const WS_OPEN = 1
 const WS_CLOSING = 2
 const WS_CLOSED = 3
@@ -469,6 +494,7 @@ interface SocketState {
   permanentFallback: boolean
   loopRunning: boolean
   reconcileTimer: ReturnType<typeof setInterval> | undefined
+  staleTimer: ReturnType<typeof setTimeout> | undefined
   ws: WebSocket | undefined
   readonly versions: Map<string, number>
   readonly rawStates: Map<string, string>
@@ -488,6 +514,10 @@ interface SocketState {
   readonly unsubscribeReplacedIds: Set<string>
   subscribeFlushTimer: ReturnType<typeof setTimeout> | undefined
   readonly snapshotPending: Map<string, number>
+  /** When each subscribed id was last sent a subscribe or given a state frame. */
+  readonly heardAt: Map<string, number>
+  /** When the current wait on each subscribed id began (its stale threshold grows with the wait's age). */
+  readonly waitedSince: Map<string, number>
   /** The last decoded state per subscribed id: a new waiter on an id the
    *  socket already holds is judged against it at once (a sandbox resting in
    *  its target state emits no further event). */
@@ -560,6 +590,12 @@ export class WaitHub {
   private readonly earlyProbeMs: number
   private readonly clientPingAfterMs: number
   private readonly subscribeFlushMs: number
+  private readonly staleAfterMinMs: number
+  private readonly staleAfterMs: number
+  private readonly staleAfterSlowMs: number
+  private readonly staleSlowAfterMs: number
+  private readonly staleSweepTickMs: number
+  private readonly staleSweepMaxIds: number
   private refCount: number
   private waiterPin: ReturnType<typeof setInterval> | undefined
   closed: boolean
@@ -577,6 +613,12 @@ export class WaitHub {
         readonly earlyProbeMs?: number
         readonly clientPingAfterMs?: number
         readonly subscribeFlushMs?: number
+        readonly staleAfterMinMs?: number
+        readonly staleAfterMs?: number
+        readonly staleAfterSlowMs?: number
+        readonly staleSlowAfterMs?: number
+        readonly staleSweepTickMs?: number
+        readonly staleSweepMaxIds?: number
       } = {},
   ) {
     this.apiUrl = apiUrl.replace(/\/$/, '')
@@ -609,6 +651,13 @@ export class WaitHub {
     this.earlyProbeMs = timings.earlyProbeMs ?? DEFAULT_EARLY_PROBE_MS
     this.clientPingAfterMs = timings.clientPingAfterMs ?? DEFAULT_CLIENT_PING_AFTER_MS
     this.subscribeFlushMs = clampTimerDelayMs(timings.subscribeFlushMs) ?? DEFAULT_SUBSCRIBE_FLUSH_MS
+    this.staleAfterMinMs = timings.staleAfterMinMs ?? DEFAULT_STALE_AFTER_MIN_MS
+    this.staleAfterMs = timings.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
+    this.staleAfterSlowMs = timings.staleAfterSlowMs ?? DEFAULT_STALE_AFTER_SLOW_MS
+    this.staleSlowAfterMs = timings.staleSlowAfterMs ?? DEFAULT_STALE_SLOW_AFTER_MS
+    this.staleSweepTickMs = timings.staleSweepTickMs ?? DEFAULT_STALE_SWEEP_TICK_MS
+    this.staleSweepMaxIds =
+      timings.staleSweepMaxIds ?? Math.max(1, Math.floor((STALE_SWEEP_IDS_PER_SECOND * this.staleSweepTickMs) / 1_000))
     credentialSafeDiagnostics(this, () => ({ type: 'WaitHub' }))
   }
 
@@ -632,6 +681,7 @@ export class WaitHub {
     this.clearWaiterPin()
     for (const sock of this.sockets.values()) {
       clearReconcileTimer(sock)
+      clearStaleTimer(sock)
       this.clearIdleClose(sock)
       this.clearClientPing(sock)
       clearCloseGraceTimer(sock)
@@ -757,6 +807,9 @@ export class WaitHub {
       }
       const pendingVersion = source.snapshotPending.get(sid)
       if (pendingVersion !== undefined) destination.snapshotPending.set(sid, pendingVersion)
+      const waitedSince = source.waitedSince.get(sid)
+      // The newer start of the two, as a new waiter would set it.
+      if (waitedSince !== undefined) destination.waitedSince.set(sid, Math.max(waitedSince, destination.waitedSince.get(sid) ?? waitedSince))
       if (preserveState) {
         const sourceState = source.states.get(sid)
         if (sourceState !== undefined) destination.states.set(sid, sourceState)
@@ -768,6 +821,8 @@ export class WaitHub {
 
     this.clearPendingSubscribeFlush(source)
     source.subscriptions.clear()
+    source.heardAt.clear()
+    source.waitedSince.clear()
     source.states.clear()
     source.rawStates.clear()
     source.versions.clear()
@@ -781,8 +836,13 @@ export class WaitHub {
     if (destination.ws !== undefined && destination.ws.readyState === WS_OPEN && movedIds.length > 0) {
       void this.sendSubscribeIds(destination, movedIds)
     }
+    // A connected destination with no waiter until now runs no sweep.
+    if (destination.ws !== undefined && destination.ws.readyState === WS_OPEN && this.hasAnyWaiterFor(destination)) {
+      this.armStaleSweep(destination)
+    }
     this.ensureSocketLoop(destination)
     clearReconcileTimer(source)
+    clearStaleTimer(source)
     this.clearIdleClose(source)
     this.closeSocket(source)
     this.sockets.delete(sourceKey)
@@ -815,6 +875,7 @@ export class WaitHub {
         permanentFallback: false,
         loopRunning: false,
         reconcileTimer: undefined,
+        staleTimer: undefined,
         ws: undefined,
         versions: new Map(),
         rawStates: new Map(),
@@ -829,6 +890,8 @@ export class WaitHub {
         unsubscribeReplacedIds: new Set(),
         subscribeFlushTimer: undefined,
         snapshotPending: new Map(),
+        heardAt: new Map(),
+        waitedSince: new Map(),
         states: new Map(),
         wake: undefined,
         clientClosing: false,
@@ -913,8 +976,12 @@ export class WaitHub {
     this.scheduleClientPing(sock)
     const fresh = !sock.subscriptions.has(sandboxId)
     sock.subscriptions.add(sandboxId)
+    // The newest waiter's start: a fresh wait (a start() next to an old
+    // background wait, say) gets the young schedule, not the old wait's.
+    sock.waitedSince.set(sandboxId, Date.now())
     this.ensureSocketLoop(sock)
     sock.wake?.()
+    if (sock.ws !== undefined && sock.ws.readyState === WS_OPEN) this.armStaleSweep(sock)
 
     if (fresh) this.enqueueSubscribeIds(sock, [sandboxId])
 
@@ -1363,6 +1430,7 @@ export class WaitHub {
     // open: a server that answers 101 and then says nothing must still reach
     // the fallback threshold.
     this.startReconcileTimer(sock)
+    this.armStaleSweep(sock)
 
     try {
       await this.resubscribeAll(sock)
@@ -1370,6 +1438,7 @@ export class WaitHub {
       await this.runWs(sock, ws)
     } finally {
       clearReconcileTimer(sock)
+      clearStaleTimer(sock)
       clearCloseGraceTimer(sock)
       this.invalidateSocketCache(sock)
       sock.ws = undefined
@@ -1491,6 +1560,9 @@ export class WaitHub {
         } catch {
           return
         }
+        // A frame nested deeper than every JSON body may be is skipped like
+        // an undecodable one (`JSON_MAX_DEPTH`, as in Python).
+        if (nestedDeeperThan(frame)) return
         if (typeof frame !== 'object' || frame === null || Array.isArray(frame)) return
 
         const ftype = frame['type']
@@ -1526,6 +1598,7 @@ export class WaitHub {
           // the id's waiters: they now listen elsewhere.
           if (!sock.subscriptions.has(sid)) return
           sock.versions.set(sid, version)
+          sock.heardAt.set(sid, Date.now())
 
           const decoded = sandboxState(wireState)
           sock.states.set(sid, decoded)
@@ -1831,7 +1904,11 @@ export class WaitHub {
   private async sendSubscribeIds(sock: SocketState, ids: readonly string[]): Promise<void> {
     const ws = sock.ws
     if (ws === undefined || ws.readyState !== WS_OPEN) return
-    for (const id of ids) sock.snapshotPending.set(id, sock.versions.get(id) ?? -1)
+    const now = Date.now()
+    for (const id of ids) {
+      sock.snapshotPending.set(id, sock.versions.get(id) ?? -1)
+      sock.heardAt.set(id, now)
+    }
     for (const chunk of chunks(ids, MAX_IDS_PER_FRAME)) {
       const frame = {
         type: 'subscribe',
@@ -1871,6 +1948,8 @@ export class WaitHub {
 
   private releaseSubscription(sock: SocketState, sandboxId: string): void {
     sock.subscriptions.delete(sandboxId)
+    sock.heardAt.delete(sandboxId)
+    sock.waitedSince.delete(sandboxId)
     sock.states.delete(sandboxId)
     sock.rawStates.delete(sandboxId)
     sock.versions.delete(sandboxId)
@@ -1984,6 +2063,63 @@ export class WaitHub {
     sock.reconcileTimer = t
   }
 
+  /**
+   * Whether `sandboxId` should be asked again: it has heard nothing for its
+   * stale threshold (half its wait's age, `staleAfterMinMs` up to the ceiling;
+   * the ceiling when the wait's start is unknown), and no answer to a recent
+   * subscribe of it is still outstanding. The ceiling is `staleAfterMs`, or
+   * `staleAfterSlowMs` once the wait is older than `staleSlowAfterMs`. It is
+   * per id: one id's events say nothing about whether another id's event went
+   * missing.
+   */
+  private isStale(sock: SocketState, sandboxId: string, now: number): boolean {
+    const heard = sock.heardAt.get(sandboxId) ?? 0
+    // Its subscribe went out recently and the answer is still due: asking
+    // again would only add load where the server is slowest.
+    if (sock.snapshotPending.has(sandboxId) && heard > now - this.staleAfterMs) return false
+    const since = sock.waitedSince.get(sandboxId)
+    const high = since !== undefined && now - since > this.staleSlowAfterMs ? this.staleAfterSlowMs : this.staleAfterMs
+    const threshold = since === undefined ? high : Math.min(high, Math.max(this.staleAfterMinMs, (now - since) / 2))
+    return heard <= now - threshold
+  }
+
+  /**
+   * Re-subscribe every waited-on id that has heard nothing for its stale
+   * threshold (`isStale`).
+   * The timer stops once the socket has no waiter; a new waiter arms it again.
+   * A wait whose transition event never arrives would otherwise end only at
+   * the reconcile timer. The frame path pays one map store; a tick scans the
+   * subscriptions and sends nothing while every id is fresh. `ws.send` queues
+   * synchronously, so no flush can interleave with the sweep's frames.
+   */
+  private armStaleSweep(sock: SocketState): void {
+    if (this.staleSweepTickMs <= 0 || sock.staleTimer !== undefined) return
+    const t = setTimeout(() => {
+      sock.staleTimer = undefined
+      const ws = sock.ws
+      if (this.closed || ws === undefined || !this.hasAnyWaiterFor(sock)) return
+      const heardAt = sock.heardAt
+      const now = Date.now()
+      const pending = sock.pendingSubscribeIds
+      const refused = sock.refusedRetryIds
+      let stale: string[] = []
+      for (const sid of sock.subscriptions) {
+        // Ids already queued for a subscribe, or for the refused (LIMIT)
+        // retry, are asked again by those paths.
+        if (!pending.has(sid) && !refused.has(sid) && this.isStale(sock, sid, now) && (this.waiters.get(sid)?.length ?? 0) > 0) {
+          stale.push(sid)
+        }
+      }
+      if (stale.length > this.staleSweepMaxIds) {
+        stale = stale.sort((a, b) => (heardAt.get(a) ?? 0) - (heardAt.get(b) ?? 0)).slice(0, this.staleSweepMaxIds)
+      }
+      if (stale.length > 0 && ws.readyState === WS_OPEN) void this.sendSubscribeIds(sock, stale)
+      this.armStaleSweep(sock)
+    }, Math.round(jittered(this.staleSweepTickMs)))
+    unrefTimer(t)
+    sock.staleTimer = t
+  }
+
   // ------------------------------------------------------------------
   // Fallback helpers
   // ------------------------------------------------------------------
@@ -1998,6 +2134,8 @@ export class WaitHub {
       }
     }
     sock.subscriptions.clear()
+    sock.heardAt.clear()
+    sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2018,6 +2156,8 @@ export class WaitHub {
       }
     }
     sock.subscriptions.clear()
+    sock.heardAt.clear()
+    sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2037,6 +2177,8 @@ export class WaitHub {
       }
     }
     sock.subscriptions.clear()
+    sock.heardAt.clear()
+    sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
     sock.versions.clear()
@@ -2095,6 +2237,13 @@ function clearReconcileTimer(sock: SocketState): void {
   }
 }
 
+function clearStaleTimer(sock: SocketState): void {
+  if (sock.staleTimer !== undefined) {
+    clearTimeout(sock.staleTimer)
+    sock.staleTimer = undefined
+  }
+}
+
 function clearCloseGraceTimer(sock: SocketState): void {
   if (sock.closeGraceTimer !== undefined) {
     clearTimeout(sock.closeGraceTimer)
@@ -2134,6 +2283,7 @@ function hubIdentity(
   ])
 }
 
+/** @internal */
 export interface AttachHubOptions {
   readonly apiUrl: string
   readonly apiKey: string
@@ -2151,6 +2301,7 @@ export interface AttachHubOptions {
   readonly maxResponseBytes?: number
 }
 
+/** @internal */
 export function attachHub(options: AttachHubOptions): WaitHub {
   const { apiUrl, apiKey, target, shared, config, wsFactory } = options
   const _api = options._api ?? (options.maxResponseBytes === undefined
@@ -2181,6 +2332,7 @@ export function attachHub(options: AttachHubOptions): WaitHub {
   return hub
 }
 
+/** @internal */
 export async function detachHub(
   hub: WaitHub,
   options: {
@@ -2198,5 +2350,5 @@ export async function detachHub(
   }
 }
 
-// Exported for testing only
+/** @internal Exported for testing only. */
 export const _hubRegistryForTest = HUB_REGISTRY
