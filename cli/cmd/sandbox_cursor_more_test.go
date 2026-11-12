@@ -112,9 +112,8 @@ func TestSandboxListAll_oneAPIServingSeveralRegionsLosesNoTrimmedRow(t *testing.
 func exhaustedLegServers(t *testing.T) (string, func() []string) {
 	t.Helper()
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if writeSearchNotConfigured(w, r) {
-			return
-		}
+		// The CLI probes search on the home API only: a search request here
+		// is a bug, and the path assertion fails it.
 		require.Equal(t, "/sandboxes", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		switch cursor := r.URL.Query().Get("cursor"); cursor {
