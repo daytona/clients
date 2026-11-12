@@ -1,0 +1,33 @@
+examples/python/charts.py
+  s_004476959ded73::t_11a0a8cb5b9d6f 54-56
+examples/python/test_examples.py
+  s_004476959ded73::t_d7d90cf91ef7a2 450-451,457,460-464,467-469,752-774
+examples/typescript/charts/index.ts
+  s_004476959ded73::t_bd69cfbb641a0d 48-50
+examples/typescript/examples.test.ts
+  s_004476959ded73::t_aa445ddaf23822 270-285
+examples/typescript/test-support/fake-sdk.ts
+  s_004476959ded73::t_6e70881326cf0f 205,212-216,220-221,225-226
+upgrade/MIGRATION.md
+  s_004476959ded73::t_5e00e63df14440 432,457
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_004476959ded73::t_831a0fb97195be 1965,1970
+upgrade/typescript/src/mapping.json
+  s_004476959ded73::t_0571de3c24d06d 1965,1970
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5c6d024e041aa615f47158ac562a16a3ecb2959a",
+  "prompts": {},
+  "sessions": {
+    "s_004476959ded73": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2f875efeffe7gwJujLLtJViVQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
