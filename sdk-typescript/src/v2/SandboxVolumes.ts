@@ -65,7 +65,10 @@ export class SandboxVolumesService {
     assertInternal(token, 'SandboxVolumesService')
   }
 
-  /** One submission/check only. Pending and errors never trigger automatic retries. */
+  /**
+   * One submission/check only. Pending and errors never trigger automatic retries.
+   * `volumeId` is the attached volume's `vol_` ID or its UUID.
+   */
   public async pull(volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult> {
     assertOptionsObject('PullVolumeOptions', options)
     assertKnownOptions('PullVolumeOptions', options, PULL_VOLUME_KEYS)

@@ -490,8 +490,8 @@ chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
 accepts an ID only and turns off the name lookup.
 
 Pulling an attachment is separate from the `daytona.v2.volumes` management
-service. IDs contain 1–128 ASCII letters, digits, underscores or hyphens.
-The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
+service. The volume ID is the attached volume's `vol_` ID or its UUID. IDs
+contain 1–128 ASCII letters, digits, underscores or hyphens. The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
 an optional `manifestId` (`undefined` when there is none). Unknown statuses map to `unknown` with the original
 value in `rawStatus`.
 
