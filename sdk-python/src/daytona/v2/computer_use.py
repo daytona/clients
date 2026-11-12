@@ -22,9 +22,17 @@ from .computer_use_services import (
 )
 from .computer_use_types import (
     ComputerUseLifecycleResult,
+    ComputerUseResolution,
     ComputerUseRestartResponse,
     ComputerUseStatusResponse,
 )
+from .types import JsonValue
+
+
+def _start_body(resolution: ComputerUseResolution | None) -> JsonValue:
+    if resolution is None:
+        return None
+    return {"resolution": {"width": resolution.width, "height": resolution.height}}
 
 
 class AsyncComputerUseService:
@@ -41,10 +49,19 @@ class AsyncComputerUseService:
     async def status(self) -> ComputerUseStatusResponse:
         return parse_computer_use_status(await self._send(RequestSpec("GET", "/computeruse/status")))
 
-    async def start(self) -> ComputerUseLifecycleResult:
+    async def start(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseLifecycleResult:
+        """Start the desktop.
+
+        ``resolution`` selects its size (1024x768, 1280x720 or 1920x1080) and is
+        kept for later starts and restarts. Omitted, the desktop uses the
+        resolution it last started at, or 1280x720. Starting a running desktop at
+        a different resolution raises ``ConflictError``; call ``restart`` with
+        the new resolution instead. Linux sandboxes only: other platforms raise
+        ``UnsupportedOperationError`` for a ``resolution``.
+        """
         return parse_computer_use_lifecycle(
             expect_computer_use_lifecycle_response(
-                await self._send(RequestSpec("POST", "/computeruse/start"))
+                await self._send(RequestSpec("POST", "/computeruse/start", json_body=_start_body(resolution)))
             )
         )
 
@@ -53,8 +70,15 @@ class AsyncComputerUseService:
             expect_computer_use_lifecycle_response(await self._send(RequestSpec("POST", "/computeruse/stop")))
         )
 
-    async def restart(self) -> ComputerUseRestartResponse:
-        return parse_computer_use_restart(await self._send(RequestSpec("POST", "/computeruse/restart")))
+    async def restart(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseRestartResponse:
+        """Restart the desktop, at ``resolution`` when given (kept for later
+        starts). Omitted, it restarts at its current resolution. Linux sandboxes
+        only: other platforms raise ``UnsupportedOperationError`` for a
+        ``resolution``.
+        """
+        return parse_computer_use_restart(
+            await self._send(RequestSpec("POST", "/computeruse/restart", json_body=_start_body(resolution)))
+        )
 
     async def _send(self, spec: RequestSpec) -> TransportPayload:
         return await self._transport.send(spec)

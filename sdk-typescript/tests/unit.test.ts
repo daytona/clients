@@ -12097,7 +12097,29 @@ describe('computer-use namespace', () => {
     transport.post.mockResolvedValueOnce(response)
 
     await expect(computerUse.restart()).resolves.toEqual(response)
-    expect(transport.post.mock.calls).toEqual([['/computeruse/restart']])
+    expect(transport.post.mock.calls).toEqual([['/computeruse/restart', undefined]])
+  })
+
+  it('sends a desktop resolution on start and restart only when given', async () => {
+    const transport = transportStub()
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    transport.post.mockResolvedValue({ message: 'computer use started', status: {} })
+    await computerUse.start()
+    await computerUse.start({ resolution: { width: 1920, height: 1080 } })
+    transport.post.mockResolvedValue({ message: 'computer use restarted', status: 'active', desktop: 'ready' })
+    await computerUse.restart({ resolution: { width: 1024, height: 768 } })
+    expect(transport.post.mock.calls).toEqual([
+      ['/computeruse/start', undefined],
+      ['/computeruse/start', { resolution: { width: 1920, height: 1080 } }],
+      ['/computeruse/restart', { resolution: { width: 1024, height: 768 } }],
+    ])
+    await expect(
+      computerUse.start({ resolution: { width: 1920, height: 1080 }, size: 1 } as never),
+    ).rejects.toThrow(/size/)
+    await expect(
+      computerUse.restart({ resolution: { width: 1920, height: 1080, depth: 24 } as never }),
+    ).rejects.toThrow(/depth/)
+    expect(transport.post.mock.calls).toHaveLength(3)
   })
 
   it('maps the full computer-use process-status field set and keeps future additions', () => {

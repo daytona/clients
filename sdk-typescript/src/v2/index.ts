@@ -387,6 +387,8 @@ export type {
   ComputerUseRecordingStartRequest,
   ComputerUseRecordingStopRequest,
   ComputerUseRegion,
+  ComputerUseResolution,
+  ComputerUseStartOptions,
   ComputerUseScreenshotFormat,
   ComputerUseScreenshotOptions,
   ComputerUseScreenshotResponse,

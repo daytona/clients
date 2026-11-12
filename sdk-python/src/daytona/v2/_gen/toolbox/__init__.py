@@ -51,10 +51,12 @@ from daytona.v2._gen.toolbox.models.computer_use_recording import ComputerUseRec
 from daytona.v2._gen.toolbox.models.computer_use_recording_start_request import ComputerUseRecordingStartRequest as ComputerUseRecordingStartRequest
 from daytona.v2._gen.toolbox.models.computer_use_recording_stop_request import ComputerUseRecordingStopRequest as ComputerUseRecordingStopRequest
 from daytona.v2._gen.toolbox.models.computer_use_recordings_response import ComputerUseRecordingsResponse as ComputerUseRecordingsResponse
+from daytona.v2._gen.toolbox.models.computer_use_resolution import ComputerUseResolution as ComputerUseResolution
 from daytona.v2._gen.toolbox.models.computer_use_restart_response import ComputerUseRestartResponse as ComputerUseRestartResponse
 from daytona.v2._gen.toolbox.models.computer_use_screenshot_query import ComputerUseScreenshotQuery as ComputerUseScreenshotQuery
 from daytona.v2._gen.toolbox.models.computer_use_screenshot_response import ComputerUseScreenshotResponse as ComputerUseScreenshotResponse
 from daytona.v2._gen.toolbox.models.computer_use_scroll_response import ComputerUseScrollResponse as ComputerUseScrollResponse
+from daytona.v2._gen.toolbox.models.computer_use_start_request import ComputerUseStartRequest as ComputerUseStartRequest
 from daytona.v2._gen.toolbox.models.computer_use_status_response import ComputerUseStatusResponse as ComputerUseStatusResponse
 from daytona.v2._gen.toolbox.models.computer_use_window import ComputerUseWindow as ComputerUseWindow
 from daytona.v2._gen.toolbox.models.create_process_query import CreateProcessQuery as CreateProcessQuery
