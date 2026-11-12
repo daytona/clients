@@ -86,8 +86,15 @@ export async function archiveBuilder(builder: ImageBuilder): Promise<Archive> {
       real = decodeContextPath(realBytes)
       info = await fs.stat(real)
     } catch (error) {
-      if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP')) {
+      // Filesystem errors can originate in another realm; narrow by their OS code.
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+      if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP') {
         throw badRequest(`local source does not exist: ${JSON.stringify(source.localPath)}`)
+      }
+      // A parent made unsearchable since the source was added: the error
+      // addLocal* raises for it (Python raises the same).
+      if (code === 'EACCES' || code === 'EPERM') {
+        throw badRequest(`build context file is not readable: ${JSON.stringify(source.localPath)}`)
       }
       throw error
     }

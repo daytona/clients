@@ -149,6 +149,15 @@ def collect_builder_entries(builder: ImageBuilder, cancel: Event | None = None) 
             info = os.stat(real)
         except (OSError, RuntimeError) as error:
             # Path.resolve reports link loops as RuntimeError on Python 3.10-3.12.
+            if isinstance(error, OSError) and error.errno in (errno.EACCES, errno.EPERM):
+                # A parent made unsearchable since the source was added: the
+                # error add_local_* raises for it (TypeScript raises the same).
+                raise create_error(
+                    f"build context file is not readable: {json.dumps(str(source.path), ensure_ascii=False)}",
+                    400,
+                    "BAD_REQUEST",
+                    "SDK",
+                ) from error
             if isinstance(error, OSError) and error.errno not in (errno.ENOENT, errno.ENOTDIR, errno.ELOOP):
                 raise
             raise create_error(

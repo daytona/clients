@@ -192,6 +192,44 @@ it('refuses a blank context path and an ImageBuilder passed as the context', asy
   expect(requests).toEqual([])
 })
 
+it('explains a builder passed to buildFromContext before checking dockerfile (as Python)', async () => {
+  const axios = (await import('axios')).default
+  const requests: string[] = []
+  const http = axios.create({ adapter: async (config) => { requests.push(String(config.url)); throw new Error('no request expected') } })
+  const images = new ImagesService(INTERNAL, http)
+  // SAFETY: plain JavaScript can pass a builder; the type refuses it.
+  await expect(images.buildFromContext(ImageBuilder.fromRegistry('alpine') as never, { dockerfile: '' })).rejects.toMatchObject({
+    message: 'buildFromContext() takes the bytes, Blob or path of a build context; build an ImageBuilder with images.build()',
+    statusCode: 400,
+    code: 'BAD_REQUEST',
+    source: 'SDK',
+  })
+  expect(requests).toEqual([])
+})
+
+for (const kind of ['file', 'dir'] as const) {
+  posixNonRoot(`refuses a ${kind} source whose parent became unsearchable as not readable`, async () => {
+    // Given a source added, then its parent made unsearchable before the build.
+    const base = await promises.mkdtemp(join(tmpdir(), 'unsearchable-'))
+    const parent = join(base, 'p')
+    try {
+      await promises.mkdir(join(parent, 'd'), { recursive: true })
+      await promises.writeFile(join(parent, 'f.txt'), 'f')
+      const builder = kind === 'file'
+        ? ImageBuilder.fromRegistry('alpine').addLocalFile(join(parent, 'f.txt'), '/f.txt')
+        : ImageBuilder.fromRegistry('alpine').addLocalDir(join(parent, 'd'), '/d')
+      await promises.chmod(parent, 0o600)
+      // When archived, then it is the typed error addLocal* raises for it.
+      const error = await archiveBuilder(builder).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(BadRequestError)
+      expect(error).toMatchObject({ message: expect.stringMatching(/^build context file is not readable: /), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    } finally {
+      await promises.chmod(parent, 0o755).catch(() => undefined)
+      await promises.rm(base, { recursive: true, force: true })
+    }
+  })
+}
+
 posixNonRoot('refuses a source redirected by a symlink after it was added', async () => {
   // Given a directory added to a builder, then replaced by a link elsewhere.
   const fs = await import('node:fs/promises')

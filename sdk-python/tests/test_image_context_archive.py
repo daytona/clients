@@ -406,6 +406,28 @@ def test_an_unreadable_context_root_or_ignore_file_is_a_typed_refusal(tmp_path: 
         (ignored / ".dockerignore").chmod(0o644)
 
 
+@pytest.mark.skipif(not _POSIX_NON_ROOT, reason="needs POSIX permissions enforced for the user")
+@pytest.mark.parametrize("kind", ["file", "dir"])
+def test_a_source_whose_parent_became_unsearchable_is_not_readable(tmp_path: Path, kind: str) -> None:
+    # Given a source added, then its parent made unsearchable before the build.
+    parent = tmp_path / "p"
+    (parent / "d").mkdir(parents=True)
+    (parent / "f.txt").write_text("f")
+    builder = ImageBuilder.from_registry("alpine")
+    builder = (
+        builder.add_local_file(parent / "f.txt", "/f.txt")
+        if kind == "file"
+        else builder.add_local_dir(parent / "d", "/d")
+    )
+    parent.chmod(0o600)
+    try:
+        # When archived, then it is the typed error add_local_* raises for it.
+        with pytest.raises(BadRequestError, match="build context file is not readable"):
+            write_builder_context(builder, tmp_path / "context.tar")
+    finally:
+        parent.chmod(0o755)
+
+
 @pytest.mark.anyio
 @pytest.mark.skipif(not _POSIX_NON_ROOT, reason="needs POSIX permissions enforced for the user")
 async def test_an_unreachable_tar_path_is_the_tar_upload_error(tmp_path: Path) -> None:
