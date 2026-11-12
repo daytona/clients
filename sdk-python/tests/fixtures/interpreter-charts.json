@@ -536,6 +536,29 @@
       }
     },
     {
+      "name": "a null truncated is false",
+      "wire": {
+        "type": "pie",
+        "elements": [
+          {
+            "angle": 360,
+            "radius": 1
+          }
+        ],
+        "truncated": null
+      },
+      "expected": {
+        "type": "pie",
+        "elements": [
+          {
+            "angle": 360,
+            "radius": 1
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
       "name": "a composite nested three deep",
       "wire": {
         "type": "composite_chart",

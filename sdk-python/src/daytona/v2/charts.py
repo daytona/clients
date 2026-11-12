@@ -21,7 +21,7 @@ import math
 from dataclasses import dataclass
 from typing import Literal, Mapping, Optional, Union
 
-CHART_MEDIA_TYPE = "application/vnd.daytona.chart.v1+json"
+_CHART_MEDIA_TYPE = "application/vnd.daytona.chart.v1+json"
 
 ChartValue = Union[float, str]
 """A plotted value: a number, or a category or ISO 8601 UTC time as a string."""
@@ -326,7 +326,9 @@ def _optional_text(wire: Mapping[str, object], key: str) -> Optional[str]:
 
 
 def _flag(wire: Mapping[str, object], key: str) -> bool:
-    value = wire.get(key, False)
+    value = wire.get(key)
+    if value is None:
+        return False
     if not isinstance(value, bool):
         raise _Malformed
     return value

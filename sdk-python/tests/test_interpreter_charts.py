@@ -14,7 +14,7 @@ from __future__ import annotations
 import dataclasses
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 
@@ -29,9 +29,10 @@ from daytona.v2 import (
 )
 from daytona.v2._core import RequestSpec
 from daytona.v2.charts import _parse_chart
-from daytona.v2.errors import create_error
+from daytona.v2.errors import DaytonaError, create_error
 from daytona.v2.interpreter import _outputs
-from daytona.v2.types import LogFrame
+from daytona.v2.process import TIMED_OUT_LOG_PAGE_LIMIT, _all_logs
+from daytona.v2.types import LogFrame, LogPage
 
 _FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "interpreter-charts.json").read_text())
 _CHART = "application/vnd.daytona.chart.v1+json"
@@ -231,3 +232,72 @@ async def test_an_expiry_without_a_resume_point_still_raises() -> None:
 
     with pytest.raises(CursorExpiredError):
         await interpreter.run("plot()")
+
+
+class _ExpiringLogs:
+    """A process handle whose log reads answer from a queue: an exception
+    raises, anything else is the page."""
+
+    def __init__(self, outcomes: list[object]) -> None:
+        self.outcomes = outcomes
+        self.cursors: list[Optional[str]] = []
+
+    async def logs(
+        self, *, cursor: Optional[str] = None, limit: Optional[int] = None, encoding: str = "text"
+    ) -> LogPage:
+        self.cursors.append(cursor)
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        assert isinstance(outcome, LogPage)
+        return outcome
+
+
+def _expired(resume: Optional[str]) -> DaytonaError:
+    return create_error(
+        "the requested position was evicted by log retention",
+        409,
+        "CURSOR_EXPIRED",
+        "DAYTONA_DAEMON",
+        first_available_cursor=resume,
+    )
+
+
+@pytest.mark.anyio
+async def test_a_bounded_read_whose_pages_keep_expiring_stops_at_its_page_budget() -> None:
+    # A timed-out run reads at most TIMED_OUT_LOG_PAGE_LIMIT pages; an expired
+    # read is one of them, so retention racing a live process cannot loop.
+    handle = _ExpiringLogs([_expired(f"c{i}") for i in range(1, 50)])
+    frames = await _all_logs(handle, max_pages=TIMED_OUT_LOG_PAGE_LIMIT)  # type: ignore[arg-type]
+    assert frames == []
+    assert handle.cursors == [None, *(f"c{i}" for i in range(1, TIMED_OUT_LOG_PAGE_LIMIT))]
+
+
+@pytest.mark.anyio
+async def test_an_expiry_that_names_the_cursor_just_read_raises() -> None:
+    handle = _ExpiringLogs([_expired("c5"), _expired("c5")])
+    with pytest.raises(CursorExpiredError):
+        await _all_logs(handle)  # type: ignore[arg-type]
+    assert handle.cursors == [None, "c5"]
+
+
+@pytest.mark.anyio
+async def test_a_process_run_whose_log_head_was_evicted_returns_what_the_sandbox_kept() -> None:
+    # The inline page is not the end, so run() reads the log from the start,
+    # which retention evicted.
+    created = dict(
+        _process("p1"),
+        kind="exec",
+        state="terminal",
+        exitCode=0,
+        reason="exited",
+        logs=_page([_frame("c1", "stdout", "early")], "c1", eof=False),
+    )
+    created.pop("language")
+    transport = _Transport([created, _expired("c7"), _page([_frame("c8", "stdout", "late")], "c8")])
+    service = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
+
+    result = await service.run("echo")
+
+    assert result.stdout == "late"
+    assert transport.paths[-2:] == ["GET /processes/p1/logs", "GET /processes/p1/logs?cursor=c7"]

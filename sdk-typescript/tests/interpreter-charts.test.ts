@@ -13,10 +13,13 @@ import { join } from 'node:path'
 import { chartFromWire } from '../src/v2/charts'
 import type { BarChart, Chart } from '../src/v2/charts'
 import { InterpreterService, interpreterOutputs } from '../src/v2/Interpreter'
+import { ProcessService } from '../src/v2/Process'
+import type { ProcessHandle } from '../src/v2/ProcessHandle'
+import { TIMED_OUT_LOG_PAGE_LIMIT, collectAllLogs } from '../src/v2/ProcessRun'
 import { CursorExpiredError, createDaytonaError } from '../src/v2/errors/DaytonaError'
 import { INTERNAL } from '../src/v2/internal'
 import type { HttpTransport } from '../src/v2/http'
-import type { LogFrame } from '../src/v2/types'
+import type { LogFrame, LogPage } from '../src/v2/types'
 
 interface RunExpectation {
   readonly isMainResult: boolean
@@ -87,8 +90,8 @@ const PROCESS = {
   createdAt: '2026-01-01T00:00:00Z', truncatedHead: false, language: 'python',
 }
 
-function frame(cursor: string, channel: string, data: Record<string, unknown>) {
-  return { cursor, channel, timestamp: 1, data: JSON.stringify(data) }
+function frame(cursor: string, channel: string, data: Record<string, unknown> | string) {
+  return { cursor, channel, timestamp: 1, data: typeof data === 'string' ? data : JSON.stringify(data) }
 }
 
 describe('interpreter runs with charts', () => {
@@ -143,5 +146,64 @@ describe('interpreter runs with charts', () => {
     const expired = createDaytonaError('evicted', 409, 'CURSOR_EXPIRED', 'DAYTONA_DAEMON')
     const { transport } = transportStub([PROCESS, { exitCode: 0, reason: 'exited' }, expired])
     await expect(new InterpreterService(INTERNAL, transport, 'sbx').run('plot()')).rejects.toBeInstanceOf(CursorExpiredError)
+  })
+})
+
+describe('log reads after retention', () => {
+  function expired(resume?: string) {
+    return createDaytonaError('the requested position was evicted by log retention', 409, 'CURSOR_EXPIRED', 'DAYTONA_DAEMON', {
+      ...(resume === undefined ? {} : { firstAvailableCursor: resume }),
+    })
+  }
+
+  /** A process handle whose log reads answer from a queue: an error throws, anything else is the page. */
+  function expiringLogs(outcomes: (Error | LogPage)[]) {
+    const cursors: (string | undefined)[] = []
+    const logs = async (options: { cursor?: string } = {}): Promise<LogPage> => {
+      cursors.push(options.cursor)
+      const outcome = outcomes.shift()
+      if (outcome === undefined) throw new Error('no more pages')
+      if (outcome instanceof Error) throw outcome
+      return outcome
+    }
+    // SAFETY: collectAllLogs calls only `logs` on the handle, which this provides.
+    return { handle: { logs } as unknown as ProcessHandle, cursors }
+  }
+
+  it('stops a bounded read whose pages keep expiring at its page budget', async () => {
+    // A timed-out run reads at most TIMED_OUT_LOG_PAGE_LIMIT pages; an expired
+    // read is one of them, so retention racing a live process cannot loop.
+    const { handle, cursors } = expiringLogs(Array.from({ length: 49 }, (_, i) => expired(`c${i + 1}`)))
+    await expect(collectAllLogs(handle, { maxPages: TIMED_OUT_LOG_PAGE_LIMIT })).resolves.toEqual([])
+    expect(cursors).toEqual([undefined, ...Array.from({ length: TIMED_OUT_LOG_PAGE_LIMIT - 1 }, (_, i) => `c${i + 1}`)])
+  })
+
+  it('fails when an expiry names the cursor just read', async () => {
+    const { handle, cursors } = expiringLogs([expired('c5'), expired('c5')])
+    await expect(collectAllLogs(handle)).rejects.toBeInstanceOf(CursorExpiredError)
+    expect(cursors).toEqual([undefined, 'c5'])
+  })
+
+  it('returns what the sandbox kept from a process run whose log head was evicted', async () => {
+    // The inline page is not the end, so run() reads the log from the start,
+    // which retention evicted.
+    const { transport, requests } = transportStub([
+      {
+        ...PROCESS,
+        kind: 'exec',
+        language: undefined,
+        state: 'terminal',
+        exitCode: 0,
+        reason: 'exited',
+        logs: { frames: [frame('c1', 'stdout', 'early')], nextCursor: 'c1', truncatedHead: false, eof: false },
+      },
+      expired('c7'),
+      { frames: [frame('c8', 'stdout', 'late')], nextCursor: 'c8', truncatedHead: false, eof: true },
+    ])
+
+    const result = await new ProcessService(INTERNAL, transport, 'sbx').run('echo')
+
+    expect(result.stdout).toBe('late')
+    expect(requests.slice(-2)).toEqual(['GET /processes/p1/logs', 'GET /processes/p1/logs?cursor=c7'])
   })
 })

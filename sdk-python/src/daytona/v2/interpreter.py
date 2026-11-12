@@ -21,7 +21,7 @@ from ._core import (
     wait_budget,
 )
 from ._transport import AsyncTransport
-from .charts import CHART_MEDIA_TYPE, _parse_chart
+from .charts import _CHART_MEDIA_TYPE, _parse_chart
 from .errors import DaytonaError, create_error
 from .process import (
     TIMED_OUT_LOG_PAGE_LIMIT,
@@ -626,7 +626,7 @@ def _parse_output(payload: str, *, is_main_result: bool) -> Optional[_ParsedOutp
         png=_bundle_string(data, "image/png"),
         svg=_bundle_string(data, "image/svg+xml"),
         json=data.get("application/json"),
-        chart=_parse_chart(data[CHART_MEDIA_TYPE]) if CHART_MEDIA_TYPE in data else None,
+        chart=_parse_chart(data[_CHART_MEDIA_TYPE]) if _CHART_MEDIA_TYPE in data else None,
     )
     return _ParsedOutput(output, display_id, update)
 
