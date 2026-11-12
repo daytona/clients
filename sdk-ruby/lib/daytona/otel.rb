@@ -179,5 +179,17 @@ module Daytona
         end
       end
     end
+
+    private
+
+    # Records the block with the span and duration metric of the instrumented +method_name+, for code that
+    # does that method's work without calling it.
+    #
+    # @param method_name [String, Symbol]
+    # @param component [String] component name for span/metric attributes
+    # @return [Object] The block's return value
+    def instrument_as(method_name, component:, &)
+      ::Daytona.with_instrumentation(otel_state, component, method_name.to_s, &)
+    end
   end
 end
