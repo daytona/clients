@@ -479,18 +479,28 @@ async def _search_or_list(
     route answers 410 ``GONE``); one without it answers the search route with
     501 ``SEARCH_NOT_CONFIGURED`` (an older API with 404). Only those two fall
     back, and ``probe`` remembers it: the client's later calls for that kind
-    skip the search request. Any other error, a 503 ``SEARCH_UNAVAILABLE``
-    included, is raised. Search results are eventually consistent. Same as
-    TypeScript's ``searchOrList``.
+    skip the search request. A remembered fallback that answers 410 ``GONE``
+    means the deployment has since started serving its lists from search: the
+    probe is forgotten and search is tried once, so a long-lived client
+    recovers on its first call after the switch. Any other error, a 503
+    ``SEARCH_UNAVAILABLE`` included, is raised. Search results are eventually
+    consistent. Same as TypeScript's ``searchOrList``.
     """
-    if not probe.not_served:
+    remembered = probe.not_served
+    if not remembered:
         try:
             return await transport.send(search)
         except DaytonaError as error:
             if not _search_not_served(error):
                 raise
             probe.not_served = True
-    return await transport.send(fallback)
+    try:
+        return await transport.send(fallback)
+    except DaytonaError as error:
+        if not (remembered and _list_retired(error)):
+            raise
+    probe.not_served = False
+    return await transport.send(search)
 
 
 def _refuse_search_name(ref: str, kind: str) -> None:
@@ -506,6 +516,12 @@ def _refuse_search_name(ref: str, kind: str) -> None:
             "BAD_REQUEST",
             "SDK",
         )
+
+
+def _list_retired(error: DaytonaError) -> bool:
+    """Whether ``error`` from a list route means the deployment serves that list
+    from search now (410 ``GONE``)."""
+    return error.status_code == 410 and error.code == "GONE"
 
 
 def _search_not_served(error: DaytonaError) -> bool:

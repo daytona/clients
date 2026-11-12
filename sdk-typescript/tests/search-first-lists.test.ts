@@ -4,7 +4,8 @@
  */
 
 import { BadRequestError, DaytonaError, SearchUnavailableError } from '../src/v2/index'
-import { searchNotServed } from '../src/v2/searchFirst'
+import { SearchProbe, searchNotServed, searchOrList } from '../src/v2/searchFirst'
+import { createDaytonaError } from '../src/v2/errors/DaytonaError'
 import { imageWire, snapshotWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { startFakeApi } from './networkPolicyTestServer'
@@ -169,5 +170,49 @@ describe('searchNotServed', () => {
     expect(searchNotServed(new DaytonaError('x', { statusCode: 503, code: 'SEARCH_UNAVAILABLE' }))).toBe(false)
     expect(searchNotServed(new DaytonaError('x', { statusCode: 410, code: 'GONE' }))).toBe(false)
     expect(searchNotServed(new Error('plain'))).toBe(false)
+  })
+})
+
+describe('a remembered search-off deployment that switches to search', () => {
+  it('a remembered fallback answering 410 GONE forgets the probe and retries search once', async () => {
+    const calls: string[] = []
+    const searchAnswers: Array<() => Promise<string>> = [
+      () => Promise.reject(createDaytonaError('x', 501, 'SEARCH_NOT_CONFIGURED')),
+      () => Promise.resolve('s1'),
+      () => Promise.resolve('s2'),
+    ]
+    const listAnswers: Array<() => Promise<string>> = [
+      () => Promise.resolve('l1'),
+      () => Promise.reject(createDaytonaError('x', 410, 'GONE')),
+    ]
+    const search = () => {
+      calls.push('search')
+      return searchAnswers.shift()!()
+    }
+    const list = () => {
+      calls.push('list')
+      return listAnswers.shift()!()
+    }
+    const probe = new SearchProbe()
+    expect(await searchOrList(search, list, probe)).toBe('l1')
+    expect(probe.notServed).toBe(true)
+    expect(await searchOrList(search, list, probe)).toBe('s1')
+    expect(probe.notServed).toBe(false)
+    expect(await searchOrList(search, list, probe)).toBe('s2')
+    expect(calls).toEqual(['search', 'list', 'list', 'search', 'search'])
+  })
+
+  it('a 410 from the list right after a search miss in the same call is thrown', async () => {
+    const calls: string[] = []
+    const search = () => {
+      calls.push('search')
+      return Promise.reject(createDaytonaError('x', 501, 'SEARCH_NOT_CONFIGURED'))
+    }
+    const list = () => {
+      calls.push('list')
+      return Promise.reject(createDaytonaError('x', 410, 'GONE'))
+    }
+    await expect(searchOrList(search, list, new SearchProbe())).rejects.toMatchObject({ statusCode: 410 })
+    expect(calls).toEqual(['search', 'list'])
   })
 })

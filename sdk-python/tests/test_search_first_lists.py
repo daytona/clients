@@ -18,7 +18,7 @@ from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, AsyncDaytonaV2Client, Daytona, DaytonaConfig
 from daytona.v2 import BadRequestError, DaytonaError, NotFoundError, SearchUnavailableError
-from daytona.v2.services import _search_not_served
+from daytona.v2.services import _search_not_served, _search_or_list, _SearchProbe
 
 pytestmark = pytest.mark.anyio
 
@@ -280,3 +280,48 @@ def test_search_not_served_is_501_search_not_configured_or_404_only() -> None:
     assert not _search_not_served(DaytonaError("x", status_code=503, code="SEARCH_UNAVAILABLE"))
     assert not _search_not_served(DaytonaError("x", status_code=410, code="GONE"))
     assert not _search_not_served(DaytonaError("x", status_code=501, code="NOT_IMPLEMENTED"))
+
+
+class _ScriptedTransport:
+    """``send`` answers each request spec from its own queue of outcomes (a
+    payload, or a ``DaytonaError`` to raise) and records the order of calls."""
+
+    def __init__(self, outcomes: dict[str, list[dict[str, str] | DaytonaError]]) -> None:
+        self.outcomes = outcomes
+        self.calls: list[str] = []
+
+    async def send(self, spec: str) -> dict[str, str]:
+        self.calls.append(spec)
+        outcome = self.outcomes[spec].pop(0)
+        if isinstance(outcome, DaytonaError):
+            raise outcome
+        return outcome
+
+
+async def test_a_remembered_fallback_answering_410_gone_retries_search_once() -> None:
+    """A long-lived client that saw a search-off deployment recovers once the
+    deployment serves its lists from search: the list route's 410 ``GONE``
+    forgets the probe and search answers; later calls stay on search."""
+    off = DaytonaError("x", status_code=501, code="SEARCH_NOT_CONFIGURED")
+    gone = DaytonaError("x", status_code=410, code="GONE")
+    t = _ScriptedTransport({"search": [off, {"page": "s1"}, {"page": "s2"}], "list": [{"page": "l1"}, gone]})
+    probe = _SearchProbe()
+    assert await _search_or_list(t, "search", "list", probe) == {"page": "l1"}  # type: ignore[arg-type]
+    assert probe.not_served
+    # The switch: the remembered list route answers 410, search answers.
+    assert await _search_or_list(t, "search", "list", probe) == {"page": "s1"}  # type: ignore[arg-type]
+    assert not probe.not_served
+    assert await _search_or_list(t, "search", "list", probe) == {"page": "s2"}  # type: ignore[arg-type]
+    assert t.calls == ["search", "list", "list", "search", "search"]
+
+
+async def test_a_410_from_the_list_right_after_a_search_miss_is_raised() -> None:
+    """Search just said 501 and the list says 410 in the SAME call: no loop,
+    the 410 is the answer."""
+    off = DaytonaError("x", status_code=501, code="SEARCH_NOT_CONFIGURED")
+    gone = DaytonaError("x", status_code=410, code="GONE")
+    t = _ScriptedTransport({"search": [off], "list": [gone]})
+    with pytest.raises(DaytonaError) as raised:
+        await _search_or_list(t, "search", "list", _SearchProbe())  # type: ignore[arg-type]
+    assert raised.value.status_code == 410
+    assert t.calls == ["search", "list"]

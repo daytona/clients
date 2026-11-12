@@ -9,7 +9,8 @@ with 410 `GONE`, so lists keep working on both kinds of deployment. On a deploym
 search, these lists and commands are no longer read-your-writes: search is eventually
 consistent, so results can trail a create, update or delete by a few seconds; use `get()` (or
 `daytona sandbox|image|snapshot get`) for a fresh read. A client remembers a deployment without
-search, so later list calls and pages go straight to the list route. A 503 `SEARCH_UNAVAILABLE`
+search, so later list calls and pages go straight to the list route, until that route answers
+410 `GONE` (the deployment has started serving search): the client then tries search again. A 503 `SEARCH_UNAVAILABLE`
 is raised as before, without a fallback. `images.get('search')` and `snapshots.get('search')`
 (and `daytona image|snapshot get search`) now fail before any request, since `search` names the
 search route: read such an image or snapshot by its ID. Method signatures are unchanged.

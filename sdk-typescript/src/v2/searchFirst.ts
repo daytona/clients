@@ -34,13 +34,16 @@ export class SearchProbe {
  * its lists from the search route (its list route answers 410 `GONE`); one
  * without it answers the search route with 501 `SEARCH_NOT_CONFIGURED` (an
  * older API with 404). Only those fall back, and `probe` remembers it: the
- * client's later calls for that kind skip the search request. Every other
+ * client's later calls for that kind skip the search request. A remembered
+ * fallback that answers 410 `GONE` forgets the probe and tries search once
+ * (the deployment switched to serving lists from search). Every other
  * error, a 503 `SEARCH_UNAVAILABLE` included, is thrown. Same as Python's
  * `_search_or_list`.
  * @internal
  */
 export async function searchOrList<T>(search: () => Promise<T>, list: () => Promise<T>, probe: SearchProbe): Promise<T> {
-  if (!probe.notServed) {
+  const remembered = probe.notServed
+  if (!remembered) {
     try {
       return await search()
     } catch (error) {
@@ -48,7 +51,25 @@ export async function searchOrList<T>(search: () => Promise<T>, list: () => Prom
       probe.notServed = true
     }
   }
-  return list()
+  try {
+    return await list()
+  } catch (error) {
+    // A remembered fallback answering 410 `GONE`: the deployment serves this
+    // list from search now. Forget the probe and try search once, so a
+    // long-lived client recovers on its first call after the switch.
+    if (!(remembered && listRetired(error))) throw error
+  }
+  probe.notServed = false
+  return search()
+}
+
+/**
+ * Whether an error from a list route means the deployment serves that list
+ * from search now (410 `GONE`).
+ * @internal
+ */
+export function listRetired(error: unknown): boolean {
+  return error instanceof DaytonaError && error.statusCode === 410 && error.code === 'GONE'
 }
 
 /**
