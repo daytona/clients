@@ -111,7 +111,7 @@ Daytona.fork
 #### \[asyncDispose\]()
 
 ```ts
-[Symbol.asyncDispose](): Promise<void>;
+[asyncDispose](): Promise<void>;
 ```
 
 **Returns**:
@@ -120,9 +120,7 @@ Daytona.fork
 
 ##### Implementation of
 
-```ts
-AsyncDisposable.[asyncDispose]
-```
+`AsyncDisposable.[asyncDispose]`
 
 #### create()
 
@@ -599,7 +597,7 @@ Resource allocation used when creating a Sandbox from an image.
 #### cpu?
 
 ```ts
-optional cpu?: number | number[];
+cpu?: number | number[];
 ```
 
 CPU cores per node. A scalar applies to every node; an array is ordered by rank.
@@ -607,7 +605,7 @@ CPU cores per node. A scalar applies to every node; an array is ordered by rank.
 #### disk?
 
 ```ts
-optional disk?: number | number[];
+disk?: number | number[];
 ```
 
 Disk in GiB per node. A scalar applies to every node; an array is ordered by rank.
@@ -615,7 +613,7 @@ Disk in GiB per node. A scalar applies to every node; an array is ordered by ran
 #### memory?
 
 ```ts
-optional memory?: number | number[];
+memory?: number | number[];
 ```
 
 Memory in GiB per node. A scalar applies to every node; an array is ordered by rank.
