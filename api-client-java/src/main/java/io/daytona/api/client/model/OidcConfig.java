@@ -19,6 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.CliOidcConfig;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -129,6 +130,11 @@ public class OidcConfig {
   @javax.annotation.Nullable
   private String authApiHostname;
 
+  public static final String SERIALIZED_NAME_CLI = "cli";
+  @SerializedName(SERIALIZED_NAME_CLI)
+  @javax.annotation.Nullable
+  private CliOidcConfig cli;
+
   public OidcConfig() {
   }
 
@@ -226,6 +232,25 @@ public class OidcConfig {
     this.authApiHostname = authApiHostname;
   }
 
+
+  public OidcConfig cli(@javax.annotation.Nullable CliOidcConfig cli) {
+    this.cli = cli;
+    return this;
+  }
+
+  /**
+   * WorkOS application the Daytona CLI logs in through, configured apart from the dashboard&#39;s so CLI sessions can have their own lifetime. Present only when the provider is workos and a CLI application is configured; absent means the CLI uses the issuer and client ID above.
+   * @return cli
+   */
+  @javax.annotation.Nullable
+  public CliOidcConfig getCli() {
+    return cli;
+  }
+
+  public void setCli(@javax.annotation.Nullable CliOidcConfig cli) {
+    this.cli = cli;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -285,13 +310,14 @@ public class OidcConfig {
         Objects.equals(this.clientId, oidcConfig.clientId) &&
         Objects.equals(this.audience, oidcConfig.audience) &&
         Objects.equals(this.provider, oidcConfig.provider) &&
-        Objects.equals(this.authApiHostname, oidcConfig.authApiHostname)&&
+        Objects.equals(this.authApiHostname, oidcConfig.authApiHostname) &&
+        Objects.equals(this.cli, oidcConfig.cli)&&
         Objects.equals(this.additionalProperties, oidcConfig.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(issuer, clientId, audience, provider, authApiHostname, additionalProperties);
+    return Objects.hash(issuer, clientId, audience, provider, authApiHostname, cli, additionalProperties);
   }
 
   @Override
@@ -303,6 +329,7 @@ public class OidcConfig {
     sb.append("    audience: ").append(toIndentedString(audience)).append("\n");
     sb.append("    provider: ").append(toIndentedString(provider)).append("\n");
     sb.append("    authApiHostname: ").append(toIndentedString(authApiHostname)).append("\n");
+    sb.append("    cli: ").append(toIndentedString(cli)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -322,7 +349,7 @@ public class OidcConfig {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience", "provider", "authApiHostname"));
+    openapiFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience", "provider", "authApiHostname", "cli"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("issuer", "clientId", "audience", "provider"));
@@ -364,6 +391,10 @@ public class OidcConfig {
       ProviderEnum.validateJsonElement(jsonObj.get("provider"));
       if ((jsonObj.get("authApiHostname") != null && !jsonObj.get("authApiHostname").isJsonNull()) && !jsonObj.get("authApiHostname").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `authApiHostname` to be a primitive type in the JSON string but got `%s`", jsonObj.get("authApiHostname").toString()));
+      }
+      // validate the optional field `cli`
+      if (jsonObj.get("cli") != null && !jsonObj.get("cli").isJsonNull()) {
+        CliOidcConfig.validateJsonElement(jsonObj.get("cli"));
       }
   }
 

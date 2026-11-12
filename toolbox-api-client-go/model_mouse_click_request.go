@@ -21,7 +21,10 @@ var _ MappedNullable = &MouseClickRequest{}
 type MouseClickRequest struct {
 	// left, right, middle
 	Button *string `json:"button,omitempty"`
+	// Clicks is a pointer so an omitted value is distinguishable from an explicit 0, which must be rejected rather than silently defaulted.
+	Clicks *int32 `json:"clicks,omitempty"`
 	Double *bool `json:"double,omitempty"`
+	Modifiers []string `json:"modifiers,omitempty"`
 	X *int32 `json:"x,omitempty"`
 	Y *int32 `json:"y,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -78,6 +81,38 @@ func (o *MouseClickRequest) SetButton(v string) {
 	o.Button = &v
 }
 
+// GetClicks returns the Clicks field value if set, zero value otherwise.
+func (o *MouseClickRequest) GetClicks() int32 {
+	if o == nil || IsNil(o.Clicks) {
+		var ret int32
+		return ret
+	}
+	return *o.Clicks
+}
+
+// GetClicksOk returns a tuple with the Clicks field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MouseClickRequest) GetClicksOk() (*int32, bool) {
+	if o == nil || IsNil(o.Clicks) {
+		return nil, false
+	}
+	return o.Clicks, true
+}
+
+// HasClicks returns a boolean if a field has been set.
+func (o *MouseClickRequest) HasClicks() bool {
+	if o != nil && !IsNil(o.Clicks) {
+		return true
+	}
+
+	return false
+}
+
+// SetClicks gets a reference to the given int32 and assigns it to the Clicks field.
+func (o *MouseClickRequest) SetClicks(v int32) {
+	o.Clicks = &v
+}
+
 // GetDouble returns the Double field value if set, zero value otherwise.
 func (o *MouseClickRequest) GetDouble() bool {
 	if o == nil || IsNil(o.Double) {
@@ -108,6 +143,38 @@ func (o *MouseClickRequest) HasDouble() bool {
 // SetDouble gets a reference to the given bool and assigns it to the Double field.
 func (o *MouseClickRequest) SetDouble(v bool) {
 	o.Double = &v
+}
+
+// GetModifiers returns the Modifiers field value if set, zero value otherwise.
+func (o *MouseClickRequest) GetModifiers() []string {
+	if o == nil || IsNil(o.Modifiers) {
+		var ret []string
+		return ret
+	}
+	return o.Modifiers
+}
+
+// GetModifiersOk returns a tuple with the Modifiers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MouseClickRequest) GetModifiersOk() ([]string, bool) {
+	if o == nil || IsNil(o.Modifiers) {
+		return nil, false
+	}
+	return o.Modifiers, true
+}
+
+// HasModifiers returns a boolean if a field has been set.
+func (o *MouseClickRequest) HasModifiers() bool {
+	if o != nil && !IsNil(o.Modifiers) {
+		return true
+	}
+
+	return false
+}
+
+// SetModifiers gets a reference to the given []string and assigns it to the Modifiers field.
+func (o *MouseClickRequest) SetModifiers(v []string) {
+	o.Modifiers = v
 }
 
 // GetX returns the X field value if set, zero value otherwise.
@@ -187,8 +254,14 @@ func (o MouseClickRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Button) {
 		toSerialize["button"] = o.Button
 	}
+	if !IsNil(o.Clicks) {
+		toSerialize["clicks"] = o.Clicks
+	}
 	if !IsNil(o.Double) {
 		toSerialize["double"] = o.Double
+	}
+	if !IsNil(o.Modifiers) {
+		toSerialize["modifiers"] = o.Modifiers
 	}
 	if !IsNil(o.X) {
 		toSerialize["x"] = o.X
@@ -219,7 +292,9 @@ func (o *MouseClickRequest) UnmarshalJSON(data []byte) (err error) {
 
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "button")
+		delete(additionalProperties, "clicks")
 		delete(additionalProperties, "double")
+		delete(additionalProperties, "modifiers")
 		delete(additionalProperties, "x")
 		delete(additionalProperties, "y")
 		o.AdditionalProperties = additionalProperties

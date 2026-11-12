@@ -5,9 +5,12 @@ package daytona
 
 import (
 	"context"
+	stderrors "errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"syscall"
 	"testing"
 	"time"
 
@@ -97,6 +100,52 @@ func TestPtyHandleSendInputWriteReadAndDisconnect(t *testing.T) {
 	assert.Equal(t, "terminal output", string(buf[:n]))
 	require.NoError(t, handle.Disconnect())
 	assert.False(t, handle.IsConnected())
+}
+
+func TestPtyHandleSendsKeepalivePings(t *testing.T) {
+	previous := ptyKeepaliveInterval
+	ptyKeepaliveInterval = 20 * time.Millisecond
+	t.Cleanup(func() { ptyKeepaliveInterval = previous })
+
+	pings := make(chan struct{}, 64)
+	serverDone := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+		defer close(serverDone)
+		conn.SetPingHandler(func(string) error {
+			pings <- struct{}{}
+			return nil
+		})
+		require.NoError(t, conn.WriteJSON(controlMessage{Type: "control", Status: "connected"}))
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + server.URL[len("http"):]
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+	handle := newPtyHandle(conn, "pty-1", nil, nil)
+	require.NoError(t, handle.WaitForConnection(context.Background()))
+
+	for i := 0; i < 3; i++ {
+		select {
+		case <-pings:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("expected keepalive ping %d within 2s", i+1)
+		}
+	}
+
+	require.NoError(t, handle.Disconnect())
+	<-serverDone
+	drained := len(pings)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, drained, len(pings), "no pings expected after disconnect")
 }
 
 func TestPtyHandleReadEOFAndWriteWithoutConnection(t *testing.T) {
@@ -205,4 +254,122 @@ func TestPtyHandleHandleMessagesEndToEnd(t *testing.T) {
 	assert.Equal(t, 4, *result.ExitCode)
 	require.NotNil(t, result.Error)
 	assert.Equal(t, "boom", *result.Error)
+}
+
+// A dropped PTY WebSocket surfaces from WaitForConnection with the read error
+// still reachable, so callers can classify it for a retry.
+func TestPtyHandleDroppedConnectionKeepsCause(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		// Wait for a client frame so the handshake is complete before the reset.
+		if _, _, err := conn.ReadMessage(); err != nil {
+			t.Errorf("read client frame: %v", err)
+			return
+		}
+		if tcp, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
+			_ = tcp.SetLinger(0) // close with RST, no close frame
+		}
+		_ = conn.UnderlyingConn().Close()
+	}))
+	defer server.Close()
+
+	dial := func(t *testing.T) *PtyHandle {
+		t.Helper()
+		conn, _, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+		require.NoError(t, err)
+		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte("hello")))
+		return newPtyHandle(conn, "pty-drop", nil, nil)
+	}
+	requireCause := func(t *testing.T, err error) {
+		t.Helper()
+		require.Error(t, err)
+		require.True(t, stderrors.Is(err, syscall.ECONNRESET) || stderrors.Is(err, io.ErrUnexpectedEOF), "cause must be reachable, got %v", err)
+	}
+
+	t.Run("WaitForConnection", func(t *testing.T) {
+		requireCause(t, dial(t).WaitForConnection(context.Background()))
+	})
+
+	// handleMessages closes done right after storing the read error, so this
+	// exercises Wait's done branch, not only the ticker branch.
+	t.Run("Wait", func(t *testing.T) {
+		result, err := dial(t).Wait(context.Background())
+		require.Nil(t, result)
+		requireCause(t, err)
+	})
+}
+
+func TestPtyHandleStoredErrorCauseIsUnwrappable(t *testing.T) {
+	cause := io.ErrUnexpectedEOF
+	msg := cause.Error()
+
+	t.Run("WaitForConnection", func(t *testing.T) {
+		handle := &PtyHandle{err: &msg, errCause: cause}
+		err := handle.WaitForConnection(context.Background())
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.Equal(t, "Daytona error: "+msg, err.Error())
+	})
+
+	t.Run("Wait", func(t *testing.T) {
+		handle := &PtyHandle{err: &msg, errCause: cause, done: make(chan struct{})}
+		_, err := handle.Wait(context.Background())
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.Equal(t, "Daytona error: "+msg, err.Error())
+	})
+
+	t.Run("server-reported error exposes no cause", func(t *testing.T) {
+		serverMsg := "Unknown connection error"
+		handle := &PtyHandle{err: &serverMsg}
+		err := handle.WaitForConnection(context.Background())
+		require.Error(t, err)
+		require.Nil(t, stderrors.Unwrap(err))
+	})
+}
+
+// A caller's own Disconnect is not a dropped connection: Wait keeps returning a
+// PtyResult, not an error.
+func TestPtyHandleWaitAfterLocalDisconnectReturnsResult(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		_ = conn.WriteJSON(controlMessage{Type: "control", Status: "connected"})
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+server.URL[len("http"):], nil)
+	require.NoError(t, err)
+	handle := newPtyHandle(conn, "pty-disconnect", nil, nil)
+	require.NoError(t, handle.WaitForConnection(context.Background()))
+
+	type waitResult struct {
+		result *types.PtyResult
+		err    error
+	}
+	waited := make(chan waitResult, 1)
+	go func() {
+		result, err := handle.Wait(context.Background())
+		waited <- waitResult{result, err}
+	}()
+
+	require.NoError(t, handle.Disconnect())
+	select {
+	case got := <-waited:
+		require.NoError(t, got.err)
+		require.NotNil(t, got.result)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Wait did not return after Disconnect")
+	}
 }

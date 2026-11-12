@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - 'release/**'
 
 permissions:
   contents: read
@@ -62,7 +63,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
-          version: v2.6.2
+          version: v2.14.0
           working-directory: ${{ matrix.working-directory }}
           args: --timeout=5m ./...
       - name: format
@@ -105,7 +106,7 @@ jobs:
         run: |
           source "$(poetry env info --path)/bin/activate"
           go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
-          echo -e 'DEFAULT_PACKAGE_VERSION=0.0.0-dev\nDEFAULT_GEM_VERSION=0.0.0.pre.dev\n\nPYPI_PKG_VERSION=\nNPM_PKG_VERSION=\nNPM_TAG=\nPYPI_TOKEN=\nNPM_TOKEN=' > .env
+          echo -e 'DEFAULT_PACKAGE_VERSION=0.0.0-dev\nDEFAULT_GEM_VERSION=0.0.0.pre.dev\n\nPYPI_PKG_VERSION=\nNPM_PKG_VERSION=\nNPM_TAG=\nPYPI_TOKEN=' > .env
           openapi_version="$(node -e "console.log(require('./openapitools.json')['generator-cli'].version)")"
           yarn openapi-generator-cli version-manager set "$openapi_version"
           yarn generate:api-client
@@ -115,7 +116,7 @@ jobs:
           GONOSUMDB=github.com/daytona/clients go work sync
           git diff --exit-code || (echo "Generated clients, docs, formatting, or workspace files are out of date." && exit 1)
       - name: Upload SDK docs artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: sdk-docs
           path: artifacts/sdk-docs
@@ -128,7 +129,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 22
       - run: corepack enable
@@ -180,6 +181,27 @@ jobs:
           source "$(poetry env info --path)/bin/activate"
           VERSION=v0.0.0-dev yarn build --nxBail=true
 
+  release-scripts:
+    name: Release scripts
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+      - name: npm latest guard
+        run: bash hack/npm-latest-guard.test.sh
+      - name: npm publish skips published versions
+        run: bash hack/npm-publish.test.sh
+      - name: Stable 2.x release check
+        run: bash hack/stable-v2-release.test.sh
+      - name: Homebrew tap dispatch
+        run: bash hack/homebrew-tap-dispatch.test.sh
+      - name: CLI release assets and install-v0.sh
+        run: bash cli/hack/stage-release-assets.test.sh
+
   license-check:
     name: License headers
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -219,8 +241,8 @@ jobs:
           if not isinstance(gate, int) or gate < 10080:
               print('::error::npmMinimalAgeGate must be >= 10080')
               sys.exit(1)
-          if config.get('enableScripts'):
-              print('::error::enableScripts must stay disabled')
+          if config.get('enableScripts') is not False:
+              print('::error::enableScripts must be present and set to false')
               sys.exit(1)
           print('OK -- .yarnrc.yml passes integrity check')
           PY

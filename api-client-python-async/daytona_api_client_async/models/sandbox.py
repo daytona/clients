@@ -44,6 +44,7 @@ class Sandbox(BaseModel):
     labels: Dict[str, StrictStr] = Field(description="Labels for the sandbox")
     public: StrictBool = Field(description="Whether the sandbox http preview is public")
     network_block_all: StrictBool = Field(description="Whether to block all network access for the sandbox", serialization_alias="networkBlockAll")
+    kvm: StrictBool = Field(description="Whether the sandbox exposes KVM (/dev/kvm) to its guest")
     network_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed CIDR network addresses for the sandbox", serialization_alias="networkAllowList")
     domain_allow_list: Optional[StrictStr] = Field(default=None, description="Comma-separated list of allowed domains for the sandbox", serialization_alias="domainAllowList")
     outbound_proxy_url: Optional[StrictStr] = Field(default=None, description="Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.", serialization_alias="outboundProxyUrl")
@@ -53,6 +54,7 @@ class Sandbox(BaseModel):
     gpu: StrictInt = Field(description="The GPU quota for the sandbox")
     spot: Optional[StrictBool] = Field(default=False, description="Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.")
     spot_evicted_at: Optional[StrictStr] = Field(default=None, description="When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.", serialization_alias="spotEvictedAt")
+    queue_timed_out_at: Optional[StrictStr] = Field(default=None, description="When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.", serialization_alias="queueTimedOutAt")
     gpu_type: Optional[GpuType] = Field(default=None, description="The GPU type assigned to the sandbox", serialization_alias="gpuType")
     memory: StrictInt = Field(description="The memory quota for the sandbox")
     disk: StrictInt = Field(description="The disk quota for the sandbox")
@@ -68,6 +70,7 @@ class Sandbox(BaseModel):
     auto_archive_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-archive interval in minutes", serialization_alias="autoArchiveInterval")
     auto_delete_interval: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping)", serialization_alias="autoDeleteInterval")
     auto_destroy_at: Optional[StrictStr] = Field(default=None, description="When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)", serialization_alias="autoDestroyAt")
+    queue_timeout: Optional[StrictInt] = Field(default=None, description="Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.", serialization_alias="queueTimeout")
     volumes: Optional[List[SandboxVolume]] = Field(default=None, description="Array of volumes attached to the sandbox")
     build_info: Optional[BuildInfo] = Field(default=None, description="Build information for the sandbox", serialization_alias="buildInfo")
     created_at: Optional[StrictStr] = Field(default=None, description="The creation timestamp of the sandbox", serialization_alias="createdAt")
@@ -78,9 +81,8 @@ class Sandbox(BaseModel):
     runner_id: Optional[StrictStr] = Field(default=None, description="The runner ID of the sandbox", serialization_alias="runnerId")
     linked_sandbox_id: Optional[StrictStr] = Field(default=None, description="ID of the sandbox this sandbox is linked to. When set, the sandbox is co-located on the same runner as the linked sandbox.", serialization_alias="linkedSandboxId")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
-    kvm: Optional[StrictBool] = Field(default=None, description="Whether the sandbox exposes KVM (/dev/kvm) to its guest")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl", "kvm"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -137,6 +139,11 @@ class Sandbox(BaseModel):
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
+        # set to None if queue_timeout (nullable) is None
+        # and model_fields_set contains the field
+        if self.queue_timeout is None and "queue_timeout" in self.model_fields_set:
+            _dict['queueTimeout'] = None
+
         return _dict
 
     @classmethod
@@ -158,6 +165,7 @@ class Sandbox(BaseModel):
             "labels": obj.get("labels"),
             "public": obj.get("public"),
             "network_block_all": obj.get("networkBlockAll"),
+            "kvm": obj.get("kvm"),
             "network_allow_list": obj.get("networkAllowList"),
             "domain_allow_list": obj.get("domainAllowList"),
             "outbound_proxy_url": obj.get("outboundProxyUrl"),
@@ -167,6 +175,7 @@ class Sandbox(BaseModel):
             "gpu": obj.get("gpu"),
             "spot": obj.get("spot") if obj.get("spot") is not None else False,
             "spot_evicted_at": obj.get("spotEvictedAt"),
+            "queue_timed_out_at": obj.get("queueTimedOutAt"),
             "gpu_type": obj.get("gpuType"),
             "memory": obj.get("memory"),
             "disk": obj.get("disk"),
@@ -182,6 +191,7 @@ class Sandbox(BaseModel):
             "auto_archive_interval": obj.get("autoArchiveInterval"),
             "auto_delete_interval": obj.get("autoDeleteInterval"),
             "auto_destroy_at": obj.get("autoDestroyAt"),
+            "queue_timeout": obj.get("queueTimeout"),
             "volumes": [SandboxVolume.from_dict(_item) for _item in obj["volumes"]] if obj.get("volumes") is not None else None,
             "build_info": BuildInfo.from_dict(obj["buildInfo"]) if obj.get("buildInfo") is not None else None,
             "created_at": obj.get("createdAt"),
@@ -191,8 +201,7 @@ class Sandbox(BaseModel):
             "daemon_version": obj.get("daemonVersion"),
             "runner_id": obj.get("runnerId"),
             "linked_sandbox_id": obj.get("linkedSandboxId"),
-            "toolbox_proxy_url": obj.get("toolboxProxyUrl"),
-            "kvm": obj.get("kvm")
+            "toolbox_proxy_url": obj.get("toolboxProxyUrl")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

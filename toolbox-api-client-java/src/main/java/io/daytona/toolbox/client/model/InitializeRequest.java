@@ -52,13 +52,13 @@ import io.daytona.toolbox.client.JSON;
 public class InitializeRequest {
   public static final String SERIALIZED_NAME_TOKEN = "token";
   @SerializedName(SERIALIZED_NAME_TOKEN)
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private String token;
 
   public InitializeRequest() {
   }
 
-  public InitializeRequest token(@javax.annotation.Nonnull String token) {
+  public InitializeRequest token(@javax.annotation.Nullable String token) {
     this.token = token;
     return this;
   }
@@ -67,12 +67,12 @@ public class InitializeRequest {
    * Get token
    * @return token
    */
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   public String getToken() {
     return token;
   }
 
-  public void setToken(@javax.annotation.Nonnull String token) {
+  public void setToken(@javax.annotation.Nullable String token) {
     this.token = token;
   }
 
@@ -167,7 +167,7 @@ public class InitializeRequest {
     openapiFields = new HashSet<String>(Arrays.asList("token"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("token"));
+    openapiRequiredFields = new HashSet<String>(0);
   }
 
   /**
@@ -182,15 +182,8 @@ public class InitializeRequest {
           throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field(s) %s in InitializeRequest is not found in the empty JSON string", InitializeRequest.openapiRequiredFields.toString()));
         }
       }
-
-      // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : InitializeRequest.openapiRequiredFields) {
-        if (jsonElement.getAsJsonObject().get(requiredField) == null) {
-          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
-        }
-      }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if (!jsonObj.get("token").isJsonPrimitive()) {
+      if ((jsonObj.get("token") != null && !jsonObj.get("token").isJsonNull()) && !jsonObj.get("token").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `token` to be a primitive type in the JSON string but got `%s`", jsonObj.get("token").toString()));
       }
   }

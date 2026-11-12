@@ -41,15 +41,92 @@ env:
 permissions: {}
 
 jobs:
-  publish:
+  # Off the environment, so its summary is on the run page while `publish`
+  # waits for approval. The tap row mirrors "Resolve Homebrew tap updates" and
+  # "Validate daytona@0 version" below; keep them in sync.
+  plan:
+    name: Show the plan
     if: github.repository == 'daytona/clients'
-    runs-on: blacksmith-16vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Show the inputs and what approval will publish
+        env:
+          PUBLISH_CLI: ${{ inputs.publish_cli }}
+          V0_CUTOVER: ${{ vars.DAYTONA_V0_CUTOVER }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          or_dash() { if [ -n "$1" ]; then printf "\`%s\`" "$1"; else printf '—'; fi; }
+          target() { # label version destination
+            if [ -n "$2" ]; then printf "| %s | \`%s\` | %s |\n" "$1" "$2" "$3"; else printf '| %s | — | skipped |\n' "$1"; fi
+          }
+          if [ "$PUBLISH_CLI" != true ]; then
+            tap="skipped (\`publish_cli\` off)"
+          elif [ "$GITHUB_REF" = refs/heads/release/v0 ]; then
+            if [ "$V0_CUTOVER" != true ]; then
+              tap="skipped (release/v0 updates the tap only after the cutover, \`DAYTONA_V0_CUTOVER\`)"
+            elif [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
+              tap=":x: **will fail** — \`daytona@0\` takes stable v0.X.Y only (got $(or_dash "$VERSION")); dispatch prereleases with \`publish_cli\` off"
+            else
+              tap="\`daytona@0\` (and \`daytona\` while no stable 2.x release exists)"
+            fi
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            tap="skipped (${GITHUB_REF_NAME} never updates the tap)"
+          elif [ "$NPM_TAG" = latest ]; then
+            tap="\`daytona\`"
+          else
+            tap="skipped (\`npm_tag\` is \`${NPM_TAG}\`, not \`latest\`)"
+          fi
+          if [[ "$tap" != skipped* && "$tap" != :x:* ]]; then
+            tap="${tap}, pointed at the assets of the existing GitHub Release $(or_dash "$VERSION") (built by Release, not by this run)"
+          fi
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
+          {
+            echo "## SDK and CLI Publish plan — \`${VERSION}\`"
+            echo
+            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); the SDK legs build and publish this commit."
+            echo
+            echo "| Input | Value |"
+            echo "|---|---|"
+            echo "| \`version\` | $(or_dash "$VERSION") |"
+            echo "| \`publish_cli\` | \`${PUBLISH_CLI}\` |"
+            echo "| \`pypi_pkg_version\` | $(or_dash "$PYPI_PKG_VERSION") |"
+            echo "| \`npm_pkg_version\` | $(or_dash "$NPM_PKG_VERSION") |"
+            echo "| \`npm_tag\` | $(or_dash "$NPM_TAG") |"
+            echo "| \`rubygems_pkg_version\` | $(or_dash "$RUBYGEMS_PKG_VERSION") |"
+            echo "| \`maven_pkg_version\` | $(or_dash "$MAVEN_PKG_VERSION") |"
+            echo
+            echo "After approval of the \`release\` environment, the \`publish\` legs run in parallel:"
+            echo
+            echo "| Leg | Version | Goes to |"
+            echo "|---|---|---|"
+            if [ -n "$NPM_TAG" ]; then npm_dest="dist-tag \`${NPM_TAG}\`"; else npm_dest=":x: **will fail** — \`npm_tag\` is empty"; fi
+            target "TypeScript SDK" "$NPM_PKG_VERSION" "npm \`@daytona/sdk\` and deprecated \`@daytonaio/sdk\`, after the api-client, toolbox-api-client and analytics-api-client packages; ${npm_dest}"
+            target "Python SDK" "$PYPI_PKG_VERSION" "PyPI \`daytona\` and \`daytona_sdk\`"
+            target "Ruby SDK" "$RUBYGEMS_PKG_VERSION" "RubyGems \`daytona\`, after its three API-client gems"
+            target "Java SDK" "$MAVEN_PKG_VERSION" "Maven Central, after its three API-client artifacts"
+            echo "| CLI (Homebrew tap) | $(or_dash "$VERSION") | ${tap} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: plan
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
     # Publish credentials live in the `release` environment: every run waits
     # for required-reviewer approval before secrets resolve. Any branch may
-    # deploy (alpha/beta prereleases publish from non-main refs).
+    # deploy (alpha/beta prereleases publish from non-main refs). This is the
+    # only job on the environment, and all its matrix legs wait at once, so a
+    # run needs a single approval; keep new environment work inside it.
     environment: release
     permissions:
       contents: read
+      # OIDC token for npm trusted publishing.
+      id-token: write
     name: Publish ${{ matrix.name }}
     strategy:
       fail-fast: false
@@ -67,24 +144,38 @@ jobs:
           - name: Java SDK
             projects: sdk-java
             pkg_version: ${{ inputs.maven_pkg_version }}
+          # Not a registry publish: dispatches the Homebrew tap update with
+          # GITHUBBOT_TOKEN. Its steps are the ones gated on matrix.homebrew_tap.
+          - name: CLI (Homebrew tap)
+            homebrew_tap: true
+    # Registry credentials are set per step rather than for the whole job, so that
+    # `yarn install` in setup-toolchain runs with none of them in its environment, and
+    # each matrix leg only ever sees the registry it publishes to.
     env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-      RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-      MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-      MAVEN_GPG_SIGNING_KEY: ${{ secrets.MAVEN_GPG_SIGNING_KEY }}
-      MAVEN_GPG_SIGNING_PASSWORD: ${{ secrets.MAVEN_GPG_SIGNING_PASSWORD }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
     steps:
       - name: Skip publish (no version provided)
-        if: matrix.pkg_version == ''
+        if: matrix.pkg_version == '' && !matrix.homebrew_tap
         run: echo "No package version provided for ${{ matrix.name }}; skipping publish."
       - name: Validate version format
         if: matrix.pkg_version != ''
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
+            exit 1
+          fi
+      - name: Validate release branch version line
+        if: matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/')
+        env:
+          PKG_VERSION: ${{ matrix.pkg_version }}
+        run: |
+          line="${GITHUB_REF_NAME#release/}"
+          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          if [[ "$VERSION" != "$line".* || "$PKG_VERSION" != "${line#v}".* ]]; then
+            echo "::error::$GITHUB_REF_NAME only publishes $line.x versions (got $VERSION, package version $PKG_VERSION)"
             exit 1
           fi
       - name: Checkout code
@@ -94,44 +185,197 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
           persist-credentials: false
+      - name: Keep 0.x off the npm latest dist-tag once 2.x is stable
+        # npm `latest` follows 0.x until the first stable 2.x release exists (the
+        # same rule as the `daytona` Homebrew formula, hack/stable-v2-release.sh);
+        # from then on it belongs to 2.x and 0.x publishes use a line tag. The
+        # guard below still keeps `latest` on the highest version meanwhile.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true' && inputs.npm_tag == 'latest'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stable_v2=$(bash hack/stable-v2-release.sh)
+          if [ -n "$stable_v2" ]; then
+            echo "::error::Stable 2.x release ${stable_v2} exists, so the npm latest dist-tag belongs to the 2.x SDK; publish release/v0 with npm_tag v0-latest"
+            exit 1
+          fi
+          echo "No stable 2.x release yet: 0.x may keep the npm latest dist-tag (still checked against every published stable version below)"
+      - name: Keep the npm latest dist-tag on the highest version
+        # `npm publish --tag latest` moves the tag even to a lower version, so a
+        # maintenance branch may only take `latest` with a version above every
+        # published stable one. Otherwise publish under a line tag such as v0-latest.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        run: bash hack/npm-latest-guard.sh check "$NPM_PKG_VERSION"
       - uses: ./.github/actions/setup-toolchain
         if: matrix.pkg_version != ''
         with:
           install-swag: 'false'
+      - name: Upgrade npm for trusted publishing
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != ''
+        # npm >= 11.5.1 is required for OIDC publishing; Node 22 ships npm 10.
+        run: npm install -g npm@11 && npm --version
       - name: Configure RubyGems credentials
         if: matrix.projects == 'sdk-ruby' && matrix.pkg_version != ''
-        run: |
-          mkdir -p ~/.gem
-          echo "---" > ~/.gem/credentials
-          echo ":rubygems_api_key: $RUBYGEMS_API_KEY" >> ~/.gem/credentials
-          chmod 0600 ~/.gem/credentials
+        # Trusted publishing (OIDC): exchanges the job's OIDC token for a short-lived
+        # RubyGems key (valid 15 minutes) exported as GEM_HOST_API_KEY. Keep this
+        # step directly before the publish step so the key cannot expire first.
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
       - name: Publish projects
         if: matrix.pkg_version != ''
+        env:
+          # npm publishes via trusted publishing (OIDC). The only remaining npm token is
+          # a granular one scoped to @daytonaio/sdk, used solely by `npm deprecate`
+          # (metadata writes are not covered by OIDC).
+          NPM_DEPRECATE_TOKEN: ${{ matrix.projects == 'sdk-typescript' && secrets.NPM_DEPRECATE_TOKEN || '' }}
+          PYPI_TOKEN: ${{ matrix.projects == 'sdk-python' && secrets.PYPI_TOKEN || '' }}
+          MAVEN_USERNAME: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_USERNAME || '' }}
+          MAVEN_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_PASSWORD || '' }}
+          MAVEN_GPG_SIGNING_KEY: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_KEY || '' }}
+          MAVEN_GPG_SIGNING_PASSWORD: ${{ matrix.projects == 'sdk-java' && secrets.MAVEN_GPG_SIGNING_PASSWORD || '' }}
         run: |
           source "$(poetry env info --path)/bin/activate"
           yarn nx run-many --target=publish --projects=${{ matrix.projects }}
-      - name: Cleanup credentials
-        if: always()
-        run: rm -f ~/.gem/credentials 2>/dev/null || true
-
-  update-homebrew-tap:
-    if: ${{ github.repository == 'daytona/clients' && inputs.publish_cli && inputs.npm_tag == 'latest' }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    environment: release
-    permissions: {}
-    name: Update Homebrew CLI tap
-    steps:
+      - name: Verify the npm latest dist-tag
+        # Catches a higher version published by an overlapping run after the
+        # check above.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        run: bash hack/npm-latest-guard.sh verify
+      - name: Checkout release scripts
+        if: matrix.homebrew_tap && inputs.publish_cli
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: hack
+      - name: Resolve Homebrew tap updates
+        # The `plan` job's tap row repeats this decision; keep them in sync.
+        # From main, the `daytona` formula follows the main release line. From
+        # release/v0, once the 2.x CLI has taken the `daytona` name (repository
+        # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
+        # follows the 0.x line, and so does the `daytona` formula until the first
+        # stable 2.x release exists (read from the releases on every run); before
+        # the cutover, release branches never update the tap.
+        # Each repository_dispatch event updates one formula; list one per line.
+        id: tap
+        if: matrix.homebrew_tap
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_CLI: ${{ inputs.publish_cli }}
+          V0_CUTOVER: ${{ vars.DAYTONA_V0_CUTOVER }}
+        run: |
+          events=()
+          if [[ "$PUBLISH_CLI" != true ]]; then
+            echo "publish_cli is off; the Homebrew tap is not updated."
+          elif [[ "$GITHUB_REF" == refs/heads/release/v0 ]]; then
+            if [[ "$V0_CUTOVER" == true ]]; then
+              events+=(update-version-v0)
+              stable_v2=$(bash hack/stable-v2-release.sh)
+              if [[ -n "$stable_v2" ]]; then
+                echo "Stable 2.x release $stable_v2 exists: the daytona formula follows 2.x; updating daytona@0 only."
+              else
+                echo "No stable 2.x release yet: updating daytona@0 and daytona."
+                events+=(update-version)
+              fi
+            else
+              echo "release/v0 updates the Homebrew tap only after the cutover (DAYTONA_V0_CUTOVER)."
+            fi
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            echo "$GITHUB_REF_NAME never updates the Homebrew tap."
+          elif [[ "$NPM_TAG" == latest ]]; then
+            events+=(update-version)
+          else
+            echo "npm_tag is $NPM_TAG, not latest; the Homebrew tap is not updated."
+          fi
+          {
+            echo 'events<<EOF'
+            if (( ${#events[@]} )); then printf '%s\n' "${events[@]}"; fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
       - name: Validate version format
+        if: steps.tap.outputs.events != ''
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
-      - name: Update version
+      - name: Validate daytona@0 version
+        if: steps.tap.outputs.events != '' && github.ref == 'refs/heads/release/v0'
+        run: |
+          if [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The daytona@0 formula takes stable v0.X.Y versions only (got $VERSION); publish prereleases with publish_cli off"
+            exit 1
+          fi
+      - name: Check the daytona formula assets
+        # The `daytona` formula downloads daytona-<os>-<arch>; Release uploads
+        # them to a 0.x release only while no stable 2.x release exists.
+        if: steps.tap.outputs.events != '' && github.ref == 'refs/heads/release/v0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW_EVENTS: ${{ steps.tap.outputs.events }}
+        run: |
+          if ! grep -qx update-version <<< "$HOMEBREW_EVENTS"; then
+            exit 0
+          fi
+          assets=$(gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          for asset in daytona-darwin-arm64 daytona-darwin-amd64 daytona-linux-amd64 daytona-linux-arm64; do
+            if ! grep -qx "$asset" <<< "$assets"; then
+              echo "::error::Release $VERSION has no $asset asset, which the daytona formula installs (Release did not upload daytona-<os>-<arch> assets for it); nothing was dispatched"
+              exit 1
+            fi
+          done
+      - name: Update Homebrew CLI tap
+        if: steps.tap.outputs.events != ''
         env:
           GITHUBBOT_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUBBOT_TOKEN }}
+          HOMEBREW_EVENTS: ${{ steps.tap.outputs.events }}
         run: |
-          curl -f -X POST -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
-            https://api.github.com/repos/daytonaio/homebrew-cli/dispatches \
-            -d "{\"event_type\": \"update-version\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+          # Each tap workflow commits to the tap's default branch without
+          # rebasing, so two running at once can lose a push. Dispatch one event
+          # at a time and wait for its tap run, the first one with a run ID above
+          # the newest before the dispatch, to succeed before the next.
+          tap=daytonaio/homebrew-cli
+          declare -A tap_workflow=(
+            [update-version]=brew_publish.yaml
+            [update-version-v0]=brew_publish_v0.yaml
+          )
+          while read -r event; do
+            # A stable 2.x release published while an earlier tap run was in
+            # flight now owns the daytona formula: never move it back to 0.x.
+            if [[ "$event" == update-version && "$GITHUB_REF" == refs/heads/release/v0 ]]; then
+              stable_v2=$(bash hack/stable-v2-release.sh < /dev/null)
+              if [[ -n "$stable_v2" ]]; then
+                echo "::warning::Stable 2.x release $stable_v2 was published during this run: the daytona formula follows 2.x now; skipping update-version."
+                continue
+              fi
+              echo "Still no stable 2.x release: dispatching update-version."
+            fi
+            workflow="${tap_workflow[$event]:?no tap workflow known for $event}"
+            runs="repos/$tap/actions/workflows/$workflow/runs"
+            last_id=$(gh api "$runs?per_page=1" --jq '.workflow_runs[0].id // 0')
+            echo "Dispatching $event for $VERSION"
+            curl -f -X POST -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUBBOT_TOKEN}" \
+              "https://api.github.com/repos/$tap/dispatches" \
+              -d "{\"event_type\": \"$event\", \"client_payload\": {\"version\": \"$VERSION\"}}"
+            run=""
+            for _ in $(seq 90); do
+              sleep 10
+              run=$(gh api "$runs?event=repository_dispatch&per_page=10" \
+                --jq "[.workflow_runs[] | select(.id > $last_id)] | sort_by(.id) | first // empty | \"\(.status) \(.conclusion) \(.html_url)\"") || run=""
+              [[ "$run" == completed\ * ]] && break
+            done
+            read -r status conclusion url <<< "$run"
+            if [[ "$status" != completed ]]; then
+              echo "::error::The $workflow run for $event did not finish within 15 minutes${url:+: $url}"
+              exit 1
+            fi
+            if [[ "$conclusion" != success ]]; then
+              echo "::error::The $workflow run for $event ended with $conclusion: $url"
+              exit 1
+            fi
+            echo "$event: $url succeeded"
+          done <<< "$HOMEBREW_EVENTS"
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f ~/.gem/credentials 2>/dev/null || true

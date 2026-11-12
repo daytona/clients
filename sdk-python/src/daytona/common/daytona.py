@@ -60,8 +60,10 @@ class DaytonaConfig(BaseModel):
             here or in the environment variable `DAYTONA_API_URL`.
         server_url (str | None): Deprecated. Use `api_url` instead. This property will be removed
             in a future version.
-        target (str | None): Target runner location for the Sandbox. Default region for the organization is used
-            if not set here or in the environment variable `DAYTONA_TARGET`.
+        target (str | None): Default region for Sandboxes and Snapshots. Can also be set via the
+            environment variable `DAYTONA_TARGET`. A per-call `target` (Sandbox create params) or
+            `region_id` (`CreateSnapshotParams`) overrides it; when neither is set, the
+            organization's default region is used.
         connection_pool_maxsize (int | None): Maximum number of simultaneous HTTP connections
             the SDK will open. Defaults to 250. Set to `None` to remove the limit, which is
             recommended when running many concurrent long-lived operations like `process.exec`.
@@ -160,6 +162,8 @@ class CreateSandboxBaseParams(BaseModel):
         ttl_minutes (int | None): Maximum time to live in minutes, counted as wall-clock time since
             creation regardless of sandbox state. When it elapses the sandbox is destroyed, even if
             it is stopped, paused, or archived. 0 means disabled.
+        queue_timeout (int | None): Minutes to wait for runner assignment before Sandbox creation is
+            cancelled. Omit to use the organization default. Must be a positive integer.
         volumes (list[VolumeMount] | None): List of volumes mounts to attach to the Sandbox.
         secrets (dict[str, str] | None): Map of environment variable name to the name of an existing
             organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque
@@ -186,6 +190,9 @@ class CreateSandboxBaseParams(BaseModel):
             Sandbox will be scheduled on the same runner as the linked Sandbox so a local network can be
             established between them. Linked Sandboxes must be
             ephemeral (auto_delete_interval=0) and cannot themselves be linked to another Sandbox.
+        target (str | None): Target (region) where the Sandbox is created. Overrides the client-level
+            `target` for this call. If omitted, the client-level target is used when configured;
+            otherwise the organization's default region is used.
     """
 
     name: str | None = None
@@ -199,6 +206,7 @@ class CreateSandboxBaseParams(BaseModel):
     auto_archive_interval: int | None = None
     auto_delete_interval: int | None = None
     ttl_minutes: int | None = None
+    queue_timeout: int | None = None
     volumes: list[VolumeMount] | None = None
     secrets: dict[str, str] | None = None
     network_block_all: bool | None = None
@@ -210,6 +218,7 @@ class CreateSandboxBaseParams(BaseModel):
     ephemeral: bool | None = None
     spot: bool | None = None
     linked_sandbox: str | None = None
+    target: str | None = None
 
     @model_validator(mode="before")
     @classmethod

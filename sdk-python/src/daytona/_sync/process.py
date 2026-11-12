@@ -37,7 +37,7 @@ from ..common.process import (
     SessionExecuteRequest,
     SessionExecuteResponse,
 )
-from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
+from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, WS_KEEPALIVE_INTERVAL_SECONDS, PtySize
 from ..handle.pty_handle import PtyHandle
 
 
@@ -90,6 +90,21 @@ class Process:
     ) -> ExecuteResponse:
         """Execute a shell command in the Sandbox.
 
+        The command is run by the first available of zsh, bash or sh in the sandbox, which is
+        zsh in the default snapshots. Quote arguments that contain glob characters, for example
+        `pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+
+        The call returns when the command finishes. To start a long-running process such as a
+        server, run it in the background with its output redirected, e.g.
+        `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with
+        `run_async=True` (see `execute_session_command`). A background process that keeps the
+        command's output open (`cmd &` without a redirect) can block the call until that process
+        exits.
+
+        Tools in the sandbox may report the host's CPU count and memory (for example `nproc`
+        or `os.cpu_count()`) rather than the sandbox's own limits. Size worker pools from the
+        sandbox's `cpu` and `memory` instead, e.g. `pytest -n 2` rather than `pytest -n auto`.
+
         Args:
             command (str): Shell command to execute.
             cwd (str | None): Working directory for command execution. If not
@@ -116,6 +131,9 @@ class Process:
 
             # Command with timeout
             result = sandbox.process.exec("sleep 10", timeout=5)
+
+            # Start a server in the background
+            sandbox.process.exec("python3 -m http.server 8000 > server.log 2>&1 &")
             ```
         """
         execute_request = ExecuteRequest(command=command, cwd=cwd, timeout=timeout, envs=env)
@@ -673,7 +691,14 @@ class Process:
             subprotocols.append(f"X-Daytona-Pty-Envs~{encoded}")
 
         try:
-            ws_cm = httpx_ws.connect_ws(url, self._http_client, headers=headers, subprotocols=subprotocols)
+            ws_cm = httpx_ws.connect_ws(
+                url,
+                self._http_client,
+                headers=headers,
+                subprotocols=subprotocols,
+                keepalive_ping_interval_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
+                keepalive_ping_timeout_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
+            )
             ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
         except httpx_ws.WebSocketUpgradeError as e:
             # A failed WS upgrade carries the HTTP response; surface it as the matching typed
@@ -745,7 +770,12 @@ class Process:
         # self._http_client's pool (shared TLS context, DNS cache) — once upgraded, that
         # socket is dedicated to this PTY for its entire lifetime.
         ws_cm = httpx_ws.connect_ws(
-            url, self._http_client, headers=headers, subprotocols=[PTY_EXIT_CONTROL_SUBPROTOCOL]
+            url,
+            self._http_client,
+            headers=headers,
+            subprotocols=[PTY_EXIT_CONTROL_SUBPROTOCOL],
+            keepalive_ping_interval_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
+            keepalive_ping_timeout_seconds=WS_KEEPALIVE_INTERVAL_SECONDS,
         )
         ws = ws_cm.__enter__()  # pylint: disable=unnecessary-dunder-call
 

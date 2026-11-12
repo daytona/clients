@@ -314,7 +314,8 @@ Adds arbitrary Dockerfile-like commands to the image.
 **Arguments**:
 
 - `*dockerfile_commands` - The commands to add to the Dockerfile.
-- `context_dir` - Path | str | None: The path to the context directory.
+- `context_dir` - Path | str | None: The path to the context directory. Files excluded by its
+  ``.dockerignore`` are not uploaded.
 - `strict_context` - bool: When True, a COPY source that resolves outside context_dir is
   rejected instead of read. Requires context_dir, so that the boundary is explicit
   rather than taken from the working directory. Sources that legitimately live
@@ -342,6 +343,10 @@ def from_dockerfile(path: str | Path,
 ```
 
 Creates an Image from an existing Dockerfile.
+
+The Dockerfile's directory is the build context. Like Docker, files excluded by
+``<Dockerfile name>.dockerignore`` next to the Dockerfile, or else by ``.dockerignore`` in
+the context, are not uploaded.
 
 **Arguments**:
 
@@ -425,4 +430,6 @@ Context for an image.
 
 - `source_path` _str_ - The path to the source file or directory.
 - `archive_path` _str | None_ - The path inside the archive file in object storage.
+- `dockerignore_path` _str | None_ - The ``.dockerignore`` of the build context the source belongs
+  to. Entries it excludes are not uploaded.
 

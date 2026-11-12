@@ -2,7 +2,7 @@
 
 Serves the Go module **vanity import path** `go.daytona.io/<pkg>` for the Go modules in
 this repo, hosted on **GitHub Pages**. Deploy is automated by
-`.github/workflows/deploy-pages.yml` (runs on every push to `main`).
+`.github/workflows/deploy-pages.yml` (runs on every push to `release/v0`, the 0.x line).
 
 > `go.daytona.io` is a **placeholder** domain — swap it when you pick the real one
 > (see "Changing the domain"). It must be a host you control and can point at Pages.
@@ -12,7 +12,9 @@ this repo, hosted on **GitHub Pages**. Deploy is automated by
 You can deploy and validate **before** touching DNS:
 
 1. **Enable Pages**: repo **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
-2. **Merge to `main`** (or run the workflow manually). The workflow generates the site
+2. **Allow `release/v0`** in the `github-pages` environment's deployment branch rules
+   (**Settings → Environments → github-pages**), then **merge to `release/v0`** (or run
+   the workflow manually from `release/v0`). The workflow generates the site
    and deploys it. With no custom domain it is served at the **default GitHub URL**:
 
    ```

@@ -27,6 +27,7 @@ public class CreateSandboxParams {
     private Integer autoArchiveInterval;
     private Integer autoDeleteInterval;
     private Integer ttlMinutes;
+    private Integer queueTimeout;
     private List<VolumeMount> volumes;
     private Map<String, String> secrets;
     private Boolean networkBlockAll;
@@ -36,6 +37,7 @@ public class CreateSandboxParams {
     private String otelEndpointOverride;
     private String linkedSandbox;
     private Boolean spot;
+    private String target;
 
     /**
      * Returns Sandbox name.
@@ -198,6 +200,22 @@ public class CreateSandboxParams {
     public void setTtlMinutes(Integer ttlMinutes) { this.ttlMinutes = ttlMinutes; }
 
     /**
+     * Returns queue timeout in minutes.
+     *
+     * @return minutes to wait for runner assignment before creation is cancelled, or {@code null}
+     * if the organization default applies
+     */
+    public Integer getQueueTimeout() { return queueTimeout; }
+
+    /**
+     * Sets queue timeout in minutes.
+     *
+     * @param queueTimeout minutes to wait for runner assignment before creation is cancelled; must
+     * be at least 1, or {@code null} to use the organization default
+     */
+    public void setQueueTimeout(Integer queueTimeout) { this.queueTimeout = queueTimeout; }
+
+    /**
      * Returns volume mounts to attach.
      *
      * @return list of volume mounts
@@ -349,4 +367,20 @@ public class CreateSandboxParams {
      * @param spot whether the Sandbox may be preempted
      */
     public void setSpot(Boolean spot) { this.spot = spot; }
+
+    /**
+     * Returns the target (region) where the Sandbox is created.
+     *
+     * @return target region identifier, or {@code null} to use the client-level target or the
+     *     organization's default region
+     */
+    public String getTarget() { return target; }
+
+    /**
+     * Sets the target (region) where the Sandbox is created. Overrides the client-level target
+     * for this call.
+     *
+     * @param target target region identifier
+     */
+    public void setTarget(String target) { this.target = target; }
 }

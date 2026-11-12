@@ -60,6 +60,8 @@ module Daytona
       # @param y [Integer] The y coordinate to click at
       # @param button [String] The mouse button to click ('left', 'right', 'middle'). Defaults to 'left'
       # @param double [Boolean] Whether to perform a double-click. Defaults to false
+      # @param clicks [Integer, nil] Number of clicks to perform (1-10). Omitted when nil, which is distinct from an explicit 0
+      # @param modifiers [Array<String>, nil] Modifier keys to hold during the click. Canonical names are 'ctrl', 'alt', 'shift', and 'cmd'
       # @return [DaytonaToolboxApiClient::MouseClickResponse] Click operation result
       # @raise [Daytona::Sdk::Error] If the operation fails
       #
@@ -72,11 +74,72 @@ module Daytona
       #
       #   # Right click
       #   right_click = sandbox.computer_use.mouse.click(x: 100, y: 200, button: 'right')
-      def click(x:, y:, button: 'left', double: false)
-        request = DaytonaToolboxApiClient::MouseClickRequest.new(x:, y:, button:, double:)
+      #
+      #   # Triple click
+      #   triple_click = sandbox.computer_use.mouse.click(x: 100, y: 200, clicks: 3)
+      #
+      #   # Ctrl+click
+      #   ctrl_click = sandbox.computer_use.mouse.click(x: 100, y: 200, modifiers: ['ctrl'])
+      def click(x:, y:, button: 'left', double: false, clicks: nil, modifiers: nil)
+        attrs = { x:, y:, button:, double: }
+        attrs[:clicks] = clicks unless clicks.nil?
+        attrs[:modifiers] = modifiers unless modifiers.nil?
+
+        request = DaytonaToolboxApiClient::MouseClickRequest.new(attrs)
         toolbox_api.click(request)
       rescue *Sdk::API_ERROR_CLASSES => e
         raise Sdk.wrap_error(e, 'Failed to click mouse')
+      end
+
+      # Presses and holds a mouse button, optionally moving to the coordinates first.
+      #
+      # The button stays held until a matching {#up} call.
+      #
+      # @param x [Integer, nil] The x coordinate to move to before pressing. Omitted when nil
+      # @param y [Integer, nil] The y coordinate to move to before pressing. Omitted when nil
+      # @param button [String] The mouse button to press ('left', 'right', 'middle'). Defaults to 'left'
+      # @return [DaytonaToolboxApiClient::MousePositionResponse] Cursor position after the press
+      # @raise [Daytona::Sdk::Error] If the operation fails
+      #
+      # @example
+      #   # Press at the current cursor position
+      #   sandbox.computer_use.mouse.down
+      #
+      #   # Move to coordinates and press
+      #   sandbox.computer_use.mouse.down(x: 100, y: 200, button: 'left')
+      def down(x: nil, y: nil, button: 'left')
+        attrs = { button: }
+        attrs[:x] = x unless x.nil?
+        attrs[:y] = y unless y.nil?
+
+        request = DaytonaToolboxApiClient::MouseDownRequest.new(attrs)
+        toolbox_api.mouse_down(request)
+      rescue *Sdk::API_ERROR_CLASSES => e
+        raise Sdk.wrap_error(e, 'Failed to press mouse button')
+      end
+
+      # Releases a held mouse button, optionally moving to the coordinates first.
+      #
+      # @param x [Integer, nil] The x coordinate to move to before releasing. Omitted when nil
+      # @param y [Integer, nil] The y coordinate to move to before releasing. Omitted when nil
+      # @param button [String] The mouse button to release ('left', 'right', 'middle'). Defaults to 'left'
+      # @return [DaytonaToolboxApiClient::MousePositionResponse] Cursor position after the release
+      # @raise [Daytona::Sdk::Error] If the operation fails
+      #
+      # @example
+      #   # Drag by holding, moving, then releasing
+      #   sandbox.computer_use.mouse.down(x: 10, y: 10)
+      #   sandbox.computer_use.mouse.move(x: 200, y: 200)
+      #   sandbox.computer_use.mouse.up(x: 200, y: 200)
+      def up(x: nil, y: nil, button: 'left')
+        attrs = { button: }
+        attrs[:x] = x unless x.nil?
+        attrs[:y] = y unless y.nil?
+
+        request = DaytonaToolboxApiClient::MouseUpRequest.new(attrs)
+        toolbox_api.mouse_up(request)
+      rescue *Sdk::API_ERROR_CLASSES => e
+        raise Sdk.wrap_error(e, 'Failed to release mouse button')
       end
 
       # Drags the mouse from start coordinates to end coordinates.
@@ -86,14 +149,21 @@ module Daytona
       # @param end_x [Integer] The ending x coordinate
       # @param end_y [Integer] The ending y coordinate
       # @param button [String] The mouse button to use for dragging. Defaults to 'left'
+      # @param modifiers [Array<String>, nil] Modifier keys to hold during the drag. Canonical names are 'ctrl', 'alt', 'shift', and 'cmd'
       # @return [DaytonaToolboxApiClient::MouseDragResponse] Drag operation result
       # @raise [Daytona::Sdk::Error] If the operation fails
       #
       # @example
       #   result = sandbox.computer_use.mouse.drag(start_x: 50, start_y: 50, end_x: 150, end_y: 150)
       #   puts "Drag ended at #{result.x}, #{result.y}"
-      def drag(start_x:, start_y:, end_x:, end_y:, button: 'left')
-        request = DaytonaToolboxApiClient::MouseDragRequest.new(start_x:, start_y:, end_x:, end_y:, button:)
+      #
+      #   # Drag while holding Shift
+      #   sandbox.computer_use.mouse.drag(start_x: 50, start_y: 50, end_x: 150, end_y: 150, modifiers: ['shift'])
+      def drag(start_x:, start_y:, end_x:, end_y:, button: 'left', modifiers: nil)
+        attrs = { start_x:, start_y:, end_x:, end_y:, button: }
+        attrs[:modifiers] = modifiers unless modifiers.nil?
+
+        request = DaytonaToolboxApiClient::MouseDragRequest.new(attrs)
         toolbox_api.drag(request)
       rescue *Sdk::API_ERROR_CLASSES => e
         raise Sdk.wrap_error(e, 'Failed to drag mouse')
@@ -103,8 +173,9 @@ module Daytona
       #
       # @param x [Integer] The x coordinate to scroll at
       # @param y [Integer] The y coordinate to scroll at
-      # @param direction [String] The direction to scroll ('up' or 'down')
+      # @param direction [String] The direction to scroll ('up', 'down', 'left', or 'right')
       # @param amount [Integer] The amount to scroll. Defaults to 1
+      # @param modifiers [Array<String>, nil] Modifier keys to hold during the scroll. Canonical names are 'ctrl', 'alt', 'shift', and 'cmd'
       # @return [Boolean] Whether the scroll operation was successful
       # @raise [Daytona::Sdk::Error] If the operation fails
       #
@@ -114,15 +185,24 @@ module Daytona
       #
       #   # Scroll down
       #   scroll_down = sandbox.computer_use.mouse.scroll(x: 100, y: 200, direction: 'down', amount: 5)
-      def scroll(x:, y:, direction:, amount: 1)
-        request = DaytonaToolboxApiClient::MouseScrollRequest.new(x:, y:, direction:, amount:)
+      #
+      #   # Scroll horizontally
+      #   scroll_left = sandbox.computer_use.mouse.scroll(x: 100, y: 200, direction: 'left', amount: 2)
+      #
+      #   # Ctrl+scroll to zoom
+      #   zoom_in = sandbox.computer_use.mouse.scroll(x: 100, y: 200, direction: 'up', modifiers: ['ctrl'])
+      def scroll(x:, y:, direction:, amount: 1, modifiers: nil)
+        attrs = { x:, y:, direction:, amount: }
+        attrs[:modifiers] = modifiers unless modifiers.nil?
+
+        request = DaytonaToolboxApiClient::MouseScrollRequest.new(attrs)
         toolbox_api.scroll(request)
         true
       rescue *Sdk::API_ERROR_CLASSES => e
         raise Sdk.wrap_error(e, 'Failed to scroll mouse')
       end
 
-      instrument :position, :move, :click, :drag, :scroll, component: 'Mouse'
+      instrument :position, :move, :click, :down, :up, :drag, :scroll, component: 'Mouse'
 
       private
 
@@ -191,6 +271,43 @@ module Daytona
         raise Sdk.wrap_error(e, 'Failed to press key')
       end
 
+      # Presses and holds a key or modifier until a matching {#up} call.
+      #
+      # @param key [String] The key or modifier to hold. Uses the same normalized key contract as #press, so 'ctrl', 'shift', and 'a' are all valid
+      # @return [void]
+      # @raise [Daytona::Sdk::Error] If the operation fails
+      #
+      # @example
+      #   # Hold Shift while typing. Release in `ensure` so a failed press cannot
+      #   # leave Shift stuck down.
+      #   sandbox.computer_use.keyboard.down(key: 'shift')
+      #   begin
+      #     sandbox.computer_use.keyboard.press(key: 'a')
+      #   ensure
+      #     sandbox.computer_use.keyboard.up(key: 'shift')
+      #   end
+      def down(key:)
+        request = DaytonaToolboxApiClient::KeyboardKeyDownRequest.new(key:)
+        toolbox_api.key_down(request)
+      rescue *Sdk::API_ERROR_CLASSES => e
+        raise Sdk.wrap_error(e, 'Failed to press key down')
+      end
+
+      # Releases a key or modifier that is currently held down.
+      #
+      # @param key [String] The key or modifier to release. Uses the same normalized key contract as #press
+      # @return [void]
+      # @raise [Daytona::Sdk::Error] If the operation fails
+      #
+      # @example
+      #   sandbox.computer_use.keyboard.up(key: 'ctrl')
+      def up(key:)
+        request = DaytonaToolboxApiClient::KeyboardKeyUpRequest.new(key:)
+        toolbox_api.key_up(request)
+      rescue *Sdk::API_ERROR_CLASSES => e
+        raise Sdk.wrap_error(e, 'Failed to release key')
+      end
+
       # Presses a hotkey combination.
       #
       # @param keys [String] A single atomic hotkey chord (e.g., 'ctrl+c', 'alt+tab', 'cmd+shift+t', 'ctrl + c', 'shift'). Uses the same normalized key contract as #press.
@@ -213,7 +330,7 @@ module Daytona
         raise Sdk.wrap_error(e, 'Failed to press hotkey')
       end
 
-      instrument :type, :press, :hotkey, component: 'Keyboard'
+      instrument :type, :press, :down, :up, :hotkey, component: 'Keyboard'
 
       private
 

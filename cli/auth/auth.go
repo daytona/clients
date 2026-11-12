@@ -20,6 +20,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/daytona/clients/cli/config"
+	"github.com/daytona/clients/cli/internal"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
@@ -219,7 +220,7 @@ func accessTokenExpiry(accessToken string) (time.Time, error) {
 func refreshError(err error) error {
 	var retrieveErr *oauth2.RetrieveError
 	if errors.As(err, &retrieveErr) && retrieveErr.ErrorCode == "invalid_grant" {
-		return fmt.Errorf("use 'daytona login' to reauthenticate: %w", err)
+		return fmt.Errorf("use '%s login' to reauthenticate: %w", internal.BinaryName, err)
 	}
 
 	return fmt.Errorf("failed to refresh the access token, please retry: %w", err)
@@ -263,7 +264,7 @@ func RefreshTokenIfNeeded(ctx context.Context) error {
 
 	storedToken := activeProfile.Api.Token
 	if storedToken == nil {
-		return fmt.Errorf("no valid token found, use 'daytona login' to reauthenticate")
+		return fmt.Errorf("no valid token found, use '%s login' to reauthenticate", internal.BinaryName)
 	}
 
 	// Check if token is about to expire (within 5 minutes)

@@ -17,12 +17,11 @@ module DaytonaApiClient
   class SandboxClass
     LINUX_VM = "linux-vm".freeze
     CONTAINER = "container".freeze
-    ANDROID = "android".freeze
     WINDOWS = "windows".freeze
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [LINUX_VM, CONTAINER, ANDROID, WINDOWS, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [LINUX_VM, CONTAINER, WINDOWS, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

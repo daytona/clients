@@ -21,6 +21,8 @@ module DaytonaToolboxApiClient
 
     attr_accessor :end_y
 
+    attr_accessor :modifiers
+
     attr_accessor :start_x
 
     attr_accessor :start_y
@@ -31,6 +33,7 @@ module DaytonaToolboxApiClient
         :'button' => :'button',
         :'end_x' => :'endX',
         :'end_y' => :'endY',
+        :'modifiers' => :'modifiers',
         :'start_x' => :'startX',
         :'start_y' => :'startY'
       }
@@ -52,6 +55,7 @@ module DaytonaToolboxApiClient
         :'button' => :'String',
         :'end_x' => :'Integer',
         :'end_y' => :'Integer',
+        :'modifiers' => :'Array<String>',
         :'start_x' => :'Integer',
         :'start_y' => :'Integer'
       }
@@ -91,6 +95,12 @@ module DaytonaToolboxApiClient
         self.end_y = attributes[:'end_y']
       end
 
+      if attributes.key?(:'modifiers')
+        if (value = attributes[:'modifiers']).is_a?(Array)
+          self.modifiers = value
+        end
+      end
+
       if attributes.key?(:'start_x')
         self.start_x = attributes[:'start_x']
       end
@@ -123,6 +133,7 @@ module DaytonaToolboxApiClient
           button == o.button &&
           end_x == o.end_x &&
           end_y == o.end_y &&
+          modifiers == o.modifiers &&
           start_x == o.start_x &&
           start_y == o.start_y
     end
@@ -136,7 +147,7 @@ module DaytonaToolboxApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [button, end_x, end_y, start_x, start_y].hash
+      [button, end_x, end_y, modifiers, start_x, start_y].hash
     end
 
     # Builds the object from hash

@@ -37,6 +37,7 @@ class AsyncEventDispatcher:
     _lock: asyncio.Lock
 
     _DISCONNECT_DELAY: float = 30.0
+    _CLOSE_TIMEOUT: float = 5.0
 
     def __init__(
         self,
@@ -269,12 +270,17 @@ class AsyncEventDispatcher:
         await self._disconnect()
 
     async def _disconnect(self, expected_generation: int | None = None) -> None:
-        if self._connect_task and not self._connect_task.done():
+        current = asyncio.current_task()
+        cancelled: list[asyncio.Task[None]] = []
+
+        if self._connect_task and not self._connect_task.done() and self._connect_task is not current:
             _ = self._connect_task.cancel()
+            cancelled.append(self._connect_task)
 
         if self._disconnect_task and not self._disconnect_task.done():
-            if self._disconnect_task is not asyncio.current_task():
+            if self._disconnect_task is not current:
                 _ = self._disconnect_task.cancel()
+                cancelled.append(self._disconnect_task)
             self._disconnect_task = None
 
         async with self._lock:
@@ -289,7 +295,21 @@ class AsyncEventDispatcher:
             self._connected = False
 
         if sio:
+            # aiohttp's ws.close() releases the websocket's connection and starts closing its
+            # transport without waiting, so sio.disconnect() returns with the socket still open.
+            ws_closed = _websocket_closed(sio)
             await sio.disconnect()
+            if ws_closed is not None:
+                _ = await asyncio.wait([ws_closed], timeout=self._CLOSE_TIMEOUT)
+                if ws_closed.done() and not ws_closed.cancelled():
+                    _ = ws_closed.exception()  # mark retrieved: a connection lost with an error is closed all the same
+
+        # cancel() only requests cancellation, so wait for the cancelled tasks to finish: a loop stopped right
+        # after close() (e.g. by run_until_complete) would leave them pending. Only now, after sio.disconnect():
+        # a connect task cancelled mid-upgrade releases its connection from engine.io's aiohttp session as it
+        # unwinds, after which closing that session no longer waits for the socket.
+        if cancelled:
+            _ = await asyncio.wait(cancelled, timeout=self._CLOSE_TIMEOUT)
 
     async def _dispatch(self, resource_id: str, event_name: str, data: Any) -> None:
         for handler in list(self._listeners.get(resource_id, [])):
@@ -597,6 +617,18 @@ class SyncEventDispatcher:
 
     def _unsubscribe_resource_locked(self, resource_id: str) -> None:
         _ = self._listeners.pop(resource_id, None)
+
+
+def _websocket_closed(sio: socketio.AsyncClient) -> asyncio.Future[None] | None:
+    """Future resolved by aiohttp's ``connection_lost`` for the websocket's connection, if one is open.
+
+    Reads python-engineio (``eio.ws``) and aiohttp (``ClientWebSocketResponse._conn``) internals, so call it
+    before disconnecting: closing the websocket detaches its connection.
+    """
+    ws = getattr(getattr(sio, "eio", None), "ws", None)
+    protocol = getattr(getattr(ws, "_conn", None), "protocol", None)
+    closed = getattr(protocol, "closed", None)
+    return closed if asyncio.isfuture(closed) else None
 
 
 def _extract_id_from_event(data: Any) -> str | None:

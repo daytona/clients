@@ -20,8 +20,9 @@ var _ MappedNullable = &MouseScrollRequest{}
 // MouseScrollRequest struct for MouseScrollRequest
 type MouseScrollRequest struct {
 	Amount *int32 `json:"amount,omitempty"`
-	// up, down
+	// up, down, left, right
 	Direction *string `json:"direction,omitempty"`
+	Modifiers []string `json:"modifiers,omitempty"`
 	X *int32 `json:"x,omitempty"`
 	Y *int32 `json:"y,omitempty"`
 	AdditionalProperties map[string]interface{}
@@ -110,6 +111,38 @@ func (o *MouseScrollRequest) SetDirection(v string) {
 	o.Direction = &v
 }
 
+// GetModifiers returns the Modifiers field value if set, zero value otherwise.
+func (o *MouseScrollRequest) GetModifiers() []string {
+	if o == nil || IsNil(o.Modifiers) {
+		var ret []string
+		return ret
+	}
+	return o.Modifiers
+}
+
+// GetModifiersOk returns a tuple with the Modifiers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MouseScrollRequest) GetModifiersOk() ([]string, bool) {
+	if o == nil || IsNil(o.Modifiers) {
+		return nil, false
+	}
+	return o.Modifiers, true
+}
+
+// HasModifiers returns a boolean if a field has been set.
+func (o *MouseScrollRequest) HasModifiers() bool {
+	if o != nil && !IsNil(o.Modifiers) {
+		return true
+	}
+
+	return false
+}
+
+// SetModifiers gets a reference to the given []string and assigns it to the Modifiers field.
+func (o *MouseScrollRequest) SetModifiers(v []string) {
+	o.Modifiers = v
+}
+
 // GetX returns the X field value if set, zero value otherwise.
 func (o *MouseScrollRequest) GetX() int32 {
 	if o == nil || IsNil(o.X) {
@@ -190,6 +223,9 @@ func (o MouseScrollRequest) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Direction) {
 		toSerialize["direction"] = o.Direction
 	}
+	if !IsNil(o.Modifiers) {
+		toSerialize["modifiers"] = o.Modifiers
+	}
 	if !IsNil(o.X) {
 		toSerialize["x"] = o.X
 	}
@@ -220,6 +256,7 @@ func (o *MouseScrollRequest) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "amount")
 		delete(additionalProperties, "direction")
+		delete(additionalProperties, "modifiers")
 		delete(additionalProperties, "x")
 		delete(additionalProperties, "y")
 		o.AdditionalProperties = additionalProperties

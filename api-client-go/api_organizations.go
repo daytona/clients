@@ -548,6 +548,18 @@ type OrganizationsAPI interface {
 	UpdateExperimentalConfigExecute(r OrganizationsAPIUpdateExperimentalConfigRequest) (*http.Response, error)
 
 	/*
+	UpdateOrganizationDefaultQueueTimeout Set organization default queue timeout
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param organizationId Organization ID
+	@return OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest
+	*/
+	UpdateOrganizationDefaultQueueTimeout(ctx context.Context, organizationId string) OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest
+
+	// UpdateOrganizationDefaultQueueTimeoutExecute executes the request
+	UpdateOrganizationDefaultQueueTimeoutExecute(r OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest) (*http.Response, error)
+
+	/*
 	UpdateOrganizationIdentityProvider Update organization identity provider
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
@@ -4789,6 +4801,107 @@ func (a *OrganizationsAPIService) UpdateExperimentalConfigExecute(r Organization
 	}
 	// body params
 	localVarPostBody = r.requestBody
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
+type OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest struct {
+	ctx context.Context
+	ApiService OrganizationsAPI
+	organizationId string
+	updateOrganizationDefaultQueueTimeout *UpdateOrganizationDefaultQueueTimeout
+}
+
+func (r OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest) UpdateOrganizationDefaultQueueTimeout(updateOrganizationDefaultQueueTimeout UpdateOrganizationDefaultQueueTimeout) OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest {
+	r.updateOrganizationDefaultQueueTimeout = &updateOrganizationDefaultQueueTimeout
+	return r
+}
+
+func (r OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest) Execute() (*http.Response, error) {
+	return r.ApiService.UpdateOrganizationDefaultQueueTimeoutExecute(r)
+}
+
+/*
+UpdateOrganizationDefaultQueueTimeout Set organization default queue timeout
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param organizationId Organization ID
+ @return OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest
+*/
+func (a *OrganizationsAPIService) UpdateOrganizationDefaultQueueTimeout(ctx context.Context, organizationId string) OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest {
+	return OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest{
+		ApiService: a,
+		ctx: ctx,
+		organizationId: organizationId,
+	}
+}
+
+// Execute executes the request
+func (a *OrganizationsAPIService) UpdateOrganizationDefaultQueueTimeoutExecute(r OrganizationsAPIUpdateOrganizationDefaultQueueTimeoutRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPatch
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "OrganizationsAPIService.UpdateOrganizationDefaultQueueTimeout")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/organizations/{organizationId}/default-queue-timeout"
+	localVarPath = strings.Replace(localVarPath, "{"+"organizationId"+"}", url.PathEscape(parameterValueToString(r.organizationId, "organizationId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.updateOrganizationDefaultQueueTimeout == nil {
+		return nil, reportError("updateOrganizationDefaultQueueTimeout is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.updateOrganizationDefaultQueueTimeout
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return nil, err

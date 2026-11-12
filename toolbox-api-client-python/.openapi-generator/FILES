@@ -47,6 +47,7 @@ daytona_toolbox_api_client/models/file_info.py
 daytona_toolbox_api_client/models/file_status.py
 daytona_toolbox_api_client/models/files_download_request.py
 daytona_toolbox_api_client/models/find_accessibility_nodes_request.py
+daytona_toolbox_api_client/models/fs_file_result.py
 daytona_toolbox_api_client/models/git_add_remote_request.py
 daytona_toolbox_api_client/models/git_add_request.py
 daytona_toolbox_api_client/models/git_authenticate_request.py
@@ -71,6 +72,8 @@ daytona_toolbox_api_client/models/initialize_request.py
 daytona_toolbox_api_client/models/interpreter_context.py
 daytona_toolbox_api_client/models/is_port_in_use_response.py
 daytona_toolbox_api_client/models/keyboard_hotkey_request.py
+daytona_toolbox_api_client/models/keyboard_key_down_request.py
+daytona_toolbox_api_client/models/keyboard_key_up_request.py
 daytona_toolbox_api_client/models/keyboard_press_request.py
 daytona_toolbox_api_client/models/keyboard_type_request.py
 daytona_toolbox_api_client/models/list_branch_response.py
@@ -87,11 +90,13 @@ daytona_toolbox_api_client/models/lsp_symbol.py
 daytona_toolbox_api_client/models/match.py
 daytona_toolbox_api_client/models/mouse_click_request.py
 daytona_toolbox_api_client/models/mouse_click_response.py
+daytona_toolbox_api_client/models/mouse_down_request.py
 daytona_toolbox_api_client/models/mouse_drag_request.py
 daytona_toolbox_api_client/models/mouse_drag_response.py
 daytona_toolbox_api_client/models/mouse_move_request.py
 daytona_toolbox_api_client/models/mouse_position_response.py
 daytona_toolbox_api_client/models/mouse_scroll_request.py
+daytona_toolbox_api_client/models/mouse_up_request.py
 daytona_toolbox_api_client/models/port_list.py
 daytona_toolbox_api_client/models/position.py
 daytona_toolbox_api_client/models/process_errors_response.py
@@ -120,6 +125,7 @@ daytona_toolbox_api_client/models/status.py
 daytona_toolbox_api_client/models/stop_recording_request.py
 daytona_toolbox_api_client/models/system_metrics.py
 daytona_toolbox_api_client/models/update_env_request.py
+daytona_toolbox_api_client/models/upload_files_response.py
 daytona_toolbox_api_client/models/uploaded_file.py
 daytona_toolbox_api_client/models/user_home_dir_response.py
 daytona_toolbox_api_client/models/window_info.py

@@ -279,8 +279,8 @@ function transformInheritedSections(contents) {
             break
           }
         }
-        // Check for simple format: `Class`.`property`
-        if (lines[k].trim().match(/^`[^`]+`\.`[^`]+`$/)) {
+        // Check for simple formats: `Class`.`property` or `Class.property`
+        if (lines[k].trim().match(/^`[^`]+`\.`[^`]+`$|^`[^`]+\.[^`]+`$/)) {
           inheritanceInfo = lines[k].trim().replace(/`/g, '')
           endIndex = k
           break

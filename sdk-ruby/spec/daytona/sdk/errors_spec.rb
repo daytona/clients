@@ -21,7 +21,9 @@ RSpec.describe Daytona::Sdk do
         described_class::BadGatewayError,
         described_class::ServiceUnavailableError,
         described_class::ConnectionError,
-        described_class::ConnectionTimeoutError
+        described_class::ConnectionTimeoutError,
+        described_class::QueueTimeoutError,
+        described_class::SpotEvictedError
       ].each do |cls|
         expect(cls < described_class::Error).to be(true), "#{cls} should inherit from Error"
       end
@@ -72,6 +74,8 @@ RSpec.describe Daytona::Sdk do
         described_class::FileAccessDeniedError => described_class::ForbiddenError,
         described_class::LspServerNotInitializedError => described_class::ValidationError,
         described_class::ProcessExecutionTimeoutError => described_class::TimeoutError,
+        described_class::QueueTimeoutError => described_class::TimeoutError,
+        described_class::SpotEvictedError => described_class::Error,
         described_class::ProcessNotFoundError => described_class::NotFoundError,
         described_class::SessionEndedError => described_class::GoneError,
         described_class::CommandAlreadyCompletedError => described_class::GoneError,

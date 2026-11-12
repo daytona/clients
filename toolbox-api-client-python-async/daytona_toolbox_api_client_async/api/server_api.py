@@ -39,7 +39,7 @@ class ServerApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def initialize(
         self,
         request: Annotated[InitializeRequest, Field(description="Initialization request")],
@@ -106,7 +106,7 @@ class ServerApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def initialize_with_http_info(
         self,
         request: Annotated[InitializeRequest, Field(description="Initialization request")],
@@ -173,7 +173,7 @@ class ServerApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def initialize_without_preload_content(
         self,
         request: Annotated[InitializeRequest, Field(description="Initialization request")],
@@ -299,7 +299,7 @@ class ServerApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_env(
         self,
         request: Annotated[UpdateEnvRequest, Field(description="Environment update request")],
@@ -354,6 +354,8 @@ class ServerApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, str]",
+            '400': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -366,7 +368,7 @@ class ServerApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_env_with_http_info(
         self,
         request: Annotated[UpdateEnvRequest, Field(description="Environment update request")],
@@ -421,6 +423,8 @@ class ServerApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, str]",
+            '400': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,
@@ -433,7 +437,7 @@ class ServerApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def update_env_without_preload_content(
         self,
         request: Annotated[UpdateEnvRequest, Field(description="Environment update request")],
@@ -488,6 +492,8 @@ class ServerApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, str]",
+            '400': "ErrorResponse",
+            '500': "ErrorResponse",
         }
         response_data = await self.api_client.call_api(
             *_param,

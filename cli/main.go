@@ -20,7 +20,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:               "daytona",
+	Use:               internal.BinaryName,
 	Short:             "Daytona CLI",
 	Long:              "Command line interface for Daytona Sandboxes",
 	DisableAutoGenTag: true,
@@ -61,7 +61,7 @@ func init() {
 	rootCmd.AddCommand(createSandboxShortcut(sandbox.PreviewUrlCmd))
 
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
-	rootCmd.PersistentFlags().BoolP("help", "", false, "help for daytona")
+	rootCmd.PersistentFlags().BoolP("help", "", false, "help for "+internal.BinaryName)
 	rootCmd.Flags().BoolP("version", "v", false, "Display the version of Daytona")
 
 	rootCmd.PreRun = func(command *cobra.Command, args []string) {

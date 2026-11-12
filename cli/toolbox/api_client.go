@@ -93,7 +93,7 @@ func NewAPIClientWithProfileProvider(ctx context.Context, apiClient *apiclient.A
 		token = activeProfile.Api.Token.AccessToken
 	}
 	if token == "" {
-		return nil, fmt.Errorf("no API credentials found; run `daytona login`")
+		return nil, fmt.Errorf("no API credentials found; run `%s login`", internal.BinaryName)
 	}
 
 	cfg.AddDefaultHeader("Authorization", "Bearer "+token)

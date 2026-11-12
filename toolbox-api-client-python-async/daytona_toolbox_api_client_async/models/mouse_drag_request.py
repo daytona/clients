@@ -32,10 +32,11 @@ class MouseDragRequest(BaseModel):
     button: Optional[StrictStr] = None
     end_x: Optional[StrictInt] = Field(default=None, serialization_alias="endX")
     end_y: Optional[StrictInt] = Field(default=None, serialization_alias="endY")
+    modifiers: Optional[List[StrictStr]] = None
     start_x: Optional[StrictInt] = Field(default=None, serialization_alias="startX")
     start_y: Optional[StrictInt] = Field(default=None, serialization_alias="startY")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["button", "endX", "endY", "startX", "startY"]
+    __properties: ClassVar[List[str]] = ["button", "endX", "endY", "modifiers", "startX", "startY"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -97,6 +98,7 @@ class MouseDragRequest(BaseModel):
             "button": obj.get("button"),
             "end_x": obj.get("endX"),
             "end_y": obj.get("endY"),
+            "modifiers": obj.get("modifiers"),
             "start_x": obj.get("startX"),
             "start_y": obj.get("startY")
         })

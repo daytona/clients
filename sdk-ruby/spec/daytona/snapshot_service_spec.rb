@@ -183,6 +183,25 @@ RSpec.describe Daytona::SnapshotService do
       end
     end
 
+    it 'falls back to the default region when region_id is blank' do
+      allow(snapshots_api).to receive(:create_snapshot)
+        .and_return(build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE))
+
+      service.create(Daytona::CreateSnapshotParams.new(name: 'snap', image: 'python:3.12', region_id: ''))
+
+      expect(snapshots_api).to have_received(:create_snapshot) { |request| expect(request.region_id).to eq('us') }
+    end
+
+    it 'omits region_id when neither the call nor the client sets it' do
+      no_default = described_class.new(snapshots_api:, object_storage_api:)
+      allow(snapshots_api).to receive(:create_snapshot)
+        .and_return(build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE))
+
+      no_default.create(Daytona::CreateSnapshotParams.new(name: 'snap', image: 'python:3.12'))
+
+      expect(snapshots_api).to have_received(:create_snapshot) { |request| expect(request.region_id).to be_nil }
+    end
+
     it 'creates a snapshot from an Image object with resources and image context' do
       image = Daytona::Image.base('python:3.12').entrypoint(['/bin/bash'])
       created_dto = build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE)

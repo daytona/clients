@@ -9,6 +9,12 @@ from dataclasses import dataclass
 # "exited" control message; clients that don't send it only get the close frame.
 PTY_EXIT_CONTROL_SUBPROTOCOL = "X-Daytona-Pty-Exit-Control"
 
+# Interval between WebSocket ping frames sent by the client. A PTY (or log stream) can
+# legitimately stay silent for a long time - a build or test run with no output - and
+# intermediate proxies/load balancers drop connections that carry no traffic. Pings keep
+# the connection alive without injecting input into the terminal.
+WS_KEEPALIVE_INTERVAL_SECONDS = 20.0
+
 
 @dataclass
 class PtySize:

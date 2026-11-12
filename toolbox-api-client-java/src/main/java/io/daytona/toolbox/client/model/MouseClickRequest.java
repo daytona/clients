@@ -20,7 +20,9 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -55,10 +57,20 @@ public class MouseClickRequest {
   @javax.annotation.Nullable
   private String button;
 
+  public static final String SERIALIZED_NAME_CLICKS = "clicks";
+  @SerializedName(SERIALIZED_NAME_CLICKS)
+  @javax.annotation.Nullable
+  private Integer clicks;
+
   public static final String SERIALIZED_NAME_DOUBLE = "double";
   @SerializedName(SERIALIZED_NAME_DOUBLE)
   @javax.annotation.Nullable
   private Boolean _double;
+
+  public static final String SERIALIZED_NAME_MODIFIERS = "modifiers";
+  @SerializedName(SERIALIZED_NAME_MODIFIERS)
+  @javax.annotation.Nullable
+  private List<String> modifiers = new ArrayList<>();
 
   public static final String SERIALIZED_NAME_X = "x";
   @SerializedName(SERIALIZED_NAME_X)
@@ -92,6 +104,25 @@ public class MouseClickRequest {
   }
 
 
+  public MouseClickRequest clicks(@javax.annotation.Nullable Integer clicks) {
+    this.clicks = clicks;
+    return this;
+  }
+
+  /**
+   * Clicks is a pointer so an omitted value is distinguishable from an explicit 0, which must be rejected rather than silently defaulted.
+   * @return clicks
+   */
+  @javax.annotation.Nullable
+  public Integer getClicks() {
+    return clicks;
+  }
+
+  public void setClicks(@javax.annotation.Nullable Integer clicks) {
+    this.clicks = clicks;
+  }
+
+
   public MouseClickRequest _double(@javax.annotation.Nullable Boolean _double) {
     this._double = _double;
     return this;
@@ -108,6 +139,33 @@ public class MouseClickRequest {
 
   public void setDouble(@javax.annotation.Nullable Boolean _double) {
     this._double = _double;
+  }
+
+
+  public MouseClickRequest modifiers(@javax.annotation.Nullable List<String> modifiers) {
+    this.modifiers = modifiers;
+    return this;
+  }
+
+  public MouseClickRequest addModifiersItem(String modifiersItem) {
+    if (this.modifiers == null) {
+      this.modifiers = new ArrayList<>();
+    }
+    this.modifiers.add(modifiersItem);
+    return this;
+  }
+
+  /**
+   * Get modifiers
+   * @return modifiers
+   */
+  @javax.annotation.Nullable
+  public List<String> getModifiers() {
+    return modifiers;
+  }
+
+  public void setModifiers(@javax.annotation.Nullable List<String> modifiers) {
+    this.modifiers = modifiers;
   }
 
 
@@ -204,7 +262,9 @@ public class MouseClickRequest {
     }
     MouseClickRequest mouseClickRequest = (MouseClickRequest) o;
     return Objects.equals(this.button, mouseClickRequest.button) &&
+        Objects.equals(this.clicks, mouseClickRequest.clicks) &&
         Objects.equals(this._double, mouseClickRequest._double) &&
+        Objects.equals(this.modifiers, mouseClickRequest.modifiers) &&
         Objects.equals(this.x, mouseClickRequest.x) &&
         Objects.equals(this.y, mouseClickRequest.y)&&
         Objects.equals(this.additionalProperties, mouseClickRequest.additionalProperties);
@@ -212,7 +272,7 @@ public class MouseClickRequest {
 
   @Override
   public int hashCode() {
-    return Objects.hash(button, _double, x, y, additionalProperties);
+    return Objects.hash(button, clicks, _double, modifiers, x, y, additionalProperties);
   }
 
   @Override
@@ -220,7 +280,9 @@ public class MouseClickRequest {
     StringBuilder sb = new StringBuilder();
     sb.append("class MouseClickRequest {\n");
     sb.append("    button: ").append(toIndentedString(button)).append("\n");
+    sb.append("    clicks: ").append(toIndentedString(clicks)).append("\n");
     sb.append("    _double: ").append(toIndentedString(_double)).append("\n");
+    sb.append("    modifiers: ").append(toIndentedString(modifiers)).append("\n");
     sb.append("    x: ").append(toIndentedString(x)).append("\n");
     sb.append("    y: ").append(toIndentedString(y)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
@@ -242,7 +304,7 @@ public class MouseClickRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("button", "double", "x", "y"));
+    openapiFields = new HashSet<String>(Arrays.asList("button", "clicks", "double", "modifiers", "x", "y"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -263,6 +325,10 @@ public class MouseClickRequest {
         JsonObject jsonObj = jsonElement.getAsJsonObject();
       if ((jsonObj.get("button") != null && !jsonObj.get("button").isJsonNull()) && !jsonObj.get("button").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `button` to be a primitive type in the JSON string but got `%s`", jsonObj.get("button").toString()));
+      }
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("modifiers") != null && !jsonObj.get("modifiers").isJsonNull() && !jsonObj.get("modifiers").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `modifiers` to be an array in the JSON string but got `%s`", jsonObj.get("modifiers").toString()));
       }
   }
 

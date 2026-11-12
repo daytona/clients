@@ -30,6 +30,8 @@ const (
 	DAEMONERRORCODE_CodeGitRemoteRejected DaemonErrorCode = "GIT_REMOTE_REJECTED"
 	DAEMONERRORCODE_CodeFileNotFound DaemonErrorCode = "FILE_NOT_FOUND"
 	DAEMONERRORCODE_CodeFileAccessDenied DaemonErrorCode = "FILE_ACCESS_DENIED"
+	DAEMONERRORCODE_CodeInvalidFilePath DaemonErrorCode = "INVALID_FILE_PATH"
+	DAEMONERRORCODE_CodeFileReadFailed DaemonErrorCode = "FILE_READ_FAILED"
 	DAEMONERRORCODE_CodeLspServerNotInitialized DaemonErrorCode = "LSP_SERVER_NOT_INITIALIZED"
 	DAEMONERRORCODE_CodeProcessExecutionTimeout DaemonErrorCode = "PROCESS_EXECUTION_TIMEOUT"
 	DAEMONERRORCODE_CodeProcessNotFound DaemonErrorCode = "PROCESS_NOT_FOUND"
@@ -64,6 +66,8 @@ var AllowedDaemonErrorCodeEnumValues = []DaemonErrorCode{
 	"GIT_REMOTE_REJECTED",
 	"FILE_NOT_FOUND",
 	"FILE_ACCESS_DENIED",
+	"INVALID_FILE_PATH",
+	"FILE_READ_FAILED",
 	"LSP_SERVER_NOT_INITIALIZED",
 	"PROCESS_EXECUTION_TIMEOUT",
 	"PROCESS_NOT_FOUND",

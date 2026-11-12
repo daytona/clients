@@ -50,6 +50,8 @@ import {
   DaytonaError,
   DaytonaInvalidArgumentError,
   DaytonaNotFoundError,
+  DaytonaQueueTimeoutError,
+  DaytonaSpotEvictedError,
   DaytonaTimeoutError,
 } from './errors/DaytonaError'
 import { CODE_TOOLBOX_LANGUAGE_LABEL } from './Daytona'
@@ -93,6 +95,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {boolean} [spot] - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated to free
  * capacity for on-demand GPU Sandboxes
  * @property {string} [spotEvictedAt] - When the Sandbox was evicted by spot preemption
+ * @property {number | null} [queueTimeout] - Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it. Null when no per-sandbox queue timeout was recorded.
  * @property {GpuType} [gpuType] - The GPU type assigned to the Sandbox
  * @property {number} memory - Amount of memory allocated to the Sandbox in GiB
  * @property {number} disk - Amount of disk space allocated to the Sandbox in GiB
@@ -108,6 +111,7 @@ function withEvents<This, Args extends unknown[], Return>(
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes
  * @property {string} [autoDestroyAt] - When the Sandbox will be automatically destroyed (only set when a TTL is configured)
+ * @property {string} [queueTimedOutAt] - When the Sandbox was destroyed by the API after exceeding its queue timeout
  * @property {Array<SandboxVolume>} [volumes] - Volumes attached to the Sandbox (not returned by
  * list results; call `refreshData()` on each item to populate)
  * @property {BuildInfo} [buildInfo] - Build information for the Sandbox if it was created from dynamic build
@@ -155,6 +159,7 @@ export class Sandbox {
   public gpu!: number
   public spot?: boolean
   public spotEvictedAt?: string
+  public queueTimeout?: number | null
   public gpuType?: GpuType
   public memory!: number
   public disk!: number
@@ -169,6 +174,7 @@ export class Sandbox {
   public autoArchiveInterval?: number
   public autoDeleteInterval?: number
   public autoDestroyAt?: string
+  public queueTimedOutAt?: string
   public volumes?: Array<SandboxVolume>
   public buildInfo?: BuildInfo
   public createdAt?: string
@@ -727,6 +733,11 @@ export class Sandbox {
       return
     }
 
+    const destroyedLifecycleError = this.getDestroyedLifecycleError(new Set([SandboxState.STARTED]))
+    if (destroyedLifecycleError) {
+      throw destroyedLifecycleError
+    }
+
     return this.waitForState(
       [SandboxState.STARTED],
       [SandboxState.ERROR, SandboxState.BUILD_FAILED],
@@ -831,6 +842,27 @@ export class Sandbox {
 
     await this.sandboxApi.setAutostopInterval(this.id, interval)
     this.autoStopInterval = interval
+  }
+
+  /**
+   * Sets whether the Sandbox's preview URLs are publicly accessible.
+   *
+   * When public, preview URLs (see `getPreviewLink`) can be opened without a preview token or API key.
+   * When private, every preview request must authenticate.
+   *
+   * @param {boolean} isPublic - `true` to make preview URLs public, `false` to make them private.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await sandbox.setPublic(true);
+   * const preview = await sandbox.getPreviewLink(3000);
+   * // preview.url can now be opened without credentials
+   */
+  @WithInstrumentation()
+  @withEvents
+  public async setPublic(isPublic: boolean): Promise<void> {
+    await this.sandboxApi.updatePublicStatus(this.id, isPublic)
+    this.public = isPublic
   }
 
   /**
@@ -1037,6 +1069,12 @@ export class Sandbox {
    * it will be opened automatically. For private sandboxes, a token is included to grant access
    * to the URL.
    *
+   * For a private sandbox, requests to `url` must authenticate, otherwise they are answered with
+   * `401 Unauthorized`. Send the returned `token` in the `X-Daytona-Preview-Token` header, or send
+   * your Daytona API key as `Authorization: Bearer <api key>`. To get a URL that works without extra
+   * headers (for example to open it in a browser or share it), use `getSignedPreviewUrl` instead.
+   * Public sandboxes need no credentials.
+   *
    * @param {number} port - The port to open the preview link on.
    * @returns {PortPreviewUrl} The response object for the preview link, which includes the `url`
    * and the `token` (to access private sandboxes).
@@ -1045,6 +1083,11 @@ export class Sandbox {
    * const previewLink = await sandbox.getPreviewLink(3000);
    * console.log(`Preview URL: ${previewLink.url}`);
    * console.log(`Token: ${previewLink.token}`);
+   *
+   * // Fetch the private preview from outside the sandbox
+   * const response = await fetch(previewLink.url, {
+   *   headers: { 'X-Daytona-Preview-Token': previewLink.token },
+   * });
    */
   @WithInstrumentation()
   @withEvents
@@ -1127,9 +1170,18 @@ export class Sandbox {
   /**
    * Retrieves a signed preview url for the sandbox at the specified port.
    *
+   * The access token is embedded in the returned URL, so it can be used without any headers, for
+   * example in a browser or by another service. The URL stops working when it expires (after 60
+   * seconds unless `expiresInSeconds` is set) or when it is expired with `expireSignedPreviewUrl`.
+   *
    * @param {number} port - The port to open the preview link on.
-   * @param {number} [expiresInSeconds] - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds.
+   * @param {number} [expiresInSeconds] - The number of seconds the signed preview url will be valid for. Defaults to 60 seconds;
+   * set a longer value for links that need to stay usable, e.g. `3600` for one hour.
    * @returns {Promise<SignedPortPreviewUrl>} The response object for the signed preview url.
+   *
+   * @example
+   * const signed = await sandbox.getSignedPreviewUrl(3000, 3600);
+   * console.log(`Preview URL (valid for one hour): ${signed.url}`);
    */
   @withEvents
   public async getSignedPreviewUrl(port: number, expiresInSeconds?: number): Promise<SignedPortPreviewUrl> {
@@ -1476,6 +1528,7 @@ export class Sandbox {
     this.gpu = sandboxDto.gpu
     this.spot = sandboxDto.spot ?? false
     this.spotEvictedAt = sandboxDto.spotEvictedAt
+    this.queueTimeout = sandboxDto.queueTimeout
     this.gpuType = sandboxDto.gpuType
     this.memory = sandboxDto.memory
     this.disk = sandboxDto.disk
@@ -1491,6 +1544,7 @@ export class Sandbox {
     this.autoArchiveInterval = sandboxDto.autoArchiveInterval
     this.autoDeleteInterval = sandboxDto.autoDeleteInterval
     this.autoDestroyAt = sandboxDto.autoDestroyAt
+    this.queueTimedOutAt = sandboxDto.queueTimedOutAt
     this.createdAt = sandboxDto.createdAt
     this.updatedAt = sandboxDto.updatedAt
     this.lastActivityAt = sandboxDto.lastActivityAt
@@ -1575,6 +1629,12 @@ export class Sandbox {
       return true
     }
 
+    const destroyedLifecycleError = this.getDestroyedLifecycleError(waiter.targetStates)
+    if (destroyedLifecycleError) {
+      waiter.reject(destroyedLifecycleError)
+      return true
+    }
+
     if (waiter.errorStates.has(state)) {
       const errorMessageFn = this.stateWaiterErrorMessageFns.get(waiter)
       waiter.reject(
@@ -1584,6 +1644,26 @@ export class Sandbox {
     }
 
     return false
+  }
+
+  private getDestroyedLifecycleError(targetStates: Set<SandboxState>): DaytonaError | undefined {
+    if (this.state !== SandboxState.DESTROYED || targetStates.has(SandboxState.DESTROYED)) {
+      return undefined
+    }
+
+    if (this.queueTimedOutAt) {
+      const waited =
+        this.queueTimeout == null ? '' : ` ${this.queueTimeout} ${this.queueTimeout === 1 ? 'minute' : 'minutes'}`
+      return new DaytonaQueueTimeoutError(
+        `Sandbox ${this.id} was destroyed after waiting${waited} for a runner (queue timed out at ${this.queueTimedOutAt})`,
+      )
+    }
+
+    if (this.spotEvictedAt) {
+      return new DaytonaSpotEvictedError(`Sandbox ${this.id} was evicted by spot preemption at ${this.spotEvictedAt}`)
+    }
+
+    return undefined
   }
 
   private removeStateWaiter(waiter: (typeof this.stateWaiters)[number]): void {

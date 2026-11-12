@@ -4,9 +4,14 @@
 package errors_test
 
 import (
+	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 
 	sdkerrors "github.com/daytona/clients/sdk-go/pkg/errors"
@@ -56,6 +61,41 @@ func TestNewDaytonaTimeoutError_HasRequestTimeoutStatus(t *testing.T) {
 	}
 }
 
+func TestNewQueueTimeoutError_MatchesQueueTimeoutAndTimeoutSentinels(t *testing.T) {
+	err := sdkerrors.NewQueueTimeoutError("queue timed out")
+	if err.StatusCode != http.StatusRequestTimeout {
+		t.Fatalf("StatusCode = %d, want %d", err.StatusCode, http.StatusRequestTimeout)
+	}
+	if err.Source != sdkerrors.SourceSDK {
+		t.Fatalf("Source = %q, want %q", err.Source, sdkerrors.SourceSDK)
+	}
+	if err.Code != "SANDBOX_QUEUE_TIMEOUT" {
+		t.Fatalf("Code = %q", err.Code)
+	}
+	if !stderrors.Is(err, sdkerrors.ErrQueueTimeout) {
+		t.Fatalf("errors.Is(err, ErrQueueTimeout) = false")
+	}
+	if !stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) = false")
+	}
+}
+
+func TestNewSpotEvictedError_MatchesSpotEvictedSentinelOnly(t *testing.T) {
+	err := sdkerrors.NewSpotEvictedError("spot evicted")
+	if err.Source != sdkerrors.SourceSDK {
+		t.Fatalf("Source = %q, want %q", err.Source, sdkerrors.SourceSDK)
+	}
+	if err.Code != "SANDBOX_SPOT_EVICTED" {
+		t.Fatalf("Code = %q", err.Code)
+	}
+	if !stderrors.Is(err, sdkerrors.ErrSpotEvicted) {
+		t.Fatalf("errors.Is(err, ErrSpotEvicted) = false")
+	}
+	if stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) should be false")
+	}
+}
+
 func TestNewDaytonaConnectionError_NoStatus(t *testing.T) {
 	err := sdkerrors.NewDaytonaConnectionError("no route")
 	if err.StatusCode != 0 {
@@ -86,6 +126,25 @@ func TestErrorsIs_GatewayTimeoutSentinel(t *testing.T) {
 	}
 	if stderrors.Is(err, sdkerrors.ErrTimeout) {
 		t.Fatalf("errors.Is(err, ErrTimeout) should be false for 504 (408 sentinel)")
+	}
+}
+
+func TestErrorsIs_SDKQueueTimeoutDomainInheritsTimeoutStatus(t *testing.T) {
+	err := &sdkerrors.DaytonaError{
+		Message:    "queue timed out",
+		StatusCode: http.StatusRequestTimeout,
+		Source:     sdkerrors.SourceSDK,
+		Code:       "SANDBOX_QUEUE_TIMEOUT",
+	}
+
+	if !stderrors.Is(err, sdkerrors.ErrQueueTimeout) {
+		t.Fatalf("errors.Is(err, ErrQueueTimeout) = false")
+	}
+	if !stderrors.Is(err, sdkerrors.ErrTimeout) {
+		t.Fatalf("errors.Is(err, ErrTimeout) = false")
+	}
+	if stderrors.Is(err, sdkerrors.ErrSpotEvicted) {
+		t.Fatalf("errors.Is(err, ErrSpotEvicted) = true; want false")
 	}
 }
 
@@ -287,5 +346,80 @@ func TestSentinels_HaveDescriptiveErrorString(t *testing.T) {
 	got := fmt.Sprintf("%v", sdkerrors.ErrNotFound)
 	if got == "" {
 		t.Fatalf("ErrNotFound has empty Error()")
+	}
+}
+
+// ----- Cause preservation (Unwrap) -----
+
+func TestDaytonaError_UnwrapExposesCause(t *testing.T) {
+	cause := fmt.Errorf("read tcp: %w", io.ErrUnexpectedEOF)
+	err := sdkerrors.WrapDaytonaError(cause, "Failed to download file stream: "+cause.Error(), 0, nil)
+
+	if err.Error() != "Daytona error: Failed to download file stream: read tcp: unexpected EOF" {
+		t.Fatalf("Error() = %q", err.Error())
+	}
+	if !stderrors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("errors.Is should see the cause through *DaytonaError")
+	}
+	if stderrors.Unwrap(err) != cause {
+		t.Fatalf("Unwrap() = %v, want the original cause", stderrors.Unwrap(err))
+	}
+	var de *sdkerrors.DaytonaError
+	if !stderrors.As(err, &de) || de != err {
+		t.Fatalf("errors.As(*DaytonaError) should still return the outer error")
+	}
+}
+
+func TestDaytonaError_UnwrapNilWithoutCause(t *testing.T) {
+	if stderrors.Unwrap(sdkerrors.NewDaytonaError("boom", 0, nil)) != nil {
+		t.Fatalf("an error without a cause should unwrap to nil")
+	}
+}
+
+func TestWrapDaytonaError_KeepsSentinelMatching(t *testing.T) {
+	err := sdkerrors.WrapDaytonaError(io.EOF, "gone", http.StatusNotFound, nil)
+	if !stderrors.Is(err, sdkerrors.ErrNotFound) {
+		t.Fatalf("status sentinel should still match a wrapped error")
+	}
+	if !stderrors.Is(err, io.EOF) {
+		t.Fatalf("cause should match too")
+	}
+}
+
+func TestConvertErrors_TransportFailureKeepsCause(t *testing.T) {
+	cause := &url.Error{Op: "Get", URL: "http://toolbox.test/files", Err: context.DeadlineExceeded}
+	for name, convert := range map[string]func(error, *http.Response) error{
+		"api":     sdkerrors.ConvertAPIError,
+		"toolbox": sdkerrors.ConvertToolboxError,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := convert(cause, nil)
+
+			var de *sdkerrors.DaytonaError
+			if !stderrors.As(err, &de) {
+				t.Fatalf("want *DaytonaError, got %T", err)
+			}
+			if de.Message != cause.Error() || de.StatusCode != 0 {
+				t.Fatalf("message/status changed: %q / %d", de.Message, de.StatusCode)
+			}
+			var urlErr *url.Error
+			if !stderrors.As(err, &urlErr) || urlErr != cause {
+				t.Fatalf("errors.As(*url.Error) should reach the original error")
+			}
+			if !stderrors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("errors.Is(context.DeadlineExceeded) should match through the chain")
+			}
+		})
+	}
+}
+
+func TestDaytonaError_CauseIsNotSerialized(t *testing.T) {
+	err := sdkerrors.WrapDaytonaError(io.EOF, "boom", 0, nil)
+	b, jerr := json.Marshal(err)
+	if jerr != nil {
+		t.Fatalf("marshal: %v", jerr)
+	}
+	if strings.Contains(string(b), "Err") {
+		t.Fatalf("cause leaked into JSON: %s", b)
 	}
 }

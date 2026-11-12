@@ -18,6 +18,7 @@ export interface MouseDragRequest {
     'button'?: string;
     'endX'?: number;
     'endY'?: number;
+    'modifiers'?: Array<string>;
     'startX'?: number;
     'startY'?: number;
 }

@@ -7,8 +7,8 @@ import { trace, context as otelContext, metrics, SpanStatusCode } from '@opentel
 import type { Histogram } from '@opentelemetry/api'
 
 // Lazy initialization to ensure SDK is started before getting tracer/meter
-const getTracer = () => trace.getTracer('')
-const getMeter = () => metrics.getMeter('')
+const getTracer = () => trace.getTracer('daytona-typescript-sdk')
+const getMeter = () => metrics.getMeter('daytona-typescript-sdk')
 
 const executionHistograms = new Map<string, Histogram>()
 

@@ -13,6 +13,9 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { CliOidcConfig } from './cli-oidc-config';
 
 export interface OidcConfig {
     /**
@@ -35,6 +38,10 @@ export interface OidcConfig {
      * WorkOS \"Authentication API\" custom domain the dashboard\'s client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
      */
     'authApiHostname'?: string;
+    /**
+     * WorkOS application the Daytona CLI logs in through, configured apart from the dashboard\'s so CLI sessions can have their own lifetime. Present only when the provider is workos and a CLI application is configured; absent means the CLI uses the issuer and client ID above.
+     */
+    'cli'?: CliOidcConfig;
 }
 
 export const OidcConfigProviderEnum = {

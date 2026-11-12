@@ -207,7 +207,7 @@ type SandboxAPI interface {
 	/*
 	GetSandbox Get sandbox details
 
-	Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+	Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param sandboxIdOrName ID or name of the sandbox
@@ -2177,7 +2177,7 @@ func (r SandboxAPIGetSandboxRequest) Execute() (*Sandbox, *http.Response, error)
 /*
 GetSandbox Get sandbox details
 
-Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param sandboxIdOrName ID or name of the sandbox

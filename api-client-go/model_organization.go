@@ -56,6 +56,8 @@ type Organization struct {
 	MaxSecretsPerSandbox float32 `json:"maxSecretsPerSandbox"`
 	// Time in minutes before an unused snapshot is deactivated
 	SnapshotDeactivationTimeoutMinutes float32 `json:"snapshotDeactivationTimeoutMinutes"`
+	// Default minutes to wait for runner assignment before cancelling sandbox creation. Applied when sandbox create omits queueTimeout. Null means no default.
+	DefaultQueueTimeout NullableInt32 `json:"defaultQueueTimeout"`
 	// Sandbox default network block all
 	SandboxLimitedNetworkEgress bool `json:"sandboxLimitedNetworkEgress"`
 	// Whether the proxy shows the preview URL warning page for this organization
@@ -68,6 +70,12 @@ type Organization struct {
 	DefaultRegionId *string `json:"defaultRegionId,omitempty"`
 	// ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)
 	WorkosOrgId *string `json:"workosOrgId,omitempty"`
+	// Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)
+	DirectorySyncStatus *DirectorySyncStatus `json:"directorySyncStatus,omitempty"`
+	// When the directory sync status last changed
+	DirectorySyncStatusChangedAt *time.Time `json:"directorySyncStatusChangedAt,omitempty"`
+	// When the directory bearer token was revoked; absent while a valid token exists. A revoked token stops provisioning even if the directory is still active.
+	DirectorySyncTokenRevokedAt *time.Time `json:"directorySyncTokenRevokedAt,omitempty"`
 	// Authenticated rate limit per minute
 	AuthenticatedRateLimit NullableFloat32 `json:"authenticatedRateLimit"`
 	// Sandbox create rate limit per minute
@@ -93,7 +101,7 @@ type _Organization Organization
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewOrganization(id string, name string, createdBy string, personal bool, createdAt time.Time, updatedAt time.Time, suspended bool, suspendedAt time.Time, suspensionReason string, suspendedUntil time.Time, suspensionCleanupGracePeriodHours float32, maxCpuPerSandbox float32, maxMemoryPerSandbox float32, maxDiskPerSandbox float32, secretQuota float32, maxSecretsPerSandbox float32, snapshotDeactivationTimeoutMinutes float32, sandboxLimitedNetworkEgress bool, previewWarningEnabled bool, ssoEnabled bool, scimEnabled bool, authenticatedRateLimit NullableFloat32, sandboxCreateRateLimit NullableFloat32, sandboxLifecycleRateLimit NullableFloat32, experimentalConfig map[string]interface{}, otelConfig NullableOtelConfig, authenticatedRateLimitTtlSeconds NullableFloat32, sandboxCreateRateLimitTtlSeconds NullableFloat32, sandboxLifecycleRateLimitTtlSeconds NullableFloat32) *Organization {
+func NewOrganization(id string, name string, createdBy string, personal bool, createdAt time.Time, updatedAt time.Time, suspended bool, suspendedAt time.Time, suspensionReason string, suspendedUntil time.Time, suspensionCleanupGracePeriodHours float32, maxCpuPerSandbox float32, maxMemoryPerSandbox float32, maxDiskPerSandbox float32, secretQuota float32, maxSecretsPerSandbox float32, snapshotDeactivationTimeoutMinutes float32, defaultQueueTimeout NullableInt32, sandboxLimitedNetworkEgress bool, previewWarningEnabled bool, ssoEnabled bool, scimEnabled bool, authenticatedRateLimit NullableFloat32, sandboxCreateRateLimit NullableFloat32, sandboxLifecycleRateLimit NullableFloat32, experimentalConfig map[string]interface{}, otelConfig NullableOtelConfig, authenticatedRateLimitTtlSeconds NullableFloat32, sandboxCreateRateLimitTtlSeconds NullableFloat32, sandboxLifecycleRateLimitTtlSeconds NullableFloat32) *Organization {
 	this := Organization{}
 	this.Id = id
 	this.Name = name
@@ -112,6 +120,7 @@ func NewOrganization(id string, name string, createdBy string, personal bool, cr
 	this.SecretQuota = secretQuota
 	this.MaxSecretsPerSandbox = maxSecretsPerSandbox
 	this.SnapshotDeactivationTimeoutMinutes = snapshotDeactivationTimeoutMinutes
+	this.DefaultQueueTimeout = defaultQueueTimeout
 	this.SandboxLimitedNetworkEgress = sandboxLimitedNetworkEgress
 	this.PreviewWarningEnabled = previewWarningEnabled
 	this.SsoEnabled = ssoEnabled
@@ -545,6 +554,32 @@ func (o *Organization) SetSnapshotDeactivationTimeoutMinutes(v float32) {
 	o.SnapshotDeactivationTimeoutMinutes = v
 }
 
+// GetDefaultQueueTimeout returns the DefaultQueueTimeout field value
+// If the value is explicit nil, the zero value for int32 will be returned
+func (o *Organization) GetDefaultQueueTimeout() int32 {
+	if o == nil || o.DefaultQueueTimeout.Get() == nil {
+		var ret int32
+		return ret
+	}
+
+	return *o.DefaultQueueTimeout.Get()
+}
+
+// GetDefaultQueueTimeoutOk returns a tuple with the DefaultQueueTimeout field value
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Organization) GetDefaultQueueTimeoutOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.DefaultQueueTimeout.Get(), o.DefaultQueueTimeout.IsSet()
+}
+
+// SetDefaultQueueTimeout sets field value
+func (o *Organization) SetDefaultQueueTimeout(v int32) {
+	o.DefaultQueueTimeout.Set(&v)
+}
+
 // GetSandboxLimitedNetworkEgress returns the SandboxLimitedNetworkEgress field value
 func (o *Organization) GetSandboxLimitedNetworkEgress() bool {
 	if o == nil {
@@ -703,6 +738,102 @@ func (o *Organization) HasWorkosOrgId() bool {
 // SetWorkosOrgId gets a reference to the given string and assigns it to the WorkosOrgId field.
 func (o *Organization) SetWorkosOrgId(v string) {
 	o.WorkosOrgId = &v
+}
+
+// GetDirectorySyncStatus returns the DirectorySyncStatus field value if set, zero value otherwise.
+func (o *Organization) GetDirectorySyncStatus() DirectorySyncStatus {
+	if o == nil || IsNil(o.DirectorySyncStatus) {
+		var ret DirectorySyncStatus
+		return ret
+	}
+	return *o.DirectorySyncStatus
+}
+
+// GetDirectorySyncStatusOk returns a tuple with the DirectorySyncStatus field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Organization) GetDirectorySyncStatusOk() (*DirectorySyncStatus, bool) {
+	if o == nil || IsNil(o.DirectorySyncStatus) {
+		return nil, false
+	}
+	return o.DirectorySyncStatus, true
+}
+
+// HasDirectorySyncStatus returns a boolean if a field has been set.
+func (o *Organization) HasDirectorySyncStatus() bool {
+	if o != nil && !IsNil(o.DirectorySyncStatus) {
+		return true
+	}
+
+	return false
+}
+
+// SetDirectorySyncStatus gets a reference to the given DirectorySyncStatus and assigns it to the DirectorySyncStatus field.
+func (o *Organization) SetDirectorySyncStatus(v DirectorySyncStatus) {
+	o.DirectorySyncStatus = &v
+}
+
+// GetDirectorySyncStatusChangedAt returns the DirectorySyncStatusChangedAt field value if set, zero value otherwise.
+func (o *Organization) GetDirectorySyncStatusChangedAt() time.Time {
+	if o == nil || IsNil(o.DirectorySyncStatusChangedAt) {
+		var ret time.Time
+		return ret
+	}
+	return *o.DirectorySyncStatusChangedAt
+}
+
+// GetDirectorySyncStatusChangedAtOk returns a tuple with the DirectorySyncStatusChangedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Organization) GetDirectorySyncStatusChangedAtOk() (*time.Time, bool) {
+	if o == nil || IsNil(o.DirectorySyncStatusChangedAt) {
+		return nil, false
+	}
+	return o.DirectorySyncStatusChangedAt, true
+}
+
+// HasDirectorySyncStatusChangedAt returns a boolean if a field has been set.
+func (o *Organization) HasDirectorySyncStatusChangedAt() bool {
+	if o != nil && !IsNil(o.DirectorySyncStatusChangedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetDirectorySyncStatusChangedAt gets a reference to the given time.Time and assigns it to the DirectorySyncStatusChangedAt field.
+func (o *Organization) SetDirectorySyncStatusChangedAt(v time.Time) {
+	o.DirectorySyncStatusChangedAt = &v
+}
+
+// GetDirectorySyncTokenRevokedAt returns the DirectorySyncTokenRevokedAt field value if set, zero value otherwise.
+func (o *Organization) GetDirectorySyncTokenRevokedAt() time.Time {
+	if o == nil || IsNil(o.DirectorySyncTokenRevokedAt) {
+		var ret time.Time
+		return ret
+	}
+	return *o.DirectorySyncTokenRevokedAt
+}
+
+// GetDirectorySyncTokenRevokedAtOk returns a tuple with the DirectorySyncTokenRevokedAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Organization) GetDirectorySyncTokenRevokedAtOk() (*time.Time, bool) {
+	if o == nil || IsNil(o.DirectorySyncTokenRevokedAt) {
+		return nil, false
+	}
+	return o.DirectorySyncTokenRevokedAt, true
+}
+
+// HasDirectorySyncTokenRevokedAt returns a boolean if a field has been set.
+func (o *Organization) HasDirectorySyncTokenRevokedAt() bool {
+	if o != nil && !IsNil(o.DirectorySyncTokenRevokedAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetDirectorySyncTokenRevokedAt gets a reference to the given time.Time and assigns it to the DirectorySyncTokenRevokedAt field.
+func (o *Organization) SetDirectorySyncTokenRevokedAt(v time.Time) {
+	o.DirectorySyncTokenRevokedAt = &v
 }
 
 // GetAuthenticatedRateLimit returns the AuthenticatedRateLimit field value
@@ -938,6 +1069,7 @@ func (o Organization) ToMap() (map[string]interface{}, error) {
 	toSerialize["secretQuota"] = o.SecretQuota
 	toSerialize["maxSecretsPerSandbox"] = o.MaxSecretsPerSandbox
 	toSerialize["snapshotDeactivationTimeoutMinutes"] = o.SnapshotDeactivationTimeoutMinutes
+	toSerialize["defaultQueueTimeout"] = o.DefaultQueueTimeout.Get()
 	toSerialize["sandboxLimitedNetworkEgress"] = o.SandboxLimitedNetworkEgress
 	toSerialize["previewWarningEnabled"] = o.PreviewWarningEnabled
 	toSerialize["ssoEnabled"] = o.SsoEnabled
@@ -947,6 +1079,15 @@ func (o Organization) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.WorkosOrgId) {
 		toSerialize["workosOrgId"] = o.WorkosOrgId
+	}
+	if !IsNil(o.DirectorySyncStatus) {
+		toSerialize["directorySyncStatus"] = o.DirectorySyncStatus
+	}
+	if !IsNil(o.DirectorySyncStatusChangedAt) {
+		toSerialize["directorySyncStatusChangedAt"] = o.DirectorySyncStatusChangedAt
+	}
+	if !IsNil(o.DirectorySyncTokenRevokedAt) {
+		toSerialize["directorySyncTokenRevokedAt"] = o.DirectorySyncTokenRevokedAt
 	}
 	toSerialize["authenticatedRateLimit"] = o.AuthenticatedRateLimit.Get()
 	toSerialize["sandboxCreateRateLimit"] = o.SandboxCreateRateLimit.Get()
@@ -986,6 +1127,7 @@ func (o *Organization) UnmarshalJSON(data []byte) (err error) {
 		"secretQuota",
 		"maxSecretsPerSandbox",
 		"snapshotDeactivationTimeoutMinutes",
+		"defaultQueueTimeout",
 		"sandboxLimitedNetworkEgress",
 		"previewWarningEnabled",
 		"ssoEnabled",
@@ -1044,12 +1186,16 @@ func (o *Organization) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "secretQuota")
 		delete(additionalProperties, "maxSecretsPerSandbox")
 		delete(additionalProperties, "snapshotDeactivationTimeoutMinutes")
+		delete(additionalProperties, "defaultQueueTimeout")
 		delete(additionalProperties, "sandboxLimitedNetworkEgress")
 		delete(additionalProperties, "previewWarningEnabled")
 		delete(additionalProperties, "ssoEnabled")
 		delete(additionalProperties, "scimEnabled")
 		delete(additionalProperties, "defaultRegionId")
 		delete(additionalProperties, "workosOrgId")
+		delete(additionalProperties, "directorySyncStatus")
+		delete(additionalProperties, "directorySyncStatusChangedAt")
+		delete(additionalProperties, "directorySyncTokenRevokedAt")
 		delete(additionalProperties, "authenticatedRateLimit")
 		delete(additionalProperties, "sandboxCreateRateLimit")
 		delete(additionalProperties, "sandboxLifecycleRateLimit")

@@ -6,7 +6,7 @@ This document contains information related to preparing changes for a pull reque
 1. A GitHub Issue with a good description associated with the PR
 1. One feature/change per PR
 1. One commit per PR
-1. PR rebased on main (git rebase, not git pull)
+1. PR rebased on its target branch, `release/v0` for 0.x (git rebase, not git pull)
 1. Good descriptive commit message, with link to issue
 1. No changes to code not directly related to your PR
 1. Includes functional/integration test

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 
@@ -144,6 +145,21 @@ class TestImageRunCommands:
         assert "RUN" in df
         assert "bash" in df
 
+    def test_list_command_shell_quoting(self):
+        img = Image.base("ubuntu:22.04").run_commands(
+            ["sh", "-c", 'say "hi"'],
+            ["sh", "-c", "say 'hi'"],
+            ["echo", "$HOME"],
+            ["echo", "a\\b"],
+            ["echo", ""],
+        )
+        lines = [line for line in img.dockerfile().splitlines() if line.startswith("RUN ")]
+        assert lines[0] == 'RUN "sh" "-c" "say \\"hi\\""'
+        assert lines[1] == 'RUN "sh" "-c" "say \'hi\'"'
+        assert lines[2] == 'RUN "echo" "$HOME"'
+        assert lines[3] == 'RUN "echo" "a\\b"'
+        assert lines[4] == 'RUN "echo" ""'
+
 
 class TestImageEnv:
     def test_set_env_vars(self):
@@ -172,6 +188,12 @@ class TestImageEntrypoint:
         assert "python" in df
         assert "app.py" in df
 
+    def test_json_encoding(self):
+        img = Image.base("python:3.12").entrypoint(["python", 'print("hi")', "a\\b", ""])
+        payload = img.dockerfile().split("ENTRYPOINT ", 1)[1].strip()
+        assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
+        assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
+
 
 class TestImageCmd:
     def test_set_cmd(self):
@@ -183,6 +205,18 @@ class TestImageCmd:
         df = img.dockerfile()
         assert "CMD" in df
         assert "python" in df
+
+    def test_json_encoding(self):
+        img = Image.base("python:3.12").cmd(["python", 'print("hi")', "a\\b", ""])
+        payload = img.dockerfile().split("CMD ", 1)[1].strip()
+        assert json.loads(payload) == ["python", 'print("hi")', "a\\b", ""]
+        assert payload == '["python", "print(\\"hi\\")", "a\\\\b", ""]'
+
+    def test_keeps_hand_escaped_quotes(self):
+        img = Image.base("python:3.12").cmd(["python", "-c", 'print(\\"hi\\")', "café", "a && b"])
+        line = next(item for item in img.dockerfile().splitlines() if item.startswith("CMD "))
+        assert line == 'CMD ["python", "-c", "print(\\"hi\\")", "café", "a && b"]'
+        assert json.loads(line.removeprefix("CMD ")) == ["python", "-c", 'print("hi")', "café", "a && b"]
 
 
 class TestImageFromDockerfile:
@@ -197,6 +231,37 @@ class TestImageFromDockerfile:
                 assert "pip install flask" in df
             finally:
                 os.unlink(f.name)
+
+    def test_from_dockerfile_applies_dockerignore_to_context(self, tmp_path):
+        (tmp_path / ".venv/bin").mkdir(parents=True)
+        (tmp_path / ".venv/bin/python3").write_text("host interpreter")
+        (tmp_path / "app.py").write_text("print('hello')")
+        (tmp_path / ".dockerignore").write_text(".venv/\n")
+        dockerfile = tmp_path / "Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY . /app\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert img._context_list[0].dockerignore_path == str(tmp_path / ".dockerignore")
+
+    def test_from_dockerfile_prefers_dockerfile_specific_dockerignore(self, tmp_path):
+        (tmp_path / ".dockerignore").write_text(".venv\n")
+        (tmp_path / "app.Dockerfile.dockerignore").write_text("*.log\n")
+        dockerfile = tmp_path / "app.Dockerfile"
+        dockerfile.write_text("FROM python:3.12\nCOPY . /app\n")
+
+        img = Image.from_dockerfile(dockerfile)
+
+        assert img._context_list[0].dockerignore_path == str(tmp_path / "app.Dockerfile.dockerignore")
+
+    def test_dockerfile_commands_apply_context_dir_dockerignore(self, tmp_path):
+        (tmp_path / "app.py").write_text("print('hello')")
+
+        with_context = Image.base("python:3.12").dockerfile_commands(["COPY app.py /app/"], context_dir=tmp_path)
+        without_context = Image.base("python:3.12").add_local_file(tmp_path / "app.py", "/app/app.py")
+
+        assert with_context._context_list[0].dockerignore_path == str(tmp_path / ".dockerignore")
+        assert without_context._context_list[0].dockerignore_path is None
 
     def test_missing_dockerfile_raises(self):
         with pytest.raises(DaytonaError, match="does not exist"):
@@ -414,6 +479,25 @@ class TestImageChaining:
 
 
 class TestImageAddLocal:
+    @pytest.mark.parametrize("remote_path", ["/app/files with spaces", '/app/files with "quotes"'])
+    @pytest.mark.parametrize("is_directory", [False, True])
+    def test_add_local_preserves_copy_paths(self, tmp_path, remote_path, is_directory):
+        local_path = tmp_path / "files with spaces"
+        archive_path = str(local_path.relative_to(local_path.anchor))
+        img = Image.base("python:3.12")
+        if is_directory:
+            local_path.mkdir()
+            img.add_local_dir(local_path, remote_path)
+        else:
+            local_path.write_text("test content")
+            img.add_local_file(local_path, remote_path)
+
+        copy_line = img.dockerfile().splitlines()[-1]
+        assert copy_line.startswith("COPY ")
+        assert json.loads(copy_line.removeprefix("COPY ")) == [archive_path, remote_path]
+        assert img._context_list[0].source_path == str(local_path)
+        assert img._context_list[0].archive_path == archive_path
+
     def test_add_local_file(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("test content")

@@ -42,7 +42,7 @@ class LspApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def completions(
         self,
         request: Annotated[LspCompletionParams, Field(description="Completion request")],
@@ -110,7 +110,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def completions_with_http_info(
         self,
         request: Annotated[LspCompletionParams, Field(description="Completion request")],
@@ -178,7 +178,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def completions_without_preload_content(
         self,
         request: Annotated[LspCompletionParams, Field(description="Completion request")],
@@ -318,7 +318,7 @@ class LspApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def did_close(
         self,
         request: Annotated[LspDocumentRequest, Field(description="Document request")],
@@ -386,7 +386,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def did_close_with_http_info(
         self,
         request: Annotated[LspDocumentRequest, Field(description="Document request")],
@@ -454,7 +454,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def did_close_without_preload_content(
         self,
         request: Annotated[LspDocumentRequest, Field(description="Document request")],
@@ -594,7 +594,7 @@ class LspApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def did_open(
         self,
         request: Annotated[LspDocumentRequest, Field(description="Document request")],
@@ -662,7 +662,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def did_open_with_http_info(
         self,
         request: Annotated[LspDocumentRequest, Field(description="Document request")],
@@ -730,7 +730,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def did_open_without_preload_content(
         self,
         request: Annotated[LspDocumentRequest, Field(description="Document request")],
@@ -870,7 +870,7 @@ class LspApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def document_symbols(
         self,
         language_id: Annotated[StrictStr, Field(description="Language ID (e.g., python, typescript)")],
@@ -946,7 +946,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def document_symbols_with_http_info(
         self,
         language_id: Annotated[StrictStr, Field(description="Language ID (e.g., python, typescript)")],
@@ -1022,7 +1022,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def document_symbols_without_preload_content(
         self,
         language_id: Annotated[StrictStr, Field(description="Language ID (e.g., python, typescript)")],
@@ -1169,7 +1169,7 @@ class LspApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start(
         self,
         request: Annotated[LspServerRequest, Field(description="LSP server request")],
@@ -1238,7 +1238,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_with_http_info(
         self,
         request: Annotated[LspServerRequest, Field(description="LSP server request")],
@@ -1307,7 +1307,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def start_without_preload_content(
         self,
         request: Annotated[LspServerRequest, Field(description="LSP server request")],
@@ -1448,7 +1448,7 @@ class LspApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop(
         self,
         request: Annotated[LspServerRequest, Field(description="LSP server request")],
@@ -1517,7 +1517,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_with_http_info(
         self,
         request: Annotated[LspServerRequest, Field(description="LSP server request")],
@@ -1586,7 +1586,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def stop_without_preload_content(
         self,
         request: Annotated[LspServerRequest, Field(description="LSP server request")],
@@ -1727,7 +1727,7 @@ class LspApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def workspace_symbols(
         self,
         query: Annotated[StrictStr, Field(description="Search query")],
@@ -1803,7 +1803,7 @@ class LspApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def workspace_symbols_with_http_info(
         self,
         query: Annotated[StrictStr, Field(description="Search query")],
@@ -1879,7 +1879,7 @@ class LspApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def workspace_symbols_without_preload_content(
         self,
         query: Annotated[StrictStr, Field(description="Search query")],

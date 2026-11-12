@@ -119,6 +119,23 @@ func NewProcessService(toolboxClient *toolbox.APIClient, otel *otelState, langua
 // The command is executed in a shell context. For complex commands, consider
 // using proper shell escaping or wrapping in a script.
 //
+// The command is run by the first available of zsh, bash or sh in the sandbox,
+// which is zsh in the default snapshots. Quote arguments that contain glob
+// characters, for example `pip install -e '.[test]'`, or wrap bash-specific
+// scripts in `bash -c '...'`.
+//
+// The call returns when the command finishes. To start a long-running process
+// such as a server, run it in the background with its output redirected, e.g.
+// `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with
+// runAsync set (see [ProcessService.ExecuteSessionCommand]). A background
+// process that keeps the command's output open (`cmd &` without a redirect)
+// can block the call until that process exits.
+//
+// Tools in the sandbox may report the host's CPU count and memory (for example
+// `nproc` or runtime.NumCPU) rather than the sandbox's own limits. Size worker
+// pools from the sandbox's CPU and memory instead, e.g. `pytest -n 2` rather
+// than `pytest -n auto`.
+//
 // Optional parameters can be configured using functional options:
 //   - [options.WithCwd]: Set the working directory for command execution
 //   - [options.WithCommandEnv]: Set environment variables
@@ -612,7 +629,7 @@ func (p *ProcessService) GetSessionCommandLogsStream(ctx context.Context, sessio
 		wsEndpoint := fmt.Sprintf("%s/process/session/%s/command/%s/logs?follow=true", wsURL, sessionID, commandID)
 		conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsEndpoint, headers)
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to connect to log stream: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to connect to log stream: %v", err), 0, nil)
 		}
 		defer conn.Close()
 
@@ -706,7 +723,7 @@ func (p *ProcessService) GetEntrypointLogsStream(ctx context.Context, stdout, st
 		wsEndpoint := fmt.Sprintf("%s/process/session/entrypoint/logs?follow=true", wsURL)
 		conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsEndpoint, headers)
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to connect to log stream: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to connect to log stream: %v", err), 0, nil)
 		}
 		defer conn.Close()
 		// Process the WebSocket stream and demux stdout/stderr
@@ -742,7 +759,7 @@ func processWebsocketStream(ctx context.Context, conn *websocket.Conn, stdout, s
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				return nil
 			}
-			return errors.NewDaytonaError(fmt.Sprintf("WebSocket read error: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("WebSocket read error: %v", err), 0, nil)
 		}
 
 		// Nothing to process, continue
@@ -1035,7 +1052,7 @@ func (p *ProcessService) ConnectPty(ctx context.Context, sessionID string) (*Pty
 
 		conn, _, err := dialer.DialContext(ctx, fmt.Sprintf("%s/process/pty/%s/connect", wsURL, sessionID), headers)
 		if err != nil {
-			return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to connect to PTY: %v", err), 0, nil)
+			return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to connect to PTY: %v", err), 0, nil)
 		}
 
 		// Create resize handler
@@ -1124,7 +1141,7 @@ func (p *ProcessService) CreatePty(ctx context.Context, id string, opts ...func(
 		if len(createOpts.Env) > 0 {
 			envJSON, err := json.Marshal(createOpts.Env)
 			if err != nil {
-				return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to encode PTY envs: %v", err), 0, nil)
+				return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to encode PTY envs: %v", err), 0, nil)
 			}
 			subprotocols = append(subprotocols, "X-Daytona-Pty-Envs~"+base64.RawURLEncoding.EncodeToString(envJSON))
 		}
@@ -1135,7 +1152,7 @@ func (p *ProcessService) CreatePty(ctx context.Context, id string, opts ...func(
 
 		conn, _, err := dialer.DialContext(ctx, fmt.Sprintf("%s/process/pty/create-connect?%s", wsURL, values.Encode()), headers)
 		if err != nil {
-			return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to create and connect PTY: %v", err), 0, nil)
+			return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to create and connect PTY: %v", err), 0, nil)
 		}
 
 		resizeHandler := func(ctx context.Context, c, r int) (*types.PtySessionInfo, error) {

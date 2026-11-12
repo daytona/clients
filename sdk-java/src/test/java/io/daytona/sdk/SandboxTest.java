@@ -18,8 +18,10 @@ import io.daytona.sdk.exception.DaytonaConflictException;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaForbiddenException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
+import io.daytona.sdk.exception.DaytonaQueueTimeoutException;
 import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaServerException;
+import io.daytona.sdk.exception.DaytonaSpotEvictedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
 import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
 import io.daytona.sdk.internal.EventSubscriptionManager;
@@ -150,6 +152,68 @@ class SandboxTest {
     }
 
     @Test
+    void waitUntilStartedThrowsQueueTimeoutExceptionWhenDestroyedByQueueTimeout() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setQueueTimeout(15);
+        destroyed.setQueueTimedOutAt("2026-09-29T12:00:00Z");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(destroyed);
+        TestSupport.setField(sandbox, "state", "pending_build");
+
+        assertThatThrownBy(() -> sandbox.waitUntilStarted(2))
+                .isInstanceOf(DaytonaQueueTimeoutException.class)
+                .isInstanceOf(DaytonaTimeoutException.class)
+                .hasMessage("Sandbox sb-1 was destroyed after waiting 15 minutes for a runner (queue timed out at 2026-09-29T12:00:00Z)");
+    }
+
+    @Test
+    void waitUntilStartedThrowsSpotEvictedExceptionWhenDestroyedByPreemption() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setSpotEvictedAt("2026-09-29T12:00:00Z");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(destroyed);
+        TestSupport.setField(sandbox, "state", "starting");
+
+        assertThatThrownBy(() -> sandbox.waitUntilStarted(2))
+                .isInstanceOf(DaytonaSpotEvictedException.class)
+                .isNotInstanceOf(DaytonaTimeoutException.class)
+                .hasMessage("Sandbox sb-1 was evicted by spot preemption at 2026-09-29T12:00:00Z");
+    }
+
+    @Test
+    void waitUntilStartedQueueTimeoutMessageOmitsDurationWhenUnknown() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setQueueTimedOutAt("2026-09-29T12:00:00Z");
+        Sandbox cached = new Sandbox(sandboxApi, TestSupport.config(), destroyed, () -> null, mockSubscriptionManager());
+
+        assertThatThrownBy(() -> cached.waitUntilStarted(2))
+                .isInstanceOf(DaytonaQueueTimeoutException.class)
+                .hasMessage("Sandbox sb-1 was destroyed after waiting for a runner (queue timed out at 2026-09-29T12:00:00Z)");
+    }
+
+    @Test
+    void waitUntilStartedFailsFastOnCachedQueueTimedOutState() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setQueueTimeout(1);
+        destroyed.setQueueTimedOutAt("2026-09-29T12:00:00Z");
+        Sandbox cached = new Sandbox(sandboxApi, TestSupport.config(), destroyed, () -> null, mockSubscriptionManager());
+
+        assertThatThrownBy(() -> cached.waitUntilStarted(2))
+                .isInstanceOf(DaytonaQueueTimeoutException.class)
+                .hasMessage("Sandbox sb-1 was destroyed after waiting 1 minute for a runner (queue timed out at 2026-09-29T12:00:00Z)");
+        verify(sandboxApi, org.mockito.Mockito.never()).getSandbox("sb-1", null, null);
+    }
+
+    @Test
+    void waitUntilStartedFailsFastOnCachedSpotEvictedState() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setSpotEvictedAt("2026-09-29T12:00:00Z");
+        Sandbox cached = new Sandbox(sandboxApi, TestSupport.config(), destroyed, () -> null, mockSubscriptionManager());
+
+        assertThatThrownBy(() -> cached.waitUntilStarted(2))
+                .isInstanceOf(DaytonaSpotEvictedException.class);
+        verify(sandboxApi, org.mockito.Mockito.never()).getSandbox("sb-1", null, null);
+    }
+
+    @Test
     void waitUntilStartedFallsBackToPollingWhenDeprecatedPollingIsEnabled() {
         Sandbox pollingSandbox = new Sandbox(
                 sandboxApi,
@@ -219,6 +283,22 @@ class SandboxTest {
     }
 
     @Test
+    void deleteWithWaitAllowsDestroyedTargetEvenWhenQueueTimeoutMarkerExists() {
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setQueueTimeout(15);
+        destroyed.setQueueTimedOutAt("2026-09-29T12:00:00Z");
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(
+                TestSupport.mainSandbox("sb-1", SandboxState.DESTROYING),
+                destroyed
+        );
+
+        sandbox.delete(5, true);
+
+        verify(sandboxApi).deleteSandbox("sb-1", null);
+        assertThat(sandbox.getState()).isEqualTo("destroyed");
+    }
+
+    @Test
     void refreshDataIgnoresNullApiPayload() {
         TestSupport.setField(sandbox, "name", "before");
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(null);
@@ -262,6 +342,18 @@ class SandboxTest {
     }
 
     @Test
+    void setPublicUpdatesPublicStatus() throws Exception {
+        io.daytona.api.client.model.Sandbox updated = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        updated.setPublic(true);
+        when(sandboxApi.updatePublicStatus("sb-1", true, null)).thenReturn(updated);
+
+        sandbox.setPublic(true);
+
+        org.mockito.Mockito.verify(sandboxApi).updatePublicStatus("sb-1", true, null);
+        assertThat(sandbox.getPublic()).isTrue();
+    }
+
+    @Test
     void setTtlCallsApiAndRejectsNegative() {
         sandbox.setTtl(60);
 
@@ -276,10 +368,26 @@ class SandboxTest {
     void autoDestroyAtIsPopulatedFromDTO() {
         io.daytona.api.client.model.Sandbox model = TestSupport.mainSandbox("sb-exp", SandboxState.STARTED);
         model.setAutoDestroyAt("2026-09-15T12:00:00Z");
+        model.setQueueTimeout(25);
+        model.setQueueTimedOutAt("2026-09-15T11:00:00Z");
 
         Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null, mockSubscriptionManager());
 
         assertThat(loaded.getAutoDestroyAt()).isEqualTo("2026-09-15T12:00:00Z");
+        assertThat(loaded.getQueueTimeout()).isEqualTo(25);
+        assertThat(loaded.getQueueTimedOutAt()).isEqualTo("2026-09-15T11:00:00Z");
+    }
+
+    @Test
+    void queueTimeoutIsNullableWhenHydratedFromDTO() {
+        io.daytona.api.client.model.Sandbox model = TestSupport.mainSandbox("sb-null-queue", SandboxState.STARTED);
+        model.setQueueTimeout(null);
+        model.setQueueTimedOutAt(null);
+
+        Sandbox loaded = new Sandbox(sandboxApi, TestSupport.config(), model, () -> null, mockSubscriptionManager());
+
+        assertThat(loaded.getQueueTimeout()).isNull();
+        assertThat(loaded.getQueueTimedOutAt()).isNull();
     }
 
     @Test

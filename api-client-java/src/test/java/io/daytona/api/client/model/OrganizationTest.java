@@ -18,6 +18,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.DirectorySyncStatus;
 import io.daytona.api.client.model.OtelConfig;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -177,6 +178,14 @@ public class OrganizationTest {
     }
 
     /**
+     * Test the property 'defaultQueueTimeout'
+     */
+    @Test
+    public void defaultQueueTimeoutTest() {
+        // TODO: test defaultQueueTimeout
+    }
+
+    /**
      * Test the property 'sandboxLimitedNetworkEgress'
      */
     @Test
@@ -222,6 +231,30 @@ public class OrganizationTest {
     @Test
     public void workosOrgIdTest() {
         // TODO: test workosOrgId
+    }
+
+    /**
+     * Test the property 'directorySyncStatus'
+     */
+    @Test
+    public void directorySyncStatusTest() {
+        // TODO: test directorySyncStatus
+    }
+
+    /**
+     * Test the property 'directorySyncStatusChangedAt'
+     */
+    @Test
+    public void directorySyncStatusChangedAtTest() {
+        // TODO: test directorySyncStatusChangedAt
+    }
+
+    /**
+     * Test the property 'directorySyncTokenRevokedAt'
+     */
+    @Test
+    public void directorySyncTokenRevokedAtTest() {
+        // TODO: test directorySyncTokenRevokedAt
     }
 
     /**

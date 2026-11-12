@@ -39,7 +39,7 @@ class ObjectStorageApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_push_access(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -105,7 +105,7 @@ class ObjectStorageApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_push_access_with_http_info(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,
@@ -171,7 +171,7 @@ class ObjectStorageApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_push_access_without_preload_content(
         self,
         x_daytona_organization_id: Annotated[Optional[StrictStr], Field(description="Use with JWT to specify the organization ID")] = None,

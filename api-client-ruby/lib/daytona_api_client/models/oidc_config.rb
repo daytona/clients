@@ -30,6 +30,9 @@ module DaytonaApiClient
     # WorkOS \"Authentication API\" custom domain the dashboard's client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
     attr_accessor :auth_api_hostname
 
+    # WorkOS application the Daytona CLI logs in through, configured apart from the dashboard's so CLI sessions can have their own lifetime. Present only when the provider is workos and a CLI application is configured; absent means the CLI uses the issuer and client ID above.
+    attr_accessor :cli
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -59,7 +62,8 @@ module DaytonaApiClient
         :'client_id' => :'clientId',
         :'audience' => :'audience',
         :'provider' => :'provider',
-        :'auth_api_hostname' => :'authApiHostname'
+        :'auth_api_hostname' => :'authApiHostname',
+        :'cli' => :'cli'
       }
     end
 
@@ -80,7 +84,8 @@ module DaytonaApiClient
         :'client_id' => :'String',
         :'audience' => :'String',
         :'provider' => :'String',
-        :'auth_api_hostname' => :'String'
+        :'auth_api_hostname' => :'String',
+        :'cli' => :'CliOidcConfig'
       }
     end
 
@@ -132,6 +137,10 @@ module DaytonaApiClient
 
       if attributes.key?(:'auth_api_hostname')
         self.auth_api_hostname = attributes[:'auth_api_hostname']
+      end
+
+      if attributes.key?(:'cli')
+        self.cli = attributes[:'cli']
       end
     end
 
@@ -221,7 +230,8 @@ module DaytonaApiClient
           client_id == o.client_id &&
           audience == o.audience &&
           provider == o.provider &&
-          auth_api_hostname == o.auth_api_hostname
+          auth_api_hostname == o.auth_api_hostname &&
+          cli == o.cli
     end
 
     # @see the `==` method
@@ -233,7 +243,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [issuer, client_id, audience, provider, auth_api_hostname].hash
+      [issuer, client_id, audience, provider, auth_api_hostname, cli].hash
     end
 
     # Builds the object from hash

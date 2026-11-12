@@ -22,6 +22,7 @@ import io.daytona.toolbox.client.model.Match;
 import io.daytona.toolbox.client.model.ReplaceRequest;
 import io.daytona.toolbox.client.model.ReplaceResult;
 import io.daytona.toolbox.client.model.SearchFilesResponse;
+import io.daytona.toolbox.client.model.UploadFilesResponse;
 import io.daytona.toolbox.client.model.UploadedFile;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -226,7 +227,7 @@ public class FileSystemApiTest {
      */
     @Test
     public void uploadFilesTest() throws ApiException {
-        api.uploadFiles();
+        UploadFilesResponse response = api.uploadFiles();
         // TODO: test validations
     }
 

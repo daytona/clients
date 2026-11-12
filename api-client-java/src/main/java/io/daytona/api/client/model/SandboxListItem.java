@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -157,6 +158,11 @@ public class SandboxListItem {
   @javax.annotation.Nullable
   private String spotEvictedAt;
 
+  public static final String SERIALIZED_NAME_QUEUE_TIMED_OUT_AT = "queueTimedOutAt";
+  @SerializedName(SERIALIZED_NAME_QUEUE_TIMED_OUT_AT)
+  @javax.annotation.Nullable
+  private String queueTimedOutAt;
+
   public static final String SERIALIZED_NAME_GPU_TYPE = "gpuType";
   @SerializedName(SERIALIZED_NAME_GPU_TYPE)
   @javax.annotation.Nullable
@@ -266,6 +272,11 @@ public class SandboxListItem {
   @SerializedName(SERIALIZED_NAME_AUTO_DESTROY_AT)
   @javax.annotation.Nullable
   private String autoDestroyAt;
+
+  public static final String SERIALIZED_NAME_QUEUE_TIMEOUT = "queueTimeout";
+  @SerializedName(SERIALIZED_NAME_QUEUE_TIMEOUT)
+  @javax.annotation.Nullable
+  private Integer queueTimeout;
 
   public static final String SERIALIZED_NAME_CREATED_AT = "createdAt";
   @SerializedName(SERIALIZED_NAME_CREATED_AT)
@@ -680,6 +691,25 @@ public class SandboxListItem {
   }
 
 
+  public SandboxListItem queueTimedOutAt(@javax.annotation.Nullable String queueTimedOutAt) {
+    this.queueTimedOutAt = queueTimedOutAt;
+    return this;
+  }
+
+  /**
+   * When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+   * @return queueTimedOutAt
+   */
+  @javax.annotation.Nullable
+  public String getQueueTimedOutAt() {
+    return queueTimedOutAt;
+  }
+
+  public void setQueueTimedOutAt(@javax.annotation.Nullable String queueTimedOutAt) {
+    this.queueTimedOutAt = queueTimedOutAt;
+  }
+
+
   public SandboxListItem gpuType(@javax.annotation.Nullable GpuType gpuType) {
     this.gpuType = gpuType;
     return this;
@@ -878,6 +908,25 @@ public class SandboxListItem {
   }
 
 
+  public SandboxListItem queueTimeout(@javax.annotation.Nullable Integer queueTimeout) {
+    this.queueTimeout = queueTimeout;
+    return this;
+  }
+
+  /**
+   * Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+   * @return queueTimeout
+   */
+  @javax.annotation.Nullable
+  public Integer getQueueTimeout() {
+    return queueTimeout;
+  }
+
+  public void setQueueTimeout(@javax.annotation.Nullable Integer queueTimeout) {
+    this.queueTimeout = queueTimeout;
+  }
+
+
   public SandboxListItem createdAt(@javax.annotation.Nullable String createdAt) {
     this.createdAt = createdAt;
     return this;
@@ -1066,6 +1115,7 @@ public class SandboxListItem {
         Objects.equals(this.gpu, sandboxListItem.gpu) &&
         Objects.equals(this.spot, sandboxListItem.spot) &&
         Objects.equals(this.spotEvictedAt, sandboxListItem.spotEvictedAt) &&
+        Objects.equals(this.queueTimedOutAt, sandboxListItem.queueTimedOutAt) &&
         Objects.equals(this.gpuType, sandboxListItem.gpuType) &&
         Objects.equals(this.memory, sandboxListItem.memory) &&
         Objects.equals(this.disk, sandboxListItem.disk) &&
@@ -1076,6 +1126,7 @@ public class SandboxListItem {
         Objects.equals(this.autoArchiveInterval, sandboxListItem.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, sandboxListItem.autoDeleteInterval) &&
         Objects.equals(this.autoDestroyAt, sandboxListItem.autoDestroyAt) &&
+        Objects.equals(this.queueTimeout, sandboxListItem.queueTimeout) &&
         Objects.equals(this.createdAt, sandboxListItem.createdAt) &&
         Objects.equals(this.updatedAt, sandboxListItem.updatedAt) &&
         Objects.equals(this.lastActivityAt, sandboxListItem.lastActivityAt) &&
@@ -1085,9 +1136,20 @@ public class SandboxListItem {
         Objects.equals(this.additionalProperties, sandboxListItem.additionalProperties);
   }
 
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
+  }
+
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, networkBlockAll, networkAllowList, domainAllowList, cpu, gpu, spot, spotEvictedAt, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, target, runnerId, sandboxClass, state, desiredState, snapshot, user, errorReason, recoverable, _public, networkBlockAll, networkAllowList, domainAllowList, cpu, gpu, spot, spotEvictedAt, queueTimedOutAt, gpuType, memory, disk, labels, backupState, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, queueTimeout, createdAt, updatedAt, lastActivityAt, daemonVersion, warmPoolId, toolboxProxyUrl, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -1114,6 +1176,7 @@ public class SandboxListItem {
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
     sb.append("    spot: ").append(toIndentedString(spot)).append("\n");
     sb.append("    spotEvictedAt: ").append(toIndentedString(spotEvictedAt)).append("\n");
+    sb.append("    queueTimedOutAt: ").append(toIndentedString(queueTimedOutAt)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
     sb.append("    memory: ").append(toIndentedString(memory)).append("\n");
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
@@ -1124,6 +1187,7 @@ public class SandboxListItem {
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
     sb.append("    autoDestroyAt: ").append(toIndentedString(autoDestroyAt)).append("\n");
+    sb.append("    queueTimeout: ").append(toIndentedString(queueTimeout)).append("\n");
     sb.append("    createdAt: ").append(toIndentedString(createdAt)).append("\n");
     sb.append("    updatedAt: ").append(toIndentedString(updatedAt)).append("\n");
     sb.append("    lastActivityAt: ").append(toIndentedString(lastActivityAt)).append("\n");
@@ -1149,7 +1213,7 @@ public class SandboxListItem {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "spot", "spotEvictedAt", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "runnerId", "sandboxClass", "state", "desiredState", "snapshot", "user", "errorReason", "recoverable", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "labels", "backupState", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "createdAt", "updatedAt", "lastActivityAt", "daemonVersion", "warmPoolId", "toolboxProxyUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "target", "user", "public", "networkBlockAll", "cpu", "gpu", "memory", "disk", "labels", "toolboxProxyUrl"));
@@ -1219,6 +1283,9 @@ public class SandboxListItem {
       }
       if ((jsonObj.get("spotEvictedAt") != null && !jsonObj.get("spotEvictedAt").isJsonNull()) && !jsonObj.get("spotEvictedAt").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `spotEvictedAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("spotEvictedAt").toString()));
+      }
+      if ((jsonObj.get("queueTimedOutAt") != null && !jsonObj.get("queueTimedOutAt").isJsonNull()) && !jsonObj.get("queueTimedOutAt").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `queueTimedOutAt` to be a primitive type in the JSON string but got `%s`", jsonObj.get("queueTimedOutAt").toString()));
       }
       // validate the optional field `gpuType`
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull()) {

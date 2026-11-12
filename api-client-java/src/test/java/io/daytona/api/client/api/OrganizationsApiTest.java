@@ -38,6 +38,7 @@ import io.daytona.api.client.model.SnapshotManagerCredentials;
 import io.daytona.api.client.model.TestIdentityProviderConnection;
 import io.daytona.api.client.model.TestIdentityProviderConnectionResponse;
 import io.daytona.api.client.model.UpdateIdentityProvider;
+import io.daytona.api.client.model.UpdateOrganizationDefaultQueueTimeout;
 import io.daytona.api.client.model.UpdateOrganizationDefaultRegion;
 import io.daytona.api.client.model.UpdateOrganizationInvitation;
 import io.daytona.api.client.model.UpdateOrganizationMemberAccess;
@@ -569,6 +570,19 @@ public class OrganizationsApiTest {
         String organizationId = null;
         Map<String, Object> requestBody = null;
         api.updateExperimentalConfig(organizationId, requestBody);
+        // TODO: test validations
+    }
+
+    /**
+     * Set organization default queue timeout
+     *
+     * @throws ApiException if the Api call fails
+     */
+    @Test
+    public void updateOrganizationDefaultQueueTimeoutTest() throws ApiException {
+        String organizationId = null;
+        UpdateOrganizationDefaultQueueTimeout updateOrganizationDefaultQueueTimeout = null;
+        api.updateOrganizationDefaultQueueTimeout(organizationId, updateOrganizationDefaultQueueTimeout);
         // TODO: test validations
     }
 

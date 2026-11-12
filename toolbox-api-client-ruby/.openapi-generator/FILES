@@ -49,6 +49,7 @@ lib/daytona_toolbox_api_client/models/file_info.rb
 lib/daytona_toolbox_api_client/models/file_status.rb
 lib/daytona_toolbox_api_client/models/files_download_request.rb
 lib/daytona_toolbox_api_client/models/find_accessibility_nodes_request.rb
+lib/daytona_toolbox_api_client/models/fs_file_result.rb
 lib/daytona_toolbox_api_client/models/git_add_remote_request.rb
 lib/daytona_toolbox_api_client/models/git_add_request.rb
 lib/daytona_toolbox_api_client/models/git_authenticate_request.rb
@@ -73,6 +74,8 @@ lib/daytona_toolbox_api_client/models/initialize_request.rb
 lib/daytona_toolbox_api_client/models/interpreter_context.rb
 lib/daytona_toolbox_api_client/models/is_port_in_use_response.rb
 lib/daytona_toolbox_api_client/models/keyboard_hotkey_request.rb
+lib/daytona_toolbox_api_client/models/keyboard_key_down_request.rb
+lib/daytona_toolbox_api_client/models/keyboard_key_up_request.rb
 lib/daytona_toolbox_api_client/models/keyboard_press_request.rb
 lib/daytona_toolbox_api_client/models/keyboard_type_request.rb
 lib/daytona_toolbox_api_client/models/list_branch_response.rb
@@ -89,11 +92,13 @@ lib/daytona_toolbox_api_client/models/lsp_symbol.rb
 lib/daytona_toolbox_api_client/models/match.rb
 lib/daytona_toolbox_api_client/models/mouse_click_request.rb
 lib/daytona_toolbox_api_client/models/mouse_click_response.rb
+lib/daytona_toolbox_api_client/models/mouse_down_request.rb
 lib/daytona_toolbox_api_client/models/mouse_drag_request.rb
 lib/daytona_toolbox_api_client/models/mouse_drag_response.rb
 lib/daytona_toolbox_api_client/models/mouse_move_request.rb
 lib/daytona_toolbox_api_client/models/mouse_position_response.rb
 lib/daytona_toolbox_api_client/models/mouse_scroll_request.rb
+lib/daytona_toolbox_api_client/models/mouse_up_request.rb
 lib/daytona_toolbox_api_client/models/port_list.rb
 lib/daytona_toolbox_api_client/models/position.rb
 lib/daytona_toolbox_api_client/models/process_errors_response.rb
@@ -122,6 +127,7 @@ lib/daytona_toolbox_api_client/models/status.rb
 lib/daytona_toolbox_api_client/models/stop_recording_request.rb
 lib/daytona_toolbox_api_client/models/system_metrics.rb
 lib/daytona_toolbox_api_client/models/update_env_request.rb
+lib/daytona_toolbox_api_client/models/upload_files_response.rb
 lib/daytona_toolbox_api_client/models/uploaded_file.rb
 lib/daytona_toolbox_api_client/models/user_home_dir_response.rb
 lib/daytona_toolbox_api_client/models/window_info.rb

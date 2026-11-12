@@ -59,6 +59,8 @@ export {
   DaytonaServiceUnavailableError,
   DaytonaConnectionError,
   DaytonaConnectionTimeoutError,
+  DaytonaQueueTimeoutError,
+  DaytonaSpotEvictedError,
   // Domain-specific subclasses
   DaytonaGitAuthFailedError,
   DaytonaGitRepoNotFoundError,

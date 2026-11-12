@@ -56,11 +56,20 @@ type PtyHandle struct {
 	handleKill            func(context.Context) error
 	exitCode              *int
 	err                   *string
+	errCause              error // the WebSocket read error behind err, if that is where err came from
 	connected             bool
 	connectionEstablished bool
 	mu                    sync.RWMutex
 	done                  chan struct{}
+	keepaliveInterval     time.Duration
 }
+
+// A PTY can legitimately stay silent for a long time (a build or test run with no
+// output) and intermediate proxies/load balancers drop connections that carry no
+// traffic. Pings keep the connection alive without injecting input into the terminal.
+var ptyKeepaliveInterval = 20 * time.Second
+
+const ptyKeepaliveWriteWait = 10 * time.Second
 
 // controlMessage represents a WebSocket control message
 type controlMessage struct {
@@ -90,12 +99,39 @@ func newPtyHandle(
 		handleResize: handleResize,
 		handleKill:   handleKill,
 		done:         make(chan struct{}),
+
+		keepaliveInterval: ptyKeepaliveInterval,
 	}
 
 	// Start message handler
 	go h.handleMessages()
+	go h.keepalive()
 
 	return h
+}
+
+// keepalive sends WebSocket ping frames at h.keepaliveInterval until the
+// session ends. WriteControl is safe to call concurrently with WriteMessage.
+func (h *PtyHandle) keepalive() {
+	ticker := time.NewTicker(h.keepaliveInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-h.done:
+			return
+		case <-ticker.C:
+			h.mu.RLock()
+			ws := h.ws
+			h.mu.RUnlock()
+			if ws == nil {
+				return
+			}
+			if err := ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(ptyKeepaliveWriteWait)); err != nil {
+				return
+			}
+		}
+	}
 }
 
 // DataChan returns a channel for receiving PTY output.
@@ -178,9 +214,9 @@ func (h *PtyHandle) WaitForConnection(ctx context.Context) error {
 				return nil
 			}
 			if h.err != nil {
-				err := h.err
+				err, cause := h.err, h.errCause
 				h.mu.RUnlock()
-				return errors.NewDaytonaError(*err, 0, nil)
+				return errors.WrapDaytonaError(cause, *err, 0, nil)
 			}
 			h.mu.RUnlock()
 		}
@@ -211,7 +247,7 @@ func (h *PtyHandle) SendInput(data []byte) error {
 	h.mu.RUnlock()
 
 	if err := ws.WriteMessage(websocket.BinaryMessage, data); err != nil {
-		return errors.NewDaytonaError(fmt.Sprintf("Failed to send input to PTY: %v", err), 0, nil)
+		return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to send input to PTY: %v", err), 0, nil)
 	}
 
 	return nil
@@ -297,6 +333,14 @@ func (h *PtyHandle) Wait(ctx context.Context) (*types.PtyResult, error) {
 			return nil, ctx.Err()
 		case <-h.done:
 			h.mu.RLock()
+			if h.exitCode == nil && h.errCause != nil {
+				// The connection dropped before the process exited: report it as an
+				// error with its cause, as the ticker branch below does, instead of
+				// depending on which branch wins the race with done.
+				err, cause := *h.err, h.errCause
+				h.mu.RUnlock()
+				return nil, errors.WrapDaytonaError(cause, err, 0, nil)
+			}
 			result := &types.PtyResult{
 				ExitCode: h.exitCode,
 				Error:    h.err,
@@ -314,9 +358,9 @@ func (h *PtyHandle) Wait(ctx context.Context) (*types.PtyResult, error) {
 				return result, nil
 			}
 			if h.err != nil {
-				err := *h.err
+				err, cause := *h.err, h.errCause
 				h.mu.RUnlock()
-				return nil, errors.NewDaytonaError(err, 0, nil)
+				return nil, errors.WrapDaytonaError(cause, err, 0, nil)
 			}
 			h.mu.RUnlock()
 		}
@@ -406,6 +450,11 @@ func (h *PtyHandle) handleMessages() {
 			} else {
 				errMsg := err.Error()
 				h.err = &errMsg
+				// Disconnect closes the socket and clears h.ws under this lock, so a nil
+				// h.ws means the read failed because of a local Disconnect, not a drop.
+				if h.ws != nil {
+					h.errCause = err
+				}
 			}
 			h.connected = false
 			h.mu.Unlock()

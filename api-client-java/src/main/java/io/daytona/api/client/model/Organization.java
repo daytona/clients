@@ -19,6 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.DirectorySyncStatus;
 import io.daytona.api.client.model.OtelConfig;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -138,6 +139,11 @@ public class Organization {
   @javax.annotation.Nonnull
   private BigDecimal snapshotDeactivationTimeoutMinutes = new BigDecimal("20160");
 
+  public static final String SERIALIZED_NAME_DEFAULT_QUEUE_TIMEOUT = "defaultQueueTimeout";
+  @SerializedName(SERIALIZED_NAME_DEFAULT_QUEUE_TIMEOUT)
+  @javax.annotation.Nullable
+  private Integer defaultQueueTimeout;
+
   public static final String SERIALIZED_NAME_SANDBOX_LIMITED_NETWORK_EGRESS = "sandboxLimitedNetworkEgress";
   @SerializedName(SERIALIZED_NAME_SANDBOX_LIMITED_NETWORK_EGRESS)
   @javax.annotation.Nonnull
@@ -167,6 +173,21 @@ public class Organization {
   @SerializedName(SERIALIZED_NAME_WORKOS_ORG_ID)
   @javax.annotation.Nullable
   private String workosOrgId;
+
+  public static final String SERIALIZED_NAME_DIRECTORY_SYNC_STATUS = "directorySyncStatus";
+  @SerializedName(SERIALIZED_NAME_DIRECTORY_SYNC_STATUS)
+  @javax.annotation.Nullable
+  private DirectorySyncStatus directorySyncStatus;
+
+  public static final String SERIALIZED_NAME_DIRECTORY_SYNC_STATUS_CHANGED_AT = "directorySyncStatusChangedAt";
+  @SerializedName(SERIALIZED_NAME_DIRECTORY_SYNC_STATUS_CHANGED_AT)
+  @javax.annotation.Nullable
+  private OffsetDateTime directorySyncStatusChangedAt;
+
+  public static final String SERIALIZED_NAME_DIRECTORY_SYNC_TOKEN_REVOKED_AT = "directorySyncTokenRevokedAt";
+  @SerializedName(SERIALIZED_NAME_DIRECTORY_SYNC_TOKEN_REVOKED_AT)
+  @javax.annotation.Nullable
+  private OffsetDateTime directorySyncTokenRevokedAt;
 
   public static final String SERIALIZED_NAME_AUTHENTICATED_RATE_LIMIT = "authenticatedRateLimit";
   @SerializedName(SERIALIZED_NAME_AUTHENTICATED_RATE_LIMIT)
@@ -534,6 +555,25 @@ public class Organization {
   }
 
 
+  public Organization defaultQueueTimeout(@javax.annotation.Nullable Integer defaultQueueTimeout) {
+    this.defaultQueueTimeout = defaultQueueTimeout;
+    return this;
+  }
+
+  /**
+   * Default minutes to wait for runner assignment before cancelling sandbox creation. Applied when sandbox create omits queueTimeout. Null means no default.
+   * @return defaultQueueTimeout
+   */
+  @javax.annotation.Nullable
+  public Integer getDefaultQueueTimeout() {
+    return defaultQueueTimeout;
+  }
+
+  public void setDefaultQueueTimeout(@javax.annotation.Nullable Integer defaultQueueTimeout) {
+    this.defaultQueueTimeout = defaultQueueTimeout;
+  }
+
+
   public Organization sandboxLimitedNetworkEgress(@javax.annotation.Nonnull Boolean sandboxLimitedNetworkEgress) {
     this.sandboxLimitedNetworkEgress = sandboxLimitedNetworkEgress;
     return this;
@@ -645,6 +685,63 @@ public class Organization {
 
   public void setWorkosOrgId(@javax.annotation.Nullable String workosOrgId) {
     this.workosOrgId = workosOrgId;
+  }
+
+
+  public Organization directorySyncStatus(@javax.annotation.Nullable DirectorySyncStatus directorySyncStatus) {
+    this.directorySyncStatus = directorySyncStatus;
+    return this;
+  }
+
+  /**
+   * Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)
+   * @return directorySyncStatus
+   */
+  @javax.annotation.Nullable
+  public DirectorySyncStatus getDirectorySyncStatus() {
+    return directorySyncStatus;
+  }
+
+  public void setDirectorySyncStatus(@javax.annotation.Nullable DirectorySyncStatus directorySyncStatus) {
+    this.directorySyncStatus = directorySyncStatus;
+  }
+
+
+  public Organization directorySyncStatusChangedAt(@javax.annotation.Nullable OffsetDateTime directorySyncStatusChangedAt) {
+    this.directorySyncStatusChangedAt = directorySyncStatusChangedAt;
+    return this;
+  }
+
+  /**
+   * When the directory sync status last changed
+   * @return directorySyncStatusChangedAt
+   */
+  @javax.annotation.Nullable
+  public OffsetDateTime getDirectorySyncStatusChangedAt() {
+    return directorySyncStatusChangedAt;
+  }
+
+  public void setDirectorySyncStatusChangedAt(@javax.annotation.Nullable OffsetDateTime directorySyncStatusChangedAt) {
+    this.directorySyncStatusChangedAt = directorySyncStatusChangedAt;
+  }
+
+
+  public Organization directorySyncTokenRevokedAt(@javax.annotation.Nullable OffsetDateTime directorySyncTokenRevokedAt) {
+    this.directorySyncTokenRevokedAt = directorySyncTokenRevokedAt;
+    return this;
+  }
+
+  /**
+   * When the directory bearer token was revoked; absent while a valid token exists. A revoked token stops provisioning even if the directory is still active.
+   * @return directorySyncTokenRevokedAt
+   */
+  @javax.annotation.Nullable
+  public OffsetDateTime getDirectorySyncTokenRevokedAt() {
+    return directorySyncTokenRevokedAt;
+  }
+
+  public void setDirectorySyncTokenRevokedAt(@javax.annotation.Nullable OffsetDateTime directorySyncTokenRevokedAt) {
+    this.directorySyncTokenRevokedAt = directorySyncTokenRevokedAt;
   }
 
 
@@ -871,12 +968,16 @@ public class Organization {
         Objects.equals(this.secretQuota, organization.secretQuota) &&
         Objects.equals(this.maxSecretsPerSandbox, organization.maxSecretsPerSandbox) &&
         Objects.equals(this.snapshotDeactivationTimeoutMinutes, organization.snapshotDeactivationTimeoutMinutes) &&
+        Objects.equals(this.defaultQueueTimeout, organization.defaultQueueTimeout) &&
         Objects.equals(this.sandboxLimitedNetworkEgress, organization.sandboxLimitedNetworkEgress) &&
         Objects.equals(this.previewWarningEnabled, organization.previewWarningEnabled) &&
         Objects.equals(this.ssoEnabled, organization.ssoEnabled) &&
         Objects.equals(this.scimEnabled, organization.scimEnabled) &&
         Objects.equals(this.defaultRegionId, organization.defaultRegionId) &&
         Objects.equals(this.workosOrgId, organization.workosOrgId) &&
+        Objects.equals(this.directorySyncStatus, organization.directorySyncStatus) &&
+        Objects.equals(this.directorySyncStatusChangedAt, organization.directorySyncStatusChangedAt) &&
+        Objects.equals(this.directorySyncTokenRevokedAt, organization.directorySyncTokenRevokedAt) &&
         Objects.equals(this.authenticatedRateLimit, organization.authenticatedRateLimit) &&
         Objects.equals(this.sandboxCreateRateLimit, organization.sandboxCreateRateLimit) &&
         Objects.equals(this.sandboxLifecycleRateLimit, organization.sandboxLifecycleRateLimit) &&
@@ -890,7 +991,7 @@ public class Organization {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, createdBy, personal, createdAt, updatedAt, suspended, suspendedAt, suspensionReason, suspendedUntil, suspensionCleanupGracePeriodHours, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, secretQuota, maxSecretsPerSandbox, snapshotDeactivationTimeoutMinutes, sandboxLimitedNetworkEgress, previewWarningEnabled, ssoEnabled, scimEnabled, defaultRegionId, workosOrgId, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, experimentalConfig, otelConfig, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, additionalProperties);
+    return Objects.hash(id, name, createdBy, personal, createdAt, updatedAt, suspended, suspendedAt, suspensionReason, suspendedUntil, suspensionCleanupGracePeriodHours, maxCpuPerSandbox, maxMemoryPerSandbox, maxDiskPerSandbox, secretQuota, maxSecretsPerSandbox, snapshotDeactivationTimeoutMinutes, defaultQueueTimeout, sandboxLimitedNetworkEgress, previewWarningEnabled, ssoEnabled, scimEnabled, defaultRegionId, workosOrgId, directorySyncStatus, directorySyncStatusChangedAt, directorySyncTokenRevokedAt, authenticatedRateLimit, sandboxCreateRateLimit, sandboxLifecycleRateLimit, experimentalConfig, otelConfig, authenticatedRateLimitTtlSeconds, sandboxCreateRateLimitTtlSeconds, sandboxLifecycleRateLimitTtlSeconds, additionalProperties);
   }
 
   @Override
@@ -914,12 +1015,16 @@ public class Organization {
     sb.append("    secretQuota: ").append(toIndentedString(secretQuota)).append("\n");
     sb.append("    maxSecretsPerSandbox: ").append(toIndentedString(maxSecretsPerSandbox)).append("\n");
     sb.append("    snapshotDeactivationTimeoutMinutes: ").append(toIndentedString(snapshotDeactivationTimeoutMinutes)).append("\n");
+    sb.append("    defaultQueueTimeout: ").append(toIndentedString(defaultQueueTimeout)).append("\n");
     sb.append("    sandboxLimitedNetworkEgress: ").append(toIndentedString(sandboxLimitedNetworkEgress)).append("\n");
     sb.append("    previewWarningEnabled: ").append(toIndentedString(previewWarningEnabled)).append("\n");
     sb.append("    ssoEnabled: ").append(toIndentedString(ssoEnabled)).append("\n");
     sb.append("    scimEnabled: ").append(toIndentedString(scimEnabled)).append("\n");
     sb.append("    defaultRegionId: ").append(toIndentedString(defaultRegionId)).append("\n");
     sb.append("    workosOrgId: ").append(toIndentedString(workosOrgId)).append("\n");
+    sb.append("    directorySyncStatus: ").append(toIndentedString(directorySyncStatus)).append("\n");
+    sb.append("    directorySyncStatusChangedAt: ").append(toIndentedString(directorySyncStatusChangedAt)).append("\n");
+    sb.append("    directorySyncTokenRevokedAt: ").append(toIndentedString(directorySyncTokenRevokedAt)).append("\n");
     sb.append("    authenticatedRateLimit: ").append(toIndentedString(authenticatedRateLimit)).append("\n");
     sb.append("    sandboxCreateRateLimit: ").append(toIndentedString(sandboxCreateRateLimit)).append("\n");
     sb.append("    sandboxLifecycleRateLimit: ").append(toIndentedString(sandboxLifecycleRateLimit)).append("\n");
@@ -947,10 +1052,10 @@ public class Organization {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "defaultRegionId", "workosOrgId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "defaultQueueTimeout", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "defaultRegionId", "workosOrgId", "directorySyncStatus", "directorySyncStatusChangedAt", "directorySyncTokenRevokedAt", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "defaultQueueTimeout", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"));
   }
 
   /**
@@ -990,6 +1095,10 @@ public class Organization {
       }
       if ((jsonObj.get("workosOrgId") != null && !jsonObj.get("workosOrgId").isJsonNull()) && !jsonObj.get("workosOrgId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `workosOrgId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("workosOrgId").toString()));
+      }
+      // validate the optional field `directorySyncStatus`
+      if (jsonObj.get("directorySyncStatus") != null && !jsonObj.get("directorySyncStatus").isJsonNull()) {
+        DirectorySyncStatus.validateJsonElement(jsonObj.get("directorySyncStatus"));
       }
       if (jsonObj.get("otelConfig") != null && !jsonObj.get("otelConfig").isJsonNull()) {
       // validate the required field `otelConfig`

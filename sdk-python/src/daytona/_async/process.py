@@ -37,7 +37,7 @@ from ..common.process import (
     SessionExecuteRequest,
     SessionExecuteResponse,
 )
-from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
+from ..common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, WS_KEEPALIVE_INTERVAL_SECONDS, PtySize
 from ..handle.async_pty_handle import AsyncPtyHandle
 from ..internal.shared_session import http_session_of
 
@@ -65,7 +65,7 @@ class AsyncProcess:
         subprotocols: list[str] | None = None,
     ) -> "aiohttp.ClientWebSocketResponse[bool]":
         return await http_session_of(self._api_client.api_client).ws_connect(
-            url, headers=headers, protocols=subprotocols or ()
+            url, headers=headers, protocols=subprotocols or (), heartbeat=WS_KEEPALIVE_INTERVAL_SECONDS
         )
 
     async def _consume_log_websocket(
@@ -94,6 +94,21 @@ class AsyncProcess:
     ) -> ExecuteResponse:
         """Execute a shell command in the Sandbox.
 
+        The command is run by the first available of zsh, bash or sh in the sandbox, which is
+        zsh in the default snapshots. Quote arguments that contain glob characters, for example
+        `pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+
+        The call returns when the command finishes. To start a long-running process such as a
+        server, run it in the background with its output redirected, e.g.
+        `python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with
+        `run_async=True` (see `execute_session_command`). A background process that keeps the
+        command's output open (`cmd &` without a redirect) can block the call until that process
+        exits.
+
+        Tools in the sandbox may report the host's CPU count and memory (for example `nproc`
+        or `os.cpu_count()`) rather than the sandbox's own limits. Size worker pools from the
+        sandbox's `cpu` and `memory` instead, e.g. `pytest -n 2` rather than `pytest -n auto`.
+
         Args:
             command (str): Shell command to execute.
             cwd (str | None): Working directory for command execution. If not
@@ -120,6 +135,9 @@ class AsyncProcess:
 
             # Command with timeout
             result = await sandbox.process.exec("sleep 10", timeout=5)
+
+            # Start a server in the background
+            await sandbox.process.exec("python3 -m http.server 8000 > server.log 2>&1 &")
             ```
         """
         execute_request = ExecuteRequest(command=command, cwd=cwd, timeout=timeout, envs=env)

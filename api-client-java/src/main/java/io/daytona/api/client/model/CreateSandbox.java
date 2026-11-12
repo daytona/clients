@@ -92,6 +92,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private Boolean networkBlockAll;
 
+  public static final String SERIALIZED_NAME_KVM = "kvm";
+  @SerializedName(SERIALIZED_NAME_KVM)
+  @javax.annotation.Nullable
+  private Boolean kvm = false;
+
   public static final String SERIALIZED_NAME_NETWORK_ALLOW_LIST = "networkAllowList";
   @SerializedName(SERIALIZED_NAME_NETWORK_ALLOW_LIST)
   @javax.annotation.Nullable
@@ -172,6 +177,11 @@ public class CreateSandbox {
   @javax.annotation.Nullable
   private Integer ttlMinutes;
 
+  public static final String SERIALIZED_NAME_QUEUE_TIMEOUT = "queueTimeout";
+  @SerializedName(SERIALIZED_NAME_QUEUE_TIMEOUT)
+  @javax.annotation.Nullable
+  private Integer queueTimeout;
+
   public static final String SERIALIZED_NAME_VOLUMES = "volumes";
   @SerializedName(SERIALIZED_NAME_VOLUMES)
   @javax.annotation.Nullable
@@ -191,11 +201,6 @@ public class CreateSandbox {
   @SerializedName(SERIALIZED_NAME_SECRETS)
   @javax.annotation.Nullable
   private List<Map<String, String>> secrets = new ArrayList<>();
-
-  public static final String SERIALIZED_NAME_KVM = "kvm";
-  @SerializedName(SERIALIZED_NAME_KVM)
-  @javax.annotation.Nullable
-  private Boolean kvm = false;
 
   public CreateSandbox() {
   }
@@ -346,6 +351,25 @@ public class CreateSandbox {
 
   public void setNetworkBlockAll(@javax.annotation.Nullable Boolean networkBlockAll) {
     this.networkBlockAll = networkBlockAll;
+  }
+
+
+  public CreateSandbox kvm(@javax.annotation.Nullable Boolean kvm) {
+    this.kvm = kvm;
+    return this;
+  }
+
+  /**
+   * Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+   * @return kvm
+   */
+  @javax.annotation.Nullable
+  public Boolean getKvm() {
+    return kvm;
+  }
+
+  public void setKvm(@javax.annotation.Nullable Boolean kvm) {
+    this.kvm = kvm;
   }
 
 
@@ -661,6 +685,25 @@ public class CreateSandbox {
   }
 
 
+  public CreateSandbox queueTimeout(@javax.annotation.Nullable Integer queueTimeout) {
+    this.queueTimeout = queueTimeout;
+    return this;
+  }
+
+  /**
+   * Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer.
+   * @return queueTimeout
+   */
+  @javax.annotation.Nullable
+  public Integer getQueueTimeout() {
+    return queueTimeout;
+  }
+
+  public void setQueueTimeout(@javax.annotation.Nullable Integer queueTimeout) {
+    this.queueTimeout = queueTimeout;
+  }
+
+
   public CreateSandbox volumes(@javax.annotation.Nullable List<SandboxVolume> volumes) {
     this.volumes = volumes;
     return this;
@@ -752,25 +795,6 @@ public class CreateSandbox {
     this.secrets = secrets;
   }
 
-
-  public CreateSandbox kvm(@javax.annotation.Nullable Boolean kvm) {
-    this.kvm = kvm;
-    return this;
-  }
-
-  /**
-   * Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
-   * @return kvm
-   */
-  @javax.annotation.Nullable
-  public Boolean getKvm() {
-    return kvm;
-  }
-
-  public void setKvm(@javax.annotation.Nullable Boolean kvm) {
-    this.kvm = kvm;
-  }
-
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -833,6 +857,7 @@ public class CreateSandbox {
         Objects.equals(this.labels, createSandbox.labels) &&
         Objects.equals(this._public, createSandbox._public) &&
         Objects.equals(this.networkBlockAll, createSandbox.networkBlockAll) &&
+        Objects.equals(this.kvm, createSandbox.kvm) &&
         Objects.equals(this.networkAllowList, createSandbox.networkAllowList) &&
         Objects.equals(this.domainAllowList, createSandbox.domainAllowList) &&
         Objects.equals(this.outboundProxyUrl, createSandbox.outboundProxyUrl) &&
@@ -849,17 +874,17 @@ public class CreateSandbox {
         Objects.equals(this.autoArchiveInterval, createSandbox.autoArchiveInterval) &&
         Objects.equals(this.autoDeleteInterval, createSandbox.autoDeleteInterval) &&
         Objects.equals(this.ttlMinutes, createSandbox.ttlMinutes) &&
+        Objects.equals(this.queueTimeout, createSandbox.queueTimeout) &&
         Objects.equals(this.volumes, createSandbox.volumes) &&
         Objects.equals(this.buildInfo, createSandbox.buildInfo) &&
         Objects.equals(this.linkedSandbox, createSandbox.linkedSandbox) &&
-        Objects.equals(this.secrets, createSandbox.secrets) &&
-        Objects.equals(this.kvm, createSandbox.kvm)&&
+        Objects.equals(this.secrets, createSandbox.secrets)&&
         Objects.equals(this.additionalProperties, createSandbox.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, volumes, buildInfo, linkedSandbox, secrets, kvm, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, queueTimeout, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
   }
 
   @Override
@@ -873,6 +898,7 @@ public class CreateSandbox {
     sb.append("    labels: ").append(toIndentedString(labels)).append("\n");
     sb.append("    _public: ").append(toIndentedString(_public)).append("\n");
     sb.append("    networkBlockAll: ").append(toIndentedString(networkBlockAll)).append("\n");
+    sb.append("    kvm: ").append(toIndentedString(kvm)).append("\n");
     sb.append("    networkAllowList: ").append(toIndentedString(networkAllowList)).append("\n");
     sb.append("    domainAllowList: ").append(toIndentedString(domainAllowList)).append("\n");
     sb.append("    outboundProxyUrl: ").append(toIndentedString(outboundProxyUrl)).append("\n");
@@ -889,11 +915,11 @@ public class CreateSandbox {
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
     sb.append("    autoDeleteInterval: ").append(toIndentedString(autoDeleteInterval)).append("\n");
     sb.append("    ttlMinutes: ").append(toIndentedString(ttlMinutes)).append("\n");
+    sb.append("    queueTimeout: ").append(toIndentedString(queueTimeout)).append("\n");
     sb.append("    volumes: ").append(toIndentedString(volumes)).append("\n");
     sb.append("    buildInfo: ").append(toIndentedString(buildInfo)).append("\n");
     sb.append("    linkedSandbox: ").append(toIndentedString(linkedSandbox)).append("\n");
     sb.append("    secrets: ").append(toIndentedString(secrets)).append("\n");
-    sb.append("    kvm: ").append(toIndentedString(kvm)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -913,7 +939,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "volumes", "buildInfo", "linkedSandbox", "secrets", "kvm"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);

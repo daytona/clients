@@ -24,6 +24,7 @@ import {
   createAxiosDaytonaError,
   DaytonaError,
   DaytonaInvalidArgumentError,
+  DaytonaQueueTimeoutError,
   DaytonaTimeoutError,
 } from './errors/DaytonaError'
 import { Image } from './Image'
@@ -80,7 +81,7 @@ export interface VolumeMount extends SandboxVolume {
  * is provided, and must be set either here or in the environment variable `DAYTONA_ORGANIZATION_ID`.
  * @property {string} apiUrl - URL of the Daytona API. Defaults to 'https://app.daytona.io/api'
  * if not set here and not set in environment variable DAYTONA_API_URL.
- * @property {string} target - Target location for Sandboxes
+ * @property {string} target - Default region for Sandboxes and Snapshots. A per-call `target` / `regionId` overrides it
  * @property {boolean} otelEnabled - OpenTelemetry tracing enabled.
  * If set, all SDK operations will be traced.
  *
@@ -106,7 +107,7 @@ export interface DaytonaConfig {
    * @deprecated Use `apiUrl` instead. This property will be removed in future versions.
    */
   serverUrl?: string
-  /** Target environment for sandboxes */
+  /** Default region for Sandboxes and Snapshots; a per-call `target` / `regionId` overrides it */
   target?: string
   /** Enable OpenTelemetry tracing for SDK operations. */
   otelEnabled?: boolean
@@ -191,6 +192,7 @@ export interface Resources {
  * @property {number} [autoArchiveInterval] - Auto-archive interval in minutes (0 means the maximum interval will be used). Default is 7 days.
  * @property {number} [autoDeleteInterval] - Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping). By default, auto-delete is disabled.
  * @property {number} [ttlMinutes] - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
+ * @property {number} [queueTimeout] - Minutes to wait for runner assignment before the API destroys an unassigned sandbox. Omit to use the organization default.
  * @property {VolumeMount[]} [volumes] - Optional array of volumes to mount to the Sandbox
  * @property {boolean} [kvm] - Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
  * @property {boolean} [networkBlockAll] - Whether to block all network access for the Sandbox
@@ -202,6 +204,7 @@ export interface Resources {
  * @property {boolean} [spot] - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
  * @property {string} [linkedSandbox] - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
  * @property {Record<string, string>} [secrets] - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
+ * @property {string} [target] - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. When omitted, the client-level `target` is used if configured; otherwise the organization's default region.
  */
 export type CreateSandboxBaseParams = {
   name?: string
@@ -215,6 +218,7 @@ export type CreateSandboxBaseParams = {
   autoArchiveInterval?: number
   autoDeleteInterval?: number
   ttlMinutes?: number
+  queueTimeout?: number
   volumes?: VolumeMount[]
   kvm?: boolean
   networkBlockAll?: boolean
@@ -226,6 +230,7 @@ export type CreateSandboxBaseParams = {
   spot?: boolean
   linkedSandbox?: string
   secrets?: Record<string, string>
+  target?: string
 }
 
 /**
@@ -491,7 +496,7 @@ export class Daytona implements AsyncDisposable {
     const { diag, DiagConsoleLogger, DiagLogLevel } = dynamicRequire('@opentelemetry/api', errPrefix)
     const { NodeSDK } = dynamicRequire('@opentelemetry/sdk-node', errPrefix)
     const { HttpInstrumentation } = dynamicRequire('@opentelemetry/instrumentation-http', errPrefix)
-    const { BatchSpanProcessor } = dynamicRequire('@opentelemetry/sdk-trace-base', errPrefix)
+    const { BatchSpanProcessor } = dynamicRequire('@opentelemetry/sdk-trace', errPrefix)
     const { OTLPTraceExporter } = dynamicRequire('@opentelemetry/exporter-trace-otlp-http', errPrefix)
     const { CompressionAlgorithm } = dynamicRequire('@opentelemetry/otlp-exporter-base', errPrefix)
     const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = dynamicRequire('@opentelemetry/semantic-conventions', errPrefix)
@@ -510,11 +515,11 @@ export class Daytona implements AsyncDisposable {
         }),
       ],
       spanProcessors: [
-        new BatchSpanProcessor(
-          new OTLPTraceExporter({
+        new BatchSpanProcessor({
+          exporter: new OTLPTraceExporter({
             compression: CompressionAlgorithm.GZIP,
           }),
-        ),
+        }),
       ],
     })
 
@@ -683,6 +688,14 @@ export class Daytona implements AsyncDisposable {
       throw new DaytonaInvalidArgumentError('ttlMinutes must be a non-negative integer')
     }
 
+    if (params.queueTimeout !== undefined && (!Number.isInteger(params.queueTimeout) || params.queueTimeout < 1)) {
+      throw new DaytonaInvalidArgumentError('queueTimeout must be a positive integer')
+    }
+
+    // Set only after POST /sandbox returns. The catch below reads it when a
+    // later timeout discards the Sandbox object the caller would have received.
+    let createdSandboxId: string | undefined
+
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
@@ -719,7 +732,7 @@ export class Daytona implements AsyncDisposable {
           env: params.envVars || {},
           labels: labels,
           public: params.public,
-          target: this.target,
+          target: params.target || this.target,
           cpu: resources?.cpu,
           gpu: resources?.gpu,
           gpuType:
@@ -736,6 +749,7 @@ export class Daytona implements AsyncDisposable {
           autoArchiveInterval: params.autoArchiveInterval,
           autoDeleteInterval: params.autoDeleteInterval,
           ttlMinutes: params.ttlMinutes,
+          queueTimeout: params.queueTimeout,
           volumes: params.volumes,
           kvm: params.kvm,
           networkBlockAll: params.networkBlockAll,
@@ -755,6 +769,7 @@ export class Daytona implements AsyncDisposable {
       )
 
       let sandboxInstance = response.data
+      createdSandboxId = sandboxInstance.id
 
       if (sandboxInstance.state === SandboxState.PENDING_BUILD && options.onSnapshotCreateLogs) {
         const terminalStates: SandboxState[] = [
@@ -762,6 +777,7 @@ export class Daytona implements AsyncDisposable {
           SandboxState.STARTING,
           SandboxState.ERROR,
           SandboxState.BUILD_FAILED,
+          SandboxState.DESTROYED,
         ]
 
         while (sandboxInstance.state === SandboxState.PENDING_BUILD) {
@@ -777,20 +793,28 @@ export class Daytona implements AsyncDisposable {
           sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
         }
 
-        const response = await this.sandboxApi.getBuildLogsUrl(sandboxInstance.id)
+        try {
+          const response = await this.sandboxApi.getBuildLogsUrl(sandboxInstance.id)
 
-        await processStreamingResponse(
-          () =>
-            fetch(response.data.url + '?follow=true', {
-              method: 'GET',
-              headers: this.clientConfig.baseOptions.headers,
-            }),
-          (chunk) => options.onSnapshotCreateLogs?.(chunk.trimEnd()),
-          async () => {
-            sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
-            return sandboxInstance.state !== undefined && terminalStates.includes(sandboxInstance.state)
-          },
-        )
+          await processStreamingResponse(
+            () =>
+              fetch(response.data.url + '?follow=true', {
+                method: 'GET',
+                headers: this.clientConfig.baseOptions.headers,
+              }),
+            (chunk) => options.onSnapshotCreateLogs?.(chunk.trimEnd()),
+            async () => {
+              sandboxInstance = (await this.sandboxApi.getSandbox(sandboxInstance.id)).data
+              return sandboxInstance.state !== undefined && terminalStates.includes(sandboxInstance.state)
+            },
+          )
+        } catch (streamError) {
+          const refreshed = await this.sandboxApi.getSandbox(sandboxInstance.id).catch(() => undefined)
+          if (!refreshed || !Daytona.isDestroyedByLifecycle(refreshed.data)) {
+            throw streamError
+          }
+          sandboxInstance = refreshed.data
+        }
       }
 
       const sandbox = new Sandbox(
@@ -812,9 +836,16 @@ export class Daytona implements AsyncDisposable {
 
       return sandbox
     } catch (error) {
-      if (error instanceof DaytonaTimeoutError) {
-        const errMsg = `Failed to create and start sandbox within ${options.timeout} seconds. Operation timed out.`
-        throw new DaytonaTimeoutError(errMsg, error.statusCode, error.headers, error.code, error.source)
+      if (error instanceof DaytonaTimeoutError && !(error instanceof DaytonaQueueTimeoutError)) {
+        let message = `Failed to create and start sandbox within ${options.timeout} seconds. Operation timed out.`
+        if (createdSandboxId) {
+          message +=
+            ` Sandbox ${createdSandboxId} was created before the timeout and may still be starting.` +
+            ` Use get('${createdSandboxId}') to check on it, and pass the returned Sandbox to delete() to remove it.`
+        }
+        const timeoutError = new DaytonaTimeoutError(message, error.statusCode, error.headers, error.code, error.source)
+        timeoutError.sandboxId = createdSandboxId
+        throw timeoutError
       }
 
       throw error
@@ -862,7 +893,7 @@ export class Daytona implements AsyncDisposable {
     const { sandboxApi, clientConfig, eventSubscriptionManager, requestTimeoutMs } = this
     const getAnalyticsApiUrl = this.getAnalyticsApiUrl
     const ensureToolboxProxyUrl = this.ensureToolboxProxyUrl.bind(this)
-    const tracer = trace.getTracer('')
+    const tracer = trace.getTracer('daytona-typescript-sdk')
 
     async function* generator(): AsyncGenerator<Sandbox> {
       let cursor: string | undefined = undefined
@@ -957,6 +988,10 @@ export class Daytona implements AsyncDisposable {
     }
 
     return generator()
+  }
+
+  private static isDestroyedByLifecycle(sandbox: SandboxDto): boolean {
+    return sandbox.state === SandboxState.DESTROYED && Boolean(sandbox.queueTimedOutAt || sandbox.spotEvictedAt)
   }
 
   private async ensureToolboxProxyUrl<T extends SandboxDto | SandboxListItemDto>(sandboxDto: T): Promise<T> {

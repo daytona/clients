@@ -59,7 +59,13 @@ from .._utils.file_url_signing import SIGNING_KEY_CACHE_TTL_SECONDS, build_signe
 from .._utils.otel_decorator import with_instrumentation
 from .._utils.timeout import http_timeout, with_timeout
 from ..common.daytona import CODE_TOOLBOX_LANGUAGE_LABEL
-from ..common.errors import DaytonaError, DaytonaNotFoundError, DaytonaValidationError
+from ..common.errors import (
+    DaytonaError,
+    DaytonaNotFoundError,
+    DaytonaQueueTimeoutError,
+    DaytonaSpotEvictedError,
+    DaytonaValidationError,
+)
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
@@ -124,6 +130,8 @@ class Sandbox(SandboxDto):
         spot (bool): Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated
             to free capacity for on-demand GPU Sandboxes.
         spot_evicted_at (str | None): When the Sandbox was evicted by spot preemption.
+        queue_timed_out_at (str | None): When the Sandbox was destroyed because it waited too long
+            for a runner.
         gpu_type (GpuType | None): The GPU type assigned to the Sandbox.
         memory (int): Amount of memory allocated to the Sandbox in GiB.
         disk (int): Amount of disk space allocated to the Sandbox in GiB.
@@ -149,6 +157,8 @@ class Sandbox(SandboxDto):
         last_activity_at (str | None): When the Sandbox last had activity.
         auto_destroy_at (str | None): When the Sandbox will be automatically destroyed (only set when a TTL
             is configured).
+        queue_timeout (int | None): Minutes to wait for runner assignment before Sandbox creation is
+            cancelled.
         network_block_all (bool | None): Whether to block all network access for the Sandbox
             (not returned by list results; call `refresh_data()` on each item to populate).
         kvm (bool | None): Whether the sandbox exposes KVM (/dev/kvm) to its guest
@@ -658,6 +668,8 @@ class Sandbox(SandboxDto):
         Raises:
             DaytonaError: If timeout is negative; If Sandbox fails to start or times out;
         """
+        self._raise_destroyed_wait_error([SandboxState.STARTED])
+
         if self.state == SandboxState.STARTED:
             return
 
@@ -724,6 +736,31 @@ class Sandbox(SandboxDto):
 
         _ = self._sandbox_api.set_autostop_interval(self.id, interval, _request_timeout=http_timeout(request_timeout))
         self.auto_stop_interval = interval
+
+    @intercept_errors(message_prefix="Failed to set public status: ")
+    @with_instrumentation()
+    def set_public(self, public: bool, request_timeout: float | None = None) -> None:
+        """Sets whether the Sandbox's preview URLs are publicly accessible.
+
+        When public, preview URLs (see `get_preview_link`) can be opened without a preview
+        token or API key. When private, every preview request must authenticate.
+
+        Args:
+            public (bool): `True` to make preview URLs public, `False` to make them private.
+            request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
+                only. It bounds how long the SDK waits for the HTTP response and does not cancel
+                the operation on the server. Positive values under 1 second are rounded up to 1
+                second; 0 disables the client-side timeout and negative values are rejected.
+
+        Example:
+            ```python
+            sandbox.set_public(True)
+            preview = sandbox.get_preview_link(3000)
+            # preview.url can now be opened without credentials
+            ```
+        """
+        _ = self._sandbox_api.update_public_status(self.id, public, _request_timeout=http_timeout(request_timeout))
+        self.public = public
 
     @intercept_errors(message_prefix="Failed to set auto-pause interval: ")
     @with_instrumentation()
@@ -950,6 +987,12 @@ class Sandbox(SandboxDto):
         it will be opened automatically. For private sandboxes, a token is included to grant access
         to the URL.
 
+        For a private sandbox, requests to `url` must authenticate, otherwise they are answered
+        with `401 Unauthorized`. Send the returned `token` in the `X-Daytona-Preview-Token` header,
+        or send your Daytona API key as `Authorization: Bearer <api key>`. To get a URL that works
+        without extra headers (for example to open it in a browser or share it), use
+        `create_signed_preview_url` instead. Public sandboxes need no credentials.
+
         Args:
             port (int): The port to open the preview link on.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
@@ -963,9 +1006,17 @@ class Sandbox(SandboxDto):
 
         Example:
             ```python
+            import httpx
+
             preview_link = sandbox.get_preview_link(3000)
             print(f"Preview URL: {preview_link.url}")
             print(f"Token: {preview_link.token}")
+
+            # Fetch the private preview from outside the sandbox
+            response = httpx.get(
+                preview_link.url,
+                headers={"X-Daytona-Preview-Token": preview_link.token},
+            )
             ```
         """
         return self._sandbox_api.get_port_preview_url(self.id, port, _request_timeout=http_timeout(request_timeout))
@@ -979,10 +1030,16 @@ class Sandbox(SandboxDto):
     ) -> SignedPortPreviewUrl:
         """Creates a signed preview URL for the sandbox at the specified port.
 
+        The access token is embedded in the returned URL, so it can be used without any
+        headers, for example in a browser or by another service. The URL stops working when it
+        expires (after 60 seconds unless `expires_in_seconds` is set) or when it is expired with
+        `expire_signed_preview_url`.
+
         Args:
             port (int): The port to open the preview link on.
             expires_in_seconds (int | None): The number of seconds the signed preview
-                url will be valid for. Defaults to 60 seconds.
+                url will be valid for. Defaults to 60 seconds; set a longer value for links
+                that need to stay usable, e.g. `3600` for one hour.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
                 only. It bounds how long the SDK waits for the HTTP response and does not cancel
                 the operation on the server. Positive values under 1 second are rounded up to 1
@@ -990,6 +1047,12 @@ class Sandbox(SandboxDto):
 
         Returns:
             SignedPortPreviewUrl: The response object for the signed preview url.
+
+        Example:
+            ```python
+            signed = sandbox.create_signed_preview_url(3000, expires_in_seconds=3600)
+            print(f"Preview URL (valid for one hour): {signed.url}")
+            ```
         """
         return self._sandbox_api.get_signed_port_preview_url(
             self.id,
@@ -1335,6 +1398,22 @@ class Sandbox(SandboxDto):
             for waiter in list(self._state_waiters):
                 waiter(new_state)
 
+    def _raise_destroyed_wait_error(self, target_states: list[SandboxState]) -> None:
+        if self.state != SandboxState.DESTROYED or SandboxState.DESTROYED in target_states:
+            return
+
+        if self.queue_timed_out_at:
+            waited = ""
+            if self.queue_timeout is not None:
+                waited = f" {self.queue_timeout} " + ("minute" if self.queue_timeout == 1 else "minutes")
+            raise DaytonaQueueTimeoutError(
+                f"Sandbox {self.id} was destroyed after waiting{waited} for a runner "
+                + f"(queue timed out at {self.queue_timed_out_at})"
+            )
+
+        if self.spot_evicted_at:
+            raise DaytonaSpotEvictedError(f"Sandbox {self.id} was evicted by spot preemption at {self.spot_evicted_at}")
+
     def _wait_for_state(
         self,
         target_states: list[SandboxState],
@@ -1384,6 +1463,7 @@ class Sandbox(SandboxDto):
             else:
                 self.refresh_data()
 
+            self._raise_destroyed_wait_error(target_states)
             _waiter(self.state)
 
             while not state_resolved.is_set():
@@ -1396,6 +1476,8 @@ class Sandbox(SandboxDto):
                     self.__refresh_data_safe()
                 else:
                     self.refresh_data()
+
+                self._raise_destroyed_wait_error(target_states)
 
                 if subscribed or time.monotonic() - poll_start > 5.0:
                     poll_interval = min(poll_interval * 1.1, 1.0)
@@ -1413,6 +1495,9 @@ class Sandbox(SandboxDto):
                         self.__refresh_data_safe()
                     else:
                         self.refresh_data()
+                    self._raise_destroyed_wait_error(target_states)
+                except (DaytonaQueueTimeoutError, DaytonaSpotEvictedError):
+                    raise
                 except Exception:
                     pass  # fall through to re-raise below
                 if state_resolved.is_set():
@@ -1441,6 +1526,7 @@ class Sandbox(SandboxDto):
         self.gpu: int = sandbox_dto.gpu
         self.spot: bool | None = sandbox_dto.spot or False
         self.spot_evicted_at: str | None = sandbox_dto.spot_evicted_at
+        self.queue_timed_out_at: str | None = sandbox_dto.queue_timed_out_at
         self.gpu_type: GpuType | None = sandbox_dto.gpu_type
         self.memory: int = sandbox_dto.memory
         self.disk: int = sandbox_dto.disk
@@ -1468,6 +1554,7 @@ class Sandbox(SandboxDto):
         self.warm_pool_id: str | None = sandbox_dto.warm_pool_id
         self.daemon_version: str | None = sandbox_dto.daemon_version
         self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
+        self.queue_timeout: int | None = sandbox_dto.queue_timeout
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):
@@ -1475,7 +1562,7 @@ class Sandbox(SandboxDto):
             self.network_block_all: bool | None = (  # pyright: ignore[reportIncompatibleVariableOverride]
                 sandbox_dto.network_block_all
             )
-            self.kvm: bool | None = sandbox_dto.kvm
+            self.kvm: bool | None = sandbox_dto.kvm  # pyright: ignore[reportIncompatibleVariableOverride]
             self.network_allow_list: str | None = sandbox_dto.network_allow_list
             self.domain_allow_list: str | None = sandbox_dto.domain_allow_list
             self.outbound_proxy_url: str | None = sandbox_dto.outbound_proxy_url

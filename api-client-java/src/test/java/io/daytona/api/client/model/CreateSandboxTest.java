@@ -101,6 +101,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'kvm'
+     */
+    @Test
+    public void kvmTest() {
+        // TODO: test kvm
+    }
+
+    /**
      * Test the property 'networkAllowList'
      */
     @Test
@@ -229,6 +237,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'queueTimeout'
+     */
+    @Test
+    public void queueTimeoutTest() {
+        // TODO: test queueTimeout
+    }
+
+    /**
      * Test the property 'volumes'
      */
     @Test
@@ -258,14 +274,6 @@ public class CreateSandboxTest {
     @Test
     public void secretsTest() {
         // TODO: test secrets
-    }
-
-    /**
-     * Test the property 'kvm'
-     */
-    @Test
-    public void kvmTest() {
-        // TODO: test kvm
     }
 
 }

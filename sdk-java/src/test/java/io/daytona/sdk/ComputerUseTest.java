@@ -18,8 +18,14 @@ import io.daytona.toolbox.client.model.ComputerUseStatusResponse;
 import io.daytona.toolbox.client.model.DisplayInfoResponse;
 import io.daytona.toolbox.client.model.FindAccessibilityNodesRequest;
 import io.daytona.toolbox.client.model.KeyboardHotkeyRequest;
+import io.daytona.toolbox.client.model.KeyboardKeyDownRequest;
+import io.daytona.toolbox.client.model.KeyboardKeyUpRequest;
 import io.daytona.toolbox.client.model.MouseClickRequest;
 import io.daytona.toolbox.client.model.MouseClickResponse;
+import io.daytona.toolbox.client.model.MouseDownRequest;
+import io.daytona.toolbox.client.model.MouseDragRequest;
+import io.daytona.toolbox.client.model.MouseScrollRequest;
+import io.daytona.toolbox.client.model.MouseUpRequest;
 import io.daytona.toolbox.client.model.ScrollResponse;
 import io.daytona.toolbox.client.model.WindowsResponse;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -220,6 +226,217 @@ class ComputerUseTest {
         computerUse.deleteRecording("rec-1");
 
         verify(computerUseApi).deleteRecording("rec-1");
+    }
+
+    @Test
+    void mouseDownAndUpSendExactCoordinates() {
+        MousePositionResponse position = new MousePositionResponse();
+        when(computerUseApi.mouseDown(any())).thenReturn(position);
+        when(computerUseApi.mouseUp(any())).thenReturn(position);
+
+        assertThat(computerUse.mouseDown(0, 0)).isSameAs(position);
+        assertThat(computerUse.mouseUp(0, 0, "right")).isSameAs(position);
+
+        // (0, 0) is a real screen coordinate, not "unset": it must reach the wire request
+        // as 0 rather than being dropped to null by a falsy/zero check.
+        ArgumentCaptor<MouseDownRequest> downCaptor = ArgumentCaptor.forClass(MouseDownRequest.class);
+        verify(computerUseApi).mouseDown(downCaptor.capture());
+        assertThat(downCaptor.getValue().getX()).isEqualTo(0);
+        assertThat(downCaptor.getValue().getY()).isEqualTo(0);
+        assertThat(downCaptor.getValue().getButton()).isEqualTo("left");
+
+        ArgumentCaptor<MouseUpRequest> upCaptor = ArgumentCaptor.forClass(MouseUpRequest.class);
+        verify(computerUseApi).mouseUp(upCaptor.capture());
+        assertThat(upCaptor.getValue().getX()).isEqualTo(0);
+        assertThat(upCaptor.getValue().getY()).isEqualTo(0);
+        assertThat(upCaptor.getValue().getButton()).isEqualTo("right");
+    }
+
+    @Test
+    void mouseDownAndUpOmitCoordinatesWhenNotGiven() {
+        MousePositionResponse position = new MousePositionResponse();
+        when(computerUseApi.mouseDown(any())).thenReturn(position);
+        when(computerUseApi.mouseUp(any())).thenReturn(position);
+
+        assertThat(computerUse.mouseDown()).isSameAs(position);
+        assertThat(computerUse.mouseUp("middle")).isSameAs(position);
+
+        // Counterpart to mouseDownAndUpSendExactCoordinates: omitted coordinates stay null,
+        // so "press where the cursor already is" is distinguishable from "press at (0, 0)".
+        ArgumentCaptor<MouseDownRequest> downCaptor = ArgumentCaptor.forClass(MouseDownRequest.class);
+        verify(computerUseApi).mouseDown(downCaptor.capture());
+        assertThat(downCaptor.getValue().getX()).isNull();
+        assertThat(downCaptor.getValue().getY()).isNull();
+        assertThat(downCaptor.getValue().getButton()).isEqualTo("left");
+
+        ArgumentCaptor<MouseUpRequest> upCaptor = ArgumentCaptor.forClass(MouseUpRequest.class);
+        verify(computerUseApi).mouseUp(upCaptor.capture());
+        assertThat(upCaptor.getValue().getX()).isNull();
+        assertThat(upCaptor.getValue().getY()).isNull();
+        assertThat(upCaptor.getValue().getButton()).isEqualTo("middle");
+    }
+
+    @Test
+    void keyDownAndKeyUpBuildRequests() {
+        computerUse.keyDown("shift");
+        computerUse.keyUp("shift");
+
+        ArgumentCaptor<KeyboardKeyDownRequest> downCaptor = ArgumentCaptor.forClass(KeyboardKeyDownRequest.class);
+        verify(computerUseApi).keyDown(downCaptor.capture());
+        assertThat(downCaptor.getValue().getKey()).isEqualTo("shift");
+
+        ArgumentCaptor<KeyboardKeyUpRequest> upCaptor = ArgumentCaptor.forClass(KeyboardKeyUpRequest.class);
+        verify(computerUseApi).keyUp(upCaptor.capture());
+        assertThat(upCaptor.getValue().getKey()).isEqualTo("shift");
+    }
+
+    @Test
+    void clickForwardsClicksAndModifiers() {
+        MouseClickResponse response = new MouseClickResponse();
+        when(computerUseApi.click(any())).thenReturn(response);
+
+        assertThat(computerUse.click(10, 20, "left", 3, List.of("ctrl", "shift"))).isSameAs(response);
+        assertThat(computerUse.click(30, 40, "left", true, null, List.of("cmd"))).isSameAs(response);
+
+        ArgumentCaptor<MouseClickRequest> captor = ArgumentCaptor.forClass(MouseClickRequest.class);
+        verify(computerUseApi, org.mockito.Mockito.times(2)).click(captor.capture());
+        assertThat(captor.getAllValues().get(0).getX()).isEqualTo(10);
+        assertThat(captor.getAllValues().get(0).getY()).isEqualTo(20);
+        assertThat(captor.getAllValues().get(0).getButton()).isEqualTo("left");
+        assertThat(captor.getAllValues().get(0).getClicks()).isEqualTo(3);
+        assertThat(captor.getAllValues().get(0).getDouble()).isFalse();
+        assertThat(captor.getAllValues().get(0).getModifiers()).containsExactly("ctrl", "shift");
+        assertThat(captor.getAllValues().get(1).getX()).isEqualTo(30);
+        assertThat(captor.getAllValues().get(1).getY()).isEqualTo(40);
+        assertThat(captor.getAllValues().get(1).getClicks()).isNull();
+        assertThat(captor.getAllValues().get(1).getDouble()).isTrue();
+        assertThat(captor.getAllValues().get(1).getModifiers()).containsExactly("cmd");
+    }
+
+    @Test
+    void dragForwardsButtonAndModifiers() {
+        MouseDragResponse response = new MouseDragResponse();
+        when(computerUseApi.drag(any())).thenReturn(response);
+
+        assertThat(computerUse.drag(1, 2, 3, 4, "right", List.of("alt"))).isSameAs(response);
+
+        ArgumentCaptor<MouseDragRequest> captor = ArgumentCaptor.forClass(MouseDragRequest.class);
+        verify(computerUseApi).drag(captor.capture());
+        assertThat(captor.getValue().getStartX()).isEqualTo(1);
+        assertThat(captor.getValue().getStartY()).isEqualTo(2);
+        assertThat(captor.getValue().getEndX()).isEqualTo(3);
+        assertThat(captor.getValue().getEndY()).isEqualTo(4);
+        assertThat(captor.getValue().getButton()).isEqualTo("right");
+        assertThat(captor.getValue().getModifiers()).containsExactly("alt");
+    }
+
+    @Test
+    void scrollSupportsHorizontalDirectionsAndModifiers() {
+        ScrollResponse response = new ScrollResponse();
+        when(computerUseApi.scroll(any())).thenReturn(response);
+
+        assertThat(computerUse.scroll(10, 20, "left", 2)).isSameAs(response);
+        assertThat(computerUse.scroll(10, 20, "right", 3, List.of("cmd"))).isSameAs(response);
+
+        ArgumentCaptor<MouseScrollRequest> captor = ArgumentCaptor.forClass(MouseScrollRequest.class);
+        verify(computerUseApi, org.mockito.Mockito.times(2)).scroll(captor.capture());
+        assertThat(captor.getAllValues().get(0).getX()).isEqualTo(10);
+        assertThat(captor.getAllValues().get(0).getY()).isEqualTo(20);
+        assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo("left");
+        assertThat(captor.getAllValues().get(0).getAmount()).isEqualTo(2);
+        // No modifiers supplied: the field must stay null so Gson omits it from the
+        // payload. An empty list would serialize as "modifiers":[] and change the wire
+        // format for callers that predate the modifiers parameter.
+        assertThat(captor.getAllValues().get(0).getModifiers()).isNull();
+        assertThat(captor.getAllValues().get(1).getDirection()).isEqualTo("right");
+        assertThat(captor.getAllValues().get(1).getAmount()).isEqualTo(3);
+        assertThat(captor.getAllValues().get(1).getModifiers()).containsExactly("cmd");
+    }
+
+    @Test
+    void scrollWithDeltasAcceptsModifiers() {
+        ScrollResponse response = new ScrollResponse();
+        when(computerUseApi.scroll(any())).thenReturn(response);
+
+        assertThat(computerUse.scroll(10, 20, 0, -4, List.of("ctrl"))).isSameAs(response);
+
+        ArgumentCaptor<MouseScrollRequest> captor = ArgumentCaptor.forClass(MouseScrollRequest.class);
+        verify(computerUseApi).scroll(captor.capture());
+        assertThat(captor.getValue().getDirection()).isEqualTo("up");
+        assertThat(captor.getValue().getAmount()).isEqualTo(4);
+        assertThat(captor.getValue().getModifiers()).containsExactly("ctrl");
+    }
+
+    /**
+     * Back-compat guard: every call below is written exactly as it was before the
+     * mouse/keyboard hold overloads were added. It must keep compiling (source
+     * compatibility) and keep producing byte-identical requests (behavioral
+     * compatibility) — no modifiers, no clicks, same defaults.
+     */
+    @Test
+    void preExistingOverloadsKeepTheirBehavior() {
+        MouseClickResponse clickResponse = new MouseClickResponse();
+        MouseDragResponse dragResponse = new MouseDragResponse();
+        ScrollResponse scrollResponse = new ScrollResponse();
+        when(computerUseApi.click(any())).thenReturn(clickResponse);
+        when(computerUseApi.drag(any())).thenReturn(dragResponse);
+        when(computerUseApi.scroll(any())).thenReturn(scrollResponse);
+
+        assertThat(computerUse.click(10, 20)).isSameAs(clickResponse);
+        assertThat(computerUse.drag(1, 2, 3, 4)).isSameAs(dragResponse);
+        assertThat(computerUse.scroll(10, 20, 0, -4)).isSameAs(scrollResponse);
+
+        ArgumentCaptor<MouseClickRequest> clickCaptor = ArgumentCaptor.forClass(MouseClickRequest.class);
+        verify(computerUseApi).click(clickCaptor.capture());
+        assertThat(clickCaptor.getValue().getX()).isEqualTo(10);
+        assertThat(clickCaptor.getValue().getY()).isEqualTo(20);
+        assertThat(clickCaptor.getValue().getButton()).isEqualTo("left");
+        assertThat(clickCaptor.getValue().getDouble()).isFalse();
+        assertThat(clickCaptor.getValue().getClicks()).isNull();
+        assertThat(clickCaptor.getValue().getModifiers()).isNull();
+
+        ArgumentCaptor<MouseDragRequest> dragCaptor = ArgumentCaptor.forClass(MouseDragRequest.class);
+        verify(computerUseApi).drag(dragCaptor.capture());
+        assertThat(dragCaptor.getValue().getStartX()).isEqualTo(1);
+        assertThat(dragCaptor.getValue().getStartY()).isEqualTo(2);
+        assertThat(dragCaptor.getValue().getEndX()).isEqualTo(3);
+        assertThat(dragCaptor.getValue().getEndY()).isEqualTo(4);
+        assertThat(dragCaptor.getValue().getButton()).isEqualTo("left");
+        assertThat(dragCaptor.getValue().getModifiers()).isNull();
+
+        ArgumentCaptor<MouseScrollRequest> scrollCaptor = ArgumentCaptor.forClass(MouseScrollRequest.class);
+        verify(computerUseApi).scroll(scrollCaptor.capture());
+        assertThat(scrollCaptor.getValue().getDirection()).isEqualTo("up");
+        assertThat(scrollCaptor.getValue().getAmount()).isEqualTo(4);
+        assertThat(scrollCaptor.getValue().getModifiers()).isNull();
+
+        // The generated request models initialise `modifiers` to an empty list, so leaving the
+        // field untouched would serialise `"modifiers":[]` and change the wire payload for
+        // every pre-existing caller. Assert on the real Gson output, not just the getters.
+        assertThat(clickCaptor.getValue().toJson()).doesNotContain("modifiers");
+        assertThat(dragCaptor.getValue().toJson()).doesNotContain("modifiers");
+        assertThat(scrollCaptor.getValue().toJson()).doesNotContain("modifiers");
+        assertThat(clickCaptor.getValue().toJson()).doesNotContain("clicks");
+    }
+
+    /**
+     * An explicit {@code clicks = 0} must survive to the wire so the API can reject it, rather
+     * than being silently dropped and defaulted to a single click. This is distinct from
+     * {@code clicks = null}, which is omitted entirely.
+     */
+    @Test
+    void clickKeepsExplicitZeroClicks() {
+        MouseClickResponse response = new MouseClickResponse();
+        when(computerUseApi.click(any())).thenReturn(response);
+
+        assertThat(computerUse.click(10, 20, "left", 0, null)).isSameAs(response);
+
+        ArgumentCaptor<MouseClickRequest> captor = ArgumentCaptor.forClass(MouseClickRequest.class);
+        verify(computerUseApi).click(captor.capture());
+        assertThat(captor.getValue().getClicks()).isZero();
+        assertThat(captor.getValue().toJson()).contains("\"clicks\":0");
+        assertThat(captor.getValue().getModifiers()).isNull();
+        assertThat(captor.getValue().toJson()).doesNotContain("modifiers");
     }
 
     private static <T> T argThat(org.mockito.ArgumentMatcher<T> matcher) {

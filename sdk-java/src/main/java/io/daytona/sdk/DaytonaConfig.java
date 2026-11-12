@@ -47,7 +47,9 @@ public final class DaytonaConfig {
     }
 
     /**
-     * Returns the default target location for newly created Sandboxes.
+     * Returns the default region for Sandboxes and Snapshots. A per-call target
+     * ({@link io.daytona.sdk.model.CreateSandboxParams#setTarget(String)}) or snapshot {@code regionId}
+     * overrides it.
      *
      * @return target region identifier, or {@code null} if not configured
      */
@@ -113,7 +115,9 @@ public final class DaytonaConfig {
         }
 
         /**
-         * Sets the default target region for new Sandboxes.
+         * Sets the default region for Sandboxes and Snapshots. A per-call target
+         * ({@link io.daytona.sdk.model.CreateSandboxParams#setTarget(String)}) or snapshot {@code regionId}
+         * overrides it.
          *
          * @param target target location identifier
          * @return this builder instance

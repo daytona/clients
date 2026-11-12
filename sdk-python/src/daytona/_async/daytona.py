@@ -57,7 +57,12 @@ from ..common.daytona import (
     DaytonaConfig,
     resolve_bool_flag,
 )
-from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
+from ..common.errors import (
+    DaytonaAuthenticationError,
+    DaytonaQueueTimeoutError,
+    DaytonaTimeoutError,
+    DaytonaValidationError,
+)
 from ..common.image import Image
 from ..common.sandbox import ListSandboxesQuery
 from ..internal.event_dispatcher import AsyncEventDispatcher
@@ -73,6 +78,10 @@ from .warm_pool import AsyncWarmPoolService
 _MISSING_HAPPY_EYEBALLS_DELAY = object()
 
 _SandboxDtoT = TypeVar("_SandboxDtoT", SandboxDto, SandboxListItem)
+
+
+def _destroyed_by_lifecycle(sandbox: SandboxDto) -> bool:
+    return sandbox.state == SandboxState.DESTROYED and bool(sandbox.queue_timed_out_at or sandbox.spot_evicted_at)
 
 
 def _resolve_happy_eyeballs_delay(raw: str | None) -> object:
@@ -164,7 +173,8 @@ class AsyncDaytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Optional target environment (if not provided, default region for the organization is used)
+        - `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
+          for the organization is used). A per-call `target` / `region_id` overrides it
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.
@@ -564,8 +574,6 @@ class AsyncDaytona:
             ```
         """
 
-    @intercept_errors(message_prefix="Failed to create sandbox: ")
-    @with_timeout()
     @with_instrumentation()
     async def create(
         self,
@@ -580,14 +588,26 @@ class AsyncDaytona:
         elif not params.language:
             params.language = self.default_language
 
-        return await self._create(params, timeout=timeout, on_snapshot_create_logs=on_snapshot_create_logs)
+        created: list[str] = []
+        try:
+            return await self._create(
+                params, timeout=timeout, on_snapshot_create_logs=on_snapshot_create_logs, created=created
+            )
+        except DaytonaTimeoutError as e:
+            # A queue timeout means the API already destroyed the sandbox.
+            if created and not isinstance(e, DaytonaQueueTimeoutError):
+                e._attach_sandbox_id(created[0])
+            raise
 
+    @intercept_errors(message_prefix="Failed to create sandbox: ")
+    @with_timeout(name="create")
     async def _create(
         self,
         params: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams,
         *,
         timeout: float = 60,
         on_snapshot_create_logs: Callable[[str], None] | None = None,
+        created: list[str] | None = None,
     ) -> AsyncSandbox:
         validated_language = self._validate_language_label(str(params.language) if params.language else None)
         params.labels = params.labels or {}
@@ -624,7 +644,10 @@ class AsyncDaytona:
         if params.ttl_minutes is not None and params.ttl_minutes < 0:
             raise DaytonaValidationError("ttl_minutes must be a non-negative integer")
 
-        target = self._target
+        if params.queue_timeout is not None and (isinstance(params.queue_timeout, bool) or params.queue_timeout < 1):
+            raise DaytonaValidationError("queue_timeout must be a positive integer")
+
+        target = params.target or self._target
 
         volumes = []
         if params.volumes:
@@ -650,6 +673,7 @@ class AsyncDaytona:
             auto_archive_interval=params.auto_archive_interval,
             auto_delete_interval=params.auto_delete_interval,
             ttl_minutes=params.ttl_minutes,
+            queue_timeout=params.queue_timeout,
             volumes=volumes,
             secrets=secrets,
             network_block_all=params.network_block_all,
@@ -692,6 +716,9 @@ class AsyncDaytona:
                     )
 
         response = await self._sandbox_api.create_sandbox(sandbox_data, _request_timeout=http_timeout(timeout))
+        if created is not None:
+            # The sandbox exists from here on, so a timeout must tell the caller which one it was.
+            created.append(response.id)
 
         if response.state == SandboxState.PENDING_BUILD and on_snapshot_create_logs:
             build_logs_url = (await self._sandbox_api.get_build_logs_url(response.id)).url
@@ -705,19 +732,29 @@ class AsyncDaytona:
                     SandboxState.STARTING,
                     SandboxState.ERROR,
                     SandboxState.BUILD_FAILED,
+                    SandboxState.DESTROYED,
                 ]
 
             while response_ref["response"].state == SandboxState.PENDING_BUILD:
                 await asyncio.sleep(1)
                 response_ref["response"] = await self._sandbox_api.get_sandbox(response_ref["response"].id)
 
-            await process_streaming_response(
-                url=build_logs_url + "?follow=true",
-                headers=cast(dict[str, str], self._sandbox_api.api_client.default_headers),
-                on_chunk=lambda chunk: on_snapshot_create_logs(chunk.rstrip()),
-                should_terminate=should_terminate,
-                session=self._shared_session.session,
-            )
+            try:
+                await process_streaming_response(
+                    url=build_logs_url + "?follow=true",
+                    headers=cast(dict[str, str], self._sandbox_api.api_client.default_headers),
+                    on_chunk=lambda chunk: on_snapshot_create_logs(chunk.rstrip()),
+                    should_terminate=should_terminate,
+                    session=self._shared_session.session,
+                )
+            except Exception as stream_error:
+                try:
+                    refreshed = await self._sandbox_api.get_sandbox(response_ref["response"].id)
+                except Exception:
+                    raise stream_error from None
+                if not _destroyed_by_lifecycle(refreshed):
+                    raise
+                response_ref["response"] = refreshed
             response = response_ref["response"]
 
         sandbox = AsyncSandbox(

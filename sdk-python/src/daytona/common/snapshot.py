@@ -84,8 +84,8 @@ class CreateSnapshotParams(BaseModel):
             it will be used to create a new image in Daytona.
         resources (Resources | None): Resources of the snapshot.
         entrypoint (list[str] | None): Entrypoint of the snapshot.
-        region_id (str | None): ID of the region where the snapshot will be available.
-            Defaults to organization default region if not specified.
+        region_id (str | None): ID of the region where the snapshot will be available. If omitted, the
+            client-level target is used when configured; otherwise the organization's default region is used.
         sandbox_class (SandboxClass | None): Target sandbox class. Determines which runners
             can host sandboxes created from this snapshot.
     """

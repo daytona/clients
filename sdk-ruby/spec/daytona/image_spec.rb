@@ -202,6 +202,19 @@ RSpec.describe Daytona::Image do
 
       expect(image.dockerfile).to include('RUN "echo" "hello"')
     end
+
+    it 'keeps the current shell quoting for array commands' do
+      image = described_class.base('python:3.12')
+
+      image.run_commands(['sh', '-c', 'say "hi"'], ['sh', '-c', "say 'hi'"], ['echo', '$HOME'], ['echo', 'a\\b'],
+                         ['echo', ''])
+
+      expect(image.dockerfile).to include('RUN "sh" "-c" "say \\"hi\\""')
+      expect(image.dockerfile).to include(%(RUN "sh" "-c" "say 'hi'"))
+      expect(image.dockerfile).to include('RUN "echo" "$HOME"')
+      expect(image.dockerfile).to include('RUN "echo" "a\\b"')
+      expect(image.dockerfile).to include('RUN "echo" ""')
+    end
   end
 
   describe '#env' do
@@ -241,6 +254,16 @@ RSpec.describe Daytona::Image do
       expect(image.dockerfile).to include('ENTRYPOINT ["/bin/bash", "-lc"]')
     end
 
+    it 'JSON-encodes quotes, backslashes, and empty arguments' do
+      image = described_class.base('python:3.12')
+
+      image.entrypoint(['python', 'say "hi"', 'a\\b', ''])
+
+      expect(image.dockerfile).to include('ENTRYPOINT ["python", "say \\"hi\\"", "a\\\\b", ""]')
+      payload = image.dockerfile[/ENTRYPOINT (\[.*\])/, 1]
+      expect(JSON.parse(payload)).to eq(['python', 'say "hi"', 'a\\b', ''])
+    end
+
     it 'raises for invalid entrypoint arguments' do
       image = described_class.base('python:3.12')
 
@@ -256,6 +279,26 @@ RSpec.describe Daytona::Image do
       image.cmd(['ruby', 'app.rb'])
 
       expect(image.dockerfile).to include('CMD ["ruby", "app.rb"]')
+    end
+
+    it 'JSON-encodes quotes, backslashes, and empty arguments' do
+      image = described_class.base('python:3.12')
+
+      image.cmd(['ruby', 'say "hi"', 'a\\b', ''])
+
+      expect(image.dockerfile).to include('CMD ["ruby", "say \\"hi\\"", "a\\\\b", ""]')
+      payload = image.dockerfile[/CMD (\[.*\])/, 1]
+      expect(JSON.parse(payload)).to eq(['ruby', 'say "hi"', 'a\\b', ''])
+    end
+
+    it 'keeps a hand-escaped command byte for byte' do
+      image = described_class.base('python:3.12')
+
+      image.cmd(['ruby', 'print(\"hi\")', 'café', 'a && b'])
+
+      expect(image.dockerfile).to include('CMD ["ruby", "print(\\"hi\\")", "café", "a && b"]')
+      payload = image.dockerfile[/CMD (\[.*\])/, 1]
+      expect(JSON.parse(payload)).to eq(['ruby', 'print("hi")', 'café', 'a && b'])
     end
 
     it 'raises for invalid command arguments' do

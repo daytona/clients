@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -261,6 +262,7 @@ func TestNewClientDefaultCreatesDispatcher(t *testing.T) {
 }
 
 func TestNewClientDeprecatedPollingViaConfig(t *testing.T) {
+	//nolint:staticcheck // exercises deprecated config precedence until the field is removed.
 	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(true)})
 	require.NoError(t, err)
 	require.NotNil(t, client.subscriptionManager)
@@ -292,6 +294,7 @@ func TestNewClientDeprecatedPollingUnsetFallsBackToEnv(t *testing.T) {
 func TestNewClientDeprecatedPollingExplicitFalseBeatsEnv(t *testing.T) {
 	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "true")
 
+	//nolint:staticcheck // exercises deprecated config precedence until the field is removed.
 	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", UseDeprecatedPolling: boolPtr(false)})
 	require.NoError(t, err)
 	require.NotNil(t, client.subscriptionManager)
@@ -1101,6 +1104,27 @@ func TestClientCreateSuccessRequestMapping(t *testing.T) {
 		assert.Equal(t, "sb-no-kvm", sandbox.ID)
 	})
 
+	t.Run("queue timeout is sent in request body when set", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.Equal(t, float64(7), body["queueTimeout"])
+			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-queue-timeout", "queue-timeout", apiclient.SANDBOXSTATE_STARTED))
+		}))
+		defer server.Close()
+
+		client := createTestClientWithServer(t, server)
+		queueTimeout := 7
+		sandbox, err := client.Create(context.Background(), types.SnapshotParams{
+			Snapshot: "snap-1",
+			SandboxBaseParams: types.SandboxBaseParams{
+				QueueTimeout: &queueTimeout,
+			},
+		}, options.WithWaitForStart(false))
+		require.NoError(t, err)
+		assert.Equal(t, "sb-queue-timeout", sandbox.ID)
+	})
+
 	t.Run("snapshot params send snapshot field", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var body map[string]any
@@ -1133,6 +1157,32 @@ func TestClientCreateValidationInvalidLanguage(t *testing.T) {
 	}, options.WithWaitForStart(false))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Supported languages: python, javascript, typescript")
+}
+
+func TestClientCreateValidationRejectsInvalidQueueTimeout(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+	client := createTestClientWithServer(t, server)
+
+	for _, tc := range []struct {
+		name         string
+		queueTimeout int
+	}{
+		{name: "zero", queueTimeout: 0},
+		{name: "negative", queueTimeout: -1},
+		{name: "exceeds int32", queueTimeout: math.MaxInt32 + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.Create(context.Background(), types.ImageParams{
+				Image: "alpine:3.20",
+				SandboxBaseParams: types.SandboxBaseParams{
+					QueueTimeout: &tc.queueTimeout,
+				},
+			}, options.WithWaitForStart(false))
+			require.Error(t, err)
+			assert.EqualError(t, err, "Daytona error: queueTimeout must be a positive integer")
+		})
+	}
 }
 
 func TestClientGetAndListSuccess(t *testing.T) {
@@ -1187,4 +1237,76 @@ func TestClientGetAndListSuccess(t *testing.T) {
 		assert.Equal(t, "0.42.0", *collected[0].DaemonVersion)
 		assert.Nil(t, collected[0].OtelEndpointOverride)
 	})
+}
+
+func TestClientCreateTarget(t *testing.T) {
+	cases := []struct {
+		name         string
+		clientTarget string
+		params       any
+		wantTarget   any
+	}{
+		{
+			name:         "snapshot create target overrides client target",
+			clientTarget: "us",
+			params:       types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "image create target overrides client target",
+			clientTarget: "us",
+			params:       types.ImageParams{Image: "alpine:3.20", SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "pointer snapshot params target overrides client target",
+			clientTarget: "us",
+			params:       &types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "pointer image params target overrides client target",
+			clientTarget: "us",
+			params:       &types.ImageParams{Image: "alpine:3.20", SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget:   "eu",
+		},
+		{
+			name:         "client target is used when create omits it",
+			clientTarget: "us",
+			params:       types.SnapshotParams{},
+			wantTarget:   "us",
+		},
+		{
+			name:       "create target is used without a client target",
+			params:     types.SnapshotParams{SandboxBaseParams: types.SandboxBaseParams{Target: "eu"}},
+			wantTarget: "eu",
+		},
+		{
+			name:       "target is omitted when neither is set",
+			params:     types.SnapshotParams{},
+			wantTarget: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				target, sent := body["target"]
+				if tc.wantTarget == nil {
+					assert.False(t, sent, "target must be omitted from the request")
+				} else {
+					assert.Equal(t, tc.wantTarget, target)
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb-target", "target", apiclient.SANDBOXSTATE_STARTED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			client.region = tc.clientTarget
+			_, err := client.Create(context.Background(), tc.params, options.WithWaitForStart(false))
+			require.NoError(t, err)
+		})
+	}
 }

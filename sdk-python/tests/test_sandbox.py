@@ -8,7 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from daytona.common.errors import DaytonaError, DaytonaValidationError
+from daytona.common.errors import (
+    DaytonaError,
+    DaytonaQueueTimeoutError,
+    DaytonaSpotEvictedError,
+    DaytonaTimeoutError,
+    DaytonaValidationError,
+)
 from daytona_api_client import SandboxState, UpdateSandboxSecrets
 
 from .conftest import make_pydantic_validation_error, make_sandbox_dto
@@ -82,6 +88,13 @@ class TestSandboxLifecycleSettings:
         sandbox.set_autostop_interval(30)
         assert sandbox.auto_stop_interval == 30
         mock_sandbox_api.set_autostop_interval.assert_called_once_with(sandbox.id, 30, _request_timeout=None)
+
+    @pytest.mark.parametrize("public", [True, False])
+    def test_set_public(self, public, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
+        sandbox.set_public(public)
+        assert sandbox.public is public
+        mock_sandbox_api.update_public_status.assert_called_once_with(sandbox.id, public, _request_timeout=None)
 
     def test_negative_autopause_interval_raises(self, sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api)
@@ -229,6 +242,64 @@ class TestSandboxWaitForStart:
             sandbox.wait_for_sandbox_start(timeout=0)
 
 
+class TestSandboxQueueTimeout:
+    def test_queue_timeout_fields_hydrated_from_dto(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(queue_timeout=5, queue_timed_out_at="2026-08-13T12:00:00.000Z")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        assert sandbox.queue_timeout == 5
+        assert sandbox.queue_timed_out_at == "2026-08-13T12:00:00.000Z"
+
+    def test_queue_timeout_fields_default_none(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api)
+        assert sandbox.queue_timeout is None
+        assert sandbox.queue_timed_out_at is None
+
+    def test_wait_for_start_raises_queue_timeout_error(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(
+            make_sandbox_dto(state=SandboxState.PENDING_BUILD), mock_toolbox_api_client, mock_sandbox_api
+        )
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(
+            state=SandboxState.DESTROYED, queue_timeout=1, queue_timed_out_at="2026-08-13T12:00:00.000Z"
+        )
+        with pytest.raises(DaytonaQueueTimeoutError, match="waiting 1 minute for a runner") as exc_info:
+            sandbox.wait_for_sandbox_start(timeout=0)
+        assert isinstance(exc_info.value, DaytonaTimeoutError)
+
+    def test_queue_timeout_message_omits_duration_when_unknown(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.DESTROYED, queue_timed_out_at="2026-08-13T12:00:00Z")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        with pytest.raises(
+            DaytonaQueueTimeoutError, match=r"was destroyed after waiting for a runner \(queue timed out at"
+        ):
+            sandbox.wait_for_sandbox_start(timeout=0)
+
+    def test_wait_for_start_raises_spot_evicted_error(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(
+            state=SandboxState.DESTROYED, spot_evicted_at="2026-08-13T12:00:00.000Z"
+        )
+        with pytest.raises(DaytonaSpotEvictedError, match="evicted by spot preemption"):
+            sandbox.wait_for_sandbox_start(timeout=0)
+
+    def test_cached_queue_timed_out_state_raises_immediately(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(state=SandboxState.DESTROYED, queue_timeout=2, queue_timed_out_at="2026-08-13T12:00:00Z")
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        with pytest.raises(DaytonaQueueTimeoutError):
+            sandbox.wait_for_sandbox_start(timeout=0)
+        mock_sandbox_api.get_sandbox.assert_not_called()
+
+    def test_delete_wait_succeeds_for_queue_timed_out_sandbox(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(
+            make_sandbox_dto(state=SandboxState.PENDING_BUILD), mock_toolbox_api_client, mock_sandbox_api
+        )
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYING)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(
+            state=SandboxState.DESTROYED, queue_timeout=1, queue_timed_out_at="2026-08-13T12:00:00.000Z"
+        )
+        sandbox.delete(timeout=0, wait=True)
+        assert sandbox.state == SandboxState.DESTROYED
+
+
 class TestSandboxPollingSemantics:
     def test_cached_error_recovers_after_refresh(self, mock_toolbox_api_client, mock_sandbox_api):
         error_dto = make_sandbox_dto(state=SandboxState.ERROR, error_reason="transient")
@@ -347,3 +418,17 @@ class TestSandboxPollingSemantics:
 
         with pytest.warns(DeprecationWarning, match="Use `create_snapshot` instead"):
             sandbox._experimental_create_snapshot("my-snapshot", timeout=0)
+
+
+@pytest.mark.parametrize("public", [True, False])
+def test_public_status_path_uses_json_booleans(public):
+    from daytona_api_client.api_client import ApiClient
+    from daytona_api_client_async.api_client import ApiClient as AsyncApiClient
+
+    for client in (ApiClient(), AsyncApiClient()):
+        _, url, *_ = client.param_serialize(
+            method="POST",
+            resource_path="/sandbox/{sandboxIdOrName}/public/{isPublic}",
+            path_params={"sandboxIdOrName": "sb-1", "isPublic": public},
+        )
+        assert url.endswith(f"/sandbox/sb-1/public/{str(public).lower()}")

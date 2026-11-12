@@ -1,0 +1,10 @@
+{{! Local override of upstream python/test-requirements.mustache (openapi-generator
+    v7.21.0). Floors are managed HERE: editing a generated client's
+    test-requirements.txt directly gets reverted on the next `yarn generate:api-client`.
+    Keep these in step with the dev group in pyproject.mustache. }}
+pytest >= 9.2.0
+pytest-cov >= 7.1.0
+tox >= 4.65.0
+flake8 >= 7.4.1
+types-python-dateutil >= 2.9.0.20261029
+mypy >= 2.4.1

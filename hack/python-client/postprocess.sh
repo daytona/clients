@@ -38,10 +38,20 @@ find "$MODELS_DIR" -type f -name "*.py" | while read -r f; do
   sed -i'' -E '/Field\(/ s/alias="([^"]+)"/serialization_alias="\1"/g' "$f"
 done
 
+# Defer Pydantic validator construction to the first API call to reduce import time.
+# Only rewrite bare decorators so existing validate_call configuration is preserved.
+find "$pkg_root/api" -type f -name "*.py" | while read -r f; do
+  sed -i'' -E 's/^([[:space:]]*)@validate_call[[:space:]]*$/\1@validate_call(config={"defer_build": True})/' "$f"
+done
+
 # Remove hardcoded 300s HTTP timeout fallback from async REST clients
 # so that timeout=None means no timeout, matching TypeScript SDK behavior.
 # Server-side already handles stale connections.
 sed -i 's/timeout = _request_timeout or 5 \* 60/timeout = _request_timeout/' "$pkg_root/rest.py"
+
+# Serialize boolean path parameters as "true"/"false", as query parameters and the
+# other generated clients already do; str(True) would send "True".
+sed -i 's/quote(str(v), safe=config.safe_chars_for_path_param)/quote(str(v).lower() if isinstance(v, bool) else str(v), safe=config.safe_chars_for_path_param)/' "$pkg_root/api_client.py"
 
 # Set dynamic User-Agent with package version
 CLIENT_NAME=$(basename "$PROJECT_ROOT")

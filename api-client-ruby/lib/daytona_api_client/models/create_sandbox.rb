@@ -36,6 +36,9 @@ module DaytonaApiClient
     # Whether to block all network access for the sandbox
     attr_accessor :network_block_all
 
+    # Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+    attr_accessor :kvm
+
     # Comma-separated list of allowed CIDR network addresses for the sandbox
     attr_accessor :network_allow_list
 
@@ -84,6 +87,9 @@ module DaytonaApiClient
     # Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled.
     attr_accessor :ttl_minutes
 
+    # Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer.
+    attr_accessor :queue_timeout
+
     # Array of volumes to attach to the sandbox
     attr_accessor :volumes
 
@@ -96,9 +102,6 @@ module DaytonaApiClient
     # Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.
     attr_accessor :secrets
 
-    # Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
-    attr_accessor :kvm
-
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
@@ -109,6 +112,7 @@ module DaytonaApiClient
         :'labels' => :'labels',
         :'public' => :'public',
         :'network_block_all' => :'networkBlockAll',
+        :'kvm' => :'kvm',
         :'network_allow_list' => :'networkAllowList',
         :'domain_allow_list' => :'domainAllowList',
         :'outbound_proxy_url' => :'outboundProxyUrl',
@@ -125,11 +129,11 @@ module DaytonaApiClient
         :'auto_archive_interval' => :'autoArchiveInterval',
         :'auto_delete_interval' => :'autoDeleteInterval',
         :'ttl_minutes' => :'ttlMinutes',
+        :'queue_timeout' => :'queueTimeout',
         :'volumes' => :'volumes',
         :'build_info' => :'buildInfo',
         :'linked_sandbox' => :'linkedSandbox',
-        :'secrets' => :'secrets',
-        :'kvm' => :'kvm'
+        :'secrets' => :'secrets'
       }
     end
 
@@ -153,6 +157,7 @@ module DaytonaApiClient
         :'labels' => :'Hash<String, String>',
         :'public' => :'Boolean',
         :'network_block_all' => :'Boolean',
+        :'kvm' => :'Boolean',
         :'network_allow_list' => :'String',
         :'domain_allow_list' => :'String',
         :'outbound_proxy_url' => :'String',
@@ -169,11 +174,11 @@ module DaytonaApiClient
         :'auto_archive_interval' => :'Integer',
         :'auto_delete_interval' => :'Integer',
         :'ttl_minutes' => :'Integer',
+        :'queue_timeout' => :'Integer',
         :'volumes' => :'Array<SandboxVolume>',
         :'build_info' => :'CreateBuildInfo',
         :'linked_sandbox' => :'String',
-        :'secrets' => :'Array<Hash<String, String>>',
-        :'kvm' => :'Boolean'
+        :'secrets' => :'Array<Hash<String, String>>'
       }
     end
 
@@ -229,6 +234,12 @@ module DaytonaApiClient
 
       if attributes.key?(:'network_block_all')
         self.network_block_all = attributes[:'network_block_all']
+      end
+
+      if attributes.key?(:'kvm')
+        self.kvm = attributes[:'kvm']
+      else
+        self.kvm = false
       end
 
       if attributes.key?(:'network_allow_list')
@@ -299,6 +310,10 @@ module DaytonaApiClient
         self.ttl_minutes = attributes[:'ttl_minutes']
       end
 
+      if attributes.key?(:'queue_timeout')
+        self.queue_timeout = attributes[:'queue_timeout']
+      end
+
       if attributes.key?(:'volumes')
         if (value = attributes[:'volumes']).is_a?(Array)
           self.volumes = value
@@ -317,12 +332,6 @@ module DaytonaApiClient
         if (value = attributes[:'secrets']).is_a?(Array)
           self.secrets = value
         end
-      end
-
-      if attributes.key?(:'kvm')
-        self.kvm = attributes[:'kvm']
-      else
-        self.kvm = false
       end
     end
 
@@ -353,6 +362,7 @@ module DaytonaApiClient
           labels == o.labels &&
           public == o.public &&
           network_block_all == o.network_block_all &&
+          kvm == o.kvm &&
           network_allow_list == o.network_allow_list &&
           domain_allow_list == o.domain_allow_list &&
           outbound_proxy_url == o.outbound_proxy_url &&
@@ -369,11 +379,11 @@ module DaytonaApiClient
           auto_archive_interval == o.auto_archive_interval &&
           auto_delete_interval == o.auto_delete_interval &&
           ttl_minutes == o.ttl_minutes &&
+          queue_timeout == o.queue_timeout &&
           volumes == o.volumes &&
           build_info == o.build_info &&
           linked_sandbox == o.linked_sandbox &&
-          secrets == o.secrets &&
-          kvm == o.kvm
+          secrets == o.secrets
     end
 
     # @see the `==` method
@@ -385,7 +395,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, volumes, build_info, linked_sandbox, secrets, kvm].hash
+      [name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, queue_timeout, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

@@ -148,6 +148,7 @@ func (c *CodeInterpreterService) RunCode(ctx context.Context, code string, opts 
 					Error: &types.ExecutionError{
 						Name:  "ConnectionError",
 						Value: err.Error(),
+						Err:   err,
 					},
 				}
 				return
@@ -161,6 +162,7 @@ func (c *CodeInterpreterService) RunCode(ctx context.Context, code string, opts 
 					Error: &types.ExecutionError{
 						Name:  "ConnectionError",
 						Value: fmt.Sprintf("Failed to connect to WebSocket: %v", err),
+						Err:   err,
 					},
 				}
 				return
@@ -187,6 +189,7 @@ func (c *CodeInterpreterService) RunCode(ctx context.Context, code string, opts 
 					Error: &types.ExecutionError{
 						Name:  "ConnectionError",
 						Value: fmt.Sprintf("Failed to send execute request: %v", err),
+						Err:   err,
 					},
 				}
 				return
@@ -215,6 +218,7 @@ func (c *CodeInterpreterService) RunCode(ctx context.Context, code string, opts 
 					result.Error = &types.ExecutionError{
 						Name:  "ConnectionError",
 						Value: fmt.Sprintf("Failed to read message: %v", err),
+						Err:   err,
 					}
 					break
 				}

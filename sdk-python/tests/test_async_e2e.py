@@ -199,6 +199,31 @@ async def test_async_concurrent_get_no_connection_errors(async_daytona_client):
 
 
 # ===========================================================================
+# Client Close
+# ===========================================================================
+
+
+async def test_async_close_closes_event_socket_before_returning():
+    """Regression: close() returned while the event websocket's transport was still closing, so a loop
+    stopped right after it (e.g. by loop.run_until_complete) leaked an unclosed transport.
+    """
+    daytona = AsyncDaytona()
+    try:
+        dispatcher = daytona._event_dispatcher
+        assert dispatcher is not None
+        for _ in range(100):
+            if dispatcher.is_connected:
+                break
+            await asyncio.sleep(0.1)
+        assert dispatcher.is_connected, dispatcher.fail_error
+        sock = dispatcher._sio.eio.ws.get_extra_info("socket")
+    finally:
+        await daytona.close()
+
+    assert sock.fileno() == -1, "the event websocket's socket is still open after close()"
+
+
+# ===========================================================================
 # Signed URL Operations
 # ===========================================================================
 

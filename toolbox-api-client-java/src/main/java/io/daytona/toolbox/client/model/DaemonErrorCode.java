@@ -51,6 +51,10 @@ public enum DaemonErrorCode {
   
   CodeFileAccessDenied("FILE_ACCESS_DENIED"),
   
+  CodeInvalidFilePath("INVALID_FILE_PATH"),
+  
+  CodeFileReadFailed("FILE_READ_FAILED"),
+  
   CodeLspServerNotInitialized("LSP_SERVER_NOT_INITIALIZED"),
   
   CodeProcessExecutionTimeout("PROCESS_EXECUTION_TIMEOUT"),

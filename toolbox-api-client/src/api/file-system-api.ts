@@ -36,6 +36,8 @@ import type { ReplaceResult } from '../models';
 // @ts-ignore
 import type { SearchFilesResponse } from '../models';
 // @ts-ignore
+import type { UploadFilesResponse } from '../models';
+// @ts-ignore
 import type { UploadedFile } from '../models';
 /**
  * FileSystemApi - axios parameter creator
@@ -752,7 +754,7 @@ export const FileSystemApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async uploadFiles(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async uploadFiles(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<UploadFilesResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.uploadFiles(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FileSystemApi.uploadFiles']?.[localVarOperationServerIndex]?.url;
@@ -903,7 +905,7 @@ export const FileSystemApiFactory = function (configuration?: Configuration, bas
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        uploadFiles(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        uploadFiles(options?: RawAxiosRequestConfig): AxiosPromise<UploadFilesResponse> {
             return localVarFp.uploadFiles(options).then((request) => request(axios, basePath));
         },
     };

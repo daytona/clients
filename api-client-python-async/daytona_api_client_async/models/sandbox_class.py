@@ -29,7 +29,6 @@ class SandboxClass(str, Enum):
     """
     LINUX_VM = 'linux-vm'
     CONTAINER = 'container'
-    ANDROID = 'android'
     WINDOWS = 'windows'
     UNKNOWN_DEFAULT_OPEN_API = 'unknown_default_open_api'
 

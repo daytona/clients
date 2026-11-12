@@ -9,6 +9,11 @@ import { DaytonaConnectionError, DaytonaError, DaytonaTimeoutError } from './err
 import type { PtySessionInfo } from '@daytona/toolbox-api-client'
 import { WithInstrumentation } from './utils/otel.decorator'
 
+// A PTY can legitimately stay silent for a long time (a build or test run with no output)
+// and intermediate proxies/load balancers drop connections that carry no traffic. Pings
+// keep the connection alive without injecting input into the terminal.
+const WS_KEEPALIVE_INTERVAL_MS = 20_000
+
 /**
  * PTY session handle for managing a single PTY session.
  *
@@ -48,6 +53,7 @@ export class PtyHandle {
   private connectionEstablished = false // Track control message received
   private _connectionResolvers: { resolve: () => void; reject: (err: Error) => void }[] = []
   private _exitResolvers: ((value: PtyResult) => void)[] = []
+  private keepaliveTimer?: ReturnType<typeof setInterval>
 
   constructor(
     private readonly ws: WebSocket,
@@ -312,6 +318,35 @@ export class PtyHandle {
     return await this.handleKill()
   }
 
+  /**
+   * Browser WebSockets cannot send ping frames (the browser handles them internally), so
+   * keepalive is only active on runtimes whose socket exposes `ping()` (Node.js `ws`).
+   */
+  private startKeepalive(): void {
+    if (this.keepaliveTimer || typeof this.ws.ping !== 'function') {
+      return
+    }
+    this.keepaliveTimer = setInterval(() => {
+      if (this.ws.readyState !== WebSocket.OPEN) {
+        this.stopKeepalive()
+        return
+      }
+      try {
+        this.ws.ping()
+      } catch {
+        // A failed ping surfaces as a socket error/close through the regular handlers.
+      }
+    }, WS_KEEPALIVE_INTERVAL_MS)
+    this.keepaliveTimer.unref?.()
+  }
+
+  private stopKeepalive(): void {
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer)
+      this.keepaliveTimer = undefined
+    }
+  }
+
   private setupWebSocketHandlers(): void {
     // Set binary type for binary data handling
     if ('binaryType' in this.ws) {
@@ -321,6 +356,7 @@ export class PtyHandle {
     // Handle WebSocket open
     const handleOpen = async () => {
       this.connected = true
+      this.startKeepalive()
     }
 
     // Handle WebSocket messages - control messages and PTY data
@@ -404,6 +440,7 @@ export class PtyHandle {
 
       this._error = errorMessage
       this.connected = false
+      this.stopKeepalive()
 
       // Reject pending waitForConnection() if still waiting
       this.rejectConnection(new DaytonaConnectionError(errorMessage))
@@ -412,6 +449,7 @@ export class PtyHandle {
     // Handle WebSocket close - parse structured exit data
     const handleClose = async (event: CloseEvent | any) => {
       this.connected = false
+      this.stopKeepalive()
 
       // Parse structured exit data from close reason (only if not already set by control message)
       if (this._exitCode === undefined && event && event.reason) {
@@ -462,6 +500,10 @@ export class PtyHandle {
       this.ws.on('close', handleClose)
     } else {
       throw new DaytonaError('Unsupported WebSocket implementation')
+    }
+
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.startKeepalive()
     }
   }
 }

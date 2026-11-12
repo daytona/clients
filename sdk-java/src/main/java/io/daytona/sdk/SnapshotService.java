@@ -40,6 +40,7 @@ public class SnapshotService {
     private final OkHttpClient httpClient;
     private final String apiKey;
     private final BuildContextUploader contextUploader;
+    private final String defaultRegionId;
 
     /**
      * Uploads the local build contexts of an {@link Image} and returns their content hashes.
@@ -50,10 +51,23 @@ public class SnapshotService {
     }
 
     SnapshotService(SnapshotsApi snapshotsApi, OkHttpClient httpClient, String apiKey, BuildContextUploader contextUploader) {
+        this(snapshotsApi, httpClient, apiKey, contextUploader, null);
+    }
+
+    SnapshotService(SnapshotsApi snapshotsApi, OkHttpClient httpClient, String apiKey, BuildContextUploader contextUploader,
+                    String defaultRegionId) {
         this.snapshotsApi = snapshotsApi;
         this.httpClient = httpClient;
         this.apiKey = apiKey;
         this.contextUploader = contextUploader;
+        this.defaultRegionId = defaultRegionId;
+    }
+
+    private void applyRegion(CreateSnapshot req, String regionId) {
+        String region = regionId != null && !regionId.isEmpty() ? regionId : defaultRegionId;
+        if (region != null && !region.isEmpty()) {
+            req.setRegionId(region);
+        }
     }
 
     /**
@@ -78,10 +92,26 @@ public class SnapshotService {
      * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
      */
     public Snapshot create(String name, String imageName, SandboxClass sandboxClass) {
+        return create(name, imageName, sandboxClass, null);
+    }
+
+    /**
+     * Creates a snapshot from an existing image reference with a target sandbox class and region.
+     *
+     * @param name snapshot name
+     * @param imageName source image name or tag
+     * @param sandboxClass target sandbox class; {@code null} for default
+     * @param regionId region where the snapshot is created; {@code null} to use the client-level
+     *     target if configured, otherwise the organization's default region
+     * @return created {@link Snapshot}
+     * @throws io.daytona.sdk.exception.DaytonaException if the API request fails
+     */
+    public Snapshot create(String name, String imageName, SandboxClass sandboxClass, String regionId) {
         CreateSnapshot req = new CreateSnapshot().name(name).imageName(imageName);
         if (sandboxClass != null) {
             req.setSandboxClass(sandboxClass);
         }
+        applyRegion(req, regionId);
         io.daytona.api.client.model.SnapshotDto snapshotDto = ExceptionMapper.callMain(
                 () -> snapshotsApi.createSnapshot(req, null)
         );
@@ -127,6 +157,25 @@ public class SnapshotService {
      * @throws DaytonaException if the API request fails or the build fails
      */
     public Snapshot create(String name, Image image, io.daytona.sdk.model.Resources resources, SandboxClass sandboxClass, Consumer<String> onLogs) {
+        return create(name, image, resources, sandboxClass, null, onLogs);
+    }
+
+    /**
+     * Creates a snapshot from a declarative {@link Image} with resources, sandbox class, region, and optional build
+     * log streaming.
+     *
+     * @param name snapshot name
+     * @param image declarative image definition
+     * @param resources CPU/GPU/memory/disk resources; {@code null} for defaults
+     * @param sandboxClass target sandbox class; {@code null} for default
+     * @param regionId region where the snapshot is created; {@code null} to use the client-level
+     *     target if configured, otherwise the organization's default region
+     * @param onLogs callback for build log lines; {@code null} to skip streaming
+     * @return created {@link Snapshot} in active or error state
+     * @throws DaytonaException if the API request fails or the build fails
+     */
+    public Snapshot create(String name, Image image, io.daytona.sdk.model.Resources resources, SandboxClass sandboxClass,
+                           String regionId, Consumer<String> onLogs) {
         List<String> contextHashes = contextUploader.upload(image);
         CreateSnapshot req = new CreateSnapshot().name(name)
                 .buildInfo(new CreateBuildInfo().dockerfileContent(image.getDockerfile()).contextHashes(contextHashes))
@@ -143,6 +192,7 @@ public class SnapshotService {
         if (sandboxClass != null) {
             req.setSandboxClass(sandboxClass);
         }
+        applyRegion(req, regionId);
 
         final io.daytona.api.client.model.SnapshotDto[] ref = { ExceptionMapper.callMain(
                 () -> snapshotsApi.createSnapshot(req, null)

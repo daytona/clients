@@ -30,11 +30,13 @@ class MouseClickRequest(BaseModel):
     MouseClickRequest
     """ # noqa: E501
     button: Optional[StrictStr] = Field(default=None, description="left, right, middle")
+    clicks: Optional[StrictInt] = Field(default=None, description="Clicks is a pointer so an omitted value is distinguishable from an explicit 0, which must be rejected rather than silently defaulted.")
     double: Optional[StrictBool] = None
+    modifiers: Optional[List[StrictStr]] = None
     x: Optional[StrictInt] = None
     y: Optional[StrictInt] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["button", "double", "x", "y"]
+    __properties: ClassVar[List[str]] = ["button", "clicks", "double", "modifiers", "x", "y"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -94,7 +96,9 @@ class MouseClickRequest(BaseModel):
 
         _obj = cls.model_validate({
             "button": obj.get("button"),
+            "clicks": obj.get("clicks"),
             "double": obj.get("double"),
+            "modifiers": obj.get("modifiers"),
             "x": obj.get("x"),
             "y": obj.get("y")
         })

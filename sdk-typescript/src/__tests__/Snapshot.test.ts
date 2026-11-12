@@ -149,6 +149,24 @@ describe('SnapshotService', () => {
     expect(snapshotsApi.createSnapshot).toHaveBeenCalled()
   })
 
+  it.each([
+    ['uses the per-call regionId over the client target', 'us', 'ap', 'ap'],
+    ['falls back to the client target when regionId is omitted', 'us', undefined, 'us'],
+    ['omits regionId when neither is set', undefined, undefined, undefined],
+  ])('%s', async (_name, clientTarget, regionId, expected) => {
+    snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's3', name: 'snap3', state: 'active' }))
+    const regional = new SnapshotService(
+      cfg,
+      snapshotsApi as unknown as never,
+      objectStorageApi as unknown as never,
+      clientTarget,
+    )
+
+    await regional.create({ name: 'snap3', image: 'python:3.12', regionId })
+
+    expect((snapshotsApi.createSnapshot.mock.calls[0][0] as { regionId?: string }).regionId).toBe(expected)
+  })
+
   it('passes timeout values in milliseconds to snapshot creation', async () => {
     snapshotsApi.createSnapshot.mockResolvedValue(createApiResponse({ id: 's2', name: 'snap2', state: 'active' }))
 

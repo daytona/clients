@@ -1,0 +1,185 @@
+From 8d1e742bc3fcc66ca2575d48713d91b88c7c3720 Mon Sep 17 00:00:00 2001
+From: MDzaja <mirkodzaja0@gmail.com>
+Date: Fri, 30 Oct 2026 15:40:25 +0000
+Subject: [PATCH] Add the daytona@0 formula for the 0.x CLI line
+
+The 0.x CLI ships as daytona-v0-<os>-<arch> release assets once the 2.x CLI
+takes the daytona name. daytona@0 installs it as daytona-v0, next to the
+daytona formula, and follows repository_dispatch update-version-v0.
+
+Signed-off-by: MDzaja <mirkodzaja0@gmail.com>
+---
+ .github/workflows/brew_publish_v0.yaml | 39 ++++++++++++++++++++++++++
+ README.md                              |  9 ++++++
+ daytona@0.rb                           | 29 +++++++++++++++++++
+ scripts/update_sha.sh                  | 24 +++++++++++-----
+ 4 files changed, 94 insertions(+), 7 deletions(-)
+ create mode 100644 .github/workflows/brew_publish_v0.yaml
+ create mode 100644 daytona@0.rb
+
+diff --git a/.github/workflows/brew_publish_v0.yaml b/.github/workflows/brew_publish_v0.yaml
+new file mode 100644
+index 0000000..7dec905
+--- /dev/null
++++ b/.github/workflows/brew_publish_v0.yaml
+@@ -0,0 +1,39 @@
++name: Update brew daytona@0 with new versions
++run-name: Update brew daytona@0 to ${{ github.event.client_payload.version }}
++
++on:
++  repository_dispatch:
++    types: [update-version-v0]
++
++concurrency:
++  group: brew-v0-formula
++  cancel-in-progress: false
++
++jobs:
++  update-brew:
++    runs-on: ubuntu-latest
++    permissions:
++      contents: write
++    steps:
++      - name: Checkout code
++        uses: actions/checkout@v4
++      - name: Run Bash script with version argument
++        env:
++          VERSION: ${{ github.event.client_payload.version }}
++        run: |
++          # Ensure a version argument is provided
++          if [ -z "$VERSION" ]; then
++            echo "Please provide a version number as an argument."
++            exit 1
++          fi
++          if ! [[ "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
++            echo "::error::Invalid 0.x version '$VERSION'. Expected v0.X.Y." >&2
++            exit 1
++          fi
++          echo "Received version: $VERSION"
++          bash scripts/update_sha.sh "$VERSION" daytona@0.rb
++      - name: Commit ${{ github.event.client_payload.version }}
++        uses: stefanzweifel/git-auto-commit-action@v5
++        with:
++          file_pattern: "daytona@0.rb"
++          commit_message: Automated file update to - ${{ github.event.client_payload.version }}
+diff --git a/README.md b/README.md
+index bc8b8d4..80f140b 100644
+--- a/README.md
++++ b/README.md
+@@ -20,6 +20,7 @@ Recent Homebrew versions require third-party taps to be explicitly trusted. With
+ | `daytona` | stable | everyone |
+ | `daytona-rc` | release candidates of the current line | early testers |
+ | `daytona-alpha` | **Daytona V2 platform CLI**, `2.0.0-alpha.N` prereleases | V2 alpha users |
++| `daytona@0` | Daytona CLI **0.x line**, stable `0.X.Y` releases | users staying on 0.x |
+ 
+ ```sh
+ brew install daytonaio/cli/daytona-alpha   # installs as `daytona`
+@@ -31,6 +32,14 @@ install one or the other. Each formula only ever accepts its own version
+ suffix (`scripts/update_sha.sh`), so a release dispatch for one channel can
+ never move another.
+ 
++`daytona@0` installs the 0.x CLI as `daytona-v0`, so it does not conflict with
++the `daytona` formula and both can be installed side by side:
++
++```sh
++brew install daytonaio/cli/daytona@0   # installs as `daytona-v0`
++daytona-v0 version
++```
++
+ ## Alternative installation (without Homebrew)
+ 
+ Install the latest Daytona CLI directly from GitHub releases (works on both macOS and Linux, auto-detects architecture):
+diff --git a/daytona@0.rb b/daytona@0.rb
+new file mode 100644
+index 0000000..0cd4f86
+--- /dev/null
++++ b/daytona@0.rb
+@@ -0,0 +1,29 @@
++class DaytonaAT0 < Formula
++  desc "Daytona CLI 0.x line (installs as `daytona-v0`, alongside the `daytona` formula)"
++  homepage "https://daytona.io"
++  version "0.0.0"
++
++  if OS.mac? && Hardware::CPU.arm?
++    url "https://github.com/daytona/clients/releases/download/v#{version}/daytona-v0-darwin-arm64"
++    sha256 "0000000000000000000000000000000000000000000000000000000000000000"
++  elsif OS.mac? && Hardware::CPU.intel?
++    url "https://github.com/daytona/clients/releases/download/v#{version}/daytona-v0-darwin-amd64"
++    sha256 "0000000000000000000000000000000000000000000000000000000000000000"
++  elsif OS.linux? && Hardware::CPU.intel?
++    url "https://github.com/daytona/clients/releases/download/v#{version}/daytona-v0-linux-amd64"
++    sha256 "0000000000000000000000000000000000000000000000000000000000000000"
++  elsif OS.linux? && Hardware::CPU.arm?
++    url "https://github.com/daytona/clients/releases/download/v#{version}/daytona-v0-linux-arm64"
++    sha256 "0000000000000000000000000000000000000000000000000000000000000000"
++  else
++    odie "Unsupported OS/ARCH combination"
++  end
++
++  def install
++    bin.install "daytona-v0-#{OS.mac? ? "darwin" : "linux"}-#{Hardware::CPU.intel? ? "amd64" : "arm64"}" => "daytona-v0"
++  end
++
++  test do
++    system "#{bin}/daytona-v0", "version"
++  end
++end
+diff --git a/scripts/update_sha.sh b/scripts/update_sha.sh
+index c02393b..5dbbf9a 100755
+--- a/scripts/update_sha.sh
++++ b/scripts/update_sha.sh
+@@ -16,9 +16,13 @@ ruby_file="${2:-daytona.rb}"
+ # Strip leading 'v' for the formula version field; keep the original for download URLs
+ version_bare="${version#v}"
+ 
++# Release asset name prefix: daytona@0 installs the 0.x CLI, which ships as
++# daytona-v0-<os>-<arch> so it can sit next to the daytona binary.
++asset_prefix="daytona"
++
+ # Safety net: each formula is one channel. Stable takes only bare versions,
+-# the -rc formula only -rc.N, the -alpha formula only -alpha.N — so a channel
+-# can never be moved by a dispatch meant for another.
++# the -rc formula only -rc.N, the -alpha formula only -alpha.N, daytona@0 only
++# bare 0.X.Y — so a channel can never be moved by a dispatch meant for another.
+ case "$ruby_file" in
+   daytona.rb)
+     if ! [[ "$version_bare" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+@@ -35,6 +39,12 @@ case "$ruby_file" in
+       echo "::error::daytona-alpha.rb takes only X.Y.Z-alpha.N versions, got '$version'." >&2
+       exit 1
+     fi ;;
++  daytona@0.rb)
++    if ! [[ "$version_bare" =~ ^0\.[0-9]+\.[0-9]+$ ]]; then
++      echo "::error::daytona@0.rb takes only bare 0.X.Y versions, got '$version'." >&2
++      exit 1
++    fi
++    asset_prefix="daytona-v0" ;;
+ esac
+ 
+ echo "Updating ${ruby_file} -> ${version_bare}"
+@@ -57,17 +67,17 @@ architectures=(
+ )
+ 
+ urls=(
+-  "https://github.com/daytona/clients/releases/download/v${version_bare}/daytona-darwin-arm64"
+-  "https://github.com/daytona/clients/releases/download/v${version_bare}/daytona-darwin-amd64"
+-  "https://github.com/daytona/clients/releases/download/v${version_bare}/daytona-linux-amd64"
+-  "https://github.com/daytona/clients/releases/download/v${version_bare}/daytona-linux-arm64"
++  "https://github.com/daytona/clients/releases/download/v${version_bare}/${asset_prefix}-darwin-arm64"
++  "https://github.com/daytona/clients/releases/download/v${version_bare}/${asset_prefix}-darwin-amd64"
++  "https://github.com/daytona/clients/releases/download/v${version_bare}/${asset_prefix}-linux-amd64"
++  "https://github.com/daytona/clients/releases/download/v${version_bare}/${asset_prefix}-linux-arm64"
+ )
+ 
+ $sed_cmd -i.bak -E "0,/version \".*\"/s/version \".*\"/version \"${version_bare}\"/" "$ruby_file"
+ 
+ # Download and calculate SHA256 for each file and update SHA256 values
+ for ((i = 0; i < ${#architectures[@]}; i++)); do
+-  file_name="daytona-${architectures[$i]}"
++  file_name="${asset_prefix}-${architectures[$i]}"
+   if ! curl -fSL -o "$file_name" "${urls[$i]}"; then
+     echo "::error::Failed to download ${urls[$i]} (HTTP error). Aborting." >&2
+     exit 1
+-- 
+2.43.0
+

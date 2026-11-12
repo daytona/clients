@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	apiclient "github.com/daytona/clients/api-client-go"
+	"github.com/daytona/clients/cli/internal"
 )
 
 func RequireStartedState(sandbox *apiclient.Sandbox) error {
@@ -26,11 +27,11 @@ func RequireStartedState(sandbox *apiclient.Sandbox) error {
 
 	switch state {
 	case apiclient.SANDBOXSTATE_STOPPED:
-		return fmt.Errorf("sandbox is stopped. Start it with: daytona sandbox start %s", sandboxRef)
+		return fmt.Errorf("sandbox is stopped. Start it with: %s sandbox start %s", internal.BinaryName, sandboxRef)
 	case apiclient.SANDBOXSTATE_ARCHIVED:
-		return fmt.Errorf("sandbox is archived. Start it with: daytona sandbox start %s", sandboxRef)
+		return fmt.Errorf("sandbox is archived. Start it with: %s sandbox start %s", internal.BinaryName, sandboxRef)
 	case apiclient.SANDBOXSTATE_ARCHIVING:
-		return fmt.Errorf("sandbox is archiving. Start it with: daytona sandbox start %s", sandboxRef)
+		return fmt.Errorf("sandbox is archiving. Start it with: %s sandbox start %s", internal.BinaryName, sandboxRef)
 	case apiclient.SANDBOXSTATE_STARTING:
 		return fmt.Errorf("sandbox is starting. Please wait for it to be ready")
 	case apiclient.SANDBOXSTATE_STOPPING:

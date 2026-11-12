@@ -27,6 +27,8 @@ export const DaemonErrorCode = {
     CodeGitRemoteRejected: 'GIT_REMOTE_REJECTED',
     CodeFileNotFound: 'FILE_NOT_FOUND',
     CodeFileAccessDenied: 'FILE_ACCESS_DENIED',
+    CodeInvalidFilePath: 'INVALID_FILE_PATH',
+    CodeFileReadFailed: 'FILE_READ_FAILED',
     CodeLspServerNotInitialized: 'LSP_SERVER_NOT_INITIALIZED',
     CodeProcessExecutionTimeout: 'PROCESS_EXECUTION_TIMEOUT',
     CodeProcessNotFound: 'PROCESS_NOT_FOUND',

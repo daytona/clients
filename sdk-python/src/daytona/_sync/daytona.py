@@ -24,7 +24,9 @@ from opentelemetry.semconv.attributes import service_attributes
 
 from daytona_api_client import ApiClient, ConfigApi, Configuration, CreateBuildInfo, CreateSandbox
 from daytona_api_client import GpuType as SyncGpuType
-from daytona_api_client import ObjectStorageApi, SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
+from daytona_api_client import ObjectStorageApi
+from daytona_api_client import Sandbox as SandboxDto
+from daytona_api_client import SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
 from daytona_api_client import VolumesApi as VolumesApi
 from daytona_api_client import WarmPoolsApi
 from daytona_toolbox_api_client import ApiClient as ToolboxApiClient
@@ -43,7 +45,12 @@ from ..common.daytona import (
     DaytonaConfig,
     resolve_bool_flag,
 )
-from ..common.errors import DaytonaAuthenticationError, DaytonaValidationError
+from ..common.errors import (
+    DaytonaAuthenticationError,
+    DaytonaQueueTimeoutError,
+    DaytonaTimeoutError,
+    DaytonaValidationError,
+)
 from ..common.image import Image
 from ..common.sandbox import ListSandboxesQuery
 from ..internal.event_dispatcher import SyncEventDispatcher
@@ -55,6 +62,10 @@ from .secret import SecretService
 from .snapshot import SnapshotService
 from .volume import VolumeService
 from .warm_pool import WarmPoolService
+
+
+def _destroyed_by_lifecycle(sandbox: SandboxDto) -> bool:
+    return sandbox.state == SandboxState.DESTROYED and bool(sandbox.queue_timed_out_at or sandbox.spot_evicted_at)
 
 
 class Daytona:
@@ -114,7 +125,8 @@ class Daytona:
         If no config is provided, reads from environment variables:
         - `DAYTONA_API_KEY`: Required API key for authentication
         - `DAYTONA_API_URL`: Required api URL
-        - `DAYTONA_TARGET`: Optional target environment (if not provided, default region for the organization is used)
+        - `DAYTONA_TARGET`: Optional default region for Sandboxes and Snapshots (if not provided, default region
+          for the organization is used). A per-call `target` / `region_id` overrides it
 
         Args:
             config (DaytonaConfig | None): Object containing api_key, api_url, and target.
@@ -431,8 +443,6 @@ class Daytona:
             ```
         """
 
-    @intercept_errors(message_prefix="Failed to create sandbox: ")
-    @with_timeout()
     @with_instrumentation()
     def create(
         self,
@@ -447,14 +457,26 @@ class Daytona:
         elif not params.language:
             params.language = self.default_language
 
-        return self._create(params, timeout=timeout, on_snapshot_create_logs=on_snapshot_create_logs)
+        created: list[str] = []
+        try:
+            return self._create(
+                params, timeout=timeout, on_snapshot_create_logs=on_snapshot_create_logs, created=created
+            )
+        except DaytonaTimeoutError as e:
+            # A queue timeout means the API already destroyed the sandbox.
+            if created and not isinstance(e, DaytonaQueueTimeoutError):
+                e._attach_sandbox_id(created[0])
+            raise
 
+    @intercept_errors(message_prefix="Failed to create sandbox: ")
+    @with_timeout(name="create")
     def _create(
         self,
         params: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams,
         *,
         timeout: float = 60,
         on_snapshot_create_logs: Callable[[str], None] | None = None,
+        created: list[str] | None = None,
     ) -> Sandbox:
         validated_language = self._validate_language_label(str(params.language) if params.language else None)
         params.labels = params.labels or {}
@@ -491,7 +513,10 @@ class Daytona:
         if params.ttl_minutes is not None and params.ttl_minutes < 0:
             raise DaytonaValidationError("ttl_minutes must be a non-negative integer")
 
-        target = self._target
+        if params.queue_timeout is not None and (isinstance(params.queue_timeout, bool) or params.queue_timeout < 1):
+            raise DaytonaValidationError("queue_timeout must be a positive integer")
+
+        target = params.target or self._target
 
         volumes = []
         if params.volumes:
@@ -517,6 +542,7 @@ class Daytona:
             auto_archive_interval=params.auto_archive_interval,
             auto_delete_interval=params.auto_delete_interval,
             ttl_minutes=params.ttl_minutes,
+            queue_timeout=params.queue_timeout,
             volumes=volumes,
             secrets=secrets,
             network_block_all=params.network_block_all,
@@ -558,6 +584,9 @@ class Daytona:
                     sandbox_data.gpu_type = [SyncGpuType(t.value) for t in gpu_types]
 
         response = self._sandbox_api.create_sandbox(sandbox_data, _request_timeout=http_timeout(timeout))
+        if created is not None:
+            # The sandbox exists from here on, so a timeout must tell the caller which one it was.
+            created.append(response.id)
 
         if response.state == SandboxState.PENDING_BUILD and on_snapshot_create_logs:
             build_logs_url = (self._sandbox_api.get_build_logs_url(response.id)).url
@@ -571,20 +600,30 @@ class Daytona:
                     SandboxState.STARTING,
                     SandboxState.ERROR,
                     SandboxState.BUILD_FAILED,
+                    SandboxState.DESTROYED,
                 ]
 
             while response_ref["response"].state == SandboxState.PENDING_BUILD:
                 time.sleep(1)
                 response_ref["response"] = self._sandbox_api.get_sandbox(response_ref["response"].id)
 
-            asyncio.run(
-                process_streaming_response(
-                    url=build_logs_url + "?follow=true",
-                    headers=cast(dict[str, str], self._sandbox_api.api_client.default_headers),
-                    on_chunk=lambda chunk: on_snapshot_create_logs(chunk.rstrip()),
-                    should_terminate=should_terminate,
+            try:
+                asyncio.run(
+                    process_streaming_response(
+                        url=build_logs_url + "?follow=true",
+                        headers=cast(dict[str, str], self._sandbox_api.api_client.default_headers),
+                        on_chunk=lambda chunk: on_snapshot_create_logs(chunk.rstrip()),
+                        should_terminate=should_terminate,
+                    )
                 )
-            )
+            except Exception as stream_error:
+                try:
+                    refreshed = self._sandbox_api.get_sandbox(response_ref["response"].id)
+                except Exception:
+                    raise stream_error from None
+                if not _destroyed_by_lifecycle(refreshed):
+                    raise
+                response_ref["response"] = refreshed
             response = response_ref["response"]
 
         sandbox = Sandbox(

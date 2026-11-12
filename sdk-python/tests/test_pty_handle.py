@@ -3,14 +3,18 @@
 
 from __future__ import annotations
 
+import asyncio
+import queue
 from unittest.mock import AsyncMock, MagicMock
 
+import aiohttp
 import pytest
+from aiohttp import web
 from httpx_ws import WebSocketDisconnect
 from wsproto.events import BytesMessage, CloseConnection, TextMessage
 
 from daytona.common.errors import DaytonaConnectionError, DaytonaError, DaytonaTimeoutError
-from daytona.common.pty import PtySize
+from daytona.common.pty import PTY_EXIT_CONTROL_SUBPROTOCOL, PtySize
 
 
 def _text(data: str) -> TextMessage:
@@ -148,6 +152,96 @@ class TestPtyHandle:
         assert received == [b"hello", b"world"]
         assert result.exit_code == 0
         assert result.error is None
+
+    def test_wait_timeout_returns_on_idle_pty(self):
+        handle, ws = self._make_handle()
+
+        def receive(timeout=None):
+            if timeout is None:
+                raise AssertionError("receive() was called without a timeout while the PTY was idle")
+            raise queue.Empty
+
+        ws.receive.side_effect = receive
+
+        result = handle.wait(timeout=0.5)
+
+        assert result.exit_code is None
+        assert result.error is None
+        assert handle.is_connected() is True
+        assert ws.receive.call_args_list
+        assert all(0 < call.kwargs["timeout"] <= 0.5 for call in ws.receive.call_args_list)
+
+    def test_wait_after_idle_timeout_keeps_output_and_can_wait_again(self):
+        handle, ws = self._make_handle()
+        events = iter([_text("name? "), queue.Empty(), _text("bye"), CloseConnection(code=1000, reason=None)])
+
+        def receive(timeout=None):
+            event = next(events)
+            if isinstance(event, Exception):
+                raise event
+            return event
+
+        ws.receive.side_effect = receive
+        received: list[bytes] = []
+
+        first = handle.wait(on_data=received.append, timeout=5)
+
+        assert received == [b"name? "]
+        assert first.exit_code is None
+        assert first.error is None
+        assert handle.is_connected() is True
+
+        second = handle.wait(on_data=received.append)
+
+        assert received == [b"name? ", b"bye"]
+        assert second.exit_code == 0
+        assert second.error is None
+
+    def test_wait_timeout_returns_on_busy_pty(self, monkeypatch):
+        handle, ws = self._make_handle()
+        clock = [100.0]
+        monkeypatch.setattr("daytona.handle.pty_handle.time.monotonic", lambda: clock[0])
+        events = iter([_text("tick")] * 5 + [CloseConnection(code=1000, reason=None)])
+
+        def receive(timeout=None):
+            clock[0] += min(0.25, timeout)
+            return next(events)
+
+        ws.receive.side_effect = receive
+
+        received: list[bytes] = []
+        result = handle.wait(on_data=received.append, timeout=1.0)
+
+        assert received == [b"tick"] * 4
+        assert result.exit_code is None
+        assert result.error is None
+        assert handle.is_connected() is True
+        assert [call.kwargs["timeout"] for call in ws.receive.call_args_list] == [1.0, 0.75, 0.5, 0.25]
+
+    def test_wait_timeout_after_output_then_idle_waits_only_the_remaining_time(self, monkeypatch):
+        handle, ws = self._make_handle()
+        clock = [100.0]
+        monkeypatch.setattr("daytona.handle.pty_handle.time.monotonic", lambda: clock[0])
+        timeouts: list[float] = []
+
+        def receive(timeout=None):
+            timeouts.append(timeout)
+            if len(timeouts) == 1:
+                clock[0] += 0.3
+                return _text("prompt> ")
+            clock[0] += timeout
+            raise queue.Empty
+
+        ws.receive.side_effect = receive
+
+        received: list[bytes] = []
+        result = handle.wait(on_data=received.append, timeout=1.0)
+
+        assert received == [b"prompt> "]
+        assert timeouts == pytest.approx([1.0, 0.7])
+        assert result.exit_code is None
+        assert result.error is None
+        assert handle.is_connected() is True
 
     def test_iterator_terminates_on_websocket_disconnect(self):
         handle, ws = self._make_handle()
@@ -341,3 +435,54 @@ class TestAsyncPtyHandle:
 
         assert handle.exit_code == 0
         await handle.disconnect()
+
+
+async def _echo_pty(request: web.Request) -> web.WebSocketResponse:
+    """Local PTY endpoint: reports connected, answers ``ping`` with ``pong`` and exits on ``exit``."""
+    ws = web.WebSocketResponse(protocols=(PTY_EXIT_CONTROL_SUBPROTOCOL,))
+    await ws.prepare(request)
+    await ws.send_str('{"type":"control","status":"connected"}')
+    async for msg in ws:
+        if msg.type is aiohttp.WSMsgType.BINARY and msg.data == b"ping\n":
+            await ws.send_bytes(b"pong\n")
+        elif msg.type is aiohttp.WSMsgType.BINARY and msg.data == b"exit\n":
+            await ws.close(code=1000, message=b'{"exitCode":0}')
+    return ws
+
+
+class TestAsyncPtyHandleWaitCancellation:
+    @pytest.mark.asyncio
+    async def test_cancelling_wait_keeps_the_session_connected(self):
+        from daytona._async.process import AsyncProcess
+
+        app = web.Application()
+        app.router.add_get("/{tail:.*}", _echo_pty)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        await web.TCPSite(runner, "127.0.0.1", 0).start()
+        url = f"http://127.0.0.1:{runner.addresses[0][1]}/process/pty/pty-1/connect"
+        try:
+            api_client = MagicMock()
+            api_client._connect_pty_session_serialize.return_value = ("GET", url, {}, None)
+            async with aiohttp.ClientSession() as session:
+                api_client.api_client.http_session = session
+                pong = asyncio.Event()
+                handle = await AsyncProcess("python", api_client).connect_pty_session(
+                    "pty-1", lambda data: pong.set() if data == b"pong\n" else None
+                )
+                try:
+                    # The server stays silent until the client writes, so this can only time out.
+                    with pytest.raises(asyncio.TimeoutError):
+                        _ = await asyncio.wait_for(handle.wait(), timeout=0.05)
+
+                    assert handle.is_connected()
+                    await handle.send_input("ping\n")
+                    _ = await asyncio.wait_for(pong.wait(), timeout=5)
+
+                    await handle.send_input("exit\n")
+                    result = await asyncio.wait_for(handle.wait(), timeout=5)
+                    assert result.exit_code == 0
+                finally:
+                    await handle.disconnect()
+        finally:
+            await runner.cleanup()

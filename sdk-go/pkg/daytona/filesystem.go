@@ -236,24 +236,35 @@ func (f *FileSystemService) DeleteFile(ctx context.Context, path string, recursi
 func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string, localPath *string) ([]byte, error) {
 	return withInstrumentation(ctx, f.otel, "FileSystem", "DownloadFile", func(ctx context.Context) ([]byte, error) {
 		file, httpResp, err := f.toolboxClient.FileSystemAPI.DownloadFile(ctx).Path(remotePath).Execute()
+		defer discardTempFile(file)
 		if err != nil {
 			return nil, errors.ConvertToolboxError(err, httpResp)
 		}
-		defer file.Close()
 
 		data, err := io.ReadAll(file)
 		if err != nil {
-			return nil, errors.NewDaytonaError("Failed to read file", 0, nil)
+			return nil, errors.WrapDaytonaError(err, "Failed to read file", 0, nil)
 		}
 
 		if localPath != nil {
 			if err := os.WriteFile(*localPath, data, 0644); err != nil {
-				return nil, errors.NewDaytonaError(fmt.Sprintf("Failed to write file: %v", err), 0, nil)
+				return nil, errors.WrapDaytonaError(err, fmt.Sprintf("Failed to write file: %v", err), 0, nil)
 			}
 		}
 
 		return data, nil
 	})
+}
+
+// discardTempFile closes and deletes the temp file the generated toolbox client
+// creates for *os.File responses. The client may return the file alongside an
+// error, so this must run regardless of the Execute() result.
+func discardTempFile(file *os.File) {
+	if file == nil {
+		return
+	}
+	_ = file.Close()
+	_ = os.Remove(file.Name())
 }
 
 // DownloadStreamOption configures the behavior of DownloadFileStream.
@@ -400,7 +411,7 @@ func (f *FileSystemService) UploadFile(ctx context.Context, source any, destinat
 		case string:
 			data, err = os.ReadFile(src)
 			if err != nil {
-				return errors.NewDaytonaError(fmt.Sprintf("Failed to read file: %v", err), 0, nil)
+				return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to read file: %v", err), 0, nil)
 			}
 		default:
 			return errors.NewDaytonaError("Invalid source type", 0, nil)
@@ -409,18 +420,18 @@ func (f *FileSystemService) UploadFile(ctx context.Context, source any, destinat
 		// Create a temporary file for the toolbox API
 		tmpFile, err := os.CreateTemp("", "daytona-upload-*")
 		if err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to create temp file: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to create temp file: %v", err), 0, nil)
 		}
 		defer os.Remove(tmpFile.Name())
 		defer tmpFile.Close()
 
 		if _, err := tmpFile.Write(data); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to write temp file: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to write temp file: %v", err), 0, nil)
 		}
 
 		// Seek to the beginning for reading
 		if _, err := tmpFile.Seek(0, 0); err != nil {
-			return errors.NewDaytonaError(fmt.Sprintf("Failed to seek temp file: %v", err), 0, nil)
+			return errors.WrapDaytonaError(err, fmt.Sprintf("Failed to seek temp file: %v", err), 0, nil)
 		}
 
 		_, httpResp, err := f.toolboxClient.FileSystemAPI.UploadFile(ctx).Path(destination).File(tmpFile).Execute()

@@ -24,6 +24,8 @@ import io.daytona.api.client.model.UpdateSandboxNetworkSettings;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
+import io.daytona.sdk.exception.DaytonaQueueTimeoutException;
+import io.daytona.sdk.exception.DaytonaSpotEvictedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
 import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.sdk.model.SandboxMetrics;
@@ -143,6 +145,7 @@ public class Sandbox {
     private int gpu;
     private boolean spot;
     private String spotEvictedAt;
+    private String queueTimedOutAt;
     private int memory;
     private int disk;
     private volatile String state;
@@ -157,6 +160,7 @@ public class Sandbox {
     private String updatedAt;
     private String lastActivityAt;
     private String autoDestroyAt;
+    private Integer queueTimeout;
     private String toolboxProxyUrl;
     private SandboxClass sandboxClass;
     private String warmPoolId;
@@ -429,6 +433,23 @@ public class Sandbox {
         });
         refreshData();
         return this.labels;
+    }
+
+    /**
+     * Sets whether the Sandbox's preview URLs are publicly accessible.
+     *
+     * <p>When public, preview URLs can be opened without a preview token or API key. When private,
+     * every preview request must authenticate.
+     *
+     * @param isPublic {@code true} to make preview URLs public, {@code false} to make them private
+     * @throws DaytonaException if the update fails
+     */
+    public void setPublic(boolean isPublic) {
+        ensureSubscribed();
+        io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.updatePublicStatus(id, isPublic, null));
+        if (response != null) {
+            populateFromDTO(response);
+        }
     }
 
     /**
@@ -866,11 +887,11 @@ public class Sandbox {
         populateCommonFields(
                 d.getId(), d.getName(), d.getOrganizationId(), d.getSnapshot(), d.getUser(),
                 d.getLabels(), d.getPublic(), d.getTarget(),
-                d.getCpu(), d.getGpu(), d.getSpot(), d.getSpotEvictedAt(), d.getMemory(), d.getDisk(),
+                d.getCpu(), d.getGpu(), d.getSpot(), d.getSpotEvictedAt(), d.getQueueTimedOutAt(), d.getMemory(), d.getDisk(),
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
-                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(),
+                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(), d.getQueueTimeout(),
                 d.getToolboxProxyUrl(),
                 d.getSandboxClass() == null ? null : SandboxClass.fromValue(d.getSandboxClass().getValue()),
                 d.getWarmPoolId(), d.getGpuType(), d.getDesiredState(), d.getDaemonVersion()
@@ -904,11 +925,11 @@ public class Sandbox {
         populateCommonFields(
                 d.getId(), d.getName(), d.getOrganizationId(), d.getSnapshot(), d.getUser(),
                 d.getLabels(), d.getPublic(), d.getTarget(),
-                d.getCpu(), d.getGpu(), d.getSpot(), d.getSpotEvictedAt(), d.getMemory(), d.getDisk(),
+                d.getCpu(), d.getGpu(), d.getSpot(), d.getSpotEvictedAt(), d.getQueueTimedOutAt(), d.getMemory(), d.getDisk(),
                 d.getErrorReason(), d.getRecoverable(),
                 d.getBackupState() == null ? null : d.getBackupState().getValue(),
                 d.getAutoStopInterval(), d.getAutoPauseInterval(), d.getAutoArchiveInterval(), d.getAutoDeleteInterval(),
-                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(),
+                d.getCreatedAt(), d.getUpdatedAt(), d.getLastActivityAt(), d.getAutoDestroyAt(), d.getQueueTimeout(),
                 d.getToolboxProxyUrl(),
                 d.getSandboxClass(), d.getWarmPoolId(), d.getGpuType(), d.getDesiredState(), d.getDaemonVersion()
         );
@@ -922,10 +943,11 @@ public class Sandbox {
     private void populateCommonFields(
             String id, String name, String organizationId, String snapshot, String user,
             Map<String, String> labels, Boolean isPublic, String target,
-            Integer cpu, Integer gpu, Boolean spot, String spotEvictedAt, Integer memory, Integer disk,
+            Integer cpu, Integer gpu, Boolean spot, String spotEvictedAt, String queueTimedOutAt,
+            Integer memory, Integer disk,
             String errorReason, Boolean recoverable, String backupState,
             BigDecimal autoStopInterval, BigDecimal autoPauseInterval, BigDecimal autoArchiveInterval, BigDecimal autoDeleteInterval,
-            String createdAt, String updatedAt, String lastActivityAt, String autoDestroyAt,
+            String createdAt, String updatedAt, String lastActivityAt, String autoDestroyAt, Integer queueTimeout,
             String toolboxProxyUrl,
             SandboxClass sandboxClass, String warmPoolId, GpuType gpuType,
             SandboxDesiredState desiredState, String daemonVersion) {
@@ -941,6 +963,7 @@ public class Sandbox {
         this.gpu = gpu == null ? 0 : gpu.intValue();
         this.spot = spot != null && spot;
         this.spotEvictedAt = spotEvictedAt;
+        this.queueTimedOutAt = queueTimedOutAt;
         this.memory = memory == null ? 0 : memory.intValue();
         this.disk = disk == null ? 0 : disk.intValue();
         this.errorReason = errorReason;
@@ -959,6 +982,7 @@ public class Sandbox {
         }
         this.toolboxProxyUrl = newProxyUrl;
         this.autoDestroyAt = autoDestroyAt;
+        this.queueTimeout = queueTimeout;
         this.sandboxClass = sandboxClass;
         this.warmPoolId = warmPoolId;
         this.gpuType = gpuType;
@@ -972,7 +996,7 @@ public class Sandbox {
         }
         this.state = newState;
         for (StateWaiter waiter : stateWaiters) {
-            waiter.onStateChanged(newState);
+            waiter.onStateChanged(newState, queueTimedOutAt != null, spotEvictedAt != null);
         }
     }
 
@@ -1038,6 +1062,14 @@ public class Sandbox {
             if (current != null && targetStates.contains(current)) {
                 return;
             }
+            // Fast-fail only on a cached destroyed state with a lifecycle marker
+            // (queue timeout / spot eviction). A cached ERROR must still survive
+            // one refresh, so it is deliberately not evaluated here.
+            if (current != null && DESTROYED_STATES.contains(current) && !targetStates.contains(current)
+                    && (queueTimedOutAt != null || spotEvictedAt != null)) {
+                notifyWaiterOfCurrentState(waiter);
+                waiter.throwIfError(this);
+            }
 
             long pollIntervalMillis = subscribed ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS;
             AtomicBoolean refreshInFlight = new AtomicBoolean(false);
@@ -1077,17 +1109,14 @@ public class Sandbox {
                     }
                     // applyState no-ops when the state is unchanged, so
                     // explicitly evaluate for a persistent error state.
-                    current = this.state;
-                    if (current != null) {
-                        waiter.onStateChanged(current);
-                    }
+                    notifyWaiterOfCurrentState(waiter);
                     if (waiter.isResolved()) {
-                        waiter.throwIfError();
+                        waiter.throwIfError(this);
                         return;
                     }
                     throw new DaytonaTimeoutException("Sandbox " + id + " did not reach target state within " + timeoutSeconds + " seconds");
                 }
-                waiter.throwIfError();
+                waiter.throwIfError(this);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new DaytonaException("Interrupted while waiting for sandbox state change", e);
@@ -1116,12 +1145,16 @@ public class Sandbox {
             }
             // applyState no-ops when the state is unchanged, so explicitly
             // notify the waiter after each successful refresh.
-            String current = this.state;
-            if (current != null) {
-                waiter.onStateChanged(current);
-            }
+            notifyWaiterOfCurrentState(waiter);
         } catch (Exception e) {
             waiter.onPollError(e instanceof RuntimeException ? (RuntimeException) e : new DaytonaException(e.getMessage(), e));
+        }
+    }
+
+    private void notifyWaiterOfCurrentState(StateWaiter waiter) {
+        String current = this.state;
+        if (current != null) {
+            waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null);
         }
     }
 
@@ -1157,8 +1190,11 @@ public class Sandbox {
             this.errorStates = errorStates;
         }
 
-        void onStateChanged(String newState) {
-            if (targetStates.contains(newState) || errorStates.contains(newState)) {
+        void onStateChanged(String newState, boolean queueTimedOut, boolean spotEvicted) {
+            boolean terminalDestroyed = DESTROYED_STATES.contains(newState)
+                    && !targetStates.contains(newState)
+                    && (queueTimedOut || spotEvicted);
+            if (targetStates.contains(newState) || errorStates.contains(newState) || terminalDestroyed) {
                 if (resolvedState.compareAndSet(null, newState)) {
                     latch.countDown();
                 }
@@ -1175,13 +1211,30 @@ public class Sandbox {
             }
         }
 
-        void throwIfError() {
+        void throwIfError(Sandbox sandbox) {
             RuntimeException refreshFailure = pollError.get();
             if (refreshFailure != null) {
                 throw refreshFailure;
             }
 
             String resolved = resolvedState.get();
+            if (DESTROYED_STATES.contains(resolved) && !targetStates.contains(resolved)) {
+                if (sandbox.queueTimedOutAt != null) {
+                    String waited = sandbox.queueTimeout == null
+                            ? ""
+                            : " " + sandbox.queueTimeout + (sandbox.queueTimeout == 1 ? " minute" : " minutes");
+                    throw new DaytonaQueueTimeoutException(
+                            "Sandbox " + sandbox.id + " was destroyed after waiting" + waited
+                                    + " for a runner (queue timed out at " + sandbox.queueTimedOutAt + ")"
+                    );
+                }
+                if (sandbox.spotEvictedAt != null) {
+                    throw new DaytonaSpotEvictedException(
+                            "Sandbox " + sandbox.id + " was evicted by spot preemption at "
+                                    + sandbox.spotEvictedAt
+                    );
+                }
+            }
             if (resolved != null && errorStates.contains(resolved)) {
                 throw new DaytonaException("Sandbox entered error state: " + resolved);
             }
@@ -1437,6 +1490,8 @@ public class Sandbox {
 
     /** @return when the Sandbox was evicted by spot preemption, or {@code null} when it was not. */
     public String getSpotEvictedAt() { return spotEvictedAt; }
+    /** @return when the Sandbox queue timed out before runner assignment, or {@code null}. */
+    public String getQueueTimedOutAt() { return queueTimedOutAt; }
     /** @return allocated memory in GiB. */
     public int getMemory() { return memory; }
     /** @return allocated disk in GiB. */
@@ -1465,6 +1520,8 @@ public class Sandbox {
     public String getLastActivityAt() { return lastActivityAt; }
     /** @return when the Sandbox expires, or {@code null} if no TTL is set. */
     public String getAutoDestroyAt() { return autoDestroyAt; }
+    /** @return minutes to wait for runner assignment before queue timeout, or {@code null}. */
+    public Integer getQueueTimeout() { return queueTimeout; }
     /** @return toolbox proxy URL. */
     public String getToolboxProxyUrl() { return toolboxProxyUrl; }
     /** @return sandbox class (e.g. linux-vm, container), or {@code null} when not set. */

@@ -845,16 +845,16 @@ module DaytonaToolboxApiClient
     # Upload multiple files
     # Upload multiple files with their destination paths
     # @param [Hash] opts the optional parameters
-    # @return [nil]
+    # @return [UploadFilesResponse]
     def upload_files(opts = {})
-      upload_files_with_http_info(opts)
-      nil
+      data, _status_code, _headers = upload_files_with_http_info(opts)
+      data
     end
 
     # Upload multiple files
     # Upload multiple files with their destination paths
     # @param [Hash] opts the optional parameters
-    # @return [Array<(nil, Integer, Hash)>] nil, response status code and response headers
+    # @return [Array<(UploadFilesResponse, Integer, Hash)>] UploadFilesResponse data, response status code and response headers
     def upload_files_with_http_info(opts = {})
       if @api_client.config.debugging
         @api_client.config.logger.debug 'Calling API: FileSystemApi.upload_files ...'
@@ -877,7 +877,7 @@ module DaytonaToolboxApiClient
       post_body = opts[:debug_body]
 
       # return_type
-      return_type = opts[:debug_return_type]
+      return_type = opts[:debug_return_type] || 'UploadFilesResponse'
 
       # auth_names
       auth_names = opts[:debug_auth_names] || []

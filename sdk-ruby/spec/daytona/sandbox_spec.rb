@@ -41,7 +41,12 @@ RSpec.describe Daytona::Sandbox do
     allow(DaytonaToolboxApiClient::InterpreterApi).to receive(:new).and_return(interpreter_api)
     allow(DaytonaToolboxApiClient::InfoApi).to receive(:new).and_return(info_api)
     allow(DaytonaToolboxApiClient::ServerApi).to receive(:new).and_return(server_api)
+    # State waits poll through a copy of sandbox_api with an HTTP timeout; the copy is sandbox_api itself here.
+    allow(sandbox_api).to receive(:api_client).and_return(sandbox_api_client)
+    allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(sandbox_api)
   end
+
+  let(:sandbox_api_client) { DaytonaApiClient::ApiClient.new(DaytonaApiClient::Configuration.new) }
 
   let(:sandbox) do
     described_class.new(
@@ -50,6 +55,23 @@ RSpec.describe Daytona::Sandbox do
       sandbox_api: sandbox_api,
       subscription_manager: subscription_manager
     )
+  end
+
+  # Stubs the monotonic clock so that it only moves while #wait_for_state waits between polls, so the
+  # deadline examples take no real time. Returns a proc that reads the clock.
+  def stub_wait_clock
+    clock = 0.0
+    allow(Process).to receive(:clock_gettime).and_call_original
+    allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock }
+    stub_condition_variable_waits { |seconds| clock += seconds }
+    -> { clock }
+  end
+
+  # Makes ConditionVariables created from here on return from #wait at once, passing its timeout to +on_wait+.
+  def stub_condition_variable_waits(&on_wait)
+    allow(ConditionVariable).to receive(:new).and_wrap_original do |original|
+      original.call.tap { |cv| allow(cv).to receive(:wait) { |_mutex, seconds| on_wait.call(seconds) } }
+    end
   end
 
   describe '#initialize' do
@@ -64,6 +86,8 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox.last_activity_at).to eq('2025-01-01T00:00:00Z')
       expect(sandbox.network_block_all).to be(false)
       expect(sandbox.kvm).to be(false)
+      expect(sandbox.queue_timeout).to be_nil
+      expect(sandbox.queue_timed_out_at).to be_nil
       expect(sandbox.network_allow_list).to be_nil
       expect(sandbox.sandbox_class).to eq('linux-vm')
       expect(sandbox.warm_pool_id).to be_nil
@@ -110,6 +134,19 @@ RSpec.describe Daytona::Sandbox do
 
       expect(sandbox_api).to have_received(:archive_sandbox).with('sandbox-123')
       expect(sandbox.state).to eq('archived')
+    end
+  end
+
+  describe '#public=' do
+    [true, false].each do |value|
+      it "sets public to #{value} via API" do
+        allow(sandbox_api).to receive(:update_public_status).with('sandbox-123', value)
+
+        sandbox.public = value
+
+        expect(sandbox_api).to have_received(:update_public_status).with('sandbox-123', value)
+        expect(sandbox.public).to eq(value)
+      end
     end
   end
 
@@ -494,6 +531,33 @@ RSpec.describe Daytona::Sandbox do
         expect(request.disk).to eq(32)
       end
     end
+
+    it 'records the wait for the resize as wait_for_resize_complete' do
+      allow(sandbox_api).to receive(:resize_sandbox)
+        .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED, cpu: 8))
+      allow(Daytona).to receive(:with_instrumentation).and_call_original
+
+      sandbox.resize(Daytona::Resources.new(cpu: 8), 5)
+
+      expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'wait_for_resize_complete')
+    end
+
+    it 'waits for the resize under the resize deadline when the Timeout.timeout exception is lost' do
+      resizing = build_sandbox_dto(state: DaytonaApiClient::SandboxState::RESIZING)
+      allow(sandbox_api).to receive(:resize_sandbox).and_return(resizing)
+      # The poll and the refresh after the timeout see RESIZING. A third poll, which only a wait that ignores
+      # the deadline makes, sees STARTED and ends the wait instead of hanging the spec.
+      allow(sandbox_api).to receive(:get_sandbox)
+        .and_return(resizing, resizing, build_sandbox_dto(state: DaytonaApiClient::SandboxState::STARTED))
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      clock = stub_wait_clock
+
+      expect { sandbox.resize(Daytona::Resources.new(cpu: 8), 0.2) }.to raise_error(
+        Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to resize within the 0.2 seconds timeout period'
+      )
+      # The subscribed poll interval is 1 s, so the wait was cut short at the deadline.
+      expect(clock.call).to eq(0.2)
+    end
   end
 
   describe '#create_lsp_server' do
@@ -534,6 +598,183 @@ RSpec.describe Daytona::Sandbox do
                          /entered error state: error, error reason: boom/i)
     end
 
+    it 'raises QueueTimeoutError when the sandbox is destroyed after queue timeout' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
+        build_sandbox_dto(
+          state: DaytonaApiClient::SandboxState::DESTROYED,
+          queue_timeout: 15,
+          queue_timed_out_at: '2026-09-29T07:00:00Z'
+        )
+      )
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start
+      end.to raise_error(
+        Daytona::Sdk::QueueTimeoutError,
+        'Sandbox sandbox-123 was destroyed after waiting 15 minutes for a runner ' \
+        '(queue timed out at 2026-09-29T07:00:00Z)'
+      )
+    end
+
+    it 'raises SpotEvictedError when the sandbox is destroyed by spot preemption' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
+        build_sandbox_dto(
+          state: DaytonaApiClient::SandboxState::DESTROYED,
+          spot_evicted_at: '2026-09-29T07:05:00Z'
+        )
+      )
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start
+      end.to raise_error(
+        Daytona::Sdk::SpotEvictedError,
+        'Sandbox sandbox-123 was evicted by spot preemption at 2026-09-29T07:05:00Z'
+      )
+    end
+
+    it 'raises at the deadline when the Timeout.timeout exception is lost' do
+      pending_sandbox = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      pending_dto = build_sandbox_dto(state: 'pending')
+      started_dto = build_sandbox_dto(state: 'started')
+      # The poll and the refresh after the timeout see pending. A third poll, which only a wait that ignores
+      # the deadline makes, sees started and ends the wait instead of hanging the spec.
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(pending_dto, pending_dto, started_dto)
+      # As when the exception arrives while a request is inside libcurl: Timeout.timeout never interrupts.
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      clock = stub_wait_clock
+
+      expect do
+        pending_sandbox.wait_for_sandbox_start(0.2)
+      end.to raise_error(
+        Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to start within the 0.2 seconds timeout period'
+      )
+      # The subscribed poll interval is 1 s, so the wait was cut short at the deadline.
+      expect(clock.call).to eq(0.2)
+    end
+
+    context 'with the HTTP timeout of the poll requests' do
+      let(:pending_sandbox) do
+        described_class.new(
+          sandbox_dto: build_sandbox_dto(state: 'pending'),
+          config: config,
+          sandbox_api: sandbox_api,
+          subscription_manager: subscription_manager
+        )
+      end
+
+      it 'sends each poll request through a copy of sandbox_api bounded by what is left of the timeout' do
+        sandbox_api_client.default_headers['X-Custom'] = 'kept'
+        bounded_api = instance_double(DaytonaApiClient::SandboxApi)
+        allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(bounded_api)
+        allow(bounded_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+        allow(sandbox_api).to receive(:get_sandbox)
+
+        pending_sandbox.wait_for_sandbox_start(5)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new).with(
+          having_attributes(
+            config: having_attributes(timeout: be_between(4, 5)),
+            default_headers: include('X-Custom' => 'kept')
+          )
+        ).once
+        expect(bounded_api).to have_received(:get_sandbox).once
+        expect(sandbox_api).not_to have_received(:get_sandbox)
+        expect(sandbox_api_client.config.timeout).to eq(0)
+      end
+
+      [5, Daytona::Sandbox::NO_TIMEOUT].each do |timeout|
+        it "renews the event subscription and records a refresh on each poll with timeout #{timeout}" do
+          # A separate copy, as in production, so a poll through it does not take the #refresh shortcut.
+          bounded_api = instance_double(DaytonaApiClient::SandboxApi)
+          allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(bounded_api)
+          polls = 0
+          [sandbox_api, bounded_api].each do |api|
+            allow(api).to receive(:get_sandbox).with('sandbox-123') do
+              polls += 1
+              build_sandbox_dto(state: polls >= 2 ? 'started' : 'pending')
+            end
+          end
+          allow(Daytona).to receive(:with_instrumentation).and_call_original
+          stub_condition_variable_waits { |_seconds| nil }
+
+          pending_sandbox.wait_for_sandbox_start(timeout)
+
+          expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'refresh').twice
+          # Twice as the wait starts (wait_for_sandbox_start and wait_for_state), then once for each poll.
+          expect(subscription_manager).to have_received(:refresh).with('sub-123').exactly(4).times
+        end
+      end
+
+      it 'keeps a shorter timeout of the API client' do
+        sandbox_api_client.config.timeout = 2
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(5)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: 2))).once
+      end
+
+      it 'keeps the request error when a shorter timeout of the API client fires before the deadline' do
+        sandbox_api_client.config.timeout = 2
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                   .and_raise(DaytonaApiClient::ApiError.new('Connection timed out'))
+
+        expect do
+          pending_sandbox.wait_for_sandbox_start(60)
+        end.to raise_error(DaytonaApiClient::ApiError, 'Connection timed out')
+      end
+
+      it 'bounds the poll requests by the deadline when the API client timeout is nil' do
+        sandbox_api_client.config.timeout = nil
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(5)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: be_between(4, 5)))).once
+      end
+
+      it 'polls without an HTTP timeout when timeout is NO_TIMEOUT' do
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(Daytona::Sandbox::NO_TIMEOUT)
+
+        expect(DaytonaApiClient::SandboxApi).not_to have_received(:new)
+      end
+
+      it 'raises a TimeoutError when a poll request times out, after a final refresh bounded by 5 s' do
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                   .and_raise(DaytonaApiClient::ApiError.new('Connection timed out'))
+
+        expect do
+          pending_sandbox.wait_for_sandbox_start(30)
+        end.to raise_error(
+          Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to start within the 30 seconds timeout period'
+        )
+        expect(sandbox_api).to have_received(:get_sandbox).twice
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: 5.0))).once
+      end
+    end
+
     it 'recovers from stale cached ERROR when refresh returns started' do
       errored = described_class.new(
         sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'stale'),
@@ -565,9 +806,9 @@ RSpec.describe Daytona::Sandbox do
       allow(condition).to receive(:wait) do |_mutex, interval|
         waits << interval
       end
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::STARTED : 'pending')
       end
 
       pending_sandbox.wait_for_sandbox_start
@@ -591,9 +832,9 @@ RSpec.describe Daytona::Sandbox do
       allow(condition).to receive(:wait) do |_mutex, interval|
         waits << interval
       end
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::STARTED : 'pending')
       end
 
       pending_sandbox.wait_for_sandbox_start
@@ -638,14 +879,18 @@ RSpec.describe Daytona::Sandbox do
         subscription_manager: subscription_manager
       )
       refresh_count = 0
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
         raise DaytonaApiClient::ApiError.new(code: 502, message: 'Bad Gateway') if refresh_count >= 2
+
+        build_sandbox_dto(state: 'pending')
       end
 
       expect do
         pending_sandbox.wait_for_sandbox_start(0.15)
-      end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start/)
+      end.to raise_error(Daytona::Sdk::TimeoutError, /failed to start/) { |error|
+        expect(error.sandbox_id).to be_nil
+      }
     end
 
     it 'raises Sdk::Error when final refresh discovers error state' do
@@ -656,9 +901,9 @@ RSpec.describe Daytona::Sandbox do
         subscription_manager: subscription_manager
       )
       refresh_count = 0
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::ERROR) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::ERROR : 'pending')
       end
 
       expect do
@@ -674,9 +919,9 @@ RSpec.describe Daytona::Sandbox do
         subscription_manager: subscription_manager
       )
       refresh_count = 0
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::STARTED : 'pending')
       end
 
       expect { pending_sandbox.wait_for_sandbox_start(0.15) }.not_to raise_error
@@ -696,6 +941,25 @@ RSpec.describe Daytona::Sandbox do
       expect { destroyed.wait_for_sandbox_stop }.not_to raise_error
     end
 
+    it 'treats destroyed as a successful target state even when queue timeout markers are present' do
+      stopping = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'stopping'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(
+        build_sandbox_dto(
+          state: DaytonaApiClient::SandboxState::DESTROYED,
+          queue_timeout: 15,
+          queue_timed_out_at: '2026-09-29T07:00:00Z'
+        )
+      )
+
+      expect { stopping.wait_for_sandbox_stop }.not_to raise_error
+      expect(stopping.state).to eq('destroyed')
+    end
+
     it 'enforces timeout (deliberate keep)' do
       stopping = described_class.new(
         sandbox_dto: build_sandbox_dto(state: 'stopping'),
@@ -708,7 +972,7 @@ RSpec.describe Daytona::Sandbox do
 
       expect do
         stopping.wait_for_sandbox_stop(0.15)
-      end.to raise_error(Daytona::Sdk::TimeoutError)
+      end.to raise_error(Daytona::Sdk::TimeoutError) { |error| expect(error.sandbox_id).to be_nil }
     end
   end
 
@@ -774,6 +1038,35 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:fork_sandbox) do |_id, request|
         expect(request.name).to eq('my-fork')
       end
+    end
+
+    it 'records the wait for the fork to start as wait_for_sandbox_start' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: DaytonaApiClient::SandboxState::STARTED)
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto)
+      allow(Daytona).to receive(:with_instrumentation).and_call_original
+
+      sandbox.fork(timeout: 5)
+
+      expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'wait_for_sandbox_start')
+    end
+
+    it 'waits for the fork to start under the fork deadline when the Timeout.timeout exception is lost' do
+      forked_dto = build_sandbox_dto(id: 'forked-456', state: 'pending')
+      allow(sandbox_api).to receive(:fork_sandbox).with('sandbox-123', anything).and_return(forked_dto)
+      started_dto = build_sandbox_dto(id: 'forked-456', state: 'started')
+      # The poll and the refresh after the timeout see pending. A third poll, which only a wait that ignores
+      # the deadline makes, sees started and ends the wait instead of hanging the spec.
+      allow(sandbox_api).to receive(:get_sandbox).with('forked-456').and_return(forked_dto, forked_dto, started_dto)
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      clock = stub_wait_clock
+
+      expect { sandbox.fork(timeout: 0.2) }.to raise_error(
+        Daytona::Sdk::TimeoutError,
+        'Sandbox sandbox-123 fork failed to become ready within the 0.2 seconds timeout period'
+      )
+      # The subscribed poll interval is 1 s, so the wait was cut short at the deadline.
+      expect(clock.call).to eq(0.2)
     end
   end
 

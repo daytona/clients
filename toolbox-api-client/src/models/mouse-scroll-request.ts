@@ -17,9 +17,10 @@
 export interface MouseScrollRequest {
     'amount'?: number;
     /**
-     * up, down
+     * up, down, left, right
      */
     'direction'?: string;
+    'modifiers'?: Array<string>;
     'x'?: number;
     'y'?: number;
 }

@@ -1,9 +1,11 @@
 name: Deploy Go vanity Pages
 
+# The site serves the 0.x Go modules on release/v0; main (the 2.x line) has no
+# copy of this workflow.
 on:
   push:
     branches:
-      - main
+      - release/v0
   workflow_dispatch:
 
 permissions:
@@ -11,13 +13,16 @@ permissions:
   pages: write
   id-token: write
 
+# Runs from other branches deploy nothing; give them their own group so they
+# cannot cancel an in-progress deploy from release/v0.
 concurrency:
-  group: pages
+  group: ${{ github.ref == 'refs/heads/release/v0' && 'pages' || format('pages-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: github.repository == 'daytona/clients'
+    # Only release/v0 publishes the site, including manual runs.
+    if: github.repository == 'daytona/clients' && github.ref == 'refs/heads/release/v0'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment:
       name: github-pages
@@ -25,7 +30,7 @@ jobs:
     env:
       DOMAIN: github.com/daytona/clients
       REPO: daytona/clients
-      BRANCH: main
+      BRANCH: release/v0
       # Set to "true" only after DNS for $DOMAIN points at GitHub Pages.
       EMIT_CNAME: 'false'
     steps:

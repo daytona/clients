@@ -36,7 +36,7 @@ async def main():
 
         print(f"Creating sandbox from snapshot {snapshot1}")
         try:
-            sandbox = await daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot1))
+            sandbox = await daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot1, target="us"))
             await daytona.delete(sandbox)
         except Exception as e:
             print(e)
@@ -44,7 +44,7 @@ async def main():
 
         print(f"Creating sandbox from snapshot {snapshot2}")
         try:
-            sandbox = await daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot2))
+            sandbox = await daytona.create(CreateSandboxFromSnapshotParams(snapshot=snapshot2, target="eu"))
             await daytona.delete(sandbox)
         except Exception as e:
             print("error", e)

@@ -39,6 +39,8 @@ type Sandbox struct {
 	Public bool `json:"public"`
 	// Whether to block all network access for the sandbox
 	NetworkBlockAll bool `json:"networkBlockAll"`
+	// Whether the sandbox exposes KVM (/dev/kvm) to its guest
+	Kvm bool `json:"kvm"`
 	// Comma-separated list of allowed CIDR network addresses for the sandbox
 	NetworkAllowList *string `json:"networkAllowList,omitempty"`
 	// Comma-separated list of allowed domains for the sandbox
@@ -57,6 +59,8 @@ type Sandbox struct {
 	Spot *bool `json:"spot,omitempty"`
 	// When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.
 	SpotEvictedAt *string `json:"spotEvictedAt,omitempty"`
+	// When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.
+	QueueTimedOutAt *string `json:"queueTimedOutAt,omitempty"`
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
 	// The memory quota for the sandbox
@@ -89,6 +93,8 @@ type Sandbox struct {
 	AutoDeleteInterval *float32 `json:"autoDeleteInterval,omitempty"`
 	// When the sandbox will be automatically destroyed, regardless of its state (only set when a TTL is configured)
 	AutoDestroyAt *string `json:"autoDestroyAt,omitempty"`
+	// Minutes to wait for runner assignment before cancelling sandbox creation. Null means the wait is unlimited.
+	QueueTimeout NullableInt32 `json:"queueTimeout,omitempty"`
 	// Array of volumes attached to the sandbox
 	Volumes []SandboxVolume `json:"volumes,omitempty"`
 	// Build information for the sandbox
@@ -109,8 +115,6 @@ type Sandbox struct {
 	LinkedSandboxId *string `json:"linkedSandboxId,omitempty"`
 	// The toolbox proxy URL for the sandbox
 	ToolboxProxyUrl string `json:"toolboxProxyUrl"`
-	// Whether the sandbox exposes KVM (/dev/kvm) to its guest
-	Kvm *bool `json:"kvm,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -120,7 +124,7 @@ type _Sandbox Sandbox
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string) *Sandbox {
+func NewSandbox(id string, organizationId string, name string, user string, env map[string]string, labels map[string]string, public bool, networkBlockAll bool, kvm bool, target string, cpu int32, gpu int32, memory int32, disk int32, toolboxProxyUrl string) *Sandbox {
 	this := Sandbox{}
 	this.Id = id
 	this.OrganizationId = organizationId
@@ -130,6 +134,7 @@ func NewSandbox(id string, organizationId string, name string, user string, env 
 	this.Labels = labels
 	this.Public = public
 	this.NetworkBlockAll = networkBlockAll
+	this.Kvm = kvm
 	this.Target = target
 	this.Cpu = cpu
 	this.Gpu = gpu
@@ -373,6 +378,30 @@ func (o *Sandbox) GetNetworkBlockAllOk() (*bool, bool) {
 // SetNetworkBlockAll sets field value
 func (o *Sandbox) SetNetworkBlockAll(v bool) {
 	o.NetworkBlockAll = v
+}
+
+// GetKvm returns the Kvm field value
+func (o *Sandbox) GetKvm() bool {
+	if o == nil {
+		var ret bool
+		return ret
+	}
+
+	return o.Kvm
+}
+
+// GetKvmOk returns a tuple with the Kvm field value
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetKvmOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.Kvm, true
+}
+
+// SetKvm sets field value
+func (o *Sandbox) SetKvm(v bool) {
+	o.Kvm = v
 }
 
 // GetNetworkAllowList returns the NetworkAllowList field value if set, zero value otherwise.
@@ -637,6 +666,38 @@ func (o *Sandbox) HasSpotEvictedAt() bool {
 // SetSpotEvictedAt gets a reference to the given string and assigns it to the SpotEvictedAt field.
 func (o *Sandbox) SetSpotEvictedAt(v string) {
 	o.SpotEvictedAt = &v
+}
+
+// GetQueueTimedOutAt returns the QueueTimedOutAt field value if set, zero value otherwise.
+func (o *Sandbox) GetQueueTimedOutAt() string {
+	if o == nil || IsNil(o.QueueTimedOutAt) {
+		var ret string
+		return ret
+	}
+	return *o.QueueTimedOutAt
+}
+
+// GetQueueTimedOutAtOk returns a tuple with the QueueTimedOutAt field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Sandbox) GetQueueTimedOutAtOk() (*string, bool) {
+	if o == nil || IsNil(o.QueueTimedOutAt) {
+		return nil, false
+	}
+	return o.QueueTimedOutAt, true
+}
+
+// HasQueueTimedOutAt returns a boolean if a field has been set.
+func (o *Sandbox) HasQueueTimedOutAt() bool {
+	if o != nil && !IsNil(o.QueueTimedOutAt) {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueTimedOutAt gets a reference to the given string and assigns it to the QueueTimedOutAt field.
+func (o *Sandbox) SetQueueTimedOutAt(v string) {
+	o.QueueTimedOutAt = &v
 }
 
 // GetGpuType returns the GpuType field value if set, zero value otherwise.
@@ -1109,6 +1170,48 @@ func (o *Sandbox) SetAutoDestroyAt(v string) {
 	o.AutoDestroyAt = &v
 }
 
+// GetQueueTimeout returns the QueueTimeout field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *Sandbox) GetQueueTimeout() int32 {
+	if o == nil || IsNil(o.QueueTimeout.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.QueueTimeout.Get()
+}
+
+// GetQueueTimeoutOk returns a tuple with the QueueTimeout field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *Sandbox) GetQueueTimeoutOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.QueueTimeout.Get(), o.QueueTimeout.IsSet()
+}
+
+// HasQueueTimeout returns a boolean if a field has been set.
+func (o *Sandbox) HasQueueTimeout() bool {
+	if o != nil && o.QueueTimeout.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueTimeout gets a reference to the given NullableInt32 and assigns it to the QueueTimeout field.
+func (o *Sandbox) SetQueueTimeout(v int32) {
+	o.QueueTimeout.Set(&v)
+}
+// SetQueueTimeoutNil sets the value for QueueTimeout to be an explicit nil
+func (o *Sandbox) SetQueueTimeoutNil() {
+	o.QueueTimeout.Set(nil)
+}
+
+// UnsetQueueTimeout ensures that no value is present for QueueTimeout, not even an explicit nil
+func (o *Sandbox) UnsetQueueTimeout() {
+	o.QueueTimeout.Unset()
+}
+
 // GetVolumes returns the Volumes field value if set, zero value otherwise.
 func (o *Sandbox) GetVolumes() []SandboxVolume {
 	if o == nil || IsNil(o.Volumes) {
@@ -1421,38 +1524,6 @@ func (o *Sandbox) SetToolboxProxyUrl(v string) {
 	o.ToolboxProxyUrl = v
 }
 
-// GetKvm returns the Kvm field value if set, zero value otherwise.
-func (o *Sandbox) GetKvm() bool {
-	if o == nil || IsNil(o.Kvm) {
-		var ret bool
-		return ret
-	}
-	return *o.Kvm
-}
-
-// GetKvmOk returns a tuple with the Kvm field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *Sandbox) GetKvmOk() (*bool, bool) {
-	if o == nil || IsNil(o.Kvm) {
-		return nil, false
-	}
-	return o.Kvm, true
-}
-
-// HasKvm returns a boolean if a field has been set.
-func (o *Sandbox) HasKvm() bool {
-	if o != nil && !IsNil(o.Kvm) {
-		return true
-	}
-
-	return false
-}
-
-// SetKvm gets a reference to the given bool and assigns it to the Kvm field.
-func (o *Sandbox) SetKvm(v bool) {
-	o.Kvm = &v
-}
-
 func (o Sandbox) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -1474,6 +1545,7 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 	toSerialize["labels"] = o.Labels
 	toSerialize["public"] = o.Public
 	toSerialize["networkBlockAll"] = o.NetworkBlockAll
+	toSerialize["kvm"] = o.Kvm
 	if !IsNil(o.NetworkAllowList) {
 		toSerialize["networkAllowList"] = o.NetworkAllowList
 	}
@@ -1494,6 +1566,9 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.SpotEvictedAt) {
 		toSerialize["spotEvictedAt"] = o.SpotEvictedAt
+	}
+	if !IsNil(o.QueueTimedOutAt) {
+		toSerialize["queueTimedOutAt"] = o.QueueTimedOutAt
 	}
 	if !IsNil(o.GpuType) {
 		toSerialize["gpuType"] = o.GpuType
@@ -1536,6 +1611,9 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AutoDestroyAt) {
 		toSerialize["autoDestroyAt"] = o.AutoDestroyAt
 	}
+	if o.QueueTimeout.IsSet() {
+		toSerialize["queueTimeout"] = o.QueueTimeout.Get()
+	}
 	if !IsNil(o.Volumes) {
 		toSerialize["volumes"] = o.Volumes
 	}
@@ -1564,9 +1642,6 @@ func (o Sandbox) ToMap() (map[string]interface{}, error) {
 		toSerialize["linkedSandboxId"] = o.LinkedSandboxId
 	}
 	toSerialize["toolboxProxyUrl"] = o.ToolboxProxyUrl
-	if !IsNil(o.Kvm) {
-		toSerialize["kvm"] = o.Kvm
-	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -1588,6 +1663,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		"labels",
 		"public",
 		"networkBlockAll",
+		"kvm",
 		"target",
 		"cpu",
 		"gpu",
@@ -1632,6 +1708,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "labels")
 		delete(additionalProperties, "public")
 		delete(additionalProperties, "networkBlockAll")
+		delete(additionalProperties, "kvm")
 		delete(additionalProperties, "networkAllowList")
 		delete(additionalProperties, "domainAllowList")
 		delete(additionalProperties, "outboundProxyUrl")
@@ -1641,6 +1718,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "gpu")
 		delete(additionalProperties, "spot")
 		delete(additionalProperties, "spotEvictedAt")
+		delete(additionalProperties, "queueTimedOutAt")
 		delete(additionalProperties, "gpuType")
 		delete(additionalProperties, "memory")
 		delete(additionalProperties, "disk")
@@ -1656,6 +1734,7 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "autoArchiveInterval")
 		delete(additionalProperties, "autoDeleteInterval")
 		delete(additionalProperties, "autoDestroyAt")
+		delete(additionalProperties, "queueTimeout")
 		delete(additionalProperties, "volumes")
 		delete(additionalProperties, "buildInfo")
 		delete(additionalProperties, "createdAt")
@@ -1666,7 +1745,6 @@ func (o *Sandbox) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "runnerId")
 		delete(additionalProperties, "linkedSandboxId")
 		delete(additionalProperties, "toolboxProxyUrl")
-		delete(additionalProperties, "kvm")
 		o.AdditionalProperties = additionalProperties
 	}
 

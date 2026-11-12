@@ -31,6 +31,8 @@ type OidcConfig struct {
 	Provider string `json:"provider"`
 	// WorkOS \"Authentication API\" custom domain the dashboard's client-side SDK should call instead of api.workos.com, so the refresh-token cookie is first-party. Present only when the provider is workos and a custom domain is configured (WorkOS production environments only); absent means the SDK runs in devMode and keeps the refresh token in localStorage.
 	AuthApiHostname *string `json:"authApiHostname,omitempty"`
+	// WorkOS application the Daytona CLI logs in through, configured apart from the dashboard's so CLI sessions can have their own lifetime. Present only when the provider is workos and a CLI application is configured; absent means the CLI uses the issuer and client ID above.
+	Cli *CliOidcConfig `json:"cli,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -185,6 +187,38 @@ func (o *OidcConfig) SetAuthApiHostname(v string) {
 	o.AuthApiHostname = &v
 }
 
+// GetCli returns the Cli field value if set, zero value otherwise.
+func (o *OidcConfig) GetCli() CliOidcConfig {
+	if o == nil || IsNil(o.Cli) {
+		var ret CliOidcConfig
+		return ret
+	}
+	return *o.Cli
+}
+
+// GetCliOk returns a tuple with the Cli field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *OidcConfig) GetCliOk() (*CliOidcConfig, bool) {
+	if o == nil || IsNil(o.Cli) {
+		return nil, false
+	}
+	return o.Cli, true
+}
+
+// HasCli returns a boolean if a field has been set.
+func (o *OidcConfig) HasCli() bool {
+	if o != nil && !IsNil(o.Cli) {
+		return true
+	}
+
+	return false
+}
+
+// SetCli gets a reference to the given CliOidcConfig and assigns it to the Cli field.
+func (o *OidcConfig) SetCli(v CliOidcConfig) {
+	o.Cli = &v
+}
+
 func (o OidcConfig) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -201,6 +235,9 @@ func (o OidcConfig) ToMap() (map[string]interface{}, error) {
 	toSerialize["provider"] = o.Provider
 	if !IsNil(o.AuthApiHostname) {
 		toSerialize["authApiHostname"] = o.AuthApiHostname
+	}
+	if !IsNil(o.Cli) {
+		toSerialize["cli"] = o.Cli
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -253,6 +290,7 @@ func (o *OidcConfig) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "audience")
 		delete(additionalProperties, "provider")
 		delete(additionalProperties, "authApiHostname")
+		delete(additionalProperties, "cli")
 		o.AdditionalProperties = additionalProperties
 	}
 

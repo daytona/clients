@@ -24,6 +24,7 @@ from daytona_toolbox_api_client.models.match import Match
 from daytona_toolbox_api_client.models.replace_request import ReplaceRequest
 from daytona_toolbox_api_client.models.replace_result import ReplaceResult
 from daytona_toolbox_api_client.models.search_files_response import SearchFilesResponse
+from daytona_toolbox_api_client.models.upload_files_response import UploadFilesResponse
 from daytona_toolbox_api_client.models.uploaded_file import UploadedFile
 
 from daytona_toolbox_api_client.api_client import ApiClient, RequestSerialized
@@ -44,7 +45,7 @@ class FileSystemApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_folder(
         self,
         path: Annotated[StrictStr, Field(description="Folder path to create")],
@@ -116,7 +117,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_folder_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Folder path to create")],
@@ -188,7 +189,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def create_folder_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Folder path to create")],
@@ -326,7 +327,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_file(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path to delete")],
@@ -400,7 +401,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_file_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path to delete")],
@@ -474,7 +475,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def delete_file_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path to delete")],
@@ -614,7 +615,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_file(
         self,
         path: Annotated[StrictStr, Field(description="File path to download")],
@@ -684,7 +685,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_file_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="File path to download")],
@@ -754,7 +755,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_file_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="File path to download")],
@@ -885,7 +886,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_files(
         self,
         download_files: Annotated[FilesDownloadRequest, Field(description="Paths of files to download")],
@@ -956,7 +957,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_files_with_http_info(
         self,
         download_files: Annotated[FilesDownloadRequest, Field(description="Paths of files to download")],
@@ -1027,7 +1028,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def download_files_without_preload_content(
         self,
         download_files: Annotated[FilesDownloadRequest, Field(description="Paths of files to download")],
@@ -1170,7 +1171,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def find_in_files(
         self,
         path: Annotated[StrictStr, Field(description="Directory path to search in")],
@@ -1242,7 +1243,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def find_in_files_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Directory path to search in")],
@@ -1314,7 +1315,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def find_in_files_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Directory path to search in")],
@@ -1452,7 +1453,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_file_info(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path")],
@@ -1522,7 +1523,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_file_info_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path")],
@@ -1592,7 +1593,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def get_file_info_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path")],
@@ -1723,7 +1724,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_files(
         self,
         path: Annotated[Optional[StrictStr], Field(description="Directory path to list (defaults to working directory)")] = None,
@@ -1797,7 +1798,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_files_with_http_info(
         self,
         path: Annotated[Optional[StrictStr], Field(description="Directory path to list (defaults to working directory)")] = None,
@@ -1871,7 +1872,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def list_files_without_preload_content(
         self,
         path: Annotated[Optional[StrictStr], Field(description="Directory path to list (defaults to working directory)")] = None,
@@ -2011,7 +2012,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def move_file(
         self,
         source: Annotated[StrictStr, Field(description="Source file or directory path")],
@@ -2086,7 +2087,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def move_file_with_http_info(
         self,
         source: Annotated[StrictStr, Field(description="Source file or directory path")],
@@ -2161,7 +2162,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def move_file_without_preload_content(
         self,
         source: Annotated[StrictStr, Field(description="Source file or directory path")],
@@ -2302,7 +2303,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def replace_in_files(
         self,
         request: Annotated[ReplaceRequest, Field(description="Replace request")],
@@ -2370,7 +2371,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def replace_in_files_with_http_info(
         self,
         request: Annotated[ReplaceRequest, Field(description="Replace request")],
@@ -2438,7 +2439,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def replace_in_files_without_preload_content(
         self,
         request: Annotated[ReplaceRequest, Field(description="Replace request")],
@@ -2578,7 +2579,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def search_files(
         self,
         path: Annotated[StrictStr, Field(description="Directory path to search in")],
@@ -2650,7 +2651,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def search_files_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Directory path to search in")],
@@ -2722,7 +2723,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def search_files_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Directory path to search in")],
@@ -2860,7 +2861,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_file_permissions(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path")],
@@ -2942,7 +2943,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_file_permissions_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path")],
@@ -3024,7 +3025,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def set_file_permissions_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="File or directory path")],
@@ -3182,7 +3183,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def upload_file(
         self,
         path: Annotated[StrictStr, Field(description="Destination path for the uploaded file")],
@@ -3254,7 +3255,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def upload_file_with_http_info(
         self,
         path: Annotated[StrictStr, Field(description="Destination path for the uploaded file")],
@@ -3326,7 +3327,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def upload_file_without_preload_content(
         self,
         path: Annotated[StrictStr, Field(description="Destination path for the uploaded file")],
@@ -3475,7 +3476,7 @@ class FileSystemApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def upload_files(
         self,
         _request_timeout: Union[
@@ -3490,7 +3491,7 @@ class FileSystemApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> None:
+    ) -> UploadFilesResponse:
         """Upload multiple files
 
         Upload multiple files with their destination paths
@@ -3525,8 +3526,8 @@ class FileSystemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': None,
-            '400': "ErrorResponse",
+            '200': "UploadFilesResponse",
+            '400': "UploadFilesResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3539,7 +3540,7 @@ class FileSystemApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def upload_files_with_http_info(
         self,
         _request_timeout: Union[
@@ -3554,7 +3555,7 @@ class FileSystemApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[None]:
+    ) -> ApiResponse[UploadFilesResponse]:
         """Upload multiple files
 
         Upload multiple files with their destination paths
@@ -3589,8 +3590,8 @@ class FileSystemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': None,
-            '400': "ErrorResponse",
+            '200': "UploadFilesResponse",
+            '400': "UploadFilesResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3603,7 +3604,7 @@ class FileSystemApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     def upload_files_without_preload_content(
         self,
         _request_timeout: Union[
@@ -3653,8 +3654,8 @@ class FileSystemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': None,
-            '400': "ErrorResponse",
+            '200': "UploadFilesResponse",
+            '400': "UploadFilesResponse",
         }
         response_data = self.api_client.call_api(
             *_param,

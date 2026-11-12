@@ -76,6 +76,7 @@ type Sandbox struct {
 	Gpu            int32                          // Number of GPUs allocated to the sandbox
 	Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
 	SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
+	QueueTimeout   *int                           // Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it; nil when unset or null
 	Memory         int32                          // Amount of memory allocated to the sandbox in GiB
 	Disk           int32                          // Amount of disk space allocated to the sandbox in GiB
 	State          apiclient.SandboxState         // Current sandbox state
@@ -111,6 +112,7 @@ type Sandbox struct {
 	LastActivityAt  *string // When the sandbox last had activity
 	ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
 	AutoDestroyAt   *string // When the sandbox will be automatically destroyed (based on TTL)
+	QueueTimedOutAt *string // When the sandbox was destroyed after exceeding its queue timeout
 
 	// Env contains environment variables set in the sandbox.
 	// Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
@@ -219,6 +221,8 @@ type sandboxDTO interface {
 	GetLastActivityAtOk() (*string, bool)
 	GetAutoDestroyAtOk() (*string, bool)
 	GetSpotEvictedAtOk() (*string, bool)
+	GetQueueTimeoutOk() (*int32, bool)
+	GetQueueTimedOutAtOk() (*string, bool)
 	GetWarmPoolIdOk() (*string, bool)
 	GetDaemonVersionOk() (*string, bool)
 	GetGpuTypeOk() (*apiclient.GpuType, bool)
@@ -417,6 +421,17 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if v, ok := dto.GetSpotEvictedAtOk(); ok {
 		s.SpotEvictedAt = v
 	}
+	if v, ok := dto.GetQueueTimeoutOk(); ok && v != nil {
+		queueTimeout := int(*v)
+		s.QueueTimeout = &queueTimeout
+	} else {
+		s.QueueTimeout = nil
+	}
+	if v, ok := dto.GetQueueTimedOutAtOk(); ok {
+		s.QueueTimedOutAt = v
+	} else {
+		s.QueueTimedOutAt = nil
+	}
 	s.Memory = dto.GetMemory()
 	s.Disk = dto.GetDisk()
 	s.ToolboxProxyUrl = dto.GetToolboxProxyUrl()
@@ -469,7 +484,8 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	if full, ok := dto.(*apiclient.Sandbox); ok {
 		s.Env = full.Env
 		s.NetworkBlockAll = &full.NetworkBlockAll
-		s.Kvm = full.Kvm
+		kvm := full.Kvm
+		s.Kvm = &kvm
 		s.NetworkAllowList = full.NetworkAllowList
 		s.DomainAllowList = full.DomainAllowList
 		s.OutboundProxyUrl = full.OutboundProxyUrl
@@ -670,6 +686,9 @@ func (s *Sandbox) waitForState(
 	if containsSandboxState(targetStates, currentState) {
 		return nil
 	}
+	if err := s.destroyedLifecycleError(targetStates); err != nil {
+		return err
+	}
 
 	refresh := func(rctx context.Context) (done bool, err error) {
 		if safeRefresh {
@@ -686,6 +705,9 @@ func (s *Sandbox) waitForState(
 		s.mu.RUnlock()
 		if containsSandboxState(targetStates, st) {
 			return true, nil
+		}
+		if err := s.destroyedLifecycleError(targetStates); err != nil {
+			return true, err
 		}
 		if containsSandboxState(errorStates, st) {
 			return true, fmt.Errorf("sandbox entered error state: %s", st)
@@ -720,6 +742,11 @@ func (s *Sandbox) waitForState(
 			}
 			return ctx.Err()
 		case newState := <-stateCh:
+			if newState == apiclient.SANDBOXSTATE_DESTROYED {
+				if err := s.destroyedLifecycleError(targetStates); err != nil {
+					return err
+				}
+			}
 			if containsSandboxState(errorStates, newState) {
 				return fmt.Errorf("sandbox entered error state: %s", newState)
 			}
@@ -737,6 +764,28 @@ func (s *Sandbox) waitForState(
 	}
 }
 
+func (s *Sandbox) destroyedLifecycleError(targetStates []apiclient.SandboxState) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.State != apiclient.SANDBOXSTATE_DESTROYED || containsSandboxState(targetStates, apiclient.SANDBOXSTATE_DESTROYED) {
+		return nil
+	}
+
+	if s.QueueTimedOutAt != nil {
+		if s.QueueTimeout != nil {
+			return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting %d %s for a runner (queue timed out at %s)", s.ID, *s.QueueTimeout, minutesLabel(*s.QueueTimeout), *s.QueueTimedOutAt))
+		}
+		return errors.NewQueueTimeoutError(fmt.Sprintf("Sandbox %s was destroyed after waiting for a runner (queue timed out at %s)", s.ID, *s.QueueTimedOutAt))
+	}
+
+	if s.SpotEvictedAt != nil {
+		return errors.NewSpotEvictedError(fmt.Sprintf("Sandbox %s was evicted by spot preemption at %s", s.ID, *s.SpotEvictedAt))
+	}
+
+	return nil
+}
+
 func (s *Sandbox) refreshDataSafe(ctx context.Context) error {
 	refreshErr := s.doRefreshData(ctx)
 	if refreshErr == nil {
@@ -749,6 +798,27 @@ func (s *Sandbox) refreshDataSafe(ctx context.Context) error {
 	}
 
 	return refreshErr
+}
+
+// waitFailureCause picks the error a "<operation> failed" wrapper should expose
+// through Unwrap: only the transport cause of a refresh that got no HTTP
+// response (a *DaytonaError with StatusCode 0). API errors and local wait
+// errors (such as "sandbox entered error state") expose nothing, so errors.Is
+// on the wrapper never newly matches the inner error's sentinels (ErrNotFound,
+// ErrInternalServer, ...).
+func waitFailureCause(err error) error {
+	var de *errors.DaytonaError
+	if !stderrors.As(err, &de) || de.StatusCode != 0 {
+		return nil
+	}
+	return de.Err
+}
+
+func minutesLabel(minutes int) string {
+	if minutes == 1 {
+		return "minute"
+	}
+	return "minutes"
 }
 
 func containsSandboxState(states []apiclient.SandboxState, state apiclient.SandboxState) bool {
@@ -1500,8 +1570,12 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 // GetPreviewLink returns a preview link for accessing a port on the sandbox.
 //
 // The returned PreviewLink contains both the URL and an authentication token.
-// For private sandboxes, the token must be sent via the
-// "x-daytona-preview-token" request header.
+// For a private sandbox, requests to the URL must authenticate, otherwise they
+// are answered with 401 Unauthorized: send the token in the
+// "X-Daytona-Preview-Token" request header, or send your Daytona API key as
+// "Authorization: Bearer <api key>". To get a URL that works without extra
+// headers (for example to open it in a browser or share it), use
+// [Sandbox.GetSignedPreviewLink] instead. Public sandboxes need no credentials.
 //
 // Example:
 //
@@ -1510,6 +1584,18 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 //	    return err
 //	}
 //	fmt.Printf("URL: %s\nToken: %s\n", preview.URL, preview.Token)
+//
+//	// Fetch the private preview from outside the sandbox
+//	req, err := http.NewRequestWithContext(ctx, http.MethodGet, preview.URL, nil)
+//	if err != nil {
+//	    return err
+//	}
+//	req.Header.Set("X-Daytona-Preview-Token", preview.Token)
+//	resp, err := http.DefaultClient.Do(req)
+//	if err != nil {
+//	    return err
+//	}
+//	defer resp.Body.Close()
 func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error) {
 	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetPreviewLink", func(ctx context.Context) (*types.PreviewLink, error) {
@@ -1532,6 +1618,11 @@ func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewL
 
 // GetSignedPreviewLink retrieves a signed preview URL for the sandbox at the
 // specified port, valid for up to expiresInSeconds seconds.
+//
+// The access token is embedded in the returned URL, so it can be used without
+// any headers, for example in a browser or by another service. The URL stops
+// working when it expires or when it is expired with
+// [Sandbox.ExpireSignedPreviewLink].
 //
 // Example:
 //
@@ -1588,6 +1679,39 @@ func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token s
 
 		return nil
 	})
+}
+
+// SetPublic sets whether the sandbox's preview URLs are publicly accessible.
+//
+// When public, preview URLs (see [Sandbox.GetPreviewLink]) can be opened
+// without a preview token or API key. When private, every preview request
+// must authenticate.
+//
+// Example:
+//
+//	if err := sandbox.SetPublic(ctx, true); err != nil {
+//	    return err
+//	}
+func (s *Sandbox) SetPublic(ctx context.Context, isPublic bool) error {
+	s.ensureSubscribed()
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetPublic", func(ctx context.Context) error {
+		return s.doSetPublic(ctx, isPublic)
+	})
+}
+
+func (s *Sandbox) doSetPublic(ctx context.Context, isPublic bool) error {
+	sandboxResp, httpResp, err := s.client.apiClient.SandboxAPI.UpdatePublicStatus(
+		s.client.getAuthContext(ctx),
+		s.ID,
+		isPublic,
+	).Execute()
+
+	if err != nil {
+		return errors.ConvertAPIError(err, httpResp)
+	}
+
+	s.updateFromAPIResponse(sandboxResp)
+	return nil
 }
 
 // SetAutoArchiveInterval sets the auto-archive interval in minutes.
@@ -1932,7 +2056,7 @@ func (s *Sandbox) doCreateSnapshotWithTimeout(ctx context.Context, name string, 
 		if stderrors.Is(err, context.Canceled) {
 			return err
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox snapshot failed: %v", err), 0, nil)
+		return errors.WrapDaytonaError(waitFailureCause(err), fmt.Sprintf("Sandbox snapshot failed: %v", err), 0, nil)
 	}
 	return nil
 }
@@ -2027,7 +2151,7 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 		if stderrors.Is(err, context.Canceled) {
 			return err
 		}
-		return errors.NewDaytonaError(fmt.Sprintf("Sandbox pause failed: %v", err), 0, nil)
+		return errors.WrapDaytonaError(waitFailureCause(err), fmt.Sprintf("Sandbox pause failed: %v", err), 0, nil)
 	}
 	return nil
 }

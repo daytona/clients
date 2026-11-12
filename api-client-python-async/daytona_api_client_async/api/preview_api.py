@@ -39,7 +39,7 @@ class PreviewApi:
         self.api_client = api_client
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_id_from_signed_preview_url_token(
         self,
         signed_preview_token: Annotated[StrictStr, Field(description="Signed preview URL token")],
@@ -109,7 +109,7 @@ class PreviewApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_id_from_signed_preview_url_token_with_http_info(
         self,
         signed_preview_token: Annotated[StrictStr, Field(description="Signed preview URL token")],
@@ -179,7 +179,7 @@ class PreviewApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_sandbox_id_from_signed_preview_url_token_without_preload_content(
         self,
         signed_preview_token: Annotated[StrictStr, Field(description="Signed preview URL token")],
@@ -313,7 +313,7 @@ class PreviewApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_signing_key(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -379,7 +379,7 @@ class PreviewApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_signing_key_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -445,7 +445,7 @@ class PreviewApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def get_signing_key_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -572,7 +572,7 @@ class PreviewApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def has_sandbox_access(
         self,
         sandbox_id: StrictStr,
@@ -639,7 +639,7 @@ class PreviewApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def has_sandbox_access_with_http_info(
         self,
         sandbox_id: StrictStr,
@@ -706,7 +706,7 @@ class PreviewApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def has_sandbox_access_without_preload_content(
         self,
         sandbox_id: StrictStr,
@@ -834,7 +834,7 @@ class PreviewApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_preview_warning_enabled(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox, or a signed preview URL token (requires the port query param)")],
@@ -904,7 +904,7 @@ class PreviewApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_preview_warning_enabled_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox, or a signed preview URL token (requires the port query param)")],
@@ -974,7 +974,7 @@ class PreviewApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_preview_warning_enabled_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox, or a signed preview URL token (requires the port query param)")],
@@ -1110,7 +1110,7 @@ class PreviewApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_sandbox_public(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -1176,7 +1176,7 @@ class PreviewApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_sandbox_public_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -1242,7 +1242,7 @@ class PreviewApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_sandbox_public_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -1369,7 +1369,7 @@ class PreviewApi:
 
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_valid_auth_token(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -1439,7 +1439,7 @@ class PreviewApi:
         ).data
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_valid_auth_token_with_http_info(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],
@@ -1509,7 +1509,7 @@ class PreviewApi:
         )
 
 
-    @validate_call
+    @validate_call(config={"defer_build": True})
     async def is_valid_auth_token_without_preload_content(
         self,
         sandbox_id: Annotated[StrictStr, Field(description="ID of the sandbox")],

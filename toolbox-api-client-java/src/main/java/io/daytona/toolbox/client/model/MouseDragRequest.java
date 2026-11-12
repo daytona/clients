@@ -20,7 +20,9 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -64,6 +66,11 @@ public class MouseDragRequest {
   @SerializedName(SERIALIZED_NAME_END_Y)
   @javax.annotation.Nullable
   private Integer endY;
+
+  public static final String SERIALIZED_NAME_MODIFIERS = "modifiers";
+  @SerializedName(SERIALIZED_NAME_MODIFIERS)
+  @javax.annotation.Nullable
+  private List<String> modifiers = new ArrayList<>();
 
   public static final String SERIALIZED_NAME_START_X = "startX";
   @SerializedName(SERIALIZED_NAME_START_X)
@@ -132,6 +139,33 @@ public class MouseDragRequest {
 
   public void setEndY(@javax.annotation.Nullable Integer endY) {
     this.endY = endY;
+  }
+
+
+  public MouseDragRequest modifiers(@javax.annotation.Nullable List<String> modifiers) {
+    this.modifiers = modifiers;
+    return this;
+  }
+
+  public MouseDragRequest addModifiersItem(String modifiersItem) {
+    if (this.modifiers == null) {
+      this.modifiers = new ArrayList<>();
+    }
+    this.modifiers.add(modifiersItem);
+    return this;
+  }
+
+  /**
+   * Get modifiers
+   * @return modifiers
+   */
+  @javax.annotation.Nullable
+  public List<String> getModifiers() {
+    return modifiers;
+  }
+
+  public void setModifiers(@javax.annotation.Nullable List<String> modifiers) {
+    this.modifiers = modifiers;
   }
 
 
@@ -230,6 +264,7 @@ public class MouseDragRequest {
     return Objects.equals(this.button, mouseDragRequest.button) &&
         Objects.equals(this.endX, mouseDragRequest.endX) &&
         Objects.equals(this.endY, mouseDragRequest.endY) &&
+        Objects.equals(this.modifiers, mouseDragRequest.modifiers) &&
         Objects.equals(this.startX, mouseDragRequest.startX) &&
         Objects.equals(this.startY, mouseDragRequest.startY)&&
         Objects.equals(this.additionalProperties, mouseDragRequest.additionalProperties);
@@ -237,7 +272,7 @@ public class MouseDragRequest {
 
   @Override
   public int hashCode() {
-    return Objects.hash(button, endX, endY, startX, startY, additionalProperties);
+    return Objects.hash(button, endX, endY, modifiers, startX, startY, additionalProperties);
   }
 
   @Override
@@ -247,6 +282,7 @@ public class MouseDragRequest {
     sb.append("    button: ").append(toIndentedString(button)).append("\n");
     sb.append("    endX: ").append(toIndentedString(endX)).append("\n");
     sb.append("    endY: ").append(toIndentedString(endY)).append("\n");
+    sb.append("    modifiers: ").append(toIndentedString(modifiers)).append("\n");
     sb.append("    startX: ").append(toIndentedString(startX)).append("\n");
     sb.append("    startY: ").append(toIndentedString(startY)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
@@ -268,7 +304,7 @@ public class MouseDragRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("button", "endX", "endY", "startX", "startY"));
+    openapiFields = new HashSet<String>(Arrays.asList("button", "endX", "endY", "modifiers", "startX", "startY"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -289,6 +325,10 @@ public class MouseDragRequest {
         JsonObject jsonObj = jsonElement.getAsJsonObject();
       if ((jsonObj.get("button") != null && !jsonObj.get("button").isJsonNull()) && !jsonObj.get("button").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `button` to be a primitive type in the JSON string but got `%s`", jsonObj.get("button").toString()));
+      }
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("modifiers") != null && !jsonObj.get("modifiers").isJsonNull() && !jsonObj.get("modifiers").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `modifiers` to be an array in the JSON string but got `%s`", jsonObj.get("modifiers").toString()));
       }
   }
 

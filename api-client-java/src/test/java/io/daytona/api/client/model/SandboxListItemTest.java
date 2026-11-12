@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -205,6 +206,14 @@ public class SandboxListItemTest {
     }
 
     /**
+     * Test the property 'queueTimedOutAt'
+     */
+    @Test
+    public void queueTimedOutAtTest() {
+        // TODO: test queueTimedOutAt
+    }
+
+    /**
      * Test the property 'gpuType'
      */
     @Test
@@ -282,6 +291,14 @@ public class SandboxListItemTest {
     @Test
     public void autoDestroyAtTest() {
         // TODO: test autoDestroyAt
+    }
+
+    /**
+     * Test the property 'queueTimeout'
+     */
+    @Test
+    public void queueTimeoutTest() {
+        // TODO: test queueTimeout
     }
 
     /**

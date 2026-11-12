@@ -4,6 +4,7 @@
 import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
 import { createApiResponse } from './helpers'
 import type { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
+import { DaytonaQueueTimeoutError, DaytonaSpotEvictedError, DaytonaTimeoutError } from '../errors/DaytonaError'
 
 jest.mock(
   '@daytona/api-client',
@@ -74,6 +75,7 @@ const makeSandbox = (
     getSandbox: jest.fn(),
     replaceLabels: jest.fn(),
     setAutostopInterval: jest.fn(),
+    updatePublicStatus: jest.fn(),
     setAutoPauseInterval: jest.fn(),
     setAutoArchiveInterval: jest.fn(),
     setAutoDeleteInterval: jest.fn(),
@@ -130,6 +132,12 @@ describe('Sandbox', () => {
   it('hydrates kvm from dto', () => {
     const { sandbox } = makeSandbox({ kvm: true })
     expect(sandbox.kvm).toBe(true)
+  })
+
+  it('hydrates queue timeout fields from dto', () => {
+    const { sandbox } = makeSandbox({ queueTimeout: 11, queueTimedOutAt: '2026-09-29T10:00:00.000Z' })
+    expect(sandbox.queueTimeout).toBe(11)
+    expect(sandbox.queueTimedOutAt).toBe('2026-09-29T10:00:00.000Z')
   })
 
   it('maps sandboxClass, warmPoolId, gpuType, desiredState, daemonVersion and otelEndpointOverride from dto', () => {
@@ -373,6 +381,64 @@ describe('Sandbox', () => {
     expect(sandbox.state).toBe('destroyed')
   })
 
+  it('waitUntilStarted rejects with DaytonaQueueTimeoutError when the refreshed sandbox was queue timed out', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'starting' }, '')
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        state: 'destroyed',
+        queueTimeout: 9,
+        queueTimedOutAt: '2026-09-29T10:00:00.000Z',
+      }),
+    )
+
+    const error = await sandbox.waitUntilStarted(5).catch((err: unknown) => err)
+
+    expect(error).toBeInstanceOf(DaytonaQueueTimeoutError)
+    expect(error).toBeInstanceOf(DaytonaTimeoutError)
+    expect(error).toHaveProperty(
+      'message',
+      'Sandbox sb-1 was destroyed after waiting 9 minutes for a runner (queue timed out at 2026-09-29T10:00:00.000Z)',
+    )
+  })
+
+  it('waitUntilStarted omits the duration from the queue timeout error when queueTimeout is unknown', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'starting' }, '')
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        state: 'destroyed',
+        queueTimeout: null,
+        queueTimedOutAt: '2026-09-29T10:00:00.000Z',
+      }),
+    )
+
+    const error = await sandbox.waitUntilStarted(5).catch((err: unknown) => err)
+
+    expect(error).toBeInstanceOf(DaytonaQueueTimeoutError)
+    expect(error).toHaveProperty(
+      'message',
+      'Sandbox sb-1 was destroyed after waiting for a runner (queue timed out at 2026-09-29T10:00:00.000Z)',
+    )
+  })
+
+  it('waitUntilStarted rejects with DaytonaSpotEvictedError when the refreshed sandbox was spot evicted', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'starting' }, '')
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        state: 'destroyed',
+        spot: true,
+        spotEvictedAt: '2026-09-29T10:05:00.000Z',
+      }),
+    )
+
+    const error = await sandbox.waitUntilStarted(5).catch((err: unknown) => err)
+
+    expect(error).toBeInstanceOf(DaytonaSpotEvictedError)
+    expect(error).toHaveProperty('message', 'Sandbox sb-1 was evicted by spot preemption at 2026-09-29T10:05:00.000Z')
+  })
+
   it('waitForResizeComplete throws when resize fails', async () => {
     const { sandbox } = makeSandbox({ state: 'resizing', errorReason: 'no capacity' })
 
@@ -383,6 +449,16 @@ describe('Sandbox', () => {
     await expect(sandbox.waitForResizeComplete(5)).rejects.toThrow(
       'Sandbox sb-1 resize failed with state: error, error reason: no capacity',
     )
+  })
+
+  it.each([true, false])('setPublic(%s) updates the public status', async (isPublic) => {
+    const { sandbox, sandboxApi } = makeSandbox({ public: !isPublic })
+    sandboxApi.updatePublicStatus.mockResolvedValue(createApiResponse(undefined))
+
+    await sandbox.setPublic(isPublic)
+
+    expect(sandboxApi.updatePublicStatus).toHaveBeenCalledWith(sandbox.id, isPublic)
+    expect(sandbox.public).toBe(isPublic)
   })
 
   it('updates interval properties after successful api calls', async () => {
@@ -536,6 +612,22 @@ describe('Sandbox', () => {
 
     await expect(sandbox.delete(5, true)).resolves.toBeUndefined()
     expect(refreshSpy).toHaveBeenCalled()
+    expect(sandbox.state).toBe('destroyed')
+  })
+
+  it('delete(wait=true) resolves when a queue-timed-out sandbox reaches destroyed', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' }, '')
+    sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        state: 'destroyed',
+        queueTimeout: 4,
+        queueTimedOutAt: '2026-09-29T10:10:00.000Z',
+      }),
+    )
+
+    await expect(sandbox.delete(0, true)).resolves.toBeUndefined()
     expect(sandbox.state).toBe('destroyed')
   })
 

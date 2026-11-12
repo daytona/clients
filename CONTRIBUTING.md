@@ -4,6 +4,11 @@ This repository holds Daytona's client-facing packages — the **SDKs** (TypeScr
 Ruby, Java, Go), the generated **API clients**, and the **CLI** (with its embedded MCP
 server). Contributions are welcome! ❤️
 
+**Which branch?** This is the `release/v0` branch, which carries the **0.x** line. Branch
+0.x fixes from `release/v0` and open the PR against `release/v0`. The 2.x line lives on
+[`main`](https://github.com/daytona/clients/tree/main), which has a different layout; 2.x
+work branches from and targets `main` and follows the guide there.
+
 > If you like the project but don't have time to contribute, you can still help by starring
 > the repo, telling others about it, or referencing it in your own project's README.
 
@@ -46,6 +51,22 @@ bundle install
 go work sync
 ```
 
+Before your first commit, enable the secret-scanning hooks (once per clone or
+worktree):
+
+```bash
+scripts/secret-scan.sh install
+```
+
+It downloads a pinned, checksum-verified [gitleaks](https://github.com/gitleaks/gitleaks)
+into the clone's `.git/` directory (Linux and macOS; elsewhere, put gitleaks on
+your `PATH`) and enables the hooks in `.githooks/` for that worktree (git 2.36
+or later), alongside the existing husky hooks. Every commit's staged changes and
+every push's new commits are checked against `.gitleaks.toml`, and the
+`gitleaks` check (workflow `Secret scan`) repeats it on pull requests. If it blocks a commit, remove
+the credential rather than bypassing the hook; for a value that is not a
+secret, see the comments at the top of `.gitleaks.toml`.
+
 Common commands:
 
 ```bash
@@ -79,7 +100,7 @@ Run `yarn lint` before opening a PR.
 ## Submitting a pull request
 
 1. [Fork](https://help.github.com/articles/working-with-forks/) the repository and create a
-   branch for your change.
+   branch for your change from `release/v0` (0.x) or `main` (2.x).
 2. Open (or find) a [GitHub issue](https://github.com/daytona/clients/issues) describing the
    change.
 3. [Prepare your changes](./PREPARING_YOUR_CHANGES.md) with descriptive commits, and **sign off**
@@ -90,8 +111,8 @@ Run `yarn lint` before opening a PR.
    the result. If you changed command behavior, regenerate any affected docs.
 5. Ensure `yarn lint`, `yarn build`, and `yarn test` pass.
 6. Open a pull request (a [draft PR](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests)
-   is welcome for early feedback). A Daytona team member will review it, and once approved and
-   green it will be merged into `main`.
+   is welcome for early feedback) against the branch you started from: `release/v0` for 0.x.
+   A Daytona team member will review it, and once approved and green it will be merged.
 
 ## Licensing
 

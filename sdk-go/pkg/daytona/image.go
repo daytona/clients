@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -230,9 +231,33 @@ func (img *DockerImage) Entrypoint(cmd []string) *DockerImage {
 //	image := daytona.Base("python:3.11").
 //	    Cmd([]string{"python", "app.py"})
 func (img *DockerImage) Cmd(cmd []string) *DockerImage {
-	cmdStr := strings.Join(cmd, "\", \"")
-	img.instructions = append(img.instructions, fmt.Sprintf("CMD [\"%s\"]", cmdStr))
+	img.instructions = append(img.instructions, fmt.Sprintf("CMD %s", dockerfileJSONArray(cmd)))
 	return img
+}
+
+// dockerfileJSONArray encodes a CMD argv as a JSON array with a space after each comma.
+// A legacy line that already parses as a JSON array of the same length is kept, so
+// callers who escaped quotes by hand keep the same Dockerfile bytes. Empty input
+// stays [""]. The fallback encoder does not escape &, <, or >.
+func dockerfileJSONArray(args []string) string {
+	if len(args) == 0 {
+		return `[""]`
+	}
+	legacy := `["` + strings.Join(args, `", "`) + `"]`
+	var parsed []string
+	if err := json.Unmarshal([]byte(legacy), &parsed); err == nil && len(parsed) == len(args) {
+		return legacy
+	}
+	parts := make([]string, len(args))
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	for i, arg := range args {
+		buf.Reset()
+		_ = enc.Encode(arg)
+		parts[i] = strings.TrimSuffix(buf.String(), "\n")
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // User sets the user for subsequent instructions and container runtime.

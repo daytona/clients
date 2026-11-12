@@ -31,10 +31,13 @@ class Context(BaseModel):
     Attributes:
         source_path (str): The path to the source file or directory.
         archive_path (str | None): The path inside the archive file in object storage.
+        dockerignore_path (str | None): The ``.dockerignore`` of the build context the source belongs
+            to. Entries it excludes are not uploaded.
     """
 
     source_path: str
     archive_path: str | None
+    dockerignore_path: str | None = None
 
 
 class Image(BaseModel):
@@ -246,7 +249,7 @@ class Image(BaseModel):
 
         archive_path = ObjectStorage.compute_archive_base_path(local_path)
         self._context_list.append(Context(source_path=local_path, archive_path=archive_path))
-        self._dockerfile += f"COPY {archive_path} {remote_path}\n"
+        self._dockerfile += f"COPY {json.dumps([archive_path, remote_path])}\n"
 
         return self
 
@@ -274,7 +277,7 @@ class Image(BaseModel):
 
         archive_path = ObjectStorage.compute_archive_base_path(local_path)
         self._context_list.append(Context(source_path=local_path, archive_path=archive_path))
-        self._dockerfile += f"COPY {archive_path} {remote_path}\n"
+        self._dockerfile += f"COPY {json.dumps([archive_path, remote_path])}\n"
 
         return self
 
@@ -297,11 +300,8 @@ class Image(BaseModel):
         """
         for command in commands:
             if isinstance(command, list):
-                escaped: list[str] = []
-                for c in command:
-                    c_escaped = c.replace('"', '\\\\\\"').replace("'", "\\'")
-                    escaped.append(f'"{c_escaped}"')
-                self._dockerfile += f"RUN {' '.join(escaped)}\n"
+                quoted = ['"' + c.replace('"', '\\"') + '"' for c in command]
+                self._dockerfile += f"RUN {' '.join(quoted)}\n"
             else:
                 self._dockerfile += f"RUN {command}\n"
 
@@ -357,9 +357,8 @@ class Image(BaseModel):
             image = Image.debian_slim("3.12").entrypoint(["/bin/bash"])
             ```
         """
-        args_str = self.__flatten_str_args(entrypoint_commands)
-        args_str = '"' + '", "'.join(args_str) + '"' if args_str else ""
-        self._dockerfile += f"ENTRYPOINT [{args_str}]\n"
+        args = self.__flatten_str_args(entrypoint_commands)
+        self._dockerfile += f"ENTRYPOINT {self.__json_array(args)}\n"
 
         return self
 
@@ -377,9 +376,8 @@ class Image(BaseModel):
             image = Image.debian_slim("3.12").cmd(["/bin/bash"])
             ```
         """
-        cmd_str = self.__flatten_str_args(cmd)
-        cmd_str = '"' + '", "'.join(cmd_str) + '"' if cmd_str else ""
-        self._dockerfile += f"CMD [{cmd_str}]\n"
+        args = self.__flatten_str_args(cmd)
+        self._dockerfile += f"CMD {self.__json_array(args)}\n"
         return self
 
     def dockerfile_commands(
@@ -393,7 +391,8 @@ class Image(BaseModel):
 
         Args:
             *dockerfile_commands: The commands to add to the Dockerfile.
-            context_dir: Path | str | None: The path to the context directory.
+            context_dir: Path | str | None: The path to the context directory. Files excluded by its
+                ``.dockerignore`` are not uploaded.
             strict_context: bool: When True, a COPY source that resolves outside context_dir is
                 rejected instead of read. Requires context_dir, so that the boundary is explicit
                 rather than taken from the working directory. Sources that legitimately live
@@ -422,13 +421,21 @@ class Image(BaseModel):
                 "strict_context requires context_dir so that the build context boundary is explicit"
             )
 
+        dockerignore_path = str(Path(context_dir) / ".dockerignore") if context_dir else None
+
         for context_path, original_path in Image.__extract_copy_sources(
             "\n".join(dockerfile_commands), context_dir or "", real_root
         ):
             archive_base_path = context_path
             if context_dir and not original_path.startswith(context_dir):
                 archive_base_path = context_path.removeprefix(context_dir)
-            self._context_list.append(Context(source_path=context_path, archive_path=archive_base_path))
+            self._context_list.append(
+                Context(
+                    source_path=context_path,
+                    archive_path=archive_base_path,
+                    dockerignore_path=dockerignore_path,
+                )
+            )
 
         self._dockerfile += "\n".join(dockerfile_commands) + "\n"
 
@@ -437,6 +444,10 @@ class Image(BaseModel):
     @staticmethod
     def from_dockerfile(path: str | Path, *, strict_context: bool = False) -> "Image":
         """Creates an Image from an existing Dockerfile.
+
+        The Dockerfile's directory is the build context. Like Docker, files excluded by
+        ``<Dockerfile name>.dockerignore`` next to the Dockerfile, or else by ``.dockerignore`` in
+        the context, are not uploaded.
 
         Args:
             path: str | Path: The path to the Dockerfile.
@@ -461,6 +472,10 @@ class Image(BaseModel):
         dockerfile = path.read_text()
         img = Image()
         img._dockerfile = dockerfile
+        # Like Docker, a Dockerfile-specific ignore file takes precedence over the context's one.
+        dockerignore_path = path.with_name(f"{path.name}.dockerignore")
+        if not dockerignore_path.is_file():
+            dockerignore_path = path.parent / ".dockerignore"
 
         # remove dockerfile filename from path
         path_prefix = str(path).removesuffix(path.name)
@@ -470,7 +485,13 @@ class Image(BaseModel):
             archive_base_path = context_path
             if not original_path.startswith(path_prefix):
                 archive_base_path = context_path.removeprefix(path_prefix)
-            img._context_list.append(Context(source_path=context_path, archive_path=archive_base_path))
+            img._context_list.append(
+                Context(
+                    source_path=context_path,
+                    archive_path=archive_base_path,
+                    dockerignore_path=str(dockerignore_path),
+                )
+            )
 
         return img
 
@@ -739,6 +760,24 @@ class Image(BaseModel):
                 ret.extend(x)
 
         return ret
+
+    @staticmethod
+    def __json_array(args: Sequence[str]) -> str:
+        """Encodes arguments as a Dockerfile exec-form JSON array.
+
+        A legacy line that already parses as a JSON array of the same length is
+        kept, so callers who escaped quotes by hand keep the same bytes.
+        """
+        legacy = "[" + ", ".join(f'"{arg}"' for arg in args) + "]"
+        try:
+            parsed = cast(object, json.loads(legacy))
+        except ValueError:
+            parsed = None
+        if isinstance(parsed, list):
+            items = cast(list[object], parsed)
+            if len(items) == len(args) and all(isinstance(item, str) for item in items):
+                return legacy
+        return json.dumps(list(args), ensure_ascii=False)
 
     @staticmethod
     def __format_pip_install_args(

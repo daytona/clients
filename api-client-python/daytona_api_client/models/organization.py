@@ -21,6 +21,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional, Union
+from daytona_api_client.models.directory_sync_status import DirectorySyncStatus
 from daytona_api_client.models.otel_config import OtelConfig
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -49,12 +50,16 @@ class Organization(BaseModel):
     secret_quota: Union[StrictFloat, StrictInt] = Field(description="Maximum number of secrets", serialization_alias="secretQuota")
     max_secrets_per_sandbox: Union[StrictFloat, StrictInt] = Field(description="Maximum number of secrets that can be mounted to a single sandbox", serialization_alias="maxSecretsPerSandbox")
     snapshot_deactivation_timeout_minutes: Union[StrictFloat, StrictInt] = Field(description="Time in minutes before an unused snapshot is deactivated", serialization_alias="snapshotDeactivationTimeoutMinutes")
+    default_queue_timeout: Optional[StrictInt] = Field(description="Default minutes to wait for runner assignment before cancelling sandbox creation. Applied when sandbox create omits queueTimeout. Null means no default.", serialization_alias="defaultQueueTimeout")
     sandbox_limited_network_egress: StrictBool = Field(description="Sandbox default network block all", serialization_alias="sandboxLimitedNetworkEgress")
     preview_warning_enabled: StrictBool = Field(description="Whether the proxy shows the preview URL warning page for this organization", serialization_alias="previewWarningEnabled")
     sso_enabled: StrictBool = Field(description="Whether this organization may configure SSO identity providers", serialization_alias="ssoEnabled")
     scim_enabled: StrictBool = Field(description="Whether this organization may use SCIM directory sync", serialization_alias="scimEnabled")
     default_region_id: Optional[StrictStr] = Field(default=None, description="Default region ID", serialization_alias="defaultRegionId")
     workos_org_id: Optional[StrictStr] = Field(default=None, description="ID of the WorkOS organization mirrored from this organization (absent for personal organizations, which are never mirrored)", serialization_alias="workosOrgId")
+    directory_sync_status: Optional[DirectorySyncStatus] = Field(default=None, description="Connection state of the WorkOS SCIM directory, as last reported by WorkOS (absent when no directory has ever reported in)", serialization_alias="directorySyncStatus")
+    directory_sync_status_changed_at: Optional[datetime] = Field(default=None, description="When the directory sync status last changed", serialization_alias="directorySyncStatusChangedAt")
+    directory_sync_token_revoked_at: Optional[datetime] = Field(default=None, description="When the directory bearer token was revoked; absent while a valid token exists. A revoked token stops provisioning even if the directory is still active.", serialization_alias="directorySyncTokenRevokedAt")
     authenticated_rate_limit: Optional[Union[StrictFloat, StrictInt]] = Field(description="Authenticated rate limit per minute", serialization_alias="authenticatedRateLimit")
     sandbox_create_rate_limit: Optional[Union[StrictFloat, StrictInt]] = Field(description="Sandbox create rate limit per minute", serialization_alias="sandboxCreateRateLimit")
     sandbox_lifecycle_rate_limit: Optional[Union[StrictFloat, StrictInt]] = Field(description="Sandbox lifecycle rate limit per minute", serialization_alias="sandboxLifecycleRateLimit")
@@ -64,7 +69,7 @@ class Organization(BaseModel):
     sandbox_create_rate_limit_ttl_seconds: Optional[Union[StrictFloat, StrictInt]] = Field(description="Sandbox create rate limit TTL in seconds", serialization_alias="sandboxCreateRateLimitTtlSeconds")
     sandbox_lifecycle_rate_limit_ttl_seconds: Optional[Union[StrictFloat, StrictInt]] = Field(description="Sandbox lifecycle rate limit TTL in seconds", serialization_alias="sandboxLifecycleRateLimitTtlSeconds")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "defaultRegionId", "workosOrgId", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"]
+    __properties: ClassVar[List[str]] = ["id", "name", "createdBy", "personal", "createdAt", "updatedAt", "suspended", "suspendedAt", "suspensionReason", "suspendedUntil", "suspensionCleanupGracePeriodHours", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "secretQuota", "maxSecretsPerSandbox", "snapshotDeactivationTimeoutMinutes", "defaultQueueTimeout", "sandboxLimitedNetworkEgress", "previewWarningEnabled", "ssoEnabled", "scimEnabled", "defaultRegionId", "workosOrgId", "directorySyncStatus", "directorySyncStatusChangedAt", "directorySyncTokenRevokedAt", "authenticatedRateLimit", "sandboxCreateRateLimit", "sandboxLifecycleRateLimit", "experimentalConfig", "otelConfig", "authenticatedRateLimitTtlSeconds", "sandboxCreateRateLimitTtlSeconds", "sandboxLifecycleRateLimitTtlSeconds"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -113,6 +118,11 @@ class Organization(BaseModel):
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
+
+        # set to None if default_queue_timeout (nullable) is None
+        # and model_fields_set contains the field
+        if self.default_queue_timeout is None and "default_queue_timeout" in self.model_fields_set:
+            _dict['defaultQueueTimeout'] = None
 
         # set to None if authenticated_rate_limit (nullable) is None
         # and model_fields_set contains the field
@@ -178,12 +188,16 @@ class Organization(BaseModel):
             "secret_quota": obj.get("secretQuota"),
             "max_secrets_per_sandbox": obj.get("maxSecretsPerSandbox"),
             "snapshot_deactivation_timeout_minutes": obj.get("snapshotDeactivationTimeoutMinutes") if obj.get("snapshotDeactivationTimeoutMinutes") is not None else 20160,
+            "default_queue_timeout": obj.get("defaultQueueTimeout"),
             "sandbox_limited_network_egress": obj.get("sandboxLimitedNetworkEgress"),
             "preview_warning_enabled": obj.get("previewWarningEnabled"),
             "sso_enabled": obj.get("ssoEnabled"),
             "scim_enabled": obj.get("scimEnabled"),
             "default_region_id": obj.get("defaultRegionId"),
             "workos_org_id": obj.get("workosOrgId"),
+            "directory_sync_status": obj.get("directorySyncStatus"),
+            "directory_sync_status_changed_at": obj.get("directorySyncStatusChangedAt"),
+            "directory_sync_token_revoked_at": obj.get("directorySyncTokenRevokedAt"),
             "authenticated_rate_limit": obj.get("authenticatedRateLimit"),
             "sandbox_create_rate_limit": obj.get("sandboxCreateRateLimit"),
             "sandbox_lifecycle_rate_limit": obj.get("sandboxLifecycleRateLimit"),

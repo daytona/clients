@@ -61,6 +61,18 @@ GOOS=${GOOS:-linux}
 GOARCH=${GOARCH:-amd64}
 CGO_ENABLED=${CGO_ENABLED:-0}
 
+# The 0.x line ships as daytona-v0 (Homebrew formula daytona@0) once the 2.x CLI
+# takes the daytona name; release.yaml sets CLI_BINARY_NAME from its cutover switch.
+CLI_BINARY_NAME=${CLI_BINARY_NAME:-daytona}
+case "$CLI_BINARY_NAME" in
+    daytona) CLI_HOMEBREW_FORMULA="daytonaio/cli/daytona" ;;
+    daytona-v0) CLI_HOMEBREW_FORMULA="daytonaio/cli/daytona@0" ;;
+    *)
+        echo "Error: CLI_BINARY_NAME must be daytona or daytona-v0 (got '$CLI_BINARY_NAME')"
+        exit 1
+        ;;
+esac
+
 # Validate required variables
 REQUIRED_VARS=(
     "DAYTONA_API_URL"
@@ -93,15 +105,17 @@ DAYTONA_AUTH0_DOMAIN="${DAYTONA_AUTH0_DOMAIN%%+(/)}/"
 mkdir -p "${DIST_DIR}/dist/cli"
 
 # Set output filename with .exe extension for Windows
-OUTPUT_FILE="daytona-${GOOS}-${GOARCH}"
+OUTPUT_FILE="${CLI_BINARY_NAME}-${GOOS}-${GOARCH}"
 if [ "$GOOS" == "windows" ]; then
     OUTPUT_FILE="${OUTPUT_FILE}.exe"
 fi
 
 # Build the binary
-echo "Building Daytona CLI with version: $DAYTONA_VERSION"
+echo "Building Daytona CLI ${CLI_BINARY_NAME} with version: $DAYTONA_VERSION"
 go build \
     -ldflags "-X 'github.com/daytona/clients/cli/internal.Version=${DAYTONA_VERSION}' \
+    -X 'github.com/daytona/clients/cli/internal.BinaryName=${CLI_BINARY_NAME}' \
+    -X 'github.com/daytona/clients/cli/internal.HomebrewFormula=${CLI_HOMEBREW_FORMULA}' \
     -X 'github.com/daytona/clients/cli/internal.DaytonaApiUrl=${DAYTONA_API_URL}' \
     -X 'github.com/daytona/clients/cli/internal.Auth0Domain=${DAYTONA_AUTH0_DOMAIN}' \
     -X 'github.com/daytona/clients/cli/internal.Auth0ClientId=${DAYTONA_AUTH0_CLIENT_ID}' \

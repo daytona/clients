@@ -12,18 +12,70 @@ permissions: {}
 
 env:
   VERSION: ${{ inputs.version }}
+  # On a release/vN maintenance branch, automated PRs target that branch;
+  # from any other ref they target main.
+  BASE_BRANCH: ${{ startsWith(github.ref, 'refs/heads/release/') && github.ref_name || 'main' }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
   GONOSUMDB: github.com/daytona/clients
+  # Cutover switch: once the 2.x CLI takes the `daytona` name, set the repository
+  # variable DAYTONA_V0_CUTOVER to `true` and the 0.x CLI released from
+  # release/v0 ships as `daytona-v0` (assets daytona-v0-<os>-<arch>, Homebrew
+  # formula daytona@0). Runs from any other ref ignore it. See PUBLISHING.md.
+  CLI_BINARY_NAME: ${{ github.ref == 'refs/heads/release/v0' && vars.DAYTONA_V0_CUTOVER == 'true' && 'daytona-v0' || 'daytona' }}
 
 jobs:
+  # Off the environment, so its summary is on the run page while `release`
+  # waits for approval.
+  plan:
+    name: Show the plan
+    if: github.repository == 'daytona/clients'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Show the inputs and what approval will run
+        env:
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          requested="**@${TRIGGERING_ACTOR}**"
+          [ "$TRIGGERING_ACTOR" = "$ACTOR" ] || requested="${requested} (re-run of @${ACTOR}'s dispatch)"
+          {
+            echo "## Release plan — \`${VERSION}\`"
+            echo
+            echo "Requested by ${requested} from \`${GITHUB_REF_NAME}\` @ [\`${GITHUB_SHA:0:12}\`](${SERVER}/${REPO}/commit/${GITHUB_SHA}); the release is cut from this commit."
+            echo
+            echo "| Input | Value |"
+            echo "|---|---|"
+            echo "| \`version\` | \`${VERSION}\` |"
+            echo
+            echo "After approval of the \`release\` environment, \`release\`:"
+            echo
+            echo "1. validates \`${VERSION}\` (vX.Y.Z[-suffix]; on a release/vN branch, only vN.x) — this plan does not check it, a refused version fails here before anything is tagged;"
+            echo "2. pushes the Go module tags \`api-client-go/${VERSION}\`, \`toolbox-api-client-go/${VERSION}\`, \`sdk-go/${VERSION}\` (existing ones are skipped);"
+            echo "3. creates the GitHub Release and tag \`${VERSION}\` with \`nx release\`$([[ "$GITHUB_REF" == refs/heads/release/* ]] && echo ', then re-pins **Latest** to the highest stable release');"
+            echo "4. builds the CLI as \`${CLI_BINARY_NAME}-<os>-<arch>\` and uploads it to the release$([ "$CLI_BINARY_NAME" = daytona-v0 ] && echo " (plus \`daytona-<os>-<arch>\` copies while no stable 2.x release exists)"), then the SDK docs;"
+            echo "5. if \`go work sync\` changes anything, opens PR \`sync-gosum-${VERSION}\` into \`${BASE_BRANCH}\`."
+            echo
+            echo "\`attest_cli\` then attests the uploaded CLI binaries. No SDK is published to a registry and the Homebrew tap is not touched (that is SDK and CLI Publish)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   release:
+    needs: plan
     if: github.repository == 'daytona/clients'
     runs-on: blacksmith-16vcpu-ubuntu-2404
     # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
-    # for required-reviewer approval before secrets resolve.
+    # for required-reviewer approval before secrets resolve. This is the only
+    # job on the environment, so a run needs a single approval; keep new
+    # environment work (such as the go.sum sync below) inside it.
     environment: release
     permissions:
       contents: write
+    outputs:
+      cli_assets_uploaded: ${{ steps.upload_cli.outputs.uploaded }}
+      cli_alias_name: ${{ steps.cli_alias.outputs.name }}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
@@ -32,6 +84,18 @@ jobs:
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
+            exit 1
+          fi
+      - name: Validate release branch version line
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          line="${GITHUB_REF_NAME#release/}"
+          if [[ ! "$line" =~ ^v[0-9]+$ ]]; then
+            echo "::error::Release branches must be named release/vN (got $GITHUB_REF_NAME)"
+            exit 1
+          fi
+          if [[ "$VERSION" != "$line".* ]]; then
+            echo "::error::$GITHUB_REF_NAME only releases $line.x versions (got $VERSION)"
             exit 1
           fi
       - name: Checkout code
@@ -46,6 +110,25 @@ jobs:
           install-swag: 'false'
           run-go-work-sync: 'false'
       - uses: ./.github/actions/install-gh-cli
+      - name: Resolve the daytona formula assets
+        # Until the first stable 2.x release exists, the `daytona` Homebrew
+        # formula keeps following 0.x, and it downloads daytona-<os>-<arch>
+        # assets. After the cutover a 0.x release then also carries its
+        # daytona-v0 binaries under those names (same bytes). Decided from the
+        # repository's releases on every run; see PUBLISHING.md.
+        id: cli_alias
+        run: |
+          alias=""
+          if [[ "$CLI_BINARY_NAME" == daytona-v0 ]]; then
+            stable_v2=$(bash hack/stable-v2-release.sh)
+            if [[ -n "$stable_v2" ]]; then
+              echo "Stable 2.x release $stable_v2 exists: the daytona formula follows 2.x, so no daytona-<os>-<arch> assets."
+            else
+              echo "No stable 2.x release yet: also uploading the daytona-v0 binaries as daytona-<os>-<arch> for the daytona formula."
+              alias=daytona
+            fi
+          fi
+          echo "name=$alias" >> "$GITHUB_OUTPUT"
       - name: Configure git
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
@@ -68,6 +151,21 @@ jobs:
           printf '{ "name": "clients", "version": "0.0.0" }\n' > dist/package.json
       - name: Create release
         run: yarn nx release "$VERSION" --skip-publish --verbose
+      - name: Keep the highest version as the latest GitHub release
+        # nx creates the GitHub release with make_latest=legacy, which can mark a
+        # maintenance release as "Latest" even when a higher version exists. The
+        # CLI update check reads releases/latest, so re-pin it to the highest
+        # stable vX.Y.Z release. Releases from main are left untouched.
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          highest=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ -z "$highest" ]; then
+            echo "::error::Could not determine the highest stable release"
+            exit 1
+          fi
+          echo "Marking $highest as the latest release"
+          gh release edit "$highest" --repo "$GITHUB_REPOSITORY" --latest
       - name: Build CLI
         env:
           DAYTONA_API_URL: ${{ secrets.DAYTONA_API_URL }}
@@ -83,14 +181,38 @@ jobs:
           GOOS=darwin GOARCH=arm64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=amd64 ./hack/build.sh --skip-env-file
           GOOS=windows GOARCH=arm64 ./hack/build.sh --skip-env-file
-      - name: Upload CLI to release assets
+      - name: Record CLI binary checksums
+        env:
+          CLI_ALIAS_NAME: ${{ steps.cli_alias.outputs.name }}
         run: |
-          gh release upload "$VERSION" "dist/cli/daytona-linux-amd64#daytona-cli-${VERSION}-linux-amd64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-linux-arm64#daytona-cli-${VERSION}-linux-arm64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-darwin-amd64#daytona-cli-${VERSION}-darwin-amd64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-darwin-arm64#daytona-cli-${VERSION}-darwin-arm64" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-windows-amd64.exe#daytona-cli-${VERSION}-windows-amd64.exe" --clobber
-          gh release upload "$VERSION" "dist/cli/daytona-windows-arm64.exe#daytona-cli-${VERSION}-windows-arm64.exe" --clobber
+          cd dist/cli
+          n="$CLI_BINARY_NAME"
+          sha256sum "$n-linux-amd64" "$n-linux-arm64" "$n-darwin-amd64" "$n-darwin-arm64" "$n-windows-amd64.exe" "$n-windows-arm64.exe" > ../cli-sha256sums.txt
+          if [[ -n "$CLI_ALIAS_NAME" ]]; then
+            # The alias assets are copies of the same binaries.
+            sed "s/  $n-/  $CLI_ALIAS_NAME-/" ../cli-sha256sums.txt > "$RUNNER_TEMP/cli-alias-sha256sums.txt"
+            cat "$RUNNER_TEMP/cli-alias-sha256sums.txt" >> ../cli-sha256sums.txt
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cli-sha256sums
+          path: dist/cli-sha256sums.txt
+          if-no-files-found: error
+          # Re-running this job rebuilds the binaries; replace the earlier sums.
+          overwrite: true
+      - name: Upload CLI to release assets
+        # <name>-<os>-<arch> binaries plus SHA256SUMS (and install-v0.sh for
+        # daytona-v0, and the daytona-<os>-<arch> alias copies resolved above);
+        # see cli/hack/stage-release-assets.sh.
+        id: upload_cli
+        env:
+          CLI_ALIAS_NAME: ${{ steps.cli_alias.outputs.name }}
+        run: |
+          bash cli/hack/stage-release-assets.sh "$VERSION" > "$RUNNER_TEMP/cli-assets"
+          mapfile -t assets < "$RUNNER_TEMP/cli-assets"
+          printf 'Uploading %s\n' "${assets[@]}"
+          gh release upload "$VERSION" "${assets[@]}" --clobber
+          echo "uploaded=true" >> "$GITHUB_OUTPUT"
       - name: Generate SDK docs artifact
         run: |
           source "$(poetry env info --path)/bin/activate"
@@ -99,44 +221,10 @@ jobs:
           tar -czf "sdk-docs-${VERSION}.tar.gz" -C artifacts sdk-docs
       - name: Upload SDK docs to release assets
         run: gh release upload "$VERSION" "sdk-docs-${VERSION}.tar.gz" --clobber
-      - name: Cleanup credentials
-        if: always()
-        run: |
-          git config --global --fixed-value --unset-all user.name "Daytona Release Bot" 2>/dev/null || true
-          git config --global --fixed-value --unset-all user.email "153830314+daytonaBot@users.noreply.github.com" 2>/dev/null || true
-          git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true
-
-  sync_gosum:
-    needs: release
-    if: github.repository == 'daytona/clients'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    # GITHUBBOT_TOKEN lives only in the `release` environment; the run waits
-    # for required-reviewer approval before secrets resolve.
-    environment: release
-    permissions:
-      contents: write
-      pull-requests: write
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-tags: true
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.work
-      - uses: ./.github/actions/install-gh-cli
-      - name: Configure git
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          git config --global user.name "Daytona Release Bot"
-          git config --global user.email "153830314+daytonaBot@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}"
       - name: Sync go.sum and create PR
+        # Runs last, after the Go module tags are pushed. It works in a clean
+        # worktree at the dispatch commit, so build and docs output in the
+        # main checkout never reaches the PR.
         env:
           # gh prefers GH_TOKEN over GITHUB_TOKEN: the PR is created as
           # daytonaBot so it works with "Allow GitHub Actions to create and
@@ -150,7 +238,8 @@ jobs:
             echo "::error::GITHUBBOT_TOKEN is unavailable; refusing to create the sync PR with GITHUB_TOKEN"
             exit 1
           fi
-          git checkout -b "sync-gosum-$VERSION"
+          git worktree add -b "sync-gosum-$VERSION" "$RUNNER_TEMP/gosum-sync" "$GITHUB_SHA"
+          cd "$RUNNER_TEMP/gosum-sync"
           GONOSUMDB=github.com/daytona/clients go work sync
           git add -A
           if git diff --cached --quiet; then
@@ -161,7 +250,7 @@ jobs:
             gh pr create \
               --title "chore: sync go.sum for $VERSION" \
               --body "Automated PR to sync go.sum after release $VERSION" \
-              --base main \
+              --base "$BASE_BRANCH" \
               --head "sync-gosum-$VERSION"
           fi
       - name: Cleanup credentials
@@ -171,3 +260,51 @@ jobs:
           git config --global --fixed-value --unset-all user.email "153830314+daytonaBot@users.noreply.github.com" 2>/dev/null || true
           git config --global --fixed-value --unset-all safe.directory "$GITHUB_WORKSPACE" 2>/dev/null || true
           git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}" 2>/dev/null || true
+
+  attest_cli:
+    # A separate job so only it can mint OIDC tokens, and so a signing outage
+    # can be fixed with "Re-run failed jobs" without re-running the release.
+    # It attests the binaries as published on the release, the exact bytes
+    # users download, and only if they match the checksums the release job
+    # recorded at build time, so a re-run cannot sign a replaced asset. It
+    # still runs when a later release step (SDK docs, go.sum sync) fails once
+    # the binaries are uploaded.
+    needs: release
+    if: ${{ !cancelled() && github.repository == 'daytona/clients' && needs.release.outputs.cli_assets_uploaded == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download CLI release assets
+        id: download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLI_ALIAS_NAME: ${{ needs.release.outputs.cli_alias_name }}
+        run: |
+          names=("$CLI_BINARY_NAME")
+          if [[ -n "$CLI_ALIAS_NAME" ]]; then names+=("$CLI_ALIAS_NAME"); fi
+          subjects=()
+          for n in "${names[@]}"; do
+            for asset in "$n-linux-amd64" "$n-linux-arm64" "$n-darwin-amd64" "$n-darwin-arm64" "$n-windows-amd64.exe" "$n-windows-arm64.exe"; do
+              gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir dist/cli
+              subjects+=("dist/cli/$asset")
+            done
+          done
+          {
+            echo 'subjects<<EOF'
+            printf '%s\n' "${subjects[@]}"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cli-sha256sums
+          path: dist
+      - name: Check release assets match the built binaries
+        run: cd dist/cli && sha256sum --check --strict ../cli-sha256sums.txt
+      - name: Attest CLI build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          # The downloaded assets, including any daytona-<os>-<arch> alias copies.
+          subject-path: ${{ steps.download.outputs.subjects }}

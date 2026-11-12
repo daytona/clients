@@ -177,7 +177,7 @@ module Daytona
     def run_commands(*commands)
       commands.each do |command|
         if command.is_a?(Array)
-          escaped = command.map { |c| c.gsub('"', '\\"').gsub("'", "\\'") }
+          escaped = command.map { |c| c.gsub('"', '\\"') }
           @dockerfile += "RUN #{escaped.map { |c| "\"#{c}\"" }.join(' ')}\n"
         else
           @dockerfile += "RUN #{command}\n"
@@ -230,8 +230,7 @@ module Daytona
       end
 
       args_str = flatten_str_args('entrypoint', 'entrypoint_commands', entrypoint_commands)
-      args_str = args_str.map { |arg| "\"#{arg}\"" }.join(', ') if args_str.any?
-      @dockerfile += "ENTRYPOINT [#{args_str}]\n"
+      @dockerfile += "ENTRYPOINT [#{dockerfile_json_array(args_str)}]\n"
 
       self
     end
@@ -249,8 +248,7 @@ module Daytona
       end
 
       cmd_str = flatten_str_args('cmd', 'cmd', cmd)
-      cmd_str = cmd_str.map { |arg| "\"#{arg}\"" }.join(', ') if cmd_str.any?
-      @dockerfile += "CMD [#{cmd_str}]\n"
+      @dockerfile += "CMD [#{dockerfile_json_array(cmd_str)}]\n"
       self
     end
 
@@ -600,6 +598,19 @@ module Daytona
     end
 
     private
+
+    def dockerfile_json_array(args)
+      legacy = args.map { |arg| "\"#{arg}\"" }.join(', ')
+      begin
+        parsed = JSON.parse("[#{legacy}]")
+        if parsed.is_a?(Array) && parsed.length == args.length && parsed.all? { |item| item.is_a?(String) }
+          return legacy
+        end
+      rescue JSON::ParserError
+        nil
+      end
+      args.map { |arg| JSON.generate(arg) }.join(', ')
+    end
 
     # Flattens a list of strings and arrays of strings into a single array of strings
     #

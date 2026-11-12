@@ -30,7 +30,7 @@ Configure the SDK using [environment variables](https://www.daytona.io/docs/en/c
 
 - `DAYTONA_API_KEY`: Your Daytona [API key](https://www.daytona.io/docs/en/api-keys/)
 - `DAYTONA_API_URL`: The Daytona [API URL](https://www.daytona.io/docs/en/tools/api/)
-- `DAYTONA_TARGET`: Your target [region](https://www.daytona.io/docs/en/regions/) environment (e.g. `us`, `eu`)
+- `DAYTONA_TARGET`: Default [region](https://www.daytona.io/docs/en/regions/) for sandboxes and snapshots (e.g. `us`, `eu`); a per-call `target:` / `region_id:` overrides it
 
 ```ruby
 require 'daytona'
@@ -61,6 +61,20 @@ sandbox = daytona.create
 ## Examples and guides
 
 Daytona provides [examples](https://www.daytona.io/docs/en/getting-started/#examples) and [guides](https://www.daytona.io/docs/en/guides/) for common sandbox operations, best practices, and a wide range of topics, from basic usage to advanced topics, showcasing various types of integrations between Daytona and other tools.
+
+### Create a sandbox or snapshot in a specific region
+
+Pass `target:` in the sandbox create params, or `region_id:` in the snapshot create params, to choose the [region](https://www.daytona.io/docs/en/regions/) for that call. The region is resolved per call: the per-call value, then the client-level `target` (or `DAYTONA_TARGET`), then the organization's default region.
+
+```ruby
+require 'daytona'
+
+daytona = Daytona::Daytona.new
+sandbox = daytona.create(Daytona::CreateSandboxFromSnapshotParams.new(target: 'eu'))
+snapshot = daytona.snapshot.create(
+  Daytona::CreateSnapshotParams.new(name: 'my-snapshot', image: 'python:3.12', region_id: 'eu')
+)
+```
 
 ### Create a sandbox with custom resources
 
@@ -104,6 +118,43 @@ sandbox = daytona.create(
         snapshot: 'my-snapshot-name'
     )
 )
+```
+
+### Handle sandbox creation timeouts
+
+There are two timeouts:
+
+- `queue_timeout` (minutes, in the params): if no runner takes the sandbox in time, the API deletes it and `create` raises `Daytona::Sdk::QueueTimeoutError`.
+- `timeout` (seconds, 60 by default, `0` for no limit): if the sandbox hasn't started in time, `create` raises `Daytona::Sdk::TimeoutError`. The sandbox may still be starting, so delete it yourself using `sandbox_id` from the error.
+  If the create request itself timed out, `sandbox_id` is `nil`, but the API may still have created the sandbox, and it can take a few seconds to show up. Give your sandboxes labels so you can find and delete these later with `list`.
+
+```ruby
+require 'daytona'
+require 'securerandom'
+
+daytona = Daytona::Daytona.new
+labels = { 'job' => SecureRandom.uuid }
+begin
+  sandbox = daytona.create(
+    Daytona::CreateSandboxFromImageParams.new(image: Daytona::Image.debian_slim('3.12'), queue_timeout: 5, labels:),
+    timeout: 300
+  )
+rescue Daytona::Sdk::TimeoutError => e
+  if e.sandbox_id
+    begin
+      daytona.delete(daytona.get(e.sandbox_id))
+    rescue Daytona::Sdk::NotFoundError
+      # Already gone, nothing to clean up
+    end
+  end
+  raise e
+end
+```
+
+A few seconds later (e.g. at the end of the job, or from a cleanup job that kept the labels), delete what a timed out create request may have left behind:
+
+```ruby
+daytona.list(Daytona::ListSandboxesQuery.new(labels:)).each { |s| daytona.delete(s) }
 ```
 
 ### Execute commands

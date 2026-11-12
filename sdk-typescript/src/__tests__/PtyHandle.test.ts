@@ -305,6 +305,36 @@ describe('PtyHandle', () => {
     ])
   })
 
+  it('sends keepalive pings while open on sockets that support ping()', async () => {
+    jest.useFakeTimers()
+    const ping = jest.fn()
+    const { handle, ws } = await makeHandle({ ping } as unknown as Partial<MockWebSocket>)
+
+    ws.readyState = 1
+    await ws.handlers.open?.()
+
+    jest.advanceTimersByTime(20_000)
+    expect(ping).toHaveBeenCalledTimes(1)
+    jest.advanceTimersByTime(40_000)
+    expect(ping).toHaveBeenCalledTimes(3)
+
+    await ws.handlers.close?.({ code: 1000, reason: '' })
+    jest.advanceTimersByTime(60_000)
+    expect(ping).toHaveBeenCalledTimes(3)
+    expect(handle.isConnected()).toBe(false)
+  })
+
+  it('does not schedule keepalive on sockets without ping()', async () => {
+    jest.useFakeTimers()
+    const { ws } = await makeHandle()
+
+    ws.readyState = 1
+    await ws.handlers.open?.()
+    jest.advanceTimersByTime(60_000)
+
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
   it('throws for unsupported websocket implementations', async () => {
     const { PtyHandle } = await import('../PtyHandle')
     const handleResize = jest.fn().mockResolvedValue({ sessionId: 'pty-1', cols: 80, rows: 24 })

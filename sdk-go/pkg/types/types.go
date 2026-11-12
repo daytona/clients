@@ -30,7 +30,9 @@ type GpuType = apiclient.GpuType
 
 const (
 	GpuTypeH100       GpuType = apiclient.GPUTYPE_H100
+	GpuTypeB200       GpuType = apiclient.GPUTYPE_B200
 	GpuTypeB300       GpuType = apiclient.GPUTYPE_B300
+	GpuTypeL40S       GpuType = apiclient.GPUTYPE_L40S
 	GpuTypeRtxPro6000 GpuType = apiclient.GPUTYPE_RTX_PRO_6000
 	GpuTypeMI355X     GpuType = apiclient.GPUTYPE_MI355X
 )
@@ -57,8 +59,12 @@ type DaytonaConfig struct {
 	JWTToken       string
 	OrganizationID string
 	APIUrl         string
-	Target         string
-	OtelEnabled    bool // Enable OpenTelemetry tracing for SDK operations.
+	// Target is the default region for sandboxes and snapshots. When empty, the DAYTONA_TARGET
+	// environment variable is used. A per-call [SandboxBaseParams.Target] or
+	// [CreateSnapshotParams.RegionID] overrides it; when neither is set, the organization's
+	// default region is used.
+	Target      string
+	OtelEnabled bool // Enable OpenTelemetry tracing for SDK operations.
 	// UseDeprecatedPolling observes sandbox state by legacy polling instead of
 	// WebSocket event streaming. Defaults to false (event streaming). Can also be
 	// enabled via the DAYTONA_USE_DEPRECATED_POLLING environment variable.
@@ -106,7 +112,10 @@ type SandboxBaseParams struct {
 	AutoArchiveInterval *int // nil = no auto-archive, 0 = immediate archive
 	AutoDeleteInterval  *int // nil = no auto-delete, 0 = immediate delete
 	TtlMinutes          *int // Wall-clock max lifetime in minutes; 0 disables TTL
-	Volumes             []VolumeMount
+	// QueueTimeout is the minutes to wait for runner assignment before sandbox creation is cancelled.
+	// Nil uses the organization default. Must be >= 1.
+	QueueTimeout *int
+	Volumes      []VolumeMount
 	// Secrets maps an environment variable name to the name of an existing
 	// organization secret. For each entry, the env var is injected into the
 	// sandbox holding the secret's opaque placeholder, which is resolved to the
@@ -138,6 +147,10 @@ type SandboxBaseParams struct {
 	// Linked sandboxes must be ephemeral (AutoDeleteInterval=0) and cannot themselves be
 	// linked to another sandbox.
 	LinkedSandbox string
+	// Target is the target (region) where the sandbox is created. It overrides the
+	// client-level target for this call. When empty, the client-level target is used if
+	// set; otherwise the organization's default region.
+	Target string
 }
 
 // SnapshotParams represents parameters for creating a sandbox from a snapshot
@@ -161,6 +174,9 @@ type CreateSnapshotParams struct {
 	Entrypoint     []string
 	SkipValidation *bool
 	SandboxClass   *SandboxClass
+	// RegionID is the region where the snapshot is created. When nil or empty, the
+	// client-level target is used if set; otherwise the organization's default region.
+	RegionID *string
 }
 
 // PaginatedSnapshots represents a paginated list of snapshots
@@ -405,6 +421,7 @@ type ExecutionError struct {
 	Name      string
 	Value     string
 	Traceback *string // Optional stack trace; nil when not available
+	Err       error   `json:"-"` // Underlying client-side cause; nil for server-reported execution errors and execution timeouts.
 }
 
 // OutputMessage represents an output message
