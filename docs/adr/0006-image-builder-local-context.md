@@ -176,7 +176,7 @@ replaced by a symbolic-link loop (`ELOOP`), raises `BadRequestError`:
 `local source does not exist: "<path>"`. Python maps the `RuntimeError` that
 `Path.resolve(strict=True)` raises for link loops on Python 3.10–3.12 to the
 same error. A source whose parent became unsearchable after declaration
-(`EACCES` or `EPERM` while resolving it) raises
+(`EACCES` or `EPERM` while resolving or stating it) raises
 `build context file is not readable: "<path>"`, the error `add_local_*` /
 `addLocal*` raise for it at declaration.
 
