@@ -220,7 +220,9 @@ for (const kind of ['file', 'dir'] as const) {
         : ImageBuilder.fromRegistry('alpine').addLocalDir(join(parent, 'd'), '/d')
       await promises.chmod(parent, 0o600)
       // When archived, then it is the typed error addLocal* raises for it.
-      await expect(archiveBuilder(builder)).rejects.toMatchObject({ message: expect.stringMatching(/^build context file is not readable: /), code: 'BAD_REQUEST' })
+      const error = await archiveBuilder(builder).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(BadRequestError)
+      expect(error).toMatchObject({ message: expect.stringMatching(/^build context file is not readable: /), statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     } finally {
       await promises.chmod(parent, 0o755).catch(() => undefined)
       await promises.rm(base, { recursive: true, force: true })
