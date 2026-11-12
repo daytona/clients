@@ -41,7 +41,12 @@ RSpec.describe Daytona::Sandbox do
     allow(DaytonaToolboxApiClient::InterpreterApi).to receive(:new).and_return(interpreter_api)
     allow(DaytonaToolboxApiClient::InfoApi).to receive(:new).and_return(info_api)
     allow(DaytonaToolboxApiClient::ServerApi).to receive(:new).and_return(server_api)
+    # State waits poll through a copy of sandbox_api with an HTTP timeout; the copy is sandbox_api itself here.
+    allow(sandbox_api).to receive(:api_client).and_return(sandbox_api_client)
+    allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(sandbox_api)
   end
+
+  let(:sandbox_api_client) { DaytonaApiClient::ApiClient.new(DaytonaApiClient::Configuration.new) }
 
   let(:sandbox) do
     described_class.new(
@@ -664,6 +669,64 @@ RSpec.describe Daytona::Sandbox do
       expect(clock.call).to eq(0.2)
     end
 
+    context 'with the HTTP timeout of the poll requests' do
+      let(:pending_sandbox) do
+        described_class.new(
+          sandbox_dto: build_sandbox_dto(state: 'pending'),
+          config: config,
+          sandbox_api: sandbox_api,
+          subscription_manager: subscription_manager
+        )
+      end
+
+      it 'bounds each poll request by what is left of the timeout, keeping the API client settings' do
+        sandbox_api_client.default_headers['X-Custom'] = 'kept'
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(5)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new).with(
+          having_attributes(
+            config: having_attributes(timeout: be_between(4, 5)),
+            default_headers: include('X-Custom' => 'kept')
+          )
+        ).once
+        expect(sandbox_api_client.config.timeout).to eq(0)
+      end
+
+      it 'keeps a shorter timeout of the API client' do
+        sandbox_api_client.config.timeout = 2
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(5)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: 2))).once
+      end
+
+      it 'polls without an HTTP timeout when timeout is NO_TIMEOUT' do
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(Daytona::Sandbox::NO_TIMEOUT)
+
+        expect(DaytonaApiClient::SandboxApi).not_to have_received(:new)
+      end
+
+      it 'raises a TimeoutError when a poll request times out, after a final refresh bounded by 5 s' do
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                   .and_raise(DaytonaApiClient::ApiError.new('Connection timed out'))
+
+        expect do
+          pending_sandbox.wait_for_sandbox_start(30)
+        end.to raise_error(
+          Daytona::Sdk::TimeoutError, 'Sandbox sandbox-123 failed to start within the 30 seconds timeout period'
+        )
+        expect(sandbox_api).to have_received(:get_sandbox).twice
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: 5.0))).once
+      end
+    end
+
     it 'recovers from stale cached ERROR when refresh returns started' do
       errored = described_class.new(
         sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'stale'),
@@ -695,9 +758,9 @@ RSpec.describe Daytona::Sandbox do
       allow(condition).to receive(:wait) do |_mutex, interval|
         waits << interval
       end
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::STARTED : 'pending')
       end
 
       pending_sandbox.wait_for_sandbox_start
@@ -721,9 +784,9 @@ RSpec.describe Daytona::Sandbox do
       allow(condition).to receive(:wait) do |_mutex, interval|
         waits << interval
       end
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::STARTED : 'pending')
       end
 
       pending_sandbox.wait_for_sandbox_start
@@ -768,9 +831,11 @@ RSpec.describe Daytona::Sandbox do
         subscription_manager: subscription_manager
       )
       refresh_count = 0
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
         raise DaytonaApiClient::ApiError.new(code: 502, message: 'Bad Gateway') if refresh_count >= 2
+
+        build_sandbox_dto(state: 'pending')
       end
 
       expect do
@@ -788,9 +853,9 @@ RSpec.describe Daytona::Sandbox do
         subscription_manager: subscription_manager
       )
       refresh_count = 0
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::ERROR) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::ERROR : 'pending')
       end
 
       expect do
@@ -806,9 +871,9 @@ RSpec.describe Daytona::Sandbox do
         subscription_manager: subscription_manager
       )
       refresh_count = 0
-      allow(pending_sandbox).to receive(:refresh) do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         refresh_count += 1
-        pending_sandbox.send(:apply_state, DaytonaApiClient::SandboxState::STARTED) if refresh_count >= 2
+        build_sandbox_dto(state: refresh_count >= 2 ? DaytonaApiClient::SandboxState::STARTED : 'pending')
       end
 
       expect { pending_sandbox.wait_for_sandbox_start(0.15) }.not_to raise_error
