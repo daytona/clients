@@ -34,8 +34,8 @@ class SetSandboxNetworkPolicyRequest(BaseModel):
     """
     SetSandboxNetworkPolicyRequest
     """ # noqa: E501
-    allow_cidrs: Optional[List[StrictStr]] = Field(default=None, description="IPv4 addresses and CIDR ranges allowed by the policy. Defaults to an empty list.")
-    allow_domains: Optional[List[StrictStr]] = Field(default=None, description="Domain names allowed by the policy, or null when domain filtering is not configured.")
+    allow_cidrs: Optional[List[StrictStr]] = Field(default=None, description="IPv4 addresses and network-aligned CIDR ranges allowed by the policy. Host bits in a CIDR are rejected; bare IPv4 addresses are accepted. Duplicates are removed in input order. Defaults to an empty list. A non-empty list requires `block_all: true` or non-null `allow_domains`; otherwise it has no effect and is rejected with `400 BAD_REQUEST`.")
+    allow_domains: Optional[List[StrictStr]] = Field(default=None, description="ASCII hostnames (at least two LDH labels) or leading `*.` wildcards, lowercased, with one trailing dot removed and duplicates removed in input order. Null means domain filtering is not configured; a non-null list implies `block_all: true` when that field is omitted or null.")
     block_all: Optional[StrictBool] = Field(default=None, description="Default-deny toggle. With a non-null `allow_domains`, omitted or null normalizes to `true`, and an explicit `false` is rejected with `400 NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. With `allow_domains` null, omitted or null normalizes to `false`.")
     __properties: ClassVar[List[str]] = ["allow_cidrs", "allow_domains", "block_all"]
 

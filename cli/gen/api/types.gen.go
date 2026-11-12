@@ -2430,7 +2430,8 @@ type CreateImageMultipartRequest struct {
 	// Dockerfile Path of the Dockerfile within the context. Defaults to `Dockerfile`.
 	Dockerfile *string `json:"dockerfile,omitempty"`
 
-	// IdleExpirySeconds The idle retention window in seconds for an anonymous image.
+	// IdleExpirySeconds The idle retention window in seconds for an anonymous image. Omitted
+	// or -1 uses the server maximum. Reuse only extends retention; promote to keep it.
 	IdleExpirySeconds *int64 `json:"idle_expiry_seconds,omitempty"`
 
 	// Name The project-unique image name. Omit it to create an anonymous image.
@@ -2461,7 +2462,8 @@ type CreateImageRequest struct {
 	// from it, and every create from the image restarts the clock. Allowed
 	// only without `name`; a named image is permanent, and
 	// `idle_expiry_seconds` with `name` is a `400`. Omitted or `-1` uses the
-	// maximum, 7 days by default; `1` up to that maximum sets the window;
+	// maximum, 7 days by default; `1` up to that maximum sets the window.
+	// Reusing an anonymous image only extends its retention. Promote it to keep it.
 	// `0`, values below `-1`, and values above the maximum answer
 	// `400 IDLE_OUT_OF_RANGE`, whose body carries `max`.
 	IdleExpirySeconds *int64 `json:"idle_expiry_seconds,omitempty"`
@@ -5959,10 +5961,17 @@ type SetSandboxLabelsRequest struct {
 
 // SetSandboxNetworkPolicyRequest defines model for SetSandboxNetworkPolicyRequest.
 type SetSandboxNetworkPolicyRequest struct {
-	// AllowCidrs IPv4 addresses and CIDR ranges allowed by the policy. Defaults to an empty list.
+	// AllowCidrs IPv4 addresses and network-aligned CIDR ranges allowed by the policy.
+	// Host bits in a CIDR are rejected; bare IPv4 addresses are accepted.
+	// Duplicates are removed in input order. Defaults to an empty list.
+	// A non-empty list requires `block_all: true` or non-null `allow_domains`;
+	// otherwise it has no effect and is rejected with `400 BAD_REQUEST`.
 	AllowCidrs *[]string `json:"allow_cidrs,omitempty"`
 
-	// AllowDomains Domain names allowed by the policy, or null when domain filtering is not configured.
+	// AllowDomains ASCII hostnames (at least two LDH labels) or leading `*.` wildcards,
+	// lowercased, with one trailing dot removed and duplicates removed in input
+	// order. Null means domain filtering is not configured; a non-null list
+	// implies `block_all: true` when that field is omitted or null.
 	AllowDomains *[]string `json:"allow_domains,omitempty"`
 
 	// BlockAll Default-deny toggle. With a non-null `allow_domains`, omitted or null
@@ -5989,7 +5998,12 @@ type SetSandboxSecretsRequest struct {
 // write-only.
 type SetSecretRequest struct {
 	// AllowedDomains Required per-secret egress scope: hostnames or `*.` wildcards, or
-	// `["*"]` for any verified host. Empty or omitted is rejected.
+	// `["*"]` for any verified host. Hostnames must be ASCII with at least two
+	// LDH labels (1..63 characters each, no leading/trailing hyphen; at most
+	// 253 characters total). IP literals and public-suffix wildcards are
+	// rejected. Entries are lowercased, one trailing dot is removed, and
+	// duplicates are removed in input order on create and update.
+	// Empty or omitted is rejected. Existing stored rows are not migrated.
 	AllowedDomains *[]string `json:"allowed_domains,omitempty"`
 
 	// Description An optional user-facing description.

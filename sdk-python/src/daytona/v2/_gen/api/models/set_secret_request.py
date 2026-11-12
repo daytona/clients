@@ -70,7 +70,7 @@ class SetSecretRequest(BaseModel):
     """
     A secret value and its metadata. Values are encrypted at rest and are write-only.
     """ # noqa: E501
-    allowed_domains: Optional[List[StrictStr]] = Field(default=None, description="Required per-secret egress scope: hostnames or `*.` wildcards, or `[\"*\"]` for any verified host. Empty or omitted is rejected.")
+    allowed_domains: Optional[List[StrictStr]] = Field(default=None, description="Required per-secret egress scope: hostnames or `*.` wildcards, or `[\"*\"]` for any verified host. Hostnames must be ASCII with at least two LDH labels (1..63 characters each, no leading/trailing hyphen; at most 253 characters total). IP literals and public-suffix wildcards are rejected. Entries are lowercased, one trailing dot is removed, and duplicates are removed in input order on create and update. Empty or omitted is rejected. Existing stored rows are not migrated.")
     description: Optional[StrictStr] = Field(default=None, description="An optional user-facing description.")
     value: StrictStr = Field(description="The secret value (max 64 KiB). Write-only — never echoed back.")
     __properties: ClassVar[List[str]] = ["allowed_domains", "description", "value"]
