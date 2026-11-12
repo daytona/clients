@@ -900,7 +900,8 @@ type ComputerUseStatusResponse struct {
 	Cause *ComputerUseDesktopFailure `json:"cause,omitempty"`
 
 	// Desktop The current desktop state.
-	Desktop ComputerUseDesktopState `json:"desktop"`
+	Desktop    ComputerUseDesktopState `json:"desktop"`
+	Resolution *ComputerUseResolution  `json:"resolution,omitempty"`
 
 	// Status Activity status corresponding to `desktop`.
 	Status ComputerUseActivityStatus `json:"status"`

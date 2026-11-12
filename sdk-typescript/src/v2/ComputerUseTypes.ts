@@ -29,6 +29,12 @@ export interface ComputerUseNotStartedStatus {
   readonly status: 'inactive'
   readonly desktop: 'not_started'
   readonly cause?: never
+  /**
+   * The resolution the desktop runs at or, when it is not running, the one the
+   * next plain start or restart uses. Linux sandboxes only; absent on other
+   * platforms and from guests that predate it.
+   */
+  readonly resolution?: ComputerUseResolution
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -36,6 +42,12 @@ export interface ComputerUseStartingStatus {
   readonly status: 'inactive'
   readonly desktop: 'starting'
   readonly cause?: never
+  /**
+   * The resolution the desktop runs at or, when it is not running, the one the
+   * next plain start or restart uses. Linux sandboxes only; absent on other
+   * platforms and from guests that predate it.
+   */
+  readonly resolution?: ComputerUseResolution
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -43,6 +55,12 @@ export interface ComputerUseReadyStatus {
   readonly status: 'active'
   readonly desktop: 'ready'
   readonly cause?: never
+  /**
+   * The resolution the desktop runs at or, when it is not running, the one the
+   * next plain start or restart uses. Linux sandboxes only; absent on other
+   * platforms and from guests that predate it.
+   */
+  readonly resolution?: ComputerUseResolution
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -50,6 +68,12 @@ export interface ComputerUseFailedStatus {
   readonly status: 'inactive'
   readonly desktop: 'failed'
   readonly cause: ComputerUseDesktopFailure
+  /**
+   * The resolution the desktop runs at or, when it is not running, the one the
+   * next plain start or restart uses. Linux sandboxes only; absent on other
+   * platforms and from guests that predate it.
+   */
+  readonly resolution?: ComputerUseResolution
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -65,6 +89,12 @@ export interface ComputerUseUnknownStatus {
   readonly rawDesktop: string
   /** The failure attached to the unrecognized state, when present. */
   readonly cause?: ComputerUseDesktopFailure
+  /**
+   * The resolution the desktop runs at or, when it is not running, the one the
+   * next plain start or restart uses. Linux sandboxes only; absent on other
+   * platforms and from guests that predate it.
+   */
+  readonly resolution?: ComputerUseResolution
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -288,7 +318,9 @@ export interface ComputerUseStartOptions {
   /**
    * The desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts
    * and restarts. Omitted: the resolution the desktop last started at, or
-   * 1280x720. Linux sandboxes only.
+   * 1280x720. Linux sandboxes only. The SDK reads back the size the desktop
+   * runs at and throws `UnsupportedOperationError` when it differs: a guest
+   * that predates resolution selection ignores it.
    */
   readonly resolution?: ComputerUseResolution
 }

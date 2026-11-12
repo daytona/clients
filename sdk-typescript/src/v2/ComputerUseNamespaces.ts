@@ -23,6 +23,7 @@ import {
   mapComputerUseScrollResponse,
   mapComputerUseStatusResponse,
 } from './ComputerUseMappers.js'
+import { UnsupportedOperationError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
@@ -103,6 +104,35 @@ const A11Y_SET_VALUE_KEYS = optionKeys<ComputerUseA11ySetValueRequest>()({ id: t
 const RECORDING_START_KEYS = optionKeys<ComputerUseRecordingStartRequest>()({ label: true })
 const DESKTOP_START_KEYS = optionKeys<ComputerUseStartOptions>()({ resolution: true })
 const RESOLUTION_KEYS = optionKeys<ComputerUseResolution>()({ width: true, height: true })
+
+function formatResolution(resolution: ComputerUseResolution): string {
+  return `${resolution.width}x${resolution.height}`
+}
+
+/**
+ * After a start or restart that asked for `requested`, reads back the size the
+ * desktop runs at: the status `resolution`, or, from a guest that predates it,
+ * the first display. A guest that predates resolution selection answers 2xx
+ * and ignores the request, so a mismatch throws instead of reporting success.
+ * A read that fails throws too: success is never reported for a resolution
+ * that was not confirmed.
+ */
+async function readBackResolution(transport: ComputerUseTransport, requested: ComputerUseResolution): Promise<void> {
+  const status = mapComputerUseStatusResponse(await transport.get<toolbox.ComputerUseStatusResponse>('/computeruse/status'))
+  let actual = status.resolution
+  if (actual === undefined) {
+    const display = mapComputerUseDisplayInfo(
+      await transport.get<toolbox.ComputerUseDisplayInfoResponse>('/computeruse/display/info'),
+    ).displays[0]
+    actual = display === undefined ? undefined : { width: display.width, height: display.height }
+  }
+  if (actual?.width === requested.width && actual.height === requested.height) return
+  throw new UnsupportedOperationError(
+    `desktop runs at ${actual === undefined ? 'an unknown resolution' : formatResolution(actual)}, ` +
+      `not the requested ${formatResolution(requested)}; a guest that predates resolution selection ignores it`,
+    { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
+  )
+}
 
 function desktopStartBody(options: ComputerUseStartOptions): toolbox.ComputerUseStartRequest | undefined {
   assertKnownOptions('ComputerUseStartOptions', options, DESKTOP_START_KEYS)
@@ -411,9 +441,12 @@ export class ComputerUseLifecycleService {
    * other platforms throw for a `resolution`.
    */
   public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
-    return mapComputerUseLifecycleResponse(
-      await this.transport.post<toolbox.ComputerUseLifecycleResponse>('/computeruse/start', desktopStartBody(options)),
+    const body = desktopStartBody(options)
+    const started = mapComputerUseLifecycleResponse(
+      await this.transport.post<toolbox.ComputerUseLifecycleResponse>('/computeruse/start', body),
     )
+    if (body?.resolution !== undefined) await readBackResolution(this.transport, body.resolution)
+    return started
   }
 
   public async stop(): Promise<ComputerUseLifecycleResponse> {
@@ -427,9 +460,12 @@ export class ComputerUseLifecycleService {
    * omitted, at its current resolution. Linux sandboxes only for `resolution`.
    */
   public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
-    return mapComputerUseRestartResponse(
-      await this.transport.post<toolbox.ComputerUseRestartResponse>('/computeruse/restart', desktopStartBody(options)),
+    const body = desktopStartBody(options)
+    const restarted = mapComputerUseRestartResponse(
+      await this.transport.post<toolbox.ComputerUseRestartResponse>('/computeruse/restart', body),
     )
+    if (body?.resolution !== undefined) await readBackResolution(this.transport, body.resolution)
+    return restarted
   }
 }
 
