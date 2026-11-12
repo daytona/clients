@@ -4,10 +4,10 @@
 """Charts: the data of a matplotlib figure a Python interpreter run displayed.
 
 A display that shows a matplotlib figure carries the figure's chart next to
-its image: ``InterpreterOutput.chart`` (with the image in ``.png``), and every
-chart of a run in ``InterpreterResult.charts``. ``type`` tells the chart
-classes apart; a figure the sandbox cannot read as a chart, or a type this SDK
-release does not know, is an :class:`UnknownChart`.
+its image: ``InterpreterOutput.chart`` (with the image, when there is one, in
+``.png``), and every chart of a run in ``InterpreterResult.charts``. ``type``
+tells the chart classes apart; a figure the sandbox cannot read as a chart, or
+a type this SDK release does not know, is an :class:`UnknownChart`.
 
 Values are as plotted: a number, or a string on a ``categorical`` axis (the
 category) or a ``datetime`` axis (ISO 8601 in UTC, e.g.
