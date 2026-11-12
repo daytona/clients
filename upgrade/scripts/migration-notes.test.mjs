@@ -36,12 +36,15 @@ for (const language of ['py', 'ts']) {
     assert.ok(entry);
     // When: reading the migration notes and the generated guide.
     const notes = entry.notes[language].join(' ');
-    const rows = guide.split('\n').filter((line) => /^\| `sandbox\.process\.(code_run|codeRun)\(/.test(line));
-    // Then: both name where the charts and their images are in v2.
-    for (const text of [notes, ...rows]) {
-      assert.match(text, /artifacts\.charts becomes result\.charts\b.*\(output\.chart\).*\(output\.png\)/);
+    const row = guide.split('\n').find((line) => line.startsWith(`| \`${entry.receiver}.${entry.v0[language]}(`));
+    assert.ok(row);
+    // Then: both name where the charts are in v2, and that an image is there
+    // only when one was captured.
+    const where =
+      'response.artifacts.charts becomes result.charts; the output that carries a chart (output.chart) also carries its image when there is one (output.png)';
+    for (const text of [notes, row]) {
+      assert.ok(text.includes(where), text);
     }
-    assert.equal(rows.length, 2);
   });
 
   test(`${language} commit guidance identifies the result-field migration`, () => {

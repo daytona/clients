@@ -958,10 +958,13 @@ earlier run published is a new entry.
 
 A matplotlib figure that a Python run displays (`plt.show()`, a figure as the
 last expression, pandas `plot()`, seaborn, or a figure still open when the
-cell ends) comes back with its data as well as its image:
-`results[i].chart`, next to `results[i].png`, and every chart of the run in
-`result.charts`. Prefer `result.charts`: a pandas or seaborn call returns
-its axes as the cell's result, so the figure is not always `results[0]`.
+cell ends) comes back with its data as well as its image. The output that
+shows the figure carries its data in `chart` and, when an image was
+captured, the image in `png`. `result.charts` lists every chart of the run
+in order; it skips outputs without a chart, so its indexes are not those of
+`results`, and the figure is not always `results[0]` (a pandas or seaborn
+call returns its axes as the cell's result). To pair a chart with its image,
+use the output that carries the chart.
 
 ```ts
 const result = await sandbox.interpreter.run(`
@@ -974,6 +977,9 @@ if (result.process.exitCode !== 0) throw new Error(`the run exited ${result.proc
 const chart = result.charts?.[0]
 if (chart?.type === 'bar') {
   console.log(chart.title, chart.elements.map((bar) => [bar.label, bar.value])) // visits [['a', 3], ['b', 1]]
+}
+for (const output of result.results) { // each chart's image is on the output that carries it
+  if (output.chart && output.png) console.log(output.chart.type, output.png.length) // bar 12345 (base64 characters)
 }
 ```
 

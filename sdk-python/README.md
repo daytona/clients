@@ -1033,10 +1033,13 @@ published is a new entry.
 
 A matplotlib figure that a Python run displays (`plt.show()`, a figure as the
 last expression, pandas `plot()`, seaborn, or a figure still open when the
-cell ends) comes back with its data as well as its image:
-`results[i].chart`, next to `results[i].png`, and every chart of the run in
-`result.charts`. Prefer `result.charts`: a pandas or seaborn call returns
-its axes as the cell's result, so the figure is not always `results[0]`.
+cell ends) comes back with its data as well as its image. The output that
+shows the figure carries its data in `chart` and, when an image was
+captured, the image in `png`. `result.charts` lists every chart of the run
+in order; it skips outputs without a chart, so its indexes are not those of
+`results`, and the figure is not always `results[0]` (a pandas or seaborn
+call returns its axes as the cell's result). To pair a chart with its image,
+use the output that carries the chart.
 
 ```python
 from daytona.v2 import BarChart
@@ -1055,6 +1058,9 @@ if result.process.exit_code != 0:
 chart = result.charts[0] if result.charts else None
 if isinstance(chart, BarChart):
     print(chart.title, [(bar.label, bar.value) for bar in chart.elements])  # visits [('a', 3), ('b', 1)]
+for output in result.results:  # each chart's image is on the output that carries it
+    if output.chart is not None and output.png is not None:
+        print(output.chart.type, len(output.png))  # bar 12345 (base64 characters)
 ```
 
 `chart.type` is `line`, `scatter`, `bar`, `pie`, `box_and_whisker`,
