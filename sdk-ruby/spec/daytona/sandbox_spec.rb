@@ -701,10 +701,15 @@ RSpec.describe Daytona::Sandbox do
 
       [5, Daytona::Sandbox::NO_TIMEOUT].each do |timeout|
         it "renews the event subscription and records a refresh on each poll with timeout #{timeout}" do
+          # A separate copy, as in production, so a poll through it does not take the #refresh shortcut.
+          bounded_api = instance_double(DaytonaApiClient::SandboxApi)
+          allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(bounded_api)
           polls = 0
-          allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
-            polls += 1
-            build_sandbox_dto(state: polls >= 2 ? 'started' : 'pending')
+          [sandbox_api, bounded_api].each do |api|
+            allow(api).to receive(:get_sandbox).with('sandbox-123') do
+              polls += 1
+              build_sandbox_dto(state: polls >= 2 ? 'started' : 'pending')
+            end
           end
           allow(Daytona).to receive(:with_instrumentation).and_call_original
           stub_condition_variable_waits { |_seconds| nil }
