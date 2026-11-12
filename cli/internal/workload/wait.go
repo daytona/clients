@@ -61,7 +61,12 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 	// state counts as a conflict only after the sandbox was seen somewhere
 	// else first.
 	var seenProgress bool
-	return wait.Until(ctx, options.Timeout, 200*time.Millisecond,
+	interval := 200 * time.Millisecond
+	if options.StoppedPassed {
+		// Disk preparation can return stopped immediately instead of long-polling.
+		interval = time.Second
+	}
+	return wait.Until(ctx, options.Timeout, interval,
 		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Sandbox], error) {
 			var detail api.Raw[gen.Sandbox]
 			query := url.Values{

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -470,7 +471,7 @@ func runMacFork(t *testing.T, sampled string, forkAnswers ...string) (string, er
 	for _, status := range forkAnswers {
 		expected = append(expected, expectedRequest{method: http.MethodGet, path: "/sandboxes/" + fork, query: query, status: 200, response: sandboxDetailFixture(fork, "macos", status)})
 	}
-	stdout, _, err := runCLI(t, []string{"sandbox", "fork", id, "--name", "copy"}, expected)
+	stdout, _, err := runCLIWithOptions(t, runCLIOptions{output: "json", contextTimeout: 10 * time.Second}, []string{"sandbox", "fork", id, "--name", "copy"}, expected)
 	return stdout, err
 }
 

@@ -287,6 +287,23 @@ func TestWaitForSandbox_forkWaitsPastStopped(t *testing.T) {
 	}
 }
 
+func TestWaitForSandbox_diskPreparationDoesNotPollAtSubsecondCadence(t *testing.T) {
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		_, _ = w.Write([]byte(`{"id":"id","status":"stopped"}`))
+	}))
+	defer srv.Close()
+
+	_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{
+		ID: "id", Target: "running", Timeout: 700 * time.Millisecond, StoppedPassed: true,
+	})
+
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitTimeout, cerr.ExitCode(err))
+	require.Equal(t, int32(1), requests.Load())
+}
+
 func TestWaitForSandbox_deletingConflictsImmediately(t *testing.T) {
 	srv := sandboxSequence(t, "deleting")
 	defer srv.Close()
