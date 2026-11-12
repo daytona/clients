@@ -93,6 +93,7 @@ func newImageCaptureCommand() *cobra.Command {
 		Short: "Capture a sandbox filesystem as an image",
 		Long: "Capture only a sandbox disk as an image. For memory capture, use `daytona snapshot create`.\n" +
 			"A macOS sandbox must be persistent and stopped; the capture answers DISK_NOT_READY while its disk is not ready yet (retry later).\n" +
+			"Requires write:images and write:sandboxes.\n" +
 			imageNameRulesHelp + "A --name that already exists answers 409 IMAGE_NAME_TAKEN.\n" +
 			"Example:\n  daytona image capture <sandbox> --name saved-image",
 		Args: cobra.ExactArgs(1),

@@ -339,10 +339,9 @@ the explicit exception to the one-page list rule.
   Match discovered resources by UUID identity, including sandbox base58 IDs and
   region tags, because discovery canonicalizes the caller's ID spelling.
 - Reserved sandbox `env` names: platform-reserved prefixes plus every
-  `DAYTONA_*` name other than
-  `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
-  `DAYTONA_DOCKER_START`. The API rejects the create with `400` naming the
-  key.
+  `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
+  `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). The API rejects
+  the create with `400` naming the key.
 
 ## Local verification
 

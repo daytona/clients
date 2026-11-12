@@ -404,7 +404,9 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...
   `states` takes the SDK's sandbox states (`states=["started", "paused"]`);
-  `"unknown"` is not searchable. Timestamp filters are `created_start_at` /
+  `"unknown"` is not searchable. `region` takes region IDs; a region that
+  contains other regions (a geo group, or `earth`) matches every region inside
+  it, and an unknown region is a `BadRequestError`. Timestamp filters are `created_start_at` /
   `created_end_at`, `updated_start_at` / `updated_end_at`, and
   `last_activity_start_at` / `last_activity_end_at`; starts are inclusive and
   ends are exclusive.
@@ -486,7 +488,9 @@ start is a `date`. Collection fields on result dataclasses are tuples,
 including `items` on list, search and log pages; mapping fields remain plain dicts.
 
 Use `sandbox.set_labels({...})` to replace the label set (`{}` clears every
-label but `name`). The reserved `name` label that `find_by_name()` matches is
+label but `name`). A label key must not be empty: `set_labels()`, the
+`create*()` methods and `search(labels=...)` refuse one with `BadRequestError`
+before any request. The reserved `name` label that `find_by_name()` matches is
 kept unless the new labels set it: the sandbox is read first to learn it (one
 more request, not atomic with the write), and it cannot be removed. Use `sandbox.entrypoint_logs()` to read the sandbox's
 entrypoint-session log as plain text. On `AsyncDaytona` prefix these with
@@ -516,6 +520,12 @@ sandbox = d.v2.create(
     volumes=[VolumeMount(volume_id=volume.id, mount_path="/mnt/data", subpath="project")],
 )
 ```
+
+`mount_path` is an absolute path with no `..` component. The API normalizes
+it (repeated slashes, `.` components and a trailing slash are removed) and
+refuses `/`, any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+`/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or
+`/usr`, and one with a control character, with `BadRequestError` (400).
 
 `create_from_build(..., volumes=[...])` accepts the same mounts. To mount an
 S3 bucket you own, create a bucket volume for it in the dashboard or with
@@ -587,6 +597,34 @@ sandbox = d.v2.create_from_build(
 )
 ```
 
+A builder can copy local files into the image. `add_local_file`,
+`add_local_dir` and `pip_install_from_requirements` check the path when they
+are called and read it when the image is built: the SDK packs the rendered
+Dockerfile and the files into a build context and uploads it (up to 1 GiB;
+an unchanged builder reuses its earlier upload). A directory's own
+`.dockerignore` excludes entries as `docker build` would.
+
+```python
+builder = (
+    ImageBuilder.debian_slim("3.12")
+    .pip_install_from_requirements("requirements.txt")
+    .add_local_dir("src", "/app")
+    .workdir("/app")
+    .cmd("python", "main.py")
+)
+sandbox = d.v2.create_from_build(builder, build_timeout=600)
+```
+
+To build an existing Dockerfile with its directory as the context, pass the
+directory to `images.build_from_context()`; it uses `<dockerfile>.dockerignore`
+next to the selected Dockerfile when present, otherwise `.dockerignore` at
+the context root, the way `docker build` does:
+
+```python
+image = d.v2.images.build_from_context("./service", dockerfile="Dockerfile", name="service")
+image = d.v2.images.get(image.id, wait="ready", timeout=600)
+```
+
 `ImageBuilder.env()` values are literal: the image gets exactly the string you
 pass (`$PATH` is not expanded); a blank value, or one with a control character
 (such as a newline), is rejected.
@@ -622,7 +660,9 @@ runs out first raises `RequestTimeoutError`; a budget above the timer maximum
 (about 24.8 days) waits without a deadline. Without a timeout (omitted or
 `0`), one long poll of the server's default length returns what the server
 reports. `sandbox.capture_image(name=..., idle_expiry_seconds=...)` captures an
-image from a sandbox.
+image from a sandbox, and `sandbox.create_snapshot(name)` a snapshot. Both need
+`write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
+they raise `ForbiddenError` (403).
 
 ### macOS sandboxes
 
@@ -1017,7 +1057,10 @@ that would overwrite local changes.
 visibility of an exposed port), `preview_link(port)`,
 `signed_preview_link(port, expires_in_seconds=...)`,
 `expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
-`iter_endpoints(...)`.
+`iter_endpoints(...)`. The sandbox daemon's ports 2280, 2281 and 22220 are
+never preview ports: `expose()`, `preview_link()`, `signed_preview_link()` and
+`create_access_token(ports=...)` refuse them with `BadRequestError` before any
+request.
 A visibility change takes effect immediately on event delivery; at most 30 s
 if an event is missed.
 To skip the preview warning page when a headless browser opens a preview URL,
@@ -1059,11 +1102,12 @@ Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
 `status()` and `wait_until_ready()` raise `NotFoundError` (404).
 
 Some environment variable names are reserved for the platform, among them
-every `DAYTONA_*` name other than `DAYTONA_SANDBOX_TOKEN`,
-`DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`. A
-sandbox `env` that sets a reserved name fails the create with `BadRequestError`
-(400) naming the key; the same rule applies to the keys an
-`update_env()` call sets or unsets.
+every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
+and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
+that sets a reserved name fails the create with `BadRequestError` (400) naming
+the key. `update_env()` refuses reserved `DAYTONA_*` names in the keys it sets or
+unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
+differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 
 ### Waiting for lifecycle states
 
@@ -1140,7 +1184,11 @@ names as in the TypeScript SDK: `BadRequestError`, `AuthenticationError`
 client's own request timeout), `ConnectionError`, … They expose
 `status_code`, `code`, `source` and `trace_id`, and have code-specific
 subclasses (`ProcessNotFoundError`, `SandboxTerminalStateError`, …) so you can
-catch as narrowly as you need. `code` and `source` are open vocabularies: a
+catch as narrowly as you need. A call into a sandbox that is not running (a
+stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git` or the
+other in-sandbox namespaces, raises `SandboxNotRunningError` (409,
+`SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview
+URLs answer 409 too. Start the sandbox and retry. `code` and `source` are open vocabularies: a
 code this release does not know is kept as sent and the error is the class for
 its HTTP status; `daytona.v2.codes` lists the known codes per source
 (`codes.API_ERROR_CODES`, `codes.CODE_STATUS`, `codes.is_known_error_code`, …).
@@ -1167,6 +1215,12 @@ example the maximum number of concurrent sandboxes) raises
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
 and counts as `limit`, `current` and `max`. Other rate-limited requests keep
 raising plain `RateLimitError`.
+
+On a sandbox that is deleted or being deleted, `set_labels()`,
+`update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls
+(`ports.expose()`, `ports.list_endpoints()`, `ports.preview_link()`,
+`ports.signed_preview_link()`) raise `ConflictError` (`CONFLICT`);
+`ports.unexpose()` and `ports.expire_signed_preview_link()` still work.
 
 ## Versioning and releases
 

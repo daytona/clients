@@ -179,6 +179,8 @@ references locally.
 failures include the recorded build error and its code when available. A timeout
 on `image create`, `build`, `capture` or `snapshot create` includes the pending
 resource id and its `get` command; the operation keeps running on the server.
+`image capture` and `snapshot create` need `write:sandboxes` in addition to
+`write:images` / `write:snapshots` (exit code `4` without it).
 `image list --platform` accepts only `true`, `false` or `any`.
 
 `sandbox exec <id> -- COMMAND [ARGS...]` copies stdout and stderr as raw bytes,
@@ -378,10 +380,16 @@ never prompts:
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
   inclusive; end bounds are exclusive. Values are RFC3339 timestamps.
 - Sandbox search accepts repeatable `--label KEY=VALUE`, merged with
-  `--labels '{"key":"value"}'`; conflicting values across the two flags
-  are a usage error (exit 2). `--region` is checked against the region
+  `--labels '{"key":"value"}'`; conflicting values across the two flags,
+  or an empty label key, are a usage error (exit 2). `--region` is checked against the region
   catalog: an unknown region is a usage error (exit 2), and a parent expands
   to itself and its children in the search API's `region_ids` filter.
+- Organization and project names (`org create`, `org update --name`,
+  `project create`, `project update --name`) are 1 to 64 characters after
+  trimming, with no control characters, and a project cannot be named
+  `default`. Any other name is a usage error (exit 2): before any request on a
+  create, after one read of the current name on a rename; a rename to the
+  current name is sent and left to the API.
 - Billing amounts are integer cents plus a currency. One-time top-ups use
   `--amount-cents`; automatic top-up and low-balance settings use
   `--threshold-cents` (and automatic top-up also uses `--target-cents`).
@@ -396,6 +404,11 @@ never prompts:
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
   `--permission`, `--allow-domain`, …). `--label` and `--env` take one
   `KEY=VALUE` each and keep commas inside the value; repeat them for more.
+  An empty key is a usage error (exit 2). `sandbox create --env` cannot set
+  a name the platform reserves, among them every `DAYTONA_*` name other than
+  `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START`
+  (`DAYTONA_SANDBOX_TOKEN` included): the API refuses the create, naming the
+  key.
 - Long operations wait for completion by default; `--no-wait` returns the
   accepted resource immediately. `sandbox create*`, `start`, `stop`, `pause`,
   `resume`, `fork` and `delete` print the sandbox as `sandbox get` does in both
@@ -424,7 +437,15 @@ never prompts:
   `sandbox create-macos --volume` takes `VOLUME:MOUNT_PATH[:SUBPATH]`:
   a macOS sandbox mounts disk volumes read-write only. Use the `volumes`
   array in `--file` JSON for the same options; an explicit `--volume`
-  replaces that array.
+  replaces that array. `MOUNT_PATH` is an absolute path with no `..`
+  component; the API normalizes it (repeated slashes, `.` components and a
+  trailing slash are removed) and refuses `/`, any path on or beneath
+  `/bin`, `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`,
+  `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`, and one
+  with a control character.
+- `sandbox port preview-url` refuses the sandbox daemon's ports 2280, 2281
+  and 22220, which are never preview ports, as a usage error (exit 2) before
+  any request; `preview-url expire` still takes them.
 - `sandbox create --allow-domain api.example.com --allow-cidr 10.1.0.0/16`
   (or `sandbox create-macos` with the same flags) sets a `network_policy`: a domain list implies default-deny (allowed
   domains are reachable on HTTP/HTTPS only) and `--allow-cidr` opens addresses
@@ -460,7 +481,9 @@ whole seconds where the API stores seconds:
 Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` only on
 a persistent macOS sandbox. Pause a sandbox with `daytona sandbox pause`; a
 lifecycle policy never pauses. A refused action is a usage error before any
-request.
+request. While a sandbox is stopped, commands that work inside it
+(`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409
+`SANDBOX_NOT_RUNNING` (exit code `6`, with a hint to start it), not 404.
 
 ### JSON output
 

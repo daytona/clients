@@ -1,6 +1,39 @@
 {
-  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with its message in both SDKs (\"tsError\" where TypeScript names the argument in camelCase).",
+  "_comment": "Shared by sdk-python/tests/test_image_builder_parity.py and sdk-typescript/tests/image-builder-parity.test.ts: the same builder renders the same Dockerfile and request in both SDKs. Each \"refused\" case is a BadRequestError with its message in both SDKs (\"tsError\" where TypeScript names the argument in camelCase). Sources: \"registry\", \"dockerfile\" or \"debianSlim\" (null = the default series).",
   "cases": [
+    {
+      "name": "env names retain step order even for integer keys",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env-name",
+          [
+            "b",
+            "1"
+          ]
+        ],
+        [
+          "env-name",
+          [
+            "2",
+            "2"
+          ]
+        ],
+        [
+          "env-name",
+          [
+            "a",
+            "3"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n",
+      "request": {
+        "dockerfile": "FROM alpine\nENV b=\"1\"\nENV 2=\"2\"\nENV a=\"3\"\n"
+      }
+    },
     {
       "name": "padded registry ref",
       "source": {
@@ -135,6 +168,88 @@
       }
     },
     {
+      "name": "debian slim at the default series",
+      "source": {
+        "debianSlim": null
+      },
+      "steps": [],
+      "dockerfile": "FROM python:3.13-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\n",
+      "request": {
+        "dockerfile": "FROM python:3.13-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\n"
+      }
+    },
+    {
+      "name": "debian slim with layers",
+      "source": {
+        "debianSlim": " 3.12 "
+      },
+      "steps": [
+        [
+          "pip",
+          [
+            "numpy>=1.26"
+          ]
+        ],
+        [
+          "workdir",
+          "/app"
+        ]
+      ],
+      "dockerfile": "FROM python:3.12-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\nRUN python -m pip install 'numpy>=1.26'\nWORKDIR /app\n",
+      "request": {
+        "dockerfile": "FROM python:3.12-slim-bookworm\nRUN apt-get update\nRUN apt-get install -y gcc gfortran build-essential\nRUN pip install --upgrade pip\nRUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections\nRUN python -m pip install 'numpy>=1.26'\nWORKDIR /app\n"
+      }
+    },
+    {
+      "name": "user, cmd and entrypoint",
+      "source": {
+        "registry": "python:3.12"
+      },
+      "steps": [
+        [
+          "user",
+          " daytona "
+        ],
+        [
+          "entrypoint",
+          [
+            "/bin/sh",
+            "-c"
+          ]
+        ],
+        [
+          "cmd",
+          [
+            "echo \"hi\"",
+            " padded "
+          ]
+        ]
+      ],
+      "dockerfile": "FROM python:3.12\nUSER daytona\nENTRYPOINT [\"/bin/sh\", \"-c\"]\nCMD [\"echo \\\"hi\\\"\", \" padded \"]\n",
+      "request": {
+        "dockerfile": "FROM python:3.12\nUSER daytona\nENTRYPOINT [\"/bin/sh\", \"-c\"]\nCMD [\"echo \\\"hi\\\"\", \" padded \"]\n"
+      }
+    },
+    {
+      "name": "cmd with non-ASCII arguments",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "cmd",
+          [
+            "echo",
+            "\u017e\u0161"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM alpine\nCMD [\"echo\", \"\u017e\u0161\"]\n",
+      "request": {
+        "dockerfile": "FROM alpine\nCMD [\"echo\", \"\u017e\u0161\"]\n"
+      }
+    },
+    {
       "name": "env values are literal: $ is escaped, quotes and backslashes as in JSON",
       "source": {
         "registry": "alpine"
@@ -191,9 +306,141 @@
       "request": {
         "dockerfile": "# syntax=docker/dockerfile:1\n# escape=\\\nFROM alpine\nENV A=\"\\$x\"\n"
       }
+    },
+    {
+      "name": "a Dockerfile base whose last line is a comment ending in a backslash",
+      "source": {
+        "dockerfile": "FROM alpine\n# note \\"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/w"
+        ]
+      ],
+      "dockerfile": "FROM alpine\n# note \\\nWORKDIR /w\n",
+      "request": {
+        "dockerfile": "FROM alpine\n# note \\\nWORKDIR /w\n"
+      }
+    },
+    {
+      "name": "an escaped backtick under a backtick escape is not a continuation",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a``",
+            "echo b"
+          ]
+        ]
+      ],
+      "dockerfile": "# escape=`\nFROM alpine\nRUN echo a``\nRUN echo b\n",
+      "request": {
+        "dockerfile": "# escape=`\nFROM alpine\nRUN echo a``\nRUN echo b\n"
+      }
+    },
+    {
+      "name": "an empty env mapping adds no step (a registry base stays an import)",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "env",
+          {}
+        ]
+      ],
+      "dockerfile": "FROM alpine\n",
+      "request": {
+        "source": {
+          "type": "registry",
+          "ref": "alpine"
+        }
+      }
+    },
+    {
+      "name": "an empty env mapping after a base ending in a continuation adds nothing to join",
+      "source": {
+        "dockerfile": "FROM alpine\nRUN a \\"
+      },
+      "steps": [
+        [
+          "env",
+          {}
+        ]
+      ],
+      "dockerfile": "FROM alpine\nRUN a \\\n",
+      "request": {
+        "dockerfile": "FROM alpine\nRUN a \\\n"
+      }
+    },
+    {
+      "name": "an escape directive BuildKit refuses is passed through",
+      "source": {
+        "dockerfile": "# escape=-\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a -"
+          ]
+        ]
+      ],
+      "dockerfile": "# escape=-\nFROM alpine\nRUN echo a -\n",
+      "request": {
+        "dockerfile": "# escape=-\nFROM alpine\nRUN echo a -\n"
+      }
     }
   ],
   "refused": [
+    {
+      "name": "run command with a stripped trailing backslash",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a \\  "
+          ]
+        ],
+        [
+          "run",
+          [
+            "echo b"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo a \\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)",
+      "tsError": "ImageBuilder.runCommands command \"echo a \\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)"
+    },
+    {
+      "name": "workdir with a trailing backslash",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/app\\"
+        ]
+      ],
+      "error": "ImageBuilder.workdir path \"/app\\\\\" must not end with a backslash (the Dockerfile parser reads it as an escape)"
+    },
+    {
+      "name": "debian slim refuses a micro version",
+      "source": {
+        "debianSlim": "3.12.10"
+      },
+      "steps": [],
+      "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.12.10\")",
+      "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.12.10\")"
+    },
     {
       "name": "env keys that collide after stripping",
       "source": {
@@ -473,6 +720,79 @@
       "error": "ImageBuilder.workdir path \"/a\u007f\" must not contain a control character"
     },
     {
+      "name": "debian slim at an unsupported series",
+      "source": {
+        "debianSlim": "3.9"
+      },
+      "steps": [],
+      "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.9\")",
+      "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"3.9\")"
+    },
+    {
+      "name": "debian slim at a blank series",
+      "source": {
+        "debianSlim": " \u001c\u0085 "
+      },
+      "steps": [],
+      "error": "ImageBuilder.debian_slim python_version must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"\")",
+      "tsError": "ImageBuilder.debianSlim pythonVersion must be one of 3.10, 3.11, 3.12, 3.13, 3.14 (got \"\")"
+    },
+    {
+      "name": "a blank user",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "  "
+        ]
+      ],
+      "error": "ImageBuilder.user name must be a non-empty string"
+    },
+    {
+      "name": "a user with a line break",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "a\nb"
+        ]
+      ],
+      "error": "ImageBuilder.user name \"a\\nb\" must not contain a control character"
+    },
+    {
+      "name": "cmd with no arguments",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "cmd",
+          []
+        ]
+      ],
+      "error": "ImageBuilder.cmd args requires at least one value"
+    },
+    {
+      "name": "entrypoint with a blank argument",
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "entrypoint",
+          [
+            "sh",
+            " "
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.entrypoint args must be a non-empty string"
+    },
+    {
       "name": "env value with a newline",
       "source": {
         "registry": "alpine"
@@ -577,6 +897,114 @@
         ]
       ],
       "error": "ImageBuilder.env cannot keep values literal under a Dockerfile escape directive other than a backslash"
+    },
+    {
+      "name": "a Dockerfile base ending in a line continuation, then a step",
+      "source": {
+        "dockerfile": "FROM alpine\nRUN echo hi \\"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/w"
+        ]
+      ],
+      "error": "ImageBuilder.from_dockerfile content ends with a line continuation; a step added after it would be joined to its last instruction",
+      "tsError": "ImageBuilder.fromDockerfile dockerfile ends with a line continuation; a step added after it would be joined to its last instruction"
+    },
+    {
+      "name": "a command ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo one `"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo one `\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"echo one `\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "the first of two commands ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a`",
+            "echo b"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo a`\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"echo a`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "the middle of three commands ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "echo a",
+            "echo b`",
+            "echo c"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"echo b`\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"echo b`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "a workdir ending in the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "workdir",
+          "/w`"
+        ]
+      ],
+      "error": "ImageBuilder.workdir path \"/w`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "a user ending in the base's backtick escape after spaces",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "app ` "
+        ]
+      ],
+      "error": "ImageBuilder.user name \"app `\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
+    },
+    {
+      "name": "a command that is only the base's backtick escape",
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "`",
+            "echo b"
+          ]
+        ]
+      ],
+      "error": "ImageBuilder.run_commands command \"`\" ends with the Dockerfile's escape character; the next instruction would be joined to it",
+      "tsError": "ImageBuilder.runCommands command \"`\" ends with the Dockerfile's escape character; the next instruction would be joined to it"
     }
   ]
 }

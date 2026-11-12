@@ -45,6 +45,10 @@ func ParseTimeout(raw string) (time.Duration, error) {
 }
 
 func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWaitOptions) (api.Raw[gen.Sandbox], error) {
+	// The API answers a wait for anything but a sandbox status with 400.
+	if !gen.SandboxStatus(options.Target).Valid() {
+		return api.Raw[gen.Sandbox]{}, cerr.Usage("cannot wait for %q: not a sandbox status", options.Target)
+	}
 	queryKey := "wait"
 	if options.Target == "stopped" || options.Target == "deleted" {
 		queryKey = "wait_exact"

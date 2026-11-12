@@ -145,6 +145,12 @@ export function isPlainRecord(value: unknown): value is Readonly<Record<string, 
 /** @internal */
 export function assertLabels(labels: unknown): asserts labels is Readonly<Record<string, string>> {
   if (!isPlainStringRecord(labels)) throw badRequest('labels must be a plain object of string to string')
+  assertLabelKeys(labels)
+}
+
+/** @internal Refuse an empty label key before any request: the API refuses it. */
+export function assertLabelKeys(labels: Readonly<Record<string, string>>): void {
+  if (Object.keys(labels).includes('')) throw badRequest('label keys must not be empty')
 }
 
 /**

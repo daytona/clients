@@ -279,9 +279,14 @@ shows a picker at a terminal.`,
 		},
 	})
 	c.AddCommand(&cobra.Command{
-		Use: "create <name>", Short: "Create an organization", Args: cobra.ExactArgs(1),
+		Use: "create <name>", Short: "Create an organization",
+		Long: "Create an organization. The name is 1 to 64 characters after trimming, with no control characters.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if err := checkOrgProjectName("organization", args[0]); err != nil {
+				return err
+			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
 				return err
@@ -294,12 +299,19 @@ shows a picker at a terminal.`,
 		},
 	})
 	upd := &cobra.Command{
-		Use: "update <id|name> --name <new>", Short: "Rename an organization", Args: cobra.ExactArgs(1),
+		Use: "update <id|name> --name <new>", Short: "Rename an organization",
+		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\na rename to the current name is sent and left to the API.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			name, _ := cmd.Flags().GetString("name")
 			if name == "" {
 				return cerr.Usage("--name is required")
+			}
+			refusal := checkOrgProjectName("organization", name)
+			if strings.TrimSpace(name) == "" {
+				// A blank name is never the current one.
+				return refusal
 			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
@@ -309,6 +321,9 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
+			if err := checkRenamedOrgName(cmd.Context(), mc, id, name, refusal); err != nil {
+				return err
+			}
 			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPatch, "/orgs/"+url.PathEscape(id), nil, gen.UpdateOrganizationRequest{Name: mgmt.Ref(name)}, &out); err != nil {
 				return err
@@ -316,7 +331,7 @@ shows a picker at a terminal.`,
 			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	}
-	upd.Flags().String("name", "", "new name")
+	upd.Flags().String("name", "", "new name (1 to 64 characters)")
 	c.AddCommand(upd)
 	c.AddCommand(&cobra.Command{
 		Use: "delete <id|name>", Short: "Delete an organization (personal orgs cannot be deleted)", Args: cobra.ExactArgs(1),

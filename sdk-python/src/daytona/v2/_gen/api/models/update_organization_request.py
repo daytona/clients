@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -35,7 +36,7 @@ class UpdateOrganizationRequest(BaseModel):
     UpdateOrganizationRequest
     """ # noqa: E501
     max_sandbox_timeout_seconds: Optional[StrictInt] = Field(default=None, description="The longest timeout a sandbox in this organization may have, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. A value above that maximum is rejected.")
-    name: Optional[StrictStr] = Field(default=None, description="The replacement organization name.")
+    name: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=64)]] = Field(default=None, description="The replacement organization name: at most 64 characters after trimming, with no control characters.")
     __properties: ClassVar[List[str]] = ["max_sandbox_timeout_seconds", "name"]
 
     model_config = ConfigDict(

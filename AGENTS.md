@@ -89,11 +89,10 @@ the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
 records it). Another: TypeScript `get()`, `create*()` and `fork()` take
 `autoDelete` (dispose the sandbox with `await using`); Python has no
-counterpart, because its handles have no disposal hook. One exception
-recorded in ADR 0001: TypeScript's `ImageBuilder` has `user()`, `cmd()` and
-`entrypoint()`, which it already offered and Python lacks; removing them
-would break TypeScript users, so they stay, and Python gains them in a 2.x
-minor (additive). TypeScript's config also has `otelApi` (the caller's
+counterpart, because its handles have no disposal hook. `ImageBuilder`
+local files (`add_local_file` / `addLocalFile` and the rest, ADR 0006) need a
+file system: TypeScript raises `NotSupportedError` for them outside Node.js.
+TypeScript's config also has `otelApi` (the caller's
 `@opentelemetry/api` module, for bundled browser apps), which Python, whose
 OpenTelemetry package is a plain import, does not need. Both roots copy the config's fields once, when the client is
 built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the

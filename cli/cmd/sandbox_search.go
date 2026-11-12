@@ -71,6 +71,9 @@ func newSandboxSearchCommand() *cobra.Command {
 						if value == nil {
 							return cerr.Usage("--labels must be a JSON object of string values")
 						}
+						if key == "" {
+							return cerr.Usage("--labels must not have an empty key")
+						}
 						labels[key] = *value
 					}
 				}
