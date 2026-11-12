@@ -94,7 +94,12 @@ func newSnapshotListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			probe := &searchProbe{}
 			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.SnapshotListItem]], error) {
+				// A deployment with search serves the list from it.
+				if list, served, err := getRawSearchPage[gen.SnapshotListItem](ctx, probe, client, "/snapshots/search", listQuery(flags, cursor), "snapshots"); served {
+					return list, err
+				}
 				return getRawList[gen.SnapshotListItem](ctx, client, "/snapshots", listQuery(flags, cursor), "snapshots")
 			}
 			var list output.List[api.Raw[gen.SnapshotListItem]]

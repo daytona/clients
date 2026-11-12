@@ -3439,7 +3439,7 @@ describe('list fallback detail reads', () => {
     let inFlight = 0
     let peak = 0
     jest.spyOn(api, 'get').mockImplementation(async (url: string) => {
-      if (url === '/sandboxes') return { data: { sandboxes: ids.map((id) => ({ class: 'linux', id, status: 'running', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] })), next_cursor: null, total: 0, total_relation: 'eq' } }
+      if (url === '/sandboxes/search') return { data: { sandboxes: ids.map((id) => ({ class: 'linux', id, status: 'running', name: 'sandbox', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] })), next_cursor: null, total: 0, total_relation: 'eq' } }
       const id = url.split('/').pop() ?? ''
       inFlight++
       peak = Math.max(peak, inFlight)
@@ -3887,7 +3887,7 @@ describe('creation shape', () => {
     expect(built).toBeInstanceOf(ImageHandle)
     expect(post.mock.calls[0]?.[0]).toBe('/images')
     expect(post.mock.calls[0]?.[1]).toMatchObject({ dockerfile: expect.stringContaining('FROM python:3.12') })
-    expect(get.mock.calls[1]).toEqual(['/images', { params: { cursor: undefined, limit: undefined, name: undefined, anonymous: true, sandbox_id: 'sbx' } }])
+    expect(get.mock.calls[1]).toEqual(['/images/search', { params: { cursor: undefined, limit: undefined, name: undefined, anonymous: true, sandbox_id: 'sbx' } }])
     expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(patch).toHaveBeenCalledWith('/images/img_123', { name: 'keep-this' })
     expect(del).toHaveBeenCalledWith('/images/img_123')
@@ -3936,7 +3936,7 @@ describe('creation shape', () => {
     await client.snapshots.delete('snap_999')
 
     expect(page.items[0]).toBeInstanceOf(Snapshot)
-    expect(get.mock.calls[0]).toEqual(['/snapshots', { params: { cursor: undefined, limit: undefined, name: 'after-setup', sandbox_id: 'sbx' } }])
+    expect(get.mock.calls[0]).toEqual(['/snapshots/search', { params: { cursor: undefined, limit: undefined, name: 'after-setup', sandbox_id: 'sbx' } }])
     expect(get.mock.calls[1]).toEqual(['/snapshots/snap_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(del).toHaveBeenCalledWith('/snapshots/snap_999')
     expect(detail).toBeInstanceOf(Snapshot)
@@ -8636,7 +8636,7 @@ describe('toolbox service request shaping', () => {
     const listed = await client.images.list({ cursor: 'c', limit: 5 })
     expect(listed.nextCursor).toBe('next')
     expect(listed.items[0]).toBeInstanceOf(ImageHandle)
-    expect(get).toHaveBeenCalledWith('/images', { params: { cursor: 'c', limit: 5 } })
+    expect(get).toHaveBeenCalledWith('/images/search', { params: { cursor: 'c', limit: 5 } })
   })
   it('creates a missing volume after the HTTP client maps its 404 to NotFoundError', async () => {
     const requests: string[] = []
@@ -10131,7 +10131,7 @@ describe('sandbox search', () => {
       .mockResolvedValueOnce({ data: { sandboxes: [{ class: 'linux', id: 'sbx-1', name: 'ci-1', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }], total: 1, total_relation: 'eq' } })
     const page = await client.list()
     expect(get).toHaveBeenCalledTimes(1)
-    expect(get.mock.calls[0]).toEqual(['/sandboxes', { params: { cursor: undefined, limit: undefined } }])
+    expect(get.mock.calls[0]).toEqual(['/sandboxes/search', { params: { cursor: undefined, limit: undefined } }])
     expect(page.items.map((sandbox) => sandbox.id)).toEqual(['sbx-1', 'other'])
     expect(page.nextCursor).toBe('p2')
     expect(page).not.toHaveProperty('total')
@@ -10141,7 +10141,7 @@ describe('sandbox search', () => {
     const rest: string[] = []
     for await (const sandbox of client.iter({ cursor: 'p2' })) rest.push(sandbox.id)
     expect(rest).toEqual(['sbx-2'])
-    expect(get.mock.calls[1]).toEqual(['/sandboxes', { params: { cursor: 'p2', limit: undefined } }])
+    expect(get.mock.calls[1]).toEqual(['/sandboxes/search', { params: { cursor: 'p2', limit: undefined } }])
 
     // `GET /sandboxes` has no id/name filters: a prefix applied client-side to one page
     // would silently miss later pages, so a prefix uses the search endpoint
@@ -12552,12 +12552,12 @@ describe('toolbox surface', () => {
   })
 
   // Shared with the Python SDK's test_toolbox_surface.py.
-  it.each([[2 ** 31, false], [2 ** 31 - 1, true]] as const)('reads a process record terminal cols of %p only within int32', async (cols, accepted) => {
+  it.each([[65536, false], [65535, true]] as const)('reads a process record terminal cols of %p only within 1..65535', async (cols, accepted) => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce(createdWire({ id: 'p', kind: 'pty', terminal: { cols, rows: 1 } }))
     const call = new ProcessService(INTERNAL, transport.object, 'sbx').get('p')
     if (accepted) await expect(call).resolves.toMatchObject({ terminal: { cols, rows: 1 } })
-    else await expect(call).rejects.toMatchObject({ message: 'expected process response: terminal: cols must be an integer between 1 and 2147483647', code: 'BAD_REQUEST' })
+    else await expect(call).rejects.toMatchObject({ message: 'expected process response: terminal: cols must be an integer between 1 and 65535', code: 'BAD_REQUEST' })
   })
 
   it.each([

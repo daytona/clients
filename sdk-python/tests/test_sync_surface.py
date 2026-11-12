@@ -444,7 +444,7 @@ def test_handle_shape_wraps_returned_sdk_objects_recursively(server: _Server, sy
 
 
 def test_container_shape_wraps_pages_of_handles(server: _Server, sync_client: Daytona) -> None:
-    server.routes[("GET", "/sandboxes")] = _sandboxes(_sandbox("a"), _sandbox("b"))
+    server.routes[("GET", "/sandboxes/search")] = _sandboxes(_sandbox("a"), _sandbox("b"))
     page = sync_client.list()
     assert isinstance(page, ListResult)
     assert [type(item).__name__ for item in page.items] == ["Sandbox", "Sandbox"]
@@ -480,7 +480,7 @@ def test_search_shape_wraps_items_and_keeps_every_page_field(server: _Server, sy
 
 def test_iterator_shape_streams_lazily(server: _Server, sync_client: Daytona) -> None:
     pages = iter([_sandboxes(_sandbox("a"), next_cursor="c2"), _sandboxes(_sandbox("b"))])
-    server.routes[("GET", "/sandboxes")] = lambda request: httpx.Response(200, json=next(pages))
+    server.routes[("GET", "/sandboxes/search")] = lambda request: httpx.Response(200, json=next(pages))
     iterator = sync_client.iter()
     assert not isinstance(iterator, list)
     assert next(iterator).id == "a"
@@ -566,7 +566,7 @@ def test_sync_fork_takes_its_toolbox_from_the_fork_response(server: _Server, syn
 def test_sync_list_without_toolbox_proxy_url_fetches_detail_once_before_building_the_handle(
     server: _Server, sync_client: Daytona
 ) -> None:
-    server.routes[("GET", "/sandboxes")] = _sandboxes(_sandbox("sb-1", toolbox_proxy_url=None))
+    server.routes[("GET", "/sandboxes/search")] = _sandboxes(_sandbox("sb-1", toolbox_proxy_url=None))
     server.routes[("GET", "/sandboxes/sb-1")] = _sandbox("sb-1")
     server.routes[("POST", "/sandboxes/sb-1/access-token")] = {
         "access_token": "jwt",
@@ -588,7 +588,7 @@ def test_sync_list_without_toolbox_proxy_url_fetches_detail_once_before_building
 
     assert sandbox.metrics().cpu_count == 6
     assert server.calls == [
-        ("GET", "/sandboxes"),
+        ("GET", "/sandboxes/search"),
         ("GET", "/sandboxes/sb-1"),
         ("POST", "/sandboxes/sb-1/access-token"),
         ("GET", "/sandboxes/sb-1/system/metrics"),
@@ -800,7 +800,7 @@ def test_sync_client_refuses_to_run_inside_an_event_loop(server: _Server, sync_c
 
 
 def test_sync_handles_are_cheap_and_share_one_bridge(server: _Server, sync_client: Daytona) -> None:
-    server.routes[("GET", "/sandboxes")] = _sandboxes(*(_sandbox(f"sb-{i}") for i in range(200)))
+    server.routes[("GET", "/sandboxes/search")] = _sandboxes(*(_sandbox(f"sb-{i}") for i in range(200)))
     before = threading.active_count()
     page = sync_client.list()
     assert len(page.items) == 200

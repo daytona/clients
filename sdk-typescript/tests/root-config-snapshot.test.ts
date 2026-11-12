@@ -43,7 +43,7 @@ describe('root config snapshot', () => {
         await root.v2.list()
 
         // Then: the selected API receives the explicit credential, not the ambient one.
-        expect(seen).toEqual([{ authorization: 'Bearer explicit-key', url: '/sandboxes' }])
+        expect(seen).toEqual([{ authorization: 'Bearer explicit-key', url: '/sandboxes/search' }])
       } finally {
         await root.close()
         await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))

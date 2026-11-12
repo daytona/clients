@@ -8,6 +8,7 @@ import { pathSegment } from './pathSegment.js'
 import { isBlank } from './pyText.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
+import { searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
@@ -190,17 +191,25 @@ export class ImagesService {
     return this.get(acknowledgedId(data, 'image create'))
   }
 
+  /**
+   * List images, one page. Reads `GET /images/search` (every region,
+   * eventually consistent: an image you just created may be missing for a few
+   * seconds; `get()` reads it at once) and, on a deployment without search,
+   * `GET /images`.
+   */
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
     options = snapshotOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS) ?? {}
-    const { data } = await this.http.get<api.ImagePage>('/images', {
-      params: {
-        ...pageParams(options.cursor, options.limit),
-        name: optionalQueryText(options.name, 'name'),
-        anonymous: listImagesAnonymous(options.anonymous),
-        sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId'),
-        platform: listImagesPlatform(options.platform),
-      },
-    })
+    const params = {
+      ...pageParams(options.cursor, options.limit),
+      name: optionalQueryText(options.name, 'name'),
+      anonymous: listImagesAnonymous(options.anonymous),
+      sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId'),
+      platform: listImagesPlatform(options.platform),
+    }
+    const data = await searchOrList(
+      () => this.http.get<api.ImagePage>('/images/search', { params }).then((response) => response.data),
+      () => this.http.get<api.ImagePage>('/images', { params }).then((response) => response.data),
+    )
     const page = listPage<api.ImageListItem>(data, 'images', 'image list')
     return frozenPage({ items: page.items.map((image) => new Image(INTERNAL, image)), nextCursor: page.nextCursor })
   }

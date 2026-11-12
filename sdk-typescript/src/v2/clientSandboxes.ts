@@ -7,6 +7,7 @@ import { pathSegment } from './pathSegment.js'
 import { pageParams } from './pageParams.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
+import { searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import type * as api from './gen/api-types.js'
@@ -94,9 +95,12 @@ function connectOptions(options: SandboxConnectOptions): SandboxConnectOptions {
 /** @internal */
 export async function listSandboxes(context: SandboxClientContext, options: ListSandboxesOptions): Promise<ListResult<Sandbox>> {
   options = snapshotOptions('ListSandboxesOptions', options, LIST_KEYS) ?? {}
-  const listResponse = await context.api.get<api.ListSandboxesResponse>('/sandboxes', {
-    params: pageParams(options.cursor, options.limit),
-  }).then((response) => response.data)
+  // Search first, the plain list where search is not served (searchFirst.ts).
+  const params = pageParams(options.cursor, options.limit)
+  const listResponse = await searchOrList(
+    () => context.api.get<api.ListSandboxesResponse>(SEARCH_PATH, { params }).then((response) => response.data),
+    () => context.api.get<api.ListSandboxesResponse>('/sandboxes', { params }).then((response) => response.data),
+  )
   const page = listPage<api.Sandbox>(listResponse, 'sandboxes', 'sandbox list')
   // Both spellings get the same check, as in Python: a mistyped cursor would end pagination silently.
   const camel: unknown = Reflect.get(listResponse, 'nextCursor')

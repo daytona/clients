@@ -7,8 +7,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -152,6 +154,9 @@ func writeListItems(t *testing.T, w http.ResponseWriter, resource string, resour
 func executeRegionalList(t *testing.T, resource string, catalog []gen.Region, args []string) (listTestOutput, error) {
 	t.Helper()
 	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		if r.URL.Path != "/regions" {
 			t.Errorf("unexpected home path %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -169,4 +174,47 @@ func executeRegionalList(t *testing.T, resource string, catalog []gen.Region, ar
 	var out listTestOutput
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), "stderr: %s; command error: %v", stderr, err)
 	return out, err
+}
+
+// writeSearchNotConfigured answers a search route as a deployment without
+// search does (501 SEARCH_NOT_CONFIGURED), so a list falls back to its
+// regional list routes. It reports whether r was a search route.
+func writeSearchNotConfigured(w http.ResponseWriter, r *http.Request) bool {
+	if !strings.HasSuffix(r.URL.Path, "/search") {
+		return false
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotImplemented)
+	_, _ = io.WriteString(w, `{"code":"SEARCH_NOT_CONFIGURED","message":"search is not configured","source":"DAYTONA_API"}`)
+	return true
+}
+
+// searchNotConfiguredRequest is a runCLI expectation for the search route of
+// a deployment without search: the list then falls back to its list route.
+func searchNotConfiguredRequest(path string) expectedRequest {
+	return expectedRequest{method: http.MethodGet, path: path, status: http.StatusNotImplemented, response: `{"code":"SEARCH_NOT_CONFIGURED","message":"search is not configured","source":"DAYTONA_API"}`}
+}
+
+// withSearchTotals turns a list page fixture into the search route's page: the
+// same items and cursor, plus the total the search contract requires.
+func withSearchTotals(t *testing.T, page string) string {
+	t.Helper()
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(page), &body))
+	body["total"] = 1
+	body["total_relation"] = "eq"
+	encoded, err := json.Marshal(body)
+	require.NoError(t, err)
+	return string(encoded)
+}
+
+// withNextCursor sets a page fixture's next_cursor (nil ends the list).
+func withNextCursor(t *testing.T, page string, cursor any) string {
+	t.Helper()
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(page), &body))
+	body["next_cursor"] = cursor
+	encoded, err := json.Marshal(body)
+	require.NoError(t, err)
+	return string(encoded)
 }

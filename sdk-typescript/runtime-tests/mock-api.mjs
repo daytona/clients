@@ -9,7 +9,9 @@
 // beyond the package registry and no credentials.
 //
 // API (axios transport)
-//   GET  /sandboxes                         -> SandboxPage with one `running` sandbox
+//   GET  /sandboxes/search                  -> SandboxSearchPage with one `running`
+//                                              sandbox (the list's first read)
+//   GET  /sandboxes                         -> SandboxPage with the same sandbox
 //   GET  /sandboxes/{id}                    -> that Sandbox, or a 404 ErrorBody
 //   POST /sandboxes/{id}/access-token       -> 201 SandboxAccessToken
 // Toolbox, under the sandbox's `toolbox_proxy_url` (`/toolbox/{id}`)
@@ -149,6 +151,9 @@ const server = createServer((req, res) => {
     return
   }
   const origin = `http://${req.headers.host}`
+  if (req.method === 'GET' && path === '/sandboxes/search') {
+    return send(res, 200, { sandboxes: [{ ...sandbox(origin), cursor: 'c1' }], next_cursor: null, total: 1, total_relation: 'eq' })
+  }
   if (req.method === 'GET' && path === '/sandboxes') {
     return send(res, 200, { sandboxes: [{ ...sandbox(origin), cursor: 'c1' }], next_cursor: null })
   }

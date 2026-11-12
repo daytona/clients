@@ -2602,14 +2602,14 @@ def _parse_log_frame(payload: LogFrameDto) -> LogFrame:
 
 
 def _parse_terminal(value: ToolboxTerminalSize | None) -> Optional[TerminalSize]:
-    """A process record's terminal: int32 dimensions of at least 1, as the
-    contract states; anything else is malformed."""
+    """A process record's terminal: dimensions of 1..65535, as the contract
+    states; anything else is malformed."""
     if value is None:
         return None
     for name, dimension in (("cols", value.cols), ("rows", value.rows)):
-        if not 1 <= dimension <= INT32_MAX:
+        if not 1 <= dimension <= TERMINAL_DIMENSION_MAX:
             raise create_error(
-                f"expected process response: terminal: {name} must be an integer between 1 and {INT32_MAX}",
+                f"expected process response: terminal: {name} must be an integer between 1 and {TERMINAL_DIMENSION_MAX}",
                 400,
                 "BAD_REQUEST",
                 "SDK",

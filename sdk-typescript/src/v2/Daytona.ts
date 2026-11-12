@@ -302,10 +302,12 @@ export class Daytona {
   /**
    * List sandboxes as one page `{ items, nextCursor }`.
    *
-   * `cursor` and `limit` are the only options. This is the read-your-writes path:
-   * one page of
-   * `GET /sandboxes`, newest first. A sandbox you just created is in the result;
-   * walk further pages with {@link iter} or the returned cursor.
+   * `cursor` and `limit` are the only options. One page, newest first, read
+   * from `GET /sandboxes/search` (every region) and, on a deployment without
+   * search, from `GET /sandboxes`. Where search serves the list it is
+   * eventually consistent: a sandbox you just created may be missing for a few
+   * seconds ({@link get} reads it at once). Walk further pages with
+   * {@link iter} or the returned cursor.
    *
    * Use {@link search} for filters, prefixes, resource bounds, and sorting.
    */
@@ -349,8 +351,8 @@ export class Daytona {
    *
    * Consistency: search is **eventually consistent**. A create,
    * update or delete may not appear immediately, so a sandbox you just
-   * created may not be in the result yet — use {@link get} or {@link list}
-   * for read-your-writes. Results span every region.
+   * created may not be in the result yet — use {@link get} for
+   * read-your-writes. Results span every region.
    *
    * Cursor: `nextCursor` is opaque and bound to the exact filter and sort that
    * produced it — presenting it with a different filter or sort is a 400, never
@@ -366,8 +368,8 @@ export class Daytona {
    * 503 ({@link SearchUnavailableError} with `code === 'SEARCH_UNAVAILABLE'`)
    * when search is unavailable. The error body is the unified envelope
    * `{ code, message, source, trace_id }` — the class is dispatched from
-   * `(source, code)`. On 501/503 callers may fall
-   * back to {@link list} without search options.
+   * `(source, code)`. On 501 callers may fall back to {@link list}, which
+   * reads the plain list route on a deployment without search.
    */
   public async search(options: SearchSandboxesOptions = {}): Promise<SearchResult<Sandbox>> {
     return searchSandboxes(this.sandboxContext, options)

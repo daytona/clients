@@ -14,7 +14,7 @@ import (
 func TestSandboxList_rejectsNoncanonicalCursorRegion(t *testing.T) {
 	// Given: the catalog's canonical id is region-b, not REGION-B.
 	// When
-	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--cursor", "REGION-B:page-two"}, []expectedRequest{{method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()}})
+	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--cursor", "REGION-B:page-two"}, []expectedRequest{searchNotConfiguredRequest("/sandboxes/search"), {method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()}})
 	// Then: do not silently restart at page one.
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "--cursor")
@@ -24,7 +24,7 @@ func TestSandboxList_rejectsNoncanonicalCursorRegion(t *testing.T) {
 func TestSandboxList_resumesExactCanonicalCursorRegion(t *testing.T) {
 	// Given: the cursor names the exact canonical region key.
 	// When
-	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--cursor", "region-b:page-two"}, []expectedRequest{
+	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--cursor", "region-b:page-two"}, []expectedRequest{searchNotConfiguredRequest("/sandboxes/search"),
 		{method: http.MethodGet, path: "/regions", status: 200, response: regionsFixture()},
 		{method: http.MethodGet, path: "/sandboxes", query: "limit=100&cursor=page-two", status: 200, response: `{"sandboxes":[],"next_cursor":null}`},
 	})

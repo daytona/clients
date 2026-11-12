@@ -397,9 +397,11 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   lifecycle through `d.v2`: `create`, `get`, `list`, `iter`, `start`,
   `stop`, `pause`, `resume`, `delete`. Both expose the same
   methods; the examples above use the sync form.
-- **Sandbox search** — `d.v2.list(cursor=, limit=)` returns one
-  read-your-writes page (`GET /sandboxes`) without filters, and
-  `d.v2.iter(cursor=, limit=)` walks those pages. `d.v2.search(...)` queries
+- **Sandbox search** — `d.v2.list(cursor=, limit=)` returns one page
+  without filters, and `d.v2.iter(cursor=, limit=)` walks those pages. Where
+  the deployment serves search, lists (sandboxes, images and snapshots) read
+  it and are eventually consistent: an item created a few seconds ago may be
+  missing, and `get()` reads it at once. `d.v2.search(...)` queries
   the eventually consistent, all-region search API (`GET /sandboxes/search`)
   and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...

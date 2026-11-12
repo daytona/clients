@@ -473,7 +473,7 @@ it('accepts the contract bounds: limit 200, idleExpirySeconds -1, cpuArch arm64,
     await client.v2.list({ limit: 200, cursor: 'c' })
     await expect(client.v2.images.build(ImageBuilder.fromRegistry('alpine'), { idleExpirySeconds: -1, cpuArch: 'arm64' })).rejects.toMatchObject(SERVER_STOP)
     await client.v2.secrets.set('K', 'v', { allowedDomains: ['*'], ifNotExists: true })
-    expect(sentRequest(api, 4, 0).path).toBe('/sandboxes?cursor=c&limit=200')
+    expect(sentRequest(api, 4, 0).path).toBe('/sandboxes/search?cursor=c&limit=200')
     expect(JSON.parse(sentRequest(api, 4, 1).body)).toMatchObject({ idle_expiry_seconds: -1, cpu_arch: 'arm64' })
     expect(sentRequest(api, 4, 3).headers['if-none-match']).toBe('*')
   } finally {

@@ -7,6 +7,7 @@ import { optionalQueryText, pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
+import { searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { Snapshot } from './Image.js'
@@ -39,11 +40,19 @@ export class SnapshotsService {
     credentialSafeDiagnostics(this, () => ({ type: 'SnapshotsService' }))
   }
 
+  /**
+   * List snapshots, one page. Reads `GET /snapshots/search` (every region,
+   * eventually consistent: a snapshot you just captured may be missing for a
+   * few seconds; `get()` reads it at once) and, on a deployment without
+   * search, `GET /snapshots`.
+   */
   public async list(options: ListSnapshotsOptions = {}): Promise<ListResult<Snapshot>> {
     options = snapshotOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS) ?? {}
-    const { data } = await this.http.get<api.ListSnapshotsResponse>('/snapshots', {
-      params: { ...pageParams(options.cursor, options.limit), name: optionalQueryText(options.name, 'name'), sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId') },
-    })
+    const params = { ...pageParams(options.cursor, options.limit), name: optionalQueryText(options.name, 'name'), sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId') }
+    const data = await searchOrList(
+      () => this.http.get<api.ListSnapshotsResponse>('/snapshots/search', { params }).then((response) => response.data),
+      () => this.http.get<api.ListSnapshotsResponse>('/snapshots', { params }).then((response) => response.data),
+    )
     const page = listPage<api.Snapshot>(data, 'snapshots', 'snapshot list')
     return frozenPage({ items: page.items.map((snapshot) => new Snapshot(INTERNAL, snapshot)), nextCursor: page.nextCursor })
   }

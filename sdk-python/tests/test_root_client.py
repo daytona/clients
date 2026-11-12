@@ -734,7 +734,7 @@ def test_a_v2_only_program_never_imports_v0() -> None:
         from daytona import Daytona, DaytonaConfig
 
         with respx.mock(assert_all_called=True) as router:
-            router.get("http://api.invalid/sandboxes").mock(
+            router.get("http://api.invalid/sandboxes/search").mock(
                 return_value=httpx.Response(200, json={"sandboxes": [], "next_cursor": None})
             )
             with Daytona(DaytonaConfig(api_key="k")) as client:

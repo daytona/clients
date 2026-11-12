@@ -51,7 +51,7 @@ func newImageListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			source := regionalListSource{home: client, catalog: workload.NewCatalogCache(), region: a.Globals.Region, raws: newRawIndex()}
+			source := regionalListSource{home: client, catalog: workload.NewCatalogCache(), region: a.Globals.Region, raws: newRawIndex(), search: &searchProbe{}}
 			fetch := func(ctx context.Context, cursor string) (output.List[gen.ImageListItem], error) {
 				return source.fetchImagePage(ctx, listPageRequest{limit: flags.limit, cursor: cursor}, flags.imageListFilters)
 			}

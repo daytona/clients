@@ -153,7 +153,7 @@ async def test_a_detail_that_breaks_the_contract_leaves_the_list_item() -> None:
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             page = await root.v2.list()
     assert [(sandbox.id, sandbox.state) for sandbox in page.items] == [("sbx", "started")]
-    assert [request.path for request in api.requests] == ["/sandboxes", "/sandboxes/sbx"]
+    assert [request.path for request in api.requests] == ["/sandboxes/search", "/sandboxes/sbx"]
 
 
 _BUDGET_NULLS: JsonObject = {

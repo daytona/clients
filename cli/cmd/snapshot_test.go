@@ -43,7 +43,31 @@ func TestSnapshotCommands_routeAndRenderJSON(t *testing.T) {
 		{
 			name:     "list snapshots",
 			args:     []string{"snapshot", "list", "--limit", "1"},
-			expected: []expectedRequest{{method: http.MethodGet, path: "/snapshots", query: "limit=1", status: 200, response: snapshotPageFixture("33333333-3333-3333-3333-333333333333")}},
+			expected: []expectedRequest{{method: http.MethodGet, path: "/snapshots/search", query: "limit=1", status: 200, response: withSearchTotals(t, snapshotPageFixture("33333333-3333-3333-3333-333333333333"))}},
+		},
+		{
+			name: "list snapshots without search",
+			args: []string{"snapshot", "list", "--limit", "1"},
+			expected: []expectedRequest{
+				searchNotConfiguredRequest("/snapshots/search"),
+				{method: http.MethodGet, path: "/snapshots", query: "limit=1", status: 200, response: snapshotPageFixture("33333333-3333-3333-3333-333333333333")},
+			},
+		},
+		{
+			name: "list snapshots on an API without the search route",
+			args: []string{"snapshot", "list", "--limit", "1"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/snapshots/search", status: http.StatusNotFound, response: `{"code":"NOT_FOUND","message":"not found","source":"DAYTONA_API"}`},
+				{method: http.MethodGet, path: "/snapshots", query: "limit=1", status: 200, response: snapshotPageFixture("33333333-3333-3333-3333-333333333333")},
+			},
+		},
+		{
+			name: "list snapshots when search is unavailable",
+			args: []string{"snapshot", "list", "--limit", "1"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/snapshots/search", query: "limit=1", status: http.StatusServiceUnavailable, response: `{"code":"SEARCH_UNAVAILABLE","message":"search is unavailable","source":"DAYTONA_API"}`},
+			},
+			wantExit: cerr.ExitFailure,
 		},
 		{
 			name:     "get snapshot",

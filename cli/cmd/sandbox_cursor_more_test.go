@@ -18,7 +18,7 @@ import (
 )
 
 func TestSandboxListAll_zeroActiveRegionsAdvancesBareHomeCursor(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--all", "--limit", "1"}, []expectedRequest{
+	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--all", "--limit", "1"}, []expectedRequest{searchNotConfiguredRequest("/sandboxes/search"),
 		{method: http.MethodGet, path: "/regions", status: 200, response: `{"regions":[],"default_region_id":null}`},
 		{method: http.MethodGet, path: "/sandboxes", query: "limit=1", status: 200, response: fixtureJSON(map[string]any{"sandboxes": []any{sandboxPageItemFixture("11111111-1111-1111-1111-111111111111", "home-c1", "one", "region-c", "2026-09-13T00:00:03Z")}, "next_cursor": "home-c1"})},
 		{method: http.MethodGet, path: "/sandboxes", query: "cursor=home-c1&limit=1", status: 200, response: fixtureJSON(map[string]any{"sandboxes": []any{sandboxPageItemFixture("22222222-2222-2222-2222-222222222222", "home-c2", "two", "region-c", "2026-09-13T00:00:02Z")}, "next_cursor": "home-c2"})},
@@ -36,6 +36,9 @@ func TestSandboxListAll_zeroActiveRegionsAdvancesBareHomeCursor(t *testing.T) {
 func multiRegionHomeLegServers(t *testing.T) string {
 	t.Helper()
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		require.Equal(t, "/sandboxes", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Query().Get("cursor") {
@@ -56,6 +59,9 @@ func multiRegionHomeLegServers(t *testing.T) string {
 
 	regionB := sandboxPageItemFixture("22222222-2222-2222-2222-222222222222", "h2", "home-two", "region-b", "2026-09-13T00:00:03Z")
 	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/regions":
@@ -107,6 +113,9 @@ func TestSandboxListAll_oneAPIServingSeveralRegionsLosesNoTrimmedRow(t *testing.
 func exhaustedLegServers(t *testing.T) (string, func() []string) {
 	t.Helper()
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		require.Equal(t, "/sandboxes", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		switch cursor := r.URL.Query().Get("cursor"); cursor {
@@ -133,6 +142,9 @@ func exhaustedLegServers(t *testing.T) (string, func() []string) {
 	var mu sync.Mutex
 	asked := []string{}
 	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/regions":

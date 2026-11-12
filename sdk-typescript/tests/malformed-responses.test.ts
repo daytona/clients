@@ -88,14 +88,14 @@ it.each([
 it('falls back to the list item when the detail read that fills a missing toolbox URL breaks the contract', async () => {
   const item = { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
   const api = await startFakeApi([
-    { status: 200, body: { sandboxes: [item], next_cursor: null } },
+    { status: 200, body: { sandboxes: [item], next_cursor: null, total: 1, total_relation: 'eq' } },
     { status: 200, body: ['not a sandbox'] },
   ])
   const client = clientAt(api.url)
   try {
     const page = await client.v2.list()
     expect(page.items.map((sandbox) => [sandbox.id, sandbox.state])).toEqual([['sbx', 'started']])
-    expect(api.requests.map((request) => request.path)).toEqual(['/sandboxes', '/sandboxes/sbx'])
+    expect(api.requests.map((request) => request.path)).toEqual(['/sandboxes/search', '/sandboxes/sbx'])
   } finally {
     await client.close()
     await api.close()

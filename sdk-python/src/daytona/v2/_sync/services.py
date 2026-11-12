@@ -194,7 +194,11 @@ class ImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> ListResult[Image]:
-        """List images (``GET /images``).
+        """List images, one page.
+
+        Reads ``GET /images/search`` (every region, eventually consistent: an
+        image you just created may be missing for a few seconds; :meth:`get`
+        reads it at once) and, on a deployment without search, ``GET /images``.
 
         ``platform`` picks the shared images Daytona publishes for every
         project: ``"false"`` (the server default) lists the project's own
@@ -305,6 +309,13 @@ class SnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Snapshot]:
+        """List snapshots, one page.
+
+        Reads ``GET /snapshots/search`` (every region, eventually consistent: a
+        snapshot you just captured may be missing for a few seconds; :meth:`get`
+        reads it at once) and, on a deployment without search,
+        ``GET /snapshots``.
+        """
         return self._bridge.call(
             lambda: self._impl.list(name=name, sandbox_id=sandbox_id, cursor=cursor, limit=limit)
         )

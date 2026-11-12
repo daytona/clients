@@ -1621,7 +1621,7 @@ class SearchSandboxesOptions(SandboxSearchFilters):
 
 @dataclass(frozen=True, kw_only=True)
 class ListSandboxesOptions:
-    """Every ``Daytona.list()`` / ``iter()`` parameter: one ``GET /sandboxes`` page."""
+    """Every ``Daytona.list()`` / ``iter()`` parameter: one page of sandboxes."""
 
     cursor: Optional[str] = None
     limit: Optional[int] = None

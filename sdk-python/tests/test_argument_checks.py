@@ -841,7 +841,7 @@ async def test_the_contract_bounds_are_accepted() -> None:
             _assert_server_stop(raised.value)
             await root.v2.secrets.set("K", "v", allowed_domains=["*"], if_not_exists=True)
     assert len(fake.requests) == 4
-    assert fake.requests[0].path == "/sandboxes?cursor=c&limit=200"
+    assert fake.requests[0].path == "/sandboxes/search?cursor=c&limit=200"
     assert json.loads(fake.requests[1].body)["idle_expiry_seconds"] == -1
     assert json.loads(fake.requests[1].body)["cpu_arch"] == "arm64"
     assert fake.requests[3].headers.get("If-None-Match") == "*"

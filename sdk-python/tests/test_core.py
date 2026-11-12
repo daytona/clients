@@ -1065,7 +1065,7 @@ async def test_daytona_create_posts_to_the_configured_base_even_for_an_explicit_
 @pytest.mark.parametrize(
     ("read", "path"),
     [
-        (lambda client: client.list(), "/sandboxes"),
+        (lambda client: client.list(), "/sandboxes/search"),
         (lambda client: client.search(name_prefix="sbx"), "/sandboxes/search"),
         (lambda client: client.search(states=["started"]), "/sandboxes/search"),
     ],
@@ -1228,7 +1228,7 @@ async def test_fork_handle_takes_metadata_from_the_detail_and_toolbox_from_the_f
 async def test_sandboxes_without_toolbox_proxy_url_resolve_their_details_concurrently() -> None:
     base_url = "https://api.example.com"
     ids = ["a", "b", "c"]
-    respx.get(f"{base_url}/sandboxes").mock(
+    respx.get(f"{base_url}/sandboxes/search").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -1272,7 +1272,7 @@ async def test_sandboxes_without_toolbox_proxy_url_resolve_their_details_concurr
 async def test_list_without_toolbox_proxy_url_fetches_detail_once_before_building_the_handle() -> None:
     base_url = "https://api.example.com"
     detail_base = "https://proxy.detail.example/sandboxes"
-    page_route = respx.get(f"{base_url}/sandboxes").mock(
+    page_route = respx.get(f"{base_url}/sandboxes/search").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -1422,7 +1422,7 @@ async def test_daytona_list_with_cursor_preserves_the_server_cursor_without_cata
             ],
         )
     )
-    base_list = respx.get(f"{base_url}/sandboxes").mock(
+    base_list = respx.get(f"{base_url}/sandboxes/search").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -1433,7 +1433,7 @@ async def test_daytona_list_with_cursor_preserves_the_server_cursor_without_cata
             },
         )
     )
-    region_c_list = respx.get(f"{region_c_url}/sandboxes").mock(
+    region_c_list = respx.get(f"{region_c_url}/sandboxes/search").mock(
         return_value=httpx.Response(
             200, json={"sandboxes": [], "next_cursor": "remote-next", "total": 0, "total_relation": "eq"}
         )
@@ -1448,7 +1448,9 @@ async def test_daytona_list_with_cursor_preserves_the_server_cursor_without_cata
     assert [sandbox.id for sandbox in page.items] == ["sbx"]
     assert page.next_cursor == "next"
     assert base_list.call_count == 1
-    assert base_list.calls[0].request.url == httpx.URL(f"{base_url}/sandboxes?cursor=cursor-1&limit=10")
+    assert base_list.calls[0].request.url == httpx.URL(
+        f"{base_url}/sandboxes/search?cursor=cursor-1&limit=10"
+    )
     assert regions_route.call_count == 0
     assert region_c_list.call_count == 0
 
@@ -10648,17 +10650,17 @@ async def test_search_forwards_cursor_sort_and_order():
 @pytest.mark.anyio
 async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
     # Plain list(): one response page (iter() follows cursors), with no search totals.
-    search_route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "sandboxes": [_sandbox_page_payload("sbx-1", "running", name="ci-1")],
-                "total": 1,
-                "total_relation": "eq",
-            },
-        )
+    # list() reads the search route too (this deployment serves search), so
+    # one route answers the two list pages and then the filtered search.
+    filtered_page = httpx.Response(
+        200,
+        json={
+            "sandboxes": [_sandbox_page_payload("sbx-1", "running", name="ci-1")],
+            "total": 1,
+            "total_relation": "eq",
+        },
     )
-    plain_list = respx.get(f"{_SEARCH_BASE}/sandboxes").mock(
+    plain_list = search_route = respx.get(f"{_SEARCH_BASE}/sandboxes/search").mock(
         side_effect=[
             httpx.Response(
                 200,
@@ -10681,14 +10683,14 @@ async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
                     "total_relation": "eq",
                 },
             ),
+            filtered_page,
         ]
     )
     client = _search_client()
     try:
         page = await client.list()
-        assert search_route.call_count == 0
         assert plain_list.call_count == 1
-        assert plain_list.calls[0].request.url == httpx.URL(f"{_SEARCH_BASE}/sandboxes")
+        assert plain_list.calls[0].request.url == httpx.URL(f"{_SEARCH_BASE}/sandboxes/search")
         assert [sandbox.id for sandbox in page.items] == ["sbx-1", "other"]
         assert page.next_cursor == "p2"
         assert not hasattr(page, "total")
@@ -10697,15 +10699,15 @@ async def test_list_is_one_plain_page_and_prefixes_are_search_filters():
         # sequence continues with page 2, so one more GET drains it).
         assert [sandbox.id async for sandbox in client.iter(cursor="p2")] == ["sbx-2"]
         assert plain_list.call_count == 2
-        assert plain_list.calls[1].request.url == httpx.URL(f"{_SEARCH_BASE}/sandboxes?cursor=p2")
+        assert plain_list.calls[1].request.url == httpx.URL(f"{_SEARCH_BASE}/sandboxes/search?cursor=p2")
 
         # Prefixes are search filters.
         filtered = await client.search(id_prefix="sbx", name_prefix="ci")
     finally:
         await client.close()
 
-    assert search_route.call_count == 1
-    assert dict(search_route.calls[0].request.url.params.items()) == {"id_prefix": "sbx", "name_prefix": "ci"}
+    assert search_route.call_count == 3
+    assert dict(search_route.calls[2].request.url.params.items()) == {"id_prefix": "sbx", "name_prefix": "ci"}
     assert [sandbox.id for sandbox in filtered.items] == ["sbx-1"]
     assert filtered.total == 1
 
@@ -11363,7 +11365,7 @@ async def test_jwt_auth_exchanges_once_for_concurrent_requests(monkeypatch) -> N
                         "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
                     },
                 )
-            if request.url.path == "/sandboxes":
+            if request.url.path == "/sandboxes/search":
                 self.list_calls += 1
                 assert request.headers["authorization"] == "Bearer platform-1"
                 return httpx.Response(
@@ -11413,7 +11415,7 @@ async def test_jwt_auth_refreshes_near_expiry_with_monotonic_clock(monkeypatch) 
                     "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
                 },
             )
-        if request.url.path == "/sandboxes":
+        if request.url.path == "/sandboxes/search":
             seen_tokens.append(request.headers["authorization"])
             return httpx.Response(
                 200,
@@ -11571,7 +11573,7 @@ async def test_jwt_auth_retries_once_after_a_401(monkeypatch) -> None:
                     "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
                 },
             )
-        if request.url.path == "/sandboxes":
+        if request.url.path == "/sandboxes/search":
             seen_tokens.append(request.headers["authorization"])
             if len(seen_tokens) == 1:
                 return httpx.Response(
@@ -12414,7 +12416,7 @@ async def test_git_commit_only_sends_allow_empty_when_true() -> None:
 async def test_one_unreadable_fallback_detail_keeps_the_page_and_caps_concurrency() -> None:
     base_url = "https://api.example.com"
     ids = [f"s{i}" for i in range(20)]
-    respx.get(f"{base_url}/sandboxes").mock(
+    respx.get(f"{base_url}/sandboxes/search").mock(
         return_value=httpx.Response(
             200,
             json={

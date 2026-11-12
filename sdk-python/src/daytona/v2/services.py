@@ -394,7 +394,11 @@ class AsyncImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> ListResult[Image]:
-        """List images (``GET /images``).
+        """List images, one page.
+
+        Reads ``GET /images/search`` (every region, eventually consistent: an
+        image you just created may be missing for a few seconds; :meth:`get`
+        reads it at once) and, on a deployment without search, ``GET /images``.
 
         ``platform`` picks the shared images Daytona publishes for every
         project: ``"false"`` (the server default) lists the project's own
@@ -414,7 +418,11 @@ class AsyncImagesService:
             params["sandbox_id"] = sandbox_id
         if optional_query_text(name, "name") is not None:
             params["name"] = name
-        response = await self._transport.send(RequestSpec("GET", "/images", params=params))
+        response = await _search_or_list(
+            self._transport,
+            RequestSpec("GET", "/images/search", params=params),
+            RequestSpec("GET", "/images", params=params),
+        )
         return expect_images_page(response)
 
     async def iter(
@@ -439,6 +447,34 @@ class AsyncImagesService:
             cursor,
         ):
             yield item
+
+
+async def _search_or_list(
+    transport: AsyncTransport, search: RequestSpec, fallback: RequestSpec
+) -> TransportPayload:
+    """One page from the ``search`` route, or from ``fallback`` (the plain list
+    route, same query) where search is not served.
+
+    A deployment with search serves its lists from the search route (its list
+    route answers 410 ``GONE``); one without it answers the search route with
+    501 ``SEARCH_NOT_CONFIGURED`` (an older API with 404). Only those two fall
+    back; any other error, a 503 ``SEARCH_UNAVAILABLE`` included, is raised.
+    Search results are eventually consistent. Same as TypeScript's
+    ``searchOrList``.
+    """
+    try:
+        return await transport.send(search)
+    except DaytonaError as error:
+        if not _search_not_served(error):
+            raise
+    return await transport.send(fallback)
+
+
+def _search_not_served(error: DaytonaError) -> bool:
+    """Whether ``error`` from a search route means the deployment does not serve search."""
+    if error.status_code == 404:
+        return True
+    return error.status_code == 501 and error.code == "SEARCH_NOT_CONFIGURED"
 
 
 _ARTIFACT_LONGPOLL_MAX_MS = 60_000
@@ -550,12 +586,23 @@ class AsyncSnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Snapshot]:
+        """List snapshots, one page.
+
+        Reads ``GET /snapshots/search`` (every region, eventually consistent: a
+        snapshot you just captured may be missing for a few seconds; :meth:`get`
+        reads it at once) and, on a deployment without search,
+        ``GET /snapshots``.
+        """
         params = page_params(cursor, limit)
         if optional_query_text(name, "name") is not None:
             params["name"] = name
         if optional_query_text(sandbox_id, "sandbox_id") is not None:
             params["sandbox_id"] = sandbox_id
-        response = await self._transport.send(RequestSpec("GET", "/snapshots", params=params))
+        response = await _search_or_list(
+            self._transport,
+            RequestSpec("GET", "/snapshots/search", params=params),
+            RequestSpec("GET", "/snapshots", params=params),
+        )
         page = expect_list_snapshots_resp(response)
         return ListResult(
             items=[parse_snapshot(item) for item in page.snapshots], next_cursor=page.next_cursor
