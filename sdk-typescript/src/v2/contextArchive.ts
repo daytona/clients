@@ -89,6 +89,11 @@ export async function archiveBuilder(builder: ImageBuilder): Promise<Archive> {
       if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP')) {
         throw badRequest(`local source does not exist: ${JSON.stringify(source.localPath)}`)
       }
+      // A parent made unsearchable since the source was added: the error
+      // addLocal* raises for it (Python raises the same).
+      if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')) {
+        throw badRequest(`build context file is not readable: ${JSON.stringify(source.localPath)}`)
+      }
       throw error
     }
     // A path that was not a link when it was added and is one now, or whose

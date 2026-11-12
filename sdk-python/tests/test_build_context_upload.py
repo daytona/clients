@@ -22,7 +22,7 @@ import anyio
 import httpx
 import pytest
 
-from daytona.v2 import _context_upload
+from daytona.v2 import ImageBuilder, _context_upload
 from daytona.v2._bridge import SyncBridge
 from daytona.v2._sync.services import ImagesService
 from daytona.v2._transport import AsyncTransport
@@ -827,6 +827,15 @@ async def test_a_non_contiguous_view_is_still_accepted() -> None:
     source = _context_upload._Source(view)
     assert source.size == len(data[::2])
     assert b"".join([chunk async for chunk in source.chunks(0, source.size)]) == data[::2]
+
+
+@pytest.mark.anyio
+async def test_a_builder_is_explained_before_the_dockerfile_is_checked(sync: bool) -> None:
+    # TypeScript reports the same mistake first for the same call.
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match=r"build_from_context\(\) takes the bytes or path"):
+            await build(peer, ImageBuilder.from_registry("alpine"), sync, dockerfile="")
+        assert peer.requests == []
 
 
 @pytest.mark.anyio

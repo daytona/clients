@@ -166,6 +166,11 @@ export class ImagesService {
     }
     // Checked before the upload, as build() checks them before its request.
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
+    // images.build() archives builders; here a context is bytes, a Blob or a
+    // path. Checked where Python checks it, so both report the same error first.
+    if (isImageBuilder(context)) {
+      throw badRequest('buildFromContext() takes the bytes, Blob or path of a build context; build an ImageBuilder with images.build()')
+    }
     const dockerfile = options.dockerfile ?? 'Dockerfile'
     if (typeof dockerfile !== 'string' || isBlank(dockerfile)) throw badRequest('dockerfile must be a non-empty path')
     const expanded = typeof context === 'string' && contextUploadRuntime.isNode() ? expandHome(context) : context
