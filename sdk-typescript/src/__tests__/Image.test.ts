@@ -57,7 +57,10 @@ describe('Image', () => {
 
     const image = Image.base('python:3.12').pipInstall('requests', { indexUrl: 'https://pypi.example.com/simple' })
 
-    const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))!
+    const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))
+    if (line === undefined) {
+      throw new Error('missing pip install line')
+    }
     const [options, operands] = line.split(' -- ')
     expect(options).toContain('--index-url')
     expect(operands).toBe('requests')
@@ -71,7 +74,10 @@ describe('Image', () => {
       'requests',
     ])
 
-    const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))!
+    const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))
+    if (line === undefined) {
+      throw new Error('missing pip install line')
+    }
     expect(line.startsWith('RUN python -m pip install -- ')).toBe(true)
     expect(line.indexOf(' -- ')).toBeLessThan(line.indexOf('--extra-index-url'))
   })
