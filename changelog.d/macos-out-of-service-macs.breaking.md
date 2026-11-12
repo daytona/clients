@@ -1,4 +1,4 @@
-**macOS sandboxes avoid Macs out of service:** a create or a start no longer
+**macOS sandboxes avoid Macs out of service** — a create or a start no longer
 goes to a Mac that the platform has taken out of service. A start of a sandbox
 that last ran on such a Mac can answer `409 DISK_NOT_READY` for a time; retry
 it, and it runs on another Mac of the organization. A create, or a start with no
