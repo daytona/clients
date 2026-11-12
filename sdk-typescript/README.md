@@ -729,7 +729,11 @@ provides additional details when resuming fails.
 A macOS `fork()` copies the disk only: omit `memory` or pass `memory: false`
 (`memory: true` answers `NOT_SUPPORTED_FOR_CLASS`). A fork of a running macOS
 sandbox boots with a fresh machine identity; a fork of a paused or stopped
-one remains `stopped`.
+one remains `stopped`. `fork({ waitSeconds })` (default 60; `0` returns once
+accepted) waits for `started` for a running source, and `stopped` for a paused
+or stopped source. If the budget expires first, it returns the handle even
+though the fork has not reached that state; check `fork.state`, then use
+`fork.wait()` to keep waiting.
 
 ### Processes
 
@@ -1070,7 +1074,8 @@ have created a sandbox. A raised create or fork means the request itself failed,
 carry the idempotency key because a sandbox may exist), caller cancellation,
 and an unexpected non-SDK error during the wait. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
-stopped. macOS forks copy only disk and settle at `started` or `stopped`.
+stopped. macOS forks copy only disk: a running source waits for `started`;
+a paused or stopped source waits for `stopped`, within the same wait budget.
 
 `await sandbox.delete()` and `await daytona.v2.delete(sandbox)` wait until the
 sandbox is `destroyed` (a 404 while waiting counts as destroyed). A sandbox
