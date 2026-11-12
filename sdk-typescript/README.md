@@ -732,8 +732,9 @@ sandbox boots with a fresh machine identity; a fork of a paused or stopped
 one remains `stopped`. `fork({ waitSeconds })` (default 60; `0` returns once
 accepted) waits for `started` for a running source, and `stopped` for a paused
 or stopped source. If the budget expires first, it returns the handle even
-though the fork has not reached that state; check `fork.state`, then use
-`fork.wait()` to keep waiting.
+though the fork has not reached that state; check `fork.state`. For a running
+source, `fork.wait()` keeps waiting for `started`; for a paused or stopped
+source, use `fork.wait({ until: 'stopped' })`.
 
 ### Processes
 

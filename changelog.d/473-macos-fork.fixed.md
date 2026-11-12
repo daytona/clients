@@ -4,4 +4,4 @@
 intermediate stopped state. Forks of paused or stopped sources wait for
 `stopped`. Both SDKs default to a 60-second wait budget and return the handle
 if it expires before the fork reaches that state; check `fork.state` before
-using it, and call `fork.wait()` to continue waiting.
+using it. Call `fork.wait()` to keep waiting for a running source's fork.
