@@ -244,9 +244,9 @@ class AsyncDaytona:
             otel=otel,
             max_response_bytes=resolved.max_response_bytes,
         )
-        #: Images: build, pull, list, promote, delete, follow build logs.
         # Remembers a deployment that does not serve sandbox search (list()).
         self._sandbox_search_probe = _SearchProbe()
+        #: Images: build, pull, list, promote, delete, follow build logs.
         self.images = AsyncImagesService(self._api)
         #: Memory snapshots (``Sandbox.create_snapshot()`` makes them).
         self.snapshots = AsyncSnapshotsService(self._api)
@@ -1001,8 +1001,8 @@ class AsyncDaytona:
 
         Reads ``GET /sandboxes/search`` (every region) and, on a deployment
         without search, ``GET /sandboxes``. Where search serves the list it is
-        eventually consistent: a sandbox you just created may be missing for a
-        few seconds (:meth:`get` reads it at once). Walk further pages with
+        eventually consistent: a sandbox you just created may be missing until
+        the index catches up (:meth:`get` reads it at once). Walk further pages with
         :meth:`iter` or the returned cursor. Filtering is :meth:`search`'s job.
         """
         params: Dict[str, JsonValue] = page_params(cursor, limit)

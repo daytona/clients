@@ -347,8 +347,10 @@ make asynchronous callback work cancellation-aware when needed.
 - **Sandbox search** — `list({ cursor, limit })` returns one page without
   filters; `iter({ cursor, limit })` traverses those pages. Where the
   deployment serves search, lists (sandboxes, images and snapshots) read it
-  and are eventually consistent: an item created a few seconds ago may be
-  missing, and `get()` reads it at once. Use `search()` for
+  and are eventually consistent: an item just created may be
+  missing, and `get()` reads it at once. They fall back to the plain list routes only
+  where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
+  older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. Use `search()` for
   eventually consistent, all-region filtering by `states`, `sandboxClass`,
   `region`, `labels`, resource/timestamp bounds, `sort`, `order`, and other
   search options. `states` accepts a public state or array, for example

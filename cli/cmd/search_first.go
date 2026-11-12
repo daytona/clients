@@ -54,8 +54,8 @@ func getRawSearchPage[T any](ctx context.Context, probe *searchProbe, c *api.Cli
 
 // refuseSearchName refuses the reference "search" for an image or snapshot
 // get: GET /images/search and GET /snapshots/search are the search routes, so
-// that name cannot be read by name (the API reserves it for new rows). The
-// item's id still reads it.
+// a get of that name would reach the search route, not the item. The item's
+// id still reads it.
 func refuseSearchName(kind, ref string) error {
 	if ref != "search" {
 		return nil

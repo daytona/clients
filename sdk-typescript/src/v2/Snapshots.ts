@@ -44,15 +44,15 @@ export class SnapshotsService {
 
   /**
    * List snapshots, one page. Reads `GET /snapshots/search` (every region,
-   * eventually consistent: a snapshot you just captured may be missing for a
-   * few seconds; `get()` reads it at once) and, on a deployment without
+   * eventually consistent: a snapshot you just captured may be missing until
+   * the index catches up; `get()` reads it at once) and, on a deployment without
    * search, `GET /snapshots`.
    */
   public async list(options: ListSnapshotsOptions = {}): Promise<ListResult<Snapshot>> {
     options = snapshotOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS) ?? {}
     const params = { ...pageParams(options.cursor, options.limit), name: optionalQueryText(options.name, 'name'), sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId') }
-    const data = await searchOrList(
-      () => this.http.get<api.ListSnapshotsResponse>('/snapshots/search', { params }).then((response) => response.data),
+    const data = await searchOrList<api.SnapshotSearchPage | api.ListSnapshotsResponse>(
+      () => this.http.get<api.SnapshotSearchPage>('/snapshots/search', { params }).then((response) => response.data),
       () => this.http.get<api.ListSnapshotsResponse>('/snapshots', { params }).then((response) => response.data),
       this.searchProbe,
     )

@@ -400,8 +400,10 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
 - **Sandbox search** — `d.v2.list(cursor=, limit=)` returns one page
   without filters, and `d.v2.iter(cursor=, limit=)` walks those pages. Where
   the deployment serves search, lists (sandboxes, images and snapshots) read
-  it and are eventually consistent: an item created a few seconds ago may be
-  missing, and `get()` reads it at once. `d.v2.search(...)` queries
+  it and are eventually consistent: an item just created may be
+  missing, and `get()` reads it at once. They fall back to the plain list routes only
+  where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
+  older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. `d.v2.search(...)` queries
   the eventually consistent, all-region search API (`GET /sandboxes/search`)
   and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...

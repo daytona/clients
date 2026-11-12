@@ -50,6 +50,9 @@ export type ImageListItem = Schema<"ImageListItem">
 export type ImagePage = Omit<Schema<"ImagePage">, 'images'> & {
   images: ImageListItem[]
 }
+export type ImageSearchPage = Omit<Schema<"ImageSearchPage">, 'images'> & {
+  images: ImageListItem[]
+}
 export type ListReservationsResponse = Omit<Schema<"ReservationPage">, 'reservations'> & {
   reservations: MacReservation[]
 }
@@ -57,6 +60,9 @@ export type ListSecretsResponse = Omit<Schema<"SecretPage">, 'secrets'> & {
   secrets: Secret[]
 }
 export type ListSnapshotsResponse = Omit<Schema<"SnapshotPage">, 'snapshots'> & {
+  snapshots: Snapshot[]
+}
+export type SnapshotSearchPage = Omit<Schema<"SnapshotSearchPage">, 'snapshots'> & {
   snapshots: Snapshot[]
 }
 export type ListSandboxesResponse = Omit<Schema<"SandboxPage">, 'sandboxes'> & {

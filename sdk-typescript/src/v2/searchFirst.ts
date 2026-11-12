@@ -75,7 +75,7 @@ export function listRetired(error: unknown): boolean {
 /**
  * Refuses `'search'` as an image or snapshot reference: `GET /images/search`
  * and `GET /snapshots/search` are the search routes, so that name cannot be
- * read by name (the API reserves it for new rows). Same as Python's
+ * read by name (a get of it would reach the search route). Same as Python's
  * `_refuse_search_name`.
  * @internal
  */

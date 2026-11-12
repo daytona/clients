@@ -403,7 +403,7 @@ class AsyncImagesService:
         """List images, one page.
 
         Reads ``GET /images/search`` (every region, eventually consistent: an
-        image you just created may be missing for a few seconds; :meth:`get`
+        image you just created may be missing until the index catches up; :meth:`get`
         reads it at once) and, on a deployment without search, ``GET /images``.
 
         ``platform`` picks the shared images Daytona publishes for every
@@ -506,7 +506,7 @@ async def _search_or_list(
 def _refuse_search_name(ref: str, kind: str) -> None:
     """Refuse ``"search"`` as an image or snapshot reference: ``GET /images/search``
     and ``GET /snapshots/search`` are the search routes, so that name cannot be
-    read by name (the API reserves it for new rows). Same as TypeScript's
+    read by name (a get of it would reach the search route). Same as TypeScript's
     ``refuseSearchName``.
     """
     if ref == "search":
@@ -644,7 +644,7 @@ class AsyncSnapshotsService:
         """List snapshots, one page.
 
         Reads ``GET /snapshots/search`` (every region, eventually consistent: a
-        snapshot you just captured may be missing for a few seconds; :meth:`get`
+        snapshot you just captured may be missing until the index catches up; :meth:`get`
         reads it at once) and, on a deployment without search,
         ``GET /snapshots``.
         """

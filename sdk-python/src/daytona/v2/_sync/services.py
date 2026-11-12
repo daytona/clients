@@ -201,7 +201,7 @@ class ImagesService:
         """List images, one page.
 
         Reads ``GET /images/search`` (every region, eventually consistent: an
-        image you just created may be missing for a few seconds; :meth:`get`
+        image you just created may be missing until the index catches up; :meth:`get`
         reads it at once) and, on a deployment without search, ``GET /images``.
 
         ``platform`` picks the shared images Daytona publishes for every
@@ -321,7 +321,7 @@ class SnapshotsService:
         """List snapshots, one page.
 
         Reads ``GET /snapshots/search`` (every region, eventually consistent: a
-        snapshot you just captured may be missing for a few seconds; :meth:`get`
+        snapshot you just captured may be missing until the index catches up; :meth:`get`
         reads it at once) and, on a deployment without search,
         ``GET /snapshots``.
         """

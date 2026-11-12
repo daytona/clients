@@ -201,7 +201,15 @@ func withSearchTotals(t *testing.T, page string) string {
 	t.Helper()
 	var body map[string]any
 	require.NoError(t, json.Unmarshal([]byte(page), &body))
-	body["total"] = 1
+	// The total is the page's own item count, so the fixture stays a
+	// consistent search response whatever it holds.
+	total := 0
+	for _, key := range []string{"sandboxes", "images", "snapshots"} {
+		if items, ok := body[key].([]any); ok {
+			total = len(items)
+		}
+	}
+	body["total"] = total
 	body["total_relation"] = "eq"
 	encoded, err := json.Marshal(body)
 	require.NoError(t, err)

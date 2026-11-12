@@ -194,8 +194,8 @@ export class ImagesService {
 
   /**
    * List images, one page. Reads `GET /images/search` (every region,
-   * eventually consistent: an image you just created may be missing for a few
-   * seconds; `get()` reads it at once) and, on a deployment without search,
+   * eventually consistent: an image you just created may be missing until
+   * the index catches up; `get()` reads it at once) and, on a deployment without search,
    * `GET /images`.
    */
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
@@ -207,8 +207,8 @@ export class ImagesService {
       sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId'),
       platform: listImagesPlatform(options.platform),
     }
-    const data = await searchOrList(
-      () => this.http.get<api.ImagePage>('/images/search', { params }).then((response) => response.data),
+    const data = await searchOrList<api.ImageSearchPage | api.ImagePage>(
+      () => this.http.get<api.ImageSearchPage>('/images/search', { params }).then((response) => response.data),
       () => this.http.get<api.ImagePage>('/images', { params }).then((response) => response.data),
       this.searchProbe,
     )

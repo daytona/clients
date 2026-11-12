@@ -528,8 +528,8 @@ class Daytona:
 
         Reads ``GET /sandboxes/search`` (every region) and, on a deployment
         without search, ``GET /sandboxes``. Where search serves the list it is
-        eventually consistent: a sandbox you just created may be missing for a
-        few seconds (:meth:`get` reads it at once). Walk further pages with
+        eventually consistent: a sandbox you just created may be missing until
+        the index catches up (:meth:`get` reads it at once). Walk further pages with
         :meth:`iter` or the returned cursor. Filtering is :meth:`search`'s job.
         """
         from .sandbox import Sandbox

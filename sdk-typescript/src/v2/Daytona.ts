@@ -308,8 +308,8 @@ export class Daytona {
    * `cursor` and `limit` are the only options. One page, newest first, read
    * from `GET /sandboxes/search` (every region) and, on a deployment without
    * search, from `GET /sandboxes`. Where search serves the list it is
-   * eventually consistent: a sandbox you just created may be missing for a few
-   * seconds ({@link get} reads it at once). Walk further pages with
+   * eventually consistent: a sandbox you just created may be missing until
+   * the index catches up ({@link get} reads it at once). Walk further pages with
    * {@link iter} or the returned cursor.
    *
    * Use {@link search} for filters, prefixes, resource bounds, and sorting.
@@ -372,7 +372,9 @@ export class Daytona {
    * when search is unavailable. The error body is the unified envelope
    * `{ code, message, source, trace_id }` — the class is dispatched from
    * `(source, code)`. On 501 callers may fall back to {@link list}, which
-   * reads the plain list route on a deployment without search.
+   * reads the plain list route on a deployment without search — without
+   * search options: `list()` takes only `cursor` and `limit`, so the fallback
+   * returns every sandbox unfiltered.
    */
   public async search(options: SearchSandboxesOptions = {}): Promise<SearchResult<Sandbox>> {
     return searchSandboxes(this.sandboxContext, options)
