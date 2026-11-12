@@ -736,7 +736,9 @@ reported them; `reason` is always set (`'unknown'` with the value on
 `rawReason` for one this release does not know). `run()` reads the output back
 from the process log, so its `keepLogs` takes `'on_exit_ttl'` (default) or
 `'until_cleanup'`, not `'none'`. It returns no handle to write to, so it
-refuses `stdin: 'open'`: use `start()` for a process that reads stdin.
+refuses `stdin: 'open'`: use `start()` for a process that reads stdin. A run
+whose output outgrew the sandbox's log retention returns what the sandbox kept,
+so its earliest output may be missing.
 
 `process.start()` (and `session.start()`) sends `keepLogs: 'on_exit_ttl'`
 unless you pass another value: the sandbox keeps the record and log for a while
@@ -952,7 +954,9 @@ shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it. A display updated in place
 (IPython `display(obj, display_id=True)` then `handle.update(obj)`) is one
 entry in `results[]`, holding its last state; an update to a display an
-earlier run published is a new entry.
+earlier run published is a new entry. As with `process.run()`, a run whose
+output outgrew the sandbox's log retention returns what the sandbox kept, so
+its earliest outputs may be missing.
 
 #### Charts
 

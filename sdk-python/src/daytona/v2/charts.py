@@ -11,7 +11,8 @@ release does not know, is an :class:`UnknownChart`.
 
 Values are as plotted: a number, or a string on a ``categorical`` axis (the
 category) or a ``datetime`` axis (ISO 8601 in UTC, e.g.
-``2024-01-01T00:00:00+00:00``). Long series are thinned (a line series keeps
+``2024-01-01T00:00:00+00:00``). Numbers are as the sandbox sends them: a whole
+number is an ``int`` (``3``), which the ``float`` annotations accept. Long series are thinned (a line series keeps
 each stretch's lowest and highest point, a point series is sampled evenly),
 and the chart says so with ``truncated``.
 """
@@ -25,7 +26,8 @@ from typing import Literal, Mapping, Optional, Union
 _CHART_MEDIA_TYPE = "application/vnd.daytona.chart.v1+json"
 
 ChartValue = Union[float, str]
-"""A plotted value: a number, or a category or ISO 8601 UTC time as a string."""
+"""A plotted value: a number (an ``int`` when whole), or a category or ISO 8601
+UTC time as a string."""
 
 ChartScale = Union[Literal["linear", "log", "symlog", "logit", "asinh", "datetime", "categorical"], str]
 """An axis scale; open: a later sandbox may report others."""
