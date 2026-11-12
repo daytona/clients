@@ -1,0 +1,25 @@
+changelog.d/538-watch-limits.breaking.md
+  s_9a337fd66d5341::t_42b0d093df50d8 1-18
+changelog.d/538-stream-decoding.breaking.md
+  s_9a337fd66d5341::t_42b0d093df50d8 6-12
+changelog.d/538-watch-lifecycle.breaking.md
+  s_9a337fd66d5341::t_c2864a9748f54a 20-34
+changelog.d/538-computer-use-int32.breaking.md
+  s_9a337fd66d5341::t_2fbc84b6bfc1ab 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbbb762c7c735d11117f97fab71c76f1abc6e5dd",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

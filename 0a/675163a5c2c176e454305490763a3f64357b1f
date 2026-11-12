@@ -1,0 +1,64 @@
+sdk-python/src/daytona/v2/_transport.py
+  s_ca009e77d17705::t_0d4b04aac461fd 329-331,356-358,828-830,1024-1026,1224-1226
+sdk-python/tests/test_transfer_bounds.py
+  s_ca009e77d17705::t_0d4b04aac461fd 23,34,40,808-907,936-1009
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 787-817,848-850,856,868,874-880,906
+sdk-typescript/src/v2/filesystemWire.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 6,183,186-193
+sdk-python/src/daytona/v2/_body_limit.py
+  s_ca009e77d17705::t_0d4b04aac461fd 22,97-99,103-109,116-120,139-154,156-162,166-167,169,174-180
+sdk-typescript/tests/errors-contract.test.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 24-25,84,90
+sdk-python/src/daytona/v2/_auth.py
+  s_ca009e77d17705::t_0d4b04aac461fd 156-158
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_0d4b04aac461fd 260-265
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 450
+changelog.d/537-byte-read-errors.fixed.md
+  s_ca009e77d17705::t_0d4b04aac461fd 5-7
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 19,358-404
+  s_ca009e77d17705::t_8399a7373f9cab 405
+sdk-typescript/tests/process-tags.test.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 124
+changelog.d/537-transfer-bounds.breaking.md
+  s_ca009e77d17705::t_0d4b04aac461fd 37-47
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_f8e84e0fc954a3 43
+  s_ca009e77d17705::t_0d4b04aac461fd 21-31,631,645-647,673
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_0d4b04aac461fd 303-322
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_0d4b04aac461fd 122,11774-11800
+  s_ca009e77d17705::t_0add3f0bad35ed 11801-11802
+changelog.d/537-error-media-type.changed.md
+  s_ca009e77d17705::t_0d4b04aac461fd 1-8
+sdk-typescript/src/v2/FileSystem.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 320
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 15,297-302
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_0d4b04aac461fd 860-869
+AGENTS.md
+  s_ca009e77d17705::t_0d4b04aac461fd 98-102,545-554,655-660
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_0d4b04aac461fd 957,1021,1034-1046,1051,1066,1084,1098,1108,1111,1119,8040,9029,9041,9062,9082,9100,9117,9158,9172,9181,9209,9229,9234,9635,9650,10222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a675163a5c2c176e454305490763a3f64357b1f",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

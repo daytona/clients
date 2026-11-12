@@ -1,0 +1,75 @@
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_1d65fa05b6bddd::t_17d7f30572149c 151,172-173
+  s_1d65fa05b6bddd::t_76efbd46a76b7f 141,153
+  s_1d65fa05b6bddd::t_edd7d0e693f0f8 136-140,144-145,152,162-171,174-177
+sdk-typescript/README.md
+  s_1d65fa05b6bddd::t_d1b706153270bd 420-423
+sdk-python/src/daytona/v2/_sync/services.py
+  s_1d65fa05b6bddd::t_98a3ab50bcb1f7 356-358
+examples/typescript/test-support/fake-sdk.ts
+  s_1d65fa05b6bddd::t_bcecd6d35b75f9 165-170,177,204-208,210
+examples/typescript/git/index.ts
+  s_1d65fa05b6bddd::t_11332776ef0613 27
+sdk-typescript/tests/unit.test.ts
+  s_1d65fa05b6bddd::t_de5a4be15038a2 3774
+sdk-typescript/tests/client-input-lifecycle.test.ts
+  s_1d65fa05b6bddd::t_17d7f30572149c 171-172
+  s_1d65fa05b6bddd::t_ebc6197f557a2a 163-170,173-185
+  s_1d65fa05b6bddd::t_9045cc124d7215 37-38,41-42
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_1d65fa05b6bddd::t_98a3ab50bcb1f7 380,384-387
+sdk-typescript/src/v2/Daytona.ts
+  s_1d65fa05b6bddd::t_7834a1acd1915b 57,71-74,99
+sdk-python/src/daytona/v2/services.py
+  s_1d65fa05b6bddd::t_d1b706153270bd 969-971
+sdk-typescript/src/v2/codes.ts
+  s_1d65fa05b6bddd::t_59c477e628b711 188
+  s_1d65fa05b6bddd::t_9fd527c4367eca 189
+examples/python/git_ops.py
+  s_1d65fa05b6bddd::t_11332776ef0613 33
+sdk-python/src/daytona/v2/sandbox.py
+  s_1d65fa05b6bddd::t_d1b706153270bd 818,822-825
+sdk-typescript/src/v2/Sandbox.ts
+  s_1d65fa05b6bddd::t_d1b706153270bd 1081-1087
+sdk-python/tests/test_core.py
+  s_1d65fa05b6bddd::t_de5a4be15038a2 6665
+examples/python/test_examples.py
+  s_1d65fa05b6bddd::t_b4ce5cd62e610b 358-362,382-383,619,623-626
+  s_1d65fa05b6bddd::t_bcecd6d35b75f9 37,79-83
+  s_1d65fa05b6bddd::t_8c634f00a3b2e3 84-85
+sdk-typescript/tests/symbol-keys.test.ts
+  s_1d65fa05b6bddd::t_9045cc124d7215 36-40
+AGENTS.md
+  s_1d65fa05b6bddd::t_36e5cc2b96a1f2 261-262,711-722
+  s_1d65fa05b6bddd::t_c64e0d3b3c0b3f 311
+changelog.d/secret-set-description.breaking.md
+  s_1d65fa05b6bddd::t_d1b706153270bd 4-6
+sdk-python/README.md
+  s_1d65fa05b6bddd::t_d1b706153270bd 470-473
+sdk-typescript/src/v2/Secret.ts
+  s_1d65fa05b6bddd::t_d1b706153270bd 49-51
+examples/typescript/test-support/volume-lifecycle.ts
+  s_1d65fa05b6bddd::t_bcecd6d35b75f9 33-37,39-40
+changelog.d/pty-term.breaking.md
+  s_1d65fa05b6bddd::t_d1b706153270bd 1
+changelog.d/set-labels-keeps-name.breaking.md
+  s_1d65fa05b6bddd::t_d1b706153270bd 5-7
+sdk-typescript/package-lock.json
+  s_1d65fa05b6bddd::t_e7fb8939b8509d 1289-1291,1309-1311,1329-1331,1349-1351,1369-1371,1389-1391,1409-1411,1429-1431,1649-1651,1673-1675,1697-1699,1721-1723,1745-1747,1769-1771,2249-2251,2266-2268,2283-2285,2300-2302,2317-2319,2334-2336,2351-2353,2368-2370,2385-2387,2402-2404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5e255db27fc0befa76ad133d2580912bef83c12",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

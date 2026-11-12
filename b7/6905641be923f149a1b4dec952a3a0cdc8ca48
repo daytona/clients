@@ -1,0 +1,263 @@
+sdk-typescript/tests/sandbox-region.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 51
+  s_ca009e77d17705::t_6fdceb53fcf14e 29
+sdk-typescript/src/v2/macMappers.ts
+  s_ca009e77d17705::t_9249510ac8e85b 8,12,18
+  s_2461be2ea4fb6e::t_8a260563fad27c 11,17
+sdk-typescript/src/v2/resources.ts
+  s_ca009e77d17705::t_d62a3a2d96d218 16-17
+sdk-typescript/tests/readme-quickstart.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 33
+  s_ca009e77d17705::t_6fdceb53fcf14e 26
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 33,48
+sdk-typescript/src/v2/Reservations.ts
+  s_ca009e77d17705::t_9249510ac8e85b 19,28,109
+  s_ca009e77d17705::t_a1fc8c272e86a7 18,115,122
+  s_2461be2ea4fb6e::t_8a260563fad27c 27,110
+  s_ca009e77d17705::t_af3c608ac2c530 89,102,156
+sdk-typescript/tests/credential-inspection.test.ts
+  s_ca009e77d17705::t_104cc562ff1c11 137
+  s_ca009e77d17705::t_42eaba0efb3f08 135,140
+sdk-python/src/daytona/v2/_image_pull.py
+  s_2461be2ea4fb6e::t_030c45e38f2765 14-15,20
+  s_ca009e77d17705::t_79d05092ba719e 36-37,39-47,57
+  s_ca009e77d17705::t_365d890af64fbc 21
+sdk-typescript/tests/root-client.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 564
+sdk-python/tests/test_image_pull_wait.py
+  s_ca009e77d17705::t_6b41444c8669ac 30-35,151-157
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 851-852,879,894-895,913,933,968-969,977-978,987-988,1116-1117,1128-1129,1137,1139,1160-1163,1185-1188,1190-1192,1241,1284-1286,1288-1290,1303-1304,1311-1312,1335-1336,1356-1357,1379-1380,1388-1389,1500-1501,1525,1548-1550,1582-1583,1596-1597,1606,1608,1809,1947,2071,2102,2165-2166,2219,2229,2241,2256-2257,2311-2312,2324,2338,2387-2388,2399-2400,2410,2424,2443,2456-2457,2472,2520,2616-2617,2635-2636,2650-2651,2658,2693,2715,2755,2831,2876-2878,2902,2923,2941,2960,2972,2989,3004,3019,3031,3046,3057,3070,3132,3163-3164,3166,3190,3200-3202,3246,3253,3358,3368,3378,3398-3399,3401,3417,3420,3449,3461,3465,3485,3488,3526,3533,3549,3561,3586,3614,3640,3654,3657,3676,3751-3752,6764-6765,6785,6804-6805,6823-6825,6830-6832,6846-6847,6852-6853,6885,6925,7887,7964,8255-8256,8481-8482,8503-8504,8529,8562,8582,8597-8598,8613-8614,8651-8652,8789,9570,9590,9605,9619,9624,9645,9733,9750,9769,9779-9781,9838,9842,9850,9917,9929,9948,10054-10056,10075-10076,10176,10663,10747,11116,11121,11202
+  s_ca009e77d17705::t_efcd23059120eb 6762,6784,6924,10171
+  s_ca009e77d17705::t_167e17c53d4a90 9610
+  s_ca009e77d17705::t_418ea682998ce6 1346,1528,1552,1556,1560,1570,1584,1621,1625,1655,1675,1789,1810,1852,1890,2309,2323,2343-2344,2398,2629,2648,2657,2811,2922,2939,2958,2970,2987,3003,3018,3030,3045,3056,3068,3086,3097,3107,3118,3210,9681,10014,10151,10159,11200,11725,11728
+  s_ca009e77d17705::t_6bbb3f599ecd5d 6820,6844,6887,9684,10172,10272
+  s_ca009e77d17705::t_6271404836cfb8 2401,3252,6801-6802,6857-6859,6863-6864,6866-6869,9979-9980,9983-9985
+  s_ca009e77d17705::t_bf994c844b84aa 230,279-280
+  s_ca009e77d17705::t_228a11f883db0b 9612
+  s_ca009e77d17705::t_f5e47b97e55c0d 9621-9623,9626-9635
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_9249510ac8e85b 18-19,67,73
+  s_2461be2ea4fb6e::t_8a260563fad27c 68-72,86
+  s_ca009e77d17705::t_a1fc8c272e86a7 17,114,119
+sdk-typescript/tests/image-pull-wait.test.ts
+  s_ca009e77d17705::t_77adf4f41100fb 9,18
+  s_ca009e77d17705::t_d7d233dd52312b 93
+sdk-python/tests/test_image_pull_deadline_http.py
+  s_ca009e77d17705::t_6b41444c8669ac 60,62
+sdk-typescript/tests/sandbox-mint-availability.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 15
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_588c916318cf39 17
+  s_ca009e77d17705::t_af3c608ac2c530 490
+sdk-python/tests/network_policy_test_server.py
+  s_ca009e77d17705::t_d455842dfb72e0 52-54
+sdk-python/tests/test_wait_deadlines.py
+  s_ca009e77d17705::t_1ec5bb5a617f93 14,59-61
+sdk-typescript/src/v2/clientCreateNames.ts
+  s_ca009e77d17705::t_17c9e68051140c 9,30,36,67
+  s_ca009e77d17705::t_5d5618bea2d246 6,41-45,47-60
+sdk-typescript/tests/sandbox-waits.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 53,102,115,128,158,191
+sdk-typescript/tests/transport-url-diagnostics.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 59
+  s_ca009e77d17705::t_6fdceb53fcf14e 60
+sdk-typescript/src/v2/sandboxAuth.ts
+  s_ca009e77d17705::t_9249510ac8e85b 12-13,39,42
+  s_2461be2ea4fb6e::t_c625787407316d 40,43-46,48-49,51-52
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_ca009e77d17705::t_17c9e68051140c 22,103
+  s_ca009e77d17705::t_f429e383625d9c 65
+  s_ca009e77d17705::t_0bf2e79ce0399b 36-43
+  s_ca009e77d17705::t_a1fc8c272e86a7 13,64,73,85,102
+  s_ca009e77d17705::t_491abbbafa9a26 18
+sdk-python/src/daytona/v2/sandbox.py
+  s_2461be2ea4fb6e::t_030c45e38f2765 27
+  s_ca009e77d17705::t_c43c69c7aa56e5 1079,2079-2087,2089-2094,2096
+  s_ca009e77d17705::t_f5a33b80643e61 16,2078,2088,2095
+  s_ca009e77d17705::t_c51eb7b79de57b 1459
+  s_ca009e77d17705::t_e6d7be714f037c 765,2141-2162,2164-2170,2172-2176,2179,2181-2182
+  s_ca009e77d17705::t_b323c625867f4b 2097-2098
+sdk-python/tests/test_sandbox_tokens.py
+  s_ca009e77d17705::t_2073a6ba6bcb72 473-478
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_af3c608ac2c530 904
+  s_ca009e77d17705::t_c43c69c7aa56e5 979-982
+  s_ca009e77d17705::t_588c916318cf39 44
+  s_ca009e77d17705::t_85d7d16c5d1d61 8
+  s_ca009e77d17705::t_9249510ac8e85b 6-7,112,766,1000,1011
+  s_ca009e77d17705::t_d6ac6ddf0cf70a 740,743,750-752,765,772-774,778-779,792,795
+  s_ca009e77d17705::t_186ae8b44af081 1001,1012,1037-1039
+sdk-typescript/src/v2/Daytona.ts
+  s_ca009e77d17705::t_a1fc8c272e86a7 9,296
+  s_ca009e77d17705::t_17c9e68051140c 33,362
+  s_ca009e77d17705::t_35c8cf867d0719 363-364
+sdk-python/tests/test_sync_surface.py
+  s_ca009e77d17705::t_2073a6ba6bcb72 540,574,618
+  s_ca009e77d17705::t_b504e9bc22ad39 360
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_ca009e77d17705::t_f429e383625d9c 106
+sdk-typescript/tests/sandbox-fork.test.ts
+  s_ca009e77d17705::t_418ea682998ce6 16,31,58,79,99,126,146,163,179,194
+  s_ca009e77d17705::t_42eaba0efb3f08 53-56,76-77,96-97,122,143-144,162,176
+  s_ca009e77d17705::t_efcd23059120eb 15,121,142,161,175
+sdk-typescript/tests/create-values.test.ts
+  s_ca009e77d17705::t_418ea682998ce6 84
+sdk-typescript/tests/sandbox-lifecycle.test.ts
+  s_ca009e77d17705::t_418ea682998ce6 76
+  s_ca009e77d17705::t_6fdceb53fcf14e 15-16
+  s_ca009e77d17705::t_42eaba0efb3f08 33,39,57,75,94,96
+sdk-typescript/tests/sandbox-metadata.test.ts
+  s_ca009e77d17705::t_418ea682998ce6 46,94,106
+  s_ca009e77d17705::t_42eaba0efb3f08 45,121
+sdk-typescript/tests/root-config-snapshot.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 29
+sdk-typescript/src/v2/Secret.ts
+  s_2461be2ea4fb6e::t_8a260563fad27c 57-58
+  s_ca009e77d17705::t_a1fc8c272e86a7 25,82,89
+  s_ca009e77d17705::t_9249510ac8e85b 26-27,56,59
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_9192c08bb954e7 25,30,34,54
+  s_ca009e77d17705::t_791abe18e755f3 1-24,26-29,31-33,35-53,55-193
+sdk-typescript/src/v2/clientSearch.ts
+  s_ca009e77d17705::t_410ed355de105b 146-151,155-163
+  s_ca009e77d17705::t_0bf2e79ce0399b 8-9
+sdk-typescript/src/v2/Ports.ts
+  s_ca009e77d17705::t_a1fc8c272e86a7 17,162,171
+  s_2461be2ea4fb6e::t_8a260563fad27c 67-68,227,277,279
+  s_ca009e77d17705::t_9249510ac8e85b 18-19,66,69,228,278
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_ca009e77d17705::t_588c916318cf39 15
+  s_ca009e77d17705::t_af3c608ac2c530 64
+sdk-python/tests/test_readme_quickstart.py
+  s_ca009e77d17705::t_6b41444c8669ac 44-48
+  s_ca009e77d17705::t_2073a6ba6bcb72 73
+sdk-python/tests/test_network_policy_validation.py
+  s_ca009e77d17705::t_c45acea2acc588 100-110,113
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_c51eb7b79de57b 31
+  s_ca009e77d17705::t_fb8f3d11c1e4ac 9,261-266
+  s_ca009e77d17705::t_7e36abc9c70851 267-268
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_c51eb7b79de57b 245
+  s_ca009e77d17705::t_66f8ffaaba7b62 367-374
+  s_2461be2ea4fb6e::t_030c45e38f2765 29
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_264a5982d43128 866,1644,1780-1782
+  s_ca009e77d17705::t_c4fafcd98a2d64 660-664
+  s_ca009e77d17705::t_6c697068e83d62 40,1070-1072
+  s_ca009e77d17705::t_f174fd1620a7d0 881,1297-1298
+  s_ca009e77d17705::t_1ee6e4c8d886db 1707-1710
+  s_ca009e77d17705::t_35c8cf867d0719 1163-1170
+  s_ca009e77d17705::t_05eecae90d9ee2 373,426,523
+  s_ca009e77d17705::t_d94fb9b8c7dfe0 1783-1784
+sdk-typescript/tests/options-objects.test.ts
+  s_ca009e77d17705::t_418ea682998ce6 19
+sdk-python/src/daytona/v2/docker.py
+  s_ca009e77d17705::t_e976e15e5e8c32 73-78
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_ca009e77d17705::t_9249510ac8e85b 12-13,45,50,63
+  s_ca009e77d17705::t_39138153197655 65-66
+  s_ca009e77d17705::t_ae88fdba26a049 46-49,51-61,64
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_ca009e77d17705::t_77adf4f41100fb 6,27
+sdk-typescript/src/v2/clientCreateOptions.ts
+  s_ca009e77d17705::t_9b47858e548ea1 101-103
+  s_ca009e77d17705::t_17c9e68051140c 11,15,26,30,60,62
+  s_ca009e77d17705::t_c377b9c39398f0 67-69,77-78
+  s_ca009e77d17705::t_c745b715594b27 134-137
+sdk-typescript/tests/create-wait-failures.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 14,62-63
+sdk-typescript/src/v2/accountMappers.ts
+  s_ca009e77d17705::t_9249510ac8e85b 8-9,14-15,21,25-26,36,41,61,79
+  s_ca009e77d17705::t_fb4128e09de0a6 11-13,16-19,22-23,27-32,35,40,60,78
+sdk-typescript/tests/client-lifecycle-options.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 52,67,90
+sdk-python/src/daytona/v2/network_policy.py
+  s_ca009e77d17705::t_f5a33b80643e61 68-70
+  s_ca009e77d17705::t_2f0a6bb3aab671 91,114,117
+sdk-typescript/src/v2/pyText.ts
+  s_ca009e77d17705::t_17c9e68051140c 1-21
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_c377b9c39398f0 107-108
+  s_ca009e77d17705::t_9b10654075030b 14,100-101
+  s_ca009e77d17705::t_c4fafcd98a2d64 136-137
+  s_ca009e77d17705::t_97b8d577a15ae5 112-113
+sdk-typescript/src/v2/Snapshots.ts
+  s_ca009e77d17705::t_a1fc8c272e86a7 13,41,50
+sdk-typescript/tests/list-pages.test.ts
+  s_ca009e77d17705::t_104cc562ff1c11 87-89,91-92
+sdk-python/tests/test_services_contract.py
+  s_ca009e77d17705::t_6b41444c8669ac 78-79
+sdk-python/tests/test_root_client.py
+  s_ca009e77d17705::t_b504e9bc22ad39 1456-1458
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_2073a6ba6bcb72 1093-1098,1189-1194,1286-1291,1328-1333
+  s_ca009e77d17705::t_87d1454622a343 9784,9818-9820,9834-9835,9839-9849,9865,9867-9870,9874-9876,9880,9894-9895,9914-9916,9918-9919,11822-11823
+  s_ca009e77d17705::t_6969989615e3c7 9821,9827
+  s_ca009e77d17705::t_b504e9bc22ad39 1083-1085,1229-1230,1273-1274,1419-1425,1429-1431,6177-6178,6469,6474-6479,6502,6510,6512,7418-7435,7449-7466,9828-9830,9859-9860,9940,10050,10088-10089,10097-10098,10786-10788,10834-10838,10883,10998-11002,11723-11724
+  s_ca009e77d17705::t_64f996a22c7d34 9822-9826,9831-9833,9836-9838,9871-9873,9877-9879,9881-9882,9884,9888-9890
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_cec388c8e4309f 12,46
+  s_ca009e77d17705::t_4b2dbf924f5f15 83,150,156,158-163,165
+  s_ca009e77d17705::t_9249510ac8e85b 13,84,151
+  s_ca009e77d17705::t_a1fc8c272e86a7 18,88,104
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_9b1fdadc835e1b 82
+  s_ca009e77d17705::t_bfb4e22c2bfb14 1-81,83-93
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_dba314388ccf24 1-22,24-26,28-80,82-94,101-103,110-124,133-139
+  s_ca009e77d17705::t_4f90719959994d 95-100,104-109,125-127,129-131
+  s_ca009e77d17705::t_9b1fdadc835e1b 23,27,132
+  s_ca009e77d17705::t_ca16895be16492 81
+  s_ca009e77d17705::t_90d580a5dc7838 128
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_9249510ac8e85b 14-15,19,25,195,245,265,276
+  s_ca009e77d17705::t_3968116dcd927b 16-18,20-24,26-29,199,213-214,252
+  s_ca009e77d17705::t_e80f9015e1e692 264,266-271,273,275
+  s_ca009e77d17705::t_23a788283ef48f 274
+  s_ca009e77d17705::t_c377b9c39398f0 303
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_69c6f0a8dbe366 1-17,19-129,132-187
+  s_ca009e77d17705::t_2caffb76f25b4c 18,130-131,188-192
+sdk-typescript/src/v2/responseFields.ts
+  s_ca009e77d17705::t_9249510ac8e85b 1-107
+sdk-typescript/tests/acquisition-reads.test.ts
+  s_ca009e77d17705::t_42eaba0efb3f08 21,37,75,88
+  s_ca009e77d17705::t_418ea682998ce6 55,77
+  s_ca009e77d17705::t_f1062b66ec89d9 52,72
+  s_ca009e77d17705::t_df736e3e05a2b3 128
+sdk-typescript/src/v2/artifactOptions.ts
+  s_ca009e77d17705::t_66f8ffaaba7b62 9,48-52
+sdk-typescript/src/v2/MacModels.ts
+  s_2461be2ea4fb6e::t_8a260563fad27c 22-27,53
+  s_ca009e77d17705::t_9249510ac8e85b 15-16,20-21,54
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_d62a3a2d96d218 1394-1396
+  s_ca009e77d17705::t_78caa4cecc8751 1204,1208-1213,1215-1221,1223-1225,1227-1240,1244
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b76905641be923f149a1b4dec952a3a0cdc8ca48",
+  "prompts": {},
+  "sessions": {
+    "s_2461be2ea4fb6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e45f193dbffedpCxcbvCIMyfOS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

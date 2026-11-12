@@ -1,0 +1,20 @@
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  h_e7759ddd73fa65 31-32,90
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  h_e7759ddd73fa65 30-31,86
+sdk-python/src/daytona/_async/daytona.py
+  h_e7759ddd73fa65 130-131,188
+sdk-python/src/daytona/_sync/daytona.py
+  h_e7759ddd73fa65 84-85,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e7dad6b4a243548bb6a809c936face97a327382a",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

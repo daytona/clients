@@ -1,0 +1,22 @@
+upgrade/scripts/publish-channels.test.mjs
+  s_4d9fba4bce0dac::t_2022f80ff00a5b 304-312,315,317,319-320
+  s_4d9fba4bce0dac::t_19b7049a169ec2 321
+.github/workflows/sdk_publish.yaml
+  s_4d9fba4bce0dac::t_2022f80ff00a5b 557-558,560-566
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7c666506b3255e41a1a561d8143f5dd0b2c5f6e",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

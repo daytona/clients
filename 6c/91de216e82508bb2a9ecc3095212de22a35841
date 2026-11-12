@@ -1,0 +1,25 @@
+scripts/breaking/test_breaking_changes.py
+  s_a3ea68093feda0::t_165de1881f9755 396-399
+AGENTS.md
+  s_a3ea68093feda0::t_165de1881f9755 561-562
+.claude/skills/contract-refresh/SKILL.md
+  s_a3ea68093feda0::t_165de1881f9755 77-78
+scripts/breaking/breaking_changes.py
+  s_a3ea68093feda0::t_165de1881f9755 518-519,522-524
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c91de216e82508bb2a9ecc3095212de22a35841",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

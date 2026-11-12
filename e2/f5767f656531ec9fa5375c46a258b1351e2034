@@ -1,0 +1,21 @@
+examples/go/go.mod
+  s_2e6041b22161fe::t_a69ff740a90acb 11-23
+examples/go/go.sum
+  s_2e6041b22161fe::t_602c8a11e6478c 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2f5767f656531ec9fa5375c46a258b1351e2034",
+  "prompts": {},
+  "sessions": {
+    "s_2e6041b22161fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e553a139affeVhy9pfmd6KKsqk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

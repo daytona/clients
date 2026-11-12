@@ -1,0 +1,21 @@
+AGENTS.md
+  s_a3ea68093feda0::t_faed706f0d24f7 542-543
+docs/VERSIONING.md
+  s_a3ea68093feda0::t_faed706f0d24f7 203-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70efc14864d47b072d18c63db5851b5680dc81dd",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

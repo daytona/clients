@@ -1,0 +1,24 @@
+package.json
+  h_e7759ddd73fa65 44
+sdk-typescript/runtime-tests/webpack-cjs/run.sh
+  h_e7759ddd73fa65 15
+sdk-typescript/src/Image.ts
+  h_e7759ddd73fa65 851-857,862,870-899
+sdk-typescript/src/__tests__/Image.test.ts
+  h_e7759ddd73fa65 649,665-672,678-684,688-695,701,709-714
+sdk-typescript/src/utils/Import.ts
+  h_e7759ddd73fa65 51
+yarn.lock
+  h_e7759ddd73fa65 8694,17593
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b19567a24e5de175146e440ade139f8ea94f54f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

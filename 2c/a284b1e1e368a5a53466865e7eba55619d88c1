@@ -1,0 +1,27 @@
+sdk-python/src/daytona/v2/_context_upload.py
+  s_1d65fa05b6bddd::t_a630a7c2e7f941 122-129
+sdk-typescript/tests/fs-git-inputs.test.ts
+  s_1d65fa05b6bddd::t_a630a7c2e7f941 50-55
+  s_1d65fa05b6bddd::t_ba0f9389439024 56-61,73-74
+sdk-python/tests/test_build_context_upload.py
+  s_1d65fa05b6bddd::t_a630a7c2e7f941 634-635,637-639
+  s_1d65fa05b6bddd::t_9fabc9bf4b96f3 632-633,636
+sdk-typescript/src/v2/filesystemInputs.ts
+  s_1d65fa05b6bddd::t_a630a7c2e7f941 27-34,41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ca284b1e1e368a5a53466865e7eba55619d88c1",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

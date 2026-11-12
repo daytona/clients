@@ -1,0 +1,23 @@
+sdk-python/src/daytona/v2/_body_limit.py
+  s_f23bcae77f0e63::t_8064302bb21f98 22,97-99,103-109,116-120,139-154,156-162,166-167,169,174-180
+sdk-python/tests/test_transfer_bounds.py
+  s_f23bcae77f0e63::t_0dc362f12babb8 834-835,837,839
+  s_f23bcae77f0e63::t_e090d831c6ec08 34,808-833,836,838,840-905
+  s_f23bcae77f0e63::t_5440fd3eea8556 906-907
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74d2e4e08f50e995fd1557792f15f4068424580c",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

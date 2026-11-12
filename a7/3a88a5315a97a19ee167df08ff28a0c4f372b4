@@ -1,0 +1,22 @@
+sdk-python/src/daytona/v2/_bridge.py
+  s_9a337fd66d5341::t_e65c35bdc907d9 219-220,223-229
+sdk-python/tests/test_bridge.py
+  s_9a337fd66d5341::t_7415fd8b3c41f2 1108,1114-1115
+  s_9a337fd66d5341::t_e65c35bdc907d9 1098-1107,1109-1113,1116-1147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a73a88a5315a97a19ee167df08ff28a0c4f372b4",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

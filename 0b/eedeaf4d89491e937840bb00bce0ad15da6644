@@ -1,0 +1,19 @@
+AGENTS.md
+  s_b9ab62581dcdb7::t_470b9ef7837446 493-495
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0beedeaf4d89491e937840bb00bce0ad15da6644",
+  "prompts": {},
+  "sessions": {
+    "s_b9ab62581dcdb7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e50213ce5ffe6JFHNKMMipbsua",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

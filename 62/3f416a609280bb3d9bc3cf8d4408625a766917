@@ -1,0 +1,1124 @@
+.githooks/pre-commit
+  h_e7759ddd73fa65 1-18
+.githooks/pre-push
+  h_e7759ddd73fa65 1-21
+.github/CODEOWNERS
+  h_e7759ddd73fa65 4-7,17-19,32-39
+.github/actions/setup-toolchain/action.yml
+  h_e7759ddd73fa65 61,67,72,84,102-104
+.github/workflows/ax_evals.yaml
+  h_e7759ddd73fa65 1-166
+.github/workflows/ax_evals_config.yaml
+  h_e7759ddd73fa65 1-59
+.github/workflows/cla.yaml
+  h_e7759ddd73fa65 47
+.github/workflows/deploy-pages.yml
+  h_e7759ddd73fa65 3-4,8,16-17,19,24-25,33
+.github/workflows/e2e_pr_tests.yaml
+  h_e7759ddd73fa65 7
+.github/workflows/pr_checks.yaml
+  h_e7759ddd73fa65 7,66,109,119,132,184-204,244-245
+.github/workflows/prepare-release.yaml
+  h_e7759ddd73fa65 15-17,20-55,57,75-86,123
+.github/workflows/release.yaml
+  h_e7759ddd73fa65 15-17,20-24,27-64,66,70-72,76-78,89-100,113-131,154-168,184-202,204-209,211-215,225-227,241-242,253,263-310
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 44-115,117,119,122-124,128-129,147-153,158,167-180,188-209,214-217,220-223,226-235,239-293,295,301-327,330-331,333-381
+.github/workflows/secret-scan.yaml
+  h_e7759ddd73fa65 1-54
+.gitleaks.toml
+  h_e7759ddd73fa65 1-58
+.yarnrc.yml
+  h_e7759ddd73fa65 7-17
+AGENTS.md
+  h_e7759ddd73fa65 7-12,60-84
+CONTRIBUTING.md
+  h_e7759ddd73fa65 7-11,54-69,103,114-115
+PREPARING_YOUR_CHANGES.md
+  h_e7759ddd73fa65 9
+PUBLISHING.md
+  h_e7759ddd73fa65 21-22,43,47,50,54-60,65-67,71,87,93,100,112-174
+README.md
+  h_e7759ddd73fa65 5-6,45-67
+analytics-api-client-python-async/daytona_analytics_api_client_async/api/telemetry_api.py
+  h_e7759ddd73fa65 44,139,234,422,505,588,749,836,923,1093,1168,1243
+analytics-api-client-python-async/daytona_analytics_api_client_async/api/usage_api.py
+  h_e7759ddd73fa65 44,123,202,354,429,504,649,728,807,961,1036,1111
+analytics-api-client-python-async/daytona_analytics_api_client_async/api_client.py
+  h_e7759ddd73fa65 207
+analytics-api-client-python-async/project.json
+  h_e7759ddd73fa65 42
+analytics-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14,16,27,29-32
+analytics-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-6
+analytics-api-client-python/daytona_analytics_api_client/api/telemetry_api.py
+  h_e7759ddd73fa65 44,139,234,422,505,588,749,836,923,1093,1168,1243
+analytics-api-client-python/daytona_analytics_api_client/api/usage_api.py
+  h_e7759ddd73fa65 44,123,202,354,429,504,649,728,807,961,1036,1111
+analytics-api-client-python/daytona_analytics_api_client/api_client.py
+  h_e7759ddd73fa65 204
+analytics-api-client-python/project.json
+  h_e7759ddd73fa65 42
+analytics-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15,26,28-31
+analytics-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-6
+analytics-api-client-ruby/project.json
+  h_e7759ddd73fa65 54
+analytics-api-client/project.json
+  h_e7759ddd73fa65 48
+api-client-go/.openapi-generator/FILES
+  h_e7759ddd73fa65 34,56,149
+api-client-go/VERSION
+  h_e7759ddd73fa65 1
+api-client-go/api/openapi.yaml
+  h_e7759ddd73fa65 397-426,2191-2192,6383-6396,6432-6438,7129-7136,7164-7165,7170,7174,7179,7181,7186-7187,7189,7197,7255-7260,7281-7295,7333,7371-7384,7399,7401,7410,7412,8692,8699,8790-8795,8848-8853,8928,8935,8967,8974,9077,9114-9119,9215-9223,9339,9346,9390-9393,9442-9447,9521-9526,9583,12014,12025
+api-client-go/api_organizations.go
+  h_e7759ddd73fa65 550-561,4821-4921
+api-client-go/api_sandbox.go
+  h_e7759ddd73fa65 210,2180
+api-client-go/model_cli_oidc_config.go
+  h_e7759ddd73fa65 1-200
+api-client-go/model_create_sandbox.go
+  h_e7759ddd73fa65 37-38,71-72,94-95,106-107,335-366,879-910,1070-1072,1121-1123,1165,1182
+api-client-go/model_directory_sync_status.go
+  h_e7759ddd73fa65 1-117
+api-client-go/model_gpu_type.go
+  h_e7759ddd73fa65 25,27,39,41
+api-client-go/model_oidc_config.go
+  h_e7759ddd73fa65 34-35,190-221,239-241,293
+api-client-go/model_organization.go
+  h_e7759ddd73fa65 59-60,73-78,104,123,557-582,743-838,1072,1083-1091,1130,1189,1196-1198
+api-client-go/model_sandbox.go
+  h_e7759ddd73fa65 42-43,62-63,96-97,127,137,383-406,671-702,1173-1214,1548,1570-1572,1614-1616,1666,1711,1721,1737
+api-client-go/model_sandbox_list_item.go
+  h_e7759ddd73fa65 64-65,86-87,707-738,1035-1076,1313-1315,1340-1342,1434,1445
+api-client-go/model_update_organization_default_queue_timeout.go
+  h_e7759ddd73fa65 1-172
+api-client-java/.openapi-generator/FILES
+  h_e7759ddd73fa65 52,74,167,219,241,334
+api-client-java/src/main/java/io/daytona/api/client/JSON.java
+  h_e7759ddd73fa65 108,209
+api-client-java/src/main/java/io/daytona/api/client/api/OrganizationsApi.java
+  h_e7759ddd73fa65 54,5420-5551
+api-client-java/src/main/java/io/daytona/api/client/api/SandboxApi.java
+  h_e7759ddd73fa65 2028,2048,2069
+api-client-java/src/main/java/io/daytona/api/client/model/AuditTargetScenario.java
+  h_e7759ddd73fa65 257-258,279-280
+api-client-java/src/main/java/io/daytona/api/client/model/CliOidcConfig.java
+  h_e7759ddd73fa65 1-319
+api-client-java/src/main/java/io/daytona/api/client/model/CreateSandbox.java
+  h_e7759ddd73fa65 95-99,180-184,357-375,688-706,860,877,881,887,901,918,942
+api-client-java/src/main/java/io/daytona/api/client/model/DirectorySyncStatus.java
+  h_e7759ddd73fa65 1-82
+api-client-java/src/main/java/io/daytona/api/client/model/GpuType.java
+  h_e7759ddd73fa65 36-37,40-41
+api-client-java/src/main/java/io/daytona/api/client/model/OidcConfig.java
+  h_e7759ddd73fa65 22,133-137,235-253,313-314,320,332,352,395-398
+api-client-java/src/main/java/io/daytona/api/client/model/Organization.java
+  h_e7759ddd73fa65 22,142-146,177-191,558-576,691-747,971,978-980,994,1018,1025-1027,1055,1058,1099-1102
+api-client-java/src/main/java/io/daytona/api/client/model/Sandbox.java
+  h_e7759ddd73fa65 34,109-113,159-163,301-305,602-620,792-810,1104-1122,1384,1394,1410,1420,1424-1427,1430-1437,1453,1463,1479,1509,1512,1568-1570
+api-client-java/src/main/java/io/daytona/api/client/model/SandboxListItem.java
+  h_e7759ddd73fa65 31,161-165,276-280,694-712,911-929,1118,1129,1139-1142,1145-1152,1179,1190,1216,1287-1289
+api-client-java/src/main/java/io/daytona/api/client/model/UpdateOrganizationDefaultQueueTimeout.java
+  h_e7759ddd73fa65 1-287
+api-client-java/src/test/java/io/daytona/api/client/api/OrganizationsApiTest.java
+  h_e7759ddd73fa65 41,576-588
+api-client-java/src/test/java/io/daytona/api/client/api/SandboxApiTest.java
+  h_e7759ddd73fa65 246
+api-client-java/src/test/java/io/daytona/api/client/model/CliOidcConfigTest.java
+  h_e7759ddd73fa65 1-56
+api-client-java/src/test/java/io/daytona/api/client/model/CreateSandboxTest.java
+  h_e7759ddd73fa65 103-110,239-246
+api-client-java/src/test/java/io/daytona/api/client/model/DirectorySyncStatusTest.java
+  h_e7759ddd73fa65 1-32
+api-client-java/src/test/java/io/daytona/api/client/model/OidcConfigTest.java
+  h_e7759ddd73fa65 21,81-88
+api-client-java/src/test/java/io/daytona/api/client/model/OrganizationTest.java
+  h_e7759ddd73fa65 21,180-187,236-259
+api-client-java/src/test/java/io/daytona/api/client/model/SandboxListItemTest.java
+  h_e7759ddd73fa65 30,208-215,296-303
+api-client-java/src/test/java/io/daytona/api/client/model/SandboxTest.java
+  h_e7759ddd73fa65 33,123-130,203-210,331-338
+api-client-java/src/test/java/io/daytona/api/client/model/UpdateOrganizationDefaultQueueTimeoutTest.java
+  h_e7759ddd73fa65 1-48
+api-client-python-async/.openapi-generator/FILES
+  h_e7759ddd73fa65 36,58,151
+api-client-python-async/daytona_api_client_async/__init__.py
+  h_e7759ddd73fa65 65,87,180,246,268,361,441,463,556
+api-client-python-async/daytona_api_client_async/api/api_keys_api.py
+  h_e7759ddd73fa65 44,114,184,331,401,471,598,672,746,880,950,1020,1154,1220,1286,1413,1480,1547
+api-client-python-async/daytona_api_client_async/api/audit_api.py
+  h_e7759ddd73fa65 47,110,173,292,418,544
+api-client-python-async/daytona_api_client_async/api/config_api.py
+  h_e7759ddd73fa65 39,101,163
+api-client-python-async/daytona_api_client_async/api/docker_registry_api.py
+  h_e7759ddd73fa65 45,115,185,332,402,472,599,669,739,873,943,1013,1149,1215,1281,1408,1482,1556
+api-client-python-async/daytona_api_client_async/api/health_api.py
+  h_e7759ddd73fa65 39,102,165,285,347,409
+api-client-python-async/daytona_api_client_async/api/jobs_api.py
+  h_e7759ddd73fa65 46,112,178,305,384,463,620,691,762,901,971,1041
+api-client-python-async/daytona_api_client_async/api/object_storage_api.py
+  h_e7759ddd73fa65 42,108,174
+api-client-python-async/daytona_api_client_async/api/organizations_api.py
+  h_e7759ddd73fa65 45,72,138,204,331,401,471,598,664,730,870,940,1010,1157,1227,1297,1444,1514,1584,1731,1801,1871,2018,2084,2150,2270,2336,2402,2522,2592,2662,2789,2859,2929,3056,3122,3188,3308,3378,3448,3575,3645,3715,3842,3912,3982,4129,4197,4265,4394,4460,4526,4653,4723,4793,4927,4989,5051,5171,5237,5303,5430,5496,5562,5689,5755,5821,5948,6018,6088,6222,6288,6354,6481,6547,6613,6733,6799,6865,6992,7058,7124,7251,7317,7383,7510,7576,7642,7769,7831,7893,8013,8079,8145,8272,8338,8404,8531,8593,8655,8775,8841,8907,9034,9104,9174,9308,9378,9448,9582,9652,9722,9856,9926,9996,10136,10206,10276,10423,10497,10571,10725,10795,10865,11005-11285,11359,11433,11587,11661,11735,11889,11959,12029,12169,12243,12317,12471,12545,12619
+api-client-python-async/daytona_api_client_async/api/preview_api.py
+  h_e7759ddd73fa65 42,112,182,316,382,448,575,642,709,837,907,977,1113,1179,1245,1372,1442,1512
+api-client-python-async/daytona_api_client_async/api/regions_api.py
+  h_e7759ddd73fa65 40,102,164
+api-client-python-async/daytona_api_client_async/api/runners_api.py
+  h_e7759ddd73fa65 47,117,187,334,408,482,618,680,742,862,932,1002,1136,1202,1268,1395,1461,1527,1654,1720,1786,1915,1977,2039,2159,2229,2299,2435,2502,2569,2703,2773,2843,2977,3047,3117
+api-client-python-async/daytona_api_client_async/api/sandbox_api.py
+  h_e7759ddd73fa65 70,140,210,344,416,488,624,694,764,911,985,1059,1213,1287,1361,1504,1574,1644,1778,1856,1934,2075,2149,2223,2377,2453,2529,2667,2737,2807,2941,3011,3081,3215,3289,3363,3504,3574,3644,3778,3799,3853,3874,3928,3949,4072,4142,4212,4346,4420,4494,4637,4732,4827,5035,5118,5201,5382,5452,5522,5656,5726,5796,5930,6005,6080,6222,6309,6396,6585,6659,6733,6878,6956,7034,7184,7254,7324,7458,7641,7824,8271,8341,8411,8545,8619,8693,8836,8910,8984,9138,9212,9286,9440,9510,9580,9714,9788,9862,10005,10075,10145,10279,10353,10427,10568,10642,10716,10857,10931,11005,11146,11220,11294,11435,11509,11583,11724,11795,11866,12001,12075,12149,12292,12366,12440,12587,12662,12737,12892,12966,13040,13181,13256,13331,13486,13560,13634,13781,13851,13921
+api-client-python-async/daytona_api_client_async/api/secret_api.py
+  h_e7759ddd73fa65 45,115,185,332,402,472,599,669,739,873,941,1009,1138,1224,1310,1482,1556,1630
+api-client-python-async/daytona_api_client_async/api/snapshots_api.py
+  h_e7759ddd73fa65 45,117,189,325,396,467,615,685,755,882,972,1062,1243,1314,1385,1520,1596,1672,1810,1880,1950,2084,2154,2224
+api-client-python-async/daytona_api_client_async/api/users_api.py
+  h_e7759ddd73fa65 44,106,168,281,347,413,533,599,665,785,848,911,1032,1094,1156,1276,1344,1412,1547,1609,1671,1791,1854,1917
+api-client-python-async/daytona_api_client_async/api/volumes_api.py
+  h_e7759ddd73fa65 43,113,183,330,401,472,600,670,740,874,944,1014,1148,1218,1288
+api-client-python-async/daytona_api_client_async/api/warm_pools_api.py
+  h_e7759ddd73fa65 44,114,184,331,401,471,598,664,730,857,931,1005
+api-client-python-async/daytona_api_client_async/api/webhooks_api.py
+  h_e7759ddd73fa65 43,113,183,317,388,459,594,664,734,868,939,1010
+api-client-python-async/daytona_api_client_async/api_client.py
+  h_e7759ddd73fa65 208
+api-client-python-async/daytona_api_client_async/models/__init__.py
+  h_e7759ddd73fa65 32,54,147,183,205,298
+api-client-python-async/daytona_api_client_async/models/cli_oidc_config.py
+  h_e7759ddd73fa65 1-105
+api-client-python-async/daytona_api_client_async/models/create_sandbox.py
+  h_e7759ddd73fa65 43,60,66,142,159,163
+api-client-python-async/daytona_api_client_async/models/directory_sync_status.py
+  h_e7759ddd73fa65 1-44
+api-client-python-async/daytona_api_client_async/models/gpu_type.py
+  h_e7759ddd73fa65 32,34
+api-client-python-async/daytona_api_client_async/models/oidc_config.py
+  h_e7759ddd73fa65 23,39,41,83-85,107-108
+api-client-python-async/daytona_api_client_async/models/organization.py
+  h_e7759ddd73fa65 24,53,60-62,72,122-126,191,198-200
+api-client-python-async/daytona_api_client_async/models/sandbox.py
+  h_e7759ddd73fa65 47,57,73,85,142-146,168,178,194,204
+api-client-python-async/daytona_api_client_async/models/sandbox_list_item.py
+  h_e7759ddd73fa65 57,68,76,123-127,160,171
+api-client-python-async/daytona_api_client_async/models/update_organization_default_queue_timeout.py
+  h_e7759ddd73fa65 1-108
+api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 15,17,28,30-33
+api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-6
+api-client-python/.openapi-generator/FILES
+  h_e7759ddd73fa65 36,58,151
+api-client-python/daytona_api_client/__init__.py
+  h_e7759ddd73fa65 65,87,180,246,268,361,441,463,556
+api-client-python/daytona_api_client/api/api_keys_api.py
+  h_e7759ddd73fa65 44,114,184,331,401,471,598,672,746,880,950,1020,1154,1220,1286,1413,1480,1547
+api-client-python/daytona_api_client/api/audit_api.py
+  h_e7759ddd73fa65 47,110,173,292,418,544
+api-client-python/daytona_api_client/api/config_api.py
+  h_e7759ddd73fa65 39,101,163
+api-client-python/daytona_api_client/api/docker_registry_api.py
+  h_e7759ddd73fa65 45,115,185,332,402,472,599,669,739,873,943,1013,1149,1215,1281,1408,1482,1556
+api-client-python/daytona_api_client/api/health_api.py
+  h_e7759ddd73fa65 39,102,165,285,347,409
+api-client-python/daytona_api_client/api/jobs_api.py
+  h_e7759ddd73fa65 46,112,178,305,384,463,620,691,762,901,971,1041
+api-client-python/daytona_api_client/api/object_storage_api.py
+  h_e7759ddd73fa65 42,108,174
+api-client-python/daytona_api_client/api/organizations_api.py
+  h_e7759ddd73fa65 45,72,138,204,331,401,471,598,664,730,870,940,1010,1157,1227,1297,1444,1514,1584,1731,1801,1871,2018,2084,2150,2270,2336,2402,2522,2592,2662,2789,2859,2929,3056,3122,3188,3308,3378,3448,3575,3645,3715,3842,3912,3982,4129,4197,4265,4394,4460,4526,4653,4723,4793,4927,4989,5051,5171,5237,5303,5430,5496,5562,5689,5755,5821,5948,6018,6088,6222,6288,6354,6481,6547,6613,6733,6799,6865,6992,7058,7124,7251,7317,7383,7510,7576,7642,7769,7831,7893,8013,8079,8145,8272,8338,8404,8531,8593,8655,8775,8841,8907,9034,9104,9174,9308,9378,9448,9582,9652,9722,9856,9926,9996,10136,10206,10276,10423,10497,10571,10725,10795,10865,11005-11285,11359,11433,11587,11661,11735,11889,11959,12029,12169,12243,12317,12471,12545,12619
+api-client-python/daytona_api_client/api/preview_api.py
+  h_e7759ddd73fa65 42,112,182,316,382,448,575,642,709,837,907,977,1113,1179,1245,1372,1442,1512
+api-client-python/daytona_api_client/api/regions_api.py
+  h_e7759ddd73fa65 40,102,164
+api-client-python/daytona_api_client/api/runners_api.py
+  h_e7759ddd73fa65 47,117,187,334,408,482,618,680,742,862,932,1002,1136,1202,1268,1395,1461,1527,1654,1720,1786,1915,1977,2039,2159,2229,2299,2435,2502,2569,2703,2773,2843,2977,3047,3117
+api-client-python/daytona_api_client/api/sandbox_api.py
+  h_e7759ddd73fa65 70,140,210,344,416,488,624,694,764,911,985,1059,1213,1287,1361,1504,1574,1644,1778,1856,1934,2075,2149,2223,2377,2453,2529,2667,2737,2807,2941,3011,3081,3215,3289,3363,3504,3574,3644,3778,3799,3853,3874,3928,3949,4072,4142,4212,4346,4420,4494,4637,4732,4827,5035,5118,5201,5382,5452,5522,5656,5726,5796,5930,6005,6080,6222,6309,6396,6585,6659,6733,6878,6956,7034,7184,7254,7324,7458,7641,7824,8271,8341,8411,8545,8619,8693,8836,8910,8984,9138,9212,9286,9440,9510,9580,9714,9788,9862,10005,10075,10145,10279,10353,10427,10568,10642,10716,10857,10931,11005,11146,11220,11294,11435,11509,11583,11724,11795,11866,12001,12075,12149,12292,12366,12440,12587,12662,12737,12892,12966,13040,13181,13256,13331,13486,13560,13634,13781,13851,13921
+api-client-python/daytona_api_client/api/secret_api.py
+  h_e7759ddd73fa65 45,115,185,332,402,472,599,669,739,873,941,1009,1138,1224,1310,1482,1556,1630
+api-client-python/daytona_api_client/api/snapshots_api.py
+  h_e7759ddd73fa65 45,117,189,325,396,467,615,685,755,882,972,1062,1243,1314,1385,1520,1596,1672,1810,1880,1950,2084,2154,2224
+api-client-python/daytona_api_client/api/users_api.py
+  h_e7759ddd73fa65 44,106,168,281,347,413,533,599,665,785,848,911,1032,1094,1156,1276,1344,1412,1547,1609,1671,1791,1854,1917
+api-client-python/daytona_api_client/api/volumes_api.py
+  h_e7759ddd73fa65 43,113,183,330,401,472,600,670,740,874,944,1014,1148,1218,1288
+api-client-python/daytona_api_client/api/warm_pools_api.py
+  h_e7759ddd73fa65 44,114,184,331,401,471,598,664,730,857,931,1005
+api-client-python/daytona_api_client/api/webhooks_api.py
+  h_e7759ddd73fa65 43,113,183,317,388,459,594,664,734,868,939,1010
+api-client-python/daytona_api_client/api_client.py
+  h_e7759ddd73fa65 205
+api-client-python/daytona_api_client/models/__init__.py
+  h_e7759ddd73fa65 32,54,147,183,205,298
+api-client-python/daytona_api_client/models/cli_oidc_config.py
+  h_e7759ddd73fa65 1-105
+api-client-python/daytona_api_client/models/create_sandbox.py
+  h_e7759ddd73fa65 43,60,66,142,159,163
+api-client-python/daytona_api_client/models/directory_sync_status.py
+  h_e7759ddd73fa65 1-44
+api-client-python/daytona_api_client/models/gpu_type.py
+  h_e7759ddd73fa65 32,34
+api-client-python/daytona_api_client/models/oidc_config.py
+  h_e7759ddd73fa65 23,39,41,83-85,107-108
+api-client-python/daytona_api_client/models/organization.py
+  h_e7759ddd73fa65 24,53,60-62,72,122-126,191,198-200
+api-client-python/daytona_api_client/models/sandbox.py
+  h_e7759ddd73fa65 47,57,73,85,142-146,168,178,194,204
+api-client-python/daytona_api_client/models/sandbox_list_item.py
+  h_e7759ddd73fa65 57,68,76,123-127,160,171
+api-client-python/daytona_api_client/models/update_organization_default_queue_timeout.py
+  h_e7759ddd73fa65 1-108
+api-client-python/pyproject.toml
+  h_e7759ddd73fa65 16,27,29-32
+api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-6
+api-client-ruby/.openapi-generator/FILES
+  h_e7759ddd73fa65 38,60,153
+api-client-ruby/lib/daytona_api_client.rb
+  h_e7759ddd73fa65 30,52,145
+api-client-ruby/lib/daytona_api_client/api/organizations_api.rb
+  h_e7759ddd73fa65 2630-2699
+api-client-ruby/lib/daytona_api_client/api/sandbox_api.rb
+  h_e7759ddd73fa65 906,918
+api-client-ruby/lib/daytona_api_client/models/cli_oidc_config.rb
+  h_e7759ddd73fa65 1-192
+api-client-ruby/lib/daytona_api_client/models/create_sandbox.rb
+  h_e7759ddd73fa65 39-41,90-92,115,132,136,160,177,181,239-244,313-316,365,382,386,398
+api-client-ruby/lib/daytona_api_client/models/directory_sync_status.rb
+  h_e7759ddd73fa65 1-42
+api-client-ruby/lib/daytona_api_client/models/gpu_type.rb
+  h_e7759ddd73fa65 20,22,30
+api-client-ruby/lib/daytona_api_client/models/oidc_config.rb
+  h_e7759ddd73fa65 33-35,65-66,87-88,141-144,233-234,246
+api-client-ruby/lib/daytona_api_client/models/organization.rb
+  h_e7759ddd73fa65 69-71,90-98,123-144,165,172-174,216,223-225,240,369-374,407-418,835,842-844,864
+api-client-ruby/lib/daytona_api_client/models/sandbox.rb
+  h_e7759ddd73fa65 45-47,75-77,123-125,190,200,216,226,252,262,278,288,295,371-376,421-424,489-492,575-578,618,626,712-721,785,816,826,842,852,864
+api-client-ruby/lib/daytona_api_client/models/sandbox_class.rb
+  h_e7759ddd73fa65 24
+api-client-ruby/lib/daytona_api_client/models/sandbox_list_item.rb
+  h_e7759ddd73fa65 78-80,111-113,177,188,231,242,255,375-378,427-430,705,716,734
+api-client-ruby/lib/daytona_api_client/models/snapshot_dto.rb
+  h_e7759ddd73fa65 377,485
+api-client-ruby/lib/daytona_api_client/models/update_organization_default_queue_timeout.rb
+  h_e7759ddd73fa65 1-151
+api-client-ruby/project.json
+  h_e7759ddd73fa65 54
+api-client/project.json
+  h_e7759ddd73fa65 47,49
+api-client/src/.openapi-generator/FILES
+  h_e7759ddd73fa65 35,57,151
+api-client/src/api/organizations-api.ts
+  h_e7759ddd73fa65 71-72,1796-1839,2638-2651,3162-3172,3707-3718
+api-client/src/api/sandbox-api.ts
+  h_e7759ddd73fa65 691,2682,3367,3964
+api-client/src/models/audit-target-scenario.ts
+  h_e7759ddd73fa65 105,116
+api-client/src/models/cli-oidc-config.ts
+  h_e7759ddd73fa65 1-27
+api-client/src/models/create-sandbox.ts
+  h_e7759ddd73fa65 55-58,123-126
+api-client/src/models/directory-sync-status.ts
+  h_e7759ddd73fa65 1-31
+api-client/src/models/gpu-type.ts
+  h_e7759ddd73fa65 21,23
+api-client/src/models/index.ts
+  h_e7759ddd73fa65 10,32,125
+api-client/src/models/oidc-config.ts
+  h_e7759ddd73fa65 16-18,41-44
+api-client/src/models/organization.ts
+  h_e7759ddd73fa65 16-18,92-95,120-131,166-167
+api-client/src/models/sandbox-list-item.ts
+  h_e7759ddd73fa65 110-113,154-157
+api-client/src/models/sandbox.ts
+  h_e7759ddd73fa65 69-72,109-112,175-178
+api-client/src/models/update-organization-default-queue-timeout.ts
+  h_e7759ddd73fa65 1-23
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 34,184-185,199-205,208-210,213-214,293,570,618,720,762,897,938,1584,1617,2023,2057,2630-2679,3031-3095,3122,3133,3148-3151,3156-3191,3196,3206,3213-3215,3267,3275,3277,3288-3290,3295-3322,3344,3379,3603-3608,4557,4593,4958,4968-4979,4991-4992,5223-5241,5588,5622,5783,5827,6077,6113,6256,6289
+artifacts/sdk-docs/go-sdk/errors.mdx
+  h_e7759ddd73fa65 41-49,68-70,74,102-103,133-136,260-263,312-338,371-379
+artifacts/sdk-docs/go-sdk/types.mdx
+  h_e7759ddd73fa65 145-147,179-184,239,379,390,392,592-595,627-630,699
+artifacts/sdk-docs/java-sdk/computer-use.mdx
+  h_e7759ddd73fa65 242-260,277-400,446-464,487-546,585-610
+artifacts/sdk-docs/java-sdk/config.mdx
+  h_e7759ddd73fa65 42-44,119-121
+artifacts/sdk-docs/java-sdk/errors.mdx
+  h_e7759ddd73fa65 1697-1770,2090-2116
+artifacts/sdk-docs/java-sdk/process.mdx
+  h_e7759ddd73fa65 41-55
+artifacts/sdk-docs/java-sdk/sandbox.mdx
+  h_e7759ddd73fa65 175-192,877-885,1012-1020
+artifacts/sdk-docs/java-sdk/snapshot.mdx
+  h_e7759ddd73fa65 55-76
+artifacts/sdk-docs/python-sdk/async/async-computer-use.mdx
+  h_e7759ddd73fa65 324-418,428-431,446-451,470-475,488-490,506-508,521-523,535-537,546,552-554,570-575,735-810
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  h_e7759ddd73fa65 70-71,445-448,510-511,538-540
+artifacts/sdk-docs/python-sdk/async/async-object-storage.mdx
+  h_e7759ddd73fa65 29-31,41-42
+artifacts/sdk-docs/python-sdk/async/async-process.mdx
+  h_e7759ddd73fa65 39-53,85-87
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  h_e7759ddd73fa65 38-39,65-66,598-628,882-887,906-908,911-917,932-936,941-942,952-959
+artifacts/sdk-docs/python-sdk/async/async-snapshot.mdx
+  h_e7759ddd73fa65 223-224
+artifacts/sdk-docs/python-sdk/common/errors.mdx
+  h_e7759ddd73fa65 216-222,232-247
+artifacts/sdk-docs/python-sdk/common/image.mdx
+  h_e7759ddd73fa65 317-318,347-350,433-434
+artifacts/sdk-docs/python-sdk/sync/computer-use.mdx
+  h_e7759ddd73fa65 322-416,426-429,444-449,468-473,486-488,504-506,519-521,533-535,544,550-552,568-573,735-810
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  h_e7759ddd73fa65 67-68,391-394,456-457,484-486
+artifacts/sdk-docs/python-sdk/sync/object-storage.mdx
+  h_e7759ddd73fa65 29-31,41-42
+artifacts/sdk-docs/python-sdk/sync/process.mdx
+  h_e7759ddd73fa65 40-54,86-88
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  h_e7759ddd73fa65 38-39,65-66,597-626,873-878,897-898,902-907,922-926,931-932,942-949
+artifacts/sdk-docs/python-sdk/sync/snapshot.mdx
+  h_e7759ddd73fa65 223-224
+artifacts/sdk-docs/ruby-sdk/config.mdx
+  h_e7759ddd73fa65 27-28,152-153,166-167
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  h_e7759ddd73fa65 144,153-155,163-172
+artifacts/sdk-docs/ruby-sdk/process.mdx
+  h_e7759ddd73fa65 88-101,117,122,125-128
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  h_e7759ddd73fa65 235-245,417-427,699-728,990-995,1004-1014,1121-1124,1129-1130
+artifacts/sdk-docs/typescript-sdk/computer-use.mdx
+  h_e7759ddd73fa65 453-490,631-662,696-698,710-711,729-772,783-784,797,809-811,864-866,876,878,893-931
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  h_e7759ddd73fa65 114,123,415,418,447,452,479,483,514
+artifacts/sdk-docs/typescript-sdk/errors.mdx
+  h_e7759ddd73fa65 736,787,2243-2250,2335,2410-2512,2888-2961,2972-2978,3000
+artifacts/sdk-docs/typescript-sdk/process.mdx
+  h_e7759ddd73fa65 314-326,362-366
+artifacts/sdk-docs/typescript-sdk/sandbox.mdx
+  h_e7759ddd73fa65 60-61,431-436,453-457,468-471,475-476,483-489,889-916
+artifacts/sdk-docs/typescript-sdk/snapshot.mdx
+  h_e7759ddd73fa65 241
+cli/apiclient/api_client.go
+  h_e7759ddd73fa65 77
+cli/apiclient/error_handler.go
+  h_e7759ddd73fa65 12-13,64
+cli/apiclient/latest_release.go
+  h_e7759ddd73fa65 14,22-26,32-33,41-42,50-54,88-90,95-129,131,138,143,146-148,150-151,153-160,162-177
+cli/apiclient/version_check_test.go
+  h_e7759ddd73fa65 34-50,56,60,68,80,332-441
+cli/auth/auth.go
+  h_e7759ddd73fa65 23,223,267
+cli/cmd/auth/login.go
+  h_e7759ddd73fa65 16,113-115,117-118,124-141
+cli/cmd/auth/login_test.go
+  h_e7759ddd73fa65 13,172-209
+cli/cmd/common/organization.go
+  h_e7759ddd73fa65 14-15,18,23-32,35-40,43,47
+cli/cmd/common/sandbox.go
+  h_e7759ddd73fa65 10,30,32,34
+cli/cmd/common/state.go
+  h_e7759ddd73fa65 53-63,75-90
+cli/cmd/common/state_test.go
+  h_e7759ddd73fa65 1-129
+cli/cmd/mcp/config.go
+  h_e7759ddd73fa65 13-14,68
+cli/cmd/organization/organization.go
+  h_e7759ddd73fa65 22
+cli/cmd/sandbox/create.go
+  h_e7759ddd73fa65 17,112-117,211,234,260
+cli/cmd/sandbox/create_test.go
+  h_e7759ddd73fa65 20-32,35-45,49,52,59,88,135,148-150,155-202
+cli/cmd/snapshot/create.go
+  h_e7759ddd73fa65 16,144
+cli/cmd/snapshot/push.go
+  h_e7759ddd73fa65 19,32
+cli/config/config.go
+  h_e7759ddd73fa65 87,116-117
+cli/go.mod
+  h_e7759ddd73fa65 3,7
+cli/hack/build.sh
+  h_e7759ddd73fa65 64-75,108,114,117-118
+cli/hack/homebrew/0001-daytona-at-0.patch
+  h_e7759ddd73fa65 1-185
+cli/hack/homebrew/README.md
+  h_e7759ddd73fa65 1-36
+cli/hack/stage-release-assets.sh
+  h_e7759ddd73fa65 1-94
+cli/hack/stage-release-assets.test.sh
+  h_e7759ddd73fa65 1-173
+cli/install-v0.sh
+  h_e7759ddd73fa65 1-87
+cli/internal/buildinfo.go
+  h_e7759ddd73fa65 6-11,19-24,26-47
+cli/internal/buildinfo_test.go
+  h_e7759ddd73fa65 1-41
+cli/main.go
+  h_e7759ddd73fa65 23,64
+cli/main_test.go
+  h_e7759ddd73fa65 37,43-45,158-240
+cli/mcp/README.md
+  h_e7759ddd73fa65 18-21,30-38,45-47,88-89
+cli/mcp/tools/create_sandbox.go
+  h_e7759ddd73fa65 34,63,168-171,192-195
+cli/mcp/tools/create_sandbox_test.go
+  h_e7759ddd73fa65 16,45-47,65,75,114-118,152-182
+cli/mcp/tools/download_file.go
+  h_e7759ddd73fa65 11,53-60
+cli/toolbox/api_client.go
+  h_e7759ddd73fa65 96
+cli/views/sandbox/info.go
+  h_e7759ddd73fa65 27-29,51-62
+cli/views/util/empty_list.go
+  h_e7759ddd73fa65 7,21,28,35
+examples/go/go.mod
+  h_e7759ddd73fa65 3,11-23,27-28,34-42,44-48
+examples/go/go.sum
+  h_e7759ddd73fa65 1-38,62-81,88-93,96-99
+examples/python/region/_async/main.py
+  h_e7759ddd73fa65 39,47
+examples/python/region/main.py
+  h_e7759ddd73fa65 39,47
+examples/typescript/region/index.tsx
+  h_e7759ddd73fa65 38,50
+flake.nix
+  h_e7759ddd73fa65 40,61-95
+go.work
+  h_e7759ddd73fa65 1
+hack/ax-evals/ax-evals.test.js
+  h_e7759ddd73fa65 1-282
+hack/ax-evals/comment.js
+  h_e7759ddd73fa65 1-38
+hack/ax-evals/evals.json
+  h_e7759ddd73fa65 1-69
+hack/ax-evals/plan.js
+  h_e7759ddd73fa65 1-115
+hack/ax-evals/report.js
+  h_e7759ddd73fa65 1-127
+hack/ax-evals/save-result.js
+  h_e7759ddd73fa65 1-61
+hack/ax-evals/setup/_common.sh
+  h_e7759ddd73fa65 1-59
+hack/ax-evals/setup/cli.sh
+  h_e7759ddd73fa65 1-7
+hack/ax-evals/setup/go.sh
+  h_e7759ddd73fa65 1-29
+hack/ax-evals/setup/java.sh
+  h_e7759ddd73fa65 1-64
+hack/ax-evals/setup/python.sh
+  h_e7759ddd73fa65 1-22
+hack/ax-evals/setup/ruby.sh
+  h_e7759ddd73fa65 1-36
+hack/ax-evals/setup/typescript.sh
+  h_e7759ddd73fa65 1-32
+hack/ax-evals/sync.py
+  h_e7759ddd73fa65 1-161
+hack/go-vanity/README.md
+  h_e7759ddd73fa65 5,15-17
+hack/go-vanity/generate-site.sh
+  h_e7759ddd73fa65 8,15
+hack/homebrew-tap-dispatch.test.sh
+  h_e7759ddd73fa65 1-126
+hack/npm-latest-guard.sh
+  h_e7759ddd73fa65 1-112
+hack/npm-latest-guard.test.sh
+  h_e7759ddd73fa65 1-121
+hack/npm-publish.sh
+  h_e7759ddd73fa65 1-38
+hack/npm-publish.test.sh
+  h_e7759ddd73fa65 1-65
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 48,61,79,89,111,113-116
+hack/python-client/openapi-templates/test-requirements.mustache
+  h_e7759ddd73fa65 1-10
+hack/python-client/postprocess.sh
+  h_e7759ddd73fa65 41-46,52-55
+hack/stable-v2-release.sh
+  h_e7759ddd73fa65 1-48
+hack/stable-v2-release.test.sh
+  h_e7759ddd73fa65 1-68
+openapi-specs/api.json
+  h_e7759ddd73fa65 598-644,3165,9425-9443,9475-9482,10210-10218,10322-10326,10351-10368,10431,10459-10472,10491,10493,10502,10504,11879-11883,11950-11955,12119-12124,12211-12215,12355-12359,12406-12410,12506-12511,12587,15053,15064,15845
+openapi-specs/toolbox.json
+  h_e7759ddd73fa65 334-374,498-538,580-620,767-807,1489-1500,1663-1666,1671,2654-2683,3735,3956,4074-4079,4534-4623,4640-4678,5248-5267,5468-5471,5475-5480,5500-5514,5527-5532,5583-5604,6067-6083,6192,6195-6196,6199,6202-6205
+package.json
+  h_e7759ddd73fa65 25-26,28-34,36,41-42,44-46,52-58,60,62,64,67,74-75,79-83,85,87,89-113
+poetry.lock
+  h_e7759ddd73fa65 1,29,35-195,204,207,290,293,296-297,419,425-451,497,503-504,1124,1144,1146,1165,1185,1187,1206,1226,1228,1687,1810-1811,1859,2653,2656,2659-2829,3154,3157,3160-3161,3167-3204,3207,3210,3213-3214,3218,3222,3225,3228-3229,3235-3239,3245,3249,3252,3255-3256,3261,3263,3267,3270,3273-3274,3279-3282,3289,3292,3295-3296,3300,3304,3307,3310-3311,3315-3316,3319-3321,3324,3327,3330-3331,3335,3340,3343,3346-3347,3804,3807,3810-3811,3816-3818,3822,3826,3829,3832-3972,3976,4023,4026,4029-4030,4034,4039,4041,4607,4613-4614,4791,4797-4806,4865,4902,4905,4908-4909,4913,5147,5150,5153-5290,5304-5305,5322
+pyproject.toml
+  h_e7759ddd73fa65 26,29-30
+scripts/secret-scan.sh
+  h_e7759ddd73fa65 1-303
+scripts/secret-scan_test.sh
+  h_e7759ddd73fa65 1-356
+sdk-go/README.md
+  h_e7759ddd73fa65 98-127
+sdk-go/go.mod
+  h_e7759ddd73fa65 3,6-10,12-13,17-23,27-34,41-42,45-49
+sdk-go/go.sum
+  h_e7759ddd73fa65 1-38,45-47,67-86,93-98,101-104
+sdk-go/pkg/daytona/VERSION
+  h_e7759ddd73fa65 1
+sdk-go/pkg/daytona/client.go
+  h_e7759ddd73fa65 24,147,263,408,467-477,526-528,561-566,583-585
+sdk-go/pkg/daytona/client_test.go
+  h_e7759ddd73fa65 10,265,297,1107-1127,1162-1187,1241-1312
+sdk-go/pkg/daytona/code_interpreter.go
+  h_e7759ddd73fa65 151,165,192,221
+sdk-go/pkg/daytona/code_interpreter_test.go
+  h_e7759ddd73fa65 81,83-86,254-284,313,345
+sdk-go/pkg/daytona/computer_use.go
+  h_e7759ddd73fa65 274-333,341,356-359,361-366,379-384,405,412-414,416-421,431-433,453,455,466-468,470-475,484-486,497-594,711-766,1263
+sdk-go/pkg/daytona/computer_use_test.go
+  h_e7759ddd73fa65 9,388,409,541-867
+sdk-go/pkg/daytona/file_transfer.go
+  h_e7759ddd73fa65 64,70,86,94,103,121,142,213,229
+sdk-go/pkg/daytona/filesystem.go
+  h_e7759ddd73fa65 239,246,251,259-269,414,423,429,434
+sdk-go/pkg/daytona/filesystem_test.go
+  h_e7759ddd73fa65 130-145,147,158-165,168-172
+sdk-go/pkg/daytona/image.go
+  h_e7759ddd73fa65 7,234,238-262
+sdk-go/pkg/daytona/image_test.go
+  h_e7759ddd73fa65 7,211-238,345-346
+sdk-go/pkg/daytona/object_storage.go
+  h_e7759ddd73fa65 197,204,245,252,257,272,285,290,322,325
+sdk-go/pkg/daytona/process.go
+  h_e7759ddd73fa65 122-138,632,726,762,1055,1144,1155
+sdk-go/pkg/daytona/pty_handle.go
+  h_e7759ddd73fa65 59,64,67-73,102-103,108,113-136,217,219,250,336-343,361,363,453-457
+sdk-go/pkg/daytona/pty_handle_test.go
+  h_e7759ddd73fa65 8,10,13,105-150,258-375
+sdk-go/pkg/daytona/sandbox.go
+  h_e7759ddd73fa65 79,115,224-225,424-434,487-488,689-691,709-711,745-749,767-788,803-823,1573-1578,1587-1598,1622-1626,1684-1716,2059,2154
+sdk-go/pkg/daytona/sandbox_test.go
+  h_e7759ddd73fa65 10,13,16,94-95,133,150,161-208,362-396,717-766,1139-1166,1256-1397
+sdk-go/pkg/daytona/snapshot.go
+  h_e7759ddd73fa65 323-330
+sdk-go/pkg/daytona/snapshot_test.go
+  h_e7759ddd73fa65 417-463
+sdk-go/pkg/daytona/transport_error_test.go
+  h_e7759ddd73fa65 1-90
+sdk-go/pkg/errors/errors.go
+  h_e7759ddd73fa65 31-42,65-66,80-83,93-100,136-142,149-160,195-198,332-334,337
+sdk-go/pkg/errors/errors_test.go
+  h_e7759ddd73fa65 7-8,11,13-14,64-98,132-150,351-425
+sdk-go/pkg/types/types.go
+  h_e7759ddd73fa65 33,35,62-67,115-118,150-153,177-179,424
+sdk-java/README.md
+  h_e7759ddd73fa65 41,85-103
+sdk-java/src/main/java/io/daytona/sdk/ComputerUse.java
+  h_e7759ddd73fa65 18-19,25,31,263-307,312-314,326-372,375-426,460-497,503-504,522-541,546-574,579-580,624-649
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  h_e7759ddd73fa65 97,225-237,582-589,592-595,603-605,630,780-781,784-788
+sdk-java/src/main/java/io/daytona/sdk/DaytonaConfig.java
+  h_e7759ddd73fa65 50-52,118-120
+sdk-java/src/main/java/io/daytona/sdk/Process.java
+  h_e7759ddd73fa65 79-93
+sdk-java/src/main/java/io/daytona/sdk/PtyHandle.java
+  h_e7759ddd73fa65 29-36,63-66
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  h_e7759ddd73fa65 27-28,148,163,438-454,890,894,928,932,946-947,950,966,985,999,1065-1072,1112,1114,1119,1148,1154-1160,1193-1197,1214,1221-1237,1493-1494,1523-1524
+sdk-java/src/main/java/io/daytona/sdk/SnapshotService.java
+  h_e7759ddd73fa65 43,54-58,63-70,95-109,114,160-178,195
+sdk-java/src/main/java/io/daytona/sdk/exception/DaytonaQueueTimeoutException.java
+  h_e7759ddd73fa65 1-34
+sdk-java/src/main/java/io/daytona/sdk/exception/DaytonaSpotEvictedException.java
+  h_e7759ddd73fa65 1-19
+sdk-java/src/main/java/io/daytona/sdk/model/CreateSandboxParams.java
+  h_e7759ddd73fa65 30,40,202-217,370-385
+sdk-java/src/test/java/io/daytona/sdk/ComputerUseTest.java
+  h_e7759ddd73fa65 21-22,25-28,231-441
+sdk-java/src/test/java/io/daytona/sdk/DaytonaTest.java
+  h_e7759ddd73fa65 169-207,260,284,411-457
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  h_e7759ddd73fa65 21,24,154-215,285-300,344-355,371-372,377-390
+sdk-java/src/test/java/io/daytona/sdk/SnapshotServiceTest.java
+  h_e7759ddd73fa65 88-146
+sdk-java/src/test/java/io/daytona/sdk/TestSupport.java
+  h_e7759ddd73fa65 38-39,70-71
+sdk-python/README.md
+  h_e7759ddd73fa65 25,58-69
+sdk-python/src/daytona/__init__.py
+  h_e7759ddd73fa65 80,86,203,209,294,300
+sdk-python/src/daytona/_async/computer_use.py
+  h_e7759ddd73fa65 23-24,30,36,111-191,195-203,216-221,236-241,244,258-259,273-275,284-286,289-291,298-305,312,318-320,332-337,340,476-537
+sdk-python/src/daytona/_async/daytona.py
+  h_e7759ddd73fa65 60-65,83-86,176-177,591-600,602-603,610,647-650,676,719-721,735,742-757
+sdk-python/src/daytona/_async/object_storage.py
+  h_e7759ddd73fa65 16,73-80,87-88,96,104,126-128,134,146-152,192-198,205,212-213,220-223
+sdk-python/src/daytona/_async/process.py
+  h_e7759ddd73fa65 40,68,97-111,138-140
+sdk-python/src/daytona/_async/sandbox.py
+  h_e7759ddd73fa65 62-68,145-146,172-173,689-690,760-786,1012-1017,1031-1033,1036-1042,1058-1062,1066-1067,1075-1080,1425-1440,1486,1501-1502,1519-1521,1549,1577,1585
+sdk-python/src/daytona/_async/snapshot.py
+  h_e7759ddd73fa65 286-289
+sdk-python/src/daytona/_sync/computer_use.py
+  h_e7759ddd73fa65 23-24,30,36,110-190,194-202,215-220,235-240,243,257-258,272-274,283-285,288-290,296-305,311,317-319,331-336,339,476-537
+sdk-python/src/daytona/_sync/daytona.py
+  h_e7759ddd73fa65 27-29,48-53,67-70,128-129,460-469,471-472,479,516-519,545,587-589,603,610-617,619-626
+sdk-python/src/daytona/_sync/object_storage.py
+  h_e7759ddd73fa65 14,71-78,85-86,94,102,124-126,132,144-148,188-194,201,208-209,216-219
+sdk-python/src/daytona/_sync/process.py
+  h_e7759ddd73fa65 40,93-107,134-136,694-701,773-778
+sdk-python/src/daytona/_sync/sandbox.py
+  h_e7759ddd73fa65 62-68,133-134,160-161,671-672,740-764,990-995,1009-1010,1014-1019,1033-1037,1041-1042,1050-1055,1401-1416,1466,1480-1481,1498-1500,1529,1557,1565
+sdk-python/src/daytona/_sync/snapshot.py
+  h_e7759ddd73fa65 283-286
+sdk-python/src/daytona/_utils/dockerignore.py
+  h_e7759ddd73fa65 1-586
+sdk-python/src/daytona/_utils/stream.py
+  h_e7759ddd73fa65 315-319
+sdk-python/src/daytona/_utils/timeout.py
+  h_e7759ddd73fa65 332,341-343,409-410,429,452,488,493
+sdk-python/src/daytona/common/daytona.py
+  h_e7759ddd73fa65 63-66,165-166,193-195,209,221
+sdk-python/src/daytona/common/errors.py
+  h_e7759ddd73fa65 190-194,204-221
+sdk-python/src/daytona/common/image.py
+  h_e7759ddd73fa65 34-35,40,252,280,303-304,360-361,379-380,394-395,424-425,432-438,448-451,475-478,488-494,764-781
+sdk-python/src/daytona/common/pty.py
+  h_e7759ddd73fa65 12-17
+sdk-python/src/daytona/common/snapshot.py
+  h_e7759ddd73fa65 87-88
+sdk-python/src/daytona/handle/async_pty_handle.py
+  h_e7759ddd73fa65 148-150,154-156
+sdk-python/src/daytona/handle/pty_handle.py
+  h_e7759ddd73fa65 7,203,207-210,224-234,272-274,279,282,286
+sdk-python/src/daytona/internal/event_dispatcher.py
+  h_e7759ddd73fa65 40,273-276,278,281,283,298-300,302-312,622-633
+sdk-python/tests/conftest.py
+  h_e7759ddd73fa65 78-80
+sdk-python/tests/test_async_computer_use.py
+  h_e7759ddd73fa65 53-157,174-187
+sdk-python/tests/test_async_daytona.py
+  h_e7759ddd73fa65 12,14-16,529-575,613-686,831-868
+sdk-python/tests/test_async_e2e.py
+  h_e7759ddd73fa65 201-225
+sdk-python/tests/test_async_object_storage.py
+  h_e7759ddd73fa65 6-7,129-132,156-221
+sdk-python/tests/test_async_sandbox.py
+  h_e7759ddd73fa65 12-18,266-348
+sdk-python/tests/test_computer_use.py
+  h_e7759ddd73fa65 59-156,175-187
+sdk-python/tests/test_daytona.py
+  h_e7759ddd73fa65 13,15-17,219-252,290-362,595-633
+sdk-python/tests/test_dockerignore.py
+  h_e7759ddd73fa65 1-243
+sdk-python/tests/test_event_dispatcher.py
+  h_e7759ddd73fa65 1-137
+sdk-python/tests/test_image.py
+  h_e7759ddd73fa65 6,148-162,191-196,209-220,235-265,482-500
+sdk-python/tests/test_object_storage.py
+  h_e7759ddd73fa65 6-7,130-131,151-239
+sdk-python/tests/test_process_keepalive.py
+  h_e7759ddd73fa65 1-68
+sdk-python/tests/test_pty_handle.py
+  h_e7759ddd73fa65 6-7,10,12,17,156-245,438-488
+sdk-python/tests/test_sandbox.py
+  h_e7759ddd73fa65 11-17,92-98,245-302,421-434
+sdk-python/tests/test_snapshot.py
+  h_e7759ddd73fa65 408-448
+sdk-python/tests/test_stream.py
+  h_e7759ddd73fa65 1-155
+sdk-ruby/README.md
+  h_e7759ddd73fa65 33,65-78,123-159
+sdk-ruby/lib/daytona/common/daytona.rb
+  h_e7759ddd73fa65 72-74,89-93,121,126-127,140,151-152,165,177,199,210-211,258,310
+sdk-ruby/lib/daytona/common/image.rb
+  h_e7759ddd73fa65 180,233,251,602-614
+sdk-ruby/lib/daytona/common/pty.rb
+  h_e7759ddd73fa65 68,79,81,113,173-176,180-203,238,330-332
+sdk-ruby/lib/daytona/common/snapshot.rb
+  h_e7759ddd73fa65 33-34
+sdk-ruby/lib/daytona/computer_use.rb
+  h_e7759ddd73fa65 63-64,77-88,94-144,152,159-166,176,178,188-198,205,274-310,333
+sdk-ruby/lib/daytona/config.rb
+  h_e7759ddd73fa65 80-81,112-113
+sdk-ruby/lib/daytona/daytona.rb
+  h_e7759ddd73fa65 105-107,109-119,131,259,262-264,267,288-291,300,306,343-344,349,351,354-367,369-370,376,381-383,428-509
+sdk-ruby/lib/daytona/otel.rb
+  h_e7759ddd73fa65 182-193
+sdk-ruby/lib/daytona/process.rb
+  h_e7759ddd73fa65 43-56,65,70,73-76
+sdk-ruby/lib/daytona/sandbox.rb
+  h_e7759ddd73fa65 21-24,123-125,176-178,371-385,474,478-479,578-583,586-592,669-672,675-676,739,756,766,774,813-816,829,862,876,894,903-904,923,956,961,965,974,986-1000,1146,1158,1204-1207,1211,1214-1219,1221-1230,1232-1233,1235,1244-1245,1248,1289,1296-1299,1321,1325-1326,1343-1345,1351-1424,1493-1525,1527,1532
+sdk-ruby/lib/daytona/sdk/errors.rb
+  h_e7759ddd73fa65 77-81,114-125
+sdk-ruby/lib/daytona/snapshot_service.rb
+  h_e7759ddd73fa65 120
+sdk-ruby/project.json
+  h_e7759ddd73fa65 87
+sdk-ruby/spec/daytona/computer_use_spec.rb
+  h_e7759ddd73fa65 186-223,230-291,303-327,345-368,417-450
+sdk-ruby/spec/daytona/daytona_spec.rb
+  h_e7759ddd73fa65 9,12,182-216,358-370,440-464,466,477-621,648-749
+sdk-ruby/spec/daytona/image_spec.rb
+  h_e7759ddd73fa65 205-217,257-266,284-303
+sdk-ruby/spec/daytona/otel_spec.rb
+  h_e7759ddd73fa65 184-193
+sdk-ruby/spec/daytona/pty_handle_spec.rb
+  h_e7759ddd73fa65 31-32,48-74
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  h_e7759ddd73fa65 44-46,49-50,60-76,89-90,140-152,534-560,601-777,809,811,835,837,882,885-886,891-893,904,906,922,924,944-962,975,1042-1070
+sdk-ruby/spec/daytona/sdk/errors_spec.rb
+  h_e7759ddd73fa65 24-26,77-78
+sdk-ruby/spec/daytona/snapshot_service_spec.rb
+  h_e7759ddd73fa65 186-204
+sdk-ruby/spec/e2e_spec.rb
+  h_e7759ddd73fa65 189-241
+sdk-ruby/spec/spec_helper.rb
+  h_e7759ddd73fa65 76,88
+sdk-typescript/README.md
+  h_e7759ddd73fa65 31,66-77
+sdk-typescript/hooks/typedoc-custom.mjs
+  h_e7759ddd73fa65 282-283
+sdk-typescript/package.json
+  h_e7759ddd73fa65 28,37
+sdk-typescript/project.json
+  h_e7759ddd73fa65 120,123-124
+sdk-typescript/runtime-tests/README.md
+  h_e7759ddd73fa65 46,61
+sdk-typescript/runtime-tests/nuxt/package.json
+  h_e7759ddd73fa65 9
+sdk-typescript/runtime-tests/webpack-cjs/check.js
+  h_e7759ddd73fa65 1-53
+sdk-typescript/runtime-tests/webpack-cjs/package.json
+  h_e7759ddd73fa65 1-12
+sdk-typescript/runtime-tests/webpack-cjs/run.sh
+  h_e7759ddd73fa65 1-17
+sdk-typescript/runtime-tests/webpack-cjs/test.js
+  h_e7759ddd73fa65 1-13
+sdk-typescript/runtime-tests/webpack-cjs/test.mjs
+  h_e7759ddd73fa65 1-12
+sdk-typescript/src/ComputerUse.ts
+  h_e7759ddd73fa65 11-12,21-22,125-177,185-186,199-204,208-216,229,236-238,248,250,260,262,272-277,281-288,371-420
+sdk-typescript/src/Daytona.ts
+  h_e7759ddd73fa65 27,84,110,195,207,221,233,499,518-519,522,691-698,735,752,772,780,796-817,839-848,896,993-996
+sdk-typescript/src/Image.ts
+  h_e7759ddd73fa65 15-27,297,365,386,428-432,439-443,445,703,706,711,719-727,729-753,763-778,796,801-816,818,823,838-853,855,863,867,874-875,877-879,912-923,926,930-944,946-1055,1057-1058
+sdk-typescript/src/Process.ts
+  h_e7759ddd73fa65 93-105,129-132
+sdk-typescript/src/PtyHandle.ts
+  h_e7759ddd73fa65 12-16,56,321-349,359,443,452,504-507
+sdk-typescript/src/Sandbox.ts
+  h_e7759ddd73fa65 53-54,98,114,162,177,736-740,847-867,1072-1077,1086-1090,1173-1176,1178-1179,1181-1184,1531,1547,1632-1637,1649-1668
+sdk-typescript/src/Snapshot.ts
+  h_e7759ddd73fa65 57
+sdk-typescript/src/__tests__/ComputerUse.test.ts
+  h_e7759ddd73fa65 18-19,26-27,120-248
+sdk-typescript/src/__tests__/Daytona.test.ts
+  h_e7759ddd73fa65 73-74,437,462-464,556-583,686-694,698,700-849,960-1007
+sdk-typescript/src/__tests__/Image.test.ts
+  h_e7759ddd73fa65 13,79-125,195,200,270,393,395,415,417,440,442,475,480,506,514,541,543,562,564,580,582,597,599,614,616,627,647-1168
+sdk-typescript/src/__tests__/PtyHandle.test.ts
+  h_e7759ddd73fa65 308-337
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  h_e7759ddd73fa65 7,78,137-142,384-441,454-463,618-633
+sdk-typescript/src/__tests__/Snapshot.test.ts
+  h_e7759ddd73fa65 152-169
+sdk-typescript/src/__tests__/Stream.server.test.ts
+  h_e7759ddd73fa65 1-109
+sdk-typescript/src/errors/DaytonaError.ts
+  h_e7759ddd73fa65 77-87,174-180
+sdk-typescript/src/index.ts
+  h_e7759ddd73fa65 62-63
+sdk-typescript/src/utils/Import.ts
+  h_e7759ddd73fa65 13,31,43,51
+sdk-typescript/src/utils/Stream.ts
+  h_e7759ddd73fa65 130-134,151-159,161-171,173-182,237,241,248,250,253-254,256,259,262,266,270,277-280,282,284-285,290-291,295-296,316-317
+sdk-typescript/src/utils/otel.decorator.ts
+  h_e7759ddd73fa65 10-11
+toolbox-api-client-go/.openapi-generator/FILES
+  h_e7759ddd73fa65 48,73-74,91,97,126
+toolbox-api-client-go/VERSION
+  h_e7759ddd73fa65 1
+toolbox-api-client-go/api/openapi.yaml
+  h_e7759ddd73fa65 297-331,434-467,502-536,659-693,1276-1287,1434-1437,1443,2277-2306,3518-3523,4355-4420,4466-4505,5130-5149,5410-5415,5420-5424,5427-5430,5446-5459,5467-5469,5477-5480,5521-5523,5530-5548,6049-6068,6196,6198-6199,6201,6203,6205-6208
+toolbox-api-client-go/api_computer_use.go
+  h_e7759ddd73fa65 269-296,311-338,2690,2693,2696-2703,2707,2709,2712,2714-2715,2722-2723,2725,2728,2731,2736,2741-2743,2746,2762-2763,2786-2796,2822,2825,2828-2829,2834-2835,2839,2841,2844,2846-2847,2854-2855,2860,2863,2868,2954,2959-2960,2964,2966,2969,2971-2972,2979-2980,2982,2985,2988,2993,3000,3063,3066,3069-3070,3075-3076,3080,3082,3085,3087-3088,3095-3096,3101,3104,3109,3195,3198,3201-3208,3212,3214,3217,3219-3220,3227-3228,3233,3236,3241,3246-3248,3251,3267-3268,3291-3311,3327,3330,3333-3334,3339-3340,3344,3346,3349,3351-3352,3359-3360,3365,3368,3373,3459,3462-3961
+toolbox-api-client-go/api_file_system.go
+  h_e7759ddd73fa65 204-205,1909,1929-1930,1935,1940,1968,1973,1980,1989,1993,1998,2001-2010
+toolbox-api-client-go/api_git.go
+  h_e7759ddd73fa65 2402,2433-2486,2656
+toolbox-api-client-go/api_process.go
+  h_e7759ddd73fa65 2618-2628
+toolbox-api-client-go/api_server.go
+  h_e7759ddd73fa65 263-283
+toolbox-api-client-go/model_daemon_error_code.go
+  h_e7759ddd73fa65 33-34,69-70
+toolbox-api-client-go/model_fs_file_result.go
+  h_e7759ddd73fa65 1-192
+toolbox-api-client-go/model_initialize_request.go
+  h_e7759ddd73fa65 22,32,45,47,51,54,57,60-69,72,74,87-89
+toolbox-api-client-go/model_keyboard_key_down_request.go
+  h_e7759ddd73fa65 1-169
+toolbox-api-client-go/model_keyboard_key_up_request.go
+  h_e7759ddd73fa65 1-169
+toolbox-api-client-go/model_mouse_click_request.go
+  h_e7759ddd73fa65 24-25,27,84-115,148-179,257-259,263-265,295,297
+toolbox-api-client-go/model_mouse_down_request.go
+  h_e7759ddd73fa65 1-230
+toolbox-api-client-go/model_mouse_drag_request.go
+  h_e7759ddd73fa65 25,146-177,261-263,295
+toolbox-api-client-go/model_mouse_scroll_request.go
+  h_e7759ddd73fa65 23,25,114-145,226-228,259
+toolbox-api-client-go/model_mouse_up_request.go
+  h_e7759ddd73fa65 1-230
+toolbox-api-client-go/model_upload_files_response.go
+  h_e7759ddd73fa65 1-192
+toolbox-api-client-java/.openapi-generator/FILES
+  h_e7759ddd73fa65 66,91-92,109,115,144,191,216-217,234,240,269
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/JSON.java
+  h_e7759ddd73fa65 129,154-155,172,178,206
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/api/ComputerUseApi.java
+  h_e7759ddd73fa65 44-45,51,57,2363-2632,2754-3023
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/api/FileSystemApi.java
+  h_e7759ddd73fa65 38,1896,1906-1908,1914,1924,1926-1927,1944,1947-1948
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/api/GitApi.java
+  h_e7759ddd73fa65 2262-2266,2295,2335-2339,2357-2361,2381-2385
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/api/ProcessApi.java
+  h_e7759ddd73fa65 2438,2520,2545,2572
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/api/ServerApi.java
+  h_e7759ddd73fa65 30,214-215,284-285,304-305,326-327
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/DaemonErrorCode.java
+  h_e7759ddd73fa65 54-57
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/FsFileResult.java
+  h_e7759ddd73fa65 1-309
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/InitializeRequest.java
+  h_e7759ddd73fa65 55,61,70,75,170,186
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/KeyboardKeyDownRequest.java
+  h_e7759ddd73fa65 1-290
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/KeyboardKeyUpRequest.java
+  h_e7759ddd73fa65 1-290
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/MouseClickRequest.java
+  h_e7759ddd73fa65 23,25,60-64,70-74,107-125,145-171,265,267,275,283,285,307,329-332
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/MouseDownRequest.java
+  h_e7759ddd73fa65 1-335
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/MouseDragRequest.java
+  h_e7759ddd73fa65 23,25,70-74,145-171,267,275,285,307,329-332
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/MouseScrollRequest.java
+  h_e7759ddd73fa65 23,25,65-69,109,122-148,243,251,260,282,304-307
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/MouseUpRequest.java
+  h_e7759ddd73fa65 1-335
+toolbox-api-client-java/src/main/java/io/daytona/toolbox/client/model/UploadFilesResponse.java
+  h_e7759ddd73fa65 1-343
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/api/ComputerUseApiTest.java
+  h_e7759ddd73fa65 31-32,38,44,306-333,347-374
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/api/FileSystemApiTest.java
+  h_e7759ddd73fa65 25,230
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/api/ServerApiTest.java
+  h_e7759ddd73fa65 17
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/FsFileResultTest.java
+  h_e7759ddd73fa65 1-56
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/KeyboardKeyDownRequestTest.java
+  h_e7759ddd73fa65 1-48
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/KeyboardKeyUpRequestTest.java
+  h_e7759ddd73fa65 1-48
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/MouseClickRequestTest.java
+  h_e7759ddd73fa65 22,24,50-57,66-73
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/MouseDownRequestTest.java
+  h_e7759ddd73fa65 1-64
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/MouseDragRequestTest.java
+  h_e7759ddd73fa65 22,24,66-73
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/MouseScrollRequestTest.java
+  h_e7759ddd73fa65 22,24,58-65
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/MouseUpRequestTest.java
+  h_e7759ddd73fa65 1-64
+toolbox-api-client-java/src/test/java/io/daytona/toolbox/client/model/UploadFilesResponseTest.java
+  h_e7759ddd73fa65 1-59
+toolbox-api-client-python-async/.openapi-generator/FILES
+  h_e7759ddd73fa65 50,75-76,93,99,128
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/__init__.py
+  h_e7759ddd73fa65 78,103-104,121,127,156,217,242-243,260,266,295,370,395-396,413,419,448
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/computer_use_api.py
+  h_e7759ddd73fa65 32-33,39,45,75,144,213,354,424,494,623,693,763,892,961,1030,1171,1242,1313,1456,1527,1598,1741,1820,1899,2049,2112,2175,2294,2358,2422,2542,2606,2670,2790,2854,2918,3038,3105,3172,3298,3365,3432,3558,3625,3692,3818,3888,3958,4087,4151,4215,4335,4406,4477,4620-5178,5193-5512,5514,5516-5517,5540-5541,5549-5760,5774-5775,5777,5790-5791,5793,5795-5796,5819-5820,5828-5829,5843-5844,5846,5860,5862,5864-5865,5888-5889,5897-5898,5908,5910,5936-5937,5948-5960,5967-5968,5984,6053,6122,6263,6332,6401,6542,6611,6680,6821,6888,6955,7081,7150,7219,7360,7431,7502,7645,7708,7771,7890,7959,8028,8169,8232,8295,8414,8484,8554,8696,8793,8890,9083,9164,9245,9402,9487,9572,9738,9807,9876,10006,10075,10144
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/file_system_api.py
+  h_e7759ddd73fa65 27,48,120,192,330,404,478,618,688,758,889,960,1031,1174,1246,1318,1456,1526,1596,1727,1801,1875,2015,2090,2165,2306,2374,2442,2582,2654,2726,2864,2946,3028,3186,3258,3330,3479,3494,3529-3530,3543,3558,3593-3594,3607,3657-3658
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/git_api.py
+  h_e7759ddd73fa65 61,131,201,343,410,477,609,676,743,875,946,1017,1160,1232,1304,1448,1518,1588,1730,1797,1864,1996,2066,2136,2278,2348,2418,2560,2629,2698,2828,2903,2978,3124,3194,3264,3395,3462,3529,3661,3730,3799,3929,3996,4063,4191,4264,4337,4482,4537-4541,4554,4609-4613,4626,4681-4685,4726-4732,4770,4837,4904,5036,5103,5170,5302,5369,5436
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/info_api.py
+  h_e7759ddd73fa65 41,104,167,286,349,412,531,594,657
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/interpreter_api.py
+  h_e7759ddd73fa65 43,112,181,322,392,462,591,654,717,836,900,964
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/lsp_api.py
+  h_e7759ddd73fa65 45,113,181,321,389,457,597,665,733,873,949,1025,1172,1241,1310,1451,1520,1589,1730,1806,1882
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/port_api.py
+  h_e7759ddd73fa65 41,104,167,286,354,422
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/process_api.py
+  h_e7759ddd73fa65 56,126,196,338,406,474,601,671,741,883,953,1023,1165,1234,1303,1431,1501,1571,1700,1769,1838,1979,2048,2117,2248,2313,2378,2499,2568,2637,2765,2834,2903,3031,3104,3177,3312,3391,3470,3617,3681,3745,3865,3929,3993,4113,4187,4261,4410,4489,4568,4725,4788,4802,4865,4879,4942
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/server_api.py
+  h_e7759ddd73fa65 42,109,176,302,357-358,371,426-427,440,495-496
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api/system_api.py
+  h_e7759ddd73fa65 38,101,164
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api_client.py
+  h_e7759ddd73fa65 207
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/__init__.py
+  h_e7759ddd73fa65 53,78-79,96,102,131,170,195-196,213,219,248
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/daemon_error_code.py
+  h_e7759ddd73fa65 40-41
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/fs_file_result.py
+  h_e7759ddd73fa65 1-104
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/initialize_request.py
+  h_e7759ddd73fa65 21,32
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/keyboard_key_down_request.py
+  h_e7759ddd73fa65 1-102
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/keyboard_key_up_request.py
+  h_e7759ddd73fa65 1-102
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/mouse_click_request.py
+  h_e7759ddd73fa65 33,35,39,99,101
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/mouse_down_request.py
+  h_e7759ddd73fa65 1-106
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/mouse_drag_request.py
+  h_e7759ddd73fa65 35,39,101
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/mouse_scroll_request.py
+  h_e7759ddd73fa65 34-35,39,100
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/mouse_up_request.py
+  h_e7759ddd73fa65 1-106
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/models/upload_files_response.py
+  h_e7759ddd73fa65 1-112
+toolbox-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 15,17,28,30-33
+toolbox-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-6
+toolbox-api-client-python/.openapi-generator/FILES
+  h_e7759ddd73fa65 50,75-76,93,99,128
+toolbox-api-client-python/daytona_toolbox_api_client/__init__.py
+  h_e7759ddd73fa65 78,103-104,121,127,156,217,242-243,260,266,295,370,395-396,413,419,448
+toolbox-api-client-python/daytona_toolbox_api_client/api/computer_use_api.py
+  h_e7759ddd73fa65 32-33,39,45,75,144,213,354,424,494,623,693,763,892,961,1030,1171,1242,1313,1456,1527,1598,1741,1820,1899,2049,2112,2175,2294,2358,2422,2542,2606,2670,2790,2854,2918,3038,3105,3172,3298,3365,3432,3558,3625,3692,3818,3888,3958,4087,4151,4215,4335,4406,4477,4620-5178,5193-5512,5514,5516-5517,5540-5541,5549-5760,5774-5775,5777,5790-5791,5793,5795-5796,5819-5820,5828-5829,5843-5844,5846,5860,5862,5864-5865,5888-5889,5897-5898,5908,5910,5936-5937,5948-5960,5967-5968,5984,6053,6122,6263,6332,6401,6542,6611,6680,6821,6888,6955,7081,7150,7219,7360,7431,7502,7645,7708,7771,7890,7959,8028,8169,8232,8295,8414,8484,8554,8696,8793,8890,9083,9164,9245,9402,9487,9572,9738,9807,9876,10006,10075,10144
+toolbox-api-client-python/daytona_toolbox_api_client/api/file_system_api.py
+  h_e7759ddd73fa65 27,48,120,192,330,404,478,618,688,758,889,960,1031,1174,1246,1318,1456,1526,1596,1727,1801,1875,2015,2090,2165,2306,2374,2442,2582,2654,2726,2864,2946,3028,3186,3258,3330,3479,3494,3529-3530,3543,3558,3593-3594,3607,3657-3658
+toolbox-api-client-python/daytona_toolbox_api_client/api/git_api.py
+  h_e7759ddd73fa65 61,131,201,343,410,477,609,676,743,875,946,1017,1160,1232,1304,1448,1518,1588,1730,1797,1864,1996,2066,2136,2278,2348,2418,2560,2629,2698,2828,2903,2978,3124,3194,3264,3395,3462,3529,3661,3730,3799,3929,3996,4063,4191,4264,4337,4482,4537-4541,4554,4609-4613,4626,4681-4685,4726-4732,4770,4837,4904,5036,5103,5170,5302,5369,5436
+toolbox-api-client-python/daytona_toolbox_api_client/api/info_api.py
+  h_e7759ddd73fa65 41,104,167,286,349,412,531,594,657
+toolbox-api-client-python/daytona_toolbox_api_client/api/interpreter_api.py
+  h_e7759ddd73fa65 43,112,181,322,392,462,591,654,717,836,900,964
+toolbox-api-client-python/daytona_toolbox_api_client/api/lsp_api.py
+  h_e7759ddd73fa65 45,113,181,321,389,457,597,665,733,873,949,1025,1172,1241,1310,1451,1520,1589,1730,1806,1882
+toolbox-api-client-python/daytona_toolbox_api_client/api/port_api.py
+  h_e7759ddd73fa65 41,104,167,286,354,422
+toolbox-api-client-python/daytona_toolbox_api_client/api/process_api.py
+  h_e7759ddd73fa65 56,126,196,338,406,474,601,671,741,883,953,1023,1165,1234,1303,1431,1501,1571,1700,1769,1838,1979,2048,2117,2248,2313,2378,2499,2568,2637,2765,2834,2903,3031,3104,3177,3312,3391,3470,3617,3681,3745,3865,3929,3993,4113,4187,4261,4410,4489,4568,4725,4788,4802,4865,4879,4942
+toolbox-api-client-python/daytona_toolbox_api_client/api/server_api.py
+  h_e7759ddd73fa65 42,109,176,302,357-358,371,426-427,440,495-496
+toolbox-api-client-python/daytona_toolbox_api_client/api/system_api.py
+  h_e7759ddd73fa65 38,101,164
+toolbox-api-client-python/daytona_toolbox_api_client/api_client.py
+  h_e7759ddd73fa65 204
+toolbox-api-client-python/daytona_toolbox_api_client/models/__init__.py
+  h_e7759ddd73fa65 53,78-79,96,102,131,170,195-196,213,219,248
+toolbox-api-client-python/daytona_toolbox_api_client/models/daemon_error_code.py
+  h_e7759ddd73fa65 40-41
+toolbox-api-client-python/daytona_toolbox_api_client/models/fs_file_result.py
+  h_e7759ddd73fa65 1-104
+toolbox-api-client-python/daytona_toolbox_api_client/models/initialize_request.py
+  h_e7759ddd73fa65 21,32
+toolbox-api-client-python/daytona_toolbox_api_client/models/keyboard_key_down_request.py
+  h_e7759ddd73fa65 1-102
+toolbox-api-client-python/daytona_toolbox_api_client/models/keyboard_key_up_request.py
+  h_e7759ddd73fa65 1-102
+toolbox-api-client-python/daytona_toolbox_api_client/models/mouse_click_request.py
+  h_e7759ddd73fa65 33,35,39,99,101
+toolbox-api-client-python/daytona_toolbox_api_client/models/mouse_down_request.py
+  h_e7759ddd73fa65 1-106
+toolbox-api-client-python/daytona_toolbox_api_client/models/mouse_drag_request.py
+  h_e7759ddd73fa65 35,39,101
+toolbox-api-client-python/daytona_toolbox_api_client/models/mouse_scroll_request.py
+  h_e7759ddd73fa65 34-35,39,100
+toolbox-api-client-python/daytona_toolbox_api_client/models/mouse_up_request.py
+  h_e7759ddd73fa65 1-106
+toolbox-api-client-python/daytona_toolbox_api_client/models/upload_files_response.py
+  h_e7759ddd73fa65 1-112
+toolbox-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 16,27,29-32
+toolbox-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-6
+toolbox-api-client-ruby/.openapi-generator/FILES
+  h_e7759ddd73fa65 52,77-78,95,101,130
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client.rb
+  h_e7759ddd73fa65 52,77-78,95,101,130
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/api/computer_use_api.rb
+  h_e7759ddd73fa65 1091-1226,1284-1419
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/api/file_system_api.rb
+  h_e7759ddd73fa65 848,850-851,857,880
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/api/git_api.rb
+  h_e7759ddd73fa65 1119-1120
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/daemon_error_code.rb
+  h_e7759ddd73fa65 29-30,52
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/fs_file_result.rb
+  h_e7759ddd73fa65 1-156
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/keyboard_key_down_request.rb
+  h_e7759ddd73fa65 1-165
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/keyboard_key_up_request.rb
+  h_e7759ddd73fa65 1-165
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/mouse_click_request.rb
+  h_e7759ddd73fa65 21-23,26-27,36,38,58,60,92-95,100-105,136,138,152
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/mouse_down_request.rb
+  h_e7759ddd73fa65 1-166
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/mouse_drag_request.rb
+  h_e7759ddd73fa65 24-25,36,58,98-103,136,150
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/mouse_scroll_request.rb
+  h_e7759ddd73fa65 20,23-24,34,55,91-96,147,161
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/mouse_up_request.rb
+  h_e7759ddd73fa65 1-166
+toolbox-api-client-ruby/lib/daytona_toolbox_api_client/models/upload_files_response.rb
+  h_e7759ddd73fa65 1-160
+toolbox-api-client-ruby/project.json
+  h_e7759ddd73fa65 59
+toolbox-api-client/project.json
+  h_e7759ddd73fa65 47,49
+toolbox-api-client/src/.openapi-generator/FILES
+  h_e7759ddd73fa65 49,75-76,93,99,128
+toolbox-api-client/src/api/computer-use-api.ts
+  h_e7759ddd73fa65 49-52,63-64,75-76,675-744,775-844,1670-1695,1708-1733,2117-2136,2146-2165,2519-2540,2551-2572
+toolbox-api-client/src/api/file-system-api.ts
+  h_e7759ddd73fa65 39-40,757,908
+toolbox-api-client/src/api/git-api.ts
+  h_e7759ddd73fa65 672
+toolbox-api-client/src/api/server-api.ts
+  h_e7759ddd73fa65 25-26
+toolbox-api-client/src/models/daemon-error-code.ts
+  h_e7759ddd73fa65 30-31
+toolbox-api-client/src/models/fs-file-result.ts
+  h_e7759ddd73fa65 1-21
+toolbox-api-client/src/models/index.ts
+  h_e7759ddd73fa65 32,57-58,75,81,110
+toolbox-api-client/src/models/initialize-request.ts
+  h_e7759ddd73fa65 18
+toolbox-api-client/src/models/keyboard-key-down-request.ts
+  h_e7759ddd73fa65 1-23
+toolbox-api-client/src/models/keyboard-key-up-request.ts
+  h_e7759ddd73fa65 1-23
+toolbox-api-client/src/models/mouse-click-request.ts
+  h_e7759ddd73fa65 22-25,27
+toolbox-api-client/src/models/mouse-down-request.ts
+  h_e7759ddd73fa65 1-25
+toolbox-api-client/src/models/mouse-drag-request.ts
+  h_e7759ddd73fa65 21
+toolbox-api-client/src/models/mouse-scroll-request.ts
+  h_e7759ddd73fa65 20,23
+toolbox-api-client/src/models/mouse-up-request.ts
+  h_e7759ddd73fa65 1-25
+toolbox-api-client/src/models/upload-files-response.ts
+  h_e7759ddd73fa65 1-24
+yarn.lock
+  h_e7759ddd73fa65 48-55,57,61-63,65-74,76,80-82,84-85,87-89,92,96-98,100-103,105,109-111,113-118,120-139,141,145-147,149-153,155,159-161,163-172,174,178-180,182-185,187,191-193,195-200,202,206-208,210-214,216,220-222,224-225,231-232,236-238,240-244,246,250-252,254-260,262,266-268,270-272,274,278-280,282-286,288,292-294,296,298,302-304,306,308,319,330,360,373,382,395,440,457,467,489,509,522,546,574,765,958,1315,1327,1699,1710,1725-1727,1840,1869,2096,2185-2187,2191,2218,2344-2346,2354,2358-2360,2362,2364-2366,2376,2381-2384,2387,2395,2413-2415,2417,2420-2421,2425-2427,2430,2434-2436,2438-2440,2444-2446,2452,2454,2465-2467,2469-2470,2472-2473,2487,2501-2503,2506-2508,2533,2558-2560,2566,2570-2572,2574,2578,2582-2584,2586,2590,2594-2596,2612,2631,2685,2748,2759,2782-2784,2801,2805-2807,2828,3055-3057,3066,3087-3089,3091-3092,3110,3114-3116,3118-3119,3124,3132,3136-3138,3142-3143,3164,3168-3170,3182-3183,3209,3213-3215,3220-3222,3227-3229,3234-3236,3241-3243,3248-3250,3255-3257,3262-3264,3269-3271,3276-3278,3283-3285,3288-3292,3298,3316,3320-3322,3324-3326,3335,3339-3341,3343-3344,3349,3351,3359,3363-3365,3367-3368,3374-3379,3393,3397-3399,3402-3403,3446,3450-3452,3454,3457,3462,3466-3468,3472-3473,3475,3489,3493-3496,3500-3502,3504,3508,3512-3514,3516-3517,3521-3523,3527-3528,3532-3534,3536-3539,3542,3546-3548,3550-3552,3555,3559-3561,3563-3565,3568,3572-3574,3576-3578,3581,3585-3587,3589-3592,3595,3599-3601,3603-3605,3608,3612-3614,3616-3618,3621-3622,3626-3628,3630-3633,3636,3640-3642,3644-3646,3649,3653-3655,3657-3659,3662,3666-3668,3670-3671,3675,3679-3681,3683-3684,3689,3693-3695,3700-3701,3705-3707,3709-3710,3713,3717-3719,3721-3724,3727,3731-3733,3735-3739,3741-3742,3746-3748,3750,3752-3753,3757-3759,3761-3762,3764-3765,3769-3771,3773-3774,3777-3778,3782-3819,3822-3823,3827-3829,3831-3832,3835-3836,3840-3843,3847-3850,4068,4294-4295,4297,4299,4303-4305,4307,4309,4313-4315,4320,4324-4326,4329,4331,4335-4337,4339-4340,4342,4346-4348,4350-4351,4353,4357-4359,4362,4413-4415,4420-4422,4427-4429,4434-4436,4441-4443,4448-4450,4455-4457,4462-4464,4469-4471,4476-4478,4483-4485,4490-4492,4497-4512,4545,4628,4678-4680,4683,4811-4813,4816,4887-4889,4892-4895,4900,4903,4907-4909,4911-4914,4919,4923-4925,4927-4928,4932,4936-4938,4940-4942,4946-4948,4951,4955-4957,4959-4961,4967,4971-4974,4978-4980,4982-4985,4993,4997-4999,5002-5004,5008,5012-5014,5016,5018,5187-5190,5194-5196,5239,5255,5312,5325-5326,5332,5368,5438-5444,5553,5560,5594-5596,5602,5606-5608,5610,5619,5727,5849-5851,5854,5859-5860,5864,5946-5948,5950-5951,5955-5957,5960,5969,6006,6016,6071,6298,6322,6758-6759,6763-6775,6777,6779,6781,6784,6786-6787,6797-6798,6802-6804,6806-6808,6810-6811,6813-6814,6816,6818-6835,6839,6848,6929-6930,6934,6989,7115-7120,7124,7221,7276-7282,7324,7386,7393,7431,7440,7687-7689,7697,7718,7728,7803,7843-7845,7847,7849,7851,7853,7871,7922-7924,8014-8015,8017-8018,8091-8093,8097,8143,8215,8225,8234,8276,8283,8308,8376,8409-8411,8417,8420,8424,8431,8438-8440,8442,8452,8495,8502,8520,8600-8603,8662-8664,8666-8669,8673,8718,8752-8755,8767-8769,8821,8840-8842,9341-9343,9345-9347,9354-9355,9357-9358,9365,9369-9371,9373-9374,9379,9390,9394-9396,9401,9403,9409,9411,9414,9432,9436-9438,9444,9457-9459,9464,9467,9471-9473,9475-9476,9479,9482,9515-9517,9519-9523,9545-9547,9549,9553,9564-9566,9569-9570,9574,9589-9591,9593-9597,9605,9610,9612,9615,9619-9621,9623-9628,9639,9642,9646,9650-9652,9659,9662,9666,9668-9669,9675,9679,9707-9709,9711,9719,9723,9747-9749,9751,9754,9762,9782-9784,9789,9934-9935,9940,10064-10075,10080,10086,10205,10221-10227,10277-10279,10281-10289,10293-10295,10305,10318-10320,10322-10323,10326-10327,10330,10333,10337-10339,10341-10342,10346,10348-10351,10381,10402-10405,10425,10432-10434,10440,10446,10452-10453,10500-10502,10509,10551-10553,10557,10634-10642,10705-10708,10712-10714,10726,10734,10738,10755,10764,10791,10800,10809,10827,10894,10924,11139-11141,11150-11159,11169,11198,11227,11230,11240,11282,11286,11357,11777,12197-12198,12202,12254-12256,12259,12263,12361,12405-12407,12411,12438-12441,12760,12767,12795,13064,13101,13195-13198,13237,13301-13304,13308-13311,13315-13317,13323,13359-13361,13363-13365,13370-13372,13511-13513,13517,13612,13630,13801,13886,13948-13950,13954,13962,13984,14067,14074-14083,14092,14186-14188,14191,14221-14223,14225-14228,14232,14246-14248,14252,14276-14278,14282,14303-14309,14328-14331,14361-14367,14553,14832-14834,14843,14897,14913-14921
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "623f416a609280bb3d9bc3cf8d4408625a766917",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

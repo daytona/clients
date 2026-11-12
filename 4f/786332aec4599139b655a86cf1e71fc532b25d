@@ -1,0 +1,24 @@
+sdk-python/tests/test_core.py
+  s_9a337fd66d5341::t_e786c9810d7fbe 8123,8125
+  s_9a337fd66d5341::t_983b7b39bf71ab 5454,5467-5470
+sdk-python/tests/test_git_deadline.py
+  s_9a337fd66d5341::t_8306ff555e03c8 1-68
+sdk-python/src/daytona/v2/git.py
+  s_9a337fd66d5341::t_983b7b39bf71ab 23,326-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f786332aec4599139b655a86cf1e71fc532b25d",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

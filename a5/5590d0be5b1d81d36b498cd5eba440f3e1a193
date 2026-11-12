@@ -1,0 +1,42 @@
+analytics-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 13
+analytics-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 61,89,111,115-116
+hack/python-client/openapi-templates/test-requirements.mustache
+  h_e7759ddd73fa65 7
+poetry.lock
+  h_e7759ddd73fa65 1124,1146,1165,1187,1206,1228,3804,3810-3811,3816,3826,3832-3972
+toolbox-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+toolbox-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  h_e7759ddd73fa65 123,571-574
+artifacts/sdk-docs/typescript-sdk/errors.mdx
+  h_e7759ddd73fa65 787
+artifacts/sdk-docs/typescript-sdk/process.mdx
+  h_e7759ddd73fa65 831-839
+artifacts/sdk-docs/typescript-sdk/secret.mdx
+  h_e7759ddd73fa65 224-227,230-233
+artifacts/sdk-docs/typescript-sdk/snapshot.mdx
+  h_e7759ddd73fa65 209-212,214-217,220-223
+yarn.lock
+  h_e7759ddd73fa65 5896,5938
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a55590d0be5b1d81d36b498cd5eba440f3e1a193",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

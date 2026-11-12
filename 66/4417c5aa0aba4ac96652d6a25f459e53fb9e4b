@@ -1,0 +1,59 @@
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_b7ff02cde08417 485-488,496-503
+  s_ca009e77d17705::t_f9dd96e69c79cd 504-505
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_d66e6f40a650ed 10,57-59
+sdk-typescript/src/v2/pathSegment.ts
+  s_ca009e77d17705::t_d66e6f40a650ed 56-65
+sdk-typescript/src/v2/Secret.ts
+  s_ca009e77d17705::t_98db4aa64b734f 123-126
+  s_ca009e77d17705::t_a52338d74776f5 127-128
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_b7d4878cf211df 585
+  s_ca009e77d17705::t_9abb5d38b25057 805-849
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_d66e6f40a650ed 8,803
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_9abb5d38b25057 186-187
+sdk-typescript/src/v2/accountMappers.ts
+  s_ca009e77d17705::t_cff6d2ff8e4858 8
+  s_ca009e77d17705::t_98db4aa64b734f 62-70,73-76,102-103,107
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_d66e6f40a650ed 780-782
+  s_ca009e77d17705::t_b7ff02cde08417 42
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_b7ff02cde08417 41,551-554,556-562
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_a52338d74776f5 20
+  s_ca009e77d17705::t_98db4aa64b734f 165-167
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_c9a37d2b5ccfd5 1290-1292
+  s_ca009e77d17705::t_b7d4878cf211df 954
+  s_ca009e77d17705::t_9abb5d38b25057 1263-1289,1293-1296
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_9abb5d38b25057 83-84
+changelog.d/539-organization-limits-null.fixed.md
+  s_ca009e77d17705::t_2cb5dacbd59c95 1-3
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_d66e6f40a650ed 240-249,279-282
+changelog.d/539-volume-size-range.breaking.md
+  s_ca009e77d17705::t_2cb5dacbd59c95 1-3
+changelog.d/539-project-budget-date.breaking.md
+  s_ca009e77d17705::t_2cb5dacbd59c95 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "664417c5aa0aba4ac96652d6a25f459e53fb9e4b",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

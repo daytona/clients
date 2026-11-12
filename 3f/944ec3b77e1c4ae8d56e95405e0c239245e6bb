@@ -1,0 +1,67 @@
+changelog.d/process-kill-tree.changed.md
+  s_717b45cf151505::t_85190e0423b3f0 1-4
+changelog.d/process-tags.added.md
+  s_717b45cf151505::t_44e3aba0391498 1-4
+e2e.py
+  s_717b45cf151505::t_3bd75ebf4bae12 33,173-219
+e2e.ts
+  s_717b45cf151505::t_2b8c67614b2d2c 9,112-150
+python/README.md
+  s_717b45cf151505::t_a1ea1d2649b360 655-691
+python/src/daytona/v2/__init__.py
+  s_717b45cf151505::t_53345abc499082 242,598
+python/src/daytona/v2/_core.py
+  s_717b45cf151505::t_818fd2dc40838f 40,524-529,594,628,678,721,730,737-748
+python/src/daytona/v2/_exports.py
+  s_717b45cf151505::t_5517c3ab14f42e 231
+python/src/daytona/v2/_sync/process.py
+  s_717b45cf151505::t_19c3d6183524d6 157,164-166,175-178,187,190-192,211,229,248,266,310,315
+python/src/daytona/v2/_sync/sandbox.py
+  s_717b45cf151505::t_1e21d15252f69a 227,245
+python/src/daytona/v2/codes.py
+  s_717b45cf151505::t_ab71bd142702df 8,160,327
+python/src/daytona/v2/errors.py
+  s_717b45cf151505::t_9aef965ffa9b01 305-308,643
+python/src/daytona/v2/process.py
+  s_717b45cf151505::t_0a39f5b01780cc 19,29,388,402,434,479,502,527,550,603,683,687,692-709,725,734
+python/src/daytona/v2/sandbox.py
+  s_717b45cf151505::t_390e8f080df97b 555,604
+python/src/daytona/v2/types.py
+  s_717b45cf151505::t_f3e2f515649929 913
+python/tests/test_process_tags.py
+  s_717b45cf151505::t_6c30719b8ff20a 1-164
+typescript/README.md
+  s_717b45cf151505::t_cc4a116124412e 593-633
+typescript/src/v2/Process.ts
+  s_717b45cf151505::t_51a11e480bf3c8 12,16,120,126-142
+typescript/src/v2/ProcessWire.ts
+  s_717b45cf151505::t_3648369473692e 139
+typescript/src/v2/Session.ts
+  s_717b45cf151505::t_badeff5e5e5b5d 22-23
+typescript/src/v2/codes.ts
+  s_717b45cf151505::t_34656aeeadc3e1 11,180
+typescript/src/v2/errors/DaytonaError.ts
+  s_717b45cf151505::t_8b08dd366200a5 312,423,767
+typescript/src/v2/index.ts
+  s_717b45cf151505::t_477b764518fc01 142
+typescript/src/v2/types.ts
+  s_717b45cf151505::t_7a0cbff74e51a2 848-849,904-905,970
+typescript/tests/process-tags.test.ts
+  s_717b45cf151505::t_dbe87cb061d15c 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f944ec3b77e1c4ae8d56e95405e0c239245e6bb",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

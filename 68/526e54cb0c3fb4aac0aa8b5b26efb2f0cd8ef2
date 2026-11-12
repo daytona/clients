@@ -1,0 +1,80 @@
+sdk-typescript/src/v2/accountMappers.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 34,110
+cli/cmd/reservation_create.go
+  s_ad074a7dcce098::t_dc49368034bc75 119
+sdk-python/src/daytona/v2/services.py
+  s_ad074a7dcce098::t_b59becaaeddeff 639-640,666,730
+sdk-python/src/daytona/v2/daytona.py
+  s_ad074a7dcce098::t_b59becaaeddeff 514-516
+cli/cmd/org.go
+  s_ad074a7dcce098::t_dc49368034bc75 186,188-190,574-575
+  s_ad074a7dcce098::t_9256dac6ad52a5 576
+cli/cmd/org_limits_test.go
+  s_ad074a7dcce098::t_dc49368034bc75 19,31,70,127-141
+  s_ad074a7dcce098::t_5fcae2a9ea3879 28
+  s_ad074a7dcce098::t_d9fed9bc028d9e 142-143
+sdk-typescript/src/v2/Daytona.ts
+  s_ad074a7dcce098::t_3be29c0e2879ee 212
+cli/internal/api/error_hints.go
+  s_ad074a7dcce098::t_dc49368034bc75 67-81
+sdk-typescript/src/v2/accountTypes.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 86-87
+sdk-python/src/daytona/v2/_api_core.py
+  s_ad074a7dcce098::t_b59becaaeddeff 149
+cli/internal/api/error_hints_test.go
+  s_ad074a7dcce098::t_dc49368034bc75 69-88
+sdk-typescript/README.md
+  s_ad074a7dcce098::t_40bc50be7ed704 585,611
+  s_ad074a7dcce098::t_3be29c0e2879ee 606
+changelog.d/mac-reservation-limit.added.md
+  s_ad074a7dcce098::t_9ad5a5f4baee48 1
+sdk-python/tests/test_model_serialization.py
+  s_ad074a7dcce098::t_5fcae2a9ea3879 141
+sdk-typescript/tests/account-models.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 63,67,80
+sdk-typescript/tests/frozen-results.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 48
+cli/cmd/reservation_create_test.go
+  s_ad074a7dcce098::t_dc49368034bc75 178
+sdk-python/tests/test_core.py
+  s_ad074a7dcce098::t_b59becaaeddeff 5447,5474
+  s_ad074a7dcce098::t_5fcae2a9ea3879 5446
+  s_ad074a7dcce098::t_9a1c0b05d2faea 55
+sdk-typescript/src/v2/Reservations.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 97,111,161
+sdk-typescript/tests/unit.test.ts
+  s_ad074a7dcce098::t_5fcae2a9ea3879 8485
+  s_ad074a7dcce098::t_40bc50be7ed704 8486,8501
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 112,808,813
+cli/README.md
+  s_ad074a7dcce098::t_dc49368034bc75 205
+sdk-python/src/daytona/v2/types.py
+  s_ad074a7dcce098::t_b59becaaeddeff 820-821
+sdk-python/tests/test_malformed_responses.py
+  s_ad074a7dcce098::t_b59becaaeddeff 1265
+  s_ad074a7dcce098::t_5fcae2a9ea3879 168
+sdk-python/README.md
+  s_ad074a7dcce098::t_b59becaaeddeff 665,693
+  s_ad074a7dcce098::t_3be29c0e2879ee 688
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_ad074a7dcce098::t_dcb50781177104 375-377
+sdk-python/src/daytona/v2/_sync/services.py
+  s_ad074a7dcce098::t_f9381993c0f0fe 410-411,431,461
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68526e54cb0c3fb4aac0aa8b5b26efb2f0cd8ef2",
+  "prompts": {},
+  "sessions": {
+    "s_ad074a7dcce098": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b116abdffeFh8oykjJiSODXP",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

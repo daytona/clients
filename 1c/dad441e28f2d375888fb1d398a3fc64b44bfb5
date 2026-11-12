@@ -1,0 +1,271 @@
+changelog.d/587-cli-preview-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-3
+changelog.d/587-cli-actions-no-wait-shape.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-4
+changelog.d/587-cli-cp-directory.fixed.md
+  s_b74a032e86ea87::t_713770cd9c9adf 2
+changelog.d/587-cli-registry-kind-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/cmd/sandbox_exec_cancel_test.go
+  s_aadd141013e7c9::t_1f7ae9318abca2 36-42
+  s_aadd141013e7c9::t_ed86452ee47430 10
+changelog.d/587-cli-profile-credential.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 2-4
+changelog.d/587-cli-create-no-wait-shape.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-6
+cli/cmd/auth_login_output_test.go
+  s_b74a032e86ea87::t_9dc8dff7b9f19d 28,32-33,45,55-57
+changelog.d/587-cli-cp-signed-url.security.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-3
+cli/internal/ui/picker_linux_review_test.go
+  s_0b3f8eeaf6aada::t_c5a62d9be811bb 3-50
+  s_0b3f8eeaf6aada::t_e7658a17a5e4ae 1-2
+changelog.d/587-cli-api-url-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-3
+cli/internal/app/presentation.go
+  s_263ca8bfe0f184::t_c15ab76552739e 1-103
+changelog.d/587-cli-prompt-bracketed-paste.fixed.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/internal/ui/prompt.go
+  s_0b3f8eeaf6aada::t_7aa47d48dabd2c 12,112
+changelog.d/587-cli-saved-credential-url.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 5
+cli/internal/config/config.go
+  s_263ca8bfe0f184::t_9017fcb4d4f9c0 230-231
+  s_aa070e7b745b4c::t_1f6bb6d48ddd06 232
+changelog.d/587-cli-key-lifetime-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/cmd/signal_portable_review_test.go
+  s_299e43e3e6786a::t_ba49917573e7bc 1-30
+cli/cmd/cp_probe_review_test.go
+  s_299e43e3e6786a::t_ba49917573e7bc 1-40
+changelog.d/587-cli-create-retry-hints.fixed.md
+  s_aadd141013e7c9::t_7115e5b0d62843 1-4
+cli/internal/toolbox/websocket.go
+  s_7ce1afb6355110::t_207d5790cebd9c 10,43-47
+changelog.d/587-cli-cp-missing-source.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/cmd/sandbox_exec_tty_linux_test.go
+  s_aadd141013e7c9::t_f078f9810e1051 113-118
+  s_aadd141013e7c9::t_4a105b34cb6314 169-171
+changelog.d/587-cli-create-name-label.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/internal/toolbox/process_cancel_review_test.go
+  s_7ce1afb6355110::t_5db4b45bc71e17 1-119
+changelog.d/587-cli-exit-codes.breaking.md
+  s_aadd141013e7c9::t_7115e5b0d62843 2-4
+  s_b74a032e86ea87::t_713770cd9c9adf 6
+cli/internal/ui/terminal_input.go
+  s_0b3f8eeaf6aada::t_7aa47d48dabd2c 1-54
+cli/cmd/security_regressions_test.go
+  s_b74a032e86ea87::t_1f2f3f138eb611 91-92
+cli/internal/toolbox/terminal.go
+  s_7ce1afb6355110::t_207d5790cebd9c 32,37-39
+cli/cmd/sandbox_create_helpers.go
+  s_2717b8fd006751::t_dd7be79aed4e1a 27-29
+cli/cmd/sandbox_cp_probe.go
+  s_299e43e3e6786a::t_2d4c950c773350 1-29
+cli/cmd/sandbox.go
+  s_2717b8fd006751::t_dd7be79aed4e1a 132-135
+cli/internal/toolbox/websocket_dial.go
+  s_7ce1afb6355110::t_91f66df83937aa 7,15,17,23-41,45-59,61-62,64-113
+  s_7ce1afb6355110::t_ca2faa5b7761d6 19-20,42-44,60,63
+  s_2717b8fd006751::t_832550b6524500 114
+cli/cmd/sandbox_exec_tty_cancel_linux_test.go
+  s_b74a032e86ea87::t_2ff5d8298570fb 9,93-96
+  s_b74a032e86ea87::t_d548ca6cc9f3ce 91-92,97
+cli/cmd/sandbox_cp.go
+  s_299e43e3e6786a::t_2a65ffb199bf67 76-83
+cli/internal/toolbox/process_create.go
+  s_7ce1afb6355110::t_207d5790cebd9c 1-25
+changelog.d/587-cli-server-wait.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-5
+cli/cmd/image_logs.go
+  s_299e43e3e6786a::t_2a65ffb199bf67 74-76,94-110
+changelog.d/587-cli-audit-timestamp-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+changelog.d/587-cli-preview-expire.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 2-3
+cli/cmd/sandbox_create_review_test.go
+  s_2717b8fd006751::t_43820c8ac02b31 18,65-67
+  s_2717b8fd006751::t_d33cbdb2f8f490 63,69,72
+  s_2717b8fd006751::t_7ffeec273734a8 1-6,8-10,12-14,16-17,19-56,87-110
+  s_2717b8fd006751::t_d6252747fd2f65 7,11,15,57-62,64,68,70-71,73-86
+cli/internal/app/app.go
+  s_263ca8bfe0f184::t_a6004a397e1141 265
+cli/internal/app/context.go
+  s_263ca8bfe0f184::t_c15ab76552739e 1-126
+cli/internal/toolbox/terminal_resize_unix_review_test.go
+  s_7ce1afb6355110::t_5db4b45bc71e17 1-49
+cli/cmd/image_logs_bounds_review_test.go
+  s_299e43e3e6786a::t_ba49917573e7bc 1-62
+cli/internal/ui/terminal.go
+  s_0b3f8eeaf6aada::t_7aa47d48dabd2c 42,73-75,93-95,97,113,115-116,119,125-127,129-131,134-135,138-139,142,145-146,149-151,174,185-186,189,191
+cli/cmd/sandbox_toolbox_harness_test.go
+  s_b74a032e86ea87::t_b8dec63c74f503 53-55,105
+cli/internal/ui/terminal_review_test.go
+  s_0b3f8eeaf6aada::t_bf872fd56b995d 42-53,55-75
+  s_0b3f8eeaf6aada::t_c5a62d9be811bb 1-41,54,76-109
+changelog.d/587-cli-docs-full-dir.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/cmd/sandbox_ssh_more_test.go
+  s_aadd141013e7c9::t_f078f9810e1051 120-121,123-124
+changelog.d/587-cli-cp-local-directory.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-3
+cli/internal/toolbox/websocket_cancel_review_test.go
+  s_7ce1afb6355110::t_4e7fc82d7a62ee 120,122
+  s_7ce1afb6355110::t_5db4b45bc71e17 1-12,14,16-32,34-58,98-99,118-119,121,123-151
+  s_7ce1afb6355110::t_f147a8d7f5b99c 13,15,33,59-97
+  s_7ce1afb6355110::t_a2370053042b82 100-117
+cli/cmd/sandbox_port.go
+  s_299e43e3e6786a::t_2a65ffb199bf67 120-121,123-125
+changelog.d/587-cli-attach-streams.fixed.md
+  s_aadd141013e7c9::t_7115e5b0d62843 1-4
+cli/cmd/sandbox_display.go
+  s_2717b8fd006751::t_50af8b7db83c0e 1-92
+changelog.d/587-cli-cp-upload-diagnostics.fixed.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+changelog.d/587-cli-image-logs-cap.breaking.md
+  s_aadd141013e7c9::t_7115e5b0d62843 1-3
+cli/cmd/sandbox_cursor_review_test.go
+  s_2717b8fd006751::t_7ffeec273734a8 1-14,16,18-22
+  s_2717b8fd006751::t_cf88563c379247 15,17
+  s_2717b8fd006751::t_d33cbdb2f8f490 23-34
+cli/cmd/sandbox_create_result.go
+  s_2717b8fd006751::t_38ee8dbe411557 1-91
+changelog.d/587-cli-image-platform-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+changelog.d/587-cli-ssh-host-keys.security.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-8
+cli/internal/app/auth_url_review_test.go
+  s_263ca8bfe0f184::t_47c2ce27c196bf 1-85
+changelog.d/587-cli-volume-size-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-2
+cli/internal/toolbox/terminal_resize_unix.go
+  s_7ce1afb6355110::t_207d5790cebd9c 24-30
+cli/internal/toolbox/process_stream.go
+  s_7ce1afb6355110::t_207d5790cebd9c 51,58-60,74,132,138,144-145
+cli/cmd/sandbox_create_macos_test.go
+  s_b74a032e86ea87::t_9dc8dff7b9f19d 15-16,28-29
+cli/cmd/sandbox_create_idempotency.go
+  s_2717b8fd006751::t_617e27fe008ccc 1-87
+cli/internal/workload/wait.go
+  s_263ca8bfe0f184::t_a6004a397e1141 9,112,121,147,154,163,177
+cli/cmd/sandbox_exec_timeout_test.go
+  s_b74a032e86ea87::t_fed371e16a3298 182,185
+  s_b74a032e86ea87::t_1f2f3f138eb611 11
+  s_aadd141013e7c9::t_f078f9810e1051 133-135
+cli/internal/toolbox/terminal_attach_review_test.go
+  s_7ce1afb6355110::t_a2370053042b82 1-65
+cli/cmd/auth_context_review_test.go
+  s_263ca8bfe0f184::t_98918093502cb0 48
+  s_263ca8bfe0f184::t_a514073dd63e74 1-47,49-82
+cli/internal/app/clients.go
+  s_263ca8bfe0f184::t_c15ab76552739e 1-253
+changelog.d/587-cli-create-name-idempotency.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-3
+cli/cmd/auth_login_command.go
+  s_263ca8bfe0f184::t_a6004a397e1141 60-63
+changelog.d/587-cli-create-name-validation.breaking.md
+  s_b74a032e86ea87::t_713770cd9c9adf 1-3
+cli/internal/config/profile_upsert_review_test.go
+  s_263ca8bfe0f184::t_fb87eeeaaef3dc 1-42
+cli/cmd/auth_context.go
+  s_263ca8bfe0f184::t_d261d82136846d 1-132
+cli/cmd/volume_helpers.go
+  s_2717b8fd006751::t_dd7be79aed4e1a 61
+cli/README.md
+  s_aadd141013e7c9::t_7115e5b0d62843 175-176
+  s_b74a032e86ea87::t_0f6eb5601e374d 375-378
+  s_b74a032e86ea87::t_50455797eeca0a 197-199
+  s_aadd141013e7c9::t_e8b1c8baa04c60 86,427,557
+cli/cmd/volume_size_review_test.go
+  s_2717b8fd006751::t_7ffeec273734a8 1-35
+cli/cmd/registry.go
+  s_299e43e3e6786a::t_2a65ffb199bf67 53-56,79
+cli/cmd/registry_input_review_test.go
+  s_299e43e3e6786a::t_ba49917573e7bc 1-34
+cli/internal/workload/wait_timeout_review_test.go
+  s_263ca8bfe0f184::t_47c2ce27c196bf 1-57,65-101,125-133
+  s_263ca8bfe0f184::t_2d19564ce28bae 58-64,102-124
+cli/internal/app/app_test.go
+  s_b74a032e86ea87::t_2ff5d8298570fb 238-247
+cli/cmd/ga2_contract_test.go
+  s_b74a032e86ea87::t_d548ca6cc9f3ce 131-132,477-479,481-482
+cli/cmd/sandbox_process_test.go
+  s_b74a032e86ea87::t_c5a0550d2b47d4 72
+cli/internal/toolbox/ssh_host_keys_test.go
+  s_b74a032e86ea87::t_0b31dce1962f6d 19-22,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1cdad441e28f2d375888fb1d398a3fc64b44bfb5",
+  "prompts": {},
+  "sessions": {
+    "s_0b3f8eeaf6aada": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a06bd1fffeFcwq1JVgtPLEf6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_263ca8bfe0f184": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a06acdaffeFe5u593YCBGlz1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_2717b8fd006751": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a068f5fffesR1pCMaZSq4mXA",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_299e43e3e6786a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a070f9cffezRtKO1927nixIn",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7ce1afb6355110": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a06cf2fffes0sHUa63qJx49J",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_aa070e7b745b4c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e1df5bdffeOek82jW7CuPE6C",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_b74a032e86ea87": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a0702a2ffeeeeWSqFPHxrzYi",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

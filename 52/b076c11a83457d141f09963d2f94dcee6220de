@@ -1,0 +1,22 @@
+sdk-python/tests/test_image.py
+  s_6260505850569b::t_945f53df0eee9c 204-222
+sdk-python/tests/test_dockerignore.py
+  s_6260505850569b::t_f49a2b44739b85 79-83,85-86
+  s_6260505850569b::t_215b9489300bf7 1-78,84,87-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52b076c11a83457d141f09963d2f94dcee6220de",
+  "prompts": {},
+  "sessions": {
+    "s_6260505850569b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e79352a4affeLpScNUbAR4KzIs",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

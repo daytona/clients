@@ -1,0 +1,37 @@
+cli/internal/toolbox/client.go
+  s_75c4a5e5d1dbb9::t_1b6a6a4f015917 212-215
+examples/typescript/test-support/fake-sdk.ts
+  s_75c4a5e5d1dbb9::t_8f8f8ababea1a9 214
+sdk-typescript/src/v2/FileSystem.ts
+  s_75c4a5e5d1dbb9::t_af512079ac686d 29,496-498
+cli/internal/api/server_codes_test.go
+  s_75c4a5e5d1dbb9::t_1b6a6a4f015917 17-19,23,27-28,39,45
+sdk-typescript/tests/server-codes-and-search.test.ts
+  s_75c4a5e5d1dbb9::t_af512079ac686d 17,221-231
+  s_75c4a5e5d1dbb9::t_250bf6a965ac72 232-233
+sdk-python/README.md
+  s_75c4a5e5d1dbb9::t_bb73f8657690b9 908
+examples/python/test_examples.py
+  s_75c4a5e5d1dbb9::t_8f8f8ababea1a9 397
+  s_75c4a5e5d1dbb9::t_962e8826057eaf 46
+sdk-python/tests/test_server_codes_and_search.py
+  s_75c4a5e5d1dbb9::t_35c92bdd6649c0 41,48,357-375
+cli/internal/toolbox/server_codes_test.go
+  s_75c4a5e5d1dbb9::t_1b6a6a4f015917 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a251c6fc456ca5a454d83043875735aaa35178c",
+  "prompts": {},
+  "sessions": {
+    "s_75c4a5e5d1dbb9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e33d6d1aeffePtoDs4zwW4O5Lx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

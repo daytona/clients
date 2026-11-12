@@ -1,0 +1,50 @@
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_aae0e280ddd4ca 23-45
+changelog.d/539-create-fork-return.breaking.md
+  s_ca009e77d17705::t_aae0e280ddd4ca 16-26
+sdk-python/src/daytona/v2/_image_pull.py
+  s_ca009e77d17705::t_83e9cee6f44021 34
+  s_ca009e77d17705::t_598c5287d1d715 14
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_d0ad693aed2d93 697-698
+  s_ca009e77d17705::t_051fd8737dd438 676-696,699,701-727
+  s_ca009e77d17705::t_fcbd059e782046 700
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_ca009e77d17705::t_051fd8737dd438 73
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_83e9cee6f44021 1059,1072
+  s_ca009e77d17705::t_d39d250fdb2d7e 844-846
+  s_ca009e77d17705::t_98a072cdc19024 8
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_9e9deac5d5dc62 51
+  s_ca009e77d17705::t_d39d250fdb2d7e 1344-1347,1356
+  s_ca009e77d17705::t_98a072cdc19024 1587-1589,1605-1607
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_051fd8737dd438 476,478-479
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_d0ad693aed2d93 1056-1058,1078-1080
+  s_ca009e77d17705::t_051fd8737dd438 1052-1055,1059-1077,1081-1104
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_98a072cdc19024 17
+  s_ca009e77d17705::t_83e9cee6f44021 248-249
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_83e9cee6f44021 174
+sdk-typescript/src/v2/responseFields.ts
+  s_ca009e77d17705::t_83e9cee6f44021 7,127-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a22b6016dcfabeb310fa289a677282c18bf0e669",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

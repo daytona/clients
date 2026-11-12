@@ -1,0 +1,19 @@
+sdk-python/tests/test_server_codes_and_search.py
+  s_75c4a5e5d1dbb9::t_dc98e990a61858 360-362,376-378
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bfcd7a21912519b7353704961cc1cfb2d39a0680",
+  "prompts": {},
+  "sessions": {
+    "s_75c4a5e5d1dbb9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e33d6d1aeffePtoDs4zwW4O5Lx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

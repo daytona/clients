@@ -1,0 +1,26 @@
+.claude/skills/contract-refresh/scripts/contract_diff_test.py
+  s_170baf016701c2::t_ef3dddb53a754a 1-92
+.claude/skills/contract-refresh/SKILL.md
+  s_170baf016701c2::t_858497d5ef5358 26-30,33-36,39-40
+  s_170baf016701c2::t_8131ddd572e8e3 45-46,49-51
+  s_170baf016701c2::t_ddebd14b725bbb 41
+.claude/skills/contract-refresh/scripts/contract_diff.py
+  s_170baf016701c2::t_761b32474a7ce3 1-69
+  s_170baf016701c2::t_b9dc5380936415 70-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a96e19a1904c299934ba5b8c50bf63d16c12ac0",
+  "prompts": {},
+  "sessions": {
+    "s_170baf016701c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179970ffel5mD5rtZsQQcTa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

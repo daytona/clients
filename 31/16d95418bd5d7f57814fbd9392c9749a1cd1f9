@@ -1,0 +1,33 @@
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_03db1f9437b107::t_2a489b454b7e26 969
+sdk-typescript/src/Daytona.ts
+  s_03db1f9437b107::t_06c907f71f92c4 394
+  s_03db1f9437b107::t_2a489b454b7e26 112
+sdk-python/src/daytona/common/daytona.py
+  s_03db1f9437b107::t_06c907f71f92c4 53
+sdk-python/tests/test_v1.py
+  s_03db1f9437b107::t_3b433f7cf51f84 51
+  s_03db1f9437b107::t_2a489b454b7e26 53-54
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  s_03db1f9437b107::t_3b433f7cf51f84 545
+sdk-ruby/spec/daytona/config_spec.rb
+  s_03db1f9437b107::t_2a489b454b7e26 70
+sdk-ruby/lib/daytona/config.rb
+  s_03db1f9437b107::t_06c907f71f92c4 172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3116d95418bd5d7f57814fbd9392c9749a1cd1f9",
+  "prompts": {},
+  "sessions": {
+    "s_03db1f9437b107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

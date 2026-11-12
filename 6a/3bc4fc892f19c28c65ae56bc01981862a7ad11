@@ -1,0 +1,29 @@
+changelog.d/builder-trailing-backslash.fixed.md
+  s_35c1b93d4ebbc5::t_544241ce50929e 2-4
+sdk-python/src/daytona/v2/image.py
+  s_35c1b93d4ebbc5::t_f61d2b2acda8fe 76,85,236,248-250,253
+sdk-python/tests/fixtures/image-builder-context.json
+  s_35c1b93d4ebbc5::t_7bf1713752a7fd 393-409
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_35c1b93d4ebbc5::t_8c5fae6731b5d1 232-233,239
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_6d84caaf9ab14a 70,81
+sdk-typescript/src/v2/builderText.ts
+  s_35c1b93d4ebbc5::t_9ed084e9a71b59 77,80-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a3bc4fc892f19c28c65ae56bc01981862a7ad11",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+AGENTS.md
+  s_e868095898fbaa::t_889cd5ecacc3f0 988-995
+  s_e868095898fbaa::t_8a23faa04994ce 1060-1061
+  s_e868095898fbaa::t_8294c5fc5473ab 1007-1008
+  s_e868095898fbaa::t_6bc4bf79eea398 1067-1071
+  s_e868095898fbaa::t_bd7a1093c21bed 1042-1044
+  s_e868095898fbaa::t_e39000c0837905 1023,1025-1035
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d7e8654d1a7a7518a31f504509361c5583ff3530",
+  "prompts": {},
+  "sessions": {
+    "s_e868095898fbaa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a3da4bbffe7WzbYleqgtcjkA",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

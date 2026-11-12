@@ -1,0 +1,39 @@
+changelog.d/538-log-pages.breaking.md
+  s_9a337fd66d5341::t_8b1f20d18f3b3c 2-3
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_9a337fd66d5341::t_0312f34ca2506d 3181
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_03e23d0f856a62 739
+  s_9a337fd66d5341::t_99a3a8743b4132 673-679
+AGENTS.md
+  s_9a337fd66d5341::t_03e23d0f856a62 468-472
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_8b1f20d18f3b3c 33-49
+upgrade/typescript/src/mapping.json
+  s_9a337fd66d5341::t_0312f34ca2506d 3181
+upgrade/MIGRATION.md
+  s_9a337fd66d5341::t_0312f34ca2506d 560
+changelog.d/538-sdk-refusals.breaking.md
+  s_9a337fd66d5341::t_d94cf0bd838231 1-12
+upgrade/mapping/mapping.json
+  s_9a337fd66d5341::t_0312f34ca2506d 3181
+sdk-python/README.md
+  s_9a337fd66d5341::t_03e23d0f856a62 794
+  s_9a337fd66d5341::t_99a3a8743b4132 724-728
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e905528b616d33b19e3c708780345f7ebc63db9c",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

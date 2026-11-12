@@ -1,0 +1,62 @@
+analytics-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 13
+analytics-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 61,89,111,115-116
+hack/python-client/openapi-templates/test-requirements.mustache
+  h_e7759ddd73fa65 3-6,8,9-10
+poetry.lock
+  h_e7759ddd73fa65 1124,1146,1165,1187,1206,1228,3804,3810-3811,3816,3826,3832-3972
+toolbox-api-client-python-async/pyproject.toml
+  h_e7759ddd73fa65 14
+toolbox-api-client-python/pyproject.toml
+  h_e7759ddd73fa65 15
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  h_e7759ddd73fa65 123
+artifacts/sdk-docs/typescript-sdk/errors.mdx
+  h_e7759ddd73fa65 787
+yarn.lock
+  h_e7759ddd73fa65 4998,5040
+sdk-typescript/hooks/typedoc-custom.mjs
+  s_9f424cdd06a807::t_ef47eefba54d85 282-283
+sdk-typescript/src/Daytona.ts
+  s_9f424cdd06a807::t_6b8677c03a5450 518-519,522
+analytics-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+analytics-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+toolbox-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+toolbox-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 1-2,5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "caf6c79926b264ebde6794f2de62cc57dd47036b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_9f424cdd06a807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "claude-fable-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

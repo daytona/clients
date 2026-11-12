@@ -1,0 +1,19 @@
+changelog.d/587-cli-create-no-wait-shape.breaking.md
+  s_aadd141013e7c9::t_36c7bc36e4ef32 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a587e70740a3839a9203118face01ed0f7662921",
+  "prompts": {},
+  "sessions": {
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

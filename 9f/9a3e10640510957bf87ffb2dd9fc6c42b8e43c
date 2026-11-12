@@ -1,0 +1,26 @@
+sdk-python/DEVELOPMENT.md
+  s_a3ea68093feda0::t_3755e3d405e0fb 209-211
+sdk-python/gen/api_surface.py
+  s_a3ea68093feda0::t_d7a079ffcf4183 24,390-391,421,423,504,508,655-656,658-660,676,705-720,973-1001
+  s_a3ea68093feda0::t_26ba396a017471 1002-1003
+sdk-python/api-surface/daytona.v2.api.txt
+  s_a3ea68093feda0::t_d7a079ffcf4183 930,1718,2524,2526,2660,2858,2863
+sdk-python/tests/test_api_surface.py
+  s_a3ea68093feda0::t_29c7a1bb8a4126 149,167,201-220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f9a3e10640510957bf87ffb2dd9fc6c42b8e43c",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

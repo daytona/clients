@@ -1,0 +1,22 @@
+sdk-python/tests/test_events.py
+  s_ca009e77d17705::t_a728e6b359132e 1569-1574,1588,1594,1599,1604
+  s_ca009e77d17705::t_3b546aea7e27ef 2927-2944,2947
+  s_ca009e77d17705::t_e26db02c6080cc 613-615,627,630,634,637,705-707,718,725,727,730,1497-1499,1503,1512,1514,1519,1524
+  s_ca009e77d17705::t_b59bfe36175fab 2945-2946,2948-2949
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "412bef66ff2f17a7471adc717d822501154d63a7",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

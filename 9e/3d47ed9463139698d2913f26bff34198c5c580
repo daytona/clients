@@ -1,0 +1,50 @@
+sdk-typescript/tests/networkPolicyTestServer.ts
+  s_ca009e77d17705::t_3c257818ace4c4 74-84
+sdk-typescript/tests/networkPolicyWire.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 10,49-50,98-99,121,169-175
+  s_ca009e77d17705::t_d6244e32f02895 96-97
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_3c257818ace4c4 18,27-28,174,191-192,194,232,306,343-344,450,452-454,469,482,496,523,578,618-620,670-672,695-696
+sdk-typescript/tests/image-builder-parity.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 11,85
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_a425205ca76939 1381-1384,1394,1396-1397,1399-1400,1402-1404
+sdk-typescript/tests/null-options.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 10,35,73
+sdk-typescript/tests/sandboxSecretsValidation.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 10,41
+sdk-typescript/tests/artifact-options.test.ts
+  s_ca009e77d17705::t_72166b216c17d5 34,45
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_2351c8da34a783 264,268-269,734,738,740,780,1023,1028-1030,1053,1058-1059,1082-1118
+  s_ca009e77d17705::t_f847a2978a5dbf 265-267
+  s_ca009e77d17705::t_da9b70cdb830d0 1119
+sdk-typescript/tests/sandboxSecretsWire.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 9,42,74-77
+sdk-typescript/tests/sandbox-metadata.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 8,132
+sdk-typescript/tests/sandbox-lifecycle.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 8,25-26,82
+sdk-typescript/tests/networkPolicyValidation.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 15,81
+sdk-typescript/tests/client-lifecycle-options.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 8,138
+sdk-typescript/tests/sandbox-fork.test.ts
+  s_ca009e77d17705::t_4f5765086e335a 8,67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e3d47ed9463139698d2913f26bff34198c5c580",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

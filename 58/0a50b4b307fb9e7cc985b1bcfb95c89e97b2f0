@@ -1,0 +1,16 @@
+upgrade/typescript/tests/es5-callback-performance.test.ts
+  h_e7759ddd73fa65 7
+upgrade/typescript/tsconfig.json
+  h_e7759ddd73fa65 8-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "580a50b4b307fb9e7cc985b1bcfb95c89e97b2f0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+.github/workflows/prepare-release.yaml
+  s_9a337fd66d5341::t_2dcb1751ec9799 31,36-37,41,49
+.github/workflows/release.yaml
+  s_9a337fd66d5341::t_c7219882d65281 38,43-44,48,56,60
+.github/workflows/sdk_publish.yaml
+  s_9a337fd66d5341::t_dace4c9df67d49 45-46,58,70-76,84-88,92,108-112,251
+.omo/run-continuation/ses_099c695a1ffeuN49eE4GhUz2KZ.json
+  s_717b45cf151505::t_79c160560f68eb 1-10
+.omo/run-continuation/ses_e3f615e88ffeTwq0qbb7000xe2.json
+  s_2c7d39f4b80c92::t_6aa7c3cc98cd59 1-10
+.omo/run-continuation/ses_e3f6bd742ffenG8AtOyGHSdqK0.json
+  s_99f7d0d06ad207::t_6158c05e98317f 1-10
+.omo/run-continuation/ses_e3f70b5b5ffe9ck5q79WfnUoPe.json
+  s_99f7d0d06ad207::t_d4433968c853f3 1-10
+.omo/run-continuation/ses_e3f70b5b6ffelmcv07Vq6Rt8Bn.json
+  s_99f7d0d06ad207::t_859732e590aa80 1-10
+.omo/run-continuation/ses_e3f7c04e7ffehlzG6CFCRWDUin.json
+  s_717b45cf151505::t_1f725b582cb998 1-10
+.omo/run-continuation/ses_e3f7ced3effeO0ZC8vtaS6r2VL.json
+  s_717b45cf151505::t_5c1461e5054949 1-10
+.omo/run-continuation/ses_e4057d29effeUcXH9lg4x7D9JI.json
+  s_2c7d39f4b80c92::t_20fb7272203e3f 1-10
+.omo/run-continuation/ses_e4538b6aeffe6DmGDn2fQxEfxS.json
+  s_99f7d0d06ad207::t_719d20305a099f 1-10
+.omo/run-continuation/ses_e47196c2affeDNWG95ae58mcF0.json
+  s_2c7d39f4b80c92::t_e6efb8644950c8 1-10
+.omo/run-continuation/ses_e4719a8a1ffeelaTXcEp6ljWTJ.json
+  s_9a337fd66d5341::t_0fff4a6335fcb9 1-10
+.omo/run-continuation/ses_e50213ce5ffe6JFHNKMMipbsua.json
+  s_9a337fd66d5341::t_7dbcccad1e1d27 1-10
+.omo/run-continuation/ses_e5f98bc59ffe3SvHjoeFwp524O.json
+  s_2c7d39f4b80c92::t_b9d13d977ffe6f 1-10
+.omo/v2-state/health.json
+  s_9a337fd66d5341::t_077fea388f41dd 1
+.omo/v2-state/meta.json
+  s_9a337fd66d5341::t_2fe3a26ae16098 1
+.omo/v2-state/toasts.json
+  s_717b45cf151505::t_83043870a83450 1
+PUBLISHING.md
+  s_9a337fd66d5341::t_cd829c8db3f9e9 112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "42212426f34c82d1eead1b6c0e822d8df63533bb",
+  "prompts": {},
+  "sessions": {
+    "s_2c7d39f4b80c92": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3f629e15ffevQVPf366v3MhNy",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_99f7d0d06ad207": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5397d916ffexzBaDLNSmvvX0N",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

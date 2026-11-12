@@ -1,0 +1,39 @@
+cli/internal/toolbox/archive_open_unix.go
+  s_aec3b70e676052::t_f0a2d26f901ab4 80-82
+cli/internal/toolbox/archive_extract_windows.go
+  s_aec3b70e676052::t_dbad9b3a0f8922 10,12,17-21,24,32-36,40,43-45,48-54,60-62,65-69,72,76,80,82-89,94-96,98-100,102,105,108,116-118,120,140-143,149-166,168,171-173
+cli/internal/toolbox/archive_paths_test.go
+  s_aec3b70e676052::t_b86e5f115a5c33 38,41-42,44-45
+  s_aec3b70e676052::t_be042156b802ea 1-37,39-40,43,46-47
+cli/internal/toolbox/archive.go
+  s_aec3b70e676052::t_f0a2d26f901ab4 17-20
+  s_aec3b70e676052::t_b86e5f115a5c33 134
+cli/internal/toolbox/archive_test.go
+  s_aec3b70e676052::t_b2e7e96ccec50c 220-280
+changelog.d/security-cubic-cli-archive.security.md
+  s_aec3b70e676052::t_d6e0cde94196e1 1-6
+cli/internal/toolbox/archive_open_windows_test.go
+  s_aec3b70e676052::t_b2e7e96ccec50c 14,18-23,26,28,33-35,38,46-83
+  s_aec3b70e676052::t_9a57d445ffb107 84
+cli/internal/toolbox/archive_paths.go
+  s_aec3b70e676052::t_b86e5f115a5c33 33-35,88-95
+  s_aec3b70e676052::t_8af9b468152198 96-97
+cli/internal/toolbox/archive_open_windows.go
+  s_aec3b70e676052::t_da8cd15449a79c 9,11-12,16-28,30,32-38,40,42-43,45-53,55-56,59-71,73-74,76-77,79-84,86-87,89-90,92-96,98-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "904a8a9f653c0bb2e7ea68f2cb02663065e9d3ed",
+  "prompts": {},
+  "sessions": {
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

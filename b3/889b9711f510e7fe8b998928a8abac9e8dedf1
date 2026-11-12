@@ -1,0 +1,14 @@
+yarn.lock
+  h_e7759ddd73fa65 5960,6002
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3889b9711f510e7fe8b998928a8abac9e8dedf1",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

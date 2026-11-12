@@ -1,0 +1,48 @@
+changelog.d/cli-create-no-wait-shape.breaking.md
+  s_aadd141013e7c9::t_68e4d5dd57b6b6 5-6
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  s_aadd141013e7c9::t_d366e6d91f99d5 1-37
+cli/cmd/sandbox_port.go
+  s_aadd141013e7c9::t_fa474e9bc67c91 144,157-170,172-174
+cli/internal/app/app.go
+  s_aadd141013e7c9::t_e6777be3580b99 253-263,295
+  s_aadd141013e7c9::t_44bb41d2f68a57 56-58,207
+cli/internal/toolbox/process_stream.go
+  s_aadd141013e7c9::t_186916b33d86ee 66-70
+changelog.d/cli-static-key-project.breaking.md
+  s_aadd141013e7c9::t_68e4d5dd57b6b6 4
+cli/cmd/command_flags.go
+  s_aadd141013e7c9::t_44bb41d2f68a57 106-107
+cli/cmd/ga2_contract_test.go
+  s_aadd141013e7c9::t_0d66967d70aaf6 442-483
+  s_aadd141013e7c9::t_cd81ccb370ad5b 42-44,46
+  s_aadd141013e7c9::t_44bb41d2f68a57 432-433
+changelog.d/cli-exit-codes.breaking.md
+  s_aadd141013e7c9::t_68e4d5dd57b6b6 4-5
+cli/cmd/sandbox_create.go
+  s_aadd141013e7c9::t_fa474e9bc67c91 237-241
+cli/cmd/sandbox_ssh.go
+  s_aadd141013e7c9::t_5944510e54a4e8 12,29-32,56,63-85
+  s_aadd141013e7c9::t_e05c2fd930baf8 86-87
+cli/README.md
+  s_aadd141013e7c9::t_68e4d5dd57b6b6 372-374,593-596
+cli/cmd/sandbox_logs.go
+  s_aadd141013e7c9::t_e6777be3580b99 9,182,189-200
+  s_aadd141013e7c9::t_e274e301dae120 201-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99b0b0536b66b4d4c1b3afc746809ab59a5c0606",
+  "prompts": {},
+  "sessions": {
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

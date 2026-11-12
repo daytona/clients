@@ -1,0 +1,23 @@
+sdk-typescript/src/v2/Image.ts
+  s_1d65fa05b6bddd::t_a04a830d05d194 143
+sdk-python/src/daytona/v2/image.py
+  s_1d65fa05b6bddd::t_a04a830d05d194 17,28
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_1d65fa05b6bddd::t_a04a830d05d194 565-579
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0958a4f2ae858cc7ff4b6d193816a4b7d9fcd424",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

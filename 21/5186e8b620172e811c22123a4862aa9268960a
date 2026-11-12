@@ -1,0 +1,25 @@
+changelog.d/538-toolbox-models.breaking.md
+  s_ca009e77d17705::t_9a1a3182b6fc33 24-26
+changelog.d/538-toolbox-timestamps.breaking.md
+  s_ca009e77d17705::t_9a1a3182b6fc33 1-8
+changelog.d/539-context-ids.breaking.md
+  s_ca009e77d17705::t_9a1a3182b6fc33 2-6
+changelog.d/538-toolbox-response-checks.breaking.md
+  s_ca009e77d17705::t_9a1a3182b6fc33 4-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "215186e8b620172e811c22123a4862aa9268960a",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

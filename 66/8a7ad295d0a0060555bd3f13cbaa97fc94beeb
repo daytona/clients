@@ -1,0 +1,16 @@
+sdk-typescript/src/Image.ts
+  h_e7759ddd73fa65 841-842,874-875,880-884
+sdk-typescript/src/__tests__/Image.test.ts
+  h_e7759ddd73fa65 688
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "668a7ad295d0a0060555bd3f13cbaa97fc94beeb",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

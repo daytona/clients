@@ -1,0 +1,76 @@
+api-client-java/src/test/java/io/daytona/api/client/api/SandboxApiTest.java
+  ai_agent 17,22,31-32,67-80,221-234,530-543,558-572,715
+sdk-python/src/daytona/_async/sandbox.py
+  s_59fee36c94ddd0::t_b1288265aabf05 231,234,246-250,311,1937-1938
+sdk-python/tests/conftest.py
+  s_59fee36c94ddd0::t_187aaa372cabe4 61-65,67-70,72
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_59fee36c94ddd0::t_f2670073108448 154-155
+  s_59fee36c94ddd0::t_748036ddaceeb7 133-141,143
+  s_59fee36c94ddd0::t_16ced81395dff3 146-153,156-165
+  s_59fee36c94ddd0::t_daef74145587c6 132,144-145
+  s_59fee36c94ddd0::t_c5b981c9fa38b4 324-340
+api-client-java/src/test/java/io/daytona/api/client/model/SandboxTest.java
+  ai_agent 24,420-473
+sdk-typescript/src/Sandbox.ts
+  s_59fee36c94ddd0::t_bf74eacc7b1c8e 126-137,222,1926,1960
+hack/java-client/postprocess.test.sh
+  s_59fee36c94ddd0::t_1f22c2dca8c204 1-31
+sdk-python/src/daytona/_sync/daytona.py
+  s_59fee36c94ddd0::t_b1288265aabf05 41,60,736-738,770-779,781-783
+sdk-typescript/src/Process.ts
+  s_59fee36c94ddd0::t_5e2ee5047d67cf 443,448,451-453,456,458,460-462,464-468,471-473,475
+  s_59fee36c94ddd0::t_dc855ee4c92846 442,444-447,455,469-470,474
+  s_59fee36c94ddd0::t_3ceaa326e0a71d 449-450
+sdk-python/tests/test_async_sandbox.py
+  s_59fee36c94ddd0::t_bc80f0b8b74931 671-687
+sdk-typescript/src/Daytona.ts
+  s_59fee36c94ddd0::t_bf74eacc7b1c8e 26,894-895,984-993
+sdk-python/tests/test_node_exec_timeout.py
+  s_59fee36c94ddd0::t_bc80f0b8b74931 219-226,228-242
+sdk-python/tests/test_sandbox.py
+  s_59fee36c94ddd0::t_bc80f0b8b74931 632-648
+hack/java-client/postprocess.sh
+  s_59fee36c94ddd0::t_e62301bf25afe5 26-32,34-39
+api-client-java/.openapi-generator/FILES
+  ai_agent 205-223,225-246,250-260,264-308,311-313,316-325,327-331,333-384
+sdk-python/src/daytona/_async/daytona.py
+  s_59fee36c94ddd0::t_b1288265aabf05 47,66,859-861,893-902,904-906
+sdk-typescript/src/__tests__/Process.test.ts
+  s_59fee36c94ddd0::t_c5b981c9fa38b4 78-88,90-92,94,96-103,105-108
+  s_59fee36c94ddd0::t_dc855ee4c92846 104,374-377,383,390,401,408
+sdk-typescript/src/SandboxNode.ts
+  s_59fee36c94ddd0::t_bf74eacc7b1c8e 17,21-22,34,41-43,52-54,61-63,76-80,83,85,100-104
+api-client-java/src/test/java/io/daytona/api/client/model/RunnerHealthcheckTest.java
+  ai_agent 21,93-98
+sdk-python/src/daytona/_sync/sandbox.py
+  s_59fee36c94ddd0::t_b1288265aabf05 229,232,237-241,318,1941-1942
+api-client-java/src/test/java/io/daytona/api/client/model/RegionQuotaTest.java
+  ai_agent 173-180
+api-client-java/src/test/java/io/daytona/api/client/model/UpdateSandboxStateDtoTest.java
+  ai_agent 64-79
+api-client-java/src/test/java/io/daytona/api/client/model/CreateSandboxTest.java
+  ai_agent 22-24
+sdk-typescript/hooks/typedoc-custom.mjs
+  s_59fee36c94ddd0::t_daef74145587c6 43-47
+  s_59fee36c94ddd0::t_c5879d0dd9e9b9 48-50,52-53
+  s_59fee36c94ddd0::t_059967cc68580c 51
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_59fee36c94ddd0::t_16ced81395dff3 927-934,936-937,939-949
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a9b0e45559f42bad39051da3c4853a4c8967a03e",
+  "prompts": {},
+  "sessions": {
+    "s_59fee36c94ddd0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bc08-0cf7-79d2-b385-2eafd991a878",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

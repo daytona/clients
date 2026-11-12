@@ -1,0 +1,23 @@
+cli/cmd/sandbox_actions.go
+  s_e72da7b238b0d5::t_d5f57d412b93d8 7,19,35-39,44-78
+cli/cmd/sandbox_actions_more_test.go
+  s_e72da7b238b0d5::t_494ab34ffd30e2 10,114,125,376,530-574
+cli/cmd/sandbox_test.go
+  s_e72da7b238b0d5::t_00614426b29742 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5c1625556779272e9e1d4aabb8c9057569cbed78",
+  "prompts": {},
+  "sessions": {
+    "s_e72da7b238b0d5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e354a1459ffeJNEQO6wfxMs3zb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

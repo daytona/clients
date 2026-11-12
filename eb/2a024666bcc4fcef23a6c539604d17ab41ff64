@@ -1,0 +1,25 @@
+sdk-python/src/daytona/_root.py
+  s_0ec6c863526e62::t_364344c0c443fc 1-3
+sdk-python/src/daytona/_versioning.py
+  s_0ec6c863526e62::t_90aba58406c5bc 1-3
+sdk-python/src/daytona/v1.py
+  s_0ec6c863526e62::t_22bbb8644c1cc5 1-3
+sdk-python/tests/test_v1.py
+  s_0ec6c863526e62::t_3bc938b3ee0845 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb2a024666bcc4fcef23a6c539604d17ab41ff64",
+  "prompts": {},
+  "sessions": {
+    "s_0ec6c863526e62": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec588fa3fffePDSRFSJrAef604",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

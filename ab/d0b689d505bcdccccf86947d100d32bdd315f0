@@ -1,0 +1,31 @@
+.github/workflows/sdk_publish.yaml
+  s_cb08514c72375e::t_47a26fa870d4d0 53-54,99-102,115-118
+.github/workflows/pr_checks.yaml
+  s_cb08514c72375e::t_47a26fa870d4d0 108
+sdk-typescript/project.json
+  s_cb08514c72375e::t_47a26fa870d4d0 120,123-124
+PUBLISHING.md
+  s_cb08514c72375e::t_1cbd15c12803c2 21,43,45-50,89
+analytics-api-client/project.json
+  s_cb08514c72375e::t_62099ebb486ebe 48
+api-client/project.json
+  s_cb08514c72375e::t_8843191d34f958 47,49
+toolbox-api-client/project.json
+  s_cb08514c72375e::t_e86c14a5727148 47,49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "abd0b689d505bcdccccf86947d100d32bdd315f0",
+  "prompts": {},
+  "sessions": {
+    "s_cb08514c72375e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f0e9459f5ffePFlvjl5kK6K0c5",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

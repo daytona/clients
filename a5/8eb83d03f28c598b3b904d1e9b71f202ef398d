@@ -1,0 +1,26 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 909,951,1086,1127,1773,1806,2212,2246,3533,3568,5777,5811,5972,6016,6266,6302,6445,6478
+artifacts/sdk-docs/go-sdk/types.mdx
+  h_e7759ddd73fa65 379,697
+sdk-python/src/daytona/__init__.py
+  h_e7759ddd73fa65 42
+sdk-python/src/daytona/_async/daytona.py
+  h_e7759ddd73fa65 55
+sdk-python/src/daytona/_root.py
+  h_e7759ddd73fa65 152
+sdk-python/src/daytona/_sync/daytona.py
+  h_e7759ddd73fa65 43
+sdk-python/tests/test_v1.py
+  h_e7759ddd73fa65 18-19,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a58eb83d03f28c598b3b904d1e9b71f202ef398d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

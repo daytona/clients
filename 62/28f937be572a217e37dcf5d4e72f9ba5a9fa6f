@@ -1,0 +1,19 @@
+contract/api-openapi.json
+  s_b3e701c41242f9::t_5124ec5d515a2f 1976-2149,3429-3453,7098-7105,7221-7224,7373,21808-21980
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6228f937be572a217e37dcf5d4e72f9ba5a9fa6f",
+  "prompts": {},
+  "sessions": {
+    "s_b3e701c41242f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b7f97c1-6295-4839-a27b-f5f1f098b4d1",
+        "model": "unknown"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

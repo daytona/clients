@@ -1,0 +1,23 @@
+cli/cmd/surface_test.go
+  s_a3ea68093feda0::t_55bc704f634a5c 569,575
+  s_a3ea68093feda0::t_90dbc3db9c5202 108,123-127,130-133,141,152,164-192,566-568,570-574,576-580,582
+  s_a3ea68093feda0::t_a84e60b1f4d3e6 581
+cli/README.md
+  s_a3ea68093feda0::t_faed706f0d24f7 300-301
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb044de799ca8463e7a78567a2d158b8ea6c6831",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

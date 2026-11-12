@@ -1,0 +1,25 @@
+sdk-python/tests/test_repo_files.py
+  s_f23bcae77f0e63::t_9377308736ea69 30-32,34-41,45-48
+AGENTS.md
+  s_f23bcae77f0e63::t_1c56ece3e110fa 488-493,507-514
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_1c56ece3e110fa 184-191,214-217
+sdk-python/tests/test_client_config.py
+  s_f23bcae77f0e63::t_9377308736ea69 418-426
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1e390fc2b0168e3eac8d52a9db7e27a8a2afe757",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+sdk-python/src/daytona/v2/errors.py
+  s_f23bcae77f0e63::t_06c3ac51023fd1 278-292,296-313
+sdk-typescript/tests/client-config.test.ts
+  s_f23bcae77f0e63::t_097f5854fbe4c3 14,260-312
+  s_f23bcae77f0e63::t_b7b1a92f1c10df 313
+sdk-python/tests/test_client_config.py
+  s_f23bcae77f0e63::t_011279108eb661 20,211-240
+sdk-typescript/src/v2/http.ts
+  s_f23bcae77f0e63::t_af80af09af72a2 280,475,775,922,1328,1416
+sdk-typescript/src/v2/Images.ts
+  s_f23bcae77f0e63::t_e2ad57fbaf5894 141
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_7553f8e768b875 8344,8490-8492,8495,8501,8515
+  s_f23bcae77f0e63::t_95242eb705f40a 11668,11676
+sdk-typescript/src/v2/BuildLogs.ts
+  s_f23bcae77f0e63::t_af80af09af72a2 385,387,393,396,472
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_f8fd1491427e2d 10,842
+sdk-python/src/daytona/v2/_auth.py
+  s_f23bcae77f0e63::t_06c3ac51023fd1 140
+sdk-python/src/daytona/v2/_transport.py
+  s_f23bcae77f0e63::t_06c3ac51023fd1 139,266,298,305,327,384,409,665,758,774,776,856,945,1050
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_af80af09af72a2 302-321,765-766
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_f23bcae77f0e63::t_097f5854fbe4c3 157,159
+  s_f23bcae77f0e63::t_95242eb705f40a 82,161
+changelog.d/537-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_2361ea43655da3 11-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed0bd66bdf22057848e4adbd4323b0682a9156d5",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 297,303,845,895-906,983-990
+changelog.d/526.changed.md
+  h_e7759ddd73fa65 6-8
+docs/RELEASING.md
+  h_e7759ddd73fa65 153-154,179-182
+docs/adr/0005-migration-tool-versions.md
+  h_e7759ddd73fa65 21
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 585,587
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 256-257,259-298
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 7,49,73-78,96,101
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 104,106-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b95f824190c5da0cf1601b1ab40a49dab6df2c92",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

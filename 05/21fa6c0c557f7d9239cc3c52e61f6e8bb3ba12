@@ -1,0 +1,31 @@
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_35c1b93d4ebbc5::t_e3c27f07c349d6 35-52
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_b8c31b2384cca9 444
+sdk-typescript/src/v2/contextEntries.ts
+  s_35c1b93d4ebbc5::t_b0c3723616fd05 62-66,68-76
+upgrade/MIGRATION.md
+  s_35c1b93d4ebbc5::t_05d026a745f809 98,129
+upgrade/mapping/mapping.json
+  s_35c1b93d4ebbc5::t_79b4ea6087e76b 3794,4051
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_35c1b93d4ebbc5::t_edca03ea7071a5 3794,4051
+upgrade/typescript/src/mapping.json
+  s_35c1b93d4ebbc5::t_c7e450497a734f 3794,4051
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0521fa6c0c557f7d9239cc3c52e61f6e8bb3ba12",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

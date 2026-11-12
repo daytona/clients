@@ -1,0 +1,29 @@
+.github/workflows/sdk_publish.yaml
+  s_4d9fba4bce0dac::t_8bcc6fe7583754 407-409,949-1008,1130-1132,1150,1152,1238-1240,1252,1254,1303-1307,1402-1415,1417-1420,1438
+scripts/sdk-version_test.sh
+  s_4d9fba4bce0dac::t_65e1a618ec0131 90-91
+upgrade/scripts/publish-channels.test.mjs
+  s_4d9fba4bce0dac::t_c6abe75e389140 147-156,166-167,341-347,352,355-356,365
+  s_4d9fba4bce0dac::t_f6727c4f0ae4de 476,480
+  s_4d9fba4bce0dac::t_f1327725bbf44c 195-199,204-206,239,256,264-290,303-306,308-316,325,327-328
+  s_4d9fba4bce0dac::t_4c87ba89f34ed6 463-475,477-479,481-527
+upgrade/scripts/publish-gates.test.mjs
+  s_4d9fba4bce0dac::t_000b91aac53987 74-76
+  s_4d9fba4bce0dac::t_6f4b0a0ef1100b 66-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bb59dfecc7bca4789e14e67e1135bee9c32603bb",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

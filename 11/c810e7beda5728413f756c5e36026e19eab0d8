@@ -1,0 +1,31 @@
+docs/adr/0006-image-builder-local-context.md
+  s_35c1b93d4ebbc5::t_e7c300fb649cb7 52-54,58,62-63,125-130
+sdk-python/src/daytona/v2/_image_source.py
+  s_35c1b93d4ebbc5::t_24f60a9a46363a 68
+sdk-python/src/daytona/v2/image.py
+  s_35c1b93d4ebbc5::t_64f7121baa8132 8,78-80
+sdk-python/tests/fixtures/image-builder-context.json
+  s_35c1b93d4ebbc5::t_01f4d201e128d4 167-185,187-195,200-212,214-222,239-280,438-450
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_666bf3e02e0aa1 71-73
+sdk-typescript/src/v2/builderLocalSource.ts
+  s_35c1b93d4ebbc5::t_3ed63d00a6fbda 62-64
+sdk-typescript/tests/image-builder-source-safety.test.ts
+  s_35c1b93d4ebbc5::t_064c45ec45bce4 69,81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "11c810e7beda5728413f756c5e36026e19eab0d8",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

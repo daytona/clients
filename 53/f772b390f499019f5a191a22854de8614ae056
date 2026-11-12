@@ -1,0 +1,53 @@
+examples/typescript/examples.test.ts
+  s_9a337fd66d5341::t_471d920cc16bfa 75-80
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_4a4a9f8518ef6b 11690-11728
+  s_9a337fd66d5341::t_b96b6752b64275 11501,11731,11754,11782,11804,11902
+  s_9a337fd66d5341::t_81e3fdfd070686 11511
+  s_9a337fd66d5341::t_b2efd1c6f3ce35 12452-12459
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_e622ecf65e5f4a 45-48,52-53,98-100,102,109,113-114,133,146,152,156-158
+sdk-python/src/daytona/v2/computer_use.py
+  s_9a337fd66d5341::t_f99d7ddad46fe8 6,42,57
+examples/typescript/test-support/fake-sdk.ts
+  s_9a337fd66d5341::t_4c24becaac7171 78-79,81-82
+examples/typescript/test-support/probe-logs.ts
+  s_9a337fd66d5341::t_471d920cc16bfa 1-14
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_9a337fd66d5341::t_8a3702ceeb6fb8 287
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_b2efd1c6f3ce35 275-278
+sdk-python/src/daytona/v2/computer_use_core.py
+  s_9a337fd66d5341::t_063ffedc9e12aa 426-429
+  s_9a337fd66d5341::t_4a4a9f8518ef6b 412
+  s_9a337fd66d5341::t_f99d7ddad46fe8 339-366,369,371,373,377,401,411,417,422-425,433-437
+sdk-python/tests/test_desktop.py
+  s_9a337fd66d5341::t_4a4a9f8518ef6b 535-549,578-579,584-600,606-615
+  s_9a337fd66d5341::t_28c27fe600912c 550-577,580-583,601-605
+sdk-typescript/src/v2/toolboxPath.ts
+  s_9a337fd66d5341::t_b2efd1c6f3ce35 25-26,30
+examples/python/test_examples.py
+  s_9a337fd66d5341::t_de912d39c2e3f2 46
+  s_9a337fd66d5341::t_578fedae777edf 114-116,131-135,138-142,153-155,159-161,163-165,176-178,188-191,194-196,205-208,225-227,234-236,246-248,256-258,261-263,266-268,278-282,287,292-294,309-311,319-323,325-330,335-340,371-373,405-406,409-411,420-422,424-426,476-485,491-495,515-519,538-539,552-553,621-622,628-631,645-646,652-654,671-673,676-681,713-715,718-720,734-740
+  s_9a337fd66d5341::t_4c24becaac7171 318,324,331
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_b2efd1c6f3ce35 2653-2673
+sdk-typescript/tests/errors-contract.test.ts
+  s_9a337fd66d5341::t_8a3702ceeb6fb8 212-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53f772b390f499019f5a191a22854de8614ae056",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

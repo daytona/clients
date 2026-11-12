@@ -1,0 +1,38 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 80-83,912-913,1176-1223
+.github/workflows/v0-pin-bump.yaml
+  h_e7759ddd73fa65 119-122,162
+docs/RELEASING.md
+  h_e7759ddd73fa65 124-125
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 72-80
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 12,79-94,99,113-116,125,127,133,227
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 11,569-571,696-727
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 12,191-206
+upgrade/typescript/src/manifests.ts
+  h_e7759ddd73fa65 35-36
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 46-50
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 73-76
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 100-102
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 11,333-346
+upgrade/typescript/vitest.config.ts
+  h_e7759ddd73fa65 19-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5d4365ef2e89fcb1948d2de59adb31dc1bee848",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+sdk-python/README.md
+  s_982ebece9dd4e3::t_df5dbc9d24f6b8 665-669,692-696,701-705
+sdk-typescript/README.md
+  s_982ebece9dd4e3::t_3a99ecfae97c81 585-589,610-614,619-623
+changelog.d/region-error-codes.added.md
+  s_982ebece9dd4e3::t_428d7090279b62 1
+  s_982ebece9dd4e3::t_cff376490f7fd1 2-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35661c754877f948ba2e53595b78dd38f0ae90bd",
+  "prompts": {},
+  "sessions": {
+    "s_982ebece9dd4e3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b6804deffenaHLGFAXZjV0hR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

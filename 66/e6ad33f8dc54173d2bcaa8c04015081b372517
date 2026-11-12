@@ -1,0 +1,30 @@
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_9ab1f49e5b6abe::t_5130d977794c6a 59
+  s_9ab1f49e5b6abe::t_23d5fe8a32f208 130-134
+sdk-typescript/src/Daytona.ts
+  s_9ab1f49e5b6abe::t_c707ac9a6ffbf5 195
+  s_9ab1f49e5b6abe::t_41817b840b6e27 219
+  s_9ab1f49e5b6abe::t_43302fedf98831 740
+sdk-typescript/src/Sandbox.ts
+  s_9ab1f49e5b6abe::t_3dd84c978461cd 118
+  s_9ab1f49e5b6abe::t_3ae83d816cfc1c 177-178
+  s_9ab1f49e5b6abe::t_997082e73fb1cf 1500
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_9ab1f49e5b6abe::t_2e24735e617b02 536-563
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "66e6ad33f8dc54173d2bcaa8c04015081b372517",
+  "prompts": {},
+  "sessions": {
+    "s_9ab1f49e5b6abe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f305f1563ffeFHmF1565mvJmBw",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}

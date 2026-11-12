@@ -1,0 +1,24 @@
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_9d2460a3a992dc::t_d8c07f2c81b284 8,162-167,169-171,177,201-202,204-206,208
+sdk-typescript/tests/dockerignore.test.ts
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 126
+sdk-typescript/src/v2/dockerignoreClass.ts
+  s_9d2460a3a992dc::t_8e0cdea3b9ef70 52
+  s_9d2460a3a992dc::t_d8c07f2c81b284 1-51,53-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bf76f3295c3c6916cc940db58994ddcd4afdbb66",
+  "prompts": {},
+  "sessions": {
+    "s_9d2460a3a992dc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37760cffffefqPD4DBGkpGP79",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

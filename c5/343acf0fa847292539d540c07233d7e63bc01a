@@ -1,0 +1,19 @@
+.github/workflows/cla.yaml
+  s_be27d7e12134a7::t_80131bd378203e 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5343acf0fa847292539d540c07233d7e63bc01a",
+  "prompts": {},
+  "sessions": {
+    "s_be27d7e12134a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_eabc82de5ffeCa6SI6LbJCfbI0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

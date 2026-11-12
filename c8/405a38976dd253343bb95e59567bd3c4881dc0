@@ -1,0 +1,205 @@
+.claude/skills/coverage-preflight/SKILL.md
+  s_ca56d02462f709::t_a3afeede2204c6 24-25
+  s_aec3b70e676052::t_2dd26c1724dd03 43
+.claude/skills/deep-review/SKILL.md
+  s_ca56d02462f709::t_3b5860dd7b4a48 75,145-146
+  s_aec3b70e676052::t_19c83b27ac5df4 118,160
+.claude/skills/deep-review/references/drivers.md
+  s_ca56d02462f709::t_89de2656f9596c 4-5,12,37,116-117
+.claude/skills/deep-review/scripts/preflight.sh
+  s_ca56d02462f709::t_16990656be2171 43,45,47,51,57,62
+  s_aec3b70e676052::t_09df259b8f5704 65
+.github/CODEOWNERS
+  s_ca56d02462f709::t_a95078c7a1c021 24-27,51
+  s_285fc4d3645e63::t_377d0e6a50d3df 28
+.github/dependabot.yml
+  s_ca56d02462f709::t_3bb8a5954fe062 37,81,84,126
+.github/workflows/contracts.yaml
+  s_ca56d02462f709::t_1270e3f857d8e3 13-19,44
+.github/workflows/sdk-ci.yaml
+  s_aec3b70e676052::t_08aded1d9d1d19 8-9,17-18,84-86,88,90,92,104,144,169,314,321,334,351,369
+  s_285fc4d3645e63::t_182557ab0d5a1f 12,21,79,112,177
+.github/workflows/sdk_publish.yaml
+  s_aec3b70e676052::t_c52b14723ae843 436,498,511,585
+  s_285fc4d3645e63::t_ddb8bd2690fc54 82,132,137,282,308,318,333,339,360,748
+.github/workflows/upgrade-tool-ci.yaml
+  s_ca56d02462f709::t_8172c62aecdab7 12-13,22-23,47,52,188,197,231
+  s_285fc4d3645e63::t_2ca96a2aaa8234 10,20
+.github/workflows/upgrade-tool-publish.yaml
+  s_ca56d02462f709::t_ad30b080799aa9 131
+.gitignore
+  s_ca56d02462f709::t_4820720610eacb 28-30
+.gitleaks.toml
+  s_ca56d02462f709::t_5f963a77dc5991 61
+.licenserc.yaml
+  s_ca56d02462f709::t_21b41b6b26e995 32-39,51,53-59,62-65
+  s_285fc4d3645e63::t_d02b577e8c6735 48
+AGENTS.md
+  s_ca56d02462f709::t_00c17200ba0156 70-71,96-97,138-139,148,156,169,190-191,203,211,233-234,263,283,372,376,408-409,498,503,508-509,559
+  s_285fc4d3645e63::t_b8fc983a46adac 17,74,78-79,98,213,523,541,545,565
+CONTRIBUTING.md
+  s_ca56d02462f709::t_bd4755b0b08ef4 25,31-33,44-45
+  s_95075aae613321::t_4091b2d7dd9d03 20-21
+  s_99e5c120850106::t_56e018ed99b936 66,87,107
+README.md
+  s_285fc4d3645e63::t_8916448340a92a 106-107
+  s_aec3b70e676052::t_380dfe2929f8d6 14-25,114,118
+docs/RELEASING.md
+  s_ca56d02462f709::t_dd4c384ab18298 162-163,182,185,221,277,310-312
+  s_99e5c120850106::t_38425d6c968c92 12,34,92,104,133
+docs/VERSIONING.md
+  s_ca56d02462f709::t_df28b66010bd1f 22-23,112-113
+  s_aec3b70e676052::t_b217b844c913b6 37,92,94,186
+docs/adr/0001-sdk-parity.md
+  s_ca56d02462f709::t_6dea410561cfd9 24-25,40-41,46,48,60-61,64,72-74,91
+docs/adr/0002-versioning-and-release-lines.md
+  s_ca56d02462f709::t_fcbc384e100bae 32-34
+  s_285fc4d3645e63::t_020c07ed1381c5 23,73
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  s_ca56d02462f709::t_aa6f5536dcb319 33-36,65,67,93
+  s_285fc4d3645e63::t_87583d9b3df16d 42
+examples/README.md
+  s_ca56d02462f709::t_6ac76a40e48ac4 93,95
+examples/package.json
+  s_ca56d02462f709::t_21432e60e496a7 19
+examples/run-examples.sh
+  s_ca56d02462f709::t_f63c91e5f5f022 23
+e2e/run.sh
+  s_ca56d02462f709::t_7f7e3c939451c8 28,32,39
+  s_285fc4d3645e63::t_3eba05c7955c67 8-10,12,17,30,33,40
+scripts/bundle-v0.sh
+  s_ca56d02462f709::t_f28ae79e1180b5 16,20,36-37,56-57,134,141
+  s_285fc4d3645e63::t_fc2b12b09c0218 11,83,109
+scripts/bundle_v0_python.py
+  s_ca56d02462f709::t_2df301506881d9 11,39
+scripts/check-no-bundled-v0.sh
+  s_ca56d02462f709::t_60eb831f6c8338 10,21,32,34,38,63-64,76
+scripts/gen-contract-types.sh
+  s_ca56d02462f709::t_755db3cb8562d2 6-7,23-24,28
+scripts/patch_coverage.py
+  s_ca56d02462f709::t_550726eb94efbf 18-19,37-38,47-49
+  s_285fc4d3645e63::t_f10ad2af67e559 46
+scripts/test-upgrade.sh
+  s_ca56d02462f709::t_283fa0ad9ffe28 13-14
+scripts/v0-publish-mode.sh
+  s_ca56d02462f709::t_89b01c170aaa1f 9,20,47-48
+  s_285fc4d3645e63::t_c9d21281ee380f 10,31,77,84,87,90
+sdk-python/DEVELOPMENT.md
+  s_ca56d02462f709::t_d1d8825146bb92 78,83,110
+  s_aec3b70e676052::t_3682d1e167e0f1 68
+sdk-python/gen/package.json
+  s_ca56d02462f709::t_dabcfe7ca9b84c 4
+sdk-python/tests/test_core.py
+  s_ca56d02462f709::t_72d9f62cc8ab1f 1412,6232,6795,9744,9792
+sdk-python/tests/test_root_client.py
+  s_ca56d02462f709::t_4153481b430337 833,843-844,852,860,1026-1027,1030-1031,1034-1035,1143,1149-1150,1153,1155-1156,1170-1171,1174-1177,1204-1205,1208-1211,1219,1233-1234,1237-1239
+  s_285fc4d3645e63::t_646fab7603cd61 713-714,722,845,854,863,869
+sdk-python/tests/test_sandbox_secrets_parity.py
+  s_ca56d02462f709::t_70ef6d9c4b80a2 6
+sdk-python/tests/test_sandbox_tokens.py
+  s_ca56d02462f709::t_2c0f4aaf22a090 6
+sdk-typescript/package.json
+  s_ca56d02462f709::t_63e11deff8442a 17
+sdk-typescript/tests/build-log-identity.test.ts
+  s_ca56d02462f709::t_bbd4c9d602d56d 8
+sdk-typescript/tests/sandboxSecretsParity.test.ts
+  s_ca56d02462f709::t_15b8b2d6e06bc4 8
+sdk-typescript/tests/unit.test.ts
+  s_ca56d02462f709::t_485f8b65b317b8 3442,9479,9530
+upgrade/scripts/check-v0-surface.mjs
+  s_ca56d02462f709::t_ff74330ab91f49 61,254,261
+upgrade/scripts/check-v0-surface.test.mjs
+  s_ca56d02462f709::t_9c010d57fb6e6a 65
+upgrade/scripts/check-v2-surface.mjs
+  s_ca56d02462f709::t_4043e1f12c05bc 50
+upgrade/scripts/check-v2-surface.test.mjs
+  s_ca56d02462f709::t_5ae5ab39d7c599 32-34,118,124,133,135
+upgrade/scripts/publish-gates.test.mjs
+  s_ca56d02462f709::t_8985708b13749a 133-134,136-137,141
+upgrade/scripts/root-ts-exports.mjs
+  s_ca56d02462f709::t_0dc46770d7d26c 8-9,16
+upgrade/scripts/v0-ts-exports.mjs
+  s_ca56d02462f709::t_99b702c6f68eab 10
+upgrade/scripts/v2-note-surface.test.mjs
+  s_ca56d02462f709::t_51e592d2383965 21-23,26,28,30-31,37,41,77
+  h_e7759ddd73fa65 83
+upgrade/scripts/v2-python-surface.py
+  s_ca56d02462f709::t_098b5fc21315cc 111
+upgrade/scripts/v2-typescript-surface.mjs
+  s_ca56d02462f709::t_e957e06708d469 10,68
+SECURITY.md
+  s_95075aae613321::t_fac600ce827f4d 1-22
+.claude/skills/deep-review/references/rebuttals.md
+  s_aec3b70e676052::t_490fd8cf60316c 8
+.github/workflows/e2e.yaml
+  s_285fc4d3645e63::t_46cedf38ac7b34 71
+docs/adr/README.md
+  s_aec3b70e676052::t_22276d34bf6dc9 1
+e2e/e2e.ts
+  s_285fc4d3645e63::t_375929769b4dc3 8-9
+scripts/resolve-v0-tag.sh
+  s_285fc4d3645e63::t_eb33f2513eec42 8,37
+sdk-python/README.md
+  s_aec3b70e676052::t_9ae5d25eafac57 818
+sdk-python/src/daytona/_v0_root_names.py
+  s_aec3b70e676052::t_3dda2982e95b12 10
+sdk-python/tests/test_v0_bundle.py
+  s_285fc4d3645e63::t_af4928a9a182f1 125
+sdk-typescript/DEVELOPMENT.md
+  s_aec3b70e676052::t_2dbb1b1966f0a3 98
+sdk-typescript/README.md
+  s_aec3b70e676052::t_7105df26da7d2e 749
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c8405a38976dd253343bb95e59567bd3c4881dc0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_285fc4d3645e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179966ffeCgtLq0AylvVHMy",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_95075aae613321": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5518546bffeoVG0PssL7UER9K",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_99e5c120850106": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5517996bffel0i7jbnk4QE4Xt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ca56d02462f709": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5512e876ffeT794fEznN1cOM1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

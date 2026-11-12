@@ -1,0 +1,30 @@
+cli/cmd/root.go
+  s_0df31975f3464b::t_a0c3bbdaca834e 162-163,177-183
+  s_0df31975f3464b::t_f099678f133803 67-69
+cli/cmd/command_flags.go
+  s_0df31975f3464b::t_0ced332ae3858d 1-79
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_a0c3bbdaca834e 140-149
+changelog.d/cli-machine-output.breaking.md
+  s_0df31975f3464b::t_f099678f133803 3-10
+cli/cmd/usage_errors.go
+  s_0df31975f3464b::t_0ced332ae3858d 1-69
+cli/README.md
+  s_0df31975f3464b::t_f33cfe21a3929f 324-325,329-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "54d5f4aa3ee28b40a9a4cee95f77ced97554ea54",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

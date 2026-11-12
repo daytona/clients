@@ -1,0 +1,14 @@
+hack/ax-evals/ax-evals.test.js
+  h_e7759ddd73fa65 172-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ad791577e062275f70a48efa15deb9f628118cb",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

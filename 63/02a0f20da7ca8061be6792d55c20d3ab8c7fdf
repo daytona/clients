@@ -1,0 +1,44 @@
+sdk-python/tests/test_generated_model_redaction.py
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 15,108,210
+sdk-python/tests/test_desktop.py
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 11,460
+sdk-python/tests/test_root_client.py
+  s_f23bcae77f0e63::t_9781f69ed3ed22 91-93,98-101
+  s_f23bcae77f0e63::t_ae307810d733bd 25,90,94-97,403
+sdk-python/tests/test_v0_bundle.py
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 21
+  s_f23bcae77f0e63::t_ae307810d733bd 125
+sdk-python/tests/test_repo_files.py
+  s_f23bcae77f0e63::t_ae307810d733bd 1-42
+sdk-python/tests/test_events.py
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 69
+  s_f23bcae77f0e63::t_9781f69ed3ed22 1615-1616,1619
+  s_f23bcae77f0e63::t_ae307810d733bd 22
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_ae307810d733bd 29,318,1411
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 4733,4758,4783,4800,4833,4849
+sdk-python/tests/_repo.py
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 1-20,24-28,31,33,35-39,41,43
+  s_f23bcae77f0e63::t_9781f69ed3ed22 21-23,29-30,32,34,40,42,44
+sdk-python/tests/test_sandbox_secrets_parity.py
+  s_f23bcae77f0e63::t_a13c8afd4fe6b7 118
+  s_f23bcae77f0e63::t_ae307810d733bd 18
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_b778da7150b3ea 207-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6302a0f20da7ca8061be6792d55c20d3ab8c7fdf",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

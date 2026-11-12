@@ -1,0 +1,27 @@
+.github/workflows/secret-scan.yaml
+  s_5bdb06b1d538ea::t_6798a13198af4c 7-8,19-21
+AGENTS.md
+  s_5bdb06b1d538ea::t_a7c34e152e30ec 34-40,43-44
+CONTRIBUTING.md
+  s_5bdb06b1d538ea::t_ed5ebf1f1a0012 57-58
+scripts/secret-scan.sh
+  s_5bdb06b1d538ea::t_6ed54c6bcfff17 10,99-101,103-110,114,117-130,214-219
+scripts/secret-scan_test.sh
+  s_5bdb06b1d538ea::t_1bda2001cfb0d1 53-55,57,195-219,237-245,247-250,271-286,306
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06eb98c465e563372f5c8c2a51c05d15d8220ba0",
+  "prompts": {},
+  "sessions": {
+    "s_5bdb06b1d538ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e59c7d386ffeHROnNzpj1D2GU3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+docs/VERSIONING.md
+  s_a3ea68093feda0::t_95fef025f76aab 217-220
+sdk-python/DEVELOPMENT.md
+  s_a3ea68093feda0::t_24a115368ab0f8 189-192
+sdk-typescript/DEVELOPMENT.md
+  s_a3ea68093feda0::t_59043c6b941dae 158-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e3af30524744d80cc36db4d6c6fcaf449600fb3",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

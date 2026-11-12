@@ -1,0 +1,29 @@
+cli/cmd/image_precheck_symlinks_test.go
+  s_aadd141013e7c9::t_5a7b31d8c7f1f1 19-21
+  s_aadd141013e7c9::t_3c8e9d9a7d61a7 11
+cli/internal/toolbox/transfer.go
+  s_aadd141013e7c9::t_5a7b31d8c7f1f1 99-101,111-117
+  s_aadd141013e7c9::t_6f3044d782a6e4 118
+cli/cmd/sandbox_display_actions_test.go
+  s_aadd141013e7c9::t_5a7b31d8c7f1f1 37,40,43
+cli/internal/api/error_hints_test.go
+  s_aadd141013e7c9::t_5a7b31d8c7f1f1 111
+cli/internal/app/presentation.go
+  s_aadd141013e7c9::t_5a7b31d8c7f1f1 43,56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17b40150e9fb6653fa61dc3bcecd580201a14c7b",
+  "prompts": {},
+  "sessions": {
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

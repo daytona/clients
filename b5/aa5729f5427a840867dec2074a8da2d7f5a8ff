@@ -1,0 +1,19 @@
+sdk-typescript/src/v2/events.ts
+  s_ca009e77d17705::t_d2bb09f31ccdc1 2109,2120,2145,2163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5aa5729f5427a840867dec2074a8da2d7f5a8ff",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

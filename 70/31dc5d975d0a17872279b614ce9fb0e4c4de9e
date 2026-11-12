@@ -1,0 +1,1924 @@
+.github/workflows/cli-ci.yaml
+  h_e7759ddd73fa65 9,15
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 11,22,99-100,369-375
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 812-813
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 156-158,162
+AGENTS.md
+  h_e7759ddd73fa65 17-19,90-97,186,261-262,272,311,459-464,508-511,539-549,586-590,615,632-637,639-675,701-727,738-749,775-776,878,903,905-908,923-1001,1030-1039,1041,1051-1052,1055-1057,1063-1079,1086-1099,1105-1127
+README.md
+  h_e7759ddd73fa65 30-36,38,89-92
+changelog.d/472-cli-context-upload.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/472-sdk-build-from-context.added.md
+  h_e7759ddd73fa65 1-5
+changelog.d/536-duration-flags.breaking.md
+  h_e7759ddd73fa65 3
+changelog.d/538-computer-use-checks.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/538-filesystem-surface.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/538-git-response-checks.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/538-interpreter-session-checks.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/538-nested-field-checks.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/538-presigned-url-checks.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/538-process-record-checks.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/538-read-many-error-parts.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/538-toolbox-identities.breaking.md
+  h_e7759ddd73fa65 7-8
+changelog.d/538-toolbox-models.breaking.md
+  h_e7759ddd73fa65 23-26
+changelog.d/538-toolbox-number-ranges.breaking.md
+  h_e7759ddd73fa65 1-11
+changelog.d/538-toolbox-response-checks.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/538-toolbox-timestamps.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/538-toolbox-unknown-events.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-access-token-expiry.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/539-acknowledgement-ids.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-body-names.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-build-log-arguments.breaking.md
+  h_e7759ddd73fa65 1-19
+changelog.d/539-build-log-deadline.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-build-log-discovery.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/539-build-log-media-type.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/539-capture-image.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/539-connect-options.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/539-context-ids.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/539-create-arguments.breaking.md
+  h_e7759ddd73fa65 1-22
+changelog.d/539-create-cpu-arch.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/539-create-fork-return.breaking.md
+  h_e7759ddd73fa65 1-11
+changelog.d/539-create-from-build.breaking.md
+  h_e7759ddd73fa65 1-10
+changelog.d/539-create-handle-fields.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/539-create-hold.breaking.md
+  h_e7759ddd73fa65 1-11
+changelog.d/539-create-resources.breaking.md
+  h_e7759ddd73fa65 1-26
+changelog.d/539-create-response-fields.breaking.md
+  h_e7759ddd73fa65 1-16
+changelog.d/539-create-timeout-error.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-fork-wait.breaking.md
+  h_e7759ddd73fa65 1-12
+changelog.d/539-get-access-token.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/539-handle-json.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/539-header-values.breaking.md
+  h_e7759ddd73fa65 1-10
+changelog.d/539-image-arguments.breaking.md
+  h_e7759ddd73fa65 1-13
+changelog.d/539-image-builder.breaking.md
+  h_e7759ddd73fa65 1-30
+changelog.d/539-images.breaking.md
+  h_e7759ddd73fa65 1-20
+changelog.d/539-internal-constructors.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/539-jwt-handle-mint.fixed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/539-lifecycle-policy-read.fixed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/539-lifecycle-waits.breaking.md
+  h_e7759ddd73fa65 1-31
+changelog.d/539-list-pages.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/539-list-search-arguments.breaking.md
+  h_e7759ddd73fa65 1-25
+changelog.d/539-list-search.breaking.md
+  h_e7759ddd73fa65 1-22
+changelog.d/539-malformed-responses.breaking.md
+  h_e7759ddd73fa65 1-43
+changelog.d/539-model-exports.breaking.md
+  h_e7759ddd73fa65 1-22
+changelog.d/539-models.breaking.md
+  h_e7759ddd73fa65 1-14
+changelog.d/539-path-ids.breaking.md
+  h_e7759ddd73fa65 1-15
+changelog.d/539-platform-arguments.breaking.md
+  h_e7759ddd73fa65 1-23
+changelog.d/539-platform-services.breaking.md
+  h_e7759ddd73fa65 1-10
+changelog.d/539-ports-set-public.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/539-project-budget-date.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/539-python-http-module.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/539-python-renames.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/539-region-selector.breaking.md
+  h_e7759ddd73fa65 1-11
+changelog.d/539-response-json-limits.breaking.md
+  h_e7759ddd73fa65 1-13
+changelog.d/539-response-timestamps.breaking.md
+  h_e7759ddd73fa65 1-20
+changelog.d/539-sandbox-metadata.breaking.md
+  h_e7759ddd73fa65 1-10
+changelog.d/539-sandbox-policies.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/539-sandbox-token-mint.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/539-secret-domains.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-signed-preview-expiry.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/539-ts-duration-keys.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/539-ts-option-keys.breaking.md
+  h_e7759ddd73fa65 1-13
+changelog.d/539-upgrade-lifecycle-timeouts.changed.md
+  h_e7759ddd73fa65 1-11
+changelog.d/539-volume-create-id.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-volume-pull-ids.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/539-volume-size-range.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/539-volumes-create.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/539-volumes-delete.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/539-volumes-get.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/539-volumes-options.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/558.fixed.md
+  h_e7759ddd73fa65 1-14
+changelog.d/559-cli-json-fields.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/559-cli-volume-type.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/559-sandboxes-per-mac.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/559.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/559.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/560.fixed.md
+  h_e7759ddd73fa65 1-8
+changelog.d/587-cli-actions-no-wait-shape.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-api-url-validation.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/587-cli-attach-dropped.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-attach-interrupt.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-attach-size.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-audit-timestamp-validation.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-cp-directory.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-cp-local-directory.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-cp-missing-source.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-cp-signed-url.security.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-cp-upload-diagnostics.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-create-blank-name.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-create-idempotency-key.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/587-cli-create-invalid-id.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-create-name-idempotency.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-create-name-label.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-create-name-validation.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-create-no-wait-shape.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/587-cli-create-wait-seconds-no-wait.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-device-login.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-dockerfile-context.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-docs-full-dir.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-exec-bytes.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-exec-create-deadline.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-exec-interrupt.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-exec-start-exit.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-execution-timeout.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-image-build-errors.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-image-log-names.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-image-logs-cap.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-image-not-found-hint.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-image-platform-validation.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-image-source-prechecks.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-image-wait-failures.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-key-lifetime-validation.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-list-cursor.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-macos-prechecks.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-no-wait-action-fallback.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-output-format.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-preview-expire.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-preview-validation.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-process-attach-alias.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-process-execution-deadline.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-profile-credential.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-profile-names.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-profile-selection.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-prompt-bracketed-paste.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-registry-kind-validation.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-registry-update-metadata.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-reservation-autorenew.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-resource-wait-identifiers.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-saved-credential-url.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/587-cli-search-label-commas.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-search-labels.added.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-search-region.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-secret-empty-domain.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-server-wait-no-wait.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-server-wait.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-signal-exit-codes.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/587-cli-sigterm-exit-code.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-ssh-exit-codes.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-ssh-flags.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-ssh-host-keys.security.md
+  h_e7759ddd73fa65 1-8
+changelog.d/587-cli-start-state-aware.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-static-key-project.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-stdin-base64url.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-terminal-queries.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-tty-replay.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/587-cli-tty-resize.added.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-tty-size.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-update-name-label.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-volume-size-validation.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-wait-for.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/587-cli-websocket-errors.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/587-cli-whoami-static-key.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/594-macos-default-size.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/594-macos-persistent.changed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/595-macos-disk-not-ready.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/595-macos-paused-renewal.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/595-macos-start-auto-reserve.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/596-cli-macos-start-confirm.changed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/598-capture-permissions.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/598-cli-org-project-names.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/598-deleting-sandbox-conflict.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/598-empty-label-key.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/598-git-config-token.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/598-reserved-preview-ports.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/598-sandbox-token-env.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/598-search-regions.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/598-stopped-sandbox-not-running.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/598-volume-mount-path.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/absent-values.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/build-context-part-progress.fixed.md
+  h_e7759ddd73fa65 1-8
+changelog.d/build-context-response-checks.fixed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/build-from-context-directory.added.md
+  h_e7759ddd73fa65 1-4
+changelog.d/build-from-context-timeout-zero.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/build-from-context-timeout.added.md
+  h_e7759ddd73fa65 1-4
+changelog.d/build-log-discovery-errors.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/build-log-unknown-events.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/builder-debian-slim.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/builder-escape-directive-continuation.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/builder-local-files.added.md
+  h_e7759ddd73fa65 1-6
+changelog.d/builder-python-user-cmd.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/builder-trailing-backslash.fixed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/cli-attach-close-code.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/cli-build-context-part-progress.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-file-access-hint.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-ssh-credential-redaction.security.md
+  h_e7759ddd73fa65 1-4
+changelog.d/client-closed.breaking.md
+  h_e7759ddd73fa65 1
+changelog.d/config-keywords.breaking.md
+  h_e7759ddd73fa65 1
+changelog.d/context-object.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/create-blank-name.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/create-handle-labels.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/create-name-type.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/destroyed-wait-long-poll.fixed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/empty-cursor.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/error-options.breaking.md
+  h_e7759ddd73fa65 1
+changelog.d/execution-timeout-zero.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/file-search-skipped.added.md
+  h_e7759ddd73fa65 1-6
+changelog.d/fs-absolute-paths.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/fs-git-input-types.breaking.md
+  h_e7759ddd73fa65 1-6
+changelog.d/fs-option-types.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/fs-write-input-types.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/git-delete-branch-force.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/image-builder-env-literal.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/image-builder-escape-directive.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/initial-2x.added.md
+  h_e7759ddd73fa65 3,9,11
+changelog.d/legacy-api-url.changed.md
+  h_e7759ddd73fa65 1
+changelog.d/mac-reservation-limit.added.md
+  h_e7759ddd73fa65 1-13
+changelog.d/network-policy-open-cidrs.breaking.md
+  h_e7759ddd73fa65 1-8
+changelog.d/policy-http-status.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/ports-in-use-range.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/process-env-type.breaking.md
+  h_e7759ddd73fa65 1-5
+changelog.d/pty-term.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/python-positional-only.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/rate-limited-error.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/raw-state-none.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/redirects.breaking.md
+  h_e7759ddd73fa65 1-11
+changelog.d/region-error-codes.added.md
+  h_e7759ddd73fa65 1-6
+changelog.d/result-tuples.breaking.md
+  h_e7759ddd73fa65 1-10
+changelog.d/run-stdin-open.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/sandbox-state-type.breaking.md
+  h_e7759ddd73fa65 1-3
+changelog.d/secret-set-description.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/secret-set-empty-value.breaking.md
+  h_e7759ddd73fa65 1-2
+changelog.d/server-contract-docs.changed.md
+  h_e7759ddd73fa65 1-13
+changelog.d/set-labels-keeps-name.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/start-keep-logs-default.breaking.md
+  h_e7759ddd73fa65 1-7
+changelog.d/terminal-size-range.breaking.md
+  h_e7759ddd73fa65 1-4
+changelog.d/unknown-image-source.breaking.md
+  h_e7759ddd73fa65 1-9
+changelog.d/upgrade-absolute-fs-paths.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/upgrade-api-url-spacing.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/upgrade-both-package-names.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-dockerfile-image-suggestions.added.md
+  h_e7759ddd73fa65 1-8
+changelog.d/upgrade-docs-links.fixed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/upgrade-drop-api-url-message.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/upgrade-file-path-refusal.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/upgrade-pyw-sources.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/upgrade-suggest-after-sandbox-methods.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-suggest-keyboard.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-suggest-lsp-owner.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-suggest-none-timeout.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-suggest-result-names.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/upgrade-suggest-root-services.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-suggest-workflow-docs.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-unknown-extras.fixed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/v0-pin-0-231-1.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/v0-pin-image-exec-forms.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/v0-pin-l40s.added.md
+  h_e7759ddd73fa65 1-2
+changelog.d/v0-pin-run-commands-quoting.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/websockets-floor.breaking.md
+  h_e7759ddd73fa65 1-4
+cli/README.md
+  h_e7759ddd73fa65 84-89,122-123,167-211,242-247,255-257,260-273,275-279,281-296,345-346,349-350,382-392,399-403,405-411,413-423,428-429,432-434,440-448,472,475,479,484-486,510-513,517-518,520-524,545-546,554-555,558-564,589,592,597,599-603,607,628,646-657,682-684,688-691,712-714
+cli/cmd/api_url_test.go
+  h_e7759ddd73fa65 11-12,49,55-56,58,60,62,64-68,73-79
+cli/cmd/audit.go
+  h_e7759ddd73fa65 9,13,26-32
+cli/cmd/auth.go
+  h_e7759ddd73fa65 25-46,162-177
+cli/cmd/auth_context.go
+  h_e7759ddd73fa65 1-132
+cli/cmd/auth_context_checks_test.go
+  h_e7759ddd73fa65 1-82
+cli/cmd/auth_login.go
+  h_e7759ddd73fa65 8,48-58,110-112
+cli/cmd/auth_login_command.go
+  h_e7759ddd73fa65 24-25,33-35,56-64,88-90
+cli/cmd/auth_login_output_test.go
+  h_e7759ddd73fa65 1-79
+cli/cmd/auth_test.go
+  h_e7759ddd73fa65 904
+cli/cmd/cli_contract_test.go
+  h_e7759ddd73fa65 74,374,377,532
+cli/cmd/command_flags.go
+  h_e7759ddd73fa65 106-107,130,132-133,140-141,232-234,253-261
+cli/cmd/command_more_test.go
+  h_e7759ddd73fa65 7,21,31,39,66-68,76-78,133,156,168
+cli/cmd/contract_fixtures_test.go
+  h_e7759ddd73fa65 10
+cli/cmd/docs.go
+  h_e7759ddd73fa65 11,26,31-33
+cli/cmd/fixtures_test.go
+  h_e7759ddd73fa65 19-21
+cli/cmd/ga2_contract_test.go
+  h_e7759ddd73fa65 1-523
+cli/cmd/image.go
+  h_e7759ddd73fa65 86-88,94-99,147
+cli/cmd/image_create.go
+  h_e7759ddd73fa65 26-31,34-36,86-87,96-98
+cli/cmd/image_direct_upload.go
+  h_e7759ddd73fa65 1-318
+cli/cmd/image_direct_upload_test.go
+  h_e7759ddd73fa65 1-641
+cli/cmd/image_dockerignore_test.go
+  h_e7759ddd73fa65 90
+cli/cmd/image_list.go
+  h_e7759ddd73fa65 43-49
+cli/cmd/image_logs.go
+  h_e7759ddd73fa65 1-140
+cli/cmd/image_logs_bounds_test.go
+  h_e7759ddd73fa65 1-62
+cli/cmd/image_more_test.go
+  h_e7759ddd73fa65 156,175-177,228-230,283,295,311,336,357,366,542,558,731-733,751
+cli/cmd/image_multipart.go
+  h_e7759ddd73fa65 29-31,37-38,46-48,71,80,94,107
+cli/cmd/image_precheck.go
+  h_e7759ddd73fa65 1-72
+cli/cmd/image_precheck_symlinks_test.go
+  h_e7759ddd73fa65 1-107
+cli/cmd/image_precheck_test.go
+  h_e7759ddd73fa65 1-46
+cli/cmd/image_test.go
+  h_e7759ddd73fa65 86
+cli/cmd/image_validation_test.go
+  h_e7759ddd73fa65 1-98
+cli/cmd/image_wait_test.go
+  h_e7759ddd73fa65 1-60
+cli/cmd/invite_test.go
+  h_e7759ddd73fa65 118
+cli/cmd/key_helpers.go
+  h_e7759ddd73fa65 40-42
+cli/cmd/key_helpers_test.go
+  h_e7759ddd73fa65 14-23,27-31,36-45
+cli/cmd/key_scaffold.go
+  h_e7759ddd73fa65 85
+cli/cmd/key_test.go
+  h_e7759ddd73fa65 20-21
+cli/cmd/mac_purchase_confirmation_linux_test.go
+  h_e7759ddd73fa65 79-81,102-106
+cli/cmd/mac_purchase_confirmation_test.go
+  h_e7759ddd73fa65 32,90-95,125-126
+cli/cmd/org.go
+  h_e7759ddd73fa65 28,50,73,186-193,282-284,287-289,302-304,311-315,324-326,334,590-592
+cli/cmd/org_limits_test.go
+  h_e7759ddd73fa65 19,28,31,70,127-143
+cli/cmd/org_project_name.go
+  h_e7759ddd73fa65 1-90
+cli/cmd/org_project_name_test.go
+  h_e7759ddd73fa65 1-170
+cli/cmd/profile.go
+  h_e7759ddd73fa65 7-8,37,62,65-67,84-86,93,95-110
+cli/cmd/profile_validation_test.go
+  h_e7759ddd73fa65 1-87
+cli/cmd/project.go
+  h_e7759ddd73fa65 12,155-157,161-163,180-182,190-195,199-205,213
+cli/cmd/registry.go
+  h_e7759ddd73fa65 10,33-36,53-56,79,86,171-177,185
+cli/cmd/registry_input_order_test.go
+  h_e7759ddd73fa65 1-34
+cli/cmd/registry_validation_test.go
+  h_e7759ddd73fa65 1-55
+cli/cmd/reservation.go
+  h_e7759ddd73fa65 119-120,130-134,147
+cli/cmd/reservation_create.go
+  h_e7759ddd73fa65 119
+cli/cmd/reservation_create_test.go
+  h_e7759ddd73fa65 178
+cli/cmd/reservation_test.go
+  h_e7759ddd73fa65 21,174-175,237,250
+cli/cmd/reservation_update_test.go
+  h_e7759ddd73fa65 1-39
+cli/cmd/root.go
+  h_e7759ddd73fa65 87-91,100,131,174-176
+cli/cmd/sandbox.go
+  h_e7759ddd73fa65 87,90-93,110,112,120-121,126-159,165-167
+cli/cmd/sandbox_action_output.go
+  h_e7759ddd73fa65 1-41
+cli/cmd/sandbox_actions.go
+  h_e7759ddd73fa65 7,19,26-39,44-78,160-161,208-210,227,288,324-346
+cli/cmd/sandbox_actions_more_test.go
+  h_e7759ddd73fa65 35,38,175,201,203,206,212,238,241,248,251,463,476,479,617-693
+cli/cmd/sandbox_cp.go
+  h_e7759ddd73fa65 37,49-53,76-84,96-112
+cli/cmd/sandbox_cp_probe.go
+  h_e7759ddd73fa65 1-29
+cli/cmd/sandbox_cp_probe_test.go
+  h_e7759ddd73fa65 1-40
+cli/cmd/sandbox_cp_test.go
+  h_e7759ddd73fa65 43-45
+cli/cmd/sandbox_create.go
+  h_e7759ddd73fa65 78,88,111,151-155,180
+cli/cmd/sandbox_create_helpers.go
+  h_e7759ddd73fa65 27-29,52,62-64,126-136,138-155,157-158,160-162
+cli/cmd/sandbox_create_idempotency.go
+  h_e7759ddd73fa65 1-87
+cli/cmd/sandbox_create_macos.go
+  h_e7759ddd73fa65 11,22-23,39-41,50-83,92-94,96
+cli/cmd/sandbox_create_macos_test.go
+  h_e7759ddd73fa65 15-16,24,26-29,38,70-72,75-76,116
+cli/cmd/sandbox_create_more_test.go
+  h_e7759ddd73fa65 24-27,29,41,52-54,56,113,115,120,126-127,129,133,139-140,143-144,175,180-182,188-190,192-193,201-204,206,208-209,237,247,269-270,272,295,311,328,361,393
+cli/cmd/sandbox_create_result.go
+  h_e7759ddd73fa65 1-94
+cli/cmd/sandbox_create_retry_test.go
+  h_e7759ddd73fa65 1-110
+cli/cmd/sandbox_cursor_regions_test.go
+  h_e7759ddd73fa65 1-34
+cli/cmd/sandbox_display.go
+  h_e7759ddd73fa65 1-95
+cli/cmd/sandbox_display_actions_test.go
+  h_e7759ddd73fa65 1-105
+cli/cmd/sandbox_exec.go
+  h_e7759ddd73fa65 64,68,74-76,100-106,116-126,128-135,145,147,159-165
+cli/cmd/sandbox_exec_binary_test.go
+  h_e7759ddd73fa65 1-62
+cli/cmd/sandbox_exec_cancel_test.go
+  h_e7759ddd73fa65 1-101
+cli/cmd/sandbox_exec_test.go
+  h_e7759ddd73fa65 37,97,142
+cli/cmd/sandbox_exec_timeout_test.go
+  h_e7759ddd73fa65 1-134
+cli/cmd/sandbox_exec_tty_cancel_linux_test.go
+  h_e7759ddd73fa65 1-102
+cli/cmd/sandbox_exec_tty_linux_test.go
+  h_e7759ddd73fa65 1-230
+cli/cmd/sandbox_logs.go
+  h_e7759ddd73fa65 9,14-15,114,120-123,133,135,160,163-169,179,182,184,189-227
+cli/cmd/sandbox_port.go
+  h_e7759ddd73fa65 12,120-127,139-140,142,155-168,170-172
+cli/cmd/sandbox_process.go
+  h_e7759ddd73fa65 221-229
+cli/cmd/sandbox_process_test.go
+  h_e7759ddd73fa65 72-73
+cli/cmd/sandbox_search.go
+  h_e7759ddd73fa65 8-9,12-14,28,63-101,117-133,149,157
+cli/cmd/sandbox_search_filters_test.go
+  h_e7759ddd73fa65 1-67
+cli/cmd/sandbox_search_helpers.go
+  h_e7759ddd73fa65 130
+cli/cmd/sandbox_search_test.go
+  h_e7759ddd73fa65 20,135
+cli/cmd/sandbox_ssh.go
+  h_e7759ddd73fa65 7,14-15,20,25-28,33-36,52-55,60-67,70,74-98,142,146-155,158-178,181-195,199-203,205-210,212,215-244
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  h_e7759ddd73fa65 1-53
+cli/cmd/sandbox_ssh_flags_test.go
+  h_e7759ddd73fa65 1-70
+cli/cmd/sandbox_ssh_more_test.go
+  h_e7759ddd73fa65 120-121,123-124,133-135
+cli/cmd/sandbox_ssh_test.go
+  h_e7759ddd73fa65 9,13,15,23,32,39,60-171
+cli/cmd/sandbox_test.go
+  h_e7759ddd73fa65 69
+cli/cmd/sandbox_toolbox_harness_test.go
+  h_e7759ddd73fa65 1-125
+cli/cmd/sandbox_volumes_test.go
+  h_e7759ddd73fa65 39-42,47-49,63-65
+cli/cmd/secret.go
+  h_e7759ddd73fa65 8,101,184-185,208-232
+cli/cmd/secret_registry_more_test.go
+  h_e7759ddd73fa65 29,71,86
+cli/cmd/secret_validation_test.go
+  h_e7759ddd73fa65 1-52
+cli/cmd/security_regressions_test.go
+  h_e7759ddd73fa65 86,89-92,94,101
+cli/cmd/signal.go
+  h_e7759ddd73fa65 8,12-13,16-24,26-52
+cli/cmd/signal_portable_test.go
+  h_e7759ddd73fa65 1-30
+cli/cmd/snapshot.go
+  h_e7759ddd73fa65 45
+cli/cmd/toolbox_output.go
+  h_e7759ddd73fa65 7,10,16-44
+cli/cmd/volume.go
+  h_e7759ddd73fa65 28,36-37,47,91-92
+cli/cmd/volume_argument_test.go
+  h_e7759ddd73fa65 1-35
+cli/cmd/volume_helpers.go
+  h_e7759ddd73fa65 60-65,93,95-96
+cli/cmd/volume_more_test.go
+  h_e7759ddd73fa65 18-27,33-37
+cli/cmd/volume_size_test.go
+  h_e7759ddd73fa65 1-35
+cli/cmd/volume_test.go
+  h_e7759ddd73fa65 32-41
+cli/gen/api/types.gen.go
+  h_e7759ddd73fa65 43,68-71,102-105,109-110,198-199,248-255,316-323,330-333,1151-1207,1343-1360,2498,2501-2505,2508,2518-2520,2526,2529,2539,2553,2559-2562,2583-2599,2602,2606-2622,2650-2674,2703,2794-2796,3113-3114,3223-3224,3418-3420,3584,3586,3605,3614,3617,3623,3632,3669,3690-3692,3695-3697,3700-3702,3723,3734-3735,3766,3781,3832-3834,3923,4059-4061,4068-4070,4096,4190-4343,4406-4420,4510-4512,4521-4523,4568-4583,5030-5066,5094-5231,5298-5312,5319-5334,5403,5412-5414,5497-5498,5630,5639-5641,5773-5781,6265,6278-6292,6295,6298,6302-6317,6334,6349,6696-6700,6777-6779,6786-6788,6798-6803,7044-7079,7212-7214,7518-7541
+cli/internal/api/client.go
+  h_e7759ddd73fa65 78-89
+cli/internal/api/client_test.go
+  h_e7759ddd73fa65 130-147
+cli/internal/api/codes.go
+  h_e7759ddd73fa65 42,83
+cli/internal/api/error_hints.go
+  h_e7759ddd73fa65 57-60,70-89
+cli/internal/api/error_hints_test.go
+  h_e7759ddd73fa65 10-11,14-27,85-106,117-148
+cli/internal/api/server_codes_test.go
+  h_e7759ddd73fa65 1-48
+cli/internal/app/app.go
+  h_e7759ddd73fa65 14,53-55,86-89,107-121,147-157,204,206-207,209-212,222,224-226,245,250-256,258,261-267,269
+cli/internal/app/app_test.go
+  h_e7759ddd73fa65 7,239-257
+cli/internal/app/auth_url_binding_test.go
+  h_e7759ddd73fa65 1-85
+cli/internal/app/clients.go
+  h_e7759ddd73fa65 1-253
+cli/internal/app/context.go
+  h_e7759ddd73fa65 1-126
+cli/internal/app/presentation.go
+  h_e7759ddd73fa65 1-115
+cli/internal/auth/session_race_test.go
+  h_e7759ddd73fa65 112-114,124-129,135
+cli/internal/auth/session_test.go
+  h_e7759ddd73fa65 61-63,65,73-74
+cli/internal/cerr/cerr.go
+  h_e7759ddd73fa65 20-28
+cli/internal/config/config.go
+  h_e7759ddd73fa65 224-226,229-232,235,238-239,246-248
+cli/internal/config/profile_name.go
+  h_e7759ddd73fa65 1-21
+cli/internal/config/profile_name_test.go
+  h_e7759ddd73fa65 1-62
+cli/internal/config/profile_upsert_test.go
+  h_e7759ddd73fa65 1-42
+cli/internal/dockerignore/edge_cases_test.go
+  h_e7759ddd73fa65 1-41
+cli/internal/dockerignore/refused_cases_test.go
+  h_e7759ddd73fa65 1-34
+cli/internal/mgmt/client_test.go
+  h_e7759ddd73fa65 144,157
+cli/internal/output/format.go
+  h_e7759ddd73fa65 1-28
+cli/internal/output/format_test.go
+  h_e7759ddd73fa65 1-33
+cli/internal/output/output_test.go
+  h_e7759ddd73fa65 118-119
+cli/internal/toolbox/client.go
+  h_e7759ddd73fa65 212-215
+cli/internal/toolbox/client_test.go
+  h_e7759ddd73fa65 112-135
+cli/internal/toolbox/process_cancel_test.go
+  h_e7759ddd73fa65 1-119
+cli/internal/toolbox/process_client.go
+  h_e7759ddd73fa65 58,62,77,81,127,135-153,162,167,170-191
+cli/internal/toolbox/process_create.go
+  h_e7759ddd73fa65 1-37
+cli/internal/toolbox/process_create_deadline_test.go
+  h_e7759ddd73fa65 1-46
+cli/internal/toolbox/process_encoding_test.go
+  h_e7759ddd73fa65 1-35
+cli/internal/toolbox/process_stream.go
+  h_e7759ddd73fa65 39,51,55-60,68-76,82,90,101,132,138,144-145
+cli/internal/toolbox/process_wait_deadline_test.go
+  h_e7759ddd73fa65 1-44
+cli/internal/toolbox/server_codes_test.go
+  h_e7759ddd73fa65 1-66
+cli/internal/toolbox/ssh.go
+  h_e7759ddd73fa65 7-8,10,12-13,15-17,28-38,51-76,87-92,103,105,109-154
+cli/internal/toolbox/ssh_host_keys_test.go
+  h_e7759ddd73fa65 1-160
+cli/internal/toolbox/ssh_test.go
+  h_e7759ddd73fa65 15,51
+cli/internal/toolbox/terminal.go
+  h_e7759ddd73fa65 1-157
+cli/internal/toolbox/terminal_attach_test.go
+  h_e7759ddd73fa65 1-103
+cli/internal/toolbox/terminal_resize_initial_unix_test.go
+  h_e7759ddd73fa65 1-65
+cli/internal/toolbox/terminal_resize_tty_unix_test.go
+  h_e7759ddd73fa65 1-44
+cli/internal/toolbox/terminal_resize_unix.go
+  h_e7759ddd73fa65 1-48
+cli/internal/toolbox/terminal_resize_windows.go
+  h_e7759ddd73fa65 1-13
+cli/internal/toolbox/terminal_size_linux_test.go
+  h_e7759ddd73fa65 1-37
+cli/internal/toolbox/terminal_test.go
+  h_e7759ddd73fa65 1-18
+cli/internal/toolbox/transfer.go
+  h_e7759ddd73fa65 11,14,18,30,35,50,65-69,72-74,81,91-120,125,149-152
+cli/internal/toolbox/transfer_errors_test.go
+  h_e7759ddd73fa65 1-64
+cli/internal/toolbox/transfer_test.go
+  h_e7759ddd73fa65 190,348-401
+cli/internal/toolbox/transfer_url.go
+  h_e7759ddd73fa65 1-19
+cli/internal/toolbox/websocket.go
+  h_e7759ddd73fa65 10,16-17,27-67,78-80,89-93,96-105,118-120
+cli/internal/toolbox/websocket_cancel_test.go
+  h_e7759ddd73fa65 1-240
+cli/internal/toolbox/websocket_dial.go
+  h_e7759ddd73fa65 1-146
+cli/internal/toolbox/websocket_error_test.go
+  h_e7759ddd73fa65 1-38
+cli/internal/ui/cancellation_linux_test.go
+  h_e7759ddd73fa65 1-91
+cli/internal/ui/picker_interrupt_linux_test.go
+  h_e7759ddd73fa65 1-50
+cli/internal/ui/prompt.go
+  h_e7759ddd73fa65 7-14,19,21-28,30-48,50-53,66-164,167-171
+cli/internal/ui/prompt_context_test.go
+  h_e7759ddd73fa65 1-54
+cli/internal/ui/prompt_width_linux_test.go
+  h_e7759ddd73fa65 1-36
+cli/internal/ui/startup_linux_test.go
+  h_e7759ddd73fa65 1-215
+cli/internal/ui/terminal.go
+  h_e7759ddd73fa65 1-220
+cli/internal/ui/terminal_input.go
+  h_e7759ddd73fa65 1-54
+cli/internal/ui/terminal_input_test.go
+  h_e7759ddd73fa65 1-109
+cli/internal/workload/wait.go
+  h_e7759ddd73fa65 8-9,67-70,141-142,150,157-170,176-180,184-185,193,201-203,210-214
+cli/internal/workload/wait_failures_test.go
+  h_e7759ddd73fa65 1-47
+cli/internal/workload/wait_timeout_hints_test.go
+  h_e7759ddd73fa65 1-133
+cli/internal/workload/workload_more_test.go
+  h_e7759ddd73fa65 105-116
+contract/api-openapi.json
+  h_e7759ddd73fa65 92-100,120-129,157-174,465,480,509-517,2347,2356,2364,2390,2405,2416,2443,2461,2476,2525-2558,2562-2564,2573-2606,2656-2714,2769,2958,3670,3878,4266-4272,4286,4612,4615,4656,4679,4690,4699,4713,4797,4849,4852,4860,4895,4915,5005,5034,5132,5334,5563-5566,5575-5578,5594,5762-5763,5766,5770-5772,5774-5783,5789-5790,5794-5796,5799-5801,5803-5807,5809-5814,5817,5825-5829,5831,5835-5836,5839,5845-5846,5848,5854,5858,5861,5868-5870,5872-5899,5906,5915-5922,5925-5934,5936-5938,5941-5961,5964-5994,5996,5999-6005,6007-6026,6028-6034,6039-6045,6049-6050,6052-6053,6058-6059,6062,6068-6069,6071,6077,6081-6086,6088-6089,6091,6093-6103,6106-6120,6122-6123,6126-6130,6132-6156,6162,6164-6168,6172,6174-6182,6184,6190,6194-6195,6197-6203,6205-6213,6219-6426,6461-6465,6489-6496,6607-6635,6896,7376-7377,7379-7380,7386-7478,7508-7719,7862-7947,8097,8115,8321,8693-8712,9666,9699-9726,9731,9739-9756,9758-9771,9793,9820-9822,10556,10735-13093,13097,13107-13108,13113,13116,13118,13122-13130,13132-13146,13150,13154,13161-13174,13179-13191,13193-13210,13212-13216,13218-13234,13236-13238,13241,13243,13245-13253,13258,13269,13273,13288,13298-13300,13309,13319-13321,13324,13326,13330-13335,13337-13343,13349,13353,13368,13381,13389,13399-13400,13404,13406,13408,13410-13411,13414,13421,13428,13432,13436,13451,13472,13479-13506,13510,13514,13521-13522,13524-13527,13535,13545-13559,13562-13599,13603,13605,13607,13609-13617,13623,13627,13634-13653,13656-13663,13665,13669,13671-13672,13675-13741,13743,13746,13756,13760,13775,13785-13788,13796,13806-13808,13811-13813,13816,13818-13820,13823,13825,13828,13832,13836,13840,13847-13848,13850-13853,13861,13870-13874,13876,13878,13880-13883,13886,13889-13898,13904,13908-13923,13941,13948,13956,13966-13967,13971,13973,13977-13984,13986-14000,14004,14008,14015,14023,14030-14042,14045,14049,14053,14060,14068,14070-14072,14081-14082,14086,14088,14091-14104,14107-14110,14114-14120,14124,14128,14135,14143,14150,14158,14165,14173,14188,14201-14202,14206,14208,14210-14212,14215,14218-14227,14229-14237,14252,14273,14288,14295-14308,14310-14323,14325,14329,14333,14340,14348-14382,14403,14410,14414,14418,14425,14433,14440,14448,14455,14463,14465-14467,14476-14477,14481,14483,14485,14487,14490,14498,14502,14509-14515,14523,14530-14543,14545-14558,14560,14568,14583,14596-14597,14601,14603,14605-14607,14610,14613-14622,14624,14628,14632,14647,14668,14683,14690-14701,14705,14709,14713,14720,14728,14733,14735,14743,14745-14747,14756-14758,14761,14763,14767-14772,14774-14780,14782-14790,14805,14815-14817,14826,14832-14844,14848,14852,14856,14863,14871,14878,14886,14888-14890,14899-14901,14904,14906,14910,14912,14915-14921,14929,14933,14948,14959-14961,14969,14984,14991,14999,15006,15010,15014,15018-15021,15025,15029,15031-15033,15042-15044,15047,15049,15053-15058,15060-15069,15071-15079,15081-15086,15100,15110-15113,15121,15128,15132,15136,15143,15151,15158,15166,15181,15194-15195,15199,15201,15205-15207,15210,15218,15222,15229-15235,15239,15243,15250,15258,15265-15278,15280,15288,15295,15303-15352,15359,15367,15374-15380,15388,15395,15403,15410,15414,15418,15425,15433,15440,15444,15448,15455,15463,15465-15467,15476-15478,15481,15483,15485-15487,15489-15494,15499,15510,15514,15550,15565,15572,15580,15587,15591,15595,15602,15610,15617,15625,15627-15629,15639,15643,15645,15649,15651,15661-15669,15677,15681,15723-15735,15739,15743,15747,15754,15762,15769,15777,15779-15781,15791,15795,15797,15801-15803,15807-15809,15813,15817,15821-15836,15857,15864-15872,15879-15892,15894-15907,15909,15917,15919-15921,15931,15935,15937,15939-15941,15943,15948-15974,15978,15982,16003,16010-16022,16025,16029,16033,16040,16048,16055,16063,16065-16067,16077,16081,16083-16084,16087-16089,16096,16100,16104,16132,16136,16140,16147,16155,16162,16170,16177,16185,16187-16189,16199,16203,16205,16209-16211,16215-16220,16224-16247,16342,16346,16350-16352,16354,16365,16369,16468,16474,16484,16495,16499,16514,16550,16613,16619-16621,16628-16636,16716,16720,16724-16728,16735,16739,16743,16838,16842,16846-16850,16861,16865,16960,16964,16970,16972-16973,16984,16988,17024,17039,17070-17074,17077,17083-17085,17091-17100,17102,17106,17110,17125,17168-17182,17235,17239,17245,17247,17253-17256,17262,17264,17268,17283,17304,17319,17382,17388,17390,17401,17405,17504,17508-17513,17524,17528,17555-17579,17583,17587,17594-17600,17608,17614-17635,17637-17645,17649,17653,17660,17668,17675-17681,17689,17700,17704,17706,17708,17710-17711,17721,17728,17732,17736,17743,17747,17751,17758,17766,17773-17774,17776-17779,17787,17794,17802,17809-17847,17854-17860,17868,17879,17883,17885,17889,17891-17892,17903,17907,17914-17920,17928,17934-17940,17942-17945,17947-17968,17972,17976,17983-17989,17997,18003-18030,18032-18035,18039,18043,18050,18058,18065-18071,18079,18090,18094,18096,18100-18102,18108-18111,18115,18119,18123,18138,18148-18149,18151,18159,18165-18185,18187-18193,18200-18206,18214,18221,18229,18240-18245,18249,18251,18253-18256,18262,18265-18274,18278,18280,18284,18299,18320,18335,18341-18362,18364-18369,18373,18377,18384-18385,18387-18390,18398,18409-18414,18418,18420,18424,18426,18430-18432,18435-18444,18446,18450,18454,18461,18469,18476-18482,18490,18497,18505,18511-18537,18544-18550,18558,18569,18573,18575,18577,18579-18580,18591,18595,18622-18648,18652-18655,18659,18663,18670,18678,18685-18691,18699,18710,18714,18716,18720,18722-18723,18734,18738,18765-18771,18773-18798,18802-18805,18809,18813,18820,18828,18835-18841,18849,18860,18864,18866-18874,18878-18883,18891,18895,18910,18937-18964,18966-18969,18973,18977,18984,18992,18999-19005,19013,19020,19028,19034-19036,19042,19046,19048,19052,19054,19058-19063,19071,19075,19082,19090,19097-19098,19100-19103,19111,19126,19140-19145,19149,19151,19153,19155-19156,19162-19166,19170-19173,19177,19181,19188,19196,19203-19209,19217,19224,19232,19247,19261-19266,19270,19272-19274,19277-19280,19284-19286,19290-19291,19312,19327,19342,19356-19361,19365,19367,19369,19371,19374,19376-19381,19385,19389,19396-19397,19399-19402,19410,19425,19439,19444,19448,19450,19452-19454,19458-19460,19467,19474,19478,19482,19497,19518,19525,19533,19535-19537,19542-19548,19550-19568,19570-19575,19579,19583,19590-19596,19604,19619,19633-19638,19642,19644,19648,19650,19655-19657,19670,19674,19689,19710,19725,19739-19744,19748,19750,19752-19755,19759-19761,19764-19773,19775,19779,19783,19790,19798,19805-19811,19819,19826,19834-19880,19887-19893,19901,19916,19930-19935,19939,19941,19945-19948,19952-19957,19960-19969,19971,19975,19979-19994,20015,20021-20022,20026,20030,20037,20045,20047-20049,20059-20064,20068,20070,20074,20076,20081-20083,20096,20100,20115,20136-20151,20153-20155,20165-20170,20174,20176,20180-20181,20185-20187,20194,20205,20209,20224,20245,20252,20260,20262-20264,20274-20279,20283,20285,20289,20291-20292,20298-20299,20301-20308,20312-20313,20334-20349,20351-20353,20363,20367-20368,20372,20374,20378,20380,20384-20392,20400,20404-20419,20440-20455,20457-20459,20469-20474,20478,20480,20482-20487,20491-20496,20499-20504,20508-20514,20518,20522,20529,20537,20544,20552,20554-20556,20566-20571,20575,20577,20579,20581,20587,20590,20598,20602,20609-20615,20623,20630,20638,20640-20642,20652-20657,20661,20663,20667-20670,20676-20679,20683-20691,20712,20727-20742,20744-20746,20756,20760-20761,20765,20767,20769-20774,20780,20782-20785,20791,20795,20802-20808,20816,20823,20831,20838,20846,20848-20850,20860-20865,20869,20871,20875,20877-20878,20889,20893,20914,20929,20931,20933,20935-20936,20946,20953,20957,20961,20976,20987,20997,21012,21023,21027,21029-21031,21034,21036-21037,21041-21043,21048,21066,21072-21073,21077,21081,21088,21096,21107,21111,21113,21116-21117,21121-21123,21131,21135,21146,21156,21167,21171,21173,21175,21177-21178,21182-21184,21191,21202,21206,21221,21242,21249,21257,21268,21272,21274-21279,21281-21282,21286-21288,21295,21302,21306,21310,21325,21336,21346,21361,21372,21376,21378-21380,24387-24401,24561-24575,24903-24905,25267,25464,25563,25588-25602,25701,26051,26120-26134,26591,26665,26791,26805-26806,26811-26812,26891-26905,26996-27010,27517-27531,27687-27701,27781,27808-27822,27879,27907-27921,28011,28039-28053,28239-28253,28342,28776-28777,28782-28783,28795,28829,28874,28923,30406,30589-30593,30703-30722,30856-30875,30886-30895
+contract/sandbox-events-protocol.json
+  h_e7759ddd73fa65 86-87
+docs/RELEASING.md
+  h_e7759ddd73fa65 293-316,411
+docs/adr/0001-sdk-parity.md
+  h_e7759ddd73fa65 26-29,99-122,190-192
+docs/adr/0006-image-builder-local-context.md
+  h_e7759ddd73fa65 1-286
+e2e/e2e.py
+  h_e7759ddd73fa65 33,70-78,136,156,235,275-276
+e2e/e2e.ts
+  h_e7759ddd73fa65 9,49-58,99-100,108,172-173
+examples/README.md
+  h_e7759ddd73fa65 30,48,69,71-72,75-76,126
+examples/package.json
+  h_e7759ddd73fa65 13
+examples/python/_common.py
+  h_e7759ddd73fa65 22,36-37,58-67,102-109
+examples/python/build_logs.py
+  h_e7759ddd73fa65 57,82,100-101,105-106
+examples/python/dockerfile_sandbox.py
+  h_e7759ddd73fa65 29,59,64-66,111,116,118-124,142
+examples/python/dynamic_build.py
+  h_e7759ddd73fa65 21,40-41,48-49,73,83-95,101,105,107-114
+examples/python/exec_command.py
+  h_e7759ddd73fa65 13,47
+examples/python/file_operations.py
+  h_e7759ddd73fa65 17,27-29,33-34,37,45
+examples/python/git_ops.py
+  h_e7759ddd73fa65 16,29-30,33
+examples/python/lifecycle.py
+  h_e7759ddd73fa65 13,25-26
+examples/python/local_files.py
+  h_e7759ddd73fa65 1-92
+examples/python/secrets_env.py
+  h_e7759ddd73fa65 13,33,51-52,64-65,68,80-81,124
+examples/python/snapshots.py
+  h_e7759ddd73fa65 23,74-75
+examples/python/test_examples.py
+  h_e7759ddd73fa65 23,26,34,37,46,48,51,53-54,63,68-84,97-100,107-111,130,134,139,141-145,147,175-179,181-183,185-186,189-203,205-226,251-283,292-295,297-299,307-310,335,338-341,344,347-372,375,383-384,390,396-397,407,418-423,450,452,487-491,503,524-532,544,563-564,615-647,751-752,754,805,818,842,845,868-869,873-890,894-896,903-904,908-963,989-1021,1026
+examples/python/volumes.py
+  h_e7759ddd73fa65 18,26-27,34,36-37,44,46-47,54,56-57,69
+examples/run-examples.sh
+  h_e7759ddd73fa65 12,26-27,46-47
+examples/typescript/_common.ts
+  h_e7759ddd73fa65 16,29-30,46-52,92-101
+examples/typescript/build-logs/index.ts
+  h_e7759ddd73fa65 45,67,85-86,90-91,114
+examples/typescript/dockerfile-sandbox/index.ts
+  h_e7759ddd73fa65 5-7,21,47,52-53,97,102,125
+examples/typescript/dynamic-build/index.ts
+  h_e7759ddd73fa65 13,28,32,57,61,83,87
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 21,63-111,116,124-138,151-159,169,178-179,238-247,324-325,328,330-370
+examples/typescript/exec-command/index.ts
+  h_e7759ddd73fa65 10,42
+examples/typescript/file-operations/index.ts
+  h_e7759ddd73fa65 6,13,22-23,27-28,39
+examples/typescript/git/index.ts
+  h_e7759ddd73fa65 12,24,27
+examples/typescript/lifecycle/index.ts
+  h_e7759ddd73fa65 9,20
+examples/typescript/local-files/index.ts
+  h_e7759ddd73fa65 1-85
+examples/typescript/secrets-env/index.ts
+  h_e7759ddd73fa65 8,13,30,45-46,56,58,66,75,84,131
+examples/typescript/snapshots/index.ts
+  h_e7759ddd73fa65 4,39
+examples/typescript/test-support/fake-build-environment.test.ts
+  h_e7759ddd73fa65 1-32
+examples/typescript/test-support/fake-sdk.ts
+  h_e7759ddd73fa65 15-24,29,57,62,65,68-69,74,79,82,85-86,93-94,98-129,138-142,147-149,151,154-155,159-163,172-178,181-189,193,196-199,210-225,228-229,257,260,266,270,272,274-276,278-283,297-301,303-306,323,325,330-331,349-373
+examples/typescript/test-support/image-get.ts
+  h_e7759ddd73fa65 1-24
+examples/typescript/test-support/volume-lifecycle.ts
+  h_e7759ddd73fa65 1-59
+examples/typescript/test-support/volume-mounts.ts
+  h_e7759ddd73fa65 1-37
+examples/typescript/volumes/index.ts
+  h_e7759ddd73fa65 16,21-22,29,31,38,40,49,53,68
+examples/volumes_share.py
+  h_e7759ddd73fa65 44,50,52-55,98,100,104
+examples/volumes_share.ts
+  h_e7759ddd73fa65 20,30,44-45,48,98,103
+scripts/check-no-bundled-v0.sh
+  h_e7759ddd73fa65 49
+scripts/v0-sdk-version
+  h_e7759ddd73fa65 1-2
+sdk-python/DEVELOPMENT.md
+  h_e7759ddd73fa65 34,69,131-136,138-210,342-344
+sdk-python/README.md
+  h_e7759ddd73fa65 48-50,57-69,90-97,124-134,154,232,282-285,289-290,294-295,301-303,315,329-331,382-385,400-414,421-423,431-433,443-444,449-450,454,456,459-495,506-512,517,520,524-529,531-535,554,582-589,592,595-597,600-665,673-679,704-705,707-708,713-715,723-729,745-752,773-784,788-792,796-800,806-807,818-825,838-839,841,852-853,932-937,948-953,1029-1032,1045-1051,1056-1057,1060-1065,1094-1095,1105-1110,1114-1150,1153-1154,1187-1191,1195-1196,1219-1224
+sdk-python/gen/gen_sync.py
+  h_e7759ddd73fa65 76-81,136-142,146,150-162,455,467-470,488,519-522,526-530,545,561,613,619-621,691,705-706,745
+sdk-python/gen/mark_sensitive.py
+  h_e7759ddd73fa65 36-37
+sdk-python/pyproject.toml
+  h_e7759ddd73fa65 34,54,112-115,151-153
+sdk-python/src/daytona/_client.py
+  h_e7759ddd73fa65 23,30,56,59-89,191,203,438,553-554,625-629
+sdk-python/src/daytona/v2/__init__.py
+  h_e7759ddd73fa65 24-25,78-93,105-106,109-116,118-119,121,131,152,176-178,180-182,201,321-324,371,392,405-406,497,550-559,561,579,582-601,660,688-689,718-722,727,735,747,771
+sdk-python/src/daytona/v2/_api_core.py
+  h_e7759ddd73fa65 6-20,37-63,67-74,78-79,81,83-103,108-124,128-187,191-267,269,273,281-287,289-292,296-400,403-414,426-431,450-514,516-518,531-554,559
+sdk-python/src/daytona/v2/_auth.py
+  h_e7759ddd73fa65 7,14,152,204
+sdk-python/src/daytona/v2/_body_limit.py
+  h_e7759ddd73fa65 22-23,32,34,48-49,92-93,239-242,285-287,290-291,304-305
+sdk-python/src/daytona/v2/_bridge.py
+  h_e7759ddd73fa65 30,94,117-118,221,231,271
+sdk-python/src/daytona/v2/_codes.py
+  h_e7759ddd73fa65 85-92,94-96,234-241,243-245,330-331,409-416,418-420
+sdk-python/src/daytona/v2/_context_upload.py
+  h_e7759ddd73fa65 1-453
+sdk-python/src/daytona/v2/_core.py
+  h_e7759ddd73fa65 16,33,79-81,89,93,106-107,111,115-117,262-325,353-359,439-550,552,561-570,901,904-905,911-926,930,933-934,939-970,980-982,1012,1029,1118,1121,1184-1189,1212,1282,1289,1333-1341,1405-1413,1441,1463-1483,1501,1528,1543,1550,1589,1610,1837,1853,1856-1882,1886-1890,1899,1905,1959-1960,1969-2022,2044,2078,2080,2084-2086,2088,2102-2109,2118-2150,2154-2163,2165-2171,2173-2185,2187,2190-2198,2204,2210-2247,2250-2316,2324-2335,2337-2339,2343,2346-2349,2351-2364,2366-2371,2377,2381-2386,2388-2394,2396-2398,2400-2416,2420,2423,2439,2478-2480,2482,2484,2499-2501,2503-2504,2506,2522,2530-2535,2542-2548,2562-2573,2576-2580,2606,2610,2612
+sdk-python/src/daytona/v2/_dockerignore.py
+  h_e7759ddd73fa65 1-230
+sdk-python/src/daytona/v2/_dockerignore_class.py
+  h_e7759ddd73fa65 1-158
+sdk-python/src/daytona/v2/_dockerignore_error.py
+  h_e7759ddd73fa65 1-15
+sdk-python/src/daytona/v2/_dockerignore_nfa.py
+  h_e7759ddd73fa65 1-91
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  h_e7759ddd73fa65 1-205
+sdk-python/src/daytona/v2/_dockerignore_regexp.py
+  h_e7759ddd73fa65 1-60
+sdk-python/src/daytona/v2/_events.py
+  h_e7759ddd73fa65 44,90-111,341,345-349,387-394,399,450-456,495-496,517,522,529-530,629-634,646-647,659-660,666-668,773-774,778,782-785,787-789,806-807,815,827-829,843,1136,1147-1148,1249-1252,1281,1546,1549,1586-1587,1609-1683,1697-1698,1715-1716,1736-1737
+sdk-python/src/daytona/v2/_exports.py
+  h_e7759ddd73fa65 9-10,101,154-163,165,183,186-205,264,292-293,322-326,331,339,351,383
+sdk-python/src/daytona/v2/_filesystem_inputs.py
+  h_e7759ddd73fa65 1-34
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  h_e7759ddd73fa65 64,66,69-70,154-163,167-168,184,210,214-220,227,229,248,289,291
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  h_e7759ddd73fa65 81,96,125-133
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload.py
+  h_e7759ddd73fa65 26,37-71,89,99-110
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload_part.py
+  h_e7759ddd73fa65 23,34-68,78,88-99
+sdk-python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  h_e7759ddd73fa65 43-45,48,51,54,57,59
+sdk-python/src/daytona/v2/_gen/api/models/create_organization_region_request.py
+  h_e7759ddd73fa65 1-113
+sdk-python/src/daytona/v2/_gen/api/models/create_organization_request.py
+  h_e7759ddd73fa65 20,22,38
+sdk-python/src/daytona/v2/_gen/api/models/create_organization_role_request.py
+  h_e7759ddd73fa65 1-117
+sdk-python/src/daytona/v2/_gen/api/models/create_project_api_key_request.py
+  h_e7759ddd73fa65 45,131
+sdk-python/src/daytona/v2/_gen/api/models/create_project_request.py
+  h_e7759ddd73fa65 20,22,38
+sdk-python/src/daytona/v2/_gen/api/models/create_region_proxy_token_request.py
+  h_e7759ddd73fa65 1-112
+sdk-python/src/daytona/v2/_gen/api/models/create_region_registration_token_request.py
+  h_e7759ddd73fa65 1-111
+sdk-python/src/daytona/v2/_gen/api/models/create_reservations_bulk_request.py
+  h_e7759ddd73fa65 39
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  h_e7759ddd73fa65 48
+sdk-python/src/daytona/v2/_gen/api/models/image.py
+  h_e7759ddd73fa65 47
+sdk-python/src/daytona/v2/_gen/api/models/image_list_item.py
+  h_e7759ddd73fa65 48
+sdk-python/src/daytona/v2/_gen/api/models/invitation_lookup.py
+  h_e7759ddd73fa65 44,47,120
+sdk-python/src/daytona/v2/_gen/api/models/mac_catalog_model.py
+  h_e7759ddd73fa65 37,39
+sdk-python/src/daytona/v2/_gen/api/models/mac_catalog_region.py
+  h_e7759ddd73fa65 40
+sdk-python/src/daytona/v2/_gen/api/models/mac_model.py
+  h_e7759ddd73fa65 40,42,45
+sdk-python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  h_e7759ddd73fa65 52-53,59,66
+sdk-python/src/daytona/v2/_gen/api/models/mac_resources.py
+  h_e7759ddd73fa65 35
+sdk-python/src/daytona/v2/_gen/api/models/macos_settings.py
+  h_e7759ddd73fa65 38
+sdk-python/src/daytona/v2/_gen/api/models/mint_sandbox_access_token_request.py
+  h_e7759ddd73fa65 39
+sdk-python/src/daytona/v2/_gen/api/models/organization.py
+  h_e7759ddd73fa65 42,53,143
+sdk-python/src/daytona/v2/_gen/api/models/organization_limits.py
+  h_e7759ddd73fa65 26,47,50,55,109-111,118-120,150,153
+sdk-python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  h_e7759ddd73fa65 43,55
+sdk-python/src/daytona/v2/_gen/api/models/organization_region.py
+  h_e7759ddd73fa65 1-142
+sdk-python/src/daytona/v2/_gen/api/models/organization_region_page.py
+  h_e7759ddd73fa65 1-125
+sdk-python/src/daytona/v2/_gen/api/models/organization_role.py
+  h_e7759ddd73fa65 1-138
+sdk-python/src/daytona/v2/_gen/api/models/organization_role_kind.py
+  h_e7759ddd73fa65 1-55
+sdk-python/src/daytona/v2/_gen/api/models/organization_role_list.py
+  h_e7759ddd73fa65 1-120
+sdk-python/src/daytona/v2/_gen/api/models/organization_role_update.py
+  h_e7759ddd73fa65 1-117
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner.py
+  h_e7759ddd73fa65 1-148
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner_admin_state.py
+  h_e7759ddd73fa65 1-55
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner_page.py
+  h_e7759ddd73fa65 1-125
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner_status.py
+  h_e7759ddd73fa65 1-56
+sdk-python/src/daytona/v2/_gen/api/models/parent_region.py
+  h_e7759ddd73fa65 1-112
+sdk-python/src/daytona/v2/_gen/api/models/parent_region_list.py
+  h_e7759ddd73fa65 1-118
+sdk-python/src/daytona/v2/_gen/api/models/plan_limits.py
+  h_e7759ddd73fa65 38,42,44,114-118,132,135-136
+sdk-python/src/daytona/v2/_gen/api/models/preview_organization_role_update_request.py
+  h_e7759ddd73fa65 1-117
+sdk-python/src/daytona/v2/_gen/api/models/project_api_key.py
+  h_e7759ddd73fa65 54,175
+sdk-python/src/daytona/v2/_gen/api/models/project_api_key_with_context.py
+  h_e7759ddd73fa65 56
+sdk-python/src/daytona/v2/_gen/api/models/project_api_key_with_token.py
+  h_e7759ddd73fa65 91
+sdk-python/src/daytona/v2/_gen/api/models/region_installation.py
+  h_e7759ddd73fa65 1-168
+sdk-python/src/daytona/v2/_gen/api/models/region_proxy_token.py
+  h_e7759ddd73fa65 1-145
+sdk-python/src/daytona/v2/_gen/api/models/region_proxy_token_page.py
+  h_e7759ddd73fa65 1-125
+sdk-python/src/daytona/v2/_gen/api/models/region_proxy_token_with_token.py
+  h_e7759ddd73fa65 1-194
+sdk-python/src/daytona/v2/_gen/api/models/region_status.py
+  h_e7759ddd73fa65 1-55
+sdk-python/src/daytona/v2/_gen/api/models/registration_token.py
+  h_e7759ddd73fa65 1-125
+sdk-python/src/daytona/v2/_gen/api/models/registration_token_page.py
+  h_e7759ddd73fa65 1-125
+sdk-python/src/daytona/v2/_gen/api/models/registration_token_with_token.py
+  h_e7759ddd73fa65 1-174
+sdk-python/src/daytona/v2/_gen/api/models/role_change_impact.py
+  h_e7759ddd73fa65 1-117
+sdk-python/src/daytona/v2/_gen/api/models/rotate_region_proxy_token_request.py
+  h_e7759ddd73fa65 1-119
+sdk-python/src/daytona/v2/_gen/api/models/sandbox.py
+  h_e7759ddd73fa65 66,69
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  h_e7759ddd73fa65 82
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  h_e7759ddd73fa65 66,69
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_timeout_limits.py
+  h_e7759ddd73fa65 1-112
+sdk-python/src/daytona/v2/_gen/api/models/update_macos_settings_request.py
+  h_e7759ddd73fa65 37
+sdk-python/src/daytona/v2/_gen/api/models/update_organization_region_request.py
+  h_e7759ddd73fa65 1-116
+sdk-python/src/daytona/v2/_gen/api/models/update_organization_request.py
+  h_e7759ddd73fa65 20,22,38-39
+sdk-python/src/daytona/v2/_gen/api/models/update_organization_role_request.py
+  h_e7759ddd73fa65 1-117
+sdk-python/src/daytona/v2/_gen/api/models/update_project_api_key_request.py
+  h_e7759ddd73fa65 37,39,101
+sdk-python/src/daytona/v2/_gen/api/models/update_project_request.py
+  h_e7759ddd73fa65 20,22,38
+sdk-python/src/daytona/v2/_gen/api/models/v0_migration_summary.py
+  h_e7759ddd73fa65 45
+sdk-python/src/daytona/v2/_gen/api/models/v0_sandbox.py
+  h_e7759ddd73fa65 51,139
+sdk-python/src/daytona/v2/_gen/api/models/v0_sandbox_import.py
+  h_e7759ddd73fa65 45
+sdk-python/src/daytona/v2/_gen/api/models/volume_mount.py
+  h_e7759ddd73fa65 37
+sdk-python/src/daytona/v2/_image_archive.py
+  h_e7759ddd73fa65 1-154
+sdk-python/src/daytona/v2/_image_context.py
+  h_e7759ddd73fa65 1-277
+sdk-python/src/daytona/v2/_image_pull.py
+  h_e7759ddd73fa65 13-14,19-20,34-36,38-46,56,96-99,102-104
+sdk-python/src/daytona/v2/_image_source.py
+  h_e7759ddd73fa65 1-113
+sdk-python/src/daytona/v2/_image_text.py
+  h_e7759ddd73fa65 1-106
+sdk-python/src/daytona/v2/_otel.py
+  h_e7759ddd73fa65 69-70,75
+sdk-python/src/daytona/v2/_sync/__init__.py
+  h_e7759ddd73fa65 49-54,78-83,104,110,117,121,123-124
+sdk-python/src/daytona/v2/_sync/_runtime.py
+  h_e7759ddd73fa65 16,22,53-59
+sdk-python/src/daytona/v2/_sync/computer_use.py
+  h_e7759ddd73fa65 37-39
+sdk-python/src/daytona/v2/_sync/computer_use_services.py
+  h_e7759ddd73fa65 26-28,68-73,82-84,95,98,101,108,121-123,146-148,175-177,223-225,236,239-252,255,273-275,295-298
+sdk-python/src/daytona/v2/_sync/daytona.py
+  h_e7759ddd73fa65 21,27-32,55-56,58,61-62,64,67-68,70,73-74,76,79-80,82,85-86,88,107-108,114-116,124-178,193,212-228,230,232-254,260-279,291-292,299-311,336,338-339,343,351,353-402,409,430-431,433-437,439-461,464,468-486,490-493,497-504,508-515,519,526-532,536,543-544,547-548,557,559,582-624,633,663-664,667-669
+sdk-python/src/daytona/v2/_sync/docker.py
+  h_e7759ddd73fa65 20-24,28-30,42-45,49-64
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 22-25,29-31,45,58,63-71,76-83,86-94,97,101,105,109-114,119-124,129-141,144-157,160-165,168,172,176,184,201,207-221,233-234,237-238,241,247-268,272-274,286-290,296-300
+sdk-python/src/daytona/v2/_sync/git.py
+  h_e7759ddd73fa65 26-28,39-40,43,46,54,80,87,91-101,104,108,112,115,119,126,144,169,181,192,194-200,203
+sdk-python/src/daytona/v2/_sync/interpreter.py
+  h_e7759ddd73fa65 30-32,44,64-73,83,96,105-126
+sdk-python/src/daytona/v2/_sync/lsp.py
+  h_e7759ddd73fa65 28-30,48,56,62,65,72,81-83,94
+sdk-python/src/daytona/v2/_sync/ports.py
+  h_e7759ddd73fa65 26-28,39-46,49-67,70-78,92-96,99-119,123,125-148,153-154
+sdk-python/src/daytona/v2/_sync/process.py
+  h_e7759ddd73fa65 25-30,34-36,64-68,90-95,98-104,110-121,129-133,136,146-148,159,163,179-183,195,200-215,251-299,331,334-367,394-396,407,411,434-440
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 37-42,46-48,60-66,69-95,103-126,133-140,143-155,178-214,236-237,241-252,260,262-281,283,291-296,304-313,316-318,321-327,331-348,355-360,364-372,378,400-416,419-440,443-463,467-474,485-494,511-526,530-544,552-570,578-586,599-612,619-632,642-661,682-736
+sdk-python/src/daytona/v2/_sync/sandbox_volumes.py
+  h_e7759ddd73fa65 26-28,39-48
+sdk-python/src/daytona/v2/_sync/services.py
+  h_e7759ddd73fa65 21,24,26-28,31,34,47,49-79,82-119,128,134,136-137,141-144,152,154-163,197-203,215-224,230,233,235,239-246,248-256,260,263,265-267,270,273,278,283,285,313,316,318-320,323,326,331-339,341-343,345,357-366,368,370-372,375,378,383,387,402,408-418,430-440,442,444-446,449,452,465-478,495-498,510,523-528,531-537,541-548,550,552-554,557,560,569
+sdk-python/src/daytona/v2/_sync/session.py
+  h_e7759ddd73fa65 27-38,42-44,81,89-100,115,120,122-129
+sdk-python/src/daytona/v2/_sync/types.py
+  h_e7759ddd73fa65 24-29,33-35,70,72-79
+sdk-python/src/daytona/v2/_timestamps.py
+  h_e7759ddd73fa65 8,15-21,23-25,29-39,46
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 43-50,52,293,325,348,362,576,762,781,882,1019,1107,1192,1316
+sdk-python/src/daytona/v2/build_logs.py
+  h_e7759ddd73fa65 39-48,65-66,75,107,116,120,124,133,144,150,156,162,183-186,236-243,265-274,304-310,312,314,319-332,393-398,400,429-431,457-458,470-476,484-489,509-514,521,524,529-533,548-552,554,645-647,665-668,691-693,739-742,804-805,809-812,814-818,859-870,891-894,933-934
+sdk-python/src/daytona/v2/codes.py
+  h_e7759ddd73fa65 35,50-52,69
+sdk-python/src/daytona/v2/computer_use_core.py
+  h_e7759ddd73fa65 10,148-149,156-157,164-170,190,193-197,486,601,605-608,611-614,642,656-657
+sdk-python/src/daytona/v2/computer_use_services.py
+  h_e7759ddd73fa65 9,68,79,102,114,126,429,438,466
+sdk-python/src/daytona/v2/computer_use_types.py
+  h_e7759ddd73fa65 8,240,259,279,281-282,300,321
+sdk-python/src/daytona/v2/daytona.py
+  h_e7759ddd73fa65 15,17-28,41-42,47-51,55,57-60,62,64-67,70,74,76,79,90-95,97-102,105,111,113,117,124-125,130,137,171-174,194-195,245-254,256,272-273,279-281,289,297-312,314,316-337,345-346,355,357,360,372-417,424-425,432-438,446,452,472,474-475,479,487,491-497,499,509,514-518,539,544-546,552-553,558-564,572,587-603,605,607-628,630-631,633-667,671-672,674-680,682-693,695-702,711-730,745,755-768,776,789-802,806-831,833,838,845-851,855-856,860-861,865,869-871,879-886,888-890,892,894-895,898-899,902-910,919-920,923,929,931,933,941,972-974,996-1000,1002-1011,1013-1024,1026-1029,1037,1039,1062,1065-1080,1085,1096-1098,1102-1103,1105,1109,1135-1137,1139-1140,1148,1153,1166-1180,1189,1198,1203-1204,1207-1209,1211-1212,1215-1216,1219-1221,1224-1239,1245,1269-1272,1308,1320-1336,1367,1370-1371,1463,1503,1535-1545,1554-1555,1560-1572,1576,1587,1597-1599,1607,1617,1632,1634-1635,1640-1651,1656,1659,1671-1672,1677,1680,1686,1709-1729,1753-1754,1756-1792,1805-1806,1823-1826,1828-1831,1834-1845,1895-1897,1906,1912,1914-1917,1919,1921-1922,1927-1929,1936-1938,1941-1943,1955-1967,1969-1971,1973-2004,2008-2011,2015-2024
+sdk-python/src/daytona/v2/docker.py
+  h_e7759ddd73fa65 20,22,46-47,59-60,73-76
+sdk-python/src/daytona/v2/errors.py
+  h_e7759ddd73fa65 81-82,106-126,192,250-252,674-677,827-834,836-838,883,958-960,992-1001
+sdk-python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 33-34,49-50,56,65,351-354,369,382,390,398-403,405,407-408,411,419,427-437,447,454,494,508,561,579-582,594,596,598-599,608,611,614,616-618,620,623,626,629-636,639,642-646,648,650-651,654-664,666,668-670,672-674,680,690,697,710,731-735,888
+sdk-python/src/daytona/v2/git.py
+  h_e7759ddd73fa65 21,57,86,96,103,108,110,127,129,135-137,139,145,150-151,153-167,173-174,176,182,194,201,207,220,248,271,295,317,322-328
+sdk-python/src/daytona/v2/image.py
+  h_e7759ddd73fa65 7-8,11-12,16-17,20-22,24-25,27-28,32,34-35,37,42-46,48,54-70,72-78,83-118,120,125,139-141,155-156,159-167,170-171,175-196,200,204-224,227-228,231,233,249-306,308-321,323,328
+sdk-python/src/daytona/v2/interpreter.py
+  h_e7759ddd73fa65 19,58,62-63,95,215-221,259,291-293,304,315,331-337,424-426,509,603
+sdk-python/src/daytona/v2/lsp.py
+  h_e7759ddd73fa65 8,79,140,218,232,250,266,280,317
+sdk-python/src/daytona/v2/network_policy.py
+  h_e7759ddd73fa65 11,36,38,42,64-73,80-83,86,103,107-111,113-117,122-126,129,145,149,163,167-169,171
+sdk-python/src/daytona/v2/ports.py
+  h_e7759ddd73fa65 21-31,45,59-61,75,100-103,110-111,113-114,116-118,122,126-134,137-146,155-160,180,185,189-191,195-196,198-199,204-206,214,225-233,235,247,264,267,278-279,281-282,293,306-313,316-317,322-323,332-333
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 27,94-119,282,326,354-359,380-381,404,431-437,558,580,602-603,605-608,629,735-736,738,766,808,811,824,829,903-906,912,924,931
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 9,15-28,31,39-42,52,56-58,60,63-66,68,72,75-76,78,82,84,90-99,114,123,131,133,141,149-152,154-155,181-189,191-231,235-237,239-250,252-261,267,284-285,291-295,297-301,325-380,382-383,389-516,519,533,537,539,544-547,549-552,554-555,563-564,576,580-591,643-644,711-712,714,739,759-820,823-847,853,857-861,870,889-891,893,899,902-910,915-916,918-923,925-942,944-952,963,965,968-969,973,990,996,998,1003-1013,1016,1038-1041,1062-1066,1069-1070,1072,1076-1077,1082,1085-1086,1097-1099,1103-1133,1135-1137,1139-1145,1148-1150,1152-1153,1155-1201,1203-1211,1219,1238,1242,1250,1262-1266,1282-1299,1301-1302,1306-1328,1337,1340-1356,1359-1367,1369,1371,1374,1376-1378,1380,1382,1389,1391,1395-1409,1411-1436,1442-1448,1455,1461-1484,1487-1495,1499,1506,1508-1523,1526-1536,1538,1541-1544,1561-1562,1564,1578-1582,1586,1590,1600-1602,1613-1616,1623,1640,1653,1662,1694,1702-1705,1709-1723,1726,1732-1735,1738-1747,1755,1757-1761,1779-1780,1790-1794,1826,1829-1833,1853-1860,1868-1873,1876-1878,1883-1886,1911-1912,1950-1951,1974-1975,2032-2038,2052-2053,2112-2115,2117-2181,2184-2188,2191-2195,2197-2229,2234-2236,2239-2252,2254-2256,2258-2259,2261-2265,2280,2319-2336,2401-2435,2439-2447,2449-2453,2474-2497,2504-2506,2508,2512,2515,2519-2596,2600-2609,2611-2612,2614
+sdk-python/src/daytona/v2/sandbox_secrets.py
+  h_e7759ddd73fa65 10,29,32,34,51,56,60,66-71,73
+sdk-python/src/daytona/v2/sandbox_volumes.py
+  h_e7759ddd73fa65 40,44-45,88-91,98-99,102
+sdk-python/src/daytona/v2/secret.py
+  h_e7759ddd73fa65 6,8
+sdk-python/src/daytona/v2/services.py
+  h_e7759ddd73fa65 6,8,18,22-24,27,32-33,37-38,40,42,46,48-49,51-52,54-56,60,62-63,66-67,70,95-100,123-124,130-140,143-144,149,151-152,156-158,161,176,187-207,210-215,218-232,237-294,301,310,313,315,321-324,327-337,344,349-365,368,373-376,378-381,384-385,404-406,409-411,413,415,418,445-487,489-490,492-539,542-543,553-554,556,560-562,586,591-598,601,603,606,609-610,627,630,647,649-653,656,662-692,694-695,698,701-710,712,715,727-728,749-750,752,776,778-780,803,810,815-817,829,831-833,836,840,842-843,845,847,854-857,863,870-895,921,923,951-952,994-996,999,1008-1009,1011,1013,1017-1021,1025,1036-1037,1041,1044-1046,1054,1056-1058,1064,1072-1079,1081-1098,1100-1105,1110,1113,1115
+sdk-python/src/daytona/v2/session.py
+  h_e7759ddd73fa65 74,85-87,106,111,116-119
+sdk-python/src/daytona/v2/snapshot.py
+  h_e7759ddd73fa65 6,8
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 9,17,24,31,66-71,86-100,138,264,277,312,314-317,320,323-325,328-346,351-352,355,361-374,377,392,426,428,435-437,442,444,448-465,471,473-482,497,501-502,505,517,519,529-531,536,540-564,567-569,571-572,575-576,578-585,588-589,591-596,598-622,625,631,637,650-651,656-732,764,770-796,798-898,901-902,904-906,909,912-915,917-918,920-922,925-937,945,949,953-955,959-963,965-966,968,973,992,999-1004,1011,1031,1034-1035,1041-1046,1079,1137,1140,1142,1221,1240,1242,1257,1315,1362,1383,1402,1476,1496,1503,1506,1513,1526,1529,1534-1535,1541,1544,1551,1559-1561,1569-1572,1577,1579-1582,1586,1588,1613-1614,1622-1624
+sdk-python/src/daytona/v2/volume.py
+  h_e7759ddd73fa65 6,8
+sdk-python/tests/_handles.py
+  h_e7759ddd73fa65 20
+sdk-python/tests/fixtures/dockerfile-continuation.json
+  h_e7759ddd73fa65 1-389
+sdk-python/tests/fixtures/dockerfile-escape.json
+  h_e7759ddd73fa65 1-105
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  h_e7759ddd73fa65 1-564
+sdk-python/tests/fixtures/dockerignore-refused.json
+  h_e7759ddd73fa65 1-10
+sdk-python/tests/fixtures/image-builder-archives.json
+  h_e7759ddd73fa65 1-20
+sdk-python/tests/fixtures/image-builder-context.json
+  h_e7759ddd73fa65 1-488
+sdk-python/tests/fixtures/image-builder-directories.json
+  h_e7759ddd73fa65 1-280
+sdk-python/tests/fixtures/image-builder-parity.json
+  h_e7759ddd73fa65 1-1010
+sdk-python/tests/fixtures/sandbox-handle-json.json
+  h_e7759ddd73fa65 1-142
+sdk-python/tests/fixtures/search-timestamps.json
+  h_e7759ddd73fa65 1-29
+sdk-python/tests/network_policy_test_server.py
+  h_e7759ddd73fa65 52-57
+sdk-python/tests/test_argument_checks.py
+  h_e7759ddd73fa65 1-1277
+sdk-python/tests/test_artifact_waits.py
+  h_e7759ddd73fa65 1-165
+sdk-python/tests/test_bridge.py
+  h_e7759ddd73fa65 34,36-37,184,673,746,1008,1012,1026,1103,1113,1140,1148
+sdk-python/tests/test_build_context_upload.py
+  h_e7759ddd73fa65 1-876
+sdk-python/tests/test_build_logs.py
+  h_e7759ddd73fa65 48-50,52,183-192,333,354-357,359,361,586-587,612-614,616-617,619,624-633,801-815,817,819-853,1198-1201,1379,1446-1504
+sdk-python/tests/test_client_input_lifecycle.py
+  h_e7759ddd73fa65 1-201
+sdk-python/tests/test_client_lifecycle_contract.py
+  h_e7759ddd73fa65 1-615
+sdk-python/tests/test_client_response_cap.py
+  h_e7759ddd73fa65 1-100
+sdk-python/tests/test_connect_options.py
+  h_e7759ddd73fa65 1-114
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 8,35-36,41,43-44,46-47,49,56,79,106,160-165,177,179,191,354-360,923,926,928-929,932,938-940,952,1000-1001,1037,1046,1069-1070,1072,1087-1089,1097-1102,1187-1190,1197-1202,1212-1213,1237-1238,1267,1281-1282,1294-1299,1336-1341,1427-1433,1437-1439,1537,1560,1608,1872,1933,1965,1993,2006,2008-2011,2024,2043-2044,2046,2054,2068,2079,2098-2099,2104,2114,2123,2125,2180,2192,2222,2225,3096,3121-3125,3148-3152,3219,3789-3790,3792-3795,3884-3898,4472-4481,4499,4502,4537,4540-4541,4597,4632-4634,4638-4644,4651,4660-4662,4683-4687,4701,4736-4737,4762-4765,4780,4790,4800,4812,4827,4847-4848,4852,4940-4941,4956-4957,5220,5235,5249,5256,5281,5323-5336,5357-5358,5409-5410,5435-5443,5461-5462,5489,5571,5579,5619,5628,5694-5696,5826,5844-5846,5852,5909,5962,6015-6018,6223-6225,6437-6438,6447,6457-6458,6470-6471,6496,6498,6500,6502,6555-6565,6604,6612,6652,6668-6717,6770,6775-6780,6793,6803,6811,6813,6818,6880,6890,6892,7235,7237-7241,7243,7266,7269,7277,7281,7290,7310,7329,7331-7332,7334-7336,7354,7363-7364,7367,7369-7370,7391,7394,7415-7417,7447,7453,7455,7457,7472,7485,7494,7499,7501,7522,7556,7569,7571,7575-7617,7683,7772-7789,7803-7820,7858,7864,7881,7883,7906,7927,7934,7939,7945,7966,7980,7987,8028,8030,8059,8062,8089,8110-8112,8129,8135,8139-8148,8150,8152,8157-8159,8165-8168,8170,8173-8174,8179,8183,8187,8203,8212,8215,8224,8226-8231,8242-8243,8249-8251,8255,8261,8263-8264,8273,8275-8276,8284-8288,8291-8292,8296,8298,8319-8320,8324,8337,8393,8400,8417,8420,8444-8446,8448-8449,8452-8453,8455-8457,8472,8789-8790,8800,8818-8819,8826,9462,9468,9472-9506,9510,9515,9521,9526,9528-9537,10219,10255,10282-10285,10288,10290-10297,10299,10301,10305-10306,10314,10317-10318,10320,10322-10352,10364,10384,10398-10429,10439-10440,10445,10447-10462,10464,10468-10470,10474-10475,10488,10494-10496,10498-10499,10520,10532-10533,10537-10538,10540,10542-10543,10584,10589,10598,10601,10603,10605,10607,10609-10611,10614,10622-10626,10631,10633,10637,10649,10671-10672,10680-10681,10694,10702-10703,10741,10821-10825,11131,11165,11169-11170,11172,11175-11179,11181,11192-11193,11195-11203,11370-11372,11418-11422,11467,11582-11586,11601,12423-12424,12455-12456,12490-12491,12495-12503,12519-12522,12539,12573,12583,12587,12595-12597,12599-12602,12604-12605,12609,12619-12621,12634,12639,12646,12649-12651,12670-12671,12682-12683,12689,12694-12695,12700,12723,12755-12756,12760,12777,12786,12814,12881,12885,12922,12945,12971,13055,13059,13069,13165-13166,13169-13172,13177,13227,13238,13268-13269,13272,13293,13429-13430,13433-13434,13482,13488-13490,13496-13498,13512,13517,13540-13542,13567,13581,13594,13605,13616,13641-13671
+sdk-python/tests/test_cpu_max_step.py
+  h_e7759ddd73fa65 1-63
+sdk-python/tests/test_credential_inspection.py
+  h_e7759ddd73fa65 6-7,19-20,30-41,101-104
+sdk-python/tests/test_credential_repr.py
+  h_e7759ddd73fa65 12-13,23-24,41
+sdk-python/tests/test_dockerignore.py
+  h_e7759ddd73fa65 1-402
+sdk-python/tests/test_dockerignore_class_errors.py
+  h_e7759ddd73fa65 1-27
+sdk-python/tests/test_error_contract.py
+  h_e7759ddd73fa65 119
+sdk-python/tests/test_error_media_type.py
+  h_e7759ddd73fa65 1-61
+sdk-python/tests/test_events.py
+  h_e7759ddd73fa65 15,187-202,631-633,645,648,652,655,723-725,736,743,745,748,981-1421,2017-2019,2023,2032,2034,2039,2044,2089-2094,2108,2114,2119,2124,3036-3037,3075-3076,3103-3104,3182,3192,3200,3205,3226-3227,3230,3297,3336,3404,3423-3507
+sdk-python/tests/test_forward_compat.py
+  h_e7759ddd73fa65 1-127
+sdk-python/tests/test_fs_git_inputs.py
+  h_e7759ddd73fa65 1-140
+sdk-python/tests/test_generated_model_redaction.py
+  h_e7759ddd73fa65 21,133,160-180
+sdk-python/tests/test_handle_json_fixture.py
+  h_e7759ddd73fa65 1-109
+sdk-python/tests/test_image_builder_context.py
+  h_e7759ddd73fa65 1-325
+sdk-python/tests/test_image_builder_parity.py
+  h_e7759ddd73fa65 1-301
+sdk-python/tests/test_image_builder_text.py
+  h_e7759ddd73fa65 1-32
+sdk-python/tests/test_image_context_archive.py
+  h_e7759ddd73fa65 1-521
+sdk-python/tests/test_image_context_create.py
+  h_e7759ddd73fa65 1-131
+sdk-python/tests/test_image_context_races.py
+  h_e7759ddd73fa65 1-295
+sdk-python/tests/test_image_context_upload.py
+  h_e7759ddd73fa65 1-268
+sdk-python/tests/test_image_pull_deadline_http.py
+  h_e7759ddd73fa65 16,19,22-23,62,64,95,103,122,134-138,140-141,143,145,155-157,160,174,187-188,199,203,208-210,212
+sdk-python/tests/test_image_pull_wait.py
+  h_e7759ddd73fa65 12,14,30-38,50,154-163,166,173
+sdk-python/tests/test_image_source_errors.py
+  h_e7759ddd73fa65 1-81
+sdk-python/tests/test_json_depth.py
+  h_e7759ddd73fa65 1-115
+sdk-python/tests/test_jwt_handle_mint.py
+  h_e7759ddd73fa65 1-111
+sdk-python/tests/test_lifecycle_policy_reads.py
+  h_e7759ddd73fa65 1-60
+sdk-python/tests/test_malformed_responses.py
+  h_e7759ddd73fa65 1-1308
+sdk-python/tests/test_model_serialization.py
+  h_e7759ddd73fa65 1-172
+sdk-python/tests/test_namespace_credential_inspection.py
+  h_e7759ddd73fa65 8,20-24,30-34,38-39,70-74,128,130,146-157,171
+sdk-python/tests/test_network_policy_validation.py
+  h_e7759ddd73fa65 9,50-93,133-134,144-175,178-179,182-187
+sdk-python/tests/test_network_policy_wire.py
+  h_e7759ddd73fa65 13,30,32,34,36,38,85,91,131,135,263,267,271,291-292
+sdk-python/tests/test_null_options.py
+  h_e7759ddd73fa65 1-163
+sdk-python/tests/test_positional_only.py
+  h_e7759ddd73fa65 1-67
+sdk-python/tests/test_process_tags.py
+  h_e7759ddd73fa65 19-20,74,212
+sdk-python/tests/test_public_surface_generated.py
+  h_e7759ddd73fa65 44
+sdk-python/tests/test_readme_quickstart.py
+  h_e7759ddd73fa65 44-51,76,112-114
+sdk-python/tests/test_readme_types.py
+  h_e7759ddd73fa65 96,98-99
+sdk-python/tests/test_redirects.py
+  h_e7759ddd73fa65 1-119
+sdk-python/tests/test_reservation_fields.py
+  h_e7759ddd73fa65 14,78,98-99,126,142,149-177
+sdk-python/tests/test_result_tuples.py
+  h_e7759ddd73fa65 1-168
+sdk-python/tests/test_root_client.py
+  h_e7759ddd73fa65 742,1031,1056,1445-1447
+sdk-python/tests/test_sandbox_not_running.py
+  h_e7759ddd73fa65 1-77
+sdk-python/tests/test_sandbox_region.py
+  h_e7759ddd73fa65 23,29,82-84,109-122
+sdk-python/tests/test_sandbox_secrets_parity.py
+  h_e7759ddd73fa65 43,45,68,113,134,147,180,201,216,223-224,226,247-248
+sdk-python/tests/test_sandbox_secrets_wire.py
+  h_e7759ddd73fa65 37,43,68,121
+sdk-python/tests/test_sandbox_tokens.py
+  h_e7759ddd73fa65 35,137-138,151,166-167,169-170,173-187,194,207-211,229,253,287,291-292,305,311,323,337,382,399,411,433,452,475,489-490,493-495,507-534,539,559-563,590-594,607,629-633,641,661,670,687,710,755,758,769,839,858,959,999,1039,1050-1051,1081-1082,1089,1139,1167,1177-1190,1202-1204,1214,1222,1228,1236,1243
+sdk-python/tests/test_server_codes_and_search.py
+  h_e7759ddd73fa65 1-379
+sdk-python/tests/test_services_contract.py
+  h_e7759ddd73fa65 1-486
+sdk-python/tests/test_stream_isolation.py
+  h_e7759ddd73fa65 22,264
+sdk-python/tests/test_sync_surface.py
+  h_e7759ddd73fa65 49,174-176,180-188,362,475-476,495,497-498,542,555-556,575,619,663,674,778,816-835
+sdk-python/tests/test_terminal_report.py
+  h_e7759ddd73fa65 1-413
+sdk-python/tests/test_toolbox_surface.py
+  h_e7759ddd73fa65 212,249,257-339,405,407,414-415,445,450,1007,1044,1085-1088,1103,1406,1430,1600-1609,2639,2641,2643,2649,2659,2662,2664,2666-2669,2756-2792
+sdk-python/tests/test_unbounded_waits.py
+  h_e7759ddd73fa65 1-267
+sdk-python/tests/test_volume_pull.py
+  h_e7759ddd73fa65 61,74,83-89,132-134,179,185
+sdk-python/tests/test_wait_deadlines.py
+  h_e7759ddd73fa65 1-290
+sdk-python/tests/test_wait_final_read.py
+  h_e7759ddd73fa65 1-293
+sdk-python/tests/test_wait_query_states.py
+  h_e7759ddd73fa65 1-54
+sdk-python/uv.lock
+  h_e7759ddd73fa65 268,286,290,306-314,849-861
+sdk-typescript/DEVELOPMENT.md
+  h_e7759ddd73fa65 15-19,21-25,27-76,80,82,84-86,95-97,99-101,105-107,161,206-215,246-249,251-254,311-313
+sdk-typescript/README.md
+  h_e7759ddd73fa65 52-53,60-61,65-72,79,89-95,107,163-164,228-237,242-243,249,251-253,262,269-271,288,307-310,319,337-339,341-355,363-364,372-374,382-383,385-386,391,394-395,398-407,409,411-437,441-447,464,468,471,480-492,495,523-565,568-593,600-605,631-632,637-639,647-653,667,669-676,695-706,710-714,718-721,727,738-744,759-761,766-767,775-776,857-862,871,875-881,956-959,975-980,986,989-994,1016,1019-1021,1023-1024,1034-1039,1043-1080,1084-1085,1098-1102,1106-1107,1134-1139
+sdk-typescript/src/Daytona.ts
+  h_e7759ddd73fa65 28,51-71,181,228,281
+sdk-typescript/src/types.ts
+  h_e7759ddd73fa65 20-21
+sdk-typescript/src/v0-unbundled.ts
+  h_e7759ddd73fa65 25
+sdk-typescript/src/v2/BuildLogs.ts
+  h_e7759ddd73fa65 6-9,11-12,19-21,26-30,33-39,42-47,50-51,66,76-79,90-91,114-125,127,130-134,152-161,215-218,253,258,292-294,315-316,417-426,437,446,449,461-465,518,543,545-552,557-558,574,588-598,607,634,652
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  h_e7759ddd73fa65 68,124,129,133,137,347,366,372
+sdk-typescript/src/v2/Daytona.ts
+  h_e7759ddd73fa65 6,8-10,12-15,18,22-29,31,33-34,36,41-42,57,61-80,82,86-88,102,109-110,127-128,136-137,142,148,152,159,162-163,175,186,202,212,221,224-230,247,254-259,261-263,266-267,272,274,278,289,293-294,299,305-306,310,313,317,334-339,342-343,345-346,353,358,363-364,373,376-381,386-393
+sdk-typescript/src/v2/Docker.ts
+  h_e7759ddd73fa65 8-9,15-17,21-28,31-32,35,40,43,46-49,83-89,110,113-116
+sdk-typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 14,26-27,29,297-300,326,349-351,353-355,358,365,371,378,403-404,406-412,415,417,434,439,450,452,463,468,474,480-481,485-498,521,523-524,722-731,736-737,744,752
+sdk-typescript/src/v2/Git.ts
+  h_e7759ddd73fa65 12,16,70-79,98,146,148,158,166,233-234,240,245-250,272-284
+sdk-typescript/src/v2/Image.ts
+  h_e7759ddd73fa65 6-7,9,12-28,30-33,36,38,40-42,45-47,52,59-67,69,71,73,78,83,85-92,99-100,103,106,109,113-119,122-123,126,132,135,139-148,150-153,158,165-204,207,215
+sdk-typescript/src/v2/ImageBuilder.ts
+  h_e7759ddd73fa65 1-182
+sdk-typescript/src/v2/Images.ts
+  h_e7759ddd73fa65 6-10,15-22,26-71,74-75,77-89,95-102,104,108,119,122-127,129-185,188-189,192-196,199-200,203-204,217-220,223-230,239-240,247,254-256,258,260,262-267,269-274,277,280,305-307,310-314,318
+sdk-typescript/src/v2/Interpreter.ts
+  h_e7759ddd73fa65 28,471,494-496
+sdk-typescript/src/v2/MacModels.ts
+  h_e7759ddd73fa65 6-7,10-11,13-27,35-40,45,47-57,60-82
+sdk-typescript/src/v2/NetworkPolicy.ts
+  h_e7759ddd73fa65 7,9-10,14,39,41-42,57-61,72,74,83,106,111-112,118,123,137
+sdk-typescript/src/v2/Ports.ts
+  h_e7759ddd73fa65 6-10,13-14,21-23,47-50,57-67,81-85,90,94-95,110-111,133,135-144,152,158-161,167-170,173-175,178-182,184,186,188-189,193,210-212,215,217-218,224-226,241-247,250,260-261,292,294-295,307-308,312-315,321-322,328-329,333
+sdk-typescript/src/v2/Process.ts
+  h_e7759ddd73fa65 26,28,68-69,117-120,124,149-151,208,268-272,277-278,281
+sdk-typescript/src/v2/ProcessHandle.ts
+  h_e7759ddd73fa65 15,22,24,84,91,110,133,139,156,167,191,194-198,202,211,219
+sdk-typescript/src/v2/ProcessRun.ts
+  h_e7759ddd73fa65 12,61
+sdk-typescript/src/v2/ProcessWire.ts
+  h_e7759ddd73fa65 15,18,189-192,194-195,205-217,241-243,249
+sdk-typescript/src/v2/Reservations.ts
+  h_e7759ddd73fa65 6-9,12-15,17,20-22,24-61,64-65,68,81-86,97,100-103,111,114-124,129-130,135-138,142,156,161,164-165,176-182,192
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 6-10,12-14,19,26,31-32,39-40,45-55,61-62,97,99,101-103,107,114-134,173-175,232,234-235,284-302,304-323,325,327-341,343,346-347,351-355,359,361-364,370,374-375,390-396,399-400,403-405,408,413,424,476,481,497,547,555,558-569,571-585,587,595,657-659,666-667,682-701,705-719,722-723,731,736,739-746,750,754-758,761-762,766,770-771,774-775,779,796-797,799-804,806-827,830-832,835-844,846-897,903-906,910-912,916,927,929,939-940,966-967,992-993,996-997,1011-1013,1025-1027,1036-1038,1058,1066-1067,1069-1074,1076-1083,1091-1093,1095-1097,1099-1102,1105-1110,1112-1113,1119-1121,1124-1136,1139-1147,1153-1156,1166-1168,1173,1192-1196
+sdk-typescript/src/v2/SandboxSecrets.ts
+  h_e7759ddd73fa65 7,9-10,23,25,34,39,46,60
+sdk-typescript/src/v2/SandboxVolumes.ts
+  h_e7759ddd73fa65 9-10,15-17,23,27,30-31,33,39-45,49,60-66,70-71,74-76,78-79,82,86
+sdk-typescript/src/v2/Secret.ts
+  h_e7759ddd73fa65 7,17-21,24-25,28-30,33-39,46-54,62-77,79-86,91-94,98,113-114,117,119-153,157
+sdk-typescript/src/v2/Session.ts
+  h_e7759ddd73fa65 14,43-44,53,57-59,115
+sdk-typescript/src/v2/Snapshots.ts
+  h_e7759ddd73fa65 6-9,15-19,21-30,33-38,42-43,45,47-48,51-52,65-68,72
+sdk-typescript/src/v2/Volume.ts
+  h_e7759ddd73fa65 6-10,13-14,16,20-22,30,33,36-39,42-55,64-69,73-80,89-97,101-108,112,114-115,119,124,138-150,152,155-156,162-176,178-181,185-190
+sdk-typescript/src/v2/accountMappers.ts
+  h_e7759ddd73fa65 1-116
+sdk-typescript/src/v2/accountTypes.ts
+  h_e7759ddd73fa65 1-89
+sdk-typescript/src/v2/archiveWalk.ts
+  h_e7759ddd73fa65 1-105
+sdk-typescript/src/v2/artifactOptions.ts
+  h_e7759ddd73fa65 1-82
+sdk-typescript/src/v2/boundedAdapter.ts
+  h_e7759ddd73fa65 148-149,238,257-258,298
+sdk-typescript/src/v2/builderLocalSource.ts
+  h_e7759ddd73fa65 1-77
+sdk-typescript/src/v2/builderText.ts
+  h_e7759ddd73fa65 1-198
+sdk-typescript/src/v2/clientConfig.ts
+  h_e7759ddd73fa65 1-154
+sdk-typescript/src/v2/clientCreate.ts
+  h_e7759ddd73fa65 1-177
+sdk-typescript/src/v2/clientCreateNames.ts
+  h_e7759ddd73fa65 1-96
+sdk-typescript/src/v2/clientCreateOptions.ts
+  h_e7759ddd73fa65 1-156
+sdk-typescript/src/v2/clientCreateRequests.ts
+  h_e7759ddd73fa65 1-154
+sdk-typescript/src/v2/clientOptionKeys.ts
+  h_e7759ddd73fa65 1-175
+sdk-typescript/src/v2/clientSandboxes.ts
+  h_e7759ddd73fa65 1-149
+sdk-typescript/src/v2/clientSearch.ts
+  h_e7759ddd73fa65 1-210
+sdk-typescript/src/v2/codes.ts
+  h_e7759ddd73fa65 77-84,86-88,195-197,199-200,257-264,266-268,401
+sdk-typescript/src/v2/contextArchive.ts
+  h_e7759ddd73fa65 1-125
+sdk-typescript/src/v2/contextEntries.ts
+  h_e7759ddd73fa65 1-101
+sdk-typescript/src/v2/contextPath.ts
+  h_e7759ddd73fa65 1-27
+sdk-typescript/src/v2/contextTar.ts
+  h_e7759ddd73fa65 1-154
+sdk-typescript/src/v2/contextUpload.ts
+  h_e7759ddd73fa65 1-373
+sdk-typescript/src/v2/dockerignore.ts
+  h_e7759ddd73fa65 1-142
+sdk-typescript/src/v2/dockerignoreClass.ts
+  h_e7759ddd73fa65 1-124
+sdk-typescript/src/v2/dockerignoreNfa.ts
+  h_e7759ddd73fa65 1-89
+sdk-typescript/src/v2/dockerignorePattern.ts
+  h_e7759ddd73fa65 1-228
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  h_e7759ddd73fa65 130,136,138-141,144-145,147,150-158,162-179,284-290,323,336,369-373,536,582-587,650-657,659-661,705,778,858-875,958,996,1015-1018,1066,1112
+sdk-typescript/src/v2/events.ts
+  h_e7759ddd73fa65 13,111-135,497,517-520,593-598,616-621,654-660,684,810-812,824-825,839-842,845,878,893-894,979-981,984,1433,1441,1563-1565,1601,1907-1911,1951-1952,2066-2122,2137-2138,2159-2160,2180-2181,2240-2246,2286,2304,2335,2353
+sdk-typescript/src/v2/filesystemInputs.ts
+  h_e7759ddd73fa65 1-53
+sdk-typescript/src/v2/filesystemWire.ts
+  h_e7759ddd73fa65 6,209
+sdk-typescript/src/v2/gen/api-enums.ts
+  h_e7759ddd73fa65 3,24-26,31
+sdk-typescript/src/v2/gen/api-types.ts
+  h_e7759ddd73fa65 27-30
+sdk-typescript/src/v2/gen/api.ts
+  h_e7759ddd73fa65 530,547,1206-1225,1267-1578,2066,2107,2143,2550,2570-2571,2818,3601,3606-3610,3615,3628-3630,3638,3642,3652,3666,3672-3677,3700-3729,3731-3734,3764-3770,3772-3773,3775-3779,3781-3793,3828,3934-3936,4277-4278,4406-4407,4594-4595,4736,4740,4763,4773,4777,4784,4796,4846,4870-4872,4877-4879,4884-4886,4916,4928-4929,4959,4981,5044-5046,5139,5245-5246,5251-5252,5314-5476,5549-5560,5637-5641,5657-5661,5703-5715,6060-6094,6121-6223,6284-6305,6310-6329,6413,6420-6422,6521-6522,6684-6696,7159,7171-7186,7190,7193-7202,7204-7207,7226,7241,7671-7675,7800-7801,7806-7807,7814-7817,8716-8725,9329,12517-13889,13896,13901,13911-13931,13934,13941-13944,13948,13950,13957,13960-13963,13972-13973,13982-13983,13985,13995,14007,14014,14031,14043,14047-14048,14054,14057,14079-14088,14091,14098-14099,14105-14106,14111-14113,14117,14129,14136-14137,14141,14143-14153,14159,14162-14163,14172-14173,14184,14186,14191-14192,14196-14200,14202,14209,14212,14223-14224,14234-14243,14246,14253-14254,14260,14264-14265,14271,14274,14285-14286,14296,16163-16172,16264-16273,16468,16668,16844,16865-16874,16904-16908,17040-17049,17098,17344,17392,17464,17525-17534,17585-17594,17883-17892,17941-17950,17991,18013-18022,18095,18117-18126,18168,18190-18199,18308-18317,18364,18640,18670
+sdk-typescript/src/v2/http.ts
+  h_e7759ddd73fa65 8,10,227-228,641-642,664-665,702-704,1022,1294,1557,1570,1588,1661-1662,1675,2210
+sdk-typescript/src/v2/imageModel.ts
+  h_e7759ddd73fa65 1-33
+sdk-typescript/src/v2/index.ts
+  h_e7759ddd73fa65 12,42,71,73,76-78,81,83,140,197,201-206,215,233,249-256,332-335
+sdk-typescript/src/v2/listPage.ts
+  h_e7759ddd73fa65 1-27
+sdk-typescript/src/v2/macMappers.ts
+  h_e7759ddd73fa65 1-30
+sdk-typescript/src/v2/macTypes.ts
+  h_e7759ddd73fa65 1-133
+sdk-typescript/src/v2/options.ts
+  h_e7759ddd73fa65 8,67-153,175,178-180,191,194,240-242,247-266
+sdk-typescript/src/v2/pageParams.ts
+  h_e7759ddd73fa65 1-45
+sdk-typescript/src/v2/pathSegment.ts
+  h_e7759ddd73fa65 8,21-29,32,34,40,56-65
+sdk-typescript/src/v2/pyText.ts
+  h_e7759ddd73fa65 1-38
+sdk-typescript/src/v2/region.ts
+  h_e7759ddd73fa65 1-27
+sdk-typescript/src/v2/resources.ts
+  h_e7759ddd73fa65 1-23
+sdk-typescript/src/v2/responseFields.ts
+  h_e7759ddd73fa65 1-150
+sdk-typescript/src/v2/rfc3339.ts
+  h_e7759ddd73fa65 1-24
+sdk-typescript/src/v2/sandboxAuth.ts
+  h_e7759ddd73fa65 1-235
+sdk-typescript/src/v2/sandboxMetadata.ts
+  h_e7759ddd73fa65 1-210
+sdk-typescript/src/v2/sandboxWait.ts
+  h_e7759ddd73fa65 1-239
+sdk-typescript/src/v2/sha256.ts
+  h_e7759ddd73fa65 1-102
+sdk-typescript/src/v2/toolboxModels.ts
+  h_e7759ddd73fa65 17-18,121-125
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 140-171,181-192,202-206,234,242,247,260,262,264,266,268,270-276,280-281,285-287,292-299,307-310,314-321,325-332,386-389,402-406,416-418,433-443,447-449,455,457-461,478,493-507,513-514,517,519-520,525-527,529-534,536,543-544,546,552,557,561-568,575-583,587-588,595,599-600,611,615,618,620,628,647,670,680-683,686-690,713-719,727,732-736,740,742-743,749-751,753-761,763-764,766,768-779,781,783,788-793,795,798-801,805-808,832-833,835,846-850,903-908,935-941,1027,1029,1031,1035-1037,1046,1049,1057,1133-1137,1284-1293,1325-1330,1373-1378,1381,1384,1390-1395
+sdk-typescript/tests/account-models.test.ts
+  h_e7759ddd73fa65 1-103
+sdk-typescript/tests/acquisition-reads.test.ts
+  h_e7759ddd73fa65 1-148
+sdk-typescript/tests/argument-checks.test.ts
+  h_e7759ddd73fa65 1-810
+sdk-typescript/tests/artifact-deadlines.test.ts
+  h_e7759ddd73fa65 1-101
+sdk-typescript/tests/artifact-models.test.ts
+  h_e7759ddd73fa65 1-99
+sdk-typescript/tests/artifact-options.test.ts
+  h_e7759ddd73fa65 1-108
+sdk-typescript/tests/artifact-waits-contract.test.ts
+  h_e7759ddd73fa65 1-111
+sdk-typescript/tests/artifact-waits.test.ts
+  h_e7759ddd73fa65 1-83
+sdk-typescript/tests/artifactFixtures.ts
+  h_e7759ddd73fa65 1-43
+sdk-typescript/tests/build-context-upload.test.ts
+  h_e7759ddd73fa65 1-656
+sdk-typescript/tests/build-log-options.test.ts
+  h_e7759ddd73fa65 1-56
+sdk-typescript/tests/build-logs.test.ts
+  h_e7759ddd73fa65 100-104,179-254,380-389,399-400,402,406-410,570-578,580-584,588-605,760,778,856,924
+sdk-typescript/tests/client-config.test.ts
+  h_e7759ddd73fa65 412,454-455
+sdk-typescript/tests/client-input-lifecycle.test.ts
+  h_e7759ddd73fa65 1-211
+sdk-typescript/tests/client-lifecycle-options.test.ts
+  h_e7759ddd73fa65 1-166
+sdk-typescript/tests/client-response-cap.test.ts
+  h_e7759ddd73fa65 1-73
+sdk-typescript/tests/connect-options.test.ts
+  h_e7759ddd73fa65 1-72
+sdk-typescript/tests/contextTar.ts
+  h_e7759ddd73fa65 1-61
+sdk-typescript/tests/contextUploadServer.ts
+  h_e7759ddd73fa65 1-102
+sdk-typescript/tests/cpu-max-step.test.ts
+  h_e7759ddd73fa65 1-69
+sdk-typescript/tests/create-hold.test.ts
+  h_e7759ddd73fa65 1-58
+sdk-typescript/tests/create-values.test.ts
+  h_e7759ddd73fa65 1-94
+sdk-typescript/tests/create-wait-failures.test.ts
+  h_e7759ddd73fa65 1-82
+sdk-typescript/tests/credential-inspection.test.ts
+  h_e7759ddd73fa65 10,16,20,29-36,86,116,121,135,137,140,142
+sdk-typescript/tests/docker-wait-seconds.test.ts
+  h_e7759ddd73fa65 1-80
+sdk-typescript/tests/dockerignore-errors.test.ts
+  h_e7759ddd73fa65 1-26
+sdk-typescript/tests/dockerignore.test.ts
+  h_e7759ddd73fa65 1-313
+sdk-typescript/tests/error-media-type.test.ts
+  h_e7759ddd73fa65 1-47
+sdk-typescript/tests/errors-contract.test.ts
+  h_e7759ddd73fa65 118,193
+sdk-typescript/tests/events.test.ts
+  h_e7759ddd73fa65 187-192,209-223,1220-1595,2387-2418,2601-2682
+sdk-typescript/tests/frozen-results.test.ts
+  h_e7759ddd73fa65 1-229
+sdk-typescript/tests/fs-git-inputs.test.ts
+  h_e7759ddd73fa65 1-150
+sdk-typescript/tests/handle-json-fixture.test.ts
+  h_e7759ddd73fa65 1-122
+sdk-typescript/tests/helpers/client.ts
+  h_e7759ddd73fa65 1-20
+sdk-typescript/tests/helpers/sandbox.ts
+  h_e7759ddd73fa65 1-27
+sdk-typescript/tests/image-builder-archive.test.ts
+  h_e7759ddd73fa65 1-132
+sdk-typescript/tests/image-builder-cleanup.test.ts
+  h_e7759ddd73fa65 1-93
+sdk-typescript/tests/image-builder-context.test.ts
+  h_e7759ddd73fa65 1-274
+sdk-typescript/tests/image-builder-directory-parity.test.ts
+  h_e7759ddd73fa65 1-141
+sdk-typescript/tests/image-builder-directory.test.ts
+  h_e7759ddd73fa65 1-83
+sdk-typescript/tests/image-builder-escape.test.ts
+  h_e7759ddd73fa65 1-99
+sdk-typescript/tests/image-builder-ignore-errors.test.ts
+  h_e7759ddd73fa65 1-16
+sdk-typescript/tests/image-builder-parity.test.ts
+  h_e7759ddd73fa65 1-178
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  h_e7759ddd73fa65 1-253
+sdk-typescript/tests/image-builder-source-safety.test.ts
+  h_e7759ddd73fa65 1-109
+sdk-typescript/tests/image-builder-upload.test.ts
+  h_e7759ddd73fa65 1-123
+sdk-typescript/tests/image-builder-utf8.test.ts
+  h_e7759ddd73fa65 1-148
+sdk-typescript/tests/image-pull-deadline.test.ts
+  h_e7759ddd73fa65 6,14,27,62,64,78,80,90,92-94,98,109,112,114-115,120,125-126,129,132,144,147-150,160-163,169-170,175,177-178,180,183-184,186,188-193,198,210,212
+sdk-typescript/tests/image-pull-wait.test.ts
+  h_e7759ddd73fa65 8-9,18,30,41,51,56,60,69,80,82,93,98
+sdk-typescript/tests/imageBuilderContextFixture.ts
+  h_e7759ddd73fa65 1-82
+sdk-typescript/tests/internal-construction.test.ts
+  h_e7759ddd73fa65 1-15
+sdk-typescript/tests/jwt-handle-mint.test.ts
+  h_e7759ddd73fa65 1-67
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  h_e7759ddd73fa65 1-103
+sdk-typescript/tests/lifecycle-options.consumer.ts
+  h_e7759ddd73fa65 1-11
+sdk-typescript/tests/lifecycle-policy-reads.test.ts
+  h_e7759ddd73fa65 1-30
+sdk-typescript/tests/list-pages.test.ts
+  h_e7759ddd73fa65 1-143
+sdk-typescript/tests/mac-models.test.ts
+  h_e7759ddd73fa65 1-47
+sdk-typescript/tests/malformed-responses.test.ts
+  h_e7759ddd73fa65 1-888
+sdk-typescript/tests/networkPolicyTestServer.ts
+  h_e7759ddd73fa65 74-84
+sdk-typescript/tests/networkPolicyValidation.test.ts
+  h_e7759ddd73fa65 15,44-67,96,105,112
+sdk-typescript/tests/networkPolicyWire.test.ts
+  h_e7759ddd73fa65 7-8,10,49-50,96-99,120-123,125,162-165,170-176,197,203,223,227-229
+sdk-typescript/tests/null-options.test.ts
+  h_e7759ddd73fa65 1-112
+sdk-typescript/tests/options-objects.test.ts
+  h_e7759ddd73fa65 1-115
+sdk-typescript/tests/platform-inputs.test.ts
+  h_e7759ddd73fa65 1-108
+sdk-typescript/tests/platform-options.test.ts
+  h_e7759ddd73fa65 1-87
+sdk-typescript/tests/ports-models.test.ts
+  h_e7759ddd73fa65 1-50
+sdk-typescript/tests/process-tags.test.ts
+  h_e7759ddd73fa65 12,25
+sdk-typescript/tests/public-declarations.test.ts
+  h_e7759ddd73fa65 18
+sdk-typescript/tests/public-surface-generated.test.ts
+  h_e7759ddd73fa65 224-232
+sdk-typescript/tests/published-declarations.test.ts
+  h_e7759ddd73fa65 1-73
+sdk-typescript/tests/py-text.test.ts
+  h_e7759ddd73fa65 1-29
+sdk-typescript/tests/readme-quickstart.test.ts
+  h_e7759ddd73fa65 26,33,42,50,71,80-81
+sdk-typescript/tests/redirects.test.ts
+  h_e7759ddd73fa65 1-98
+sdk-typescript/tests/reservation-fields.test.ts
+  h_e7759ddd73fa65 9-10,42,68,74-75,81-83,96,101-112,120,126,136,139-156
+sdk-typescript/tests/root-client.test.ts
+  h_e7759ddd73fa65 493,564
+sdk-typescript/tests/root-config-snapshot.test.ts
+  h_e7759ddd73fa65 29
+sdk-typescript/tests/sandbox-fork.test.ts
+  h_e7759ddd73fa65 1-203
+sdk-typescript/tests/sandbox-lifecycle.test.ts
+  h_e7759ddd73fa65 1-125
+sdk-typescript/tests/sandbox-metadata.test.ts
+  h_e7759ddd73fa65 1-140
+sdk-typescript/tests/sandbox-mint-availability.test.ts
+  h_e7759ddd73fa65 1-37
+sdk-typescript/tests/sandbox-not-running.test.ts
+  h_e7759ddd73fa65 1-55
+sdk-typescript/tests/sandbox-region.test.ts
+  h_e7759ddd73fa65 7,19,23,28,50,73,83
+sdk-typescript/tests/sandbox-response-compatibility.test.ts
+  h_e7759ddd73fa65 28-29
+sdk-typescript/tests/sandbox-waits.test.ts
+  h_e7759ddd73fa65 1-270
+sdk-typescript/tests/sandboxSecretsParity.test.ts
+  h_e7759ddd73fa65 33,35,73,106,117,128,154,175,191,195,223,225,244-245
+sdk-typescript/tests/sandboxSecretsValidation.test.ts
+  h_e7759ddd73fa65 10,32,41,48,65-66
+sdk-typescript/tests/sandboxSecretsWire.test.ts
+  h_e7759ddd73fa65 9,41-43,68-69,74-77
+sdk-typescript/tests/sdk-raised-errors.test.ts
+  h_e7759ddd73fa65 39,44-45,56,79-80
+sdk-typescript/tests/search-options.consumer.ts
+  h_e7759ddd73fa65 8,13,17,19-20,26-27
+sdk-typescript/tests/secrets-service.test.ts
+  h_e7759ddd73fa65 1-84
+sdk-typescript/tests/server-codes-and-search.test.ts
+  h_e7759ddd73fa65 1-233
+sdk-typescript/tests/sessions.test.ts
+  h_e7759ddd73fa65 106,112,127,188,196
+sdk-typescript/tests/symbol-keys.test.ts
+  h_e7759ddd73fa65 46
+sdk-typescript/tests/terminal-report.test.ts
+  h_e7759ddd73fa65 1-159
+sdk-typescript/tests/transport-url-diagnostics.test.ts
+  h_e7759ddd73fa65 9,13-14,29,34-35,59-60,62
+sdk-typescript/tests/unbounded-waits.test.ts
+  h_e7759ddd73fa65 1-129
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 23-24,45-46,49,70,87,141,151-152,158,165-176,243,292-296,439-454,474,482-483,623-646,815,820,834,838,867-868,895,910-911,929,949,953,978-979,984-985,991,993-994,996-998,1003-1004,1145-1146,1157-1158,1166,1168,1181,1189-1192,1197,1207,1214-1217,1219-1221,1237-1239,1248,1259,1270,1286,1291,1303-1305,1312-1314,1316-1318,1331-1332,1339-1340,1363-1364,1366,1374,1384-1385,1407-1408,1416-1417,1456,1466,1468,1471,1475,1477,1489,1528-1529,1545,1553,1556,1576-1578,1580,1584,1588,1598,1610-1612,1624-1625,1634,1636,1649,1653,1683,1703,1719,1745,1768,1779,1797,1803-1804,1809-1812,1821,1841-1842,1848,1850,1862,1884,1892,1894,1922,1940,1975,1979-1980,1983,1989,1994-1995,1997,2000,2003,2008,2011,2047,2056,2073,2081,2104,2125,2135,2150-2151,2181,2188,2199-2201,2203,2208,2210,2253,2263,2275,2290-2291,2308,2325,2343,2345-2346,2348,2357-2358,2363,2367,2370,2372-2373,2377-2378,2381,2391,2393-2394,2405,2408-2410,2412,2414,2419,2421-2422,2424,2432-2435,2443-2444,2446,2457-2458,2460,2476-2477,2479,2488,2490-2491,2493,2495,2497-2499,2505-2506,2508,2510,2526,2529,2553-2554,2556,2585,2594,2596,2648,2650-2652,2654,2663,2669-2671,2682,2684-2686,2688,2691-2693,2696-2702,2705-2706,2708-2710,2714,2716,2720-2721,2727,2730-2732,2738,2744,2746,2748-2749,2752,2756-2759,2767,2772-2774,2780,2786-2789,2792,2794,2808-2810,2814,2839,2842,2858-2864,2867,2884-2885,2889,2896,2902,2909,2924-2925,2928-2929,2945,2957,2962,2981-2983,2986-2987,3003-3004,3007,3039,3047,3049-3051,3053,3064,3074-3075,3077,3095-3096,3112,3114,3131,3133,3139-3161,3166,3168,3183,3185,3199-3200,3214-3215,3226-3227,3241-3242,3252-3253,3264,3266,3282,3293,3303,3314,3328,3337-3338,3359-3360,3362,3386,3396-3398,3405-3406,3419-3420,3442,3448-3449,3554,3556,3564,3574,3594-3595,3597,3613,3616,3626,3645,3653,3657,3661,3674,3681,3684-3691,3717-3720,3725,3741,3751,3753,3756,3761-3778,3783,3811,3837,3851,3854,3867,3873,3883,3891,3899,3918,3935,3940,3948-3949,3953,3955,3965,3975-3976,4015,4915,4946,4950,4994,5724,5726,5747,5749,5965-5967,6696,6934,7040,7042-7045,7051,7062,7064-7065,7067,7078,7081-7082,7084-7085,7087-7088,7093,7098,7100,7103-7106,7110-7113,7117,7122,7124,7126-7128,7132-7134,7137-7139,7141,7143-7144,7146-7150,7164,7166,7168,7176,7203,7205-7210,7213,7263,7266,7383,7476,7500,7521,7539-7541,7562-7564,7573,7591,7637,7664,7676,7739,7742,8049,8230,8307,8404,8415,8420-8421,8427,8444,8448-8454,8460,8472-8474,8480,8483,8486,8492-8493,8505-8513,8518-8519,8534,8545-8546,8561-8562,8601-8602,8659-8660,8680,8690,8705,8707,8715,8721,8734-8736,8739-8740,8743,8749,8751,8754-8756,8759,8774,8793-8794,8796-8799,8801,8804,8806-8807,8827-8828,8849-8850,8873,8875,8904,8908-8909,8912,8924,8927,8942-8943,8958-8959,8964-8968,8997-8998,9131-9132,9135-9136,9138,9140,9237-9238,9575-9601,9676,9680-9682,9830,9892,9897,9900,9909,9920,9928,9932,9940,9955,9960,9962,9969,9971-9974,9976-9985,9995-9996,10022,10031,10034,10052,10059,10064,10066,10068,10073,10083,10094,10100,10107,10117,10119-10120,10129-10131,10137-10138,10149,10155-10156,10166,10188,10192,10200,10267,10279,10298,10302-10306,10328,10332,10335,10340,10349,10354,10359,10363-10366,10402,10404-10406,10411,10425-10426,10440,10450,10454,10456,10475,10483,10489-10491,10497,10499-10501,10509-10511,10521-10522,10526,10534-10535,10537,10542,10550,10552-10554,10596,10620,10633-10637,10667-10668,10670,10698-10704,10711-10713,10717-10720,10831-10836,10846,10858,10865-10866,10882,10900-10901,10915,10921,10957,10974,10993,11006,11024,11026,11045,11062,11077,11092,11094,11110,11116,11129,11156,11221,11530,11533,11535,11538,11543-11545,11547-11548,11553,11618,11620,12361,12364,12371,12381-12382,12394,12406,12422,12435,12446,12459,12468,12478,12480,12494-12496,12645-12653,12670-12671,12677,12826-12827,12831-12904,13417,13560-13567,13569-13572,13726,13730,13782-13788,13890
+sdk-typescript/tests/volume-pull.test.ts
+  h_e7759ddd73fa65 9,28,45,51,53,65-66,71-72,75-78,83,89-95,99,105-107,118,126
+sdk-typescript/tests/volumes-service.test.ts
+  h_e7759ddd73fa65 1-132
+sdk-typescript/tests/wait-final-read.test.ts
+  h_e7759ddd73fa65 1-243
+sdk-typescript/tests/wait-query-states.test.ts
+  h_e7759ddd73fa65 1-45
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 31-32,49-50,87-91,93,99-100,102-104,106-108,120-121,132-133,148-151,157-160,171-175,181-185,215,223-224,226,229-230,241,249-250,253,260-261,269-270,272,275-276,284,296,298-299,306-307,318-319,324-338,344-358,381,406,516-517,520-522,611-614,636-637,661
+upgrade/mapping/mapping.json
+  h_e7759ddd73fa65 4,7,19-22,194-205,490,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1219,1222-1224,1244-1245,1248-1249,1270-1271,1274-1275,1295-1296,1299-1300,1321-1322,1325-1326,1346-1348,1351-1353,1373-1374,1377-1378,1399-1400,1404-1405,1427-1428,1433-1434,1456-1457,1462-1463,1676-1677,1680-1681,2937,2961,3033,3057,3081,3277-3278,3301-3302,3326-3327,3402,3427,3454,3482,3508,3532,3604,3827-3830,3832-3833,3838-3841,3843-3844,3849-3873,3905-3906,3912-3913,3917-3918,3933,3940,3957,3965,3987,4005-4006,4011-4014,4017-4020,4034-4035,4044,4059-4060,4067,4072,4117-4118,4124-4125,4130-4152,4258-4259,4264-4266,4269-4271,4285-4286,4291,4295,4310-4311,4316-4318,4321-4323,4337-4338,4343,4347,4361-4362,4388-4389,4411-4412,4436-4437,4461-4462,4627-4628,4635,4641,4656-4657,4665,4672,4712-4713,4718-4719,4722-4723,4789-4790,4796,4801,4816-4817,4824,4830,5012-5013,5022,5085,5091,5279,5285,5303-5304,5310,5314,5357-5358,5367,5382-5383,5389,5393,5561-5562,5568,5572,5586-5587,5593-5594,5598-5599
+upgrade/mapping/mapping.schema.json
+  h_e7759ddd73fa65 18,64,78-81,187-203,410-430,458-477
+upgrade/python/DEVELOPMENT.md
+  h_e7759ddd73fa65 184
+upgrade/python/README.md
+  h_e7759ddd73fa65 17,65-67,72-73
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  h_e7759ddd73fa65 23-28,49-50,104-115,148-155,160-165,169-176,268-278,280
+upgrade/python/src/daytona_upgrade/analysis_filter.py
+  h_e7759ddd73fa65 18,82-84
+upgrade/python/src/daytona_upgrade/call_proofs.py
+  h_e7759ddd73fa65 15,55-56
+upgrade/python/src/daytona_upgrade/call_sites.py
+  h_e7759ddd73fa65 41-42
+upgrade/python/src/daytona_upgrade/dockerfile_images.py
+  h_e7759ddd73fa65 1-68
+upgrade/python/src/daytona_upgrade/flow.py
+  h_e7759ddd73fa65 21,48-55,216-219,223,229-235
+upgrade/python/src/daytona_upgrade/importflow.py
+  h_e7759ddd73fa65 18,28
+upgrade/python/src/daytona_upgrade/manifests.py
+  h_e7759ddd73fa65 130-132
+upgrade/python/src/daytona_upgrade/mapping.json
+  h_e7759ddd73fa65 4,7,19-22,194-205,490,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1219,1222-1224,1244-1245,1248-1249,1270-1271,1274-1275,1295-1296,1299-1300,1321-1322,1325-1326,1346-1348,1351-1353,1373-1374,1377-1378,1399-1400,1404-1405,1427-1428,1433-1434,1456-1457,1462-1463,1676-1677,1680-1681,2937,2961,3033,3057,3081,3277-3278,3301-3302,3326-3327,3402,3427,3454,3482,3508,3532,3604,3827-3830,3832-3833,3838-3841,3843-3844,3849-3873,3905-3906,3912-3913,3917-3918,3933,3940,3957,3965,3987,4005-4006,4011-4014,4017-4020,4034-4035,4044,4059-4060,4067,4072,4117-4118,4124-4125,4130-4152,4258-4259,4264-4266,4269-4271,4285-4286,4291,4295,4310-4311,4316-4318,4321-4323,4337-4338,4343,4347,4361-4362,4388-4389,4411-4412,4436-4437,4461-4462,4627-4628,4635,4641,4656-4657,4665,4672,4712-4713,4718-4719,4722-4723,4789-4790,4796,4801,4816-4817,4824,4830,5012-5013,5022,5085,5091,5279,5285,5303-5304,5310,5314,5357-5358,5367,5382-5383,5389,5393,5561-5562,5568,5572,5586-5587,5593-5594,5598-5599
+upgrade/python/src/daytona_upgrade/models.py
+  h_e7759ddd73fa65 75-90,114-133,185-193,197,225-232
+upgrade/python/src/daytona_upgrade/optional_arguments.py
+  h_e7759ddd73fa65 1-83
+upgrade/python/src/daytona_upgrade/partial_analysis.py
+  h_e7759ddd73fa65 17,72
+upgrade/python/src/daytona_upgrade/project.py
+  h_e7759ddd73fa65 24,71,95,101-105,131-133
+upgrade/python/src/daytona_upgrade/project_configs.py
+  h_e7759ddd73fa65 14,59
+upgrade/python/src/daytona_upgrade/project_discovery.py
+  h_e7759ddd73fa65 20-25,93-94,118
+upgrade/python/src/daytona_upgrade/project_paths.py
+  h_e7759ddd73fa65 22-23,121-123,130-136,148-152,154-158,164,166-169
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  h_e7759ddd73fa65 16-47,61-68
+upgrade/python/src/daytona_upgrade/resolution.py
+  h_e7759ddd73fa65 86-90
+upgrade/python/src/daytona_upgrade/source_suffixes.py
+  h_e7759ddd73fa65 4-5,8,10-15
+upgrade/python/src/daytona_upgrade/suggestion_owners.py
+  h_e7759ddd73fa65 57-64,76-85,178-179,184-185
+upgrade/python/src/daytona_upgrade/suggestions.py
+  h_e7759ddd73fa65 15,94-98,100-108,111,118,125-127,130,148,150,159,212-217,278-281
+upgrade/python/tests/test_async_mock_spec_origins.py
+  h_e7759ddd73fa65 19
+upgrade/python/tests/test_cli.py
+  h_e7759ddd73fa65 314,345-362
+upgrade/python/tests/test_client_service_parity.py
+  h_e7759ddd73fa65 186-209
+upgrade/python/tests/test_dependency_fixes.py
+  h_e7759ddd73fa65 110-205
+upgrade/python/tests/test_dependency_namespace_endpoint_boundaries.py
+  h_e7759ddd73fa65 122-124
+upgrade/python/tests/test_dockerfile_image_suggestions.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/tests/test_multiline_workflow_guidance.py
+  h_e7759ddd73fa65 139-143,203
+upgrade/python/tests/test_suggestions.py
+  h_e7759ddd73fa65 84-88,108-112,129-133,270-272,281-488
+upgrade/scripts/check-v2-surface.mjs
+  h_e7759ddd73fa65 12,55-59,64-86
+upgrade/scripts/check-v2-surface.test.mjs
+  h_e7759ddd73fa65 29
+upgrade/scripts/docs-links.test.mjs
+  h_e7759ddd73fa65 1-48
+upgrade/scripts/gen-guide.mjs
+  h_e7759ddd73fa65 9,63-64,81-82,122,125-131
+upgrade/scripts/migration-notes.test.mjs
+  h_e7759ddd73fa65 61-126
+upgrade/scripts/optional-arguments.mjs
+  h_e7759ddd73fa65 1-64
+upgrade/scripts/optional-arguments.test.mjs
+  h_e7759ddd73fa65 1-66
+upgrade/scripts/v2-note-surface.test.mjs
+  h_e7759ddd73fa65 18
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 5-6,16,129-130
+upgrade/typescript/src/config.ts
+  h_e7759ddd73fa65 21,41-42,139-141,143
+upgrade/typescript/src/dockerfile-image.ts
+  h_e7759ddd73fa65 1-80
+upgrade/typescript/src/manifests.ts
+  h_e7759ddd73fa65 73-85,147
+upgrade/typescript/src/mapping.json
+  h_e7759ddd73fa65 4,7,19-22,194-205,490,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1219,1222-1224,1244-1245,1248-1249,1270-1271,1274-1275,1295-1296,1299-1300,1321-1322,1325-1326,1346-1348,1351-1353,1373-1374,1377-1378,1399-1400,1404-1405,1427-1428,1433-1434,1456-1457,1462-1463,1676-1677,1680-1681,2937,2961,3033,3057,3081,3277-3278,3301-3302,3326-3327,3402,3427,3454,3482,3508,3532,3604,3827-3830,3832-3833,3838-3841,3843-3844,3849-3873,3905-3906,3912-3913,3917-3918,3933,3940,3957,3965,3987,4005-4006,4011-4014,4017-4020,4034-4035,4044,4059-4060,4067,4072,4117-4118,4124-4125,4130-4152,4258-4259,4264-4266,4269-4271,4285-4286,4291,4295,4310-4311,4316-4318,4321-4323,4337-4338,4343,4347,4361-4362,4388-4389,4411-4412,4436-4437,4461-4462,4627-4628,4635,4641,4656-4657,4665,4672,4712-4713,4718-4719,4722-4723,4789-4790,4796,4801,4816-4817,4824,4830,5012-5013,5022,5085,5091,5279,5285,5303-5304,5310,5314,5357-5358,5367,5382-5383,5389,5393,5561-5562,5568,5572,5586-5587,5593-5594,5598-5599
+upgrade/typescript/src/mapping.ts
+  h_e7759ddd73fa65 64-67,69,87-88
+upgrade/typescript/src/model.ts
+  h_e7759ddd73fa65 22-23,41-42
+upgrade/typescript/src/optional-arguments.ts
+  h_e7759ddd73fa65 1-57
+upgrade/typescript/src/run.ts
+  h_e7759ddd73fa65 46-50
+upgrade/typescript/src/sandbox-owner.ts
+  h_e7759ddd73fa65 31-39
+upgrade/typescript/src/sdk-methods.ts
+  h_e7759ddd73fa65 42-74,80-106
+upgrade/typescript/src/source-safety.ts
+  h_e7759ddd73fa65 13,40-41
+upgrade/typescript/src/suggestions.ts
+  h_e7759ddd73fa65 8,17,20-21,87-129,133,156-158,169-171,184-191,193-194,197-199,201-202
+upgrade/typescript/tests/client-service-proofs.test.ts
+  h_e7759ddd73fa65 82-92,111,117-118,120-140
+upgrade/typescript/tests/config-alias-escape-boundaries.test.ts
+  h_e7759ddd73fa65 21,45
+upgrade/typescript/tests/config-observation-and-escape.test.ts
+  h_e7759ddd73fa65 11,122
+upgrade/typescript/tests/config-safety.test.ts
+  h_e7759ddd73fa65 72-87,99
+upgrade/typescript/tests/deployment-and-manifest-edge-cases.test.ts
+  h_e7759ddd73fa65 77
+upgrade/typescript/tests/dockerfile-image-suggestions.test.ts
+  h_e7759ddd73fa65 1-103
+upgrade/typescript/tests/indirect-config-url-sources.test.ts
+  h_e7759ddd73fa65 53
+upgrade/typescript/tests/optional-arguments.test.ts
+  h_e7759ddd73fa65 1-52
+upgrade/typescript/tests/property-client-service-proofs.test.ts
+  h_e7759ddd73fa65 39,48-49,51
+upgrade/typescript/tests/qualified-package-constraints.test.ts
+  h_e7759ddd73fa65 39-74
+upgrade/typescript/tests/root-import-and-package-constraints.test.ts
+  h_e7759ddd73fa65 86-96
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  h_e7759ddd73fa65 1-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7031dc5d975d0a17872279b614ce9fb0e4c4de9e",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

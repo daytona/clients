@@ -1,0 +1,25 @@
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ad074a7dcce098::t_eb5c45453924d7 606-613,615
+sdk-python/src/daytona/v2/_codes.py
+  s_ad074a7dcce098::t_eb5c45453924d7 85-92,94,232-239,241,403-410,412
+sdk-python/src/daytona/v2/errors.py
+  s_ad074a7dcce098::t_eb5c45453924d7 803-810,812
+sdk-typescript/src/v2/codes.ts
+  s_ad074a7dcce098::t_eb5c45453924d7 77-84,86,252-259,261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b07c1787e91e50b309eb6f076d0bfa028918bac7",
+  "prompts": {},
+  "sessions": {
+    "s_ad074a7dcce098": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b116abdffeFh8oykjJiSODXP",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

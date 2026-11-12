@@ -1,0 +1,66 @@
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_fe94e0818f255b 237-240
+sdk-typescript/src/v2/filesystemTransfers.ts
+  s_ca009e77d17705::t_fe94e0818f255b 6-7,306,389,429-430
+sdk-python/tests/test_client_config.py
+  s_ca009e77d17705::t_fe94e0818f255b 146,183-238,276-280,378-379,388-392
+sdk-python/tests/test_fs_transfer.py
+  s_ca009e77d17705::t_fe94e0818f255b 15,609,612-616,871-873,875
+sdk-python/src/daytona/v2/filesystem.py
+  s_ca009e77d17705::t_fe94e0818f255b 46,813-814
+sdk-typescript/src/v2/index.ts
+  s_ca009e77d17705::t_fe94e0818f255b 191
+sdk-typescript/src/v2/sandboxWait.ts
+  s_ca009e77d17705::t_3ea89445a2034d 144
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_fe94e0818f255b 60
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_99cccf2d758957 1149
+  s_ca009e77d17705::t_fe94e0818f255b 1146-1148,1213-1214,4111,4113-4114,4453,4475-4476,7289-7306,7313,8766
+sdk-typescript/src/v2/events.ts
+  s_ca009e77d17705::t_fe94e0818f255b 520,888,1080,1091,1174,1602
+sdk-typescript/tests/errors-contract.test.ts
+  s_ca009e77d17705::t_fe94e0818f255b 176-195
+sdk-python/src/daytona/v2/_auth.py
+  s_ca009e77d17705::t_fe94e0818f255b 6,14,17,155,163-191
+sdk-typescript/src/v2/clientCreateOptions.ts
+  s_ca009e77d17705::t_99cccf2d758957 57-58
+  s_ca009e77d17705::t_f6bda806b143fc 24-25
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_fe94e0818f255b 11329-11379
+  s_ca009e77d17705::t_f295cc4aff1f24 11380-11381
+sdk-typescript/src/v2/http.ts
+  s_ca009e77d17705::t_fe94e0818f255b 806-812,814,816,818-822,939-942,944
+sdk-typescript/tests/client-config.test.ts
+  s_ca009e77d17705::t_99cccf2d758957 19,342
+  s_ca009e77d17705::t_fe94e0818f255b 20-21,308,329-341,343-347,427-429,459-461,464,469-470,482-484,493,499,506-509,513-515
+AGENTS.md
+  s_ca009e77d17705::t_fe94e0818f255b 495-501
+changelog.d/537-request-timeout.breaking.md
+  s_ca009e77d17705::t_fe94e0818f255b 7-10
+sdk-typescript/tests/sdk-raised-errors.test.ts
+  s_ca009e77d17705::t_99cccf2d758957 39,44-45
+  s_ca009e77d17705::t_fe94e0818f255b 40-43,46-47
+sdk-python/src/daytona/v2/_transport.py
+  s_ca009e77d17705::t_fe94e0818f255b 69-72,643,902-904,906-908,910-916,1035-1036,1038-1043,1045-1056,1084,1086-1088
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_fe94e0818f255b 117-122,131-133,263-268,277-278
+changelog.d/537-error-constructors.breaking.md
+  s_ca009e77d17705::t_fe94e0818f255b 23-25,28-29,31,39-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19fd73cc27b232bd1e989034f6b3c1c227a524c6",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

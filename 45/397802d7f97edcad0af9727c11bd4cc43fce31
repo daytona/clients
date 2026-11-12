@@ -1,0 +1,18 @@
+changelog.d/594-macos-default-size.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/594-macos-persistent.changed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/595-macos-start-docs.changed.md
+  h_e7759ddd73fa65 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45397802d7f97edcad0af9727c11bd4cc43fce31",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

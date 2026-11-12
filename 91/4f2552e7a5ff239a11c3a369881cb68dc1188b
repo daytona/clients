@@ -1,0 +1,60 @@
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 79
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 44-49,80-82,439,732-733,763-765,782,822-823,827,842-843,903,918,973-1069,1213,1231,1319
+AGENTS.md
+  h_e7759ddd73fa65 420-422,430-431
+docs/RELEASING.md
+  h_e7759ddd73fa65 41,188-192,198-200,210-216
+docs/adr/0005-migration-tool-versions.md
+  h_e7759ddd73fa65 36-38,60-61
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 39,42-43,46-48
+upgrade/python/README.md
+  h_e7759ddd73fa65 10-12,15-17,48-50
+upgrade/python/tests/test_bounded_inputs.py
+  h_e7759ddd73fa65 39
+upgrade/scripts/check-examples.sh
+  h_e7759ddd73fa65 11,13,19,29,70-72,74,103-104,106
+upgrade/scripts/gen-guide.mjs
+  h_e7759ddd73fa65 70,73-74,77-79
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 99,164-180,182-184,186-188
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 8-10,13-15
+upgrade/typescript/package.json
+  h_e7759ddd73fa65 14
+upgrade/typescript/tests/bounded-environment-scan-inputs.test.ts
+  h_e7759ddd73fa65 28-29,41-42,52,88
+upgrade/typescript/tests/callback-budget-regression.test.ts
+  h_e7759ddd73fa65 36-37
+upgrade/typescript/tests/es5-callback-performance.test.ts
+  h_e7759ddd73fa65 40-41
+upgrade/typescript/tests/examples.test.ts
+  h_e7759ddd73fa65 38,50
+upgrade/typescript/tests/holder-helper-performance.test.ts
+  h_e7759ddd73fa65 39-40
+upgrade/typescript/tests/holder-performance.test.ts
+  h_e7759ddd73fa65 34-35
+upgrade/typescript/tests/installed-package-runtime.test.ts
+  h_e7759ddd73fa65 30
+upgrade/typescript/tests/output-bounded.test.ts
+  h_e7759ddd73fa65 22
+upgrade/typescript/tests/receiver-write-and-extraction-proofs.test.ts
+  h_e7759ddd73fa65 92
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 345,347
+upgrade/typescript/vitest.config.ts
+  h_e7759ddd73fa65 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "914f2552e7a5ff239a11c3a369881cb68dc1188b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

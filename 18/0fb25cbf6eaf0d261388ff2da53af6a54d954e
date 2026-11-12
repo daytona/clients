@@ -1,0 +1,19 @@
+sdk-python/tests/test_async_e2e.py
+  s_f1c42a35c4f4d9::t_90ca071c10527e 211-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "180fb25cbf6eaf0d261388ff2da53af6a54d954e",
+  "prompts": {},
+  "sessions": {
+    "s_f1c42a35c4f4d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e9f50e217ffe9E7juiueRe40Ho",
+        "model": "unknown"
+      },
+      "human_author": "Mislav Ivanda <mislavivanda454@gmail.com>"
+    }
+  }
+}

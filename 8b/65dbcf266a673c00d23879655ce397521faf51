@@ -1,0 +1,38 @@
+sdk-python/DEVELOPMENT.md
+  s_9a337fd66d5341::t_a27c98f679fdd2 177
+  s_9a337fd66d5341::t_86ab061307aa02 181-187
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_1c8a27641ca697 1978
+  s_9a337fd66d5341::t_1cb95d16536bed 2127-2226
+  s_9a337fd66d5341::t_53bb9728a690b3 2227-2265
+  s_9a337fd66d5341::t_df5f107b151642 2266-2305
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_48f3a14c2e27a6 324-345,350-353,359,361-364,375,377,379,383-394,418-425,429,434-436,444-448,457-461
+  s_9a337fd66d5341::t_09a8d30ac858f2 205-210,214-215,217
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_282a26bf672816 48-64
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_43bc654437a83d 11861-11865
+  s_9a337fd66d5341::t_03dca8a36199b7 11860
+  s_9a337fd66d5341::t_7295ce22427105 11834-11859,11869-11870,11874-11916
+  s_9a337fd66d5341::t_dc4aca2821c740 11866-11868,11871-11873
+sdk-python/src/daytona/v2/filesystem.py
+  s_9a337fd66d5341::t_e9289709a8f9c2 41
+  s_9a337fd66d5341::t_045abcdcd2f649 113-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b65dbcf266a673c00d23879655ce397521faf51",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

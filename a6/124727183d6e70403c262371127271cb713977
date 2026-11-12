@@ -1,0 +1,38 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 4611,4615,4619,4623,4627,4631,4635,4639,4645,4649,4670,4672,5100,5437,5439,5477,5486
+artifacts/sdk-docs/go-sdk/options.mdx
+  h_e7759ddd73fa65 989,1041
+artifacts/sdk-docs/java-sdk/sandbox.mdx
+  h_e7759ddd73fa65 560,1082,1095,1108,1121,1134,1147,1162,1175,1188,1201
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  h_e7759ddd73fa65 8-9,20-21
+sdk-go/pkg/daytona/enums.go
+  h_e7759ddd73fa65 14,17
+sdk-go/pkg/daytona/sandbox.go
+  h_e7759ddd73fa65 118,122,126,130,134,138,142,146,152,156,282,285,368,372,837
+sdk-go/pkg/options/client.go
+  h_e7759ddd73fa65 8,31
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  h_e7759ddd73fa65 865,1541,1549,1557,1565,1573,1581,1591,1599,1607,1615
+sdk-java/src/main/java/io/daytona/sdk/model/SandboxListSortDirection.java
+  h_e7759ddd73fa65 7
+sdk-java/src/main/java/io/daytona/sdk/model/SandboxListSortField.java
+  h_e7759ddd73fa65 7
+sdk-java/src/test/java/io/daytona/sdk/DaytonaWrapperTest.java
+  h_e7759ddd73fa65 56
+sdk-ruby/lib/daytona/sandbox.rb
+  h_e7759ddd73fa65 217-218
+sdk-typescript/src/__tests__/v1.test.ts
+  h_e7759ddd73fa65 223-239
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a6124727183d6e70403c262371127271cb713977",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

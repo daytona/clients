@@ -1,0 +1,41 @@
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_c3753b692a95b1 58-68
+sdk-typescript/DEVELOPMENT.md
+  s_9a337fd66d5341::t_22e8b330e0b214 189-190
+  s_9a337fd66d5341::t_71882fc06e8d0e 191-194
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_22e8b330e0b214 692,762
+changelog.d/538-watches.breaking.md
+  s_9a337fd66d5341::t_c3753b692a95b1 17-20
+changelog.d/538-pty-attach-early-close.breaking.md
+  s_9a337fd66d5341::t_22e8b330e0b214 4-5
+changelog.d/538-a11y-depth.breaking.md
+  s_9a337fd66d5341::t_c3753b692a95b1 12-16
+AGENTS.md
+  s_9a337fd66d5341::t_22e8b330e0b214 704-705
+  s_9a337fd66d5341::t_79fb3eb0a44069 721-728
+sdk-python/README.md
+  s_9a337fd66d5341::t_22e8b330e0b214 747,820
+changelog.d/538-json-bodies.breaking.md
+  s_9a337fd66d5341::t_22e8b330e0b214 4-6
+  s_9a337fd66d5341::t_c3753b692a95b1 10-13
+  s_9a337fd66d5341::t_71882fc06e8d0e 7-9
+changelog.d/538-sdk-refusals.breaking.md
+  s_9a337fd66d5341::t_c3753b692a95b1 13-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "236b42345f2d96a99d0f36806f282c6abf40c74f",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

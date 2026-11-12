@@ -1,0 +1,27 @@
+AGENTS.md
+  s_004476959ded73::t_de9b5bec27ae70 105-108,886-897
+sdk-python/src/daytona/v2/charts.py
+  s_004476959ded73::t_973291f113020a 24,329-331
+sdk-python/src/daytona/v2/interpreter.py
+  s_004476959ded73::t_2ccd610ffac26e 24,629
+sdk-python/tests/fixtures/interpreter-charts.json
+  s_004476959ded73::t_d759a8d4c2e4ab 538-560
+sdk-typescript/tests/interpreter-charts.test.ts
+  s_004476959ded73::t_a7d6cc3e228ce7 16-18,22,93-94,151-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c36b06a3d9e5b4d74b861fa5f2fdd5b1c086455",
+  "prompts": {},
+  "sessions": {
+    "s_004476959ded73": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2f875efeffe7gwJujLLtJViVQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

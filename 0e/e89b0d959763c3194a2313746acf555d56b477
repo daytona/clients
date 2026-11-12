@@ -1,0 +1,21 @@
+cli/cmd/image_precheck_symlinks_test.go
+  s_aadd141013e7c9::t_4523e6b433a75c 92-107
+cli/cmd/image_precheck.go
+  s_aadd141013e7c9::t_4523e6b433a75c 68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ee89b0d959763c3194a2313746acf555d56b477",
+  "prompts": {},
+  "sessions": {
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

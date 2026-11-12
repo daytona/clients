@@ -1,0 +1,18 @@
+cli/README.md
+  h_e7759ddd73fa65 233
+sdk-python/README.md
+  h_e7759ddd73fa65 667
+sdk-typescript/README.md
+  h_e7759ddd73fa65 592
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba14bee07591aab88e79c6ddb1d29848589b06fe",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

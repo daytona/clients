@@ -1,0 +1,22 @@
+changelog.d/558.fixed.md
+  h_e7759ddd73fa65 6-12
+sdk-python/src/daytona/v2/_events.py
+  h_e7759ddd73fa65 91,93-98,340-342,436,514,625,762,1558,1592-1600,1602-1604,1617-1618,1627,1650,1668,1689
+sdk-python/tests/test_events.py
+  h_e7759ddd73fa65 15,1126-1153
+sdk-typescript/src/v2/events.ts
+  h_e7759ddd73fa65 113-120,122,513-514,587,608,644,810,875,960,1931,2045-2054,2056-2057,2071,2075,2104,2126,2147
+sdk-typescript/tests/events.test.ts
+  h_e7759ddd73fa65 187,1329-1359
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "975622038bad8dfeae45cca82af43092f350e5d0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

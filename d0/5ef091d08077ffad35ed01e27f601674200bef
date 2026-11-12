@@ -1,0 +1,24 @@
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  h_e7759ddd73fa65 123,571-574
+artifacts/sdk-docs/typescript-sdk/errors.mdx
+  h_e7759ddd73fa65 787
+artifacts/sdk-docs/typescript-sdk/process.mdx
+  h_e7759ddd73fa65 831-839
+artifacts/sdk-docs/typescript-sdk/secret.mdx
+  h_e7759ddd73fa65 224-227,230-233
+artifacts/sdk-docs/typescript-sdk/snapshot.mdx
+  h_e7759ddd73fa65 209-212,214-217,220-223
+yarn.lock
+  h_e7759ddd73fa65 5896,5938
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d05ef091d08077ffad35ed01e27f601674200bef",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

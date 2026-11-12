@@ -1,0 +1,31 @@
+changelog.d/events-missed-transition.fixed.md
+  s_250a6b5ee7974a::t_9892714ef27aa4 1-8
+sdk-python/src/daytona/v2/_events.py
+  s_250a6b5ee7974a::t_033f62ce599152 90-94,324,328-329,423,462-463,484,489,616-617,1083-1085,1096-1097,1230,1497,1555-1575
+sdk-python/tests/test_events.py
+  s_15a6b8aa27bff1::t_cf1d1082cf4d1d 964-1037
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "299d6502b4dd07ba657be0684bb03f989dbee06c",
+  "prompts": {},
+  "sessions": {
+    "s_15a6b8aa27bff1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3ef27224ffe0aVjOliBtZh4xZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_250a6b5ee7974a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3ef70818ffezF56N8Zf0Z4Qo0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
