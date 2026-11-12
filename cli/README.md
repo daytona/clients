@@ -356,7 +356,16 @@ never prompts:
   200, default 100; the billing lists have their own: `billing balances`,
   `charges` and `invoices` 1 to 100, default 25; `billing payment-methods` 1
   to 100, default 20; `billing usage-periods` 1 to 60, default 12),
-  `--cursor <token>` and `--all` page through it. `sandbox list` and `image list` query each distinct API
+  `--cursor <token>` and `--all` page through it. Where the deployment serves
+  search, `sandbox list`, `image list` and `snapshot list` read it: one
+  request spans every region (for `sandbox list`, `--region` becomes its
+  region filter; `image list` filters the results itself, keeping every image
+  available in the region, not only those homed there), and the results are
+  eventually consistent, so an item just created may
+  be missing (`get` reads it at once). Where search is not served (`501
+  SEARCH_NOT_CONFIGURED`, or `404` from an older API) all three fall back to
+  their list endpoints: `snapshot list` reads `GET /snapshots`, and
+  `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
   unless `--region` narrows them. With `--region R` they ask every API that
   serves R or a region inside it and print only the items in R or a region

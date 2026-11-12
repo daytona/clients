@@ -42,10 +42,10 @@ class CreateProcessRequest(BaseModel):
     argv: Optional[List[StrictStr]] = Field(default=None, description="argv mode. Exactly one of `argv`, `shellCommand`, or `code` may be present.")
     code: Optional[StrictStr] = Field(default=None, description="Code to execute in an interpreter session.")
     cwd: Optional[StrictStr] = Field(default=None, description="Optional working directory. For `exec` and `pty`, defaults to the configured user’s home when available. Code execution, an explicit `user`, or an unavailable home uses the sandbox’s default working directory.")
-    env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Environment overrides applied at spawn time.")
+    env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Environment overrides applied at spawn time. PTY processes default to `TERM=xterm-256color`; an explicit TERM overrides the default.")
     keep_logs: Optional[KeepLogs] = Field(default=None, alias="keepLogs")
     kind: Optional[Kind] = None
-    language: Optional[StrictStr] = Field(default=None, description="Code language such as `python`, `typescript`, or `javascript`.")
+    language: Optional[StrictStr] = Field(default=None, description="Code language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning. Omit when using an explicit session's language; without `sessionId`, omission answers 400 `BAD_REQUEST`.")
     login: Optional[StrictBool] = Field(default=None, description="Whether to request a login shell.")
     name: Optional[StrictStr] = Field(default=None, description="Optional live-only alias. Must be a safe identifier.")
     session_id: Optional[StrictStr] = Field(default=None, description="The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true`, `user` and `tag` (the session's settings apply; the command takes the session's tag). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.", alias="sessionId")
@@ -54,7 +54,7 @@ class CreateProcessRequest(BaseModel):
     stdin: Optional[StdinMode] = None
     tag: Optional[StrictStr] = Field(default=None, description="Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.")
     terminal: Optional[TerminalSize] = None
-    timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Per-process timeout in milliseconds. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.", alias="timeoutMs")
+    timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Per-process execution timeout in milliseconds. Omitted or 0 means no limit. Positive timeouts apply to exec and PTY processes (including exec commands in a shell session); code executions and shell-session creation refuse positive timeouts. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.", alias="timeoutMs")
     user: Optional[StrictStr] = Field(default=None, description="Optional execution user. Not supported for `kind=code`; returns 400 `UNSUPPORTED_OPERATION`.")
     __properties: ClassVar[List[str]] = ["argv", "code", "cwd", "env", "keepLogs", "kind", "language", "login", "name", "sessionId", "shell", "shellCommand", "stdin", "tag", "terminal", "timeoutMs", "user"]
 

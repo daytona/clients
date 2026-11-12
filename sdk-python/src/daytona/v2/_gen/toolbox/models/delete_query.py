@@ -34,7 +34,7 @@ class DeleteQuery(BaseModel):
     """
     Query parameters for `DELETE /files`.
     """ # noqa: E501
-    path: Optional[StrictStr] = Field(default=None, description="Path to remove.")
+    path: Optional[StrictStr] = Field(default=None, description="Absolute path to remove.")
     recursive: Optional[StrictStr] = Field(default=None, description="Recursive delete flag as a string query value.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["path", "recursive"]

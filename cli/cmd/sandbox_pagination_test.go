@@ -48,6 +48,9 @@ func TestSandboxListAll_multiRegionTerminalCursorYieldsEveryRowOnce(t *testing.T
 	homeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "Bearer k", r.Header.Get("Authorization"))
 		require.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/regions":

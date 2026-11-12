@@ -74,6 +74,7 @@ from daytona.v2._gen.toolbox.models.error_envelope import ErrorEnvelope as Error
 from daytona.v2._gen.toolbox.models.exit_result import ExitResult as ExitResult
 from daytona.v2._gen.toolbox.models.file_info import FileInfo as FileInfo
 from daytona.v2._gen.toolbox.models.file_status import FileStatus as FileStatus
+from daytona.v2._gen.toolbox.models.find_response import FindResponse as FindResponse
 from daytona.v2._gen.toolbox.models.fs_path_query import FsPathQuery as FsPathQuery
 from daytona.v2._gen.toolbox.models.git_config_query import GitConfigQuery as GitConfigQuery
 from daytona.v2._gen.toolbox.models.git_config_response import GitConfigResponse as GitConfigResponse

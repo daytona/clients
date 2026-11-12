@@ -35,8 +35,8 @@ class ResizeRequest(BaseModel):
     """
     `POST /processes/{id}/resize` body.
     """ # noqa: E501
-    cols: Annotated[int, Field(strict=True, ge=1)] = Field(description="PTY columns; must be at least 1.")
-    rows: Annotated[int, Field(strict=True, ge=1)] = Field(description="PTY rows; must be at least 1.")
+    cols: Annotated[int, Field(le=65535, strict=True, ge=1)] = Field(description="PTY columns; an integer in 1..=65535. Windows: at most 32767.")
+    rows: Annotated[int, Field(le=65535, strict=True, ge=1)] = Field(description="PTY rows; an integer in 1..=65535. Windows: at most 32767.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["cols", "rows"]
 

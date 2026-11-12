@@ -743,7 +743,7 @@ export interface paths {
         put?: never;
         /**
          * Download many files
-         * @description Stream a multipart response with `file` parts for successful paths and `error` parts carrying error envelopes for per-path failures. The outer response stays 200 on partial success.
+         * @description Stream regular files at absolute paths using the sandbox user's permissions. Invalid paths, non-regular files and permission denials discovered before streaming refuse the request with 400 or 403. Other failures, including failures after streaming starts, use `error` parts carrying error envelopes; the outer response then stays 200.
          */
         post: operations["bulk_download"];
         delete?: never;
@@ -763,7 +763,7 @@ export interface paths {
         put?: never;
         /**
          * Upload many files
-         * @description Upload files using paired `files[i].path` and `files[i].file` multipart fields. Partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
+         * @description Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
          */
         post: operations["bulk_upload"];
         delete?: never;
@@ -781,7 +781,7 @@ export interface paths {
         };
         /**
          * Download one file
-         * @description Stream one file as `application/octet-stream`. Directories are rejected.
+         * @description Stream one regular file at an absolute path as `application/octet-stream`, using the sandbox user's permissions. Directories, FIFOs, sockets and devices are refused without reading them.
          */
         get: operations["download_file"];
         put?: never;
@@ -801,7 +801,7 @@ export interface paths {
         };
         /**
          * Find text in files
-         * @description Walk the tree rooted at `path` and return literal substring matches with one-based line numbers.
+         * @description Walk the tree rooted at the absolute `path` as the sandbox user and return literal substring matches with one-based line numbers. Non-regular files are skipped. Directories and files below the root that the sandbox user cannot read are skipped and listed in `skipped` (at most 1000); only an unreadable root fails the request.
          */
         get: operations["find_in_files"];
         put?: never;
@@ -903,7 +903,7 @@ export interface paths {
         put?: never;
         /**
          * Replace text in files
-         * @description Replace a literal substring across the requested files. File-specific failures stay inside the 200 response body.
+         * @description Replace a literal substring across regular files at absolute paths as the sandbox user. Permission denials return 403; other file-specific failures, including skipped non-regular files, stay inside the 200 response body. Earlier replacements are not rolled back when a later file fails.
          */
         post: operations["replace_in_files"];
         delete?: never;
@@ -921,7 +921,7 @@ export interface paths {
         };
         /**
          * Search filenames
-         * @description Walk the tree rooted at `path` and return absolute file paths whose base name matches the glob `pattern`.
+         * @description Walk the tree rooted at `path` as the sandbox user and return absolute file paths whose base name matches the glob `pattern`. Directories and files below the root that the sandbox user cannot read are skipped and listed in `skipped` (at most 1000); only an unreadable root fails the request.
          */
         get: operations["search_files"];
         put?: never;
@@ -943,7 +943,7 @@ export interface paths {
         put?: never;
         /**
          * Upload one file
-         * @description Upload the multipart part named `file` to the query’s destination path. New files and parent directories belong to the configured sandbox user; existing files retain their ownership. Writes require that user’s permissions, otherwise return 403 `FILE_ACCESS_DENIED` without creating a destination. With `atomic=true`, replace the destination atomically or fail if unsupported.
+         * @description Upload the multipart part named `file` to the query’s absolute destination path. Existing destinations must be regular files; directories, FIFOs, sockets and devices return 400 `INVALID_FILE_PATH` with `<path>: not a regular file`, without writing to them. New files and parent directories belong to the configured sandbox user; existing files retain their ownership, except that `atomic=true` over a file the sandbox user cannot give back to its owner leaves the replacement owned by the sandbox user. Writes require that user’s permissions, otherwise return 403 `FILE_ACCESS_DENIED` without creating a destination. With `atomic=true`, replace the destination atomically or fail if unsupported.
          */
         post: operations["upload_file"];
         delete?: never;
@@ -961,7 +961,7 @@ export interface paths {
         };
         /**
          * Watch a directory
-         * @description Server-sent events for one directory. The stream emits `start` with `{}`, `fs` with `WatchFsEvent`, and `overflow` with `WatchOverflowEvent`. `follow=true` is accepted and ignored for compatibility.
+         * @description Server-sent events for one absolute directory path, using the sandbox user's permissions. The stream emits `start` with `{}`, `fs` with `WatchFsEvent`, and `overflow` with `WatchOverflowEvent`. On macOS, a permission denial discovered after streaming starts emits `error` with an error envelope and closes the stream. `follow=true` is accepted and ignored for compatibility.
          */
         get: operations["watch_files"];
         put?: never;
@@ -1012,7 +1012,7 @@ export interface paths {
         post: operations["create_branch"];
         /**
          * Delete a branch
-         * @description Force-delete one branch in the target repository.
+         * @description Delete one branch using git branch -d by default: an unmerged branch is refused with 409 CONFLICT. Set force=true to use git branch -D and permit deletion of an unmerged branch. A checked-out branch is refused even with force=true.
          */
         delete: operations["delete_branch"];
         options?: never;
@@ -1051,7 +1051,7 @@ export interface paths {
         put?: never;
         /**
          * Clone a repository
-         * @description Clone a repository URL or local path into a destination directory. Credentials are never returned. Optional `depth` performs a shallow clone; `insecureSkipTls=true` disables TLS verification for this request only.
+         * @description Clone a repository URL or local path into a destination directory. Credentials are never returned. Optional `depth` (1–2147483647) performs a shallow clone; `insecureSkipTls=true` disables TLS verification for this request only. A non-empty destination is rejected with BAD_REQUEST.
          */
         post: operations["git_clone"];
         delete?: never;
@@ -1071,7 +1071,7 @@ export interface paths {
         put?: never;
         /**
          * Create a commit
-         * @description Create one commit and return its full SHA. Author identity is passed to git for this invocation only and is not written into repository config.
+         * @description Create one commit and return its full SHA from the commit operation itself, not a later read of HEAD. Concurrent commits in linked worktrees or checkouts cannot substitute a different commit's SHA. Author identity is passed to git for this invocation only and is not written into repository config. Nothing to commit without allow_empty returns 400 BAD_REQUEST.
          */
         post: operations["git_commit"];
         delete?: never;
@@ -1113,7 +1113,7 @@ export interface paths {
         };
         /**
          * Read commit history
-         * @description Return commit metadata from `git log` in newest-first order.
+         * @description Return commit metadata from `git log` in newest-first order. A repository with no commits returns 400 BAD_REQUEST.
          */
         get: operations["git_history"];
         put?: never;
@@ -1671,7 +1671,7 @@ export interface paths {
         put?: never;
         /**
          * Create a session
-         * @description Create a language interpreter session for subsequent code executions.
+         * @description Create a language interpreter session for subsequent code executions. Supported languages are python, typescript and javascript (case-sensitive). Unknown languages, including an empty string, return 400 UNSUPPORTED_OPERATION before kernel provisioning. Omitting kernel or requesting shell also returns 400 UNSUPPORTED_OPERATION; shell sessions use POST /processes with kind=session.
          */
         post: operations["create_session"];
         delete?: never;
@@ -1796,19 +1796,28 @@ export interface components {
         };
         /** @description Create or delete one named branch. */
         BranchRequest: {
-            /** @description Branch name to create or delete. */
+            /**
+             * @description Force deletion of an unmerged branch using `git branch -D`.
+             *     Defaults to false: deletion uses `git branch -d`, refusing an unmerged
+             *     branch with 409 `CONFLICT`. Ignored when creating a branch.
+             */
+            force?: boolean;
+            /**
+             * @description Branch name to create or delete. A leading `+` is a literal part of the
+             *     name, not a refspec force marker.
+             */
             name?: string;
             /** @description Repository path to operate in. */
             path?: string;
         };
         /** @description JSON body for `POST /files/bulk-download`. */
         BulkDownloadRequest: {
-            /** @description Paths to stream back as multipart file or error parts. */
+            /** @description Absolute paths of regular files to stream back as multipart file or error parts. Permission denials and non-regular files discovered before streaming refuse the request. */
             paths?: string[];
         };
         /** @description Query parameters for `POST /files/bulk-upload`. */
         BulkUploadQuery: {
-            /** @description Replace each destination file atomically; fail that file if atomic replacement is unsupported. */
+            /** @description Replace each destination file atomically; fail that file if atomic replacement is unsupported. A replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. A non-regular destination refuses the request with `400 INVALID_FILE_PATH`; earlier uploads are not rolled back. */
             atomic?: boolean | null;
         };
         /** @description Partial-success response from `POST /files/bulk-upload`. */
@@ -1827,13 +1836,16 @@ export interface components {
         };
         /** @description Clone a repository into a target directory. */
         CloneRequest: {
-            /** @description Branch to clone when `commit_id` is omitted. */
+            /** @description Branch to clone when `commit_id` is omitted. A leading `+` is literal. */
             branch?: string | null;
             /** @description Commit to detach to after cloning. */
             commit_id?: string | null;
             /**
              * Format: int32
-             * @description Optional shallow-clone depth. `1` clones only the tip commit.
+             * @description Optional shallow-clone depth, from 1 through 2147483647.
+             *     `1` clones only the tip commit. Values representable as u32 but outside
+             *     this range return 400 `BAD_REQUEST`; invalid JSON types or values outside
+             *     u32 return 422 `UNPROCESSABLE_ENTITY`.
              */
             depth?: number | null;
             /** @description Skip TLS certificate verification for this clone invocation only. */
@@ -1875,7 +1887,10 @@ export interface components {
         };
         /** @description Commit creation result. */
         CommitResponse: {
-            /** @description Full commit SHA of the created commit. */
+            /**
+             * @description Full SHA of this operation's created commit, captured from git's commit
+             *     output rather than a later read of HEAD.
+             */
             hash: string;
         };
         /** @description Extra context for a completion request. */
@@ -2412,7 +2427,7 @@ export interface components {
         };
         /** @description Query parameters that change the call shape of `POST /processes`. */
         CreateProcessQuery: {
-            /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. */
+            /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
             logs?: string | null;
             /**
              * Format: int64
@@ -2428,13 +2443,13 @@ export interface components {
             code?: string | null;
             /** @description Optional working directory. For `exec` and `pty`, defaults to the configured user’s home when available. Code execution, an explicit `user`, or an unavailable home uses the sandbox’s default working directory. */
             cwd?: string | null;
-            /** @description Environment overrides applied at spawn time. */
+            /** @description Environment overrides applied at spawn time. PTY processes default to `TERM=xterm-256color`; an explicit TERM overrides the default. */
             env?: {
                 [key: string]: string;
             };
             keepLogs?: null | components["schemas"]["KeepLogs"];
             kind?: null | components["schemas"]["Kind"];
-            /** @description Code language such as `python`, `typescript`, or `javascript`. */
+            /** @description Code language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning. Omit when using an explicit session's language; without `sessionId`, omission answers 400 `BAD_REQUEST`. */
             language?: string | null;
             /** @description Whether to request a login shell. */
             login?: boolean;
@@ -2452,7 +2467,7 @@ export interface components {
             terminal?: null | components["schemas"]["TerminalSize"];
             /**
              * Format: int64
-             * @description Per-process timeout in milliseconds. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.
+             * @description Per-process execution timeout in milliseconds. Omitted or 0 means no limit. Positive timeouts apply to exec and PTY processes (including exec commands in a shell session); code executions and shell-session creation refuse positive timeouts. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.
              */
             timeoutMs?: number | null;
             /** @description Optional execution user. Not supported for `kind=code`; returns 400 `UNSUPPORTED_OPERATION`. */
@@ -2468,7 +2483,7 @@ export interface components {
             };
             /** @description Optional client-chosen session id. Must be a safe identifier when present. */
             id?: string | null;
-            /** @description Interpreter language, one of `python`, `typescript` or `javascript`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`. */
+            /** @description Interpreter language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning; a supported kernel that fails to install or start answers 503 `KERNEL_UNAVAILABLE`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`. */
             kernel?: string | null;
             /** @description Not supported for interpreter sessions; answers 400 `UNSUPPORTED_OPERATION` when `true`. */
             login?: boolean;
@@ -2477,7 +2492,7 @@ export interface components {
         };
         /** @description Query parameters for `DELETE /files`. */
         DeleteQuery: {
-            /** @description Path to remove. */
+            /** @description Absolute path to remove. */
             path?: string | null;
             /** @description Recursive delete flag as a string query value. */
             recursive?: string | null;
@@ -2601,11 +2616,22 @@ export interface components {
             /** @description Worktree status column. */
             worktree: string;
         };
+        /** @description Literal line matches from `GET /files/find`. */
+        FindResponse: {
+            /** @description Matches, in walk order. */
+            items: components["schemas"]["Match"][];
+            /**
+             * @description Absolute paths below the root that the sandbox user cannot read, so
+             *     they were not searched. Empty when nothing was skipped; at most 1000
+             *     entries.
+             */
+            skipped: string[];
+        };
         /** @description Query parameters for routes that address one path or directory listing. */
         FsPathQuery: {
             /** @description Recursive listing depth for `GET /files`; omitted for the flat default (`1`). */
             depth?: string | null;
-            /** @description Target path. Omitted on `GET /files` to use the sandbox’s default working directory. */
+            /** @description Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`. */
             path?: string | null;
         };
         /** @description Query for one git config key. */
@@ -2708,7 +2734,7 @@ export interface components {
             channel: string;
             /** @description Cursor naming this frame. */
             cursor: string;
-            /** @description Frame payload in the requested encoding. */
+            /** @description Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). */
             data: string;
             /**
              * Format: int64
@@ -2720,7 +2746,7 @@ export interface components {
         LogsQuery: {
             /** @description Resume after this cursor. Empty or omitted starts from the beginning. */
             cursor?: string | null;
-            /** @description Payload encoding: `text` (default) or `base64`. */
+            /** @description Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
             encoding?: string | null;
             /** @description When true, answer an SSE follow stream instead of a JSON page. */
             follow?: boolean | null;
@@ -2783,16 +2809,16 @@ export interface components {
         };
         /** @description Query parameters for `POST /files/move`. */
         MoveQuery: {
-            /** @description Destination path. */
+            /** @description Absolute destination path. */
             destination?: string | null;
-            /** @description Source path to move. */
+            /** @description Absolute source path to move. */
             source?: string | null;
         };
         /** @description Query parameters for `POST /files/folder`. */
         PathModeQuery: {
             /** @description Optional octal mode string; omitted or empty uses the route default. */
             mode?: string | null;
-            /** @description Directory path to create. */
+            /** @description Absolute directory path to create. */
             path?: string | null;
         };
         /** @description Query parameters for `POST /files/permissions`. */
@@ -2803,7 +2829,7 @@ export interface components {
             mode?: string | null;
             /** @description Optional owner id or name, when the platform supports chown. */
             owner?: string | null;
-            /** @description Path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink. */
+            /** @description Absolute path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink. */
             path?: string | null;
         };
         /** @description The TCP ports currently listening inside the sandbox. */
@@ -2909,7 +2935,7 @@ export interface components {
             terminal?: null | components["schemas"]["TerminalSize"];
             /**
              * Format: int64
-             * @description Process timeout in milliseconds, omitted when unset.
+             * @description Process execution timeout in milliseconds; omitted or 0 means no limit.
              */
             timeoutMs?: number | null;
             /** @description Requested user, omitted when the API runs as its default user. */
@@ -2956,7 +2982,7 @@ export interface components {
         Reason: ("exited" | "signaled" | "timed_out" | "lost" | "failed") | (string & {});
         /** @description JSON body for `POST /files/replace`. */
         ReplaceRequest: {
-            /** @description Files to rewrite. */
+            /** @description Absolute paths of regular files to rewrite. Non-regular files are skipped with a per-file failure; permission denials return `FILE_ACCESS_DENIED`. */
             files?: string[];
             /** @description Replacement text. Omitted only when the caller wants the route to reject the request. */
             newValue?: string | null;
@@ -2967,14 +2993,17 @@ export interface components {
         ReplaceResult: {
             /** @description Per-file error text, omitted on success. */
             error?: string | null;
-            /** @description Absolute or caller-supplied file path for this replacement attempt. */
+            /** @description Absolute file path for this replacement attempt. */
             file: string;
             /** @description Whether the replacement succeeded for this file. */
             success: boolean;
         };
         /** @description Operate on a repository, optionally with credentials for a remote. */
         RepoRequest: {
-            /** @description Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target. */
+            /**
+             * @description Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target.
+             *     A leading `+` is a literal part of the branch name, never a force flag.
+             */
             branch?: string | null;
             /** @description Password for authenticated remotes; write-only and never returned. */
             password?: string | null;
@@ -3005,12 +3034,12 @@ export interface components {
         ResizeRequest: {
             /**
              * Format: int32
-             * @description PTY columns; must be at least 1.
+             * @description PTY columns; an integer in 1..=65535. Windows: at most 32767.
              */
             cols: number;
             /**
              * Format: int32
-             * @description PTY rows; must be at least 1.
+             * @description PTY rows; an integer in 1..=65535. Windows: at most 32767.
              */
             rows: number;
         };
@@ -3029,7 +3058,7 @@ export interface components {
         };
         /** @description Query parameters for `GET /files/search` and `GET /files/find`. */
         SearchQuery: {
-            /** @description Root path to walk recursively. */
+            /** @description Absolute root path to walk recursively. */
             path?: string | null;
             /** @description Filename glob (`search`) or literal substring (`find`) pattern. */
             pattern?: string | null;
@@ -3038,6 +3067,12 @@ export interface components {
         SearchResponse: {
             /** @description Absolute matching file paths. */
             files: string[];
+            /**
+             * @description Absolute paths below the root that the sandbox user cannot read, so
+             *     their contents were not searched. Empty when nothing was skipped; at
+             *     most 1000 entries.
+             */
+            skipped: string[];
         };
         /** @description Identifies a language-server instance for one language and one project root. */
         ServerRequest: {
@@ -3116,7 +3151,7 @@ export interface components {
         StdinMode: ("closed" | "open") | (string & {});
         /** @description `POST /processes/{id}/stdin` body. */
         StdinRequest: {
-            /** @description Data to write. Text by default, or base64url when `encoding=base64`. */
+            /** @description Data to write. Text by default. With `encoding=base64`, accepts standard RFC 4648 section 4 base64 (`+/`) or base64url (`-_`), padded or unpadded. */
             data?: string;
             /** @description Optional payload encoding: `text` (default) or `base64`. */
             encoding?: string | null;
@@ -3177,20 +3212,20 @@ export interface components {
         TerminalSize: {
             /**
              * Format: int32
-             * @description Number of columns; must be at least 1.
+             * @description Number of columns; an integer in 1..=65535. Windows: at most 32767.
              */
             cols: number;
             /**
              * Format: int32
-             * @description Number of rows; must be at least 1.
+             * @description Number of rows; an integer in 1..=65535. Windows: at most 32767.
              */
             rows: number;
         };
         /** @description Query parameters for `POST /files/upload`. */
         UploadQuery: {
-            /** @description Replace the destination file atomically; fail if atomic replacement is unsupported. */
+            /** @description Replace the destination file atomically; fail if atomic replacement is unsupported. The replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. */
             atomic?: boolean | null;
-            /** @description Destination path for the uploaded file. */
+            /** @description Absolute destination path for the uploaded file. Existing destinations must be regular files; otherwise returns `400 INVALID_FILE_PATH`, `<path>: not a regular file`. */
             path?: string | null;
         };
         /** @description One uploaded file result from `POST /files/bulk-upload`. */
@@ -3200,7 +3235,7 @@ export interface components {
              * @description Number of bytes written.
              */
             bytes: number;
-            /** @description Destination path the API wrote. */
+            /** @description Absolute destination path the API wrote. */
             path: string;
         };
         VersionResponse: {
@@ -5196,7 +5231,7 @@ export interface operations {
     list_files: {
         parameters: {
             query?: {
-                /** @description Target path. Omitted on `GET /files` to use the sandbox’s default working directory. */
+                /** @description Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`. */
                 path?: string;
                 /** @description Recursive listing depth for `GET /files`; omitted for the flat default (`1`). */
                 depth?: string;
@@ -5215,7 +5250,7 @@ export interface operations {
                     "application/json": components["schemas"]["FileInfo"][];
                 };
             };
-            /** @description `BAD_REQUEST` — invalid query, missing directory metadata, invalid depth, or the listing cap was exceeded */
+            /** @description `BAD_REQUEST` — invalid query, directory metadata, depth or listing cap; `INVALID_FILE_PATH` — path must be absolute */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5247,7 +5282,7 @@ export interface operations {
     delete_file: {
         parameters: {
             query?: {
-                /** @description Path to remove. */
+                /** @description Absolute path to remove. */
                 path?: string;
                 /** @description Recursive delete flag as a string query value. */
                 recursive?: string;
@@ -5265,7 +5300,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `BAD_REQUEST` — missing path or a directory was requested without `recursive=true` */
+            /** @description `BAD_REQUEST` — missing path or directory without `recursive=true`; `INVALID_FILE_PATH` — path must be absolute */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5316,8 +5351,17 @@ export interface operations {
                     "multipart/form-data": unknown;
                 };
             };
-            /** @description `BAD_REQUEST` — malformed JSON or `paths` was empty */
+            /** @description `BAD_REQUEST` — malformed JSON or `paths` was empty; `INVALID_FILE_PATH` — path must be absolute or is not a regular file */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_ACCESS_DENIED` — the sandbox user cannot open a requested file */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5339,7 +5383,7 @@ export interface operations {
     bulk_upload: {
         parameters: {
             query?: {
-                /** @description Replace each destination file atomically; fail that file if atomic replacement is unsupported. */
+                /** @description Replace each destination file atomically; fail that file if atomic replacement is unsupported. A replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. A non-regular destination refuses the request with `400 INVALID_FILE_PATH`; earlier uploads are not rolled back. */
                 atomic?: boolean;
             };
             header?: never;
@@ -5361,8 +5405,17 @@ export interface operations {
                     "application/json": components["schemas"]["BulkUploadResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — no recognized multipart fields were provided */
+            /** @description `BAD_REQUEST` — no recognized multipart fields were provided; `INVALID_FILE_PATH` — every destination path must be absolute and existing destinations must be regular files */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_ACCESS_DENIED` — the sandbox user cannot create or write a destination; earlier uploads are not rolled back */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5375,7 +5428,7 @@ export interface operations {
     download_file: {
         parameters: {
             query?: {
-                /** @description Target path. Omitted on `GET /files` to use the sandbox’s default working directory. */
+                /** @description Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`. */
                 path?: string;
                 /** @description Recursive listing depth for `GET /files`; omitted for the flat default (`1`). */
                 depth?: string;
@@ -5395,7 +5448,7 @@ export interface operations {
                     "application/octet-stream": unknown;
                 };
             };
-            /** @description `BAD_REQUEST` — `path` is missing or names a directory */
+            /** @description `BAD_REQUEST` — missing path; `INVALID_FILE_PATH` — path is not absolute or not a regular file */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5427,7 +5480,7 @@ export interface operations {
     find_in_files: {
         parameters: {
             query?: {
-                /** @description Root path to walk recursively. */
+                /** @description Absolute root path to walk recursively. */
                 path?: string;
                 /** @description Filename glob (`search`) or literal substring (`find`) pattern. */
                 pattern?: string;
@@ -5443,11 +5496,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Match"][];
+                    "application/json": components["schemas"]["FindResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — `path` and `pattern` are required */
+            /** @description `BAD_REQUEST` — `path` and `pattern` are required; `INVALID_FILE_PATH` — path must be absolute */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_ACCESS_DENIED` — the sandbox user cannot read the root */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_NOT_FOUND` — the root does not exist */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5460,7 +5531,7 @@ export interface operations {
     create_folder: {
         parameters: {
             query?: {
-                /** @description Directory path to create. */
+                /** @description Absolute directory path to create. */
                 path?: string;
                 /** @description Optional octal mode string; omitted or empty uses the route default. */
                 mode?: string;
@@ -5478,7 +5549,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `BAD_REQUEST` — missing path or a non-octal mode */
+            /** @description `BAD_REQUEST` — missing path or non-octal mode; `INVALID_FILE_PATH` — path must be absolute */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5510,7 +5581,7 @@ export interface operations {
     file_info: {
         parameters: {
             query?: {
-                /** @description Target path. Omitted on `GET /files` to use the sandbox’s default working directory. */
+                /** @description Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`. */
                 path?: string;
                 /** @description Recursive listing depth for `GET /files`; omitted for the flat default (`1`). */
                 depth?: string;
@@ -5529,7 +5600,7 @@ export interface operations {
                     "application/json": components["schemas"]["FileInfo"];
                 };
             };
-            /** @description `BAD_REQUEST` — `path` is required */
+            /** @description `BAD_REQUEST` — `path` is required; `INVALID_FILE_PATH` — path must be absolute */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5561,9 +5632,9 @@ export interface operations {
     move_file: {
         parameters: {
             query?: {
-                /** @description Source path to move. */
+                /** @description Absolute source path to move. */
                 source?: string;
-                /** @description Destination path. */
+                /** @description Absolute destination path. */
                 destination?: string;
             };
             header?: never;
@@ -5581,6 +5652,15 @@ export interface operations {
             };
             /** @description `BAD_REQUEST` or `INVALID_FILE_PATH` — the request is missing required paths or the platform rejected the path form */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_ACCESS_DENIED` — the sandbox user cannot access or move the path */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5611,7 +5691,7 @@ export interface operations {
     set_permissions: {
         parameters: {
             query?: {
-                /** @description Path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink. */
+                /** @description Absolute path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink. */
                 path?: string;
                 /** @description Optional octal mode string. */
                 mode?: string;
@@ -5683,8 +5763,17 @@ export interface operations {
                     "application/json": components["schemas"]["ReplaceResult"][];
                 };
             };
-            /** @description `BAD_REQUEST` — malformed JSON or required replacement fields are missing */
+            /** @description `BAD_REQUEST` — malformed JSON or required replacement fields are missing; `INVALID_FILE_PATH` — every file path must be absolute */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_ACCESS_DENIED` — the sandbox user cannot read or rewrite a file */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5706,7 +5795,7 @@ export interface operations {
     search_files: {
         parameters: {
             query?: {
-                /** @description Root path to walk recursively. */
+                /** @description Absolute root path to walk recursively. */
                 path?: string;
                 /** @description Filename glob (`search`) or literal substring (`find`) pattern. */
                 pattern?: string;
@@ -5725,8 +5814,26 @@ export interface operations {
                     "application/json": components["schemas"]["SearchResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — `path` and `pattern` are required */
+            /** @description `BAD_REQUEST` — `path` and `pattern` are required; `INVALID_FILE_PATH` — path must be absolute */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_ACCESS_DENIED` — the sandbox user cannot read the root */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `FILE_NOT_FOUND` — the root does not exist */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5739,9 +5846,9 @@ export interface operations {
     upload_file: {
         parameters: {
             query?: {
-                /** @description Destination path for the uploaded file. */
+                /** @description Absolute destination path for the uploaded file. Existing destinations must be regular files; otherwise returns `400 INVALID_FILE_PATH`, `<path>: not a regular file`. */
                 path?: string;
-                /** @description Replace the destination file atomically; fail if atomic replacement is unsupported. */
+                /** @description Replace the destination file atomically; fail if atomic replacement is unsupported. The replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. */
                 atomic?: boolean;
             };
             header?: never;
@@ -5762,7 +5869,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `BAD_REQUEST` or `INVALID_FILE_PATH` — missing path, missing `file` part, truncated multipart body, or the platform rejected the path form */
+            /** @description `BAD_REQUEST` or `INVALID_FILE_PATH` — missing path, missing `file` part, truncated multipart body, invalid path form, or a non-regular destination */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5816,7 +5923,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description SSE stream of `start`, `fs`, and `overflow` events. */
+            /** @description SSE stream of `start`, `fs`, and `overflow` events; macOS may emit a terminal `error` envelope after an access denial. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5825,7 +5932,7 @@ export interface operations {
                     "text/event-stream": unknown;
                 };
             };
-            /** @description `BAD_REQUEST` — missing path, non-absolute path, not a directory, or the concurrent-watch limit was reached */
+            /** @description `BAD_REQUEST` — missing path, not a directory, or the concurrent-watch limit; `INVALID_FILE_PATH` — path must be absolute */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5874,7 +5981,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `BAD_REQUEST` — malformed JSON, missing `path`, or no files were provided */
+            /** @description `BAD_REQUEST` — malformed JSON, missing `path`, no files, or invalid pathspec */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6026,6 +6133,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description `GIT_BRANCH_EXISTS` — the branch already exists; `CONFLICT` — a concurrent ref update prevents creation */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match `BranchRequest` */
             422: {
                 headers: {
@@ -6075,7 +6191,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `GIT_REPO_NOT_FOUND` — the repository was not found */
+            /** @description `GIT_REPO_NOT_FOUND`, `GIT_BRANCH_NOT_FOUND` — the repository or branch was not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6086,6 +6202,15 @@ export interface operations {
             };
             /** @description `REQUEST_TIMEOUT` — git branch did not finish before the API deadline */
             408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `CONFLICT` — the branch is unmerged, checked out, or concurrently updated */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6142,7 +6267,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `GIT_REPO_NOT_FOUND`, `NOT_FOUND` — the repository or requested branch was not found */
+            /** @description `GIT_REPO_NOT_FOUND`, `GIT_BRANCH_NOT_FOUND` — the repository or requested branch was not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6153,6 +6278,15 @@ export interface operations {
             };
             /** @description `REQUEST_TIMEOUT` — git switch did not finish before the API deadline */
             408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `CONFLICT` — switching would overwrite local changes or the branch is checked out elsewhere */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6200,7 +6334,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `BAD_REQUEST` — malformed JSON or a missing `url`/`path` */
+            /** @description `BAD_REQUEST` — malformed JSON, missing `url`/`path`, depth outside 1–2147483647, non-empty destination, or invalid commit_id */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6209,7 +6343,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `GIT_REPO_NOT_FOUND` — the source repository was not found */
+            /** @description `GIT_AUTH_FAILED` — remote authentication failed or credentials are required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `GIT_REPO_NOT_FOUND`, `GIT_BRANCH_NOT_FOUND` — the source repository or requested branch was not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6268,7 +6411,7 @@ export interface operations {
                     "application/json": components["schemas"]["CommitResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — malformed JSON or missing commit metadata */
+            /** @description `BAD_REQUEST` — malformed JSON, missing commit metadata, or nothing to commit without allow_empty */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6288,6 +6431,15 @@ export interface operations {
             };
             /** @description `REQUEST_TIMEOUT` — git commit did not finish before the API deadline */
             408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `CONFLICT` — unmerged files or a concurrent index/ref update */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6464,7 +6616,7 @@ export interface operations {
                     "application/json": components["schemas"]["CommitInfo"][];
                 };
             };
-            /** @description `BAD_REQUEST` — `path` is missing */
+            /** @description `BAD_REQUEST` — `path` is missing or the repository has no commits */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6589,6 +6741,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description `GIT_AUTH_FAILED` — remote authentication failed or credentials are required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description `GIT_REPO_NOT_FOUND` — the repository was not found */
             404: {
                 headers: {
@@ -6607,7 +6768,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `CONFLICT` — non-fast-forward update */
+            /** @description `CONFLICT` — non-fast-forward update or conflicting working-tree/index state */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6658,6 +6819,15 @@ export interface operations {
             };
             /** @description `BAD_REQUEST` — malformed JSON or missing `path` */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `GIT_AUTH_FAILED` — remote authentication failed or credentials are required */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6790,7 +6960,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `BAD_REQUEST` — malformed JSON or a missing `path`, `name`, or `url` */
+            /** @description `BAD_REQUEST` — malformed JSON, missing `path`/`name`/`url`, or duplicate remote name */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6991,7 +7161,7 @@ export interface operations {
                     "application/json": components["schemas"]["StatusResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — `path` is missing */
+            /** @description `BAD_REQUEST` — `path` is missing or the repository has no working tree */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7611,7 +7781,7 @@ export interface operations {
             query?: {
                 /** @description Wait up to this many milliseconds before replying; timing out still returns 201 with a running record. */
                 waitMs?: number;
-                /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. */
+                /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
                 logs?: string;
             };
             header?: never;
@@ -7633,7 +7803,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProcessDto"];
                 };
             };
-            /** @description `BAD_REQUEST`, `PROCESS_START_FAILED`, or `UNSUPPORTED_OPERATION` — invalid create shape, shell/session misuse, or startup failure. */
+            /** @description `BAD_REQUEST`, `PROCESS_START_FAILED`, or `UNSUPPORTED_OPERATION` — invalid create shape, shell/session misuse, startup failure, or unsupported code language. Code languages are python, typescript and javascript (case-sensitive); unknown or empty language is UNSUPPORTED_OPERATION, rejected before kernel provisioning. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7678,7 +7848,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `KERNEL_UNAVAILABLE` — the requested interpreter is unavailable. */
+            /** @description `KERNEL_UNAVAILABLE` — a supported language's kernel failed to install or start. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -7808,7 +7978,7 @@ export interface operations {
                 cursor?: string;
                 /** @description Page size for JSON reads; clamped by the API. */
                 limit?: number;
-                /** @description Payload encoding: `text` (default) or `base64`. */
+                /** @description Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
                 encoding?: string;
                 /** @description When true, answer an SSE follow stream instead of a JSON page. */
                 follow?: boolean;
@@ -8217,8 +8387,17 @@ export interface operations {
                     "application/json": components["schemas"]["SessionDto"];
                 };
             };
-            /** @description `BAD_REQUEST` or `NAME_CONFLICT` — invalid session shape or duplicate session id. */
+            /** @description `BAD_REQUEST` — invalid session shape; `UNSUPPORTED_OPERATION` — unknown, empty or omitted kernel, shell kernel, or shell/login settings on a language session. */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description `NAME_CONFLICT` — duplicate session id. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8235,7 +8414,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `KERNEL_UNAVAILABLE` — the requested interpreter is unavailable. */
+            /** @description `KERNEL_UNAVAILABLE` — a supported language's kernel failed to install or start. */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -35,7 +35,7 @@ class PathModeQuery(BaseModel):
     Query parameters for `POST /files/folder`.
     """ # noqa: E501
     mode: Optional[StrictStr] = Field(default=None, description="Optional octal mode string; omitted or empty uses the route default.")
-    path: Optional[StrictStr] = Field(default=None, description="Directory path to create.")
+    path: Optional[StrictStr] = Field(default=None, description="Absolute directory path to create.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["mode", "path"]
 

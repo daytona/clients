@@ -88,6 +88,9 @@ func aliasListServer(t *testing.T, failSecond bool) *aliasListFixture {
 	t.Cleanup(b.Close)
 	var a *httptest.Server
 	a = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/regions" {
 			type region struct {

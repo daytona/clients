@@ -78,6 +78,9 @@ func TestImageList_allTraversesRegionalPagesExactlyOnce(t *testing.T) {
 // not through a key named after the item's own region.
 func TestImageListAll_oneAPIServingSeveralRegionsLosesNoTrimmedItem(t *testing.T) {
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		assert.Equal(t, "/images", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Query().Get("cursor") {
@@ -93,6 +96,9 @@ func TestImageListAll_oneAPIServingSeveralRegionsLosesNoTrimmedItem(t *testing.T
 
 	regionB := imageRegionItemFixture(`{"id":"22222222-2222-2222-2222-222222222222","name":"home-two","region_id":"region-b","created_at":"2026-09-14T00:00:03Z","cursor":"h2"}`)
 	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/regions":
@@ -169,6 +175,9 @@ func TestImageLogs_followStreamsSanitizedChunksBeforeInterrupt(t *testing.T) {
 	serverURL := ""
 	// Handler assertions are non-fatal: FailNow may only run on the test goroutine.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
 		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
 		switch r.URL.Path {
@@ -222,6 +231,9 @@ func TestImageLogs_followJSONStreamsNDJSONChunks(t *testing.T) {
 	serverURL := ""
 	// Handler assertions are non-fatal: FailNow may only run on the test goroutine.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
 		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
 		switch r.URL.Path {
@@ -438,6 +450,9 @@ func TestPostImageMultipart_retriesUnauthorizedWhenBodyIsSeekable(t *testing.T) 
 	var calls atomic.Int32
 	var firstBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		call := calls.Add(1)
@@ -474,6 +489,9 @@ func TestPostImageMultipart_largeContextIsOneShot(t *testing.T) {
 	require.NoError(t, os.WriteFile(contextPath, []byte("large-context"), 0o600))
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		_, _ = io.Copy(io.Discard, r.Body)
 		_ = r.Body.Close()
 		call := calls.Add(1)
@@ -596,6 +614,9 @@ func startImageListRegionServers(t *testing.T, expectedCounts map[string]int) (s
 	regionRequests := map[string]int{}
 	regionServer := func(region string, pages map[string]string) *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if writeSearchNotConfigured(w, r) {
+				return
+			}
 			assert.Equal(t, http.MethodGet, r.Method)
 			assert.Equal(t, "/images", r.URL.Path)
 			assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
@@ -626,6 +647,9 @@ func startImageListRegionServers(t *testing.T, expectedCounts map[string]int) (s
 	})
 	// Every region publishes a URL, so only those two URLs are queried.
 	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		assert.Equal(t, http.MethodGet, r.Method)
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
@@ -671,6 +695,9 @@ func runCLIText(t *testing.T, args []string, expected []expectedRequest) (string
 	t.Helper()
 	var index int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		require.Less(t, index, len(expected), "unexpected request %s %s", r.Method, r.URL.String())
 		exp := expected[index]
 		index++
@@ -727,6 +754,9 @@ func TestImageLogs_followHonoursTimeout(t *testing.T) {
 	hold := make(chan struct{})
 	defer close(hold)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		switch r.URL.Path {
 		case "/images/11111111-1111-1111-1111-111111111111":
 			w.Header().Set("Content-Type", "application/json")
@@ -760,6 +790,9 @@ func TestImageList_anonymousFilterIsBoolean(t *testing.T) {
 	var queries []string
 	var mu sync.Mutex
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		mu.Lock()
 		queries = append(queries, r.URL.Path+"?"+r.URL.RawQuery)
 		mu.Unlock()

@@ -71,9 +71,9 @@ class CloneRequest(BaseModel):
     """
     Clone a repository into a target directory.
     """ # noqa: E501
-    branch: Optional[StrictStr] = Field(default=None, description="Branch to clone when `commit_id` is omitted.")
+    branch: Optional[StrictStr] = Field(default=None, description="Branch to clone when `commit_id` is omitted. A leading `+` is literal.")
     commit_id: Optional[StrictStr] = Field(default=None, description="Commit to detach to after cloning.")
-    depth: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Optional shallow-clone depth. `1` clones only the tip commit.")
+    depth: Optional[Annotated[int, Field(le=2147483647, strict=True, ge=1)]] = Field(default=None, description="Optional shallow-clone depth, from 1 through 2147483647. `1` clones only the tip commit. Values representable as u32 but outside this range return 400 `BAD_REQUEST`; invalid JSON types or values outside u32 return 422 `UNPROCESSABLE_ENTITY`.")
     insecure_skip_tls: Optional[StrictBool] = Field(default=None, description="Skip TLS certificate verification for this clone invocation only.", alias="insecureSkipTls")
     password: Optional[StrictStr] = Field(default=None, description="Password for authenticated remotes; write-only and never returned.")
     path: Optional[StrictStr] = Field(default=None, description="Destination path to clone into.")

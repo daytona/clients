@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/daytona/clients/cli/gen/api"
 	apiinternal "github.com/daytona/clients/cli/internal/api"
@@ -13,6 +14,25 @@ import (
 )
 
 func (source regionalListSource) fetchImagePage(ctx context.Context, request listPageRequest, filters imageListFilters) (output.List[api.ImageListItem], error) {
+	// A deployment with search serves the list from it, every region at once.
+	// --region is checked here but not sent: the search route's region_ids
+	// matches an image's home region only, while an image is listed in every
+	// region it is available in (region_ids), so the command filters the
+	// search items itself, as it does the list route's.
+	if _, err := source.searchRegion(ctx); err != nil {
+		return output.List[api.ImageListItem]{}, err
+	}
+	query := imageListQuery(listQuery(pageFlags{limit: request.limit}, request.cursor), filters)
+	searched, served, err := getRawSearchPage[api.ImageListItem](ctx, source.search, source.home, "/images/search", query, "images")
+	if served {
+		if err != nil {
+			return output.List[api.ImageListItem]{}, err
+		}
+		for _, item := range searched.Items {
+			addRaw(source.raws, item)
+		}
+		return output.List[api.ImageListItem]{Items: apiinternal.Values(searched.Items), NextCursor: searched.NextCursor}, nil
+	}
 	cat, err := source.catalog.Fetch(ctx, source.home)
 	if err != nil {
 		return output.List[api.ImageListItem]{}, err
@@ -25,19 +45,7 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			if state.done {
 				return regions.Page[api.ImageListItem]{Items: []api.ImageListItem{}}, nil
 			}
-			query := listQuery(pageFlags{limit: request.limit}, state.cursor)
-			if filters.name != "" {
-				query.Set("name", filters.name)
-			}
-			if filters.anonymous != "" {
-				query.Set("anonymous", filters.anonymous)
-			}
-			if filters.platform != "" {
-				query.Set("platform", filters.platform)
-			}
-			if filters.sandboxID != "" {
-				query.Set("sandbox_id", filters.sandboxID)
-			}
+			query := imageListQuery(listQuery(pageFlags{limit: request.limit}, state.cursor), filters)
 			page, err := getRawList[api.ImageListItem](ctx, client, "/images", query, "images")
 			if err != nil {
 				return regions.Page[api.ImageListItem]{}, err
@@ -67,6 +75,24 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 	}
 	raw.Items = regions.Unique(raw.Items, func(item api.ImageListItem) string { return item.Id })
 	return trimImagePage(raw, scope, request.limit), nil
+}
+
+// imageListQuery adds the image list filters to query; the search and the
+// list route take the same names.
+func imageListQuery(query url.Values, filters imageListFilters) url.Values {
+	if filters.name != "" {
+		query.Set("name", filters.name)
+	}
+	if filters.anonymous != "" {
+		query.Set("anonymous", filters.anonymous)
+	}
+	if filters.platform != "" {
+		query.Set("platform", filters.platform)
+	}
+	if filters.sandboxID != "" {
+		query.Set("sandbox_id", filters.sandboxID)
+	}
+	return query
 }
 
 func trimImagePage(list output.List[api.ImageListItem], scope regionalPageCursor, limit int64) output.List[api.ImageListItem] {

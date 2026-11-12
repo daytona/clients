@@ -34,7 +34,7 @@ class BulkUploadQuery(BaseModel):
     """
     Query parameters for `POST /files/bulk-upload`.
     """ # noqa: E501
-    atomic: Optional[StrictBool] = Field(default=None, description="Replace each destination file atomically; fail that file if atomic replacement is unsupported.")
+    atomic: Optional[StrictBool] = Field(default=None, description="Replace each destination file atomically; fail that file if atomic replacement is unsupported. A replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. A non-regular destination refuses the request with `400 INVALID_FILE_PATH`; earlier uploads are not rolled back.")
     __properties: ClassVar[List[str]] = ["atomic"]
 
     model_config = ConfigDict(

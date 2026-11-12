@@ -67,7 +67,7 @@ class ProcessStateEventDto(BaseModel):
     system: Optional[StrictBool] = Field(default=None, description="Whether this is a protected system process.")
     tag: Optional[StrictStr] = Field(default=None, description="The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.")
     terminal: Optional[TerminalSize] = None
-    timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Process timeout in milliseconds, omitted when unset.", alias="timeoutMs")
+    timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Process execution timeout in milliseconds; omitted or 0 means no limit.", alias="timeoutMs")
     user: Optional[StrictStr] = Field(default=None, description="Requested user, omitted when the API runs as its default user.")
     first_available_cursor: Optional[StrictStr] = Field(default=None, description="Cursor of the first surviving log frame, omitted when nothing was evicted.", alias="firstAvailableCursor")
     last_cursor: Optional[StrictStr] = Field(default=None, description="Cursor of the last known log frame, omitted until at least one frame exists.", alias="lastCursor")

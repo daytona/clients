@@ -160,6 +160,10 @@ class ImagesService:
         raises :class:`RequestTimeoutError`. Without one (omitted or ``0``), a
         single long poll of the server's default length returns what the
         server reports.
+
+        ``"search"`` cannot be looked up by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        read such an image by its ID.
         """
         return self._bridge.call(lambda: self._impl.get(image_id, wait=wait, timeout=timeout))
 
@@ -194,7 +198,11 @@ class ImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> ListResult[Image]:
-        """List images (``GET /images``).
+        """List images, one page.
+
+        Reads ``GET /images/search`` (every region, eventually consistent: an
+        image you just created may be missing until the index catches up; :meth:`get`
+        reads it at once) and, on a deployment without search, ``GET /images``.
 
         ``platform`` picks the shared images Daytona publishes for every
         project: ``"false"`` (the server default) lists the project's own
@@ -282,7 +290,12 @@ class SnapshotsService:
     def get(
         self, snapshot_id: str, /, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
     ) -> Snapshot:
-        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does."""
+        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does.
+
+        ``"search"`` cannot be looked up by name (``GET /snapshots/search`` is
+        the search route): it raises :class:`BadRequestError` before any
+        request; read such a snapshot by its ID.
+        """
         return self._bridge.call(lambda: self._impl.get(snapshot_id, wait=wait, timeout=timeout))
 
     def iter(
@@ -305,6 +318,13 @@ class SnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Snapshot]:
+        """List snapshots, one page.
+
+        Reads ``GET /snapshots/search`` (every region, eventually consistent: a
+        snapshot you just captured may be missing until the index catches up; :meth:`get`
+        reads it at once) and, on a deployment without search,
+        ``GET /snapshots``.
+        """
         return self._bridge.call(
             lambda: self._impl.list(name=name, sandbox_id=sandbox_id, cursor=cursor, limit=limit)
         )

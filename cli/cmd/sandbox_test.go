@@ -41,10 +41,27 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 			name: "list sandboxes",
 			args: []string{"sandbox", "list", "--limit", "1"},
 			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/search", query: "limit=1", status: 200, response: withSearchTotals(t, sandboxPageFixture("11111111-1111-1111-1111-111111111111", "c1"))},
+			},
+			wantExit: 0,
+		},
+		{
+			name: "list sandboxes without search",
+			args: []string{"sandbox", "list", "--limit", "1"},
+			expected: []expectedRequest{
+				searchNotConfiguredRequest("/sandboxes/search"),
 				{method: http.MethodGet, path: "/regions", status: 200, response: fixtureJSON(map[string]any{"regions": regionCatalogFixture("region-c", "Region C", "group-a", "group-b"), "default_region_id": nil})},
 				{method: http.MethodGet, path: "/sandboxes", query: "limit=1", status: 200, response: sandboxPageFixture("11111111-1111-1111-1111-111111111111", "c1")},
 			},
 			wantExit: 0,
+		},
+		{
+			name: "list sandboxes when search is unavailable",
+			args: []string{"sandbox", "list", "--limit", "1"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/search", query: "limit=1", status: http.StatusServiceUnavailable, response: `{"code":"SEARCH_UNAVAILABLE","message":"search is unavailable","source":"DAYTONA_API"}`},
+			},
+			wantExit: cerr.ExitFailure,
 		},
 		{
 			name:     "get sandbox",
@@ -199,6 +216,9 @@ func startMixedCatalogServers(t *testing.T) (string, map[string]int) {
 		return sandboxPageItemFixture(id, "c-"+name, name, region, createdAt)
 	}
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		require.Equal(t, "/sandboxes", r.URL.Path)
 		mu.Lock()
 		answered["region-a"]++
@@ -211,6 +231,9 @@ func startMixedCatalogServers(t *testing.T) (string, map[string]int) {
 	t.Cleanup(remote.Close)
 
 	home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if writeSearchNotConfigured(w, r) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/regions":
@@ -298,7 +321,7 @@ func TestTrimSandboxPage_preservesDeferredRegionWithoutLocalNextCursor(t *testin
 }
 
 func TestSandboxListAll_preservesBareHomeCursorAcrossPages(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--all", "--limit", "1"}, []expectedRequest{
+	stdout, _, err := runCLI(t, []string{"sandbox", "list", "--all", "--limit", "1"}, []expectedRequest{searchNotConfiguredRequest("/sandboxes/search"),
 		{method: http.MethodGet, path: "/regions", status: 200, response: fixtureJSON(map[string]any{"regions": regionCatalogFixture("region-c", "Region C", "group-a", "group-b"), "default_region_id": nil})},
 		{method: http.MethodGet, path: "/sandboxes", query: "limit=1", status: 200, response: fixtureJSON(map[string]any{"sandboxes": []any{sandboxPageItemFixture("11111111-1111-1111-1111-111111111111", "home-c1", "one", "region-c", "2026-09-13T00:00:02Z")}, "next_cursor": "home-c1"})},
 		{method: http.MethodGet, path: "/sandboxes", query: "cursor=home-c1&limit=1", status: 200, response: fixtureJSON(map[string]any{"sandboxes": []any{sandboxPageItemFixture("22222222-2222-2222-2222-222222222222", "home-c2", "two", "region-c", "2026-09-13T00:00:01Z")}})},

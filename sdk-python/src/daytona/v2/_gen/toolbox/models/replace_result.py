@@ -35,7 +35,7 @@ class ReplaceResult(BaseModel):
     One file's outcome from `POST /files/replace`.
     """ # noqa: E501
     error: Optional[StrictStr] = Field(default=None, description="Per-file error text, omitted on success.")
-    file: StrictStr = Field(description="Absolute or caller-supplied file path for this replacement attempt.")
+    file: StrictStr = Field(description="Absolute file path for this replacement attempt.")
     success: StrictBool = Field(description="Whether the replacement succeeded for this file.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["error", "file", "success"]

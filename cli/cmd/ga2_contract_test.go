@@ -288,7 +288,7 @@ func TestSandboxDelete_noWaitPrintsDetailOrTheOperationWhenGone(t *testing.T) {
 }
 
 func TestSandboxList_cursorNamingAnUnknownRegionIsRefused(t *testing.T) {
-	_, _, err := runCLI(t, []string{"sandbox", "list", "--cursor", "nosuchregion:abc"}, []expectedRequest{
+	_, _, err := runCLI(t, []string{"sandbox", "list", "--cursor", "nosuchregion:abc"}, []expectedRequest{searchNotConfiguredRequest("/sandboxes/search"),
 		{method: http.MethodGet, path: "/regions", status: 200, response: `{"regions":[{"id":"region-b","name":"Region B","available":true,"parent_region_ids":["earth"]}],"default_region_id":null}`},
 	})
 	require.Error(t, err)

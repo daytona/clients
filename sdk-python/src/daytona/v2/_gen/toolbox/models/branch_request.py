@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -34,10 +34,11 @@ class BranchRequest(BaseModel):
     """
     Create or delete one named branch.
     """ # noqa: E501
-    name: Optional[StrictStr] = Field(default=None, description="Branch name to create or delete.")
+    force: Optional[StrictBool] = Field(default=None, description="Force deletion of an unmerged branch using `git branch -D`. Defaults to false: deletion uses `git branch -d`, refusing an unmerged branch with 409 `CONFLICT`. Ignored when creating a branch.")
+    name: Optional[StrictStr] = Field(default=None, description="Branch name to create or delete. A leading `+` is a literal part of the name, not a refspec force marker.")
     path: Optional[StrictStr] = Field(default=None, description="Repository path to operate in.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "path"]
+    __properties: ClassVar[List[str]] = ["force", "name", "path"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -99,6 +100,7 @@ class BranchRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            **({"force": obj["force"]} if "force" in obj else {}),
             **({"name": obj["name"]} if "name" in obj else {}),
             **({"path": obj["path"]} if "path" in obj else {})
         })

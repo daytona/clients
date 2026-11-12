@@ -332,7 +332,13 @@ type BranchList struct {
 
 // BranchRequest Create or delete one named branch.
 type BranchRequest struct {
-	// Name Branch name to create or delete.
+	// Force Force deletion of an unmerged branch using `git branch -D`.
+	// Defaults to false: deletion uses `git branch -d`, refusing an unmerged
+	// branch with 409 `CONFLICT`. Ignored when creating a branch.
+	Force *bool `json:"force,omitempty"`
+
+	// Name Branch name to create or delete. A leading `+` is a literal part of the
+	// name, not a refspec force marker.
 	Name *string `json:"name,omitempty"`
 
 	// Path Repository path to operate in.
@@ -341,7 +347,7 @@ type BranchRequest struct {
 
 // BulkDownloadRequest JSON body for `POST /files/bulk-download`.
 type BulkDownloadRequest struct {
-	// Paths Paths to stream back as multipart file or error parts.
+	// Paths Absolute paths of regular files to stream back as multipart file or error parts. Permission denials and non-regular files discovered before streaming refuse the request.
 	Paths *[]string `json:"paths,omitempty"`
 }
 
@@ -365,13 +371,16 @@ type CheckoutRequest struct {
 
 // CloneRequest Clone a repository into a target directory.
 type CloneRequest struct {
-	// Branch Branch to clone when `commit_id` is omitted.
+	// Branch Branch to clone when `commit_id` is omitted. A leading `+` is literal.
 	Branch *string `json:"branch,omitempty"`
 
 	// CommitId Commit to detach to after cloning.
 	CommitId *string `json:"commit_id,omitempty"`
 
-	// Depth Optional shallow-clone depth. `1` clones only the tip commit.
+	// Depth Optional shallow-clone depth, from 1 through 2147483647.
+	// `1` clones only the tip commit. Values representable as u32 but outside
+	// this range return 400 `BAD_REQUEST`; invalid JSON types or values outside
+	// u32 return 422 `UNPROCESSABLE_ENTITY`.
 	Depth *int32 `json:"depth,omitempty"`
 
 	// InsecureSkipTls Skip TLS certificate verification for this clone invocation only.
@@ -428,7 +437,8 @@ type CommitRequest struct {
 
 // CommitResponse Commit creation result.
 type CommitResponse struct {
-	// Hash Full commit SHA of the created commit.
+	// Hash Full SHA of this operation's created commit, captured from git's commit
+	// output rather than a later read of HEAD.
 	Hash string `json:"hash"`
 }
 
@@ -941,12 +951,12 @@ type CreateProcessRequest struct {
 	// Cwd Optional working directory. For `exec` and `pty`, defaults to the configured user’s home when available. Code execution, an explicit `user`, or an unavailable home uses the sandbox’s default working directory.
 	Cwd *string `json:"cwd,omitempty"`
 
-	// Env Environment overrides applied at spawn time.
+	// Env Environment overrides applied at spawn time. PTY processes default to `TERM=xterm-256color`; an explicit TERM overrides the default.
 	Env      *map[string]string `json:"env,omitempty"`
 	KeepLogs *KeepLogs          `json:"keepLogs,omitempty"`
 	Kind     *Kind              `json:"kind,omitempty"`
 
-	// Language Code language such as `python`, `typescript`, or `javascript`.
+	// Language Code language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning. Omit when using an explicit session's language; without `sessionId`, omission answers 400 `BAD_REQUEST`.
 	Language *string `json:"language,omitempty"`
 
 	// Login Whether to request a login shell.
@@ -969,7 +979,7 @@ type CreateProcessRequest struct {
 	Tag      *string       `json:"tag,omitempty"`
 	Terminal *TerminalSize `json:"terminal,omitempty"`
 
-	// TimeoutMs Per-process timeout in milliseconds. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.
+	// TimeoutMs Per-process execution timeout in milliseconds. Omitted or 0 means no limit. Positive timeouts apply to exec and PTY processes (including exec commands in a shell session); code executions and shell-session creation refuse positive timeouts. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.
 	TimeoutMs *int64 `json:"timeoutMs,omitempty"`
 
 	// User Optional execution user. Not supported for `kind=code`; returns 400 `UNSUPPORTED_OPERATION`.
@@ -987,7 +997,7 @@ type CreateSessionRequest struct {
 	// Id Optional client-chosen session id. Must be a safe identifier when present.
 	Id *string `json:"id,omitempty"`
 
-	// Kernel Interpreter language, one of `python`, `typescript` or `javascript`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`.
+	// Kernel Interpreter language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning; a supported kernel that fails to install or start answers 503 `KERNEL_UNAVAILABLE`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`.
 	Kernel *string `json:"kernel,omitempty"`
 
 	// Login Not supported for interpreter sessions; answers 400 `UNSUPPORTED_OPERATION` when `true`.
@@ -1117,6 +1127,17 @@ type FileStatus struct {
 	Worktree string `json:"worktree"`
 }
 
+// FindResponse Literal line matches from `GET /files/find`.
+type FindResponse struct {
+	// Items Matches, in walk order.
+	Items []Match `json:"items"`
+
+	// Skipped Absolute paths below the root that the sandbox user cannot read, so
+	// they were not searched. Empty when nothing was skipped; at most 1000
+	// entries.
+	Skipped []string `json:"skipped"`
+}
+
 // GitConfigResponse Value of one git config key.
 type GitConfigResponse struct {
 	// Value Config value, or `null` when the key is unset.
@@ -1204,7 +1225,7 @@ type LogFrameDto struct {
 	// Cursor Cursor naming this frame.
 	Cursor string `json:"cursor"`
 
-	// Data Frame payload in the requested encoding.
+	// Data Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).
 	Data string `json:"data"`
 
 	// Timestamp Unix timestamp in milliseconds.
@@ -1342,7 +1363,7 @@ type ProcessDto struct {
 	Tag      *string       `json:"tag,omitempty"`
 	Terminal *TerminalSize `json:"terminal,omitempty"`
 
-	// TimeoutMs Process timeout in milliseconds, omitted when unset.
+	// TimeoutMs Process execution timeout in milliseconds; omitted or 0 means no limit.
 	TimeoutMs *int64 `json:"timeoutMs,omitempty"`
 
 	// TruncatedHead Whether retention removed earlier output logs.
@@ -1449,7 +1470,7 @@ type ProcessRecord struct {
 	Tag      *string       `json:"tag,omitempty"`
 	Terminal *TerminalSize `json:"terminal,omitempty"`
 
-	// TimeoutMs Process timeout in milliseconds, omitted when unset.
+	// TimeoutMs Process execution timeout in milliseconds; omitted or 0 means no limit.
 	TimeoutMs *int64 `json:"timeoutMs,omitempty"`
 
 	// User Requested user, omitted when the API runs as its default user.
@@ -1486,7 +1507,7 @@ type Reason string
 
 // ReplaceRequest JSON body for `POST /files/replace`.
 type ReplaceRequest struct {
-	// Files Files to rewrite.
+	// Files Absolute paths of regular files to rewrite. Non-regular files are skipped with a per-file failure; permission denials return `FILE_ACCESS_DENIED`.
 	Files *[]string `json:"files,omitempty"`
 
 	// NewValue Replacement text. Omitted only when the caller wants the route to reject the request.
@@ -1501,7 +1522,7 @@ type ReplaceResult struct {
 	// Error Per-file error text, omitted on success.
 	Error *string `json:"error,omitempty"`
 
-	// File Absolute or caller-supplied file path for this replacement attempt.
+	// File Absolute file path for this replacement attempt.
 	File string `json:"file"`
 
 	// Success Whether the replacement succeeded for this file.
@@ -1511,6 +1532,7 @@ type ReplaceResult struct {
 // RepoRequest Operate on a repository, optionally with credentials for a remote.
 type RepoRequest struct {
 	// Branch Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target.
+	// A leading `+` is a literal part of the branch name, never a force flag.
 	Branch *string `json:"branch,omitempty"`
 
 	// Password Password for authenticated remotes; write-only and never returned.
@@ -1547,10 +1569,10 @@ type ResetRequest struct {
 
 // ResizeRequest `POST /processes/{id}/resize` body.
 type ResizeRequest struct {
-	// Cols PTY columns; must be at least 1.
+	// Cols PTY columns; an integer in 1..=65535. Windows: at most 32767.
 	Cols int32 `json:"cols"`
 
-	// Rows PTY rows; must be at least 1.
+	// Rows PTY rows; an integer in 1..=65535. Windows: at most 32767.
 	Rows int32 `json:"rows"`
 }
 
@@ -1576,6 +1598,11 @@ type RestoreRequest struct {
 type SearchResponse struct {
 	// Files Absolute matching file paths.
 	Files []string `json:"files"`
+
+	// Skipped Absolute paths below the root that the sandbox user cannot read, so
+	// their contents were not searched. Empty when nothing was skipped; at
+	// most 1000 entries.
+	Skipped []string `json:"skipped"`
 }
 
 // ServerRequest Identifies a language-server instance for one language and one project root.
@@ -1670,7 +1697,7 @@ type StdinMode string
 
 // StdinRequest `POST /processes/{id}/stdin` body.
 type StdinRequest struct {
-	// Data Data to write. Text by default, or base64url when `encoding=base64`.
+	// Data Data to write. Text by default. With `encoding=base64`, accepts standard RFC 4648 section 4 base64 (`+/`) or base64url (`-_`), padded or unpadded.
 	Data *string `json:"data,omitempty"`
 
 	// Encoding Optional payload encoding: `text` (default) or `base64`.
@@ -1721,10 +1748,10 @@ type SymbolRange struct {
 
 // TerminalSize Terminal dimensions for PTY processes.
 type TerminalSize struct {
-	// Cols Number of columns; must be at least 1.
+	// Cols Number of columns; an integer in 1..=65535. Windows: at most 32767.
 	Cols int32 `json:"cols"`
 
-	// Rows Number of rows; must be at least 1.
+	// Rows Number of rows; an integer in 1..=65535. Windows: at most 32767.
 	Rows int32 `json:"rows"`
 }
 
@@ -1733,7 +1760,7 @@ type UploadedFile struct {
 	// Bytes Number of bytes written.
 	Bytes int64 `json:"bytes"`
 
-	// Path Destination path the API wrote.
+	// Path Absolute destination path the API wrote.
 	Path string `json:"path"`
 }
 
@@ -1769,7 +1796,7 @@ type DockerStatusParams struct {
 
 // DeleteFileParams defines parameters for DeleteFile.
 type DeleteFileParams struct {
-	// Path Path to remove.
+	// Path Absolute path to remove.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Recursive Recursive delete flag as a string query value.
@@ -1778,7 +1805,7 @@ type DeleteFileParams struct {
 
 // ListFilesParams defines parameters for ListFiles.
 type ListFilesParams struct {
-	// Path Target path. Omitted on `GET /files` to use the sandbox’s default working directory.
+	// Path Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Depth Recursive listing depth for `GET /files`; omitted for the flat default (`1`).
@@ -1790,13 +1817,13 @@ type BulkUploadMultipartBody = string
 
 // BulkUploadParams defines parameters for BulkUpload.
 type BulkUploadParams struct {
-	// Atomic Replace each destination file atomically; fail that file if atomic replacement is unsupported.
+	// Atomic Replace each destination file atomically; fail that file if atomic replacement is unsupported. A replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. A non-regular destination refuses the request with `400 INVALID_FILE_PATH`; earlier uploads are not rolled back.
 	Atomic *bool `form:"atomic,omitempty" json:"atomic,omitempty"`
 }
 
 // DownloadFileParams defines parameters for DownloadFile.
 type DownloadFileParams struct {
-	// Path Target path. Omitted on `GET /files` to use the sandbox’s default working directory.
+	// Path Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Depth Recursive listing depth for `GET /files`; omitted for the flat default (`1`).
@@ -1805,7 +1832,7 @@ type DownloadFileParams struct {
 
 // FindInFilesParams defines parameters for FindInFiles.
 type FindInFilesParams struct {
-	// Path Root path to walk recursively.
+	// Path Absolute root path to walk recursively.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Pattern Filename glob (`search`) or literal substring (`find`) pattern.
@@ -1814,7 +1841,7 @@ type FindInFilesParams struct {
 
 // CreateFolderParams defines parameters for CreateFolder.
 type CreateFolderParams struct {
-	// Path Directory path to create.
+	// Path Absolute directory path to create.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Mode Optional octal mode string; omitted or empty uses the route default.
@@ -1823,7 +1850,7 @@ type CreateFolderParams struct {
 
 // FileInfoParams defines parameters for FileInfo.
 type FileInfoParams struct {
-	// Path Target path. Omitted on `GET /files` to use the sandbox’s default working directory.
+	// Path Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Depth Recursive listing depth for `GET /files`; omitted for the flat default (`1`).
@@ -1832,16 +1859,16 @@ type FileInfoParams struct {
 
 // MoveFileParams defines parameters for MoveFile.
 type MoveFileParams struct {
-	// Source Source path to move.
+	// Source Absolute source path to move.
 	Source *string `form:"source,omitempty" json:"source,omitempty"`
 
-	// Destination Destination path.
+	// Destination Absolute destination path.
 	Destination *string `form:"destination,omitempty" json:"destination,omitempty"`
 }
 
 // SetPermissionsParams defines parameters for SetPermissions.
 type SetPermissionsParams struct {
-	// Path Path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.
+	// Path Absolute path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Mode Optional octal mode string.
@@ -1856,7 +1883,7 @@ type SetPermissionsParams struct {
 
 // SearchFilesParams defines parameters for SearchFiles.
 type SearchFilesParams struct {
-	// Path Root path to walk recursively.
+	// Path Absolute root path to walk recursively.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
 	// Pattern Filename glob (`search`) or literal substring (`find`) pattern.
@@ -1868,10 +1895,10 @@ type UploadFileMultipartBody = string
 
 // UploadFileParams defines parameters for UploadFile.
 type UploadFileParams struct {
-	// Path Destination path for the uploaded file.
+	// Path Absolute destination path for the uploaded file. Existing destinations must be regular files; otherwise returns `400 INVALID_FILE_PATH`, `<path>: not a regular file`.
 	Path *string `form:"path,omitempty" json:"path,omitempty"`
 
-	// Atomic Replace the destination file atomically; fail if atomic replacement is unsupported.
+	// Atomic Replace the destination file atomically; fail if atomic replacement is unsupported. The replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user.
 	Atomic *bool `form:"atomic,omitempty" json:"atomic,omitempty"`
 }
 
@@ -1979,7 +2006,7 @@ type CreateProcessParams struct {
 	// WaitMs Wait up to this many milliseconds before replying; timing out still returns 201 with a running record.
 	WaitMs *int64 `form:"waitMs,omitempty" json:"waitMs,omitempty"`
 
-	// Logs Inline the first logs page using `text` or `base64`; requires `waitMs`.
+	// Logs Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.
 	Logs *string `form:"logs,omitempty" json:"logs,omitempty"`
 }
 
@@ -1997,7 +2024,7 @@ type ProcessLogsParams struct {
 	// Limit Page size for JSON reads; clamped by the API.
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Encoding Payload encoding: `text` (default) or `base64`.
+	// Encoding Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.
 	Encoding *string `form:"encoding,omitempty" json:"encoding,omitempty"`
 
 	// Follow When true, answer an SSE follow stream instead of a JSON page.

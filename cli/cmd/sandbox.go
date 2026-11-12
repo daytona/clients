@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"net/url"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
@@ -21,6 +22,8 @@ type regionalListSource struct {
 	region  string
 	// raws keeps each item's API JSON for the output.
 	raws *rawIndex
+	// search remembers a deployment without search; nil probes every page.
+	search *searchProbe
 }
 
 func newSandboxListCommand() *cobra.Command {
@@ -36,7 +39,7 @@ func newSandboxListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			source := regionalListSource{home: home, catalog: workload.NewCatalogCache(), region: a.Globals.Region, raws: newRawIndex()}
+			source := regionalListSource{home: home, catalog: workload.NewCatalogCache(), region: a.Globals.Region, raws: newRawIndex(), search: &searchProbe{}}
 			fetch := func(ctx context.Context, cursor string) (output.List[gen.SandboxListItem], error) {
 				return source.fetchSandboxPage(ctx, listPageRequest{limit: flags.limit, cursor: cursor})
 			}
@@ -157,6 +160,21 @@ func sandboxWaitTarget(value string) (string, error) {
 }
 
 func (source regionalListSource) fetchSandboxPage(ctx context.Context, page listPageRequest) (output.List[gen.SandboxListItem], error) {
+	// A deployment with search serves the list from it, every region at once.
+	query, err := source.searchQuery(ctx, listQuery(pageFlags{limit: page.limit}, page.cursor))
+	if err != nil {
+		return output.List[gen.SandboxListItem]{}, err
+	}
+	searched, served, err := getRawSearchPage[gen.SandboxListItem](ctx, source.search, source.home, "/sandboxes/search", query, "sandboxes")
+	if served {
+		if err != nil {
+			return output.List[gen.SandboxListItem]{}, err
+		}
+		for _, item := range searched.Items {
+			addRaw(source.raws, item)
+		}
+		return output.List[gen.SandboxListItem]{Items: api.Values(searched.Items), NextCursor: searched.NextCursor}, nil
+	}
 	cat, err := source.catalog.Fetch(ctx, source.home)
 	if err != nil {
 		return output.List[gen.SandboxListItem]{}, err
@@ -218,6 +236,41 @@ func printSandboxDetail(ctx context.Context, id string) error {
 		return err
 	}
 	return a.Printer().Object(resolved.Raw, sandboxDetailKV(resolved.Detail))
+}
+
+// searchQuery adds --region to a search route's query as the region_ids
+// filter (the route matches every region inside it), checked against the
+// region catalog first (searchRegion). Without --region the search spans every
+// region. region_ids matches an item's home region only, so it suits sandboxes
+// (one region each); images, also available outside their home region, filter
+// their search items the way their list does (fetchImagePage).
+func (source regionalListSource) searchQuery(ctx context.Context, query url.Values) (url.Values, error) {
+	regionID, err := source.searchRegion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if regionID != "" {
+		query.Set("region_ids", regionID)
+	}
+	return query, nil
+}
+
+// searchRegion resolves --region against the region catalog before a search
+// request: an unknown region is a usage error before any list request. It is
+// "" without --region, or once the deployment is known not to serve search.
+func (source regionalListSource) searchRegion(ctx context.Context) (string, error) {
+	if source.region == "" || (source.search != nil && source.search.notServed) {
+		return "", nil
+	}
+	cat, err := source.catalog.Fetch(ctx, source.home)
+	if err != nil {
+		return "", err
+	}
+	selected := cat.Find(source.region)
+	if selected == nil {
+		return "", cerr.Usage("unknown region %q", source.region).WithHint("`daytona region list` shows the regions")
+	}
+	return selected.Id, nil
 }
 
 // regionFilter reports whether a region id is the --region the list was

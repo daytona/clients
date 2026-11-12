@@ -845,6 +845,33 @@ func (e ExternalBucketOrigin) Valid() bool {
 	}
 }
 
+// Defines values for ImageOrigin.
+const (
+	ImageOriginCapture    ImageOrigin = "capture"
+	ImageOriginDockerfile ImageOrigin = "dockerfile"
+	ImageOriginMacos      ImageOrigin = "macos"
+	ImageOriginRegistry   ImageOrigin = "registry"
+	ImageOriginWindows    ImageOrigin = "windows"
+)
+
+// Valid indicates whether the value is a known member of the ImageOrigin enum.
+func (e ImageOrigin) Valid() bool {
+	switch e {
+	case ImageOriginCapture:
+		return true
+	case ImageOriginDockerfile:
+		return true
+	case ImageOriginMacos:
+		return true
+	case ImageOriginRegistry:
+		return true
+	case ImageOriginWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImagePlatformFilter.
 const (
 	Any   ImagePlatformFilter = "any"
@@ -884,6 +911,51 @@ func (e ImageRetention) Valid() bool {
 	}
 }
 
+// Defines values for ImageSearchClass.
+const (
+	ImageSearchClassLinux   ImageSearchClass = "linux"
+	ImageSearchClassMacos   ImageSearchClass = "macos"
+	ImageSearchClassWindows ImageSearchClass = "windows"
+)
+
+// Valid indicates whether the value is a known member of the ImageSearchClass enum.
+func (e ImageSearchClass) Valid() bool {
+	switch e {
+	case ImageSearchClassLinux:
+		return true
+	case ImageSearchClassMacos:
+		return true
+	case ImageSearchClassWindows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImageSearchSort.
+const (
+	ImageSearchSortBytes     ImageSearchSort = "bytes"
+	ImageSearchSortCreatedAt ImageSearchSort = "created_at"
+	ImageSearchSortName      ImageSearchSort = "name"
+	ImageSearchSortUpdatedAt ImageSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the ImageSearchSort enum.
+func (e ImageSearchSort) Valid() bool {
+	switch e {
+	case ImageSearchSortBytes:
+		return true
+	case ImageSearchSortCreatedAt:
+		return true
+	case ImageSearchSortName:
+		return true
+	case ImageSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImageSourceValue0Type.
 const (
 	ImageSourceValue0TypeRegistry ImageSourceValue0Type = "registry"
@@ -901,13 +973,13 @@ func (e ImageSourceValue0Type) Valid() bool {
 
 // Defines values for ImageSourceValue1Type.
 const (
-	Dockerfile ImageSourceValue1Type = "dockerfile"
+	ImageSourceValue1TypeDockerfile ImageSourceValue1Type = "dockerfile"
 )
 
 // Valid indicates whether the value is a known member of the ImageSourceValue1Type enum.
 func (e ImageSourceValue1Type) Valid() bool {
 	switch e {
-	case Dockerfile:
+	case ImageSourceValue1TypeDockerfile:
 		return true
 	default:
 		return false
@@ -938,6 +1010,30 @@ const (
 func (e ImageSourceValue3Type) Valid() bool {
 	switch e {
 	case Manifest:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImageStatus.
+const (
+	ImageStatusBuilding ImageStatus = "building"
+	ImageStatusFailed   ImageStatus = "failed"
+	ImageStatusPending  ImageStatus = "pending"
+	ImageStatusReady    ImageStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ImageStatus enum.
+func (e ImageStatus) Valid() bool {
+	switch e {
+	case ImageStatusBuilding:
+		return true
+	case ImageStatusFailed:
+		return true
+	case ImageStatusPending:
+		return true
+	case ImageStatusReady:
 		return true
 	default:
 		return false
@@ -1124,6 +1220,66 @@ func (e MacReservationStatus) Valid() bool {
 	case MacReservationStatusPendingMac:
 		return true
 	case MacReservationStatusReleased:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MsaCommitType.
+const (
+	Postpaid MsaCommitType = "postpaid"
+	Prepaid  MsaCommitType = "prepaid"
+)
+
+// Valid indicates whether the value is a known member of the MsaCommitType enum.
+func (e MsaCommitType) Valid() bool {
+	switch e {
+	case Postpaid:
+		return true
+	case Prepaid:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MsaDiscountType.
+const (
+	Multiplier MsaDiscountType = "multiplier"
+	Overwrite  MsaDiscountType = "overwrite"
+	Tiered     MsaDiscountType = "tiered"
+)
+
+// Valid indicates whether the value is a known member of the MsaDiscountType enum.
+func (e MsaDiscountType) Valid() bool {
+	switch e {
+	case Multiplier:
+		return true
+	case Overwrite:
+		return true
+	case Tiered:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MsaStatus.
+const (
+	MsaStatusActive   MsaStatus = "active"
+	MsaStatusExpired  MsaStatus = "expired"
+	MsaStatusUpcoming MsaStatus = "upcoming"
+)
+
+// Valid indicates whether the value is a known member of the MsaStatus enum.
+func (e MsaStatus) Valid() bool {
+	switch e {
+	case MsaStatusActive:
+		return true
+	case MsaStatusExpired:
+		return true
+	case MsaStatusUpcoming:
 		return true
 	default:
 		return false
@@ -1405,31 +1561,31 @@ func (e SandboxClass) Valid() bool {
 
 // Defines values for SandboxSearchSort.
 const (
-	Cores          SandboxSearchSort = "cores"
-	CreatedAt      SandboxSearchSort = "created_at"
-	DiskMib        SandboxSearchSort = "disk_mib"
-	LastActivityAt SandboxSearchSort = "last_activity_at"
-	MemoryMib      SandboxSearchSort = "memory_mib"
-	Name           SandboxSearchSort = "name"
-	UpdatedAt      SandboxSearchSort = "updated_at"
+	SandboxSearchSortCores          SandboxSearchSort = "cores"
+	SandboxSearchSortCreatedAt      SandboxSearchSort = "created_at"
+	SandboxSearchSortDiskMib        SandboxSearchSort = "disk_mib"
+	SandboxSearchSortLastActivityAt SandboxSearchSort = "last_activity_at"
+	SandboxSearchSortMemoryMib      SandboxSearchSort = "memory_mib"
+	SandboxSearchSortName           SandboxSearchSort = "name"
+	SandboxSearchSortUpdatedAt      SandboxSearchSort = "updated_at"
 )
 
 // Valid indicates whether the value is a known member of the SandboxSearchSort enum.
 func (e SandboxSearchSort) Valid() bool {
 	switch e {
-	case Cores:
+	case SandboxSearchSortCores:
 		return true
-	case CreatedAt:
+	case SandboxSearchSortCreatedAt:
 		return true
-	case DiskMib:
+	case SandboxSearchSortDiskMib:
 		return true
-	case LastActivityAt:
+	case SandboxSearchSortLastActivityAt:
 		return true
-	case MemoryMib:
+	case SandboxSearchSortMemoryMib:
 		return true
-	case Name:
+	case SandboxSearchSortName:
 		return true
-	case UpdatedAt:
+	case SandboxSearchSortUpdatedAt:
 		return true
 	default:
 		return false
@@ -1556,6 +1712,75 @@ const (
 func (e SnapshotKind) Valid() bool {
 	switch e {
 	case Full:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SnapshotSearchClass.
+const (
+	SnapshotSearchClassGpu     SnapshotSearchClass = "gpu"
+	SnapshotSearchClassLinux   SnapshotSearchClass = "linux"
+	SnapshotSearchClassWindows SnapshotSearchClass = "windows"
+)
+
+// Valid indicates whether the value is a known member of the SnapshotSearchClass enum.
+func (e SnapshotSearchClass) Valid() bool {
+	switch e {
+	case SnapshotSearchClassGpu:
+		return true
+	case SnapshotSearchClassLinux:
+		return true
+	case SnapshotSearchClassWindows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SnapshotSearchSort.
+const (
+	SnapshotSearchSortBytes     SnapshotSearchSort = "bytes"
+	SnapshotSearchSortCreatedAt SnapshotSearchSort = "created_at"
+	SnapshotSearchSortName      SnapshotSearchSort = "name"
+	SnapshotSearchSortUpdatedAt SnapshotSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the SnapshotSearchSort enum.
+func (e SnapshotSearchSort) Valid() bool {
+	switch e {
+	case SnapshotSearchSortBytes:
+		return true
+	case SnapshotSearchSortCreatedAt:
+		return true
+	case SnapshotSearchSortName:
+		return true
+	case SnapshotSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SnapshotStatus.
+const (
+	SnapshotStatusBuilding SnapshotStatus = "building"
+	SnapshotStatusFailed   SnapshotStatus = "failed"
+	SnapshotStatusPending  SnapshotStatus = "pending"
+	SnapshotStatusReady    SnapshotStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the SnapshotStatus enum.
+func (e SnapshotStatus) Valid() bool {
+	switch e {
+	case SnapshotStatusBuilding:
+		return true
+	case SnapshotStatusFailed:
+		return true
+	case SnapshotStatusPending:
+		return true
+	case SnapshotStatusReady:
 		return true
 	default:
 		return false
@@ -3280,6 +3505,9 @@ type ImageListItem struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// ImageOrigin How an image was created.
+type ImageOrigin string
+
 // ImagePage Page of images (`GET /images`).
 type ImagePage struct {
 	// Images The images in this page.
@@ -3303,6 +3531,28 @@ type ImageReference struct {
 
 // ImageRetention defines model for ImageRetention.
 type ImageRetention string
+
+// ImageSearchClass The `class` filter of `GET /images/search`.
+type ImageSearchClass string
+
+// ImageSearchPage A page of matching images.
+type ImageSearchPage struct {
+	// Images Matching images in this page.
+	Images []ImageListItem `json:"images"`
+
+	// NextCursor Continuation token for the next page; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Total The number of matching images. Exact when `total_relation` is `eq`,
+	// and a lower bound of 10000 when it is `gte`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether `total` is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+}
+
+// ImageSearchSort The `sort` values of `GET /images/search`.
+type ImageSearchSort string
 
 // ImageSourceValue defines model for ImageSourceValue.
 type ImageSourceValue struct {
@@ -3359,6 +3609,9 @@ type ImageSourceValue3 struct {
 
 // ImageSourceValue3Type The object type.
 type ImageSourceValue3Type string
+
+// ImageStatus The build status of an image.
+type ImageStatus string
 
 // ImportedFrom The source platform and resource ID of an imported resource.
 type ImportedFrom struct {
@@ -3842,6 +4095,117 @@ type MintSandboxAccessTokenRequest struct {
 	// response is authoritative.
 	TtlSeconds *int64 `json:"ttl_seconds,omitempty"`
 }
+
+// Msa The organization's master services agreement (MSA) with Daytona: its
+// commits and its negotiated discounts.
+type Msa struct {
+	// Commits The commits under the organization's MSA, including upcoming and
+	// expired ones; empty when the organization has no MSA.
+	Commits []MsaCommit `json:"commits"`
+
+	// Discounts The negotiated price discounts on the organization's billing contracts.
+	Discounts []MsaDiscount `json:"discounts"`
+}
+
+// MsaCommit defines model for MsaCommit.
+type MsaCommit struct {
+	// CommittedCents The committed amount in cents. For a commit released in installments,
+	// the installments available now; otherwise the whole commitment.
+	CommittedCents int64 `json:"committed_cents"`
+
+	// Currency The lowercase ISO 4217 currency code.
+	Currency string `json:"currency"`
+
+	// ExpiresAt When the commit expires, or `null` when it does not expire.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// ExpiringSoon Whether the active commit expires within 30 days and no other commit
+	// under the MSA continues coverage after it.
+	ExpiringSoon bool `json:"expiring_soon"`
+
+	// Id The commit ID.
+	Id string `json:"id"`
+
+	// LowBalance Whether at most 20% of the active commit's committed amount remains.
+	LowBalance bool `json:"low_balance"`
+
+	// Name The commit display name, which falls back to the product name.
+	Name string `json:"name"`
+
+	// ProductName The name of the product the commit was sold as.
+	ProductName string `json:"product_name"`
+
+	// RemainingCents The amount of the commitment not yet used, in cents.
+	RemainingCents int64 `json:"remaining_cents"`
+
+	// ScheduledCents The whole commitment in cents, across every installment. Equals
+	// `committed_cents` unless the commit is released in installments.
+	ScheduledCents int64 `json:"scheduled_cents"`
+
+	// StartsAt When the commit starts.
+	StartsAt time.Time `json:"starts_at"`
+
+	// Status The commit status: `upcoming` before `starts_at`, `expired` from
+	// `expires_at` on, and `active` in between.
+	Status MsaStatus `json:"status"`
+
+	// Type Whether the commitment is paid up front or invoiced at the end.
+	Type MsaCommitType `json:"type"`
+
+	// UsedCents The amount of the commitment already used, in cents.
+	UsedCents int64 `json:"used_cents"`
+}
+
+// MsaCommitType defines model for MsaCommitType.
+type MsaCommitType string
+
+// MsaDiscount defines model for MsaDiscount.
+type MsaDiscount struct {
+	// EndsAt When the discount ends, or `null` when it does not end.
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+
+	// Id The discount ID: the rate override ID, suffixed with `:<n>` when one
+	// override has several scopes (each listed as its own discount).
+	Id string `json:"id"`
+
+	// Multiplier The factor applied to the list price for a `multiplier` discount, or
+	// `null` for other types.
+	Multiplier *float64 `json:"multiplier,omitempty"`
+
+	// OverwriteCentsPerUnit The replacement price for an `overwrite` discount with a flat rate, in
+	// cents per product unit, which can be fractional, or `null` for other
+	// types and for tiered or percentage overwrites.
+	OverwriteCentsPerUnit *float64 `json:"overwrite_cents_per_unit,omitempty"`
+
+	// PricingGroupValues The pricing dimension values the discount is limited to, by dimension
+	// name; empty when it applies to every value.
+	PricingGroupValues map[string]string `json:"pricing_group_values"`
+
+	// ProductNames The names of the products the discount applies to; empty with empty
+	// `product_tags` when it applies to every product.
+	ProductNames []string `json:"product_names"`
+
+	// ProductTags The product tags the discount applies to; empty with empty
+	// `product_names` when it applies to every product.
+	ProductTags []string `json:"product_tags"`
+
+	// StartsAt When the discount starts.
+	StartsAt time.Time `json:"starts_at"`
+
+	// Status The discount status: `upcoming` before `starts_at`, `expired` from
+	// `ends_at` on, and `active` in between.
+	Status MsaStatus `json:"status"`
+
+	// Type How the discount changes the price: a multiplier on the list price, a
+	// replacement price, or replacement price tiers.
+	Type MsaDiscountType `json:"type"`
+}
+
+// MsaDiscountType defines model for MsaDiscountType.
+type MsaDiscountType string
+
+// MsaStatus defines model for MsaStatus.
+type MsaStatus string
 
 // NetworkPolicy defines model for NetworkPolicy.
 type NetworkPolicy struct {
@@ -4901,6 +5265,14 @@ type ProjectLifecyclePolicy struct {
 	Policy ProjectLifecycleDefaults `json:"policy"`
 }
 
+// ProjectLimits The project's own sandbox limits, each with the project's current usage
+// against it.
+type ProjectLimits struct {
+	// Sandboxes The project's sandbox count limits. A stored limit is always returned,
+	// and takes effect only while limit enforcement is turned on.
+	Sandboxes ProjectSandboxLimits `json:"sandboxes"`
+}
+
 // ProjectMember defines model for ProjectMember.
 type ProjectMember struct {
 	// AddedAt When the member was added, or `null` for an implicit membership.
@@ -4941,6 +5313,20 @@ type ProjectPage struct {
 
 	// Projects The projects in this page.
 	Projects []Project `json:"projects"`
+}
+
+// ProjectSandboxLimits The three sandbox counts a project can be limited on, each with its
+// limit and current usage.
+type ProjectSandboxLimits struct {
+	// Concurrent The project's concurrent sandbox limit and current usage.
+	Concurrent UsageLimit `json:"concurrent"`
+
+	// Persistent The project's persistent sandbox limit and current usage. Stopped and
+	// paused persistent sandboxes count.
+	Persistent UsageLimit `json:"persistent"`
+
+	// Total The project's total sandbox limit and current usage.
+	Total UsageLimit `json:"total"`
 }
 
 // ProjectServiceAccount defines model for ProjectServiceAccount.
@@ -6172,6 +6558,31 @@ type SnapshotReference struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// SnapshotSearchClass The `class` filter of `GET /snapshots/search`.
+type SnapshotSearchClass string
+
+// SnapshotSearchPage A page of matching snapshots.
+type SnapshotSearchPage struct {
+	// NextCursor Continuation token for the next page; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Snapshots Matching snapshots in this page.
+	Snapshots []SnapshotListItem `json:"snapshots"`
+
+	// Total The number of matching snapshots. Exact when `total_relation` is
+	// `eq`, and a lower bound of 10000 when it is `gte`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether `total` is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+}
+
+// SnapshotSearchSort The `sort` values of `GET /snapshots/search`.
+type SnapshotSearchSort string
+
+// SnapshotStatus The capture status of a snapshot.
+type SnapshotStatus string
+
 // SortOrder defines model for SortOrder.
 type SortOrder string
 
@@ -6356,6 +6767,23 @@ type UpdateProjectApiKeyRequest struct {
 type UpdateProjectLifecyclePolicyRequest struct {
 	// Ephemeral Replacement defaults for ephemeral sandboxes; null clears the block.
 	Ephemeral *UpdateEphemeralLifecycleDefaults `json:"ephemeral,omitempty"`
+}
+
+// UpdateProjectLimitsRequest The limits to change. Each one is optional: a missing limit keeps the
+// stored value, `null` removes it, and an integer sets it. Unknown fields
+// are refused.
+type UpdateProjectLimitsRequest struct {
+	// MaxConcurrentVms The most sandboxes the project may run at once, or null for no project
+	// limit.
+	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
+
+	// MaxPersistentVms The most persistent sandboxes the project may have, or null for no
+	// project limit.
+	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
+
+	// MaxTotalVms The most sandboxes the project may have, resting ones included, or null
+	// for no project limit.
+	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`
 }
 
 // UpdateProjectRequest defines model for UpdateProjectRequest.
@@ -6878,6 +7306,69 @@ type ListImagesParams struct {
 	Platform *ImagePlatformFilter `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
+// SearchImagesParams defines parameters for SearchImages.
+type SearchImagesParams struct {
+	// Q Free text over the image name. A value that is an image ID matches
+	// that image exactly.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact image name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix `name` starts with this string (case-sensitive).
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// Status Comma-separated build statuses. An unrecognized value answers 400.
+	Status *[]ImageStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Class Comma-separated sandbox classes the image supports.
+	Class *[]ImageSearchClass `form:"class,omitempty" json:"class,omitempty"`
+
+	// Origin Comma-separated origins: how the image was created.
+	Origin *[]ImageOrigin `form:"origin,omitempty" json:"origin,omitempty"`
+
+	// RegionIds Comma-separated home region IDs. A broader region (a geo group, or
+	// `earth`) matches every region inside it. An unknown region answers
+	// 400. Defaults to every region.
+	RegionIds *string `form:"region_ids,omitempty" json:"region_ids,omitempty"`
+
+	// SandboxId Images captured from this sandbox ID.
+	SandboxId *string `form:"sandbox_id,omitempty" json:"sandbox_id,omitempty"`
+
+	// Anonymous Return anonymous images when true and named images when false.
+	// Defaults to false.
+	Anonymous *bool `form:"anonymous,omitempty" json:"anonymous,omitempty"`
+
+	// Platform Which images to return: the project's own (`false`, the default),
+	// the platform's (`true`), or both (`any`). Deprecated platform images
+	// are never returned.
+	Platform *ImagePlatformFilter `form:"platform,omitempty" json:"platform,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `created_at`; ties break on the ID.
+	Sort *ImageSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `desc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // DeleteImageParams defines parameters for DeleteImage.
 type DeleteImageParams struct {
 	// IdOnly Resolve the path value strictly as an ID, without a name fallback.
@@ -7249,6 +7740,9 @@ type SearchSandboxesParams struct {
 	// ForkedFrom Sandboxes forked from this sandbox ID.
 	ForkedFrom *string `form:"forked_from,omitempty" json:"forked_from,omitempty"`
 
+	// ReservationId macOS sandboxes that run, or last ran, on this Mac reservation ID.
+	ReservationId *string `form:"reservation_id,omitempty" json:"reservation_id,omitempty"`
+
 	// MinCores Inclusive lower bound on `cores_max`, in cores (1 core = 2 vCPUs).
 	MinCores *float64 `form:"min_cores,omitempty" json:"min_cores,omitempty"`
 
@@ -7386,6 +7880,60 @@ type ListSnapshotsParams struct {
 
 	// SandboxId Return snapshots captured from this sandbox ID.
 	SandboxId *string `form:"sandbox_id,omitempty" json:"sandbox_id,omitempty"`
+}
+
+// SearchSnapshotsParams defines parameters for SearchSnapshots.
+type SearchSnapshotsParams struct {
+	// Q Free text over the snapshot name. A value that is a snapshot ID
+	// matches that snapshot exactly.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact snapshot name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix `name` starts with this string (case-sensitive).
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// Status Comma-separated capture statuses. An unrecognized value answers 400.
+	Status *[]SnapshotStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Class Comma-separated sandbox classes.
+	Class *[]SnapshotSearchClass `form:"class,omitempty" json:"class,omitempty"`
+
+	// Kind Comma-separated snapshot kinds.
+	Kind *[]SnapshotKind `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// RegionIds Comma-separated home region IDs. A broader region (a geo group, or
+	// `earth`) matches every region inside it. An unknown region answers
+	// 400. Defaults to every region.
+	RegionIds *string `form:"region_ids,omitempty" json:"region_ids,omitempty"`
+
+	// SandboxId Snapshots captured from this sandbox ID.
+	SandboxId *string `form:"sandbox_id,omitempty" json:"sandbox_id,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `created_at`; ties break on the ID.
+	Sort *SnapshotSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `desc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // DeleteSnapshotParams defines parameters for DeleteSnapshot.
@@ -7579,6 +8127,9 @@ type SetProjectBudgetJSONRequestBody = SetProjectBudgetRequest
 
 // UpdateProjectLifecyclePolicyJSONRequestBody defines body for UpdateProjectLifecyclePolicy for application/json ContentType.
 type UpdateProjectLifecyclePolicyJSONRequestBody = UpdateProjectLifecyclePolicyRequest
+
+// UpdateProjectLimitsJSONRequestBody defines body for UpdateProjectLimits for application/json ContentType.
+type UpdateProjectLimitsJSONRequestBody = UpdateProjectLimitsRequest
 
 // AddProjectMembersJSONRequestBody defines body for AddProjectMembers for application/json ContentType.
 type AddProjectMembersJSONRequestBody = AddProjectMembersRequest

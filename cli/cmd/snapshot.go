@@ -94,7 +94,12 @@ func newSnapshotListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			probe := &searchProbe{}
 			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.SnapshotListItem]], error) {
+				// A deployment with search serves the list from it.
+				if list, served, err := getRawSearchPage[gen.SnapshotListItem](ctx, probe, client, "/snapshots/search", listQuery(flags, cursor), "snapshots"); served {
+					return list, err
+				}
 				return getRawList[gen.SnapshotListItem](ctx, client, "/snapshots", listQuery(flags, cursor), "snapshots")
 			}
 			var list output.List[api.Raw[gen.SnapshotListItem]]
@@ -126,6 +131,10 @@ func newSnapshotGetCommand() *cobra.Command {
 		Long:  "Get one snapshot.\nExample:\n  daytona snapshot get <id>",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// A usage error, so before any credential or profile work.
+			if err := refuseSearchName("snapshot", args[0]); err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {

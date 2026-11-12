@@ -46,6 +46,10 @@ func newImageGetCommand() *cobra.Command {
 		Long:  "Get one image.\nExample:\n  daytona image get <id>",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// A usage error, so before any credential or profile work.
+			if err := refuseSearchName("image", args[0]); err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {

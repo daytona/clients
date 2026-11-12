@@ -8,6 +8,7 @@ import { pathSegment } from './pathSegment.js'
 import { isBlank } from './pyText.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
+import { SearchProbe, refuseSearchName, searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
@@ -91,6 +92,7 @@ function listImagesPlatform(value: unknown): 'true' | 'false' | 'any' | undefine
 
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
+  private readonly searchProbe = new SearchProbe()
 
   /** @internal */
   constructor(
@@ -190,17 +192,26 @@ export class ImagesService {
     return this.get(acknowledgedId(data, 'image create'))
   }
 
+  /**
+   * List images, one page. Reads `GET /images/search` (every region,
+   * eventually consistent: an image you just created may be missing until
+   * the index catches up; `get()` reads it at once) and, on a deployment without search,
+   * `GET /images`.
+   */
   public async list(options: ListImagesOptions = {}): Promise<ListResult<Image>> {
     options = snapshotOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS) ?? {}
-    const { data } = await this.http.get<api.ImagePage>('/images', {
-      params: {
-        ...pageParams(options.cursor, options.limit),
-        name: optionalQueryText(options.name, 'name'),
-        anonymous: listImagesAnonymous(options.anonymous),
-        sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId'),
-        platform: listImagesPlatform(options.platform),
-      },
-    })
+    const params = {
+      ...pageParams(options.cursor, options.limit),
+      name: optionalQueryText(options.name, 'name'),
+      anonymous: listImagesAnonymous(options.anonymous),
+      sandbox_id: optionalQueryText(options.sandboxId, 'sandboxId'),
+      platform: listImagesPlatform(options.platform),
+    }
+    const data = await searchOrList<api.ImageSearchPage | api.ImagePage>(
+      () => this.http.get<api.ImageSearchPage>('/images/search', { params }).then((response) => response.data),
+      () => this.http.get<api.ImagePage>('/images', { params }).then((response) => response.data),
+      this.searchProbe,
+    )
     const page = listPage<api.ImageListItem>(data, 'images', 'image list')
     return frozenPage({ items: page.items.map((image) => new Image(INTERNAL, image)), nextCursor: page.nextCursor })
   }
@@ -219,7 +230,13 @@ export class ImagesService {
     }
   }
 
+  /**
+   * Fetch an image by ID or name. `'search'` cannot be looked up by name
+   * (`GET /images/search` is the search route): it throws a
+   * `BadRequestError` before any request; read such an image by its ID.
+   */
   public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
+    refuseSearchName(imageId, 'image')
     return getArtifact(this.http, `/images/${pathSegment(imageId, 'imageId')}`, options,
       // SAFETY: the Image constructor checks the response against the contract.
       (data) => new Image(INTERNAL, data as api.ImageListItem))

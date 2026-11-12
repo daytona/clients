@@ -17,7 +17,7 @@ that module to [`runtime-checks.mjs`](./runtime-checks.mjs), which builds
 
 | Key | Call | Path |
 | --- | --- | --- |
-| `listOk` | `list()` returns one sandbox in state `started` | `GET /sandboxes` (axios transport) |
+| `listOk` | `list()` returns one sandbox in state `started` | `GET /sandboxes/search` (axios transport) |
 | `notFoundOk` | `get('does-not-exist')` throws `DaytonaNotFoundError` (`statusCode` 404, `code` `NOT_FOUND`) | `GET /sandboxes/{id}` returning the error envelope |
 | `toolboxListOk` | `sandbox.fs.list('/')` returns `hello.txt` | sandbox access token mint, then toolbox `GET /files` (axios) |
 | `toolboxWatchOk` | `sandbox.fs.watchDir('/')` delivers one event, then `stop()` exits cleanly (no `exitError`) | toolbox `GET /files/watch` SSE (native `fetch`, `ReadableStream` reader, `AbortController`) |

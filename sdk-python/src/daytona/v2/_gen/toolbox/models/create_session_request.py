@@ -37,7 +37,7 @@ class CreateSessionRequest(BaseModel):
     cwd: Optional[StrictStr] = Field(default=None, description="Initial working directory. Empty uses the sandbox’s default working directory.")
     env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Environment overrides applied when the interpreter session starts.")
     id: Optional[StrictStr] = Field(default=None, description="Optional client-chosen session id. Must be a safe identifier when present.")
-    kernel: Optional[StrictStr] = Field(default=None, description="Interpreter language, one of `python`, `typescript` or `javascript`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`.")
+    kernel: Optional[StrictStr] = Field(default=None, description="Interpreter language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning; a supported kernel that fails to install or start answers 503 `KERNEL_UNAVAILABLE`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`.")
     login: Optional[StrictBool] = Field(default=None, description="Not supported for interpreter sessions; answers 400 `UNSUPPORTED_OPERATION` when `true`.")
     shell: Optional[StrictStr] = Field(default=None, description="Not supported for interpreter sessions; answers 400 `UNSUPPORTED_OPERATION` when set.")
     __properties: ClassVar[List[str]] = ["cwd", "env", "id", "kernel", "login", "shell"]

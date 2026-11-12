@@ -12,7 +12,7 @@ import type {
 import { PROCESS_KEEP_LOGS, PROCESS_KINDS, PROCESS_REASONS, PROCESS_STATES, PROCESS_STDIN_MODES } from './types.js'
 import { UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { knownOrUnknown } from './knownValue.js'
-import { MAX_INT32, MAX_TIMER_DELAY_MS } from './options.js'
+import { MAX_TIMER_DELAY_MS } from './options.js'
 import { bool, int, int32, logFrameFromWire, malformedResponse, nonEmptyStr, nonNegativeInt, nonNegativeSafeInt, optional, positiveInt, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { assertKnownOptions, badRequest, isPlainStringRecord, optionKeys } from './options.js'
@@ -264,10 +264,10 @@ function terminalFromWire(input: WireRecord): TerminalSize | undefined {
   if (value === undefined || value === null) return undefined
   const d = `${PROCESS}: terminal`
   const terminal = record(value, d)
-  // int32 dimensions of at least 1, as the request's (terminalDimension).
+  // Dimensions of 1..65535, as the contract and the request's (terminalDimension).
   const dimension = (field: 'cols' | 'rows'): number => {
     const size = positiveInt(terminal, field, d)
-    if (size > MAX_INT32) throw malformedResponse(`${d}: ${field} must be an integer between 1 and ${MAX_INT32}`)
+    if (size > TERMINAL_DIMENSION_MAX) throw malformedResponse(`${d}: ${field} must be an integer between 1 and ${TERMINAL_DIMENSION_MAX}`)
     return size
   }
   return { cols: dimension('cols'), rows: dimension('rows') }

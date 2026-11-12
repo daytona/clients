@@ -142,6 +142,7 @@ class AsyncImagesService:
 
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
+        self._search_probe = _SearchProbe()
 
     async def follow_build_logs(
         self,
@@ -355,7 +356,12 @@ class AsyncImagesService:
         raises :class:`RequestTimeoutError`. Without one (omitted or ``0``), a
         single long poll of the server's default length returns what the
         server reports.
+
+        ``"search"`` cannot be looked up by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        read such an image by its ID.
         """
+        _refuse_search_name(image_id, "image")
         return await _get_artifact(
             self._transport,
             f"/images/{_path(image_id, 'image_id')}",
@@ -394,7 +400,11 @@ class AsyncImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> ListResult[Image]:
-        """List images (``GET /images``).
+        """List images, one page.
+
+        Reads ``GET /images/search`` (every region, eventually consistent: an
+        image you just created may be missing until the index catches up; :meth:`get`
+        reads it at once) and, on a deployment without search, ``GET /images``.
 
         ``platform`` picks the shared images Daytona publishes for every
         project: ``"false"`` (the server default) lists the project's own
@@ -414,7 +424,12 @@ class AsyncImagesService:
             params["sandbox_id"] = sandbox_id
         if optional_query_text(name, "name") is not None:
             params["name"] = name
-        response = await self._transport.send(RequestSpec("GET", "/images", params=params))
+        response = await _search_or_list(
+            self._transport,
+            RequestSpec("GET", "/images/search", params=params),
+            RequestSpec("GET", "/images", params=params),
+            self._search_probe,
+        )
         return expect_images_page(response)
 
     async def iter(
@@ -439,6 +454,81 @@ class AsyncImagesService:
             cursor,
         ):
             yield item
+
+
+class _SearchProbe:
+    """Remembers, for one client and one kind (sandboxes, images, snapshots),
+    that the deployment does not serve search, so later pages and calls go
+    straight to the list route instead of sending a search request that fails
+    first. Same as TypeScript's ``SearchProbe`` and the CLI's ``searchProbe``.
+    """
+
+    __slots__ = ("not_served",)
+
+    def __init__(self) -> None:
+        self.not_served = False
+
+
+async def _search_or_list(
+    transport: AsyncTransport, search: RequestSpec, fallback: RequestSpec, probe: _SearchProbe
+) -> TransportPayload:
+    """One page from the ``search`` route, or from ``fallback`` (the plain list
+    route, same query) where search is not served.
+
+    A deployment with search serves its lists from the search route (its list
+    route answers 410 ``GONE``); one without it answers the search route with
+    501 ``SEARCH_NOT_CONFIGURED`` (an older API with 404). Only those two fall
+    back, and ``probe`` remembers it: the client's later calls for that kind
+    skip the search request. A remembered fallback that answers 410 ``GONE``
+    means the deployment has since started serving its lists from search: the
+    probe is forgotten and search is tried once, so a long-lived client
+    recovers on its first call after the switch. Any other error, a 503
+    ``SEARCH_UNAVAILABLE`` included, is raised. Search results are eventually
+    consistent. Same as TypeScript's ``searchOrList``.
+    """
+    remembered = probe.not_served
+    if not remembered:
+        try:
+            return await transport.send(search)
+        except DaytonaError as error:
+            if not _search_not_served(error):
+                raise
+            probe.not_served = True
+    try:
+        return await transport.send(fallback)
+    except DaytonaError as error:
+        if not (remembered and _list_retired(error)):
+            raise
+    probe.not_served = False
+    return await transport.send(search)
+
+
+def _refuse_search_name(ref: str, kind: str) -> None:
+    """Refuse ``"search"`` as an image or snapshot reference: ``GET /images/search``
+    and ``GET /snapshots/search`` are the search routes, so that name cannot be
+    read by name (a get of it would reach the search route). Same as TypeScript's
+    ``refuseSearchName``.
+    """
+    if ref == "search":
+        raise create_error(
+            f"'search' cannot be looked up by name; it is reserved for the search route — use the {kind} ID",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+
+
+def _list_retired(error: DaytonaError) -> bool:
+    """Whether ``error`` from a list route means the deployment serves that list
+    from search now (410 ``GONE``)."""
+    return error.status_code == 410 and error.code == "GONE"
+
+
+def _search_not_served(error: DaytonaError) -> bool:
+    """Whether ``error`` from a search route means the deployment does not serve search."""
+    if error.status_code == 404:
+        return True
+    return error.status_code == 501 and error.code == "SEARCH_NOT_CONFIGURED"
 
 
 _ARTIFACT_LONGPOLL_MAX_MS = 60_000
@@ -541,6 +631,7 @@ class AsyncSnapshotsService:
 
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
+        self._search_probe = _SearchProbe()
 
     async def list(
         self,
@@ -550,12 +641,24 @@ class AsyncSnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Snapshot]:
+        """List snapshots, one page.
+
+        Reads ``GET /snapshots/search`` (every region, eventually consistent: a
+        snapshot you just captured may be missing until the index catches up; :meth:`get`
+        reads it at once) and, on a deployment without search,
+        ``GET /snapshots``.
+        """
         params = page_params(cursor, limit)
         if optional_query_text(name, "name") is not None:
             params["name"] = name
         if optional_query_text(sandbox_id, "sandbox_id") is not None:
             params["sandbox_id"] = sandbox_id
-        response = await self._transport.send(RequestSpec("GET", "/snapshots", params=params))
+        response = await _search_or_list(
+            self._transport,
+            RequestSpec("GET", "/snapshots/search", params=params),
+            RequestSpec("GET", "/snapshots", params=params),
+            self._search_probe,
+        )
         page = expect_list_snapshots_resp(response)
         return ListResult(
             items=[parse_snapshot(item) for item in page.snapshots], next_cursor=page.next_cursor
@@ -588,7 +691,13 @@ class AsyncSnapshotsService:
         wait: Optional[Literal["ready"]] = None,
         timeout: Optional[float] = None,
     ) -> Snapshot:
-        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`AsyncImagesService.get` does."""
+        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`AsyncImagesService.get` does.
+
+        ``"search"`` cannot be looked up by name (``GET /snapshots/search`` is
+        the search route): it raises :class:`BadRequestError` before any
+        request; read such a snapshot by its ID.
+        """
+        _refuse_search_name(snapshot_id, "snapshot")
         return await _get_artifact(
             self._transport,
             f"/snapshots/{_path(snapshot_id, 'snapshot_id')}",

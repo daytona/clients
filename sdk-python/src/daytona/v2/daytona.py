@@ -100,6 +100,8 @@ from .services import (
     AsyncSecretsService,
     AsyncSnapshotsService,
     AsyncVolumesService,
+    _search_or_list,
+    _SearchProbe,
 )
 from .types import (
     AuditActionList,
@@ -242,6 +244,8 @@ class AsyncDaytona:
             otel=otel,
             max_response_bytes=resolved.max_response_bytes,
         )
+        # Remembers a deployment that does not serve sandbox search (list()).
+        self._sandbox_search_probe = _SearchProbe()
         #: Images: build, pull, list, promote, delete, follow build logs.
         self.images = AsyncImagesService(self._api)
         #: Memory snapshots (``Sandbox.create_snapshot()`` makes them).
@@ -993,14 +997,21 @@ class AsyncDaytona:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[AsyncSandbox]:
-        """List sandboxes as one page ``{items, next_cursor}`` (``GET /sandboxes``), newest first.
+        """List sandboxes as one page ``{items, next_cursor}``, newest first.
 
-        Read-your-writes: a sandbox you just created is in the result. Walk
-        further pages with :meth:`iter` or the returned cursor. Filtering is
-        :meth:`search`'s job.
+        Reads ``GET /sandboxes/search`` (every region) and, on a deployment
+        without search, ``GET /sandboxes``. Where search serves the list it is
+        eventually consistent: a sandbox you just created may be missing until
+        the index catches up (:meth:`get` reads it at once). Walk further pages with
+        :meth:`iter` or the returned cursor. Filtering is :meth:`search`'s job.
         """
         params: Dict[str, JsonValue] = page_params(cursor, limit)
-        payload = await self._api.send(RequestSpec("GET", "/sandboxes", params=params))
+        payload = await _search_or_list(
+            self._api,
+            RequestSpec("GET", "/sandboxes/search", params=params),
+            RequestSpec("GET", "/sandboxes", params=params),
+            self._sandbox_search_probe,
+        )
         # The page's shape and every item's sandbox fields, as in TypeScript; the
         # per-item `cursor` is not read, so it is not required.
         if not isinstance(payload, dict):
@@ -1081,8 +1092,8 @@ class AsyncDaytona:
 
         Consistency: search is **eventually consistent**. Results may be briefly
         stale after a create, update or delete, so a sandbox you
-        just created may not be in the result yet — use :meth:`get` or
-        :meth:`list` for read-your-writes. Results span every region.
+        just created may not be in the result yet — use :meth:`get` for
+        read-your-writes. Results span every region.
 
         Cursor: ``next_cursor`` is opaque and bound to the exact filter and sort
         that produced it — presenting it with a different filter or sort is a
@@ -1099,8 +1110,9 @@ class AsyncDaytona:
         (:class:`SearchNotConfiguredError` with
         ``code == "SEARCH_NOT_CONFIGURED"``) when the API has search
         disabled; 503 (:class:`SearchUnavailableError` with
-        ``code == "SEARCH_UNAVAILABLE"``) when search is unavailable. On 501/503
-        callers may fall back to :meth:`list`, which does not use search.
+        ``code == "SEARCH_UNAVAILABLE"``) when search is unavailable. On 501
+        callers may fall back to :meth:`list`, which reads the plain list
+        route on a deployment without search.
         """
         query = SearchSandboxesOptions(
             q=q,

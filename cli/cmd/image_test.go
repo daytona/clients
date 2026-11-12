@@ -39,6 +39,14 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			name: "list images",
 			args: []string{"image", "list", "--limit", "1"},
 			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/images/search", query: "limit=1", status: 200, response: withSearchTotals(t, imagePageFixture("11111111-1111-1111-1111-111111111111"))},
+			},
+		},
+		{
+			name: "list images without search",
+			args: []string{"image", "list", "--limit", "1"},
+			expected: []expectedRequest{
+				searchNotConfiguredRequest("/images/search"),
 				{method: http.MethodGet, path: "/regions", status: 200, response: `{"regions":[],"default_region_id":null}`},
 				{method: http.MethodGet, path: "/images", query: "limit=1", status: 200, response: imagePageFixture("11111111-1111-1111-1111-111111111111")},
 			},
@@ -47,6 +55,14 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			name: "list platform images",
 			args: []string{"image", "list", "--platform", "true", "--limit", "1"},
 			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/images/search", query: "limit=1&platform=true", status: 200, response: withSearchTotals(t, imagePageFixture("11111111-1111-1111-1111-111111111111"))},
+			},
+		},
+		{
+			name: "list platform images without search",
+			args: []string{"image", "list", "--platform", "true", "--limit", "1"},
+			expected: []expectedRequest{
+				searchNotConfiguredRequest("/images/search"),
 				{method: http.MethodGet, path: "/regions", status: 200, response: `{"regions":[],"default_region_id":null}`},
 				{method: http.MethodGet, path: "/images", query: "limit=1&platform=true", status: 200, response: imagePageFixture("11111111-1111-1111-1111-111111111111")},
 			},

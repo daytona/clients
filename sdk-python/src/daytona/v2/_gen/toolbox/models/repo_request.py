@@ -70,7 +70,7 @@ class RepoRequest(BaseModel):
     """
     Operate on a repository, optionally with credentials for a remote.
     """ # noqa: E501
-    branch: Optional[StrictStr] = Field(default=None, description="Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target.")
+    branch: Optional[StrictStr] = Field(default=None, description="Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target. A leading `+` is a literal part of the branch name, never a force flag.")
     password: Optional[StrictStr] = Field(default=None, description="Password for authenticated remotes; write-only and never returned.")
     path: Optional[StrictStr] = Field(default=None, description="Repository path to operate in.")
     remote: Optional[StrictStr] = Field(default=None, description="Remote name. Omitted defaults to `origin` for push and for pull when `branch` is set; a pull without `branch` uses git's configured upstream.")

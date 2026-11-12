@@ -36,7 +36,7 @@ class UploadedFile(BaseModel):
     One uploaded file result from `POST /files/bulk-upload`.
     """ # noqa: E501
     bytes: Annotated[int, Field(strict=True, ge=0)] = Field(description="Number of bytes written.")
-    path: StrictStr = Field(description="Destination path the API wrote.")
+    path: StrictStr = Field(description="Absolute destination path the API wrote.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["bytes", "path"]
 

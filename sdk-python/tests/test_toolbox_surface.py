@@ -2820,17 +2820,18 @@ async def test_an_astral_character_in_a_path_id_is_percent_encoded() -> None:
 
 # Shared with the TypeScript SDK's unit.test.ts.
 @pytest.mark.anyio
-@pytest.mark.parametrize(("cols", "accepted"), [(2**31, False), (2**31 - 1, True)])
-async def test_a_process_record_terminal_is_read_only_within_int32(cols: int, accepted: bool) -> None:
+@pytest.mark.parametrize(("cols", "accepted"), [(65536, False), (65535, True)])
+async def test_a_process_record_terminal_is_read_only_within_the_contract_range(
+    cols: int, accepted: bool
+) -> None:
     transport = Transport([_process(kind="pty", terminal={"cols": cols, "rows": 1})])
     call = AsyncProcessService("sbx", transport).get("p")  # type: ignore[arg-type]
     if accepted:
         info = await call
         assert info.terminal is not None and info.terminal.cols == cols
     else:
-        with pytest.raises(
-            BadRequestError, match="terminal: cols must be an integer between 1 and 2147483647"
-        ):
+        # The generated wire model checks the contract's maximum first.
+        with pytest.raises(BadRequestError, match=r"^expected process response: cols: .*65535"):
             await call
 
 

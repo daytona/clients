@@ -24,16 +24,25 @@ func TestRegionalLists_callerCancellationExitsInterrupted(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if writeSearchNotConfigured(w, r) {
+					return
+				}
 				writeListItems(t, w, resource, []listTestItem{{"one", "east", "c1"}}, "")
 			}))
 			defer good.Close()
 			slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if writeSearchNotConfigured(w, r) {
+					return
+				}
 				cancel()
 				<-r.Context().Done()
 			}))
 			defer slow.Close()
 			catalog := []gen.Region{listTestRegion("east", good.URL), listTestRegion("west", slow.URL)}
 			home := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if writeSearchNotConfigured(w, r) {
+					return
+				}
 				if err := json.NewEncoder(w).Encode(gen.RegionList{Regions: catalog}); err != nil {
 					t.Error(err)
 				}

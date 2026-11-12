@@ -36,7 +36,7 @@ class LogFrameDto(BaseModel):
     """ # noqa: E501
     channel: StrictStr = Field(description="Channel such as `stdout`, `stderr`, `pty`, `setup`, `display`, `execute_result`, or `error`.")
     cursor: StrictStr = Field(description="Cursor naming this frame.")
-    data: StrictStr = Field(description="Frame payload in the requested encoding.")
+    data: StrictStr = Field(description="Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).")
     timestamp: StrictInt = Field(description="Unix timestamp in milliseconds.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["channel", "cursor", "data", "timestamp"]
