@@ -272,6 +272,21 @@ func TestWaitForSandbox_fallingBackToStoppedConflicts(t *testing.T) {
 	}
 }
 
+func TestWaitForSandbox_forkWaitsPastStopped(t *testing.T) {
+	for _, statuses := range [][]string{
+		{"stopped", "booting", "running"},
+		{"pending", "stopping", "stopped", "booting", "running"},
+	} {
+		t.Run(strings.Join(statuses, "-"), func(t *testing.T) {
+			srv := sandboxSequence(t, statuses...)
+			defer srv.Close()
+			detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "running", Timeout: 5 * time.Second, StoppedPassed: true})
+			require.NoError(t, err)
+			require.Equal(t, "running", detail.V.Status)
+		})
+	}
+}
+
 func TestWaitForSandbox_deletingConflictsImmediately(t *testing.T) {
 	srv := sandboxSequence(t, "deleting")
 	defer srv.Close()
