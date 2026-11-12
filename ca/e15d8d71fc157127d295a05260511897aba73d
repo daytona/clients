@@ -1,0 +1,32 @@
+changelog.d/598-cli-org-project-names.breaking.md
+  h_e7759ddd73fa65 2-7
+changelog.d/598-deleting-sandbox-conflict.breaking.md
+  h_e7759ddd73fa65 6-8
+cli/README.md
+  h_e7759ddd73fa65 390-392
+sdk-python/README.md
+  h_e7759ddd73fa65 1058-1060
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 411-412
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 836-837
+sdk-python/tests/test_wait_query_states.py
+  h_e7759ddd73fa65 23-34,38-43
+sdk-typescript/README.md
+  h_e7759ddd73fa65 988-990
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 1133-1134
+sdk-typescript/tests/wait-query-states.test.ts
+  h_e7759ddd73fa65 11-24,34-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cae15d8d71fc157127d295a05260511897aba73d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

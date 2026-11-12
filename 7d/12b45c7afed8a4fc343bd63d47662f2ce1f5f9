@@ -1,0 +1,27 @@
+changelog.d/598-cli-org-project-names.changed.md
+  s_75c4a5e5d1dbb9::t_3ba7c8eb3777bc 5-6
+cli/README.md
+  s_75c4a5e5d1dbb9::t_d1555890f5674a 391
+cli/cmd/org.go
+  s_75c4a5e5d1dbb9::t_1b2216fb2ec8eb 287,303,311,320
+cli/cmd/org_project_name.go
+  s_75c4a5e5d1dbb9::t_adcf6f626c8a16 21-23,27,29,31,33,35,38-43,50,53,57-60,68,71,75-77,79,82
+cli/cmd/project.go
+  s_75c4a5e5d1dbb9::t_bf7986be7f977a 160,180,189,198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d12b45c7afed8a4fc343bd63d47662f2ce1f5f9",
+  "prompts": {},
+  "sessions": {
+    "s_75c4a5e5d1dbb9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e33d6d1aeffePtoDs4zwW4O5Lx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
