@@ -679,9 +679,12 @@ RSpec.describe Daytona::Sandbox do
         )
       end
 
-      it 'bounds each poll request by what is left of the timeout, keeping the API client settings' do
+      it 'sends each poll request through a copy of sandbox_api bounded by what is left of the timeout' do
         sandbox_api_client.default_headers['X-Custom'] = 'kept'
-        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+        bounded_api = instance_double(DaytonaApiClient::SandboxApi)
+        allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(bounded_api)
+        allow(bounded_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+        allow(sandbox_api).to receive(:get_sandbox)
 
         pending_sandbox.wait_for_sandbox_start(5)
 
@@ -691,7 +694,27 @@ RSpec.describe Daytona::Sandbox do
             default_headers: include('X-Custom' => 'kept')
           )
         ).once
+        expect(bounded_api).to have_received(:get_sandbox).once
+        expect(sandbox_api).not_to have_received(:get_sandbox)
         expect(sandbox_api_client.config.timeout).to eq(0)
+      end
+
+      [5, Daytona::Sandbox::NO_TIMEOUT].each do |timeout|
+        it "renews the event subscription and records a refresh on each poll with timeout #{timeout}" do
+          polls = 0
+          allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+            polls += 1
+            build_sandbox_dto(state: polls >= 2 ? 'started' : 'pending')
+          end
+          allow(Daytona).to receive(:with_instrumentation).and_call_original
+          stub_condition_variable_waits { |_seconds| nil }
+
+          pending_sandbox.wait_for_sandbox_start(timeout)
+
+          expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'refresh').twice
+          # Twice as the wait starts (wait_for_sandbox_start and wait_for_state), then once for each poll.
+          expect(subscription_manager).to have_received(:refresh).with('sub-123').exactly(4).times
+        end
       end
 
       it 'keeps a shorter timeout of the API client' do
@@ -702,6 +725,26 @@ RSpec.describe Daytona::Sandbox do
 
         expect(DaytonaApiClient::SandboxApi).to have_received(:new)
           .with(having_attributes(config: having_attributes(timeout: 2))).once
+      end
+
+      it 'keeps the request error when a shorter timeout of the API client fires before the deadline' do
+        sandbox_api_client.config.timeout = 2
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                   .and_raise(DaytonaApiClient::ApiError.new('Connection timed out'))
+
+        expect do
+          pending_sandbox.wait_for_sandbox_start(60)
+        end.to raise_error(DaytonaApiClient::ApiError, 'Connection timed out')
+      end
+
+      it 'bounds the poll requests by the deadline when the API client timeout is nil' do
+        sandbox_api_client.config.timeout = nil
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'started'))
+
+        pending_sandbox.wait_for_sandbox_start(5)
+
+        expect(DaytonaApiClient::SandboxApi).to have_received(:new)
+          .with(having_attributes(config: having_attributes(timeout: be_between(4, 5)))).once
       end
 
       it 'polls without an HTTP timeout when timeout is NO_TIMEOUT' do

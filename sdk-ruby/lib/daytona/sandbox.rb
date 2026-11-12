@@ -1295,7 +1295,7 @@ module Daytona
 
           raise Sdk::TimeoutError, deadline.message if deadline&.expired?
 
-          poll_refresh(safe: safe_refresh, http_timeout: deadline&.remaining, timeout_message: deadline&.message)
+          poll_refresh(safe: safe_refresh, http_timeout: deadline&.remaining, deadline:)
           raise_destroyed_lifecycle_error_if_needed(target_strings)
 
           mutex.synchronize do
@@ -1318,7 +1318,7 @@ module Daytona
         end
       rescue Sdk::TimeoutError => e
         begin
-          poll_refresh(safe: safe_refresh, http_timeout: deadline && FINAL_REFRESH_TIMEOUT, timeout_message: e.message)
+          poll_refresh(safe: safe_refresh, http_timeout: deadline && FINAL_REFRESH_TIMEOUT)
         rescue StandardError
           raise e
         end
@@ -1342,27 +1342,51 @@ module Daytona
 
     # @param api [DaytonaApiClient::SandboxApi] sandbox_api, or a copy of it with an HTTP timeout
     def refresh_data_safe(api = sandbox_api)
-      process_response(api.get_sandbox(id))
+      refresh_through(api)
     rescue DaytonaApiClient::ApiError => e
       apply_state(DaytonaApiClient::SandboxState::DESTROYED) if e.code == 404
     rescue StandardError # rubocop:disable Lint/SuppressedException
+    end
+
+    # Does what #refresh does, recorded as #refresh and renewing the event subscription, but through +api+.
+    #
+    # @param api [DaytonaApiClient::SandboxApi] sandbox_api, or a copy of it with an HTTP timeout
+    # @return [void]
+    def refresh_through(api)
+      return refresh if api.equal?(sandbox_api)
+
+      instrument_as(:refresh, component: 'Sandbox') do
+        ensure_subscribed
+        process_response(api.get_sandbox(id))
+      end
     end
 
     # Refreshes the Sandbox data for #wait_for_state.
     #
     # @param safe [Boolean] Swallow errors as #refresh_data_safe does, a timed out request included
     # @param http_timeout [Numeric, nil] Most seconds the request may take; nil leaves the API client's timeout
-    # @param timeout_message [String, nil] Message of the Sdk::TimeoutError raised when the request times out
+    # @param deadline [WaitDeadline, nil] Deadline that http_timeout is the time left on, if any
     # @return [void]
-    # @raise [Daytona::Sdk::TimeoutError] If the request times out and safe is false
-    def poll_refresh(safe:, http_timeout:, timeout_message:)
+    # @raise [Daytona::Sdk::TimeoutError] If safe is false and the request times out at the deadline
+    def poll_refresh(safe:, http_timeout:, deadline: nil)
       api = http_timeout ? sandbox_api_with_timeout(http_timeout) : sandbox_api
-      safe ? refresh_data_safe(api) : process_response(api.get_sandbox(id))
+      safe ? refresh_data_safe(api) : refresh_through(api)
     rescue DaytonaApiClient::ApiError => e
-      # The generated client raises this, without a status code, when the request times out.
-      raise unless timeout_message && e.code.nil? && e.message == 'Connection timed out'
+      raise unless deadline && deadline_timed_out?(e, http_timeout)
 
-      raise Sdk::TimeoutError, timeout_message
+      raise Sdk::TimeoutError, deadline.message
+    end
+
+    # @param error [DaytonaApiClient::ApiError]
+    # @param http_timeout [Numeric]
+    # @return [Boolean] Whether +error+ is the request timing out after +http_timeout+, not after a shorter
+    #   timeout of the API client
+    def deadline_timed_out?(error, http_timeout)
+      # The generated client raises this, without a status code, when the request times out.
+      return false unless error.code.nil? && error.message == 'Connection timed out'
+
+      client_timeout = sandbox_api.api_client.config.timeout
+      client_timeout.nil? || !client_timeout.positive? || client_timeout >= http_timeout
     end
 
     # A copy of sandbox_api whose requests time out after +timeout+ seconds, or sooner when its API client
@@ -1373,7 +1397,7 @@ module Daytona
     def sandbox_api_with_timeout(timeout)
       client = sandbox_api.api_client
       config = client.config.dup.tap do |c|
-        c.timeout = [[timeout, MIN_HTTP_TIMEOUT].max, c.timeout].select(&:positive?).min
+        c.timeout = [[timeout, MIN_HTTP_TIMEOUT].max, c.timeout].compact.select(&:positive?).min
       end
       DaytonaApiClient::SandboxApi.new(client.dup.tap { |copy| copy.config = config })
     end
