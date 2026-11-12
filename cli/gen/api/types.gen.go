@@ -392,54 +392,6 @@ func (e ApiErrorCode) Valid() bool {
 	}
 }
 
-// Defines values for ArtifactSearchSort.
-const (
-	ArtifactSearchSortBytes     ArtifactSearchSort = "bytes"
-	ArtifactSearchSortCreatedAt ArtifactSearchSort = "created_at"
-	ArtifactSearchSortName      ArtifactSearchSort = "name"
-	ArtifactSearchSortUpdatedAt ArtifactSearchSort = "updated_at"
-)
-
-// Valid indicates whether the value is a known member of the ArtifactSearchSort enum.
-func (e ArtifactSearchSort) Valid() bool {
-	switch e {
-	case ArtifactSearchSortBytes:
-		return true
-	case ArtifactSearchSortCreatedAt:
-		return true
-	case ArtifactSearchSortName:
-		return true
-	case ArtifactSearchSortUpdatedAt:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ArtifactStatus.
-const (
-	ArtifactStatusBuilding ArtifactStatus = "building"
-	ArtifactStatusFailed   ArtifactStatus = "failed"
-	ArtifactStatusPending  ArtifactStatus = "pending"
-	ArtifactStatusReady    ArtifactStatus = "ready"
-)
-
-// Valid indicates whether the value is a known member of the ArtifactStatus enum.
-func (e ArtifactStatus) Valid() bool {
-	switch e {
-	case ArtifactStatusBuilding:
-		return true
-	case ArtifactStatusFailed:
-		return true
-	case ArtifactStatusPending:
-		return true
-	case ArtifactStatusReady:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for BalanceType.
 const (
 	Commit BalanceType = "commit"
@@ -980,6 +932,30 @@ func (e ImageSearchClass) Valid() bool {
 	}
 }
 
+// Defines values for ImageSearchSort.
+const (
+	ImageSearchSortBytes     ImageSearchSort = "bytes"
+	ImageSearchSortCreatedAt ImageSearchSort = "created_at"
+	ImageSearchSortName      ImageSearchSort = "name"
+	ImageSearchSortUpdatedAt ImageSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the ImageSearchSort enum.
+func (e ImageSearchSort) Valid() bool {
+	switch e {
+	case ImageSearchSortBytes:
+		return true
+	case ImageSearchSortCreatedAt:
+		return true
+	case ImageSearchSortName:
+		return true
+	case ImageSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImageSourceValue0Type.
 const (
 	ImageSourceValue0TypeRegistry ImageSourceValue0Type = "registry"
@@ -1034,6 +1010,30 @@ const (
 func (e ImageSourceValue3Type) Valid() bool {
 	switch e {
 	case Manifest:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImageStatus.
+const (
+	ImageStatusBuilding ImageStatus = "building"
+	ImageStatusFailed   ImageStatus = "failed"
+	ImageStatusPending  ImageStatus = "pending"
+	ImageStatusReady    ImageStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ImageStatus enum.
+func (e ImageStatus) Valid() bool {
+	switch e {
+	case ImageStatusBuilding:
+		return true
+	case ImageStatusFailed:
+		return true
+	case ImageStatusPending:
+		return true
+	case ImageStatusReady:
 		return true
 	default:
 		return false
@@ -1220,6 +1220,66 @@ func (e MacReservationStatus) Valid() bool {
 	case MacReservationStatusPendingMac:
 		return true
 	case MacReservationStatusReleased:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MsaCommitType.
+const (
+	Postpaid MsaCommitType = "postpaid"
+	Prepaid  MsaCommitType = "prepaid"
+)
+
+// Valid indicates whether the value is a known member of the MsaCommitType enum.
+func (e MsaCommitType) Valid() bool {
+	switch e {
+	case Postpaid:
+		return true
+	case Prepaid:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MsaDiscountType.
+const (
+	Multiplier MsaDiscountType = "multiplier"
+	Overwrite  MsaDiscountType = "overwrite"
+	Tiered     MsaDiscountType = "tiered"
+)
+
+// Valid indicates whether the value is a known member of the MsaDiscountType enum.
+func (e MsaDiscountType) Valid() bool {
+	switch e {
+	case Multiplier:
+		return true
+	case Overwrite:
+		return true
+	case Tiered:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MsaStatus.
+const (
+	MsaStatusActive   MsaStatus = "active"
+	MsaStatusExpired  MsaStatus = "expired"
+	MsaStatusUpcoming MsaStatus = "upcoming"
+)
+
+// Valid indicates whether the value is a known member of the MsaStatus enum.
+func (e MsaStatus) Valid() bool {
+	switch e {
+	case MsaStatusActive:
+		return true
+	case MsaStatusExpired:
+		return true
+	case MsaStatusUpcoming:
 		return true
 	default:
 		return false
@@ -1679,6 +1739,54 @@ func (e SnapshotSearchClass) Valid() bool {
 	}
 }
 
+// Defines values for SnapshotSearchSort.
+const (
+	SnapshotSearchSortBytes     SnapshotSearchSort = "bytes"
+	SnapshotSearchSortCreatedAt SnapshotSearchSort = "created_at"
+	SnapshotSearchSortName      SnapshotSearchSort = "name"
+	SnapshotSearchSortUpdatedAt SnapshotSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the SnapshotSearchSort enum.
+func (e SnapshotSearchSort) Valid() bool {
+	switch e {
+	case SnapshotSearchSortBytes:
+		return true
+	case SnapshotSearchSortCreatedAt:
+		return true
+	case SnapshotSearchSortName:
+		return true
+	case SnapshotSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SnapshotStatus.
+const (
+	SnapshotStatusBuilding SnapshotStatus = "building"
+	SnapshotStatusFailed   SnapshotStatus = "failed"
+	SnapshotStatusPending  SnapshotStatus = "pending"
+	SnapshotStatusReady    SnapshotStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the SnapshotStatus enum.
+func (e SnapshotStatus) Valid() bool {
+	switch e {
+	case SnapshotStatusBuilding:
+		return true
+	case SnapshotStatusFailed:
+		return true
+	case SnapshotStatusPending:
+		return true
+	case SnapshotStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SortOrder.
 const (
 	Asc  SortOrder = "asc"
@@ -1909,12 +2017,6 @@ type AnalyticsConfig struct {
 // ApiErrorCode Stable machine-readable error codes, returned as `ErrorBody.code`
 // when `source` is `DAYTONA_API`.
 type ApiErrorCode string
-
-// ArtifactSearchSort The `sort` values of `GET /images/search` and `GET /snapshots/search`.
-type ArtifactSearchSort string
-
-// ArtifactStatus The build or capture status of an image or snapshot.
-type ArtifactStatus string
 
 // AsyncOperation An accepted asynchronous operation.
 type AsyncOperation struct {
@@ -3449,6 +3551,9 @@ type ImageSearchPage struct {
 	TotalRelation SearchTotalRelation `json:"total_relation"`
 }
 
+// ImageSearchSort The `sort` values of `GET /images/search`.
+type ImageSearchSort string
+
 // ImageSourceValue defines model for ImageSourceValue.
 type ImageSourceValue struct {
 	union json.RawMessage
@@ -3504,6 +3609,9 @@ type ImageSourceValue3 struct {
 
 // ImageSourceValue3Type The object type.
 type ImageSourceValue3Type string
+
+// ImageStatus The build status of an image.
+type ImageStatus string
 
 // ImportedFrom The source platform and resource ID of an imported resource.
 type ImportedFrom struct {
@@ -3987,6 +4095,117 @@ type MintSandboxAccessTokenRequest struct {
 	// response is authoritative.
 	TtlSeconds *int64 `json:"ttl_seconds,omitempty"`
 }
+
+// Msa The organization's master services agreement (MSA) with Daytona: its
+// commits and its negotiated discounts.
+type Msa struct {
+	// Commits The commits under the organization's MSA, including upcoming and
+	// expired ones; empty when the organization has no MSA.
+	Commits []MsaCommit `json:"commits"`
+
+	// Discounts The negotiated price discounts on the organization's billing contracts.
+	Discounts []MsaDiscount `json:"discounts"`
+}
+
+// MsaCommit defines model for MsaCommit.
+type MsaCommit struct {
+	// CommittedCents The committed amount in cents. For a commit released in installments,
+	// the installments available now; otherwise the whole commitment.
+	CommittedCents int64 `json:"committed_cents"`
+
+	// Currency The lowercase ISO 4217 currency code.
+	Currency string `json:"currency"`
+
+	// ExpiresAt When the commit expires, or `null` when it does not expire.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// ExpiringSoon Whether the active commit expires within 30 days and no other commit
+	// under the MSA continues coverage after it.
+	ExpiringSoon bool `json:"expiring_soon"`
+
+	// Id The commit ID.
+	Id string `json:"id"`
+
+	// LowBalance Whether at most 20% of the active commit's committed amount remains.
+	LowBalance bool `json:"low_balance"`
+
+	// Name The commit display name, which falls back to the product name.
+	Name string `json:"name"`
+
+	// ProductName The name of the product the commit was sold as.
+	ProductName string `json:"product_name"`
+
+	// RemainingCents The amount of the commitment not yet used, in cents.
+	RemainingCents int64 `json:"remaining_cents"`
+
+	// ScheduledCents The whole commitment in cents, across every installment. Equals
+	// `committed_cents` unless the commit is released in installments.
+	ScheduledCents int64 `json:"scheduled_cents"`
+
+	// StartsAt When the commit starts.
+	StartsAt time.Time `json:"starts_at"`
+
+	// Status The commit status: `upcoming` before `starts_at`, `expired` from
+	// `expires_at` on, and `active` in between.
+	Status MsaStatus `json:"status"`
+
+	// Type Whether the commitment is paid up front or invoiced at the end.
+	Type MsaCommitType `json:"type"`
+
+	// UsedCents The amount of the commitment already used, in cents.
+	UsedCents int64 `json:"used_cents"`
+}
+
+// MsaCommitType defines model for MsaCommitType.
+type MsaCommitType string
+
+// MsaDiscount defines model for MsaDiscount.
+type MsaDiscount struct {
+	// EndsAt When the discount ends, or `null` when it does not end.
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+
+	// Id The discount ID: the rate override ID, suffixed with `:<n>` when one
+	// override has several scopes (each listed as its own discount).
+	Id string `json:"id"`
+
+	// Multiplier The factor applied to the list price for a `multiplier` discount, or
+	// `null` for other types.
+	Multiplier *float64 `json:"multiplier,omitempty"`
+
+	// OverwriteCentsPerUnit The replacement price for an `overwrite` discount with a flat rate, in
+	// cents per product unit, which can be fractional, or `null` for other
+	// types and for tiered or percentage overwrites.
+	OverwriteCentsPerUnit *float64 `json:"overwrite_cents_per_unit,omitempty"`
+
+	// PricingGroupValues The pricing dimension values the discount is limited to, by dimension
+	// name; empty when it applies to every value.
+	PricingGroupValues map[string]string `json:"pricing_group_values"`
+
+	// ProductNames The names of the products the discount applies to; empty with empty
+	// `product_tags` when it applies to every product.
+	ProductNames []string `json:"product_names"`
+
+	// ProductTags The product tags the discount applies to; empty with empty
+	// `product_names` when it applies to every product.
+	ProductTags []string `json:"product_tags"`
+
+	// StartsAt When the discount starts.
+	StartsAt time.Time `json:"starts_at"`
+
+	// Status The discount status: `upcoming` before `starts_at`, `expired` from
+	// `ends_at` on, and `active` in between.
+	Status MsaStatus `json:"status"`
+
+	// Type How the discount changes the price: a multiplier on the list price, a
+	// replacement price, or replacement price tiers.
+	Type MsaDiscountType `json:"type"`
+}
+
+// MsaDiscountType defines model for MsaDiscountType.
+type MsaDiscountType string
+
+// MsaStatus defines model for MsaStatus.
+type MsaStatus string
 
 // NetworkPolicy defines model for NetworkPolicy.
 type NetworkPolicy struct {
@@ -5046,6 +5265,14 @@ type ProjectLifecyclePolicy struct {
 	Policy ProjectLifecycleDefaults `json:"policy"`
 }
 
+// ProjectLimits The project's own sandbox limits, each with the project's current usage
+// against it.
+type ProjectLimits struct {
+	// Sandboxes The project's sandbox count limits. A stored limit is always returned,
+	// and takes effect only while limit enforcement is turned on.
+	Sandboxes ProjectSandboxLimits `json:"sandboxes"`
+}
+
 // ProjectMember defines model for ProjectMember.
 type ProjectMember struct {
 	// AddedAt When the member was added, or `null` for an implicit membership.
@@ -5086,6 +5313,20 @@ type ProjectPage struct {
 
 	// Projects The projects in this page.
 	Projects []Project `json:"projects"`
+}
+
+// ProjectSandboxLimits The three sandbox counts a project can be limited on, each with its
+// limit and current usage.
+type ProjectSandboxLimits struct {
+	// Concurrent The project's concurrent sandbox limit and current usage.
+	Concurrent UsageLimit `json:"concurrent"`
+
+	// Persistent The project's persistent sandbox limit and current usage. Stopped and
+	// paused persistent sandboxes count.
+	Persistent UsageLimit `json:"persistent"`
+
+	// Total The project's total sandbox limit and current usage.
+	Total UsageLimit `json:"total"`
 }
 
 // ProjectServiceAccount defines model for ProjectServiceAccount.
@@ -6336,6 +6577,12 @@ type SnapshotSearchPage struct {
 	TotalRelation SearchTotalRelation `json:"total_relation"`
 }
 
+// SnapshotSearchSort The `sort` values of `GET /snapshots/search`.
+type SnapshotSearchSort string
+
+// SnapshotStatus The capture status of a snapshot.
+type SnapshotStatus string
+
 // SortOrder defines model for SortOrder.
 type SortOrder string
 
@@ -6520,6 +6767,23 @@ type UpdateProjectApiKeyRequest struct {
 type UpdateProjectLifecyclePolicyRequest struct {
 	// Ephemeral Replacement defaults for ephemeral sandboxes; null clears the block.
 	Ephemeral *UpdateEphemeralLifecycleDefaults `json:"ephemeral,omitempty"`
+}
+
+// UpdateProjectLimitsRequest The limits to change. Each one is optional: a missing limit keeps the
+// stored value, `null` removes it, and an integer sets it. Unknown fields
+// are refused.
+type UpdateProjectLimitsRequest struct {
+	// MaxConcurrentVms The most sandboxes the project may run at once, or null for no project
+	// limit.
+	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
+
+	// MaxPersistentVms The most persistent sandboxes the project may have, or null for no
+	// project limit.
+	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
+
+	// MaxTotalVms The most sandboxes the project may have, resting ones included, or null
+	// for no project limit.
+	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`
 }
 
 // UpdateProjectRequest defines model for UpdateProjectRequest.
@@ -7055,7 +7319,7 @@ type SearchImagesParams struct {
 	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
 
 	// Status Comma-separated build statuses. An unrecognized value answers 400.
-	Status *[]ArtifactStatus `form:"status,omitempty" json:"status,omitempty"`
+	Status *[]ImageStatus `form:"status,omitempty" json:"status,omitempty"`
 
 	// Class Comma-separated sandbox classes the image supports.
 	Class *[]ImageSearchClass `form:"class,omitempty" json:"class,omitempty"`
@@ -7093,7 +7357,7 @@ type SearchImagesParams struct {
 	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
 
 	// Sort Sort field. Defaults to `created_at`; ties break on the ID.
-	Sort *ArtifactSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+	Sort *ImageSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Order Sort order. Defaults to `desc`.
 	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
@@ -7631,7 +7895,7 @@ type SearchSnapshotsParams struct {
 	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
 
 	// Status Comma-separated capture statuses. An unrecognized value answers 400.
-	Status *[]ArtifactStatus `form:"status,omitempty" json:"status,omitempty"`
+	Status *[]SnapshotStatus `form:"status,omitempty" json:"status,omitempty"`
 
 	// Class Comma-separated sandbox classes.
 	Class *[]SnapshotSearchClass `form:"class,omitempty" json:"class,omitempty"`
@@ -7660,7 +7924,7 @@ type SearchSnapshotsParams struct {
 	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
 
 	// Sort Sort field. Defaults to `created_at`; ties break on the ID.
-	Sort *ArtifactSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+	Sort *SnapshotSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Order Sort order. Defaults to `desc`.
 	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
@@ -7863,6 +8127,9 @@ type SetProjectBudgetJSONRequestBody = SetProjectBudgetRequest
 
 // UpdateProjectLifecyclePolicyJSONRequestBody defines body for UpdateProjectLifecyclePolicy for application/json ContentType.
 type UpdateProjectLifecyclePolicyJSONRequestBody = UpdateProjectLifecyclePolicyRequest
+
+// UpdateProjectLimitsJSONRequestBody defines body for UpdateProjectLimits for application/json ContentType.
+type UpdateProjectLimitsJSONRequestBody = UpdateProjectLimitsRequest
 
 // AddProjectMembersJSONRequestBody defines body for AddProjectMembers for application/json ContentType.
 type AddProjectMembersJSONRequestBody = AddProjectMembersRequest

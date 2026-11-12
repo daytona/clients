@@ -827,6 +827,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/orgs/{org_id}/billing/msa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the organization's MSA */
+        get: operations["get_msa"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/orgs/{org_id}/billing/payment-method-sessions": {
         parameters: {
             query?: never;
@@ -1825,6 +1842,30 @@ export interface paths {
          * @description A missing block is kept, null clears it, and an object replaces the whole block. Fields missing inside a replacement object are unset.
          */
         patch: operations["update_project_lifecycle_policy"];
+        trace?: never;
+    };
+    "/projects/{project_id}/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the project limits
+         * @description A null limit means the project has no limit of its own. The organization's limits apply on top: a sandbox is created only when it fits under both.
+         */
+        get: operations["get_project_limits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update the project limits
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox that limit counts; the sandboxes it already has keep running, and lowering a limit never stops one.
+         */
+        patch: operations["update_project_limits"];
         trace?: never;
     };
     "/projects/{project_id}/members": {
@@ -2856,10 +2897,6 @@ export interface components {
          *     when `source` is `DAYTONA_API`.
          */
         ApiErrorCode: ("ORG_SUSPENDED" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
-        /** @description The `sort` values of `GET /images/search` and `GET /snapshots/search`. */
-        ArtifactSearchSort: ("created_at" | "updated_at" | "name" | "bytes") | (string & {});
-        /** @description The build or capture status of an image or snapshot. */
-        ArtifactStatus: ("pending" | "building" | "ready" | "failed") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -4549,6 +4586,8 @@ export interface components {
             /** @description Whether `total` is exact (`eq`) or a lower bound (`gte`). */
             total_relation: components["schemas"]["SearchTotalRelation"];
         };
+        /** @description The `sort` values of `GET /images/search`. */
+        ImageSearchSort: ("created_at" | "updated_at" | "name" | "bytes") | (string & {});
         ImageSourceValue: {
             /** @description The OCI image reference. */
             ref: string;
@@ -4584,6 +4623,8 @@ export interface components {
              */
             type: "manifest";
         };
+        /** @description The build status of an image. */
+        ImageStatus: ("pending" | "building" | "ready" | "failed") | (string & {});
         /** @description The source platform and resource ID of an imported resource. */
         ImportedFrom: {
             /**
@@ -5124,6 +5165,135 @@ export interface components {
              */
             ttl_seconds?: number | null;
         };
+        /**
+         * @description The organization's master services agreement (MSA) with Daytona: its
+         *     commits and its negotiated discounts.
+         */
+        Msa: {
+            /**
+             * @description The commits under the organization's MSA, including upcoming and
+             *     expired ones; empty when the organization has no MSA.
+             */
+            commits: components["schemas"]["MsaCommit"][];
+            /** @description The negotiated price discounts on the organization's billing contracts. */
+            discounts: components["schemas"]["MsaDiscount"][];
+        };
+        MsaCommit: {
+            /**
+             * Format: int64
+             * @description The committed amount in cents. For a commit released in installments,
+             *     the installments available now; otherwise the whole commitment.
+             */
+            committed_cents: number;
+            /** @description The lowercase ISO 4217 currency code. */
+            currency: string;
+            /**
+             * Format: date-time
+             * @description When the commit expires, or `null` when it does not expire.
+             */
+            expires_at?: string | null;
+            /**
+             * @description Whether the active commit expires within 30 days and no other commit
+             *     under the MSA continues coverage after it.
+             */
+            expiring_soon: boolean;
+            /** @description The commit ID. */
+            id: string;
+            /** @description Whether at most 20% of the active commit's committed amount remains. */
+            low_balance: boolean;
+            /** @description The commit display name, which falls back to the product name. */
+            name: string;
+            /** @description The name of the product the commit was sold as. */
+            product_name: string;
+            /**
+             * Format: int64
+             * @description The amount of the commitment not yet used, in cents.
+             */
+            remaining_cents: number;
+            /**
+             * Format: int64
+             * @description The whole commitment in cents, across every installment. Equals
+             *     `committed_cents` unless the commit is released in installments.
+             */
+            scheduled_cents: number;
+            /**
+             * Format: date-time
+             * @description When the commit starts.
+             */
+            starts_at: string;
+            /**
+             * @description The commit status: `upcoming` before `starts_at`, `expired` from
+             *     `expires_at` on, and `active` in between.
+             */
+            status: components["schemas"]["MsaStatus"];
+            /** @description Whether the commitment is paid up front or invoiced at the end. */
+            type: components["schemas"]["MsaCommitType"];
+            /**
+             * Format: int64
+             * @description The amount of the commitment already used, in cents.
+             */
+            used_cents: number;
+        };
+        MsaCommitType: ("prepaid" | "postpaid") | (string & {});
+        MsaDiscount: {
+            /**
+             * Format: date-time
+             * @description When the discount ends, or `null` when it does not end.
+             */
+            ends_at?: string | null;
+            /**
+             * @description The discount ID: the rate override ID, suffixed with `:<n>` when one
+             *     override has several scopes (each listed as its own discount).
+             */
+            id: string;
+            /**
+             * Format: double
+             * @description The factor applied to the list price for a `multiplier` discount, or
+             *     `null` for other types.
+             */
+            multiplier?: number | null;
+            /**
+             * Format: double
+             * @description The replacement price for an `overwrite` discount with a flat rate, in
+             *     cents per product unit, which can be fractional, or `null` for other
+             *     types and for tiered or percentage overwrites.
+             */
+            overwrite_cents_per_unit?: number | null;
+            /**
+             * @description The pricing dimension values the discount is limited to, by dimension
+             *     name; empty when it applies to every value.
+             */
+            pricing_group_values: {
+                [key: string]: string;
+            };
+            /**
+             * @description The names of the products the discount applies to; empty with empty
+             *     `product_tags` when it applies to every product.
+             */
+            product_names: string[];
+            /**
+             * @description The product tags the discount applies to; empty with empty
+             *     `product_names` when it applies to every product.
+             */
+            product_tags: string[];
+            /**
+             * Format: date-time
+             * @description When the discount starts.
+             */
+            starts_at: string;
+            /**
+             * @description The discount status: `upcoming` before `starts_at`, `expired` from
+             *     `ends_at` on, and `active` in between.
+             */
+            status: components["schemas"]["MsaStatus"];
+            /**
+             * @description How the discount changes the price: a multiplier on the list price, a
+             *     replacement price, or replacement price tiers.
+             */
+            type: components["schemas"]["MsaDiscountType"];
+        };
+        MsaDiscountType: ("multiplier" | "overwrite" | "tiered") | (string & {});
+        MsaStatus: ("upcoming" | "active" | "expired") | (string & {});
         NetworkPolicy: {
             /** @description Rules currently active for the sandbox, or null when the policy is open. */
             applied?: null | components["schemas"]["NetworkPolicyRules"];
@@ -6014,6 +6184,17 @@ export interface components {
             /** @description The project-level lifecycle defaults. */
             policy: components["schemas"]["ProjectLifecycleDefaults"];
         };
+        /**
+         * @description The project's own sandbox limits, each with the project's current usage
+         *     against it.
+         */
+        ProjectLimits: {
+            /**
+             * @description The project's sandbox count limits. A stored limit is always returned,
+             *     and takes effect only while limit enforcement is turned on.
+             */
+            sandboxes: components["schemas"]["ProjectSandboxLimits"];
+        };
         ProjectMember: {
             /**
              * Format: date-time
@@ -6048,6 +6229,21 @@ export interface components {
             next_cursor?: string | null;
             /** @description The projects in this page. */
             projects: components["schemas"]["Project"][];
+        };
+        /**
+         * @description The three sandbox counts a project can be limited on, each with its
+         *     limit and current usage.
+         */
+        ProjectSandboxLimits: {
+            /** @description The project's concurrent sandbox limit and current usage. */
+            concurrent: components["schemas"]["UsageLimit"];
+            /**
+             * @description The project's persistent sandbox limit and current usage. Stopped and
+             *     paused persistent sandboxes count.
+             */
+            persistent: components["schemas"]["UsageLimit"];
+            /** @description The project's total sandbox limit and current usage. */
+            total: components["schemas"]["UsageLimit"];
         };
         ProjectServiceAccount: {
             /**
@@ -7154,6 +7350,10 @@ export interface components {
             /** @description Whether `total` is exact (`eq`) or a lower bound (`gte`). */
             total_relation: components["schemas"]["SearchTotalRelation"];
         };
+        /** @description The `sort` values of `GET /snapshots/search`. */
+        SnapshotSearchSort: ("created_at" | "updated_at" | "name" | "bytes") | (string & {});
+        /** @description The capture status of a snapshot. */
+        SnapshotStatus: ("pending" | "building" | "ready" | "failed") | (string & {});
         SortOrder: ("asc" | "desc") | (string & {});
         /** @description SSH connection settings. */
         SshGatewayConfig: {
@@ -7334,6 +7534,31 @@ export interface components {
         UpdateProjectLifecyclePolicyRequest: {
             /** @description Replacement defaults for ephemeral sandboxes; null clears the block. */
             ephemeral?: null | components["schemas"]["UpdateEphemeralLifecycleDefaults"];
+        };
+        /**
+         * @description The limits to change. Each one is optional: a missing limit keeps the
+         *     stored value, `null` removes it, and an integer sets it. Unknown fields
+         *     are refused.
+         */
+        UpdateProjectLimitsRequest: {
+            /**
+             * Format: int64
+             * @description The most sandboxes the project may run at once, or null for no project
+             *     limit.
+             */
+            max_concurrent_vms?: number | null;
+            /**
+             * Format: int64
+             * @description The most persistent sandboxes the project may have, or null for no
+             *     project limit.
+             */
+            max_persistent_vms?: number | null;
+            /**
+             * Format: int64
+             * @description The most sandboxes the project may have, resting ones included, or null
+             *     for no project limit.
+             */
+            max_total_vms?: number | null;
         };
         UpdateProjectRequest: {
             /** @description The new project name: at most 64 characters after trimming, with no control characters. `default` is reserved. */
@@ -8497,7 +8722,7 @@ export interface operations {
                 /** @description `name` starts with this string (case-sensitive). */
                 name_prefix?: string;
                 /** @description Comma-separated build statuses. An unrecognized value answers 400. */
-                status?: components["schemas"]["ArtifactStatus"][];
+                status?: components["schemas"]["ImageStatus"][];
                 /** @description Comma-separated sandbox classes the image supports. */
                 class?: components["schemas"]["ImageSearchClass"][];
                 /** @description Comma-separated origins: how the image was created. */
@@ -8530,7 +8755,7 @@ export interface operations {
                 /** @description Exclusive upper bound on last-modified time. */
                 updated_end_at?: string;
                 /** @description Sort field. Defaults to `created_at`; ties break on the ID. */
-                sort?: components["schemas"]["ArtifactSearchSort"];
+                sort?: components["schemas"]["ImageSearchSort"];
                 /** @description Sort order. Defaults to `desc`. */
                 order?: components["schemas"]["SortOrder"];
                 /** @description Maximum number of items to return, 1–200 (default 100) */
@@ -11265,6 +11490,83 @@ export interface operations {
                 };
             };
             /** @description Billing is still being set up (`BILLING_NOT_PROVISIONED`). The invoice is not finalized yet (`INVOICE_NOT_FINALIZED`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Billing is not enabled (`BILLING_DISABLED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Billing could not complete the request (`BILLING_UNREACHABLE`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Billing is temporarily unavailable (`BILLING_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_msa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                org_id: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The MSA */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Msa"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Organization not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Billing is still being set up (`BILLING_NOT_PROVISIONED`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -15660,6 +15962,102 @@ export interface operations {
             };
         };
     };
+    get_project_limits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project ID */
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project limits */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectLimits"];
+                };
+            };
+            /** @description The project ID is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Project not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_project_limits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project ID */
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectLimitsRequest"];
+            };
+        };
+        responses: {
+            /** @description The project limits */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectLimits"];
+                };
+            };
+            /** @description A limit is outside the accepted range, or the body carries an unknown field (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Project not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_project_members: {
         parameters: {
             query?: {
@@ -19329,7 +19727,7 @@ export interface operations {
                 /** @description `name` starts with this string (case-sensitive). */
                 name_prefix?: string;
                 /** @description Comma-separated capture statuses. An unrecognized value answers 400. */
-                status?: components["schemas"]["ArtifactStatus"][];
+                status?: components["schemas"]["SnapshotStatus"][];
                 /** @description Comma-separated sandbox classes. */
                 class?: components["schemas"]["SnapshotSearchClass"][];
                 /** @description Comma-separated snapshot kinds. */
@@ -19351,7 +19749,7 @@ export interface operations {
                 /** @description Exclusive upper bound on last-modified time. */
                 updated_end_at?: string;
                 /** @description Sort field. Defaults to `created_at`; ties break on the ID. */
-                sort?: components["schemas"]["ArtifactSearchSort"];
+                sort?: components["schemas"]["SnapshotSearchSort"];
                 /** @description Sort order. Defaults to `desc`. */
                 order?: components["schemas"]["SortOrder"];
                 /** @description Maximum number of items to return, 1–200 (default 100) */

@@ -18,23 +18,21 @@ from enum import Enum
 from typing_extensions import Self
 
 
-class ArtifactStatus(str, Enum):
+class MsaCommitType(str, Enum):
     """
-    The build or capture status of an image or snapshot.
+    MsaCommitType
     """
 
     """
     allowed enum values
     """
-    PENDING = 'pending'
-    BUILDING = 'building'
-    READY = 'ready'
-    FAILED = 'failed'
+    PREPAID = 'prepaid'
+    POSTPAID = 'postpaid'
     UNKNOWN_DEFAULT_OPEN_API = 'unknown_default_open_api'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of ArtifactStatus from a JSON string"""
+        """Create an instance of MsaCommitType from a JSON string"""
         return cls(json.loads(json_str))
 
 
@@ -43,7 +41,7 @@ class ArtifactStatus(str, Enum):
         """Forward compatibility: a value this SDK release does not know yet
         (a newer server) must not fail validation, and must not be replaced by
         a placeholder either. It becomes a pseudo-member that is a
-        ArtifactStatus for `isinstance`/pydantic, is named
+        MsaCommitType for `isinstance`/pydantic, is named
         UNKNOWN_DEFAULT_OPEN_API, and whose `.value` is the real wire string,
         so callers can log, compare and round-trip what the server actually
         sent."""

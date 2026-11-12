@@ -7,8 +7,6 @@ from daytona.v2._gen.api.models.add_project_members_request import AddProjectMem
 from daytona.v2._gen.api.models.add_project_service_account_request import AddProjectServiceAccountRequest as AddProjectServiceAccountRequest
 from daytona.v2._gen.api.models.analytics_config import AnalyticsConfig as AnalyticsConfig
 from daytona.v2._gen.api.models.api_error_code import ApiErrorCode as ApiErrorCode
-from daytona.v2._gen.api.models.artifact_search_sort import ArtifactSearchSort as ArtifactSearchSort
-from daytona.v2._gen.api.models.artifact_status import ArtifactStatus as ArtifactStatus
 from daytona.v2._gen.api.models.async_operation import AsyncOperation as AsyncOperation
 from daytona.v2._gen.api.models.audit_action_group import AuditActionGroup as AuditActionGroup
 from daytona.v2._gen.api.models.audit_action_list import AuditActionList as AuditActionList
@@ -106,11 +104,13 @@ from daytona.v2._gen.api.models.image_reference import ImageReference as ImageRe
 from daytona.v2._gen.api.models.image_retention import ImageRetention as ImageRetention
 from daytona.v2._gen.api.models.image_search_class import ImageSearchClass as ImageSearchClass
 from daytona.v2._gen.api.models.image_search_page import ImageSearchPage as ImageSearchPage
+from daytona.v2._gen.api.models.image_search_sort import ImageSearchSort as ImageSearchSort
 from daytona.v2._gen.api.models.image_source_value import ImageSourceValue as ImageSourceValue
 from daytona.v2._gen.api.models.image_source_value_one_of import ImageSourceValueOneOf as ImageSourceValueOneOf
 from daytona.v2._gen.api.models.image_source_value_one_of1 import ImageSourceValueOneOf1 as ImageSourceValueOneOf1
 from daytona.v2._gen.api.models.image_source_value_one_of2 import ImageSourceValueOneOf2 as ImageSourceValueOneOf2
 from daytona.v2._gen.api.models.image_source_value_one_of3 import ImageSourceValueOneOf3 as ImageSourceValueOneOf3
+from daytona.v2._gen.api.models.image_status import ImageStatus as ImageStatus
 from daytona.v2._gen.api.models.imported_from import ImportedFrom as ImportedFrom
 from daytona.v2._gen.api.models.invitation import Invitation as Invitation
 from daytona.v2._gen.api.models.invitation_lookup import InvitationLookup as InvitationLookup
@@ -141,6 +141,12 @@ from daytona.v2._gen.api.models.macos_settings import MacosSettings as MacosSett
 from daytona.v2._gen.api.models.member_limits import MemberLimits as MemberLimits
 from daytona.v2._gen.api.models.member_removal_preview import MemberRemovalPreview as MemberRemovalPreview
 from daytona.v2._gen.api.models.mint_sandbox_access_token_request import MintSandboxAccessTokenRequest as MintSandboxAccessTokenRequest
+from daytona.v2._gen.api.models.msa import Msa as Msa
+from daytona.v2._gen.api.models.msa_commit import MsaCommit as MsaCommit
+from daytona.v2._gen.api.models.msa_commit_type import MsaCommitType as MsaCommitType
+from daytona.v2._gen.api.models.msa_discount import MsaDiscount as MsaDiscount
+from daytona.v2._gen.api.models.msa_discount_type import MsaDiscountType as MsaDiscountType
+from daytona.v2._gen.api.models.msa_status import MsaStatus as MsaStatus
 from daytona.v2._gen.api.models.network_policy import NetworkPolicy as NetworkPolicy
 from daytona.v2._gen.api.models.network_policy_rules import NetworkPolicyRules as NetworkPolicyRules
 from daytona.v2._gen.api.models.oidc_provider import OidcProvider as OidcProvider
@@ -200,10 +206,12 @@ from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyW
 from daytona.v2._gen.api.models.project_budget import ProjectBudget as ProjectBudget
 from daytona.v2._gen.api.models.project_lifecycle_defaults import ProjectLifecycleDefaults as ProjectLifecycleDefaults
 from daytona.v2._gen.api.models.project_lifecycle_policy import ProjectLifecyclePolicy as ProjectLifecyclePolicy
+from daytona.v2._gen.api.models.project_limits import ProjectLimits as ProjectLimits
 from daytona.v2._gen.api.models.project_member import ProjectMember as ProjectMember
 from daytona.v2._gen.api.models.project_member_list import ProjectMemberList as ProjectMemberList
 from daytona.v2._gen.api.models.project_member_page import ProjectMemberPage as ProjectMemberPage
 from daytona.v2._gen.api.models.project_page import ProjectPage as ProjectPage
+from daytona.v2._gen.api.models.project_sandbox_limits import ProjectSandboxLimits as ProjectSandboxLimits
 from daytona.v2._gen.api.models.project_service_account import ProjectServiceAccount as ProjectServiceAccount
 from daytona.v2._gen.api.models.project_service_account_list import ProjectServiceAccountList as ProjectServiceAccountList
 from daytona.v2._gen.api.models.project_service_account_page import ProjectServiceAccountPage as ProjectServiceAccountPage
@@ -280,6 +288,8 @@ from daytona.v2._gen.api.models.snapshot_page import SnapshotPage as SnapshotPag
 from daytona.v2._gen.api.models.snapshot_reference import SnapshotReference as SnapshotReference
 from daytona.v2._gen.api.models.snapshot_search_class import SnapshotSearchClass as SnapshotSearchClass
 from daytona.v2._gen.api.models.snapshot_search_page import SnapshotSearchPage as SnapshotSearchPage
+from daytona.v2._gen.api.models.snapshot_search_sort import SnapshotSearchSort as SnapshotSearchSort
+from daytona.v2._gen.api.models.snapshot_status import SnapshotStatus as SnapshotStatus
 from daytona.v2._gen.api.models.sort_order import SortOrder as SortOrder
 from daytona.v2._gen.api.models.ssh_gateway_config import SshGatewayConfig as SshGatewayConfig
 from daytona.v2._gen.api.models.sso_connection import SsoConnection as SsoConnection
@@ -299,6 +309,7 @@ from daytona.v2._gen.api.models.update_organization_role_request import UpdateOr
 from daytona.v2._gen.api.models.update_preview_warning_request import UpdatePreviewWarningRequest as UpdatePreviewWarningRequest
 from daytona.v2._gen.api.models.update_project_api_key_request import UpdateProjectApiKeyRequest as UpdateProjectApiKeyRequest
 from daytona.v2._gen.api.models.update_project_lifecycle_policy_request import UpdateProjectLifecyclePolicyRequest as UpdateProjectLifecyclePolicyRequest
+from daytona.v2._gen.api.models.update_project_limits_request import UpdateProjectLimitsRequest as UpdateProjectLimitsRequest
 from daytona.v2._gen.api.models.update_project_request import UpdateProjectRequest as UpdateProjectRequest
 from daytona.v2._gen.api.models.update_reservation_request import UpdateReservationRequest as UpdateReservationRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest as UpdateSandboxLifecyclePolicyRequest

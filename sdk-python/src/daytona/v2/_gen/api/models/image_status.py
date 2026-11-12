@@ -18,23 +18,23 @@ from enum import Enum
 from typing_extensions import Self
 
 
-class ArtifactSearchSort(str, Enum):
+class ImageStatus(str, Enum):
     """
-    The `sort` values of `GET /images/search` and `GET /snapshots/search`.
+    The build status of an image.
     """
 
     """
     allowed enum values
     """
-    CREATED_AT = 'created_at'
-    UPDATED_AT = 'updated_at'
-    NAME = 'name'
-    BYTES = 'bytes'
+    PENDING = 'pending'
+    BUILDING = 'building'
+    READY = 'ready'
+    FAILED = 'failed'
     UNKNOWN_DEFAULT_OPEN_API = 'unknown_default_open_api'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of ArtifactSearchSort from a JSON string"""
+        """Create an instance of ImageStatus from a JSON string"""
         return cls(json.loads(json_str))
 
 
@@ -43,7 +43,7 @@ class ArtifactSearchSort(str, Enum):
         """Forward compatibility: a value this SDK release does not know yet
         (a newer server) must not fail validation, and must not be replaced by
         a placeholder either. It becomes a pseudo-member that is a
-        ArtifactSearchSort for `isinstance`/pydantic, is named
+        ImageStatus for `isinstance`/pydantic, is named
         UNKNOWN_DEFAULT_OPEN_API, and whose `.value` is the real wire string,
         so callers can log, compare and round-trip what the server actually
         sent."""
