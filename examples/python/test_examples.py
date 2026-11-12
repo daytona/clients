@@ -447,22 +447,26 @@ class FakeWorld:
     def _interpret(self, code: str) -> InterpreterResult:
         results: tuple[InterpreterOutput, ...] = ()
         charts: tuple[Chart, ...] = ()
-        if "plt.show()" in code and self.interpreter_charts:
+        if "plt.show()" in code:
+            # The figure examples/python/charts.py draws.
             figure = CompositeChart(
                 elements=(
                     LineChart(
                         x_scale="linear",
                         y_scale="linear",
-                        elements=(ChartSeries(points=((1, 10), (2, 20)), label="visits"),),
+                        elements=(ChartSeries(points=((1, 10), (2, 20), (3, 15), (4, 30)), label="visits"),),
                         title="traffic",
                     ),
-                    BarChart(orientation="vertical", elements=(ChartBar(label="a", value=3),), title="signups"),
+                    BarChart(
+                        orientation="vertical",
+                        elements=tuple(ChartBar(label=k, value=v) for k, v in (("a", 3), ("b", 7), ("c", 5))),
+                        title="signups",
+                    ),
                 )
             )
-            results = (
-                InterpreterOutput(data={"image/png": "iVBOR"}, is_main_result=False, png="iVBOR", chart=figure),
-            )
-            charts = (figure,)
+            chart = figure if self.interpreter_charts else None
+            results = (InterpreterOutput(data={"image/png": "iVBOR"}, is_main_result=False, png="iVBOR", chart=chart),)
+            charts = (figure,) if chart is not None else ()
         return InterpreterResult(
             process=InterpreterProcess(
                 process_id="p", exit_code=self.interpreter_exit_code, reason="exited"
@@ -743,6 +747,29 @@ def test_failed_interpreter_run_fails_exec_command(
     code, _ = run_example("exec_command", world=world)
     assert code == 1
     assert re.search(reported, capsys.readouterr().out)
+
+
+def test_charts_reports_each_subplots_data(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, _ = run_example("charts")
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "line 'traffic' (visits: 4 points)" in out
+    assert "bar 'signups' (a=3, b=7, c=5)" in out
+    assert "image: 5 base64 characters of PNG" in out
+
+
+def test_charts_fails_when_the_figure_exits_non_zero(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    world = FakeWorld()
+    world.interpreter_exit_code = 1
+    code, _ = run_example("charts", world=world)
+    assert code == 1
+    assert "the figure failed (exit=1, no error output)" in capsys.readouterr().out
 
 
 def test_charts_fails_when_the_figure_comes_back_without_its_chart(

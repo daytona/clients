@@ -202,23 +202,28 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     } },
     interpreter: {
       run: async (code: string) => {
+        // The figure typescript/charts/index.ts draws.
         const figure: Chart = {
           type: 'composite_chart',
           truncated: false,
           elements: [
             {
               type: 'line', title: 'traffic', xScale: 'linear', yScale: 'linear', xTicks: [], xTickLabels: [], yTicks: [], yTickLabels: [],
-              elements: [{ label: 'visits', points: [[1, 10], [2, 20]] }], truncated: false,
+              elements: [{ label: 'visits', points: [[1, 10], [2, 20], [3, 15], [4, 30]] }], truncated: false,
             },
-            { type: 'bar', title: 'signups', orientation: 'vertical', elements: [{ label: 'a', value: 3 }], truncated: false },
+            {
+              type: 'bar', title: 'signups', orientation: 'vertical', truncated: false,
+              elements: [{ label: 'a', value: 3 }, { label: 'b', value: 7 }, { label: 'c', value: 5 }],
+            },
           ],
         }
-        const shows = code.includes('plt.show()') && scenario.interpreterCharts !== false
+        const shows = code.includes('plt.show()')
+        const withChart = shows && scenario.interpreterCharts !== false
         return {
           process: { processId: 'p', reason: 'exited' as const, exitCode: scenario.interpreterExitCode ?? 0 },
           logs: { stdout: 'Hello World from code!\n', stderr: '' },
-          results: shows ? [{ data: { 'image/png': 'iVBOR' }, isMainResult: false, png: 'iVBOR', chart: figure }] : [],
-          charts: shows ? [figure] : [],
+          results: shows ? [{ data: { 'image/png': 'iVBOR' }, isMainResult: false, png: 'iVBOR', ...(withChart ? { chart: figure } : {}) }] : [],
+          charts: withChart ? [figure] : [],
           error: scenario.interpreterError ? { name: scenario.interpreterError, value: '', traceback: [] } : undefined,
         }
       },

@@ -267,6 +267,22 @@ test('exec-command exits non-zero when the interpreter code raises', () => {
   assert.match(output, /FAIL.* code failed \(exit=0, error=NameError\)/)
 })
 
+test('charts reports each subplot\'s data', () => {
+  const { code, record, output } = runExample(example('charts'))
+  assert.equal(code, 0, output)
+  assert.match(output, /line 'traffic' \(visits: 4 points\)/)
+  assert.match(output, /bar 'signups' \(a=3, b=7, c=5\)/)
+  assert.match(output, /image: 5 base64 characters of PNG/)
+  assertCleanedUp(record)
+})
+
+test('charts fails when the figure exits non-zero', () => {
+  const { code, record, output } = runExample(example('charts'), { interpreterExitCode: 1 })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* the figure failed \(exit=1, no error output\)/)
+  assertCleanedUp(record)
+})
+
 test('charts fails when the figure comes back without its chart', () => {
   // Given a sandbox whose interpreter returns the figure without chart data.
   // When the example runs.

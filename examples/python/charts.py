@@ -51,8 +51,9 @@ def read_charts(sandbox: Sandbox) -> bool:
 
     section("draw a figure and read its chart")
     result = sandbox.interpreter.run(FIGURE, language="python")
-    if result.error is not None:
-        failed(f"the figure raised {result.error.name}: {result.error.value}")
+    if result.error is not None or result.process.exit_code != 0:
+        detail = f"{result.error.name}: {result.error.value}" if result.error is not None else "no error output"
+        failed(f"the figure failed (exit={result.process.exit_code}, {detail})")
         return False
     # Every figure the run displayed; prefer it to result.results, where a
     # pandas or seaborn call puts its axes first.

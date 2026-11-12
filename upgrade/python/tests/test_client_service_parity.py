@@ -227,8 +227,8 @@ def test_code_run_suggestion_points_chart_artifacts_at_the_v2_result() -> None:
         if "suggestion" in item
     }
     assert notes["sandbox.process.codeRun"][-1] == (
-        "Returns InterpreterResult rather than ExecuteResponse: response.artifacts.charts becomes result.charts, "
-        "and each figure's image is in result.results[i].png"
+        "Returns InterpreterResult rather than ExecuteResponse: response.artifacts.charts becomes result.charts; "
+        "the output that carries a chart (output.chart) also carries its image when there is one (output.png)"
     )
     assert (
         "# daytona-v2:   differs: Returns InterpreterResult rather than ExecuteResponse: response.artifacts.charts"

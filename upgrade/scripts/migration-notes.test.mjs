@@ -39,7 +39,7 @@ for (const language of ['py', 'ts']) {
     const rows = guide.split('\n').filter((line) => /^\| `sandbox\.process\.(code_run|codeRun)\(/.test(line));
     // Then: both name where the charts and their images are in v2.
     for (const text of [notes, ...rows]) {
-      assert.match(text, /artifacts\.charts becomes result\.charts\b.*result\.results\[i\]\.png/);
+      assert.match(text, /artifacts\.charts becomes result\.charts\b.*output\.chart.*output\.png/);
     }
     assert.equal(rows.length, 2);
   });

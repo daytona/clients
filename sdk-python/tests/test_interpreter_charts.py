@@ -89,6 +89,8 @@ def test_a_runs_outputs_and_charts_match_the_shared_cases(case: dict[str, Any]) 
             assert output.text == want["text"]
         if "png" in want:
             assert output.png == want["png"]
+        if "rawChart" in want:
+            assert output.data[_CHART] == want["rawChart"]
     charts = [output.chart for output in results if output.chart is not None]
     assert [chart.type for chart in charts] == expected["charts"]
 

@@ -127,7 +127,7 @@ DAYTONA_RUN_VOLUMES=1 DAYTONA_API_KEY=dtn_... ./run-examples.sh
 `tsc --noEmit` and `mypy --strict` over every example, plus offline tests
 (`typescript/examples.test.ts`, `python/test_examples.py`) that run the
 exec-command, file-operations, git, lifecycle, secrets-env, dynamic-build, local-files,
-build-logs and volumes-share examples (and the Python dockerfile-sandbox)
+charts, build-logs and volumes-share examples (and the Python dockerfile-sandbox)
 against a fake client and check their exit codes and cleanup. CI runs the same
 command (`Examples CI`). `check` uses `../sdk-python/.venv` when it exists, so
 install the SDK's dev extras there:

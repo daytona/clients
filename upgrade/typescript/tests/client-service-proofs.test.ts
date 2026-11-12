@@ -150,7 +150,7 @@ it('points code_run chart artifacts at the v2 result', async () => {
   expect(result.code, result.output).toBe(0);
   const notes = report.items.find(item => item.suggestion?.id === 'sandbox.process.codeRun')?.suggestion?.notes;
   expect(notes?.at(-1)).toBe(
-    "Returns InterpreterResult: response.artifacts.charts becomes result.charts, and each figure's image is in result.results[i].png; timeout becomes timeoutSeconds (still seconds)");
+    "Returns InterpreterResult: response.artifacts.charts becomes result.charts; the output that carries a chart (output.chart) also carries its image when there is one (output.png); timeout becomes timeoutSeconds (still seconds)");
   // And the written comment carries it.
   expect((await invoke(root, ['--suggest-v2'])).code).toBe(0);
   expect(contents(root)['app.ts']).toContain('daytona-v2:   differs: Returns InterpreterResult: response.artifacts.charts becomes result.charts');

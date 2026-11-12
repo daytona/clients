@@ -45,8 +45,9 @@ async function readCharts(sandbox: Sandbox): Promise<boolean> {
 
   section('draw a figure and read its chart')
   const result = await sandbox.interpreter.run(FIGURE, { language: 'python' })
-  if (result.error) {
-    fail(`the figure raised ${result.error.name}: ${result.error.value}`)
+  if (result.error || result.process.exitCode !== 0) {
+    const detail = result.error ? `${result.error.name}: ${result.error.value}` : 'no error output'
+    fail(`the figure failed (exit=${result.process.exitCode}, ${detail})`)
     return false
   }
   // Every figure the run displayed; prefer it to result.results, where a

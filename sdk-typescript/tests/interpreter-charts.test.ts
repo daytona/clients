@@ -28,6 +28,7 @@ interface RunExpectation {
   readonly bars?: number
   readonly text?: string
   readonly png?: string
+  readonly rawChart?: unknown
 }
 
 const fixture = JSON.parse(readFileSync(join(__dirname, '..', '..', 'sdk-python', 'tests', 'fixtures', 'interpreter-charts.json'), 'utf8')) as {
@@ -60,6 +61,7 @@ describe('interpreter charts', () => {
       if (want.bars !== undefined) expect((output.chart as BarChart).elements).toHaveLength(want.bars)
       if (want.text !== undefined) expect(output.text).toBe(want.text)
       if (want.png !== undefined) expect(output.png).toBe(want.png)
+      if (want.rawChart !== undefined) expect(output.data[CHART]).toStrictEqual(want.rawChart)
     })
     const charts = results.flatMap((output) => (output.chart === undefined ? [] : [output.chart]))
     expect(charts.map((chart) => chart.type)).toEqual(entry.expected.charts)

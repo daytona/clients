@@ -14,8 +14,9 @@
  *
  * Values are as plotted: a number, or a string on a `categorical` axis (the
  * category) or a `datetime` axis (ISO 8601 in UTC, e.g.
- * `2024-01-01T00:00:00+00:00`). Long series are thinned, keeping each
- * stretch's lowest and highest point, and the chart says so with `truncated`.
+ * `2024-01-01T00:00:00+00:00`). Long series are thinned (a line series keeps
+ * each stretch's lowest and highest point, a point series is sampled evenly),
+ * and the chart says so with `truncated`.
  */
 
 /** @internal The media type the chart travels under in a display bundle. */

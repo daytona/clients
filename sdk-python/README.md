@@ -1026,7 +1026,8 @@ is interrupted. Results are split into `results[]`, `logs{stdout,stderr}`,
 interpreter run path itself; reconnecting a serialized code-process handle
 later does not recreate it. A display updated in place (IPython
 `display(obj, display_id=True)` then `handle.update(obj)`) is one entry in
-`results`, holding its last state.
+`results`, holding its last state; an update to a display an earlier run
+published is a new entry.
 
 #### Charts
 
@@ -1047,7 +1048,7 @@ plt.bar(["a", "b"], [3, 1]); plt.title("visits")
 plt.show()
 """
 )
-chart = result.charts[0]
+chart = result.charts[0] if result.charts else None
 if isinstance(chart, BarChart):
     print(chart.title, [(bar.label, bar.value) for bar in chart.elements])  # visits [('a', 3), ('b', 1)]
 ```
@@ -1058,9 +1059,11 @@ axes) or `unknown` (a figure that is not one of these, such as an image plot,
 or a type a later sandbox reports, with `raw_type`); match on it and keep a
 default case. Values are as plotted: numbers, category names on a
 `categorical` axis, and ISO 8601 UTC strings on a `datetime` axis. Long series
-are thinned, keeping each stretch's lowest and highest point, and the chart
-says so with `truncated`. Charts need matplotlib in the sandbox image, and
-only Python runs produce them. A run that changes matplotlib's backend away
+are thinned (a line series keeps each stretch's lowest and highest point, a
+point series is sampled evenly), and the chart says so with `truncated`.
+Charts need matplotlib in the sandbox image, and only Python runs produce
+them; a sandbox started before charts reached its deployment returns none, so
+`result.charts` can be empty. A run that changes matplotlib's backend away
 from the default (`MPLBACKEND`, `%matplotlib agg`) shows no figure on
 `plt.show()`; a figure returned as the last expression still comes back, with
 its chart but without an image.
