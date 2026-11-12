@@ -12,7 +12,7 @@ import httpx
 import pytest
 from aiohttp import web
 
-from daytona._utils.stream import _std_demux_loop
+from daytona._utils.stream import _std_demux_loop, process_streaming_response
 from daytona.common.process import STDERR_PREFIX, STDOUT_PREFIX
 
 # Each case is the list of WebSocket messages the daemon sends. The daemon forwards
@@ -153,3 +153,77 @@ class TestSessionCommandLogsStreaming:
 
         assert "".join(stdout) == "out\n"
         assert "".join(stderr) == "err\n"
+
+
+class TestProcessStreamingResponseTimeout:
+    """The log stream must outlive aiohttp's default session timeout (total=300s).
+
+    The tests shrink that default so a slow stream crosses it in about a second.
+    """
+
+    @staticmethod
+    async def _slow_stream_server(chunks: int, delay: float):
+        async def handler(request: web.Request) -> web.StreamResponse:
+            resp = web.StreamResponse()
+            await resp.prepare(request)
+            for i in range(chunks):
+                await resp.write(f"line {i}\n".encode())
+                await asyncio.sleep(delay)
+            await resp.write_eof()
+            return resp
+
+        app = web.Application()
+        app.router.add_get("/logs", handler)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        return runner, f"http://127.0.0.1:{runner.addresses[0][1]}/logs"
+
+    @pytest.mark.asyncio
+    async def test_shared_session_default_timeout_does_not_cut_the_stream(self):
+        runner, url = await self._slow_stream_server(chunks=6, delay=0.2)
+        received: list[str] = []
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=0.5)) as session:
+                await process_streaming_response(
+                    url, {}, received.append, lambda: False, chunk_timeout=0.1, session=session
+                )
+        finally:
+            await runner.cleanup()
+        assert "".join(received) == "".join(f"line {i}\n" for i in range(6))
+
+    @pytest.mark.asyncio
+    async def test_owned_session_default_timeout_does_not_cut_the_stream(self, monkeypatch):
+        monkeypatch.setattr(aiohttp.client, "DEFAULT_TIMEOUT", aiohttp.ClientTimeout(total=0.5))
+        runner, url = await self._slow_stream_server(chunks=6, delay=0.2)
+        received: list[str] = []
+        try:
+            await process_streaming_response(url, {}, received.append, lambda: False, chunk_timeout=0.1)
+        finally:
+            await runner.cleanup()
+        assert "".join(received) == "".join(f"line {i}\n" for i in range(6))
+
+    @pytest.mark.asyncio
+    async def test_stream_request_keeps_connect_timeouts(self):
+        runner, url = await self._slow_stream_server(chunks=1, delay=0)
+        seen: list[aiohttp.ClientTimeout] = []
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                original = session.request
+
+                def spy(*args, **kwargs):
+                    seen.append(kwargs["timeout"])
+                    return original(*args, **kwargs)
+
+                session.request = spy  # type: ignore[method-assign]
+                await process_streaming_response(url, {}, lambda _: None, lambda: False, session=session)
+        finally:
+            await runner.cleanup()
+
+        assert len(seen) == 1
+        assert seen[0].total is None
+        assert seen[0].sock_read is None
+        assert seen[0].connect is not None
+        assert seen[0].sock_connect is not None
