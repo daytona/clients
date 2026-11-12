@@ -284,6 +284,16 @@ async def test_an_expiry_that_names_the_cursor_just_read_raises() -> None:
 
 
 @pytest.mark.anyio
+async def test_a_resume_point_already_read_from_raises() -> None:
+    # A sandbox answering A with "resume at B" and B with "resume at A" must
+    # not keep a read going forever: retention only moves forward.
+    handle = _ExpiringLogs([_expired("cB"), _expired("cA"), _expired("cB"), _expired("cA")])
+    with pytest.raises(CursorExpiredError):
+        await _all_logs(handle)  # type: ignore[arg-type]
+    assert handle.cursors == [None, "cB", "cA"]
+
+
+@pytest.mark.anyio
 async def test_a_process_run_whose_log_head_was_evicted_returns_what_the_sandbox_kept() -> None:
     # The inline page is not the end, so run() reads the log from the start,
     # which retention evicted.

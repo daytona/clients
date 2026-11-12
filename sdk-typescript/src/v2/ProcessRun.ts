@@ -34,6 +34,7 @@ export const TIMED_OUT_LOG_PAGE_LIMIT = 8
 export async function collectAllLogs(handle: ProcessHandle, options: { maxPages?: number } = {}): Promise<LogFrame[]> {
   const logs: LogFrame[] = []
   let cursor: string | undefined
+  const resumed = new Set<string>()
   for (let pages = 0; ; pages++) {
     if (options.maxPages !== undefined && pages >= options.maxPages) return logs
     let page
@@ -41,7 +42,10 @@ export async function collectAllLogs(handle: ProcessHandle, options: { maxPages?
       page = await handle.logs(cursor === undefined ? {} : { cursor })
     } catch (error) {
       const resume = error instanceof CursorExpiredError ? error.firstAvailableCursor : undefined
-      if (!resume || resume === cursor) throw error
+      // Retention only moves forward: the cursor just read, or a resume point
+      // already read from, would read the same pages again forever.
+      if (!resume || resume === cursor || resumed.has(resume)) throw error
+      resumed.add(resume)
       cursor = resume
       continue
     }

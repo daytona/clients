@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping
-from typing import AsyncIterator, List, Optional, Sequence, Union
+from typing import AsyncIterator, List, Optional, Sequence, Set, Union
 
 from . import _clock
 from . import _codes as codes
@@ -170,6 +170,7 @@ async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = No
     ``run()``'s inline log page does, instead of failing the whole read."""
     frames: List[LogFrame] = []
     cursor: Optional[str] = None
+    resumed: Set[str] = set()
     pages = 0
     while True:
         if max_pages is not None and pages >= max_pages:
@@ -178,8 +179,11 @@ async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = No
             page = await handle.logs(cursor=cursor)
         except CursorExpiredError as error:
             resume = error.first_available_cursor
-            if not resume or resume == cursor:
+            # Retention only moves forward: the cursor just read, or a resume
+            # point already read from, would read the same pages again forever.
+            if not resume or resume == cursor or resume in resumed:
                 raise
+            resumed.add(resume)
             cursor = resume
             pages += 1
             continue

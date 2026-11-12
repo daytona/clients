@@ -186,6 +186,14 @@ describe('log reads after retention', () => {
     expect(cursors).toEqual([undefined, 'c5'])
   })
 
+  it('fails when an expiry names a resume point already read from', async () => {
+    // A sandbox answering A with "resume at B" and B with "resume at A" must
+    // not keep a read going forever: retention only moves forward.
+    const { handle, cursors } = expiringLogs([expired('cB'), expired('cA'), expired('cB'), expired('cA')])
+    await expect(collectAllLogs(handle)).rejects.toBeInstanceOf(CursorExpiredError)
+    expect(cursors).toEqual([undefined, 'cB', 'cA'])
+  })
+
   it('returns what the sandbox kept from a process run whose log head was evicted', async () => {
     // The inline page is not the end, so run() reads the log from the start,
     // which retention evicted.

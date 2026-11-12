@@ -1394,8 +1394,8 @@ class InterpreterOutput:
     svg: Optional[str] = None
     json: Optional[JsonValue] = None
     chart: Optional[Chart] = None
-    """The data of the matplotlib figure this output shows (its image is
-    ``png``); ``None`` for any other output."""
+    """The data of the matplotlib figure this output shows (its image, when one
+    was captured, is ``png``); ``None`` for any other output."""
 
 
 @dataclass(frozen=True, kw_only=True)

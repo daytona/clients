@@ -1362,7 +1362,7 @@ export interface InterpreterOutput {
   readonly png?: string
   readonly svg?: string
   readonly json?: unknown
-  /** The data of the matplotlib figure this output shows (its image is `png`); absent for any other output. */
+  /** The data of the matplotlib figure this output shows (its image, when one was captured, is `png`); absent for any other output. */
   readonly chart?: Chart
 }
 

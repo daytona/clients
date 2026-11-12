@@ -820,8 +820,9 @@ back from the process log, so its `keep_logs=` takes `"on_exit_ttl"` (default)
 or `"until_cleanup"`, not `"none"`. It returns no handle to write to, so it
 refuses `stdin="open"`: use `start()` for a process that reads stdin. A run
 whose output outgrew the sandbox's log retention returns what the sandbox kept,
-from where the sandbox says its log now starts, so its earliest output may be
-missing; when the sandbox names no such point, `run()` still raises
+from where the sandbox says its log now starts, so part of its output may be
+missing: its earliest, or, for a run that timed out while still writing, some
+between two reads. When the sandbox names no such point, `run()` still raises
 `CursorExpiredError`.
 
 `process.start()` (and `session.start()`) sends `keep_logs="on_exit_ttl"`
@@ -1033,8 +1034,10 @@ later does not recreate it. A display updated in place (IPython
 `results`, holding its last state; an update to a display an earlier run
 published is a new entry. As with `process.run()`, a run whose output outgrew
 the sandbox's log retention returns what the sandbox kept, from where the
-sandbox says its log now starts, so its earliest outputs may be missing; when
-the sandbox names no such point, `run()` still raises `CursorExpiredError`.
+sandbox says its log now starts, so part of its outputs may be missing: its
+earliest, or, for a run that timed out while still writing, some between two
+reads. When the sandbox names no such point, `run()` still raises
+`CursorExpiredError`.
 
 #### Charts
 
