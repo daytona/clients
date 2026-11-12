@@ -1,0 +1,42 @@
+changelog.d/desktop-resolution-status.added.md
+  h_5fc330b445be98 1-7
+cli/gen/toolbox/types.gen.go
+  h_5fc330b445be98 903-904
+contract/toolbox-openapi.json
+  h_5fc330b445be98 1440-1450
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  h_5fc330b445be98 25,43,46,94-96,107-111,126
+sdk-python/src/daytona/v2/_sync/computer_use.py
+  h_5fc330b445be98 96-97,109-114
+sdk-python/src/daytona/v2/computer_use.py
+  h_5fc330b445be98 6,10,12,32,42-45,68-73,75,80-82,93-94,96,99-128
+sdk-python/src/daytona/v2/computer_use_core.py
+  h_5fc330b445be98 10,43,58,381-389,410,416,419,422,427,438,474-480
+sdk-python/src/daytona/v2/computer_use_types.py
+  h_5fc330b445be98 77-80,89-92,101-104,113-116,133-136
+sdk-python/tests/test_desktop.py
+  h_5fc330b445be98 210-213,215,219,221,226-357,736-769
+sdk-typescript/src/v2/ComputerUse.ts
+  h_5fc330b445be98 64-69,82-83
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  h_5fc330b445be98 23,26,38,109-126,132,138-141
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  h_5fc330b445be98 26,108-136,444-446,448-449,463-465,467-468
+sdk-typescript/src/v2/ComputerUseTypes.ts
+  h_5fc330b445be98 32-37,45-50,58-63,71-76,92-97,321-323
+sdk-typescript/src/v2/gen/toolbox.ts
+  h_5fc330b445be98 2378
+sdk-typescript/tests/unit.test.ts
+  h_5fc330b445be98 12108,12111,12127-12214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33f00ae1edbc4a1a126c7d5d707e3cd6c7812423",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
