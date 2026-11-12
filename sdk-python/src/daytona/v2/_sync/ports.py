@@ -50,8 +50,9 @@ class PortsService:
         """Register a sandbox port as a preview endpoint.
 
         If the port is already exposed, returns the existing endpoint (updating
-        its visibility if ``public`` differs from the current value). Public
-        endpoints need no credential. Programmatic access to a private one
+        its visibility if ``public`` differs from the current value; the change
+        takes effect immediately on event delivery, at most 30 s if an event is
+        missed). Public endpoints need no credential. Programmatic access to a private one
         needs the token from :meth:`preview_link` (see
         :class:`~daytona.v2.types.PreviewLink`) or a :meth:`signed_preview_link`
         URL.

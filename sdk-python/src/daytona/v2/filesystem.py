@@ -46,7 +46,8 @@ from ._core import (
     list_shape,
     parse_bulk_read_result,
     parse_bulk_write_result,
-    parse_file_match,
+    parse_glob_response,
+    parse_grep_response,
     parse_replace_result,
     parse_sse_events_bounded,
     sse_json,
@@ -61,6 +62,7 @@ from .types import (
     BulkWriteResult,
     FileInfo,
     FileMatch,
+    FileSearchResult,
     FilesystemEvent,
     JsonObject,
     JsonValue,
@@ -634,35 +636,34 @@ class AsyncFileSystemService:
             )
         )
 
-    async def grep(self, path: str, pattern: str, /) -> ListResult[FileMatch]:
+    async def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
-        Returns matches with one-based line numbers.
+        Returns matches with one-based line numbers, as the sandbox user sees
+        them. Directories and files below ``path`` that the sandbox user cannot
+        read are not searched; ``skipped`` lists their absolute paths (at most
+        1000). Only an unreadable ``path`` itself raises
+        :class:`~daytona.v2.errors.FileAccessDeniedError`.
         """
-        items, next_cursor = list_shape(
+        return parse_grep_response(
             await self._transport.send(
                 RequestSpec("GET", "/files/find", params={"path": sandbox_path(path), "pattern": pattern})
-            ),
-            description="grep response",
-        )
-        return ListResult(items=[parse_file_match(item) for item in items], next_cursor=next_cursor)
-
-    async def glob(self, path: str, pattern: str, /) -> ListResult[str]:
-        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``."""
-        payload = await self._transport.send(
-            RequestSpec("GET", "/files/search", params={"path": sandbox_path(path), "pattern": pattern})
-        )
-        # The contract's SearchResponse: { files } only.
-        if not isinstance(payload, dict):
-            raise create_error("expected glob response", 400, "BAD_REQUEST", "SDK")
-        raw = payload.get("files")
-        if not isinstance(raw, list):
-            raise create_error("expected glob response: files is required", 400, "BAD_REQUEST", "SDK")
-        if not all(isinstance(item, str) for item in raw):
-            raise create_error(
-                "expected glob response: files must be a list of strings", 400, "BAD_REQUEST", "SDK"
             )
-        return ListResult(items=[str(item) for item in raw])
+        )
+
+    async def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
+        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
+
+        Directories below ``path`` that the sandbox user cannot read are not
+        searched; ``skipped`` lists their absolute paths (at most 1000). Only an
+        unreadable ``path`` itself raises
+        :class:`~daytona.v2.errors.FileAccessDeniedError`.
+        """
+        return parse_glob_response(
+            await self._transport.send(
+                RequestSpec("GET", "/files/search", params={"path": sandbox_path(path), "pattern": pattern})
+            )
+        )
 
     async def replace(
         self, files: Sequence[str], pattern: str, new_value: str, /

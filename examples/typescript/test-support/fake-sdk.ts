@@ -218,7 +218,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
           .map((path) => path.slice(prefix.length).split('/')[0])
         return { items: [...new Set(names)].map((name) => ({ name })) }
       },
-      glob: async () => ({ items: [] }),
+      glob: async () => ({ items: [], skipped: [] }),
       writeBytes: async (path: string, data: Uint8Array) => write(path, data),
       writeText: async (path: string, text: string) => write(path, encode(text)),
       readBytes: async (path: string) => { const { store, key } = at(path); return store.get(key) ?? new Uint8Array() },

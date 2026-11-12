@@ -1214,11 +1214,13 @@
       "notes": {
         "py": [
           "Read matches from result.items; each match is a FileMatch with file, line and content attributes",
+          "result.skipped lists the absolute paths below the root the sandbox user could not read, which were not searched (at most 1000); an unreadable root raises FileAccessDeniedError",
           "request_timeout is removed",
           "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "Read matches from result.items",
+          "result.skipped lists the absolute paths below the root the sandbox user could not read, which were not searched (at most 1000); an unreadable root throws FileAccessDeniedError",
           "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
@@ -1342,10 +1344,12 @@
       "notes": {
         "py": [
           "Read matching paths from result.items; request_timeout is removed",
+          "result.skipped lists the absolute paths below the root the sandbox user could not read, which were not searched (at most 1000); an unreadable root raises FileAccessDeniedError",
           "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ],
         "ts": [
           "Read matching paths from result.items",
+          "result.skipped lists the absolute paths below the root the sandbox user could not read, which were not searched (at most 1000); an unreadable root throws FileAccessDeniedError",
           "v2 takes only absolute sandbox paths (starting with /) and refuses a relative one before any request; v0 resolved a relative path against the sandbox working directory"
         ]
       },
@@ -1669,10 +1673,12 @@
       "category": "differs",
       "notes": {
         "py": [
-          "request_timeout is removed"
+          "request_timeout is removed",
+          "Deletes only a merged branch by default (an unmerged one raises ConflictError); pass force=True to delete it anyway; the checked-out branch is never deleted, even with force"
         ],
         "ts": [
-          "Same name and arguments on the v2 sandbox git service"
+          "Same name and arguments on the v2 sandbox git service",
+          "Deletes only a merged branch by default (an unmerged one throws ConflictError); pass { force: true } to delete it anyway; the checked-out branch is never deleted, even with force"
         ]
       },
       "anchor": "sandbox-git",

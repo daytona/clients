@@ -184,7 +184,13 @@ class AsyncImagesService:
         omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
         idle-retention window — deleted once that long has passed without a
         sandbox being created from it (every create restarts the clock);
-        omitted ⇒ the maximum retention supported by the API. ``region``
+        omitted ⇒ the maximum retention supported by the API. A ``name`` may
+        not start with a resource id prefix (``img_``, ``snap_``, ``sbx_``,
+        ``vol_``, ``fn_``; :class:`ImageNameReservedError`). A name that already
+        exists for different content or import options raises
+        :class:`ImageNameTakenError` and changes nothing; an identical named
+        import returns the existing image (a failed one is imported again).
+        ``region``
         follows create's rule: omitted, blank or ``local`` (any case, any
         surrounding whitespace) uses the project's default region and sends no
         ``region_id``; any other value is sent as given and must be printable
@@ -364,7 +370,10 @@ class AsyncImagesService:
 
         Promotion only: an image that already has a name answers 409 — renaming
         a named image is not offered (sandboxes reference images by id, so a
-        rename would silently relabel every sandbox created from it).
+        rename would silently relabel every sandbox created from it). A name
+        that already exists raises :class:`ImageNameTakenError`; a reserved
+        prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
+        :class:`ImageNameReservedError`.
         """
         path = f"/images/{_path(image_id, 'image_id')}"
         if not isinstance(name, str) or not name.strip():

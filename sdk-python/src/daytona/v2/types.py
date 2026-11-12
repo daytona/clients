@@ -326,6 +326,24 @@ class ListResult(Generic[T]):
 
 
 @dataclass(frozen=True, init=False)
+class FileSearchResult(ListResult[T]):
+    """The result of ``sandbox.fs.glob()`` / ``sandbox.fs.grep()``: a
+    :class:`ListResult` (one page, ``next_cursor`` always ``None``) plus
+    ``skipped``, the absolute paths below the searched root that the sandbox
+    user cannot read, so they were not searched (at most 1000; empty when
+    nothing was skipped). Immutable: ``skipped`` is a tuple.
+    """
+
+    skipped: Tuple[str, ...] = ()
+
+    def __init__(
+        self, *, items: Iterable[T], next_cursor: Optional[str] = None, skipped: Iterable[str] = ()
+    ) -> None:
+        super().__init__(items=items, next_cursor=next_cursor)
+        object.__setattr__(self, "skipped", tuple(skipped))
+
+
+@dataclass(frozen=True, init=False)
 class SearchResult(Generic[T]):
     """One page of ``GET /sandboxes/search`` (``Daytona.search()``).
 
@@ -1020,7 +1038,12 @@ class SandboxLifecycle:
 
 @dataclass(frozen=True, kw_only=True)
 class TerminalSize:
-    """PTY terminal dimensions, in character cells."""
+    """PTY terminal dimensions, in character cells. A size you pass has
+    ``cols`` and ``rows`` each an integer from 1 to 65535 (checked before the
+    request); a Windows sandbox takes at most 32767 and refuses a larger one
+    with :class:`~daytona.v2.errors.BadRequestError`. A size the sandbox
+    reports (a process's ``terminal``) may be any positive 32-bit integer.
+    """
 
     cols: int
     rows: int

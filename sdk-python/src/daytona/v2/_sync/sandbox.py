@@ -78,7 +78,9 @@ class Sandbox:
         The credential needs ``write:sandboxes`` in addition to ``write:images``;
         without it the capture raises :class:`ForbiddenError` (403).
 
-        ``name`` makes the image named and permanent. ``idle_expiry_seconds`` is
+        ``name`` makes the image named and permanent (same name rules as
+        ``images.build``; a name that already exists raises
+        :class:`ImageNameTakenError`). ``idle_expiry_seconds`` is
         the idle-retention window of an ANONYMOUS capture: it is deleted once
         that long has passed without a sandbox being created from it (every
         create restarts the clock). Same rule as ``images.build``: omitted or

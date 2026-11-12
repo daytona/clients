@@ -63,7 +63,13 @@ class InterpreterService:
     ) -> InterpreterContext:
         """Create an interpreter context: kernel state of its own.
 
-        ``cwd`` and ``env`` apply to every run in the context.
+        ``language`` is ``"python"``, ``"typescript"`` or ``"javascript"``
+        (case-sensitive); any other value raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError` (400) before a
+        kernel is provisioned, while
+        :class:`~daytona.v2.errors.KernelUnavailableError` (503) means a
+        supported language's kernel failed to install or start. ``cwd`` and
+        ``env`` apply to every run in the context.
         """
         from .types import InterpreterContext
 
@@ -103,7 +109,13 @@ class InterpreterService:
         context by handle, ``to_json()`` identity or id; an id needs
         ``language``. ``isolated=True`` runs in a throwaway context. ``env``
         applies to context-free and isolated runs; a context takes its
-        environment when it is created.
+        environment when it is created. For a context-free or isolated run, an
+        unsupported ``language`` raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError`, as in
+        :meth:`create_context`. With a context handle or ``to_json()``
+        identity, a ``language`` that differs from the context's language
+        raises :class:`~daytona.v2.errors.BadRequestError` before any request;
+        a bare context id takes ``language`` as the context's language.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on

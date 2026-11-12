@@ -183,6 +183,7 @@ ROOT_EXPORTS = [
     "LifecyclePolicyOptions",
     "LimitExceededError",
     "ListResult",
+    "FileSearchResult",
     "MacosResources",
     "SnapshotClass",
     "SandboxHandleJSON",

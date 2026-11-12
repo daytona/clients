@@ -88,9 +88,17 @@ class GitService:
         """Create a branch."""
         return self._bridge.call(lambda: self._impl.create_branch(path, name))
 
-    def delete_branch(self, path: str, name: str, /) -> None:
-        """Delete a branch."""
-        return self._bridge.call(lambda: self._impl.delete_branch(path, name))
+    def delete_branch(self, path: str, name: str, /, *, force: bool = False) -> None:
+        """Delete a branch.
+
+        The default is a safe deletion (``git branch -d``): a branch that is
+        not merged raises :class:`~daytona.v2.errors.ConflictError`
+        (``CONFLICT``). ``force=True`` deletes it anyway (``git branch -D``).
+        The checked-out branch is never deleted, even with ``force=True``
+        (``ConflictError``); a branch that does not exist raises
+        :class:`~daytona.v2.errors.GitBranchNotFoundError`.
+        """
+        return self._bridge.call(lambda: self._impl.delete_branch(path, name, force=force))
 
     def get_config(
         self, key: str, /, *, path: Optional[str] = None, scope: GitConfigScope = "global"

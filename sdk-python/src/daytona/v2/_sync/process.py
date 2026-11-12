@@ -87,11 +87,21 @@ class ProcessHandle:
     def logs(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None, encoding: LogEncoding = "text"
     ) -> LogPage:
-        """Read a cursor-replayable process log page."""
+        """Read a cursor-replayable process log page.
+
+        With ``encoding="base64"`` each frame's ``data`` is standard padded
+        base64 (RFC 4648 section 4, ``+/`` alphabet with ``=`` padding), which
+        :func:`base64.b64decode` decodes.
+        """
         return self._bridge.call(lambda: self._impl.logs(cursor=cursor, limit=limit, encoding=encoding))
 
     def resize(self, cols: int, rows: int, /) -> None:
-        """Resize a PTY process."""
+        """Resize a PTY process.
+
+        ``cols`` and ``rows`` are each an integer from 1 to 65535; a Windows
+        sandbox takes at most 32767 and refuses a larger value with
+        :class:`~daytona.v2.errors.BadRequestError`.
+        """
         return self._bridge.call(lambda: self._impl.resize(cols, rows))
 
     def stream_logs(
@@ -106,6 +116,8 @@ class ProcessHandle:
         ``eof``, so an iteration that ends normally has the whole log; a stream
         cut short, or one that ends without ``eof``, raises ``ConnectionError``:
         resume with ``stream_logs(cursor=...)`` from the last event's cursor.
+        With ``encoding="base64"`` each frame's ``data`` is standard padded
+        base64, which :func:`base64.b64decode` decodes.
         """
         return self._bridge.iterate(self._impl.stream_logs(cursor=cursor, limit=limit, encoding=encoding))
 
@@ -421,7 +433,8 @@ class PtyService:
     ) -> ProcessHandle:
         """Start a detached PTY process; without ``command`` it runs the sandbox shell.
 
-        ``terminal`` defaults to 80 columns by 24 rows. ``TERM`` is
+        ``terminal`` defaults to 80 columns by 24 rows (see
+        :class:`~daytona.v2.types.TerminalSize` for the limits). ``TERM`` is
         ``xterm-256color`` unless ``env`` sets it. ``execution_timeout`` is a
         server-side deadline in seconds; omitted or ``0`` means no deadline.
         """

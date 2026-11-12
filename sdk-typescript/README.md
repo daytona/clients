@@ -62,6 +62,14 @@ the readiness wait, or `{ timeoutSeconds: 120 }` for a 120-second budget
 `ImageBuildFailedError` with the server's error message. `images.build()`
 remains non-waiting.
 
+Image names may not start with a resource id prefix (`img_`, `snap_`, `sbx_`,
+`vol_`, `fn_`): such a name throws `ImageNameReservedError`. A named
+`images.pull()` whose name already exists for different content or import
+options (source, region, CPU architecture) throws `ImageNameTakenError` (409
+`IMAGE_NAME_TAKEN`) and changes nothing; an identical one returns the existing
+image (a failed one is imported again). Capturing or promoting to a name that
+exists throws `ImageNameTakenError` too.
+
 The root client is the only way to build a client: `daytona.v2` and
 `daytona.v0` are its namespace clients. `@daytona/sdk/v2` exports v2's resource
 types, builders and errors, but not a client (`import { Daytona } from
@@ -748,7 +756,9 @@ delete its context or session), signal-aware `kill()` with escalation,
 type is skipped), each carrying its resume `cursor`, and stops after `eof`
 (`StreamLogFrameEvent`, `StreamLogStateEvent`, `StreamLogWarningEvent`,
 `StreamLogEofEvent`, told apart by `type`); a stream error throws its typed
-error. The sandbox ends the stream with `eof`, so an iteration that ends
+error. With `{ encoding: 'base64' }`, `logs()` and `streamLogs()` return each
+frame's `data` as standard padded base64, which `Buffer.from(data, 'base64')`
+or `atob()` decodes. The sandbox ends the stream with `eof`, so an iteration that ends
 normally has the whole log; a stream cut short, or one that ends without
 `eof`, throws `ConnectionError`: call `streamLogs({ cursor })` again with the
 last event's cursor. Every duration is in seconds: `timeoutSeconds` is the caller wait
@@ -762,7 +772,7 @@ deadline), and
 
 `pty.start(command?, { terminal: { cols, rows }, cwd, env, name, user, shell,
 login, stdin, executionTimeoutSeconds, keepLogs })` starts an interactive
-terminal (80×24 when `terminal` is omitted; `cols` and `rows` are 1 to 65535;
+terminal (80×24 when `terminal` is omitted; `cols` and `rows` are 1 to 65535, and a Windows sandbox refuses more than 32767;
 `TERM` is `xterm-256color` unless `env` sets it; `stdin` defaults to `'open'`,
 `keepLogs` to `'until_cleanup'`); `pty.attach()` takes the same options and also
 connects to it. `pty.list()` is the PTY-only view of
@@ -863,8 +873,12 @@ return one page
 from `list()` and can lazily drain all pages with `iter()`; `ports.listEndpoints()`
 uses `iterEndpoints()`, while non-pageable `ports.list()` and `listContexts()`
 stay one-shot. `findByName()` is the explicit exception: it returns all matches. The filesystem's `list()`, `grep()`, `glob()` and `replace()`
-return one `ListResult` page (`ListResult<FileInfo>`, `ListResult<FileMatch>`,
-`ListResult<string>`, `ListResult<ReplaceResult>`). `readText()` decodes strictly as UTF-8 (invalid bytes throw)
+return one `ListResult` page (`ListResult<FileInfo>`, `FileSearchResult<FileMatch>`,
+`FileSearchResult<string>`, `ListResult<ReplaceResult>`). `grep()` and `glob()`
+run as the sandbox user; a `FileSearchResult` is a `ListResult` whose
+`skipped` array lists the absolute paths below the root that user cannot read
+(not searched; at most 1000); only an unreadable root throws
+`FileAccessDeniedError`. `readText()` decodes strictly as UTF-8 (invalid bytes throw)
 and keeps a leading byte-order mark. Writes take no `mode`; use `chmod()`.
 
 `watchDir(path, onEvent, { recursive, onOverflow, onExit })` calls `onEvent`
@@ -958,6 +972,12 @@ the additional remote/branch controls to the sandbox.
 `allowEmpty: true` when you need an empty commit. `status()` returns a
 `GitStatus`; `history()`, `listRemotes()` and `listBranches()` return one
 `ListResult` page of `GitCommit`, `GitRemote` and branch-name items.
+`deleteBranch(path, name)` is a safe deletion: an unmerged branch throws
+`ConflictError`; pass `{ force: true }` to delete it anyway. Expected git
+failures throw typed errors: `GitAuthFailedError` (401),
+`GitRepoNotFoundError` and `GitBranchNotFoundError` (404),
+`GitBranchExistsError` (409), and `ConflictError` for an unmerged branch, a
+checked-out branch or a checkout that would overwrite local changes.
 
 ### Ports, LSP, computer use
 
@@ -970,6 +990,8 @@ the additional remote/branch controls to the sandbox.
 never preview ports: `expose()`, `previewLink()`, `signedPreviewLink()` and
 `createAccessToken({ ports })` refuse them with `BadRequestError` before any
 request.
+A visibility change takes effect immediately on event delivery; at most 30 s
+if an event is missed.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
 exported from `@daytona/sdk/v2`) with its requests.
