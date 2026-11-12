@@ -1,0 +1,280 @@
+{
+  "directoryCases": [
+    {
+      "name": "symlinked context directory",
+      "files": {
+        "ctx/Dockerfile": "FROM alpine\n",
+        "ctx/sub/a": "A"
+      },
+      "symlinks": {
+        "alias": "ctx"
+      },
+      "contextPath": "alias",
+      "entries": [
+        "Dockerfile",
+        "sub/",
+        "sub/a"
+      ]
+    },
+    {
+      "name": "nested Dockerfile",
+      "files": {
+        "ctx/build/Dockerfile": "FROM alpine\n",
+        "ctx/build/Dockerfile.dockerignore": "**\n!keep\n",
+        "ctx/keep": "K",
+        "ctx/drop": "D"
+      },
+      "contextPath": "ctx",
+      "dockerfile": "build/Dockerfile",
+      "entries": [
+        "build/",
+        "build/Dockerfile",
+        "build/Dockerfile.dockerignore",
+        "keep"
+      ]
+    },
+    {
+      "name": "a dangling Dockerfile-specific ignore file falls back to .dockerignore",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "sub\n",
+        "sub/a": "x",
+        "keep": "y"
+      },
+      "symlinks": {
+        "Dockerfile.dockerignore": "nonexistent"
+      },
+      "entries": [
+        ".dockerignore",
+        "Dockerfile",
+        "Dockerfile.dockerignore",
+        "keep"
+      ]
+    }
+  ],
+  "directoryRefused": [
+    {
+      "name": "unsafe entries refused in walk order",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        "a/": ""
+      },
+      "symlinks": {
+        "a/l": "/etc/passwd"
+      },
+      "fifos": [
+        "a-b"
+      ],
+      "error": "symbolic link leaves its local source: \"<root>/a/l\""
+    },
+    {
+      "name": "absolute Dockerfile",
+      "files": {},
+      "dockerfile": "/abs/Dockerfile",
+      "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "Windows absolute Dockerfile",
+      "files": {},
+      "dockerfile": "C:\\Dockerfile",
+      "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "parent escaping Dockerfile",
+      "files": {},
+      "dockerfile": "../Dockerfile",
+      "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "context root Dockerfile",
+      "files": {},
+      "dockerfile": ".",
+      "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "directory Dockerfile",
+      "files": {
+        "sub/": ""
+      },
+      "dockerfile": "sub",
+      "error": "build context path is not a regular file: \"<root>/sub\""
+    },
+    {
+      "name": "missing Dockerfile",
+      "files": {},
+      "dockerfile": "missing",
+      "error": "dockerfile \"missing\" does not exist in the build context"
+    },
+    {
+      "name": "self-referential Dockerfile symlink",
+      "files": {},
+      "symlinks": {
+        "Dockerfile": "Dockerfile"
+      },
+      "dockerfile": "./Dockerfile",
+      "error": "dockerfile \"./Dockerfile\" does not exist in the build context"
+    },
+    {
+      "name": "Dockerfile beneath a file",
+      "files": {
+        "file": "F"
+      },
+      "dockerfile": "file/Dockerfile",
+      "error": "dockerfile \"file/Dockerfile\" does not exist in the build context"
+    },
+    {
+      "name": "Dockerfile leaving context",
+      "files": {
+        "outside": "FROM alpine\n",
+        "ctx/": ""
+      },
+      "symlinks": {
+        "ctx/Dockerfile": "../outside"
+      },
+      "contextPath": "ctx",
+      "error": "build context file leaves its local source: \"<root>/ctx/Dockerfile\""
+    },
+    {
+      "name": "directory ignore file",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore/": ""
+      },
+      "error": "build context path is not a regular file: \"<root>/.dockerignore\""
+    },
+    {
+      "name": "ignore file leaving context",
+      "files": {
+        "outside": "**\n",
+        "ctx/Dockerfile": "FROM alpine\n"
+      },
+      "symlinks": {
+        "ctx/.dockerignore": "../outside"
+      },
+      "contextPath": "ctx",
+      "error": "build context file leaves its local source: \"<root>/ctx/.dockerignore\""
+    },
+    {
+      "name": "escaping symbolic link with quoted path",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "symlinks": {
+        "out\"link": "../outside"
+      },
+      "error": "symbolic link leaves its local source: \"<root>/out\\\"link\""
+    },
+    {
+      "name": "unsupported FIFO with quoted path",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "fifos": [
+        "pipe\"name"
+      ],
+      "error": "unsupported file type in build context: \"<root>/pipe\\\"name\""
+    },
+    {
+      "name": "oversized ignore line",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "ignoreLineLength": 65536,
+      "error": "dockerignore line exceeds 64 KiB"
+    },
+    {
+      "name": "illegal exclusion",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "!\n"
+      },
+      "error": "invalid pattern \"!\": illegal exclusion pattern"
+    },
+    {
+      "name": "invalid POSIX regexp class",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "[[:foo:]]x\n"
+      },
+      "error": "invalid pattern \"[[:foo:]]x\": invalid regular expression"
+    },
+    {
+      "name": "invalid ASCII regexp escape",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "\\pq\n"
+      },
+      "error": "invalid pattern \"\\\\pq\": invalid regular expression"
+    },
+    {
+      "name": "invalid euro regexp escape",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "a\\\u20ac\n",
+        "a\u20ac": "excluded before the fix"
+      },
+      "error": "invalid pattern \"a\\\\\u20ac\": invalid regular expression"
+    },
+    {
+      "name": "invalid NBSP regexp escape",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        ".dockerignore": "a\\\u00a0x\n",
+        "a\u00a0x": "excluded before the fix"
+      },
+      "error": "invalid pattern \"a\\\\\u00a0x\": invalid regular expression"
+    },
+    {
+      "name": "symbolic link re-entering through the context's own name",
+      "contextPath": "proj",
+      "files": {
+        "proj/Dockerfile": "FROM alpine\n",
+        "proj/x": "x\n",
+        "proj/sub/": ""
+      },
+      "symlinks": {
+        "proj/sub/reenter": "../../proj/x"
+      },
+      "error": "symbolic link leaves its local source: \"<root>/proj/sub/reenter\""
+    },
+    {
+      "name": "Dockerfile re-entering through the context's own name",
+      "contextPath": "ctx",
+      "files": {
+        "ctx/Dockerfile": "FROM alpine\n"
+      },
+      "dockerfile": "../ctx/Dockerfile",
+      "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "Dockerfile re-entering through a subdirectory",
+      "contextPath": "ctx",
+      "files": {
+        "ctx/Dockerfile": "FROM alpine\n",
+        "ctx/sub/": ""
+      },
+      "dockerfile": "sub/../../ctx/Dockerfile",
+      "error": "dockerfile must be a relative path inside the build context"
+    },
+    {
+      "name": "ignore file that is a symbolic-link loop",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "symlinks": {
+        ".dockerignore": ".dockerignore"
+      },
+      "error": "build context path is not a regular file: \"<root>/.dockerignore\""
+    },
+    {
+      "name": "Dockerfile-specific ignore file that is a symbolic-link loop",
+      "files": {
+        "Dockerfile": "FROM alpine\n"
+      },
+      "symlinks": {
+        "Dockerfile.dockerignore": "Dockerfile.dockerignore"
+      },
+      "error": "build context path is not a regular file: \"<root>/Dockerfile.dockerignore\""
+    }
+  ]
+}

@@ -1,0 +1,488 @@
+{
+  "_comment": "Shared by the Python and TypeScript image-builder context suites (ADR 0006). \"files\" is a tree written under a temporary root (a name ending in / is an empty directory; \"symlinks\" maps a link to its target). Each step's local path is relative to that root. \"dockerfile\" is to_dockerfile()/toDockerfile(); \"entries\" are the build-context archive's entry names in archive order (directories end in /); \"contents\" are the bytes of some regular entries. Each \"refused\" case is a BadRequestError whose message contains \"error\" with <root> replaced by the absolute temporary root.",
+  "cases": [
+    {
+      "name": "a file, a directory with its .dockerignore, and requirements",
+      "sha256": "9245827f465b8aae98e2d5c94695c19e0ac0a3d54ebcea345211c8b7e1b55c25",
+      "files": {
+        "notes.md": "n\n",
+        "req.txt": "numpy\n",
+        "proj/app.py": "print(1)\n",
+        "proj/sub/util.py": "x = 1\n",
+        "proj/.dockerignore": "*.log\n",
+        "proj/debug.log": "noise\n"
+      },
+      "source": {
+        "registry": "python:3.12-slim"
+      },
+      "steps": [
+        [
+          "file",
+          "notes.md",
+          "/docs/"
+        ],
+        [
+          "dir",
+          "proj",
+          "/app"
+        ],
+        [
+          "requirements",
+          "req.txt"
+        ],
+        [
+          "workdir",
+          "/app"
+        ],
+        [
+          "cmd",
+          [
+            "python",
+            "app.py"
+          ]
+        ]
+      ],
+      "dockerfile": "FROM python:3.12-slim\nCOPY [\".daytona-context/1/notes.md\", \"/docs/notes.md\"]\nCOPY [\".daytona-context/2\", \"/app\"]\nCOPY [\".daytona-context/3/req.txt\", \"/.requirements.txt\"]\nRUN python -m pip install -r /.requirements.txt\nWORKDIR /app\nCMD [\"python\", \"app.py\"]\n",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/notes.md",
+        ".daytona-context/2/",
+        ".daytona-context/2/app.py",
+        ".daytona-context/2/sub/",
+        ".daytona-context/2/sub/util.py",
+        ".daytona-context/3/",
+        ".daytona-context/3/req.txt",
+        "Dockerfile"
+      ],
+      "contents": {
+        ".daytona-context/2/sub/util.py": "x = 1\n",
+        ".daytona-context/3/req.txt": "numpy\n"
+      }
+    },
+    {
+      "name": "a file to an explicit path, and the same file twice",
+      "sha256": "f6e0ba17ef16e29b49f9dc536e34bdf6d9749fd0caf07db735dadd3476bb6ed1",
+      "files": {
+        "a.txt": "A"
+      },
+      "source": {
+        "dockerfile": "FROM alpine\nRUN echo hi"
+      },
+      "steps": [
+        [
+          "file",
+          "a.txt",
+          "/etc/a.conf"
+        ],
+        [
+          "file",
+          "a.txt",
+          "/srv/"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nRUN echo hi\nCOPY [\".daytona-context/1/a.txt\", \"/etc/a.conf\"]\nCOPY [\".daytona-context/2/a.txt\", \"/srv/a.txt\"]\n",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/a.txt",
+        ".daytona-context/2/",
+        ".daytona-context/2/a.txt",
+        "Dockerfile"
+      ],
+      "contents": {
+        ".daytona-context/1/a.txt": "A"
+      }
+    },
+    {
+      "name": "a directory with an empty subdirectory, a relative symlink and a re-included file",
+      "sha256": "e5bde6c916571da1489ecff206c75d68b3334be78927cefe85780c2eea62d931",
+      "files": {
+        "d/keep/": "",
+        "d/x.log": "1",
+        "d/important.log": "2",
+        "d/.dockerignore": "*.log\n!important.log\n",
+        "d/target.txt": "t"
+      },
+      "symlinks": {
+        "d/link": "target.txt"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "dir",
+          "d",
+          "/data"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nCOPY [\".daytona-context/1\", \"/data\"]\n",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/important.log",
+        ".daytona-context/1/keep/",
+        ".daytona-context/1/link",
+        ".daytona-context/1/target.txt",
+        "Dockerfile"
+      ]
+    },
+    {
+      "name": "file names containing variable, glob and escape syntax use safe COPY sources and keep their name",
+      "sha256": "fd74d66b333d49a928f52c9068ae0a6f8c18f8b7c400104e08b418d408e79143",
+      "files": {
+        "con\\fig$HOME[prod].txt": "configuration\n"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "con\\fig$HOME[prod].txt",
+          "/config/"
+        ],
+        [
+          "requirements",
+          "con\\fig$HOME[prod].txt"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nCOPY [\".daytona-context/1/file\", \"/config/con\\\\\\\\fig\\\\$HOME[prod].txt\"]\nCOPY [\".daytona-context/2/file\", \"/.requirements.txt\"]\nRUN python -m pip install -r /.requirements.txt\n",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/file",
+        ".daytona-context/2/",
+        ".daytona-context/2/file",
+        "Dockerfile"
+      ],
+      "contents": {
+        ".daytona-context/1/file": "configuration\n",
+        ".daytona-context/2/file": "configuration\n"
+      }
+    },
+    {
+      "name": "a safe basename copied to an existing directory without a trailing slash",
+      "files": {
+        "config.json": "{}\n"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "run",
+          [
+            "mkdir -p /existing/dir"
+          ]
+        ],
+        [
+          "file",
+          "config.json",
+          "/existing/dir"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nRUN mkdir -p /existing/dir\nCOPY [\".daytona-context/1/config.json\", \"/existing/dir\"]\n",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/config.json",
+        "Dockerfile"
+      ],
+      "contents": {
+        ".daytona-context/1/config.json": "{}\n"
+      },
+      "sha256": "18a6f6a34cd815afdbf359fa5ede50f62459870d0701f76cbbff1e004a3f37e3"
+    },
+    {
+      "name": "default Dockerfile escape directive supports local files",
+      "files": {
+        "price$HOME.txt": "price\n"
+      },
+      "source": {
+        "dockerfile": "# escape=\\\nFROM alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "price$HOME.txt",
+          "/app/"
+        ]
+      ],
+      "dockerfile": "# escape=\\\nFROM alpine\nCOPY [\".daytona-context/1/file\", \"/app/price\\\\$HOME.txt\"]\n",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/file",
+        "Dockerfile"
+      ],
+      "contents": {
+        ".daytona-context/1/file": "price\n"
+      },
+      "sha256": "0cda787615ffed7b46ee864f3a2fa58a77e2f80860af76995ab9e743a3876c8e"
+    },
+    {
+      "name": "a builder without local files has no context",
+      "files": {},
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "user",
+          "nobody"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nUSER nobody\n",
+      "entries": null
+    },
+    {
+      "name": "file names with quotes are archived as file and keep their name when appended",
+      "files": {
+        "it's.txt": "single\n",
+        "a\"b.txt": "double\n"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "it's.txt",
+          "/x/"
+        ],
+        [
+          "file",
+          "a\"b.txt",
+          "/x/"
+        ],
+        [
+          "requirements",
+          "it's.txt"
+        ]
+      ],
+      "dockerfile": "FROM alpine\nCOPY [\".daytona-context/1/file\", \"/x/it\\\\'s.txt\"]\nCOPY [\".daytona-context/2/file\", \"/x/a\\\\\\\"b.txt\"]\nCOPY [\".daytona-context/3/file\", \"/.requirements.txt\"]\nRUN python -m pip install -r /.requirements.txt\n",
+      "sha256": "b121737d49c1b81e832e905eb2c63141a53fabf2eb6c06c0d496d14ad782387a",
+      "entries": [
+        ".daytona-context/",
+        ".daytona-context/1/",
+        ".daytona-context/1/file",
+        ".daytona-context/2/",
+        ".daytona-context/2/file",
+        ".daytona-context/3/",
+        ".daytona-context/3/file",
+        "Dockerfile"
+      ],
+      "contents": {
+        ".daytona-context/1/file": "single\n",
+        ".daytona-context/2/file": "double\n"
+      }
+    }
+  ],
+  "refused": [
+    {
+      "name": "an empty local directory path",
+      "files": {},
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "dir",
+          "",
+          "/app"
+        ]
+      ],
+      "error": "ImageBuilder localPath must be a non-empty string"
+    },
+    {
+      "name": "a whitespace-only local directory path",
+      "files": {},
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "dir",
+          "  ",
+          "/app"
+        ]
+      ],
+      "error": "ImageBuilder localPath must be a non-empty string"
+    },
+    {
+      "name": "a missing file",
+      "files": {},
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "nope.txt",
+          "/x"
+        ]
+      ],
+      "error": "<root>/nope.txt does not exist"
+    },
+    {
+      "name": "a directory given to add_local_file",
+      "files": {
+        "d/": ""
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "d",
+          "/x"
+        ]
+      ],
+      "error": "<root>/d is not a file"
+    },
+    {
+      "name": "a file given to add_local_dir",
+      "files": {
+        "f": "1"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "dir",
+          "f",
+          "/x"
+        ]
+      ],
+      "error": "<root>/f is not a directory"
+    },
+    {
+      "name": "a missing requirements file",
+      "files": {},
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "requirements",
+          "r.txt"
+        ]
+      ],
+      "error": "<root>/r.txt does not exist"
+    },
+    {
+      "name": "a remote path with a line break",
+      "files": {
+        "f": "1"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "f",
+          "/a\nb"
+        ]
+      ],
+      "error": "must not contain a control character"
+    },
+    {
+      "name": "a remote path ending in a backslash",
+      "files": {
+        "a.txt": "A"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "a.txt",
+          "/srv/a\\"
+        ]
+      ],
+      "error": "must not end with a backslash"
+    }
+  ],
+  "buildRefused": [
+    {
+      "name": "a symlink that leaves the directory",
+      "files": {
+        "d/a": "1"
+      },
+      "symlinks": {
+        "d/out": "../a"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "dir",
+          "d",
+          "/x"
+        ]
+      ],
+      "error": "symbolic link leaves its local source: \"<root>/d/out\""
+    },
+    {
+      "name": "an absolute symlink",
+      "files": {
+        "d/a": "1"
+      },
+      "symlinks": {
+        "d/abs": "/etc/passwd"
+      },
+      "source": {
+        "registry": "alpine"
+      },
+      "steps": [
+        [
+          "dir",
+          "d",
+          "/x"
+        ]
+      ],
+      "error": "symbolic link leaves its local source: \"<root>/d/abs\""
+    },
+    {
+      "name": "non-default Dockerfile escape with local files",
+      "files": {
+        "a": "x"
+      },
+      "source": {
+        "dockerfile": "# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "a",
+          "/app/"
+        ]
+      ],
+      "error": "local files need the default Dockerfile escape character"
+    },
+    {
+      "name": "non-default Dockerfile escape after a byte order mark",
+      "files": {
+        "a": "x"
+      },
+      "source": {
+        "dockerfile": "\ufeff# escape=`\nFROM alpine"
+      },
+      "steps": [
+        [
+          "file",
+          "a",
+          "/app/"
+        ]
+      ],
+      "error": "local files need the default Dockerfile escape character"
+    }
+  ]
+}

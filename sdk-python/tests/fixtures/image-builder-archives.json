@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "name": "plain ASCII",
+      "files": {"Dockerfile": "FROM alpine\n", "sub/file": "payload\n"},
+      "sha256": "1919983cf97cfa19dd3d9d46513059c752ff19c90393c7ce5e612d47285365d6"
+    },
+    {
+      "name": "PAX paths, links and ASCII controls",
+      "files": {
+        "Dockerfile": "FROM alpine\n",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": "long ASCII\n",
+        "é.txt": "UTF-8\n",
+        "tab\tx": "tab\n"
+      },
+      "symlinks": {"long-link": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "é-link": "é.txt"},
+      "sha256": "e923e8c14e0edd31e5311a984c1e806100bdae9103b2ee7da42cf1687235e7a9"
+    }
+  ]
+}

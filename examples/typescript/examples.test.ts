@@ -60,7 +60,7 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
 const example = (name: string) => `typescript/${name}/index.ts`
 const SECRET_NAME = /^EXAMPLE_API_KEY_[0-9A-F]{8}$/
 
-for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'volumes', 'lifecycle']) {
+for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'local-files', 'volumes', 'lifecycle']) {
   test(`${name} skips work and cleans up when create returns a non-started sandbox`, () => {
     // Given an accepted create whose readiness wait did not finish.
     const scenario = { sandboxStates: ['creating'] }
@@ -113,13 +113,28 @@ function assertCleanedUp(record: Record): void {
   assert.deepEqual([...record.deletedSandboxes].sort(), [...record.sandboxes].sort())
 }
 
-for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secrets-env', 'dynamic-build']) {
+for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secrets-env', 'dynamic-build', 'local-files']) {
   test(`${name} succeeds against the fake SDK`, () => {
     const { code, record, output } = runExample(example(name))
     assert.equal(code, 0, output)
     assertCleanedUp(record)
   })
 }
+
+test('local-files builds with positional COPY sources when copying a directory and a file', () => {
+  // Given the example's project directory and settings file.
+  // When the real example submits its builder.
+  const { code, record, output } = runExample(example('local-files'))
+  // Then COPY reads the archived sources, not machine-local paths.
+  assert.equal(code, 0, output)
+  assert.equal(record.builtDockerfiles.length, 1)
+  const [dockerfile] = record.builtDockerfiles
+  assert.deepEqual(dockerfile.split('\n').filter((line) => line.startsWith('COPY ')), [
+    'COPY [".daytona-context/1", "/app"]',
+    'COPY [".daytona-context/2/settings.conf", "/etc/example/settings.conf"]',
+  ])
+  assertCleanedUp(record)
+})
 
 test('the test double reports a command\'s output as a stdout log frame', () => {
   const { code, output } = runExample('typescript/test-support/probe-logs.ts', { images: [[IMAGE, 'ready']] })

@@ -520,6 +520,33 @@ a failed build throws `ImageBuildFailedError`, and an expired build budget
 throws `RequestTimeoutError`. The sandbox then gets the full, independent
 `waitSeconds` budget.
 
+In Node.js, a builder can copy local files into the image. `addLocalFile`,
+`addLocalDir` and `pipInstallFromRequirements` check the path when they are
+called and read it when the image is built: the SDK packs the rendered
+Dockerfile and the files into a build context and uploads it (up to 1 GiB; an
+unchanged builder reuses its earlier upload). A directory's own
+`.dockerignore` excludes entries as `docker build` would. Outside Node.js these
+methods throw `NotSupportedError`.
+
+```ts
+const builder = ImageBuilder.debianSlim('3.12')
+  .pipInstallFromRequirements('requirements.txt')
+  .addLocalDir('src', '/app')
+  .workdir('/app')
+  .cmd('python', 'main.py')
+const sandbox = await daytona.v2.createFromBuild(builder, { buildTimeoutSeconds: 600 })
+```
+
+To build an existing Dockerfile with its directory as the context, pass the
+directory to `images.buildFromContext()`; it uses `<dockerfile>.dockerignore`
+next to the selected Dockerfile when present, otherwise `.dockerignore` at
+the context root, the way `docker build` does:
+
+```ts
+let image = await daytona.v2.images.buildFromContext('./service', { dockerfile: 'Dockerfile', name: 'service' })
+image = await daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds: 600 })
+```
+
 `waitSeconds` is the create wait budget in whole seconds (default 60).
 `waitSeconds: 0` returns as soon as the create is accepted. Every `create*()`
 returns the handle when its wait expires or a terminal state is reached;
