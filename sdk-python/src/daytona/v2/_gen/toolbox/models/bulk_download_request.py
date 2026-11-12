@@ -34,7 +34,7 @@ class BulkDownloadRequest(BaseModel):
     """
     JSON body for `POST /files/bulk-download`.
     """ # noqa: E501
-    paths: Optional[List[StrictStr]] = Field(default=None, description="Paths to stream back as multipart file or error parts.")
+    paths: Optional[List[StrictStr]] = Field(default=None, description="Absolute paths of regular files to stream back as multipart file or error parts. Permission denials and non-regular files discovered before streaming refuse the request.")
     __properties: ClassVar[List[str]] = ["paths"]
 
     model_config = ConfigDict(

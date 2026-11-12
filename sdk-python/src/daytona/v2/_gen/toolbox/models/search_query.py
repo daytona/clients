@@ -34,7 +34,7 @@ class SearchQuery(BaseModel):
     """
     Query parameters for `GET /files/search` and `GET /files/find`.
     """ # noqa: E501
-    path: Optional[StrictStr] = Field(default=None, description="Root path to walk recursively.")
+    path: Optional[StrictStr] = Field(default=None, description="Absolute root path to walk recursively.")
     pattern: Optional[StrictStr] = Field(default=None, description="Filename glob (`search`) or literal substring (`find`) pattern.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["path", "pattern"]

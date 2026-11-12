@@ -35,7 +35,7 @@ class FsPathQuery(BaseModel):
     Query parameters for routes that address one path or directory listing.
     """ # noqa: E501
     depth: Optional[StrictStr] = Field(default=None, description="Recursive listing depth for `GET /files`; omitted for the flat default (`1`).")
-    path: Optional[StrictStr] = Field(default=None, description="Target path. Omitted on `GET /files` to use the sandbox’s default working directory.")
+    path: Optional[StrictStr] = Field(default=None, description="Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox’s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.")
     __properties: ClassVar[List[str]] = ["depth", "path"]
 
     model_config = ConfigDict(

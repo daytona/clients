@@ -34,8 +34,8 @@ class MoveQuery(BaseModel):
     """
     Query parameters for `POST /files/move`.
     """ # noqa: E501
-    destination: Optional[StrictStr] = Field(default=None, description="Destination path.")
-    source: Optional[StrictStr] = Field(default=None, description="Source path to move.")
+    destination: Optional[StrictStr] = Field(default=None, description="Absolute destination path.")
+    source: Optional[StrictStr] = Field(default=None, description="Absolute source path to move.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["destination", "source"]
 

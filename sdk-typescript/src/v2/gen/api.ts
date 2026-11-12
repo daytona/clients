@@ -216,6 +216,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/images/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search images
+         * @description Searches the project's images using the supplied filters. Results may be briefly stale after a change.
+         */
+        get: operations["search_images"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/images/{id}": {
         parameters: {
             query?: never;
@@ -2676,6 +2696,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/snapshots/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search snapshots
+         * @description Searches the project's snapshots using the supplied filters. Results may be briefly stale after a change.
+         */
+        get: operations["search_snapshots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/snapshots/{id}": {
         parameters: {
             query?: never;
@@ -2816,6 +2856,10 @@ export interface components {
          *     when `source` is `DAYTONA_API`.
          */
         ApiErrorCode: ("ORG_SUSPENDED" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
+        /** @description The `sort` values of `GET /images/search` and `GET /snapshots/search`. */
+        ArtifactSearchSort: ("created_at" | "updated_at" | "name" | "bytes") | (string & {});
+        /** @description The build or capture status of an image or snapshot. */
+        ArtifactStatus: ("pending" | "building" | "ready" | "failed") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -4470,6 +4514,8 @@ export interface components {
              */
             updated_at: string;
         };
+        /** @description How an image was created. */
+        ImageOrigin: ("registry" | "dockerfile" | "capture" | "windows" | "macos") | (string & {});
         /** @description Page of images (`GET /images`). */
         ImagePage: {
             /** @description The images in this page. */
@@ -4486,6 +4532,23 @@ export interface components {
             name?: string | null;
         };
         ImageRetention: ("permanent" | "idle") | (string & {});
+        /** @description The `class` filter of `GET /images/search`. */
+        ImageSearchClass: ("linux" | "windows" | "macos") | (string & {});
+        /** @description A page of matching images. */
+        ImageSearchPage: {
+            /** @description Matching images in this page. */
+            images: components["schemas"]["ImageListItem"][];
+            /** @description Continuation token for the next page; null on the last page. */
+            next_cursor?: string | null;
+            /**
+             * Format: int64
+             * @description The number of matching images. Exact when `total_relation` is `eq`,
+             *     and a lower bound of 10000 when it is `gte`.
+             */
+            total: number;
+            /** @description Whether `total` is exact (`eq`) or a lower bound (`gte`). */
+            total_relation: components["schemas"]["SearchTotalRelation"];
+        };
         ImageSourceValue: {
             /** @description The OCI image reference. */
             ref: string;
@@ -7074,6 +7137,23 @@ export interface components {
             /** @description The snapshot name, when one is assigned. */
             name?: string | null;
         };
+        /** @description The `class` filter of `GET /snapshots/search`. */
+        SnapshotSearchClass: ("linux" | "windows" | "gpu") | (string & {});
+        /** @description A page of matching snapshots. */
+        SnapshotSearchPage: {
+            /** @description Continuation token for the next page; null on the last page. */
+            next_cursor?: string | null;
+            /** @description Matching snapshots in this page. */
+            snapshots: components["schemas"]["SnapshotListItem"][];
+            /**
+             * Format: int64
+             * @description The number of matching snapshots. Exact when `total_relation` is
+             *     `eq`, and a lower bound of 10000 when it is `gte`.
+             */
+            total: number;
+            /** @description Whether `total` is exact (`eq`) or a lower bound (`gte`). */
+            total_relation: components["schemas"]["SearchTotalRelation"];
+        };
         SortOrder: ("asc" | "desc") | (string & {});
         /** @description SSH connection settings. */
         SshGatewayConfig: {
@@ -8321,6 +8401,16 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description This deployment serves image lists from search; use the search route named in the error's replacement field (`GONE`) */
+            410: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     create_image: {
@@ -8382,6 +8472,111 @@ export interface operations {
             };
             429: components["responses"]["TooManyRequests"];
             /** @description Build contexts are not available in the region, or are at capacity; retry (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_images: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Free text over the image name. A value that is an image ID matches
+                 *     that image exactly.
+                 */
+                q?: string;
+                /** @description Match this exact image name. */
+                name?: string;
+                /** @description `name` starts with this string (case-sensitive). */
+                name_prefix?: string;
+                /** @description Comma-separated build statuses. An unrecognized value answers 400. */
+                status?: components["schemas"]["ArtifactStatus"][];
+                /** @description Comma-separated sandbox classes the image supports. */
+                class?: components["schemas"]["ImageSearchClass"][];
+                /** @description Comma-separated origins: how the image was created. */
+                origin?: components["schemas"]["ImageOrigin"][];
+                /**
+                 * @description Comma-separated home region IDs. A broader region (a geo group, or
+                 *     `earth`) matches every region inside it. An unknown region answers
+                 *     400. Defaults to every region.
+                 */
+                region_ids?: string;
+                /** @description Images captured from this sandbox ID. */
+                sandbox_id?: string;
+                /**
+                 * @description Return anonymous images when true and named images when false.
+                 *     Defaults to false.
+                 */
+                anonymous?: boolean;
+                /**
+                 * @description Which images to return: the project's own (`false`, the default),
+                 *     the platform's (`true`), or both (`any`). Deprecated platform images
+                 *     are never returned.
+                 */
+                platform?: components["schemas"]["ImagePlatformFilter"];
+                /** @description Inclusive lower bound on creation time. */
+                created_start_at?: string;
+                /** @description Exclusive upper bound on creation time. */
+                created_end_at?: string;
+                /** @description Inclusive lower bound on last-modified time. */
+                updated_start_at?: string;
+                /** @description Exclusive upper bound on last-modified time. */
+                updated_end_at?: string;
+                /** @description Sort field. Defaults to `created_at`; ties break on the ID. */
+                sort?: components["schemas"]["ArtifactSearchSort"];
+                /** @description Sort order. Defaults to `desc`. */
+                order?: components["schemas"]["SortOrder"];
+                /** @description Maximum number of items to return, 1–200 (default 100) */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque continuation token returned as `next_cursor` by a previous request */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of matching images */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageSearchPage"];
+                };
+            };
+            /** @description A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Search is not enabled (`SEARCH_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
             503: {
                 headers: {
                     "Retry-After": components["headers"]["Retry-After"];
@@ -16555,6 +16750,16 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description This deployment serves sandbox lists from search; use the search route named in the error's replacement field (`GONE`) */
+            410: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     create_sandbox: {
@@ -16942,6 +17147,8 @@ export interface operations {
                 spot?: boolean;
                 /** @description Sandboxes forked from this sandbox ID. */
                 forked_from?: string;
+                /** @description macOS sandboxes that run, or last ran, on this Mac reservation ID. */
+                reservation_id?: string;
                 /** @description Inclusive lower bound on `cores_max`, in cores (1 core = 2 vCPUs). */
                 min_cores?: number;
                 /** @description Inclusive upper bound on `cores_max`, in cores (1 core = 2 vCPUs). */
@@ -19097,6 +19304,110 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description This deployment serves snapshot lists from search; use the search route named in the error's replacement field (`GONE`) */
+            410: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_snapshots: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Free text over the snapshot name. A value that is a snapshot ID
+                 *     matches that snapshot exactly.
+                 */
+                q?: string;
+                /** @description Match this exact snapshot name. */
+                name?: string;
+                /** @description `name` starts with this string (case-sensitive). */
+                name_prefix?: string;
+                /** @description Comma-separated capture statuses. An unrecognized value answers 400. */
+                status?: components["schemas"]["ArtifactStatus"][];
+                /** @description Comma-separated sandbox classes. */
+                class?: components["schemas"]["SnapshotSearchClass"][];
+                /** @description Comma-separated snapshot kinds. */
+                kind?: components["schemas"]["SnapshotKind"][];
+                /**
+                 * @description Comma-separated home region IDs. A broader region (a geo group, or
+                 *     `earth`) matches every region inside it. An unknown region answers
+                 *     400. Defaults to every region.
+                 */
+                region_ids?: string;
+                /** @description Snapshots captured from this sandbox ID. */
+                sandbox_id?: string;
+                /** @description Inclusive lower bound on creation time. */
+                created_start_at?: string;
+                /** @description Exclusive upper bound on creation time. */
+                created_end_at?: string;
+                /** @description Inclusive lower bound on last-modified time. */
+                updated_start_at?: string;
+                /** @description Exclusive upper bound on last-modified time. */
+                updated_end_at?: string;
+                /** @description Sort field. Defaults to `created_at`; ties break on the ID. */
+                sort?: components["schemas"]["ArtifactSearchSort"];
+                /** @description Sort order. Defaults to `desc`. */
+                order?: components["schemas"]["SortOrder"];
+                /** @description Maximum number of items to return, 1–200 (default 100) */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque continuation token returned as `next_cursor` by a previous request */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of matching snapshots */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotSearchPage"];
+                };
+            };
+            /** @description A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Search is not enabled (`SEARCH_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     get_snapshot: {

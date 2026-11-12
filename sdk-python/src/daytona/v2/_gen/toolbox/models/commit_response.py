@@ -34,7 +34,7 @@ class CommitResponse(BaseModel):
     """
     Commit creation result.
     """ # noqa: E501
-    hash: StrictStr = Field(description="Full commit SHA of the created commit.")
+    hash: StrictStr = Field(description="Full SHA of this operation's created commit, captured from git's commit output rather than a later read of HEAD.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["hash"]
 

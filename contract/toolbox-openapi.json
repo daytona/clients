@@ -71,8 +71,12 @@
       "BranchRequest": {
         "description": "Create or delete one named branch.",
         "properties": {
+          "force": {
+            "description": "Force deletion of an unmerged branch using `git branch -D`.\nDefaults to false: deletion uses `git branch -d`, refusing an unmerged\nbranch with 409 `CONFLICT`. Ignored when creating a branch.",
+            "type": "boolean"
+          },
           "name": {
-            "description": "Branch name to create or delete.",
+            "description": "Branch name to create or delete. A leading `+` is a literal part of the\nname, not a refspec force marker.",
             "type": "string"
           },
           "path": {
@@ -87,7 +91,7 @@
         "description": "JSON body for `POST /files/bulk-download`.",
         "properties": {
           "paths": {
-            "description": "Paths to stream back as multipart file or error parts.",
+            "description": "Absolute paths of regular files to stream back as multipart file or error parts. Permission denials and non-regular files discovered before streaming refuse the request.",
             "items": {
               "type": "string"
             },
@@ -101,7 +105,7 @@
         "description": "Query parameters for `POST /files/bulk-upload`.",
         "properties": {
           "atomic": {
-            "description": "Replace each destination file atomically; fail that file if atomic replacement is unsupported.",
+            "description": "Replace each destination file atomically; fail that file if atomic replacement is unsupported. A replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. A non-regular destination refuses the request with `400 INVALID_FILE_PATH`; earlier uploads are not rolled back.",
             "type": [
               "boolean",
               "null"
@@ -152,7 +156,7 @@
         "description": "Clone a repository into a target directory.",
         "properties": {
           "branch": {
-            "description": "Branch to clone when `commit_id` is omitted.",
+            "description": "Branch to clone when `commit_id` is omitted. A leading `+` is literal.",
             "type": [
               "string",
               "null"
@@ -166,8 +170,9 @@
             ]
           },
           "depth": {
-            "description": "Optional shallow-clone depth. `1` clones only the tip commit.",
+            "description": "Optional shallow-clone depth, from 1 through 2147483647.\n`1` clones only the tip commit. Values representable as u32 but outside\nthis range return 400 `BAD_REQUEST`; invalid JSON types or values outside\nu32 return 422 `UNPROCESSABLE_ENTITY`.",
             "format": "int32",
+            "maximum": 2147483647,
             "minimum": 1,
             "type": [
               "integer",
@@ -271,7 +276,7 @@
         "description": "Commit creation result.",
         "properties": {
           "hash": {
-            "description": "Full commit SHA of the created commit.",
+            "description": "Full SHA of this operation's created commit, captured from git's commit\noutput rather than a later read of HEAD.",
             "type": "string"
           }
         },
@@ -1504,7 +1509,7 @@
         "description": "Query parameters that change the call shape of `POST /processes`.",
         "properties": {
           "logs": {
-            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`.",
+            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.",
             "type": [
               "string",
               "null"
@@ -1554,7 +1559,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Environment overrides applied at spawn time.",
+            "description": "Environment overrides applied at spawn time. PTY processes default to `TERM=xterm-256color`; an explicit TERM overrides the default.",
             "propertyNames": {
               "type": "string"
             },
@@ -1583,7 +1588,7 @@
             ]
           },
           "language": {
-            "description": "Code language such as `python`, `typescript`, or `javascript`.",
+            "description": "Code language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning. Omit when using an explicit session's language; without `sessionId`, omission answers 400 `BAD_REQUEST`.",
             "type": [
               "string",
               "null"
@@ -1651,7 +1656,7 @@
             ]
           },
           "timeoutMs": {
-            "description": "Per-process timeout in milliseconds. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.",
+            "description": "Per-process execution timeout in milliseconds. Omitted or 0 means no limit. Positive timeouts apply to exec and PTY processes (including exec commands in a shell session); code executions and shell-session creation refuse positive timeouts. For a session command, the timeout starts when execution begins, excluding time queued behind earlier commands. On expiry the command is stopped if possible. If it has not stopped after a further 5 seconds, the session and its background processes are ended.",
             "format": "int64",
             "minimum": 0,
             "type": [
@@ -1698,7 +1703,7 @@
             ]
           },
           "kernel": {
-            "description": "Interpreter language, one of `python`, `typescript` or `javascript`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`.",
+            "description": "Interpreter language, exactly `python`, `typescript` or `javascript` (case-sensitive). Unknown values, including an empty string, answer 400 `UNSUPPORTED_OPERATION` before provisioning; a supported kernel that fails to install or start answers 503 `KERNEL_UNAVAILABLE`. A language is required: `shell`, or omitting the field, answers 400 `UNSUPPORTED_OPERATION`, because shell sessions are created with `POST /processes` `kind=session`.",
             "type": [
               "string",
               "null"
@@ -1722,7 +1727,7 @@
         "description": "Query parameters for `DELETE /files`.",
         "properties": {
           "path": {
-            "description": "Path to remove.",
+            "description": "Absolute path to remove.",
             "type": [
               "string",
               "null"
@@ -2040,6 +2045,30 @@
         ],
         "type": "object"
       },
+      "FindResponse": {
+        "description": "Literal line matches from `GET /files/find`.",
+        "properties": {
+          "items": {
+            "description": "Matches, in walk order.",
+            "items": {
+              "$ref": "#/components/schemas/Match"
+            },
+            "type": "array"
+          },
+          "skipped": {
+            "description": "Absolute paths below the root that the sandbox user cannot read, so\nthey were not searched. Empty when nothing was skipped; at most 1000\nentries.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "skipped"
+        ],
+        "type": "object"
+      },
       "FsPathQuery": {
         "additionalProperties": false,
         "description": "Query parameters for routes that address one path or directory listing.",
@@ -2052,7 +2081,7 @@
             ]
           },
           "path": {
-            "description": "Target path. Omitted on `GET /files` to use the sandbox\u2019s default working directory.",
+            "description": "Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox\u2019s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.",
             "type": [
               "string",
               "null"
@@ -2356,7 +2385,7 @@
             "type": "string"
           },
           "data": {
-            "description": "Frame payload in the requested encoding.",
+            "description": "Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).",
             "type": "string"
           },
           "timestamp": {
@@ -2384,7 +2413,7 @@
             ]
           },
           "encoding": {
-            "description": "Payload encoding: `text` (default) or `base64`.",
+            "description": "Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.",
             "type": [
               "string",
               "null"
@@ -2509,14 +2538,14 @@
         "description": "Query parameters for `POST /files/move`.",
         "properties": {
           "destination": {
-            "description": "Destination path.",
+            "description": "Absolute destination path.",
             "type": [
               "string",
               "null"
             ]
           },
           "source": {
-            "description": "Source path to move.",
+            "description": "Absolute source path to move.",
             "type": [
               "string",
               "null"
@@ -2536,7 +2565,7 @@
             ]
           },
           "path": {
-            "description": "Directory path to create.",
+            "description": "Absolute directory path to create.",
             "type": [
               "string",
               "null"
@@ -2570,7 +2599,7 @@
             ]
           },
           "path": {
-            "description": "Path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.",
+            "description": "Absolute path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.",
             "type": [
               "string",
               "null"
@@ -2893,7 +2922,7 @@
             ]
           },
           "timeoutMs": {
-            "description": "Process timeout in milliseconds, omitted when unset.",
+            "description": "Process execution timeout in milliseconds; omitted or 0 means no limit.",
             "format": "int64",
             "minimum": 0,
             "type": [
@@ -3038,7 +3067,7 @@
         "description": "JSON body for `POST /files/replace`.",
         "properties": {
           "files": {
-            "description": "Files to rewrite.",
+            "description": "Absolute paths of regular files to rewrite. Non-regular files are skipped with a per-file failure; permission denials return `FILE_ACCESS_DENIED`.",
             "items": {
               "type": "string"
             },
@@ -3069,7 +3098,7 @@
             ]
           },
           "file": {
-            "description": "Absolute or caller-supplied file path for this replacement attempt.",
+            "description": "Absolute file path for this replacement attempt.",
             "type": "string"
           },
           "success": {
@@ -3087,7 +3116,7 @@
         "description": "Operate on a repository, optionally with credentials for a remote.",
         "properties": {
           "branch": {
-            "description": "Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target.",
+            "description": "Remote branch to push or pull. Omitted keeps the current HEAD push behaviour and git's default pull target.\nA leading `+` is a literal part of the branch name, never a force flag.",
             "type": [
               "string",
               "null"
@@ -3165,14 +3194,16 @@
         "description": "`POST /processes/{id}/resize` body.",
         "properties": {
           "cols": {
-            "description": "PTY columns; must be at least 1.",
+            "description": "PTY columns; an integer in 1..=65535. Windows: at most 32767.",
             "format": "int32",
+            "maximum": 65535,
             "minimum": 1,
             "type": "integer"
           },
           "rows": {
-            "description": "PTY rows; must be at least 1.",
+            "description": "PTY rows; an integer in 1..=65535. Windows: at most 32767.",
             "format": "int32",
+            "maximum": 65535,
             "minimum": 1,
             "type": "integer"
           }
@@ -3225,7 +3256,7 @@
         "description": "Query parameters for `GET /files/search` and `GET /files/find`.",
         "properties": {
           "path": {
-            "description": "Root path to walk recursively.",
+            "description": "Absolute root path to walk recursively.",
             "type": [
               "string",
               "null"
@@ -3250,10 +3281,18 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "skipped": {
+            "description": "Absolute paths below the root that the sandbox user cannot read, so\ntheir contents were not searched. Empty when nothing was skipped; at\nmost 1000 entries.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
-          "files"
+          "files",
+          "skipped"
         ],
         "type": "object"
       },
@@ -3453,7 +3492,7 @@
         "description": "`POST /processes/{id}/stdin` body.",
         "properties": {
           "data": {
-            "description": "Data to write. Text by default, or base64url when `encoding=base64`.",
+            "description": "Data to write. Text by default. With `encoding=base64`, accepts standard RFC 4648 section 4 base64 (`+/`) or base64url (`-_`), padded or unpadded.",
             "type": "string"
           },
           "encoding": {
@@ -3590,14 +3629,16 @@
         "description": "Terminal dimensions for PTY processes.",
         "properties": {
           "cols": {
-            "description": "Number of columns; must be at least 1.",
+            "description": "Number of columns; an integer in 1..=65535. Windows: at most 32767.",
             "format": "int32",
+            "maximum": 65535,
             "minimum": 1,
             "type": "integer"
           },
           "rows": {
-            "description": "Number of rows; must be at least 1.",
+            "description": "Number of rows; an integer in 1..=65535. Windows: at most 32767.",
             "format": "int32",
+            "maximum": 65535,
             "minimum": 1,
             "type": "integer"
           }
@@ -3613,14 +3654,14 @@
         "description": "Query parameters for `POST /files/upload`.",
         "properties": {
           "atomic": {
-            "description": "Replace the destination file atomically; fail if atomic replacement is unsupported.",
+            "description": "Replace the destination file atomically; fail if atomic replacement is unsupported. The replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user.",
             "type": [
               "boolean",
               "null"
             ]
           },
           "path": {
-            "description": "Destination path for the uploaded file.",
+            "description": "Absolute destination path for the uploaded file. Existing destinations must be regular files; otherwise returns `400 INVALID_FILE_PATH`, `<path>: not a regular file`.",
             "type": [
               "string",
               "null"
@@ -3639,7 +3680,7 @@
             "type": "integer"
           },
           "path": {
-            "description": "Destination path the API wrote.",
+            "description": "Absolute destination path the API wrote.",
             "type": "string"
           }
         },
@@ -6323,7 +6364,7 @@
         "operationId": "delete_file",
         "parameters": [
           {
-            "description": "Path to remove.",
+            "description": "Absolute path to remove.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6353,7 +6394,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 missing path or a directory was requested without `recursive=true`"
+            "description": "`BAD_REQUEST` \u2014 missing path or directory without `recursive=true`; `INVALID_FILE_PATH` \u2014 path must be absolute"
           },
           "403": {
             "content": {
@@ -6386,7 +6427,7 @@
         "operationId": "list_files",
         "parameters": [
           {
-            "description": "Target path. Omitted on `GET /files` to use the sandbox\u2019s default working directory.",
+            "description": "Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox\u2019s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6426,7 +6467,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 invalid query, missing directory metadata, invalid depth, or the listing cap was exceeded"
+            "description": "`BAD_REQUEST` \u2014 invalid query, directory metadata, depth or listing cap; `INVALID_FILE_PATH` \u2014 path must be absolute"
           },
           "403": {
             "content": {
@@ -6457,7 +6498,7 @@
     },
     "/files/bulk-download": {
       "post": {
-        "description": "Stream a multipart response with `file` parts for successful paths and `error` parts carrying error envelopes for per-path failures. The outer response stays 200 on partial success.",
+        "description": "Stream regular files at absolute paths using the sandbox user's permissions. Invalid paths, non-regular files and permission denials discovered before streaming refuse the request with 400 or 403. Other failures, including failures after streaming starts, use `error` parts carrying error envelopes; the outer response then stays 200.",
         "operationId": "bulk_download",
         "requestBody": {
           "content": {
@@ -6484,7 +6525,17 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or `paths` was empty"
+            "description": "`BAD_REQUEST` \u2014 malformed JSON or `paths` was empty; `INVALID_FILE_PATH` \u2014 path must be absolute or is not a regular file"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_ACCESS_DENIED` \u2014 the sandbox user cannot open a requested file"
           },
           "422": {
             "content": {
@@ -6505,11 +6556,11 @@
     },
     "/files/bulk-upload": {
       "post": {
-        "description": "Upload files using paired `files[i].path` and `files[i].file` multipart fields. Partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user\u2019s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.",
+        "description": "Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user\u2019s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.",
         "operationId": "bulk_upload",
         "parameters": [
           {
-            "description": "Replace each destination file atomically; fail that file if atomic replacement is unsupported.",
+            "description": "Replace each destination file atomically; fail that file if atomic replacement is unsupported. A replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user. A non-regular destination refuses the request with `400 INVALID_FILE_PATH`; earlier uploads are not rolled back.",
             "in": "query",
             "name": "atomic",
             "required": false,
@@ -6548,7 +6599,17 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 no recognized multipart fields were provided"
+            "description": "`BAD_REQUEST` \u2014 no recognized multipart fields were provided; `INVALID_FILE_PATH` \u2014 every destination path must be absolute and existing destinations must be regular files"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_ACCESS_DENIED` \u2014 the sandbox user cannot create or write a destination; earlier uploads are not rolled back"
           }
         },
         "summary": "Upload many files",
@@ -6559,11 +6620,11 @@
     },
     "/files/download": {
       "get": {
-        "description": "Stream one file as `application/octet-stream`. Directories are rejected.",
+        "description": "Stream one regular file at an absolute path as `application/octet-stream`, using the sandbox user's permissions. Directories, FIFOs, sockets and devices are refused without reading them.",
         "operationId": "download_file",
         "parameters": [
           {
-            "description": "Target path. Omitted on `GET /files` to use the sandbox\u2019s default working directory.",
+            "description": "Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox\u2019s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6596,7 +6657,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 `path` is missing or names a directory"
+            "description": "`BAD_REQUEST` \u2014 missing path; `INVALID_FILE_PATH` \u2014 path is not absolute or not a regular file"
           },
           "403": {
             "content": {
@@ -6627,11 +6688,11 @@
     },
     "/files/find": {
       "get": {
-        "description": "Walk the tree rooted at `path` and return literal substring matches with one-based line numbers.",
+        "description": "Walk the tree rooted at the absolute `path` as the sandbox user and return literal substring matches with one-based line numbers. Non-regular files are skipped. Directories and files below the root that the sandbox user cannot read are skipped and listed in `skipped` (at most 1000); only an unreadable root fails the request.",
         "operationId": "find_in_files",
         "parameters": [
           {
-            "description": "Root path to walk recursively.",
+            "description": "Absolute root path to walk recursively.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6654,10 +6715,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Match"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/FindResponse"
                 }
               }
             },
@@ -6671,7 +6729,27 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 `path` and `pattern` are required"
+            "description": "`BAD_REQUEST` \u2014 `path` and `pattern` are required; `INVALID_FILE_PATH` \u2014 path must be absolute"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_ACCESS_DENIED` \u2014 the sandbox user cannot read the root"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_NOT_FOUND` \u2014 the root does not exist"
           }
         },
         "summary": "Find text in files",
@@ -6686,7 +6764,7 @@
         "operationId": "create_folder",
         "parameters": [
           {
-            "description": "Directory path to create.",
+            "description": "Absolute directory path to create.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6716,7 +6794,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 missing path or a non-octal mode"
+            "description": "`BAD_REQUEST` \u2014 missing path or non-octal mode; `INVALID_FILE_PATH` \u2014 path must be absolute"
           },
           "403": {
             "content": {
@@ -6751,7 +6829,7 @@
         "operationId": "file_info",
         "parameters": [
           {
-            "description": "Target path. Omitted on `GET /files` to use the sandbox\u2019s default working directory.",
+            "description": "Absolute target path: `/`-rooted, or on Windows also a drive or UNC path (`/`-rooted paths resolve against the daemon's current drive). Omitted on `GET /files` to use the sandbox\u2019s default working directory. Relative and empty paths are refused with `INVALID_FILE_PATH`.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6788,7 +6866,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 `path` is required"
+            "description": "`BAD_REQUEST` \u2014 `path` is required; `INVALID_FILE_PATH` \u2014 path must be absolute"
           },
           "403": {
             "content": {
@@ -6823,7 +6901,7 @@
         "operationId": "move_file",
         "parameters": [
           {
-            "description": "Source path to move.",
+            "description": "Absolute source path to move.",
             "in": "query",
             "name": "source",
             "required": false,
@@ -6832,7 +6910,7 @@
             }
           },
           {
-            "description": "Destination path.",
+            "description": "Absolute destination path.",
             "in": "query",
             "name": "destination",
             "required": false,
@@ -6854,6 +6932,16 @@
               }
             },
             "description": "`BAD_REQUEST` or `INVALID_FILE_PATH` \u2014 the request is missing required paths or the platform rejected the path form"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_ACCESS_DENIED` \u2014 the sandbox user cannot access or move the path"
           },
           "404": {
             "content": {
@@ -6888,7 +6976,7 @@
         "operationId": "set_permissions",
         "parameters": [
           {
-            "description": "Path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.",
+            "description": "Absolute path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -6967,7 +7055,7 @@
     },
     "/files/replace": {
       "post": {
-        "description": "Replace a literal substring across the requested files. File-specific failures stay inside the 200 response body.",
+        "description": "Replace a literal substring across regular files at absolute paths as the sandbox user. Permission denials return 403; other file-specific failures, including skipped non-regular files, stay inside the 200 response body. Earlier replacements are not rolled back when a later file fails.",
         "operationId": "replace_in_files",
         "requestBody": {
           "content": {
@@ -7001,7 +7089,17 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or required replacement fields are missing"
+            "description": "`BAD_REQUEST` \u2014 malformed JSON or required replacement fields are missing; `INVALID_FILE_PATH` \u2014 every file path must be absolute"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_ACCESS_DENIED` \u2014 the sandbox user cannot read or rewrite a file"
           },
           "422": {
             "content": {
@@ -7022,11 +7120,11 @@
     },
     "/files/search": {
       "get": {
-        "description": "Walk the tree rooted at `path` and return absolute file paths whose base name matches the glob `pattern`.",
+        "description": "Walk the tree rooted at `path` as the sandbox user and return absolute file paths whose base name matches the glob `pattern`. Directories and files below the root that the sandbox user cannot read are skipped and listed in `skipped` (at most 1000); only an unreadable root fails the request.",
         "operationId": "search_files",
         "parameters": [
           {
-            "description": "Root path to walk recursively.",
+            "description": "Absolute root path to walk recursively.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -7063,7 +7161,27 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 `path` and `pattern` are required"
+            "description": "`BAD_REQUEST` \u2014 `path` and `pattern` are required; `INVALID_FILE_PATH` \u2014 path must be absolute"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_ACCESS_DENIED` \u2014 the sandbox user cannot read the root"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`FILE_NOT_FOUND` \u2014 the root does not exist"
           }
         },
         "summary": "Search filenames",
@@ -7074,11 +7192,11 @@
     },
     "/files/upload": {
       "post": {
-        "description": "Upload the multipart part named `file` to the query\u2019s destination path. New files and parent directories belong to the configured sandbox user; existing files retain their ownership. Writes require that user\u2019s permissions, otherwise return 403 `FILE_ACCESS_DENIED` without creating a destination. With `atomic=true`, replace the destination atomically or fail if unsupported.",
+        "description": "Upload the multipart part named `file` to the query\u2019s absolute destination path. Existing destinations must be regular files; directories, FIFOs, sockets and devices return 400 `INVALID_FILE_PATH` with `<path>: not a regular file`, without writing to them. New files and parent directories belong to the configured sandbox user; existing files retain their ownership, except that `atomic=true` over a file the sandbox user cannot give back to its owner leaves the replacement owned by the sandbox user. Writes require that user\u2019s permissions, otherwise return 403 `FILE_ACCESS_DENIED` without creating a destination. With `atomic=true`, replace the destination atomically or fail if unsupported.",
         "operationId": "upload_file",
         "parameters": [
           {
-            "description": "Destination path for the uploaded file.",
+            "description": "Absolute destination path for the uploaded file. Existing destinations must be regular files; otherwise returns `400 INVALID_FILE_PATH`, `<path>: not a regular file`.",
             "in": "query",
             "name": "path",
             "required": false,
@@ -7087,7 +7205,7 @@
             }
           },
           {
-            "description": "Replace the destination file atomically; fail if atomic replacement is unsupported.",
+            "description": "Replace the destination file atomically; fail if atomic replacement is unsupported. The replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user.",
             "in": "query",
             "name": "atomic",
             "required": false,
@@ -7119,7 +7237,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` or `INVALID_FILE_PATH` \u2014 missing path, missing `file` part, truncated multipart body, or the platform rejected the path form"
+            "description": "`BAD_REQUEST` or `INVALID_FILE_PATH` \u2014 missing path, missing `file` part, truncated multipart body, invalid path form, or a non-regular destination"
           },
           "403": {
             "content": {
@@ -7160,7 +7278,7 @@
     },
     "/files/watch": {
       "get": {
-        "description": "Server-sent events for one directory. The stream emits `start` with `{}`, `fs` with `WatchFsEvent`, and `overflow` with `WatchOverflowEvent`. `follow=true` is accepted and ignored for compatibility.",
+        "description": "Server-sent events for one absolute directory path, using the sandbox user's permissions. The stream emits `start` with `{}`, `fs` with `WatchFsEvent`, and `overflow` with `WatchOverflowEvent`. On macOS, a permission denial discovered after streaming starts emits `error` with an error envelope and closes the stream. `follow=true` is accepted and ignored for compatibility.",
         "operationId": "watch_files",
         "parameters": [
           {
@@ -7196,7 +7314,7 @@
             "content": {
               "text/event-stream": {}
             },
-            "description": "SSE stream of `start`, `fs`, and `overflow` events."
+            "description": "SSE stream of `start`, `fs`, and `overflow` events; macOS may emit a terminal `error` envelope after an access denial."
           },
           "400": {
             "content": {
@@ -7206,7 +7324,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 missing path, non-absolute path, not a directory, or the concurrent-watch limit was reached"
+            "description": "`BAD_REQUEST` \u2014 missing path, not a directory, or the concurrent-watch limit; `INVALID_FILE_PATH` \u2014 path must be absolute"
           },
           "403": {
             "content": {
@@ -7261,7 +7379,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON, missing `path`, or no files were provided"
+            "description": "`BAD_REQUEST` \u2014 malformed JSON, missing `path`, no files, or invalid pathspec"
           },
           "404": {
             "content": {
@@ -7312,7 +7430,7 @@
     },
     "/git/branches": {
       "delete": {
-        "description": "Force-delete one branch in the target repository.",
+        "description": "Delete one branch using git branch -d by default: an unmerged branch is refused with 409 CONFLICT. Set force=true to use git branch -D and permit deletion of an unmerged branch. A checked-out branch is refused even with force=true.",
         "operationId": "delete_branch",
         "requestBody": {
           "content": {
@@ -7346,7 +7464,7 @@
                 }
               }
             },
-            "description": "`GIT_REPO_NOT_FOUND` \u2014 the repository was not found"
+            "description": "`GIT_REPO_NOT_FOUND`, `GIT_BRANCH_NOT_FOUND` \u2014 the repository or branch was not found"
           },
           "408": {
             "content": {
@@ -7357,6 +7475,16 @@
               }
             },
             "description": "`REQUEST_TIMEOUT` \u2014 git branch did not finish before the API deadline"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`CONFLICT` \u2014 the branch is unmerged, checked out, or concurrently updated"
           },
           "422": {
             "content": {
@@ -7502,6 +7630,16 @@
             },
             "description": "`REQUEST_TIMEOUT` \u2014 git branch did not finish before the API deadline"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`GIT_BRANCH_EXISTS` \u2014 the branch already exists; `CONFLICT` \u2014 a concurrent ref update prevents creation"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -7565,7 +7703,7 @@
                 }
               }
             },
-            "description": "`GIT_REPO_NOT_FOUND`, `NOT_FOUND` \u2014 the repository or requested branch was not found"
+            "description": "`GIT_REPO_NOT_FOUND`, `GIT_BRANCH_NOT_FOUND` \u2014 the repository or requested branch was not found"
           },
           "408": {
             "content": {
@@ -7576,6 +7714,16 @@
               }
             },
             "description": "`REQUEST_TIMEOUT` \u2014 git switch did not finish before the API deadline"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`CONFLICT` \u2014 switching would overwrite local changes or the branch is checked out elsewhere"
           },
           "422": {
             "content": {
@@ -7606,7 +7754,7 @@
     },
     "/git/clone": {
       "post": {
-        "description": "Clone a repository URL or local path into a destination directory. Credentials are never returned. Optional `depth` performs a shallow clone; `insecureSkipTls=true` disables TLS verification for this request only.",
+        "description": "Clone a repository URL or local path into a destination directory. Credentials are never returned. Optional `depth` (1\u20132147483647) performs a shallow clone; `insecureSkipTls=true` disables TLS verification for this request only. A non-empty destination is rejected with BAD_REQUEST.",
         "operationId": "git_clone",
         "requestBody": {
           "content": {
@@ -7630,7 +7778,17 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or a missing `url`/`path`"
+            "description": "`BAD_REQUEST` \u2014 malformed JSON, missing `url`/`path`, depth outside 1\u20132147483647, non-empty destination, or invalid commit_id"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`GIT_AUTH_FAILED` \u2014 remote authentication failed or credentials are required"
           },
           "404": {
             "content": {
@@ -7640,7 +7798,7 @@
                 }
               }
             },
-            "description": "`GIT_REPO_NOT_FOUND` \u2014 the source repository was not found"
+            "description": "`GIT_REPO_NOT_FOUND`, `GIT_BRANCH_NOT_FOUND` \u2014 the source repository or requested branch was not found"
           },
           "408": {
             "content": {
@@ -7681,7 +7839,7 @@
     },
     "/git/commit": {
       "post": {
-        "description": "Create one commit and return its full SHA. Author identity is passed to git for this invocation only and is not written into repository config.",
+        "description": "Create one commit and return its full SHA from the commit operation itself, not a later read of HEAD. Concurrent commits in linked worktrees or checkouts cannot substitute a different commit's SHA. Author identity is passed to git for this invocation only and is not written into repository config. Nothing to commit without allow_empty returns 400 BAD_REQUEST.",
         "operationId": "git_commit",
         "requestBody": {
           "content": {
@@ -7712,7 +7870,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or missing commit metadata"
+            "description": "`BAD_REQUEST` \u2014 malformed JSON, missing commit metadata, or nothing to commit without allow_empty"
           },
           "404": {
             "content": {
@@ -7733,6 +7891,16 @@
               }
             },
             "description": "`REQUEST_TIMEOUT` \u2014 git commit did not finish before the API deadline"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`CONFLICT` \u2014 unmerged files or a concurrent index/ref update"
           },
           "422": {
             "content": {
@@ -7927,7 +8095,7 @@
     },
     "/git/history": {
       "get": {
-        "description": "Return commit metadata from `git log` in newest-first order.",
+        "description": "Return commit metadata from `git log` in newest-first order. A repository with no commits returns 400 BAD_REQUEST.",
         "operationId": "git_history",
         "parameters": [
           {
@@ -7962,7 +8130,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 `path` is missing"
+            "description": "`BAD_REQUEST` \u2014 `path` is missing or the repository has no commits"
           },
           "404": {
             "content": {
@@ -8094,6 +8262,16 @@
             },
             "description": "`BAD_REQUEST` \u2014 malformed JSON or missing `path`"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`GIT_AUTH_FAILED` \u2014 remote authentication failed or credentials are required"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -8122,7 +8300,7 @@
                 }
               }
             },
-            "description": "`CONFLICT` \u2014 non-fast-forward update"
+            "description": "`CONFLICT` \u2014 non-fast-forward update or conflicting working-tree/index state"
           },
           "422": {
             "content": {
@@ -8178,6 +8356,16 @@
               }
             },
             "description": "`BAD_REQUEST` \u2014 malformed JSON or missing `path`"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`GIT_AUTH_FAILED` \u2014 remote authentication failed or credentials are required"
           },
           "404": {
             "content": {
@@ -8333,7 +8521,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or a missing `path`, `name`, or `url`"
+            "description": "`BAD_REQUEST` \u2014 malformed JSON, missing `path`/`name`/`url`, or duplicate remote name"
           },
           "404": {
             "content": {
@@ -8566,7 +8754,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 `path` is missing"
+            "description": "`BAD_REQUEST` \u2014 `path` is missing or the repository has no working tree"
           },
           "404": {
             "content": {
@@ -9384,7 +9572,7 @@
             }
           },
           {
-            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`.",
+            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.",
             "in": "query",
             "name": "logs",
             "required": false,
@@ -9422,7 +9610,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST`, `PROCESS_START_FAILED`, or `UNSUPPORTED_OPERATION` \u2014 invalid create shape, shell/session misuse, or startup failure."
+            "description": "`BAD_REQUEST`, `PROCESS_START_FAILED`, or `UNSUPPORTED_OPERATION` \u2014 invalid create shape, shell/session misuse, startup failure, or unsupported code language. Code languages are python, typescript and javascript (case-sensitive); unknown or empty language is UNSUPPORTED_OPERATION, rejected before kernel provisioning."
           },
           "404": {
             "content": {
@@ -9472,7 +9660,7 @@
                 }
               }
             },
-            "description": "`KERNEL_UNAVAILABLE` \u2014 the requested interpreter is unavailable."
+            "description": "`KERNEL_UNAVAILABLE` \u2014 a supported language's kernel failed to install or start."
           }
         },
         "summary": "Create a process",
@@ -9657,7 +9845,7 @@
             }
           },
           {
-            "description": "Payload encoding: `text` (default) or `base64`.",
+            "description": "Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.",
             "in": "query",
             "name": "encoding",
             "required": false,
@@ -10152,7 +10340,7 @@
         ]
       },
       "post": {
-        "description": "Create a language interpreter session for subsequent code executions.",
+        "description": "Create a language interpreter session for subsequent code executions. Supported languages are python, typescript and javascript (case-sensitive). Unknown languages, including an empty string, return 400 UNSUPPORTED_OPERATION before kernel provisioning. Omitting kernel or requesting shell also returns 400 UNSUPPORTED_OPERATION; shell sessions use POST /processes with kind=session.",
         "operationId": "create_session",
         "requestBody": {
           "content": {
@@ -10183,7 +10371,17 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` or `NAME_CONFLICT` \u2014 invalid session shape or duplicate session id."
+            "description": "`BAD_REQUEST` \u2014 invalid session shape; `UNSUPPORTED_OPERATION` \u2014 unknown, empty or omitted kernel, shell kernel, or shell/login settings on a language session."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`NAME_CONFLICT` \u2014 duplicate session id."
           },
           "422": {
             "content": {
@@ -10203,7 +10401,7 @@
                 }
               }
             },
-            "description": "`KERNEL_UNAVAILABLE` \u2014 the requested interpreter is unavailable."
+            "description": "`KERNEL_UNAVAILABLE` \u2014 a supported language's kernel failed to install or start."
           }
         },
         "summary": "Create a session",

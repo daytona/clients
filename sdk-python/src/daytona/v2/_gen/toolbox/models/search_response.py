@@ -35,8 +35,9 @@ class SearchResponse(BaseModel):
     Recursive filename-glob search results from `GET /files/search`.
     """ # noqa: E501
     files: List[StrictStr] = Field(description="Absolute matching file paths.")
+    skipped: List[StrictStr] = Field(description="Absolute paths below the root that the sandbox user cannot read, so their contents were not searched. Empty when nothing was skipped; at most 1000 entries.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["files"]
+    __properties: ClassVar[List[str]] = ["files", "skipped"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,7 +99,8 @@ class SearchResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "files": obj.get("files")
+            "files": obj.get("files"),
+            "skipped": obj.get("skipped")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

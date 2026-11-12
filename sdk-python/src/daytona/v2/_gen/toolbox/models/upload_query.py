@@ -34,8 +34,8 @@ class UploadQuery(BaseModel):
     """
     Query parameters for `POST /files/upload`.
     """ # noqa: E501
-    atomic: Optional[StrictBool] = Field(default=None, description="Replace the destination file atomically; fail if atomic replacement is unsupported.")
-    path: Optional[StrictStr] = Field(default=None, description="Destination path for the uploaded file.")
+    atomic: Optional[StrictBool] = Field(default=None, description="Replace the destination file atomically; fail if atomic replacement is unsupported. The replacement keeps the existing owner when the sandbox user may assign it, and is otherwise owned by the sandbox user.")
+    path: Optional[StrictStr] = Field(default=None, description="Absolute destination path for the uploaded file. Existing destinations must be regular files; otherwise returns `400 INVALID_FILE_PATH`, `<path>: not a regular file`.")
     __properties: ClassVar[List[str]] = ["atomic", "path"]
 
     model_config = ConfigDict(

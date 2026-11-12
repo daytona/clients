@@ -537,6 +537,28 @@
         "type": "string",
         "x-daytona-open-enum": true
       },
+      "ArtifactSearchSort": {
+        "description": "The `sort` values of `GET /images/search` and `GET /snapshots/search`.",
+        "enum": [
+          "created_at",
+          "updated_at",
+          "name",
+          "bytes"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "ArtifactStatus": {
+        "description": "The build or capture status of an image or snapshot.",
+        "enum": [
+          "pending",
+          "building",
+          "ready",
+          "failed"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "AsyncOperation": {
         "description": "An accepted asynchronous operation.",
         "properties": {
@@ -3996,6 +4018,18 @@
         ],
         "type": "object"
       },
+      "ImageOrigin": {
+        "description": "How an image was created.",
+        "enum": [
+          "registry",
+          "dockerfile",
+          "capture",
+          "windows",
+          "macos"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "ImagePage": {
         "description": "Page of images (`GET /images`).",
         "properties": {
@@ -4055,6 +4089,51 @@
         ],
         "type": "string",
         "x-daytona-open-enum": true
+      },
+      "ImageSearchClass": {
+        "description": "The `class` filter of `GET /images/search`.",
+        "enum": [
+          "linux",
+          "windows",
+          "macos"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "ImageSearchPage": {
+        "description": "A page of matching images.",
+        "properties": {
+          "images": {
+            "description": "Matching images in this page.",
+            "items": {
+              "$ref": "#/components/schemas/ImageListItem"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "description": "Continuation token for the next page; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total": {
+            "description": "The number of matching images. Exact when `total_relation` is `eq`,\nand a lower bound of 10000 when it is `gte`.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_relation": {
+            "$ref": "#/components/schemas/SearchTotalRelation",
+            "description": "Whether `total` is exact (`eq`) or a lower bound (`gte`)."
+          }
+        },
+        "required": [
+          "images",
+          "total",
+          "total_relation"
+        ],
+        "type": "object"
       },
       "ImageSourceValue": {
         "oneOf": [
@@ -9436,6 +9515,51 @@
         ],
         "type": "object"
       },
+      "SnapshotSearchClass": {
+        "description": "The `class` filter of `GET /snapshots/search`.",
+        "enum": [
+          "linux",
+          "windows",
+          "gpu"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "SnapshotSearchPage": {
+        "description": "A page of matching snapshots.",
+        "properties": {
+          "next_cursor": {
+            "description": "Continuation token for the next page; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snapshots": {
+            "description": "Matching snapshots in this page.",
+            "items": {
+              "$ref": "#/components/schemas/SnapshotListItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The number of matching snapshots. Exact when `total_relation` is\n`eq`, and a lower bound of 10000 when it is `gte`.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_relation": {
+            "$ref": "#/components/schemas/SearchTotalRelation",
+            "description": "Whether `total` is exact (`eq`) or a lower bound (`gte`)."
+          }
+        },
+        "required": [
+          "snapshots",
+          "total",
+          "total_relation"
+        ],
+        "type": "object"
+      },
       "SortOrder": {
         "enum": [
           "asc",
@@ -11515,6 +11639,21 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "This deployment serves image lists from search; use the search route named in the error's replacement field (`GONE`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -11654,6 +11793,270 @@
           }
         ],
         "summary": "Create an image",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/images/search": {
+      "get": {
+        "description": "Searches the project's images using the supplied filters. Results may be briefly stale after a change.",
+        "operationId": "search_images",
+        "parameters": [
+          {
+            "description": "Free text over the image name. A value that is an image ID matches\nthat image exactly.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match this exact image name.",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`name` starts with this string (case-sensitive).",
+            "in": "query",
+            "name": "name_prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated build statuses. An unrecognized value answers 400.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/ArtifactStatus"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated sandbox classes the image supports.",
+            "explode": false,
+            "in": "query",
+            "name": "class",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/ImageSearchClass"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated origins: how the image was created.",
+            "explode": false,
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/ImageOrigin"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated home region IDs. A broader region (a geo group, or\n`earth`) matches every region inside it. An unknown region answers\n400. Defaults to every region.",
+            "in": "query",
+            "name": "region_ids",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Images captured from this sandbox ID.",
+            "in": "query",
+            "name": "sandbox_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Return anonymous images when true and named images when false.\nDefaults to false.",
+            "in": "query",
+            "name": "anonymous",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Which images to return: the project's own (`false`, the default),\nthe platform's (`true`), or both (`any`). Deprecated platform images\nare never returned.",
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ImagePlatformFilter"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on creation time.",
+            "in": "query",
+            "name": "created_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on creation time.",
+            "in": "query",
+            "name": "created_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-modified time.",
+            "in": "query",
+            "name": "updated_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-modified time.",
+            "in": "query",
+            "name": "updated_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort field. Defaults to `created_at`; ties break on the ID.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ArtifactSearchSort"
+            }
+          },
+          {
+            "description": "Sort order. Defaults to `desc`.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageSearchPage"
+                }
+              }
+            },
+            "description": "The page of matching images",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is not enabled (`SEARCH_NOT_CONFIGURED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "read:images"
+            ]
+          },
+          {
+            "platform_token": [
+              "read:images"
+            ]
+          }
+        ],
+        "summary": "Search images",
         "tags": [
           "images"
         ]
@@ -25030,6 +25433,21 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "This deployment serves sandbox lists from search; use the search route named in the error's replacement field (`GONE`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -25755,6 +26173,15 @@
             "description": "Sandboxes forked from this sandbox ID.",
             "in": "query",
             "name": "forked_from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "macOS sandboxes that run, or last ran, on this Mac reservation ID.",
+            "in": "query",
+            "name": "reservation_id",
             "required": false,
             "schema": {
               "type": "string"
@@ -29616,6 +30043,21 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "This deployment serves snapshot lists from search; use the search route named in the error's replacement field (`GONE`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -29631,6 +30073,252 @@
           }
         ],
         "summary": "List snapshots",
+        "tags": [
+          "snapshots"
+        ]
+      }
+    },
+    "/snapshots/search": {
+      "get": {
+        "description": "Searches the project's snapshots using the supplied filters. Results may be briefly stale after a change.",
+        "operationId": "search_snapshots",
+        "parameters": [
+          {
+            "description": "Free text over the snapshot name. A value that is a snapshot ID\nmatches that snapshot exactly.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match this exact snapshot name.",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`name` starts with this string (case-sensitive).",
+            "in": "query",
+            "name": "name_prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated capture statuses. An unrecognized value answers 400.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/ArtifactStatus"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated sandbox classes.",
+            "explode": false,
+            "in": "query",
+            "name": "class",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/SnapshotSearchClass"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated snapshot kinds.",
+            "explode": false,
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/SnapshotKind"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated home region IDs. A broader region (a geo group, or\n`earth`) matches every region inside it. An unknown region answers\n400. Defaults to every region.",
+            "in": "query",
+            "name": "region_ids",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Snapshots captured from this sandbox ID.",
+            "in": "query",
+            "name": "sandbox_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on creation time.",
+            "in": "query",
+            "name": "created_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on creation time.",
+            "in": "query",
+            "name": "created_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-modified time.",
+            "in": "query",
+            "name": "updated_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-modified time.",
+            "in": "query",
+            "name": "updated_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort field. Defaults to `created_at`; ties break on the ID.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ArtifactSearchSort"
+            }
+          },
+          {
+            "description": "Sort order. Defaults to `desc`.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotSearchPage"
+                }
+              }
+            },
+            "description": "The page of matching snapshots",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is not enabled (`SEARCH_NOT_CONFIGURED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "read:snapshots"
+            ]
+          },
+          {
+            "platform_token": [
+              "read:snapshots"
+            ]
+          }
+        ],
+        "summary": "Search snapshots",
         "tags": [
           "snapshots"
         ]

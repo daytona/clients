@@ -7,6 +7,8 @@ from daytona.v2._gen.api.models.add_project_members_request import AddProjectMem
 from daytona.v2._gen.api.models.add_project_service_account_request import AddProjectServiceAccountRequest as AddProjectServiceAccountRequest
 from daytona.v2._gen.api.models.analytics_config import AnalyticsConfig as AnalyticsConfig
 from daytona.v2._gen.api.models.api_error_code import ApiErrorCode as ApiErrorCode
+from daytona.v2._gen.api.models.artifact_search_sort import ArtifactSearchSort as ArtifactSearchSort
+from daytona.v2._gen.api.models.artifact_status import ArtifactStatus as ArtifactStatus
 from daytona.v2._gen.api.models.async_operation import AsyncOperation as AsyncOperation
 from daytona.v2._gen.api.models.audit_action_group import AuditActionGroup as AuditActionGroup
 from daytona.v2._gen.api.models.audit_action_list import AuditActionList as AuditActionList
@@ -97,10 +99,13 @@ from daytona.v2._gen.api.models.image import Image as Image
 from daytona.v2._gen.api.models.image_build_limits import ImageBuildLimits as ImageBuildLimits
 from daytona.v2._gen.api.models.image_conversion import ImageConversion as ImageConversion
 from daytona.v2._gen.api.models.image_list_item import ImageListItem as ImageListItem
+from daytona.v2._gen.api.models.image_origin import ImageOrigin as ImageOrigin
 from daytona.v2._gen.api.models.image_page import ImagePage as ImagePage
 from daytona.v2._gen.api.models.image_platform_filter import ImagePlatformFilter as ImagePlatformFilter
 from daytona.v2._gen.api.models.image_reference import ImageReference as ImageReference
 from daytona.v2._gen.api.models.image_retention import ImageRetention as ImageRetention
+from daytona.v2._gen.api.models.image_search_class import ImageSearchClass as ImageSearchClass
+from daytona.v2._gen.api.models.image_search_page import ImageSearchPage as ImageSearchPage
 from daytona.v2._gen.api.models.image_source_value import ImageSourceValue as ImageSourceValue
 from daytona.v2._gen.api.models.image_source_value_one_of import ImageSourceValueOneOf as ImageSourceValueOneOf
 from daytona.v2._gen.api.models.image_source_value_one_of1 import ImageSourceValueOneOf1 as ImageSourceValueOneOf1
@@ -273,6 +278,8 @@ from daytona.v2._gen.api.models.snapshot_kind import SnapshotKind as SnapshotKin
 from daytona.v2._gen.api.models.snapshot_list_item import SnapshotListItem as SnapshotListItem
 from daytona.v2._gen.api.models.snapshot_page import SnapshotPage as SnapshotPage
 from daytona.v2._gen.api.models.snapshot_reference import SnapshotReference as SnapshotReference
+from daytona.v2._gen.api.models.snapshot_search_class import SnapshotSearchClass as SnapshotSearchClass
+from daytona.v2._gen.api.models.snapshot_search_page import SnapshotSearchPage as SnapshotSearchPage
 from daytona.v2._gen.api.models.sort_order import SortOrder as SortOrder
 from daytona.v2._gen.api.models.ssh_gateway_config import SshGatewayConfig as SshGatewayConfig
 from daytona.v2._gen.api.models.sso_connection import SsoConnection as SsoConnection

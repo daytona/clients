@@ -35,7 +35,7 @@ class CreateProcessQuery(BaseModel):
     """
     Query parameters that change the call shape of `POST /processes`.
     """ # noqa: E501
-    logs: Optional[StrictStr] = Field(default=None, description="Inline the first logs page using `text` or `base64`; requires `waitMs`.")
+    logs: Optional[StrictStr] = Field(default=None, description="Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.")
     wait_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Wait up to this many milliseconds before replying; timing out still returns 201 with a running record.", alias="waitMs")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["logs", "waitMs"]

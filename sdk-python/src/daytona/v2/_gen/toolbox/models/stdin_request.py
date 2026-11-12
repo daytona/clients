@@ -34,7 +34,7 @@ class StdinRequest(BaseModel):
     """
     `POST /processes/{id}/stdin` body.
     """ # noqa: E501
-    data: Optional[StrictStr] = Field(default=None, description="Data to write. Text by default, or base64url when `encoding=base64`.")
+    data: Optional[StrictStr] = Field(default=None, description="Data to write. Text by default. With `encoding=base64`, accepts standard RFC 4648 section 4 base64 (`+/`) or base64url (`-_`), padded or unpadded.")
     encoding: Optional[StrictStr] = Field(default=None, description="Optional payload encoding: `text` (default) or `base64`.")
     eof: Optional[StrictBool] = Field(default=None, description="Whether this request also closes stdin after writing.")
     additional_properties: Dict[str, Any] = {}

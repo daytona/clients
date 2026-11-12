@@ -66,7 +66,7 @@ class ProcessRecord(BaseModel):
     system: Optional[StrictBool] = Field(default=None, description="Whether this is a protected system process.")
     tag: Optional[StrictStr] = Field(default=None, description="The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.")
     terminal: Optional[TerminalSize] = None
-    timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Process timeout in milliseconds, omitted when unset.", alias="timeoutMs")
+    timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Process execution timeout in milliseconds; omitted or 0 means no limit.", alias="timeoutMs")
     user: Optional[StrictStr] = Field(default=None, description="Requested user, omitted when the API runs as its default user.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["argv", "code", "createdAt", "cwd", "exitCode", "exitedAt", "id", "keepLogs", "kind", "language", "login", "name", "pid", "reason", "resolvedShell", "sessionId", "shell", "shellCommand", "signal", "startedAt", "state", "stdin", "system", "tag", "terminal", "timeoutMs", "user"]

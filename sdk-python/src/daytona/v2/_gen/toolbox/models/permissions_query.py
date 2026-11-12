@@ -37,7 +37,7 @@ class PermissionsQuery(BaseModel):
     group: Optional[StrictStr] = Field(default=None, description="Optional group id or name, when the platform supports chgrp.")
     mode: Optional[StrictStr] = Field(default=None, description="Optional octal mode string.")
     owner: Optional[StrictStr] = Field(default=None, description="Optional owner id or name, when the platform supports chown.")
-    path: Optional[StrictStr] = Field(default=None, description="Path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.")
+    path: Optional[StrictStr] = Field(default=None, description="Absolute path whose permissions should change. On Linux, ownership and permissions apply to the symlink target when the path names a symlink.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["group", "mode", "owner", "path"]
 

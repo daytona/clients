@@ -34,7 +34,7 @@ class ReplaceRequest(BaseModel):
     """
     JSON body for `POST /files/replace`.
     """ # noqa: E501
-    files: Optional[List[StrictStr]] = Field(default=None, description="Files to rewrite.")
+    files: Optional[List[StrictStr]] = Field(default=None, description="Absolute paths of regular files to rewrite. Non-regular files are skipped with a per-file failure; permission denials return `FILE_ACCESS_DENIED`.")
     new_value: Optional[StrictStr] = Field(default=None, description="Replacement text. Omitted only when the caller wants the route to reject the request.", alias="newValue")
     pattern: Optional[StrictStr] = Field(default=None, description="Literal substring to replace.")
     __properties: ClassVar[List[str]] = ["files", "newValue", "pattern"]

@@ -392,6 +392,54 @@ func (e ApiErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for ArtifactSearchSort.
+const (
+	ArtifactSearchSortBytes     ArtifactSearchSort = "bytes"
+	ArtifactSearchSortCreatedAt ArtifactSearchSort = "created_at"
+	ArtifactSearchSortName      ArtifactSearchSort = "name"
+	ArtifactSearchSortUpdatedAt ArtifactSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the ArtifactSearchSort enum.
+func (e ArtifactSearchSort) Valid() bool {
+	switch e {
+	case ArtifactSearchSortBytes:
+		return true
+	case ArtifactSearchSortCreatedAt:
+		return true
+	case ArtifactSearchSortName:
+		return true
+	case ArtifactSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ArtifactStatus.
+const (
+	ArtifactStatusBuilding ArtifactStatus = "building"
+	ArtifactStatusFailed   ArtifactStatus = "failed"
+	ArtifactStatusPending  ArtifactStatus = "pending"
+	ArtifactStatusReady    ArtifactStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ArtifactStatus enum.
+func (e ArtifactStatus) Valid() bool {
+	switch e {
+	case ArtifactStatusBuilding:
+		return true
+	case ArtifactStatusFailed:
+		return true
+	case ArtifactStatusPending:
+		return true
+	case ArtifactStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BalanceType.
 const (
 	Commit BalanceType = "commit"
@@ -845,6 +893,33 @@ func (e ExternalBucketOrigin) Valid() bool {
 	}
 }
 
+// Defines values for ImageOrigin.
+const (
+	ImageOriginCapture    ImageOrigin = "capture"
+	ImageOriginDockerfile ImageOrigin = "dockerfile"
+	ImageOriginMacos      ImageOrigin = "macos"
+	ImageOriginRegistry   ImageOrigin = "registry"
+	ImageOriginWindows    ImageOrigin = "windows"
+)
+
+// Valid indicates whether the value is a known member of the ImageOrigin enum.
+func (e ImageOrigin) Valid() bool {
+	switch e {
+	case ImageOriginCapture:
+		return true
+	case ImageOriginDockerfile:
+		return true
+	case ImageOriginMacos:
+		return true
+	case ImageOriginRegistry:
+		return true
+	case ImageOriginWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImagePlatformFilter.
 const (
 	Any   ImagePlatformFilter = "any"
@@ -884,6 +959,27 @@ func (e ImageRetention) Valid() bool {
 	}
 }
 
+// Defines values for ImageSearchClass.
+const (
+	ImageSearchClassLinux   ImageSearchClass = "linux"
+	ImageSearchClassMacos   ImageSearchClass = "macos"
+	ImageSearchClassWindows ImageSearchClass = "windows"
+)
+
+// Valid indicates whether the value is a known member of the ImageSearchClass enum.
+func (e ImageSearchClass) Valid() bool {
+	switch e {
+	case ImageSearchClassLinux:
+		return true
+	case ImageSearchClassMacos:
+		return true
+	case ImageSearchClassWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImageSourceValue0Type.
 const (
 	ImageSourceValue0TypeRegistry ImageSourceValue0Type = "registry"
@@ -901,13 +997,13 @@ func (e ImageSourceValue0Type) Valid() bool {
 
 // Defines values for ImageSourceValue1Type.
 const (
-	Dockerfile ImageSourceValue1Type = "dockerfile"
+	ImageSourceValue1TypeDockerfile ImageSourceValue1Type = "dockerfile"
 )
 
 // Valid indicates whether the value is a known member of the ImageSourceValue1Type enum.
 func (e ImageSourceValue1Type) Valid() bool {
 	switch e {
-	case Dockerfile:
+	case ImageSourceValue1TypeDockerfile:
 		return true
 	default:
 		return false
@@ -1405,31 +1501,31 @@ func (e SandboxClass) Valid() bool {
 
 // Defines values for SandboxSearchSort.
 const (
-	Cores          SandboxSearchSort = "cores"
-	CreatedAt      SandboxSearchSort = "created_at"
-	DiskMib        SandboxSearchSort = "disk_mib"
-	LastActivityAt SandboxSearchSort = "last_activity_at"
-	MemoryMib      SandboxSearchSort = "memory_mib"
-	Name           SandboxSearchSort = "name"
-	UpdatedAt      SandboxSearchSort = "updated_at"
+	SandboxSearchSortCores          SandboxSearchSort = "cores"
+	SandboxSearchSortCreatedAt      SandboxSearchSort = "created_at"
+	SandboxSearchSortDiskMib        SandboxSearchSort = "disk_mib"
+	SandboxSearchSortLastActivityAt SandboxSearchSort = "last_activity_at"
+	SandboxSearchSortMemoryMib      SandboxSearchSort = "memory_mib"
+	SandboxSearchSortName           SandboxSearchSort = "name"
+	SandboxSearchSortUpdatedAt      SandboxSearchSort = "updated_at"
 )
 
 // Valid indicates whether the value is a known member of the SandboxSearchSort enum.
 func (e SandboxSearchSort) Valid() bool {
 	switch e {
-	case Cores:
+	case SandboxSearchSortCores:
 		return true
-	case CreatedAt:
+	case SandboxSearchSortCreatedAt:
 		return true
-	case DiskMib:
+	case SandboxSearchSortDiskMib:
 		return true
-	case LastActivityAt:
+	case SandboxSearchSortLastActivityAt:
 		return true
-	case MemoryMib:
+	case SandboxSearchSortMemoryMib:
 		return true
-	case Name:
+	case SandboxSearchSortName:
 		return true
-	case UpdatedAt:
+	case SandboxSearchSortUpdatedAt:
 		return true
 	default:
 		return false
@@ -1556,6 +1652,27 @@ const (
 func (e SnapshotKind) Valid() bool {
 	switch e {
 	case Full:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SnapshotSearchClass.
+const (
+	SnapshotSearchClassGpu     SnapshotSearchClass = "gpu"
+	SnapshotSearchClassLinux   SnapshotSearchClass = "linux"
+	SnapshotSearchClassWindows SnapshotSearchClass = "windows"
+)
+
+// Valid indicates whether the value is a known member of the SnapshotSearchClass enum.
+func (e SnapshotSearchClass) Valid() bool {
+	switch e {
+	case SnapshotSearchClassGpu:
+		return true
+	case SnapshotSearchClassLinux:
+		return true
+	case SnapshotSearchClassWindows:
 		return true
 	default:
 		return false
@@ -1792,6 +1909,12 @@ type AnalyticsConfig struct {
 // ApiErrorCode Stable machine-readable error codes, returned as `ErrorBody.code`
 // when `source` is `DAYTONA_API`.
 type ApiErrorCode string
+
+// ArtifactSearchSort The `sort` values of `GET /images/search` and `GET /snapshots/search`.
+type ArtifactSearchSort string
+
+// ArtifactStatus The build or capture status of an image or snapshot.
+type ArtifactStatus string
 
 // AsyncOperation An accepted asynchronous operation.
 type AsyncOperation struct {
@@ -3280,6 +3403,9 @@ type ImageListItem struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// ImageOrigin How an image was created.
+type ImageOrigin string
+
 // ImagePage Page of images (`GET /images`).
 type ImagePage struct {
 	// Images The images in this page.
@@ -3303,6 +3429,25 @@ type ImageReference struct {
 
 // ImageRetention defines model for ImageRetention.
 type ImageRetention string
+
+// ImageSearchClass The `class` filter of `GET /images/search`.
+type ImageSearchClass string
+
+// ImageSearchPage A page of matching images.
+type ImageSearchPage struct {
+	// Images Matching images in this page.
+	Images []ImageListItem `json:"images"`
+
+	// NextCursor Continuation token for the next page; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Total The number of matching images. Exact when `total_relation` is `eq`,
+	// and a lower bound of 10000 when it is `gte`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether `total` is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+}
 
 // ImageSourceValue defines model for ImageSourceValue.
 type ImageSourceValue struct {
@@ -6172,6 +6317,25 @@ type SnapshotReference struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// SnapshotSearchClass The `class` filter of `GET /snapshots/search`.
+type SnapshotSearchClass string
+
+// SnapshotSearchPage A page of matching snapshots.
+type SnapshotSearchPage struct {
+	// NextCursor Continuation token for the next page; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Snapshots Matching snapshots in this page.
+	Snapshots []SnapshotListItem `json:"snapshots"`
+
+	// Total The number of matching snapshots. Exact when `total_relation` is
+	// `eq`, and a lower bound of 10000 when it is `gte`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether `total` is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+}
+
 // SortOrder defines model for SortOrder.
 type SortOrder string
 
@@ -6878,6 +7042,69 @@ type ListImagesParams struct {
 	Platform *ImagePlatformFilter `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
+// SearchImagesParams defines parameters for SearchImages.
+type SearchImagesParams struct {
+	// Q Free text over the image name. A value that is an image ID matches
+	// that image exactly.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact image name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix `name` starts with this string (case-sensitive).
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// Status Comma-separated build statuses. An unrecognized value answers 400.
+	Status *[]ArtifactStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Class Comma-separated sandbox classes the image supports.
+	Class *[]ImageSearchClass `form:"class,omitempty" json:"class,omitempty"`
+
+	// Origin Comma-separated origins: how the image was created.
+	Origin *[]ImageOrigin `form:"origin,omitempty" json:"origin,omitempty"`
+
+	// RegionIds Comma-separated home region IDs. A broader region (a geo group, or
+	// `earth`) matches every region inside it. An unknown region answers
+	// 400. Defaults to every region.
+	RegionIds *string `form:"region_ids,omitempty" json:"region_ids,omitempty"`
+
+	// SandboxId Images captured from this sandbox ID.
+	SandboxId *string `form:"sandbox_id,omitempty" json:"sandbox_id,omitempty"`
+
+	// Anonymous Return anonymous images when true and named images when false.
+	// Defaults to false.
+	Anonymous *bool `form:"anonymous,omitempty" json:"anonymous,omitempty"`
+
+	// Platform Which images to return: the project's own (`false`, the default),
+	// the platform's (`true`), or both (`any`). Deprecated platform images
+	// are never returned.
+	Platform *ImagePlatformFilter `form:"platform,omitempty" json:"platform,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `created_at`; ties break on the ID.
+	Sort *ArtifactSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `desc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // DeleteImageParams defines parameters for DeleteImage.
 type DeleteImageParams struct {
 	// IdOnly Resolve the path value strictly as an ID, without a name fallback.
@@ -7249,6 +7476,9 @@ type SearchSandboxesParams struct {
 	// ForkedFrom Sandboxes forked from this sandbox ID.
 	ForkedFrom *string `form:"forked_from,omitempty" json:"forked_from,omitempty"`
 
+	// ReservationId macOS sandboxes that run, or last ran, on this Mac reservation ID.
+	ReservationId *string `form:"reservation_id,omitempty" json:"reservation_id,omitempty"`
+
 	// MinCores Inclusive lower bound on `cores_max`, in cores (1 core = 2 vCPUs).
 	MinCores *float64 `form:"min_cores,omitempty" json:"min_cores,omitempty"`
 
@@ -7386,6 +7616,60 @@ type ListSnapshotsParams struct {
 
 	// SandboxId Return snapshots captured from this sandbox ID.
 	SandboxId *string `form:"sandbox_id,omitempty" json:"sandbox_id,omitempty"`
+}
+
+// SearchSnapshotsParams defines parameters for SearchSnapshots.
+type SearchSnapshotsParams struct {
+	// Q Free text over the snapshot name. A value that is a snapshot ID
+	// matches that snapshot exactly.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact snapshot name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix `name` starts with this string (case-sensitive).
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// Status Comma-separated capture statuses. An unrecognized value answers 400.
+	Status *[]ArtifactStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Class Comma-separated sandbox classes.
+	Class *[]SnapshotSearchClass `form:"class,omitempty" json:"class,omitempty"`
+
+	// Kind Comma-separated snapshot kinds.
+	Kind *[]SnapshotKind `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// RegionIds Comma-separated home region IDs. A broader region (a geo group, or
+	// `earth`) matches every region inside it. An unknown region answers
+	// 400. Defaults to every region.
+	RegionIds *string `form:"region_ids,omitempty" json:"region_ids,omitempty"`
+
+	// SandboxId Snapshots captured from this sandbox ID.
+	SandboxId *string `form:"sandbox_id,omitempty" json:"sandbox_id,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `created_at`; ties break on the ID.
+	Sort *ArtifactSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `desc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // DeleteSnapshotParams defines parameters for DeleteSnapshot.
