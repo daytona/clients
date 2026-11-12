@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
+import { ProcessApi } from '@daytona/toolbox-api-client'
 import { createApiResponse } from './helpers'
 import type { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
 import { DaytonaQueueTimeoutError, DaytonaSpotEvictedError, DaytonaTimeoutError } from '../errors/DaytonaError'
@@ -143,8 +144,7 @@ describe('node SSH access', () => {
     ).toThrow(DaytonaInvalidArgumentError)
   })
 
-  it.each([true, false])('refreshes existing node proxy URLs (full response=%s)', async (full) => {
-    const { ProcessApi } = await import('@daytona/toolbox-api-client')
+  it.each([true, false])('refreshes existing node proxy URLs (full response=%s)', (full) => {
     const { sandbox } = makeSandbox({
       nodeCount: 2,
       nodes: [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker-1' }],
