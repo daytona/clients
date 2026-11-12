@@ -1048,6 +1048,10 @@ plt.bar(["a", "b"], [3, 1]); plt.title("visits")
 plt.show()
 """
 )
+if result.error is not None:
+    raise RuntimeError(f"{result.error.name}: {result.error.value}")
+if result.process.exit_code != 0:
+    raise RuntimeError(f"the run exited {result.process.exit_code}")
 chart = result.charts[0] if result.charts else None
 if isinstance(chart, BarChart):
     print(chart.title, [(bar.label, bar.value) for bar in chart.elements])  # visits [('a', 3), ('b', 1)]

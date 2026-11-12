@@ -969,6 +969,8 @@ import matplotlib.pyplot as plt
 plt.bar(["a", "b"], [3, 1]); plt.title("visits")
 plt.show()
 `)
+if (result.error) throw new Error(`${result.error.name}: ${result.error.value}`)
+if (result.process.exitCode !== 0) throw new Error(`the run exited ${result.process.exitCode}`)
 const chart = result.charts?.[0]
 if (chart?.type === 'bar') {
   console.log(chart.title, chart.elements.map((bar) => [bar.label, bar.value])) // visits [['a', 3], ['b', 1]]
