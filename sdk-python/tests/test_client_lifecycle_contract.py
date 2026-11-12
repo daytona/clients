@@ -462,7 +462,9 @@ async def test_a_failed_read_after_a_successful_create_or_fork_returns_the_handl
 
     source = lazy_sandbox(_client(), "src")
     source._update(sandbox_class="macos")
-    source._api = _Api([_fork_response("f"), _detail("f", "pending"), failure])  # type: ignore[attr-defined]
+    source._api = _Api(  # type: ignore[attr-defined]
+        [_detail("src", "running", **{"class": "macos"}), _fork_response("f"), _detail("f", "pending"), failure]
+    )
     fork = await source.fork(wait_seconds=5)
     assert (fork.id, fork.state) == ("f", "creating")
 
@@ -471,14 +473,19 @@ async def test_a_failed_read_after_a_successful_create_or_fork_returns_the_handl
 async def test_a_failed_fork_detail_read_returns_the_handle_from_the_fork_response() -> None:
     source = lazy_sandbox(_client(), "src")
     source._update(sandbox_class="macos")
-    api = _Api([_fork_response("f"), create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")])
+    api = _Api([
+        _detail("src", "running", **{"class": "macos"}),
+        _fork_response("f"),
+        create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"),
+    ])
     source._api = api  # type: ignore[attr-defined]
 
     fork = await source.fork(wait_seconds=5)
 
     assert (fork.id, fork.state, fork.forked_from, fork.sandbox_class) == ("f", "creating", "src", "macos")
-    # No wait follows an unreadable fork: the two requests are all there is.
+    # No wait follows an unreadable fork; the source was refreshed before acceptance.
     assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("GET", "/sandboxes/src"),
         ("POST", "/sandboxes/src/fork"),
         ("GET", "/sandboxes/f"),
     ]

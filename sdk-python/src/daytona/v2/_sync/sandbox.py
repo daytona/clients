@@ -272,12 +272,14 @@ class Sandbox:
         ``wait_seconds`` (default 60; ``0`` returns as soon as the API accepts
         the fork; a value above about 24.8 days, the timer maximum, waits with
         no deadline) bounds the wait for the state the fork settles in: a fork of
-        a running Linux sandbox ``started``; otherwise it rests — ``paused``
-        for a memory fork of a paused source, else ``stopped`` (call
-        ``start()``). A macOS fork settles ``started`` or ``stopped``. Like
-        ``create()``, ``fork()`` never raises because of how the wait ended:
-        when the budget runs out or the fork fails, it returns the handle —
-        check ``fork.state``.
+        a running source waits for ``started``, even if a macOS fork is
+        temporarily ``stopped`` while its source releases the disk. A fork of
+        a paused or stopped macOS source waits for ``stopped``. Linux forks
+        otherwise rest ``paused`` for a memory fork of a paused source, else
+        ``stopped`` (call ``start()``). Like ``create()``, ``fork()`` never raises
+        because of how the wait ended: the default 60-second budget may return
+        a not-yet-started handle. When the budget runs out or the fork fails,
+        it returns the handle — check ``fork.state``.
         """
         return Sandbox(
             self._bridge.call(lambda: self._impl.fork(name=name, memory=memory, wait_seconds=wait_seconds)),
@@ -423,6 +425,8 @@ class Sandbox:
         terminal state raises :class:`SandboxTerminalStateError`. Whether the
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
+        If a stop or pause is still in progress, wait for it to settle before
+        sending start or resume, using the same timeout budget.
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to

@@ -2062,23 +2062,33 @@ async def test_fork_of_a_macos_sandbox_reaches_the_server():
                 "toolbox_proxy_url": "https://proxy.example",
                 "id": "mac-fork",
             },
-            _sandbox_detail_payload("mac-fork", "pending"),
         ]
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
     assert (await sandbox.fork(name="copy", wait_seconds=0)).id == "mac-fork"
-    assert api.specs[0].method == "POST"
-    assert api.specs[0].path.endswith("/mac/fork")
+    assert [(spec.method, spec.path) for spec in api.specs] == [("POST", "/sandboxes/mac/fork")]
     assert api.specs[0].json_body == {"name": "copy"}
 
 
 @pytest.mark.anyio
-async def test_macos_fork_with_timeout_settles_on_started_or_stopped():
-    # A macOS fork may finish started or stopped regardless of the cached source state.
+@pytest.mark.parametrize("known_class", [False, True])
+@pytest.mark.parametrize(
+    ("cached_state", "source_status", "fork_statuses", "expected"),
+    [
+        ("stopped", "running", ["stopped", "booting", "running"], "started"),
+        ("started", "paused", ["pending", "stopped"], "stopped"),
+        ("started", "stopped", ["pending", "stopped"], "stopped"),
+    ],
+)
+async def test_macos_fork_waits_for_the_fresh_source_state(
+    known_class, cached_state, source_status, fork_statuses, expected
+):
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "mac")
-    sandbox._update(sandbox_class="macos")
+    sandbox._update(state=cached_state)
+    if known_class:
+        sandbox._update(sandbox_class="macos")
     fork_resp = {
         "forked_from": "mac",
         "status": "pending",
@@ -2087,24 +2097,53 @@ async def test_macos_fork_with_timeout_settles_on_started_or_stopped():
     }
     api = RecordingTransport(
         [
+            _sandbox_detail_payload("mac", source_status, sandbox_class="macos"),
             fork_resp,
-            _sandbox_detail_payload("f", "pending", sandbox_class="macos"),
-            _sandbox_detail_payload("f", "stopped", sandbox_class="macos"),
-            fork_resp,
-            _sandbox_detail_payload("f", "pending", sandbox_class="macos"),
-            _sandbox_detail_payload("f", "running", sandbox_class="macos"),
+            *[_sandbox_detail_payload("f", status, sandbox_class="macos") for status in fork_statuses],
         ]
     )
     sandbox._api = api  # type: ignore[attr-defined]
 
-    assert (await sandbox.fork(wait_seconds=5)).state == "stopped"
-    assert (await sandbox.fork(wait_seconds=5)).state == "started"
-    assert not any(spec.path == "/sandboxes/mac" for spec in api.specs)
+    assert (await sandbox.fork(wait_seconds=5)).state == expected
+    assert [(spec.method, spec.path) for spec in api.specs][:2] == [
+        ("GET", "/sandboxes/mac"),
+        ("POST", "/sandboxes/mac/fork"),
+    ]
+    assert sum(spec.path == "/sandboxes/mac" for spec in api.specs) == 1
     assert api.responses == []
 
     with pytest.raises(DaytonaError) as refused:
         await sandbox.fork(wait_seconds=-1)
     assert refused.value.code == "BAD_REQUEST"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("wait_seconds", [None, 0.25])
+async def test_running_macos_fork_returns_a_stopped_handle_when_its_wait_budget_expires(
+    monkeypatch, wait_seconds
+):
+    now = 0.0
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: now)
+
+    class SlowDetailTransport(RecordingTransport):
+        async def send(self, spec):
+            nonlocal now
+            response = await super().send(spec)
+            if spec.method == "GET" and spec.path == "/sandboxes/f":
+                now = 61.0
+            return response
+
+    api = SlowDetailTransport([
+        _sandbox_detail_payload("mac", "running", sandbox_class="macos"),
+        {"id": "f", "status": "pending", "forked_from": "mac", "toolbox_proxy_url": "https://proxy.example"},
+        _sandbox_detail_payload("f", "stopped", sandbox_class="macos"),
+    ])
+    sandbox = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    fork = await sandbox.fork() if wait_seconds is None else await sandbox.fork(wait_seconds=wait_seconds)
+    assert (fork.id, fork.state) == ("f", "stopped")
+    assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("GET", "/sandboxes/mac"), ("POST", "/sandboxes/mac/fork"), ("GET", "/sandboxes/f"),
+    ]
 
 
 @pytest.mark.anyio
@@ -12556,19 +12595,71 @@ async def test_macos_pause_and_resume_use_the_sandbox_routes_and_wait_through_tr
 
 
 @pytest.mark.anyio
-async def test_start_resumes_a_paused_macos_sandbox():
+@pytest.mark.parametrize("source_status", ["paused", "pausing", "stopping"])
+async def test_start_resumes_a_paused_macos_sandbox(source_status):
     mac_payload = _sandbox_detail_payload("mac", "paused", sandbox_class="macos", persistent=True)
     api = RecordingTransport(
         [
-            mac_payload,
+            {**mac_payload, "status": source_status},
+            *([mac_payload] if source_status != "paused" else []),
             {"status": "assigned", "id": "mac"},
             {**mac_payload, "status": "running", "mac_boot_mode": "restored"},
         ]
     )
     mac = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
     await mac.start(timeout=10)
-    assert [spec.path for spec in api.specs] == ["/sandboxes/mac", "/sandboxes/mac/resume", "/sandboxes/mac"]
+    assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("GET", "/sandboxes/mac"),
+        *([("GET", "/sandboxes/mac")] if source_status != "paused" else []),
+        ("POST", "/sandboxes/mac/resume"),
+        ("GET", "/sandboxes/mac"),
+    ]
     assert mac.mac_boot_mode == "restored"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("transition", "settled"), [("stopping", "stopped"), ("pausing", "stopped")])
+async def test_start_waits_for_an_inflight_operation_before_sending_start(transition, settled):
+    payload = _sandbox_detail_payload("mac", "running", sandbox_class="macos", persistent=True)
+    api = RecordingTransport([
+        {**payload, "status": transition}, {**payload, "status": settled}, {}, payload,
+    ])
+    sandbox = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    await sandbox.start(timeout=10)
+    assert sandbox.state == "started"
+    assert [(spec.method, spec.path) for spec in api.specs] == [
+        ("GET", "/sandboxes/mac"), ("GET", "/sandboxes/mac"),
+        ("POST", "/sandboxes/mac/start"), ("GET", "/sandboxes/mac"),
+    ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("settles", [False, True])
+async def test_start_keeps_one_budget_across_the_inflight_operation_and_startup(monkeypatch, settles):
+    now = 0.0
+    monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: now)
+    monkeypatch.setattr("daytona.v2.sandbox.asyncio.sleep", _no_sleep)
+    payload = _sandbox_detail_payload("mac", "stopping", sandbox_class="macos", persistent=True)
+
+    class AdvancingTransport(RecordingTransport):
+        async def send(self, spec):
+            nonlocal now
+            self.specs.append(spec)
+            if spec.method == "POST":
+                return {}
+            now += 2.0
+            status = "stopping" if not settles or now == 2 else "stopped" if now == 4 else "booting"
+            return {**payload, "status": status}
+
+    api = AdvancingTransport([])
+    sandbox = AsyncSandbox(sandbox_info_from_id("mac"), api, None)
+    with pytest.raises(RequestTimeoutError):
+        await sandbox.start(timeout=5)
+    assert [spec.path for spec in api.specs if spec.method == "POST"] == (
+        ["/sandboxes/mac/start"] if settles else []
+    )
+    if settles:
+        assert now == 6.0
 
 
 @pytest.mark.anyio
