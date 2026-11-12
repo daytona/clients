@@ -1,0 +1,22 @@
+changelog.d/607-upgrade-code-run-charts.changed.md
+  h_e7759ddd73fa65 4-5
+examples/README.md
+  h_e7759ddd73fa65 68
+sdk-python/README.md
+  h_e7759ddd73fa65 1036-1042,1061-1063
+sdk-typescript/README.md
+  h_e7759ddd73fa65 961-967,981-983
+upgrade/scripts/migration-notes.test.mjs
+  h_e7759ddd73fa65 39-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b67466d7c3db155b5af06007c614f1e718214d6c",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
