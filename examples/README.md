@@ -35,7 +35,8 @@ examples/
 │   ├── examples.test.ts      offline tests (fake client, see test-support/)
 │   ├── pagination/index.ts
 │   ├── volumes/index.ts
-│   └── secrets-env/index.ts
+│   ├── secrets-env/index.ts
+│   └── charts/index.ts
 ├── python/
 │   ├── _common.py            shared client/env helpers
 │   ├── exec_command.py
@@ -51,6 +52,7 @@ examples/
 │   ├── pagination.py
 │   ├── volumes.py
 │   ├── secrets_env.py
+│   ├── charts.py
 │   └── test_examples.py      offline tests (fake client)
 ├── volumes_share.{ts,py}     persistent-volume round-trip (see below)
 └── run-examples.sh           run all examples (or `check` them statically)
@@ -63,6 +65,7 @@ The examples exercise the V2 SDK surface in both languages.
 | Area | Example | Notes |
 |---|---|---|
 | process | `exec-command` | ✅ `process.run()` plus `interpreter.run()` code execution. |
+| charts | `charts` | ✅ Draws a matplotlib figure with two subplots in `interpreter.run()` and reads each subplot's data from `result.charts`, next to the figure's image. Installs matplotlib with pip, so the sandbox needs to reach the package index. |
 | files | `file-operations` | ✅ `fs.*` single-file upload, list, search, replace and download. |
 | git | `git` | ✅ clone/add/commit/branches/status/push/pull. |
 | lifecycle | `lifecycle` | ✅ create/get/list/run/delete. |

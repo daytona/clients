@@ -39,7 +39,14 @@ from ._core import (
     wait_spec,
 )
 from ._transport import AsyncTransport
-from .errors import ClientTimeoutError, ConnectionError, DaytonaError, UnsupportedOperationError, create_error
+from .errors import (
+    ClientTimeoutError,
+    ConnectionError,
+    CursorExpiredError,
+    DaytonaError,
+    UnsupportedOperationError,
+    create_error,
+)
 from .session import AsyncSession
 from .session import _require_id as _require_session_id
 from .types import (
@@ -158,13 +165,24 @@ TIMED_OUT_LOG_PAGE_LIMIT = 8
 
 
 async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = None) -> List[LogFrame]:
+    """Every frame retention kept, in order. Frames the sandbox evicted before
+    they were read are skipped: the read resumes at the first one kept, as
+    ``run()``'s inline log page does, instead of failing the whole read."""
     frames: List[LogFrame] = []
     cursor: Optional[str] = None
     pages = 0
     while True:
         if max_pages is not None and pages >= max_pages:
             return frames
-        page = await handle.logs(cursor=cursor)
+        try:
+            page = await handle.logs(cursor=cursor)
+        except CursorExpiredError as error:
+            resume = error.first_available_cursor
+            if not resume or resume == cursor:
+                raise
+            cursor = resume
+            pages += 1
+            continue
         pages += 1
         frames.extend(page.items)
         if page.eof or not page.next_cursor or page.next_cursor == cursor or not page.items:

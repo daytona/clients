@@ -15,6 +15,7 @@ import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
 import { logPageFromWire } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
+import { CursorExpiredError } from './errors/DaytonaError.js'
 
 /** Bound toolbox identity shared by ordinary commands and shell-session commands. */
 export interface ProcessBinding {
@@ -25,12 +26,25 @@ export interface ProcessBinding {
 /** Bound snapshots prevent a live process from out-writing the log paginator. */
 export const TIMED_OUT_LOG_PAGE_LIMIT = 8
 
+/**
+ * Every frame retention kept, in order. Frames the sandbox evicted before they
+ * were read are skipped: the read resumes at the first one kept, as `run()`'s
+ * inline log page does, instead of failing the whole read.
+ */
 export async function collectAllLogs(handle: ProcessHandle, options: { maxPages?: number } = {}): Promise<LogFrame[]> {
   const logs: LogFrame[] = []
   let cursor: string | undefined
   for (let pages = 0; ; pages++) {
     if (options.maxPages !== undefined && pages >= options.maxPages) return logs
-    const page = await handle.logs(cursor === undefined ? {} : { cursor })
+    let page
+    try {
+      page = await handle.logs(cursor === undefined ? {} : { cursor })
+    } catch (error) {
+      const resume = error instanceof CursorExpiredError ? error.firstAvailableCursor : undefined
+      if (!resume || resume === cursor) throw error
+      cursor = resume
+      continue
+    }
     logs.push(...page.items)
     if (page.eof || !page.nextCursor || page.nextCursor === cursor || page.items.length === 0) return logs
     cursor = page.nextCursor

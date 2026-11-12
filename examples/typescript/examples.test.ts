@@ -60,7 +60,7 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
 const example = (name: string) => `typescript/${name}/index.ts`
 const SECRET_NAME = /^EXAMPLE_API_KEY_[0-9A-F]{8}$/
 
-for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'local-files', 'volumes', 'lifecycle']) {
+for (const name of ['exec-command', 'file-operations', 'git', 'secrets-env', 'dynamic-build', 'dockerfile-sandbox', 'local-files', 'volumes', 'lifecycle', 'charts']) {
   test(`${name} skips work and cleans up when create returns a non-started sandbox`, () => {
     // Given an accepted create whose readiness wait did not finish.
     const scenario = { sandboxStates: ['creating'] }
@@ -113,7 +113,7 @@ function assertCleanedUp(record: Record): void {
   assert.deepEqual([...record.deletedSandboxes].sort(), [...record.sandboxes].sort())
 }
 
-for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secrets-env', 'dynamic-build', 'local-files']) {
+for (const name of ['exec-command', 'file-operations', 'git', 'lifecycle', 'secrets-env', 'dynamic-build', 'local-files', 'charts']) {
   test(`${name} succeeds against the fake SDK`, () => {
     const { code, record, output } = runExample(example(name))
     assert.equal(code, 0, output)
@@ -265,6 +265,23 @@ test('exec-command exits non-zero when the interpreter code raises', () => {
   const { code, output } = runExample(example('exec-command'), { interpreterError: 'NameError' })
   assert.equal(code, 1, output)
   assert.match(output, /FAIL.* code failed \(exit=0, error=NameError\)/)
+})
+
+test('charts fails when the figure comes back without its chart', () => {
+  // Given a sandbox whose interpreter returns the figure without chart data.
+  // When the example runs.
+  const { code, record, output } = runExample(example('charts'), { interpreterCharts: false })
+  // Then it fails, says why, and still deletes its sandbox.
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* expected one figure with subplots, got \[\]/)
+  assertCleanedUp(record)
+})
+
+test('charts fails when matplotlib cannot be installed', () => {
+  const { code, record, output } = runExample(example('charts'), { overrides: [['pip install', 1, 'No matching distribution found for matplotlib']] })
+  assert.equal(code, 1, output)
+  assert.match(output, /FAIL.* pip install failed \(exit=1\)/)
+  assertCleanedUp(record)
 })
 
 test('secrets-env uses a run-scoped secret it never overwrites, and deletes it', () => {

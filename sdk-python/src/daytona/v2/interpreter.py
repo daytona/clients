@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from typing import Awaitable, Callable, Mapping, Optional
+from typing import Awaitable, Callable, Mapping, NamedTuple, Optional, Sequence
 
 from . import _clock
 from . import _codes as codes
@@ -21,6 +21,7 @@ from ._core import (
     wait_budget,
 )
 from ._transport import AsyncTransport
+from .charts import CHART_MEDIA_TYPE, _parse_chart
 from .errors import DaytonaError, create_error
 from .process import (
     TIMED_OUT_LOG_PAGE_LIMIT,
@@ -39,9 +40,14 @@ from .types import (
     InterpreterResult,
     JsonObject,
     JsonValue,
+    LogFrame,
 )
 
 SHELL_SESSION_KERNEL = "shell"
+# Added by the sandbox to an output published with a display id; the SDK
+# applies it (an update replaces that display's outputs) and removes it from
+# `data`, which keeps what the kernel published.
+DISPLAY_MEDIA_TYPE = "application/vnd.daytona.display.v1+json"
 
 
 def _implicit_context_id(language: str) -> str:
@@ -487,14 +493,10 @@ class AsyncInterpreterService:
         )
         stdout = "".join(frame.data for frame in logs if frame.channel == "stdout")
         stderr = "".join(frame.data for frame in logs if frame.channel == "stderr")
-        results: list[InterpreterOutput] = []
+        results = _outputs(logs)
         error: Optional[InterpreterError] = None
         for frame in logs:
-            if frame.channel in ("display", "execute_result"):
-                output = _parse_output(frame.data, is_main_result=frame.channel == "execute_result")
-                if output is not None:
-                    results.append(output)
-            elif frame.channel == "error":
+            if frame.channel == "error":
                 parsed_error = _parse_error(frame.data)
                 if parsed_error is not None:
                     error = parsed_error
@@ -506,9 +508,10 @@ class AsyncInterpreterService:
                 signal=wait.signal,
                 raw_reason=wait.raw_reason,
             ),
-            results=tuple(results),
+            results=results,
             logs=InterpreterLogs(stdout=stdout, stderr=stderr),
             error=error,
+            charts=tuple(output.chart for output in results if output.chart is not None),
         )
 
     async def _run_implicit_context(
@@ -568,7 +571,38 @@ class AsyncInterpreterService:
             return
 
 
-def _parse_output(payload: str, *, is_main_result: bool) -> Optional[InterpreterOutput]:
+class _ParsedOutput(NamedTuple):
+    output: InterpreterOutput
+    display_id: Optional[str]
+    """The display id the output was published with, if any."""
+    update: bool
+    """The output replaces the earlier outputs with ``display_id``."""
+
+
+def _outputs(frames: Sequence[LogFrame]) -> tuple[InterpreterOutput, ...]:
+    """The run's outputs in order, as a notebook shows them: an update
+    replaces the earlier outputs published with its display id (an update
+    whose display this run did not publish is a new output)."""
+    results: list[InterpreterOutput] = []
+    by_display: dict[str, list[int]] = {}
+    for frame in frames:
+        if frame.channel not in ("display", "execute_result"):
+            continue
+        parsed = _parse_output(frame.data, is_main_result=frame.channel == "execute_result")
+        if parsed is None:
+            continue
+        shown = by_display.get(parsed.display_id) if parsed.display_id is not None else None
+        if parsed.update and shown:
+            for index in shown:
+                results[index] = parsed.output
+            continue
+        if parsed.display_id is not None:
+            by_display.setdefault(parsed.display_id, []).append(len(results))
+        results.append(parsed.output)
+    return tuple(results)
+
+
+def _parse_output(payload: str, *, is_main_result: bool) -> Optional[_ParsedOutput]:
     try:
         decoded = loads_json(payload, "interpreter output")
     except ValueError:
@@ -578,7 +612,13 @@ def _parse_output(payload: str, *, is_main_result: bool) -> Optional[Interpreter
     data = _mime_bundle(decoded)
     if data is None:
         return None
-    return InterpreterOutput(
+    display = data.pop(DISPLAY_MEDIA_TYPE, None)
+    display_id: Optional[str] = None
+    update = False
+    if isinstance(display, dict) and isinstance(display.get("displayId"), str):
+        display_id = display["displayId"]
+        update = display.get("update") is True
+    output = InterpreterOutput(
         data=data,
         is_main_result=is_main_result,
         text=_bundle_string(data, "text/plain"),
@@ -586,7 +626,9 @@ def _parse_output(payload: str, *, is_main_result: bool) -> Optional[Interpreter
         png=_bundle_string(data, "image/png"),
         svg=_bundle_string(data, "image/svg+xml"),
         json=data.get("application/json"),
+        chart=_parse_chart(data[CHART_MEDIA_TYPE]) if CHART_MEDIA_TYPE in data else None,
     )
+    return _ParsedOutput(output, display_id, update)
 
 
 def _parse_error(payload: str) -> Optional[InterpreterError]:

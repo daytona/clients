@@ -207,3 +207,30 @@ def test_volume_suggestions_flag_the_server_chosen_type() -> None:
     )
     assert "# daytona-v2:   differs: Review the volume type" in result.source
     assert all(item["kind"] == "suggestion" for item in result.items)
+
+
+def test_code_run_suggestion_points_chart_artifacts_at_the_v2_result() -> None:
+    # Given a 0.x code run whose chart artifacts the caller reads.
+    source = (
+        "from daytona import Daytona\n"
+        "daytona = Daytona()\n"
+        "sandbox = daytona.create()\n"
+        'response = sandbox.process.code_run("plot()")\n'
+        "print(response.artifacts.charts)\n"
+    )
+    # When requesting guidance.
+    result = guidance(source)
+    # Then the suggestion says where the charts and their images are in v2.
+    notes = {
+        item["suggestion"]["id"]: item["suggestion"]["notes"]
+        for item in result.items
+        if "suggestion" in item
+    }
+    assert notes["sandbox.process.codeRun"][-1] == (
+        "Returns InterpreterResult rather than ExecuteResponse: response.artifacts.charts becomes result.charts, "
+        "and each figure's image is in result.results[i].png"
+    )
+    assert (
+        "# daytona-v2:   differs: Returns InterpreterResult rather than ExecuteResponse: response.artifacts.charts"
+        in result.source
+    )

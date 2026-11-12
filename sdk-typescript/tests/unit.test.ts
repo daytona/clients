@@ -5507,6 +5507,7 @@ describe('toolbox service request shaping', () => {
       process: { reason: 'timed_out' },
       results: [],
       logs: { stdout: '', stderr: '' },
+      charts: [],
     })
     expect(transport.post).toHaveBeenCalledTimes(1)
 

@@ -14,6 +14,7 @@
     "pagination": "tsx typescript/pagination/index.ts",
     "secrets-env": "tsx typescript/secrets-env/index.ts",
     "volumes": "tsx typescript/volumes/index.ts",
+    "charts": "tsx typescript/charts/index.ts",
     "volumes-share": "tsx volumes_share.ts"
   },
   "dependencies": {

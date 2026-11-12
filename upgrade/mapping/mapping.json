@@ -1962,12 +1962,12 @@
         "py": [
           "Select the language explicitly rather than relying on the v0 sandbox language",
           "CodeRunParams.env becomes env; argv has no interpreter equivalent",
-          "Returns InterpreterResult rather than ExecuteResponse and execution artifacts"
+          "Returns InterpreterResult rather than ExecuteResponse: response.artifacts.charts becomes result.charts, and each figure's image is in result.results[i].png"
         ],
         "ts": [
           "Select the language explicitly rather than relying on the v0 sandbox language",
           "CodeRunParams.env becomes env; argv has no interpreter equivalent",
-          "Returns InterpreterResult; timeout becomes timeoutSeconds (still seconds)"
+          "Returns InterpreterResult: response.artifacts.charts becomes result.charts, and each figure's image is in result.results[i].png; timeout becomes timeoutSeconds (still seconds)"
         ]
       },
       "anchor": "sandbox-process",

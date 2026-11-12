@@ -947,9 +947,45 @@ takes no `env`: set it when the context is created. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
 `timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded). Results are split into
-`results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
+`results[]`, `logs{stdout,stderr}`, `error`, `process` and `charts`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
-code-process handle later does not recreate it.
+code-process handle later does not recreate it. A display updated in place
+(IPython `display(obj, display_id=True)` then `handle.update(obj)`) is one
+entry in `results[]`, holding its last state.
+
+#### Charts
+
+A matplotlib figure that a Python run displays (`plt.show()`, a figure as the
+last expression, pandas `plot()`, seaborn, or a figure still open when the
+cell ends) comes back with its data as well as its image:
+`results[i].chart`, next to `results[i].png`, and every chart of the run in
+`result.charts`. Prefer `result.charts`: a pandas or seaborn call returns
+its axes as the cell's result, so the figure is not always `results[0]`.
+
+```ts
+const result = await sandbox.interpreter.run(`
+import matplotlib.pyplot as plt
+plt.bar(["a", "b"], [3, 1]); plt.title("visits")
+plt.show()
+`)
+const chart = result.charts?.[0]
+if (chart?.type === 'bar') {
+  console.log(chart.title, chart.elements.map((bar) => [bar.label, bar.value])) // visits [['a', 3], ['b', 1]]
+}
+```
+
+`chart.type` is `line`, `scatter`, `bar`, `pie`, `box_and_whisker`,
+`composite_chart` (a figure with several axes; `elements` holds one chart per
+axes) or `unknown` (a figure that is not one of these, such as an image plot,
+or a type a later sandbox reports, with `rawType`); switch on it and keep a
+default branch. Values are as plotted: numbers, category names on a
+`categorical` axis, and ISO 8601 UTC strings on a `datetime` axis. Long series
+are thinned, keeping each stretch's lowest and highest point, and the chart
+says so with `truncated`. Charts need matplotlib in the sandbox image, and
+only Python runs produce them. A run that changes matplotlib's backend away
+from the default (`MPLBACKEND`, `%matplotlib agg`) shows no figure on
+`plt.show()`; a figure returned as the last expression still comes back, with
+its chart but without an image.
 
 ### Git
 

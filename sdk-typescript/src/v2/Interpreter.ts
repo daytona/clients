@@ -27,6 +27,8 @@ import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { pathSegment } from './pathSegment.js'
 import { nestedDeeperThan } from './jsonDepth.js'
+import { CHART_MEDIA_TYPE, chartFromWire } from './charts.js'
+import type { Chart } from './charts.js'
 
 const RUN_OPTION_KEYS = optionKeys<InterpreterRunOptions>()({
   language: true, context: true, isolated: true, cwd: true, env: true, timeoutSeconds: true,
@@ -35,6 +37,12 @@ const CONTEXT_RUN_OPTION_KEYS = optionKeys<InterpreterContextRunOptions>()({ cwd
 const CONTEXT_OPTION_KEYS = optionKeys<InterpreterContextOptions>()({ language: true, contextId: true, cwd: true, env: true })
 /** `/sessions` also lists the legacy shell kernel, which is not an interpreter context. */
 const SHELL_SESSION_KERNEL = 'shell'
+/**
+ * Added by the sandbox to an output published with a display id; the SDK
+ * applies it (an update replaces that display's outputs) and removes it from
+ * `data`, which keeps what the kernel published.
+ */
+const DISPLAY_MEDIA_TYPE = 'application/vnd.daytona.display.v1+json'
 
 const INTERRUPT_GRACE_MS = 10_000
 const INTERRUPT_RETRY_MS = 250
@@ -245,10 +253,7 @@ async function collectResult(
   const logs = await collectAllLogs(handle, result.reason === 'timed_out' ? { maxPages: TIMED_OUT_LOG_PAGE_LIMIT } : {})
   const stdout = logs.filter((frame) => frame.channel === 'stdout').map((frame) => frame.data).join('')
   const stderr = logs.filter((frame) => frame.channel === 'stderr').map((frame) => frame.data).join('')
-  const outputs = logs
-    .filter((frame) => frame.channel === 'display' || frame.channel === 'execute_result')
-    .map((frame) => parseInterpreterOutput(frame))
-    .filter((frame): frame is InterpreterOutput => frame !== undefined)
+  const outputs = interpreterOutputs(logs)
   const errors = logs
     .filter((frame) => frame.channel === 'error')
     .map((frame) => parseInterpreterError(frame))
@@ -258,6 +263,7 @@ async function collectResult(
     results: outputs,
     logs: { stdout, stderr },
     ...(errors.length === 0 ? {} : { error: errors[errors.length - 1] }),
+    charts: outputs.map((output) => output.chart).filter((chart): chart is Chart => chart !== undefined),
   })
 }
 
@@ -266,22 +272,66 @@ function timedOutInterpreterResult(): InterpreterResult {
     process: { reason: 'timed_out' },
     results: [],
     logs: { stdout: '', stderr: '' },
+    charts: [],
   })
 }
 
-function parseInterpreterOutput(frame: LogFrame): InterpreterOutput | undefined {
+interface ParsedOutput {
+  readonly output: InterpreterOutput
+  /** The display id the output was published with, if any. */
+  readonly displayId?: string
+  /** The output replaces the earlier outputs with `displayId`. */
+  readonly update: boolean
+}
+
+/**
+ * @internal The run's outputs in order, as a notebook shows them: an update
+ * replaces the earlier outputs published with its display id (an update whose
+ * display this run did not publish is a new output).
+ */
+export function interpreterOutputs(frames: readonly LogFrame[]): InterpreterOutput[] {
+  const results: InterpreterOutput[] = []
+  const byDisplay = new Map<string, number[]>()
+  for (const frame of frames) {
+    if (frame.channel !== 'display' && frame.channel !== 'execute_result') continue
+    const parsed = parseInterpreterOutput(frame)
+    if (parsed === undefined) continue
+    const shown = parsed.displayId === undefined ? undefined : byDisplay.get(parsed.displayId)
+    if (parsed.update && shown !== undefined) {
+      for (const index of shown) results[index] = parsed.output
+      continue
+    }
+    if (parsed.displayId !== undefined) {
+      const indexes = byDisplay.get(parsed.displayId) ?? []
+      indexes.push(results.length)
+      byDisplay.set(parsed.displayId, indexes)
+    }
+    results.push(parsed.output)
+  }
+  return results
+}
+
+function parseInterpreterOutput(frame: LogFrame): ParsedOutput | undefined {
   const parsed = parseJsonRecord(frame.data, 'interpreter output')
   if (parsed === undefined) return undefined
-  const data = mimeBundle(parsed)
-  if (data === undefined) return undefined
+  const bundle = mimeBundle(parsed)
+  if (bundle === undefined) return undefined
+  const { [DISPLAY_MEDIA_TYPE]: display, ...data } = bundle
+  const displayId = isJsonRecord(display) && typeof display.displayId === 'string' ? display.displayId : undefined
+  const chart = CHART_MEDIA_TYPE in data ? chartFromWire(data[CHART_MEDIA_TYPE]) : undefined
   return {
-    data,
-    isMainResult: frame.channel === 'execute_result',
-    text: stringMime(data, 'text/plain'),
-    html: stringMime(data, 'text/html'),
-    png: stringMime(data, 'image/png'),
-    svg: stringMime(data, 'image/svg+xml'),
-    json: data['application/json'],
+    output: {
+      data,
+      isMainResult: frame.channel === 'execute_result',
+      text: stringMime(data, 'text/plain'),
+      html: stringMime(data, 'text/html'),
+      png: stringMime(data, 'image/png'),
+      svg: stringMime(data, 'image/svg+xml'),
+      json: data['application/json'],
+      ...(chart === undefined ? {} : { chart }),
+    },
+    ...(displayId === undefined ? {} : { displayId }),
+    update: displayId !== undefined && isJsonRecord(display) && display.update === true,
   }
 }
 

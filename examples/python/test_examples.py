@@ -35,14 +35,21 @@ from _common import IMAGE, IMAGE_NAME, IMAGE_WAIT_SECONDS, RUN, image_name
 
 from daytona.v2 import (
     BadRequestError,
+    BarChart,
+    Chart,
+    ChartBar,
+    ChartSeries,
+    CompositeChart,
     GitCommitResponse,
     GitStatus,
     ImageBuilder,
     ImageBuildFailedError,
     InterpreterError,
     InterpreterLogs,
+    InterpreterOutput,
     InterpreterProcess,
     InterpreterResult,
+    LineChart,
     FileSearchResult,
     ListResult,
     ConflictError,
@@ -114,6 +121,9 @@ class FakeWorld:
         self.build_logs_fail_after_output = False
         self.interpreter_exit_code = 0
         self.interpreter_error: Optional[InterpreterError] = None
+        # A figure the code shows comes back with its chart (matplotlib is in
+        # the sandbox); False: it comes back with none.
+        self.interpreter_charts = True
         self.client = self._client()
 
     # -- client -----------------------------------------------------------
@@ -435,12 +445,32 @@ class FakeWorld:
         return _result(0, "")
 
     def _interpret(self, code: str) -> InterpreterResult:
+        results: tuple[InterpreterOutput, ...] = ()
+        charts: tuple[Chart, ...] = ()
+        if "plt.show()" in code and self.interpreter_charts:
+            figure = CompositeChart(
+                elements=(
+                    LineChart(
+                        x_scale="linear",
+                        y_scale="linear",
+                        elements=(ChartSeries(points=((1, 10), (2, 20)), label="visits"),),
+                        title="traffic",
+                    ),
+                    BarChart(orientation="vertical", elements=(ChartBar(label="a", value=3),), title="signups"),
+                )
+            )
+            results = (
+                InterpreterOutput(data={"image/png": "iVBOR"}, is_main_result=False, png="iVBOR", chart=figure),
+            )
+            charts = (figure,)
         return InterpreterResult(
             process=InterpreterProcess(
                 process_id="p", exit_code=self.interpreter_exit_code, reason="exited"
             ),
+            results=results,
             logs=InterpreterLogs(stdout="Hello World from code!\n"),
             error=self.interpreter_error,
+            charts=charts,
         )
 
 
@@ -501,6 +531,7 @@ LOCAL_FILES_OK: tuple[Override, ...] = (
         ("dynamic_build", ()),
         ("dockerfile_sandbox", DOCKERFILE_SANDBOX_OK),
         ("local_files", LOCAL_FILES_OK),
+        ("charts", ()),
     ],
 )
 def test_example_succeeds_against_the_sdk_surface(
@@ -712,6 +743,31 @@ def test_failed_interpreter_run_fails_exec_command(
     code, _ = run_example("exec_command", world=world)
     assert code == 1
     assert re.search(reported, capsys.readouterr().out)
+
+
+def test_charts_fails_when_the_figure_comes_back_without_its_chart(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Given a sandbox whose interpreter returns the figure without chart data.
+    world = FakeWorld()
+    world.interpreter_charts = False
+    # When the example runs.
+    code, _ = run_example("charts", world=world)
+    # Then it fails, says why, and still deletes its sandbox.
+    assert code == 1
+    assert "expected one figure with subplots, got []" in capsys.readouterr().out
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
+
+
+def test_charts_fails_when_matplotlib_cannot_be_installed(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, world = run_example("charts", (r"pip install", 1, "No matching distribution found for matplotlib"))
+    assert code == 1
+    assert "pip install failed (exit=1)" in capsys.readouterr().out
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
 
 
 def test_build_logs_does_not_pass_partial_output_after_a_read_error(
@@ -998,6 +1054,7 @@ def test_volumes_share_reports_a_failed_read_instead_of_a_partial_result(
         "local_files",
         "volumes",
         "lifecycle",
+        "charts",
     ],
 )
 def test_an_example_skips_work_and_cleans_up_when_create_returns_a_non_started_sandbox(

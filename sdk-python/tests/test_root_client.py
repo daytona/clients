@@ -411,7 +411,8 @@ def test_moved_client_members_match_the_upgrade_tools_mapping() -> None:
         ("AsyncSandbox", True, True),
         ("Image", True, True),
         ("CreateSandboxFromImageParams", True, False),  # 0.x only
-        ("BarChart", True, False),  # 0.x only
+        ("ExecutionArtifacts", True, False),  # 0.x only
+        ("BarChart", True, True),
         ("ImageBuilder", False, True),  # 2.0-alpha only
         ("ProcessHandle", False, True),  # 2.0-alpha only
     ],
