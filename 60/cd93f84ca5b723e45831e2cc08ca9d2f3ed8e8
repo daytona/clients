@@ -1,0 +1,33 @@
+changelog.d/builder-error-followups.fixed.md
+  s_35c1b93d4ebbc5::t_a144f96e5cc02f 1-5
+docs/adr/0006-image-builder-local-context.md
+  s_35c1b93d4ebbc5::t_9d85759a030e58 178-181
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_4671cd61281468 152-160
+sdk-python/tests/test_build_context_upload.py
+  s_35c1b93d4ebbc5::t_818f37fd92ce16 25,832-840
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_ef880c3bfa692b 409-430
+sdk-typescript/src/v2/Images.ts
+  s_35c1b93d4ebbc5::t_89e31b2b0c8a71 169-173
+sdk-typescript/src/v2/contextArchive.ts
+  s_35c1b93d4ebbc5::t_961cdf24c1bb4c 92-96
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  s_35c1b93d4ebbc5::t_8745c9d321b3f2 195-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "60cd93f84ca5b723e45831e2cc08ca9d2f3ed8e8",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
