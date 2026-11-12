@@ -15,10 +15,14 @@ import (
 
 func (source regionalListSource) fetchImagePage(ctx context.Context, request listPageRequest, filters imageListFilters) (output.List[api.ImageListItem], error) {
 	// A deployment with search serves the list from it, every region at once.
-	query, err := source.searchQuery(ctx, imageListQuery(listQuery(pageFlags{limit: request.limit}, request.cursor), filters))
-	if err != nil {
+	// --region is checked here but not sent: the search route's region_ids
+	// matches an image's home region only, while an image is listed in every
+	// region it is available in (region_ids), so the command filters the
+	// search items itself, as it does the list route's.
+	if _, err := source.searchRegion(ctx); err != nil {
 		return output.List[api.ImageListItem]{}, err
 	}
+	query := imageListQuery(listQuery(pageFlags{limit: request.limit}, request.cursor), filters)
 	searched, served, err := getRawSearchPage[api.ImageListItem](ctx, source.search, source.home, "/images/search", query, "images")
 	if served {
 		if err != nil {

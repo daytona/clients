@@ -51,6 +51,9 @@ func newImageGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := refuseSearchName("image", args[0]); err != nil {
+				return err
+			}
 			var image api.Raw[gen.Image]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/images/"+url.PathEscape(args[0]), nil, nil, &image); err != nil {
 				return err

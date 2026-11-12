@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/daytona/clients/cli/internal/api"
@@ -59,4 +60,53 @@ func TestSnapshotListAll_probesSearchOnceOnADeploymentWithoutSearch(t *testing.T
 	// Then: the second page went straight to the list route.
 	require.NoError(t, err)
 	require.Len(t, requireJSONStdout(t, stdout)["items"], 2)
+}
+
+func TestImageList_regionFlagKeepsSearchItemsAvailableInTheRegion(t *testing.T) {
+	// Given a deployment with search and two images homed outside region-c,
+	// one of them also available in it. The search route's region_ids
+	// matches the home region only, so --region is not sent to it.
+	regions := fixtureJSON(map[string]any{"regions": regionCatalogFixture("region-c", "Region C", "group-a", "group-b"), "default_region_id": nil})
+	available := imageRegionItemFixture(`{"id":"11111111-1111-1111-1111-111111111111","name":"available","region_id":"region-root","created_at":"2026-09-14T00:00:02Z","updated_at":"2026-09-14T00:00:02Z","cursor":"c1"}`)
+	available = strings.Replace(available, `"region_ids":["region-b"]`, `"region_ids":["region-root","region-c"]`, 1)
+	elsewhere := imageRegionItemFixture(`{"id":"22222222-2222-2222-2222-222222222222","name":"elsewhere","region_id":"region-root","created_at":"2026-09-14T00:00:01Z","updated_at":"2026-09-14T00:00:01Z","cursor":"c2"}`)
+	elsewhere = strings.Replace(elsewhere, `"region_ids":["region-b"]`, `"region_ids":["region-root"]`, 1)
+	page := `{"images":[` + available + `,` + elsewhere + `]}`
+	// When
+	stdout, _, err := runCLI(t, []string{"image", "list", "--region", "region-c", "--limit", "2"}, []expectedRequest{
+		{method: http.MethodGet, path: "/regions", status: 200, response: regions},
+		{method: http.MethodGet, path: "/images/search", query: "limit=2", status: 200, response: withSearchTotals(t, page)},
+	})
+	// Then: the image homed elsewhere but available in region-c is kept.
+	require.NoError(t, err)
+	items, ok := requireJSONStdout(t, stdout)["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	require.Equal(t, "11111111-1111-1111-1111-111111111111", items[0].(map[string]any)["id"])
+}
+
+func TestImageList_unknownRegionIsRefusedBeforeSearching(t *testing.T) {
+	// Given
+	regions := fixtureJSON(map[string]any{"regions": regionCatalogFixture("region-c", "Region C", "group-a", "group-b"), "default_region_id": nil})
+	// When
+	_, _, err := runCLI(t, []string{"image", "list", "--region", "nowhere"}, []expectedRequest{
+		{method: http.MethodGet, path: "/regions", status: 200, response: regions},
+	})
+	// Then
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+}
+
+func TestArtifactGet_searchIsRefusedAsAName(t *testing.T) {
+	for _, kind := range []string{"image", "snapshot"} {
+		t.Run(kind, func(t *testing.T) {
+			// Given / When: no request is expected.
+			_, _, err := runCLI(t, []string{kind, "get", "search"}, nil)
+			// Then
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+			require.Contains(t, err.Error(), "'search' cannot be looked up by name")
+			require.Contains(t, err.Error(), "use the "+kind+" ID")
+		})
+	}
 }

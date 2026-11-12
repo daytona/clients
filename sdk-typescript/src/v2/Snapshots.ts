@@ -7,7 +7,7 @@ import { optionalQueryText, pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
-import { searchOrList } from './searchFirst.js'
+import { SearchProbe, refuseSearchName, searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { Snapshot } from './Image.js'
@@ -31,6 +31,8 @@ export interface ListSnapshotsOptions {
 const LIST_SNAPSHOTS_OPTION_KEYS = optionKeys<ListSnapshotsOptions>()({ cursor: true, limit: true, name: true, sandboxId: true })
 
 export class SnapshotsService {
+  private readonly searchProbe = new SearchProbe()
+
   /** @internal */
   constructor(token: Internal, http: AxiosInstance)
   /** Built by the SDK: get it from the client or a sandbox. */
@@ -52,6 +54,7 @@ export class SnapshotsService {
     const data = await searchOrList(
       () => this.http.get<api.ListSnapshotsResponse>('/snapshots/search', { params }).then((response) => response.data),
       () => this.http.get<api.ListSnapshotsResponse>('/snapshots', { params }).then((response) => response.data),
+      this.searchProbe,
     )
     const page = listPage<api.Snapshot>(data, 'snapshots', 'snapshot list')
     return frozenPage({ items: page.items.map((snapshot) => new Snapshot(INTERNAL, snapshot)), nextCursor: page.nextCursor })
@@ -71,7 +74,13 @@ export class SnapshotsService {
     }
   }
 
+  /**
+   * Fetch a snapshot by ID or name. `'search'` cannot be looked up by name
+   * (`GET /snapshots/search` is the search route): it throws a
+   * `BadRequestError` before any request; read such a snapshot by its ID.
+   */
   public async get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot> {
+    refuseSearchName(snapshotId, 'snapshot')
     return getArtifact(this.http, `/snapshots/${pathSegment(snapshotId, 'snapshotId')}`, options,
       // SAFETY: the Snapshot constructor checks the response against the contract.
       (data) => new Snapshot(INTERNAL, data as api.Snapshot))

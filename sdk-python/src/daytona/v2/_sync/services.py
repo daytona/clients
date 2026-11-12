@@ -160,6 +160,10 @@ class ImagesService:
         raises :class:`RequestTimeoutError`. Without one (omitted or ``0``), a
         single long poll of the server's default length returns what the
         server reports.
+
+        ``"search"`` cannot be looked up by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        read such an image by its ID.
         """
         return self._bridge.call(lambda: self._impl.get(image_id, wait=wait, timeout=timeout))
 
@@ -286,7 +290,12 @@ class SnapshotsService:
     def get(
         self, snapshot_id: str, /, *, wait: Optional[Literal["ready"]] = None, timeout: Optional[float] = None
     ) -> Snapshot:
-        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does."""
+        """Fetch a snapshot; ``wait="ready"`` waits as :meth:`ImagesService.get` does.
+
+        ``"search"`` cannot be looked up by name (``GET /snapshots/search`` is
+        the search route): it raises :class:`BadRequestError` before any
+        request; read such a snapshot by its ID.
+        """
         return self._bridge.call(lambda: self._impl.get(snapshot_id, wait=wait, timeout=timeout))
 
     def iter(

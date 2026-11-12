@@ -16,8 +16,8 @@ from typing import Any
 import pytest
 from network_policy_test_server import FakeApi, PlannedResponse
 
-from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import DaytonaError, NotFoundError, SearchUnavailableError
+from daytona import AsyncDaytona, AsyncDaytonaV2Client, Daytona, DaytonaConfig
+from daytona.v2 import BadRequestError, DaytonaError, NotFoundError, SearchUnavailableError
 from daytona.v2.services import _search_not_served
 
 pytestmark = pytest.mark.anyio
@@ -160,6 +160,98 @@ async def test_a_list_raises_a_501_with_another_code_without_falling_back(case: 
     assert paths == [case.search_path + case.query]
     assert isinstance(error, DaytonaError)
     assert (error.status_code, error.code) == (501, "NOT_IMPLEMENTED")
+
+
+@pytest.mark.parametrize(("status", "code"), [(501, "SEARCH_NOT_CONFIGURED"), (404, "NOT_FOUND")])
+async def test_a_client_remembers_a_deployment_without_search(case: _Case, status: int, code: str) -> None:
+    # Once a kind's search route answers "not served", the client's later calls
+    # for that kind (the pages of an iter() walk included) go straight to the
+    # list route.
+    responses = [
+        PlannedResponse(status, _error(code)),
+        PlannedResponse(200, {case.field: [case.item], "next_cursor": None}),
+        PlannedResponse(200, {case.field: [case.item], "next_cursor": None}),
+    ]
+
+    async def twice(v2: AsyncDaytonaV2Client) -> object:
+        await case.call(v2)
+        return await case.call(v2)
+
+    page, paths = await _run(responses, twice)
+    assert paths == [case.search_path + case.query, case.list_path + case.query, case.list_path + case.query]
+    assert [item.id for item in page.items] == [case.item["id"]]
+
+
+async def test_an_iter_walk_probes_search_once_without_search() -> None:
+    responses = [
+        PlannedResponse(501, _error("SEARCH_NOT_CONFIGURED")),
+        PlannedResponse(200, {"images": [_IMAGE], "next_cursor": "p2"}),
+        PlannedResponse(200, {"images": [{**_IMAGE, "id": "img_2"}], "next_cursor": None}),
+    ]
+
+    async def walk(v2: AsyncDaytonaV2Client) -> list[str]:
+        return [image.id async for image in v2.images.iter(limit=1)]
+
+    ids, paths = await _run(responses, walk)
+    assert ids == ["img_1", "img_2"]
+    assert paths == [
+        "/images/search?limit=1&anonymous=false",
+        "/images?limit=1&anonymous=false",
+        "/images?cursor=p2&limit=1&anonymous=false",
+    ]
+
+
+async def test_a_503_is_not_remembered(case: _Case) -> None:
+    body = {case.field: [case.item], "next_cursor": None, "total": 1, "total_relation": "eq"}
+    responses = [PlannedResponse(503, _error("SEARCH_UNAVAILABLE")), PlannedResponse(200, body)]
+
+    async def twice(v2: AsyncDaytonaV2Client) -> object:
+        with pytest.raises(SearchUnavailableError):
+            await case.call(v2)
+        return await case.call(v2)
+
+    page, paths = await _run(responses, twice)
+    assert paths == [case.search_path + case.query, case.search_path + case.query]
+    assert [item.id for item in page.items] == [case.item["id"]]
+
+
+def test_the_sync_client_remembers_a_deployment_without_search() -> None:
+    responses = [
+        PlannedResponse(501, _error("SEARCH_NOT_CONFIGURED")),
+        PlannedResponse(200, {"snapshots": [_SNAPSHOT], "next_cursor": None}),
+        PlannedResponse(200, {"snapshots": [_SNAPSHOT], "next_cursor": None}),
+    ]
+    with FakeApi(responses) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        with Daytona(DaytonaConfig(api_key="key")) as root:
+            root.v2.snapshots.list()
+            page = root.v2.snapshots.list()
+        paths = [request.path for request in api.requests]
+    assert paths == ["/snapshots/search", "/snapshots", "/snapshots"]
+    assert [item.id for item in page.items] == ["snap_1"]
+
+
+@pytest.mark.parametrize(("service", "kind"), [("images", "image"), ("snapshots", "snapshot")])
+async def test_search_cannot_be_looked_up_by_name(service: str, kind: str) -> None:
+    error, paths = await _run([], lambda v2: getattr(v2, service).get("search"))
+    assert paths == []
+    assert isinstance(error, BadRequestError)
+    assert (error.status_code, error.code, error.source) == (400, "BAD_REQUEST", "SDK")
+    assert str(error) == (
+        f"'search' cannot be looked up by name; it is reserved for the search route — use the {kind} ID"
+    )
+
+
+@pytest.mark.parametrize("service", ["images", "snapshots"])
+def test_the_sync_client_refuses_search_as_a_name(service: str) -> None:
+    with FakeApi([]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        with (
+            Daytona(DaytonaConfig(api_key="key")) as root,
+            pytest.raises(BadRequestError, match="reserved for the search route"),
+        ):
+            getattr(root.v2, service).get("search")
+        assert api.requests == []
 
 
 @pytest.mark.parametrize(

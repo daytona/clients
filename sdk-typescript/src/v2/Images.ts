@@ -8,7 +8,7 @@ import { pathSegment } from './pathSegment.js'
 import { isBlank } from './pyText.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
-import { searchOrList } from './searchFirst.js'
+import { SearchProbe, refuseSearchName, searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
@@ -92,6 +92,7 @@ function listImagesPlatform(value: unknown): 'true' | 'false' | 'any' | undefine
 
 export class ImagesService {
   private resolvedApiTransport?: HttpTransport
+  private readonly searchProbe = new SearchProbe()
 
   /** @internal */
   constructor(
@@ -209,6 +210,7 @@ export class ImagesService {
     const data = await searchOrList(
       () => this.http.get<api.ImagePage>('/images/search', { params }).then((response) => response.data),
       () => this.http.get<api.ImagePage>('/images', { params }).then((response) => response.data),
+      this.searchProbe,
     )
     const page = listPage<api.ImageListItem>(data, 'images', 'image list')
     return frozenPage({ items: page.items.map((image) => new Image(INTERNAL, image)), nextCursor: page.nextCursor })
@@ -228,7 +230,13 @@ export class ImagesService {
     }
   }
 
+  /**
+   * Fetch an image by ID or name. `'search'` cannot be looked up by name
+   * (`GET /images/search` is the search route): it throws a
+   * `BadRequestError` before any request; read such an image by its ID.
+   */
   public async get(imageId: string, options: GetArtifactOptions = {}): Promise<Image> {
+    refuseSearchName(imageId, 'image')
     return getArtifact(this.http, `/images/${pathSegment(imageId, 'imageId')}`, options,
       // SAFETY: the Image constructor checks the response against the contract.
       (data) => new Image(INTERNAL, data as api.ImageListItem))

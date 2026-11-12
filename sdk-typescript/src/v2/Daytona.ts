@@ -26,6 +26,7 @@ import { clientConnectionConfig } from './clientConfig.js'
 import { buildSandboxImage, createSandbox } from './clientCreate.js'
 import { linuxCreateRequest, snapshotCreateRequest, macosCreateRequest } from './clientCreateRequests.js'
 import { getSandbox, listSandboxes, searchSandboxes, findSandboxesByName } from './clientSandboxes.js'
+import { SearchProbe } from './searchFirst.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
 import type * as api from './gen/api-types.js'
 import { attachHub, detachHub, eventsHubConfig } from './events.js'
@@ -56,6 +57,8 @@ export class Daytona {
   private hub: WaitHub | undefined
   private readonly hubApi: AxiosInstance
   private closed = false
+  // Remembers a deployment that does not serve sandbox search (list()).
+  private readonly sandboxSearchProbe = new SearchProbe()
 
   constructor(config: DaytonaConfig = {}) {
     const connection = clientConnectionConfig(config)
@@ -264,7 +267,7 @@ export class Daytona {
   }
 
   private get sandboxContext(): SandboxClientContext {
-    return { api: this.api, buildSandbox: (source, options) => this.buildSandbox(source, options) }
+    return { api: this.api, buildSandbox: (source, options) => this.buildSandbox(source, options), searchProbe: this.sandboxSearchProbe }
   }
 
   // Every caller passes API data (create response, get/list sandbox details)

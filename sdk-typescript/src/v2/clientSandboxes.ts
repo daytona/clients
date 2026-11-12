@@ -7,7 +7,7 @@ import { pathSegment } from './pathSegment.js'
 import { pageParams } from './pageParams.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
-import { searchOrList } from './searchFirst.js'
+import { SearchProbe, searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import type * as api from './gen/api-types.js'
@@ -29,6 +29,8 @@ import { isBlank } from './pyText.js'
 export interface SandboxClientContext {
   readonly api: AxiosInstance
   readonly buildSandbox: (source: SandboxDto | SandboxInfo | string, options?: SandboxConnectOptionsFromCreate) => Sandbox
+  /** The client's memory of a deployment without sandbox search (list()); a fresh probe when absent. */
+  readonly searchProbe?: SearchProbe
 }
 
 const DETAIL_FALLBACK_CONCURRENCY = 8
@@ -100,6 +102,7 @@ export async function listSandboxes(context: SandboxClientContext, options: List
   const listResponse = await searchOrList(
     () => context.api.get<api.ListSandboxesResponse>(SEARCH_PATH, { params }).then((response) => response.data),
     () => context.api.get<api.ListSandboxesResponse>('/sandboxes', { params }).then((response) => response.data),
+    context.searchProbe ?? new SearchProbe(),
   )
   const page = listPage<api.Sandbox>(listResponse, 'sandboxes', 'sandbox list')
   // Both spellings get the same check, as in Python: a mistyped cursor would end pagination silently.

@@ -136,6 +136,9 @@ func newSnapshotGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := refuseSearchName("snapshot", args[0]); err != nil {
+				return err
+			}
 			var snapshot api.Raw[gen.Snapshot]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/snapshots/"+url.PathEscape(args[0]), nil, nil, &snapshot); err != nil {
 				return err

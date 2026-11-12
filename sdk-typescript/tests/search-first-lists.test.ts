@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DaytonaError, SearchUnavailableError } from '../src/v2/index'
+import { BadRequestError, DaytonaError, SearchUnavailableError } from '../src/v2/index'
 import { searchNotServed } from '../src/v2/searchFirst'
 import { imageWire, snapshotWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
@@ -83,10 +83,63 @@ describe.each(CASES)('$name list', ({ searchPath, listPath, field, item, call, q
     expect(result.error).toMatchObject({ statusCode: 503, code: 'SEARCH_UNAVAILABLE' })
   })
 
+  it.each([[501, 'SEARCH_NOT_CONFIGURED'], [404, 'NOT_FOUND']])('remembers a deployment without search (%i): later calls go straight to the list route', async (status, code) => {
+    const result = await run(
+      [{ status, body: errorBody(code) }, { status: 200, body: page(null) }, { status: 200, body: page(null) }],
+      async (client) => {
+        await call(client)
+        return call(client)
+      },
+    )
+    expect(result.paths).toEqual([`${searchPath}${query}`, `${listPath}${query}`, `${listPath}${query}`])
+    expect(result.page?.items).toHaveLength(1)
+  })
+
+  it('does not remember a 503: the next call reads search again', async () => {
+    const result = await run(
+      [{ status: 503, body: errorBody('SEARCH_UNAVAILABLE') }, { status: 200, body: { ...page(null), total: 1, total_relation: 'eq' } }],
+      async (client) => {
+        await expect(call(client)).rejects.toBeInstanceOf(SearchUnavailableError)
+        return call(client)
+      },
+    )
+    expect(result.paths).toEqual([`${searchPath}${query}`, `${searchPath}${query}`])
+    expect(result.page?.items).toHaveLength(1)
+  })
+
   it('raises a 501 with another code without falling back', async () => {
     const result = await run([{ status: 501, body: errorBody('NOT_IMPLEMENTED') }], call)
     expect(result.paths).toEqual([`${searchPath}${query}`])
     expect(result.error).toMatchObject({ statusCode: 501, code: 'NOT_IMPLEMENTED' })
+  })
+})
+
+describe('an iter() walk on a deployment without search', () => {
+  it('probes search once, then reads every page from the list route', async () => {
+    const result = await run(
+      [
+        { status: 501, body: errorBody('SEARCH_NOT_CONFIGURED') },
+        { status: 200, body: { images: [imageWire({ id: 'img_1' })], next_cursor: 'p2' } },
+        { status: 200, body: { images: [imageWire({ id: 'img_2' })], next_cursor: null } },
+      ],
+      async (client) => {
+        const items: { id: string }[] = []
+        for await (const image of client.v2.images.iter({ limit: 1 })) items.push(image)
+        return { items }
+      },
+    )
+    expect(result.page?.items.map((item) => item.id)).toEqual(['img_1', 'img_2'])
+    expect(result.paths).toEqual(['/images/search?limit=1', '/images?limit=1', '/images?cursor=p2&limit=1'])
+  })
+})
+
+describe("'search' is not a name", () => {
+  it.each([['images', 'image'], ['snapshots', 'snapshot']] as const)('%s.get(\'search\') throws before any request', async (service, kind) => {
+    const result = await run([], async (client) => ({ items: [await client.v2[service].get('search')] }))
+    expect(result.paths).toEqual([])
+    expect(result.error).toBeInstanceOf(BadRequestError)
+    expect(result.error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    expect((result.error as Error).message).toBe(`'search' cannot be looked up by name; it is reserved for the search route — use the ${kind} ID`)
   })
 })
 

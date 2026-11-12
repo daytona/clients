@@ -1,6 +1,5 @@
 **`list()` and `search()`** — the client's `list()` and `iter()` take only a
-cursor and a limit and always read the read-your-writes sandbox list; filters
-moved to `search()`. `search()` takes `states` with SDK sandbox states
+cursor and a limit; filters moved to `search()`. `search()` takes `states` with SDK sandbox states
 (`["started", "paused"]`) instead of the API's `status` values; `"unknown"` is
 refused (and excluded from the type: Python `SearchSandboxState`). Python
 renames `ListSandboxesQuery` to `ListSandboxesOptions` and

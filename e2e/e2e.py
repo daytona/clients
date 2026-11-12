@@ -30,7 +30,7 @@ import uuid
 
 from daytona import Daytona as RootDaytona
 from daytona import DaytonaConfig, DaytonaV2Client
-from daytona.v2 import DaytonaError, ImageBuilder, RequestTimeoutError, UnsupportedOperationError
+from daytona.v2 import DaytonaError, ImageBuilder, RequestTimeoutError, Sandbox, UnsupportedOperationError
 
 IMAGE = os.environ.get("SMOKE_IMAGE", "python:3.12-slim")
 RUN = uuid.uuid4().hex[:8]
@@ -65,6 +65,17 @@ def check(label: str, cond: bool, detail: str = "") -> bool:
         FAIL += 1
         print(f"  {C_RED}FAIL{C_RESET} {label}" + (f"  ({detail})" if detail else ""))
     return cond
+
+
+def list_includes(daytona: DaytonaV2Client, box: Sandbox, timeout_s: float = 30) -> bool:
+    deadline = time.time() + timeout_s
+    while True:
+        items = daytona.list().items
+        if any(s.id == box.id or (box.name is not None and s.name == box.name) for s in items):
+            return True
+        if time.time() >= deadline:
+            return False
+        time.sleep(1)
 
 
 def wait_ready(daytona: DaytonaV2Client, image_id: str, timeout_s: float = 900) -> str:
@@ -151,7 +162,10 @@ def main() -> int:
 
         log("sandboxes: get + list")
         check("get(id)", daytona.get(box.id).id == box.id)
-        check("list includes ours", any(s.id == box.id for s in daytona.list().items))
+        # list() reads search where the deployment serves it: eventually
+        # consistent, so poll briefly. Match the name too, as a search item can
+        # carry the id in another (region-tagged) form.
+        check("list includes ours", list_includes(daytona, box))
 
         if not SKIP_TOOLBOX and box.state == "started":
             log("toolbox: exec round-trip")

@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 )
 
@@ -49,4 +50,15 @@ func getRawSearchPage[T any](ctx context.Context, probe *searchProbe, c *api.Cli
 		return output.List[api.Raw[T]]{}, false, nil
 	}
 	return list, true, err
+}
+
+// refuseSearchName refuses the reference "search" for an image or snapshot
+// get: GET /images/search and GET /snapshots/search are the search routes, so
+// that name cannot be read by name (the API reserves it for new rows). The
+// item's id still reads it.
+func refuseSearchName(kind, ref string) error {
+	if ref != "search" {
+		return nil
+	}
+	return cerr.Usage("'search' cannot be looked up by name; it is reserved for the search route — use the %s ID", kind)
 }

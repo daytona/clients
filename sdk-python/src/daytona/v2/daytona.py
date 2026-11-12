@@ -101,6 +101,7 @@ from .services import (
     AsyncSnapshotsService,
     AsyncVolumesService,
     _search_or_list,
+    _SearchProbe,
 )
 from .types import (
     AuditActionList,
@@ -244,6 +245,8 @@ class AsyncDaytona:
             max_response_bytes=resolved.max_response_bytes,
         )
         #: Images: build, pull, list, promote, delete, follow build logs.
+        # Remembers a deployment that does not serve sandbox search (list()).
+        self._sandbox_search_probe = _SearchProbe()
         self.images = AsyncImagesService(self._api)
         #: Memory snapshots (``Sandbox.create_snapshot()`` makes them).
         self.snapshots = AsyncSnapshotsService(self._api)
@@ -1007,6 +1010,7 @@ class AsyncDaytona:
             self._api,
             RequestSpec("GET", "/sandboxes/search", params=params),
             RequestSpec("GET", "/sandboxes", params=params),
+            self._sandbox_search_probe,
         )
         # The page's shape and every item's sandbox fields, as in TypeScript; the
         # per-item `cursor` is not read, so it is not required.

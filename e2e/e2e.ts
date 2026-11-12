@@ -46,6 +46,16 @@ function check(label: string, condition: boolean, detail = ''): void {
   }
 }
 
+async function listIncludes(box: Sandbox, timeoutSeconds = 30): Promise<boolean> {
+  const deadline = Date.now() + timeoutSeconds * 1000
+  for (;;) {
+    const page = await daytona.list()
+    if (page.items.some((item) => item.id === box.id || (box.name !== undefined && item.name === box.name))) return true
+    if (Date.now() >= deadline) return false
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
+
 // One `images.get({ wait: 'ready' })` with the whole budget: it repeats the
 // server's long poll and returns the image once it settles (`ready`, `failed`
 // or `error`), or throws `RequestTimeoutError` when the budget runs out,
@@ -103,7 +113,10 @@ async function main(): Promise<number> {
       }
     }
     check('get(id)', (await daytona.get(box.id)).id === box.id)
-    check('list includes sandbox', (await daytona.list()).items.some((item) => item.id === box.id))
+    // list() reads search where the deployment serves it: eventually
+    // consistent, so poll briefly. Match the name too, as a search item can
+    // carry the id in another (region-tagged) form.
+    check('list includes sandbox', await listIncludes(box))
 
     if (!skipToolbox && box.state === 'started') {
       const result = await box.process.run('echo daytona-$((6*7))')

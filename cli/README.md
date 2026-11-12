@@ -358,8 +358,10 @@ never prompts:
   to 100, default 20; `billing usage-periods` 1 to 60, default 12),
   `--cursor <token>` and `--all` page through it. Where the deployment serves
   search, `sandbox list`, `image list` and `snapshot list` read it: one
-  request spans every region (`--region` becomes its region filter), and the
-  results are eventually consistent, so an item created a few seconds ago may
+  request spans every region (for `sandbox list`, `--region` becomes its
+  region filter; `image list` filters the results itself, keeping every image
+  available in the region, not only those homed there), and the results are
+  eventually consistent, so an item created a few seconds ago may
   be missing (`get` reads it at once). Otherwise `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
   unless `--region` narrows them. With `--region R` they ask every API that
