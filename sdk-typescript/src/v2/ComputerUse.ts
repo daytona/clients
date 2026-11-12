@@ -55,7 +55,14 @@ export class ComputerUseService {
     return this.lifecycle.status()
   }
 
-  /** See `ComputerUseLifecycleService.start`: `resolution` selects the desktop size. */
+  /**
+   * Start the desktop. `resolution` selects its size (1024x768, 1280x720 or
+   * 1920x1080) and is kept for later starts and restarts; omitted, the desktop
+   * uses the resolution it last started at, or 1280x720. Starting a running
+   * desktop at a different resolution throws `ConflictError` (restart with it
+   * instead). Linux sandboxes only: other platforms throw
+   * `UnsupportedOperationError` for a `resolution`.
+   */
   public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
     return this.lifecycle.start(options)
   }
@@ -64,7 +71,11 @@ export class ComputerUseService {
     return this.lifecycle.stop()
   }
 
-  /** See `ComputerUseLifecycleService.restart`: `resolution` restarts at that size. */
+  /**
+   * Restart the desktop, at `resolution` when given (kept for later starts);
+   * omitted, at its current resolution. Linux sandboxes only: other platforms
+   * throw `UnsupportedOperationError` for a `resolution`.
+   */
   public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
     return this.lifecycle.restart(options)
   }
