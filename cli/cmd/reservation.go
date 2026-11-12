@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/google/uuid"
@@ -64,11 +65,11 @@ func newReservationGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			if err := client.Do(cmd.Context(), http.MethodGet, "/reservations/"+url.PathEscape(args[0]), nil, nil, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 }
@@ -77,13 +78,19 @@ func newReservationRenewCommand() *cobra.Command {
 	var idempotencyKey string
 	cmd := &cobra.Command{
 		Use:   "renew ID",
-		Short: "Renew a Mac reservation for another period",
+		Short: "Charge and renew a Mac reservation for another period",
 		Long: "Charge the next period of an active reservation (POST /reservations/{id}/renew); period_end moves out by one period on the same Mac. The SDK twin is reservations.renew(…).\n" +
+			"Asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1).\n" +
 			"Without --idempotency-key the CLI sends a fresh key; pass your own to retry without paying for a second period.\n" +
-			"Example:\n  daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2",
+			"Example:\n  daytona reservation renew RESERVATION_ID --idempotency-key renew-RESERVATION_ID-2 --yes",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			// Consent comes before anything else: resolving the client can
+			// exchange a token or mint a project key.
+			if err := a.Confirm("renew", "reservation "+args[0]+" for another period, billed to the organization"); err != nil {
+				return err
+			}
 			if !cmd.Flags().Changed("idempotency-key") {
 				idempotencyKey = uuid.NewString()
 			}
@@ -91,12 +98,12 @@ func newReservationRenewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			headers := http.Header{"Idempotency-Key": {idempotencyKey}}
 			if err := client.DoWithHeaders(cmd.Context(), http.MethodPost, "/reservations/"+url.PathEscape(args[0])+"/renew", nil, headers, nil, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
 	cmd.Flags().StringVar(&idempotencyKey, "idempotency-key", "", "a retry with the same key returns the reservation without charging another period (default: a fresh key per invocation)")
@@ -109,7 +116,8 @@ func newReservationUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update ID",
 		Short: "Turn a Mac reservation's auto-renew on or off",
-		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use on it; stopped and paused sandboxes do not renew it. With auto-renew off, the reservation ends at period_end.\n" +
+		Long: "Turn auto-renew on or off (PATCH /reservations/{id}). An auto-renewing reservation renews near period_end only while a sandbox is in use or paused on it; stopped sandboxes do not renew it. With auto-renew off, the reservation ends at period_end, and its paused sandboxes are stopped with their disks before then.\n" +
+			"Enabling auto-renew commits future charges: asks for confirmation at a terminal; off a terminal pass --yes (or set DAYTONA_YES=1). Disabling it needs no confirmation.\n" +
 			"Examples:\n" +
 			"  " + reservationUpdateExample + "\n" +
 			"  daytona reservation update RESERVATION_ID --auto-renew=true",
@@ -119,19 +127,24 @@ func newReservationUpdateCommand() *cobra.Command {
 				return cerr.Usage("reservation update needs --auto-renew=true or --auto-renew=false; example: " + reservationUpdateExample)
 			}
 			a := FromContext(cmd.Context())
+			if autoRenew {
+				if err := a.Confirm("enable auto-renew", "reservation "+args[0]+", with future periods billed to the organization"); err != nil {
+					return err
+				}
+			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
 			}
-			var reservation gen.MacReservation
+			var reservation api.Raw[gen.MacReservation]
 			req := gen.UpdateReservationRequest{AutoRenew: autoRenew}
 			if err := client.Do(cmd.Context(), http.MethodPatch, "/reservations/"+url.PathEscape(args[0]), nil, req, &reservation); err != nil {
 				return err
 			}
-			return a.Printer().Object(reservation, reservationKV(reservation))
+			return a.Printer().Object(reservation, reservationKV(reservation.V))
 		},
 	}
-	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use on the reservation; false lets it end at period_end")
+	cmd.Flags().BoolVar(&autoRenew, "auto-renew", false, "renew near period_end while a sandbox is in use or paused on the reservation; false lets it end at period_end")
 	return cmd
 }
 
@@ -187,7 +200,6 @@ func reservationKV(reservation gen.MacReservation) [][2]string {
 		{"memory_mib_total", usage.memTotal},
 		{"disk_mib_used", usage.diskUsed},
 		{"disk_mib_total", usage.diskTotal},
-		{"sandboxes_per_mac", strconv.Itoa(int(reservation.SandboxesPerMac))},
 		{"slots_used", strconv.FormatInt(reservation.SlotsUsed, 10)},
 		{"auto_renew", strconv.FormatBool(reservation.AutoRenew)},
 		{"period_end", formatTimePtr(reservation.PeriodEnd)},

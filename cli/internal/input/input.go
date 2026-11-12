@@ -57,13 +57,15 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 }
 
 // Set writes a field unconditionally.
-func (b Body) Set(key string, v any) { b[key] = v }
+func (b Body) Set(key string, v any) {
+	b[key] = v
+}
 
 // SetIfChanged writes a field only when the flag was explicitly given, so a
 // flag's default never clobbers a value from --file.
 func (b Body) SetIfChanged(fs *pflag.FlagSet, flag, key string, v any) {
 	if fs.Changed(flag) {
-		b[key] = v
+		b.Set(key, v)
 	}
 }
 
@@ -75,10 +77,11 @@ func (b Body) Require(key, flag string) error {
 	return nil
 }
 
+// RejectNulls refuses an explicit null for any of fields: the API
+// distinguishes null from omitted where these are used.
 func RejectNulls(b Body, fields ...string) error {
 	for _, field := range fields {
-		value, ok := b[field]
-		if ok && value == nil {
+		if value, ok := b[field]; ok && value == nil {
 			return cerr.Usage("%q is not nullable; omit it to keep the current value", field)
 		}
 	}
@@ -113,14 +116,30 @@ func (b Body) String() string {
 	return fmt.Sprintf("%s", j)
 }
 
+// CheckKeysFor checks b's keys against request type T's field names
+// (CheckKeys); Decode runs it too.
+func CheckKeysFor[T any](b Body) error {
+	var v T
+	fields, ok := requestFields[fmt.Sprintf("%T", v)]
+	if !ok {
+		return cerr.New(cerr.ExitFailure, "no field table for %T (regenerate request_fields_gen.go)", v)
+	}
+	return CheckKeys(fields, map[string]any(b))
+}
+
 // Decode marshals the merged body into a typed request struct, so the server's
 // schema (via the generated types) validates what the flags and --file
 // produced. Explicit JSON nulls are not representable once a generated
 // `omitempty` pointer field is materialized into the typed request, so callers
 // must reject them before Decode when the API distinguishes null from omitted.
+// Keys must name request fields exactly (CheckKeys); encoding/json alone
+// would also accept a key that differs only in case.
 // One implementation for every command family.
 func Decode[T any](b Body) (T, error) {
 	var out T
+	if err := CheckKeysFor[T](b); err != nil {
+		return out, err
+	}
 	raw, err := json.Marshal(b)
 	if err != nil {
 		return out, fmt.Errorf("encode request body: %w", err)

@@ -7,22 +7,24 @@ on:
     branches: [main]
     paths:
       - 'upgrade/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - 'scripts/**'
-      - 'python/**'
-      - 'typescript/**'
+      - 'sdk-python/**'
+      - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
-      - '.github/workflows/upgrade-tool-publish.yaml'
+      - '.github/workflows/sdk_publish.yaml'
+      - '.github/workflows/prepare-release.yaml'
       - 'scripts/test-upgrade.sh'
   pull_request:
     paths:
       - 'upgrade/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - 'scripts/**'
-      - 'python/**'
-      - 'typescript/**'
+      - 'sdk-python/**'
+      - 'sdk-typescript/**'
       - '.github/workflows/upgrade-tool-ci.yaml'
-      - '.github/workflows/upgrade-tool-publish.yaml'
+      - '.github/workflows/sdk_publish.yaml'
+      - '.github/workflows/prepare-release.yaml'
       - 'scripts/test-upgrade.sh'
 
 permissions:
@@ -37,19 +39,19 @@ jobs:
     name: Mapping, guide and SDK surface coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: typescript/package-lock.json
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+          cache-dependency-path: sdk-typescript/package-lock.json
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Install the SDK compiler dependency
-        working-directory: typescript
+        working-directory: sdk-typescript
         run: npm ci --no-audit --no-fund
       - name: Script regressions (root export scanner, migration notes)
         run: node --test upgrade/scripts/*.test.mjs
@@ -74,10 +76,10 @@ jobs:
       run:
         working-directory: upgrade/typescript
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -90,7 +92,7 @@ jobs:
           npm run build
           npm pack --dry-run --ignore-scripts
       # Check dependency installation and the built CLI on the oldest supported Node major.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '20'
       - name: Install and run the built CLI on Node 20
@@ -119,10 +121,10 @@ jobs:
       matrix:
         shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -148,16 +150,16 @@ jobs:
     env:
       UV_PYTHON: ${{ matrix.python }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: ${{ matrix.python }}
+      # uv installs the interpreter itself: the runner image no longer
+      # carries every supported version (3.9 is gone from Ubuntu 26.04).
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Install
         run: |
           set -euo pipefail
-          python -m pip install --upgrade uv
+          uv python install "$UV_PYTHON"
           uv sync --locked
       # ruff checks source, not the interpreter (target-version is pinned): once is enough.
       - name: Lint
@@ -177,15 +179,15 @@ jobs:
     name: Pinned 0.x TypeScript examples upgraded and type-checked against 2.x
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            typescript/package-lock.json
+            sdk-typescript/package-lock.json
             upgrade/typescript/package-lock.json
       - name: Build the 2.x TypeScript SDK with the pinned v0 bundle
         run: |
@@ -194,7 +196,7 @@ jobs:
           git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
             "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
           DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang typescript --src "$RUNNER_TEMP/v0-src" "$tag"
-          (cd typescript && npm install --no-audit --no-fund && npm run build \
+          (cd sdk-typescript && npm install --no-audit --no-fund && npm run build \
             && mkdir -p "$RUNNER_TEMP/sdk-ts" && npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/sdk-ts")
       - name: Upgrade the examples and type-check them
         run: |
@@ -214,10 +216,10 @@ jobs:
     name: Pinned 0.x Python examples upgraded and type-checked against 2.x
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Build the 2.x Python SDK with the pinned v0 bundle
@@ -228,7 +230,7 @@ jobs:
           git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$tag" \
             "https://github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/v0-src"
           DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang python --src "$RUNNER_TEMP/v0-src" "$tag"
-          (cd python && python -m build --wheel --outdir "$RUNNER_TEMP/sdk-py")
+          (cd sdk-python && python -m build --wheel --outdir "$RUNNER_TEMP/sdk-py")
       - name: Upgrade the examples and type-check them
         run: |
           set -euo pipefail
@@ -240,10 +242,10 @@ jobs:
     name: Python tool tests against the pinned 0.x examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Fetch the pinned 0.x examples

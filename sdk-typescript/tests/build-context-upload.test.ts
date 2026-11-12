@@ -1,0 +1,656 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { runInNewContext } from 'node:vm'
+import { createHash } from 'node:crypto'
+import { createServer } from 'node:http'
+import type { IncomingHttpHeaders, Server } from 'node:http'
+import { once } from 'node:events'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { ImagesService } from '../src/v2/Images.js'
+import { createHttpClient } from '../src/v2/http.js'
+import { INTERNAL } from '../src/v2/internal.js'
+import { contextUploadRuntime, streamsParts } from '../src/v2/contextUpload.js'
+import { Sha256 } from '../src/v2/sha256.js'
+import { imageWire } from './artifactFixtures.js'
+import { BadRequestError, ConflictError, ConnectionError, DaytonaError, ServiceUnavailableError } from '../src/v2/errors/DaytonaError.js'
+
+const UPLOAD_ID = '0b6d2c8e-8a1f-4c1e-9d7a-3f0e5b2a9c41'
+const SIGNATURE = 'X-Amz-Signature=fixture-signature'
+
+interface Seen { method: string; url: string; headers: IncomingHttpHeaders; body: Buffer }
+
+let server: Server
+let baseUrl: string
+let seen: Seen[]
+let partSize: number
+let ready: boolean
+let putStatuses: number[]
+let partStatuses: Map<number, number[]>
+let onPut: ((part: number) => Promise<void>) | undefined
+let rewriteParts: ((parts: Array<Record<string, unknown>>) => Array<Record<string, unknown>>) | undefined
+let rewriteUpload: ((upload: Record<string, unknown>) => unknown) | undefined
+let completeStatuses: number[]
+let completeDelays: number[]
+let createResponse: unknown
+let imagesDelayMs: number
+let uploadId: string
+const defaultCompleteTimeoutMs = contextUploadRuntime.completeTimeoutMs
+const defaultIsNode = contextUploadRuntime.isNode
+const defaultStreamsParts = contextUploadRuntime.streamsParts
+const tempDirs: string[] = []
+
+async function tempDir(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'ctx-'))
+  tempDirs.push(dir)
+  return dir
+}
+
+function service(requestTimeoutMs = 5_000): ImagesService {
+  return new ImagesService(INTERNAL, createHttpClient(baseUrl, 'fixture-key', requestTimeoutMs))
+}
+
+const partNumber = (url: string): number => Number(url.split('?')[0].split('/').pop())
+const delay = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms).unref() })
+
+function json(method: string, url: string): unknown {
+  const matches = seen.filter((request) => request.method === method && request.url === url)
+  expect(matches).toHaveLength(1)
+  return JSON.parse(matches[0].body.toString())
+}
+
+const puts = (): Seen[] => seen.filter((request) => request.method === 'PUT')
+const inPartOrder = (requests: Seen[]): Buffer => Buffer.concat([...requests].sort((a, b) => partNumber(a.url) - partNumber(b.url)).map((request) => request.body))
+const completes = (): Seen[] => seen.filter((request) => request.url.endsWith('/complete'))
+
+function archive(size = 0): Uint8Array {
+  // Content is opaque to the client; the API verifies the tar.
+  return new Uint8Array(Buffer.concat([Buffer.from('FROM alpine\n'), Buffer.alloc(size, 0x78)]))
+}
+
+beforeEach(async () => {
+  seen = []
+  partSize = 4096
+  ready = false
+  putStatuses = []
+  partStatuses = new Map()
+  onPut = undefined
+  rewriteParts = undefined
+  rewriteUpload = undefined
+  completeStatuses = []
+  completeDelays = []
+  createResponse = { id: 'img-ctx', status: 'pending' }
+  imagesDelayMs = 0
+  uploadId = UPLOAD_ID
+  contextUploadRuntime.sleep = async () => {}
+  contextUploadRuntime.completeTimeoutMs = defaultCompleteTimeoutMs
+  contextUploadRuntime.isNode = defaultIsNode
+  contextUploadRuntime.streamsParts = defaultStreamsParts
+  server = createServer((request, response) => {
+    const chunks: Buffer[] = []
+    request.on('data', (chunk: Buffer) => chunks.push(chunk))
+    request.on('end', async () => {
+      const body = Buffer.concat(chunks)
+      seen.push({ method: request.method ?? '', url: request.url ?? '', headers: request.headers, body })
+      const reply = (status: number, payload?: unknown): void => {
+        response.statusCode = status
+        response.setHeader('Content-Type', 'application/json')
+        // A redirect names a target a follower would request.
+        if (status >= 300 && status < 400) response.setHeader('Location', `${baseUrl}/bucket/redirected`)
+        response.end(payload === undefined ? '' : JSON.stringify(payload))
+      }
+      const upload = (state: string, declared: { dockerfile: string; bytes: number; sha256: string }, parts: unknown[]) => ({
+        id: uploadId, state, region_id: 'region-c', dockerfile: declared.dockerfile, bytes: declared.bytes, sha256: declared.sha256, parts,
+      })
+      if (request.method === 'PUT') {
+        const part = partNumber(request.url ?? '')
+        await onPut?.(part)
+        return reply((partStatuses.get(part) ?? putStatuses).shift() ?? 200)
+      }
+      if (request.url === '/build-contexts') {
+        const declared = JSON.parse(body.toString()) as { dockerfile: string; bytes: number; sha256: string }
+        if (ready) return reply(200, rewriteUpload?.(upload('ready', declared, [])) ?? upload('ready', declared, []))
+        const parts: Array<Record<string, unknown>> = []
+        for (let offset = 0, number = 1; offset < declared.bytes; offset += partSize, number++) {
+          parts.push({ part_number: number, bytes: Math.min(partSize, declared.bytes - offset), url: `${baseUrl}/bucket/part/${number}?${SIGNATURE}` })
+        }
+        const answer = upload('uploading', declared, rewriteParts?.(parts) ?? parts)
+        return reply(201, rewriteUpload?.(answer) ?? answer)
+      }
+      if (request.url === `/build-contexts/${UPLOAD_ID}/complete`) {
+        const status = completeStatuses.shift() ?? 200
+        await delay(completeDelays.shift() ?? 0)
+        if (response.destroyed) return
+        if (status !== 200) return reply(status, { message: 'not now', code: 'UNAVAILABLE', source: 'API' })
+        return reply(200, upload('ready', { dockerfile: 'Dockerfile', bytes: 1, sha256: '' }, []))
+      }
+      if (request.url === '/images') {
+        await delay(imagesDelayMs)
+        if (response.destroyed) return
+        return reply(202, createResponse)
+      }
+      if (request.url === '/images/img-ctx') return reply(200, imageWire({ id: 'img-ctx', status: 'pending', region_id: 'region-c', region_ids: [], origin: 'dockerfile' }))
+      reply(404, { message: 'not found', code: 'NOT_FOUND', source: 'API' })
+    })
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new TypeError('expected TCP address')
+  baseUrl = `http://127.0.0.1:${address.port}`
+})
+
+afterEach(async () => {
+  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+  server.closeAllConnections()
+  await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+})
+
+it.each([
+  ['a ready upload without an id', true, ({ id: _id, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no id'],
+  ['a ready upload without parts', true, ({ parts: _parts, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no parts'],
+  ['an upload without a state', false, ({ state: _state, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no state'],
+  ['a ready upload without a region', true, ({ region_id: _region, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no region_id'],
+  ['an upload without parts', false, ({ parts: _parts, ...rest }: Record<string, unknown>) => rest, 'build context upload response has no parts'],
+  ['an unknown state without parts', false, ({ parts: _parts, ...rest }: Record<string, unknown>) => ({ ...rest, state: 'future' }), 'build context upload response has no parts'],
+  ['a part whose url is not a string', false, (upload: Record<string, unknown>) => ({ ...upload, parts: (upload.parts as Array<Record<string, unknown>>).map((part) => ({ ...part, url: 5 })) }), 'build context upload response has a malformed part'],
+  ['a body that is not an object', false, () => [1], 'build context upload response is not an object'],
+])('refuses %s as a malformed response, before any other request (as Python)', async (_name, isReady, rewrite, message) => {
+  ready = isReady
+  rewriteUpload = rewrite
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(BadRequestError)
+  expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  expect(puts()).toHaveLength(0)
+  expect(seen.some((request) => request.url === '/images' || request.url.endsWith('/complete'))).toBe(false)
+})
+
+it('fails a redirected part with the redirect error, without retrying it', async () => {
+  // Given storage that answers a part with a redirect.
+  partSize = 1 << 20
+  putStatuses = [302]
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  // Then the SDK follows no redirect (as Python): one PUT, the redirect error
+  // with its status, nothing completed or built.
+  expect(error).toBeInstanceOf(DaytonaError)
+  expect((error as Error).constructor).toBe(DaytonaError)
+  expect(error).toMatchObject({ statusCode: 302, source: 'SDK' })
+  expect(puts()).toHaveLength(1)
+  expect(seen.some((request) => request.url.startsWith('/bucket/redirected'))).toBe(false)
+  expect(completes()).toHaveLength(0)
+  expect(seen.some((request) => request.url === '/images')).toBe(false)
+})
+
+it.each(['bytes', 'file'] as const)('uploads a %s context in parts, completes it and builds from it', async (kind) => {
+  // Given a context larger than one part, as bytes or as a tar file.
+  const data = archive(10_000)
+  let context: Uint8Array | string = data
+  if (kind === 'file') {
+    context = join(await tempDir(), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  // When it is built from the context.
+  const image = await service().buildFromContext(context, { dockerfile: 'Dockerfile', name: 'web', region: 'region-c' })
+  // Then the declaration names the archive, the parts carry it whole and
+  // unauthenticated, the upload is completed and the build names it.
+  expect(json('POST', '/build-contexts')).toEqual({
+    dockerfile: 'Dockerfile', bytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex'), region_id: 'region-c',
+  })
+  expect(puts()).toHaveLength(Math.ceil(data.byteLength / partSize))
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+  expect(puts().every((request) => request.headers.authorization === undefined)).toBe(true)
+  expect(json('POST', `/build-contexts/${UPLOAD_ID}/complete`)).toEqual({ region_id: 'region-c' })
+  expect(json('POST', '/images')).toEqual({ context_upload_id: UPLOAD_ID, region_id: 'region-c', name: 'web' })
+  expect(image.id).toBe('img-ctx')
+})
+
+it('builds from an already uploaded context without uploading it again', async () => {
+  ready = true
+  await service().buildFromContext(new Blob([archive() as Uint8Array<ArrayBuffer>]))
+  expect(puts()).toHaveLength(0)
+  expect(completes()).toHaveLength(0)
+  expect(json('POST', '/images')).toMatchObject({ context_upload_id: UPLOAD_ID })
+})
+
+it.each(['bytes', 'file'] as const)('retries a %s part after a storage error', async (kind) => {
+  partSize = 1 << 20
+  putStatuses = [503]
+  const data = archive()
+  let context: Uint8Array | string = data
+  if (kind === 'file') {
+    context = join(await tempDir(), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  await service().buildFromContext(context)
+  expect(puts().map((request) => request.body)).toEqual([Buffer.from(data), Buffer.from(data)])
+  expect(completes()).toHaveLength(1)
+})
+
+it('fails a refused part without revealing its URL, and completes nothing', async () => {
+  // Given storage that refuses a part, as it does once its URL expired.
+  partSize = 1 << 20
+  putStatuses = [403]
+  // When it is built from the context.
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  // Then the error names the part but not the URL or its signature.
+  expect(error).toBeInstanceOf(BadRequestError)
+  const text = `${String(error)} ${JSON.stringify(error)} ${String((error as { cause?: unknown }).cause)}`
+  expect(text).toContain('part 1')
+  expect(text).not.toContain(SIGNATURE)
+  expect(text).not.toContain('/bucket/')
+  expect(completes()).toHaveLength(0)
+  expect(seen.some((request) => request.url === '/images')).toBe(false)
+})
+
+it.each([
+  ['out of order', (parts: Array<Record<string, unknown>>) => [parts[1], parts[0]]],
+  ['with an empty part', (parts: Array<Record<string, unknown>>) => [...parts, { ...parts[parts.length - 1], part_number: parts.length + 1, bytes: 0 }]],
+])('refuses parts %s before uploading any', async (_, rewrite) => {
+  rewriteParts = rewrite
+  const error = await service().buildFromContext(archive(10_000)).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(BadRequestError)
+  expect(String(error)).toContain('do not cover the archive')
+  expect(puts()).toHaveLength(0)
+  expect(completes()).toHaveLength(0)
+  expect(seen.some((request) => request.url === '/images')).toBe(false)
+})
+
+it('reports storage that keeps failing as unavailable', async () => {
+  partSize = 1 << 20
+  putStatuses = [500, 502, 503]
+  await expect(service().buildFromContext(archive())).rejects.toBeInstanceOf(ServiceUnavailableError)
+  expect(puts()).toHaveLength(3)
+})
+
+it('reports unreachable storage as a connection error without its URL', async () => {
+  const original = contextUploadRuntime.fetch
+  contextUploadRuntime.fetch = async () => { throw new TypeError(`fetch failed for ${baseUrl}/bucket/part/1?${SIGNATURE}`) }
+  try {
+    partSize = 1 << 20
+    const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ConnectionError)
+    expect(`${String(error)} ${String((error as { cause?: unknown }).cause)}`).not.toContain(SIGNATURE)
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it.each([
+  { context: new Uint8Array(), message: 'build context is empty' },
+  { context: '/nonexistent/ctx.tar', message: 'is not a file' },
+  // SAFETY: a deliberately invalid plain-JavaScript argument.
+  { context: 42 as never, message: 'context must be the bytes of a tar archive, a Blob, or the path of a tar file' },
+])('refuses an unusable context before any request ($message)', async ({ context, message }) => {
+  const pending = service().buildFromContext(context)
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow(message)
+  expect(seen).toHaveLength(0)
+})
+
+it.each(['bytes', 'blob', 'file'] as const)('sends each %s part with its own length, not chunked', async (kind) => {
+  const data = archive(10_000)
+  let context: Uint8Array | Blob | string = data
+  if (kind === 'blob') context = new Blob([data as Uint8Array<ArrayBuffer>])
+  if (kind === 'file') {
+    context = join(await tempDir(), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  await service().buildFromContext(context)
+  expect(puts().length).toBeGreaterThan(1)
+  expect(puts().every((request) => request.headers['content-length'] === String(request.body.byteLength))).toBe(true)
+  expect(puts().every((request) => request.headers['transfer-encoding'] === undefined)).toBe(true)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+it('uploads a view of shared memory as a copy of its bytes', async () => {
+  const data = archive(10_000)
+  const shared = new Uint8Array(new SharedArrayBuffer(data.byteLength))
+  shared.set(data)
+  await service().buildFromContext(shared)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+it('uploads an ArrayBuffer from another realm', async () => {
+  const data = archive(10_000)
+  const foreign = runInNewContext(`new ArrayBuffer(${data.byteLength})`) as ArrayBuffer
+  new Uint8Array(foreign).set(data)
+  expect(foreign instanceof ArrayBuffer).toBe(false)
+  await service().buildFromContext(foreign)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+// Shared with the Python SDK's test_build_context_upload.py: every bytes-like
+// value is a context, read as its exact byte range.
+it.each(['arraybuffer', 'dataview', 'int8array'] as const)('uploads a %s context as its exact bytes', async (kind) => {
+  const data = archive(10_000)
+  const padded = new Uint8Array(data.byteLength + 2)
+  padded.set(data, 1)
+  const context = kind === 'arraybuffer'
+    ? data.slice().buffer
+    : kind === 'dataview' ? new DataView(padded.buffer, 1, data.byteLength) : new Int8Array(padded.buffer, 1, data.byteLength)
+  await service().buildFromContext(context)
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})
+
+it('refuses a file that changes while it is being uploaded', async () => {
+  // Given a context file rewritten after it was declared, with parts longer
+  // than the one chunk a part's stream reads before it is sent.
+  partSize = 3 << 20
+  const path = join(await tempDir(), 'ctx.tar')
+  await writeFile(path, archive(5 << 20))
+  const original = contextUploadRuntime.fetch
+  contextUploadRuntime.fetch = async (input, init) => {
+    await writeFile(path, 'short')
+    return original(input, init)
+  }
+  try {
+    // When it is built from the context, it fails as a changed context.
+    const error = await service().buildFromContext(path).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(String(error)).toContain('changed while it was being uploaded')
+    expect(String(error)).not.toContain(SIGNATURE)
+    expect(completes()).toHaveLength(0)
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it.each(['bytes', 'blob', 'file'] as const)('uploads %s parts in parallel, up to the limit', async (kind) => {
+  // Given storage that holds each PUT until four are in flight.
+  const limit = 4
+  let inFlight = 0
+  let peak = 0
+  let release!: () => void
+  const full = new Promise<void>((resolve) => { release = resolve })
+  onPut = async () => {
+    inFlight++
+    peak = Math.max(peak, inFlight)
+    if (inFlight === limit) release()
+    await Promise.race([full, delay(5_000)])
+    inFlight--
+  }
+  partSize = 1024
+  const data = archive(10_000)
+  let context: Uint8Array | Blob | string = data
+  if (kind === 'blob') context = new Blob([data as Uint8Array<ArrayBuffer>])
+  if (kind === 'file') {
+    context = join(await tempDir(), 'ctx.tar')
+    await writeFile(context, data)
+  }
+  // When a context of more parts than the limit is uploaded.
+  await service().buildFromContext(context)
+  // Then exactly the limit was in flight, each part carries its own slice,
+  // and the upload is completed once.
+  expect(peak).toBe(limit)
+  expect(puts().length).toBeGreaterThan(limit)
+  for (const request of puts()) {
+    const number = partNumber(request.url)
+    expect(request.body).toEqual(Buffer.from(data.subarray((number - 1) * partSize, number * partSize)))
+  }
+  expect(completes()).toHaveLength(1)
+})
+
+it('throws the refusal of one part among parallel parts as itself', async () => {
+  partSize = 1024
+  partStatuses = new Map([[2, [403]]])
+  const error = await service().buildFromContext(archive(10_000)).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(BadRequestError)
+  expect(String(error)).toContain('part 2 ')
+  expect(String(error)).not.toContain(SIGNATURE)
+  expect(completes()).toHaveLength(0)
+})
+
+it('retries a complete the server failed', async () => {
+  completeStatuses = [503, 502]
+  const image = await service().buildFromContext(archive())
+  expect(completes()).toHaveLength(3)
+  expect(image.id).toBe('img-ctx')
+})
+
+it('gives up on a complete that keeps failing', async () => {
+  completeStatuses = [500, 500, 500]
+  const error = await service().buildFromContext(archive()).catch((caught: unknown) => caught)
+  expect(error).toBeInstanceOf(DaytonaError)
+  expect((error as DaytonaError).statusCode).toBe(500)
+  expect(completes()).toHaveLength(3)
+  expect(seen.some((request) => request.url === '/images')).toBe(false)
+})
+
+it('does not retry a complete the server refused', async () => {
+  completeStatuses = [409]
+  await expect(service().buildFromContext(archive())).rejects.toBeInstanceOf(ConflictError)
+  expect(completes()).toHaveLength(1)
+})
+
+it('waits for a complete longer than the request timeout', async () => {
+  contextUploadRuntime.completeTimeoutMs = 5_000
+  completeDelays = [500]
+  await service(200).buildFromContext(archive())
+  expect(completes()).toHaveLength(1)
+})
+
+it('retries a complete that timed out', async () => {
+  contextUploadRuntime.completeTimeoutMs = 300
+  completeDelays = [1_000]
+  const image = await service(100).buildFromContext(archive())
+  expect(completes()).toHaveLength(2)
+  expect(image.id).toBe('img-ctx')
+})
+
+it('writes no part URL to the console or the standard streams', async () => {
+  const written: string[] = []
+  const capture = (...args: unknown[]): boolean => { written.push(args.map(String).join(' ')); return true }
+  const spies = [
+    ...(['log', 'info', 'warn', 'error', 'debug'] as const).map((method) => jest.spyOn(console, method).mockImplementation(capture)),
+    jest.spyOn(process.stdout, 'write').mockImplementation(capture),
+    jest.spyOn(process.stderr, 'write').mockImplementation(capture),
+  ]
+  try {
+    partSize = 1024
+    putStatuses = [503]
+    await service().buildFromContext(archive(10_000))
+  } finally {
+    for (const spy of spies) spy.mockRestore()
+  }
+  expect(written.filter((line) => line.includes(SIGNATURE) || line.includes('/bucket/'))).toEqual([])
+})
+
+it('refuses a name with an idle expiry before any request', async () => {
+  await expect(service().buildFromContext(archive(), { name: 'web', idleExpirySeconds: 60 })).rejects.toThrow(
+    new BadRequestError('idleExpirySeconds applies only to an anonymous image; omit name or idleExpirySeconds', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
+  )
+  expect(seen).toEqual([])
+})
+
+it('reports an invalid option before the name and idle pair (as Python)', async () => {
+  await expect(service().buildFromContext(archive(), { name: '', idleExpirySeconds: 60 })).rejects.toMatchObject({ message: 'name must be a non-empty string' })
+  expect(seen).toEqual([])
+})
+
+it('builds with no name and an idle expiry (as Python name=None)', async () => {
+  // SAFETY: null, as plain JavaScript can pass; it means no name.
+  await service().buildFromContext(archive(), { name: null, idleExpirySeconds: 60 } as never)
+  const body = json('POST', '/images') as Record<string, unknown>
+  expect(body.idle_expiry_seconds).toBe(60)
+  expect(body).not.toHaveProperty('name')
+})
+
+it('bounds the build request by timeoutSeconds instead of the request timeout (as Python timeout)', async () => {
+  // Given a build request that answers after 300 ms.
+  imagesDelayMs = 300
+  // A longer timeoutSeconds outlives a shorter request timeout, and 0 is no limit.
+  await expect(service(100).buildFromContext(archive(), { timeoutSeconds: 5 })).resolves.toMatchObject({ id: 'img-ctx' })
+  await expect(service(100).buildFromContext(archive(), { timeoutSeconds: 0 })).resolves.toMatchObject({ id: 'img-ctx' })
+  // A shorter one cuts the request although the request timeout would not.
+  const error = await service(5_000).buildFromContext(archive(), { timeoutSeconds: 0.05 }).catch((caught: unknown) => caught)
+  expect(error).toMatchObject({ name: 'ClientTimeoutError', source: 'SDK' })
+})
+
+it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '30', null])('refuses timeoutSeconds %p before any request', async (timeoutSeconds) => {
+  // SAFETY: deliberately invalid values, as plain JavaScript can pass.
+  const pending = service().buildFromContext(archive(), { timeoutSeconds } as never)
+  await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'timeoutSeconds must be a non-negative number of seconds' })
+  expect(seen).toEqual([])
+})
+
+it('refuses an unknown option before any request', async () => {
+  // SAFETY: a deliberately misspelled option, as plain JavaScript can pass.
+  const options = { dockerFile: 'alt/Dockerfile' } as never
+  await expect(service().buildFromContext(archive(), options)).rejects.toThrow(
+    new BadRequestError('BuildFromContextOptions has no option `dockerFile`', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }),
+  )
+  expect(seen).toEqual([])
+})
+
+it.each([
+  { option: 'a blank name', options: { name: ' ' }, message: 'name must be a non-empty string' },
+  { option: 'an unknown cpuArch', options: { cpuArch: 'x86' as never }, message: 'cpuArch must be "amd64" or "arm64"' },
+  { option: 'a zero idle expiry', options: { idleExpirySeconds: 0 }, message: 'idleExpirySeconds must be -1 (the maximum) or a positive integer number of seconds' },
+  { option: 'a non-string dockerfile', options: { dockerfile: 42 as never }, message: 'dockerfile must be a non-empty path' },
+])('refuses $option before any request', async ({ options, message }) => {
+  const pending = service().buildFromContext(archive(), options)
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow(message)
+  expect(seen).toEqual([])
+})
+
+it.each([
+  { region: undefined, sent: undefined },
+  { region: 'local', sent: undefined },
+  { region: ' ', sent: undefined },
+  { region: 'eu-1', sent: 'eu-1' },
+])('declares the upload in region $region as build() selects it', async ({ region, sent }) => {
+  await service().buildFromContext(archive(), { region })
+  expect((json('POST', '/build-contexts') as { region_id?: string }).region_id).toBe(sent)
+  // The build always names the region the upload was verified in.
+  expect((json('POST', '/images') as { region_id?: string }).region_id).toBe('region-c')
+})
+
+it.each(['.', '..'])('refuses an upload id of %s before any part is sent', async (id) => {
+  uploadId = id
+  const pending = service().buildFromContext(archive(10_000))
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow('build context upload id')
+  expect(puts()).toEqual([])
+  expect(completes()).toEqual([])
+})
+
+it.each([
+  { name: 'no id', response: { status: 'pending' } },
+  { name: 'a blank id', response: { id: '', status: 'pending' } },
+])('refuses a create response with $name before reading the image', async ({ response }) => {
+  createResponse = response
+  const pending = service().buildFromContext(archive())
+  await expect(pending).rejects.toBeInstanceOf(BadRequestError)
+  await expect(pending).rejects.toThrow('image create response')
+  expect(seen.filter((request) => request.url.startsWith('/images/'))).toEqual([])
+})
+
+// Guards against a total deadline coming back: the old code had none in
+// TypeScript, so this passes there too; the stall test below proves the bound.
+it('keeps a part that moves slowly past the request timeout: no total cap, only a no-progress limit (as Python and the CLI)', async () => {
+  // Given storage that reads each 64 KiB piece 60 ms apart, and a 150 ms request timeout.
+  partSize = 4 * 64 * 1024
+  const original = contextUploadRuntime.fetch
+  const received: number[] = []
+  contextUploadRuntime.fetch = async (_input, init) => {
+    const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+    let bytes = 0
+    for (;;) {
+      await delay(60)
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+    }
+    received.push(bytes)
+    return new Response(null, { status: 200 })
+  }
+  try {
+    // When a part takes about 300 ms in all, it is not cut.
+    const started = Date.now()
+    await service(150).buildFromContext(archive(partSize - 12))
+    expect(Date.now() - started).toBeGreaterThanOrEqual(240)
+    expect(received).toEqual([partSize])
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it('fails a part with ClientTimeoutError once no bytes move for the request timeout, after its retries', async () => {
+  // Given storage that never reads the body nor answers.
+  const original = contextUploadRuntime.fetch
+  let attempts = 0
+  contextUploadRuntime.fetch = (_input, init) => new Promise((_resolve, reject) => {
+    attempts++
+    init.signal?.addEventListener('abort', () => reject(new TypeError(`fetch failed for ${baseUrl}/bucket/part/1?${SIGNATURE}`)), { once: true })
+  })
+  try {
+    const error = await service(100).buildFromContext(archive()).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ name: 'ClientTimeoutError', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'build context part 1 made no progress for 0.1 s' })
+    expect(String(error)).not.toContain(SIGNATURE)
+    expect(attempts).toBe(3)
+    expect(completes()).toEqual([])
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it.each([
+  ['Node.js', true, 'ReadableStream'],
+  ['Bun, Deno or a browser', false, 'Uint8Array'],
+])('sends an in-memory part in %s as a %s', async (_runtime, streams, kind) => {
+  // Given a runtime that does (or does not) send a stream with its length.
+  contextUploadRuntime.streamsParts = () => streams
+  const original = contextUploadRuntime.fetch
+  const bodies: string[] = []
+  contextUploadRuntime.fetch = async (input, init) => {
+    bodies.push(init.body instanceof ReadableStream ? 'ReadableStream' : init.body instanceof Uint8Array ? 'Uint8Array' : typeof init.body)
+    return original(input, init)
+  }
+  try {
+    const data = archive(10_000)
+    await service().buildFromContext(data)
+    // Then each part goes as that kind, and storage gets the archive whole.
+    expect(new Set(bodies)).toEqual(new Set([kind]))
+    expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+  } finally {
+    contextUploadRuntime.fetch = original
+  }
+})
+
+it.each([
+  ['Node.js', { process: { versions: { node: '22.0.0' }, release: { name: 'node' } } }, true],
+  ['Bun', { process: { versions: { node: '24.3.0', bun: '1.3.0' }, release: { name: 'node' } } }, false],
+  ['Deno', { process: { versions: { node: '22.0.0' }, release: { name: 'node' } }, Deno: {} }, false],
+  ['a browser', {}, false],
+])('streams an in-memory part only in Node.js itself: %s', (_runtime, globals, expected) => {
+  // Given the runtime globals each one reports.
+  expect(streamsParts(globals)).toBe(expected)
+})
+
+it('hashes incrementally to the same digest as node:crypto', () => {
+  const data = new Uint8Array(200_003).map((_, i) => (i * 31 + 7) & 0xff)
+  for (const size of [0, 1, 55, 56, 63, 64, 65, 119, 120, 128, 1000, data.byteLength]) {
+    const slice = data.subarray(0, size)
+    const expected = createHash('sha256').update(slice).digest('hex')
+    expect(new Sha256().update(slice).digestHex()).toBe(expected)
+    const split = new Sha256()
+    for (let offset = 0; offset < size; offset += 37) split.update(slice.subarray(offset, offset + 37))
+    expect(split.digestHex()).toBe(expected)
+  }
+})
+
+it('declares the digest of a Blob without node:crypto', async () => {
+  // Given a runtime that is not Node.js, such as a browser.
+  const data = archive(10_000)
+  contextUploadRuntime.isNode = () => false
+  contextUploadRuntime.streamsParts = () => false
+  // When a Blob context is built, it is hashed incrementally and declared.
+  await service().buildFromContext(new Blob([Buffer.from(data)]))
+  expect(json('POST', '/build-contexts')).toMatchObject({ sha256: createHash('sha256').update(data).digest('hex') })
+  expect(inPartOrder(puts())).toEqual(Buffer.from(data))
+})

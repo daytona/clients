@@ -7,7 +7,7 @@ import { resolve, join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 
 // Match the root scanner's compiler dependency, owned by the SDK.
-const require = createRequire(new URL('../../typescript/package.json', import.meta.url));
+const require = createRequire(new URL('../../sdk-typescript/package.json', import.meta.url));
 const ts = require('typescript');
 
 export function tsExports(files, path, visited = new Set()) {

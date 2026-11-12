@@ -4,32 +4,35 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
-	"golang.org/x/term"
-
-	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
+	"github.com/spf13/cobra"
 )
 
 func newSandboxSSHSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:                "ssh <sandbox-id> [ssh-args...] [command]",
-		Short:              "Open SSH through the sandbox gateway",
-		Long:               "Execs the system ssh binary against the sandbox SSH gateway. Extra SSH flags are forwarded before the destination; any remaining arguments become the remote command.",
-		DisableFlagParsing: true,
-		Args:               cobra.ArbitraryArgs,
+		Use:   "ssh [flags] <sandbox-id> [ssh-args...] [command]",
+		Short: "Open SSH through the sandbox gateway",
+		Long:  "Execs the system ssh binary against the sandbox SSH gateway. CLI flags go before the sandbox id; everything after it is passed to ssh. Extra SSH flags are forwarded before the destination; any remaining arguments become the remote command.",
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cerr.Usage("sandbox ssh needs a sandbox id")
+			}
+			sshArgs, remoteCommand, err := splitSSHArguments(args[1:])
+			if err != nil {
+				return err
 			}
 			a := FromContext(cmd.Context())
 			toolClient, target, apiClient, err := sandboxToolboxClient(cmd.Context(), a, args[0])
@@ -46,26 +49,51 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err != nil {
 				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
 			}
-			sshArgs, remoteCommand, err := splitSSHArguments(args[1:])
-			if err != nil {
-				return err
-			}
-			invocation, err := toolboxclient.BuildSSHInvocation(target.SSHHost, target.SSHPort, target.Detail.Id, toolClient.Credential(), sshArgs, remoteCommand)
+			invocation, err := toolboxclient.BuildSSHInvocation(
+				toolboxclient.SSHTarget{Host: target.SSHHost, Port: target.SSHPort, SandboxID: target.Detail.Id, Credential: toolClient.Credential()},
+				toolboxclient.SSHCommand{Options: sshArgs, Args: remoteCommand},
+			)
 			if err != nil {
 				return err
 			}
 			defer invocation.Cleanup()
-			if err := runSSHCommand(cmd.Context(), sshBinary, invocation.Args); err != nil {
-				var exitErr *exec.ExitError
-				if errors.As(err, &exitErr) {
-					return cerr.New(exitErr.ExitCode(), "ssh exited with code %d", exitErr.ExitCode())
-				}
-				return err
-			}
-			return nil
+			// OpenSSH prints the gateway username, which carries the
+			// credential, in its own messages (an authentication failure,
+			// -v output): its stderr is passed through with the credential
+			// replaced.
+			stderr := newSecretRedactor(os.Stderr, toolClient.Credential())
+			runErr := runSSHCommand(cmd.Context(), sshBinary, invocation.Args, stderr)
+			_ = stderr.Flush()
+			return sshExitError(cmd.Context(), runErr)
 		},
 	}
+	cmd.Flags().SetInterspersed(false)
 	return cmd
+}
+
+// sshExitError passes the ssh client's exit status through. When the CLI's
+// own context ended (Ctrl-C, SIGTERM, which also kills ssh), the CLI's
+// interruption code wins; an ssh killed by a signal exits 128 + its number.
+func sshExitError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctxErr := cerr.FromContext(ctx); ctxErr != nil {
+		return ctxErr
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+	code := exitErr.ExitCode()
+	if code < 0 {
+		code = cerr.ExitFailure
+		if status, ok := exitErr.Sys().(interface{ Signal() syscall.Signal }); ok && status.Signal() > 0 {
+			code = 128 + int(status.Signal())
+		}
+		return cerr.New(code, "ssh terminated by a signal").WithSource(cerr.SourceSSH)
+	}
+	return cerr.New(code, "ssh exited with code %d", code).WithSource(cerr.SourceSSH)
 }
 
 func splitSSHArguments(args []string) ([]string, []string, error) {
@@ -111,147 +139,106 @@ func optionNeedsValue(arg string) bool {
 	}
 }
 
-var runSSHCommand = func(ctx context.Context, binary string, args []string) error {
+var runSSHCommand = func(ctx context.Context, binary string, args []string, stderr io.Writer) error {
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	cmd.Stderr = stderr
+	// A process ssh leaves behind (`-f`, a ControlPersist master) may hold the
+	// stderr pipe open: stop copying from it a second after ssh exits. That
+	// is not a failure of ssh, whose own exit status still decides.
+	cmd.WaitDelay = time.Second
+	err := cmd.Run()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	return err
 }
 
-func runTTYExec(ctx context.Context, toolClient *toolboxclient.Client, argv []string, cwd string, env map[string]string, user string) error {
-	cols, rows, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		cols, rows = 80, 24
-	}
-	request := tbgen.CreateProcessRequest{
-		Argv:     &argv,
-		Kind:     kindPtr(tbgen.Pty),
-		Stdin:    stdinModePtr(tbgen.Open),
-		KeepLogs: keepLogsPtr(tbgen.KeepLogs("until_cleanup")),
-		Terminal: &tbgen.TerminalSize{Cols: int32(cols), Rows: int32(rows)},
-	}
-	if cwd != "" {
-		request.Cwd = &cwd
-	}
-	if len(env) > 0 {
-		request.Env = &env
-	}
-	if user != "" {
-		request.User = &user
-	}
-	proc, err := toolClient.CreateProcess(ctx, request, nil)
-	if err != nil {
-		return err
-	}
-	return interactiveAttachAndWait(ctx, toolClient, proc.Id, "")
+// secretRedacted replaces a secret in redacted output.
+const secretRedacted = "<redacted>"
+
+// secretRedactorHold is how long bytes that may start the secret are held
+// back when nothing follows them, so a prompt is not kept from the user.
+var secretRedactorHold = 50 * time.Millisecond
+
+// secretRedactor writes a stream through with every occurrence of a secret
+// replaced. A write that ends with the start of the secret holds those bytes
+// back until the next write shows whether the secret follows, so a secret
+// split across writes is replaced too; held bytes are written once
+// secretRedactorHold passes with no further write, or on Flush.
+type secretRedactor struct {
+	mu      sync.Mutex
+	w       io.Writer
+	secret  []byte
+	pending []byte
+	timer   *time.Timer
+	// generation counts writes, so a flush timer armed before a later write
+	// never releases bytes that write held back.
+	generation uint64
 }
 
-func interactiveAttachAndWait(ctx context.Context, toolClient *toolboxclient.Client, processID, cursor string) error {
-	waitCtx := ctx
-	ws, err := toolClient.AttachWebSocket(ctx, processID, cursor)
-	if err != nil {
-		return err
+func newSecretRedactor(w io.Writer, secret string) *secretRedactor {
+	return &secretRedactor{w: w, secret: []byte(secret)}
+}
+
+func (r *secretRedactor) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.secret) == 0 {
+		return r.w.Write(p)
 	}
-	defer ws.Close()
-	fd := int(os.Stdin.Fd())
-	state, rawErr := term.MakeRaw(fd)
-	if rawErr == nil {
-		defer term.Restore(fd, state)
-	}
-	inputCtx, cancelInput := context.WithCancel(ctx)
-	defer cancelInput()
-	wsClosed := make(chan struct{})
-	defer close(wsClosed)
-	go func() {
-		select {
-		case <-inputCtx.Done():
-			_ = ws.Close()
-		case <-wsClosed:
-		}
-	}()
-	inputErrCh := make(chan error, 1)
-	inputDone := make(chan struct{})
-	waitForInput := func() error {
-		select {
-		case inputErr := <-inputErrCh:
-			return inputErr
-		case <-inputDone:
-			return nil
-		case <-time.After(50 * time.Millisecond):
-			return nil
-		}
-	}
-	go func() {
-		defer close(inputDone)
-		buf := make([]byte, 32*1024)
-		for {
-			n, readErr := os.Stdin.Read(buf)
-			if n > 0 {
-				if writeErr := ws.WriteBinary(buf[:n]); writeErr != nil {
-					inputErrCh <- writeErr
-					return
-				}
-			}
-			if errors.Is(readErr, io.EOF) {
-				inputErrCh <- nil
-				return
-			}
-			if readErr != nil {
-				inputErrCh <- readErr
-				return
-			}
-			select {
-			case <-inputCtx.Done():
-				inputErrCh <- nil
-				return
-			default:
-			}
-		}
-	}()
-	for {
-		select {
-		case inputErr := <-inputErrCh:
-			if inputErr != nil {
-				return inputErr
-			}
-		case <-waitCtx.Done():
-			if inputErr := waitForInput(); inputErr != nil {
-				return inputErr
-			}
-			return waitCtx.Err()
-		default:
-		}
-		msg, readErr := ws.ReadMessage()
-		if errors.Is(readErr, io.EOF) {
+	data := bytes.ReplaceAll(append(r.pending, p...), r.secret, []byte(secretRedacted))
+	held := 0
+	for n := min(len(r.secret)-1, len(data)); n > 0; n-- {
+		if bytes.HasSuffix(data, r.secret[:n]) {
+			held = n
 			break
 		}
-		if readErr != nil {
-			if waitCtx.Err() != nil {
-				if inputErr := waitForInput(); inputErr != nil {
-					return inputErr
-				}
-				return waitCtx.Err()
-			}
-			return readErr
-		}
-		if _, writeErr := os.Stdout.Write(msg); writeErr != nil {
-			return writeErr
-		}
 	}
-	cancelInput()
-	if inputErr := waitForInput(); inputErr != nil {
-		return inputErr
+	r.pending = append([]byte(nil), data[len(data)-held:]...)
+	r.generation++
+	if r.timer != nil {
+		r.timer.Stop()
+		r.timer = nil
 	}
-	result, err := toolClient.WaitProcess(waitCtx, processID, 0)
-	if err != nil {
-		if waitCtx.Err() != nil {
-			return waitCtx.Err()
-		}
-		return err
+	if held > 0 {
+		generation := r.generation
+		r.timer = time.AfterFunc(secretRedactorHold, func() { _ = r.flushIf(generation) })
 	}
-	return exitError(result)
+	if _, err := r.w.Write(data[:len(data)-held]); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
-func kindPtr(v tbgen.Kind) *tbgen.Kind             { return &v }
-func keepLogsPtr(v tbgen.KeepLogs) *tbgen.KeepLogs { return &v }
+// flushIf writes the bytes held back by the write of that generation, if no
+// write came since.
+func (r *secretRedactor) flushIf(generation uint64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.generation != generation {
+		return nil
+	}
+	return r.flushLocked()
+}
+
+// Flush writes the bytes held back: no part of the secret followed them.
+func (r *secretRedactor) Flush() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.flushLocked()
+}
+
+func (r *secretRedactor) flushLocked() error {
+	if r.timer != nil {
+		r.timer.Stop()
+		r.timer = nil
+	}
+	if len(r.pending) == 0 {
+		return nil
+	}
+	_, err := r.w.Write(r.pending)
+	r.pending = nil
+	return err
+}

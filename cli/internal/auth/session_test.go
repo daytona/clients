@@ -10,72 +10,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/config"
 	"github.com/stretchr/testify/require"
 )
-
-func TestExchangeStaticForProjectKeyCachesServerExpiry(t *testing.T) {
-	t.Parallel()
-	const (
-		orgID     = "11111111-1111-1111-1111-111111111111"
-		projectID = "22222222-2222-2222-2222-222222222222"
-	)
-	serverExpiry := time.Now().Add(5 * time.Minute).UTC().Truncate(time.Second)
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/orgs":
-			require.Equal(t, http.MethodGet, r.Method)
-			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"organizations": []map[string]any{{
-				"id":        orgID,
-				"name":      "Acme",
-				"personal":  false,
-				"suspended": false,
-				"membership": map[string]any{
-					"default_project_id":            projectID,
-					"roles":                         []string{"admin"},
-					"permissions":                   []string{"read:organization"},
-					"grantable_project_permissions": []string{"write:sandboxes"},
-				},
-			}}}))
-		case "/projects/" + projectID + "/api-keys":
-			require.Equal(t, http.MethodPost, r.Method)
-			defer r.Body.Close()
-			var req gen.CreateProjectApiKeyRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			require.NotNil(t, req.ExpiresAt)
-			w.Header().Set("Content-Type", "application/json")
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
-				"id":                  "33333333-3333-3333-3333-333333333333",
-				"token":               "minted-key",
-				"name":                "cli-default-host-abcdef",
-				"project_permissions": []string{"write:sandboxes"},
-				"expires_at":          serverExpiry.Format(time.RFC3339),
-			}))
-		default:
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-	}))
-	defer apiServer.Close()
-
-	a := newSessionTestApp(t, apiServer.URL)
-	a.Profile.OrgID = orgID
-
-	key, err := exchangeStaticForProjectKey(context.Background(), a, apiServer.URL, "static-bearer", projectID, "")
-	require.NoError(t, err)
-	require.Equal(t, "minted-key", key)
-
-	creds, err := a.Store.LoadCredentials()
-	require.NoError(t, err)
-	keys := creds.Profiles[a.Profile.Name].WorkloadKeys
-	require.Len(t, keys, 1)
-	require.Equal(t, key, keys[0].Key)
-	require.WithinDuration(t, serverExpiry, keys[0].ExpiresAt, time.Second)
-}
 
 func TestProviderForSelectsAuthKitOnlyForWorkOS(t *testing.T) {
 	t.Parallel()
@@ -118,9 +58,11 @@ func newSessionTestApp(t *testing.T, apiURL string) *app.App {
 			return ""
 		}
 	}
-	a, err := app.Load(app.Globals{APIURL: apiURL, Profile: "default"}, io.Discard, io.Discard, getenv)
+	// The profile is saved before the App loads, as after a real login: its
+	// saved URL is the API its credential belongs to.
+	st, err := config.Open(configDir)
 	require.NoError(t, err)
-	require.NoError(t, a.Store.Update(func(cfg *config.Config, creds *config.Credentials) (bool, bool, error) {
+	require.NoError(t, st.Update(func(cfg *config.Config, creds *config.Credentials) (bool, bool, error) {
 		cfg.Upsert(config.Profile{Name: "default", APIURL: apiURL})
 		if creds.Profiles == nil {
 			creds.Profiles = map[string]config.ProfileCredentials{}
@@ -128,5 +70,7 @@ func newSessionTestApp(t *testing.T, apiURL string) *app.App {
 		creds.Profiles["default"] = config.ProfileCredentials{}
 		return true, true, nil
 	}))
+	a, err := app.Load(app.Globals{APIURL: apiURL, Profile: "default", ProfileMayBeNew: true}, io.Discard, io.Discard, getenv)
+	require.NoError(t, err)
 	return a
 }

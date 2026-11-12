@@ -13,9 +13,19 @@ from packaging.requirements import InvalidRequirement, Requirement
 from tomlkit.container import OutOfOrderTableProxy
 from tomlkit.items import Array, InlineTable, String, Table
 
-from .dependency_versions import requires_v2
+from .dependency_versions import (
+    above_target_major,
+    at_or_above_target,
+    requires_v2,
+    target_constraint,
+)
 from .models import Mapping
-from .requirement_rendering import render_requirement
+from .requirement_rendering import (
+    dropped_extra_message,
+    preserved_extra_message,
+    render_requirement,
+    target_extras,
+)
 from .toml_values import render_declaration as _render
 from .toml_values import toml_string as _string
 
@@ -36,6 +46,8 @@ class Migration:
         self.mapping = mapping
         self.changes: list[tuple[str, str]] = []
         self.manual: list[tuple[int, str]] = []
+        # The "Dropped the … extra" items, withdrawn if the manifest is preserved.
+        self.dropped: list[tuple[int, str]] = []
         self.resolver_review: list[tuple[int, str]] = []
         self.line = 0
         self.found = False
@@ -45,6 +57,8 @@ class Migration:
         self.names.add(_normalized(mapping.package_new))
         self.renamed: set[str] = set()
         self.newline = "\n"
+        # Each Daytona declaration's package name and version constraint ("" for none).
+        self.declared: list[tuple[str, str]] = []
 
     def manual_setup(self, line: int, message: str) -> None:
         """Retain uncertain setup declarations as explicit manual-review items."""
@@ -64,19 +78,52 @@ class Migration:
                 and _normalized(egg[1]) in self.names
                 and not logical.lstrip().startswith("#")
             ):
+                self.declared.append((egg[1], ""))  # No version to read: unknown.
                 self.unparsed_requirement()
             return source
         tail = parsed["tail"]
         hash_locked = bool(re.search(r"(?:^|\s)--hash(?:=|\s)", tail))
         if tail.strip() and tail.lstrip()[0] not in "<>=!~@;#(\\" and not hash_locked:
+            self.declared.append((parsed["name"], ""))  # No version to read: unknown.
             self.unparsed_requirement()
             return source
         self.found = True
+        self._declare(parsed["name"], logical)
+        name, specifier = self.declared[-1]
+        if self._newer_major(name, specifier):
+            return source
         if "\\" in source or hash_locked:
+            kept = _normalized(name) == _normalized(
+                self.mapping.package_new
+            ) and at_or_above_target(specifier, self.mapping.specifier)
+            present = {
+                _normalized(extra.strip())
+                for extra in (parsed["extras"] or "[]")[1:-1].split(",")
+                if extra.strip()
+            }
+            unknown = target_extras(
+                [
+                    extra.strip()
+                    for extra in (parsed["extras"] or "[]")[1:-1].split(",")
+                    if extra.strip()
+                ],
+                self.mapping,
+            )[1]
+            for extra in unknown:
+                self.manual.append(
+                    (self.line, preserved_extra_message(extra, name, self.mapping))
+                )
+            if (
+                kept
+                and {_normalized(extra) for extra in self.mapping.extras} <= present
+            ):
+                return source  # Already the target, with the extra: nothing to change.
             self.manual.append(
                 (
                     self.line,
-                    f"Change this dependency to {self.mapping.requirement} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
+                    f"Add the {', '.join(self.mapping.extras)} extra to this dependency manually and regenerate hashes; its version already meets this release. The original hash-locked or continued record was preserved."
+                    if kept
+                    else f"Change this dependency to {self._written(name, specifier, parsed['extras'])} manually and regenerate hashes; the original hash-locked or continued record was preserved.",
                 )
             )
             return source
@@ -90,7 +137,7 @@ class Migration:
             and requirement.marker is None
             and _normalized(requirement.name) == _normalized(self.mapping.package_new)
             and not requirement.url
-            and requires_v2(str(requirement.specifier))
+            and requires_v2(str(requirement.specifier), self.mapping.specifier)
             and {_normalized(extra) for extra in self.mapping.extras}
             <= {_normalized(extra) for extra in requirement.extras}
         )
@@ -98,9 +145,89 @@ class Migration:
         if result is None:
             self.unparsed_requirement()
             return source
+        self._dropped_extras(
+            parsed["name"],
+            [
+                part.strip()
+                for part in (parsed["extras"] or "[]")[1:-1].split(",")
+                if part.strip()
+            ],
+        )
         if result != source:
             self.changes.append((source.strip(), result.strip()))
         return result
+
+    def _dropped_extras(self, name: str, extras: list[str]) -> None:
+        for extra in target_extras(extras, self.mapping)[1]:
+            item = (self.line, dropped_extra_message(extra, name, self.mapping))
+            self.manual.append(item)
+            self.dropped.append(item)
+
+    def _written(self, name: str, specifier: str, existing: str | None) -> str:
+        """The requirement a rewrite of this declaration would write: its own
+        extras first, then the mapping's (as render_requirement merges them)."""
+        names, _ = target_extras(
+            [
+                part.strip()
+                for part in (existing or "[]")[1:-1].split(",")
+                if part.strip()
+            ],
+            self.mapping,
+        )
+        extras = f"[{','.join(names)}]" if names else ""
+        return (
+            self.mapping.package_new
+            + extras
+            + target_constraint(
+                name, specifier, self.mapping.package_new, self.mapping.specifier
+            )
+        )
+
+    def _declare_table(self, name: str, versions: list[object]) -> None:
+        """Record each table entry's version constraint ("" without one)."""
+        for entry in versions:
+            version = (
+                entry
+                if isinstance(entry, String)
+                else entry.get("version")
+                if isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
+                else None
+            )
+            # A marker-gated entry may never install: no version evidence, as
+            # for a requirement string.
+            gated = isinstance(
+                entry, (Table, InlineTable, OutOfOrderTableProxy)
+            ) and any(field in entry for field in ("markers", "python", "platform"))
+            self.declared.append(
+                (
+                    name,
+                    str(version) if isinstance(version, String) and not gated else "",
+                )
+            )
+
+    def _newer_major(self, name: str, specifier: str) -> bool:
+        """Report, and keep, a Daytona declaration in a later major."""
+        if not above_target_major(specifier, self.mapping.specifier):
+            return False
+        self.manual.append(
+            (
+                self.line,
+                f"{name}{specifier} is newer than this daytona-upgrade release targets ({self.mapping.specifier}); use the daytona-upgrade release of that SDK version.",
+            )
+        )
+        return True
+
+    def _declare(self, name: str, logical: str) -> None:
+        """Record the version constraint, ignoring hashes, comments and options."""
+        line = re.split(r"\s+(?:#|--)", logical, maxsplit=1)[0].strip()
+        try:
+            requirement = Requirement(line)
+        except InvalidRequirement:
+            specifier = ""
+        else:
+            # A marker-gated line may never install: it is no version evidence.
+            specifier = "" if requirement.marker else str(requirement.specifier)
+        self.declared.append((name, specifier))
 
     def unparsed_requirement(self) -> None:
         self.found = True
@@ -118,15 +245,39 @@ class Migration:
                 if rewritten != str(entry):
                     value[index] = _string(entry, rewritten)
 
-    def _table(self, updated: Table | InlineTable | OutOfOrderTableProxy) -> None:
+    def _table(
+        self, updated: Table | InlineTable | OutOfOrderTableProxy, name: str
+    ) -> None:
+        current = updated.get("version")
+        keep = isinstance(current, String) and not any(
+            field in updated for field in ("git", "url", "path")
+        )
         for field in ("git", "url", "path", "rev", "branch", "tag", "develop"):
             if field in updated:
                 del updated[field]
-        updated["version"] = self.mapping.specifier
+        version = target_constraint(
+            name,
+            str(current) if keep else "",
+            self.mapping.package_new,
+            self.mapping.specifier,
+        )
+        if version != str(current) or not keep:
+            updated["version"] = version
         extras = updated.get("extras")
         if isinstance(extras, Array):
+            _, dropped = target_extras(
+                [str(extra) for extra in extras if isinstance(extra, String)],
+                self.mapping,
+            )
+            for index in reversed(range(len(extras))):
+                if isinstance(extras[index], String) and str(extras[index]) in dropped:
+                    del extras[index]
+            self._dropped_extras(name, dropped)
+            present = {
+                _normalized(str(extra)) for extra in extras if isinstance(extra, String)
+            }
             for extra in self.mapping.extras:
-                if extra not in extras:
+                if _normalized(extra) not in present:
                     extras.append(extra)
         else:
             added = tomlkit.array()
@@ -168,6 +319,14 @@ class Migration:
         # Python 3.9 compatibility precludes structural pattern matching.
         declarations = [name for name in table if _normalized(str(name)) in self.names]
         if len(declarations) > 1:
+            # Colliding declarations are left for manual review, but they still
+            # say which 0.x version the project installs.
+            for name in declarations:
+                original = table[name]
+                self._declare_table(
+                    str(name),
+                    [original] if not isinstance(original, Array) else list(original),
+                )
             self.found = True
             self.manual.append(
                 (
@@ -182,6 +341,12 @@ class Migration:
             self.found = True
             original = table[name]
             versions = [original] if not isinstance(original, Array) else list(original)
+            self._declare_table(str(name), versions)
+            if any(
+                self._newer_major(str(name), spec)
+                for _, spec in self.declared[-len(versions) :]
+            ):
+                continue
             if any(
                 isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
                 and "subdirectory" in entry
@@ -199,7 +364,8 @@ class Migration:
                 and _normalized(str(name)) == _normalized(self.mapping.package_new)
                 and bool(versions)
                 and all(
-                    requires_v2(str(entry)) and not self.mapping.extras
+                    requires_v2(str(entry), self.mapping.specifier)
+                    and not self.mapping.extras
                     if isinstance(entry, String)
                     else isinstance(entry, (Table, InlineTable, OutOfOrderTableProxy))
                     # Unknown fields may be environment selectors; only an
@@ -207,7 +373,7 @@ class Migration:
                     and set(entry)
                     <= {"version", "extras", "index", "source", "allow-prereleases"}
                     and isinstance(entry.get("version"), String)
-                    and requires_v2(str(entry["version"]))
+                    and requires_v2(str(entry["version"]), self.mapping.specifier)
                     and isinstance(extras := entry.get("extras"), Array)
                     and {_normalized(extra) for extra in self.mapping.extras}
                     <= {_normalized(str(extra)) for extra in extras}
@@ -231,14 +397,19 @@ class Migration:
                 if not alternatives:
                     continue
                 for entry in alternatives:
-                    self._table(entry)
+                    self._table(entry, str(name))
                 updated = original
             elif isinstance(original, (Table, InlineTable, OutOfOrderTableProxy)):
-                self._table(original)
+                self._table(original, str(name))
                 updated = original
             elif isinstance(original, String):
                 updated = tomlkit.inline_table()
-                updated["version"] = self.mapping.specifier
+                updated["version"] = target_constraint(
+                    str(name),
+                    str(original),
+                    self.mapping.package_new,
+                    self.mapping.specifier,
+                )
                 updated["extras"] = list(self.mapping.extras)
                 updated.trivia.comment = original.trivia.comment
                 updated.trivia.comment_ws = original.trivia.comment_ws

@@ -1,0 +1,122 @@
+name: TypeScript runtimes
+
+# Installs the packed @daytona/sdk (with the v0 namespace bundled, as
+# published) into one project per JavaScript runtime and runs the same checks
+# in each against a local mock of the API (sdk-typescript/runtime-tests/,
+# README there). Needs no deployment and no secrets.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk-typescript/**'
+      - 'scripts/bundle-v0.sh'
+      - 'scripts/resolve-v0-tag.sh'
+      - 'scripts/v0-sdk-version'
+      - '.github/workflows/sdk-typescript-runtimes.yaml'
+  pull_request:
+    paths:
+      - 'sdk-typescript/**'
+      - 'scripts/bundle-v0.sh'
+      - 'scripts/resolve-v0-tag.sh'
+      - 'scripts/v0-sdk-version'
+      - '.github/workflows/sdk-typescript-runtimes.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-typescript-runtimes-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Bundle the pinned v0 release, build and pack once (as sdk-ci's
+  # typescript-v0-bundle job does); every runtime job installs this tarball.
+  package:
+    name: Pack the SDK
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      runtimes: ${{ steps.runtimes.outputs.runtimes }}
+    defaults:
+      run:
+        working-directory: sdk-typescript
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Bundle the pinned v0 release (scripts/v0-sdk-version)
+        run: bash ../scripts/bundle-v0.sh --lang typescript
+      - name: Build and pack
+        env:
+          DAYTONA_REQUIRE_V0_BUNDLE: '1'
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run build
+          mkdir -p "$RUNNER_TEMP/pack"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/pack"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-typescript-tarball
+          path: ${{ runner.temp }}/pack/*.tgz
+          if-no-files-found: error
+          retention-days: 3
+      - id: runtimes
+        name: List the runtimes
+        run: echo "runtimes=$(bash runtime-tests/run-all.sh --list)" >> "$GITHUB_OUTPUT"
+
+  # One job per runtime: they run in parallel and can be re-run alone.
+  runtime:
+    name: TypeScript runtime (${{ matrix.runtime }})
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: ${{ fromJSON(needs.package.outputs.runtimes) }}
+    defaults:
+      run:
+        working-directory: sdk-typescript
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: sdk-typescript/runtime-tests
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+      - if: matrix.runtime == 'deno'
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - if: matrix.runtime == 'azure-functions'
+        name: Install Azure Functions Core Tools
+        run: npm install -g azure-functions-core-tools@4.16.0 --unsafe-perm true
+      - if: matrix.runtime == 'vite-browser'
+        name: Install Chromium for the pinned Playwright
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./runtime-tests/vite-browser/package.json').devDependencies.playwright")
+          npx --yes "playwright@$version" install --with-deps chromium
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdk-typescript-tarball
+          path: ${{ runner.temp }}/pack
+      - name: Run ${{ matrix.runtime }}
+        env:
+          CI: 'true'
+          ONLY: ${{ matrix.runtime }}
+          RUNTIME_TEST_REQUIRE_V0_BUNDLE: '1'
+        run: |
+          set -euo pipefail
+          tarballs=("$RUNNER_TEMP"/pack/*.tgz)
+          [ "${#tarballs[@]}" -eq 1 ] || { echo "expected one tarball, found ${#tarballs[@]}" >&2; exit 1; }
+          RUNTIME_TEST_TARBALL="${tarballs[0]}" bash runtime-tests/run-all.sh

@@ -11,6 +11,7 @@ import re
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from .dependency_versions import target_constraint
 from .lexical import assignment_magic_prefix, magic_lines, source_lines
 from .models import Item, SourceResult, TransformOptions
 from .notebook_environment import magic_environment
@@ -143,7 +144,12 @@ def _upgrade_magic(line: str, options: TransformOptions) -> tuple[str, bool]:
         target = (
             options.mapping.package_new
             + ("[" + ",".join(extras) + "]" if extras else "")
-            + options.mapping.specifier
+            + target_constraint(
+                match["name"],
+                match["spec"],
+                options.mapping.package_new,
+                options.mapping.specifier,
+            )
         )
         return '"' + target + '"'
 

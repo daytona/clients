@@ -5,8 +5,12 @@ package cmd
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +23,7 @@ func TestVersion_printsConnectedAPIBuildIdentity(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on("GET", "/config", 200, versionConfigFixture(api.srv.URL, "2.0.0-alpha.4", "0123456789abcdef0123456789abcdef01234567", "2026-10-02T14:03:11Z"))
 
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "version")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "-o", "table", "version")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
@@ -55,7 +59,7 @@ func TestVersion_preservesUnknownServerIdentity(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on("GET", "/config", 200, versionConfigFixture(api.srv.URL, "0.0.0-dev", "unknown", nil))
 
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "version")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "-o", "table", "version")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
@@ -71,7 +75,7 @@ func TestVersion_preservesUnknownServerIdentity(t *testing.T) {
 }
 
 func TestVersion_degradesWhenConnectedAPIIsUnavailable(t *testing.T) {
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", "http://127.0.0.1:1", "version")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", "http://127.0.0.1:1", "-o", "table", "version")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
@@ -90,8 +94,11 @@ func TestVersion_degradesWhenConnectedAPIIsUnavailable(t *testing.T) {
 	if got["api_url"] != "http://127.0.0.1:1" {
 		t.Fatalf("unexpected api_url: %#v", got)
 	}
-	if got["api_version"] != "" || got["api_build_sha"] != "" || got["api_built_at"] != "" || got["skew_warning"] != "" {
-		t.Fatalf("unexpected json: %#v", got)
+	// What could not be read is omitted, not printed empty.
+	for _, k := range []string{"api_version", "api_build_sha", "api_built_at", "skew_warning"} {
+		if _, ok := got[k]; ok {
+			t.Fatalf("unexpected %s: %#v", k, got)
+		}
 	}
 	if !has(jsonStderr, "Connected API unavailable at http://127.0.0.1:1") {
 		t.Fatalf("json stderr=%q", jsonStderr)
@@ -110,7 +117,7 @@ func TestVersion_degradesWhenConnectedAPITimesOut(t *testing.T) {
 	}))
 	defer api.Close()
 
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.URL, "version")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.URL, "-o", "table", "version")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
@@ -130,7 +137,7 @@ func TestVersion_returnsInterruptedExitCodeWhenContextIsCanceled(t *testing.T) {
 	cancel()
 	root := NewRoot(new(strings.Builder), new(strings.Builder))
 	root.SetContext(ctx)
-	root.SetArgs([]string{"--api-url", api.srv.URL, "version"})
+	root.SetArgs([]string{"--api-url", api.srv.URL, "-o", "table", "version"})
 	err := root.ExecuteContext(ctx)
 	if cerr.ExitCode(err) != cerr.ExitInterrupted {
 		t.Fatalf("exit code=%d err=%v", cerr.ExitCode(err), err)
@@ -164,7 +171,7 @@ func TestVersion_printsSkewWarningWhenAPIVersionIsTooFarAhead(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on("GET", "/config", 200, versionConfigFixture(api.srv.URL, "2.2.0", "0123456789abcdef0123456789abcdef01234567", "2026-10-02T14:03:11Z"))
 
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "version")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "-o", "table", "version")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
@@ -228,4 +235,48 @@ func versionConfigFixture(issuer, version, buildSHA string, builtAt any) map[str
 	cfg["build_sha"] = buildSHA
 	cfg["built_at"] = builtAt
 	return cfg
+}
+
+// A malformed config.yaml must not stop the CLI from reporting its version.
+func TestVersion_printsCLIVersionWhenConfigIsMalformed(t *testing.T) {
+	d := cfgDir(t)
+	if err := os.WriteFile(filepath.Join(d, "config.yaml"), []byte("profiles: [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := run(t, d, nil, "-o", "table", "version")
+	if code != 0 || !has(stdout, "daytona "+app.Version) || !has(stderr, "config.yaml") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	stdout, _, code = run(t, d, nil, "-o", "json", "version")
+	if code != 0 || mustJSON(t, stdout)["version"] != app.Version {
+		t.Fatalf("json: code=%d stdout=%q", code, stdout)
+	}
+	if _, _, code := run(t, d, nil, "-o", "bogus", "version"); code != cerr.ExitUsage {
+		t.Fatalf("an invalid --output stays a usage error: %d", code)
+	}
+	if _, _, code := run(t, d, nil, "org", "list"); code == 0 {
+		t.Fatal("other commands still fail on a malformed config")
+	}
+	t.Setenv("DAYTONA_CONFIG_DIR", d)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	root := NewRoot(io.Discard, io.Discard)
+	root.SetArgs([]string{"version"})
+	if err := root.ExecuteContext(ctx); cerr.ExitCode(err) != cerr.ExitInterrupted {
+		t.Fatalf("a cancelled invocation is interrupted, not a version print: %v", err)
+	}
+}
+
+// --version / -v print the CLI version offline, before config loading.
+func TestRootVersionFlags(t *testing.T) {
+	d := cfgDir(t)
+	if err := os.WriteFile(filepath.Join(d, "config.yaml"), []byte("profiles: [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, flag := range []string{"--version", "-v"} {
+		stdout, stderr, code := run(t, d, nil, flag)
+		if code != 0 || stderr != "" || strings.TrimSpace(stdout) != "daytona "+app.Version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")" {
+			t.Fatalf("%s: code=%d stdout=%q stderr=%q", flag, code, stdout, stderr)
+		}
+	}
 }

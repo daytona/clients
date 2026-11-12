@@ -66,7 +66,7 @@ def export_items(flow: Flow) -> list[Item]:
                         line=line,
                         column=column + 1,
                         kind="private-import",
-                        message=f"{name} is not exported by bundled v0.224.0; use the v2 API or remove it. It is unavailable from daytona.v0.",
+                        message=f"{name} is not exported by bundled v{mapping.v0_version}; use the v2 API or remove it. It is unavailable from daytona.v0.",
                     )
                 )
     return items

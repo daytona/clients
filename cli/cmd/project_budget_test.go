@@ -70,9 +70,8 @@ func TestProjectBudgetCommands(t *testing.T) {
 	f.on("PUT", path, 200, projectBudgetFixture(testProjA1, 49999, false))
 	f.handle("DELETE", path, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 
-	// get, defaulting to --project. `-o json` prints the generated type, so
-	// it follows the CLI convention: null fields are omitted, not printed as
-	// null (exceeded_at and stop_at are null in the fixture).
+	// get, defaulting to --project. `-o json` prints the API's JSON, so the
+	// fixture's null exceeded_at and stop_at stay null.
 	out, errb, code := runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "get")
 	if code != 0 {
 		t.Fatalf("get: %d %s", code, errb)
@@ -81,9 +80,10 @@ func TestProjectBudgetCommands(t *testing.T) {
 	if got["monthly_limit_cents"].(float64) != 50000 || got["spent_cents"].(float64) != 41237 {
 		t.Fatalf("get json: %s", out)
 	}
+	// The API's representation: its nulls stay null.
 	for _, k := range []string{"exceeded_at", "stop_at"} {
-		if _, ok := got[k]; ok {
-			t.Fatalf("get json: null %s must be omitted: %s", k, out)
+		if v, ok := got[k]; !ok || v != nil {
+			t.Fatalf("get json: %s must stay null as the API sent it: %s", k, out)
 		}
 	}
 
@@ -124,9 +124,9 @@ func TestProjectBudgetCommands(t *testing.T) {
 	if code != cerr.ExitUsage || !has(errb, "--yes") || len(f.requests) != before {
 		t.Fatalf("remove guard: %d %s", code, errb)
 	}
-	_, errb, code = runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "remove", "--yes")
-	if code != 0 || !has(errb, "Monthly budget removed from project "+testProjA1) {
-		t.Fatalf("remove: %d %s", code, errb)
+	out, errb, code = runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "remove", "--yes")
+	if code != 0 || !isAck(t, out, "project_id", testProjA1, "removed") {
+		t.Fatalf("remove: %d %s %s", code, out, errb)
 	}
 	if countRequests(f.requests, http.MethodDelete, path) != 1 {
 		t.Fatalf("delete not issued once: %+v", f.requests)
@@ -134,17 +134,43 @@ func TestProjectBudgetCommands(t *testing.T) {
 	assertBudgetAuthJWT(t, f, path)
 }
 
-// A 404 on the budget read names the likeliest cause: no budget.
+// A project without a budget answers 200 with null fields: `get` succeeds
+// and shows the budget as not set.
 func TestProjectBudgetGetWithoutBudget(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+	f.on("GET", "/projects/"+testProjA1+"/budget", 200, map[string]any{"monthly_limit_cents": nil, "period_start_date": "2026-10-01", "created_at": nil, "updated_at": nil})
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "-o", "table", "--org", testOrgA, "--project", testProjA1, "project", "budget", "get")
+	if code != 0 || !has(out, "not set") {
+		t.Fatalf("no budget: %d %s %s", code, out, errb)
+	}
+	assertBudgetAuthJWT(t, f, "/projects/"+testProjA1+"/budget")
+}
+
+// A 404 on the budget read means the project was not found; it must not be
+// reported as a missing budget.
+func TestProjectBudgetGetProjectNotFound(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
 	oidcProfile(t, d, f.srv.URL, time.Hour)
 	f.on("GET", "/projects/"+testProjA1+"/budget", 404, map[string]any{"code": "NOT_FOUND", "message": "not found", "source": "DAYTONA_API"})
 	_, errb, code := runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "get")
-	if code != cerr.ExitNotFound || !has(errb, "no monthly budget") || !has(errb, "project budget set") {
+	if code != cerr.ExitNotFound || has(errb, "no monthly budget") {
+		t.Fatalf("project not found: %d %s", code, errb)
+	}
+}
+
+// On DELETE a 404 means the project has no budget, and the hint says so.
+func TestProjectBudgetRemoveWithoutBudget(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+	f.on("DELETE", "/projects/"+testProjA1+"/budget", 404, map[string]any{"code": "NOT_FOUND", "message": "not found", "source": "DAYTONA_API"})
+	_, errb, code := runBudgetOIDC(t, f, d, "--org", testOrgA, "--project", testProjA1, "project", "budget", "remove", "--yes")
+	if code != cerr.ExitNotFound || !has(errb, "no monthly budget") {
 		t.Fatalf("no budget: %d %s", code, errb)
 	}
-	assertBudgetAuthJWT(t, f, "/projects/"+testProjA1+"/budget")
 }
 
 // The exhausted state renders the hold and the stop time.

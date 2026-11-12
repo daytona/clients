@@ -17,5 +17,5 @@ export function staysAtRoot(name: string, mapping: Mapping): boolean {
 
 export function missingV0Export(node: Node, name: string, context: { readonly mapping: Mapping; readonly root: string }): readonly Item[] {
   if (!context.mapping.v0Exports || context.mapping.v0Exports.ts.includes(name)) return [];
-  return [item(node, { kind: 'private-import', message: `${name} is not exported by bundled v0.224.0; use the v2 API or remove it. It is unavailable from @daytona/sdk/v0.` }, context.root)];
+  return [item(node, { kind: 'private-import', message: `${name} is not exported by bundled v${context.mapping.v0Version}; use the v2 API or remove it. It is unavailable from @daytona/sdk/v0.` }, context.root)];
 }

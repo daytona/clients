@@ -6,11 +6,13 @@ on:
     paths:
       - 'cli/**'
       - 'contract/**'
+      - 'sdk-python/tests/fixtures/dockerignore-*.json'
       - '.github/workflows/cli-ci.yaml'
   pull_request:
     paths:
       - 'cli/**'
       - 'contract/**'
+      - 'sdk-python/tests/fixtures/dockerignore-*.json'
       - '.github/workflows/cli-ci.yaml'
 
 permissions:
@@ -24,10 +26,10 @@ jobs:
       run:
         working-directory: cli
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
@@ -41,7 +43,7 @@ jobs:
           fi
       - run: go vet ./...
       - run: go test ./... -coverprofile=coverage.out
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-cli
           path: cli/coverage.out

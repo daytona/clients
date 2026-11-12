@@ -15,9 +15,12 @@ on:
       - Changelog fragments
       - CLI CI
       - Contract types
+      - Examples CI
       - License headers
       - SDK CI
       - Secret scan
+      - Tooling tests
+      - TypeScript runtimes
       - Upgrade tool CI
     types: [completed]
 

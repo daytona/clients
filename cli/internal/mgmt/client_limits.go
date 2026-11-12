@@ -4,6 +4,7 @@
 package mgmt
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -31,7 +32,10 @@ func GetOrgLimits(ctx context.Context, c *api.Client, orgID string) (*OrgLimits,
 	if err := json.Unmarshal(raw, &out.OrganizationLimits); err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(raw, &out.Wire); err != nil {
+	// UseNumber keeps int64 limits exact; float64 would round past 2^53.
+	wire := json.NewDecoder(bytes.NewReader(raw))
+	wire.UseNumber()
+	if err := wire.Decode(&out.Wire); err != nil {
 		return nil, err
 	}
 	var present struct {

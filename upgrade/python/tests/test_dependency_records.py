@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import jsonschema
 import pytest
+from report_schema import validate_report
 
 from daytona_upgrade.cli import main
 
@@ -47,12 +47,13 @@ def test_preserves_record_when_manual_dependency_required(
     assert [(item["kind"], item["file"], item["line"]) for item in report["items"]] == [
         ("manual-dependency", "requirements.txt", 2)
     ]
-    assert "daytona[v0-sdk]>=2,<3" in report["items"][0]["message"]
-    assert "hash" in report["items"][0]["message"]
-    schema = json.loads(
-        (Path(__file__).parents[2] / "mapping/report.schema.json").read_text()
+    # The record's own extras are kept in the named requirement.
+    expected = (
+        "daytona[otel,v0-sdk]>=2,<3" if "[otel]" in record else "daytona[v0-sdk]>=2,<3"
     )
-    jsonschema.validate(report, schema)
+    assert expected in report["items"][0]["message"]
+    assert "hash" in report["items"][0]["message"]
+    validate_report(report)
     if with_code:
         assert "d.v0.create()" in (tmp_path / "app.py").read_text()
 

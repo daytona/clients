@@ -17,18 +17,21 @@ import (
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/output"
 )
 
+// versionOutput is the CLI-owned `version -o json` shape: the API fields are
+// omitted when the API could not be read (or did not say).
 type versionOutput struct {
 	Version     string `json:"version"`
 	Go          string `json:"go"`
 	OS          string `json:"os"`
 	Arch        string `json:"arch"`
-	APIVersion  string `json:"api_version"`
-	APIBuildSHA string `json:"api_build_sha"`
-	APIBuiltAt  string `json:"api_built_at"`
-	APIURL      string `json:"api_url"`
-	SkewWarning string `json:"skew_warning"`
+	APIVersion  string `json:"api_version,omitempty"`
+	APIBuildSHA string `json:"api_build_sha,omitempty"`
+	APIBuiltAt  string `json:"api_built_at,omitempty"`
+	APIURL      string `json:"api_url,omitempty"`
+	SkewWarning string `json:"skew_warning,omitempty"`
 }
 
 type apiVersionInfo struct {
@@ -43,12 +46,16 @@ var versionFetchTimeout = 2 * time.Second
 func init() {
 	Register(func() *cobra.Command {
 		return &cobra.Command{
-			Use:     "version",
-			Short:   "Print the CLI version and, when reachable, the connected API build identity",
-			GroupID: GroupOther,
-			Args:    cobra.NoArgs,
+			Use:         "version",
+			Short:       "Print the CLI version and, when reachable, the connected API build identity",
+			GroupID:     GroupOther,
+			Args:        cobra.NoArgs,
+			Annotations: map[string]string{annotationRunsWithoutConfig: "true"},
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				a := FromContext(cmd.Context())
+				if a == nil {
+					return printLocalVersion(cmd, LoadError(cmd.Context()))
+				}
 				v := versionOutput{
 					Version: app.Version,
 					Go:      runtime.Version(),
@@ -73,6 +80,23 @@ func init() {
 			},
 		}
 	})
+}
+
+// printLocalVersion reports the CLI's own version when the config could not
+// be loaded, so `daytona version` still works against a broken config.yaml.
+func printLocalVersion(cmd *cobra.Command, loadErr error) error {
+	if err := cerr.FromContext(cmd.Context()); err != nil {
+		return err
+	}
+	format, err := app.ResolveFormat(cmd.Flag("output").Value.String(), app.WriterIsTerminal(cmd.OutOrStdout()))
+	if err != nil {
+		return err
+	}
+	if quiet, _ := cmd.Flags().GetBool("quiet"); !quiet && loadErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s; the connected API was not queried\n", output.Sanitize(loadErr.Error()))
+	}
+	v := versionOutput{Version: app.Version, Go: runtime.Version(), OS: runtime.GOOS, Arch: runtime.GOARCH}
+	return output.Printer{W: cmd.OutOrStdout(), Format: format}.Raw(renderVersionText(v), v)
 }
 
 func fetchAPIVersionInfo(ctx context.Context, a *app.App) (apiVersionInfo, error) {

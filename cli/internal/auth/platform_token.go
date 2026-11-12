@@ -103,10 +103,12 @@ func PlatformToken(ctx context.Context, a *app.App, projectID, rejected string) 
 		}
 		return "", false, err
 	}
+	origin := a.APIURL()
 	minted := config.PlatformToken{
 		ProjectID: projectID,
 		Token:     resp.AccessToken,
 		ExpiresAt: time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second),
+		APIURL:    origin,
 	}
 
 	out := minted.Token
@@ -118,7 +120,7 @@ func PlatformToken(ctx context.Context, a *app.App, projectID, rejected string) 
 			if t.ExpiresAt.Before(now.Add(platformTokenSkew)) {
 				continue
 			}
-			if t.ProjectID == projectID {
+			if t.ProjectID == projectID && t.APIURL == origin {
 				// A concurrent invocation exchanged first; its token is as
 				// good as ours and already on disk — converge on it.
 				out = t.Token
@@ -130,7 +132,7 @@ func PlatformToken(ctx context.Context, a *app.App, projectID, rejected string) 
 			kept = append(kept, minted)
 		} else {
 			for _, t := range pc.PlatformTokens {
-				if t.ProjectID == projectID && t.Token == out {
+				if t.ProjectID == projectID && t.APIURL == origin && t.Token == out {
 					kept = append(kept, t)
 					break
 				}
@@ -147,10 +149,11 @@ func PlatformToken(ctx context.Context, a *app.App, projectID, rejected string) 
 	return out, true, nil
 }
 
-// cachedPlatformToken returns an unexpired cached token for the project,
-// pruning expired ones under the lock.
+// cachedPlatformToken returns an unexpired cached token for the project that
+// this invocation's API minted, pruning expired ones under the lock.
 func cachedPlatformToken(a *app.App, projectID string) (string, bool) {
 	var tok string
+	origin := a.APIURL()
 	_ = a.Store.Update(func(_ *config.Config, cr *config.Credentials) (bool, bool, error) {
 		pc := cr.Profiles[a.Profile.Name]
 		now := time.Now()
@@ -158,7 +161,7 @@ func cachedPlatformToken(a *app.App, projectID string) (string, bool) {
 		for _, t := range pc.PlatformTokens {
 			if t.ExpiresAt.After(now.Add(platformTokenSkew)) {
 				kept = append(kept, t)
-				if t.ProjectID == projectID {
+				if t.ProjectID == projectID && t.APIURL == origin {
 					tok = t.Token
 				}
 			}

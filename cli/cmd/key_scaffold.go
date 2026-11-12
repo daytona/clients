@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
@@ -29,8 +30,8 @@ type keyCommandSpec[CreatedResp any, ListItem any] struct {
 	listHeaders       []string
 	allowServiceAcct  bool
 	requireScope      func(*app.App, context.Context) (string, error)
-	buildMint         func(context.Context, *app.App, *mgmtClient, string, string, []string, *time.Time, string) (*CreatedResp, error)
-	list              func(context.Context, *mgmtClient, string) ([]ListItem, error)
+	buildMint         func(context.Context, *app.App, *mgmtClient, string, string, []string, *time.Time, string) (*api.Raw[CreatedResp], error)
+	list              func(context.Context, *mgmtClient, string, string, int64) (mgmt.Page[ListItem], error)
 	revoke            func(context.Context, *mgmtClient, string, string) error
 	token             func(*CreatedResp) string
 	createdKV         func(*CreatedResp) [][2]string
@@ -72,16 +73,17 @@ func newKeyMintCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 			return err
 		}
 		if a.Format == output.FormatTable {
-			if _, err := fmt.Fprintln(a.Stdout, formatTokenOnce(spec.token(resp))); err != nil {
+			if _, err := fmt.Fprintln(a.Stdout, formatTokenOnce(spec.token(&resp.V))); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, spec.createdKV(resp))
+			return a.Printer().Object(resp, spec.createdKV(&resp.V))
 		}
 		return a.Printer().Object(resp, nil)
 	}}
 	cmd.Flags().StringVar(&name, "name", "", "key name")
-	cmd.Flags().StringVar(&permissionCSV, "permission", "", spec.permissionHelp)
-	cmd.Flags().StringVar(&expires, "expires", "", "expiry as a duration or RFC3339 timestamp")
+	addCSVListFlag(cmd.Flags(), &permissionCSV, "permission", spec.permissionHelp)
+	cmd.Flags().StringVar(&expires, "expires", "", "expiry as a whole-second Go duration (e.g. 720h) or an RFC3339 timestamp")
+	flagPlaceholder(cmd.Flags(), "expires", "DURATION|RFC3339")
 	if spec.allowServiceAcct {
 		cmd.Flags().StringVar(&serviceAccount, "service-account", "", "service account id or name to mint this key for")
 	}
@@ -89,6 +91,7 @@ func newKeyMintCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 }
 
 func newKeyListCommand[CreatedResp any, ListItem any](spec keyCommandSpec[CreatedResp, ListItem]) *cobra.Command {
+	var flags pageFlags
 	cmd := &cobra.Command{Use: "list", Short: spec.listShort, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
@@ -100,11 +103,13 @@ func newKeyListCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 		if err != nil {
 			return err
 		}
-		items, err := spec.list(ctx, mc, scopeID)
+		items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[ListItem], error) {
+			return spec.list(ctx, mc, scopeID, cursor, limit)
+		})
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[ListItem]{Items: items}, func(rows []ListItem) output.Table {
+		return listOutRaw(a.Printer(), items, func(rows []ListItem) output.Table {
 			tableRows := make([][]string, 0, len(rows))
 			for _, row := range rows {
 				tableRows = append(tableRows, spec.listRow(row))
@@ -112,6 +117,7 @@ func newKeyListCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Create
 			return output.Table{Headers: spec.listHeaders, Rows: tableRows}
 		})
 	}}
+	addPageFlags(cmd, &flags)
 	return cmd
 }
 
@@ -132,7 +138,7 @@ func newKeyRevokeCommand[CreatedResp any, ListItem any](spec keyCommandSpec[Crea
 		if err := spec.revoke(cmd.Context(), mc, scopeID, args[0]); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"revoked": args[0]}, [][2]string{{"revoked", args[0]}})
+		return printAck(a, "id", args[0], "revoked", "")
 	}}
 }
 

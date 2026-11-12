@@ -1,0 +1,11 @@
+{
+  "name": "runtime-test-aws-lambda",
+  "private": true,
+  "scripts": {
+    "build": "esbuild handler.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/handler.js --log-level=warning"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "lambda-local": "^2.2.0"
+  }
+}

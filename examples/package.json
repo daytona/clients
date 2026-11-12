@@ -10,13 +10,14 @@
     "git": "tsx typescript/git/index.ts",
     "lifecycle": "tsx typescript/lifecycle/index.ts",
     "snapshots": "tsx typescript/snapshots/index.ts",
+    "local-files": "tsx typescript/local-files/index.ts",
     "pagination": "tsx typescript/pagination/index.ts",
     "secrets-env": "tsx typescript/secrets-env/index.ts",
     "volumes": "tsx typescript/volumes/index.ts",
     "volumes-share": "tsx volumes_share.ts"
   },
   "dependencies": {
-    "@daytona/sdk": "file:../typescript"
+    "@daytona/sdk": "file:../sdk-typescript"
   },
   "devDependencies": {
     "tsx": "^4.21.0",

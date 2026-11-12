@@ -1,0 +1,429 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// Directory watches over a real HTTP transport: a watch whose stream ends on
+// its own, or stops short of its Content-Length, ends with ConnectionError
+// (source SDK), as in the Python SDK.
+
+import { createServer } from 'node:http'
+import type { Server } from 'node:http'
+import { once } from 'node:events'
+import { FileSystemService } from '../src/v2/FileSystem'
+import { BadRequestError, ConnectionError, DaytonaError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
+import { ProcessService } from '../src/v2/Process'
+import { HttpTransport } from '../src/v2/http'
+import { INTERNAL } from '../src/v2/internal'
+
+const EVENT = JSON.stringify({ type: 'create', name: 'a', isDir: false, timestamp: 1 })
+
+/** A URL nothing listens on: an ephemeral port reserved, then released. */
+async function refusedUrl(): Promise<string> {
+  const reserved = createServer()
+  reserved.listen(0, '127.0.0.1')
+  await once(reserved, 'listening')
+  const address = reserved.address()
+  if (address === null || typeof address === 'string') throw new TypeError('expected TCP address')
+  await new Promise<void>((resolve) => reserved.close(() => resolve()))
+  return `http://127.0.0.1:${address.port}`
+}
+
+const fsFrame = (name: string) => `event: fs\ndata: ${JSON.stringify({ type: 'create', name, isDir: false, timestamp: 1 })}\n\n`
+const START = 'event: start\ndata: {}\n\n'
+
+/** Two fs events (`e0`, `e1` padded) and start: `total` bytes in all (as Python's test). */
+function streamTotalling(total: number): string {
+  const first = fsFrame('e0')
+  return first + fsFrame(`e1${'x'.repeat(total - first.length - fsFrame('e1').length - START.length)}`) + START
+}
+
+describe('watch stream drops', () => {
+  let server: Server
+  let base: string
+  let clientClosed: { promise: Promise<void>; resolve: () => void }
+
+  beforeEach(async () => {
+    let resolve!: () => void
+    const promise = new Promise<void>((done) => { resolve = done })
+    clientClosed = { promise, resolve }
+    server = createServer((request, response) => {
+      request.resume()
+      if (request.url?.startsWith('/w404') === true) {
+        const body = JSON.stringify({ code: 'FILE_NOT_FOUND', message: 'no such path', source: 'DAYTONA_DAEMON' })
+        response.writeHead(404, { 'Content-Type': 'application/json', 'Content-Length': String(body.length) })
+        response.end(body)
+        return
+      }
+      if (request.url?.startsWith('/nostart') === true) {
+        response.writeHead(200, { 'Content-Type': 'text/event-stream', Connection: 'close' })
+        response.end(': no start frame\n\n')
+        return
+      }
+      if (request.url?.includes('/processes/p/logs') === true) {
+        response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Content-Length': '100000' })
+        response.write('event: log\ndata: {"cursor":"c1","channel":"stdout","data":"x","timestamp":1}\n\n')
+        setTimeout(() => response.socket?.destroy(), 20)
+        return
+      }
+      const bytes = /^\/bytes-(\d+)/.exec(request.url ?? '')
+      if (bytes !== null) {
+        // Two fs events and start, N bytes in all; the stream stays open
+        // until the client closes it.
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(streamTotalling(Number(bytes[1])))
+        response.on('close', () => clientClosed.resolve())
+        return
+      }
+      if (request.url?.startsWith('/heartbeats') === true) {
+        // Comment-only frames before start, endlessly (4 MiB of them), then
+        // the stream waits for the client to close it.
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        for (let index = 0; index < 64; index++) response.write(':\n\n'.repeat(21846))
+        response.on('close', () => clientClosed.resolve())
+        return
+      }
+      if (request.url?.startsWith('/endless') === true) {
+        // One fs event whose data line never ends: 4 MiB of it, then the
+        // stream waits for the client to close it.
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write('event: fs\ndata: ')
+        for (let index = 0; index < 64; index++) response.write('x'.repeat(65536))
+        response.on('close', () => clientClosed.resolve())
+        return
+      }
+      const after = /^\/bigafter-(\d+)/.exec(request.url ?? '')
+      if (after !== null) {
+        // start, then one fs event of N bytes; the stream stays open.
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(START + fsFrame(`big${'x'.repeat(Number(after[1]) - fsFrame('big').length)}`))
+        return
+      }
+      const deep = /^\/deep-(\d+)/.exec(request.url ?? '')
+      if (deep !== null) {
+        // start, then an fs event whose data nests N deep (the object is one level).
+        const nest = Number(deep[1]) - 1
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(`${START}event: fs\ndata: {"type":"create","name":"d","isDir":false,"timestamp":1,"x":${'['.repeat(nest)}${']'.repeat(nest)}}\n\n`)
+        return
+      }
+      const flood = /^\/(o?)flood-(\d+)/.exec(request.url ?? '')
+      if (flood !== null) {
+        // N fs (oflood: overflow) events before start, then start; the stream
+        // stays open until the client closes it, which the test is told about.
+        const events = Array.from({ length: Number(flood[2]) }, (_, index) => flood[1] === 'o'
+          ? 'event: overflow\ndata: {"dropped":true}\n\n'
+          : `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(`${events.join('')}event: start\ndata: {}\n\n`)
+        response.on('close', () => clientClosed.resolve())
+        return
+      }
+      if (request.url?.startsWith('/burst') === true || request.url?.startsWith('/early') === true) {
+        // start and ten events in ONE write (early: two events before start);
+        // the stream stays open until the client closes it.
+        const events = Array.from({ length: 10 }, (_, index) =>
+          `event: fs\ndata: ${JSON.stringify({ type: 'create', name: `e${index}`, isDir: false, timestamp: 1 })}\n\n`)
+        const start = 'event: start\ndata: {}\n\n'
+        const frames = request.url.startsWith('/burst') ? [start, ...events] : [...events.slice(0, 2), start, ...events.slice(2)]
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.write(frames.join(''))
+        return
+      }
+      const truncated = request.url?.startsWith('/truncated') === true
+      response.writeHead(200, truncated
+        ? { 'Content-Type': 'text/event-stream', 'Content-Length': '100000' }
+        : { 'Content-Type': 'text/event-stream', Connection: 'close' })
+      response.write(`event: start\ndata: {}\n\nevent: fs\ndata: ${EVENT}\n\n`)
+      if (truncated) setTimeout(() => response.socket?.destroy(), 20)
+      else response.end()
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const address = server.address()
+    if (address === null || typeof address === 'string') throw new TypeError('expected TCP address')
+    base = `http://127.0.0.1:${address.port}`
+  })
+
+  afterEach(async () => {
+    server.closeAllConnections()
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  })
+
+  it.each([
+    ['eof', 'filesystem watch stream ended unexpectedly'],
+    ['truncated', undefined],
+  ] as const)('ends a watch whose stream drops (%s) with a ConnectionError', async (path, message) => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/${path}`, 'k', 5_000))
+    const seen: string[] = []
+    const handle = await fs.watchDir('/', (event) => {
+      seen.push(event.name)
+    })
+    const error = await handle.waitForExit()
+    expect(seen).toEqual(['a'])
+    expect(error).toBeInstanceOf(ConnectionError)
+    expect(error).toMatchObject({ source: 'SDK' })
+    if (message !== undefined) expect(error?.message).toBe(message)
+  })
+
+  it.each(['burst', 'early'] as const)('runs no callback before watchDir() returns, so a callback can stop its own watch (%s)', async (path) => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/${path}`, 'k', 5_000))
+    for (let run = 0; run < 20; run++) {
+      const seen: string[] = []
+      const early: string[] = []
+      let returned = false
+      const handle: Awaited<ReturnType<typeof fs.watchDir>> = await fs.watchDir('/', async (event) => {
+        if (!returned) early.push(event.name)
+        seen.push(event.name)
+        await handle.stop()
+      })
+      returned = true
+      await expect(handle.waitForExit()).resolves.toBeUndefined()
+      expect({ early, seen }).toEqual({ early: [], seen: ['e0'] })
+    }
+  })
+
+  it('holds 4096 events before start and delivers them in order after it', async () => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/flood-4096`, 'k', 5_000))
+    const seen: string[] = []
+    let allSeen!: () => void
+    const done = new Promise<void>((resolve) => { allSeen = resolve })
+    const handle = await fs.watchDir('/', (event) => {
+      seen.push(event.name)
+      if (seen.length === 4096) allSeen()
+    })
+    await done
+    await handle.stop()
+    expect(seen).toEqual(Array.from({ length: 4096 }, (_, index) => `e${index}`))
+  })
+
+  it('refuses a stream with 4097 events before start without calling onExit, and closes it', async () => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/flood-4097`, 'k', 5_000))
+    const exits: unknown[] = []
+    const seen: unknown[] = []
+    const error = await fs.watchDir('/', (event) => { seen.push(event) }, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({
+      message: 'expected filesystem watch stream: it sent more than 4096 events before start',
+      statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
+    })
+    await clientClosed.promise
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect({ exits, seen }).toEqual({ exits: [], seen: [] })
+  })
+
+  it('holds at most 1 MiB of events before start, whatever the count', async () => {
+    const seen: string[] = []
+    let both!: () => void
+    const done = new Promise<void>((resolve) => { both = resolve })
+    const handle = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/bytes-1048576`, 'k', 5_000)).watchDir('/', (event) => {
+      seen.push(event.name.slice(0, 2))
+      if (seen.length === 2) both()
+    })
+    await done
+    await handle.stop()
+    expect(seen).toEqual(['e0', 'e1'])
+  })
+
+  it('refuses a stream with more than 1 MiB of events before start, without onExit, and closes it', async () => {
+    const exits: unknown[] = []
+    const error = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/bytes-1048577`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 1048576 bytes before start', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    await clientClosed.promise
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(exits).toEqual([])
+  })
+
+  // Shared with the Python SDK's test_watch_transport.py: the budget is
+  // checked as the bytes arrive, so an event that never ends is refused
+  // once it passes it.
+  it('refuses a never-ending event before start at the budget, without onExit, and closes it', async () => {
+    const exits: unknown[] = []
+    const error = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/endless`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 1048576 bytes before start' })
+    await clientClosed.promise
+    expect(exits).toEqual([])
+  })
+
+  // Shared with the Python SDK's test_watch_transport.py: every frame before
+  // start counts toward the 1 MiB budget, comment-only heartbeats included.
+  it('refuses endless heartbeats before start at the budget, without onExit, and closes it', async () => {
+    const exits: unknown[] = []
+    const error = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/heartbeats`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit: (exit) => { exits.push(exit) } })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 1048576 bytes before start' })
+    await clientClosed.promise
+    expect(exits).toEqual([])
+  })
+
+  it('delivers a large event after start under the client cap and ends the watch over it', async () => {
+    const sizes: number[] = []
+    let delivered!: () => void
+    const done = new Promise<void>((resolve) => { delivered = resolve })
+    const handle = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/bigafter-3145728`, 'k', 5_000)).watchDir('/', (event) => {
+      sizes.push(event.name.length)
+      delivered()
+    })
+    await done
+    await handle.stop()
+    expect(sizes[0]).toBeGreaterThan(3_000_000)
+
+    const capped = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/bigafter-3145728`, 'k', 5_000, { maxResponseBytes: 1_048_576 }))
+      .watchDir('/', () => undefined)
+    const exit = await capped.waitForExit()
+    expect(exit).toBeInstanceOf(PayloadTooLargeError)
+    expect(exit).toMatchObject({
+      message: 'expected filesystem watch stream: an event is larger than the 1048576-byte maxResponseBytes limit',
+      statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK',
+    })
+  })
+
+  it('reads an fs event nested 600 deep and ends the watch on one nested 601 deep', async () => {
+    const names: string[] = []
+    let delivered!: () => void
+    const done = new Promise<void>((resolve) => { delivered = resolve })
+    const accepted = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/deep-600`, 'k', 5_000)).watchDir('/', (event) => {
+      names.push(event.name)
+      delivered()
+    })
+    await done
+    await accepted.stop()
+    expect(names).toEqual(['d'])
+
+    const refused = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/deep-601`, 'k', 5_000)).watchDir('/', () => undefined)
+    const exit = await refused.waitForExit()
+    expect(exit).toBeInstanceOf(BadRequestError)
+    expect(exit).toMatchObject({ message: 'expected filesystem watch event: the JSON is nested too deeply', code: 'BAD_REQUEST', source: 'SDK' })
+  })
+
+  it('counts overflow events before start toward the cap without an onOverflow callback', async () => {
+    const exits: unknown[] = []
+    const onExit = (exit: unknown) => { exits.push(exit) }
+    const refused = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/oflood-4097`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit })
+      .then(() => undefined, (caught: unknown) => caught)
+    expect(refused).toBeInstanceOf(BadRequestError)
+    expect(refused).toMatchObject({ message: 'expected filesystem watch stream: it sent more than 4096 events before start' })
+    await clientClosed.promise
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(exits).toEqual([])
+
+    const handle = await new FileSystemService(INTERNAL, new HttpTransport(`${base}/oflood-4096`, 'k', 5_000))
+      .watchDir('/', () => undefined, { onExit })
+    expect(handle.exitError).toBeUndefined()
+    await handle.stop()
+    expect(exits).toEqual([undefined])
+  })
+
+  it.each(['refused', 'w404', 'nostart'] as const)('throws a watch that fails before start (%s) from watchDir() without calling onExit', async (kind) => {
+    const url = kind === 'refused' ? await refusedUrl() : `${base}/${kind}`
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(url, 'k', 5_000))
+    const exits: unknown[] = []
+    const pending = fs.watchDir('/', () => undefined, { onExit: (error) => { exits.push(error) } })
+    await expect(pending).rejects.toBeInstanceOf(kind === 'w404' ? DaytonaError : ConnectionError)
+    if (kind === 'w404') await expect(pending).rejects.toMatchObject({ statusCode: 404 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(exits).toEqual([])
+  })
+
+  it('ends a log stream cut short with a ConnectionError, as the Python SDK does', async () => {
+    const handle = new ProcessService(INTERNAL, new HttpTransport(base, 'k', 5_000), 'sbx').connect('p')
+    const seen: string[] = []
+    let thrown: unknown
+    try {
+      for await (const event of handle.streamLogs()) seen.push(event.type)
+    } catch (error) {
+      thrown = error
+    }
+    expect(seen).toEqual(['log'])
+    expect(thrown).toBeInstanceOf(ConnectionError)
+    expect(thrown).toMatchObject({ source: 'SDK' })
+    expect((thrown as { cause?: { name?: string } }).cause?.name).toBe('TypeError')
+  })
+})
+
+describe('watch stop() while onExit runs', () => {
+  const deferred = () => {
+    let resolve!: () => void
+    const promise = new Promise<void>((done) => { resolve = done })
+    return { promise, resolve }
+  }
+  // A watch whose stream sends start and ends when `end()` is called, which
+  // runs onExit.
+  const controlledWatch = () => {
+    let end!: () => void
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('event: start\ndata: {}\n\n'))
+        end = () => controller.close()
+      },
+    })
+    const transport = new HttpTransport('http://fake.invalid', 'k', 5_000)
+    transport.fetch = async () => new Response(body, { headers: { 'Content-Type': 'text/event-stream' } })
+    return { fs: new FileSystemService(INTERNAL, transport), end: () => end() }
+  }
+  // Runs watchDir() with or without AsyncLocalStorage, as a browser has none.
+  const withoutScope = async <T>(withScope: boolean, run: () => Promise<T>): Promise<T> => {
+    const runtime = process as { getBuiltinModule?: unknown }
+    const builtin = runtime.getBuiltinModule
+    if (!withScope) runtime.getBuiltinModule = undefined
+    try {
+      return await run()
+    } finally {
+      runtime.getBuiltinModule = builtin
+    }
+  }
+
+  it.each([true, false])('resolves an external stop() only after an async onExit finishes (AsyncLocalStorage: %p)', async (withScope) => {
+    const { fs, end } = controlledWatch()
+    const entered = deferred()
+    const release = deferred()
+    let exitDone = false
+    let stopDone = false
+    const handle = await withoutScope(withScope, () => fs.watchDir('/', () => undefined, {
+      onExit: async () => {
+        entered.resolve()
+        await release.promise
+        exitDone = true
+      },
+    }))
+    end()
+    await entered.promise
+    const stopping = handle.stop().then(() => { stopDone = true })
+    for (let tick = 0; tick < 10; tick++) await Promise.resolve()
+    expect({ stopDone, exitDone }).toEqual({ stopDone: false, exitDone: false })
+    release.resolve()
+    await stopping
+    expect({ stopDone, exitDone }).toEqual({ stopDone: true, exitDone: true })
+  })
+
+  it.each([true, false])('returns a stop() that onExit makes synchronously without waiting for itself (AsyncLocalStorage: %p)', async (withScope) => {
+    const { fs, end } = controlledWatch()
+    const ownStop = deferred()
+    let exitDone = false
+    const box: { handle?: Awaited<ReturnType<FileSystemService['watchDir']>> } = {}
+    box.handle = await withoutScope(withScope, () => fs.watchDir('/', () => undefined, {
+      onExit: async () => {
+        // Synchronous part: the watch's own stop(), awaited after onExit's
+        // first await; it must resolve while onExit is still running.
+        const stopping = box.handle?.stop()
+        await stopping
+        ownStop.resolve()
+        exitDone = true
+      },
+    }))
+    end()
+    await ownStop.promise
+    await box.handle.stop()
+    expect(exitDone).toBe(true)
+  })
+})

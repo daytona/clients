@@ -48,7 +48,7 @@ it.each([
   // When
   const result = imports(source, { ...mapping, v0Exports: { ts: [] } }, '/');
   // Then
-  expect(result.items).toMatchObject([{ kind: 'private-import', message: expect.stringContaining('MissingResource is not exported by bundled v0.224.0') }]);
+  expect(result.items).toMatchObject([{ kind: 'private-import', message: expect.stringContaining(`MissingResource is not exported by bundled v${mapping.v0Version}`) }]);
   expect(result.items[0]?.message).toContain('use the v2 API or remove it');
   expect(result.items[0]?.message).toContain('unavailable from @daytona/sdk/v0');
 });

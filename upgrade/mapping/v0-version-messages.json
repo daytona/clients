@@ -1,0 +1,49 @@
+{
+  "description": "Shared expectations for the 0.x version check: both tools' suites assert these exact messages for the same lockfile resolutions, so the two tools cannot drift apart. {pinned} is the mapping's v0Version, {file} the lockfile, {newerPatch} the pin with its patch number plus one; a case with flags runs with them.",
+  "cases": [
+    {
+      "id": "pre-release-newer-minor",
+      "version": {
+        "npm": "0.999.0-alpha.1",
+        "py": "0.999.0a1"
+      },
+      "refusal": "Daytona SDK 0.999.0-alpha.1 ({file}) is newer than {pinned}, the 0.x release this daytona-upgrade and SDK 2.x run as .v0: 0.x APIs added after {pinned} are missing from .v0 and would get no FIXME. Use a later daytona-upgrade release, or rerun with --allow-newer-v0 to migrate anyway. No files were written."
+    },
+    {
+      "id": "older",
+      "version": {
+        "npm": "0.100.0",
+        "py": "0.100"
+      },
+      "warning": "Daytona SDK 0.100.0 is older than {pinned}, the 0.x release SDK 2.x runs as .v0. Calls moved to .v0 now run {pinned}; review the 0.x changes between 0.100.0 and {pinned}, then run your tests."
+    },
+    {
+      "id": "newer-patch",
+      "version": {
+        "npm": "{newerPatch}",
+        "py": "{newerPatch}"
+      },
+      "warning": "Daytona SDK {newerPatch} is newer than {pinned}, the 0.x release SDK 2.x runs as .v0. Calls moved to .v0 now run {pinned}; review the 0.x changes between {pinned} and {newerPatch}, then run your tests."
+    },
+    {
+      "id": "allowed-newer-minor",
+      "version": {
+        "npm": "0.999.0",
+        "py": "0.999.0"
+      },
+      "flags": [
+        "--allow-newer-v0"
+      ],
+      "warning": "Daytona SDK 0.999.0 is newer than {pinned}, the 0.x release SDK 2.x runs as .v0. 0.x APIs added after {pinned} are missing from .v0 and get no FIXME (--allow-newer-v0); review them by hand."
+    },
+    {
+      "id": "unknown",
+      "version": {
+        "npm": "0.0.0-use.local",
+        "py": "0.1.dev1+g1"
+      },
+      "unknownFile": true,
+      "warning": "Cannot determine which Daytona SDK 0.x version this project uses; SDK 2.x runs {pinned} as .v0. Review the 0.x changes between your version and {pinned}, then run your tests."
+    }
+  ]
+}

@@ -58,5 +58,5 @@ regexes = ['''^daytona\.v0\.secret$''']
 [[allowlists]]
 description = "Malformed JWT fixture (payload is not JSON) in the TypeScript unit tests"
 condition = "AND"
-paths = ['''^typescript/tests/unit\.test\.ts$''']
+paths = ['''^sdk-typescript/tests/unit\.test\.ts$''']
 regexes = ['''^eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCJ9\.bm90LWpzb24\.signature$''']

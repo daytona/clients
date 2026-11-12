@@ -13,29 +13,31 @@
 import { DaytonaError } from '@daytona/sdk'
 import { ImageBuilder } from '@daytona/sdk/v2'
 import type { Sandbox } from '@daytona/sdk/v2'
-import { client, section, info, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, IMAGE, RUN } from '../_common'
 
 async function main(): Promise<void> {
   const daytona = client()
 
-  section('volume.get(name, create=true)')
-  const volume = await daytona.volume.get(`my-volume-${RUN}`, true)
+  section('volumes.get(name, { create: true })')
+  const volume = await daytona.volumes.get(`my-volume-${RUN}`, { create: true })
   info(`volume id=${volume.id} name=${volume.name} status=${volume.status}`)
 
   const boxes: Sandbox[] = []
   try {
     section('sandbox 1: mount volume at /mnt/vol and write a file')
     const mount1 = '/mnt/vol'
-    const s1 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol1-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount1 }], waitSeconds: 240 })
+    const s1 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol1-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount1 }], buildTimeoutSeconds: 240, waitSeconds: 240 })
     boxes.push(s1)
+    assertStarted(s1)
     await s1.fs.mkdir(`${mount1}/new-dir`, { mode: '755' })
     await s1.fs.writeText(`${mount1}/new-file.txt`, 'Hello, World!')
     info(`s1 wrote ${mount1}/new-file.txt`)
 
     section('sandbox 2: mount the same volume at a different path')
     const mount2 = '/mnt/other'
-    const s2 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol2-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount2 }], waitSeconds: 240 })
+    const s2 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), { name: `vol2-${RUN}`, volumes: [{ volumeId: volume.id, mountPath: mount2 }], buildTimeoutSeconds: 240, waitSeconds: 240 })
     boxes.push(s2)
+    assertStarted(s2)
     const files = (await s2.fs.list(mount2)).items
     info(`s2 sees at ${mount2}: ${files.map((f) => f.name).join(', ') || '(not yet synchronized)'}`)
 
@@ -44,9 +46,11 @@ async function main(): Promise<void> {
     const s3 = await daytona.createFromBuild(ImageBuilder.fromRegistry(IMAGE), {
       name: `vol3-${RUN}`,
       volumes: [{ volumeId: volume.id, mountPath: mount3, subpath: 'users/alice' }],
+      buildTimeoutSeconds: 240,
       waitSeconds: 240,
     })
     boxes.push(s3)
+    assertStarted(s3)
     await s3.fs.writeText(`${mount3}/alice-file.txt`, "Hello from Alice's subpath!")
     info(`s3 wrote ${mount3}/alice-file.txt (volume-root/users/alice/alice-file.txt)`)
   } finally {
@@ -60,10 +64,8 @@ async function main(): Promise<void> {
         info(`delete sandbox failed: ${error}`)
       }
     }
-    // Allow sandbox deletion to finish before deleting the volume.
-    await new Promise((resolve) => setTimeout(resolve, 3000))
     try {
-      await daytona.volume.delete(volume)
+      await daytona.volumes.delete(volume.id, { idOnly: true })
       info(`deleted volume ${volume.id}`)
     } catch (error) {
       if (!(error instanceof DaytonaError)) throw error

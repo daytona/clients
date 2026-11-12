@@ -10,7 +10,7 @@ before deleting a writer (default 20). Run from the repository root:
 
     DAYTONA_API_KEY=dtn_... python examples/volumes_share.py
 
-DAYTONA_API_URL defaults to https://api.daytona.com. DAYTONA_IMAGE defaults to
+DAYTONA_V2_API_URL (a regional endpoint or test environment) defaults to https://api.daytona.com. DAYTONA_IMAGE defaults to
 python:3.12-slim. Set DAYTONA_KEEP=1 to retain the resources for inspection.
 """
 
@@ -31,25 +31,28 @@ RUN = uuid.uuid4().hex[:8]
 
 
 def sh(sandbox: Sandbox, command: str) -> str:
-    """Run a shell command and return trimmed stdout."""
-    return (sandbox.process.run(command).output or "").strip()
+    """Run a shell command and return trimmed stdout; raise if it exits non-zero."""
+    result = sandbox.process.run(command)
+    output = (result.output or "").strip()
+    if result.exit_code != 0:
+        raise RuntimeError(f"{command!r} failed (exit={result.exit_code}): {output}")
+    return output
 
 
 def main() -> int:
-    if (
-        not (os.environ.get("DAYTONA_V2_API_URL") or "").strip()
-        and not (os.environ.get("DAYTONA_API_URL") or "").strip()
-    ):
-        os.environ["DAYTONA_API_URL"] = "https://api.daytona.com"
-    daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY", ""))).v2
-    volume = daytona.volume.create(name=f"shared-vol-{RUN}")
+    daytona = Daytona(DaytonaConfig(api_key=os.environ.get("DAYTONA_API_KEY"))).v2
+    volume = daytona.volumes.create(name=f"shared-vol-{RUN}")
     print(f"volume id={volume.id} name={volume.name} status={volume.status}")
     boxes: list[Sandbox] = []
     ok = True
 
     def new_box(name: str) -> Sandbox:
-        box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], wait_seconds=240)
+        box = daytona.create_from_build(ImageBuilder.from_registry(IMAGE), name=f"{name}-{RUN}", volumes=[VolumeMount(volume_id=volume.id, mount_path="/data")], build_timeout=240, wait_seconds=240)
         boxes.append(box)
+        # A create returns its handle however its wait ended: check before using it.
+        if box.state != "started":
+            raw = f" (raw state {box.raw_state!r})" if box.state == "unknown" else ""
+            raise RuntimeError(f"sandbox {box.id} is {box.state}{raw}, not started")
         return box
 
     try:
@@ -61,11 +64,10 @@ def main() -> int:
         time.sleep(SYNC_WAIT_SECONDS)
         a.delete()
         boxes.remove(a)
-        time.sleep(3)
 
         print("2. sandbox B reads A's file and appends a line")
         b = new_box("vol-b")
-        got = sh(b, "cat /data/message.txt 2>/dev/null || echo '<missing>'")
+        got = sh(b, "if [ -e /data/message.txt ]; then cat /data/message.txt; else echo '<missing>'; fi")
         if got == marker:
             print("PASS: B read A's file after A was deleted")
         else:
@@ -77,11 +79,10 @@ def main() -> int:
         time.sleep(SYNC_WAIT_SECONDS)
         b.delete()
         boxes.remove(b)
-        time.sleep(3)
 
         print("3. sandbox C reads both writers' data")
         c = new_box("vol-c")
-        contents = sh(c, "cat /data/message.txt 2>/dev/null")
+        contents = sh(c, "if [ -e /data/message.txt ]; then cat /data/message.txt; fi")
         if marker in contents and marker_b in contents:
             print("PASS: C sees changes from both A and B")
         else:
@@ -94,14 +95,13 @@ def main() -> int:
                     box.delete()
                 except DaytonaError as error:
                     print(f"delete sandbox failed: {error}")
-            # Allow sandbox deletion to finish before deleting the volume.
-            time.sleep(3)
+            # delete() waits until each sandbox is destroyed.
             try:
-                daytona.volume.delete(volume.id)
+                daytona.volumes.delete(volume.id, id_only=True)
             except DaytonaError as error:
                 print(f"delete volume failed (retrying once): {error}")
                 time.sleep(5)
-                daytona.volume.delete(volume.id)
+                daytona.volumes.delete(volume.id, id_only=True)
     print("SUCCESS" if ok else "FAILURE")
     return 0 if ok else 1
 

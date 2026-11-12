@@ -17,19 +17,20 @@ participating, you are expected to uphold it. Please report unacceptable behavio
 Found a bug or have an idea for the SDKs or the CLI? Please
 [open an issue](https://github.com/daytona/clients/issues/new) — but first check that a
 matching issue doesn't already exist. For questions and discussion, join the
-[Daytona Community Slack](https://go.daytona.io/slack).
+[Daytona Community Slack](https://go.daytona.io/slack). Security vulnerabilities go
+through [SECURITY.md](./SECURITY.md), never a public issue.
 
 ## What you can contribute
 
-- Bug fixes and new features in the SDKs (`python/`, `typescript/`). A change to SDK
+- Bug fixes and new features in the SDKs (`sdk-python/`, `sdk-typescript/`). A change to SDK
   behavior lands in **both** SDKs in the same pull request — see the parity contract in
   [`AGENTS.md`](./AGENTS.md).
 - Improvements to the CLI (`cli/`).
 - New examples under `examples/`.
 
-> **Generated code**: the wire types under `typescript/src/v2/gen/`,
-> `python/src/daytona/v2/_gen/` and `cli/gen/` are generated from the API contracts in
-> `contract/`, and the synchronous Python surface (`python/src/daytona/v2/_sync/`) is
+> **Generated code**: the wire types under `sdk-typescript/src/v2/gen/`,
+> `sdk-python/src/daytona/v2/_gen/` and `cli/gen/` are generated from the API contracts in
+> `contract/`, and the synchronous Python surface (`sdk-python/src/daytona/v2/_sync/`) is
 > generated from the async one. Don't hand-edit generated output. The contract files
 > themselves are maintained by the Daytona team; if you need API surface that isn't in
 > them, open an issue.
@@ -40,8 +41,8 @@ You need Python 3.10+ with [uv](https://docs.astral.sh/uv/), Node.js 22.4+ and G
 version in `cli/go.mod`). Regenerating the wire types also needs a Java runtime.
 
 ```bash
-(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./...)
 ```
 
@@ -62,7 +63,7 @@ remove the credential rather than bypassing the hook; for a value that is not a
 secret, see the comments at the top of `.gitleaks.toml`.
 
 With a Daytona API key you can also run the live end-to-end suites:
-`DAYTONA_API_KEY=… ./run-e2e.sh`.
+`DAYTONA_API_KEY=… ./e2e/run.sh`.
 
 [`AGENTS.md`](./AGENTS.md) has the full project map and conventions.
 
@@ -83,7 +84,7 @@ Every source file starts with a license header (see [Licensing](#licensing)); th
    branch for your change.
 2. Open (or find) a [GitHub issue](https://github.com/daytona/clients/issues) describing the
    change.
-3. [Prepare your changes](./PREPARING_YOUR_CHANGES.md) with descriptive commits, and **sign off**
+3. [Prepare your changes](./docs/PREPARING_YOUR_CHANGES.md) with descriptive commits, and **sign off**
    every commit to comply with the DCO v1.1 (`git commit -s`).
    The first time you open a PR, our CLA assistant will also ask you to **sign the
    [Contributor License Agreement](./CLA.md)** (see [Licensing](#licensing) below).
@@ -103,7 +104,7 @@ AGPL-3.0). Contributing involves two steps:
 
 1. **DCO sign-off (per commit).** Sign off every commit with `git commit -s` to certify, under
    the [Developer Certificate of Origin](https://developercertificate.org/) v1.1, that you have
-   the right to submit the code. See [PREPARING_YOUR_CHANGES.md](./PREPARING_YOUR_CHANGES.md).
+   the right to submit the code. See [PREPARING_YOUR_CHANGES.md](./docs/PREPARING_YOUR_CHANGES.md).
 
 2. **CLA signature (once).** You must also sign the
    [Daytona Contributor License Agreement](./CLA.md) — it covers both individual and

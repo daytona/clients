@@ -187,7 +187,7 @@ func TestUploadFile_missingLocalFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}
-	if !strings.Contains(err.Error(), "open /nonexistent/file.txt") {
+	if !strings.Contains(err.Error(), "/nonexistent/file.txt") {
 		t.Fatalf("err=%v", err)
 	}
 }
@@ -344,4 +344,58 @@ func TestSignedTransfersCarryIdentityHeaders(t *testing.T) {
 		require.Equal(t, "test", h.Get("X-Daytona-SDK-Version"))
 		require.Equal(t, "cli/test", h.Get("User-Agent"))
 	}
+}
+
+// A failed upload shows the toolbox's message and code, not a bare status.
+func TestUploadFile_errorBodyIsDecoded(t *testing.T) {
+	t.Parallel()
+	uploadFileStubMu.Lock()
+	defer uploadFileStubMu.Unlock()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":"BAD_REQUEST","message":"File exists (os error 17)","source":"DAYTONA_DAEMON"}`))
+	}))
+	defer srv.Close()
+	localFile := filepath.Join(t.TempDir(), "upload.txt")
+	require.NoError(t, os.WriteFile(localFile, []byte("x"), 0o644))
+	err := transferClient().UploadFile(context.Background(), srv.URL, localFile, "/remote/dir")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "File exists (os error 17)")
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+}
+
+// A transport error never prints a pre-signed URL's signature.
+func TestSignedTransferErrors_redactTheSignedQuery(t *testing.T) {
+	t.Parallel()
+	uploadFileStubMu.Lock()
+	defer uploadFileStubMu.Unlock()
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	dead := srv.URL + "/toolbox/sbx/files/upload?path=%2Ftmp%2Fx&expires=1&signature=SECRET-SIGNATURE"
+	srv.Close()
+	localFile := filepath.Join(t.TempDir(), "upload.txt")
+	require.NoError(t, os.WriteFile(localFile, []byte("x"), 0o644))
+	err := transferClient().UploadFile(context.Background(), dead, localFile, "/tmp/x")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
+	require.Contains(t, err.Error(), "/toolbox/sbx/files/upload")
+	err = transferClient().DownloadFile(context.Background(), dead, filepath.Join(t.TempDir(), "out"))
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
+}
+
+func TestSignedTransfer_invalidURLIsNotPrinted(t *testing.T) {
+	t.Parallel()
+	bad := "http://proxy.example/files\x7f?signature=SECRET-SIGNATURE"
+	err := transferClient().DownloadFile(context.Background(), bad, filepath.Join(t.TempDir(), "out"))
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
+	uploadFileStubMu.Lock()
+	defer uploadFileStubMu.Unlock()
+	localFile := filepath.Join(t.TempDir(), "upload.txt")
+	require.NoError(t, os.WriteFile(localFile, []byte("x"), 0o644))
+	err = transferClient().UploadFile(context.Background(), bad, localFile, "/tmp/x")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "SECRET-SIGNATURE")
 }

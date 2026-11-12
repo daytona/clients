@@ -17,8 +17,8 @@ func TestKeyAndOrgKeyCommands_JSON(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
 	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/service-accounts", 200, map[string]any{"service_accounts": []map[string]any{serviceAccountFixture("11111111-1111-1111-1111-111111111111", testOrgP, "bot")}})
-	f.on("POST", "/projects/proj-1/api-keys", 201, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": false, "sync_to_v1": false, "service_account_id": "11111111-1111-1111-1111-111111111111"})
-	f.on("GET", "/projects/proj-1/api-keys", 200, map[string]any{"project_api_keys": []map[string]any{{"id": "22222222-2222-2222-2222-222222222222", "project_id": testProjP1, "name": "ci", "created_at": "2026-09-01T00:00:00Z", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true, "sync_to_v1": true}}})
+	f.on("POST", "/projects/proj-1/api-keys", 201, map[string]any{"id": "22222222-2222-2222-2222-222222222222", "name": "ci", "project_id": testProjP1, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtn_abc", "key_suffix": "abc", "token": "dtn_token", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": false, "service_account_id": "11111111-1111-1111-1111-111111111111"})
+	f.on("GET", "/projects/proj-1/api-keys", 200, map[string]any{"project_api_keys": []map[string]any{{"id": "22222222-2222-2222-2222-222222222222", "project_id": testProjP1, "name": "ci", "created_at": "2026-09-01T00:00:00Z", "project_permissions": []string{"write:sandboxes"}, "sync_to_v0": true}}})
 	f.on("DELETE", "/projects/proj-1/api-keys/22222222-2222-2222-2222-222222222222", 204, "")
 	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys", 201, map[string]any{"id": "33333333-3333-3333-3333-333333333333", "name": "audit", "org_id": testOrgP, "created_at": "2026-09-01T00:00:00Z", "key_prefix": "dtno_abc", "token": "dtno_token", "org_permissions": []string{"read:audit"}})
 	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys", 200, map[string]any{"organization_api_keys": []map[string]any{{"id": "33333333-3333-3333-3333-333333333333", "org_id": testOrgP, "name": "audit", "created_at": "2026-09-01T00:00:00Z", "org_permissions": []string{"read:audit"}}}})
@@ -37,7 +37,7 @@ func TestKeyAndOrgKeyCommands_JSON(t *testing.T) {
 		t.Fatalf("guard: %d %s", code, errb)
 	}
 	out, _, code = runMgmt(t, f, d, "--project", "proj-1", "key", "revoke", "22222222-2222-2222-2222-222222222222", "--yes")
-	if code != 0 || mustJSON(t, out)["revoked"] != "22222222-2222-2222-2222-222222222222" {
+	if code != 0 || !isAck(t, out, "id", "22222222-2222-2222-2222-222222222222", "revoked") {
 		t.Fatalf("key revoke: %d %s", code, out)
 	}
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "org-key", "mint", "--name", "audit", "--permission", "read:audit")
@@ -48,9 +48,9 @@ func TestKeyAndOrgKeyCommands_JSON(t *testing.T) {
 	if code != 0 || mustJSON(t, out)["items"] == nil {
 		t.Fatalf("org-key list: %d %s", code, out)
 	}
-	require.Empty(t, findRequest(t, f, http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys").Query)
+	require.Equal(t, "limit=100", findRequest(t, f, http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/api-keys").Query)
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "org-key", "revoke", "33333333-3333-3333-3333-333333333333", "--yes")
-	if code != 0 || mustJSON(t, out)["revoked"] != "33333333-3333-3333-3333-333333333333" {
+	if code != 0 || !isAck(t, out, "id", "33333333-3333-3333-3333-333333333333", "revoked") {
 		t.Fatalf("org-key revoke: %d %s", code, out)
 	}
 }
@@ -136,20 +136,33 @@ func TestServiceAccountProjectResourceBillingAndAuditCommands_JSON(t *testing.T)
 		t.Fatalf("registry guard: %d %s", code, errb)
 	}
 	out, _, code := runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "service-account", "delete", "11111111-1111-1111-1111-111111111111", "--yes")
-	if code != 0 || mustJSON(t, out)["archived"] != "11111111-1111-1111-1111-111111111111" {
+	if code != 0 || !isAck(t, out, "id", "11111111-1111-1111-1111-111111111111", "archived") {
 		t.Fatalf("sa delete: %d %s", code, out)
 	}
-	_, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "project", "service-account", "remove", "bot", "--yes")
-	if code != 0 {
-		t.Fatalf("project sa remove: %d", code)
+	// Acknowledgements: the identifier under the field that names it, plus
+	// a boolean named after the action.
+	acks := []struct {
+		args                []string
+		idField, id, action string
+	}{
+		{[]string{"--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "project", "service-account", "remove", "bot", "--yes"}, "id", "11111111-1111-1111-1111-111111111111", "removed"},
+		{[]string{"--project", "proj-1", "secret", "delete", "API_KEY", "--yes"}, "name", "API_KEY", "deleted"},
+		{[]string{"--project", "proj-1", "registry", "delete", "ghcr.io", "--yes"}, "host", "ghcr.io", "deleted"},
 	}
-	_, _, code = runMgmt(t, f, d, "--project", "proj-1", "secret", "delete", "API_KEY", "--yes")
-	if code != 0 {
-		t.Fatalf("secret delete: %d", code)
+	for _, ack := range acks {
+		out, errb, code := runMgmt(t, f, d, ack.args...)
+		if code != 0 || !isAck(t, out, ack.idField, ack.id, ack.action) {
+			t.Fatalf("%v => %d %s %s", ack.args, code, out, errb)
+		}
 	}
-	_, _, code = runMgmt(t, f, d, "--project", "proj-1", "registry", "delete", "ghcr.io", "--yes")
-	if code != 0 {
-		t.Fatalf("registry delete: %d", code)
+	// set prints the resource the PUT returns, as get does.
+	out, errb, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "secret", "set", "API_KEY", "--value", "secret", "--allowed-domain", "api.example.com")
+	if code != 0 || mustJSON(t, out)["name"] != "API_KEY" || mustJSON(t, out)["created_at"] == nil {
+		t.Fatalf("secret set: %d %s %s", code, out, errb)
+	}
+	out, errb, code = runMgmt(t, f, d, "--project", "proj-1", "registry", "set", "ghcr.io", "--username", "me", "--password", "pw")
+	if code != 0 || mustJSON(t, out)["host"] != "ghcr.io" || mustJSON(t, out)["kind"] != "basic" {
+		t.Fatalf("registry set: %d %s %s", code, out, errb)
 	}
 	_, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoice", "pdf", "inv-1", "--out", pdfFile)
 	if code != 0 {

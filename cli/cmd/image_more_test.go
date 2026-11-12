@@ -7,6 +7,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -132,15 +133,17 @@ func TestImageListAll_oneAPIServingSeveralRegionsLosesNoTrimmedItem(t *testing.T
 }
 
 func TestImageImport_missingRef(t *testing.T) {
-	_, _, err := runCLI(t, []string{"image", "import", "img"}, nil)
-	require.Error(t, err)
-	// cobra marks --ref as required, so this is a usage error
+	_, _, err := runCLI(t, []string{"image", "create", "img"}, nil)
+	// RunE checks the merged body: without --ref (or a source in --file) it
+	// is a usage error before any request.
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "--ref is required")
 }
 
 func TestImageImport_rejectsNullSourceFromFile(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "image.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"source":null}`), 0o600))
-	_, _, err := runCLI(t, []string{"image", "import", "img", "--file", bodyPath}, nil)
+	_, _, err := runCLI(t, []string{"image", "create", "img", "--file", bodyPath}, nil)
 	require.Error(t, err)
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "--ref is required")
@@ -150,6 +153,7 @@ func TestImageLogs_followQuery(t *testing.T) {
 	stdout, _, err := runCLIWithResponseReplacement(t, []string{
 		"image", "logs", "11111111-1111-1111-1111-111111111111", "--follow",
 	}, []expectedRequest{
+		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
 		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111/build-logs-url", status: 200, response: `{"url":"__SERVER__/build-logs/images/11111111-1111-1111-1111-111111111111"}`},
 		{method: http.MethodGet, path: "/build-logs/images/11111111-1111-1111-1111-111111111111", query: "follow=true&format=text", status: 200, response: "text/plain:building...\n"},
 	})
@@ -168,6 +172,9 @@ func TestImageLogs_followStreamsSanitizedChunksBeforeInterrupt(t *testing.T) {
 		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
 		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
 		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, imageFixture("11111111-1111-1111-1111-111111111111", "ready"))
 		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
@@ -200,17 +207,80 @@ func TestImageLogs_followStreamsSanitizedChunksBeforeInterrupt(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	root := NewRoot(stdout, stderr)
-	root.SetArgs([]string{"--api-url", srv.URL, "--api-key", "k", "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow"})
+	root.SetArgs([]string{"--api-url", srv.URL, "--api-key", "k", "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "-o", "table"})
 	err := root.ExecuteContext(ctx)
 	require.Error(t, err)
 	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
 	require.Equal(t, "first\nred\tok\n", stdout.String())
 }
 
+func TestImageLogs_followJSONStreamsNDJSONChunks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	streaming := make(chan struct{})
+	secondChunk := make(chan struct{})
+	serverURL := ""
+	// Handler assertions are non-fatal: FailNow may only run on the test goroutine.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
+		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
+		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, imageFixture("11111111-1111-1111-1111-111111111111", "ready"))
+		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
+		case "/build-logs/images/11111111-1111-1111-1111-111111111111":
+			assert.Equal(t, "follow=true&format=text", r.URL.RawQuery)
+			w.Header().Set("Content-Type", "text/plain")
+			flusher, ok := w.(http.Flusher)
+			if !assert.True(t, ok) {
+				return
+			}
+			_, _ = io.WriteString(w, "first\n\x1b[")
+			flusher.Flush()
+			close(streaming)
+			_, _ = io.WriteString(w, "31mred\tok\n")
+			flusher.Flush()
+			close(secondChunk)
+			<-r.Context().Done()
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	serverURL = srv.URL
+	go func() {
+		<-streaming
+		<-secondChunk
+		time.Sleep(5 * time.Millisecond)
+		cancel()
+	}()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	root := NewRoot(stdout, stderr)
+	root.SetArgs([]string{"--api-url", srv.URL, "--api-key", "k", "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "-o", "json"})
+	err := root.ExecuteContext(ctx)
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))
+	// JSON data is not a terminal: the bytes arrive unsanitized, one
+	// {"data": ...} object per chunk.
+	var joined strings.Builder
+	for _, line := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+		var chunk map[string]string
+		require.NoError(t, json.Unmarshal([]byte(line), &chunk), line)
+		require.Len(t, chunk, 1)
+		joined.WriteString(chunk["data"])
+	}
+	require.Equal(t, "first\n\x1b[31mred\tok\n", joined.String())
+}
+
 func TestImageLogs_rejectsInvalidDiscoveryURLBeforeForwardingCredential(t *testing.T) {
 	_, _, err := runCLI(t, []string{
 		"image", "logs", "11111111-1111-1111-1111-111111111111",
 	}, []expectedRequest{
+		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")},
 		{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111/build-logs-url", status: 200, response: `{"url":"https://alice:secret@logs.example/build-logs/images/11111111-1111-1111-1111-111111111111?token=secret"}`},
 	})
 	require.Error(t, err)
@@ -222,7 +292,7 @@ func TestImageBuild_directoryContextArchivesTar(t *testing.T) {
 	root := t.TempDir()
 	contextDir := filepath.Join(root, "context")
 	require.NoError(t, os.MkdirAll(contextDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(contextDir, "demo.txt"), []byte("payload"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(contextDir, "Dockerfile"), []byte("payload"), 0o600))
 	stdout, _, err := runCLI(t,
 		[]string{"image", "build", "img", "--dockerfile", "Dockerfile", "--context", contextDir, "--no-wait"},
 		[]expectedRequest{{
@@ -238,7 +308,7 @@ func TestImageBuild_directoryContextArchivesTar(t *testing.T) {
 				tr := tar.NewReader(bytes.NewReader([]byte(parts["context"])))
 				header, nextErr := tr.Next()
 				require.NoError(t, nextErr)
-				require.Equal(t, "demo.txt", header.Name)
+				require.Equal(t, "Dockerfile", header.Name)
 				content, readErr := io.ReadAll(tr)
 				require.NoError(t, readErr)
 				require.Equal(t, "payload", string(content))
@@ -253,10 +323,18 @@ func TestImageBuild_rejectsNonRegularContextEntries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires unix socket entry")
 	}
-	root := t.TempDir()
-	contextDir := filepath.Join(root, "context")
-	require.NoError(t, os.MkdirAll(contextDir, 0o755))
-	socketPath := filepath.Join(contextDir, "bad.sock")
+	// A short directory: a socket path is limited to about 104 bytes, which a
+	// long TMPDIR plus t.TempDir()'s name can exceed.
+	dir := ""
+	if len(os.TempDir()) > 64 {
+		dir = "/tmp"
+	}
+	root, err := os.MkdirTemp(dir, "s")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	contextDir := filepath.Join(root, "c")
+	writeContextFiles(t, contextDir, map[string]string{"Dockerfile": "FROM scratch"})
+	socketPath := filepath.Join(contextDir, "b.sock")
 	listener, err := net.Listen("unix", socketPath)
 	require.NoError(t, err)
 	defer listener.Close()
@@ -265,7 +343,6 @@ func TestImageBuild_rejectsNonRegularContextEntries(t *testing.T) {
 	_, errb, code := run(t, d, nil,
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
-		"--project", testProjP1,
 		"image", "build", "img", "--dockerfile", "Dockerfile", "--context", contextDir, "--no-wait",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
@@ -277,17 +354,16 @@ func TestImageBuild_rejectsOversizedContextAsUsage(t *testing.T) {
 	root := t.TempDir()
 	contextPath := filepath.Join(root, "context.tar")
 	require.NoError(t, os.WriteFile(contextPath, nil, 0o600))
-	require.NoError(t, os.Truncate(contextPath, imageContextMaxBytes+1))
+	require.NoError(t, os.Truncate(contextPath, imageContextDirectMaxBytes+1))
 	f := newFakeAPI(t)
 	stdout, stderr, code := run(t, cfgDir(t), nil,
 		"--api-url", f.srv.URL,
 		"--api-key", "k",
-		"--project", testProjP1,
 		"image", "build", "img", "--dockerfile", "Dockerfile", "--context", contextPath, "--no-wait",
 	)
 	require.Equal(t, cerr.ExitUsage, code)
 	require.Empty(t, stdout)
-	require.Contains(t, stderr, "64 MiB")
+	require.Contains(t, stderr, "1 GiB")
 	require.Empty(t, f.requests)
 }
 
@@ -385,7 +461,7 @@ func TestPostImageMultipart_retriesUnauthorizedWhenBodyIsSeekable(t *testing.T) 
 	client.OnUnauthorized = func(context.Context) (string, error) { return "new", nil }
 	resp, err := postImageMultipart(context.Background(), client, map[string]string{"name": "img"}, "Dockerfile", contextPath)
 	require.NoError(t, err)
-	require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.Id)
+	require.Equal(t, "11111111-1111-1111-1111-111111111111", resp.V.Id)
 	require.Equal(t, int32(2), calls.Load())
 }
 
@@ -463,7 +539,7 @@ func TestImageBuild_symlinkedDirectoryContextArchivesTargetContents(t *testing.T
 	root := t.TempDir()
 	actualDir := filepath.Join(root, "actual")
 	require.NoError(t, os.MkdirAll(actualDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(actualDir, "demo.txt"), []byte("payload"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(actualDir, "Dockerfile"), []byte("payload"), 0o600))
 	contextPath := filepath.Join(root, "context-link")
 	require.NoError(t, os.Symlink(actualDir, contextPath))
 	stdout, _, err := runCLI(t,
@@ -479,7 +555,7 @@ func TestImageBuild_symlinkedDirectoryContextArchivesTargetContents(t *testing.T
 				tr := tar.NewReader(bytes.NewReader([]byte(parts["context"])))
 				header, nextErr := tr.Next()
 				require.NoError(t, nextErr)
-				require.Equal(t, "demo.txt", header.Name)
+				require.Equal(t, "Dockerfile", header.Name)
 				content, readErr := io.ReadAll(tr)
 				require.NoError(t, readErr)
 				require.Equal(t, "payload", string(content))
@@ -614,13 +690,13 @@ func runCLIText(t *testing.T, args []string, expected []expectedRequest) (string
 	defer server.Close()
 
 	t.Setenv("DAYTONA_CONFIG_DIR", t.TempDir())
-	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID"} {
+	for _, key := range []string{"DAYTONA_API_URL", "DAYTONA_V2_API_URL", "DAYTONA_API_KEY", "DAYTONA_PROFILE", "DAYTONA_ORG", "DAYTONA_PROJECT", "DAYTONA_REGION", "DAYTONA_OIDC_CLIENT_ID", "DAYTONA_YES"} {
 		t.Setenv(key, "")
 	}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	root := NewRoot(stdout, stderr)
-	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", "k"}, args...))
+	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", "k", "-o", "table"}, args...))
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	err := root.ExecuteContext(ctx)
@@ -652,6 +728,9 @@ func TestImageLogs_followHonoursTimeout(t *testing.T) {
 	defer close(hold)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/images/11111111-1111-1111-1111-111111111111":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, imageFixture("11111111-1111-1111-1111-111111111111", "ready"))
 		case "/images/11111111-1111-1111-1111-111111111111/build-logs-url":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"url":"`+serverURL+`/build-logs/images/11111111-1111-1111-1111-111111111111"}`)
@@ -669,8 +748,57 @@ func TestImageLogs_followHonoursTimeout(t *testing.T) {
 	}))
 	defer srv.Close()
 	serverURL = srv.URL
-	_, errb, code := run(t, cfgDir(t), nil, "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "--timeout", "700ms", "--api-url", srv.URL, "--api-key", "k", "--project", testProjP1)
+	_, errb, code := run(t, cfgDir(t), nil, "image", "logs", "11111111-1111-1111-1111-111111111111", "--follow", "--timeout", "700ms", "--api-url", srv.URL, "--api-key", "k")
 	if code != cerr.ExitTimeout || !has(errb, "timed out after") {
 		t.Fatalf("%d %s", code, errb)
 	}
+}
+
+// The API types `anonymous` as a boolean with no "both" value, so --anonymous
+// accepts only true/false and refuses anything else before any request.
+func TestImageList_anonymousFilterIsBoolean(t *testing.T) {
+	var queries []string
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		queries = append(queries, r.URL.Path+"?"+r.URL.RawQuery)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/regions" {
+			_, _ = io.WriteString(w, `{"regions":[]}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"images":[]}`)
+	}))
+	defer server.Close()
+	runList := func(value string) (int, string) {
+		t.Helper()
+		_, errb, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "-o", "json", "image", "list", "--anonymous", value)
+		return code, errb
+	}
+
+	for _, value := range []string{"any", "yes", ""} {
+		mu.Lock()
+		queries = nil
+		mu.Unlock()
+		code, errb := runList(value)
+		if value == "" {
+			require.Equal(t, 0, code, errb)
+			continue
+		}
+		require.Equal(t, cerr.ExitUsage, code, errb)
+		require.Contains(t, errb, "--anonymous wants true or false")
+		mu.Lock()
+		require.Empty(t, queries, "refused before any request")
+		mu.Unlock()
+	}
+
+	mu.Lock()
+	queries = nil
+	mu.Unlock()
+	code, errb := runList("TRUE")
+	require.Equal(t, 0, code, errb)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Contains(t, queries, "/images?anonymous=true&limit=100")
 }

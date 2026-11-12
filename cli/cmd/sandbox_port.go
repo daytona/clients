@@ -5,9 +5,11 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
@@ -23,7 +25,8 @@ import (
 )
 
 func newSandboxPortSubcommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "port", Short: "Inspect sandbox ports"}
+	cmd := &cobra.Command{Use: "port", Short: "Inspect sandbox ports and mint preview URLs"}
+	cmd.AddCommand(newSandboxPreviewURLCommand())
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list <sandbox-id>",
 		Short: "List listening ports inside a sandbox",
@@ -94,19 +97,37 @@ func sandboxTimeout(a *app.App) (time.Duration, error) {
 	return workload.ParseTimeout(a.Globals.Timeout)
 }
 
-func processStdinReader(a *app.App) (io.Reader, error) {
-	if a.Globals.File == "-" {
-		return nil, nil
-	}
+// processStdinReader returns the CLI's stdin when it is not a terminal: a
+// piped stdin is the process's input.
+func processStdinReader() io.Reader {
 	if term.IsTerminal(int(os.Stdin.Fd())) {
-		return nil, nil
+		return nil
 	}
-	return os.Stdin, nil
+	return os.Stdin
 }
 
+// exitError maps a process's end to the CLI's exit status (the process
+// exit code passes through); its error source is PROCESS.
 func exitError(result tbgen.ExitResult) error {
+	err := processExitError(result)
+	var ce *cerr.Error
+	if errors.As(err, &ce) {
+		ce.Source = cerr.SourceProcess
+	}
+	return err
+}
+
+// signalNumbers contains only numbers shared by Linux and macOS. Without
+// a process OS at every exit-mapping call site, other signals must exit 1.
+var signalNumbers = map[string]int{
+	"HUP": 1, "INT": 2, "QUIT": 3, "ILL": 4, "TRAP": 5, "ABRT": 6, "FPE": 8,
+	"KILL": 9, "SEGV": 11, "PIPE": 13, "ALRM": 14, "TERM": 15,
+	"XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF": 27, "WINCH": 28,
+}
+
+func processExitError(result tbgen.ExitResult) error {
 	if result.Reason == nil {
-		return nil
+		return exitCodeError(result)
 	}
 	switch *result.Reason {
 	case tbgen.ReasonExited:
@@ -115,13 +136,10 @@ func exitError(result tbgen.ExitResult) error {
 		}
 		return cerr.New(int(*result.ExitCode), "process exited with code %d", *result.ExitCode)
 	case tbgen.ReasonSignaled:
-		if result.Signal != nil && *result.Signal == "INT" {
-			return cerr.New(cerr.ExitInterrupted, "process interrupted")
+		if result.Signal == nil {
+			return cerr.New(cerr.ExitFailure, "process terminated by signal")
 		}
-		if result.Signal != nil {
-			return cerr.New(cerr.ExitFailure, "process terminated by signal %s", *result.Signal)
-		}
-		return cerr.New(cerr.ExitFailure, "process terminated by signal")
+		return signalExitError(*result.Signal)
 	case tbgen.ReasonTimedOut:
 		return cerr.New(cerr.ExitTimeout, "timed out waiting for the process to finish")
 	case tbgen.ReasonLost, tbgen.ReasonFailed:
@@ -130,8 +148,32 @@ func exitError(result tbgen.ExitResult) error {
 		}
 		return cerr.New(cerr.ExitFailure, "process %s", *result.Reason)
 	default:
+		return exitCodeError(result)
+	}
+}
+
+func signalExitError(signal string) error {
+	number, ok := signalNumbers[strings.TrimPrefix(strings.ToUpper(signal), "SIG")]
+	switch {
+	case ok && number == 2:
+		return cerr.New(cerr.ExitInterrupted, "process interrupted")
+	case ok:
+		return cerr.New(128+number, "process terminated by signal %s", signal)
+	}
+	return cerr.New(cerr.ExitFailure, "process terminated by signal %s", signal)
+}
+
+// exitCodeError reports the result when the reason is absent or unknown:
+// `reason` is optional on the wire, so a reported signal, then the exit code,
+// decides.
+func exitCodeError(result tbgen.ExitResult) error {
+	if result.Signal != nil && strings.TrimSpace(*result.Signal) != "" {
+		return signalExitError(*result.Signal)
+	}
+	if result.ExitCode == nil || *result.ExitCode == 0 {
 		return nil
 	}
+	return cerr.New(int(*result.ExitCode), "process exited with code %d", *result.ExitCode)
 }
 
 func stdinModePtr(v tbgen.StdinMode) *tbgen.StdinMode { return &v }

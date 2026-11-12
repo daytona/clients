@@ -30,10 +30,37 @@ type pageFlags struct {
 	all    bool
 }
 
+// maxPageLimit is the largest page the API serves.
+const maxPageLimit = 200
+
 func addPageFlags(cmd *cobra.Command, flags *pageFlags) {
-	cmd.Flags().Int64Var(&flags.limit, "limit", 100, "max items to return")
+	flags.limit = 100
+	cmd.Flags().Var(&limitFlag{target: &flags.limit, max: maxPageLimit}, "limit", fmt.Sprintf("max items to return, 1 to %d", maxPageLimit))
 	cmd.Flags().StringVar(&flags.cursor, "cursor", "", "opaque continuation token")
 	cmd.Flags().BoolVar(&flags.all, "all", false, "follow every page until exhausted")
+}
+
+// limitFlag is an integer page size validated while flags are parsed, so an
+// out-of-range --limit is a usage error (exit 2) before anything is sent.
+type limitFlag struct {
+	target *int64
+	max    int64
+}
+
+func (f *limitFlag) String() string { return strconv.FormatInt(*f.target, 10) }
+
+func (f *limitFlag) Type() string { return "int" }
+
+func (f *limitFlag) Set(raw string) error {
+	n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil {
+		return fmt.Errorf("want an integer from 1 to %d", f.max)
+	}
+	if n < 1 || n > f.max {
+		return fmt.Errorf("must be between 1 and %d", f.max)
+	}
+	*f.target = n
+	return nil
 }
 
 func wholeList[T any](items []T) output.List[T] {
@@ -84,7 +111,6 @@ func newCPUTypeListCommand() *cobra.Command {
 		Short:   "Inspect the CPU type catalog",
 		GroupID: GroupWorkload,
 	}
-	var region string
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "List CPU types",
@@ -103,7 +129,7 @@ func newCPUTypeListCommand() *cobra.Command {
 			// unscoped catalog listing.
 			if cmd.Flags().Changed("region") {
 				var err error
-				if slug, err = catalogRegionSlug(region); err != nil {
+				if slug, err = catalogRegionSlug(regionFlag(cmd)); err != nil {
 					return err
 				}
 			}
@@ -117,22 +143,29 @@ func newCPUTypeListCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				var resp gen.CpuCatalog
+				var body json.RawMessage
 				query := url.Values{"region_ids": {slug}}
-				if err := client.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", query, nil, &resp); err != nil {
+				if err := client.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", query, nil, &body); err != nil {
+					return err
+				}
+				resp, err := decodeRaw[gen.CpuCatalog]("GET /cpu-catalog", body)
+				if err != nil {
 					return err
 				}
 				if err := requireCatalogRegion("/cpu-catalog", cpuCatalogRegionIDs(resp), slug); err != nil {
 					return err
 				}
-				return a.Printer().TableOf(resp, cpuCatalogTable(resp, slug))
+				page, err := api.DecodePage[gen.CpuType](body, "cpu_types")
+				if err != nil {
+					return err
+				}
+				return listOutRaw(a.Printer(), output.List[api.Raw[gen.CpuType]]{Items: page.Items}, func(items []gen.CpuType) output.Table { return cpuCatalogTable(items, slug) })
 			}
-			var catalog gen.CpuCatalog
-			if err := home.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", nil, nil, &catalog); err != nil {
+			list, err := getRawWhole[gen.CpuType](cmd.Context(), home, "/cpu-catalog", nil, "cpu_types")
+			if err != nil {
 				return err
 			}
-			list := wholeList(catalog.CpuTypes)
-			return output.ListOut(a.Printer(), list, func(items []gen.CpuType) output.Table {
+			return listOutRaw(a.Printer(), list, func(items []gen.CpuType) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, []string{item.Id, item.Name, string(item.CpuArch), strconv.Itoa(int(item.Tier))})
@@ -141,7 +174,7 @@ func newCPUTypeListCommand() *cobra.Command {
 			})
 		},
 	}
-	list.Flags().StringVar(&region, "region", "", "region slug: show availability from GET /cpu-catalog")
+	addRegionFlag(list, "region slug: show availability from GET /cpu-catalog")
 	cmd.AddCommand(list)
 	return cmd
 }
@@ -152,7 +185,6 @@ func newMacModelListCommand() *cobra.Command {
 		Short:   "Inspect the Mac model catalog",
 		GroupID: GroupWorkload,
 	}
-	var region string
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "List registered Mac models",
@@ -169,7 +201,7 @@ func newMacModelListCommand() *cobra.Command {
 			// registry listing.
 			if cmd.Flags().Changed("region") {
 				var err error
-				if slug, err = catalogRegionSlug(region); err != nil {
+				if slug, err = catalogRegionSlug(regionFlag(cmd)); err != nil {
 					return err
 				}
 			}
@@ -179,17 +211,17 @@ func newMacModelListCommand() *cobra.Command {
 				return err
 			}
 			if slug != "" {
-				resp, regionCatalog, err := fetchMacCatalog(cmd.Context(), client, slug)
+				entries, regionCatalog, err := fetchMacCatalog(cmd.Context(), client, slug)
 				if err != nil {
 					return err
 				}
-				return a.Printer().TableOf(resp, macCatalogTable(regionCatalog))
+				return output.ListOut(a.Printer(), wholeList(entries), func([]json.RawMessage) output.Table { return macCatalogTable(regionCatalog) })
 			}
-			var page gen.MacModelList
-			if err := client.Do(cmd.Context(), http.MethodGet, "/mac-models", nil, nil, &page); err != nil {
+			list, err := getRawWhole[gen.MacModel](cmd.Context(), client, "/mac-models", nil, "mac_models")
+			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), wholeList(page.MacModels), func(items []gen.MacModel) output.Table {
+			return listOutRaw(a.Printer(), list, func(items []gen.MacModel) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, macModelRow(item))
@@ -198,8 +230,7 @@ func newMacModelListCommand() *cobra.Command {
 			})
 		},
 	}
-	list.Flags().StringVar(&region, "region", "", "region slug: also show free Macs and prices from GET /mac-catalog")
-	flagPlaceholder(list.Flags(), "region", "R")
+	addRegionFlag(list, "region slug: also show free Macs and prices from GET /mac-catalog")
 	cmd.AddCommand(list)
 	return cmd
 }
@@ -236,10 +267,10 @@ func macCatalogTable(region gen.MacCatalogRegion) output.Table {
 }
 
 // fetchMacCatalog reads `GET /mac-catalog` from a regional API endpoint,
-// as `cpu-type list --region` reads `GET /cpu-catalog`, and returns
-// the body as received, for JSON output that keeps its nulls, with that
-// region's entry.
-func fetchMacCatalog(ctx context.Context, home *api.Client, slug string) (json.RawMessage, gen.MacCatalogRegion, error) {
+// as `cpu-type list --region` reads `GET /cpu-catalog`, and returns that
+// region's model entries as received (JSON output keeps their nulls) with the
+// typed region for the table.
+func fetchMacCatalog(ctx context.Context, home *api.Client, slug string) ([]json.RawMessage, gen.MacCatalogRegion, error) {
 	client, err := catalogClient(ctx, home, workload.NewCatalogCache(), slug)
 	if err != nil {
 		return nil, gen.MacCatalogRegion{}, err
@@ -252,10 +283,23 @@ func fetchMacCatalog(ctx context.Context, home *api.Client, slug string) (json.R
 	if err != nil {
 		return nil, gen.MacCatalogRegion{}, err
 	}
+	var rawRegions struct {
+		Regions []struct {
+			ID     string            `json:"id"`
+			Models []json.RawMessage `json:"models"`
+		} `json:"regions"`
+	}
+	if err := json.Unmarshal(raw, &rawRegions); err != nil {
+		return nil, gen.MacCatalogRegion{}, cerr.Wrap(cerr.ExitFailure, err, "GET /mac-catalog: decode response: %v", err)
+	}
 	ids := make([]string, 0, len(resp.Regions))
-	for _, r := range resp.Regions {
+	for i, r := range resp.Regions {
 		if r.Id == slug {
-			return raw, r, nil
+			entries := []json.RawMessage{}
+			if i < len(rawRegions.Regions) && rawRegions.Regions[i].ID == slug {
+				entries = append(entries, rawRegions.Regions[i].Models...)
+			}
+			return entries, r, nil
 		}
 		ids = append(ids, r.Id)
 	}
@@ -350,9 +394,9 @@ func requireCatalogRegion(path string, ids []string, slug string) error {
 // registry columns plus AVAILABLE — `exact` when the type is available in `region`,
 // `fallback` when a higher same-arch tier serves it, `-`
 // otherwise.
-func cpuCatalogTable(resp gen.CpuCatalog, region string) output.Table {
-	rows := make([][]string, 0, len(resp.CpuTypes))
-	for _, item := range resp.CpuTypes {
+func cpuCatalogTable(items []gen.CpuType, region string) output.Table {
+	rows := make([][]string, 0, len(items))
+	for _, item := range items {
 		rows = append(rows, []string{item.Id, item.Name, string(item.CpuArch), strconv.Itoa(int(item.Tier)), cpuAvailability(item, region)})
 	}
 	return output.Table{Headers: []string{"ID", "NAME", "ARCH", "TIER", "AVAILABLE"}, Rows: rows}
@@ -377,4 +421,13 @@ func listQuery(flags pageFlags, cursor string) url.Values {
 		query.Set("cursor", cursor)
 	}
 	return query
+}
+
+// regionFlag is the --region value as given.
+func regionFlag(cmd *cobra.Command) string {
+	f := cmd.Flags().Lookup("region")
+	if f == nil {
+		return ""
+	}
+	return f.Value.String()
 }

@@ -30,8 +30,9 @@ func resolveArchiveTarget(dst string, name string) (archiveTarget, error) {
 	target := filepath.Clean(filepath.Join(base, strings.TrimPrefix(rooted, string(filepath.Separator))))
 	// Containment, stated the way static analysers (CodeQL go/zipslip)
 	// recognise as the sanitizer: the cleaned target is the base itself or
-	// lies under base + separator. `within` below is the same check via Rel.
-	if target != base && !strings.HasPrefix(target, base+string(filepath.Separator)) {
+	// lies under the base's directory prefix. `within` below is the same
+	// check via Rel.
+	if target != base && !strings.HasPrefix(target, dirPrefix(base)) {
 		return archiveTarget{}, fmt.Errorf("tar entry escapes destination: %s", name)
 	}
 	if !within(base, target) {
@@ -82,6 +83,16 @@ func splitArchiveRel(rel string) []string {
 		out = append(out, part)
 	}
 	return out
+}
+
+// dirPrefix returns dir with exactly one trailing separator. A filesystem
+// root (`/`, `C:\`) already ends in one; appending another would give `//`,
+// which no child path starts with.
+func dirPrefix(dir string) string {
+	if strings.HasSuffix(dir, string(filepath.Separator)) {
+		return dir
+	}
+	return dir + string(filepath.Separator)
 }
 
 func within(root string, p string) bool {

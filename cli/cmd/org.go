@@ -14,6 +14,7 @@ import (
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/spf13/cobra"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/auth"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -24,7 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var selectPrompt = ui.Select
+var selectPrompt = ui.SelectContext
 
 func init() {
 	Register(newOrgCmd)
@@ -46,7 +47,7 @@ func pickOrg(a *app.App) func(ctx context.Context) (string, error) {
 		if len(opts) == 0 {
 			return "", cerr.New(cerr.ExitNotFound, "you are not a member of any organization")
 		}
-		return selectPrompt("Select an organization", opts)
+		return selectPrompt(ctx, "Select an organization", opts)
 	}
 }
 
@@ -69,7 +70,7 @@ func pickProject(a *app.App) func(ctx context.Context) (string, error) {
 		if len(opts) == 0 {
 			return "", cerr.New(cerr.ExitNotFound, "no projects in this organization")
 		}
-		projectID, err := selectPrompt("Select a project", opts)
+		projectID, err := selectPrompt(ctx, "Select a project", opts)
 		if err != nil {
 			return "", err
 		}
@@ -133,7 +134,8 @@ func joinComma(s []string) string {
 
 func newOrgCmd() *cobra.Command {
 	c := &cobra.Command{Use: "org", Short: "Organizations: list, select, create, rename, delete, leave, limits", GroupID: GroupManagement}
-	c.AddCommand(&cobra.Command{
+	var listFlags pageFlags
+	list := &cobra.Command{
 		Use: "list", Short: "List the organizations you belong to", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
@@ -141,13 +143,17 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			orgs, err := mgmt.ListOrgs(cmd.Context(), mc)
+			orgs, err := mgmtListPage(cmd.Context(), listFlags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.OrganizationListItem], error) {
+				return mgmt.OrgsPage(ctx, mc, cursor, limit)
+			})
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), output.List[gen.OrganizationListItem]{Items: orgs}, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
+			return listOutRaw(a.Printer(), orgs, func(os []gen.OrganizationListItem) output.Table { return orgTable(os, a.Profile.OrgID) })
 		},
-	})
+	}
+	addPageFlags(list, &listFlags)
+	c.AddCommand(list)
 	c.AddCommand(&cobra.Command{
 		Use: "get [id|name]", Short: "Show one organization (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -171,18 +177,20 @@ func newOrgCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(o, [][2]string{{"ID", o.Id.String()}, {"Name", o.Name}, {"Personal", strconv.FormatBool(o.Personal)}, {"Suspended", strconv.FormatBool(o.Suspended)}, {"Created", o.CreatedAt.Format("2006-01-02 15:04")}, {"Updated", o.UpdatedAt.Format("2006-01-02 15:04")}})
+			return a.Printer().Object(o, [][2]string{{"ID", o.V.Id.String()}, {"Name", o.V.Name}, {"Personal", strconv.FormatBool(o.V.Personal)}, {"Suspended", strconv.FormatBool(o.V.Suspended)}, {"Created", o.V.CreatedAt.Format("2006-01-02 15:04")}, {"Updated", o.V.UpdatedAt.Format("2006-01-02 15:04")}})
 		},
 	})
 	c.AddCommand(&cobra.Command{
 		Use: "limits [id|name]", Short: "Show the organization's limits and current usage (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		Long: `Show the organization's limits — sandboxes, image
-builds, members, images, snapshots, secrets and API keys — each with
-the current usage it is checked against; "unlimited" means no limit applies.
-A request refused by one of them exits 6 with "LIMIT_EXCEEDED" naming the
-limit, the current count and the maximum. Requires read:organization, or
-read:limits with an API key. An API key reads its own organization when none
-is named, and its read leaves out the member counts.`,
+builds, Mac reservations, members, images, snapshots, secrets and API keys —
+each with the current usage it is checked against; "unlimited" means no limit
+applies. A request refused by one of them — a Mac reservation purchase
+included (reservation create or renew, or a sandbox create-macos or start
+that buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
+maximum. Requires read:organization, or read:limits with an API key. An API
+key reads its own organization when none is named, and its read leaves out
+the member counts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
@@ -271,27 +279,39 @@ shows a picker at a terminal.`,
 		},
 	})
 	c.AddCommand(&cobra.Command{
-		Use: "create <name>", Short: "Create an organization", Args: cobra.ExactArgs(1),
+		Use: "create <name>", Short: "Create an organization",
+		Long: "Create an organization. The name is 1 to 64 characters after trimming, with no control characters.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if err := checkOrgProjectName("organization", args[0]); err != nil {
+				return err
+			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
 				return err
 			}
-			var out gen.Organization
+			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPost, "/orgs", nil, gen.CreateOrganizationRequest{Name: args[0]}, &out); err != nil {
 				return err
 			}
-			return a.Printer().Object(out, [][2]string{{"id", out.Id.String()}, {"name", out.Name}})
+			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	})
 	upd := &cobra.Command{
-		Use: "update <id|name> --name <new>", Short: "Rename an organization", Args: cobra.ExactArgs(1),
+		Use: "update <id|name> --name <new>", Short: "Rename an organization",
+		Long: "Rename an organization. The name is 1 to 64 characters after trimming, with no control characters;\na rename to the current name is sent and left to the API.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			name, _ := cmd.Flags().GetString("name")
 			if name == "" {
 				return cerr.Usage("--name is required")
+			}
+			refusal := checkOrgProjectName("organization", name)
+			if strings.TrimSpace(name) == "" {
+				// A blank name is never the current one.
+				return refusal
 			}
 			mc, err := a.Client(cmd.Context())
 			if err != nil {
@@ -301,14 +321,17 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			var out gen.Organization
+			if err := checkRenamedOrgName(cmd.Context(), mc, id, name, refusal); err != nil {
+				return err
+			}
+			var out api.Raw[gen.Organization]
 			if err := mc.Do(cmd.Context(), http.MethodPatch, "/orgs/"+url.PathEscape(id), nil, gen.UpdateOrganizationRequest{Name: mgmt.Ref(name)}, &out); err != nil {
 				return err
 			}
-			return a.Printer().Object(out, [][2]string{{"id", out.Id.String()}, {"name", out.Name}})
+			return a.Printer().Object(out, [][2]string{{"id", out.V.Id.String()}, {"name", out.V.Name}})
 		},
 	}
-	upd.Flags().String("name", "", "new name")
+	upd.Flags().String("name", "", "new name (1 to 64 characters)")
 	c.AddCommand(upd)
 	c.AddCommand(&cobra.Command{
 		Use: "delete <id|name>", Short: "Delete an organization (personal orgs cannot be deleted)", Args: cobra.ExactArgs(1),
@@ -342,8 +365,7 @@ shows a picker at a terminal.`,
 			if lookupFailed {
 				a.Info("warning: deleted organization %s on the server, but the CLI could not list its projects during cleanup; cached credentials for other projects in that org may remain. Run `daytona logout` to clear local cached credentials.", id)
 			}
-			a.Info("Organization %s deleted.", id)
-			return nil
+			return printAck(a, "id", id, "deleted", fmt.Sprintf("Organization %s deleted.", id))
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -384,7 +406,7 @@ shows a picker at a terminal.`,
 			if err != nil {
 				return err
 			}
-			if err := mc.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(id)+"/members/"+url.PathEscape(me.Id.String()), nil, nil, nil); err != nil {
+			if err := mc.Do(ctx, http.MethodDelete, "/orgs/"+url.PathEscape(id)+"/members/"+url.PathEscape(me.V.Id.String()), nil, nil, nil); err != nil {
 				return err
 			}
 			if err := finalizeOrgLocalState(a, id, drop, "left"); err != nil {
@@ -393,7 +415,7 @@ shows a picker at a terminal.`,
 			if lookupFailed {
 				a.Info("warning: left organization %s on the server, but the CLI could not list its projects during cleanup; cached credentials for other projects in that org may remain. Run `daytona logout` to clear local cached credentials.", id)
 			}
-			return a.Printer().Object(map[string]any{"left": id}, [][2]string{{"left", id}})
+			return printAck(a, "id", id, "left", "")
 		},
 	})
 	return c
@@ -564,6 +586,9 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 			[2]string{"Images", usageLimitString(l.Storage.Images)},
 			[2]string{"Snapshots", usageLimitString(l.Storage.Snapshots)},
 		)
+	}
+	if m := l.MacReservations; m != nil {
+		rows = append(rows, [2]string{"Mac reservations", usageLimitString(*m)})
 	}
 	rows = append(rows,
 		[2]string{"API keys per organization", usageLimitString(l.ApiKeysPerOrganization)},

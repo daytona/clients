@@ -24,9 +24,9 @@ head="$(g rev-parse --verify --end-of-options "$2^{commit}")"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # Keep paths NUL-delimited until JSON conversion, including unusual filenames.
-g diff --name-only -z "$base" "$head" > "$tmp/changed.z"
-g diff --name-only --diff-filter=A -z "$base" "$head" > "$tmp/added.z"
-g diff --name-only --diff-filter=D -z "$base" "$head" > "$tmp/deleted.z"
+g diff --name-only --no-renames -z "$base" "$head" > "$tmp/changed.z"
+g diff --name-only --no-renames --diff-filter=A -z "$base" "$head" > "$tmp/added.z"
+g diff --name-only --no-renames --diff-filter=D -z "$base" "$head" > "$tmp/deleted.z"
 for kind in changed added deleted; do
   jq -Rs 'split("\u0000") | map(select(length > 0))' "$tmp/$kind.z" > "$tmp/$kind.json"
 done
@@ -40,29 +40,29 @@ jq -nr --slurpfile changed "$tmp/changed.json" --slurpfile added "$tmp/added.jso
   "## Added artifact candidates", "",
   ($a | map(select(test("(^|/)(dist|build|node_modules|\\.venv|__pycache__)/|\\.(pyc|log|tgz|orig|rej)$|(^|/)\\.coverage($|\\.)"))) | paths),
   "", "## Mirror and generation review", "",
-  hint(touched("^python/src/") and (touched("^typescript/src/") | not);
+  hint(touched("^sdk-python/src/") and (touched("^sdk-typescript/src/") | not);
     "Python source changed without TypeScript source: justify parity and check both test suites."),
-  hint(touched("^typescript/src/") and (touched("^python/src/") | not);
+  hint(touched("^sdk-typescript/src/") and (touched("^sdk-python/src/") | not);
     "TypeScript source changed without Python source: justify parity and check both test suites."),
-  hint(touched("^python/src/daytona/v2/|^python/gen/");
+  hint(touched("^sdk-python/src/daytona/v2/|^sdk-python/gen/");
     "Check authored async methods against generated _sync/; run sync surface tests and generation in a disposable copy."),
   hint(touched("(^contract/|/codes\\.(py|ts)$)");
     "Check both SDK code catalogs, per-code extras, route drift tests, and committed contract artifacts."),
-  hint(touched("^contract/|^python/gen/|^typescript/scripts/gen-contract|^cli/hack/gen|^scripts/gen-contract-types|^python/src/daytona/v2/_gen/|^typescript/src/v2/gen/|^cli/gen/");
+  hint(touched("^contract/|^sdk-python/gen/|^sdk-typescript/scripts/gen-contract|^cli/hack/gen|^scripts/gen-contract-types|^sdk-python/src/daytona/v2/_gen/|^sdk-typescript/src/v2/gen/|^cli/gen/");
     "Check generated wire types against contract/ with scripts/gen-contract-types.sh --check; distinguish handwritten alias files."),
   hint(touched("^cli/");
     "Compare CLI and SDK shared defaults, config precedence, wire behavior, and error handling; inspect CLI-only semantics separately."),
   "- Always inspect README/code and fragment/diff pairs; file-level changes alone cannot establish parity.",
   "", "## Changelog and version review", "",
-  hint(touched("^(python/src/|typescript/src/|cli/)") and
+  hint(touched("^(sdk-python/src/|sdk-typescript/src/|cli/)") and
     (any($a[]; test("^changelog\\.d/.+\\.md$") and . != "changelog.d/README.md") | not);
     "Source changed without a newly added changelog.d/ fragment: add coverage for user-visible changes or explain no visible effect."),
   hint(touched("^CHANGELOG\\.md$");
     "CHANGELOG.md changed directly: verify this is release assembly, not unreleased feature notes."),
-  hint(touched("^python/pyproject\\.toml$|^typescript/package\\.json$|^typescript/src/version\\.ts$");
+  hint(touched("^sdk-python/pyproject\\.toml$|^sdk-typescript/package\\.json$|^sdk-typescript/src/version\\.ts$");
     "Inspect version fields: tracked versions are publish placeholders, not per-PR bumps."),
   "", "## Documentation and fragments touched", "",
-  ($c | map(select(test("(^|/)README\\.md$|^docs/design/|^changelog\\.d/|^AGENTS\\.md$|DEVELOPMENT\\.md$"))) | paths),
+  ($c | map(select(test("(^|/)README\\.md$|^docs/(adr/|[^/]+\\.md$)|^changelog\\.d/|^AGENTS\\.md$|DEVELOPMENT\\.md$"))) | paths),
   "", "## Deleted files", "", ($d | paths)'
 printf '\n## Removed guard, cleanup, and test candidates\n\n'
 g diff -U0 "$base" "$head" -- '*.go' '*.ts' '*.py' > "$tmp/code.diff"

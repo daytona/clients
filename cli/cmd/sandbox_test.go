@@ -29,7 +29,7 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 	}{
 		{
 			name: "create linux waits for running",
-			args: []string{"sandbox", "create", "--image", "python:3.12", "--env", "A=B", "--label", "team=cli", "--idle-timeout", "600", "--on-idle-timeout", "delete"},
+			args: []string{"sandbox", "create", "--image", "python:3.12", "--env", "A=B", "--label", "team=cli", "--idle-timeout", "10m", "--on-idle-timeout", "delete"},
 			expected: []expectedRequest{
 				{method: http.MethodPost, path: "/sandboxes", status: 202, bodyJSON: `{"image":"python:3.12","env":{"A":"B"},"labels":{"team":"cli"},"lifecycle_policy":{"idle_expiry_seconds":600,"on_idle_timeout":"delete"}}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`},
 				{method: http.MethodGet, path: "/regions", status: 200, response: fixtureJSON(map[string]any{"regions": regionCatalogFixture("region-c", "Region C", "group-a", "group-b"), "default_region_id": nil})},
@@ -66,6 +66,7 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 			args: []string{"sandbox", "start", "11111111-1111-1111-1111-111111111111"},
 			expected: []expectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "stopped")},
+				macReservationsRead("region-b", "active"),
 				{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/start", status: 202, response: `{"status":"pending","id":"11111111-1111-1111-1111-111111111111"}`},
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "macos", "running")},
 			},
@@ -83,7 +84,7 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name: "update labels and lifecycle",
-			args: []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--label", "team=next", "--idle-timeout", "900", "--on-idle-timeout", "delete"},
+			args: []string{"sandbox", "update", "11111111-1111-1111-1111-111111111111", "--label", "team=next", "--idle-timeout", "15m", "--on-idle-timeout", "delete"},
 			expected: []expectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 				{method: http.MethodPut, path: "/sandboxes/11111111-1111-1111-1111-111111111111/labels", status: 200, bodyJSON: `{"labels":{"team":"next"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","labels":{"team":"next"}}`},
@@ -103,7 +104,7 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name: "preview url expire",
-			args: []string{"sandbox", "preview-url", "expire", "11111111-1111-1111-1111-111111111111", "8080", "tok"},
+			args: []string{"sandbox", "port", "preview-url", "expire", "11111111-1111-1111-1111-111111111111", "8080", "tok"},
 			expected: []expectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 				{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/ports/8080/signed-preview-urls/revoke", status: 204, bodyJSON: `{"token":"tok"}`, response: ``},
@@ -121,7 +122,7 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name: "preview url signed",
-			args: []string{"sandbox", "preview-url", "11111111-1111-1111-1111-111111111111", "8080", "--signed", "--ttl", "120"},
+			args: []string{"sandbox", "port", "preview-url", "11111111-1111-1111-1111-111111111111", "8080", "--signed", "--ttl", "2m"},
 			expected: []expectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 				{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/ports/8080/signed-preview-urls", status: 201, bodyJSON: `{"expires_in_seconds":120}`, response: `{"url":"https://p.example","token":"tok","expires_at":"2026-09-13T00:10:00Z"}`},
@@ -274,8 +275,9 @@ func TestSandboxList_regionFlagStillRefusesAnUnlistedRegion(t *testing.T) {
 	root.SetArgs([]string{"--api-url", homeURL, "--api-key", "k", "-o", "json", "sandbox", "list", "--region", "unlisted-region"})
 	err := root.ExecuteContext(context.Background())
 	require.Error(t, err)
-	require.Equal(t, cerr.ExitPartial, cerr.ExitCode(err))
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 	require.ErrorContains(t, err, "unknown region")
+	require.Empty(t, stdout.String(), "no list and no cursor for a region that does not exist")
 }
 
 func TestTrimSandboxPage_preservesDeferredRegionWithoutLocalNextCursor(t *testing.T) {

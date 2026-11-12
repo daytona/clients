@@ -15,8 +15,8 @@ against you.
 
 Generate the reports first (each from its package directory):
 
-  (cd python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
-  (cd typescript && npx jest --coverage --coverageReporters=lcov)
+  (cd sdk-python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
+  (cd sdk-typescript && npx jest --coverage --coverageReporters=lcov)
   (cd cli && go test ./... -coverprofile=coverage.out)
 
 Exit codes: 0 = target met, 1 = below target or a changed component's report
@@ -34,8 +34,8 @@ from collections import defaultdict
 
 # (name, component dir, report path, format)
 COMPONENTS = [
-    ("python", "python", "python/coverage.xml", "cobertura"),
-    ("typescript", "typescript", "typescript/coverage/lcov.info", "lcov"),
+    ("python", "sdk-python", "sdk-python/coverage.xml", "cobertura"),
+    ("typescript", "sdk-typescript", "sdk-typescript/coverage/lcov.info", "lcov"),
     ("cli", "cli", "cli/coverage.out", "gocover"),
 ]
 
@@ -43,10 +43,10 @@ COMPONENTS = [
 # points, and generated output.
 IGNORE_GLOBS = [
     "**/tests/**", "**/*_test.go", "**/*.test.ts", "examples/**",
-    "e2e.py", "e2e.ts", "**/main.go",
-    "python/src/daytona/v2/_gen/**", "python/src/daytona/v2/_sync/**",
-    "typescript/src/v2/gen/**", "cli/gen/**",
-    "python/gen/**", "typescript/scripts/**", "scripts/**",
+    "e2e/**", "**/main.go",
+    "sdk-python/src/daytona/v2/_gen/**", "sdk-python/src/daytona/v2/_sync/**",
+    "sdk-typescript/src/v2/gen/**", "cli/gen/**",
+    "sdk-python/gen/**", "sdk-typescript/scripts/**", "scripts/**",
 ]
 
 PATCH_TARGET = 60.0

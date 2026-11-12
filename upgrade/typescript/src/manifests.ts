@@ -11,10 +11,13 @@ import { relativePath, text } from './discovery.js';
 import { UpgradeError } from './model.js';
 import { readContext } from './read-failures.js';
 import type { ReadContext } from './read-failures.js';
+import type { DeclaredDependency } from './v0-version.js';
+import { aboveTargetMajor, atOrAboveTarget, inTargetMajor, pinnedFloor } from './sdk-target.js';
 
 export function manifests(files: readonly string[], mapping: Mapping, context: string | ReadContext): {
   readonly changes: readonly Change[]; readonly dependencies: readonly Dependency[]; readonly items: readonly Item[];
   readonly directories: readonly string[]; readonly found: boolean; readonly dependencyDirectories: ReadonlySet<string>;
+  readonly declared: readonly DeclaredDependency[];
 } {
   const { root, failures } = readContext(context);
   const changes: Change[] = [];
@@ -23,16 +26,19 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
   const directories = new Set<string>();
   let found = false;
   const dependencyDirectories = new Set<string>();
+  const declared: DeclaredDependency[] = [];
   const parser = new Project({ useInMemoryFileSystem: true });
   for (const file of files.filter(file => win32.basename(file) === 'package.json')) {
     const before = text(file, failures);
     if (failures?.has(file)) continue;
     // JSON.parse rejects malformed JSON; the AST supplies exact source offsets.
-    try { JSON.parse(before.replace(/^\uFEFF/, '')); }
+    let parsed: unknown;
+    try { parsed = JSON.parse(before.replace(/^\uFEFF/, '')); }
     catch (error) {
       if (!(error instanceof SyntaxError)) throw error;
       throw new UpgradeError(`Cannot parse ${relativePath(root, file)}: ${error.message}. Fix the manifest before retrying.`);
     }
+    const manifestName = typeof parsed === 'object' && parsed !== null && 'name' in parsed && typeof parsed.name === 'string' ? parsed.name : undefined;
     const prefix = 'const manifest = (';
     const source = parser.createSourceFile('/manifest.ts', `${prefix}${before});`, { overwrite: true });
     const object = source.getFirstDescendantByKind(SyntaxKind.ObjectLiteralExpression);
@@ -64,6 +70,19 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         if (Node.isObjectLiteralExpression(value)) constraints(value);
       }
     }
+    // Both package names in the dependencies, or in one constraint section:
+    // every entry of the old name is left for manual reconciliation, so a
+    // dependency and its resolution never end up naming different packages.
+    const names = (entries: typeof object): string[] => entries.getProperties().filter(Node.isPropertyAssignment)
+      .map(entry => entry.getName().replaceAll('"', ''));
+    const legacy = (name: string): boolean => name !== mapping.packages.ts.new && mapping.packages.ts.old.includes(name);
+    const bothIn = (present: readonly string[]): boolean => present.includes(mapping.packages.ts.new) && present.some(legacy);
+    const dependencyNames = sections.filter(({ constraint }) => !constraint).flatMap(({ entries }) => names(entries));
+    // Some section (the dependencies together, or one constraint section)
+    // names both: every old-name entry stays. A dependency entry of the old
+    // name also stays when the new one is a dependency (hasRoot).
+    const both = bothIn(dependencyNames) || sections.some(({ constraint, entries }) => constraint && bothIn(names(entries)));
+    const duplicate = (constraint: boolean): boolean => both || !constraint && hasRoot;
     for (const { name: sectionName, entries, constraint } of sections) {
       for (const entry of entries.getProperties()) {
         if (!Node.isPropertyAssignment(entry)) continue;
@@ -78,6 +97,12 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
         if (!mapping.packages.ts.old.includes(name) && !qualified && !reference && !scoped && !alias) continue;
         found = true;
         if (!constraint) dependencyDirectories.add(dirname(file));
+        // What the project installs (peer ranges describe consumers, not this install).
+        if (!constraint && sectionName !== 'peerDependencies' && Node.isStringLiteral(version)) {
+          const literal = version.getLiteralValue();
+          declared.push({ file, key: name, spec: literal, owner: manifestName,
+            range: alias ? literal.replace(/^npm:(?:@[^@/]+\/)?[^@]+@?/, '') : literal });
+        }
         const detail = { file: relativePath(root, file), line: source.getLineAndColumnAtPos(entry.getStart()).line,
           column: Math.max(1, source.getLineAndColumnAtPos(entry.getStart()).column -
             (source.getLineAndColumnAtPos(entry.getStart()).line === 1 ? prefix.length : 0)) };
@@ -87,7 +112,21 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'manual-dependency', message: `Update Daytona package constraint ${name} manually for SDK 2.x.` });
           continue;
         }
-        if (qualified || reference || Node.isStringLiteral(version) &&
+        // Already the target, or a later release of its major (before the
+        // ordinary-range test below, which pre-release literals fail).
+        if (name === mapping.packages.ts.new && sectionName !== 'peerDependencies' && Node.isStringLiteral(version) &&
+            atOrAboveTarget(version.getLiteralValue(), mapping.packages.ts.range)) continue;
+        // A later major than this tool targets: never downgraded.
+        if (!constraint && sectionName !== 'peerDependencies' && Node.isStringLiteral(version) && aboveTargetMajor(version.getLiteralValue(), mapping.packages.ts.range)) {
+          items.push({ ...detail, kind: 'manual-dependency',
+            message: `${name}@${version.getLiteralValue()} is newer than this daytona-upgrade release targets (${mapping.packages.ts.range}); use the daytona-upgrade release of that SDK version.` });
+          continue;
+        }
+        // A pre-release range of the target's major below it (an earlier
+        // alpha) is an ordinary range here too: it moves to the target.
+        const replaceablePrerelease = name === mapping.packages.ts.new && Node.isStringLiteral(version) &&
+          inTargetMajor(version.getLiteralValue(), mapping.packages.ts.range);
+        if (qualified || reference || Node.isStringLiteral(version) && !replaceablePrerelease &&
             !/^[\s~^<>=|*v\d.xX+-]+$/.test(version.getLiteralValue())) {
           const catalog = Node.isStringLiteral(version) && version.getLiteralValue().startsWith('catalog:') ? catalogFile(file, files) : undefined;
           items.push({ ...detail, ...(catalog ? { file: relativePath(root, catalog), line: 0, column: 0 } : {}),
@@ -105,24 +144,23 @@ export function manifests(files: readonly string[], mapping: Mapping, context: s
           items.push({ ...detail, kind: 'peer-dependency', message: `Update peer dependency ${name} manually for SDK 2.x.` });
           continue;
         }
-        if (name === mapping.packages.ts.new && version.getLiteralValue() === mapping.packages.ts.range) continue;
-        const collision = constraint ? entries.getProperties().some(candidate => Node.isPropertyAssignment(candidate) &&
-          candidate.getName().replaceAll('"', '') === mapping.packages.ts.new) : hasRoot;
-        if (name !== mapping.packages.ts.new && collision) {
+        if (name !== mapping.packages.ts.new && duplicate(constraint)) {
           items.push({ ...detail, kind: 'config-field', message: 'Both Daytona package names are present; reconcile the duplicate dependency manually.' });
           continue;
         }
         edits.push({ start: entry.getNameNode().getStart() - prefix.length, end: entry.getNameNode().getEnd() - prefix.length,
           text: JSON.stringify(mapping.packages.ts.new) });
-        edits.push({ start: version.getStart() - prefix.length, end: version.getEnd() - prefix.length, text: JSON.stringify(mapping.packages.ts.range) });
-        dependencies.push({ file: detail.file, from: `${name}@${version.getLiteralValue()}`, to: `${mapping.packages.ts.new}@${mapping.packages.ts.range}` });
+        // A pre-release range above the target is pinned to its own floor, never lowered.
+        const written = (name === mapping.packages.ts.new ? pinnedFloor(version.getLiteralValue(), mapping.packages.ts.range) : undefined) ?? mapping.packages.ts.range;
+        edits.push({ start: version.getStart() - prefix.length, end: version.getEnd() - prefix.length, text: JSON.stringify(written) });
+        dependencies.push({ file: detail.file, from: `${name}@${version.getLiteralValue()}`, to: `${mapping.packages.ts.new}@${written}` });
         directories.add(dirname(file));
       }
     }
     const after = applyEdits(before, edits);
     if (after !== before) changes.push({ file, before, after });
   }
-  return { changes, dependencies, items, directories: [...directories], found, dependencyDirectories };
+  return { changes, dependencies, items, directories: [...directories], found, dependencyDirectories, declared };
 }
 function catalogFile(consumer: string, files: readonly string[]): string | undefined {
   let directory = dirname(consumer);

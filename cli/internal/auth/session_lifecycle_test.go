@@ -81,80 +81,60 @@ func lifecycleApp(t *testing.T, base string) *app.App {
 }
 
 func TestAutomaticKeysAreV2OnlyAndLive24Hours(t *testing.T) {
-	for _, login := range []bool{true, false} {
-		t.Run(map[bool]string{true: "login", false: "static"}[login], func(t *testing.T) {
-			// Given a short access-token lifetime, or a static mint-capable bearer.
+	// Given a short access-token lifetime.
+	f := &lifecycleAPI{}
+	srv := httptest.NewServer(http.HandlerFunc(f.serve))
+	defer srv.Close()
+	a := lifecycleApp(t, srv.URL)
+	before := time.Now()
+	// When the CLI automatically mints a key.
+	_, err := WorkloadCredential(t.Context(), a, lifecycleProject, "")
+	// Then neither bridge is opted into, and the request expires 24h after mint.
+	require.NoError(t, err)
+	f.mu.Lock()
+	requests := append([]gen.CreateProjectApiKeyRequest(nil), f.requests...)
+	f.mu.Unlock()
+	require.Len(t, requests, 1)
+	req := requests[0]
+	require.NotNil(t, req.SyncToV0)
+	require.False(t, *req.SyncToV0)
+	require.WithinRange(t, *req.ExpiresAt, before.Add(24*time.Hour), time.Now().Add(24*time.Hour))
+}
+
+func TestReplacementRevokesOnlySupersededLoginKeys(t *testing.T) {
+	for _, reason := range []string{"expired", "ceiling", "rejected"} {
+		t.Run(reason, func(t *testing.T) {
+			// Given an old login key and a key an earlier release exchanged
+			// from a static credential, in the same profile.
 			f := &lifecycleAPI{}
 			srv := httptest.NewServer(http.HandlerFunc(f.serve))
 			defer srv.Close()
 			a := lifecycleApp(t, srv.URL)
-			before := time.Now()
-			// When the CLI automatically mints a key.
-			var err error
-			if login {
-				_, err = WorkloadCredential(t.Context(), a, lifecycleProject, "")
-			} else {
-				_, err = exchangeStaticForProjectKey(t.Context(), a, srv.URL, "static", lifecycleProject, "")
+			old := config.WorkloadKey{ProjectID: lifecycleProject, KeyID: "old-id", Key: "old", Ceiling: Fingerprint([]string{"read:sandboxes"}), ExpiresAt: time.Now().Add(time.Hour)}
+			rejected := ""
+			switch reason {
+			case "expired":
+				old.ExpiresAt = time.Now().Add(-time.Minute)
+			case "ceiling":
+				old.Ceiling = "narrow"
+			case "rejected":
+				rejected = old.Key
 			}
-			// Then neither bridge is opted into, and the request expires 24h after mint.
+			require.NoError(t, a.Store.Update(func(_ *config.Config, cr *config.Credentials) (bool, bool, error) {
+				pc := cr.Profiles[a.Profile.Name]
+				other := old
+				other.KeyID = "other-id"
+				other.Source = "other-source"
+				pc.WorkloadKeys = []config.WorkloadKey{old, other}
+				cr.Profiles[a.Profile.Name] = pc
+				return false, true, nil
+			}))
+			// When expiry, a changed ceiling, or rejection causes replacement.
+			_, err := WorkloadCredential(t.Context(), a, lifecycleProject, rejected)
+			// Then cleanup revokes only the superseded login key.
 			require.NoError(t, err)
-			f.mu.Lock()
-			requests := append([]gen.CreateProjectApiKeyRequest(nil), f.requests...)
-			f.mu.Unlock()
-			require.Len(t, requests, 1)
-			req := requests[0]
-			require.NotNil(t, req.SyncToV0)
-			require.False(t, *req.SyncToV0)
-			require.Nil(t, req.SyncToV1)
-			require.WithinRange(t, *req.ExpiresAt, before.Add(24*time.Hour), time.Now().Add(24*time.Hour))
+			require.Equal(t, []string{"old-id"}, f.revoked)
 		})
-	}
-}
-
-func TestReplacementRevokesOnlySupersededKeysFromItsSource(t *testing.T) {
-	for _, reason := range []string{"expired", "ceiling", "rejected"} {
-		for _, login := range []bool{true, false} {
-			t.Run(reason+map[bool]string{true: "/login", false: "/static"}[login], func(t *testing.T) {
-				// Given an old key and unrelated credentials' keys in the same profile.
-				f := &lifecycleAPI{}
-				srv := httptest.NewServer(http.HandlerFunc(f.serve))
-				defer srv.Close()
-				a := lifecycleApp(t, srv.URL)
-				source := ""
-				if !login {
-					source = staticSource(srv.URL, "static")
-				}
-				old := config.WorkloadKey{ProjectID: lifecycleProject, KeyID: "old-id", Key: "old", Source: source, Ceiling: Fingerprint([]string{"read:sandboxes"}), ExpiresAt: time.Now().Add(time.Hour)}
-				rejected := ""
-				switch reason {
-				case "expired":
-					old.ExpiresAt = time.Now().Add(-time.Minute)
-				case "ceiling":
-					old.Ceiling = "narrow"
-				case "rejected":
-					rejected = old.Key
-				}
-				require.NoError(t, a.Store.Update(func(_ *config.Config, cr *config.Credentials) (bool, bool, error) {
-					pc := cr.Profiles[a.Profile.Name]
-					other := old
-					other.KeyID = "other-id"
-					other.Source = "other-source"
-					pc.WorkloadKeys = []config.WorkloadKey{old, other}
-					cr.Profiles[a.Profile.Name] = pc
-					return false, true, nil
-				}))
-				// When expiry, a changed ceiling, or rejection causes replacement.
-				var err error
-				if login {
-					_, err = WorkloadCredential(t.Context(), a, lifecycleProject, rejected)
-				} else {
-					_, err = exchangeStaticForProjectKey(t.Context(), a, srv.URL, "static", lifecycleProject, rejected)
-				}
-				// Then cleanup revokes only this source's superseded server key.
-				require.NoError(t, err)
-				require.Equal(t, []string{"old-id"}, f.revoked)
-			})
-		}
 	}
 }
 

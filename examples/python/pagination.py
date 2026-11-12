@@ -2,7 +2,7 @@
 """pagination — list images with `iter()` or page by page with cursors.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... python python/pagination.py
+    DAYTONA_API_KEY=dtn_... python python/pagination.py
 """
 
 from __future__ import annotations

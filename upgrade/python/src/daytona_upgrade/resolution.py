@@ -83,6 +83,11 @@ class Resolver:
             for kind, receiver in self.mapping.receivers.items():
                 if name in receiver.types:
                     return "type:" + kind
+            if name in self.mapping.dockerfile_names:
+                # The 0.x Image class and the parameters classes that take it,
+                # as `import daytona; daytona.Image` reads them: a create's
+                # Dockerfile image is then provable (dockerfile_images).
+                return "module:" + module + "." + name
             if name == "DaytonaConfig":
                 return "type:config"
             if name == "common" and module in self.mapping.modules:
@@ -90,7 +95,8 @@ class Resolver:
             if (
                 name in self.mapping.root_names
                 and name not in self.mapping.root_imports
-            ):
+            ) or name in self.mapping.root_alias_categories:
+                # A shared error, or a former root alias naming one.
                 return "module:" + module + "." + name
         return self.index.exports.get(module, {}).get(name, "")
 

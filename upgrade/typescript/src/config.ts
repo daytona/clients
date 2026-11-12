@@ -18,6 +18,7 @@ import type { ConfigReaders } from './config-readers.js';
 
 export { findConfigs } from './config-sources.js';
 export const UNRESOLVED_CONFIG = 'cannot verify the API URL of this DaytonaConfig; if it targets Daytona Cloud, rerun with --drop-api-url';
+export const ASSERTED_CONFIG = '--drop-api-url asserts Cloud usage; review this unchanged call manually.';
 export function configs(source: SourceFile, mapping: Mapping, context: {
   readonly root: string; readonly dropApiUrl: boolean; readonly configObjects?: readonly Node[];
 }): { readonly edits: readonly Edit[]; readonly items: readonly Item[]; readonly reviews: readonly { readonly node: Node; readonly message: string }[] } {
@@ -37,8 +38,8 @@ export function configs(source: SourceFile, mapping: Mapping, context: {
     return false;
   };
   const unresolved = (node: Node): void => {
-    items.push(item(node, { kind: context.dropApiUrl ? 'config-field' : 'custom-api-url',
-      message: UNRESOLVED_CONFIG }, context.root));
+    items.push(item(node, context.dropApiUrl ? { kind: 'config-field', message: ASSERTED_CONFIG }
+      : { kind: 'custom-api-url', message: UNRESOLVED_CONFIG }, context.root));
   };
   const field = (property: Node, name: string, value: Node | undefined): boolean => {
     const action = Object.hasOwn(mapping.config.ts, name) ? mapping.config.ts[name] : undefined;
@@ -135,8 +136,11 @@ export function configs(source: SourceFile, mapping: Mapping, context: {
       const leading = !next && previous && previousProperty && !removed.has(previousProperty) ? previous : undefined;
       const multiline = leading && /[\r\n]/.test(source.getFullText().slice(leading.getEnd(), property.getStart()));
       if (leading && multiline) edits.push({ start: leading.getStart(), end: leading.getEnd(), text: '' });
+      // `a,  c` would be left by removing `b,` from `a, b, c`: take the
+      // spaces after the comma too when the line goes on.
+      const spaces = next ? /^[\t ]*(?=[^\s])/.exec(source.getFullText().slice(next.getEnd()))?.[0].length ?? 0 : 0;
       edits.push(cleanRemoval(property, { start: !multiline && leading ? leading.getStart() : property.getStart(),
-        end: next?.getEnd() ?? property.getEnd(), text: '' }));
+        end: next ? next.getEnd() + spaces : property.getEnd(), text: '' }));
     }
   }
   return { edits, items, reviews: [...reviews].map(([node, message]) => ({ node, message })) };

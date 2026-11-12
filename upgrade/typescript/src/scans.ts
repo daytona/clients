@@ -16,6 +16,7 @@ import type { EnvironmentContext } from './env-api-url.js';
 import { readContext } from './read-failures.js';
 import type { ReadContext } from './read-failures.js';
 import { YamlFlow, yamlBlockScalar, yamlBlockScalarBodies, yamlContinuation } from './yaml-flow.js';
+import { companionCommand, version } from './sdk-target.js';
 
 function dockerEnvironment(lines: readonly string[], file: string, context: EnvironmentContext): readonly Item[] {
   const items: Item[] = [];
@@ -117,7 +118,7 @@ export function scan(files: readonly string[], project: string | ReadContext, co
     const path = relativePath(root, file);
     const dotenvFile = !composeFile && (/^\.env/.test(name) || context.envFiles?.has(file) === true);
     if (/^(?:pyproject\.toml|requirements.*\.txt|(?:requirements|constraints).*\.in|setup\.(?:py|cfg)|Pipfile)$/.test(name)) {
-      items.push({ file: path, line: 0, column: 0, kind: 'other-ecosystem', message: 'Python manifest found; run uvx daytona-upgrade for this ecosystem.' });
+      items.push({ file: path, line: 0, column: 0, kind: 'other-ecosystem', message: `Python manifest found; run ${companionCommand(version())} for this ecosystem.` });
     }
     const unsupported = /\.(?:vue|svelte|astro)$/.test(name);
     const environment = dotenvFile || composeFile || /^(?:docker-compose|compose).*\.ya?ml$/.test(name) || /^Dockerfile/.test(name) ||

@@ -27,8 +27,10 @@ type Mode struct {
 	Interactive bool
 	// Color reports whether ANSI colour may be emitted on stdout/stderr.
 	Color bool
-	// AssumeYes reports whether destructive verbs skip their confirmation
-	// (--yes, DAYTONA_YES=1, or config confirm=false).
+	// AssumeYes reports whether destructive verbs skip their confirmation:
+	// --yes or DAYTONA_YES=1 always; config confirm=false only when the
+	// invocation is interactive (it turns prompts off, it never consents for
+	// a script or an agent).
 	AssumeYes bool
 }
 
@@ -38,8 +40,10 @@ type Options struct {
 	OutputFormat string
 	// YesFlag is --yes.
 	YesFlag bool
-	// ConfirmSetting is the persisted `confirm` config value (default true).
-	ConfirmSetting bool
+	// ConfirmOff is the persisted `confirm: false` config value. The zero
+	// value keeps confirmation prompts on. It applies to interactive
+	// invocations only.
+	ConfirmOff bool
 	// Getenv is os.Getenv unless a test injects one.
 	Getenv func(string) string
 	// StdoutTTY/StdinTTY override the isatty probes (tests).
@@ -66,7 +70,7 @@ func Resolve(o Options) Mode {
 
 	color := interactive && getenv("NO_COLOR") == "" && getenv("TERM") != "dumb"
 
-	yes := o.YesFlag || !o.ConfirmSetting
+	yes := o.YesFlag || (o.ConfirmOff && interactive)
 	if v := getenv("DAYTONA_YES"); v == "1" || strings.EqualFold(v, "true") {
 		yes = true
 	}

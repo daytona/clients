@@ -31,12 +31,10 @@ import { configConflictItems } from './config-ownership.js';
 import { registerDaytonaEvidence } from './project-daytona.js';
 import { environmentLoads } from './environment-loads.js';
 import { environmentFileReferences } from './environment-file-references.js';
+import { version } from './sdk-target.js';
+import { ancestorDeclarations, checkV0Version } from './v0-version.js';
 
-export function version(): string {
-  const manifest: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  if (typeof manifest !== 'object' || manifest === null || !('version' in manifest) || typeof manifest.version !== 'string') throw new UpgradeError('Package version is missing');
-  return manifest.version;
-}
+export { version } from './sdk-target.js';
 export function emptyReport(options: Options): Report {
   return { tool: 'daytona-upgrade', version: version(), language: 'ts', mode: options.mode, root: options.root,
     dryRun: options.dry || options.print || (options.mode === 'suggest-v2' && options.json),
@@ -45,8 +43,11 @@ export function emptyReport(options: Options): Report {
 export type RunResult = { readonly report: Report; readonly changes: readonly Change[]; readonly code: number };
 export async function run(options: Options, mapping: Mapping): Promise<RunResult> {
   const base = emptyReport(options);
-  if (!existsSync(options.root) || !statSync(options.root).isDirectory()) {
-    return { report: { ...base, refused: { reason: 'bad-arguments', message: 'Project path must be an existing directory.' } }, changes: [], code: 2 };
+  if (!existsSync(options.root)) {
+    return { report: { ...base, refused: { reason: 'bad-arguments', message: `Path does not exist: ${options.root}` } }, changes: [], code: 2 };
+  }
+  if (!statSync(options.root).isDirectory()) {
+    return { report: { ...base, refused: { reason: 'bad-arguments', message: 'Project path is a file; pass the directory that contains it (the project root).' } }, changes: [], code: 2 };
   }
   const safety = base.dryRun ? {} : gitSafety(options.root, options.force);
   if (safety.refusal) return { report: { ...base, refused: safety.refusal }, changes: [], code: 2 };
@@ -176,7 +177,7 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
   if (unresolvedFiles.length) items.push({ file: unresolvedFiles[0] ?? '', line: 0, column: 0, kind: 'types-unresolved',
     message: `Daytona types could not be resolved in ${unresolvedFiles.length} file${unresolvedFiles.length === 1 ? '' : 's'}; using syntactic fallback. Install dependencies for stronger analysis.` });
   for (const rewrittenSource of rewrittenSources) {
-    const item = dependencyScopeItem(options.root, rewrittenSource, dependency.dependencyDirectories);
+    const item = dependencyScopeItem(options.root, rewrittenSource, dependency.dependencyDirectories, mapping.packages.ts.range);
     if (item && !items.some(existing => existing.kind === item.kind && existing.file === item.file)) items.push(item);
   }
   const invalidEditedFiles: Item[] = changes.filter(change => {
@@ -200,10 +201,15 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
         ? (environmentRefusal ? ENV_CUSTOM_URL : 'SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x.') + ' No files were written.'
         : 'Cannot verify that every DaytonaConfig targets Daytona Cloud. If they do, rerun with --drop-api-url; for a custom API URL, stay on SDK 0.x. No files were written.' } } };
   }
+  const v0 = options.mode === 'upgrade' && found
+    ? checkV0Version(options.root, dependency.declared.length ? dependency.declared : ancestorDeclarations(options.root, mapping.packages.ts.old),
+      mapping.v0Version, options.allowNewerV0 ?? false) : { warnings: [] };
+  const warnings = v0.warnings.length ? { warnings: v0.warnings } : {};
+  if (v0.refusal !== undefined) return { changes: [], code: 2, report: { ...base, items, ...warnings, refused: { reason: 'newer-v0', message: v0.refusal } } };
   // A custom API URL (above) refuses with exit 2 before unsupported files exit 1.
-  if (invalidEditedFiles.length) return { changes: [], code: 1, report: { ...base, items: [...items, ...invalidEditedFiles] } };
+  if (invalidEditedFiles.length) return { changes: [], code: 1, report: { ...base, items: [...items, ...invalidEditedFiles], ...warnings } };
   if (unsupportedPaths.length || failures.items.length || blockingParseErrors) return { changes: [], code: 1,
-    report: { ...base, items, ...(blockingParseErrors ? { nextSteps: ['Fix source parse errors before retrying.'] } : {}) } };
+    report: { ...base, items, ...warnings, ...(blockingParseErrors ? { nextSteps: ['Fix source parse errors before retrying.'] } : {}) } };
   if (!found) return { changes: [], code: 2, report: { ...base, items, refused: { reason: 'no-daytona', message: 'No Daytona dependency or code found.' } } };
   const commands = options.mode === 'upgrade' ? [...new Map(dependency.directories.map(directory => {
     const command = installCommand(directory, options.root); return [command.cwd, command];
@@ -214,7 +220,7 @@ export async function run(options: Options, mapping: Mapping): Promise<RunResult
   const report: Report = { ...base, changedFiles: changes.map(change => relativePath(options.root, change.file)).sort(),
     dependencies: options.mode === 'upgrade' ? dependency.dependencies : [], items: items.map(item =>
       selected.items.includes(item) && dependency.changes.length && options.mode === 'upgrade'
-        ? { ...item, message: `${item.message} The Daytona dependency is being updated to 2.x; this file needs manual migration.` } : item), nextSteps };
+        ? { ...item, message: `${item.message} The Daytona dependency is being updated to 2.x; this file needs manual migration.` } : item), nextSteps, ...warnings };
   const manual = items.some(item => item.kind !== 'suggestion' && item.kind !== 'workflow');
   const code = options.strict && manual ? 1 : 0;
   if (!report.dryRun && changes.length) {

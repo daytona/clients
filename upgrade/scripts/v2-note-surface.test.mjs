@@ -15,30 +15,30 @@ function fixture(context, { suggestions, dependencies = true }) {
   const root = mkdtempSync(join(tmpdir(), 'v2-note-surface-'));
   context.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'upgrade/scripts'), { recursive: true });
-  for (const name of ['check-v2-surface.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
+  for (const name of ['check-v2-surface.mjs', 'optional-arguments.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
     copyFileSync(new URL(name, import.meta.url), join(root, 'upgrade/scripts', name));
   }
-  mkdirSync(join(root, 'typescript/src/v2'), { recursive: true });
-  if (dependencies) symlinkSync(fileURLToPath(new URL('../../typescript/node_modules', import.meta.url)), join(root, 'typescript/node_modules'));
-  writeFileSync(join(root, 'typescript/tsconfig.json'), JSON.stringify({ compilerOptions: {
+  mkdirSync(join(root, 'sdk-typescript/src/v2'), { recursive: true });
+  if (dependencies) symlinkSync(fileURLToPath(new URL('../../sdk-typescript/node_modules', import.meta.url)), join(root, 'sdk-typescript/node_modules'));
+  writeFileSync(join(root, 'sdk-typescript/tsconfig.json'), JSON.stringify({ compilerOptions: {
     strict: true, target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', skipLibCheck: true,
   } }));
-  writeFileSync(join(root, 'typescript/src/index.ts'), `import { Client } from './v2/index.js';
+  writeFileSync(join(root, 'sdk-typescript/src/index.ts'), `import { Client } from './v2/index.js';
 export class Daytona { get v2(): Client { return new Client(); } }`);
-  writeFileSync(join(root, 'typescript/src/v2/index.ts'), `export class Client { create(options: { region: string }) {} }
+  writeFileSync(join(root, 'sdk-typescript/src/v2/index.ts'), `export class Client { create(options: { region: string }) {} }
 export class Sandbox { read(path: string) {} }`);
-  mkdirSync(join(root, 'python/src/daytona/v2'), { recursive: true });
-  writeFileSync(join(root, 'python/src/daytona/_client.py'), `from .v2.daytona import AsyncDaytona
+  mkdirSync(join(root, 'sdk-python/src/daytona/v2'), { recursive: true });
+  writeFileSync(join(root, 'sdk-python/src/daytona/_client.py'), `from .v2.daytona import AsyncDaytona
 class Daytona:
     @property
     def v2(self) -> AsyncDaytona:
         pass
 `);
-  writeFileSync(join(root, 'python/src/daytona/v2/daytona.py'), `class AsyncDaytona:
+  writeFileSync(join(root, 'sdk-python/src/daytona/v2/daytona.py'), `class AsyncDaytona:
     async def create(self, *, region):
         pass
 `);
-  writeFileSync(join(root, 'python/src/daytona/v2/sandbox.py'), `class AsyncSandbox:
+  writeFileSync(join(root, 'sdk-python/src/daytona/v2/sandbox.py'), `class AsyncSandbox:
     async def read(self, path):
         pass
 `);
@@ -74,11 +74,11 @@ test('accepts note references when arguments are illustrative and prose is not S
 });
 
 test('prints an actionable hint when the TypeScript dependency is absent', (context) => {
-  // Given: SDK sources without typescript/node_modules.
+  // Given: SDK sources without sdk-typescript/node_modules.
   // When: a contributor invokes the surface checker.
   const result = fixture(context, { suggestions: [], dependencies: false });
   // Then: it fails with one actionable line, not a module-loader stack trace.
   assert.equal(result.status, 1);
   assert.equal(result.stderr.trim().split('\n').length, 1, result.stderr);
-  assert.match(result.stderr, /run 'npm ci' in typescript\/ first/);
+  assert.match(result.stderr, /run 'npm ci' in sdk-typescript\/ first/);
 });

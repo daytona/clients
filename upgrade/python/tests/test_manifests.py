@@ -185,7 +185,7 @@ def test_replaces_source_when_poetry_dependency_uses_git() -> None:
         ("poetry.lock", "poetry lock"),
         ("pdm.lock", "pdm lock"),
         ("Pipfile.lock", "pipenv lock"),
-        ("", 'pip install -U "daytona[v0-sdk]>=2,<3"'),
+        ("", 'pip install -U "daytona[v0-sdk]==2.0.0a8"'),
     ],
 )
 def test_selects_next_command_when_lockfile_present(
@@ -195,7 +195,7 @@ def test_selects_next_command_when_lockfile_present(
     if lockfile:
         (tmp_path / lockfile).write_text("untouched lock data")
     # When
-    result = next_step(tmp_path)
+    result = next_step(tmp_path, "daytona[v0-sdk]==2.0.0a8")
     # Then
     assert result == expected
 
@@ -205,6 +205,6 @@ def test_prefers_uv_when_multiple_lockfiles_present(tmp_path: Path) -> None:
     for lockfile in ("uv.lock", "poetry.lock", "pdm.lock", "Pipfile.lock"):
         (tmp_path / lockfile).touch()
     # When
-    result = next_step(tmp_path)
+    result = next_step(tmp_path, "daytona[v0-sdk]==2.0.0a8")
     # Then
     assert result == "uv lock"

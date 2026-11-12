@@ -1250,6 +1250,29 @@
         ],
         "type": "object"
       },
+      "ComputerUseResolution": {
+        "additionalProperties": false,
+        "description": "A desktop resolution in pixels. Only 1024x768, 1280x720 and 1920x1080\nare accepted; any other pair is `400 BAD_REQUEST`.",
+        "properties": {
+          "height": {
+            "description": "Height in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
       "ComputerUseRestartResponse": {
         "description": "The response returned by `POST /computeruse/restart`.",
         "properties": {
@@ -1376,6 +1399,24 @@
         "required": [
           "success"
         ],
+        "type": "object"
+      },
+      "ComputerUseStartRequest": {
+        "additionalProperties": false,
+        "description": "The optional body of `POST /computeruse/start` and `/restart`.",
+        "properties": {
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComputerUseResolution",
+                "description": "The desktop resolution. Omitted = the resolution last selected in\nthis sandbox, or 1280x720 if none was. One of 1024x768, 1280x720 or\n1920x1080."
+              }
+            ]
+          }
+        },
         "type": "object"
       },
       "ComputerUseStatusResponse": {
@@ -1560,7 +1601,7 @@
             ]
           },
           "sessionId": {
-            "description": "The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true` and `user` (the session's settings apply). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.",
+            "description": "The session to run in. For `kind=exec`: the id or live name of a `kind=session` process; the `shellCommand` runs inside its shell, one command at a time, in order, and the request refuses `argv`, `cwd`, `env`, `shell`, `login: true`, `user` and `tag` (the session's settings apply; the command takes the session's tag). Unknown ids answer `SESSION_NOT_FOUND` (sessions are never created on first use) and an ended or deleted session answers `SESSION_ENDED`. For `kind=code`: the interpreter context to execute in.",
             "type": [
               "string",
               "null"
@@ -1589,6 +1630,13 @@
                 "$ref": "#/components/schemas/StdinMode",
                 "description": "Whether stdin stays open after create."
               }
+            ]
+          },
+          "tag": {
+            "description": "Optional tag, a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`) that groups this process with others for `GET /processes?tag=` and `POST /processes:kill`. Applies to `kind=exec`, `pty` and `session`. `kind=code` refuses it, and so does a command run in a session, which takes the session's tag.",
+            "type": [
+              "string",
+              "null"
             ]
           },
           "terminal": {
@@ -1816,6 +1864,7 @@
           "PROCESS_START_FAILED",
           "PROCESS_TERMINAL",
           "PROCESS_EXECUTION_TIMEOUT",
+          "PROCESS_KILL_INCOMPLETE",
           "NAME_CONFLICT",
           "INVALID_CURSOR",
           "CURSOR_EXPIRED",
@@ -2175,6 +2224,46 @@
         "type": "string",
         "x-daytona-open-enum": true
       },
+      "KillProcessesRequest": {
+        "additionalProperties": false,
+        "description": "`POST /processes:kill` request body.",
+        "properties": {
+          "tag": {
+            "description": "The tag whose processes to kill: a safe identifier (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`).",
+            "type": "string"
+          },
+          "timeoutMs": {
+            "description": "How long to wait for every killed process to exit, in milliseconds. 1-60000; default 10000.",
+            "format": "int64",
+            "maximum": 60000,
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "type": "object"
+      },
+      "KillProcessesResponse": {
+        "description": "`POST /processes:kill` response body.",
+        "properties": {
+          "processIds": {
+            "description": "The tagged processes that were still running when the call started, and exited tagged processes that still had descendants running. Every one of them, and everything it started, has exited. Processes whose records were deleted or expired are killed too but not listed, so an empty list does not mean nothing was stopped.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "processIds"
+        ],
+        "type": "object"
+      },
       "Kind": {
         "description": "What kind of process the API should run.",
         "enum": [
@@ -2224,6 +2313,13 @@
           },
           "state": {
             "description": "`running`, `terminal`, or `all` (the default when omitted).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tag": {
+            "description": "Filter by tag.",
             "type": [
               "string",
               "null"
@@ -2777,6 +2873,13 @@
           "system": {
             "description": "Whether this is a protected system process.",
             "type": "boolean"
+          },
+          "tag": {
+            "description": "The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "terminal": {
             "oneOf": [
@@ -5256,8 +5359,24 @@
     },
     "/computeruse/restart": {
       "post": {
-        "description": "Restarts the desktop and returns its ready status.",
+        "description": "Restarts the desktop and returns its ready status. The body is optional: `resolution` restarts the desktop at that size (1024x768, 1280x720 or 1920x1080) and keeps it for later starts; omitted, the desktop restarts at its current resolution. Linux only: other platforms refuse a `resolution`.",
         "operationId": "restart",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ComputerUseStartRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -5268,6 +5387,56 @@
               }
             },
             "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`CONFLICT` \u2014 a concurrent restart brought the desktop up at a different resolution; retry the restart"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`PAYLOAD_TOO_LARGE` \u2014 the body exceeds the JSON body limit"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNSUPPORTED_MEDIA_TYPE` \u2014 a non-empty body without `Content-Type: application/json`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match the request schema"
           },
           "500": {
             "content": {
@@ -5878,8 +6047,24 @@
     },
     "/computeruse/start": {
       "post": {
-        "description": "Starts the desktop and returns its process statuses.",
+        "description": "Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution last selected, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.",
         "operationId": "start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ComputerUseStartRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -5891,6 +6076,16 @@
             },
             "description": ""
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
+          },
           "409": {
             "content": {
               "application/json": {
@@ -5899,7 +6094,37 @@
                 }
               }
             },
-            "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart"
+            "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart; `CONFLICT` \u2014 the desktop is running at a different resolution"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`PAYLOAD_TOO_LARGE` \u2014 the body exceeds the JSON body limit"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNSUPPORTED_MEDIA_TYPE` \u2014 a non-empty body without `Content-Type: application/json`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match the request schema"
           },
           "500": {
             "content": {
@@ -9057,7 +9282,7 @@
     },
     "/processes": {
       "get": {
-        "description": "List process records, optionally filtered by state, kind, session, name, or pid.",
+        "description": "List process records, optionally filtered by state, kind, session, name, pid, or tag.",
         "operationId": "list_processes",
         "parameters": [
           {
@@ -9104,6 +9329,15 @@
             "schema": {
               "format": "int32",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Filter by tag.",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -9456,9 +9690,14 @@
         "responses": {
           "200": {
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessLogsResponse"
+                }
+              },
               "text/event-stream": {}
             },
-            "description": "SSE stream when `follow=true`: `log` carries `LogFrameDto`, `state` carries `ProcessStateEventDto`, `warning` carries `ProcessWarningEventDto`, `error` carries `ProcessErrorEventDto`, and `eof` carries `ProcessEofEventDto`."
+            "description": "JSON log page (`application/json`) when `follow` is absent or false; SSE stream (`text/event-stream`) when `follow=true`: `log` carries `LogFrameDto`, `state` carries `ProcessStateEventDto`, `warning` carries `ProcessWarningEventDto`, `error` carries `ProcessErrorEventDto`, and `eof` carries `ProcessEofEventDto`."
           },
           "400": {
             "content": {
@@ -9585,7 +9824,7 @@
     },
     "/processes/{id}/signals": {
       "post": {
-        "description": "Send a signal, optionally with escalation, or interrupt a running code execution.",
+        "description": "Send a signal, optionally with escalation, or interrupt a running code execution. On a Linux sandbox with process containment, `SIGTERM` and `SIGKILL` reach every process the target started, also after the target itself exited: such a request answers `PROCESS_TERMINAL` only once nothing it started is running.",
         "operationId": "process_signals",
         "parameters": [
           {
@@ -9650,7 +9889,7 @@
                 }
               }
             },
-            "description": "`PROCESS_TERMINAL` \u2014 the process has already exited."
+            "description": "`PROCESS_TERMINAL` \u2014 the process has already exited (and, for `SIGTERM` or `SIGKILL` on a sandbox with process containment, nothing it started is still running)."
           },
           "422": {
             "content": {
@@ -9824,6 +10063,68 @@
           }
         },
         "summary": "Wait for process completion",
+        "tags": [
+          "processes"
+        ]
+      }
+    },
+    "/processes:kill": {
+      "post": {
+        "description": "Kill every process created with `tag`, and everything those processes started, including descendants that detached and the survivors of tagged processes that already exited. Returns only when none of them is running. Records and logs are kept. The tag can be used again right after the call.",
+        "operationId": "kill_processes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KillProcessesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KillProcessesResponse"
+                }
+              }
+            },
+            "description": "Every process created under the tag before the call, and everything it started, has exited. A start admitted after the call may be running."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`BAD_REQUEST` \u2014 invalid tag or `timeoutMs`; `UNSUPPORTED_OPERATION` \u2014 this sandbox cannot contain processes (macOS, or a Linux guest whose kernel or cgroup mount lacks the support)."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`PROCESS_KILL_INCOMPLETE` \u2014 some killed processes were still running when `timeoutMs` expired, or another start or kill under the tag was still in progress so the kill could not begin; call again to retry."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body was well-formed but did not match `KillProcessesRequest`."
+          }
+        },
+        "summary": "Kill every process with a tag",
         "tags": [
           "processes"
         ]
@@ -10324,6 +10625,11 @@
       "status": 409
     },
     "PROCESS_EXECUTION_TIMEOUT": {
+      "extras": [],
+      "source": "DAYTONA_DAEMON",
+      "status": 408
+    },
+    "PROCESS_KILL_INCOMPLETE": {
       "extras": [],
       "source": "DAYTONA_DAEMON",
       "status": 408

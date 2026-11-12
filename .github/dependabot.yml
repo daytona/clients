@@ -34,7 +34,7 @@ updates:
 
   # TypeScript SDK (@daytona/sdk).
   - package-ecosystem: npm
-    directory: /typescript
+    directory: /sdk-typescript
     schedule:
       interval: weekly
       day: monday
@@ -51,6 +51,14 @@ updates:
       # Keep @types/node aligned with the oldest Node the package supports
       # (`engines`); bump its major together with that floor.
       - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+      # TypeScript 7's package has no JavaScript compiler API, which ts-jest,
+      # openapi-typescript (scripts/gen-contract.mjs) and our own compiler-API
+      # code need. Remove once ts-jest and openapi-typescript support it:
+      # https://github.com/kulshekhar/ts-jest/issues/5366
+      # https://github.com/openapi-ts/openapi-typescript/issues/2841
+      - dependency-name: "typescript"
         update-types:
           - "version-update:semver-major"
     commit-message:
@@ -78,10 +86,10 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Pinned codegen tooling for python/gen-contract.sh. The Contracts workflow
+  # Pinned codegen tooling for sdk-python/gen-contract.sh. The Contracts workflow
   # regenerates the client, so a bump that changes generated output fails CI.
   - package-ecosystem: npm
-    directory: /python/gen
+    directory: /sdk-python/gen
     schedule:
       interval: weekly
       day: monday
@@ -123,7 +131,7 @@ updates:
 
   # Python SDK (daytona on PyPI).
   - package-ecosystem: uv
-    directory: /python
+    directory: /sdk-python
     schedule:
       interval: weekly
       day: monday
@@ -218,6 +226,18 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
+      # Same TypeScript 7 hold as the 2.x /sdk-typescript entry (ts-jest).
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
+      # nx majors wait for @nx-go/nx-go: 4.x pulls @nx/devkit with an nx <=23
+      # peer, and its nx 24 support is only a beta so far.
+      - dependency-name: "nx"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@nx/*"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 
@@ -240,6 +260,12 @@ updates:
       pip-prod:
         patterns:
           - "*"
+    ignore:
+      # The generated clients only use dateutil.parser, which works on 2.x and
+      # 3.x; a 3.x floor would force every 0.x SDK user onto dateutil 3.
+      - dependency-name: "python-dateutil"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 

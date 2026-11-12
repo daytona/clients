@@ -5,7 +5,7 @@ Shows clone / add / commit / branches / create_branch / checkout_branch /
 delete_branch / status / push / pull.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/git_ops.py
 """
 
@@ -13,23 +13,24 @@ from __future__ import annotations
 
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
-from daytona.v2 import Image
 
 REPO_URL = "https://github.com/octocat/Hello-World"
 
 
 def main() -> int:
     daytona = client()
-    sandbox = daytona.create(Image.base(IMAGE), name=f"git-{RUN}", timeout=200)
+    sandbox = daytona.create(sandbox_image(daytona), name=f"git-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id}")
 
     ok = True
     try:
+        if not require_started(sandbox):
+            return 1
         git = sandbox.git
         proc = sandbox.process
-        repo = "demo-repo"
+        repo = "/tmp/demo-repo"
 
         # python:3.x-slim ships without git; install it on demand.
         section("ensure git is available")

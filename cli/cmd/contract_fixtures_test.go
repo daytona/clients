@@ -7,7 +7,7 @@ func organizationFixture(id, name string, personal bool) map[string]any {
 	return map[string]any{
 		"id": id, "name": name, "personal": personal, "suspended": false,
 		"preview_warning_disabled": false, "budget_stop_grace_seconds": 3600,
-		"from_v0": false, "v0_membership_sync_enabled": false, "v1_membership_sync_enabled": false, "sso_linked": false, "sso_organization_id": nil,
+		"from_v0": false, "v0_membership_sync_enabled": false, "sso_linked": false, "sso_organization_id": nil,
 		"max_sandbox_timeout_seconds": nil,
 		"created_at":                  "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z",
 	}

@@ -173,11 +173,14 @@ func TestListsPreserveAliasStreamsWhenRegionNarrowsSharedEndpoint(t *testing.T) 
 			f := aliasListServer(t, false)
 			// When selecting that alias's API endpoint, not the other API URL.
 			out, err := f.execute(t, kind, "list", "--all", "--limit", "1", "--region", "REGION-A", "--cursor", "region-a:=,region-b:6,region-c:4,region-d:5")
-			// Then unseen items survive without querying the other endpoint.
+			// Then the sibling streams are read without querying the other
+			// endpoint, and their items, which are in other regions, are left
+			// out.
 			require.NoError(t, err)
-			require.Len(t, out.Items, 2)
-			require.Equal(t, "shared", out.Items[0].ID)
-			require.Equal(t, "c", out.Items[1].ID)
+			require.Empty(t, out.Items)
+			require.Empty(t, out.Next)
+			require.Empty(t, f.requests["b"])
+			require.NotEmpty(t, f.requests["a"])
 			require.Empty(t, f.requests["b"])
 		})
 	}
@@ -244,7 +247,11 @@ func TestListsResumeEndpoint_whenCatalogAddsEarlierAlias(t *testing.T) {
 				f.mu.Unlock()
 
 				// When resuming against the updated catalog at the same API URL.
-				out, err := f.execute(t, kind, "list", "--all", "--limit", "1", "--cursor", first.Next, "--region", region)
+				args := []string{kind, "list", "--all", "--limit", "1", "--cursor", first.Next}
+				if region != "" {
+					args = append(args, "--region", region)
+				}
+				out, err := f.execute(t, args...)
 
 				// Then no consumed item replays, and every remaining item survives.
 				require.NoError(t, err)
@@ -254,7 +261,7 @@ func TestListsResumeEndpoint_whenCatalogAddsEarlierAlias(t *testing.T) {
 				}
 				want := []string{"b", "shared", "c", "d"}
 				if region != "" {
-					want = []string{"shared", "c"}
+					want = []string{"shared"} // region-b's only remaining item
 				}
 				require.Equal(t, want, ids)
 				require.Empty(t, out.Next)

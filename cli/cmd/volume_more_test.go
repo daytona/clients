@@ -15,12 +15,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The server chooses a volume's type when --type is omitted, so the help
+// names no client-side default for it or for --size-gib.
+func TestVolumeCreate_helpNamesNoClientDefaults(t *testing.T) {
+	help, _, err := runCLI(t, []string{"volume", "create", "--help"}, nil)
+	require.NoError(t, err)
+	require.Contains(t, help, "default: chosen by the server")
+	require.NotContains(t, help, `(default "disk")`)
+	require.NotContains(t, help, "(default 100)")
+}
+
 func TestVolumeCreate_rejectsShapesTheServerWouldRefuse(t *testing.T) {
 	cases := map[string][]string{
-		"size-gb on a bucket volume":      {"volume", "create", "v", "--size-gb", "50", "--type", "bucket"},
+		"size-gib on a bucket volume":     {"volume", "create", "v", "--size-gib", "50", "--type", "bucket"},
 		"customer bucket without creds":   {"volume", "create", "v", "--type", "bucket", "--bucket", "corp"},
 		"customer bucket with half creds": {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--access-key-secret", "K"},
-		"bucket options on a disk volume": {"volume", "create", "v", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
+		"bucket options without a type":   {"volume", "create", "v", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
+		"an empty type":                   {"volume", "create", "v", "--type", ""},
+		"an unknown type":                 {"volume", "create", "v", "--type", "nfs"},
+		"a type in another case":          {"volume", "create", "v", "--type", "DISK"},
+		"bucket options on a disk volume": {"volume", "create", "v", "--type", "disk", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -38,7 +52,7 @@ func TestVolumeCreate_rejectsShapesTheServerWouldRefuse(t *testing.T) {
 
 func TestVolumeCreate_externalBucketBody(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{
-		"volume", "create", "data", "--type", "bucket", "--bucket", "corp-data", "--endpoint", "https://s3.example.com", "--region", "region-a", "--prefix", "team-a/", "--path-style", "--access-key-secret", "BUCKET_KEY", "--secret-key-secret", "BUCKET_SECRET",
+		"volume", "create", "data", "--type", "bucket", "--bucket", "corp-data", "--endpoint", "https://s3.example.com", "--bucket-region", "region-a", "--prefix", "team-a/", "--path-style", "--access-key-secret", "BUCKET_KEY", "--secret-key-secret", "BUCKET_SECRET",
 	}, []expectedRequest{
 		{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"bucket":{"credentials":{"access_key_secret":"BUCKET_KEY","secret_key_secret":"BUCKET_SECRET"},"endpoint":"https://s3.example.com","name":"corp-data","origin":"external","path_style":true,"prefix":"team-a/","region":"region-a"},"name":"data","type":"bucket"}`, response: bucketVolumeFixture("55555555-5555-5555-5555-555555555555")},
 	})
@@ -58,7 +72,7 @@ func TestVolumeCreate_fileBucketOverride(t *testing.T) {
 	bodyPath := filepath.Join(t.TempDir(), "volume.json")
 	require.NoError(t, os.WriteFile(bodyPath, []byte(`{"type":"bucket","bucket":{"name":"from-file","endpoint":"https://old.example.com","region":"region-b","credentials":{"access_key_secret":"OLD_KEY","secret_key_secret":"OLD_SECRET"}}}`), 0o600))
 	stdout, _, err := runCLI(t, []string{
-		"volume", "create", "data", "--file", bodyPath, "--bucket", "corp-data", "--endpoint", "https://s3.example.com", "--region", "region-a", "--access-key-secret", "BUCKET_KEY", "--secret-key-secret", "BUCKET_SECRET",
+		"volume", "create", "data", "--file", bodyPath, "--bucket", "corp-data", "--endpoint", "https://s3.example.com", "--bucket-region", "region-a", "--access-key-secret", "BUCKET_KEY", "--secret-key-secret", "BUCKET_SECRET",
 	}, []expectedRequest{
 		{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"bucket":{"credentials":{"access_key_secret":"BUCKET_KEY","secret_key_secret":"BUCKET_SECRET"},"endpoint":"https://s3.example.com","name":"corp-data","origin":"external","region":"region-a"},"name":"data","type":"bucket"}`, response: bucketVolumeFixture("55555555-5555-5555-5555-555555555555")},
 	})

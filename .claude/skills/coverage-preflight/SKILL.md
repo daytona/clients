@@ -21,8 +21,8 @@ lines a branch adds, with `scripts/patch_coverage.py`, and closes the gap.
 2. **Reports for every component the diff touches** (from the repository root):
 
    ```bash
-   (cd python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
-   (cd typescript && npx jest --coverage --coverageReporters=lcov)
+   (cd sdk-python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
+   (cd sdk-typescript && npx jest --coverage --coverageReporters=lcov)
    (cd cli && go test ./... -coverprofile=coverage.out)
    ```
 
@@ -40,7 +40,7 @@ lines a branch adds, with `scripts/patch_coverage.py`, and closes the gap.
    met.
 
 5. **Untestable residue.** Code that only runs against a live deployment (it is
-   covered by `run-e2e.sh`, not by unit tests) may stay uncovered. Say so in the
+   covered by `e2e/run.sh`, not by unit tests) may stay uncovered. Say so in the
    PR description with the lines and the reason. Never add a test that only
    executes a line without asserting its behavior.
 

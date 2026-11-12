@@ -69,6 +69,22 @@ it.each(unresolvedSources)('leaves unresolved config source intact with explicit
   expect(result.code).toBe(0);
   expect(contents(root)['index.ts']).toBe(prelude.replace('@daytonaio/sdk', '@daytona/sdk') + code + '\n');
   expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([expect.objectContaining({ kind: 'config-field' })]) });
+  // The flag was passed: no item asks for it again.
+  expect(result.output).not.toContain('rerun with --drop-api-url');
+});
+
+it.each([
+  ["new Daytona({ apiKey: k, apiUrl: 'https://app.daytona.io/api', target: 'us' })", "new Daytona({ apiKey: k, target: 'us' })"],
+  ["new Daytona({ apiUrl: 'https://app.daytona.io/api', apiKey: k })", 'new Daytona({ apiKey: k })'],
+  ["new Daytona({ apiKey: k, apiUrl: 'https://app.daytona.io/api' })", 'new Daytona({ apiKey: k })'],
+])('removes a Cloud API URL without leaving extra spaces: %s', async (code, expected) => {
+  // Given
+  const root = temporaryProject({ 'index.ts': `${prelude}const k = process.env.K;\n${code};\n` });
+  // When
+  const result = await invoke(root, ['--json']);
+  // Then
+  expect(result.code).toBe(0);
+  expect(contents(root)['index.ts']).toContain(`${expected};\n`);
 });
 
 it('removes cloud fields in shared nested spreads exactly once while preserving other fields', async () => {
@@ -80,7 +96,7 @@ it('removes cloud fields in shared nested spreads exactly once while preserving 
   // Then
   expect(result.code).toBe(0);
   expect(contents(root)['index.ts']).toBe(prelude.replace('@daytonaio/sdk', '@daytona/sdk') + code
-    .replace("apiUrl: 'https://app.daytona.io/api/',", '').replace('serverUrl: `https://app.daytona.io/api`,', ''));
+    .replace("apiUrl: 'https://app.daytona.io/api/', ", '').replace('serverUrl: `https://app.daytona.io/api`, ', ''));
   expect(JSON.parse(result.output)).toMatchObject({ items: expect.arrayContaining([
     expect.objectContaining({ kind: 'deprecated-target' }), expect.objectContaining({ kind: 'config-field' }),
   ]) });

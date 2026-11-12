@@ -1,0 +1,19 @@
+# run-all.sh runs every runtime in a temporary copy; these appear only when a
+# runtime's run.sh is run in place by hand.
+*.tgz
+*.log
+*/node_modules/
+*/package-lock.json
+*/bun.lock
+*/bun.lockb
+*/deno.lock
+*/dist/
+*/build/
+*/.next/
+*/next-env.d.ts
+*/.nuxt/
+*/.output/
+*/config.capnp
+*/local.settings.json
+*/runtime-checks.mjs
+*/runtime-checks.d.mts

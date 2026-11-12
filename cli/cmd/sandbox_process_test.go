@@ -25,7 +25,14 @@ func TestToolboxProcessCommands_routeAndRender(t *testing.T) {
 			{method: http.MethodGet, path: "/test-tools/sbx/processes", status: 200, auth: true, query: url.Values{"state": {"running"}, "kind": {"exec"}, "pid": {"42"}}, response: `{"items":[{"id":"p1","kind":"exec","state":"running","stdin":"closed","cwd":"/","keepLogs":"on_exit_ttl","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z"}]}`},
 		})
 		require.NoError(t, err)
-		require.Len(t, requireJSONStdout(t, stdout)["items"], 1)
+		items := requireJSONStdout(t, stdout)["items"].([]any)
+		require.Len(t, items, 1)
+		item := items[0].(map[string]any)
+		// Toolbox output is converted to snake_case.
+		require.Equal(t, "on_exit_ttl", item["keep_logs"])
+		require.Equal(t, false, item["truncated_head"])
+		require.Equal(t, "2026-09-13T00:00:00Z", item["created_at"])
+		require.NotContains(t, item, "keepLogs")
 	})
 
 	t.Run("get renders key fields in table mode", func(t *testing.T) {
@@ -59,7 +66,18 @@ func TestToolboxProcessCommands_routeAndRender(t *testing.T) {
 			}},
 		})
 		require.Equal(t, 9, cerr.ExitCode(err))
-		require.Equal(t, float64(9), requireJSONStdout(t, stdout)["exitCode"])
+		require.Equal(t, float64(9), requireJSONStdout(t, stdout)["exit_code"])
+	})
+
+	t.Run("a process ended by a signal exits 128 + its number (SIGINT 130, SIGTERM 143, SIGKILL 137)", func(t *testing.T) {
+		for signal, want := range map[string]int{"SIGINT": cerr.ExitInterrupted, "SIGTERM": 143, "SIGKILL": 137} {
+			_, _, err := runToolboxCLI(t, []string{"sandbox", "process", "wait", "sbx", "p1", "--timeout", "1s"}, []toolboxExpectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+				{method: http.MethodGet, path: "/test-tools/sbx/processes/p1/wait", status: 200, auth: true, response: `{"reason":"signaled","signal":"` + signal + `"}`},
+			})
+			require.Equal(t, want, cerr.ExitCode(err), signal)
+			require.Equal(t, cerr.SourceProcess, cerr.DetailsOf(err).Source, signal)
+		}
 	})
 
 	t.Run("signal", func(t *testing.T) {
@@ -241,6 +259,7 @@ func TestSandboxProcessLogsFollow_cancelAfterStreamEstablishedReturnsInterrupted
 	t.Setenv("DAYTONA_PROJECT", "")
 	t.Setenv("DAYTONA_REGION", "")
 	t.Setenv("DAYTONA_OIDC_CLIENT_ID", "")
+	t.Setenv("DAYTONA_YES", "")
 	t.Setenv("CI", "1")
 
 	stdout := &bytes.Buffer{}
@@ -253,7 +272,11 @@ func TestSandboxProcessLogsFollow_cancelAfterStreamEstablishedReturnsInterrupted
 	go func() {
 		errCh <- root.ExecuteContext(ctx)
 	}()
-	<-started
+	select {
+	case <-started:
+	case err := <-errCh:
+		t.Fatalf("the command ended before the stream started: %v; stderr: %s", err, stderr.String())
+	}
 	cancel()
 	err := <-errCh
 	require.Equal(t, cerr.ExitInterrupted, cerr.ExitCode(err))

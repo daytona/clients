@@ -16,7 +16,7 @@ from daytona_upgrade.models import TransformOptions, load_mapping
 from daytona_upgrade.transform import transform_source
 
 
-@pytest.mark.parametrize("initializer", ["__init__.py", "__init__.pyi"])
+@pytest.mark.parametrize("initializer", ["__init__.py", "__init__.pyi", "__init__.pyw"])
 @pytest.mark.parametrize(
     "binding", ["from .provider import Client", "from .provider import *"]
 )

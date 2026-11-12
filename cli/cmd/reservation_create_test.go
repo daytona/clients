@@ -175,7 +175,7 @@ func TestReservationCreate_help(t *testing.T) {
 	text := squashSpaces(help)
 	for _, line := range []string{
 		"--count N how many Macs to reserve, 1 to 100 (calls POST /reservations/bulk; default: one Mac through POST /reservations)",
-		"--min-count M the fewest Macs to accept when fewer than --count are free (default: --count, all or nothing)",
+		"--min-count M the fewest Macs to accept when fewer than --count are free or fit under the organization's Mac reservation limit (default: --count, all or nothing)",
 		"--dry-run print the price and the free Macs from GET /mac-catalog and reserve nothing",
 		"With --count, reserve several Macs of one model in one request (POST /reservations/bulk). The SDK twin is reservations.createBulk(…).",
 		"daytona reservation create --region '<region>' --model '<model>' --count 3 --idempotency-key nightly-macs",
@@ -192,7 +192,7 @@ func TestReservationCreate_help(t *testing.T) {
 		"daytona reservation create --region '<region>' --count 3",
 		"daytona reservation renew RESERVATION_ID",
 		"daytona reservation update RESERVATION_ID --auto-renew=false",
-		"Renew a Mac reservation for another period",
+		"Charge and renew a Mac reservation for another period",
 		"Turn a Mac reservation's auto-renew on or off",
 	} {
 		require.Contains(t, parent, line)

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Final
 
-# Package directories in the bundled v0.224.0 Python SDK (not root __all__).
+# Package directories in the bundled 0.x Python SDK (not root __all__).
 V0_SUBMODULES: Final = frozenset(
     {"_async", "_sync", "_utils", "common", "handle", "internal"}
 )

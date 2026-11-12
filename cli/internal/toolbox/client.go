@@ -167,20 +167,36 @@ func mapError(method, path string, resp *http.Response) error {
 	if hint := hintFor(resp.StatusCode, env); hint != "" {
 		e = e.WithHint("%s", hint)
 	}
-	if code := strings.TrimSpace(env.Code); code != "" {
-		e.Err = &DaemonError{Code: code, Status: resp.StatusCode}
+	traceID := resp.Header.Get("x-daytona-trace-id")
+	if env.TraceId != nil && traceID == "" {
+		traceID = *env.TraceId
 	}
+	// Always attached: the error came from the server, even without an
+	// envelope, so it is never reported as the CLI's own.
+	e.Err = &DaemonError{Code: strings.TrimSpace(env.Code), Status: resp.StatusCode, Source: strings.TrimSpace(env.Source), TraceID: traceID}
 	return e
 }
 
 // DaemonError carries the toolbox API's machine-readable error code
-// (x-daytona-error-codes in the toolbox contract).
+// (x-daytona-error-codes in the toolbox contract), source and trace id.
 type DaemonError struct {
-	Code   string
-	Status int
+	Code    string
+	Status  int
+	Source  string
+	TraceID string
 }
 
-func (d *DaemonError) Error() string { return d.Code }
+func (d *DaemonError) Error() string {
+	if d.Code != "" {
+		return d.Code
+	}
+	return fmt.Sprintf("%d %s", d.Status, http.StatusText(d.Status))
+}
+
+// ErrorCode, ErrorSource and ErrorTraceID implement cerr.Detailed.
+func (d *DaemonError) ErrorCode() string    { return d.Code }
+func (d *DaemonError) ErrorSource() string  { return d.Source }
+func (d *DaemonError) ErrorTraceID() string { return d.TraceID }
 
 // IsDaemonCode reports whether err carries the given toolbox error code.
 func IsDaemonCode(err error, code string) bool {
@@ -193,6 +209,10 @@ func hintFor(status int, env daemonErrorEnvelope) string {
 	case http.StatusUnauthorized:
 		return "credential rejected — toolbox calls need a project credential for this sandbox"
 	case http.StatusForbidden:
+		if env.Code == api.CodeFileAccessDenied {
+			// File routes run as the sandbox user; the credential was accepted.
+			return "the sandbox user cannot access that path — use a path that user can access, or change its permissions inside the sandbox"
+		}
 		return "this credential is not allowed to do that on the sandbox"
 	case http.StatusNotFound:
 		return "check the sandbox id, process id, or file path"

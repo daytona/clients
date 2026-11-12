@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { hasLiteralArguments, hasNoneArguments, hasOptionalArguments, withLiteralArguments, withNamedArguments, withNoneArguments, withoutOptionalArguments } from './optional-arguments.mjs';
 
 const sdkRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -47,16 +48,42 @@ async function main() {
   } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'MODULE_NOT_FOUND'
       || !error.message.startsWith("Cannot find module 'typescript'\n")) throw error;
-    console.error("Missing TypeScript dependency; run 'npm ci' in typescript/ first");
+    console.error("Missing TypeScript dependency; run 'npm ci' in sdk-typescript/ first");
     process.exitCode = 1;
     return;
   }
-  const notes = mapping.suggestions.flatMap((entry) => ['py', 'ts'].flatMap((language) =>
+  // A row's form for a 0.x Dockerfile image is checked like any other form.
+  const rows = mapping.suggestions.flatMap((entry) => entry.dockerfileImage === undefined ? [entry] : [entry, {
+    ...entry, id: `${entry.id} (dockerfile image)`, v2: entry.dockerfileImage.v2, notes: entry.dockerfileImage.notes,
+  }]);
+  const notes = rows.flatMap((entry) => ['py', 'ts'].flatMap((language) =>
     noteForms(entry, language).map((form, index) => ({
       ...entry, id: `${entry.id} notes.${language}[${index}]`,
       v2: { py: null, ts: null, [language]: form },
     }))));
-  const expanded = { ...mapping, suggestions: [...mapping.suggestions, ...notes] };
+  // A form with optional arguments is checked both ways: every argument
+  // passed (by its v0 name) and every one left out.
+  const forms = rows.flatMap((entry) => {
+    const optional = ['py', 'ts'].filter((lang) => entry.v2[lang] !== null && hasOptionalArguments(entry.v2[lang]));
+    if (optional.length === 0) return [entry];
+    const variant = (render) => Object.fromEntries(['py', 'ts'].map((lang) => [lang, entry.v2[lang] === null ? null : render(entry.v2[lang], lang)]));
+    const literals = ['py', 'ts'].some((lang) => entry.v2[lang] !== null && hasLiteralArguments(entry.v2[lang]))
+      ? [
+        { ...entry, id: `${entry.id} (literal)`, v2: variant((form) => withLiteralArguments(form, '5')) },
+        { ...entry, id: `${entry.id} (zero)`, v2: variant((form) => withLiteralArguments(form, '0')) },
+      ]
+      : [];
+    const nones = ['py', 'ts'].some((lang) => entry.v2[lang] !== null && hasNoneArguments(entry.v2[lang]))
+      ? [{ ...entry, id: `${entry.id} (none)`, v2: variant((form, lang) => withNoneArguments(form, lang === 'py' ? 'None' : 'null')) }]
+      : [];
+    return [
+      { ...entry, v2: variant(withNamedArguments) },
+      { ...entry, id: `${entry.id} (defaults)`, v2: variant(withoutOptionalArguments) },
+      ...literals,
+      ...nones,
+    ];
+  });
+  const expanded = { ...mapping, suggestions: [...forms, ...notes] };
   const python = spawnSync('python3', [fileURLToPath(new URL('./v2-python-surface.py', import.meta.url)), sdkRoot], {
     input: JSON.stringify(expanded), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
   });

@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/daytona/clients/cli/gen/api"
 	apiinternal "github.com/daytona/clients/cli/internal/api"
@@ -20,13 +19,12 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 	}
 	cat = cat.ForListCursor(source.home.BaseURL, request.cursor)
 	scope := newRegionalPageCursor(request.cursor, cat.ListRegionKeys(source.home.BaseURL, source.region))
-	raw := regions.FanOut(ctx, source.home, cat, source.region,
+	raw, err := regions.FanOut(ctx, source.home, cat, source.region,
 		func(ctx context.Context, client *apiinternal.Client, currentRegion string) (regions.Page[api.ImageListItem], error) {
 			state := requestedSandboxCursor(currentRegion, scope.requested)
 			if state.done {
 				return regions.Page[api.ImageListItem]{Items: []api.ImageListItem{}}, nil
 			}
-			var page api.ImagePage
 			query := listQuery(pageFlags{limit: request.limit}, state.cursor)
 			if filters.name != "" {
 				query.Set("name", filters.name)
@@ -40,19 +38,22 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			if filters.sandboxID != "" {
 				query.Set("sandbox_id", filters.sandboxID)
 			}
-			err := client.Do(ctx, http.MethodGet, "/images", query, nil, &page)
-			next := ""
-			if page.NextCursor != nil {
-				next = *page.NextCursor
+			page, err := getRawList[api.ImageListItem](ctx, client, "/images", query, "images")
+			if err != nil {
+				return regions.Page[api.ImageListItem]{}, err
 			}
-			if err == nil && scope.streams != nil {
-				rows := make(map[string]string, len(page.Images))
-				for _, item := range page.Images {
+			items := apiinternal.Values(page.Items)
+			for _, item := range page.Items {
+				addRaw(source.raws, item)
+			}
+			if scope.streams != nil {
+				rows := make(map[string]string, len(items))
+				for _, item := range items {
 					rows[item.Id] = item.Cursor
 				}
-				scope.recordStream(currentRegion, rows, next != "")
+				scope.recordStream(currentRegion, rows, page.NextCursor != "")
 			}
-			return regions.Page[api.ImageListItem]{Items: page.Images, NextCursor: next}, err
+			return regions.Page[api.ImageListItem]{Items: items, NextCursor: page.NextCursor}, nil
 		},
 		func(a, b api.ImageListItem) bool {
 			if a.CreatedAt.Equal(b.CreatedAt) {
@@ -61,6 +62,9 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 			return a.CreatedAt.After(b.CreatedAt)
 		},
 	)
+	if err != nil {
+		return output.List[api.ImageListItem]{}, err
+	}
 	raw.Items = regions.Unique(raw.Items, func(item api.ImageListItem) string { return item.Id })
 	return trimImagePage(raw, scope, request.limit), nil
 }

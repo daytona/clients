@@ -1,0 +1,559 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+from __future__ import annotations
+
+import contextlib
+import dataclasses
+from datetime import datetime
+from typing import Iterator, Mapping, Optional
+
+from . import _gen
+from ._core import (
+    INT32_MAX,
+    TransportPayload,
+    _expect_model_from_dict,
+    expect_object,
+    parse_image,
+    parse_timestamp,
+    path_segment,
+)
+from ._events import region_of
+from ._gen.api import (
+    AsyncOperation,
+    ForkSandboxOperation,
+    ImagePage,
+    PreviewUrl,
+    Sandbox,
+    SandboxPort,
+    SandboxPortPage,
+    SecretPage,
+    SignedPreviewUrl,
+    Snapshot,
+    SnapshotPage,
+    Volume,
+    VolumePage,
+)
+from ._timestamps import rfc3339_timestamp
+from .errors import DaytonaError, create_error
+from .types import (
+    AuditActionGroup,
+    AuditActionList,
+    Image,
+    ImageBuildLimits,
+    JsonObject,
+    ListResult,
+    MacCatalog,
+    MacCatalogModel,
+    MacCatalogRegion,
+    MacModel,
+    MacPrice,
+    MacResources,
+    MemberLimits,
+    OrganizationLimits,
+    ProjectApiKey,
+    ProjectApiKeyContext,
+    ProjectBudget,
+    SandboxLimits,
+    SandboxResourceLimits,
+    Secret,
+    StorageLimits,
+    UnknownImageSource,
+    UsageLimit,
+)
+
+
+def expect_audit_actions(value: TransportPayload) -> AuditActionList:
+    wire = _expect_model_from_dict(
+        value, _gen.api.AuditActionList, "audit actions response", _gen.api.AuditActionList.from_dict
+    )
+    return AuditActionList(
+        targets=tuple(
+            AuditActionGroup(target_type=group.target_type, actions=tuple(group.actions))
+            for group in wire.targets
+        )
+    )
+
+
+def expect_current_api_key(value: TransportPayload) -> ProjectApiKey:
+    wire = _expect_model_from_dict(
+        value,
+        _gen.api.ProjectApiKeyWithContext,
+        "current API key response",
+        _gen.api.ProjectApiKeyWithContext.from_dict,
+    )
+    return ProjectApiKey(
+        id=wire.id,
+        name=wire.name,
+        project_id=wire.project_id,
+        project_permissions=tuple(wire.project_permissions),
+        created_at=_timestamp(wire.created_at),
+        context=ProjectApiKeyContext(
+            org_id=wire.context.org_id,
+            org_name=wire.context.org_name,
+            project_name=wire.context.project_name,
+        ),
+        created_by=wire.created_by,
+        expires_at=parse_timestamp(wire.expires_at),
+        last_used_at=parse_timestamp(wire.last_used_at),
+        revoked_at=parse_timestamp(wire.revoked_at),
+        key_prefix=wire.key_prefix,
+        key_suffix=wire.key_suffix,
+        service_account_id=wire.service_account_id,
+        service_account_name=wire.service_account_name,
+    )
+
+
+def expect_project_budget(value: TransportPayload) -> ProjectBudget:
+    wire = _expect_model_from_dict(
+        value, _gen.api.ProjectBudget, "project budget response", _gen.api.ProjectBudget.from_dict
+    )
+    return ProjectBudget(
+        period_start_date=wire.period_start_date,
+        monthly_limit_cents=wire.monthly_limit_cents,
+        spent_cents=wire.spent_cents,
+        created_at=parse_timestamp(wire.created_at),
+        updated_at=parse_timestamp(wire.updated_at),
+        evaluated_at=parse_timestamp(wire.evaluated_at),
+        exceeded_at=parse_timestamp(wire.exceeded_at),
+        stop_at=parse_timestamp(wire.stop_at),
+    )
+
+
+def _usage_limit(wire: _gen.api.UsageLimit) -> UsageLimit:
+    return UsageLimit(limit=wire.limit, usage=wire.usage)
+
+
+def expect_organization_limits(value: TransportPayload) -> OrganizationLimits:
+    wire = _expect_model_from_dict(
+        value,
+        _gen.api.OrganizationLimits,
+        "organization limits response",
+        _gen.api.OrganizationLimits.from_dict,
+    )
+    return OrganizationLimits(
+        sandboxes=SandboxLimits(
+            concurrent=_usage_limit(wire.sandboxes.concurrent), total=_usage_limit(wire.sandboxes.total)
+        ),
+        image_builds=ImageBuildLimits(concurrent=_usage_limit(wire.image_builds.concurrent)),
+        storage=StorageLimits(
+            volumes=_usage_limit(wire.storage.volumes),
+            images=_usage_limit(wire.storage.images),
+            snapshots=_usage_limit(wire.storage.snapshots),
+        ),
+        secrets_per_project=_usage_limit(wire.secrets_per_project),
+        api_keys_per_project=_usage_limit(wire.api_keys_per_project),
+        api_keys_per_organization=_usage_limit(wire.api_keys_per_organization),
+        sandbox_resources=SandboxResourceLimits(
+            max_cores=float(wire.sandbox_resources.max_cores),
+            max_memory_mib=wire.sandbox_resources.max_memory_mib,
+        )
+        if wire.sandbox_resources is not None
+        else None,
+        mac_reservations=_usage_limit(wire.mac_reservations) if wire.mac_reservations is not None else None,
+        members=MemberLimits(
+            limit=wire.members.limit,
+            usage=wire.members.usage,
+            pending_invitations=wire.members.pending_invitations,
+        )
+        if wire.members is not None
+        else None,
+    )
+
+
+def secret_from_wire(wire: _gen.api.Secret) -> Secret:
+    return Secret(
+        name=wire.name,
+        allowed_domains=tuple(wire.allowed_domains),
+        created_at=_timestamp(wire.created_at),
+        updated_at=_timestamp(wire.updated_at),
+        description=wire.description,
+    )
+
+
+def mac_resources_from_wire(wire: _gen.api.MacResources) -> MacResources:
+    return MacResources(cores=wire.cores, memory_mib=wire.memory_mib, disk_mib=wire.disk_mib)
+
+
+def mac_model_from_wire(wire: _gen.api.MacModel) -> MacModel:
+    return MacModel(
+        id=wire.id,
+        name=wire.name,
+        cores=wire.cores,
+        memory_mib=wire.memory_mib,
+        disk_mib=wire.disk_mib,
+        sandbox_disk_mib=wire.sandbox_disk_mib,
+        max_sandboxes=wire.max_sandboxes,
+        default_size=mac_resources_from_wire(wire.default_size) if wire.default_size is not None else None,
+    )
+
+
+def expect_mac_models(value: TransportPayload) -> list[MacModel]:
+    wire = _expect_model_from_dict(
+        value, _gen.api.MacModelList, "Mac model list response", _gen.api.MacModelList.model_validate
+    )
+    return [mac_model_from_wire(model) for model in wire.mac_models]
+
+
+def expect_mac_catalog(value: TransportPayload) -> MacCatalog:
+    wire = _expect_model_from_dict(
+        value, _gen.api.MacCatalog, "Mac catalog response", _gen.api.MacCatalog.model_validate
+    )
+    return MacCatalog(
+        regions=tuple(
+            MacCatalogRegion(
+                id=region.id,
+                default_model=region.default_model,
+                models=tuple(
+                    MacCatalogModel(
+                        model=mac_model_from_wire(entry.model),
+                        available=entry.available,
+                        price=MacPrice(
+                            cents_per_hour=float(entry.price.cents_per_hour),
+                            period_cents=entry.price.period_cents,
+                            period_seconds=entry.price.period_seconds,
+                            currency=entry.price.currency,
+                        )
+                        if entry.price is not None
+                        else None,
+                    )
+                    for entry in region.models
+                ),
+            )
+            for region in wire.regions
+        )
+    )
+
+
+def _timestamp(value: object) -> datetime:
+    parsed = parse_timestamp(value)
+    if parsed is None:
+        raise create_error("API returned an invalid timestamp", 400, "BAD_REQUEST", "SDK")
+    return parsed
+
+
+def _id_only(value: TransportPayload, fields: tuple[str, ...]) -> TransportPayload:
+    """An accepted create's response, of which only the ``id`` is required:
+    the resource exists once its id came back, so each of ``fields`` that is
+    missing or not a string reads as empty (the caller falls back), never an
+    error. TypeScript checks only the id too."""
+    if not isinstance(value, dict):
+        return value
+    return {**value, **{name: "" for name in fields if not isinstance(value.get(name), str)}}
+
+
+def usable_path_id(value: object) -> bool:
+    """Whether a server-returned id can be a request path id (the rule of
+    ``path_segment``): a create or fork response without one has no id."""
+    try:
+        path_segment(value, "id")
+    except DaytonaError:
+        return False
+    return True
+
+
+def _acknowledgement(value: TransportPayload, description: str) -> AsyncOperation:
+    """An accepted operation's acknowledgement; its id is the path id the
+    follow-up read uses, so an empty or blank one is refused before it."""
+    operation = _expect_model_from_dict(
+        _id_only(value, ("status",)), AsyncOperation, description, AsyncOperation.from_dict
+    )
+    if not operation.id.strip():
+        raise create_error(f"{description} is missing its id", 400, "BAD_REQUEST", "SDK")
+    # `.`, `..` or a surrogate cannot be the path id of the read either.
+    path_segment(operation.id, f"{description} id")
+    return operation
+
+
+def expect_create_image_resp(value: TransportPayload) -> AsyncOperation:
+    return _acknowledgement(value, "image create response")
+
+
+def expect_create_snapshot_resp(value: TransportPayload) -> AsyncOperation:
+    return _acknowledgement(value, "snapshot create response")
+
+
+def expect_endpoint_list_resp(value: TransportPayload) -> SandboxPortPage:
+    return _expect_model_from_dict(value, SandboxPortPage, "preview endpoint list", SandboxPortPage.from_dict)
+
+
+def expect_fork_resp(value: TransportPayload) -> ForkSandboxOperation:
+    # The fork exists once its id came back, as for a create: a missing or
+    # non-string status reads as `unknown`, `forked_from` falls back to the
+    # source's id, and the toolbox URL comes from the fork's detail read. A
+    # missing id, or one no request path can carry (blank, `.`, `..`, a
+    # surrogate), is no id.
+    if isinstance(value, dict) and not usable_path_id(value.get("id")):
+        raise create_error("sandbox fork response is missing the sandbox id", 400, "BAD_REQUEST", "SDK")
+    return _expect_model_from_dict(
+        _id_only(value, ("status", "forked_from", "toolbox_proxy_url")),
+        ForkSandboxOperation,
+        "sandbox fork response",
+        ForkSandboxOperation.from_dict,
+    )
+
+
+def _without_item_cursors(value: TransportPayload, items: str) -> TransportPayload:
+    """A list page whose items' ``cursor`` is not read: neither SDK reads the
+    per-item cursor (the page's ``next_cursor`` continues the list), so a
+    missing or mistyped one is not a contract error, as in TypeScript."""
+    if not isinstance(value, dict) or not isinstance(value.get(items), list):
+        return value
+    entries = [{**entry, "cursor": ""} if isinstance(entry, dict) else entry for entry in value[items]]
+    return {**value, items: entries}
+
+
+# The image source kinds this release maps. Any other non-empty string type is
+# a kind a later API added: not a malformed response, but an
+# `UnknownImageSource` carrying the wire type (the contract's other fields of
+# that source are not read). A source with a known type keeps every check.
+# Each known kind's contract-required fields, all strings.
+_IMAGE_SOURCE_FIELDS: Mapping[str, tuple[str, ...]] = {
+    "registry": ("ref",),
+    "dockerfile": ("context_object", "dockerfile"),
+    "named": ("name",),
+    "manifest": ("name",),
+}
+_KNOWN_IMAGE_SOURCE_TYPES = frozenset(_IMAGE_SOURCE_FIELDS)
+
+
+def _check_known_source(item: object, description: str, path: str = "source") -> None:
+    """The malformed-response error, naming the field, for a source of a known
+    kind that misses one of its fields or has one that is not a string (the
+    generated parser would only say that no variant matched)."""
+    source = item.get("source") if isinstance(item, dict) else None
+    if not isinstance(source, dict):
+        return
+    kind = source.get("type")
+    if not isinstance(kind, str) or not kind:
+        raise create_error(
+            f"expected {description}: {path}.type: must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+        )
+    for field in _IMAGE_SOURCE_FIELDS.get(kind, ()):
+        if field not in source:
+            problem = "Field required"
+        elif not isinstance(source[field], str):
+            problem = "must be a string"
+        else:
+            continue
+        raise create_error(f"expected {description}: {path}.{field}: {problem}", 400, "BAD_REQUEST", "SDK")
+
+
+def _unknown_source_type(item: object) -> Optional[str]:
+    if isinstance(item, dict):
+        source = item.get("source")
+        if isinstance(source, dict):
+            kind = source.get("type")
+            if isinstance(kind, str) and kind and kind not in _KNOWN_IMAGE_SOURCE_TYPES:
+                return kind
+    return None
+
+
+def _set_aside_unknown_source(item: TransportPayload) -> TransportPayload:
+    """``item`` with an unknown-kind source removed before the contract check."""
+    if _unknown_source_type(item) is None or not isinstance(item, dict):
+        return item
+    return {**item, "source": None}
+
+
+@contextlib.contextmanager
+def _source_variant_errors(description: str) -> Iterator[None]:
+    """A known-kind source missing its fields: the generated oneOf parser
+    raises a plain ``ValueError``, which is the malformed-response error."""
+    try:
+        yield
+    except DaytonaError:
+        raise
+    except ValueError as exc:
+        raise create_error(
+            f"expected {description}: source does not match its type's fields", 400, "BAD_REQUEST", "SDK"
+        ) from exc
+
+
+def _with_source(image: Image, unknown_type: Optional[str]) -> Image:
+    return (
+        image
+        if unknown_type is None
+        else dataclasses.replace(image, source=UnknownImageSource(raw_type=unknown_type))
+    )
+
+
+def expect_images_page(value: TransportPayload) -> ListResult[Image]:
+    # Every contract-required field (`platform`, `default` and `deprecated`
+    # included) must be present: a missing one is the malformed-response error.
+    items = value.get("images") if isinstance(value, dict) else None
+    for index, item in enumerate(items if isinstance(items, list) else []):
+        _check_known_source(item, "image list response", f"images.{index}.source")
+    unknown = [_unknown_source_type(item) for item in items] if isinstance(items, list) else []
+    if any(kind is not None for kind in unknown) and isinstance(value, dict) and isinstance(items, list):
+        value = {**value, "images": [_set_aside_unknown_source(item) for item in items]}
+    with _source_variant_errors("image list response"):
+        page = _expect_model_from_dict(
+            _without_item_cursors(value, "images"), ImagePage, "image list response", ImagePage.from_dict
+        )
+    return ListResult(
+        items=[
+            _with_source(parse_image(item), unknown[index] if index < len(unknown) else None)
+            for index, item in enumerate(page.images)
+        ],
+        next_cursor=page.next_cursor,
+    )
+
+
+def expect_image(value: TransportPayload) -> Image:
+    """An image detail checked against the contract (as the list items are) before it is mapped."""
+    _check_known_source(value, "image detail response")
+    unknown = _unknown_source_type(value)
+    with _source_variant_errors("image detail response"):
+        wire = _expect_model_from_dict(
+            _set_aside_unknown_source(value),
+            _gen.api.Image,
+            "image detail response",
+            _gen.api.Image.from_dict,
+        )
+    return _with_source(parse_image(wire), unknown)
+
+
+def expect_list_secrets_resp(value: TransportPayload) -> SecretPage:
+    return _expect_model_from_dict(value, SecretPage, "secret list response", SecretPage.from_dict)
+
+
+def expect_snapshot(value: TransportPayload) -> Snapshot:
+    return _expect_model_from_dict(value, Snapshot, "snapshot detail response", Snapshot.from_dict)
+
+
+def expect_list_snapshots_resp(value: TransportPayload) -> SnapshotPage:
+    return _expect_model_from_dict(
+        _without_item_cursors(value, "snapshots"),
+        SnapshotPage,
+        "snapshot list response",
+        SnapshotPage.from_dict,
+    )
+
+
+def expect_volume(value: TransportPayload) -> Volume:
+    return _expect_model_from_dict(value, Volume, "volume detail response", Volume.from_dict)
+
+
+def expect_list_volumes_resp(value: TransportPayload) -> VolumePage:
+    return _expect_model_from_dict(value, VolumePage, "volume list response", VolumePage.from_dict)
+
+
+def expect_preview_endpoint(value: TransportPayload) -> SandboxPort:
+    return _expect_model_from_dict(value, SandboxPort, "preview endpoint response", SandboxPort.from_dict)
+
+
+def expect_daytona_preview_url(value: TransportPayload) -> PreviewUrl:
+    return _expect_model_from_dict(value, PreviewUrl, "preview url response", PreviewUrl.from_dict)
+
+
+_LIFECYCLE_INTEGERS = ("timeout_seconds", "idle_expiry_seconds")
+_LIFECYCLE_STRINGS = ("on_timeout", "on_idle_timeout", "last_activity_source")
+_LIFECYCLE_TIMESTAMPS = ("timeout_at", "idle_timeout_at", "last_activity_at")
+
+
+def _lifecycle_timestamp_violation(policy: Mapping[str, object]) -> Optional[str]:
+    """What breaks the contract in a lifecycle policy's timestamps, as
+    ``"has a lifecycle_policy.<field> that is not ..."``, or ``None``: each
+    present one is an RFC 3339 timestamp (the rule of TypeScript's
+    ``isRfc3339``; the generated model would also read a date or a time
+    without an offset)."""
+    for key in _LIFECYCLE_TIMESTAMPS:
+        stamp = policy.get(key)
+        if stamp is None:
+            continue
+        if not isinstance(stamp, str):
+            return f"has a lifecycle_policy.{key} that is not a string"
+        if not rfc3339_timestamp(stamp):
+            return f"has a lifecycle_policy.{key} that is not an RFC 3339 timestamp"
+    return None
+
+
+def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
+    """The lifecycle echo of ``PATCH .../lifecycle-policy`` and
+    ``POST .../reset-idle-timer`` (the contract's ``SandboxLifecyclePolicy``),
+    checked field by field as TypeScript checks it: a required string ``id``
+    and ``lifecycle_policy`` object, whose optional fields are 32-bit integers
+    or strings when present, and whose timestamps are RFC 3339 timestamps.
+    The raw object is returned because the handle keeps the wire timestamps
+    verbatim."""
+    what = "sandbox lifecycle policy response"
+
+    def malformed(message: str) -> DaytonaError:
+        return create_error(f"{what} {message}", 400, "BAD_REQUEST", "SDK")
+
+    if not isinstance(value, dict):
+        raise malformed("is not a JSON object")
+    data = expect_object(value)
+    if "id" not in data or data["id"] is None:
+        raise malformed("is missing its id")
+    if not isinstance(data["id"], str):
+        raise malformed("has an id that is not a string")
+    policy = data.get("lifecycle_policy")
+    if policy is None:
+        raise malformed("is missing its lifecycle_policy")
+    if not isinstance(policy, dict):
+        raise malformed("has a lifecycle_policy that is not an object")
+    for key in _LIFECYCLE_INTEGERS:
+        number = policy.get(key)
+        if number is not None and (
+            isinstance(number, bool)
+            or not isinstance(number, int)
+            or not -INT32_MAX - 1 <= number <= INT32_MAX
+        ):
+            raise malformed(f"has a lifecycle_policy.{key} that is not a 32-bit integer")
+    for key in _LIFECYCLE_STRINGS:
+        text = policy.get(key)
+        if text is not None and not isinstance(text, str):
+            raise malformed(f"has a lifecycle_policy.{key} that is not a string")
+    violation = _lifecycle_timestamp_violation(policy)
+    if violation is not None:
+        raise malformed(violation)
+    return data
+
+
+def expect_secret(value: TransportPayload) -> Secret:
+    return secret_from_wire(
+        _expect_model_from_dict(value, _gen.api.Secret, "secret metadata response", _gen.api.Secret.from_dict)
+    )
+
+
+def expect_signed_preview_url_resp(value: TransportPayload) -> SignedPreviewUrl:
+    return _expect_model_from_dict(
+        value,
+        SignedPreviewUrl,
+        "signed preview url response",
+        SignedPreviewUrl.from_dict,
+    )
+
+
+def expect_sandbox_detail(value: TransportPayload) -> Sandbox:
+    if isinstance(value, dict):
+        # An empty or blank id or class is as unusable as a missing one.
+        for key in ("id", "class"):
+            field = value.get(key)
+            if isinstance(field, str) and not field.strip():
+                raise create_error(f"sandbox detail response is missing its {key}", 400, "BAD_REQUEST", "SDK")
+    if isinstance(value, dict) and isinstance(value.get("lifecycle_policy"), dict):
+        violation = _lifecycle_timestamp_violation(value["lifecycle_policy"])
+        if violation is not None:
+            raise create_error(f"sandbox detail response {violation}", 400, "BAD_REQUEST", "SDK")
+    return _expect_model_from_dict(_with_region(value), Sandbox, "sandbox detail response", Sandbox.from_dict)
+
+
+def sandbox_detail_wire(value: TransportPayload) -> JsonObject:
+    """A validated sandbox detail as its wire object, its strings (timestamps) verbatim."""
+    value = _with_region(value)
+    expect_sandbox_detail(value)
+    return expect_object(value)
+
+
+def _with_region(value: TransportPayload) -> TransportPayload:
+    # The contract requires region_id (a missing one is malformed); an empty
+    # one is derived from the sandbox ID, and stays empty when it cannot be.
+    if isinstance(value, dict) and value.get("region_id") == "":
+        sandbox_id = value.get("id")
+        if isinstance(sandbox_id, str):
+            region = region_of(sandbox_id)
+            value = {**value, "region_id": "" if region == "_" else region}
+    return value

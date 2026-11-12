@@ -26,8 +26,18 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 	}{
 		{
 			name:     "create volume",
-			args:     []string{"volume", "create", "data", "--size-gb", "200"},
+			args:     []string{"volume", "create", "data", "--size-gib", "200"},
 			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data","size_gib":200}`, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
+		},
+		{
+			name:     "create volume of the server's type",
+			args:     []string{"volume", "create", "data"},
+			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data"}`, response: bucketVolumeFixture("55555555-5555-5555-5555-555555555555")}},
+		},
+		{
+			name:     "create volume of an explicit type",
+			args:     []string{"volume", "create", "data", "--type", "disk", "--size-gib", "200"},
+			expected: []expectedRequest{{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"name":"data","type":"disk","size_gib":200}`, response: diskVolumeFixture("55555555-5555-5555-5555-555555555555")}},
 		},
 		{
 			name:     "list volumes",
@@ -63,4 +73,14 @@ func TestVolumeList_tableNamesTheCapacityColumnInGiB(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, stdout, "SIZE_GIB")
 	require.NotContains(t, stdout, "SIZE_GB")
+}
+
+// A volume delete the API answers without an operation acknowledges the
+// reference as given, after exactly one request.
+func TestVolumeDelete_withoutAnOperationAcknowledgesTheReference(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"volume", "delete", "data", "--yes"}, []expectedRequest{
+		{method: http.MethodDelete, path: "/volumes/data", status: 204},
+	})
+	require.NoError(t, err)
+	require.True(t, isAck(t, stdout, "ref", "data", "deleted"), stdout)
 }

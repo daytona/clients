@@ -1,8 +1,10 @@
 name: E2E
 
 # Live end-to-end tests of both SDKs against a Daytona deployment. They need
-# the DAYTONA_API_KEY secret (and DAYTONA_API_URL for a deployment other than
-# the default). One key serves both release lines: keys are shared between
+# the DAYTONA_API_KEY secret and, for a deployment other than the default, the
+# DAYTONA_V2_API_URL repository variable (the only URL variable the 2.x SDKs
+# read). DAYTONA_API_URL belongs to the 0.x line's workflows and is not read
+# here. One key serves both release lines: keys are shared between
 # the 0.x and 2.x APIs. Secrets are not available to pull requests from forks, so
 # there the suite reports a skip instead of failing; a maintainer runs it
 # before merging.
@@ -24,7 +26,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Use the repository variable for a custom 2.x test deployment;
+  # Use a repository variable for a custom 2.x test deployment;
   # otherwise test against the default 2.x API.
   DAYTONA_V2_API_URL: ${{ vars.DAYTONA_V2_API_URL || 'https://api.daytona.com' }}
   DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
@@ -56,14 +58,14 @@ jobs:
       matrix:
         sdk: [py, ts]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - run: ./run-e2e.sh ${{ matrix.sdk }}
+      - run: ./e2e/run.sh ${{ matrix.sdk }}

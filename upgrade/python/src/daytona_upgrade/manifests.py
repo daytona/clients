@@ -12,6 +12,7 @@ from pathlib import Path
 
 import tomlkit
 from libcst import ParserSyntaxError
+from packaging.requirements import InvalidRequirement, Requirement
 from tomlkit.container import OutOfOrderTableProxy
 from tomlkit.exceptions import TOMLKitError
 from tomlkit.items import Array, InlineTable, String, Table
@@ -126,6 +127,9 @@ def _toml(source: str, migration: Migration, pipfile: bool) -> str:
             )
         if extras is None or not migration.references(extras):
             migration.changes.clear()
+            migration.manual = [
+                item for item in migration.manual if item not in migration.dropped
+            ]
             migration.v2_found = False
             return source
     groups = _at(document, "tool.poetry.group")
@@ -152,6 +156,8 @@ class ManifestResult:
     found: bool
     v2_found: bool = False
     resolver_review: tuple[tuple[int, str], ...] = ()
+    # Each Daytona declaration's package name and version constraint ("" for none).
+    declared: tuple[tuple[str, str], ...] = ()
 
 
 def inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResult:
@@ -186,6 +192,7 @@ def _inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResu
         for requirement in runtime_setup_requirements(source):
             runtime = Migration(mapping)
             runtime.requirement(requirement)
+            migration.declared.extend(runtime.declared)
             if runtime.found:
                 proofs.append(runtime.v2_found)
         migration.v2_found = bool(proofs) and all(proofs)
@@ -204,6 +211,7 @@ def _inspect_manifest(path: Path, source: str, mapping: Mapping) -> ManifestResu
         migration.found,
         migration.v2_found,
         tuple(migration.resolver_review),
+        tuple(migration.declared),
     )
 
 
@@ -215,7 +223,7 @@ def rewrite_manifest(
     return result.source, list(result.changes)
 
 
-def next_step(root: Path) -> str:
+def next_step(root: Path, requirement: str | None) -> str:
     """Select a lock command from the root lockfile, without running it."""
     for lockfile, command in (
         ("uv.lock", "uv lock"),
@@ -225,4 +233,13 @@ def next_step(root: Path) -> str:
     ):
         if (root / lockfile).is_file():
             return command
-    return 'pip install -U "daytona[v0-sdk]>=2,<3"'
+    if requirement is None or " = " in requirement or "#" in requirement:
+        return "Install the updated requirements."
+    try:
+        parsed = Requirement(requirement)
+    except InvalidRequirement:
+        return "Install the updated requirements."
+    if parsed.marker is not None or parsed.url:
+        return "Install the updated requirements."
+    extras = f"[{','.join(sorted(parsed.extras))}]" if parsed.extras else ""
+    return f'pip install -U "{parsed.name}{extras}{parsed.specifier}"'

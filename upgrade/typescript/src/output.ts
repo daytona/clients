@@ -14,6 +14,7 @@ export function humanReport(report: Report): string {
     lines.push(`${kind}:`);
     for (const item of report.items.filter(item => item.kind === kind)) lines.push(`  ${item.file}:${item.line}:${item.column}: ${item.message}`);
   }
+  if (report.warnings?.length) lines.push('Warnings:', ...report.warnings.map(warning => `  ${warning.file}: ${warning.message}`));
   if (report.nextSteps.length) lines.push('Next steps:', ...report.nextSteps.map(step => `  ${step}`));
   return lines.join('\n') + '\n';
 }

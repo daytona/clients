@@ -4,12 +4,12 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -45,13 +45,14 @@ func newServiceAccountCreateCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"name", resp.Name}, {"roles", joinComma(resp.Roles)}, {"permissions", joinComma(resp.OrgPermissions)}})
+		return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id.String()}, {"name", resp.V.Name}, {"roles", joinComma(resp.V.Roles)}, {"permissions", joinComma(resp.V.OrgPermissions)}})
 	}}
-	cmd.Flags().StringVar(&roleCSV, "role", "", "comma-separated role slugs")
+	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated)")
 	return cmd
 }
 
 func newServiceAccountListCmd() *cobra.Command {
+	var flags pageFlags
 	cmd := &cobra.Command{Use: "list", Short: "List service accounts in the selected organization", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
@@ -63,12 +64,15 @@ func newServiceAccountListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		items, err := mgmt.ListServiceAccounts(ctx, mc, orgID)
+		items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.OrganizationServiceAccount], error) {
+			return mgmt.ServiceAccountsPage(ctx, mc, orgID, cursor, limit)
+		})
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[gen.OrganizationServiceAccount]{Items: items}, serviceAccountTable)
+		return listOutRaw(a.Printer(), items, serviceAccountTable)
 	}}
+	addPageFlags(cmd, &flags)
 	return cmd
 }
 
@@ -87,7 +91,7 @@ func newServiceAccountGetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"name", resp.Name}, {"roles", joinComma(resp.Roles)}, {"permissions", joinComma(resp.OrgPermissions)}, {"live_key_count", toString(resp.LiveKeyCount)}})
+		return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id.String()}, {"name", resp.V.Name}, {"roles", joinComma(resp.V.Roles)}, {"permissions", joinComma(resp.V.OrgPermissions)}, {"live_key_count", toString(resp.V.LiveKeyCount)}})
 	}}
 }
 
@@ -125,10 +129,10 @@ func newServiceAccountUpdateCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"id", resp.Id.String()}, {"name", resp.Name}, {"roles", joinComma(resp.Roles)}, {"permissions", joinComma(resp.OrgPermissions)}})
+		return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id.String()}, {"name", resp.V.Name}, {"roles", joinComma(resp.V.Roles)}, {"permissions", joinComma(resp.V.OrgPermissions)}})
 	}}
 	cmd.Flags().StringVar(&name, "name", "", "new service-account name")
-	cmd.Flags().StringVar(&roleCSV, "role", "", "comma-separated role slugs")
+	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated)")
 	return cmd
 }
 
@@ -149,6 +153,6 @@ func newServiceAccountDeleteCmd() *cobra.Command {
 		if err := mgmt.DeleteServiceAccount(cmd.Context(), mc, orgID, args[0]); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"archived": args[0]}, [][2]string{{"archived", args[0]}})
+		return printAck(a, "id", args[0], "archived", "")
 	}}
 }

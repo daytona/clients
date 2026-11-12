@@ -4,9 +4,12 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/spf13/cobra"
@@ -37,7 +40,8 @@ func projectTable(ps []gen.Project, active string) output.Table {
 
 func newProjectCmd() *cobra.Command {
 	c := &cobra.Command{Use: "project", Short: "Projects in the selected organization: list, select, create, rename, delete, budget", GroupID: GroupManagement}
-	c.AddCommand(&cobra.Command{
+	var listFlags pageFlags
+	list := &cobra.Command{
 		Use: "list", Short: "List the projects you can reach in the selected organization", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
@@ -50,13 +54,17 @@ func newProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ps, err := mgmt.ListProjects(ctx, mc, org)
+			ps, err := mgmtListPage(ctx, listFlags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.Project], error) {
+				return mgmt.ProjectsPage(ctx, mc, org, cursor, limit)
+			})
 			if err != nil {
 				return err
 			}
-			return output.ListOut(a.Printer(), output.List[gen.Project]{Items: ps}, func(ps []gen.Project) output.Table { return projectTable(ps, a.Profile.ProjectID()) })
+			return listOutRaw(a.Printer(), ps, func(ps []gen.Project) output.Table { return projectTable(ps, a.Profile.ProjectID()) })
 		},
-	})
+	}
+	addPageFlags(list, &listFlags)
+	c.AddCommand(list)
 	c.AddCommand(&cobra.Command{
 		Use: "get [id|name]", Short: "Show one project (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,11 +90,11 @@ func newProjectCmd() *cobra.Command {
 					return err
 				}
 			}
-			var p gen.Project
+			var p api.Raw[gen.Project]
 			if err := mc.Do(ctx, http.MethodGet, "/projects/"+url.PathEscape(id), nil, nil, &p); err != nil {
 				return err
 			}
-			return a.Printer().Object(p, [][2]string{{"ID", p.Id.String()}, {"Name", p.Name}, {"Organization", p.OrgId.String()}, {"Created", p.CreatedAt.Format("2006-01-02 15:04")}})
+			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}, {"Organization", p.V.OrgId.String()}, {"Created", p.V.CreatedAt.Format("2006-01-02 15:04")}})
 		},
 	})
 	c.AddCommand(&cobra.Command{
@@ -144,10 +152,15 @@ func newProjectCmd() *cobra.Command {
 		},
 	})
 	c.AddCommand(&cobra.Command{
-		Use: "create <name>", Short: "Create a project in the selected organization", Args: cobra.ExactArgs(1),
+		Use: "create <name>", Short: "Create a project in the selected organization",
+		Long: "Create a project in the selected organization. The name is 1 to 64 characters after trimming, with no\ncontrol characters; `default` is reserved.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
+			if err := checkOrgProjectName("project", args[0]); err != nil {
+				return err
+			}
 			org, err := a.RequireOrg(ctx, pickOrg(a))
 			if err != nil {
 				return err
@@ -156,15 +169,17 @@ func newProjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var p gen.Project
+			var p api.Raw[gen.Project]
 			if err := mc.Do(ctx, http.MethodPost, "/orgs/"+url.PathEscape(org)+"/projects", nil, gen.CreateProjectRequest{Name: args[0]}, &p); err != nil {
 				return err
 			}
-			return a.Printer().Object(p, [][2]string{{"ID", p.Id.String()}, {"Name", p.Name}})
+			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}})
 		},
 	})
 	upd := &cobra.Command{
-		Use: "update <id|name> --name <new>", Short: "Rename a project", Args: cobra.ExactArgs(1),
+		Use: "update <id|name> --name <new>", Short: "Rename a project",
+		Long: "Rename a project. The name is 1 to 64 characters after trimming, with no control characters, and\nnot `default`; a rename to the current name is sent and left to the API (the default project\ncannot be renamed).",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
@@ -172,18 +187,30 @@ func newProjectCmd() *cobra.Command {
 			if name == "" {
 				return cerr.Usage("--name is required")
 			}
-			project, _, mc, err := resolveProjectID(cmd, args[0])
+			refusal := checkOrgProjectName("project", name)
+			if strings.TrimSpace(name) == "" {
+				// A blank name is never the current one.
+				return refusal
+			}
+			project, orgID, mc, err := resolveProjectID(cmd, args[0])
 			if err != nil {
 				return err
 			}
-			var p gen.Project
+			current := project.Name
+			if looksLikeProjectUUID(args[0]) {
+				current = ""
+			}
+			if err := checkRenamedProjectName(ctx, mc, orgID, project.Id.String(), current, name, refusal); err != nil {
+				return err
+			}
+			var p api.Raw[gen.Project]
 			if err := mc.Do(ctx, http.MethodPatch, "/projects/"+url.PathEscape(project.Id.String()), nil, gen.UpdateProjectRequest{Name: name}, &p); err != nil {
 				return err
 			}
-			return a.Printer().Object(p, [][2]string{{"ID", p.Id.String()}, {"Name", p.Name}})
+			return a.Printer().Object(p, [][2]string{{"ID", p.V.Id.String()}, {"Name", p.V.Name}})
 		},
 	}
-	upd.Flags().String("name", "", "new name")
+	upd.Flags().String("name", "", "new name (1 to 64 characters)")
 	c.AddCommand(upd)
 	c.AddCommand(&cobra.Command{
 		Use: "delete <id|name>", Short: "Delete a project (refused while it still holds resources)", Args: cobra.ExactArgs(1),
@@ -209,8 +236,7 @@ func newProjectCmd() *cobra.Command {
 			if err := forgetDeletedProject(a, orgID, project.Id.String()); err != nil {
 				return err
 			}
-			a.Info("Project %s deleted.", project.Id.String())
-			return nil
+			return printAck(a, "id", project.Id.String(), "deleted", fmt.Sprintf("Project %s deleted.", project.Id.String()))
 		},
 	})
 	c.AddCommand(newProjectBudgetCmd())

@@ -61,7 +61,7 @@ func TestMacPurchase_promptsBeforeHTTP_when_atTerminal(t *testing.T) {
 				command := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestMacPurchaseTerminalProcess$", "--"}, args...)...)
 				command.Env = append(os.Environ(),
 					"DAYTONA_CONFIG_DIR="+cfgDir(t), "DAYTONA_TEST_MAC_PURCHASE_TTY=1",
-					"DAYTONA_API_URL="+f.srv.URL, "DAYTONA_V2_API_URL=", "DAYTONA_API_KEY=k",
+					"DAYTONA_API_URL=", "DAYTONA_V2_API_URL="+f.srv.URL, "DAYTONA_API_KEY=k",
 					"DAYTONA_YES=", "DAYTONA_ORG=", "DAYTONA_PROJECT=", "DAYTONA_REGION=", "DAYTONA_PROFILE=",
 					"CI=", "TERM=xterm-256color", "NO_COLOR=1")
 				command.Stdin, command.Stdout, command.Stderr = slave, slave, slave
@@ -76,9 +76,9 @@ func TestMacPurchase_promptsBeforeHTTP_when_atTerminal(t *testing.T) {
 				for {
 					n, err := master.Read(buffer)
 					output.Write(buffer[:n])
-					// Bubble Tea's bracketed-paste mode is a terminal protocol
-					// signal, not prompt prose. Respond only once the UI starts.
-					if !prompted && bytes.Contains(output.Bytes(), []byte("\x1b[?2004h")) {
+					// The plain prompt clears its input line before reading keys.
+					// Synchronize on terminal protocol, never purchase prose.
+					if !prompted && bytes.Contains(output.Bytes(), []byte("\r\x1b[2K")) {
 						prompted = true
 						f.mu.Lock()
 						beforeConsent = len(f.requests)
@@ -99,7 +99,11 @@ func TestMacPurchase_promptsBeforeHTTP_when_atTerminal(t *testing.T) {
 				defer f.mu.Unlock()
 				if answer == "y\r" {
 					require.NoError(t, err, output.String())
-					require.Len(t, f.requests, 1)
+					if args[0] == "sandbox" {
+						require.Len(t, f.requests, 2)
+					} else {
+						require.Len(t, f.requests, 1)
+					}
 				} else {
 					var exit *exec.ExitError
 					require.ErrorAs(t, err, &exit)

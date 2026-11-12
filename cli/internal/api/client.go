@@ -75,6 +75,18 @@ func (c *Client) WithCredential(cred string) *Client {
 	return &cp
 }
 
+// WithTimeoutAtLeast returns a shallow copy whose requests may run for d, or
+// for the client's own timeout when that is longer or unbounded.
+func (c *Client) WithTimeoutAtLeast(d time.Duration) *Client {
+	cp := *c
+	if c.HTTP != nil && c.HTTP.Timeout != 0 && c.HTTP.Timeout < d {
+		httpClient := *c.HTTP
+		httpClient.Timeout = d
+		cp.HTTP = &httpClient
+	}
+	return &cp
+}
+
 // WithBaseURL returns a shallow copy targeting another regional API base URL.
 func (c *Client) WithBaseURL(base string) *Client {
 	cp := *c
@@ -92,6 +104,12 @@ type APIError struct {
 	Method  string
 	Path    string
 }
+
+// ErrorCode, ErrorSource and ErrorTraceID expose the server's error
+// envelope (cerr.Detailed).
+func (e *APIError) ErrorCode() string    { return e.Code }
+func (e *APIError) ErrorSource() string  { return e.Source }
+func (e *APIError) ErrorTraceID() string { return e.TraceID }
 
 func (e *APIError) Error() string {
 	msg := strings.TrimSpace(e.Message)
@@ -206,11 +224,13 @@ func (c *Client) raw(ctx context.Context, method, path string, query url.Values,
 	rejected := resp.StatusCode == http.StatusUnauthorized || (c.RetryForbidden && resp.StatusCode == http.StatusForbidden)
 	if rejected && c.OnUnauthorized != nil && !c.exchanged && c.Credential != "" {
 		// One bounded exchange: the caller may know how to turn this
-		// credential into one the route admits (mint a project key). JSON
-		// bodies are *bytes.Reader and rewind for the retry; a streaming
-		// body (Stream) cannot be replayed, so only those stay one-shot.
+		// credential into one the route admits (a fresh login-minted project
+		// key). JSON bodies are *bytes.Reader and rewind for the retry; a
+		// streaming body (Stream) cannot be replayed, so only those stay
+		// one-shot. The original answer, with the server's error envelope,
+		// stands when no replacement is available.
 		c.exchanged = true
-		_, _ = io.Copy(io.Discard, resp.Body)
+		original := c.mapError(method, path, resp)
 		resp.Body.Close()
 		replay := body == nil
 		if seeker, ok := body.(io.Seeker); ok && !replay {
@@ -227,12 +247,7 @@ func (c *Client) raw(ctx context.Context, method, path string, query url.Values,
 				return c.raw(ctx, method, path, query, headers, body, contentType, noClientTimeout)
 			}
 		}
-		if resp.StatusCode == http.StatusForbidden {
-			return nil, cerr.New(cerr.ExitForbidden, "%s %s: 403 forbidden", method, path).
-				WithHint("this credential lacks the permission for this action")
-		}
-		return nil, cerr.New(cerr.ExitAuth, "%s %s: 401 unauthorized", method, path).
-			WithHint("credential rejected — run `daytona login`, or check --api-key / DAYTONA_API_KEY")
+		return nil, original
 	}
 	defer resp.Body.Close()
 	return nil, c.mapError(method, path, resp)

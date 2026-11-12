@@ -1,0 +1,312 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// Wire → SDK mappers for the toolbox results that have an SDK-owned model.
+// The wire types type the HTTP boundary only; a payload missing a field the
+// contract requires is a malformed response (BadRequestError, source SDK,
+// like the Python SDK's model boundary), never a placeholder value.
+
+import type * as toolbox from './gen/toolbox-types.js'
+import type {
+  BulkWriteFile, BulkWriteResult, FileInfo, FileMatch, LogFrame, LogPage, GitCommit, GitCommitResponse, GitFileStatus, GitRemote, GitStatus, ReplaceResult, SystemMetrics,
+} from './types.js'
+import { BadRequestError } from './errors/DaytonaError.js'
+import { deepFrozen } from './frozen.js'
+import { isRfc3339 } from './rfc3339.js'
+import { MAX_INT32 } from './options.js'
+
+export type WireRecord = Readonly<Record<string, unknown>>
+
+/** The malformed-response error: 400, `BAD_REQUEST`, source `SDK`, naming what is wrong. */
+export function malformedResponse(message: string): BadRequestError {
+  return new BadRequestError(`expected ${message}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+}
+
+/** A missing field "is required"; a present one of the wrong type "must be" `expected`. */
+function malformed(description: string, field: string, value: unknown, expected: string): BadRequestError {
+  return malformedResponse(value === undefined || value === null ? `${description}: ${field} is required` : `${description}: ${field} must be ${expected}`)
+}
+
+export function record(value: unknown, description: string): WireRecord {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw malformedResponse(description)
+  return value as WireRecord
+}
+
+export function str(input: WireRecord, field: string, description: string): string {
+  const value = input[field]
+  if (typeof value !== 'string') throw malformed(description, field, value, 'a string')
+  return value
+}
+
+/** A non-empty string (an id the SDK builds paths and identities from). */
+export function nonEmptyStr(input: WireRecord, field: string, description: string): string {
+  const value = str(input, field, description)
+  if (value === '') throw malformedResponse(`${description}: ${field} is required`)
+  return value
+}
+
+/** A finite number (a fraction such as a utilization). */
+export function num(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw malformed(description, field, value, 'a number')
+  return value
+}
+
+/** A number between 0 and 1 inclusive. */
+function fraction(input: WireRecord, field: string, description: string): number {
+  const value = num(input, field, description)
+  if (value < 0 || value > 1) throw malformedResponse(`${description}: ${field} must be between 0 and 1`)
+  return value
+}
+
+/** An integer, as the contract's integer fields are. */
+export function int(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isInteger(value)) throw malformed(description, field, value, 'an integer')
+  return value
+}
+
+const MIN_INT32 = -(2 ** 31)
+
+/** A signed 32-bit integer, for the contract's `int32` fields. */
+export function int32(input: WireRecord, field: string, description: string): number {
+  const value = int(input, field, description)
+  if (value < MIN_INT32 || value > MAX_INT32) throw malformedResponse(`${description}: ${field} must be a signed 32-bit integer`)
+  return value
+}
+
+/** A non-negative 32-bit integer, for the contract's `int32` fields with `minimum: 0`. */
+export function nonNegativeInt32(input: WireRecord, field: string, description: string): number {
+  const value = nonNegativeInt(input, field, description)
+  if (value > MAX_INT32) throw malformedResponse(`${description}: ${field} must be a non-negative 32-bit integer`)
+  return value
+}
+
+/** A non-negative integer, for the contract's integer fields with `minimum: 0`. */
+export function nonNegativeInt(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw malformed(description, field, value, 'a non-negative integer')
+  return value
+}
+
+/** A non-negative integer JavaScript represents exactly, for ids with the contract's `maximum: 9007199254740991`. */
+export function nonNegativeSafeInt(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw malformed(description, field, value, 'a non-negative safe integer')
+  return value
+}
+
+/** A positive integer, for the contract's integer fields with `minimum: 1`. */
+export function positiveInt(input: WireRecord, field: string, description: string): number {
+  const value = input[field]
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw malformed(description, field, value, 'a positive integer')
+  return value
+}
+
+export function bool(input: WireRecord, field: string, description: string): boolean {
+  const value = input[field]
+  if (typeof value !== 'boolean') throw malformed(description, field, value, 'a boolean')
+  return value
+}
+
+/** A list of strings. */
+export function strList(input: WireRecord, field: string, description: string): string[] {
+  const value = input[field]
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) throw malformed(description, field, value, 'a list of strings')
+  return [...value]
+}
+
+/** `skipped` of a file search response; absent (daemons that predate it) reads as none skipped. */
+export function searchSkipped(input: WireRecord, description: string): string[] {
+  return optional(input, 'skipped', strList, description) ?? []
+}
+
+/** An optional field: absent or `null` reads as absent; any other value is checked by `read`. */
+export function optional<T>(input: WireRecord, field: string, read: (input: WireRecord, field: string, description: string) => T, description: string): T | undefined {
+  const value = input[field]
+  return value === undefined || value === null ? undefined : read(input, field, description)
+}
+
+/** A required RFC 3339 timestamp string. */
+export function timestamp(input: WireRecord, field: string, description: string): string {
+  const value = str(input, field, description)
+  if (!isRfc3339(value)) throw malformedResponse(`${description}: ${field} is not an RFC 3339 timestamp`)
+  return value
+}
+
+/** The list in the `key` field of a response envelope (only that shape), each mapped by `map`. */
+export function envelopeList<T>(data: unknown, key: string, description: string, map: (item: never) => T): T[] {
+  const envelope = record(data, description)
+  const items = envelope[key]
+  if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
+  return deepFrozen(items.map((item) => map(item as never)))
+}
+
+/** The `items` of a list response (a bare array or an `{ items }` envelope), each mapped by `map`. */
+export function listItems<T>(data: unknown, key: string, description: string, map: (item: never) => T): { items: T[]; nextCursor?: string } {
+  if (Array.isArray(data)) return deepFrozen({ items: data.map((item) => map(item as never)) })
+  const envelope = record(data, description)
+  const items = envelope[key]
+  if (!Array.isArray(items)) throw malformed(description, key, items, 'a list')
+  // A present cursor of the wrong type would silently end pagination.
+  const nextCursor = optional(envelope, 'nextCursor', str, description)
+  return deepFrozen({
+    items: items.map((item) => map(item as never)),
+    ...(nextCursor === undefined || nextCursor === '' ? {} : { nextCursor }),
+  })
+}
+
+/**
+ * A `ProcessLogsResponse` page, checked strictly: `frames`, `nextCursor`,
+ * `truncatedHead` and `eof` are required, with their types.
+ */
+export function logPageFromWire(value: unknown): LogPage {
+  const d = 'process log page'
+  const input = record(value, d)
+  const firstAvailableCursor = optional(input, 'firstAvailableCursor', str, d)
+  return deepFrozen({
+    items: envelopeList(input, 'frames', d, logFrameFromWire),
+    nextCursor: str(input, 'nextCursor', d),
+    truncatedHead: bool(input, 'truncatedHead', d),
+    eof: bool(input, 'eof', d),
+    ...(firstAvailableCursor === undefined ? {} : { firstAvailableCursor }),
+  })
+}
+
+/** One `LogFrameDto`. */
+export function logFrameFromWire(value: unknown): LogFrame {
+  const d = 'log frame'
+  const input = record(value, d)
+  return deepFrozen({
+    cursor: str(input, 'cursor', d),
+    channel: str(input, 'channel', d),
+    data: str(input, 'data', d),
+    timestampMs: int(input, 'timestamp', d),
+  })
+}
+
+/** A `BulkUploadResponse`: `files` (each with `path` and `bytes`) and `errors` are required. */
+export function bulkWriteResultFromWire(value: unknown): BulkWriteResult {
+  const d = 'bulk upload response'
+  const input = record(value, d)
+  const files = envelopeList(input, 'files', d, (item: unknown): BulkWriteFile => {
+    const file = record(item, `${d}: files`)
+    return { path: str(file, 'path', `${d}: files`), bytes: nonNegativeInt(file, 'bytes', `${d}: files`) }
+  })
+  return deepFrozen({ files, errors: strList(input, 'errors', d) })
+}
+
+/**
+ * The `id` and `kernel` of a `SessionDto`, the only fields the SDK reads (as
+ * the Python SDK checks them). A missing or empty id is malformed; when the
+ * caller chose the context id, the message names it so the context can be
+ * cleaned up.
+ */
+export function interpreterSessionFromWire(value: unknown, requestedId?: string): { readonly id: string; readonly kernel: string } {
+  const d = 'session response'
+  const input = record(value, d)
+  const id = input.id
+  if (typeof id !== 'string' || id === '') {
+    const problem = id === undefined || id === null || id === '' ? 'is required' : 'must be a string'
+    const context = requestedId === undefined ? '' : ` (context ${JSON.stringify(requestedId)} may have been created)`
+    throw malformedResponse(`${d}: id ${problem}${context}`)
+  }
+  return { id, kernel: str(input, 'kernel', d) }
+}
+
+export function systemMetricsFromWire(value: toolbox.Metrics): SystemMetrics {
+  const input = record(value, 'system metrics')
+  const d = 'system metrics'
+  return deepFrozen({
+    timestamp: timestamp(input, 'timestamp', d),
+    cpuCount: nonNegativeInt(input, 'cpuCount', d),
+    cpuUtilization: fraction(input, 'cpuUtilization', d),
+    memoryUsageBytes: nonNegativeInt(input, 'memoryUsageBytes', d),
+    memoryTotalBytes: nonNegativeInt(input, 'memoryTotalBytes', d),
+    diskUsageBytes: nonNegativeInt(input, 'diskUsageBytes', d),
+    diskTotalBytes: nonNegativeInt(input, 'diskTotalBytes', d),
+  })
+}
+
+export function fileInfoFromWire(value: toolbox.FileInfo): FileInfo {
+  const d = 'file info response'
+  const input = record(value, d)
+  return deepFrozen({
+    name: str(input, 'name', d),
+    path: str(input, 'path', d),
+    size: nonNegativeInt(input, 'size', d),
+    isDir: bool(input, 'isDir', d),
+    mode: str(input, 'mode', d),
+    permissions: str(input, 'permissions', d),
+    owner: str(input, 'owner', d),
+    group: str(input, 'group', d),
+    modifiedAt: timestamp(input, 'modifiedAt', d),
+    modTime: str(input, 'modTime', d),
+  })
+}
+
+export function fileMatchFromWire(value: toolbox.Match): FileMatch {
+  const d = 'grep match'
+  const input = record(value, d)
+  return deepFrozen({ file: str(input, 'file', d), line: nonNegativeInt(input, 'line', d), content: str(input, 'content', d) })
+}
+
+export function replaceResultFromWire(value: toolbox.ReplaceResult): ReplaceResult {
+  const d = 'replace result'
+  const input = record(value, d)
+  const error = optional(input, 'error', str, d)
+  return deepFrozen({
+    file: str(input, 'file', d),
+    success: bool(input, 'success', d),
+    ...(error === undefined ? {} : { error }),
+  })
+}
+
+function gitFileStatusFromWire(value: unknown): GitFileStatus {
+  const d = 'git status file entry'
+  const input = record(value, d)
+  return {
+    name: str(input, 'name', d),
+    staging: str(input, 'staging', d),
+    worktree: str(input, 'worktree', d),
+    extra: str(input, 'extra', d),
+  }
+}
+
+export function gitStatusFromWire(value: toolbox.GitStatus): GitStatus {
+  const d = 'git status response'
+  const input = record(value, d)
+  const fileStatus = input.fileStatus
+  if (!Array.isArray(fileStatus)) throw malformed(d, 'fileStatus', fileStatus, 'a list')
+  return deepFrozen({
+    currentBranch: str(input, 'currentBranch', d),
+    ahead: int(input, 'ahead', d),
+    behind: int(input, 'behind', d),
+    branchPublished: bool(input, 'branchPublished', d),
+    fileStatus: fileStatus.map(gitFileStatusFromWire),
+  })
+}
+
+export function gitCommitResponseFromWire(value: toolbox.CommitResponse): GitCommitResponse {
+  return deepFrozen({ hash: str(record(value, 'commit response'), 'hash', 'commit response') })
+}
+
+export function gitCommitFromWire(value: toolbox.CommitInfo): GitCommit {
+  const d = 'commit history entry'
+  const input = record(value, d)
+  return deepFrozen({
+    hash: str(input, 'hash', d),
+    message: str(input, 'message', d),
+    author: str(input, 'author', d),
+    email: str(input, 'email', d),
+    timestamp: timestamp(input, 'timestamp', d),
+  })
+}
+
+export function gitRemoteFromWire(value: toolbox.GitRemote): GitRemote {
+  const d = 'git remote'
+  const input = record(value, d)
+  return deepFrozen({ name: str(input, 'name', d), url: str(input, 'url', d) })
+}

@@ -5,32 +5,33 @@
  * deleteBranch / status / push / pull.
  *
  * Run (from examples):
- *     DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \
+ *     DAYTONA_API_KEY=dtn_... \
  *       npx tsx typescript/git/index.ts
  */
 
-import { client, section, info, pass, fail, IMAGE, RUN } from '../_common'
+import { assertStarted, client, section, info, pass, fail, RUN, sandboxImage } from '../_common'
 
 // A small, stable public repo to clone shallowly.
 const REPO_URL = 'https://github.com/octocat/Hello-World'
 
-async function main() {
+async function main(): Promise<boolean> {
   const daytona = client()
-  const sandbox = await daytona.create(IMAGE, { name: `git-${RUN}`, wait: 200 })
+  const sandbox = await daytona.create(await sandboxImage(daytona), { name: `git-${RUN}`, waitSeconds: 200 })
   info(`created sandbox id=${sandbox.id}`)
 
   let ok = true
   try {
+    assertStarted(sandbox)
     const git = sandbox.git
     const proc = sandbox.process
-    const repo = 'demo-repo'
+    const repo = '/tmp/demo-repo'
 
     // git needs to be installed in the image; python:3.x-slim ships without it.
     section('ensure git is available')
     const has = await proc.run('command -v git || (apt-get update && apt-get install -y git)')
     if (has.exitCode !== 0) {
       fail(`could not ensure git: ${has.output.trim()}`)
-      return
+      return false
     }
     info((await proc.run('git --version')).output.trim())
 
@@ -71,10 +72,10 @@ async function main() {
     info(`deleted sandbox ${sandbox.id}`)
   }
 
-  process.exit(ok ? 0 : 1)
+  return ok
 }
 
-main().catch((e) => {
+main().then((ok) => process.exit(ok ? 0 : 1)).catch((e) => {
   console.error('Error:', e)
   process.exit(1)
 })

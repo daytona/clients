@@ -25,7 +25,7 @@ def test_reports_environment_when_v0_ignores_setting(name: str) -> None:
     # Then guidance distinguishes the Cloud-only v0 namespace from v2.
     assert (
         items[0]["message"]
-        == f"{name} is ignored by SDK 2.x .v0 (it targets Daytona Cloud); .v2 reads DAYTONA_V2_API_URL, then DAYTONA_API_URL, for test environments. Review this setting."
+        == f"{name} is ignored by SDK 2.x: .v0 targets Daytona Cloud, and .v2 reads only DAYTONA_V2_API_URL, for test environments. Review this setting."
     )
 
 

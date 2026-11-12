@@ -9,7 +9,40 @@ import re
 
 from packaging.requirements import InvalidRequirement, Requirement
 
+from .dependency_versions import target_constraint
 from .models import Mapping
+
+
+def target_extras(extras: list[str], mapping: Mapping) -> tuple[list[str], list[str]]:
+    """The extras a migrated declaration writes (its own that the 2.x
+    distribution defines, then the mapping's), and the ones it drops."""
+    known = {_extra_name(extra) for extra in mapping.known_extras}
+    kept = [extra for extra in extras if _extra_name(extra) in known]
+    dropped = [extra for extra in extras if extra not in kept]
+    present = {_extra_name(extra) for extra in kept}
+    kept.extend(extra for extra in mapping.extras if _extra_name(extra) not in present)
+    return kept, dropped
+
+
+def _extra_name(extra: str) -> str:
+    return re.sub(r"[-_.]+", "-", extra).lower()
+
+
+def dropped_extra_message(extra: str, name: str, mapping: Mapping) -> str:
+    return (
+        f"Dropped the {extra} extra of {name}: SDK 2.x's {mapping.package_new} "
+        f"has no such extra (its extras: {', '.join(mapping.known_extras)}); "
+        "install what it provided directly if you still need it."
+    )
+
+
+def preserved_extra_message(extra: str, name: str, mapping: Mapping) -> str:
+    return (
+        f"Remove the {extra} extra of {name} manually: SDK 2.x's "
+        f"{mapping.package_new} has no such extra (its extras: "
+        f"{', '.join(mapping.known_extras)}); the hash-locked or continued record "
+        "was preserved."
+    )
 
 
 def render_requirement(
@@ -25,16 +58,28 @@ def render_requirement(
         if marker is None:
             return None
         suffix = marker.group()
-    extras = [
-        part.strip()
-        for part in (parsed["extras"] or "[]")[1:-1].split(",")
-        if part.strip()
-    ]
-    extras.extend(extra for extra in mapping.extras if extra not in extras)
+    extras, _ = target_extras(
+        [
+            part.strip()
+            for part in (parsed["extras"] or "[]")[1:-1].split(",")
+            if part.strip()
+        ],
+        mapping,
+    )
     target = mapping.package_new
     if extras:
         target += "[" + ",".join(extras) + "]"
-    target += mapping.specifier
+    existing = str(requirement.specifier)
+    kept = target_constraint(
+        requirement.name, existing, mapping.package_new, mapping.specifier
+    )
+    # A kept constraint keeps its original text (packaging reorders specifiers);
+    # otherwise the target, or a pre-release range's own pinned floor.
+    target += (
+        tail[: len(tail) - len(suffix)].strip()
+        if existing and kept == existing and kept != mapping.specifier
+        else kept
+    )
     result = parsed["indent"] + target + suffix + (parsed["ending"] or "")
     try:
         Requirement(re.split(r"\s+#", result, maxsplit=1)[0].strip())

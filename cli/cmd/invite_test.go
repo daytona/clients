@@ -115,7 +115,7 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 		_, _ = w.Write([]byte(ok))
 	}
 	f.handle("POST", "/invitations/lookup", func(w http.ResponseWriter, r *http.Request) {
-		wantToken(w, r, `{"id":"22222222-2222-2222-2222-222222222222","org_id":"33333333-3333-3333-3333-333333333333","org_name":"Acme","roles":["developer"],"invited_by":"Alice","email":"new@example.com","expires_at":"2026-10-20T00:00:00Z"}`)
+		wantToken(w, r, `{"id":"22222222-2222-2222-2222-222222222222","org_id":"33333333-3333-3333-3333-333333333333","org_name":"Acme","roles":["developer"],"role_names":["Developer"],"invited_by":"Alice","email":"new@example.com","expires_at":"2026-10-20T00:00:00Z"}`)
 	})
 	f.handle("POST", "/invitations/accept", func(w http.ResponseWriter, r *http.Request) {
 		wantToken(w, r, fixtureJSON(organizationMemberFixture("33333333-3333-3333-3333-333333333333", "new@example.com", "New User")))
@@ -147,12 +147,12 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 		t.Fatalf("guard: %d %s", code, errb)
 	}
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "revoke", "11111111-1111-1111-1111-111111111111", "--yes")
-	if code != 0 || mustJSON(t, out)["revoked"] != "11111111-1111-1111-1111-111111111111" {
+	if code != 0 || !isAck(t, out, "id", "11111111-1111-1111-1111-111111111111", "revoked") {
 		t.Fatalf("revoke: %d %s", code, out)
 	}
 	// show takes the bare token; accept the emailed link; decline the token
 	// again — the fake accepts exactly one body for all three.
-	out, _, code = runMgmt(t, f, d, "invite", "show", testInviteToken)
+	out, _, code = runMgmt(t, f, d, "invite", "get", testInviteToken)
 	if code != 0 || mustJSON(t, out)["org_name"] != "Acme" || mustJSON(t, out)["invited_by"] != "Alice" {
 		t.Fatalf("show: %d %s", code, out)
 	}
@@ -181,12 +181,15 @@ func TestInviteAndRoleCommands_JSON(t *testing.T) {
 	}
 	// A bare token that is not the contract shape is refused the same way.
 	before = len(f.requests)
-	_, errb, code = runMgmt(t, f, d, "invite", "show", testInviteToken+"x")
+	_, errb, code = runMgmt(t, f, d, "invite", "get", testInviteToken+"x")
 	if code != cerr.ExitUsage || !has(errb, "invitation token or link required") || len(f.requests) != before {
 		t.Fatalf("show with a malformed token: %d %s (requests %d -> %d)", code, errb, before, len(f.requests))
 	}
 	out, _, code = runMgmt(t, f, d, "role", "list")
-	if code != 0 || mustJSON(t, out)["roles"] == nil {
+	if code != 0 {
+		t.Fatalf("roles: %d %s", code, out)
+	}
+	if roles, ok := mustJSON(t, out)["items"].([]any); !ok || len(roles) == 0 {
 		t.Fatalf("roles: %d %s", code, out)
 	}
 }

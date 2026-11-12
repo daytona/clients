@@ -14,7 +14,7 @@ import (
 
 func init() {
 	Register(func() *cobra.Command {
-		c := &cobra.Command{Use: "config", Short: "Read and change CLI settings", GroupID: GroupOther}
+		c := &cobra.Command{Use: "config", Short: "Read and change CLI settings", GroupID: GroupOther, Annotations: map[string]string{annotationProfileOptional: "true"}}
 		c.AddCommand(&cobra.Command{
 			Use:   "get <key>",
 			Short: "Print a setting (confirm)",
@@ -32,7 +32,11 @@ func init() {
 		c.AddCommand(&cobra.Command{
 			Use:   "set <key> <value>",
 			Short: "Change a setting (confirm true|false — prompts before destructive verbs)",
-			Args:  cobra.ExactArgs(2),
+			Long: "Change a setting.\n\n" +
+				"confirm true|false: whether destructive and billable commands ask for confirmation at a terminal.\n" +
+				"It affects prompts only: off a terminal (and with --output json or yaml) those commands always\n" +
+				"need --yes or DAYTONA_YES=1.",
+			Args: cobra.ExactArgs(2),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				a := FromContext(cmd.Context())
 				switch args[0] {

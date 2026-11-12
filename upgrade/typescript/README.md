@@ -2,7 +2,8 @@
 
 Upgrade a Daytona 0.x TypeScript or JavaScript project to SDK 2.x **while
 keeping its workloads on the v0 platform**. Requires Node.js 20.0.0 or newer.
-Documentation links point at the Daytona docs until the dedicated migration guide is published.
+Documentation links point at the migration guide in this repository
+([`upgrade/MIGRATION.md`](https://github.com/daytona/clients/blob/main/upgrade/MIGRATION.md)).
 
 ```sh
 npx @daytona/upgrade --dry
@@ -10,9 +11,14 @@ npx @daytona/upgrade . --yes
 npx @daytona/upgrade --suggest-v2
 ```
 
+Each release migrates to the SDK release of the same version (see
+[Versions](#versions)). Until SDK 2.0.0 is out, run the exact alpha you are
+migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.N`.
+
 The default command moves proven client calls from `client.create()` to
 `client.v0.create()` and unconditionally routes resource imports and all 15 shared errors to `@daytona/sdk/v0`, preserving 0.x error constructors, fields and catches; constructor catches need a guaranteed `.v0` access inside the try, and wildcard re-exports require review. Conditional accesses (even in both `if/else` branches) and deferred callbacks keep the constructor FIXME; only straight-line accesses in the construction's block or an enclosing block suppress it. The tool updates
-Daytona dependencies to `@daytona/sdk@^2.0.0`. It preserves surrounding source
+Daytona dependencies to the SDK release this tool was published with (see
+[Versions](#versions)). It preserves surrounding source
 formatting, including the quote and semicolon style of inserted imports.
 When an import or export is split, specifier comments follow their names and multiline lists stay multiline.
 Declaration trailing comments are copied to both statements, as are preceding `eslint-disable-next-line` comments.
@@ -117,6 +123,30 @@ private SDK subpaths. Mixed, empty, or unrecognized augmentations stay unchanged
 with a `private-import` manual item:
 `Review this module augmentation: SDK 2.x moved 0.x types to @daytona/sdk/v0.`
 
+## Versions
+
+Each release of this tool is published with the SDK release of the same
+version, and migrates to exactly that release: `npx @daytona/upgrade@2.0.0-alpha.N`
+writes `"@daytona/sdk": "2.0.0-alpha.N"` (a pre-release is pinned, because
+pre-releases may break), and a stable `X.Y.Z` writes `^X.Y.Z`. Run the release
+that matches the SDK you want; the SDK's runtime guidance for 0.x calls names
+it.
+
+SDK 2.x runs one 0.x release as `.v0`; the tool's warnings and refusals name
+it. The tool reads the project's installed 0.x
+version from its lockfile (`package-lock.json`, `npm-shrinkwrap.json`,
+`yarn.lock`, `pnpm-lock.yaml` or `bun.lock`, the closest one up to the Git
+root), else from the lower bound of the manifest range, and compares:
+
+| Installed 0.x version | Result |
+| --- | --- |
+| the `.v0` release | nothing to report |
+| older, or a newer patch of the same minor | a warning (`warnings` in `--json`): moved calls now run the `.v0` release; review the 0.x changes in between |
+| a newer minor | refused (exit 2, reason `newer-v0`): 0.x APIs added after the `.v0` release are missing from it and would get no FIXME. Use a later tool release, or pass `--allow-newer-v0` to migrate anyway (with a warning) |
+| unknown | a warning |
+
+Warnings are advice, not manual items: `--strict` ignores them.
+
 ## Options
 
 | Option | Behavior |
@@ -131,6 +161,7 @@ with a `private-import` manual item:
 | `-y`, `--yes` | Skip confirmation; non-interactive input never prompts |
 | `--drop-api-url` | Accept API URLs the tool cannot verify or that come from the environment, asserting they point at Daytona Cloud |
 | `--strict` | Exit 1 if manual items remain, even when confirmation is declined (no writes) |
+| `--allow-newer-v0` | Migrate a project on a newer 0.x minor than the 0.x release SDK 2.x runs as `.v0` (see [Versions](#versions)) |
 | `-v`, `--version` | Print the package version |
 | `-h`, `--help` | Print help |
 
@@ -173,7 +204,7 @@ Without the override, a literal custom environment URL produces both
 
 The tool never migrates workloads to v2, changes sandbox calls into client
 calls, edits lockfiles directly, or modifies Python code. It reports Python
-manifests with the companion command `uvx daytona-upgrade`. Peer dependencies,
+manifests with the companion command `uvx daytona-upgrade@<this release>`. Peer dependencies,
 private imports, framework component files, environment URL settings and
 unsupported config fields require review. Suggestions include docs links and
 workflow/data warnings; re-running replaces the tool's comments.
@@ -273,7 +304,15 @@ comment continuations so their contents remain intact.
 
 - **0**: completed; manual items may remain.
 - **1**: unreadable relevant files/directories, source parse errors or invalid UTF-8 in files with planned edits; manual items remain with `--strict`; or an internal/write error.
-- **2**: refused: dirty tree, custom API URL, bad arguments, or no Daytona code
-  or dependency found.
+- **2**: refused: dirty tree, custom API URL, a newer 0.x minor than `.v0`
+  (without `--allow-newer-v0`), bad arguments, or no Daytona code or
+  dependency found.
+
+From `2.0.0` on, within a major version the flags, these exit codes and the
+fields and values of the `--json` report ([`report.schema.json`](https://github.com/daytona/clients/blob/main/upgrade/mapping/report.schema.json))
+stay compatible. A minor release can add flags, report fields and values to
+the `language`, `mode`, `kind`, `refused.reason` and `suggestion.category`
+vocabularies, rewrite more calls, report new manual items and refuse a case it
+newly recognizes as unsafe. Ignore fields and values you don't know.
 
 Licensed under Apache-2.0.

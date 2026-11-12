@@ -108,7 +108,7 @@ class Surface:
         self.classes: dict[str, ast.ClassDef] = {}
         self.imports: dict[str, dict[str, str]] = {}
         self.aliases: dict[str, ast.expr] = {}
-        source = root / "python/src"
+        source = root / "sdk-python/src"
         paths = sorted(p for p in (source / "daytona/v2").rglob("*.py") if not EXCLUDED.intersection(p.relative_to(source).parts))
         for path in [source / "daytona/_client.py", *paths]:
             parts = list(path.relative_to(source).with_suffix("").parts)

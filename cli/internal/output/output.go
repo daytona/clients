@@ -19,28 +19,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Format is the value of --output.
-type Format string
-
-const (
-	FormatTable Format = "table"
-	FormatJSON  Format = "json"
-	FormatYAML  Format = "yaml"
-)
-
-// ParseFormat validates --output.
-func ParseFormat(s string) (Format, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "", "table":
-		return FormatTable, nil
-	case "json":
-		return FormatJSON, nil
-	case "yaml", "yml":
-		return FormatYAML, nil
-	}
-	return "", fmt.Errorf("unknown --output %q (want table|json|yaml)", s)
-}
-
 // Printer renders to an io.Writer in one Format.
 type Printer struct {
 	W      io.Writer
@@ -48,14 +26,22 @@ type Printer struct {
 	Color  bool
 }
 
-// RegionError is one failed region in a fan-out list.
+// RegionError is one failed region in a fan-out list: the HTTP status and
+// the server's error code, source and trace id when the region's API
+// answered.
 type RegionError struct {
 	Region  string `json:"region"`
 	Status  int    `json:"status,omitempty"`
+	Code    string `json:"code,omitempty"`
+	Source  string `json:"source,omitempty"`
+	TraceID string `json:"trace_id,omitempty"`
 	Message string `json:"message"`
+	// Err is the failure itself (not printed).
+	Err error `json:"-"`
 }
 
-// List is the envelope every list command emits.
+// List is the envelope every list command emits. ListOut prints Items as an
+// array even when it is nil.
 type List[T any] struct {
 	Items      []T           `json:"items"`
 	NextCursor string        `json:"next_cursor,omitempty"`
@@ -104,6 +90,9 @@ func (p Printer) TableOf(v any, t Table) error {
 
 // ListOut prints a list envelope; `tbl` builds the human table from items.
 func ListOut[T any](p Printer, l List[T], tbl func([]T) Table) error {
+	if l.Items == nil {
+		l.Items = []T{} // `items` is always an array, never null
+	}
 	switch p.Format {
 	case FormatJSON:
 		return p.json(l)
@@ -301,21 +290,8 @@ func (s *StreamSanitizer) Write(p []byte) (int, error) {
 		data = append(append([]byte{}, s.utf8Tail...), p...)
 		s.utf8Tail = nil
 	}
-	// Hold back an incomplete final rune (up to 3 bytes) for the next write.
-	cut := len(data)
-	for back := 1; back <= 3 && back <= len(data); back++ {
-		tail := data[len(data)-back:]
-		if utf8.RuneStart(tail[0]) {
-			if !utf8.FullRune(tail) {
-				cut = len(data) - back
-			}
-			break
-		}
-	}
-	if cut < len(data) {
-		s.utf8Tail = append([]byte{}, data[cut:]...)
-		data = data[:cut]
-	}
+	// Hold back an incomplete final rune for the next write.
+	data, s.utf8Tail = splitIncompleteRune(data)
 	chunk := s.sanitizeChunk(string(data))
 	if chunk == "" {
 		return len(p), nil
@@ -490,4 +466,60 @@ func (p Printer) plainTable(t Table) error {
 	}
 	_, err := io.WriteString(p.W, sb.String())
 	return err
+}
+
+// NDJSONDataWriter turns a byte stream into NDJSON: every write becomes one
+// {"data": "<text>"} line. A UTF-8 sequence split across writes is held back
+// until it is complete, so no line carries half a character.
+type NDJSONDataWriter struct {
+	enc  *json.Encoder
+	tail []byte
+}
+
+// NewNDJSONDataWriter returns an NDJSONDataWriter writing to w.
+func NewNDJSONDataWriter(w io.Writer) *NDJSONDataWriter {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return &NDJSONDataWriter{enc: enc}
+}
+
+func (n *NDJSONDataWriter) Write(p []byte) (int, error) {
+	data := append(n.tail, p...)
+	n.tail = nil
+	data, n.tail = splitIncompleteRune(data)
+	if len(data) == 0 {
+		return len(p), nil
+	}
+	if err := n.enc.Encode(map[string]string{"data": string(data)}); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// Flush writes a held-back partial character (the stream ended inside it).
+func (n *NDJSONDataWriter) Flush() error {
+	if len(n.tail) == 0 {
+		return nil
+	}
+	tail := n.tail
+	n.tail = nil
+	return n.enc.Encode(map[string]string{"data": string(tail)})
+}
+
+// splitIncompleteRune splits data before an incomplete final UTF-8 sequence
+// (at most 3 bytes) that a read split across writes; rest is a copy, nil when
+// data ends on a whole rune.
+func splitIncompleteRune(data []byte) (complete, rest []byte) {
+	for back := 1; back <= 3 && back <= len(data); back++ {
+		tail := data[len(data)-back:]
+		if !utf8.RuneStart(tail[0]) {
+			continue
+		}
+		if utf8.FullRune(tail) {
+			return data, nil
+		}
+		cut := len(data) - back
+		return data[:cut], append([]byte{}, data[cut:]...)
+	}
+	return data, nil
 }

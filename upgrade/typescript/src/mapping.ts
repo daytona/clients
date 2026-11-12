@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import type { Category, ConfigAction, Mapping, Receiver, Suggestion } from './model.js';
 import { UpgradeError } from './model.js';
+import { version, withTarget } from './sdk-target.js';
 
 // The bundled asset is trusted; parsing still earns its type without an assertion.
 function object(value: unknown): Record<string, unknown> {
@@ -60,13 +61,20 @@ export function parseMapping(value: unknown): Mapping {
       v0: { ts: tsName(entry['v0']) }, v2: { ts: tsName(entry['v2']) },
       // A language without a v2 form has no equivalent there.
       category: tsName(entry['v2']) === null ? 'none' : category(entry['category']), notes: { ts: strings(object(entry['notes'])['ts']) },
-      anchor: string(entry['anchor']), startsWorkflow: entry['startsWorkflow'] === true };
+      anchor: string(entry['anchor']), startsWorkflow: entry['startsWorkflow'] === true,
+      ...(entry['dockerfileImage'] === undefined ? {} : { dockerfileImage: {
+        v2: { ts: tsName(object(entry['dockerfileImage'])['v2']) },
+        notes: { ts: strings(object(object(entry['dockerfileImage'])['notes'])['ts']) } } }) };
   });
+  const dockerfileImage = data['dockerfileImage'] === undefined ? undefined : ts(data['dockerfileImage']);
   return {
     docs: { base: string(docs['base']), placeholder: docs['placeholder'] === true },
+    v0Version: string(data['v0Version']),
     packages: { ts: { old: strings(packages['old']), new: string(packages['new']), range: string(packages['range']) } },
     v0Modules: { ts: { old: strings(modules['old']), root: string(modules['root']), v0: string(modules['v0']), keep: strings(modules['keep']) } },
     rootNames: { ts: strings(object(data['rootNames'])['ts']) },
+    rootAliasCategories: data['rootAliasCategories'] === undefined ? {}
+      : Object.fromEntries(Object.entries(object(data['rootAliasCategories'])).map(([alias, category]) => [alias, string(category)])),
     ...(exports === undefined ? {} : { v0Exports: { ts: strings(exports) } }),
     movedClientMembers: { ts: strings(object(data['movedClientMembers'])['ts']) },
     config: { ts: Object.fromEntries(Object.entries(ts(data['config'])).map(([name, value]) => [name, action(value)])) },
@@ -76,9 +84,11 @@ export function parseMapping(value: unknown): Mapping {
       return { id: string(trap['id']), text: string(trap['text']),
         ...(trap['short'] === undefined ? {} : { short: string(trap['short']) }) };
     }),
+    ...(dockerfileImage === undefined ? {} : { dockerfileImage: { ts: {
+      type: string(dockerfileImage['type']), method: string(dockerfileImage['method']), parameter: string(dockerfileImage['parameter']) } } }),
   };
 }
 export function loadMapping(): Mapping {
   const value: unknown = JSON.parse(readFileSync(new URL('./mapping.json', import.meta.url), 'utf8'));
-  return parseMapping(value);
+  return withTarget(parseMapping(value), version());
 }

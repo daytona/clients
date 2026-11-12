@@ -4,10 +4,11 @@
 package cmd
 
 import (
+	"context"
+
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/mgmt"
-	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,8 @@ func newProjectMemberSubcmd() *cobra.Command {
 }
 
 func newProjectMemberListCmd() *cobra.Command {
-	return &cobra.Command{Use: "list", Short: "List members who can access the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	var flags pageFlags
+	cmd := &cobra.Command{Use: "list", Short: "List members who can access the selected project", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		projectID, err := a.RequireProject(ctx, pickProject(a))
@@ -48,12 +50,16 @@ func newProjectMemberListCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		items, err := mgmt.ListProjectMembers(ctx, mc, projectID)
+		items, err := mgmtListPage(ctx, flags, func(ctx context.Context, cursor string, limit int64) (mgmt.Page[gen.ProjectMember], error) {
+			return mgmt.ProjectMembersPage(ctx, mc, projectID, cursor, limit)
+		})
 		if err != nil {
 			return err
 		}
-		return output.ListOut(a.Printer(), output.List[gen.ProjectMember]{Items: items}, projectMemberTable)
+		return listOutRaw(a.Printer(), items, projectMemberTable)
 	}}
+	addPageFlags(cmd, &flags)
+	return cmd
 }
 
 func newProjectMemberAddCmd() *cobra.Command {
@@ -97,7 +103,7 @@ func newProjectMemberAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.AddedUserIds))}})
+			return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.V.AddedUserIds))}})
 		}
 		if len(args) != 1 {
 			return cobra.ExactArgs(1)(cmd, args)
@@ -110,7 +116,7 @@ func newProjectMemberAddCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.AddedUserIds))}})
+		return a.Printer().Object(resp, [][2]string{{"added_user_ids", joinComma(uuidStrings(resp.V.AddedUserIds))}})
 	}}
 	cmd.Flags().StringVar(&bulk, "bulk", "", "comma-separated user ids/emails/names to add in one request")
 	return cmd
@@ -149,7 +155,7 @@ func newProjectMemberRemoveCmd() *cobra.Command {
 		if err := mgmt.RemoveProjectMember(ctx, mc, projectID, member.UserId.String()); err != nil {
 			return err
 		}
-		return a.Printer().Object(map[string]any{"removed": member.UserId.String()}, [][2]string{{"removed", member.UserId.String()}})
+		return printAck(a, "user_id", member.UserId.String(), "removed", "")
 	}}
 	return cmd
 }

@@ -21,10 +21,16 @@ from .project import ProjectResult, preflight
 from .project_progress import slow_progress
 from .safety import GitSafety, git_safety
 from .safety import _dirty as _dirty
+from .v0_version import Warning, ancestor_declarations, check_v0_version
 from .writes import write_outputs
 
 Reason = Literal[
-    "dirty-tree", "custom-api-url", "no-daytona", "bad-arguments", "local-sdk-module"
+    "dirty-tree",
+    "custom-api-url",
+    "no-daytona",
+    "bad-arguments",
+    "local-sdk-module",
+    "newer-v0",
 ]
 
 
@@ -51,6 +57,7 @@ class ReportBase(TypedDict):
 
 class Report(ReportBase, total=False):
     refused: RefusalReport
+    warnings: list[Warning]
 
 
 @dataclass(frozen=True)
@@ -70,6 +77,8 @@ class ArgumentParser(argparse.ArgumentParser):
 def _parser() -> ArgumentParser:
     # stdlib parsing keeps the published package's only dependencies LibCST/tomlkit.
     parser = ArgumentParser(
+        # Flags are spelled out, as the npm tool requires.
+        allow_abbrev=False,
         prog="daytona-upgrade",
         description="Upgrade 0.x code to SDK 2.x on the v0 namespace and bump the dependency.",
     )
@@ -98,6 +107,10 @@ def _parser() -> ArgumentParser:
             "Accept API URLs the tool cannot verify or that come from the environment, asserting they point at Daytona Cloud",
         ),
         ("strict", "Exit 1 when manual items remain"),
+        (
+            "allow-newer-v0",
+            "Migrate a project on a newer 0.x minor than the 0.x release SDK 2.x runs as .v0",
+        ),
     ):
         parser.add_argument("--" + flag, action="store_true", help=help_text)
     parser.add_argument(
@@ -145,6 +158,8 @@ def _emit(
         print(
             f"{item['file']}:{item['line']}:{item['column']}: {item['kind']}: {item['message']}"
         )
+    for warning in report.get("warnings", []):
+        print(f"{warning['file']}: warning: {warning['message']}")
     for step in report["nextSteps"]:
         print(step)
 
@@ -189,10 +204,11 @@ def main(argv: list[str] | None = None) -> int:
                 "Git tree has uncommitted changes. Commit or stash them, or run with --force.",
             )
         report_progress = partial(print, file=sys.stderr, flush=True)
+        mapping = load_mapping()
         with slow_progress(report_progress):
             result = preflight(
                 root,
-                TransformOptions(load_mapping(), mode, args.drop_api_url),
+                TransformOptions(mapping, mode, args.drop_api_url),
                 report_progress,
             )
         if result.local_module:
@@ -204,6 +220,20 @@ def main(argv: list[str] | None = None) -> int:
 
             message, report["nextSteps"] = url_refusal(result.items)
             raise Refused("custom-api-url", message)
+        # Then the 0.x version (refuses exit 2 before unsupported files exit 1).
+        if mode == "upgrade" and result.found:
+            base = root.parent if root.is_file() else root
+            v0 = check_v0_version(
+                base,
+                # A file root starts at its own directory.
+                result.declared or ancestor_declarations(root, mapping),
+                mapping.v0_version,
+                args.allow_newer_v0,
+            )
+            if v0.warnings:
+                report["warnings"] = list(v0.warnings)
+            if v0.refusal is not None:
+                raise Refused("newer-v0", v0.refusal)
         if any(item["kind"] == "unsupported-file" for item in result.items):
             _emit(report, None, args)
             return 1
@@ -214,11 +244,19 @@ def main(argv: list[str] | None = None) -> int:
             {"file": entry.file, "from": entry.before, "to": entry.after}
             for entry in result.dependencies
         ]
-        if mode == "upgrade":
+        if mode == "upgrade" and result.dependencies:
             from .manifests import next_step
 
+            # The requirement written, when every rewrite wrote the same one
+            # (a kept or newer pin is never named as a downgrade target).
+            written = {
+                entry.after
+                for entry in result.dependencies
+                if entry.after.startswith(mapping.package_new)
+            }
+            requirement = next(iter(written)) if len(written) == 1 else None
             report["nextSteps"].append(
-                next_step(root.parent if root.is_file() else root)
+                next_step(root.parent if root.is_file() else root, requirement)
             )
         manual = any(
             item["kind"] not in {"suggestion", "workflow"}

@@ -5,26 +5,26 @@
 #   ... ./run-examples.sh ts       # typescript only
 #   ... ./run-examples.sh py       # python only
 #
-# Env (see each example's header): DAYTONA_API_URL (default https://api.daytona.com),
+# Env (see each example's header): DAYTONA_V2_API_URL (default https://api.daytona.com),
 # DAYTONA_API_KEY (required), DAYTONA_IMAGE (default python:3.12-slim).
 #
 # Notes:
-#   - `dynamic-build`, `dockerfile-sandbox` and `build-logs` build a
+#   - `dynamic-build`, `dockerfile-sandbox`, `local-files` and `build-logs` build a
 #     Dockerfile, so the deployment must support image builds. It is
 #     slower than the others: the first create waits for a real build.
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
 #     volumes_share.{ts,py} are standalone persistence round-trip examples.
 #   - Without API access you can still validate the examples statically:
-#       ./run-examples.sh check     # tsc --noEmit + python import/compile checks
+#       ./run-examples.sh check     # type checks + offline tests against a fake client
 set -uo pipefail
 cd "$(dirname "$0")"
 WHICH="${1:-both}"
 
-PY_BIN="../python/.venv/bin/python"
+PY_BIN="../sdk-python/.venv/bin/python"
 [[ -x "$PY_BIN" ]] || PY_BIN="python3"
 
-TS_EXAMPLES=(exec-command file-operations git lifecycle snapshots dynamic-build dockerfile-sandbox build-logs pagination secrets-env)
-PY_EXAMPLES=(exec_command file_operations git_ops lifecycle snapshots dynamic_build dockerfile_sandbox build_logs pagination secrets_env)
+TS_EXAMPLES=(exec-command file-operations git lifecycle snapshots dynamic-build dockerfile-sandbox local-files build-logs pagination secrets-env)
+PY_EXAMPLES=(exec_command file_operations git_ops lifecycle snapshots dynamic_build dockerfile_sandbox local_files build_logs pagination secrets_env)
 if [[ "${DAYTONA_RUN_VOLUMES:-}" == "1" ]]; then
   TS_EXAMPLES+=(volumes)
   PY_EXAMPLES+=(volumes)
@@ -39,14 +39,15 @@ run() { # <label> <cmd...>
 }
 
 check() {
-  echo "== static checks (no API access needed) =="
+  echo "== static checks + offline tests (no API access needed) =="
   (cd . && npm install --no-audit --no-fund >/dev/null 2>&1)
   run "tsc --noEmit" npx tsc -p tsconfig.json --noEmit
-  run "python compile" "$PY_BIN" -m py_compile \
-    python/_common.py python/exec_command.py python/file_operations.py \
-    python/git_ops.py python/lifecycle.py python/snapshots.py \
-    python/dynamic_build.py python/dockerfile_sandbox.py python/build_logs.py \
-    python/pagination.py python/secrets_env.py python/volumes.py volumes_share.py
+  run "ts offline tests" node --import tsx --test \
+    typescript/examples.test.ts typescript/follow-build-logs/output.test.ts \
+    typescript/test-support/fake-build-environment.test.ts
+  # mypy and pytest come from the SDK's dev extras (pip install -e "../sdk-python[dev]").
+  run "mypy --strict" env MYPYPATH=python "$PY_BIN" -m mypy --strict python volumes_share.py
+  run "python offline tests" "$PY_BIN" -m pytest -q -p no:cacheprovider python/test_examples.py
 }
 
 run_ts() {

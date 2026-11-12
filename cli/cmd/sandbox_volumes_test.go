@@ -36,10 +36,17 @@ func TestSandboxCreate_sendsVolumesFromFlagsAndFile(t *testing.T) {
 					path += "/macos"
 				}
 				// When the create command executes.
+				class := "linux"
+				if surface == "create-macos" {
+					class = "macos"
+				}
 				_, _, err := runCLI(t, args, []expectedRequest{{
 					method: http.MethodPost, path: path, status: 202,
 					bodyJSON: `{"image":"base","volumes":[{"volume":"data","mount_path":"/data","subpath":"project"}]}`,
 					response: `{"toolbox_proxy_url":"https://proxy.example","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
+				}, {
+					method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200,
+					response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", class, "pending"),
 				}})
 				// Then the mount reaches the create request on each supported surface.
 				require.NoError(t, err)
@@ -53,6 +60,9 @@ func TestSandboxCreate_sendsReadOnlyVolume(t *testing.T) {
 		method: http.MethodPost, path: "/sandboxes", status: 202,
 		bodyJSON: `{"volumes":[{"volume":"data","mount_path":"/data","read_only":true}]}`,
 		response: `{"toolbox_proxy_url":"https://proxy.example","id":"11111111-1111-1111-1111-111111111111","name":"box","status":"pending","wait_cap_seconds":3}`,
+	}, {
+		method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200,
+		response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "pending"),
 	}})
 	require.NoError(t, err)
 }

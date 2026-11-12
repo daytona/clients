@@ -42,7 +42,8 @@ async function main() {
     section('build a Dockerfile as a sandbox')
     const sandbox = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `buildlogs-${RUN}`,
-      wait: 400,
+      buildTimeoutSeconds: 400,
+      waitSeconds: 400,
     })
     sandboxes.push(sandbox)
     info(`sandbox ${sandbox.id} is ${sandbox.state}`)
@@ -63,7 +64,8 @@ async function main() {
     section('build logs for a second sandbox from the same Dockerfile')
     const twin = await daytona.createFromBuild(ImageBuilder.fromDockerfile(DOCKERFILE), {
       name: `buildlogs-twin-${RUN}`,
-      wait: 400,
+      buildTimeoutSeconds: 400,
+      waitSeconds: 400,
     })
     sandboxes.push(twin)
     const twinLogs = await twin.buildLogs()
@@ -80,13 +82,13 @@ async function main() {
     try {
       const broken = await daytona.createFromBuild(ImageBuilder.fromDockerfile(BROKEN_DOCKERFILE), {
         name: `buildlogs-bad-${RUN}`,
-        // Bound the wait so a failed build does not stall the example.
-        wait: 120,
+        // Bound the build separately from the sandbox readiness wait.
+        buildTimeoutSeconds: 120,
+        waitSeconds: 120,
       })
       sandboxes.push(broken)
-      // Reaching here means the create did not fail; still print whatever the
-      // build recorded rather than asserting a specific outcome.
-      info(`unexpectedly created ${broken.id} (${broken.state})`)
+      fail(`the deliberately broken build unexpectedly created ${broken.id} (${broken.state})`)
+      ok = false
       show(await broken.buildLogs())
     } catch (error) {
       const message = String(error)
@@ -103,23 +105,29 @@ async function main() {
       } else {
         // Use the error's image id to read the failed build's output.
         let failedLog = ''
+        let readFailed = false
         try {
           await daytona.images.followBuildLogs(error.imageId, {
             onLogs: (chunk) => {
               failedLog += chunk
             },
-            timeout: 60_000,
+            timeoutSeconds: 60,
           })
         } catch (readError) {
           // Reading build logs can fail; report the error to the user.
           fail(`the failed build's log could not be read: ${readError}`)
           ok = false
+          readFailed = true
         }
-        if (failedLog !== '') {
-          show(failedLog)
-          // A state line alone does not prove output was retrieved.
-          // Require our failing command's output.
-          if (failedLog.includes(`intentional-build-failure-${RUN}`)) {
+        if (failedLog !== '') show(failedLog)
+        // After a read error the output may be partial, so judge only a
+        // complete read. A state line alone does not prove output was
+        // retrieved: require our failing command's output.
+        if (!readFailed) {
+          if (failedLog === '') {
+            fail("the failed build's log was empty")
+            ok = false
+          } else if (failedLog.includes(`intentional-build-failure-${RUN}`)) {
             pass("the failed build's log contains the failing command's output")
           } else {
             fail("the failed build's log is missing the failing command's output")

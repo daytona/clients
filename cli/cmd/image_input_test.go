@@ -54,3 +54,23 @@ func TestImageCommands_rejectUnknownFileFields(t *testing.T) {
 		})
 	}
 }
+
+func TestImageBuild_rejectsNonStringFileFields(t *testing.T) {
+	for _, field := range []string{"cpu_arch", "region_id", "dockerfile", "context", "name"} {
+		t.Run(field, func(t *testing.T) {
+			// Given a build file whose string field has another JSON type.
+			bodyPath := filepath.Join(t.TempDir(), "image.json")
+			body := `{"context":"context.tar","` + field + `":64}`
+			if field == "context" {
+				body = `{"context":64}`
+			}
+			require.NoError(t, os.WriteFile(bodyPath, []byte(body), 0o600))
+			// When the CLI parses the request without contacting the API.
+			_, _, err := runCLI(t, []string{"image", "build", "img", "--file", bodyPath}, nil)
+			// Then the malformed input is a usage error, not a silently dropped field.
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+			require.ErrorContains(t, err, field)
+		})
+	}
+}

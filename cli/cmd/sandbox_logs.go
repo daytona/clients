@@ -6,10 +6,13 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -30,6 +33,9 @@ func newSandboxLogsCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if follow && a.Format == output.FormatYAML {
+				return cerr.Usage("--output yaml is not supported with --follow")
+			}
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
@@ -37,9 +43,6 @@ func newSandboxLogsCommand() *cobra.Command {
 			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
 			if err != nil {
 				return err
-			}
-			if follow && a.Format == output.FormatYAML {
-				return cerr.Usage("--output yaml is not supported with --follow")
 			}
 			path, err := sandboxLogsPath(resolved.Detail, entrypoint)
 			if err != nil {
@@ -84,23 +87,18 @@ func newSandboxUsageCommand() *cobra.Command {
 			if history {
 				path += "/history"
 			}
-			var resp any
 			if history {
-				resp = &map[string]any{}
-			} else {
-				resp = &gen.SandboxUsage{}
-			}
-			if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, resp); err != nil {
-				return err
-			}
-			if history {
+				var resp json.RawMessage
+				if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, &resp); err != nil {
+					return err
+				}
 				return a.Printer().Object(resp, [][2]string{{"id", resolved.Detail.Id}, {"history", fmt.Sprintf("%t", history)}})
 			}
-			usageResp, ok := resp.(*gen.SandboxUsage)
-			if !ok {
-				return cerr.New(cerr.ExitFailure, "unexpected sandbox usage response type")
+			var usageResp api.Raw[gen.SandboxUsage]
+			if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, &usageResp); err != nil {
+				return err
 			}
-			return a.Printer().Object(usageResp, sandboxUsageKV(usageResp))
+			return a.Printer().Object(usageResp, sandboxUsageKV(&usageResp.V))
 		},
 	}
 	cmd.Flags().BoolVar(&history, "history", false, "read usage history")
@@ -109,15 +107,19 @@ func newSandboxUsageCommand() *cobra.Command {
 
 func newSandboxPreviewURLCommand() *cobra.Command {
 	signed := false
-	ttl := int64(60)
+	ttl := secondsFlag{seconds: 60}
 	cmd := &cobra.Command{
-		Use:   "preview-url <id> <port>",
-		Short: "Mint a preview URL",
-		Long:  "Mint a preview URL.\nExamples:\n  daytona sandbox preview-url <id> 8080\n  daytona sandbox preview-url <id> 8080 --signed --ttl 300",
+		Use:   "preview-url <sandbox-id> <port>",
+		Short: "Mint a preview URL for a sandbox port",
+		Long:  "Mint a preview URL for a sandbox port. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flags().Changed("ttl") && !signed {
 				return cerr.Usage("--ttl requires --signed")
+			}
+			port, err := parsePreviewPortArg(args[1])
+			if err != nil {
+				return err
 			}
 			a := FromContext(cmd.Context())
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
@@ -128,36 +130,43 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := fmt.Sprintf("/sandboxes/%s/ports/%s/preview-url", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
+			path := fmt.Sprintf("/sandboxes/%s/ports/%d/preview-url", url.PathEscape(resolved.Detail.Id), port)
 			if signed {
-				path = fmt.Sprintf("/sandboxes/%s/ports/%s/signed-preview-urls", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
-				body := gen.CreateSandboxSignedPreviewUrlRequest{ExpiresInSeconds: &ttl}
-				var resp gen.SignedPreviewUrl
+				path = fmt.Sprintf("/sandboxes/%s/ports/%d/signed-preview-urls", url.PathEscape(resolved.Detail.Id), port)
+				body := gen.CreateSandboxSignedPreviewUrlRequest{ExpiresInSeconds: &ttl.seconds}
+				var resp api.Raw[gen.SignedPreviewUrl]
 				if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, &resp); err != nil {
 					return err
 				}
-				return a.Printer().Object(resp, [][2]string{{"url", resp.Url}, {"token", resp.Token}, {"expires_at", resp.ExpiresAt.Format(time.RFC3339)}})
+				return a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}, {"expires_at", resp.V.ExpiresAt.Format(time.RFC3339)}})
 			}
-			var resp gen.PreviewUrl
+			var resp api.Raw[gen.PreviewUrl]
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, nil, &resp); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, [][2]string{{"url", resp.Url}, {"token", resp.Token}})
+			return a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}})
 		},
 	}
 	cmd.Flags().BoolVar(&signed, "signed", false, "mint a short-lived signed preview URL")
-	cmd.Flags().Int64Var(&ttl, "ttl", ttl, "signed preview TTL in seconds")
+	addSecondsFlag(cmd.Flags(), &ttl, "ttl", "60s", "lifetime of a --signed preview URL (Go duration)")
 	cmd.AddCommand(newSandboxPreviewURLExpireCommand())
 	return cmd
 }
 
 func newSandboxPreviewURLExpireCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "expire <id> <port> <token>",
+		Use:   "expire <sandbox-id> <port> <token>",
 		Short: "Expire one signed preview URL",
-		Long:  "Expire one signed preview URL.\nExample:\n  daytona sandbox preview-url expire <id> 8080 <token>",
+		Long:  "Expire one signed preview URL. The token is not printed back.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			port, err := parsePortArg(args[1])
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(args[2]) == "" {
+				return cerr.Usage("the signed preview URL token must not be empty")
+			}
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -167,14 +176,53 @@ func newSandboxPreviewURLExpireCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := fmt.Sprintf("/sandboxes/%s/ports/%s/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id), url.PathEscape(args[1]))
+			path := fmt.Sprintf("/sandboxes/%s/ports/%d/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id), port)
 			body := gen.RevokeSandboxSignedPreviewUrlRequest{Token: args[2]}
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, nil); err != nil {
-				return err
+				return redactInError(err, args[2])
 			}
-			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "port": args[1], "token": args[2], "revoked": true})
+			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "port": port, "revoked": true})
 		},
 	}
+}
+
+// redactInError keeps err's exit code and details but drops secret from its
+// message, should the server echo it.
+func redactInError(err error, secret string) error {
+	if secret == "" || !strings.Contains(err.Error(), secret) {
+		return err
+	}
+	out := &cerr.Error{Code: cerr.ExitCode(err), Msg: strings.ReplaceAll(err.Error(), secret, "[redacted]"), Err: err}
+	var ce *cerr.Error
+	if errors.As(err, &ce) {
+		out.Hint, out.Source = strings.ReplaceAll(ce.Hint, secret, "[redacted]"), ce.Source
+	}
+	return out
+}
+
+// reservedPreviewPorts are the sandbox daemon's own ports: the API never
+// makes them preview ports.
+var reservedPreviewPorts = map[int]bool{2280: true, 2281: true, 22220: true}
+
+// parsePreviewPortArg is parsePortArg for a port a preview URL is minted for.
+func parsePreviewPortArg(raw string) (int, error) {
+	port, err := parsePortArg(raw)
+	if err != nil {
+		return 0, err
+	}
+	if reservedPreviewPorts[port] {
+		return 0, cerr.Usage("port %d is reserved for the sandbox daemon and is never a preview port", port)
+	}
+	return port, nil
+}
+
+// parsePortArg checks a <port> argument (1-65535) before any request.
+func parsePortArg(raw string) (int, error) {
+	port, err := strconv.Atoi(raw)
+	if err != nil || port < 1 || port > 65535 {
+		return 0, cerr.Usage("invalid port %q: want 1-65535", raw)
+	}
+	return port, nil
 }
 
 func sandboxLogsPath(detail gen.Sandbox, entrypoint bool) (string, error) {

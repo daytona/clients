@@ -10,8 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-import jsonschema
 import pytest
+from report_schema import validate_report
 
 from daytona_upgrade.cli import main
 
@@ -51,14 +51,11 @@ def test_schema_when_json_requested(
 ) -> None:
     # Given
     (tmp_path / "app.py").write_text(SOURCE)
-    schema = json.loads(
-        (Path(__file__).parents[2] / "mapping/report.schema.json").read_text()
-    )
     # When
     code = main([str(tmp_path), "--json", "--dry"])
     # Then
     report = json.loads(capsys.readouterr().out)
-    jsonschema.validate(report, schema)
+    validate_report(report)
     assert code == 0
     assert report["changedFiles"] == ["app.py"]
     assert report["dryRun"] is True
@@ -314,7 +311,7 @@ def test_information_when_help_or_version_requested(flag: str) -> None:
     assert code == 0
 
 
-@pytest.mark.parametrize("extension", [".py", ".pyi"])
+@pytest.mark.parametrize("extension", [".py", ".pyi", ".pyw"])
 @pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "latin-1"])
 def test_preserves_source_bytes_when_crlf_and_encoding_declared(
     tmp_path: Path, extension: str, encoding: str
@@ -345,3 +342,21 @@ def test_preserves_manifest_bytes_when_requirements_use_crlf(tmp_path: Path) -> 
         file.read_bytes()
         == b"# untouched comment\r\ndaytona[v0-sdk]>=2,<3\r\nnumpy>=1\r\n"
     )
+
+
+@pytest.mark.parametrize("initializer", ["__init__.py", "__init__.pyw"])
+def test_migrates_relative_imports_from_a_package_initializer(
+    tmp_path: Path, initializer: str
+) -> None:
+    # Given a package whose initializer re-exports the client class relatively.
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / initializer).write_text("from .clients import Client\n")
+    (package / "clients.py").write_text("from daytona import Daytona as Client\n")
+    app = tmp_path / "app.py"
+    app.write_text("from pkg import Client\nClient().create()\n")
+    # When
+    code = main([str(tmp_path), "--yes"])
+    # Then the call through the initializer's relative import is migrated.
+    assert code == 0
+    assert app.read_text() == "from pkg import Client\nClient().v0.create()\n"

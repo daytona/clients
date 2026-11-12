@@ -13,9 +13,10 @@ This repository is public and takes contributions from anyone. Everything
 below works with what is in the repository plus, optionally, a Daytona account:
 
 - **Live checks gate on credentials, not on who you are.** When
-  `DAYTONA_API_KEY` (and `DAYTONA_API_URL`, for a deployment other than the
-  default) are set, run the live suites (`./run-e2e.sh`); when they are not,
-  skip them and say so in the PR. Never ask a contributor for credentials, and
+  `DAYTONA_API_KEY` (and `DAYTONA_V2_API_URL`, for a deployment other than the
+  default) are set, run the live suites (`./e2e/run.sh`) for changes that
+  alter behaviour against the server; when they are not set, skip them and say
+  so in the PR. Never ask a contributor for credentials, and
   never paste a key, an endpoint that is not public, or a request trace into an
   issue, a PR, a commit message or a workflow input.
 - **Contract files come from maintainers.** `contract/` is refreshed by
@@ -67,16 +68,16 @@ husky hooks. Scans need git 2.36 or later.
 
 | Path | What |
 |---|---|
-| `python/` | `daytona` (module `daytona`) — root client + `daytona.v2` + `daytona.v0` (bundled at publish) |
-| `typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
+| `sdk-python/` | `daytona` (module `daytona`) — root client + `daytona.v2` + `daytona.v0` (bundled at publish) |
+| `sdk-typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
 | `cli/` | the `daytona` CLI (Go) |
 | `contract/` | the machine-readable API contracts the SDKs and the CLI are built against |
-| `scripts/` | v0 bundling, release helpers, the changelog tool |
-| `changelog.d/` | one changelog fragment per PR (see below) |
+| `scripts/` | v0 bundling (+ the `scripts/v0-sdk-version` pin), release helpers, the changelog tool |
+| `changelog.d/` | changelog fragments, one per user-visible change (see below) |
 | `examples/` | runnable examples for both SDKs |
 | `upgrade/` | `daytona-upgrade`, the 0.x → 2.x migration tool (npm + PyPI) |
-| `e2e.py`, `e2e.ts`, `run-e2e.sh` | live end-to-end suites (need `DAYTONA_API_KEY`) |
-| `docs/design/` | design records for SDK/CLI decisions that outlive a PR |
+| `e2e/` | live end-to-end suites, `e2e/run.sh` (need `DAYTONA_API_KEY`) |
+| `docs/` | release and versioning policy, contribution prep, `adr/` (architecture decision records) |
 
 ## PARITY CONTRACT (the rule that matters)
 
@@ -86,16 +87,27 @@ language: Python `snake_case` ↔ TS `camelCase`. One deliberate difference in
 the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 `d.v0`, TypeScript keeps `connectionPoolMaxsize` v2-only, because the 0.x
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
-records it). A second deliberate difference: the TypeScript root copies the
-config's fields once at construction (a getter could otherwise add a URL field
-after the check), while Python reads the live `DaytonaConfig` when it first
-builds `v0` / `v2` and re-checks the URL fields then (`_refuse_url_fields`).
-Both refuse URL fields at any time; only later edits to other fields differ.
+records it). Another: TypeScript `get()`, `create*()` and `fork()` take
+`autoDelete` (dispose the sandbox with `await using`); Python has no
+counterpart, because its handles have no disposal hook. `ImageBuilder`
+local files (`add_local_file` / `addLocalFile` and the rest, ADR 0006) need a
+file system: TypeScript raises `NotSupportedError` for them outside Node.js.
+TypeScript's config also has `otelApi` (the caller's
+`@opentelemetry/api` module, for bundled browser apps), which Python, whose
+OpenTelemetry package is a plain import, does not need. Both roots copy the config's fields once, when the client is
+built (TS `snapshotConfig`, Python `_snapshot_config`): later edits to the
+caller's object have no effect, and URL fields are refused before and after
+the copy (a getter or property could otherwise add one while it is read).
+Another deliberate difference, in compressed response bodies: a body cut short
+on the wire is caught by `Content-Length` / chunked framing in both SDKs, but
+incomplete compressed data inside a complete HTTP message is refused by Python
+(`ConnectionError`; it decodes itself) and passed through by TypeScript, whose
+runtimes decode it and accept it.
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
-`version` fields in `python/pyproject.toml`, `typescript/package.json` and
-`typescript/src/version.ts` are placeholders, overwritten in the publish run
-([RELEASING.md](RELEASING.md), [VERSIONING.md](VERSIONING.md)).
+`version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
+`sdk-typescript/src/version.ts` are placeholders, overwritten in the publish run
+([RELEASING.md](docs/RELEASING.md), [VERSIONING.md](docs/VERSIONING.md)).
 
 **Changelog fragments.** Never edit `CHANGELOG.md` for unreleased work — it
 has no `Unreleased` section. Add `changelog.d/<PR>.<type>.md`,
@@ -105,8 +117,9 @@ no leading `- `. Rules: [`changelog.d/README.md`](changelog.d/README.md);
 check: `python3 scripts/changelog/assemble.py check --dir changelog.d`.
 
 **One error hierarchy, by construction.** Status-level bases → source-code
-subclasses; each SDK carries a codes module (`codes.py` / `codes.ts`) holding
-one catalog per error source declared in the contracts plus the shared
+subclasses; each SDK carries a codes catalog (`_codes.py` behind the public
+read-only `daytona.v2.codes`; `codes.ts`, exported as the `codes` namespace)
+holding one catalog per error source declared in the contracts plus the shared
 generic table, dispatched on `(source, code)`. Drift tests per SDK hold those
 catalogs to the committed contract: `contract/api-openapi.json`,
 `contract/toolbox-openapi.json`, `contract/proxy-errors.json` and
@@ -135,8 +148,8 @@ the SDK does call fails as stale).
   break; if a drift test fails without an SDK change, treat it as a bug and
   flag it.
 - **Vendored wire types are generated from them — never hand-edit those
-  either.** `typescript/src/v2/gen/{toolbox,api}.ts`,
-  `python/src/daytona/v2/_gen/{toolbox,api}/` (pydantic v2 models) and
+  either.** `sdk-typescript/src/v2/gen/{toolbox,api}.ts`,
+  `sdk-python/src/daytona/v2/_gen/{toolbox,api}/` (pydantic v2 models) and
   `cli/gen/` type each wire boundary. After a contract refresh run
   `scripts/gen-contract-types.sh` (needs node, a JRE and Go) and let
   typecheck / mypy / `go build` surface what must adapt; CI runs it with
@@ -145,7 +158,7 @@ the SDK does call fails as stale).
 Enums: which are open is decided once, in the contract — every string enum
 in `contract/*.json` carries `x-daytona-open-enum` or `x-daytona-exact-enum`,
 and every generator reads the tag. The generated wire types are OPEN where tagged (TS `(string & {})` via
-`typescript/scripts/gen-contract.mjs`, which also checks its own output;
+`sdk-typescript/scripts/gen-contract.mjs`, which also checks its own output;
 Python `UNKNOWN_DEFAULT_OPEN_API` pseudo-members carrying the wire string, and
 no closed validator on an open inline enum), and every public SDK field backed by
 a contract enum is CLOSED known values + `'unknown'`, normalized at the
@@ -153,7 +166,7 @@ boundary, with the raw string on a `raw<Field>` / `raw_<field>` sibling.
 Vocabularies the contract does not declare as an enum (`ImageStatus`,
 `MacBootMode`, …) stay open until it does, as do the two the
 SDKs leave open on purpose (`LifecycleAction` on `lifecycle`, the interpreter
-`language`). Known lists come from `typescript/src/v2/gen/*-enums.ts` / the
+`language`). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
 `daytona/v2/_gen` enums; never cast an open wire value into a closed public type.
 
 TypeScript: consumers import the alias layers as namespaces (`import type *
@@ -166,29 +179,41 @@ names for the Daytona API) — edit those, not the generated output. Python:
 pydantic v2 models (`from daytona.v2._gen.toolbox import ProcessDto`;
 `ProcessDto.model_validate(payload)` at the boundary, which also validates);
 regeneration needs node + a JRE (openapi-generator, tooling pinned under
-`python/gen/`).
+`sdk-python/gen/`).
 
 ## The CLI — `cli/`
 
-Both SDKs, the CLI and the examples support volumes: the client `volume`
+Both SDKs, the CLI and the examples support volumes: the client `volumes`
 service manages them, `volumes` attaches them on create, and `sandbox.volumes`
 provides pull operations. The CLI exposes `volume` and `sandbox create --volume`
 (also on `create-macos`). Keep these surfaces in parity across the SDKs.
+
+The CLI's own API URL order, whatever the endpoint notes under "Version
+namespaces" say about the SDKs: `--api-url`, then `DAYTONA_V2_API_URL`, then
+the profile's saved URL, then `app.DefaultAPIURL` (equal to the SDKs'
+`DEFAULT_V2_API_URL`). The CLI never reads `DAYTONA_API_URL` or
+`DAYTONA_REGION` (regions come from `--region` only).
 
 The `daytona` CLI (Go) shares the SDKs' version line but is not part of the
 Python↔TS parity contract. Its wire types (`cli/gen/`) are generated from
 `contract/*.json` by `cli/hack/gen.sh`; its README is public-facing. Verify:
 `(cd cli && go vet ./... && go test ./...)`, lint with `golangci-lint run`
 (config `cli/.golangci.yml`). Release binaries: `cli/hack/build.sh` (six
-targets + `SHA256SUMS`), consumed by `install.sh` / `install.ps1` and the
-Homebrew formulae (`cli/hack/homebrew/`).
+targets + `SHA256SUMS`, each binary checked with `go version -m` against
+`cli/go.mod`'s `go` line), consumed by `install.sh` / `install.ps1` (highest
+stable 2.x by default; pre-releases only with a channel or version, except
+the highest pre-release while no stable 2.x release exists) and the
+Homebrew formulae of the `daytonaio/homebrew-cli` tap
+(`cli/hack/homebrew/README.md`). A release's channel (npm dist-tag, GitHub
+Release kind, formula) comes from its version through
+`scripts/release-channel.sh`.
 
 ## Version namespaces
 
 Both packages are a thin ROOT over one namespace per API major version:
 
-- **Root** (`python/src/daytona/__init__.py` + `_client.py`;
-  `typescript/src/index.ts` + `Daytona.ts`) exports only the client
+- **Root** (`sdk-python/src/daytona/__init__.py` + `_client.py`;
+  `sdk-typescript/src/index.ts` + `Daytona.ts`) exports only the client
   (`Daytona`, plus Python's `AsyncDaytona`), the flat shared `DaytonaConfig`
   (no API URL, no region; `target` v0-only and deprecated — it warns,
   pointing at v0's per-call `target` / `region_id`), the SHARED error
@@ -200,21 +225,21 @@ Both packages are a thin ROOT over one namespace per API major version:
   a guiding `ImportError`; any other name is a plain `AttributeError`. In TS,
   `d.v0` is the 0.x SDK's own client (see "TS `d.v0` is the real v0 client"), so
   every v0 behaviour, including unbound detached methods, is 0.x's.
-- **`v2`** (`python/src/daytona/v2/`, `typescript/src/v2/`) is the SDK this
+- **`v2`** (`sdk-python/src/daytona/v2/`, `sdk-typescript/src/v2/`) is the SDK this
   repo writes; everything below this section describes it. Its client has NO
-  API URL field either: it reads `DAYTONA_V2_API_URL`, else `DAYTONA_API_URL`,
-  at construction, else `DEFAULT_V2_API_URL` (TS through a computed `globalThis.process` lookup, so
+  API URL field either: it reads `DAYTONA_V2_API_URL` at construction, else
+  `DEFAULT_V2_API_URL` (TS through a computed `globalThis.process` lookup, so
   bundlers cannot inline it — browser workers that shim `process.env` rely
   on that). There is no client-level toolbox URL
   either: every sandbox response carries its own, and only a
   per-sandbox `toolbox_url` / `toolboxUrl` override remains.
-- **`v0`** (`python/src/daytona/v0/`, `typescript/src/v0/`) is the 0.x SDK
+- **`v0`** (`sdk-python/src/daytona/v0/`, `sdk-typescript/src/v0/`) is the 0.x SDK
   vendored from this repository's `release/v0` line at the PINNED tag and commit in
-  `v0-sdk-version` (line 1 the tag, line 2 the commit it peels to; the single
+  `scripts/v0-sdk-version` (line 1 the tag, line 2 the commit it peels to; the single
   source of truth — a moved tag fails `resolve-v0-tag.sh --verify`,
   `bundle-v0.sh` and the publish gate) by `scripts/bundle-v0.sh` at publish time —
   git-ignored, NEVER committed or hand-edited (`scripts/check-no-bundled-v0.sh`
-  is an sdk-ci gate). Bumping the pin is a two-line PR plus a 2.x release;
+  is an sdk-ci gate). Bumping the pin is a manual PR (docs/RELEASING.md, "The v0 pin") plus a 2.x release;
   `scripts/resolve-v0-tag.sh --verify` (sdk-ci) proves the pinned tag exists
   at the pinned commit. `scripts/v0-publish-mode.sh` (run by the publish
   gate) decides per published tree: a tree with neither the namespace
@@ -230,10 +255,11 @@ Both packages are a thin ROOT over one namespace per API major version:
   bumping the pin to a 0.x release that has them. With that pin, config
   `target` is deprecated in 2.x only (Python `DeprecationWarning`, TS
   `@deprecated` + one `process.emitWarning`, the same text); the 0.x SDK
-  never deprecates it. `python/tests/test_v0_bundle.py` and
-  `typescript/scripts/v0-bundle-smoke.cjs` run against the real bundle in
+  never deprecates it. `sdk-python/tests/test_v0_bundle.py` and
+  `sdk-typescript/scripts/v0-bundle-smoke.cjs` run against the real bundle in
   sdk-ci and publish (skipped without a bundle). `d.v0` always passes `V0_API_URL`, so
-  `DAYTONA_API_URL` never reaches v0. Python: v0's dependencies are the `v0-sdk`
+  `DAYTONA_API_URL` (the 0.x SDK's variable) never reaches v0; 2.x reads it
+  only for the one-time non-Cloud warning. Python: v0's dependencies are the `v0-sdk`
   extra (never plain `v0`: pip < 26 on 3.10 parses `extra == 'v0'` as a
   version and crashes every install), committed EMPTY and filled by the bundle; hatch `artifacts` keeps the
   ignored tree in wheel/sdist. TypeScript: `src/v0` compiles separately
@@ -243,7 +269,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   v0's runtime imports that its manifests leave undeclared
   (`@opentelemetry/resources`, `@opentelemetry/otlp-exporter-base`) are pinned
   to the single version v0's `yarn.lock` resolves — what the published v0
-  package declares (2.11.0 / 0.222.0 at `v0.224.0`) — so strict layouts
+  package declares (3.0.0 / 0.300.0 at `v0.231.1`) — so strict layouts
   (pnpm) resolve them; an ambiguous lockfile fails the bundle. The bundle also
   rewrites v0's `getPackageInfo()` to the bundled release, so its
   `X-Daytona-SDK-Version` / `User-Agent` report it (bundled one directory
@@ -251,8 +277,9 @@ Both packages are a thin ROOT over one namespace per API major version:
 - **One error hierarchy for both namespaces.** The root defines `DaytonaError`
   plus the 12 categories v0 and v2 share (BadRequest, Authentication,
   Forbidden, NotFound, Timeout, Conflict, Gone, UnprocessableEntity,
-  RateLimit, InternalServer, ServiceUnavailable, Connection; aliases
-  `DaytonaValidationError`, `DaytonaAuthorizationError`). Python
+  RateLimit, InternalServer, ServiceUnavailable, Connection), with no
+  synonyms (`from daytona import DaytonaValidationError` /
+  `DaytonaAuthorizationError` keep the 0.x guiding `ImportError`). Python
   (`daytona/_errors.py`): stateless marker classes that v2's classes also
   inherit in source and that v0's inherit through the bundle's anchored
   rewrite of `common/errors.py`, which FAILS if a class is missing. TypeScript
@@ -260,9 +287,9 @@ Both packages are a thin ROOT over one namespace per API major version:
   registry on `globalThis[Symbol.for('@daytona/sdk/error-registry')]`, keyed
   by category name, so the ESM root and the CJS-only `./v0` copy share it; v2
   registers at module load, and the bundled v0 entry registers v0's classes
-  when it loads (appended by `typescript/scripts/bundle-v0.mjs`), so v0 error
-  classes imported from `@daytona/sdk/v0` are caught with no `d.v0` access. The aliases are
-  class re-exports (usable as types). Version-specific errors are not
+  when it loads (appended by `sdk-typescript/scripts/bundle-v0.mjs`), so v0 error
+  classes imported from `@daytona/sdk/v0` are caught with no `d.v0` access.
+  Version-specific errors are not
   re-exported at the root. Python's root `__getattr__` raises `ImportError`
   (not `AttributeError`) on purpose so `from daytona import X` keeps its
   guidance; the cost is that `hasattr(daytona, "Sandbox")` raises.
@@ -280,8 +307,20 @@ Both packages are a thin ROOT over one namespace per API major version:
   subclasses keep the native check only. A jest drift test fails if an exported
   error class is not keyed. `exports` gives `.` and `./v2` conditional types
   (`require.types` → the CJS declarations in `dist/cjs`), checked by the
-  node16 fixture `typescript/scripts/cjs-types-fixture/` in the tarball smoke.
-- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DAYTONA_API_URL` → `DEFAULT_V2_API_URL` (the CLI mirrors this chain under its `--api-url` flag and above the profile's saved URL, `app.DefaultAPIURL` — keep the two defaults equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` and never reads `DAYTONA_API_URL` (passed explicitly as `api_url`/`apiUrl`). Blank = unset; no config field.
+  node16 fixture `sdk-typescript/scripts/cjs-types-fixture/` in the tarball smoke.
+- **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DEFAULT_V2_API_URL` (the CLI's default, `app.DefaultAPIURL`, must stay equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` (passed explicitly as `api_url`/`apiUrl`). `DAYTONA_API_URL` belongs to the 0.x SDKs and CLI: 2.x reads it only to warn once per process when it names a non-Cloud URL (the SDKs ignore it). Blank = unset; no config field.
+- **Ambient configuration is normalised the same way in both SDKs.**
+  `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`, `DAYTONA_PROJECT_ID` and
+  `DAYTONA_V2_API_URL` are trimmed and a blank value is unset; explicit config
+  values are used as given (checked against `undefined` / `None`, never
+  truthiness); an explicitly empty `api_key` / `jwt_token` / `project_id`
+  (`apiKey` / `jwtToken` / `projectId`) is a `BadRequestError` (400,
+  `BAD_REQUEST`, source `SDK`), like every invalid-configuration error,
+  including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. Missing
+  credentials are `AuthenticationError` (401, `UNAUTHORIZED`, `SDK`). The
+  TS root validates the copy it keeps: every enumerable key (own or
+  inherited) must be known, each known key and the nested `events` are read
+  once. The deprecated root `target` stays, deprecated, for all of 2.x.
 - **TS `d.v0` is the real v0 client, loaded synchronously.** The getter
   builds the 0.x SDK's `Daytona` on first access through the package-internal
   `#v0-loader` import (package.json `"imports"`): `loaders/v0-node.cjs`
@@ -369,11 +408,11 @@ Both packages are a thin ROOT over one namespace per API major version:
 
 Paths below are inside the v2 namespace.
 
-| Concern | Python (`python/src/daytona/v2/`) | TypeScript (`typescript/src/v2/`) |
+| Concern | Python (`sdk-python/src/daytona/v2/`) | TypeScript (`sdk-typescript/src/v2/`) |
 |---------|---------------------------|-------------------------------|
 | Public exports | `__init__.py`, `_exports.py` | `index.ts` |
 | v2 client / sandbox handle (async-native `AsyncDaytona` / `AsyncSandbox`) | `daytona.py`, `sandbox.py` | `Daytona.ts`, `Sandbox.ts` |
-| Synchronous surface (`Daytona`, `Sandbox`, …) — GENERATED | `_sync/` package (one file per async module; `_sync/_runtime.py` is the hand-written glue) ← `python/gen/gen_sync.py`; bridge in `_bridge.py` | *(n/a — TS is async-only)* |
+| Synchronous surface (`Daytona`, `Sandbox`, …) — GENERATED | `_sync/` package (one file per async module; `_sync/_runtime.py` is the hand-written glue) ← `sdk-python/gen/gen_sync.py`; bridge in `_bridge.py` | *(n/a — TS is async-only)* |
 | Sans-I/O request/parse layer | `_core.py` | (inline per namespace + `http.ts`) |
 | Transports (sync + async / axios + fetch-SSE) | `_transport.py`, `http.py` | `http.ts` |
 | Process engine namespace | `process.py` | `Process.ts` |
@@ -381,7 +420,7 @@ Paths below are inside the v2 namespace.
 | fs / git | `filesystem.py`, `git.py` | `FileSystem.ts`, `Git.ts` |
 | Platform services | `services.py`, `snapshot.py`, `secret.py` | `Images.ts`, `Snapshots.ts`, `Volume.ts`, `Secret.ts` |
 | Volume models / sandbox volume operations | `volume.py`, `sandbox_volumes.py` | `Volume.ts`, `SandboxVolumes.ts` |
-| Errors + code catalog | `errors.py`, `codes.py` | `errors/DaytonaError.ts`, `codes.ts` |
+| Errors + code catalog | `errors.py`, `_codes.py` (public view `codes.py`) | `errors/DaytonaError.ts`, `codes.ts` |
 
 ## The migration tool — `upgrade/`
 
@@ -404,14 +443,42 @@ skipping exist only in the TypeScript tool).
   a pin bump that adds 0.x surface needs mapping rows.
   `node upgrade/scripts/check-v2-surface.mjs` checks every v2 suggestion's call
   and argument names against the SDK sources in this repository.
+- **The `--json` report is public.** `upgrade/mapping/report.schema.json`
+  stays open so reports from later 2.x releases still validate: no
+  `additionalProperties: false`, and each vocabulary lists its values under
+  `examples`. Both suites validate the tools' output against a strict copy
+  derived from it (`tightened` in `upgrade/typescript/tests/report.test.ts`,
+  `upgrade/python/tests/report_schema.py`), so a new field or value must be
+  added to the schema in the same PR. Renaming or removing a field or value
+  needs a major version ([VERSIONING.md](docs/VERSIONING.md), "The migration tool").
 - **Runtime guard.** The moved client members are also the root clients'
-  runtime guard (`_MOVED_TO_V0` in `python/src/daytona/_client.py`,
-  `MOVED_TO_V0` in `typescript/src/Daytona.ts`); a test in each SDK pins them
+  runtime guard (`_MOVED_TO_V0` in `sdk-python/src/daytona/_client.py`,
+  `MOVED_TO_V0` in `sdk-typescript/src/Daytona.ts`); a test in each SDK pins them
   to the mapping.
 - The tools never rewrite v0 code to v2: `--suggest-v2` only writes
-  `daytona-v2:` comments. `docs.base` in the mapping is the Daytona docs home
-  until the migration guide has its own page; `upgrade-tool-publish.yaml`
-  refuses to publish while `docs.placeholder` is true.
+  `daytona-v2:` comments. `docs.base` in the mapping is the generated guide
+  on GitHub (`upgrade/MIGRATION.md` on `main`) until the Daytona docs publish
+  it (docs/RELEASING.md, "The migration guide"); every suggestion links
+  `docs.base#<anchor>`, and `upgrade/scripts/docs-links.test.mjs` checks each
+  anchor exists in the guide. `sdk_publish.yaml` refuses to publish the tool
+  while `docs.placeholder` is true.
+- **Lockstep versions.** `sdk_publish.yaml` publishes the tool with the SDKs at
+  the same version (`publish_upgrade`), and the tool targets that SDK
+  release (`sdk-target.ts` / `sdk_target.py`: a pre-release pins it, a stable
+  `X.Y.Z` writes `^X.Y.Z` / `>=X.Y.Z,<X+1`; the placeholder `0.0.0` keeps the
+  mapping's `range` / `specifier`). The SDKs' moved-member guidance names the
+  tool release of their own version. A publish run only builds and packs
+  the tool (`build-upgrade`); each tool package uploads once its SDK version
+  is visible on that registry.
+- **The project's 0.x version** (`v0-version.ts` / `v0_version.py`): read from
+  the closest lockfile, else the manifest's lower bound, and compared with the
+  mapping's `v0Version` (the pin; `check-v0-surface.mjs` keeps them equal and
+  `--write-v0-exports` updates it). Older and newer-patch versions warn
+  (`warnings` in the report, never a manual item), a newer minor refuses
+  (`newer-v0`, exit 2) unless `--allow-newer-v0`. Messages are identical in
+  both tools (`upgrade/mapping/v0-version-messages.json` holds shared
+  expectations both suites assert). A pin bump is a manual PR
+  (docs/RELEASING.md, "The v0 pin").
 - **Verify:** `scripts/test-upgrade.sh`, and for the pinned 0.x examples end to
   end `bash upgrade/scripts/check-examples.sh --src <0.x checkout> --py-wheel
   <built 2.x wheel> --ts-tarball <packed 2.x tarball>`
@@ -424,14 +491,391 @@ skipping exist only in the TypeScript tool).
   implement interpreter `timeout` CLIENT-side — wait to the deadline, then
   interrupt the kernel (INT, ^C semantics) and return the interrupted result
   (`wait_or_interrupt` / `waitOrInterrupt`).
-- **Public timeout names are `timeout` and `execution_timeout` / `executionTimeout`.**
-  Python timeouts are seconds; TypeScript timeouts are milliseconds. The wire
-  stays `timeoutMs` for toolbox process execs/waits, and the
-  transport-level HTTP deadline is configured once on the root client
-  (`DaytonaConfig.request_timeout` / `Daytona({ requestTimeout })`).
+- **Every duration is in seconds** (the rule; the TypeScript exceptions are listed below). Python keeps bare names (`timeout`,
+  `execution_timeout`, `request_timeout`, `escalate_after`,
+  `reconcile_interval`, `idle_close`, ...); API-stored durations keep their
+  `_seconds` names. TypeScript names end in `Seconds` (`timeoutSeconds`,
+  `executionTimeoutSeconds`, `requestTimeoutSeconds`,
+  `reconcileIntervalSeconds`, `idleCloseSeconds`, `escalateAfterSeconds`,
+  ...). Fractions are allowed unless the wire needs whole seconds (then they
+  are validated). The wire keeps its own units (`timeoutMs` for toolbox
+  process execs/waits). Timestamps are not durations: the toolbox's Unix
+  millisecond timestamps are named `timestamp_ms` / `timestampMs` (log frames,
+  filesystem events). The toolbox namespaces follow the rule: a positive
+  value is sent as at least 1 ms (TypeScript `exactMs` in `ProcessWire.ts`,
+  Python `timeout_millis_from_seconds`), and a caller budget or deadline
+  above the longest timer is no limit (TypeScript `secondsToMs` /
+  `aboveTimerMaximum`, Python `wait_budget` / `above_timer_maximum`). The
+  client, lifecycle and platform-service options (images, snapshots,
+  volumes, build logs, docker) are in seconds too; no option takes
+  milliseconds.
+- **The request timeout is a total-time bound, the same in both SDKs.**
+  Configured once on the root client (`DaytonaConfig.request_timeout` /
+  `new Daytona({ requestTimeoutSeconds })`), default 60 s; `0`, or a value
+  above 2,147,483.647 s (the longest JavaScript timer), means no limit (the
+  events hub's durations clamp to that maximum instead). It bounds
+  one ordinary call from sending it to reading the last byte of the response,
+  with ONE deadline for the whole call: resolving the bearer (a token
+  exchange or sandbox-token mint), the request, a 401 refresh and its retry
+  share it (Python `_request_deadline` around the transport call, TS an
+  abort-signal timer armed in the axios interceptor whose `deadlineAt` survives
+  the retry; httpx's and axios' own timeouts are per phase or idle timers, not
+  this). Every timer the SDK arms for it treats a delay above
+  `MAX_TIMER_DELAY_MS` as no bound (`boundedTimerDelay`). Not cut by it: waits, long polls and holds
+  (they pass their own `timeout`, or `0`; Python `/wait` paths and
+  `unbounded_read`), streams (bounded only until their response headers
+  arrive), and file transfers (Python `RequestSpec(transfer=True)` /
+  `transport.request(..., transfer=True)`, TS `transferRequest(...)` on axios
+  or `fetch(..., { transfer: true })`). A new call of one of those kinds must
+  opt out the same way in both SDKs. File transfers are exempt from the total
+  deadline but idle-bounded: one fails with `ClientTimeoutError` once no
+  bytes move for the request timeout (connecting, the request body, the
+  response headers, every body gap; `0` = no idle bound), and one that keeps
+  moving bytes is never cut. Python gives a transfer httpx's per-phase timeout
+  of that length (`_client_timeout`); TypeScript arms an idle watchdog
+  (`IdleWatchdog`), kicked by upload progress where the runtime reports it
+  (Node's http adapter, a streamed `fetch` body) and by every response chunk;
+  where it cannot see upload progress (the fetch adapter, a request body over
+  64 KiB) the bound starts at the response headers. Build-context part
+  uploads (straight to storage, outside the transports) follow the same
+  rule: an attempt fails once no bytes move for the request timeout, is
+  retried, and the last stalled attempt is `ClientTimeoutError`; each part
+  is sent in 64 KiB pieces (Python httpx per-phase timeouts in
+  `_context_upload.py`, TypeScript an `IdleWatchdog` over a streamed body in
+  `contextUpload.ts`); the one exception is a TypeScript in-memory part in a
+  browser, Bun or Deno, which is sent whole and has no idle bound (Python
+  pieces every part, and also bounds reading the archive: its file reads run
+  in worker threads abandoned on cancellation). The CLI bounds a
+  part the same way, at 60 s.
+  **Every response body the SDK buffers whole is capped**, through both
+  transports in both SDKs (JSON, the in-memory reads, multipart bulk reads,
+  error bodies): `max_response_bytes` / `maxResponseBytes` on the client
+  config (an integer up to 2^53 − 1; Python `None` / TypeScript `undefined`
+  or `null` keep the 1 GiB default, `0` means no limit, any other value is a
+  `BadRequestError`) and per call on the in-memory reads (the same values;
+  unset keeps the client's cap): `read_bytes` / `readBytes`, `read_text` /
+  `readText`, `read_many` / `readMany` (the whole multipart body), the
+  recording download. A declared `Content-Length` over the cap is refused
+  before the body is read, otherwise reading stops once it passes, and the
+  connection is closed (Python `_body_limit`, TS `boundedAdapter.ts` /
+  `readFetchText`). A compressed body is capped on its decoded bytes:
+  Python reads the wire bytes and decodes gzip (also sent as `x-gzip`) /
+  deflate itself in steps of at most 64 KiB (`DECODE_STEP`), so at most one
+  step past the cap is ever produced, asks only for those
+  (`Accept-Encoding: gzip, deflate`), refuses any other encoding undecoded, and refuses compressed data that stops before
+  its end as a `ConnectionError`, like a body cut short on the wire; in
+  TypeScript the runtime decodes the body, and every decoded chunk is checked
+  against the cap before it is kept (on Node both adapters decode in chunks
+  of at most 16 KiB, measured by `tests/transfer-bounds.test.ts`; other
+  runtimes use their own chunk sizes). A refused success response is `PayloadTooLargeError`
+  (413, `PAYLOAD_TOO_LARGE`, `SDK`); an error response keeps its status's
+  error. TypeScript sends every axios request through `boundedAdapter`:
+  Node's http adapter where the runtime has it, else its own `fetchAdapter`
+  (never axios' xhr or fetch adapters, which buffer before checking in some
+  runtimes); the runtime suite's `capOk` check holds every runtime to it.
+  Streamed bodies (`download_file` / `downloadFile`, log, event and
+  build-log streams, watches) are never buffered whole, so their total size is
+  never capped; each event of an SSE stream (process logs, watches) is
+  bounded, though (see "Watches are callback-only" below). For large files, or content
+  from a sandbox you don't trust, use `download_file` / `downloadFile`, which
+  stream to disk with progress and cancellation. TypeScript's `downloadFile`
+  is Node.js-only (a browser build throws `NotSupportedError`); in a
+  browser, the in-memory reads (under their cap) and a pre-signed download
+  URL (`presignedDownloadUrl`), which the browser fetches directly, are the
+  options.
+  A per-call timeout (a wait's budget plus its slack; a create POST that
+  asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
+  healthy hold is never cut, with no bound when the request timeout is `0`
+  or the hold is above the timer maximum, while a create with no hold stays
+  an ordinary request; a git remote call, the
+  Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
+  / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
+  `timeout`) replaces the request timeout for that call with the same
+  meaning: one deadline from before credential resolution (the bearer
+  exchange or mint, the request, a 401 refresh and its retry) to the last
+  byte, `0` or a value above the timer maximum meaning no limit (Python
+  `_total_seconds`, TS `armRequestDeadline`). The project-token exchange
+  request is itself also bounded by the client's request timeout (it is
+  shared by concurrent calls), so a per-call timeout longer than the request
+  timeout does not lengthen it. On a stream the per-call timeout likewise
+  bounds opening it, until its response headers (Python
+  `_stream_open_seconds`, on `open_stream` and `open_exclusive_stream`);
+  the transport bounds no stream's body as a total, by either timeout. One
+  transport exception: Python's `open_exclusive_stream` keeps an explicit
+  finite per-call `timeout` as httpx's idle-read bound on the body unless the
+  spec sets `unbounded_read` (the build-log follower does); with no per-call
+  `timeout` it clears the read bound, so the request timeout bounds no gap
+  after the headers. Callers may bound a body themselves: Python's build-log
+  discovery (`_discover`) and one-shot read (`read_build_logs`) wrap their
+  body read in `anyio.move_on_after` with a deadline from their timeout. A
+  transfer's own timeout replaces the request timeout as its idle bound
+  (Python `_transfer_idle_seconds`, TS `transferRequest` / `fetch`'s
+  `timeout`), never as a total deadline; resolving a transfer's credential
+  (the bearer, a 401 refresh) is bounded by that idle bound too.
+- **TypeScript rejects unknown option keys at runtime.** A covered options object
+  declares its known keys once, with
+  `optionKeys<T>()({ ... })` from `src/v2/options.ts` (a compile error when the
+  list misses a key of `T` or names one `T` lacks), and its entry point calls
+  `assertKnownOptions('TypeName', options, KEYS)` (or `snapshotOptions`, which
+  also copies it), which throws `BadRequestError` (400, `BAD_REQUEST`, source
+  `SDK`) naming the key; inherited enumerable keys count (symbol keys too), and a value that is
+  not an options object (`null`, a boolean, an array: an older positional
+  argument; a built-in such as a `Date` or a `Map`) is refused (the root
+  constructor alone reads `null` as no configuration, as Python does `None`). A key in
+  `RENAMED_OPTIONS` (`timeout`, `executionTimeout`, `escalateAfter`,
+  `requestTimeout`, the 0.x `requestTimeoutMs`, `delay`, `reconcileIntervalMs`,
+  `idleCloseMs`) whose replacement is
+  a known key gets a message naming both, for `timeout`: "`timeout` was
+  renamed to `timeoutSeconds` (seconds)".
+  Pass-through maps inside options (`env`, `labels`, ...) are never checked.
+  Python needs no helper: unknown keywords already raise `TypeError`. Applied
+  to the client configuration (`DaytonaConfig`, `SandboxEventsConfig`), to
+  every client, sandbox-lifecycle and platform-service options object
+  (nested `resources`, ports and volume mounts included, and the
+  `IfMatchOptions` of the network-policy and secrets updates) and to every
+  toolbox options object (process, session, PTY, interpreter, filesystem,
+  git, LSP, computer use, including nested `TerminalSize` /
+  `ComputerUseRegion` / `LspCompletionContext` and the `{ cmd }` / `{ argv }`
+  command).
+- **TypeScript `null` in options, as it stands.** Over every option of the
+  client, the `Sandbox` handle's lifecycle and platform calls and the
+  platform services (toolbox namespaces aside), TypeScript reads `null`
+  exactly as Python reads `None` except where noted:
+  - omitted in both: every create, `createFromBuild()` and fork option
+    `None` omits (nested fields included; the network policy is an explicit
+    null in both), every list, `iter()` and search option except
+    `images.list()` / `iter()`'s `anonymous`, `get()`'s `toolboxUrl` /
+    `accessToken`, `findByName()`'s `region`, `getLimits()`'s
+    `organizationId`, `captureImage()`'s `name` / `idleExpirySeconds`, each
+    `updateLifecyclePolicy()` field, the image options of `images.build()` /
+    `pull()` (`name`, `idleExpirySeconds`, `region`, `cpuArch`),
+    `secrets.set()`'s `description`, the reservations' `idempotencyKey`
+    (create, `createBulk()`, `renew()`) and `macModels.catalog()`'s `region`;
+  - refused in both (`BadRequestError` before any request): every lifecycle
+    and Docker wait budget (`start`, `stop`, `pause`, `resume`, `delete` by
+    handle and by id, `wait()`, `docker.waitUntilReady()`), the create and
+    fork `waitSeconds`, `wait()`'s `until`, `ifMatch`, `followBuildLogs()`'s
+    `onLogs`, `images.pull()`'s `wait`, `images.list()` / `iter()`'s
+    `anonymous`, `volumes.get()`'s `create` / `idOnly`, `volumes.create()`'s
+    `name`, `volumes.delete()`'s `idOnly`, `secrets.set()`'s
+    `allowedDomains` / `ifNotExists`, the reservations' `region`,
+    `createBulk()`'s `count`, `reservations.update()`'s `autoRenew`,
+    `ports.expose()`'s `public` and `sandbox.volumes.pull()`'s `requestId`;
+  - TypeScript-only: `autoDelete` (create, `get()`, fork) refuses `null`;
+    `followBuildLogs()`'s `signal` omits it;
+  - TypeScript refuses `null` where Python's `None` omits, for now
+    (accepting it later is additive): `images.get()` / `snapshots.get()`
+    `wait` and `timeoutSeconds`, `images.pull()` and
+    `images.buildFromContext()` `timeoutSeconds`,
+    `volumes.create()` `sizeGib` and `type`, `ports.signedPreviewLink()`
+    `expiresInSeconds`, `createAccessToken()` `ttlSeconds` / `operations` /
+    `ports`, `followBuildLogs()` (client and sandbox) `cursor` /
+    `timeoutSeconds` / `onEvent`, `reservations.create()` / `createBulk()`
+    `model` / `autoRenew`, `createBulk()` `minCount`, and
+    `sandbox.volumes.pull()` `timeoutSeconds`.
+- **Errors have one shape.** v2 category names are identical in both SDKs
+  (`AuthenticationError` 401, `ForbiddenError` 403, `ClientTimeoutError` for
+  the client's own timeout, ...); no `Daytona…` synonyms in v2. Errors carry
+  `.code` only (no `error_code` / `errorCode`); `code` and `source` are open
+  vocabularies (an unknown code is kept verbatim, the class falls back to the
+  HTTP status). An error response's body is read for a code, source and
+  details only when its media type is exactly `application/json`
+  (case-insensitive, parameters ignored: Python `is_json_media_type`, TS
+  `isJsonMediaType`), on every error path (the transports, the byte reads,
+  the bulk read, build logs, the token exchange); any other body is only the
+  message of the status's own error. Constructors take the message plus options: TS
+  `new XError(message, options?: ErrorOptions)`, Python
+  `XError(message, *, status_code=None, code=None, source=None, ...)`, with the
+  same defaults (`TransferCancelledError()` → "file transfer cancelled", 499,
+  `REQUEST_CANCELLED`, `SDK`; `ClientTimeoutError` → 408, `REQUEST_TIMEOUT`,
+  `SDK` on every transport path, message "operation timed out" by default; a
+  field passed as `None` / `undefined` takes its default; `ConnectionError`
+  → source `SDK`). Errors the SDK raises itself carry `source='SDK'`, and the
+  catalog's status, code and class where the catalog has one (an invalid
+  argument is `BadRequestError` 400 `BAD_REQUEST`; build them with
+  `create_error` / `badRequest(message)` / `createDaytonaError(message,
+  status, code, 'SDK')`, never `new DaytonaError(...)`, which a TS guard test,
+  `tests/sdk-raised-errors.test.ts`, holds to a shrinking list); local
+  I/O and protocol failures carry the source only. A response that breaks the
+  contract in a field the SDK reads or returns is `BadRequestError` 400
+  `BAD_REQUEST` `SDK` naming the field, with no exception: every response
+  the client, lifecycle, platform services and toolbox map is checked
+  against the contract fields it reads, nested fields and list items
+  included (TS `checkResponse` in `src/v2/responseFields.ts` and the toolbox
+  mappers, Python the generated models through `expect_*` and the typed
+  toolbox models), and an id another request follows is checked before
+  that request; fields it neither reads nor returns, such as a pre-signed
+  URL response's `url`, are not checked. A discriminator value or stream
+  event this release does not know is NOT a contract break (a later 2.x API
+  may add one, VERSIONING.md's one-minor-ahead promise): an image source of
+  another kind is Python `UnknownImageSource(raw_type=…)` / TS
+  `{ type: 'unknown', rawType }`, and a build-log event of an unknown name is
+  skipped unparsed without moving the cursor, as watches skip theirs; a known
+  discriminator keeps every check, and a type that is not a non-empty string
+  is still malformed. The SDKs never follow an HTTP redirect: a 3xx response
+  is a `DaytonaError` carrying its status, source `SDK` (in a browser, fetch's
+  opaque redirect reads status 0 and gives the same error with no status;
+  Python
+  `redirect_error`, TS `redirectError`; axios `maxRedirects: 0`, fetch
+  `redirect: 'manual'`, httpx's default), and the events WebSocket refuses a
+  3xx handshake (Python `process_redirect`, TS `ws` / WHATWG defaults). Integers match between the SDKs except
+  in one case: a JSON number written with a zero fraction (`3.0`) is not an
+  integer in Python, which refuses it, while TypeScript's `JSON.parse` cannot
+  tell it from `3`, so only Python can refuse it. An id or name a call puts
+  into a request path is a non-blank string with no surrogate code point
+  (in TypeScript an unpaired UTF-16 surrogate) that is not `.` or `..`
+  (Python `path_segment`, TypeScript `pathSegment`). Python callers should not star-import
+  `daytona.v2` errors: `ConnectionError` / `FileNotFoundError` shadow the
+  built-ins.
+- **Generated wire types must not reach the public surface** (the rule; the
+  remaining exceptions are the guards' `ALLOWED` lists). No public export,
+  and no type in a public signature, comes from `daytona.v2._gen` /
+  `src/v2/gen` (alias layers included). Inherited members, index signatures
+  and base types count. `tests/test_public_surface_generated.py`
+  and `tests/public-surface-generated.test.ts` walk everything reachable from
+  the entry points and fail on a new violation or a stale entry in their
+  `ALLOWED` lists, which only shrink.
+- **Sandbox fs paths are absolute.** Every remote path of `sandbox.fs` must
+  start with `/` and is refused locally otherwise (Python `sandbox_path`, TS
+  `sandboxPath`); git pathspecs stay relative to the repository. A path list is
+  a real sequence / array of strings, never a bare string, and bytes are any
+  bytes-like value (Python buffer, TS `ArrayBuffer` or view), sent exactly.
+- **A closed v2 client raises `ClientClosedError`** (`CLIENT_CLOSED`, source
+  `SDK`, no HTTP status) for every new request through it or its handles, in
+  Python sync, async and TypeScript; `root.v2` after `root.close()` builds a
+  fresh client. A shared events hub is not closed by one of its clients.
+- **Blocking runs refuse `stdin="open"`**; `start()` / `session.start()` send
+  `keep_logs` `on_exit_ttl` when none is given; an execution timeout of `0` is
+  omitted (no deadline); PTYs get `TERM=xterm-256color` unless `env` sets it.
 - **Signals are bare names on the surface, `SIG*` on the wire** — the mapping
   lives in exactly one place per SDK (`signal_spec` / `signalWire`), and wait
-  results strip the prefix on the way back.
+  results and process metadata strip the prefix on the way back
+  (`bare_signal` / `bareSignal`).
+- **Process tags are checked before any request.** A `tag` (every create,
+  `list()`, `kill_all()` / `killAll()`) is a safe identifier
+  (`[A-Za-z0-9._-]`, 1-128 characters, not `.` or `..`; Python
+  `process_tag`, TS `processTag`); the kill timeout is seconds, more than 0
+  and at most 60 (Python `timeout`, TS `timeoutSeconds`): the toolbox takes
+  1-60000 ms and has no unbounded wait, so no value means "no limit", and an
+  omitted one uses the toolbox's 10-second default. `kill_all()` /
+  `killAll()` raises `UnsupportedOperationError` on macOS and on sandboxes
+  without process containment.
+- **Process results report what the sandbox reported.** `WaitResult` (and
+  `ProcessResult`, `InterpreterProcess`, which extend it) always has a
+  normalized `reason` (`unknown` + `raw_reason` / `rawReason` for an unlisted
+  or absent one); `exit_code` / `exitCode` and `signal` are optional in every
+  case and never filled in by the SDK. `run()` / `session.run()` / `exec()`
+  take `RunKeepLogs` and refuse `none`, since they read the output back from
+  the log. `stream_logs()` / `streamLogs()` yield the tagged
+  `StreamLogEvent` union (`log`, `state`, `warning`, `eof`) and raise the
+  typed error of a stream `error` event.
+- **Toolbox identities are one camelCase JSON in both SDKs.**
+  `ProcessHandleJSON` `{sandboxId, processId, kind?}`, `SessionJSON`
+  `{sandboxId, sessionId}`, `InterpreterContextJSON`
+  `{sandboxId, contextId, language}`, camelCase only (snake_case keys are
+  refused in both SDKs). Handles reconnect through their namespace
+  (`process.connect`, `process.connect_session` / `connectSession`,
+  `interpreter.connect_context` / `connectContext`), never through a
+  constructor or a `from_json`.
+- **Construction of toolbox services and handles is internal.** Python
+  constructor parameters are `_`-prefixed; TypeScript constructors take the
+  `INTERNAL` token from `src/v2/internal.ts` (not reachable through the
+  package `exports`) and throw a `TypeError` without it; their published
+  declaration is `constructor(token: Internal, ...init: never[])` (the real
+  signature is `@internal`): it names only the opaque `Internal` token type,
+  never the internal transport or wire inputs (`HttpTransport`,
+  `ComputerUseTransport`, axios, generated types), which
+  `tests/public-declarations.test.ts` checks in the emitted declarations,
+  with an `ALLOWED` list for classes of other areas. Tests import the token
+  from the module.
+- **Watches are callback-only.** `watch_dir(path, on_event, ...)` /
+  `watchDir(path, onEvent, ...)`: callbacks run one at a time and are
+  awaited; a failing event or overflow callback ends the watch with that
+  error (`exit_error` / `exitError`); a failing exit callback is contained;
+  an external `stop()` returns after an active delivery and the exit
+  callback finish; a callback (or the exit callback) stopping its own watch,
+  or awaiting `wait_for_exit()` / `waitForExit()`, directly or from a task it
+  started, does not wait for itself (a per-delivery token: Python a
+  `contextvars.ContextVar`, which child tasks inherit, and on the sync client
+  the generated twins' `_SYNC_LOOP_VARIANTS` on the bridge loop thread; TS an
+  AsyncLocalStorage where the runtime has one, else only the synchronous part
+  of a callback or of the exit callback counts: in runtimes without
+  `AsyncLocalStorage` (browsers), a callback or `onExit` that stops its own
+  watch after an `await` must not await that `stop()`; an external `stop()`
+  always waits, in every runtime). The event `type` is an open string (the contract
+  declares no enum); an unknown SSE event is skipped without parsing its
+  data, and a known one whose data is not JSON is the malformed-response
+  error; an SSE block without a `data:` line, or an unterminated final one,
+  dispatches nothing. A watch whose stream ends on its own (or is cut short)
+  ends with `ConnectionError` (source `SDK`), and a close failure after the
+  caller's own `stop()` is not an exit error. The exit callback belongs to a
+  watch `watch_dir()` / `watchDir()` returned and runs exactly once; any
+  failure before that call returns (a refused connection, an HTTP error, a
+  stream that ends or breaks before `start`, a cancellation) is raised from
+  it and never calls the exit callback. Callbacks are held until
+  `watch_dir()` / `watchDir()` has returned its handle, so after a direct
+  `await` a callback can stop the watch through it; when the call runs inside
+  another task (Python `gather`, `create_task`, `wait_for` on 3.10–3.11; TS
+  `Promise.all` or a later await) or on the sync Python client (its twin
+  releases the callbacks once it has built its handle, `_SYNC_AFTER_WRAP`),
+  the first events can reach a callback before the caller holds the handle.
+  The documented way to stop a watch from an event, in every case, is to
+  signal the code that holds the handle and call `stop()` there. Events read
+  before `start` are held and delivered after it, at most 4096 events, and the
+  stream may send at most 1 MiB before `start`
+  (`WATCH_MAX_EVENTS_BEFORE_START` / `WATCH_MAX_BYTES_BEFORE_START`); more
+  fails the call with `BadRequestError`. Every SSE reader counts an event's
+  bytes as they arrive (Python `SseLineSplitter` over the body's bytes, TS
+  `sseMessages` with an `SseBound`), so one never-ending event is bounded:
+  before `start` by the watch's remaining budget (every frame counts,
+  comment-only heartbeats included; Python `SseLineSplitter.completed_bytes`,
+  TS `SseBound.limit(completed)`), otherwise (after `start`,
+  process log streams) by the client's `max_response_bytes` /
+  `maxResponseBytes`, an event over it `PayloadTooLargeError` (413,
+  `PAYLOAD_TOO_LARGE`, `SDK`). Python decodes every streamed body itself
+  (`AsyncResponseStream.iter_bytes()` through `_body_limit.decoded_chunks`:
+  gzip (also sent as `x-gzip`) / deflate in `DECODE_STEP` pieces, any other
+  encoding refused; compressed data that stops before its end raises a
+  `ConnectionError`), never
+  through httpx's decoders, so a compressed event is bounded too. A process log stream cut short is
+  `ConnectionError` too (TS maps body-read failures once, in `sseMessages`),
+  and so is one that ends without `eof`: the server ends it with `eof`, so
+  an iteration that ends normally always has the whole log.
+- **Toolbox results are SDK-owned models.** File info, grep / replace items,
+  git status / commits / remotes, system metrics, the LSP types and the
+  computer-use results are hand-written (Python frozen keyword-only
+  dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
+  frozen at run time at every depth with `deepFrozen` from `frozen.ts`
+  (live handles, bytes and streams are not), timestamps as RFC 3339
+  strings, except the Unix-millisecond numbers `timestamp_ms` / `timestampMs`
+  of log frames and filesystem events), as are log pages and bulk-write results; a value a callback
+  receives (a watch event) is frozen too,
+  with every field the contract requires
+  required: a response that breaks the contract in a field the SDK reads or
+  returns (a missing required field, a wrong type, a value outside the
+  contract's `minimum` / `maximum`, a malformed timestamp, a list or map shape
+  the contract does not have, an unparsable bulk-download error part, a
+  number a double cannot carry, which `JSON.parse` reads as `Infinity`:
+  Python checks every number field at the typed-model boundary with the
+  shared `finite_number`) is the malformed-response
+  `BadRequestError` (400, `BAD_REQUEST`, source `SDK`, naming the field),
+  never a placeholder value; unknown fields are dropped (computer-use keeps
+  them in its named `extraFields` bags). A 2xx response that declares JSON
+  and does not decode (invalid JSON, invalid UTF-8, the non-standard `NaN` /
+  `Infinity` constants) is that error at the transport, whether or not the
+  call reads the body (TS reads such bodies as bytes and decodes them
+  itself, `decodeResponseBody` in `http.ts`). Only the media type
+  `application/json` is JSON (case-insensitive, parameters ignored:
+  Python `is_json_media_type`, TS `isJsonMediaType`), and a JSON value may
+  nest arrays and objects at most 600 deep (`JSON_MAX_DEPTH`, Python
+  `loads_json`, TS `jsonDepth.ts`): the stdlib decoder's own limit depends on
+  the Python version and the thread's stack, so the SDKs set one. An error
+  response always raises its status's typed error; a body declared as
+  `application/json` and nested past the limit is unreadable (no code or details from it, the message says it was
+  nested too deeply), as an oversized one is (Python `error_from_response`,
+  TS `createAxiosDaytonaError` / `errorFromFetchResponse`).
+  `.` and `..` are no path ids: every toolbox id or name in a request path
+  goes through Python `path_segment` / TS `pathSegment`.
 - **Output is channel-filtered.** `stdout`/`stderr` come from their frame
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
@@ -445,7 +889,8 @@ skipping exist only in the TypeScript tool).
   `sandbox.runCode(...)` delegates to `interpreter.run(...)`.
 - **Context-free interpreter runs share state.** `interpreter.run()` /
   `sandbox.run_code()` / `sandbox.runCode()` send no `sessionId` unless the
-  caller names one or asks for `isolated`. Repeated runs share state within
+  caller selects a `context` (handle, JSON identity, or id plus `language`)
+  or asks for `isolated`. Repeated runs share state within
   each language. `create_context` / `createContext` is how callers get independent
   state.
 - **Explicit interpreter contexts surface loss, they do not self-heal.** If a
@@ -455,8 +900,12 @@ skipping exist only in the TypeScript tool).
   the context and what code is safe to rerun.
 - **Every pageable public list returns one envelope page.** Hidden pagination
   loops are forbidden; multi-page traversal lives in explicit iterators
-  (`iter()`), each with a cursor-cycle guard. Non-pageable list surfaces such
+  (`iter()`), each with a cursor-cycle guard; an absent or empty `next_cursor` ends one. Non-pageable list surfaces such
   as `interpreter.list_contexts()` / `listContexts()` stay one-shot arrays.
+  The client's `list()` / `iter()` take only a cursor and a limit; filters
+  belong to `search()`, whose `states` take SDK states and map to the API's
+  status vocabulary at the boundary. `find_by_name` / `findByName` returns
+  every match and is the one documented exception to the one-page rule.
 - **SDK request attribution uses the Daytona header triple.** `X-Daytona-Source`
   (`sdk-typescript`, `sdk-python`, `sdk-python-async`),
   `X-Daytona-SDK-Version`, and `User-Agent: <source>/<version>` on every request.
@@ -471,11 +920,85 @@ skipping exist only in the TypeScript tool).
 - **Region is per create, never config.** `region=` / `{ region }` on every
   create and on `find_by_name` / `findByName`; neither the root nor the v2
   config carries a region or reads `DAYTONA_TARGET`.
-- **`create()` has one typed source.** Python takes `source: str | Image | None`
-  positionally (`str` = snapshot name); TypeScript takes `snapshot` or
-  `image: Image`. `sandbox.fork()` is the only fork entrypoint, and
-  `create()` with no source sends no image field so the server can resolve the
-  platform default.
+- **One create method per source.** `create(image)` takes an image name or
+  id (or none: no image field is sent, so the server resolves the platform
+  default); `create_from_snapshot` / `createFromSnapshot` takes a snapshot and
+  no sizing (the snapshot carries it); `create_from_build` / `createFromBuild`
+  builds an `ImageBuilder`, bounded by its own `build_timeout` /
+  `buildTimeoutSeconds`, then creates from the image with the full create
+  wait; `create_macos` / `createMacos` creates a macOS sandbox. Sizing is one
+  `resources` entry (`Resources`, `MacosResources`) whose GiB values must be
+  whole MiB. `sandbox.fork()` is the only fork entrypoint.
+- **Lifecycle methods wait; create and fork hand back what they observed.**
+  `start`, `stop`, `pause`, `resume` and `delete` wait for their state
+  (`stop` → `stopped`, `delete` → `destroyed`, a 404 during the delete wait
+  included) with `timeout` / `timeoutSeconds` (default 60, `0` = no deadline;
+  in both SDKs every wait budget of the area, fork's `wait_seconds` /
+  `waitSeconds` included, reads a value above the timer maximum, about
+  24.8 days, as no deadline too: Python `wait_budget_seconds` in
+  `_core.py`, TypeScript `waitDeadline` in `src/v2/options.ts`),
+  raising `RequestTimeoutError` (source `SDK`) or
+  `SandboxTerminalStateError`. A terminal state the events hub reports (it
+  can hold one from before the request, e.g. `error` while a DELETE already
+  moves the sandbox on) is confirmed with one read while the wait has budget
+  left, unless that state already came from a full read or is `destroyed`;
+  the read decides: a target state returns (for delete a 404 too), a terminal
+  state raises with the read state, and any other state keeps polling under
+  the same deadline. Without that read, or when it fails, the reported state
+  raises; when the reported state came from a full read that shows the same
+  state and wire status, the error names that read's reason. Every
+  `SandboxTerminalStateError` carries the wire status it knows as `raw_state`
+  / `rawState`, and one raised from a read the server's `reason` too
+  (`failed` and `lost` share the public `error`, so a reason read for one
+  never labels the other). A wait for `destroyed` whose terminal states are
+  only `destroyed` / `error` (`delete()`, `wait(until="destroyed")`) holds
+  its long polls with `wait_exact=deleted` (Python `wait_query_key`,
+  TypeScript `waitQueryKey`); the confirming read is a plain read. A
+  bounded wait never times out on the events hub alone: the hub gets the
+  budget less a final reserve (at most 5 s, at most a quarter of it; Python
+  `WAIT_FINAL_READ_RESERVE_S`, TypeScript `WAIT_FINAL_READ_RESERVE_MS`; its
+  probes hold no long poll past its share), and when it has decided nothing
+  by then (a stream that sends no transitions decides only at its
+  reconcile), the reserve is spent on reads of the server under the same
+  deadline (long polls when the wait has one target state), which return at
+  once if the state was reached. A failed read there keeps the timeout, with
+  the read's error as its cause (a server's 408 included), except a 401 /
+  403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
+  target was observed, a failed
+  metadata refresh afterwards does not turn that success into an error.
+  Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
+  return the handle however their `wait_seconds` / `waitSeconds` wait ends:
+  budget spent, terminal state, or a failed read (any `DaytonaError`). A
+  raised create or fork means the request itself failed, except for
+  `SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
+  carry the idempotency key because a sandbox may exist), caller
+  cancellation, and an unexpected non-SDK error during the wait. The lifecycle methods do not
+  pre-check support by class or persistence: the API decides; `fork()` still
+  needs the class, because its wait target depends on it.
+- **Public models are SDK-owned and immutable.** Python: frozen,
+  keyword-only dataclasses with tuples and timezone-aware datetimes; TS:
+  readonly camelCase interfaces and model classes (`Image`, `Snapshot`) with
+  readonly fields, frozen at run time along with list and search pages and
+  their arrays (JSON fields such as `Volume.options` deep-frozen; live
+  handles such as `Sandbox` are not). Sandbox metadata is read-only on the handle
+  (reload with `refresh_data()` / `refreshData()`); constructors of the
+  exported handle and service classes are internal (TS: the `INTERNAL`
+  token from `src/v2/internal.ts`; Python: `_`-prefixed parameters), while
+  Python's model dataclasses stay constructible. Their mapping fields
+  (`Volume.options`, `Sandbox.labels`) are plain `dict` copies typed
+  `Mapping`, never `MappingProxyType`, so `asdict` / `deepcopy` / `pickle` /
+  `json.dumps` work. List and search pages are immutable (Python tuples, TS
+  `readonly T[]`), keyword-only and not iterable in Python: `.items` is the
+  one way in, in both SDKs. An absent value is `None` in Python and an
+  optional `undefined` in TypeScript, never `null` (and never `''`): a
+  handle's `state` is always set (`unknown` before a read), and the `labels`
+  of a create or fork handle whose wait read nothing are `None` / `undefined`
+  (unknown, not empty) until a detail read reports them; `to_json()` / `toJSON()` write `labels` whenever
+  they are known. The handle exposes the
+  sandbox-scoped `access_token` / `accessToken` it authenticates with, but
+  not its toolbox URL. `to_json()` / `toJSON()` return one
+  credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:
+  reconnect with `get(sandboxId)`.
 - **Ports own preview exposure.** Preview/public port verbs live under
   `sandbox.ports` in both SDKs.
 - **LSP is handle-shaped.** `lsp.start(...)` returns an `LspServer` handle;
@@ -495,54 +1018,118 @@ skipping exist only in the TypeScript tool).
 
 ## Shipped READMEs are public
 
-`python/README.md` and `typescript/README.md` are packaged (PyPI `readme`,
+`sdk-python/README.md` and `sdk-typescript/README.md` are packaged (PyPI `readme`,
 npm `files`) and render on the registry pages. They are user-facing only:
 install, quickstart, surface overview, errors, `DAYTONA_*` env vars. They must
 not describe toolbox or proxy internals or wire shapes, ports, `/tmp` paths
 or binaries. Contributor material (implementation notes, local verification)
-lives in the unpackaged `python/DEVELOPMENT.md` / `typescript/DEVELOPMENT.md`.
+lives in the unpackaged `sdk-python/DEVELOPMENT.md` / `sdk-typescript/DEVELOPMENT.md`.
 
 ## Verification
 
+CI on the pull request is the gate: each workflow runs the suites below that
+its path filters match. Locally, run only fast checks targeted at what you
+changed (the tests, typecheck and lint for the touched files), plus any heavier
+check you have reason to suspect, then push and let the PR run the rest. When a
+CI check fails, reproduce that check locally, fix, and push again. The one
+exception is patch coverage (below): no workflow gates it, so check it locally
+for changes that add code.
+
+Each package's full suite, for reference and for reproducing a CI failure:
+
 ```bash
-(cd python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
+(cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q -n 8 -m "not timing" && .venv/bin/python -m pytest -x -q -m timing)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
 (cd cli && go vet ./... && go test ./...)
 python3 scripts/changelog/assemble.py check --dir changelog.d
 scripts/gen-contract-types.sh --check     # only after touching contract/ or a generator
 ```
 
-Before opening a PR, review the branch with `.claude/skills/deep-review` (adversarial, local-only,
-never posted).
+TypeScript runtime compatibility (the packed package in Node, Bun, Deno,
+bundlers, Next.js, Nuxt, Remix, workerd, Lambda, Azure Functions and a
+browser, against a local mock API; CI workflow `TypeScript runtimes`):
+`(cd sdk-typescript && npm run build && npm run test:runtime)`. Worth running
+locally after touching the transports in `src/v2/http.ts`, the build, or `package.json`
+`exports` / `imports`; see `sdk-typescript/runtime-tests/README.md`.
+
+Optional, for larger changes: `.claude/skills/deep-review` is an adversarial,
+local-only pre-review of a branch (never posted). It is not a required step;
+run it when the user asks for it or when the change warrants it.
 
 Patch coverage of a branch (target 60%; skill: `.claude/skills/coverage-preflight`):
 generate the reports listed in `scripts/patch_coverage.py`, then
 `python3 scripts/patch_coverage.py`.
 
-Live suites, when credentials are available:
-`DAYTONA_API_KEY=… ./run-e2e.sh` (both SDKs; `py` / `ts` for one).
+Live suites, when credentials are available and the change alters behaviour
+against the server: `DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts`
+for one).
+
+### Rebasing a branch
+
+- **Squash first if the branch is long.** Replaying many commits resolves the
+  same conflicts (often in generated files) once per commit. PRs are
+  squash-merged, so offer to squash the branch to one commit before rebasing;
+  ask the user before rewriting their commits.
+- **Regenerate, don't hand-merge, generated files**: `scripts/gen-contract-types.sh`
+  for `contract/`, `python gen/gen_sync.py` in `sdk-python` for `_sync/`.
+- **Clean rebase** (no conflicts, or conflicts only in generated files): push
+  and wait for CI. No deep-review, coverage preflight or live e2e.
+- **Rebase with hand-resolved conflicts**: run the targeted checks for the
+  resolved files, push, and treat the push like any other fix in the loop
+  below, since it changes hand-written code that cubic and Vidoc re-review.
 
 ## Pull requests
 
 - The 2.x line lives on `main`: branch from it and target pull requests at it.
   The 0.x SDKs and CLI live on `release/v0`.
 - Sign off every commit (`git commit -s`); sign the CLA once (the CLA check runs on every PR). See [CONTRIBUTING.md](CONTRIBUTING.md).
-- E2E runs against the hosted deployment and skips when its secrets are not
-  available (pull requests from forks). A PR that depends on API surface that
-  is not deployed yet has red e2e — that is expected: **keep it a draft until
-  its checks pass**, then mark it ready. Maintainers coordinate deployments;
-  contributors don't need to.
-- Do not merge with failing checks; a red non-draft PR is a bug report.
+- E2E runs against the configured hosted deployment (production by default)
+  and skips when its secrets are not available (pull requests from forks).
+  **A PR that depends on API changes not yet deployed there fails e2e** (`py SDK E2E` /
+  `ts SDK E2E`) until they ship — that is expected, not a bug to chase. Before
+  debugging a red e2e, check whether the failing calls touch surface the PR
+  adds or changes against the synced contract (`contract/`); if they do, say
+  in the PR description which server change it waits for and move on.
+  Maintainers coordinate deployments; contributors don't need to.
+- Do not merge with failing checks.
+- PRs are squash-merged. A squash message written for a maintainer ends its
+  title with the PR number, `<type>(<scope>): <summary> (#N)`, and ends its
+  body with a `Signed-off-by:` line for whoever merges it (the DCO covers the
+  squash commit on `main` too). Pasting a custom title in GitHub's merge
+  dialog replaces the `(#N)` it pre-fills, so the message has to carry it.
 - `CI passed` is the check to require for test results: it waits for every
   other `pull_request` workflow that ran on the PR and fails if any of them did
   (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
   counted automatically; add its name to `ci-passed-rerun.yaml` too.
 
-## Design records — `docs/design/`
+### After opening a PR — iterate until it is clean
+
+cubic (`cubic-dev-ai`) and Vidoc (`vidoc-agent`) review every PR. An agent
+that opens a PR keeps working it, fix → push → re-check, until all three of
+these hold, and only then reports it as ready (after a clean rebase, see
+above, only CI needs re-checking):
+
+1. **cubic** — run the `.claude/skills/cubic-loop` skill in **PR mode** until
+   no unresolved cubic threads remain (P3-only counts as clean). A won't-fix
+   gets a reply with the reasoning and is then resolved.
+2. **Vidoc** — its `Vidoc security review` comment (marker
+   `vidoc:scan-result`) on the latest push reports no issues, or every finding
+   is fixed or answered with a reply explaining why it does not apply. A
+   `Partial review` that left changed files unanalyzed is not clean: say so in
+   the PR instead of counting it. A push triggers a new scan; read the latest
+   one.
+3. **CI** — `CI passed` is green, and every other failing check is fixed or
+   explained. The only failure that may stay red is e2e waiting on an
+   undeployed API change (see above), recorded in the PR description.
+
+If a round makes no progress, or a finding needs a judgement call, stop and
+report what remains and why instead of looping.
+
+## Architecture decision records — `docs/adr/`
 
 Decisions about the SDK and CLI surface that outlive a PR (the parity rules,
 versioning, the v0 → v2 migration, …) are recorded as
-`docs/design/NNNN-<title>.md` with a `Status:` line (`proposed`, `accepted`,
+`docs/adr/NNNN-<title>.md` with a `Status:` line (`proposed`, `accepted`,
 `implemented`, `superseded by NNNN`). Write them for an outside reader and
 cover only SDK and CLI behavior. A PR that changes a recorded decision
 updates its record.
@@ -556,11 +1143,11 @@ AGPL-3.0` under `cli/`, `Apache-2.0` elsewhere — and the `License headers`
 check enforces it (`.licenserc.yaml`). Add the header to every new file, or
 run `license-eye -c .licenserc.yaml header fix`. Generated files are exempt
 (they say so in their first line), except the synchronous Python surface,
-whose generator (`python/gen/gen_sync.py`) emits the header itself.
+whose generator (`sdk-python/gen/gen_sync.py`) emits the header itself.
 Contributions need a DCO sign-off on every commit and a one-time CLA
 signature ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Releases
 
-[RELEASING.md](RELEASING.md) · [VERSIONING.md](VERSIONING.md) ·
+[RELEASING.md](docs/RELEASING.md) · [VERSIONING.md](docs/VERSIONING.md) ·
 [CHANGELOG.md](CHANGELOG.md).

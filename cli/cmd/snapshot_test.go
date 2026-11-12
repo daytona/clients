@@ -61,6 +61,9 @@ func TestSnapshotCommands_routeAndRenderJSON(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotEmpty(t, requireJSONStdout(t, stdout))
+			if tt.name == "delete snapshot" {
+				require.True(t, isAck(t, stdout, "ref", "33333333-3333-3333-3333-333333333333", "deleted"), stdout)
+			}
 		})
 	}
 }

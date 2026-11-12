@@ -1,0 +1,210 @@
+/*
+ * Copyright Daytona Platforms Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { artifactRefOf } from './Image.js'
+import { regionOf } from './events.js'
+import { SandboxClass as SANDBOX_CLASSES } from './gen/api-enums.js'
+import { parseSandboxLifecycle, sandboxState } from './http.js'
+import { mibToGib } from './resources.js'
+import { badRequest } from './options.js'
+import { isBlank } from './pyText.js'
+import { arrayOf, checkResponse, nested } from './responseFields.js'
+import type { ResponseFields } from './responseFields.js'
+import type { ImageRef, MacBootMode, SandboxClass, SandboxDto, SandboxHandleJSON, SandboxInfo, SandboxLifecycle } from './types.js'
+
+/** The handle's current observation; only the handle updates this storage. */
+export type SandboxMetadata = {
+  -readonly [K in keyof Omit<SandboxHandleJSON, 'sandboxId'>]: SandboxHandleJSON[K]
+} & { macBootMode: MacBootMode | undefined }
+
+export function isSandboxInfo(value: SandboxDto | SandboxInfo): value is SandboxInfo {
+  return 'sandboxId' in value
+}
+
+function sandboxClass(value: string | undefined): SandboxClass | 'unknown' | undefined {
+  if (value === undefined) return undefined
+  return SANDBOX_CLASSES.find((known) => known === value) ?? 'unknown'
+}
+
+function region(id: string, explicit: string | undefined): string | undefined {
+  const inferred = regionOf(id)
+  return explicit || (inferred === '_' ? undefined : inferred)
+}
+
+/**
+ * A label map from the API: absent or null is no labels; a value that is not
+ * a string is a malformed response (`BadRequestError` naming the label), never
+ * silently dropped, as in Python.
+ */
+export function parseLabels(value: unknown, what = 'sandbox'): Readonly<Record<string, string>> {
+  if (value === undefined || value === null) return Object.freeze({})
+  if (typeof value !== 'object' || Array.isArray(value)) throw badRequest(`${what} response has a labels that is not an object`)
+  const entries = Object.entries(value)
+  for (const [key, label] of entries) {
+    if (typeof label !== 'string') throw badRequest(`${what} response has a labels.${key} that is not a string`)
+  }
+  return Object.freeze(Object.fromEntries(entries) as Record<string, string>)
+}
+
+const ARTIFACT_REF: ResponseFields = { id: 'string', name: 'string?' }
+
+// The contract fields the handle reads, required ones without `?` (Python
+// validates the same body against the generated model). An empty
+// `region_id` is derived from the id, as in Python; a missing one is malformed.
+// The detail's lifecycle policy, field by field as Python checks it: integers
+// of any width, actions any string (an unknown one kept), the activity source
+// a string and the deadlines RFC 3339 timestamps. Unknown fields pass.
+const LIFECYCLE_POLICY: ResponseFields = {
+  timeout_seconds: 'integer?', idle_expiry_seconds: 'integer?', on_timeout: 'string?', on_idle_timeout: 'string?',
+  timeout_at: 'timestamp?', idle_timeout_at: 'timestamp?', last_activity_at: 'timestamp?', last_activity_source: 'string?',
+}
+
+const SANDBOX: ResponseFields = {
+  id: 'string', class: 'string', name: 'string', status: 'string', cpu: 'number', cores_max: 'number',
+  memory_mib: 'integer', disk_mib: 'integer',
+  port_map: arrayOf(nested({ host_port: 'integer', vm_port: 'integer', proto: 'string' })),
+  region_id: 'string', memory_max_mib: 'integer?', disk_max_mib: 'integer?', labels: 'object?',
+  image: nested(ARTIFACT_REF, true), snapshot: nested(ARTIFACT_REF, true), error: 'string?', mac_boot_mode: 'string?',
+  image_build_id: 'string?', persistent: 'boolean?', user: 'string?', spot: 'boolean?', spot_evicted_at: 'timestamp?',
+  lifecycle_policy: nested(LIFECYCLE_POLICY, true), forked_from: 'string?', reservation_id: 'string?', toolbox_proxy_url: 'string?',
+  created_at: 'timestamp?', updated_at: 'timestamp?', started_at: 'timestamp?', stopped_at: 'timestamp?',
+  last_activity_at: 'timestamp?', create_timeout_at: 'timestamp?',
+}
+
+/**
+ * Refuse a sandbox object from the API that breaks the contract: a missing
+ * required field the handle reads, or a wrong type, is a `BadRequestError`
+ * (400, `BAD_REQUEST`, source `SDK`) naming the field.
+ * @internal
+ */
+export function assertSandboxResponse(sandbox: unknown): asserts sandbox is SandboxDto {
+  const checked = checkResponse<SandboxDto>(sandbox, SANDBOX, 'sandbox')
+  // An empty or blank id or class is as unusable as a missing one.
+  if (isBlank(checked.id)) throw badRequest('sandbox response is missing its id')
+  if (checked.class !== undefined && isBlank(checked.class)) throw badRequest('sandbox response is missing its class')
+}
+
+export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
+  return {
+    name: sandbox.name,
+    image: artifactRefOf(sandbox.image),
+    snapshot: artifactRefOf(sandbox.snapshot),
+    labels: parseLabels(sandbox.labels),
+    cpu: sandbox.cpu,
+    cpuMax: sandbox.cores_max ?? undefined,
+    memory: mibToGib(sandbox.memory_mib),
+    memoryMax: mibToGib(sandbox.memory_max_mib),
+    disk: mibToGib(sandbox.disk_mib),
+    diskMax: mibToGib(sandbox.disk_max_mib),
+    rawState: sandbox.status ?? undefined,
+    state: sandboxState(sandbox.status),
+    error: sandbox.error ?? undefined,
+    macBootMode: sandbox.mac_boot_mode ?? undefined,
+    imageBuildId: sandbox.image_build_id ?? undefined,
+    // Every API sandbox object carries `class` (checked at the boundary with
+    // assertSandboxResponse); partial internal data leaves it unknown.
+    sandboxClass: sandboxClass(sandbox.class ?? undefined),
+    rawSandboxClass: sandbox.class ?? undefined,
+    region: region(sandbox.id, sandbox.region_id),
+    persistent: sandbox.persistent ?? undefined,
+    user: sandbox.user ?? undefined,
+    spot: sandbox.spot ?? undefined,
+    spotEvictedAt: sandbox.spot_evicted_at ?? undefined,
+    lifecyclePolicy: sandbox.lifecycle_policy ? Object.freeze(parseSandboxLifecycle(sandbox.lifecycle_policy)) : undefined,
+    forkedFrom: sandbox.forked_from ?? undefined,
+    reservationId: sandbox.reservation_id ?? undefined,
+  }
+}
+
+export function metadataFromInfo(info: SandboxInfo): SandboxMetadata {
+  return {
+    name: info.name,
+    image: infoArtifact(info.image),
+    snapshot: infoArtifact(info.snapshot),
+    // Undefined until the API reports them (a create or fork handle).
+    labels: info.labels === undefined ? undefined : parseLabels(info.labels),
+    cpu: info.cpu,
+    cpuMax: info.cpuMax,
+    memory: info.memory,
+    memoryMax: info.memoryMax,
+    disk: info.disk,
+    diskMax: info.diskMax,
+    state: info.state,
+    rawState: info.rawState,
+    error: info.error,
+    macBootMode: undefined,
+    imageBuildId: info.imageBuildId,
+    sandboxClass: sandboxClass(info.rawSandboxClass ?? info.sandboxClass),
+    rawSandboxClass: info.rawSandboxClass ?? info.sandboxClass,
+    region: region(info.sandboxId, info.region),
+    persistent: info.persistent,
+    user: info.user,
+    spot: info.spot,
+    spotEvictedAt: info.spotEvictedAt,
+    lifecyclePolicy: info.lifecyclePolicy ? Object.freeze({ ...info.lifecyclePolicy }) : undefined,
+    forkedFrom: info.forkedFrom,
+    reservationId: info.reservationId,
+  }
+}
+
+function infoArtifact(value: ImageRef | undefined): ImageRef | undefined {
+  // Internal fixtures may still carry the historical string form; it is not
+  // enough information to identify an artifact and never becomes a reference.
+  if (value === undefined || typeof value === 'string') return undefined
+  return artifactRefOf(value)
+}
+
+function knownFields<T extends object>(value: T): T {
+  const output = { ...value }
+  for (const [key, field] of Object.entries(output)) {
+    if (field === undefined || field === null) Reflect.deleteProperty(output, key)
+  }
+  return output
+}
+
+function lifecycleJSON(policy: SandboxLifecycle | undefined): SandboxLifecycle | undefined {
+  if (policy === undefined) return undefined
+  return knownFields({
+    timeoutSeconds: policy.timeoutSeconds,
+    onTimeout: policy.onTimeout,
+    // Timestamps are the server's strings, verbatim, as Python writes them.
+    timeoutAt: policy.timeoutAt,
+    idleExpirySeconds: policy.idleExpirySeconds,
+    onIdleTimeout: policy.onIdleTimeout,
+    idleTimeoutAt: policy.idleTimeoutAt,
+    lastActivityAt: policy.lastActivityAt,
+    lastActivitySource: policy.lastActivitySource,
+  })
+}
+
+export function sandboxHandleJSON(id: string, data: SandboxMetadata): SandboxHandleJSON {
+  return knownFields({
+    sandboxId: id,
+    name: data.name,
+    state: data.state !== 'unknown' || data.rawState ? data.state : undefined,
+    rawState: data.rawState || undefined,
+    image: data.image ? knownFields({ id: data.image.id, name: data.image.name }) : undefined,
+    snapshot: data.snapshot ? knownFields({ id: data.snapshot.id, name: data.snapshot.name }) : undefined,
+    region: data.region,
+    labels: data.labels === undefined ? undefined : { ...data.labels },
+    cpu: data.cpu,
+    cpuMax: data.cpuMax,
+    memory: data.memory,
+    memoryMax: data.memoryMax,
+    disk: data.disk,
+    diskMax: data.diskMax,
+    sandboxClass: data.sandboxClass,
+    rawSandboxClass: data.rawSandboxClass,
+    persistent: data.persistent,
+    spot: data.spot,
+    spotEvictedAt: data.spotEvictedAt,
+    lifecyclePolicy: lifecycleJSON(data.lifecyclePolicy),
+    forkedFrom: data.forkedFrom,
+    reservationId: data.reservationId,
+    user: data.user,
+    error: data.error,
+    imageBuildId: data.imageBuildId,
+  })
+}

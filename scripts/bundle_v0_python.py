@@ -8,7 +8,7 @@
 
 Driven by scripts/bundle-v0.sh at publish time. The result is never committed:
 
-1. copy `<sdk-python>/src/daytona/` to `python/src/daytona/v0/`;
+1. copy `<sdk-python>/src/daytona/` to `sdk-python/src/daytona/v0/`;
 2. rewrite every absolute `daytona` import (two in code at v0.223.1, plus the
    examples in docstrings) to `daytona.v0`, and fail on any left over;
 3. make v0's SDK-version header report the bundled release instead of the 2.x
@@ -36,7 +36,7 @@ import shutil
 import sys
 from pathlib import Path
 
-PYTHON = Path(__file__).resolve().parents[1] / "python"
+PYTHON = Path(__file__).resolve().parents[1] / "sdk-python"
 DEST = PYTHON / "src" / "daytona" / "v0"
 PYPROJECT = PYTHON / "pyproject.toml"
 V2_EXPORTS = PYTHON / "src" / "daytona" / "v2" / "_exports.py"
@@ -158,7 +158,7 @@ def _pin_sdk_version(root: Path, version: str) -> list[str]:
 
 # v0's dotenv warning tells the user to pass `api_url` to `DaytonaConfig` or set
 # DAYTONA_API_URL. Under the 2.x root neither works (the root rejects api_url,
-# and Daytona().v0 never reads DAYTONA_API_URL, which would redirect .v2), and
+# and nothing in SDK 2.x reads DAYTONA_API_URL, Daytona().v0 included), and
 # the root is the only way to build a v0 client, so the remedy is rewritten for it.
 _DOTENV_REMEDY = (
     '+ f" To change the endpoint, pass `api_url` to `DaytonaConfig` or set `{name}`"\n'

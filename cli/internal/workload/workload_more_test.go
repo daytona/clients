@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -87,7 +88,7 @@ func TestWaitForSandbox_stoppedUsesWaitExact(t *testing.T) {
 	defer srv.Close()
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "stopped", Timeout: 1 * time.Second})
 	require.NoError(t, err)
-	require.Equal(t, "stopped", detail.Status)
+	require.Equal(t, "stopped", detail.V.Status)
 }
 
 func TestWaitForSandbox_deletedUsesWaitExact(t *testing.T) {
@@ -98,7 +99,19 @@ func TestWaitForSandbox_deletedUsesWaitExact(t *testing.T) {
 	defer srv.Close()
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 1 * time.Second})
 	require.NoError(t, err)
-	require.Equal(t, "deleted", detail.Status)
+	require.Equal(t, "deleted", detail.V.Status)
+}
+
+func TestWaitForSandbox_refusesANonStatusTargetBeforeAnyRequest(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s", r.URL)
+	}))
+	defer srv.Close()
+	for _, target := range []string{"", "started", "Running", "ready", "destroyed"} {
+		_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: target, Timeout: time.Second})
+		require.Error(t, err, target)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), target)
+	}
 }
 
 func TestWaitForImage_failedTerminal(t *testing.T) {
@@ -210,6 +223,14 @@ func TestParsePorts_invalidProto(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
 
+func TestParsePorts_emptyProtoAfterSlash(t *testing.T) {
+	for _, value := range []string{"8080/", "8080/ "} {
+		_, err := ParsePorts([]string{value})
+		require.Error(t, err, value)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), value)
+	}
+}
+
 func sandboxFixture(status string) string {
 	return `{"class":"linux","spot":false,"cpu":1,"id":"id","image":{"id":"img_py312","name":"python:3.12"},"labels":{},"lifecycle_policy":{},"memory_mib":512,"name":"box","port_map":[],"region_id":"region-a","disk_mib":1024,"status":"` + status + `","toolbox_proxy_url":"https://tb.example","cores_max":1}`
 }
@@ -234,7 +255,7 @@ func TestWaitForSandbox_startFromStoppedSucceeds(t *testing.T) {
 	defer srv.Close()
 	d, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "running", Timeout: 5 * time.Second, AllowInitialStopped: true})
 	require.NoError(t, err)
-	require.Equal(t, "running", d.Status)
+	require.Equal(t, "running", d.V.Status)
 }
 
 // But a sandbox that was under way and then DROPS into stopping/stopped has
@@ -264,7 +285,34 @@ func TestWaitForSandbox_deletingProgressesToDeleted(t *testing.T) {
 	defer srv.Close()
 	detail, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 5 * time.Second})
 	require.NoError(t, err)
-	require.Equal(t, "deleted", detail.Status)
+	require.Equal(t, "deleted", detail.V.Status)
+}
+
+// A delete the server could not finish reads failed with an explanation; the
+// conflict carries it, so the user learns why without a second command.
+func TestWaitForSandbox_failedDeleteNamesTheReason(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			_, _ = w.Write([]byte(sandboxFixture("deleting")))
+			return
+		}
+		failed := strings.Replace(sandboxFixture("failed"), `"status":"failed"`, `"status":"failed","error":"sandbox deletion did not finish"`, 1)
+		_, _ = w.Write([]byte(failed))
+	}))
+	defer srv.Close()
+	_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: 5 * time.Second})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+	require.Equal(t, "sandbox id reached failed, not deleted: sandbox deletion did not finish", err.Error())
+}
+
+func TestWaitForSandbox_failedWithoutReasonKeepsTheShortMessage(t *testing.T) {
+	srv := sandboxSequence(t, "failed")
+	defer srv.Close()
+	_, err := WaitForSandbox(context.Background(), api.New(srv.URL, "k", "test"), SandboxWaitOptions{ID: "id", Target: "deleted", Timeout: time.Second})
+	require.Error(t, err)
+	require.Equal(t, "sandbox id reached failed, not deleted", err.Error())
 }
 
 func TestWaitForSandbox_capsLongPollToRemainingDeadline(t *testing.T) {

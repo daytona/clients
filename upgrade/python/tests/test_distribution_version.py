@@ -98,8 +98,11 @@ def test_reports_release_version_when_json_requested(
         text=True,
         check=True,
     )
-    # Then the report carries the release version too.
-    assert json.loads(result.stdout)["version"] == "1.2.3rc1"
+    # Then the report carries the release version too, and the release writes
+    # exactly the SDK release of its own version (lockstep publishing).
+    report = json.loads(result.stdout)
+    assert report["version"] == "1.2.3rc1"
+    assert report["dependencies"][0]["to"] == "daytona[v0-sdk]==1.2.3rc1"
 
 
 def test_uses_placeholder_when_distribution_is_not_installed(tmp_path: Path) -> None:

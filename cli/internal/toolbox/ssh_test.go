@@ -12,7 +12,7 @@ import (
 
 func TestBuildSSHInvocationKeepsCredentialOutOfArgv(t *testing.T) {
 	t.Parallel()
-	inv, err := BuildSSHInvocation("ssh.example.com", 2222, "sbx", "tok-secret", []string{"-L", "8080:localhost:80", "-N"}, []string{"uname", "-a"})
+	inv, err := buildSSHInvocation(t.TempDir(), SSHTarget{Host: "ssh.example.com", Port: 2222, SandboxID: "sbx", Credential: "tok-secret"}, SSHCommand{Options: []string{"-L", "8080:localhost:80", "-N"}, Args: []string{"uname", "-a"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestBuildSSHInvocationKeepsCredentialOutOfArgv(t *testing.T) {
 	if _, err := os.Stat(inv.ConfigPath); !os.IsNotExist(err) {
 		t.Fatal("cleanup must remove the config")
 	}
-	if _, err := BuildSSHInvocation("h", 22, "sbx", "tok\nHost evil", nil, nil); err == nil {
+	if _, err := buildSSHInvocation(t.TempDir(), SSHTarget{Host: "h", Port: 22, SandboxID: "sbx", Credential: "tok\nHost evil"}, SSHCommand{}); err == nil {
 		t.Fatal("line breaks must be refused (config injection)")
 	}
 }

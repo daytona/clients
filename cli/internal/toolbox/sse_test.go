@@ -206,6 +206,18 @@ func TestReadSSERejectsEndlessLine(t *testing.T) {
 	}
 }
 
+// An unterminated final line is held to the event cap like any other line.
+func TestReadSSERejectsOversizedEventEndingAtEOF(t *testing.T) {
+	line := "data: " + strings.Repeat("a", 1<<20-7) + "\n" // 1 MiB per line
+	full := strings.Repeat(line, maxSSEEvent/len(line))
+	tail := "data: " + strings.Repeat("b", maxSSELine-16) // no newline: ends at EOF
+	called := false
+	err := readSSE(strings.NewReader(full+tail), func(sseMessage) error { called = true; return nil })
+	if err == nil || !strings.Contains(err.Error(), "SSE event exceeds") || called {
+		t.Fatalf("oversized final event accepted: err=%v called=%v", err, called)
+	}
+}
+
 type zeroReader struct{}
 
 func (zeroReader) Read(p []byte) (int, error) {

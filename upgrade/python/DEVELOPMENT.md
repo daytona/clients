@@ -181,7 +181,7 @@ of the containing table or array; `test_dependency_trivia.py` covers
 inline comments and whitespace in project, optional, Poetry and PDM dependencies.
 
 `module_proofs.V0_SUBMODULES` records the six root package directories in the
-bundled v0.224.0 SDK, separately from public root exports. Refresh this list with
+bundled v0.231.1 SDK, separately from public root exports. Refresh this list with
 the bundle pin. Missing-export checks exclude these directories, not arbitrary
 unknown names or all private-looking identifiers.
 

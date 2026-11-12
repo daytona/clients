@@ -58,7 +58,7 @@ if (problems.length > 0) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-const ts = createRequire(new URL('../../typescript/package.json', import.meta.url))('typescript');
+const ts = createRequire(new URL('../../sdk-typescript/package.json', import.meta.url))('typescript');
 
 async function sources(directory, extension) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -240,10 +240,15 @@ const exportedTs = tsExports(typescript, join(src, 'sdk-typescript/src/index.ts'
 // v0Exports: the pinned 0.x root's public names, which the tools check before
 // moving an import to the v0 namespace (an older 0.x name the bundle lacks
 // would otherwise move to a namespace that does not have it).
+// v0Version: the pinned release itself, which the tools compare with the
+// project's installed 0.x version (older warns, a newer minor refuses).
+const pinnedVersion = readFileSync(new URL('../../scripts/v0-sdk-version', import.meta.url), 'utf8').split('\n')[0].trim().replace(/^v/, '');
 if (values['write-v0-exports']) {
   mapping.v0Exports = { py: [...exportedPython].sort(), ts: [...exportedTs].sort() };
+  mapping.v0Version = pinnedVersion;
   writeFileSync(mappingPath, `${JSON.stringify(mapping, null, 2)}\n`);
 }
+if (mapping.v0Version !== pinnedVersion) problems.push(`v0Version: ${mapping.v0Version} is not the pinned ${pinnedVersion} (scripts/v0-sdk-version)`);
 for (const [language, names] of [['py', exportedPython], ['ts', exportedTs]]) {
   compare(names, new Set(mapping.v0Exports?.[language] ?? []), `${language}.v0Exports`);
 }
@@ -251,19 +256,28 @@ for (const [language, names] of [['py', exportedPython], ['ts', exportedTs]]) {
 // exports that the 2.x root also has, plus names only the 2.x root exports
 // (DaytonaV2Client, V0_API_URL, ...), read from this checkout's SDK roots.
 const sdkRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const rootPython = readFileSync(join(sdkRoot, 'python/src/daytona/__init__.py'), 'utf8');
+const rootPython = readFileSync(join(sdkRoot, 'sdk-python/src/daytona/__init__.py'), 'utf8');
 const rootPythonNames = new Set([
   ...[...(/__all__\s*=\s*\[([\s\S]*?)\]/.exec(rootPython)?.[1] ?? '').matchAll(/["'](\w+)["']/g)].map((match) => match[1]),
   ...[...rootPython.matchAll(/^\s*from \._client import (\w+) as \1/gm)].map((match) => match[1]),
   'v0',
   'v2',
 ]);
-const rootTs = collectRootTsExports(readFileSync(join(sdkRoot, 'typescript/src/index.ts'), 'utf8'));
+const rootTs = collectRootTsExports(readFileSync(join(sdkRoot, 'sdk-typescript/src/index.ts'), 'utf8'));
 const rootTsNames = rootTs.names;
 problems.push(...rootTs.problems);
 for (const [language, names, root] of [['py', exportedPython, rootPythonNames], ['ts', exportedTs, rootTsNames]]) {
   for (const name of mapping.rootNames[language]) if (!names.has(name) && !root.has(name)) problems.push(`${language}.rootNames: ${name} is neither a v0 nor a 2.x root export`);
   for (const name of root) if (!mapping.rootNames[language].includes(name)) problems.push(`${language}.rootNames: missing 2.x root export ${name}`);
+}
+// A former root alias is a v0 export (0.x code imports it) that names a shared
+// root category the 2.x root still exports.
+for (const [alias, category] of Object.entries(mapping.rootAliasCategories ?? {})) {
+  for (const [language, names, root] of [['py', exportedPython, rootPythonNames], ['ts', exportedTs, rootTsNames]]) {
+    if (!names.has(alias)) problems.push(`rootAliasCategories: ${alias} is not a ${language} v0 export`);
+    if (root.has(alias)) problems.push(`rootAliasCategories: ${alias} is still a ${language} 2.x root export`);
+    if (!root.has(category)) problems.push(`rootAliasCategories: ${category} is not a ${language} 2.x root export`);
+  }
 }
 if (problems.length) {
   console.error(problems.join('\n'));

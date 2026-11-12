@@ -4,7 +4,8 @@
 package cmd
 
 import (
-	"net/http"
+	"encoding/json"
+	"math"
 	"os"
 	"strings"
 
@@ -23,6 +24,9 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 	if err != nil {
 		return nil, err
 	}
+	if body["wait_seconds"] != nil && a.Globals.NoWait {
+		return nil, cerr.Usage("wait_seconds in --file does not combine with --no-wait").WithHint("drop wait_seconds or --no-wait")
+	}
 	if cmd.Flags().Changed("idempotency-key") {
 		delete(body, "idempotency_key")
 	}
@@ -37,22 +41,25 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 	workload.SetIfChanged(body, cmd.Flags(), "cores", "cores", flags.cores)
 	workload.SetIfChanged(body, cmd.Flags(), "memory", "memory_mib", flags.memory)
 	workload.SetIfChanged(body, cmd.Flags(), "disk", "disk_mib", flags.disk)
-	workload.SetIfChanged(body, cmd.Flags(), "cores-max", "cores_max", flags.coresMax)
-	workload.SetIfChanged(body, cmd.Flags(), "mem-max", "memory_max_mib", flags.memMax)
+	workload.SetIfChanged(body, cmd.Flags(), "cpu-max", "cores_max", flags.cpuMax)
+	workload.SetIfChanged(body, cmd.Flags(), "memory-max", "memory_max_mib", flags.memoryMax)
 	workload.SetIfChanged(body, cmd.Flags(), "disk-max", "disk_max_mib", flags.diskMax)
 	workload.SetIfChanged(body, cmd.Flags(), "cpu-arch", "cpu_arch", flags.cpuArch)
 	workload.SetIfChanged(body, cmd.Flags(), "cpu-type", "cpu_type", flags.cpuType)
 	workload.SetIfChanged(body, cmd.Flags(), "user", "user", flags.user)
 	workload.SetIfChanged(body, cmd.Flags(), "persistent", "persistent", flags.persistent)
 	workload.SetIfChanged(body, cmd.Flags(), "spot", "spot", flags.spot)
-	workload.SetIfChanged(body, cmd.Flags(), "wait", "wait_seconds", flags.wait)
-	workload.SetIfChanged(body, cmd.Flags(), "create-ttl", "create_timeout_seconds", flags.createTTL)
+	workload.SetIfChanged(body, cmd.Flags(), "server-wait", "wait_seconds", flags.wait.seconds)
+	workload.SetIfChanged(body, cmd.Flags(), "create-ttl", "create_timeout_seconds", flags.createTTL.seconds)
 	workload.SetIfChanged(body, cmd.Flags(), "reservation", "reservation", flags.reservation)
 	workload.SetIfChanged(body, cmd.Flags(), "auto-renew", "auto_renew", flags.autoRenew)
 	if err := workload.SetKVMapIfChanged(body, cmd.Flags(), "env", "env", "--env", flags.env); err != nil {
 		return nil, err
 	}
 	if err := workload.SetKVMapIfChanged(body, cmd.Flags(), "label", "labels", "--label", flags.labels); err != nil {
+		return nil, err
+	}
+	if err := stampNameLabel(body); err != nil {
 		return nil, err
 	}
 	workload.SetSliceIfChanged(body, cmd.Flags(), "secret", "secrets", flags.secrets)
@@ -70,17 +77,20 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 		}
 		body.Set("volumes", volumes)
 	}
+	if err := checkCPUMax(body); err != nil {
+		return nil, err
+	}
 	if err := setNetworkPolicy(cmd, body, flags); err != nil {
 		return nil, err
 	}
-	if cmd.Flags().Changed("timeout") {
-		workload.NestedBody(body, "lifecycle_policy").Set("timeout_seconds", flags.timeoutSecs)
+	if cmd.Flags().Changed("lifecycle-timeout") {
+		workload.NestedBody(body, "lifecycle_policy").Set("timeout_seconds", flags.lifecycleTTL.seconds)
 	}
-	if cmd.Flags().Changed("on-timeout") {
-		workload.NestedBody(body, "lifecycle_policy").Set("on_timeout", flags.onTimeout)
+	if cmd.Flags().Changed("on-lifecycle-timeout") {
+		workload.NestedBody(body, "lifecycle_policy").Set("on_timeout", flags.onLifecycleTTL)
 	}
 	if cmd.Flags().Changed("idle-timeout") {
-		workload.NestedBody(body, "lifecycle_policy").Set("idle_expiry_seconds", flags.idleTimeout)
+		workload.NestedBody(body, "lifecycle_policy").Set("idle_expiry_seconds", flags.idleTimeout.seconds)
 	}
 	if cmd.Flags().Changed("on-idle-timeout") {
 		workload.NestedBody(body, "lifecycle_policy").Set("on_idle_timeout", flags.onIdleTimeout)
@@ -113,20 +123,43 @@ func buildSandboxCreateBody(cmd *cobra.Command, a *app.App, flags sandboxCreateF
 	return body, nil
 }
 
-func sandboxCreateHeaders(flags sandboxCreateFlags, cmd *cobra.Command, region string, body input.Body) http.Header {
-	headers := http.Header{}
-	if cmd.Flags().Changed("idempotency-key") {
-		headers.Set("Idempotency-Key", flags.idempotencyKey)
-	} else if value, ok := body["idempotency_key"].(string); ok && strings.TrimSpace(value) != "" {
-		headers.Set("Idempotency-Key", value)
-	}
-	if region != "" {
-		headers.Set("x-daytona-region", region)
-	}
-	if len(headers) == 0 {
+// nameLabel is the label a named create stamps with the name, as the SDKs
+// do: their find_by_name matches on it.
+const nameLabel = "name"
+
+// stampNameLabel checks the create's name and stamps it as labels["name"].
+// A blank name is refused (omit it for a generated name), and so is an
+// explicit labels["name"] that disagrees with it.
+func stampNameLabel(body input.Body) error {
+	raw, ok := body["name"]
+	if !ok || raw == nil {
 		return nil
 	}
-	return headers
+	name, ok := raw.(string)
+	if !ok {
+		return nil // the typed decode reports a wrong type
+	}
+	if strings.TrimSpace(name) == "" {
+		return cerr.Usage("--name (name) must not be blank; omit it for a generated name")
+	}
+	labels := map[string]any{}
+	switch current := body["labels"].(type) {
+	case nil:
+	case map[string]any:
+		labels = current
+	case map[string]string: // from --label
+		for k, v := range current {
+			labels[k] = v
+		}
+	default:
+		return nil // not an object: the typed decode reports it
+	}
+	if existing, present := labels[nameLabel]; present && existing != name {
+		return cerr.Usage("label %q (%v) disagrees with --name (%s); the name label is stamped from the name, pass one or the other", nameLabel, existing, name)
+	}
+	labels[nameLabel] = name
+	body.Set("labels", labels)
+	return nil
 }
 
 func bootSourceSet(value any) bool {
@@ -168,6 +201,32 @@ func setNetworkPolicy(cmd *cobra.Command, body input.Body, flags sandboxCreateFl
 	// reads like an allow list.
 	if changed("allow-cidr") && policy["block_all"] != true && policy["allow_domains"] == nil {
 		return cerr.Usage("--allow-cidr restricts egress only with --block-all or --allow-domain; without them the policy is open")
+	}
+	return nil
+}
+
+// checkCPUMax refuses a CPU limit that is not a positive multiple of 0.5
+// cores (from --cpu-max or the file's cores_max) before any request.
+func checkCPUMax(body input.Body) error {
+	raw, ok := lookupField(body, "cores_max")
+	if !ok || raw == nil {
+		return nil
+	}
+	var v float64
+	switch n := raw.(type) {
+	case float64:
+		v = n
+	case json.Number:
+		f, err := n.Float64()
+		if err != nil {
+			return cerr.Usage("cores_max must be a number")
+		}
+		v = f
+	default:
+		return nil // the typed decode reports a wrong type
+	}
+	if v <= 0 || math.Mod(v*2, 1) != 0 {
+		return cerr.Usage("--cpu-max (cores_max) must be a positive multiple of 0.5 cores, got %v", v)
 	}
 	return nil
 }

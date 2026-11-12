@@ -5,22 +5,26 @@ on:
   push:
     branches: [main]
     paths:
-      - 'python/**'
-      - 'typescript/**'
+      - 'sdk-python/**'
+      - 'sdk-typescript/**'
       - 'contract/**'
+      - 'cli/internal/dockerignore/**'
       - 'scripts/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
+      - 'upgrade/mapping/**'
   pull_request:
     paths:
-      - 'python/**'
-      - 'typescript/**'
+      - 'sdk-python/**'
+      - 'sdk-typescript/**'
       - 'contract/**'
+      - 'cli/internal/dockerignore/**'
       - 'scripts/**'
-      - 'v0-sdk-version'
+      - 'scripts/v0-sdk-version'
       - '.github/workflows/sdk-ci.yaml'
       - '.github/workflows/sdk_publish.yaml'
+      - 'upgrade/mapping/**'
 
 # Every job only reads the repository (least-privilege GITHUB_TOKEN).
 permissions:
@@ -34,7 +38,7 @@ jobs:
     name: No bundled v0 committed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: bash scripts/check-no-bundled-v0.sh
@@ -46,7 +50,7 @@ jobs:
     name: Pinned v0 SDK tag exists at its pinned commit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: bash scripts/resolve-v0-tag.sh --verify
@@ -59,13 +63,13 @@ jobs:
     name: v0 bundle from the publish snapshot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: Snapshot like the publish gate, then bundle from the unpacked snapshot
@@ -76,23 +80,24 @@ jobs:
             "https://github.com/${GITHUB_REPOSITORY}.git" .v0-src
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
-            -czf "$RUNNER_TEMP/sdk-src.tgz" python typescript contract cli scripts v0-sdk-version .v0-src
+            -czf "$RUNNER_TEMP/sdk-src.tgz" sdk-python sdk-typescript contract cli scripts upgrade .v0-src
           mkdir "$RUNNER_TEMP/unpacked" && cd "$RUNNER_TEMP/unpacked"
           tar -xzf "$RUNNER_TEMP/sdk-src.tgz"
           test ! -e .v0-src/.git
           DAYTONA_V0_SRC_VERIFIED=1 bash scripts/bundle-v0.sh --lang all --src "$PWD/.v0-src" "$tag"
-          test -f python/src/daytona/v0/LICENSE
-          test -f python/src/daytona/v0/NOTICE
-          test -d typescript/src/v0
+          test -f sdk-python/src/daytona/v0/LICENSE
+          test -f sdk-python/src/daytona/v0/NOTICE
+          test -d sdk-typescript/src/v0
           # The guard's v0-only dependency list covers what this bundle merged.
-          (cd "$GITHUB_WORKSPACE" && cp "$RUNNER_TEMP/unpacked/typescript/package.json" typescript/package.json && bash scripts/check-no-bundled-v0.sh --check-list && git checkout -- typescript/package.json)
+          (cd "$GITHUB_WORKSPACE" && cp "$RUNNER_TEMP/unpacked/sdk-typescript/package.json" sdk-typescript/package.json && bash scripts/check-no-bundled-v0.sh --check-list && git checkout -- sdk-typescript/package.json)
           # The Python publish build runs the full suite on this snapshot, so
-          # a test that reaches outside python/ must skip here, not fail at
+          # a test that reaches outside sdk-python/ must skip here, not fail at
           # release time.
-          cd python
+          cd sdk-python
           python -m pip install --upgrade pip >/dev/null
           python -m pip install -e ".[dev,v0-sdk]" >/dev/null
-          python -m pytest -q -p no:cacheprovider
+          python -m pytest -q -p no:cacheprovider -n 8 -m "not timing"
+          python -m pytest -q -p no:cacheprovider -m timing
 
   # Run the publish-time bundle against the pinned v0 release, so a change on
   # either side that breaks it fails here and not in the publish run.
@@ -101,15 +106,15 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: python
+        working-directory: sdk-python
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Bundle the pinned v0 release (v0-sdk-version)
+      - name: Bundle the pinned v0 release (scripts/v0-sdk-version)
         run: bash ../scripts/bundle-v0.sh --lang python
       - name: Install with the v0-sdk extra and resolve Daytona().v0
         run: |
@@ -134,14 +139,14 @@ jobs:
     name: Python v0 bundle on 3.10 with the default pip
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Bundle the pinned v0 release and build the wheel
-        working-directory: python
+        working-directory: sdk-python
         run: |
           set -euo pipefail
           bash ../scripts/bundle-v0.sh --lang python
@@ -166,15 +171,15 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: typescript
+        working-directory: sdk-typescript
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - name: Bundle the pinned v0 release (v0-sdk-version)
+      - name: Bundle the pinned v0 release (scripts/v0-sdk-version)
         run: bash ../scripts/bundle-v0.sh --lang typescript
       - name: Build, pack and resolve Daytona().v0 from the tarball
         run: |
@@ -308,17 +313,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['18', '20', '22']
+        node: ['22.15', '22', '24']
     defaults:
       run:
-        working-directory: typescript
+        working-directory: sdk-typescript
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: typescript/package-lock.json
+          cache-dependency-path: sdk-typescript/package-lock.json
       - run: npm ci
       # src/version.ts is generated from package.json and COMMITTED (consumers
       # that compile the SDK source directly run none of these npm hooks), so
@@ -327,11 +332,11 @@ jobs:
         run: npm run stamp-version && git diff --exit-code -- src/version.ts
       - run: npm run typecheck
       - run: npm test -- --coverage --coverageReporters=lcov
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.node == '22'
         with:
           name: coverage-typescript
-          path: typescript/coverage/lcov.info
+          path: sdk-typescript/coverage/lcov.info
           retention-days: 14
       - run: npm run lint
         if: matrix.node == '22'
@@ -345,13 +350,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.10', '3.11', '3.12', '3.13']
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
     defaults:
       run:
-        working-directory: python
+        working-directory: sdk-python
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
       - name: Install (with dev extras)
@@ -361,12 +366,18 @@ jobs:
       - name: Type check
         run: mypy
       - name: Test
-        run: pytest --cov=daytona --cov-report=xml
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        # Most tests wait on real timeouts against local sockets rather than
+        # use the CPU, so twice as many workers as the runner's 4 vCPUs pays
+        # off. Tests marked `timing` assert budgets of tens of milliseconds
+        # that the parallel workers' load would break: they run alone after.
+        run: |
+          pytest -n 8 -m "not timing" --cov=daytona --cov-report=
+          pytest -m timing --cov=daytona --cov-append --cov-report=xml
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.python == '3.12'
         with:
           name: coverage-python
-          path: python/coverage.xml
+          path: sdk-python/coverage.xml
           retention-days: 14
       - name: Build + validate metadata
         run: |

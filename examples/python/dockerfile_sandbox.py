@@ -17,7 +17,7 @@ Set ``DAYTONA_KEEP=1`` to leave the sandbox running at the end instead of
 deleting it, so you can poke at it yourself.
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/dockerfile_sandbox.py
 """
 
@@ -26,9 +26,9 @@ from __future__ import annotations
 import os
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
+from _common import IMAGE, RUN, client, failed, info, passed, require_started, section
 
-from daytona.v2 import Image
+from daytona.v2 import ImageBuilder
 
 # Everything here is baked at BUILD time. If the sandbox can see it at RUN
 # time, the image it booted is the one we just built.
@@ -53,18 +53,17 @@ def main() -> int:
 
     try:
         section("build the Dockerfile and boot it, in one call")
-        sandbox = daytona.create(
-            Image.from_dockerfile(DOCKERFILE),
+        sandbox = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"dockerfile-sandbox-{RUN}",
-            timeout=400,
+            build_timeout=400,
+            wait_seconds=400,
         )
         info(f"sandbox {sandbox.id}")
         info(f"state   {sandbox.state}")
-        if sandbox.state == "started":
-            passed("the sandbox is running")
-        else:
-            failed(f"expected a running sandbox, got {sandbox.state}")
-            ok = False
+        if not require_started(sandbox):
+            return 1
+        passed("the sandbox is running")
 
         section("run the script the Dockerfile baked in")
         greet = sandbox.process.run("/app/greet.sh")
@@ -106,19 +105,23 @@ def main() -> int:
             ok = False
 
         section("create a second sandbox from the same Dockerfile")
-        twin = daytona.create(
-            Image.from_dockerfile(DOCKERFILE),
+        twin = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"dockerfile-sandbox-twin-{RUN}",
-            timeout=400,
+            build_timeout=400,
+            wait_seconds=400,
         )
         try:
             info(f"sandbox {twin.id} is {twin.state}")
-            twin_greet = twin.process.run("/app/greet.sh")
-            if twin_greet.exit_code == 0 and RUN in twin_greet.output:
-                passed("the second sandbox runs the expected script")
-            else:
-                failed("the second sandbox is not running the expected script")
+            if not require_started(twin):
                 ok = False
+            else:
+                twin_greet = twin.process.run("/app/greet.sh")
+                if twin_greet.exit_code == 0 and RUN in twin_greet.output:
+                    passed("the second sandbox runs the expected script")
+                else:
+                    failed("the second sandbox is not running the expected script")
+                    ok = False
         finally:
             # Guarded like the outer cleanup: a delete failure here must not
             # replace the assertion failure above with a teardown error.
@@ -136,7 +139,7 @@ def main() -> int:
             except Exception as exc:
                 info(f"could not delete {sandbox.id}: {exc}")
         elif sandbox is not None:
-            info(f"DAYTONA_KEEP=1 — leaving {sandbox.id} running")
+            info(f"DAYTONA_KEEP=1 — leaving {sandbox.id} ({sandbox.state}) in place")
             info(f'connect with: daytona.get("{sandbox.id}")')
 
     return 0 if ok else 1

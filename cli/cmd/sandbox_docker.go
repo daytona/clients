@@ -12,6 +12,7 @@ import (
 	"time"
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
 	"github.com/daytona/clients/cli/internal/workload"
@@ -19,7 +20,6 @@ import (
 )
 
 const (
-	dockerWaitDefaultTimeout = 60 * time.Second
 	dockerStatusMaxWait      = time.Second
 	dockerStatusPollInterval = 500 * time.Millisecond
 )
@@ -43,9 +43,9 @@ func newSandboxDockerStatusCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
-			var status tbgen.DockerStatus
+			var status api.Raw[tbgen.DockerStatus]
 			if waitForReady {
-				timeout, err := sandboxDockerWaitTimeout(cmd, a.Globals.Timeout)
+				timeout, err := workload.ParseTimeout(a.Globals.Timeout)
 				if err != nil {
 					return err
 				}
@@ -72,14 +72,15 @@ func newSandboxDockerStatusCommand() *cobra.Command {
 					return err
 				}
 			}
-			return a.Printer().Object(status, sandboxDockerStatusKV(status))
+			return printToolboxObject(a, status, sandboxDockerStatusKV(status.V))
 		},
 	}
 	cmd.Flags().BoolVar(&waitForReady, "wait", false, "wait until Docker reaches ready")
+	addTimeoutFlag(cmd, "60s", "with --wait, how long to wait for Docker (Go duration)")
 	return cmd
 }
 
-func sandboxDockerStatus(ctx context.Context, toolClient *toolboxclient.Client, waitFor time.Duration) (tbgen.DockerStatus, error) {
+func sandboxDockerStatus(ctx context.Context, toolClient *toolboxclient.Client, waitFor time.Duration) (api.Raw[tbgen.DockerStatus], error) {
 	query := url.Values{}
 	if waitFor > 0 {
 		waitMs := waitFor.Milliseconds()
@@ -91,27 +92,20 @@ func sandboxDockerStatus(ctx context.Context, toolClient *toolboxclient.Client, 
 		}
 		query.Set("waitMs", strconv.FormatInt(waitMs, 10))
 	}
-	var status tbgen.DockerStatus
+	var status api.Raw[tbgen.DockerStatus]
 	if err := toolClient.GetJSON(ctx, "/docker/status", query, &status); err != nil {
-		return tbgen.DockerStatus{}, err
+		return api.Raw[tbgen.DockerStatus]{}, err
 	}
 	return status, nil
 }
 
-func sandboxDockerWaitTimeout(cmd *cobra.Command, raw string) (time.Duration, error) {
-	if flag := cmd.Flags().Lookup("timeout"); flag == nil || !flag.Changed {
-		return dockerWaitDefaultTimeout, nil
-	}
-	return workload.ParseTimeout(raw)
-}
-
-func waitForSandboxDockerReady(ctx context.Context, toolClient *toolboxclient.Client, sandboxID string, timeout time.Duration) (tbgen.DockerStatus, error) {
+func waitForSandboxDockerReady(ctx context.Context, toolClient *toolboxclient.Client, sandboxID string, timeout time.Duration) (api.Raw[tbgen.DockerStatus], error) {
 	deadline := time.Now().Add(timeout)
 	var last *tbgen.DockerStatus
 	for {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			return tbgen.DockerStatus{}, sandboxDockerTimeoutError(timeout, last)
+			return api.Raw[tbgen.DockerStatus]{}, sandboxDockerTimeoutError(timeout, last)
 		}
 		pollStarted := time.Now()
 		statusCtx, cancel := context.WithTimeout(ctx, remaining)
@@ -119,20 +113,20 @@ func waitForSandboxDockerReady(ctx context.Context, toolClient *toolboxclient.Cl
 		localTimeout := errors.Is(statusCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
 		cancel()
 		if localTimeout || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return tbgen.DockerStatus{}, sandboxDockerTimeoutError(timeout, last)
+			return api.Raw[tbgen.DockerStatus]{}, sandboxDockerTimeoutError(timeout, last)
 		}
 		if err != nil {
-			return tbgen.DockerStatus{}, err
+			return api.Raw[tbgen.DockerStatus]{}, err
 		}
-		last = &status
+		last = &status.V
 		if time.Until(deadline) <= 0 {
-			return tbgen.DockerStatus{}, sandboxDockerTimeoutError(timeout, last)
+			return api.Raw[tbgen.DockerStatus]{}, sandboxDockerTimeoutError(timeout, last)
 		}
-		if status.State == tbgen.DockerStateReady {
+		if status.V.State == tbgen.DockerStateReady {
 			return status, nil
 		}
-		if sandboxDockerTerminal(status) {
-			return tbgen.DockerStatus{}, sandboxDockerNotReadyError(sandboxID, status)
+		if sandboxDockerTerminal(status.V) {
+			return api.Raw[tbgen.DockerStatus]{}, sandboxDockerNotReadyError(sandboxID, status.V)
 		}
 		sleep := dockerStatusPollInterval - time.Since(pollStarted)
 		if sleep <= 0 {
@@ -145,7 +139,7 @@ func waitForSandboxDockerReady(ctx context.Context, toolClient *toolboxclient.Cl
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return tbgen.DockerStatus{}, cerr.New(cerr.ExitInterrupted, "interrupted")
+			return api.Raw[tbgen.DockerStatus]{}, cerr.New(cerr.ExitInterrupted, "interrupted")
 		case <-timer.C:
 		}
 	}

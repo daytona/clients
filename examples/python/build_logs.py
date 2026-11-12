@@ -10,7 +10,7 @@ metadata. The example also reads logs for a second sandbox created from the
 same Dockerfile, then deliberately fails a build and prints its error output.
 
 Run (from examples):
-DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+DAYTONA_API_KEY=dtn_... \\
       python python/build_logs.py
 """
 
@@ -20,7 +20,7 @@ import sys
 
 from _common import IMAGE, RUN, client, failed, info, passed, section
 
-from daytona.v2 import Image
+from daytona.v2 import ImageBuilder, ImageBuildFailedError, Sandbox
 
 # Distinct, labelled steps make the build output easy to follow.
 DOCKERFILE = f"""FROM {IMAGE}
@@ -47,14 +47,15 @@ def show(logs: str) -> None:
 def main() -> int:
     daytona = client()
     ok = True
-    sandboxes = []
+    sandboxes: list[Sandbox] = []
 
     try:
         section("build a Dockerfile as a sandbox")
-        sandbox = daytona.create(
-            Image.from_dockerfile(DOCKERFILE),
+        sandbox = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"buildlogs-{RUN}",
-            timeout=400,
+            build_timeout=400,
+            wait_seconds=400,
         )
         sandboxes.append(sandbox)
         info(f"sandbox {sandbox.id} is {sandbox.state}")
@@ -75,10 +76,11 @@ def main() -> int:
             info("the marker value was not present in the available output")
 
         section("build logs for a second sandbox from the same Dockerfile")
-        twin = daytona.create(
-            Image.from_dockerfile(DOCKERFILE),
+        twin = daytona.create_from_build(
+            ImageBuilder.from_dockerfile(DOCKERFILE),
             name=f"buildlogs-twin-{RUN}",
-            timeout=400,
+            build_timeout=400,
+            wait_seconds=400,
         )
         sandboxes.append(twin)
         twin_logs = twin.build_logs()
@@ -92,17 +94,16 @@ def main() -> int:
         section("a FAILED build keeps its log, which says why")
         info("building something that cannot succeed — this takes ~20s")
         try:
-            broken = daytona.create(
-                Image.from_dockerfile(BROKEN_DOCKERFILE),
+            broken = daytona.create_from_build(
+                ImageBuilder.from_dockerfile(BROKEN_DOCKERFILE),
                 name=f"buildlogs-bad-{RUN}",
-                # Bound the wait so a failed build does not stall the example.
-                timeout=120,
+                # Bound the build separately from the sandbox readiness wait.
+                build_timeout=120,
+                wait_seconds=120,
             )
             sandboxes.append(broken)
-            # Reaching here means the create did not fail; still print whatever
-            # the build recorded rather than asserting a specific outcome.
-            info(f"unexpectedly created {broken.id} ({broken.state})")
-            show(broken.build_logs())
+            failed(f"the deliberately broken build unexpectedly created {broken.id} ({broken.state})")
+            ok = False
         except Exception as exc:
             message = str(exc)
             info(f"create failed as expected: {message}")
@@ -116,35 +117,38 @@ def main() -> int:
                     "outlived the timeout, so this section proved nothing"
                 )
                 ok = False
+            elif not isinstance(exc, ImageBuildFailedError) or exc.image_id is None:
+                failed(f"expected ImageBuildFailedError carrying the image id, got: {message}")
+                ok = False
             else:
-                # Find the failed sandbox by name to read the build's error output.
-                target_name = f"buildlogs-bad-{RUN}"
-                found = [s for s in daytona.iter() if s.name == target_name]
-                if not found:
-                    failed(
-                        "the failed sandbox was not listed, so its build log "
-                        "could not be shown"
+                # A failed build leaves no sandbox; the error's image id reads
+                # the failed build's output.
+                chunks: list[str] = []
+                read_failed = False
+                try:
+                    daytona.images.follow_build_logs(
+                        exc.image_id, on_logs=chunks.append, timeout=60
                     )
-                    ok = False
-                else:
-                    sandboxes.extend(found)
+                except Exception as read_exc:
                     # Reading build logs can fail; report the error to the user.
-                    try:
-                        failed_log = found[0].build_logs()
-                    except Exception as read_exc:
-                        failed(f"the failed build's log could not be read: {read_exc}")
+                    failed(f"the failed build's log could not be read: {read_exc}")
+                    ok = False
+                    read_failed = True
+                failed_log = "".join(chunks)
+                if failed_log:
+                    show(failed_log)
+                # After a read error the output may be partial, so judge only
+                # a complete read. A state line alone does not prove output
+                # was retrieved: require our failing command's output.
+                if not read_failed:
+                    if not failed_log:
+                        failed("the failed build's log was empty")
                         ok = False
+                    elif f"intentional-build-failure-{RUN}" in failed_log:
+                        passed("the failed build's log contains the failing command's output")
                     else:
-                        show(failed_log)
-                        # A state line alone does not prove output was
-                        # retrieved. Require our failing command's output.
-                        if f"intentional-build-failure-{RUN}" in failed_log:
-                            passed("the failed build's log contains the failing command's output")
-                        else:
-                            failed(
-                                "the failed build's log is missing the failing command's output"
-                            )
-                            ok = False
+                        failed("the failed build's log is missing the failing command's output")
+                        ok = False
     finally:
         section("cleanup")
         for sandbox in sandboxes:

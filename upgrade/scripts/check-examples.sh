@@ -11,7 +11,7 @@
 #          [--ts-tarball <@daytona/sdk 2.x .tgz>] [--work <dir>]
 # Checks each language whose SDK artifact is given (at least one). The artifacts
 # must carry the v0 bundle (scripts/bundle-v0.sh).
-# Needs git, plus node/npm for TypeScript and python3 with uv for Python, on PATH.
+# Needs git and python3, plus node/npm for TypeScript and uv for Python, on PATH.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -30,12 +30,28 @@ done
 src=$(cd "$src" && pwd)
 [ -z "$wheel" ] || wheel=$(cd "$(dirname "$wheel")" && pwd)/$(basename "$wheel")
 [ -z "$tarball" ] || tarball=$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")
+# The 0.x release the examples come from: the pin SDK 2.x bundles as .v0.
+pinned=$(sed -n '1s/^v//p' "$upgrade/../scripts/v0-sdk-version" | tr -d '[:space:]')
 work=${work:-$(mktemp -d)}
 mkdir -p "$work"
 work=$(cd "$work" && pwd)
 
 commit() { git -C "$1" add -A && git -C "$1" -c user.email=ci@daytona.invalid -c user.name=ci commit -qm "$2"; }
 fresh_repo() { rm -rf "$1" && mkdir -p "$1" && git -C "$1" init -q; }
+# The second run's report must not ask for the dependency it just wrote (read
+# with python3, which both language checks have).
+target_kept() { # report-json manifest label
+  if ! python3 -c '
+import json, sys
+bad = [item for item in json.load(sys.stdin)["items"] if item["kind"] == "manual-dependency" and item["file"] == sys.argv[1]]
+if bad:
+    print(json.dumps(bad), file=sys.stderr)
+    sys.exit(1)
+' "$2" <<<"$1"; then
+    echo "FAIL: a second $3 run reports the dependency it wrote as a manual item" >&2
+    exit 1
+  fi
+}
 idempotent() {
   if [ -n "$(git -C "$1" status --porcelain)" ]; then
     echo "FAIL: a second $2 run changed files:" >&2
@@ -49,8 +65,8 @@ if [ -n "$tarball" ]; then
 ts="$work/ts"
 fresh_repo "$ts"
 cp -r "$src/examples/typescript/." "$ts/"
-cat >"$ts/package.json" <<'JSON'
-{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "0.224.0" } }
+cat >"$ts/package.json" <<JSON
+{ "name": "upgrade-examples", "private": true, "dependencies": { "@daytona/sdk": "$pinned" } }
 JSON
 printf 'node_modules\n' >"$ts/.gitignore"
 commit "$ts" "0.x examples"
@@ -58,7 +74,8 @@ commit "$ts" "0.x examples"
 node "$upgrade/typescript/dist/cli.js" "$ts" --yes
 grep -q '"@daytona/sdk": "^2.0.0"' "$ts/package.json" || { echo "FAIL: package.json not bumped" >&2; exit 1; }
 commit "$ts" "upgraded"
-node "$upgrade/typescript/dist/cli.js" "$ts" --yes >/dev/null
+ts_report=$(node "$upgrade/typescript/dist/cli.js" "$ts" --yes --json)
+target_kept "$ts_report" package.json "TypeScript upgrade"
 idempotent "$ts" "TypeScript upgrade"
 (
   cd "$ts"
@@ -84,12 +101,13 @@ py="$work/py"
 fresh_repo "$py"
 cp -r "$src/examples/python" "$py/python"
 cp -r "$src/examples/jupyter" "$py/jupyter"
-printf 'daytona==0.224.0\n' >"$py/requirements.txt"
+printf 'daytona==%s\n' "$pinned" >"$py/requirements.txt"
 commit "$py" "0.x examples"
 (cd "$upgrade/python" && uv sync --locked -q && uv run -q daytona-upgrade "$py" --yes)
 grep -qx 'daytona\[v0-sdk\]>=2,<3' "$py/requirements.txt" || { echo "FAIL: requirements.txt not bumped" >&2; exit 1; }
 commit "$py" "upgraded"
-(cd "$upgrade/python" && uv run -q daytona-upgrade "$py" --yes >/dev/null)
+py_report=$(cd "$upgrade/python" && uv run -q daytona-upgrade "$py" --yes --json)
+target_kept "$py_report" requirements.txt "Python upgrade"
 idempotent "$py" "Python upgrade"
 venv="$work/venv"
 rm -rf "$venv"

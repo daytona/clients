@@ -1,0 +1,10 @@
+[
+  {
+    "ignore": "[^\\W]*[]]",
+    "error": "invalid pattern \"[^\\\\W]*[]]\": syntax error in pattern"
+  },
+  {
+    "ignore": "*\n[^z-a]*[]]",
+    "error": "invalid pattern \"[^z-a]*[]]\": syntax error in pattern"
+  }
+]

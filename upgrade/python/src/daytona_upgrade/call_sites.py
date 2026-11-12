@@ -38,6 +38,8 @@ class Call:
     statement: int
     binding: str
     scope: tuple[str, ...]
+    # Its parameters provably pass a 0.x Dockerfile image (dockerfile_images).
+    dockerfile_image: bool = False
 
 
 def call_parameters(

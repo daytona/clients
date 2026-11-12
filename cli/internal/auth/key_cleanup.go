@@ -64,8 +64,9 @@ func revokeKeys(ctx context.Context, a *app.App, c *api.Client, keys []config.Wo
 }
 
 // Logout clears only this profile's local session, then attempts revocation of
-// its login-minted keys against the saved API. Static exchanges are deliberately
-// excluded: their source credential is not the login being signed out.
+// its login-minted keys against the saved API. Keys an earlier release
+// exchanged from a static credential are excluded: their source credential is
+// not the login being signed out.
 func Logout(ctx context.Context, a *app.App) error {
 	var snapshot LoginKeyCleanup
 	err := a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
@@ -83,6 +84,40 @@ func Logout(ctx context.Context, a *app.App) error {
 	// The snapshot is still our only chance to revoke those removed key IDs.
 	snapshot.Revoke(ctx, a)
 	return err
+}
+
+// DeleteProfile removes a profile and its saved credentials, then attempts
+// revocation of its login-minted keys against the profile's saved API, like
+// Logout. A missing profile is reported by notFound.
+func DeleteProfile(ctx context.Context, a *app.App, name string, notFound func() error) error {
+	var snapshot LoginKeyCleanup
+	err := a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
+		p, ok := c.Profile(name)
+		if !ok {
+			return false, false, notFound()
+		}
+		snapshot = SnapshotLoginKeys(*p, cr.Profiles[name])
+		c.Remove(name)
+		delete(cr.Profiles, name)
+		return true, true, nil
+	})
+	// Credentials are written before config, so a failed update may still
+	// have removed them; revoke only when they are gone, never for a profile
+	// that still holds its keys.
+	if err != nil && !credentialsRemoved(a, name) {
+		return err
+	}
+	snapshot.Revoke(ctx, a)
+	return err
+}
+
+func credentialsRemoved(a *app.App, name string) bool {
+	cr, err := a.Store.LoadCredentials()
+	if err != nil {
+		return false
+	}
+	_, ok := cr.Profiles[name]
+	return !ok
 }
 
 // Revoke best-effort cleans up a replaced login outside the store lock, within

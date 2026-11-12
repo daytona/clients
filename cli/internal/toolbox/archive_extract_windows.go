@@ -7,15 +7,24 @@ package toolbox
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
-	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
+// windowsArchiveExtractor creates entries relative to directory handles
+// (os.Root: NtCreateFile with a RootDirectory). The destination is pinned
+// when extraction starts, and each parent is opened from the handle of its
+// own parent, so a concurrent rename or link swap of a directory cannot
+// redirect a regular file or directory write. Symlink entries are created in
+// the pinned parent too, but their target containment check is name-based
+// (EvalSymlinks plus within). Hard links (os.Root.Link) re-resolve both
+// relative paths from the pinned destination; os.Root keeps them inside it.
 type windowsArchiveExtractor struct {
 	rootPath string
+	root     *os.Root
 }
 
 func newArchiveExtractor(dst string) (archiveExtractor, error) {
@@ -23,59 +32,83 @@ func newArchiveExtractor(dst string) (archiveExtractor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve destination %s: %w", dst, err)
 	}
-	return &windowsArchiveExtractor{rootPath: rootPath}, nil
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", rootPath, err)
+	}
+	return &windowsArchiveExtractor{rootPath: rootPath, root: root}, nil
 }
 
 func (e *windowsArchiveExtractor) Close() error {
-	return nil
+	return e.root.Close()
 }
 
-func (e *windowsArchiveExtractor) ExtractDirectory(_ string, target string, mode os.FileMode) error {
-	if err := mkdirAllContained(e.rootPath, target); err != nil {
+func (e *windowsArchiveExtractor) ExtractDirectory(relPath string, target string, mode os.FileMode) error {
+	parent, base, err := e.openParent(relPath, true)
+	if err != nil {
 		return err
 	}
-	if err := os.Chmod(target, mode); err != nil {
+	defer closeUnlessRoot(e.root, parent)
+	dir, err := openDirectoryIn(parent, base, target, true)
+	if err != nil {
+		return err
+	}
+	_ = dir.Close()
+	if err := parent.Chmod(base, mode); err != nil {
 		return fmt.Errorf("chmod %s: %w", target, err)
 	}
 	return nil
 }
 
-func (e *windowsArchiveExtractor) OpenRegular(_ string, target string, mode os.FileMode) (*os.File, error) {
-	if err := mkdirAllContained(e.rootPath, filepath.Dir(target)); err != nil {
+func (e *windowsArchiveExtractor) OpenRegular(relPath string, target string, mode os.FileMode) (*os.File, error) {
+	parent, base, err := e.openParent(relPath, true)
+	if err != nil {
 		return nil, err
 	}
-	return openRegularNoFollow(target, mode)
+	defer closeUnlessRoot(e.root, parent)
+	if archiveAfterParentPinned != nil {
+		archiveAfterParentPinned(target)
+	}
+	return openRegularIn(parent, base, target, mode)
 }
 
-func (e *windowsArchiveExtractor) ExtractHardLink(header *tar.Header, _ string, target string) error {
+func (e *windowsArchiveExtractor) ExtractHardLink(header *tar.Header, relPath string, target string) error {
 	if filepath.IsAbs(header.Linkname) || hasParentPathComponent(header.Linkname) {
 		return fmt.Errorf("tar hard link %s -> %s: absolute or parent-relative link targets are refused", header.Name, header.Linkname)
 	}
-	linkTarget, err := safeTarget(e.rootPath, header.Linkname)
+	source, err := resolveArchiveTarget(e.rootPath, header.Linkname)
 	if err != nil {
 		return fmt.Errorf("tar hard link %s -> %s: %w", header.Name, header.Linkname, err)
 	}
-	info, err := os.Lstat(linkTarget)
+	sourceParent, sourceBase, err := e.openParent(source.relPath, false)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("tar hard link %s -> %s: target has not been extracted yet", header.Name, header.Linkname)
 		}
 		return fmt.Errorf("tar hard link %s -> %s: %w", header.Name, header.Linkname, err)
 	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("tar hard link %s -> %s: target must be a regular file", header.Name, header.Linkname)
+	defer closeUnlessRoot(e.root, sourceParent)
+	if err := requireRegularIn(sourceParent, sourceBase, source.target); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("tar hard link %s -> %s: target has not been extracted yet", header.Name, header.Linkname)
+		}
+		return fmt.Errorf("tar hard link %s -> %s: %w", header.Name, header.Linkname, err)
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return fmt.Errorf("create parent for %s: %w", target, err)
+	destParent, destBase, err := e.openParent(relPath, true)
+	if err != nil {
+		return err
 	}
-	_ = os.Remove(target)
-	if err := os.Link(linkTarget, target); err == nil {
+	defer closeUnlessRoot(e.root, destParent)
+	if err := removeNonDirectoryIn(destParent, destBase, target); err != nil {
+		return err
+	}
+	if err := e.root.Link(source.relPath, relPath); err == nil {
 		return nil
 	}
-	return copyHardLinkTarget(linkTarget, target, os.FileMode(header.Mode))
+	return copyHardLinkTargetIn(sourceParent, sourceBase, destParent, destBase, source.target, target, os.FileMode(header.Mode))
 }
 
-func (e *windowsArchiveExtractor) ExtractSymlink(header *tar.Header, _ string, target string) error {
+func (e *windowsArchiveExtractor) ExtractSymlink(header *tar.Header, relPath string, target string) error {
 	root, err := filepath.EvalSymlinks(e.rootPath)
 	if err != nil {
 		return fmt.Errorf("resolve destination %s: %w", e.rootPath, err)
@@ -83,9 +116,11 @@ func (e *windowsArchiveExtractor) ExtractSymlink(header *tar.Header, _ string, t
 	if filepath.IsAbs(header.Linkname) || hasParentPathComponent(header.Linkname) {
 		return fmt.Errorf("tar symlink %s -> %s: absolute or parent-relative link targets are refused", header.Name, header.Linkname)
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return fmt.Errorf("create parent for %s: %w", target, err)
+	parent, base, err := e.openParent(relPath, true)
+	if err != nil {
+		return err
 	}
+	defer closeUnlessRoot(e.root, parent)
 	linkDir, err := filepath.EvalSymlinks(filepath.Dir(target))
 	if err != nil {
 		return fmt.Errorf("resolve parent of %s: %w", target, err)
@@ -105,58 +140,39 @@ func (e *windowsArchiveExtractor) ExtractSymlink(header *tar.Header, _ string, t
 	if err != nil {
 		return fmt.Errorf("tar symlink %s: %w", header.Name, err)
 	}
-	_ = os.Remove(target)
-	if err := os.Symlink(safeLink, filepath.Join(linkDir, filepath.Base(target))); err != nil {
+	if err := removeNonDirectoryIn(parent, base, target); err != nil {
+		return err
+	}
+	if err := parent.Symlink(safeLink, base); err != nil {
 		return fmt.Errorf("create symlink %s: %w", target, err)
 	}
 	return nil
 }
 
-func copyHardLinkTarget(source string, target string, mode os.FileMode) error {
-	input, err := os.Open(source)
-	if err != nil {
-		return fmt.Errorf("open %s: %w", source, err)
+// openParent walks relPath's directories from the pinned root, one handle per
+// component, refusing symlinks and junctions. The caller closes the returned
+// Root with closeUnlessRoot.
+func (e *windowsArchiveExtractor) openParent(relPath string, create bool) (*os.Root, string, error) {
+	parts := splitArchiveRel(relPath)
+	if len(parts) == 0 {
+		return e.root, ".", nil
 	}
-	defer input.Close()
-	output, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", target, err)
+	current := e.root
+	currentPath := e.rootPath
+	for _, part := range parts[:len(parts)-1] {
+		currentPath = filepath.Join(currentPath, part)
+		next, err := openDirectoryIn(current, part, currentPath, create)
+		closeUnlessRoot(e.root, current)
+		if err != nil {
+			return nil, "", err
+		}
+		current = next
 	}
-	if _, err := io.Copy(output, input); err != nil {
-		_ = output.Close()
-		return fmt.Errorf("write %s: %w", target, err)
-	}
-	if err := output.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", target, err)
-	}
-	return nil
+	return current, parts[len(parts)-1], nil
 }
 
-func mkdirAllContained(dst string, dir string) error {
-	rel, err := filepath.Rel(filepath.Clean(dst), filepath.Clean(dir))
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("directory %s escapes destination", dir)
+func closeUnlessRoot(root *os.Root, r *os.Root) {
+	if r != nil && r != root {
+		_ = r.Close()
 	}
-	cur := filepath.Clean(dst)
-	if rel == "." {
-		return nil
-	}
-	for _, part := range strings.Split(rel, string(filepath.Separator)) {
-		cur = filepath.Join(cur, part)
-		info, statErr := os.Lstat(cur)
-		switch {
-		case statErr == nil && info.Mode()&os.ModeSymlink != 0:
-			return fmt.Errorf("refusing to extract through symlink %s", cur)
-		case statErr == nil && !info.IsDir():
-			return fmt.Errorf("%s exists and is not a directory", cur)
-		case statErr == nil:
-		case os.IsNotExist(statErr):
-			if err := os.Mkdir(cur, 0o755); err != nil && !os.IsExist(err) {
-				return fmt.Errorf("create %s: %w", cur, err)
-			}
-		default:
-			return fmt.Errorf("stat %s: %w", cur, statErr)
-		}
-	}
-	return nil
 }

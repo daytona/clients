@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -43,6 +44,17 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 		dc, err := auth.StartDevice(ctx, anon.HTTP, p)
 		if err != nil {
 			return err
+		}
+		if a.Format != output.FormatTable || !app.WriterIsTerminal(a.Stdout) {
+			event := struct {
+				VerificationURI         string `json:"verification_uri,omitempty"`
+				VerificationURIComplete string `json:"verification_uri_complete,omitempty"`
+				UserCode                string `json:"user_code,omitempty"`
+				ExpiresIn               int64  `json:"expires_in,omitempty"`
+			}{dc.VerificationURI, dc.VerificationURIComplete, dc.UserCode, dc.ExpiresIn}
+			if err := json.NewEncoder(a.Stdout).Encode(event); err != nil {
+				return err
+			}
 		}
 		// Flatten IdP-provided text before rendering to the terminal.
 		fmt.Fprintln(a.Stderr, auth.FormatDevicePrompt(&auth.DeviceCode{
@@ -95,7 +107,9 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 			prof.OrgID, prof.ProjectByOrg, prof.Identity = cur.OrgID, cur.ProjectByOrg, cur.Identity
 			previous = *cur
 		}
-		c.Upsert(prof)
+		if err := c.Upsert(prof); err != nil {
+			return false, false, err
+		}
 		if c.ActiveProfile == "" {
 			c.ActiveProfile = name
 		}
@@ -103,13 +117,7 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 		cleanup = auth.SnapshotLoginKeys(previous, pc)
 		// KeySession fences in-flight writers, not cache hits. Revoke every
 		// old login key atomically with the new tokens, before /me can block.
-		kept := make([]config.WorkloadKey, 0, len(pc.WorkloadKeys))
-		for _, key := range pc.WorkloadKeys {
-			if key.Source != "" {
-				kept = append(kept, key)
-			}
-		}
-		pc.WorkloadKeys, pc.PlatformTokens = kept, nil
+		pc.WorkloadKeys, pc.PlatformTokens = nil, nil
 		pc.KeySession = loginSession
 		pc.Token = ""
 		pc.OIDC = &config.Tokens{AccessToken: ts.AccessToken, RefreshToken: ts.RefreshToken, IDToken: ts.IDToken, ExpiresAt: ts.ExpiresAt(now), ClientID: p.ClientID}
@@ -143,7 +151,7 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 	if !ok {
 		return cerr.New(cerr.ExitAuth, "profile %q disappeared during login", name).WithHint("run `daytona login` again")
 	}
-	meID := me.Id.String()
+	meID := me.V.Id.String()
 	keep := prof.Identity == meID && prof.OrgID != ""
 	if keep {
 		if _, err := mgmt.ResolveOrg(orgs, prof.OrgID); err != nil {
@@ -216,7 +224,7 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 	if err != nil {
 		return err
 	}
-	who := me.Email
+	who := me.V.Email
 	if who == "" {
 		who = meID
 	}

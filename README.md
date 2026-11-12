@@ -11,28 +11,31 @@ processes, files, Git, code execution, ports, LSP and computer use.
 
 ```
 .
-├── cli/          daytona CLI (Go)
-├── contract/     OpenAPI contracts the SDKs and CLI generate their wire types from
-├── python/       daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
-├── typescript/   @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
-├── scripts/      bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
-│                 (+ resolve-v0-tag.sh, bundle_v0_python.py, check-no-bundled-v0.sh, changelog/)
-├── v0-sdk-version                         — the pinned 0.x tag the v0 namespace vendors
-├── upgrade/      daytona-upgrade          — 0.x → 2.x migration tool: npm (typescript/) + PyPI (python/) packages,
-│                 one shared mapping (mapping/), the generated MIGRATION.md
-├── e2e.py / e2e.ts / run-e2e.sh        — live API e2e (needs DAYTONA_API_KEY)
-└── examples/
+├── cli/             daytona CLI (Go)
+├── contract/        OpenAPI contracts the SDKs and CLI generate their wire types from
+├── sdk-python/      daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
+├── sdk-typescript/  @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
+├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (upgrade/typescript/) + PyPI (upgrade/python/) packages,
+│                    one shared mapping (mapping/), the generated MIGRATION.md
+├── examples/        runnable examples for both SDKs
+├── e2e/             live API e2e, run.sh (needs DAYTONA_API_KEY)
+├── scripts/         bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
+│                    (+ v0-sdk-version, the pinned 0.x tag the v0 namespace vendors;
+│                    resolve-v0-tag.sh, bundle_v0_python.py, check-no-bundled-v0.sh, changelog/)
+└── docs/            RELEASING.md, VERSIONING.md, PREPARING_YOUR_CHANGES.md, adr/ (architecture decision records)
 ```
 
 ## The shared V2 model (both languages, one shape)
 
-- **Serializable handles.** `Sandbox` and `ProcessHandle` reconstruct from
-  plain JSON — built for RL rollouts that fan work across workers. A
-  rehydrated `kind:"code"` process handle can still replay logs and wait/kill,
-  but it does not reconstruct a decomposed `InterpreterResult` on another
-  worker.
+- **Serializable handles.** `sandbox.to_json()` / `toJSON()` returns a
+  `SandboxHandleJSON`: a credential-free snapshot of the sandbox's metadata,
+  the same in both SDKs. Another worker reconnects with `d.v2.get(id)`; a
+  process reconnects with `sandbox.process.connect(...)` — built for RL
+  rollouts that fan work across workers. A reconnected code process (`ProcessKind` `code`)
+  handle can still replay logs and wait/kill, but it does not reconstruct a
+  decomposed `InterpreterResult` on another worker.
 - **Detached vs awaited, typed apart.** `start()` → handle; `run()` → result.
-- **Shareable volumes.** The v2 client exposes `volume.create/get/list/delete`,
+- **Shareable volumes.** The v2 client exposes `volumes.create/get/list/delete`,
   with explicit `iter()` traversal for all pages. Attach volumes using the
   `volumes` create option and refresh mounted data with `sandbox.volumes.pull()`.
   The CLI exposes the `volume` command group and `--volume` on Linux and macOS
@@ -83,10 +86,10 @@ processes, files, Git, code execution, ports, LSP and computer use.
   `version: 2` field out of write input. The API rejects unsupported sandbox
   configurations.
 - **Runtime-managed sandbox secret attachments use the same compare-and-swap shape.**
-  Both SDKs expose sandbox-handle `get_secrets` / `replace_secrets`
-  (Python) and `getSecrets` / `replaceSecrets` (TypeScript), plus root-client
-  `get_sandbox_secrets` / `replace_sandbox_secrets` and `getSandboxSecrets` /
-  `replaceSandboxSecrets`, for `GET|PUT /sandboxes/{id}/secrets`. Responses carry
+  Both SDKs expose them on the sandbox handle: Python `sandbox.get_secrets()` /
+  `sandbox.replace_secrets(secrets=..., if_match=...)`, TypeScript
+  `sandbox.getSecrets()` / `sandbox.replaceSecrets(secrets, { ifMatch })`, for
+  `GET|PUT /sandboxes/{id}/secrets`. Responses carry
   the desired secret names, desired/applied revision state, the quoted desired
   ETag, the apply `status` (`pending`/`applied`/`failed`) with its `error`, and
   capture metadata; writes are full replacement only,
@@ -102,19 +105,19 @@ processes, files, Git, code execution, ports, LSP and computer use.
 ## Verification
 
 ```bash
-(cd python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
-(cd typescript && npm install && npm run typecheck && npm test && npm run build)
+(cd sdk-python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
+(cd sdk-typescript && npm install && npm run typecheck && npm test && npm run build)
 (cd cli && go vet ./... && go test ./...)
 scripts/test-upgrade.sh   # both daytona-upgrade packages + mapping / guide drift
 ```
 
 The TypeScript suite also runs a live toolbox test when
 `DAYTONA_SDKTS_TOOLBOX_URL` points at a reachable sandbox toolbox, and skips it
-otherwise. The end-to-end suites (`e2e.py`, `e2e.ts`, `run-e2e.sh`) run against
+otherwise. The end-to-end suites (`e2e/`, run with `e2e/run.sh`) run against
 a Daytona deployment when `DAYTONA_API_KEY` is set. Details: each package's
 `DEVELOPMENT.md`.
 
-Releases: [RELEASING.md](RELEASING.md) · [VERSIONING.md](VERSIONING.md) ·
+Releases: [RELEASING.md](docs/RELEASING.md) · [VERSIONING.md](docs/VERSIONING.md) ·
 [CHANGELOG.md](CHANGELOG.md). Every PR that changes an SDK adds one changelog
 fragment under [`changelog.d/`](changelog.d/) (not a line in `CHANGELOG.md`);
 see [`changelog.d/README.md`](changelog.d/README.md).

@@ -5,7 +5,7 @@ Uses the single-file helpers ``fs.write_bytes(remote_path, bytes)`` and
 ``fs.read_bytes(path)`` (bytes in / bytes out).
 
 Run (from examples):
-    DAYTONA_API_URL=... DAYTONA_API_KEY=dtn_... \\
+    DAYTONA_API_KEY=dtn_... \\
       python python/file_operations.py
 """
 
@@ -14,29 +14,27 @@ from __future__ import annotations
 import json
 import sys
 
-from _common import IMAGE, RUN, client, failed, info, passed, section
-
-from daytona.v2 import Image
+from _common import RUN, client, failed, info, passed, require_started, sandbox_image, section
 
 
 def main() -> int:
     daytona = client()
-    sandbox = daytona.create(Image.base(IMAGE), name=f"files-{RUN}", timeout=200)
+    sandbox = daytona.create(sandbox_image(daytona), name=f"files-{RUN}", wait_seconds=200)
     info(f"created sandbox id={sandbox.id}")
 
     ok = True
     try:
-        d = "project-files"
+        if not require_started(sandbox):
+            return 1
+        d = "/tmp/project-files"
 
         section("mkdir + list")
         sandbox.fs.mkdir(d, mode="755")
-        before = sandbox.fs.list(".").items
-        info("entries in cwd: " + ", ".join(f.name for f in before))
+        before = sandbox.fs.list("/tmp").items
+        info("entries in /tmp: " + ", ".join(f.name for f in before))
 
         section("write_bytes (from in-memory bytes)")
-        config = json.dumps(
-            {"name": "demo", "version": "1.0.0", "settings": {"debug": True}}, indent=2
-        )
+        config = json.dumps({"name": "demo", "version": "1.0.0", "settings": {"debug": True}}, indent=2)
         sandbox.fs.write_bytes(f"{d}/config.json", config.encode())
         sandbox.fs.write_bytes(f"{d}/script.sh", b'#!/bin/bash\necho "Hello from script!"\n')
         info("uploaded config.json + script.sh")
@@ -44,8 +42,13 @@ def main() -> int:
         section("run: verify + run the uploaded script")
         info(sandbox.process.run(f"ls -la {d}").output.strip())
         sandbox.process.run(f"chmod +x {d}/script.sh")
-        script_out = sandbox.process.run(f"./{d}/script.sh")
+        script_out = sandbox.process.run(f"{d}/script.sh")
         info(f"script output: {script_out.output.strip()}")
+        if script_out.exit_code == 0:
+            passed("the uploaded script ran")
+        else:
+            failed(f"the uploaded script failed (exit={script_out.exit_code})")
+            ok = False
 
         section("glob (by name pattern)")
         found = sandbox.fs.glob(d, "*.json")

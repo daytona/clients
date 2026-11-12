@@ -22,7 +22,7 @@ export function envUrlItems(position: Pick<Item, 'file' | 'line' | 'column'>, se
   const review: Item = { ...position, kind: 'env-api-url',
     message: setting.name === undefined
       ? 'an environment write may set DAYTONA_API_URL or DAYTONA_SERVER_URL; check that it does not point at a custom API'
-      : `${setting.name} is ignored by SDK 2.x .v0 (it targets Daytona Cloud); .v2 reads DAYTONA_V2_API_URL, then DAYTONA_API_URL, for test environments. Review this setting.` };
+      : `${setting.name} is ignored by SDK 2.x: .v0 targets Daytona Cloud, and .v2 reads only DAYTONA_V2_API_URL, for test environments. Review this setting.` };
   return custom ? [review, { ...position, kind: 'custom-api-url', message: ENV_CUSTOM_URL }] : [review];
 }
 

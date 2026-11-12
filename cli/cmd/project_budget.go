@@ -47,9 +47,9 @@ Spend is evaluated periodically and can lag usage by several minutes.`,
 			}
 			b, err := mgmt.GetProjectBudget(ctx, mc, id)
 			if err != nil {
-				return noBudgetHint(err)
+				return err
 			}
-			return a.Printer().Object(b, projectBudgetKV(b))
+			return a.Printer().Object(b, projectBudgetKV(&b.V))
 		},
 	})
 	set := &cobra.Command{
@@ -79,7 +79,7 @@ Spend is evaluated periodically and can lag usage by several minutes.`,
 			if err != nil {
 				return err
 			}
-			return a.Printer().Object(b, projectBudgetKV(b))
+			return a.Printer().Object(b, projectBudgetKV(&b.V))
 		},
 	}
 	set.Flags().String("monthly-usd", "", "monthly budget in US dollars, at least 1.00 and at most two decimals (e.g. 500 or 499.99)")
@@ -110,8 +110,7 @@ Spend is evaluated periodically and can lag usage by several minutes.`,
 			if err := mgmt.RemoveProjectBudget(ctx, mc, id); err != nil {
 				return noBudgetHint(err)
 			}
-			a.Info("Monthly budget removed from project %s.", id)
-			return nil
+			return printAck(a, "project_id", id, "removed", fmt.Sprintf("Monthly budget removed from project %s.", id))
 		},
 	})
 	return c
@@ -141,8 +140,8 @@ func budgetProjectID(cmd *cobra.Command, mc *mgmtClient, args []string) (string,
 	return id, nil
 }
 
-// noBudgetHint replaces the generic 404 hint: on the budget routes a 404
-// most often means the project has no budget.
+// noBudgetHint replaces the generic 404 hint on DELETE, where a 404 means
+// the project has no budget. GET answers 200 with null fields instead.
 func noBudgetHint(err error) error {
 	var ce *cerr.Error
 	var ae *api.APIError

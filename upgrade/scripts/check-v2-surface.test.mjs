@@ -26,12 +26,12 @@ function runMapping(suggestions, context, files) {
   if (files) {
     entryScript = join(directory, 'upgrade/scripts/check-v2-surface.mjs');
     mkdirSync(dirname(entryScript), { recursive: true });
-    for (const name of ['check-v2-surface.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
+    for (const name of ['check-v2-surface.mjs', 'optional-arguments.mjs', 'v2-typescript-surface.mjs', 'v2-python-surface.py']) {
       copyFileSync(new URL(name, import.meta.url), join(dirname(entryScript), name));
     }
-    mkdirSync(join(directory, 'typescript'), { recursive: true });
-    symlinkSync(fileURLToPath(new URL('../../typescript/node_modules', import.meta.url)), join(directory, 'typescript/node_modules'));
-    writeFileSync(join(directory, 'typescript/tsconfig.json'), JSON.stringify({ compilerOptions: {
+    mkdirSync(join(directory, 'sdk-typescript'), { recursive: true });
+    symlinkSync(fileURLToPath(new URL('../../sdk-typescript/node_modules', import.meta.url)), join(directory, 'sdk-typescript/node_modules'));
+    writeFileSync(join(directory, 'sdk-typescript/tsconfig.json'), JSON.stringify({ compilerOptions: {
       strict: true, target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', skipLibCheck: true,
     } }));
     for (const [name, text] of Object.entries(files)) {
@@ -115,13 +115,13 @@ test('rejects stale methods, parameters and overloads when the SDK has renamed t
 });
 
 const fixtureSdk = {
-  'python/src/daytona/_client.py': `from .v2.daytona import AsyncDaytona as DaytonaV2Client
+  'sdk-python/src/daytona/_client.py': `from .v2.daytona import AsyncDaytona as DaytonaV2Client
 class Daytona:
     @property
     def v2(self) -> DaytonaV2Client:
         return DaytonaV2Client()
 `,
-  'python/src/daytona/v2/daytona.py': `class AsyncDaytona:
+  'sdk-python/src/daytona/v2/daytona.py': `class AsyncDaytona:
     async def create(self, *, region=None,
                      # commented_option=False,
                      ):
@@ -130,9 +130,9 @@ class Unrelated:
     async def create(self, *, commented_option=False):
         pass
 `,
-  'typescript/src/index.ts': `import { Client } from './v2/index.js';
+  'sdk-typescript/src/index.ts': `import { Client } from './v2/index.js';
 export class Daytona { get v2(): Client { return new Client(); } }`,
-  'typescript/src/v2/index.ts': `export class Client { create(options: { region?: string;
+  'sdk-typescript/src/v2/index.ts': `export class Client { create(options: { region?: string;
 // commentedOption?: boolean;
 }) {} }
 export class Unrelated { create(options: { commentedOption?: boolean }) {} }

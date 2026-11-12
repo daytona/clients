@@ -12,6 +12,7 @@ from ._workflow_index import WorkflowIndex
 from .flow import Call, Flow
 from .lexical import single_line
 from .models import Item, Mapping, SuggestionReport
+from .optional_arguments import call_argument, render_optional_arguments
 from .persistent_workflow import persistent_lifecycle_calls
 from .resolution import dotted
 from .shared_error_guidance import shared_error_imports
@@ -36,8 +37,16 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             assignments.setdefault(node.lineno, []).append(node)
     items: list[Item] = []
-    for node in shared_error_imports(flow, index.scopes):
+    for node, error_names in shared_error_imports(flow, index.scopes):
         message = "when moving these calls to v2, import shared errors from daytona so except clauses also catch v2 errors; root errors take only a message and have no 0.x attributes"
+        aliases = sorted(
+            name for name in error_names if name in mapping.root_alias_categories
+        )
+        if aliases:
+            message += "; " + ", ".join(
+                f"{alias} is {mapping.root_alias_categories[alias]} at the root"
+                for alias in aliases
+            )
         comments.setdefault(node.lineno, []).append("daytona-v2: " + message)
         items.append(
             Item(
@@ -82,27 +91,43 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             continue
         emitted.add(key)
         client, sandbox = (single_line(value) for value in receivers(call, owners))
+        # A 0.x Dockerfile image needs its build context: the row's own form for it.
+        dockerfile = call.dockerfile_image and entry.dockerfile_form is not None
+        entry_form = entry.dockerfile_form if dockerfile else entry.form
+        entry_notes = (entry.dockerfile_notes or ()) if dockerfile else entry.notes
+        category = "differs" if dockerfile else entry.category
         form = (
-            owners.render(entry.form, call)
+            owners.render(
+                render_optional_arguments(
+                    entry_form,
+                    lambda name, position, node=call.node: _single(
+                        call_argument(node, name, position, flow.text.segment)
+                    ),
+                ),
+                call,
+            )
             .replace("{client}", client)
             .replace("{sandbox}", sandbox)
-            if entry.form
+            if entry_form
             else None
         )
         notes = [
             owners.render(note, call)
             .replace("{client}", client)
             .replace("{sandbox}", sandbox)
-            for note in entry.notes
+            for note in entry_notes
         ]
         docs = mapping.docs + "#" + entry.anchor
         manual_client = (
             call.kind.startswith("client.")
             and (call.node.lineno, call.node.col_offset) not in owners.clients
         )
+        # A handle a sandbox call produced (an LSP server, a PTY) is not its
+        # sandbox: an unproven owner needs the same manual move as a service.
+        sandbox_produced = owners.sandbox_produced(entry.receiver)
         manual = manual_client or bool(
             entry.form
-            and call.kind.startswith("sandbox.")
+            and (call.kind.startswith("sandbox.") or sandbox_produced)
             and "{sandbox}" in owners.render(entry.form, call)
         )
         message = (
@@ -120,9 +145,9 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             if manual
             else "daytona-v2: " + (form or "none: No v2 equivalent")
         )
-        if entry.category != "direct":
+        if category != "direct":
             block.extend(
-                f"daytona-v2:   {'none' if entry.category == 'none' else 'differs'}: {note}"
+                f"daytona-v2:   {'none' if category == 'none' else 'differs'}: {note}"
                 for note in notes
             )
         block.append("daytona-v2:   docs: " + docs)
@@ -131,7 +156,7 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
             "receiver": entry.receiver,
             "v0": call.receiver + "." + call.method,
             "v2": form,
-            "category": entry.category,
+            "category": category,
             "notes": notes,
             "docs": docs,
         }
@@ -184,6 +209,12 @@ def guidance(flow: Flow, mapping: Mapping) -> Guidance:
                     "column": call.node.col_offset + 1,
                     "kind": "workflow",
                     "message": header.removeprefix("daytona-v2: "),
+                    "suggestion": {
+                        **suggestion,
+                        "id": f"workflow:{call.binding}",
+                        "notes": list(mapping.data_traps),
+                        "docs": mapping.docs + "#data",
+                    },
                 }
             )
     return Guidance(
@@ -244,3 +275,7 @@ def workflow_methods(producer: Call, flow: Flow | WorkflowIndex) -> list[str]:
         if name not in result:
             result.append(name)
     return result
+
+
+def _single(text: str | None) -> str | None:
+    return None if text is None else single_line(text)
