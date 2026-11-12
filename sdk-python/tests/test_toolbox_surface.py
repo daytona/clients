@@ -1427,7 +1427,7 @@ def test_read_many_reads_a_contract_error_part() -> None:
         ("start", {"message": "ok", "status": {"wm": "x"}}, "status must be a map of process statuses"),
         ("glob", ["/a"], "expected glob response"),
         ("glob", {"items": ["/a"]}, "glob response: files is required"),
-        ("glob", {"files": [42]}, "files must be a list of strings"),
+        ("glob", {"files": [42]}, r"files\[0\] must be a string"),
     ],
 )
 async def test_response_paths_reject_what_breaks_the_contract(

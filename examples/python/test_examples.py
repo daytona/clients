@@ -43,6 +43,7 @@ from daytona.v2 import (
     InterpreterLogs,
     InterpreterProcess,
     InterpreterResult,
+    FileSearchResult,
     ListResult,
     ConflictError,
     LogFrame,
@@ -393,7 +394,7 @@ class FakeWorld:
 
         fs.replace.side_effect = replace
         fs.list.side_effect = list_dir
-        fs.glob.return_value = ListResult(items=[])
+        fs.glob.return_value = FileSearchResult(items=[])
         sandbox.fs = fs
 
         git = create_autospec(GitService, instance=True)
@@ -483,6 +484,11 @@ DOCKERFILE_SANDBOX_OK: tuple[Override, ...] = (
     (r"^pwd && cat build\.json$", 0, f'/app\n{{"build":"{RUN}","ok":true}}'),
 )
 
+LOCAL_FILES_OK: tuple[Override, ...] = (
+    (r"^\./main\.sh && cat /etc/example/settings\.conf$", 0, f"local-files-{RUN}\nrun={RUN}"),
+    (r"^ls -a /app$", 0, ". .. main.sh"),
+)
+
 
 @pytest.mark.parametrize(
     ("name", "overrides"),
@@ -494,6 +500,7 @@ DOCKERFILE_SANDBOX_OK: tuple[Override, ...] = (
         ("secrets_env", ()),
         ("dynamic_build", ()),
         ("dockerfile_sandbox", DOCKERFILE_SANDBOX_OK),
+        ("local_files", LOCAL_FILES_OK),
     ],
 )
 def test_example_succeeds_against_the_sdk_surface(
@@ -988,6 +995,7 @@ def test_volumes_share_reports_a_failed_read_instead_of_a_partial_result(
         "secrets_env",
         "dynamic_build",
         "dockerfile_sandbox",
+        "local_files",
         "volumes",
         "lifecycle",
     ],

@@ -37,7 +37,7 @@ from .errors import (
 from .types import JsonObject
 
 BuildContext = Union[Buffer, str, os.PathLike[str]]
-"""A build-context tar: its bytes (any bytes-like value), or the path of a ``.tar`` file."""
+"""A build context: archive bytes (any bytes-like value), a ``.tar`` file path, or a directory path."""
 
 MAX_CONTEXT_BYTES = 1 << 30
 _HASH_CHUNK = 1 << 20
@@ -140,7 +140,9 @@ class _Source:
         elif isinstance(context, (str, os.PathLike)):
             self._data = None
             self._path = Path(context)
-            if not self._path.is_file():
+            # os.path.isfile, not Path.is_file: it swallows EACCES and
+            # ENAMETOOLONG on every supported Python, so they are refused here.
+            if not os.path.isfile(self._path):
                 raise BadRequestError(
                     f"build context {str(self._path)!r} is not a file; pass a tar archive",
                     status_code=400,

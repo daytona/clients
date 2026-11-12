@@ -9,7 +9,7 @@ import type { GitCommit, GitCommitResponse, GitConfigScope, GitRemote, GitStatus
 import type * as toolbox from './gen/toolbox-types.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, optionKeys } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { gitCommitFromWire, gitCommitResponseFromWire, gitRemoteFromWire, gitStatusFromWire, envelopeList, listItems, malformedResponse, record, strList } from './toolboxModels.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
 import { deepFrozen } from './frozen.js'
@@ -67,6 +67,16 @@ export interface ResetOptions {
   readonly files?: readonly string[]
 }
 
+/** Options of `git.deleteBranch()`. */
+export interface DeleteBranchOptions {
+  /**
+   * Delete the branch even when it is not merged (`git branch -D`). Default
+   * `false`: a safe deletion (`git branch -d`) that refuses an unmerged branch
+   * with `ConflictError` (`CONFLICT`).
+   */
+  readonly force?: boolean
+}
+
 export interface RestoreOptions {
   readonly staged?: boolean
   readonly worktree?: boolean
@@ -85,6 +95,7 @@ const PUSH_OPTION_KEYS = optionKeys<PushOptions>()({
 const GIT_CONFIG_OPTION_KEYS = optionKeys<GitConfigOptions>()({ path: true, scope: true })
 const RESET_OPTION_KEYS = optionKeys<ResetOptions>()({ mode: true, target: true, files: true })
 const RESTORE_OPTION_KEYS = optionKeys<RestoreOptions>()({ staged: true, worktree: true, source: true })
+const DELETE_BRANCH_OPTION_KEYS = optionKeys<DeleteBranchOptions>()({ force: true })
 
 /** Sandbox git namespace (`sandbox.git`). */
 export class GitService {
@@ -231,6 +242,12 @@ export class GitService {
     return value
   }
 
+  /**
+   * Set a git config value. A sandbox access token needs `toolbox:exec` as
+   * well as `toolbox:git` for this (`toolbox` covers both): without
+   * `toolbox:exec` it throws `ForbiddenError` (403), while {@link getConfig}
+   * still works.
+   */
   public async setConfig(key: string, value: string, options: GitConfigOptions = {}): Promise<void> {
     assertKnownOptions('GitConfigOptions', options, GIT_CONFIG_OPTION_KEYS)
     await this.transport.post<void>('/git/config', {
@@ -252,8 +269,19 @@ export class GitService {
     await this.transport.post<void>('/git/branches', body)
   }
 
-  public async deleteBranch(path: string, name: string): Promise<void> {
-    await this.transport.delete<void>('/git/branches', { data: { path, name } })
+  /**
+   * Delete a branch. The default is a safe deletion (`git branch -d`): a branch
+   * that is not merged throws `ConflictError` (`CONFLICT`); `{ force: true }`
+   * deletes it anyway (`git branch -D`). The checked-out branch is never
+   * deleted, even with `force` (`ConflictError`); a branch that does not exist
+   * throws `GitBranchNotFoundError`.
+   */
+  public async deleteBranch(path: string, name: string, options: DeleteBranchOptions = {}): Promise<void> {
+    assertKnownOptions('DeleteBranchOptions', options, DELETE_BRANCH_OPTION_KEYS)
+    if (options.force !== undefined && typeof options.force !== 'boolean') throw badRequest('force must be a boolean')
+    const body: toolbox.BranchRequest & { force?: true } = { path, name }
+    if (options.force === true) body.force = true
+    await this.transport.delete<void>('/git/branches', { data: body })
   }
 
   public async checkoutBranch(path: string, branch: string): Promise<void> {

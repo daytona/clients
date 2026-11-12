@@ -45,7 +45,7 @@ import {
 import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertIfMatchOptions, assertKnownOptions, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, assertLabelKeys, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
 import type { IfMatchOptions } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
@@ -232,6 +232,7 @@ function labelsBody(labels: unknown): Record<string, string> {
   if (!isPlainStringRecord(labels)) throw badRequest('setLabels requires a Record<string, string>')
   const output = emptyStringMap()
   for (const [key, value] of Object.entries(labels)) output[key] = value
+  assertLabelKeys(output)
   return output
 }
 
@@ -735,7 +736,11 @@ export class Sandbox {
     await this.waitForState(['started'], { timeoutSeconds, terminalStates })
   }
 
-  /** Stop the sandbox and wait until it is stopped. */
+  /**
+   * Stop the sandbox and wait until it is stopped. While it is stopped, toolbox
+   * calls (process, files, git, …) and its preview URLs answer
+   * `SandboxNotRunningError` (409, `SANDBOX_NOT_RUNNING`); `start()` it first.
+   */
   public async stop(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60
@@ -984,7 +989,8 @@ export class Sandbox {
    *
    * Setting either action to `'delete'` — or touching a pair whose current or
    * resulting action is `'delete'` — requires the API key to hold
-   * `delete:sandboxes` in addition to `write:sandboxes`.
+   * `delete:sandboxes` in addition to `write:sandboxes`. A sandbox that is
+   * deleted or being deleted throws `ConflictError` (`CONFLICT`).
    */
   public async updateLifecyclePolicy(options: LifecyclePolicyOptions): Promise<SandboxLifecycle> {
     assertOptionsObject('LifecyclePolicyOptions', options)
@@ -1016,8 +1022,9 @@ export class Sandbox {
    * `idleTimeoutAt` re-anchors to now + `idleExpirySeconds`. The wall-clock
    * `timeoutAt` is NOT affected. Succeeds whether or not an idle timeout is
    * armed (an unarmed sandbox echoes `idleTimeoutAt: undefined`), and in any
-   * state — a never-started sandbox already carries its creation-time
-   * activity stamp, which the reset advances.
+   * state but deleting or deleted — a never-started sandbox already carries
+   * its creation-time activity stamp, which the reset advances. A sandbox
+   * that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
    * The echo is the full post-reset lifecycle, the same shape
    * `updateLifecyclePolicy()` returns. Advance-only: a newer concurrent activity bump
@@ -1082,7 +1089,8 @@ export class Sandbox {
    * (`POST /sandboxes/{id}/images`). The result boots new sandboxes
    * (`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
    * stopped; the capture answers `DISK_NOT_READY` while its disk is not ready
-   * yet (retry later).
+   * yet (retry later). The credential needs `write:sandboxes` in addition to
+   * `write:images`; without it the capture throws `ForbiddenError` (403).
    */
   public async captureImage(options: CaptureImageOptions = {}): Promise<Image> {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)
@@ -1094,6 +1102,12 @@ export class Sandbox {
     return new Image(INTERNAL, image)
   }
 
+  /**
+   * Capture this sandbox, memory and disk, as a new {@link Snapshot}
+   * (`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
+   * in addition to `write:snapshots`; without it the capture throws
+   * `ForbiddenError` (403).
+   */
   public async createSnapshot(name: string): Promise<Snapshot> {
     const snapshotName: unknown = name
     if (typeof snapshotName !== 'string' || isBlank(snapshotName)) throw badRequest('name must be a non-empty string')
@@ -1114,7 +1128,10 @@ export class Sandbox {
    * `name` key the sandbox is read first (one more request, which also
    * refreshes this handle's metadata) and the `name` label it reports, if any,
    * is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
-   * be removed.
+   * be removed. An empty label key is refused with `BadRequestError` before
+   * any request. A sandbox that is deleted or being deleted throws
+   * `ConflictError` (`CONFLICT`); one the API no longer finds throws
+   * `NotFoundError`.
    */
   public async setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>> {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')

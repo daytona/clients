@@ -73,6 +73,19 @@ const REFUSED: readonly (readonly [string, Call])[] = [
   ['createAccessToken ports null', (_client, api) => handle(api).createAccessToken({ ports: null as never })],
   ['createAccessToken ports a number', (_client, api) => handle(api).createAccessToken({ ports: 3000 as never })],
   ['createAccessToken ports with a string', (_client, api) => handle(api).createAccessToken({ ports: ['3000'] as never })],
+  // The sandbox daemon's ports are never preview ports (the Python twin refuses the same calls).
+  ['createAccessToken reserved port 2280', (_client, api) => handle(api).createAccessToken({ ports: [3000, 2280] })],
+  ['createAccessToken reserved port 2281', (_client, api) => handle(api).createAccessToken({ ports: [2281] })],
+  ['createAccessToken reserved port 22220', (_client, api) => handle(api).createAccessToken({ ports: [22220] })],
+  ['ports.expose reserved port', (_client, api) => handle(api).ports.expose(2280)],
+  ['ports.previewLink reserved port', (_client, api) => handle(api).ports.previewLink(2281)],
+  ['ports.signedPreviewLink reserved port', (_client, api) => handle(api).ports.signedPreviewLink(22220)],
+  ['setLabels empty key', (_client, api) => handle(api).setLabels({ team: 'a', '': 'x' })],
+  ['create labels empty key', (client) => client.v2.create({ labels: { '': 'x' }, waitSeconds: 0 })],
+  ['createFromSnapshot labels empty key', (client) => client.v2.createFromSnapshot('snap', { labels: { '': 'x' }, waitSeconds: 0 })],
+  ['createMacos labels empty key', (client) => client.v2.createMacos('img', { labels: { '': 'x' }, waitSeconds: 0 })],
+  ['createFromBuild labels empty key', (client) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { labels: { '': 'x' }, waitSeconds: 0 })],
+  ['search labels empty key', (client) => client.v2.search({ labels: { team: 'a', '': 'x' } })],
   ['create waitSeconds 1e300 is fine, createTimeoutSeconds above 2^53-1 is not', (client) => client.v2.create({ createTimeoutSeconds: 2 ** 53 })],
   ['create memory above int32 MiB', (client) => client.v2.create({ resources: { memory: 2_097_152 } })],
   ['create diskMax above int32 MiB', (client) => client.v2.create({ resources: { diskMax: 2_097_152 } })],
@@ -776,6 +789,22 @@ it.each([
     expect(api.requests).toEqual([])
   } finally {
     await client.close()
+    await api.close()
+  }
+})
+
+it.each([2280, 2281, 22220])('still unexposes reserved port %d and revokes its signed links, as Python does', async (port) => {
+  // The API refuses the daemon's ports only where a preview is made.
+  const api = await startFakeApi([{ status: 204, body: undefined }, { status: 204, body: undefined }])
+  try {
+    const sandbox = handle(api)
+    await sandbox.ports.unexpose(port)
+    await sandbox.ports.expireSignedPreviewLink(port, 'tok')
+    expect(api.requests.map((request) => [request.method, request.path])).toEqual([
+      ['DELETE', `/sandboxes/sbx/ports/${port}`],
+      ['POST', `/sandboxes/sbx/ports/${port}/signed-preview-urls/revoke`],
+    ])
+  } finally {
     await api.close()
   }
 })

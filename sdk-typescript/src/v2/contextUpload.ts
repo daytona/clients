@@ -19,7 +19,7 @@ import { Sha256 } from './sha256.js'
 import type * as api from './gen/api-types.js'
 import { BadRequestError, ClientTimeoutError, ConnectionError, DaytonaError, isRedirectStatus, NotSupportedError, redirectError, ServiceUnavailableError, TransferCancelledError } from './errors/DaytonaError.js'
 
-/** A build-context tar: its bytes (an `ArrayBuffer` or any view), a `Blob`, or (Node.js) the path of a `.tar` file. */
+/** A build context: tar bytes (an `ArrayBuffer` or any view), a `Blob`, or (Node.js) a `.tar` file or directory path. */
 export type BuildContext = Uint8Array | ArrayBuffer | ArrayBufferView | Blob | string
 
 export const MAX_CONTEXT_BYTES = 1024 * 1024 * 1024

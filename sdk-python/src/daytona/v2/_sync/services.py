@@ -55,13 +55,27 @@ class ImagesService:
         omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
         idle-retention window — deleted once that long has passed without a
         sandbox being created from it (every create restarts the clock);
-        omitted ⇒ the maximum retention supported by the API. ``region``
+        omitted ⇒ the maximum retention supported by the API. A ``name`` may
+        not start with a resource id prefix (``img_``, ``snap_``, ``sbx_``,
+        ``vol_``, ``fn_``; :class:`ImageNameReservedError`). A name that already
+        exists for different content or import options raises
+        :class:`ImageNameTakenError` and changes nothing; an identical named
+        import returns the existing image (a failed one is imported again).
+        ``region``
         follows create's rule: omitted, blank or ``local`` (any case, any
         surrounding whitespace) uses the project's default region and sends no
         ``region_id``; any other value is sent as given and must be printable
         ASCII with no leading or trailing whitespace. The submission is an
         ordinary request, bounded by the client's request timeout; it returns
         without waiting for the build (``get(image.id, wait="ready")``).
+        Local files recorded by the builder are read at build time, archived
+        deterministically and uploaded as a build context before submission.
+        Each upload part fails once no bytes move for the client's request
+        timeout (``0``: never); each completion attempt uses the greater of
+        that timeout and 600 seconds (``0``: no bound). No total deadline
+        bounds the upload.
+        With local files, ``name`` and ``idle_expiry_seconds`` cannot be
+        combined: idle expiry applies only to anonymous images.
         """
         return self._bridge.call(
             lambda: self._impl.build(
@@ -81,18 +95,23 @@ class ImagesService:
         cpu_arch: Optional[CpuArch] = None,
         timeout: Optional[float] = None,
     ) -> Image:
-        """Build an image from a Dockerfile inside a build-context tar archive.
+        """Build an image from a directory or a build-context tar archive.
 
-        ``context`` is the archive's bytes or the path of a ``.tar`` file, up
-        to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it. The
-        archive is uploaded straight to storage in parts and verified by the
-        API before the build starts; an identical archive the project already
+        ``context`` is a directory path, archive bytes or the path of a ``.tar``
+        file, up to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it.
+        Directories are archived deterministically with BuildKit ignore rules:
+        ``<dockerfile>.dockerignore`` takes precedence over ``.dockerignore``.
+        The Dockerfile and the ignore files are always included. The archive
+        is uploaded straight to storage in parts and verified by the API
+        before the build starts; an identical archive the project already
         uploaded is reused without uploading it again. The other arguments
-        are those of :meth:`build`. ``timeout`` bounds the build request that
-        follows the upload, in seconds, replacing the client's request timeout
-        for it; ``0``, or a value above about 24.8 days, is no limit. The
-        upload keeps its own bounds. Returns as soon as the build is
-        submitted; wait with :meth:`get` (``wait="ready"``).
+        are those of :meth:`build`. ``name`` and ``idle_expiry_seconds``
+        cannot be combined: idle expiry applies only to anonymous images.
+        ``timeout`` bounds the build request that follows the upload, in
+        seconds, replacing the client's request timeout for it; ``0``, or a
+        value above about 24.8 days, is no limit. The upload keeps its own
+        bounds. Returns as soon as the build is submitted; wait with
+        :meth:`get` (``wait="ready"``).
         """
         return self._bridge.call(
             lambda: self._impl.build_from_context(
@@ -198,7 +217,10 @@ class ImagesService:
 
         Promotion only: an image that already has a name answers 409 — renaming
         a named image is not offered (sandboxes reference images by id, so a
-        rename would silently relabel every sandbox created from it).
+        rename would silently relabel every sandbox created from it). A name
+        that already exists raises :class:`ImageNameTakenError`; a reserved
+        prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
+        :class:`ImageNameReservedError`.
         """
         return self._bridge.call(lambda: self._impl.promote(image_id, name))
 

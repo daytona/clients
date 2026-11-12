@@ -88,9 +88,17 @@ class GitService:
         """Create a branch."""
         return self._bridge.call(lambda: self._impl.create_branch(path, name))
 
-    def delete_branch(self, path: str, name: str, /) -> None:
-        """Delete a branch."""
-        return self._bridge.call(lambda: self._impl.delete_branch(path, name))
+    def delete_branch(self, path: str, name: str, /, *, force: bool = False) -> None:
+        """Delete a branch.
+
+        The default is a safe deletion (``git branch -d``): a branch that is
+        not merged raises :class:`~daytona.v2.errors.ConflictError`
+        (``CONFLICT``). ``force=True`` deletes it anyway (``git branch -D``).
+        The checked-out branch is never deleted, even with ``force=True``
+        (``ConflictError``); a branch that does not exist raises
+        :class:`~daytona.v2.errors.GitBranchNotFoundError`.
+        """
+        return self._bridge.call(lambda: self._impl.delete_branch(path, name, force=force))
 
     def get_config(
         self, key: str, /, *, path: Optional[str] = None, scope: GitConfigScope = "global"
@@ -183,6 +191,13 @@ class GitService:
     def set_config(
         self, key: str, value: str, /, *, path: Optional[str] = None, scope: GitConfigScope = "global"
     ) -> None:
+        """Set a git config value.
+
+        A sandbox access token needs ``toolbox:exec`` as well as
+        ``toolbox:git`` for this (``toolbox`` covers both): without
+        ``toolbox:exec`` it raises :class:`ForbiddenError` (403), while
+        :meth:`get_config` still works.
+        """
         return self._bridge.call(lambda: self._impl.set_config(key, value, path=path, scope=scope))
 
     def status(self, path: str, /) -> GitStatus:

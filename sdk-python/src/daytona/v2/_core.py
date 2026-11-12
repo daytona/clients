@@ -90,6 +90,7 @@ from .types import (
     DockerStatus,
     FileInfo,
     FileMatch,
+    FileSearchResult,
     GitCommitResponse,
     GitFileStatus,
     GitStatus,
@@ -1852,6 +1853,31 @@ def signal_spec(
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 
+# The sandbox daemon's own ports: the API never makes them preview ports.
+RESERVED_PREVIEW_PORTS: Final = (2280, 2281, 22220)
+
+
+def preview_port(port: object) -> int:
+    """A port a preview endpoint, preview URL or access token may name:
+    1-65535, except the sandbox daemon's reserved ports."""
+    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+        raise create_error(f"port must be an integer in 1..65535, got {port!r}", 400, "BAD_REQUEST", "SDK")
+    if port in RESERVED_PREVIEW_PORTS:
+        raise create_error(
+            f"port {port} is reserved for the sandbox daemon and is never a preview port",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return port
+
+
+def check_label_keys(labels: Mapping[str, str]) -> None:
+    """Refuse an empty label key before any request: the API refuses it."""
+    if "" in labels:
+        raise create_error("label keys must not be empty", 400, "BAD_REQUEST", "SDK")
+
+
 # The largest terminal dimension the sandbox takes (an unsigned 16-bit value).
 TERMINAL_DIMENSION_MAX: Final = 65535
 
@@ -1938,6 +1964,60 @@ def parse_bulk_write_result(payload: JsonValue) -> BulkWriteResult:
 def parse_file_match(payload: JsonValue) -> FileMatch:
     model = _expect_model_from_dict(payload, MatchModel, "grep match", MatchModel.from_dict)
     return FileMatch(file=model.file, line=model.line, content=model.content)
+
+
+def _string_list(value: JsonValue, field: str, description: str) -> List[str]:
+    if not isinstance(value, list):
+        problem = "is required" if value is None else "must be a list"
+        raise create_error(f"expected {description}: {field} {problem}", 400, "BAD_REQUEST", "SDK")
+    strings: List[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise create_error(
+                f"expected {description}: {field}[{index}] must be a string", 400, "BAD_REQUEST", "SDK"
+            )
+        strings.append(item)
+    return strings
+
+
+def _search_skipped(payload: JsonObject, description: str) -> Tuple[str, ...]:
+    # Absent from daemons that predate the field: nothing was reported skipped.
+    raw = payload.get("skipped")
+    return () if raw is None else tuple(_string_list(raw, "skipped", description))
+
+
+def parse_grep_response(payload: TransportPayload) -> FileSearchResult[FileMatch]:
+    """``GET /files/find``: ``{items, skipped}``, or the bare ``Match`` array
+    daemons sent before ``skipped`` existed."""
+    description = "grep response"
+    skipped: Tuple[str, ...] = ()
+    raw_items: List[JsonValue]
+    if isinstance(payload, list):
+        raw_items = payload
+    elif isinstance(payload, dict):
+        listed = payload.get("items")
+        if not isinstance(listed, list):
+            problem = "is required" if listed is None else "must be a list"
+            raise create_error(f"expected {description}: items {problem}", 400, "BAD_REQUEST", "SDK")
+        raw_items = listed
+        skipped = _search_skipped(payload, description)
+    else:
+        raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    for index, item in enumerate(raw_items):
+        if not isinstance(item, dict):
+            raise create_error(
+                f"expected {description}: items[{index}] must be an object", 400, "BAD_REQUEST", "SDK"
+            )
+    return FileSearchResult(items=[parse_file_match(item) for item in raw_items], skipped=skipped)
+
+
+def parse_glob_response(payload: TransportPayload) -> FileSearchResult[str]:
+    """``GET /files/search``: ``{files, skipped}``."""
+    description = "glob response"
+    if not isinstance(payload, dict):
+        raise create_error(f"expected {description}", 400, "BAD_REQUEST", "SDK")
+    files = _string_list(payload.get("files"), "files", description)
+    return FileSearchResult(items=files, skipped=_search_skipped(payload, description))
 
 
 def parse_replace_result(payload: JsonValue) -> ReplaceResult:
@@ -2260,6 +2340,7 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
                 raise create_error("labels must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
             if not value:
                 raise create_error("labels must name at least one pair", 400, "BAD_REQUEST", "SDK")
+            check_label_keys(value)
             params[wire] = json.dumps(dict(value), separators=(",", ":"))
         elif f.name in _SEARCH_TIMESTAMP_FIELDS:
             params[wire] = query_text(search_timestamp(value), f.name)

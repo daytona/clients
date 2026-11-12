@@ -109,6 +109,30 @@ func TestMapError_daemonEnvelope(t *testing.T) {
 	}
 }
 
+func TestMapError_stoppedSandbox(t *testing.T) {
+	t.Parallel()
+	resp := &http.Response{
+		StatusCode: http.StatusConflict,
+		Body:       io.NopCloser(strings.NewReader(`{"code":"SANDBOX_NOT_RUNNING","message":"sandbox is not running","source":"DAYTONA_PROXY"}`)),
+		Header:     http.Header{},
+	}
+	err := mapError("GET", "/files", resp)
+	var ce *cerr.Error
+	if !errors.As(err, &ce) {
+		t.Fatalf("expected *cerr.Error, got %T: %v", err, err)
+	}
+	if ce.Code != cerr.ExitConflict {
+		t.Fatalf("code=%d want %d (conflict, not not-found)", ce.Code, cerr.ExitConflict)
+	}
+	if !strings.Contains(ce.Hint, "start the sandbox") {
+		t.Fatalf("hint=%q missing the start advice", ce.Hint)
+	}
+	var de *DaemonError
+	if !errors.As(err, &de) || de.Code != api.CodeSandboxNotRunning || de.Source != "DAYTONA_PROXY" {
+		t.Fatalf("daemon error=%+v", de)
+	}
+}
+
 func TestMapError_codeInMessage(t *testing.T) {
 	t.Parallel()
 	// When the message already contains the code, don't duplicate it.

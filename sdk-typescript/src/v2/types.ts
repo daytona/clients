@@ -183,6 +183,16 @@ export interface ListResult<T> {
 }
 
 /**
+ * The result of `sandbox.fs.glob()` / `sandbox.fs.grep()`: one page (no
+ * `nextCursor`) plus `skipped`, the absolute paths below the searched root
+ * that the sandbox user cannot read, so they were not searched (at most 1000;
+ * empty when nothing was skipped).
+ */
+export interface FileSearchResult<T> extends ListResult<T> {
+  readonly skipped: readonly string[]
+}
+
+/**
  * One page of `GET /sandboxes/search` (`Daytona.search()`).
  *
  * `total` is exact when `totalRelation === 'eq'` and a lower bound when it is
@@ -279,6 +289,14 @@ export interface NetworkPolicyInput {
 
 export interface VolumeMount {
   readonly volumeId: string
+  /**
+   * An absolute path with no `..` component. The API normalizes it (repeated
+   * slashes, `.` components and a trailing slash are removed) and refuses `/`
+   * and any path on or beneath `/bin`, `/boot`, `/dev`, `/etc`, `/lib`,
+   * `/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys`
+   * or `/usr`, or one with a control character: the create throws
+   * `BadRequestError` (400).
+   */
   readonly mountPath: string
   readonly subpath?: string
   /** Mount without write access. Only bucket volumes support `true`. */
@@ -540,6 +558,13 @@ export interface CreateMacosSandboxOptions extends CreateRequestBaseOptions {
 }
 
 export interface BuildImageOptions {
+  /**
+   * Makes the image named and permanent. It may not start with a resource id
+   * prefix (`img_`, `snap_`, `sbx_`, `vol_`, `fn_`; `ImageNameReservedError`).
+   * A name that already exists for different content or import options throws
+   * `ImageNameTakenError` and changes nothing; an identical named import
+   * returns the existing image (a failed one is imported again).
+   */
   readonly name?: string
   /**
    * Idle-retention window in seconds for an ANONYMOUS image: the image is
@@ -559,6 +584,7 @@ export interface BuildImageOptions {
 }
 
 export interface CaptureImageOptions {
+  /** Makes the image named and permanent; same rules as `BuildImageOptions.name`, and a name that already exists throws `ImageNameTakenError`. */
   readonly name?: string
   /**
    * Idle-retention window in seconds for an ANONYMOUS capture: deleted once
@@ -651,10 +677,17 @@ export interface CreateAccessTokenOptions {
    * `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`, `desktop`,
    * `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the
    * minter's full grantable set; `[]` is a valid ports-only grant. Unknown
-   * operations are a 400, never a silent narrowing.
+   * operations are a 400, never a silent narrowing. `toolbox:git` without
+   * `toolbox:exec` covers the git operations except writing git config:
+   * `git.setConfig()` with such a token throws `ForbiddenError` (403);
+   * `git.getConfig()` still works.
    */
   readonly operations?: readonly string[]
-  /** Private-preview ports the token may reach. Omitted = all; `[]` = none. */
+  /**
+   * Private-preview ports the token may reach. Omitted = all; `[]` = none.
+   * The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports
+   * and are refused with `BadRequestError` before any request.
+   */
   readonly ports?: readonly number[]
   /** Token lifetime in seconds; omitted = the deployment default, capped server-side. */
   readonly ttlSeconds?: number
@@ -718,7 +751,11 @@ export interface SandboxSearchFilters {
   readonly states?: Exclude<SandboxState, 'unknown'> | readonly Exclude<SandboxState, 'unknown'>[]
   /** A single value or a list (any-of). */
   readonly sandboxClass?: SandboxClass | readonly SandboxClass[]
-  /** A single value or a list (any-of) over region slugs. */
+  /**
+   * A single value or a list (any-of) over region IDs. A region that contains
+   * other regions (a geo group, or `earth`) matches every region inside it; an
+   * unknown region is a `BadRequestError` from the API.
+   */
   readonly region?: string | readonly string[]
   readonly imageRef?: string
   readonly imageRefPrefix?: string
@@ -895,7 +932,13 @@ export type ComputerUseDesktopState = 'not_started' | 'starting' | 'ready' | 'fa
 export const COMPUTER_USE_DESKTOP_STATES = TOOLBOX_COMPUTER_USE_DESKTOP_STATES
 type _ComputerUseDesktopStatesMatchContract = AssertExact<IsExact<Exclude<ComputerUseDesktopState, 'unknown'>, (typeof TOOLBOX_COMPUTER_USE_DESKTOP_STATES)[number]>>
 
-/** PTY terminal dimensions, in character cells. */
+/**
+ * PTY terminal dimensions, in character cells. A size you pass has `cols` and
+ * `rows` each an integer from 1 to 65535 (checked before the request); a
+ * Windows sandbox takes at most 32767 and refuses a larger one with
+ * `BadRequestError`. A size the sandbox reports (a process's `terminal`) may be
+ * any positive 32-bit integer.
+ */
 export interface TerminalSize {
   readonly cols: number
   readonly rows: number
@@ -1000,7 +1043,7 @@ export interface RunOptions extends Omit<ProcessStartOptions, 'keepLogs' | 'stdi
 
 /** Options of `pty.start()` / `pty.attach()`. */
 export interface PtyStartOptions {
-  /** Terminal size; 80 columns by 24 rows when omitted. */
+  /** Terminal size; 80 columns by 24 rows when omitted (see {@link TerminalSize} for the limits). */
   readonly terminal?: TerminalSize
   readonly cwd?: string
   /** Extra environment; `TERM` defaults to `xterm-256color` unless set here. */
@@ -1087,6 +1130,11 @@ export type StreamLogEvent = StreamLogFrameEvent | StreamLogStateEvent | StreamL
 export interface LogsOptions {
   readonly cursor?: string
   readonly limit?: number
+  /**
+   * `'text'` (default) or `'base64'`: each frame's `data` is then standard
+   * padded base64 (RFC 4648 section 4, `+/` alphabet with `=` padding), which
+   * `Buffer.from(data, 'base64')` (Node.js) or `atob(data)` decodes.
+   */
   readonly encoding?: 'text' | 'base64'
 }
 
@@ -1233,6 +1281,16 @@ export interface GitRemote {
  * runs; a context takes its environment when it is created.
  */
 export interface InterpreterRunOptions {
+  /**
+   * `'python'`, `'typescript'` or `'javascript'` (case-sensitive). For a
+   * context-free or isolated run, any other value throws
+   * `UnsupportedOperationError` (400) before a kernel is provisioned, and
+   * `KernelUnavailableError` (503) means a supported language's kernel failed
+   * to install or start. With a context handle or `toJSON()` identity, a
+   * language that differs from the context's language throws
+   * `BadRequestError` before any request; a bare context id takes `language`
+   * as the context's language.
+   */
   readonly language?: 'python' | 'typescript' | 'javascript' | (string & {})
   readonly context?: string | InterpreterContextReference | InterpreterContextJSON
   readonly isolated?: boolean
@@ -1264,6 +1322,12 @@ export interface InterpreterContextReference {
 }
 
 export interface InterpreterContextOptions {
+  /**
+   * `'python'`, `'typescript'` or `'javascript'` (case-sensitive). Any other
+   * value throws `UnsupportedOperationError` (400) before a kernel is
+   * provisioned; `KernelUnavailableError` (503) means a supported language's
+   * kernel failed to install or start.
+   */
   readonly language: 'python' | 'typescript' | 'javascript' | (string & {})
   readonly contextId?: string
   readonly cwd?: string

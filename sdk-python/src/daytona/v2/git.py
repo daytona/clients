@@ -147,11 +147,22 @@ class AsyncGitService:
             RequestSpec("POST", "/git/remotes", json_body={"path": path, "name": name, "url": url})
         )
 
-    async def delete_branch(self, path: str, name: str, /) -> None:
-        """Delete a branch."""
-        await self._transport.send(
-            RequestSpec("DELETE", "/git/branches", json_body={"path": path, "name": name})
-        )
+    async def delete_branch(self, path: str, name: str, /, *, force: bool = False) -> None:
+        """Delete a branch.
+
+        The default is a safe deletion (``git branch -d``): a branch that is
+        not merged raises :class:`~daytona.v2.errors.ConflictError`
+        (``CONFLICT``). ``force=True`` deletes it anyway (``git branch -D``).
+        The checked-out branch is never deleted, even with ``force=True``
+        (``ConflictError``); a branch that does not exist raises
+        :class:`~daytona.v2.errors.GitBranchNotFoundError`.
+        """
+        if not isinstance(force, bool):
+            raise create_error("force must be a boolean", 400, "BAD_REQUEST", "SDK")
+        body: JsonObject = {"path": path, "name": name}
+        if force:
+            body["force"] = True
+        await self._transport.send(RequestSpec("DELETE", "/git/branches", json_body=body))
 
     async def checkout_branch(self, path: str, branch: str, /) -> None:
         """Checkout a branch."""
@@ -308,6 +319,13 @@ class AsyncGitService:
         path: Optional[str] = None,
         scope: GitConfigScope = "global",
     ) -> None:
+        """Set a git config value.
+
+        A sandbox access token needs ``toolbox:exec`` as well as
+        ``toolbox:git`` for this (``toolbox`` covers both): without
+        ``toolbox:exec`` it raises :class:`ForbiddenError` (403), while
+        :meth:`get_config` still works.
+        """
         body: Dict[str, JsonValue] = {"key": key, "value": value, "scope": _config_scope(scope)}
         if path is not None:
             body["path"] = path

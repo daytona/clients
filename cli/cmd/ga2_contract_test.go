@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 
+	gen "github.com/daytona/clients/cli/gen/api"
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/stretchr/testify/assert"
@@ -183,6 +184,14 @@ func TestSandboxWait_forValidatesAndAcceptsSDKNames(t *testing.T) {
 	}
 }
 
+// Every `sandbox wait --for` value maps to a status of the contract's
+// SandboxStatus enum: the API refuses any other wait target with 400.
+func TestSandboxWait_targetsAreContractStatuses(t *testing.T) {
+	for value, wire := range sandboxWaitTargets {
+		require.True(t, gen.SandboxStatus(wire).Valid(), "--for %s sends %s", value, wire)
+	}
+}
+
 func TestPreviewURLExpire_doesNotEchoTheToken(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080", "secret-preview-token"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
@@ -201,10 +210,25 @@ func TestPreviewURLExpire_doesNotEchoTheToken(t *testing.T) {
 		{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "abc", "t"},
 		{"sandbox", "port", "preview-url", ga2SandboxID, "65536"},
 		{"sandbox", "port", "preview-url", ga2SandboxID, "0"},
+		{"sandbox", "port", "preview-url", ga2SandboxID, "2280"},
+		{"sandbox", "port", "preview-url", ga2SandboxID, "2281", "--signed"},
+		{"sandbox", "port", "preview-url", ga2SandboxID, "22220"},
 	} {
 		_, _, err := runCLI(t, args, nil)
 		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%v", args)
 	}
+}
+
+func TestPreviewURLExpire_acceptsAReservedPort(t *testing.T) {
+	// Given a signed preview URL revoke for a daemon port, which the API still serves
+	args := []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "2280", "tok"}
+	// When
+	_, _, err := runCLI(t, args, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/2280/signed-preview-urls/revoke", status: 204, bodyJSON: `{"token":"tok"}`},
+	})
+	// Then the request is sent
+	require.NoError(t, err)
 }
 
 func TestSandboxUpdate_keepsTheNameLabel(t *testing.T) {

@@ -60,10 +60,11 @@ from ._gen.api import MacReservationBatch as MacReservationBatchWire
 from ._gen.api import ReservationPage
 from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
+from ._image_context import prepared_context
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
-from .errors import BadRequestError, ClientTimeoutError, DaytonaError, NotFoundError, create_error
+from .errors import ClientTimeoutError, DaytonaError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
     CpuArch,
@@ -126,6 +127,16 @@ async def _iter_pages(
         current_cursor = next_cursor
 
 
+def _check_context_image_options(name: str | None, idle_expiry_seconds: int | None) -> None:
+    if name is not None and idle_expiry_seconds is not None:
+        raise create_error(
+            "idle_expiry_seconds applies only to an anonymous image; omit name or idle_expiry_seconds",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+
+
 class AsyncImagesService:
     """Image build/pull/list namespace."""
 
@@ -173,13 +184,27 @@ class AsyncImagesService:
         omitted makes the image anonymous; ``idle_expiry_seconds`` is then its
         idle-retention window — deleted once that long has passed without a
         sandbox being created from it (every create restarts the clock);
-        omitted ⇒ the maximum retention supported by the API. ``region``
+        omitted ⇒ the maximum retention supported by the API. A ``name`` may
+        not start with a resource id prefix (``img_``, ``snap_``, ``sbx_``,
+        ``vol_``, ``fn_``; :class:`ImageNameReservedError`). A name that already
+        exists for different content or import options raises
+        :class:`ImageNameTakenError` and changes nothing; an identical named
+        import returns the existing image (a failed one is imported again).
+        ``region``
         follows create's rule: omitted, blank or ``local`` (any case, any
         surrounding whitespace) uses the project's default region and sends no
         ``region_id``; any other value is sent as given and must be printable
         ASCII with no leading or trailing whitespace. The submission is an
         ordinary request, bounded by the client's request timeout; it returns
         without waiting for the build (``get(image.id, wait="ready")``).
+        Local files recorded by the builder are read at build time, archived
+        deterministically and uploaded as a build context before submission.
+        Each upload part fails once no bytes move for the client's request
+        timeout (``0``: never); each completion attempt uses the greater of
+        that timeout and 600 seconds (``0``: no bound). No total deadline
+        bounds the upload.
+        With local files, ``name`` and ``idle_expiry_seconds`` cannot be
+        combined: idle expiry applies only to anonymous images.
         """
         if not isinstance(builder, ImageBuilder):
             raise create_error(
@@ -193,6 +218,17 @@ class AsyncImagesService:
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
+        if resolved_builder._local_sources:
+            # Validate the upload-only restriction before reading local files.
+            _check_context_image_options(name, idle_expiry_seconds)
+            async with prepared_context(resolved_builder, "Dockerfile") as context:
+                return await self.build_from_context(
+                    context,
+                    name=name,
+                    idle_expiry_seconds=idle_expiry_seconds,
+                    region=region,
+                    cpu_arch=cpu_arch,
+                )
         source, rendered_dockerfile = resolved_builder._request_source()
         if source is not None:
             body["source"] = source
@@ -215,35 +251,44 @@ class AsyncImagesService:
         cpu_arch: Optional[CpuArch] = None,
         timeout: Optional[float] = None,
     ) -> Image:
-        """Build an image from a Dockerfile inside a build-context tar archive.
+        """Build an image from a directory or a build-context tar archive.
 
-        ``context`` is the archive's bytes or the path of a ``.tar`` file, up
-        to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it. The
-        archive is uploaded straight to storage in parts and verified by the
-        API before the build starts; an identical archive the project already
+        ``context`` is a directory path, archive bytes or the path of a ``.tar``
+        file, up to 1 GiB; ``dockerfile`` is the Dockerfile's path inside it.
+        Directories are archived deterministically with BuildKit ignore rules:
+        ``<dockerfile>.dockerignore`` takes precedence over ``.dockerignore``.
+        The Dockerfile and the ignore files are always included. The archive
+        is uploaded straight to storage in parts and verified by the API
+        before the build starts; an identical archive the project already
         uploaded is reused without uploading it again. The other arguments
-        are those of :meth:`build`. ``timeout`` bounds the build request that
-        follows the upload, in seconds, replacing the client's request timeout
-        for it; ``0``, or a value above about 24.8 days, is no limit. The
-        upload keeps its own bounds. Returns as soon as the build is
-        submitted; wait with :meth:`get` (``wait="ready"``).
+        are those of :meth:`build`. ``name`` and ``idle_expiry_seconds``
+        cannot be combined: idle expiry applies only to anonymous images.
+        ``timeout`` bounds the build request that follows the upload, in
+        seconds, replacing the client's request timeout for it; ``0``, or a
+        value above about 24.8 days, is no limit. The upload keeps its own
+        bounds. Returns as soon as the build is submitted; wait with
+        :meth:`get` (``wait="ready"``).
         """
-        # Checked before the upload: the API refuses the pair only at the build.
-        if name is not None and idle_expiry_seconds is not None:
-            raise BadRequestError(
-                "idle_expiry_seconds applies only to an anonymous image; omit name or idle_expiry_seconds",
-                status_code=400,
-                code="BAD_REQUEST",
-                source="SDK",
-            )
-        # Checked before the upload, as build() checks them before its request.
-        request_timeout = None if timeout is None else checked_seconds(timeout)
+        # Options first, then the pair, then the timeout (TypeScript checks in
+        # the same order), all before the upload.
         body = image_options_body(
             name=name, idle_expiry_seconds=idle_expiry_seconds, region=region, cpu_arch=cpu_arch
         )
-        upload_id, upload_region = await upload_build_context(
-            self._transport, context, dockerfile=dockerfile, region=region_selector(region)
-        )
+        # The API refuses the pair only at the build.
+        _check_context_image_options(name, idle_expiry_seconds)
+        request_timeout = None if timeout is None else checked_seconds(timeout)
+        # images.build() archives builders; here a context is bytes or a path.
+        if isinstance(context, ImageBuilder):
+            raise create_error(
+                "build_from_context() takes the bytes or path of a build context; build an ImageBuilder with images.build()",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        async with prepared_context(context, dockerfile) as archive:
+            upload_id, upload_region = await upload_build_context(
+                self._transport, archive, dockerfile=dockerfile, region=region_selector(region)
+            )
         # The build must name the region the upload was verified in.
         body["context_upload_id"] = upload_id
         body["region_id"] = upload_region
@@ -325,7 +370,10 @@ class AsyncImagesService:
 
         Promotion only: an image that already has a name answers 409 — renaming
         a named image is not offered (sandboxes reference images by id, so a
-        rename would silently relabel every sandbox created from it).
+        rename would silently relabel every sandbox created from it). A name
+        that already exists raises :class:`ImageNameTakenError`; a reserved
+        prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
+        :class:`ImageNameReservedError`.
         """
         path = f"/images/{_path(image_id, 'image_id')}"
         if not isinstance(name, str) or not name.strip():

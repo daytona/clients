@@ -253,6 +253,10 @@ export class Daytona {
    * in one region and can only boot there, so it is built where the
    * sandbox will run. `buildTimeoutSeconds` bounds the image build separately;
    * the sandbox create always receives the caller's full `waitSeconds`.
+   * Local files are archived and uploaded before submission. Each part upload
+   * fails once no bytes move for the client's request timeout (0: never); each
+   * completion attempt uses the greater of that timeout and 600 seconds (0: no
+   * bound). No total deadline bounds the upload.
    */
   public async createFromBuild(builder: ImageBuilder, options: CreateFromBuildOptions = {}): Promise<Sandbox> {
     const { image, createOptions } = await buildSandboxImage(this.images, builder, options)
@@ -329,7 +333,8 @@ export class Daytona {
    * Every option is optional and they combine as AND. `q` is free text over
    * name and image (or an exact id); `namePrefix`/`idPrefix` select prefixes.
    * `states`, `sandboxClass`, and `region` accept a single value or a list
-   * (any-of). States use public names such as `started`; `creating` matches
+   * (any-of); a `region` that contains other regions (a geo group, or `earth`)
+   * matches every region inside it. States use public names such as `started`; `creating` matches
    * pending or assigned sandboxes, and `error` matches failed or lost sandboxes.
    * `unknown` is not searchable. `labels` is a containment match; the
    * `min*`/`max*` bounds are inclusive, the `*StartAt` timestamp bounds are
@@ -355,8 +360,8 @@ export class Daytona {
    * both pages or on neither, and creates or deletes mid-walk shift later pages.
    *
    * Errors: 400 ({@link BadRequestError}) for a malformed or mismatched cursor,
-   * an unknown `states`/`sandboxClass`/`sort` value, a non-object `labels` or a `min`
-   * above its `max`; 501 ({@link SearchNotConfiguredError} with
+   * an unknown `states`/`sandboxClass`/`sort` value or region, a non-object `labels` or one
+   * with an empty key, or a `min` above its `max`; 501 ({@link SearchNotConfiguredError} with
    * `code === 'SEARCH_NOT_CONFIGURED'`) when search is not configured;
    * 503 ({@link SearchUnavailableError} with `code === 'SEARCH_UNAVAILABLE'`)
    * when search is unavailable. The error body is the unified envelope

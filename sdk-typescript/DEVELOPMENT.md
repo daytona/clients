@@ -308,10 +308,9 @@ bearer and the refresh with the same timeout signal.
 
 - Signals: bare names on the surface (`TERM`, `INT`, …), `SIG*` on the wire.
 - Reserved sandbox `env` names: platform-reserved prefixes plus every
-  `DAYTONA_*` name other than
-  `DAYTONA_SANDBOX_TOKEN`, `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
-  `DAYTONA_DOCKER_START`. The API rejects the create with `400` naming the
-  key.
+  `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and
+  `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). The API rejects
+  the create with `400` naming the key.
 
 ### Construction of toolbox handles and services
 

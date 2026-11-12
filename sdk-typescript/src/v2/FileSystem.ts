@@ -11,6 +11,7 @@ import type {
   BulkWriteResult,
   FileInfo,
   FileMatch,
+  FileSearchResult,
   FilePermissionsOptions,
   ListResult,
   ReplaceResult,
@@ -25,7 +26,7 @@ import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { binaryBytes, pathSequence, sandboxPath } from './filesystemInputs.js'
 import type { OptionKeys } from './options.js'
-import { bool, bulkWriteResultFromWire, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, str, strList } from './toolboxModels.js'
+import { bool, bulkWriteResultFromWire, envelopeList, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, searchSkipped, str, strList } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 
@@ -481,11 +482,20 @@ export class FileSystemService {
     await this.transport.post<void>('/files/move', undefined, { params: { source, destination } })
   }
 
-  /** Search file contents under `path` for the literal substring `pattern`; returns matches with one-based line numbers. */
-  public async grep(path: string, pattern: string): Promise<ListResult<FileMatch>> {
+  /**
+   * Search file contents under `path` for the literal substring `pattern`;
+   * returns matches with one-based line numbers, as the sandbox user sees
+   * them. Directories and files below `path` that the sandbox user cannot read
+   * are not searched; `skipped` lists their absolute paths (at most 1000). Only
+   * an unreadable `path` itself throws `FileAccessDeniedError`.
+   */
+  public async grep(path: string, pattern: string): Promise<FileSearchResult<FileMatch>> {
     sandboxPath('path', path)
-    const data = await this.transport.get<toolbox.Match[] | ListResult<toolbox.Match>>('/files/find', { params: { path, pattern } })
-    return listItems(data, 'items', 'grep response', fileMatchFromWire)
+    // Daemons that predate `skipped` answer a bare array of matches.
+    const data = await this.transport.get<toolbox.Match[] | { items: toolbox.Match[]; skipped?: string[] }>('/files/find', { params: { path, pattern } })
+    if (Array.isArray(data)) return deepFrozen({ items: data.map((item) => fileMatchFromWire(item)), skipped: [] })
+    const response = record(data, 'grep response')
+    return deepFrozen({ items: envelopeList(response, 'items', 'grep response', fileMatchFromWire), skipped: searchSkipped(response, 'grep response') })
   }
 
   /**
@@ -709,12 +719,16 @@ export class FileSystemService {
     return handle
   }
 
-  /** Return the paths of files under `path` whose base name matches the glob `pattern`. */
-  public async glob(path: string, pattern: string): Promise<ListResult<string>> {
+  /**
+   * Return the paths of files under `path` whose base name matches the glob
+   * `pattern`. Directories below `path` that the sandbox user cannot read are
+   * not searched; `skipped` lists their absolute paths (at most 1000). Only an
+   * unreadable `path` itself throws `FileAccessDeniedError`.
+   */
+  public async glob(path: string, pattern: string): Promise<FileSearchResult<string>> {
     sandboxPath('path', path)
-    // The contract's SearchResponse: { files } only.
-    const data = await this.transport.get<toolbox.SearchResponse>('/files/search', { params: { path, pattern } })
-    return deepFrozen({ items: strList(record(data, 'glob response'), 'files', 'glob response') })
+    const data = record(await this.transport.get<toolbox.SearchResponse & { skipped?: string[] }>('/files/search', { params: { path, pattern } }), 'glob response')
+    return deepFrozen({ items: strList(data, 'files', 'glob response'), skipped: searchSkipped(data, 'glob response') })
   }
 
   /** Replace the literal substring `pattern` with `newValue` in `files`. */

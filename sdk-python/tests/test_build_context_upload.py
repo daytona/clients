@@ -838,6 +838,25 @@ async def test_a_name_with_an_idle_expiry_is_refused_before_any_request(sync: bo
 
 
 @pytest.mark.anyio
+async def test_an_invalid_option_is_reported_before_the_name_and_idle_pair(sync: bool) -> None:
+    # TypeScript reports the same error for the same call.
+    with storage_peer() as peer:
+        with pytest.raises(BadRequestError, match="name must be a non-empty string"):
+            await build(peer, archive(), sync, name="", idle_expiry_seconds=60)
+        assert peer.requests == []
+
+
+@pytest.mark.anyio
+async def test_no_name_with_an_idle_expiry_is_built(sync: bool) -> None:
+    # name=None is no name, as TypeScript's name: null is.
+    with storage_peer() as peer:
+        await build(peer, archive(), sync, name=None, idle_expiry_seconds=60)
+        body = peer.json("POST", "/images")
+        assert body["idle_expiry_seconds"] == 60
+        assert "name" not in body
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(("timeout", "expected"), [(None, None), (0, 0), (30.0, 30.0)])
 async def test_the_build_request_takes_the_timeout(
     monkeypatch: pytest.MonkeyPatch, timeout: float | None, expected: float | None

@@ -110,6 +110,43 @@ _REFUSED: list[tuple[str, Call]] = [
         "create_access_token ports with a string",
         lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(ports=["3000"]),  # type: ignore[list-item]
     ),
+    # The sandbox daemon's ports are never preview ports (the TypeScript twin
+    # refuses the same calls).
+    (
+        "create_access_token reserved port 2280",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(ports=[3000, 2280]),
+    ),
+    (
+        "create_access_token reserved port 2281",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(ports=[2281]),
+    ),
+    (
+        "create_access_token reserved port 22220",
+        lambda d, _url: lazy_sandbox(d, "sbx").create_access_token(ports=[22220]),
+    ),
+    ("ports.expose reserved port", lambda d, _url: lazy_sandbox(d, "sbx").ports.expose(2280)),
+    ("ports.preview_link reserved port", lambda d, _url: lazy_sandbox(d, "sbx").ports.preview_link(2281)),
+    (
+        "ports.signed_preview_link reserved port",
+        lambda d, _url: lazy_sandbox(d, "sbx").ports.signed_preview_link(22220),
+    ),
+    ("set_labels empty key", lambda d, _url: lazy_sandbox(d, "sbx").set_labels({"team": "a", "": "x"})),
+    ("create labels empty key", lambda d, _url: d.create(labels={"": "x"}, wait_seconds=0)),
+    (
+        "create_from_snapshot labels empty key",
+        lambda d, _url: d.create_from_snapshot("snap", labels={"": "x"}, wait_seconds=0),
+    ),
+    (
+        "create_macos labels empty key",
+        lambda d, _url: d.create_macos("img", labels={"": "x"}, wait_seconds=0),
+    ),
+    (
+        "create_from_build labels empty key",
+        lambda d, _url: d.create_from_build(
+            ImageBuilder.from_registry("python:3.12"), labels={"": "x"}, wait_seconds=0
+        ),
+    ),
+    ("search labels empty key", lambda d, _url: d.search(labels={"team": "a", "": "x"})),
     ("create create_timeout_seconds above 2**53-1", lambda d, _url: d.create(create_timeout_seconds=2**53)),
     ("create create_timeout_seconds 10**400", lambda d, _url: d.create(create_timeout_seconds=10**400)),
     ("create memory above int32 MiB", lambda d, _url: d.create(resources=Resources(memory=2_097_152))),
@@ -1222,3 +1259,19 @@ async def test_a_blank_image_name_is_refused_before_any_request(api: FakeApi, ca
             else:
                 await lazy_sandbox(root.v2, "sbx").capture_image(name=name)
     assert api.requests == []
+
+
+@pytest.mark.parametrize("port", [2280, 2281, 22220])
+async def test_a_reserved_port_can_still_be_unexposed_and_its_signed_links_revoked(port: int) -> None:
+    # The API refuses the daemon's ports only where a preview is made; the
+    # TypeScript twin sends the same requests.
+    with FakeApi([PlannedResponse(204, None), PlannedResponse(204, None)]) as fake:
+        os.environ["DAYTONA_V2_API_URL"] = fake.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            sandbox = lazy_sandbox(root.v2, "sbx")
+            await sandbox.ports.unexpose(port)
+            await sandbox.ports.expire_signed_preview_link(port, "tok")
+    assert [(request.method, request.path) for request in fake.requests] == [
+        ("DELETE", f"/sandboxes/sbx/ports/{port}"),
+        ("POST", f"/sandboxes/sbx/ports/{port}/signed-preview-urls/revoke"),
+    ]

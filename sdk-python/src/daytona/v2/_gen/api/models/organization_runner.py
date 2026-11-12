@@ -18,8 +18,8 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from daytona.v2._gen.api.models.organization_runner_admin_state import OrganizationRunnerAdminState
 from daytona.v2._gen.api.models.organization_runner_status import OrganizationRunnerStatus
 from typing import Optional, Set
@@ -38,6 +38,7 @@ class OrganizationRunner(BaseModel):
     A runner enrolled in an organization region.
     """ # noqa: E501
     admin_state: OrganizationRunnerAdminState
+    billed_cores: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="The cores the runner is billed at per hour: its logical CPUs ÷ 2. `null` before the runner first reports its CPUs.")
     enrolled_at: datetime = Field(description="When the runner enrolled.")
     id: StrictStr = Field(description="The runner ID.")
     last_seen_at: Optional[datetime] = Field(default=None, description="When the runner was last heard from, or `null` when never.")
@@ -48,7 +49,7 @@ class OrganizationRunner(BaseModel):
     updated_at: datetime = Field(description="When the runner was last cordoned or uncordoned, or when it enrolled.")
     version: Optional[StrictStr] = Field(default=None, description="The runner software version, or `null` when not reported yet.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["admin_state", "enrolled_at", "id", "last_seen_at", "node_name", "region_id", "sandbox_count", "status", "updated_at", "version"]
+    __properties: ClassVar[List[str]] = ["admin_state", "billed_cores", "enrolled_at", "id", "last_seen_at", "node_name", "region_id", "sandbox_count", "status", "updated_at", "version"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,6 +99,11 @@ class OrganizationRunner(BaseModel):
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
+        # set to None if billed_cores (nullable) is None
+        # and model_fields_set contains the field
+        if self.billed_cores is None and "billed_cores" in self.model_fields_set:
+            _dict['billed_cores'] = None
+
         # set to None if last_seen_at (nullable) is None
         # and model_fields_set contains the field
         if self.last_seen_at is None and "last_seen_at" in self.model_fields_set:
@@ -121,6 +127,7 @@ class OrganizationRunner(BaseModel):
 
         _obj = cls.model_validate({
             "admin_state": obj.get("admin_state"),
+            **({"billed_cores": obj["billed_cores"]} if "billed_cores" in obj else {}),
             "enrolled_at": obj.get("enrolled_at"),
             "id": obj.get("id"),
             **({"last_seen_at": obj["last_seen_at"]} if "last_seen_at" in obj else {}),
