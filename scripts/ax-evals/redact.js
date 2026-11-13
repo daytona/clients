@@ -9,10 +9,11 @@ const CREDENTIAL = /dtn[ov]?_[a-f0-9]{32}(?:[a-f0-9]{32})?|dtni_[A-Za-z0-9_-]{43
 
 // Ways a key's characters reach us escaped: JSON/JS `\uXXXX` (escaped up to eight times),
 // URL `%XX`, HTML `&#NN;` / `&#xNN;` / `&lowbar;`, a backslash before punctuation
-// (Markdown), and invisible characters between them.
+// (Markdown), and invisible characters (Unicode format and combining marks) between
+// them.
 const ESCAPE = /^(?:\\{1,8}u([0-9a-fA-F]{4})|%([0-9a-fA-F]{2})|&#[xX]([0-9a-fA-F]{1,6});|&#([0-9]{1,7});|&(lowbar|UnderBar|hyphen|dash);)/
 const NAMED = { lowbar: '_', UnderBar: '_', hyphen: '-', dash: '-' }
-const INVISIBLE = /[\u00ad\u200b-\u200d\u2060\ufeff]/
+const INVISIBLE = /[\p{Cf}\p{Mn}]/u
 
 // The text decoded character by character, each decoded character remembering the
 // span of the original text it came from.
@@ -22,9 +23,10 @@ function decode(text) {
   let i = 0
   while (i < text.length) {
     const escape = ESCAPE.exec(text.slice(i, i + 16))
-    if (escape) {
-      const [whole, unicode, percent, hex, dec, named] = escape
-      const code = unicode || percent || hex ? parseInt(unicode || percent || hex, 16) : dec ? Number(dec) : null
+    const [whole, unicode, percent, hex, dec, named] = escape || []
+    const code = unicode || percent || hex ? parseInt(unicode || percent || hex, 16) : dec ? Number(dec) : null
+    // A reference past the last code point is not an escape: take it literally.
+    if (escape && (code === null || code <= 0x10ffff)) {
       // One entry per UTF-16 unit, so decoded indexes and spans stay aligned.
       for (const unit of code === null ? NAMED[named] : String.fromCodePoint(code).split('')) {
         chars.push(unit)
@@ -55,9 +57,20 @@ function decode(text) {
 function redact(value) {
   const text = String(value ?? '')
   const { decoded, spans } = decode(text)
-  const cuts = [...decoded.matchAll(CREDENTIAL)].map((m) => [spans[m.index][0], spans[m.index + m[0].length - 1][1]])
+  // Keys found in the text as it is, and keys found once it is decoded (an escape can
+  // swallow a plain key's first character, so neither pass alone is enough).
+  const cuts = [
+    ...[...text.matchAll(CREDENTIAL)].map((m) => [m.index, m.index + m[0].length]),
+    ...[...decoded.matchAll(CREDENTIAL)].map((m) => [spans[m.index][0], spans[m.index + m[0].length - 1][1]]),
+  ].sort((a, b) => a[0] - b[0])
+  const merged = []
+  for (const [start, end] of cuts) {
+    const last = merged[merged.length - 1]
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end)
+    else merged.push([start, end])
+  }
   let out = text
-  for (const [start, end] of cuts.reverse()) out = `${out.slice(0, start)}REDACTED${out.slice(end)}`
+  for (const [start, end] of merged.reverse()) out = `${out.slice(0, start)}REDACTED${out.slice(end)}`
   return out
 }
 

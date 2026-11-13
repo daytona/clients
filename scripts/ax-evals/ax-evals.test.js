@@ -89,6 +89,7 @@ const onSurface = (surface) => TASKS.map((task) => `${surface}-${task}`)
 
 test('evals.json: every eval has a Firegoat prompt id and only known ids are listed', () => {
   assert.deepEqual(Object.keys(config.promptIds).sort(), [...ALL].sort())
+  assert.equal(new Set(Object.values(config.promptIds)).size, ALL.length, 'every eval has its own prompt')
   for (const id of Object.values(config.promptIds)) assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   for (const surface of Object.keys(config.surfaces)) {
     assert.ok(fs.existsSync(path.join(__dirname, 'setup', `${surface}.sh`)), `setup/${surface}.sh`)
@@ -342,6 +343,13 @@ test('redact: Daytona credentials never reach the comment', () => {
   const json = JSON.stringify({ a: `x \\u0064tn_${hex} y`, b: 'z' })
   assert.deepEqual(JSON.parse(redact(json)), { a: 'x REDACTED y', b: 'z' })
   assert.equal(redact('100% of %20 and \\u0041 stay'), '100% of %20 and \\u0041 stay')
+  // An escape-looking prefix cannot swallow a plain key's first character.
+  for (const prefix of ['%a', '%6', '\\uabc', '"%2']) assert.equal(redact(`x${prefix}${key}`), `x${prefix}REDACTED`, prefix)
+  assert.equal(redact(`x%a${invite}`), 'x%aREDACTED')
+  // Any invisible format character or combining mark inside a key.
+  for (const mark of ['\u2061', '\u180e', '\u0301']) assert.equal(redact(`${key.slice(0, 9)}${mark}${key.slice(9)}`), 'REDACTED', escape(mark))
+  // References past the last code point are text, not errors.
+  for (const ref of ['&#x110000;', '&#1114112;', '&#xFFFFFF;', '&#9999999;']) assert.equal(redact(`a ${ref} b`), `a ${ref} b`)
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Cli', finalStatus: 'failed', failureReason: `env shows ${key}` }] }).join('\n')
   assert.ok(!out.includes(key) && out.includes('env shows REDACTED'))
 })
