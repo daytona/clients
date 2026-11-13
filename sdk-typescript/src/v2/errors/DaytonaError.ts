@@ -646,6 +646,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   ORIGIN_IMPORT_ONLY: OriginImportOnlyError,
   READ_ONLY_UNSUPPORTED: ReadOnlyUnsupportedError,
   UNSUPPORTED_VOLUME_TYPE: UnsupportedVolumeTypeError,
+  VOLUME_NOT_FOUND: NotFoundError,
   CREATE_BODY_TOO_LARGE: PayloadTooLargeError,
   INVALID_PARENT_REGION: BadRequestError,
   INVALID_PREVIEW_DOMAIN: BadRequestError,
