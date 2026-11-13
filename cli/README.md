@@ -296,6 +296,10 @@ its Mac when that Mac fails. A paused sandbox keeps an auto-renewing
 reservation renewing; otherwise it is stopped, with its disk, before the
 reservation ends.
 
+`sandbox fork` of a running macOS sandbox waits for `running`, past an
+intermediate `stopped` state. A fork of a paused or stopped source waits for
+`stopped`. `--timeout` bounds the wait; `--no-wait` returns once accepted.
+
 ## Command reference
 
 `daytona docs --full` prints every command, flag and default. The tree:

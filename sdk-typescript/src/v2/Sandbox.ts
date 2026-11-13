@@ -694,6 +694,8 @@ export class Sandbox {
 
   /**
    * Start a stopped sandbox, or resume a paused one, and wait until it is started.
+   * If stop or pause is still in progress, wait for it to settle before
+   * sending start or resume, using the same timeout budget.
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to
@@ -711,9 +713,26 @@ export class Sandbox {
    */
   public async start(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
-    const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60
+    let timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds) ?? 60
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
+    const deadline = waitDeadline(timeoutSeconds)
     await this.refreshData()
+    if (this.state === 'stopping' || this.state === 'pausing') {
+      // The in-flight operation must finish before start or resume.
+      if (deadline !== undefined) {
+        timeoutSeconds = (deadline - Date.now()) / 1000
+        if (timeoutSeconds <= 0) {
+          throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        }
+      }
+      await this.waitForState(['started', 'paused', 'stopped'], { timeoutSeconds })
+      if (deadline !== undefined) {
+        timeoutSeconds = (deadline - Date.now()) / 1000
+        if (timeoutSeconds <= 0) {
+          throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        }
+      }
+    }
     if (this.state === 'started') return
     let terminalStates: readonly SandboxState[] = DEFAULT_SANDBOX_TERMINAL_STATES
     if (this.state === 'paused') {
@@ -786,6 +805,15 @@ export class Sandbox {
    * running macOS sandbox boots with a fresh machine identity; a fork of a
    * paused or stopped one rests `stopped`. A macOS fork answers
    * `DISK_NOT_READY` while the source's disk is not ready yet; retry later.
+   *
+   * `waitSeconds` defaults to 60; 0 returns at acceptance without any GET,
+   * and a value above about 24.8 days waits without a deadline. A running
+   * source's fork waits for `started`, past a macOS fork's temporary `stopped`
+   * state while the source releases its disk. A paused or stopped macOS
+   * source's fork waits for `stopped`; Linux uses the resting states above.
+   * Like `create()`, the wait returns the handle when its budget expires or
+   * the fork fails: even the default 60 seconds may return a not-yet-started
+   * handle. Check the returned handle's `state`.
    */
   public async fork(options: ForkOptions = {}): Promise<Sandbox> {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
@@ -810,10 +838,10 @@ export class Sandbox {
     // the source's class only when this handle knows it.
     if (waitSeconds > 0) {
       const classWasKnown = this.sandboxClass !== undefined
-      const initialClass = await this.requireSandboxClass()
-      // Loading an unknown class already fetched the source state; waiting on a
-      // known Linux source needs exactly one fresh observation before the POST.
-      if (initialClass === 'linux' && classWasKnown) await this.refreshData()
+      await this.requireSandboxClass()
+      // Loading an unknown class already fetched the source state; a known
+      // source needs exactly one fresh observation before the POST.
+      if (classWasKnown) await this.refreshData()
       if (this.sandboxClass === undefined || this.sandboxClass === 'unknown') {
         throw unsupportedOperationError(`unsupported sandbox class ${this.rawSandboxClass ?? '(none)'}`)
       }
@@ -875,9 +903,12 @@ export class Sandbox {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error
     }
-    const states: readonly SandboxWaitState[] = sandboxClass === 'macos' ? ['started', 'stopped']
-      : sourceState === 'started' ? ['started']
-        : sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
+    // The target comes from the source state read before the POST. If the
+    // source stops between that read and the POST, a macOS fork rests
+    // `stopped` while this waits for `started`: the call then returns the
+    // handle at the end of the budget, not at once. Callers check `fork.state`.
+    const states: readonly SandboxWaitState[] = sourceState === 'started' ? ['started']
+      : sandboxClass === 'linux' && sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
     // `timeoutSeconds: 0` is the state wait's no deadline.
     const remainingSeconds = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
     if ((deadline === undefined || remainingSeconds > 0) && !states.some((state) => state === fork.state)) {

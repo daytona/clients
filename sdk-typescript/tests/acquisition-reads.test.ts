@@ -49,6 +49,7 @@ it.each([new TypeError('bug'), new TransferCancelledError()])('propagates a non-
 it.each([404, 408, 500])('returns the POST-derived fork when the detail read fails with %s', async (status) => {
   // Given a successful fork POST but no readable detail metadata.
   const api = await startFakeApi([
+    { status: 200, body: { id: 'source', class: 'macos', status: 'running', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     { status: 202, body: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://fork-toolbox.invalid', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } },
     { status, body: { message: 'detail unavailable' } },
   ])
@@ -59,7 +60,7 @@ it.each([404, 408, 500])('returns the POST-derived fork when the detail read fai
     // Then only POST fields seed the fallback, with no further reads.
     expect(fork.toJSON()).toEqual({ sandboxId: 'fork', state: 'creating', rawState: 'pending', sandboxClass: 'macos', rawSandboxClass: 'macos', forkedFrom: 'source' })
     expect(fork.toolboxProxyUrl).toBe('https://fork-toolbox.invalid/fork')
-    expect(api.requests).toHaveLength(2)
+    expect(api.requests).toHaveLength(3)
   } finally {
     await api.close()
   }
@@ -70,7 +71,9 @@ it('charges the fork detail read to the wait budget', async () => {
   jest.useFakeTimers({ now: 0 })
   const api = createHttpClient('http://api.invalid', undefined, 100)
   jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'fork', class: 'linux', status: 'pending', forked_from: 'source', toolbox_proxy_url: 'https://proxy.example/sandboxes', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-  const get = jest.spyOn(api, 'get').mockImplementation(async () => {
+  const get = jest.spyOn(api, 'get').mockImplementationOnce(async () => ({
+    data: { id: 'source', status: 'running', class: 'macos', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] },
+  })).mockImplementation(async () => {
     jest.setSystemTime(250)
     return { data: { id: 'fork', status: 'pending', class: 'macos', name: 'fork', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } }
   })
@@ -78,8 +81,8 @@ it('charges the fork detail read to the wait budget', async () => {
   // When acquiring the fork with a quarter-second wait budget.
   const fork = await source.fork({ waitSeconds: 0.25 })
   // Then the detail uses the smaller request bound and no wait starts after expiry.
-  expect(get).toHaveBeenCalledTimes(1)
-  expect(get).toHaveBeenCalledWith('/sandboxes/fork', { timeout: 100 })
+  expect(get).toHaveBeenCalledTimes(2)
+  expect(get).toHaveBeenNthCalledWith(2, '/sandboxes/fork', { timeout: 100 })
   expect(fork.state).toBe('creating')
 })
 

@@ -7120,24 +7120,22 @@ describe('toolbox service request shaping', () => {
     expect(running.state).toBe('started')
   })
 
-  it('macOS fork({ waitSeconds }) settles on started or stopped whatever the source showed before the POST', async () => {
+  it.each([
+    { source: 'running', cached: 'stopped', interim: 'stopped', result: 'running', expected: 'started' },
+    { source: 'paused', cached: 'running', interim: 'pending', result: 'stopped', expected: 'stopped' },
+    { source: 'stopped', cached: 'running', interim: 'pending', result: 'stopped', expected: 'stopped' },
+  ])('macOS fork waits for $expected from a freshly observed $source source', async ({ source, cached, interim, result, expected }) => {
     jest.useRealTimers()
-    // The source may stop after a previous read; the fork's returned state
-    // determines whether the wait is complete.
     const client = new Daytona({ apiKey: 'key' })
-    const sandbox = lazySandbox(client, { sandboxId: 'sbx', sandboxClass: 'macos' })
+    const sandbox = createSandbox({ id: 'sbx', class: 'macos', status: cached, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, clientInstance(client))
     const api = clientInstance(client)
     jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'f', status: 'pending', forked_from: 'sbx', toolbox_proxy_url: 'https://proxy.example/sandboxes' } })
     const get = jest.spyOn(api, 'get')
-    get.mockResolvedValueOnce({ data: { id: 'f', class: 'linux', status: 'pending', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-      .mockResolvedValue({ data: { id: 'f', class: 'linux', status: 'stopped', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-    expect((await sandbox.fork({ waitSeconds: 5 })).state).toBe('stopped')
-    expect(get).not.toHaveBeenCalledWith('/sandboxes/sbx')
-
-    get.mockReset()
-    get.mockResolvedValueOnce({ data: { id: 'f', class: 'linux', status: 'pending', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-      .mockResolvedValue({ data: { id: 'f', class: 'linux', status: 'running', name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-    expect((await sandbox.fork({ waitSeconds: 5 })).state).toBe('started')
+    get.mockResolvedValueOnce({ data: { id: 'sbx', class: 'macos', status: source, name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValueOnce({ data: { id: 'f', class: 'macos', status: interim, name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+      .mockResolvedValue({ data: { id: 'f', class: 'macos', status: result, name: 'f', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    expect((await sandbox.fork({ waitSeconds: 5 })).state).toBe(expected)
+    expect(get.mock.calls.filter((call) => call[0] === '/sandboxes/sbx')).toHaveLength(1)
   })
 
   it('returns a fork whose response has no toolbox URL without reusing the parent URL', async () => {
@@ -10470,17 +10468,104 @@ describe('macOS sandboxes and reservations', () => {
     expect(waits).toEqual(['paused', 'paused', 'running', 'running'])
   })
 
-  it('resumes a paused macOS sandbox from start()', async () => {
+  it.each(['paused', 'pausing', 'stopping'])('resumes a macOS sandbox from start() after observing %s', async (sourceStatus) => {
     const client = macClient()
     const api = clientInstance(client)
     const sandbox = lazySandbox(client, 'mac')
-    jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { ...macResponse, status: 'paused' } })
-      .mockResolvedValueOnce({ data: { ...macResponse, status: 'running', mac_boot_mode: 'future-mode' } })
+    const get = jest.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: { ...macResponse, status: sourceStatus } })
+    if (sourceStatus !== 'paused') get.mockResolvedValueOnce({ data: { ...macResponse, status: 'paused' } })
+    get.mockResolvedValueOnce({ data: { ...macResponse, status: 'running', mac_boot_mode: 'future-mode' } })
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: { status: 'assigned', id: 'mac' } })
     await sandbox.start({ timeoutSeconds: 10 })
     expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/resume'])
     expect(sandbox.macBootMode).toBe('future-mode')
+  })
+
+  it.each(['stopping', 'pausing'])('sends start only after %s settles stopped', async (sourceStatus) => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
+    const get = jest.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: { ...macResponse, status: sourceStatus } })
+      .mockResolvedValueOnce({ data: { ...macResponse, status: 'stopped' } })
+      .mockResolvedValueOnce({ data: macResponse })
+
+    await sandbox.start({ timeoutSeconds: 10 })
+
+    expect(sandbox.state).toBe('started')
+    expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/start'])
+    expect(get).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not send start or resume when the inflight stop never settles', async () => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post')
+    jest.spyOn(api, 'get').mockResolvedValue({ data: { ...macResponse, status: 'stopping' } })
+
+    const pending = sandbox.start({ timeoutSeconds: 5 })
+    const outcome = expect(pending).rejects.toBeInstanceOf(RequestTimeoutError)
+    await jest.advanceTimersByTimeAsync(5000)
+    await outcome
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('shares the start timeout between an inflight stop and startup', async () => {
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post').mockResolvedValue({ data: {} })
+    jest.spyOn(api, 'get')
+      .mockResolvedValueOnce({ data: { ...macResponse, status: 'stopping' } })
+      .mockImplementationOnce(async () => {
+        jest.setSystemTime(Date.now() + 3000)
+        return { data: { ...macResponse, status: 'stopped' } }
+      })
+      .mockResolvedValue({ data: { ...macResponse, status: 'booting' } })
+    let outcome: unknown
+    void sandbox.start({ timeoutSeconds: 5 }).then(
+      () => { outcome = 'started' },
+      (error: unknown) => { outcome = error },
+    )
+
+    await jest.advanceTimersByTimeAsync(0)
+    await jest.advanceTimersByTimeAsync(2000)
+
+    expect(outcome).toBeInstanceOf(RequestTimeoutError)
+    expect(post.mock.calls.map((call) => call[0])).toEqual(['/sandboxes/mac/start'])
+  })
+
+  it.each([
+    ['stopping', 2000], ['pausing', 2000],
+    ['stopping', 6000], ['pausing', 6000],
+  ] as const)('charges a %s initial read taking %i ms to the transition wait', async (sourceStatus, initialReadMs) => {
+    jest.useFakeTimers({ now: 0 })
+    const client = macClient()
+    const api = clientInstance(client)
+    const sandbox = lazySandbox(client, 'mac')
+    const post = jest.spyOn(api, 'post')
+    const get = jest.spyOn(api, 'get')
+      .mockImplementationOnce(async () => {
+        jest.setSystemTime(initialReadMs)
+        return { data: { ...macResponse, status: sourceStatus } }
+      })
+      .mockResolvedValue({ data: { ...macResponse, status: sourceStatus } })
+    let outcome: unknown
+    void sandbox.start({ timeoutSeconds: 5 }).then(
+      () => { outcome = 'started' },
+      (error: unknown) => { outcome = error },
+    )
+
+    await jest.advanceTimersByTimeAsync(0)
+    await jest.advanceTimersByTimeAsync(Math.max(0, 5000 - initialReadMs))
+
+    expect(outcome).toBeInstanceOf(RequestTimeoutError)
+    expect(Date.now()).toBe(Math.max(5000, initialReadMs))
+    expect(post).not.toHaveBeenCalled()
+    if (initialReadMs > 5000) expect(get).toHaveBeenCalledTimes(1)
   })
 
   it('fails a macOS pause that returns to running and a resume that ends stopped', async () => {

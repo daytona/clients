@@ -41,7 +41,8 @@ type expectedRequest struct {
 }
 
 type runCLIOptions struct {
-	output string
+	output         string
+	contextTimeout time.Duration
 }
 
 func runCLI(t *testing.T, args []string, expected []expectedRequest) (string, string, error) {
@@ -114,7 +115,11 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 		output = "json"
 	}
 	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", "k", "-o", output}, args...))
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	contextTimeout := opts.contextTimeout
+	if contextTimeout == 0 {
+		contextTimeout = 2 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	defer cancel()
 	err := root.ExecuteContext(ctx)
 	if err == nil {

@@ -809,8 +809,12 @@ provides error details when available.
 A macOS `fork()` copies the disk only: omit `memory` or pass `memory=False`
 (`memory=True` answers `NOT_SUPPORTED_FOR_CLASS`). A fork of a running macOS
 sandbox boots with a fresh machine identity; a fork of a paused or stopped
-one rests `stopped`. `fork(wait_seconds=…)` (default
-60; `0` returns once accepted) waits until the macOS fork is `started` or `stopped`.
+one rests `stopped`. `fork(wait_seconds=…)` (default 60; `0` returns once
+accepted) waits for `started` for a running source, and `stopped` for a paused
+or stopped source. If the budget expires first, it returns the handle even
+though the fork has not reached that state; check `fork.state`. For a running
+source, `fork.wait()` keeps waiting for `started`; for a paused or stopped
+source, use `fork.wait(until="stopped")`.
 
 ### Processes
 
@@ -1137,7 +1141,8 @@ the fork's detail read counts against a finite budget. Like create,
 fork returns its handle once the fork request succeeded, however the wait
 ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
-stopped. macOS forks copy only disk and settle at `started` or `stopped`.
+stopped. macOS forks copy only disk: a running source waits for `started`;
+a paused or stopped source waits for `stopped`, within the same wait budget.
 
 `sandbox.delete()` and `d.v2.delete(sandbox)` wait until the sandbox is
 `destroyed` (a 404 while waiting counts as destroyed). A sandbox with volumes

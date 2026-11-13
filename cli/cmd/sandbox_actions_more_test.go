@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
@@ -453,10 +454,8 @@ func TestSandboxResume_macosConflictsWhenTheSandboxEndsStopped(t *testing.T) {
 	require.ErrorContains(t, err, "sandbox "+id+" reached stopped, not running")
 }
 
-// A macOS fork starts running only if its source is running when the fork is
-// created. The source can change after our lookup, so the CLI accepts either
-// a running or stopped fork, as the SDKs do. The fork's wait
-// long-polls `?wait=running`, which the API also answers on stopping/stopped.
+// A macOS fork follows its source state: running sources wait through the
+// stopped disk-preparation state until running; paused/stopped sources wait stopped.
 func runMacFork(t *testing.T, sampled string, forkAnswers ...string) (string, error) {
 	t.Helper()
 	id := testMacSandboxID
@@ -465,14 +464,14 @@ func runMacFork(t *testing.T, sampled string, forkAnswers ...string) (string, er
 		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", sampled)},
 		{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `{"name":"copy"}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
 	}
-	for i, status := range forkAnswers {
-		query := ""
-		if i == 0 {
-			query = "wait=running&timeout_ms=55000"
-		}
+	query := "wait_exact=stopped&timeout_ms=55000"
+	if sampled == "running" {
+		query = "wait=running&timeout_ms=55000"
+	}
+	for _, status := range forkAnswers {
 		expected = append(expected, expectedRequest{method: http.MethodGet, path: "/sandboxes/" + fork, query: query, status: 200, response: sandboxDetailFixture(fork, "macos", status)})
 	}
-	stdout, _, err := runCLI(t, []string{"sandbox", "fork", id, "--name", "copy"}, expected)
+	stdout, _, err := runCLIWithOptions(t, runCLIOptions{output: "json", contextTimeout: 10 * time.Second}, []string{"sandbox", "fork", id, "--name", "copy"}, expected)
 	return stdout, err
 }
 
@@ -488,18 +487,16 @@ func TestSandboxFork_macosRunningSourceSettlesRunning(t *testing.T) {
 	require.Equal(t, "running", requireJSONStdout(t, stdout)["status"])
 }
 
-// The source stopped after the CLI's lookup but before the fork was created.
-func TestSandboxFork_macosSampledRunningForkLandsStopped(t *testing.T) {
-	stdout, err := runMacFork(t, "running", "stopped")
-	require.NoError(t, err)
-	require.Equal(t, "stopped", requireJSONStdout(t, stdout)["status"])
-}
-
-// The source started after the CLI's lookup but before the fork was created.
-func TestSandboxFork_macosSampledStoppedForkLandsRunning(t *testing.T) {
-	stdout, err := runMacFork(t, "stopped", "running")
+func TestSandboxFork_macosRunningSourceWaitsPastStopped(t *testing.T) {
+	stdout, err := runMacFork(t, "running", "pending", "stopped", "stopped", "booting", "running")
 	require.NoError(t, err)
 	require.Equal(t, "running", requireJSONStdout(t, stdout)["status"])
+}
+
+func TestSandboxFork_macosPausedSourceSettlesStopped(t *testing.T) {
+	stdout, err := runMacFork(t, "paused", "stopped")
+	require.NoError(t, err)
+	require.Equal(t, "stopped", requireJSONStdout(t, stdout)["status"])
 }
 
 func TestSandboxFork_macosWaitsPastStopping(t *testing.T) {

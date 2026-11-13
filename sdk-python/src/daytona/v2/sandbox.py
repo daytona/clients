@@ -1301,6 +1301,8 @@ class AsyncSandbox:
         terminal state raises :class:`SandboxTerminalStateError`. Whether the
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
+        If a stop or pause is still in progress, wait for it to settle before
+        sending start or resume, using the same timeout budget.
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -1317,7 +1319,19 @@ class AsyncSandbox:
         ``NO_MAC_AVAILABLE``, ``INSUFFICIENT_BALANCE`` or ``CHARGE_FAILED``.
         """
         timeout = _validate_timeout(timeout)
+        deadline = _wait_deadline(timeout)
         await self.refresh_data()
+        if self.state in ("stopping", "pausing"):
+            # The in-flight operation must finish before start or resume.
+            if deadline is not None:
+                timeout = deadline - _clock.monotonic()
+                if timeout <= 0:
+                    raise _wait_timed_out()
+            await self._wait_for_state(["started", "paused", "stopped"], timeout=timeout)
+            if deadline is not None:
+                timeout = deadline - _clock.monotonic()
+                if timeout <= 0:
+                    raise _wait_timed_out()
         if self.state == "started":
             return
         terminal_states: Sequence[SandboxState] = DEFAULT_SANDBOX_TERMINAL_STATES
@@ -1392,12 +1406,14 @@ class AsyncSandbox:
         ``wait_seconds`` (default 60; ``0`` returns as soon as the API accepts
         the fork; a value above about 24.8 days, the timer maximum, waits with
         no deadline) bounds the wait for the state the fork settles in: a fork of
-        a running Linux sandbox ``started``; otherwise it rests — ``paused``
-        for a memory fork of a paused source, else ``stopped`` (call
-        ``start()``). A macOS fork settles ``started`` or ``stopped``. Like
-        ``create()``, ``fork()`` never raises because of how the wait ended:
-        when the budget runs out or the fork fails, it returns the handle —
-        check ``fork.state``.
+        a running source waits for ``started``, even if a macOS fork is
+        temporarily ``stopped`` while its source releases the disk. A fork of
+        a paused or stopped macOS source waits for ``stopped``. Linux forks
+        otherwise rest ``paused`` for a memory fork of a paused source, else
+        ``stopped`` (call ``start()``). Like ``create()``, ``fork()`` never raises
+        because of how the wait ended: the default 60-second budget may return
+        a not-yet-started handle. When the budget runs out or the fork fails,
+        it returns the handle — check ``fork.state``.
         """
         budget = _validate_wait_seconds(wait_seconds)
         # None: no deadline (above the timer maximum); 0.0: one request.
@@ -1413,15 +1429,19 @@ class AsyncSandbox:
         sandbox_class: Optional[str] = (
             await self._require_sandbox_class() if waits else (self.raw_sandbox_class or self.sandbox_class)
         )
-        targets: list[SandboxWaitState] = ["started", "stopped"]
-        if sandbox_class == "linux" and waits:
-            # Only a fork of a RUNNING source comes up by itself; the others rest.
-            # Read the source's state now (unless reading its class just did).
+        targets: list[SandboxWaitState] = ["started"]
+        if waits:
+            # Refresh once before the POST; loading the class may already have
+            # read the source. A running macOS fork's stopped state is interim.
+            # The target comes from this read: if the source stops between it
+            # and the POST, a macOS fork rests stopped while the wait looks for
+            # started, and fork() returns the handle at the end of the budget,
+            # not at once. Callers check fork.state.
             if class_known:
                 await self.refresh_data()
             if self.state == "started":
                 targets = ["started"]
-            elif self.state == "paused" and memory is not False:
+            elif sandbox_class == "linux" and self.state == "paused" and memory is not False:
                 targets = ["paused"]
             else:
                 targets = ["stopped"]

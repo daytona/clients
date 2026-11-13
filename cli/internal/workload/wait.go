@@ -28,9 +28,9 @@ type SandboxWaitOptions struct {
 	// pausing before it answers, and the API holds `?wait=paused` through pausing, so any running
 	// answer after the POST is that failed pause: a conflict, as in the SDKs' macOS pause.
 	RunningAgainFails bool
-	// A macOS fork can finish running or stopped. With Target running, a stopped
-	// response also completes the wait; a stopping response does not.
-	StoppedSettles bool
+	// A macOS fork of a running source rests stopped until its disk is ready,
+	// then starts: a wait for running must continue past stopping/stopped.
+	StoppedPassed bool
 }
 
 func ParseTimeout(raw string) (time.Duration, error) {
@@ -61,7 +61,12 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 	// state counts as a conflict only after the sandbox was seen somewhere
 	// else first.
 	var seenProgress bool
-	return wait.Until(ctx, options.Timeout, 200*time.Millisecond,
+	interval := 200 * time.Millisecond
+	if options.StoppedPassed {
+		// Disk preparation can return stopped immediately instead of long-polling.
+		interval = time.Second
+	}
+	return wait.Until(ctx, options.Timeout, interval,
 		func(ctx context.Context, remaining time.Duration) (api.Raw[gen.Sandbox], error) {
 			var detail api.Raw[gen.Sandbox]
 			query := url.Values{
@@ -96,8 +101,8 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 				if options.Target != "running" {
 					return false, nil
 				}
-				if options.StoppedSettles {
-					return detail.Status == "stopped", nil
+				if options.StoppedPassed {
+					return false, nil
 				}
 				if detail.Status == "stopped" && options.AllowInitialStopped && !seenProgress {
 					return false, nil
