@@ -235,7 +235,6 @@ from daytona.v2._gen.api.models.registry import Registry as Registry
 from daytona.v2._gen.api.models.registry_kind import RegistryKind as RegistryKind
 from daytona.v2._gen.api.models.registry_page import RegistryPage as RegistryPage
 from daytona.v2._gen.api.models.reservation_page import ReservationPage as ReservationPage
-from daytona.v2._gen.api.models.revoke_sandbox_signed_preview_url_request import RevokeSandboxSignedPreviewUrlRequest as RevokeSandboxSignedPreviewUrlRequest
 from daytona.v2._gen.api.models.role import Role as Role
 from daytona.v2._gen.api.models.role_change_impact import RoleChangeImpact as RoleChangeImpact
 from daytona.v2._gen.api.models.role_list import RoleList as RoleList

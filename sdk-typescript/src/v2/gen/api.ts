@@ -2488,26 +2488,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/sandboxes/{sandbox_id}/ports/{port}/signed-preview-urls/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Revoke a signed sandbox preview URL
-         * @description Revokes every signed preview link on the sandbox when the token is a live link for this sandbox and port. Any other token is accepted without revealing whether it was valid, and revokes nothing.
-         */
-        post: operations["revoke_sandbox_signed_preview_url"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/sandboxes/{sandbox_id}/reset-idle-timer": {
         parameters: {
             query?: never;
@@ -6536,10 +6516,6 @@ export interface components {
             next_cursor?: string | null;
             /** @description The reservations in this page. */
             reservations: components["schemas"]["MacReservation"][];
-        };
-        RevokeSandboxSignedPreviewUrlRequest: {
-            /** @description A signed token returned by the create operation for this sandbox and port. */
-            token: string;
         };
         Role: {
             /** @description The role's purpose. */
@@ -18820,56 +18796,6 @@ export interface operations {
             };
             /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
             409: {
-                headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    revoke_sandbox_signed_preview_url: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The sandbox ID */
-                sandbox_id: components["parameters"]["SandboxId"];
-                /** @description The port number */
-                port: components["parameters"]["PortNumber"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RevokeSandboxSignedPreviewUrlRequest"];
-            };
-        };
-        responses: {
-            /** @description Signed preview URLs revoked */
-            204: {
-                headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The port is outside 1 through 65535 (`BAD_REQUEST`) */
-            400: {
-                headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description Sandbox not found */
-            404: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;

@@ -8366,7 +8366,6 @@ describe('toolbox service request shaping', () => {
       ['/port/8080/in-use', '/port/{port}/in-use'],
       ['/sandboxes/sbx/ports/8080/preview-url', '/sandboxes/{id}/ports/{port}/preview-url'],
       ['/sandboxes/sbx/ports/8080/signed-preview-urls', '/sandboxes/{id}/ports/{port}/signed-preview-urls'],
-      ['/sandboxes/sbx/ports/8080/signed-preview-urls/revoke', '/sandboxes/{id}/ports/{port}/signed-preview-urls/revoke'],
       ['/sandboxes/sbx/signed-preview-urls/revoke', '/sandboxes/{id}/signed-preview-urls/revoke'],
       ['/secrets/MY_SECRET', '/secrets/{id}'],
       ['/volumes/vol-1', '/volumes/{id}'],

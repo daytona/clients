@@ -5655,12 +5655,6 @@ type ReservationPage struct {
 	Reservations []MacReservation `json:"reservations"`
 }
 
-// RevokeSandboxSignedPreviewUrlRequest defines model for RevokeSandboxSignedPreviewUrlRequest.
-type RevokeSandboxSignedPreviewUrlRequest struct {
-	// Token A signed token returned by the create operation for this sandbox and port.
-	Token string `json:"token"`
-}
-
 // Role defines model for Role.
 type Role struct {
 	// Description The role's purpose.
@@ -8176,9 +8170,6 @@ type SetSandboxPortJSONRequestBody = SetSandboxPortRequest
 
 // CreateSandboxSignedPreviewUrlJSONRequestBody defines body for CreateSandboxSignedPreviewUrl for application/json ContentType.
 type CreateSandboxSignedPreviewUrlJSONRequestBody = CreateSandboxSignedPreviewUrlJSONBody
-
-// RevokeSandboxSignedPreviewUrlJSONRequestBody defines body for RevokeSandboxSignedPreviewUrl for application/json ContentType.
-type RevokeSandboxSignedPreviewUrlJSONRequestBody = RevokeSandboxSignedPreviewUrlRequest
 
 // SetSandboxSecretsJSONRequestBody defines body for SetSandboxSecrets for application/json ContentType.
 type SetSandboxSecretsJSONRequestBody = SetSandboxSecretsRequest

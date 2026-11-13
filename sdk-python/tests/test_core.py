@@ -11905,9 +11905,6 @@ def test_route_template_keeps_static_segments_and_templates_resource_ids() -> No
     assert _route_template(["sandboxes", "sbx", "ports", "8080", "signed-preview-urls"]) == (
         "/sandboxes/{id}/ports/{port}/signed-preview-urls"
     )
-    assert _route_template(["sandboxes", "sbx", "ports", "8080", "signed-preview-urls", "revoke"]) == (
-        "/sandboxes/{id}/ports/{port}/signed-preview-urls/revoke"
-    )
     assert _route_template(["sandboxes", "sbx", "signed-preview-urls", "revoke"]) == (
         "/sandboxes/{id}/signed-preview-urls/revoke"
     )
