@@ -31,11 +31,18 @@ function mockGithub({
   comments = [],
 } = {}) {
   const calls = []
+  const asked = []
   return {
     calls,
+    asked,
     paginate: async (fn, args) => (await fn(args)).data,
     rest: {
-      repos: { getCollaboratorPermissionLevel: async () => ({ data: { role_name: role } }) },
+      repos: {
+        getCollaboratorPermissionLevel: async ({ username }) => {
+          asked.push(username)
+          return { data: { permission: role, role_name: role === 'write' ? 'custom-writer' : role } }
+        },
+      },
       pulls: {
         get: async () => ({
           data: {
@@ -145,9 +152,14 @@ test('plan: label trigger', async () => {
 })
 
 test('plan: rejects triage users and non-collaborators', async () => {
-  let github = mockGithub({ role: 'triage' })
+  let github = mockGithub({ role: 'read' })
   assert.equal((await runPlan(github, dispatchContext('all'))).matrix, '[]')
   assert.deepEqual(github.calls, [])
+  assert.deepEqual(github.asked, ['dev'])
+  // A custom role is judged by its base permission, not its name.
+  const custom = mockGithub()
+  assert.equal(JSON.parse((await runPlan(custom, dispatchContext('all', 'stranger'))).matrix).length, ALL.length)
+  assert.deepEqual(custom.asked, ['stranger'])
 
   github = mockGithub()
   github.rest.repos.getCollaboratorPermissionLevel = async () => {
@@ -180,7 +192,7 @@ test('plan: forks, other bases, unknown evals, selection, renames, nothing chang
   assert.doesNotMatch(docsOnly.calls[0][1], /harness/)
   const harnessOnly = mockGithub({ files: [{ filename: 'scripts/ax-evals/plan.js' }] })
   assert.equal((await runPlan(harnessOnly, dispatchContext(''))).matrix, '[]')
-  assert.match(harnessOnly.calls[0][1], /dispatch with `--ref 'feature\/x'` instead/)
+  assert.match(harnessOnly.calls[0][1], /dispatch with `--ref feature\/x` instead/)
   const moved = mockGithub({ files: [{ filename: 'legacy/plan.js', previous_filename: 'scripts/ax-evals/plan.js' }] })
   await runPlan(moved, dispatchContext(''))
   assert.match(moved.calls[0][1], /harness/)
@@ -188,11 +200,12 @@ test('plan: forks, other bases, unknown evals, selection, renames, nothing chang
   const get = odd.rest.pulls.get
   odd.rest.pulls.get = async (args) => {
     const r = await get(args)
-    r.data.head.ref = "x';rm -rf ~;'$HOME"
+    r.data.head.ref = "x';rm -rf ~;`@team`$HOME"
     return r
   }
   await runPlan(odd, dispatchContext(''))
-  assert.ok(odd.calls[0][1].includes(`--ref 'x'\\'';rm -rf ~;'\\''$HOME'`))
+  assert.ok(odd.calls[0][1].includes("`--ref <this PR's branch>`"))
+  assert.ok(!odd.calls[0][1].includes('@team'))
   const failing = mockGithub({ files: [{ filename: 'README.md' }] })
   failing.rest.issues.createComment = async () => {
     throw new Error('secondary rate limit')
@@ -617,7 +630,7 @@ test('workflow: the harness comes from the base branch tip, and every job uses t
   const workflow = fs.readFileSync(WORKFLOW, 'utf8')
   const refs = [...workflow.matchAll(/^\s+ref: (.+)$/gm)].map((m) => m[1].trim())
   assert.deepEqual(refs.filter((ref) => !ref.startsWith('18bd03')), [
-    '${{ github.event.pull_request.base.ref || github.sha }}',
+    '${{ github.sha }}',
     '${{ needs.plan.outputs.harness }}',
     '${{ needs.plan.outputs.harness }}',
   ])

@@ -9,7 +9,9 @@ const path = require('path')
 const { upsertComment } = require('./comment.js')
 
 const ALIASES = { ts: 'typescript', js: 'typescript', py: 'python' }
-const WRITE_ROLES = new Set(['admin', 'maintain', 'write'])
+// The endpoint's base `permission` (admin/write/read/none): `role_name` can be a
+// custom role's name, and maintain maps to write.
+const WRITE_PERMISSIONS = new Set(['admin', 'write'])
 // evals.json paths describe the 2.x layout; release/v0 has its own AX evals.
 const BASE_BRANCH = 'main'
 const HEADING = '### AX evals (Firegoat)'
@@ -78,12 +80,12 @@ async function run({ github, context, core }) {
   let role = 'none'
   try {
     const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({ ...repo, username: actor })
-    role = permission.role_name
+    role = permission.permission
   } catch (error) {
     // 404 for users who are not collaborators at all.
     core.info(`Could not read @${actor}'s permission: ${error.message}`)
   }
-  if (!WRITE_ROLES.has(role)) {
+  if (!WRITE_PERMISSIONS.has(role)) {
     return core.notice(`@${actor} has '${role}' access; AX evals need write access`)
   }
 
@@ -124,8 +126,8 @@ async function run({ github, context, core }) {
     const harness = (files || [])
       .flatMap((file) => [file.filename, file.previous_filename].filter(Boolean))
       .some((name) => name.startsWith('scripts/ax-evals/') || name === '.github/workflows/ax_evals.yaml')
-    // Single-quoted for the shell; a quote inside the branch name is closed and escaped.
-    const ref = `'${pr.head.ref.replace(/'/g, `'\\''`)}'`
+    // Named only when it is plain, so it is safe both in the shell and in Markdown.
+    const ref = /^[A-Za-z0-9._/-]+$/.test(pr.head.ref) ? pr.head.ref : "<this PR's branch>"
     await upsertComment(github, repo, prNumber, context.runId, [
       HEADING,
       '',

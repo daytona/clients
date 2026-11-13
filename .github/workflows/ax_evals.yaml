@@ -62,10 +62,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # The harness runs with a write token and the Firegoat key: on a label
-          # event take it from the base branch's tip (the PR's base.sha goes stale
-          # until the PR is pushed again); a manual run uses the dispatched ref.
-          ref: ${{ github.event.pull_request.base.ref || github.sha }}
+          # The harness runs with a write token and the Firegoat key. github.sha is
+          # the commit whose copy of this workflow is running: main's latest commit
+          # for a label run (pull_request_target), the dispatched ref's for a manual
+          # run. So the workflow and the harness always come from the same commit.
+          ref: ${{ github.sha }}
           sparse-checkout: scripts/ax-evals
       - id: harness
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
