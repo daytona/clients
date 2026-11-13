@@ -1,0 +1,19 @@
+scripts/ax-evals/redact.js
+  s_ef561ed5f0ed65::t_af1b38d0241b77 10-18,20-23,26-34,36-42,52-96,99,104-107,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0289e826cd63dd1cdd09778fa8837686f8bfe4f7",
+  "prompts": {},
+  "sessions": {
+    "s_ef561ed5f0ed65": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bebe1e8ffeYnSEWlHMdr5yu6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
