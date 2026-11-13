@@ -122,10 +122,14 @@ async function run({ github, context, core }) {
   const sha = pr.head.sha
   const runUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`
   if (selected.length === 0) {
-    // A label run uses main's harness: changes to it are tested from the PR's branch.
-    const harness = (files || [])
-      .flatMap((file) => [file.filename, file.previous_filename].filter(Boolean))
-      .some((name) => name.startsWith('scripts/ax-evals/') || name === '.github/workflows/ax_evals.yaml')
+    // A label run uses main's harness. The GitHub side (workflow, scripts, selection)
+    // can be tested by dispatching from the PR's branch; prompts and setup scripts live
+    // on Firegoat and only change when a merge to main syncs them.
+    const names = (files || []).flatMap((file) => [file.filename, file.previous_filename].filter(Boolean))
+    const harness = names.some(
+      (name) => (name.startsWith('scripts/ax-evals/') && !name.startsWith('scripts/ax-evals/setup/')) || name === '.github/workflows/ax_evals.yaml',
+    )
+    const prompts = names.some((name) => name.startsWith('scripts/ax-evals/setup/') || name === 'scripts/ax-evals/evals.json')
     // Named only when it is plain, so it is safe both in the shell and in Markdown.
     const ref = /^[A-Za-z0-9._/-]+$/.test(pr.head.ref) ? pr.head.ref : "<this PR's branch>"
     await upsertComment(github, repo, prNumber, context.runId, [
@@ -134,7 +138,10 @@ async function run({ github, context, core }) {
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
       `To run evals anyway: \`${DISPATCH_HINT.replace('<number>', prNumber)}\` (replace \`all\` with a surface such as \`cli\`, a task such as \`preview-url\`, or one eval such as \`cli-preview-url\`).`,
       ...(harness
-        ? [`This PR changes the AX evals harness, which a run from \`main\` does not use: to test it, dispatch with \`--ref ${ref}\` instead.`]
+        ? [`This PR changes the AX evals workflow or scripts, which a run from \`main\` does not use: to test them, dispatch with \`--ref ${ref}\` instead.`]
+        : []),
+      ...(prompts
+        ? ['Prompt text, checks and setup scripts are stored on Firegoat and change only when a merge to `main` syncs them, so no run tests those edits before merge.']
         : []),
     ]).catch((error) => core.warning(`Could not write the AX evals comment: ${error.message}`))
     return
