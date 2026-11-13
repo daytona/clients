@@ -58,6 +58,7 @@ jobs:
       sha: ${{ steps.plan.outputs.sha }}
       pr: ${{ steps.plan.outputs.pr }}
       harness: ${{ steps.harness.outputs.sha }}
+      notes: ${{ steps.plan.outputs.notes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -198,6 +199,7 @@ jobs:
           AX_MATRIX: ${{ needs.plan.outputs.matrix }}
           AX_SHA: ${{ needs.plan.outputs.sha }}
           AX_PR: ${{ needs.plan.outputs.pr }}
+          AX_NOTES: ${{ needs.plan.outputs.notes }}
           AX_RESULTS_DIR: ${{ runner.temp }}/ax-results
         with:
           script: |

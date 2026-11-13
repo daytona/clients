@@ -103,7 +103,7 @@ function firegoatUrl(value) {
   }
 }
 
-function render({ results, sha, runUrl, pr }) {
+function render({ results, sha, runUrl, pr, notes = [] }) {
   const rows = results.map((result) => {
     const report = parseReport(result.reportJson)
     const metrics = (report && report.metrics) || {}
@@ -126,6 +126,7 @@ function render({ results, sha, runUrl, pr }) {
     HEADING,
     '',
     `${allSucceeded ? '✅ All evals succeeded' : 'Some evals did not succeed'} on commit \`${sha.slice(0, 7)}\`. Informational only, this never blocks merging.`,
+    ...notes,
     '',
     '| Eval | Result | Checks | Agent time | Cost | Errors | Details |',
     '| --- | --- | --- | --- | --- | --- | --- |',
@@ -160,7 +161,14 @@ async function run({ github, context, core }) {
   const matrix = JSON.parse(process.env.AX_MATRIX)
   const results = loadResults(process.env.AX_RESULTS_DIR, matrix)
   const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-  const lines = render({ results, sha: process.env.AX_SHA, runUrl, pr: process.env.AX_PR })
+  // Notes are written by plan.js from fixed text, not from agent output.
+  let notes = []
+  try {
+    notes = JSON.parse(process.env.AX_NOTES || '[]')
+  } catch {
+    notes = []
+  }
+  const lines = render({ results, sha: process.env.AX_SHA, runUrl, pr: process.env.AX_PR, notes: Array.isArray(notes) ? notes.map(String) : [] })
   await core.summary.addRaw(lines.join('\n')).write()
   const written = await upsertComment(github, context.repo, Number(process.env.AX_PR), context.runId, lines)
   if (!written) core.notice('A newer AX eval run already owns the PR comment; leaving it untouched')

@@ -121,28 +121,31 @@ async function run({ github, context, core }) {
 
   const sha = pr.head.sha
   const runUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`
+  // A label run uses main's harness. The GitHub side (workflow, scripts, selection)
+  // can be tested by dispatching from the PR's branch; prompts and setup scripts live
+  // on Firegoat and only change when a merge to main syncs them.
+  const names = (files || []).flatMap((file) => [file.filename, file.previous_filename].filter(Boolean))
+  const harness = names.some(
+    (name) => (name.startsWith('scripts/ax-evals/') && !name.startsWith('scripts/ax-evals/setup/')) || name === '.github/workflows/ax_evals.yaml',
+  )
+  const prompts = names.some((name) => name.startsWith('scripts/ax-evals/setup/') || name === 'scripts/ax-evals/evals.json')
+  // Named only when it is plain, so it is safe both in the shell and in Markdown.
+  const ref = /^[A-Za-z0-9._/-]+$/.test(pr.head.ref) ? pr.head.ref : "<this PR's branch>"
+  const harnessNotes = [
+    ...(harness
+      ? [`This PR changes the AX evals workflow or scripts, which a run from \`main\` does not use: to test them, dispatch with \`--ref ${ref}\` instead.`]
+      : []),
+    ...(prompts
+      ? ['Prompt text, checks and setup scripts are stored on Firegoat and change only when a merge to `main` syncs them, so no run tests those edits before merge.']
+      : []),
+  ]
   if (selected.length === 0) {
-    // A label run uses main's harness. The GitHub side (workflow, scripts, selection)
-    // can be tested by dispatching from the PR's branch; prompts and setup scripts live
-    // on Firegoat and only change when a merge to main syncs them.
-    const names = (files || []).flatMap((file) => [file.filename, file.previous_filename].filter(Boolean))
-    const harness = names.some(
-      (name) => (name.startsWith('scripts/ax-evals/') && !name.startsWith('scripts/ax-evals/setup/')) || name === '.github/workflows/ax_evals.yaml',
-    )
-    const prompts = names.some((name) => name.startsWith('scripts/ax-evals/setup/') || name === 'scripts/ax-evals/evals.json')
-    // Named only when it is plain, so it is safe both in the shell and in Markdown.
-    const ref = /^[A-Za-z0-9._/-]+$/.test(pr.head.ref) ? pr.head.ref : "<this PR's branch>"
     await upsertComment(github, repo, prNumber, context.runId, [
       HEADING,
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
       `To run evals anyway: \`${DISPATCH_HINT.replace('<number>', prNumber)}\` (replace \`all\` with a surface such as \`cli\`, a task such as \`preview-url\`, or one eval such as \`cli-preview-url\`).`,
-      ...(harness
-        ? [`This PR changes the AX evals workflow or scripts, which a run from \`main\` does not use: to test them, dispatch with \`--ref ${ref}\` instead.`]
-        : []),
-      ...(prompts
-        ? ['Prompt text, checks and setup scripts are stored on Firegoat and change only when a merge to `main` syncs them, so no run tests those edits before merge.']
-        : []),
+      ...harnessNotes,
     ]).catch((error) => core.warning(`Could not write the AX evals comment: ${error.message}`))
     return
   }
@@ -155,12 +158,14 @@ async function run({ github, context, core }) {
   core.setOutput('matrix', JSON.stringify(matrix))
   core.setOutput('sha', sha)
   core.setOutput('pr', String(prNumber))
+  core.setOutput('notes', JSON.stringify(harnessNotes))
   // The pending comment is cosmetic (the report job rewrites it): a failed write must
   // not fail the plan, which would drop the evals.
   await upsertComment(github, repo, prNumber, context.runId, [
     HEADING,
     '',
     `⏳ Running ${matrix.length} eval${matrix.length === 1 ? '' : 's'} on commit \`${sha.slice(0, 7)}\`: ${matrix.map((m) => m.title).join(', ')}. Results usually take 10–20 minutes, longer when the Firegoat queue is busy ([workflow run](${runUrl})).`,
+    ...harnessNotes,
   ]).catch((error) => core.warning(`Could not write the pending AX evals comment: ${error.message}`))
 }
 
