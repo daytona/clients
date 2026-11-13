@@ -364,6 +364,16 @@ test('redact: Daytona credentials never reach the comment', () => {
   for (const nested of [`%5Cu0064tn_${hex}`, `\\u0025\\u0036\\u0034tn_${hex}`, `${'\\'.repeat(20)}u0064tn_${hex}`, `&#x25;64tn_${hex}`]) {
     assert.ok(!redact(`a ${nested} b`).includes(hex.slice(0, 16)), nested)
   }
+  // HTML inside HTML, an invalid UTF-8 byte before an encoded invisible, a long run.
+  for (const form of [`dtn&amp;lowbar;${hex}`, `&amp;#100;tn_${hex}`, `%FF%64%74%6E%E2%80%8B%5F${hex}`, `${'%41'.repeat(4095)}%E2%80%8B%64%74%6E%E2%80%8B%5F${hex}`]) {
+    assert.ok(!redact(form).includes(hex.slice(0, 16)), form.slice(-50))
+  }
+  // An encoded byte-order mark is a character, not a stall.
+  assert.equal(redact(`%EF%BB%BF dtn_${hex}`), '%EF%BB%BF REDACTED')
+  // Deep nesting is decoded; deeper than the pass limit, the text is withheld whole.
+  const nest = (n) => { let t = `dtn_${hex}`; for (let i = 0; i < n; i += 1) t = t.replace(/[%_]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`); return t }
+  assert.ok(!redact(`a ${nest(10)} b`).includes(hex.slice(0, 16)))
+  assert.equal(redact(`a ${nest(20)} b`), 'REDACTED (text too deeply encoded to check)')
   // A cut takes only the key's own bytes out of a percent-encoded run.
   assert.equal(redact(`q=%E4%B8%AD%20%64tn_${hex}%20%E4%B8%AD&x=1`), 'q=%E4%B8%AD%20REDACTED%20%E4%B8%AD&x=1')
   // A long backslash run stays linear.
