@@ -11,12 +11,15 @@ name: '[PR] AX evals (Firegoat)'
 #   (tokens are combined: `cli preview-url` is every CLI eval plus every preview-URL eval)
 # Prompts and setup scripts live in scripts/ax-evals and are stored on Firegoat; they
 # are synced from main by ax_evals_config.yaml, so a PR is evaluated with main's
-# prompts. The harness itself never runs from the PR: a label run takes it from
-# main's tip, a manual run from the dispatched ref. release/v0 keeps its own AX
-# evals for the 0.x line.
+# prompts. Nothing from the PR runs here: a label run takes this workflow and the
+# harness from main (pull_request_target), a manual run from the dispatched ref, and
+# the code under test only reaches Firegoat as a commit SHA. release/v0 keeps its own
+# AX evals for the 0.x line.
 
 on:
-  pull_request:
+  # pull_request_target runs main's copy of this workflow, so a PR cannot change what
+  # runs with the secrets. Safe because no job checks out or executes PR code.
+  pull_request_target:
     types: [labeled]
     branches: [main]
   workflow_dispatch:
@@ -36,15 +39,13 @@ permissions: {}
 jobs:
   plan:
     name: Plan
-    # Only same-repo PRs get past this gate (fork PRs never reach a checkout), and the
-    # labeler needs write access: those gates are the control. The harness scripts
-    # come from the tip of the PR's base branch (main), never from the PR, so a PR can
-    # only change what runs with the tokens by editing this workflow file, where the
-    # labeler sees it in the diff. Manual runs need write access and run the
-    # dispatched ref's code. Plan records the commit it used, and the eval and report
-    # jobs check out the same one.
+    # Only same-repo PRs, labeled by someone with write access (plan.js checks), get
+    # past this gate: fork code is never built with the eval agent's credential. The
+    # harness comes from the tip of main, never from the PR; manual runs need write
+    # access and run the dispatched ref's code. Plan records the commit it used, and
+    # the eval and report jobs check out the same one.
     if: >-
-      (github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' &&
+      (github.event_name == 'pull_request_target' && github.event.label.name == 'ax-eval' &&
         github.event.pull_request.head.repo.full_name == github.repository) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

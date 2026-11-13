@@ -134,7 +134,7 @@ test('plan: changed surfaces for a write user', async () => {
 test('plan: label trigger', async () => {
   const context = {
     ...dispatchContext(''),
-    eventName: 'pull_request',
+    eventName: 'pull_request_target',
     payload: { pull_request: { number: 7 }, sender: { login: 'dev' } },
   }
   assert.deepEqual(names(await runPlan(mockGithub(), context)), onSurface('cli'))
@@ -498,15 +498,17 @@ test('workflow: plan only starts for the ax-eval label, and for manual runs', ()
   const condition = /if: >-\n([\s\S]*?)\n    [a-z]/.exec(planJob)[1].replace(/\s+/g, ' ').trim()
   assert.equal(
     condition,
-    "(github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'",
+    "(github.event_name == 'pull_request_target' && github.event.label.name == 'ax-eval' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'",
   )
-  assert.match(workflow, /pull_request:\n    types: \[labeled\]\n    branches: \[main\]/)
+  assert.match(workflow, /pull_request_target:\n    types: \[labeled\]\n    branches: \[main\]/)
+  // pull_request_target is safe only while no job checks out or runs PR code.
+  assert.doesNotMatch(workflow, /^\s+on:\s*\n\s+pull_request:/m)
 })
 
 test('workflow: fork PRs never run PR-controlled code on label events', () => {
   const workflow = fs.readFileSync(WORKFLOW, 'utf8')
   const planJob = workflow.slice(workflow.indexOf('  plan:'), workflow.indexOf('    steps:'))
-  const labelClause = /github\.event_name == 'pull_request'[^|]*\)/.exec(planJob)
+  const labelClause = /github\.event_name == 'pull_request_target'[^|]*\)/.exec(planJob)
   assert.ok(labelClause, 'plan job has a pull_request clause')
   assert.match(labelClause[0], /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/)
 })
