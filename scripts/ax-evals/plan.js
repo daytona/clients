@@ -9,8 +9,8 @@ const path = require('path')
 const { upsertComment } = require('./comment.js')
 
 const ALIASES = { ts: 'typescript', js: 'typescript', py: 'python' }
-// The endpoint's base `permission` (admin/write/read/none): `role_name` can be a
-// custom role's name, and maintain maps to write.
+// The endpoint's base `permission` (admin, write, read or none): `role_name` can be a
+// custom role's name, and maintain and triage report as write and read.
 const WRITE_PERMISSIONS = new Set(['admin', 'write'])
 // evals.json paths describe the 2.x layout; release/v0 has its own AX evals.
 const BASE_BRANCH = 'main'

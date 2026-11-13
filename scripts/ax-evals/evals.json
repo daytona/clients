@@ -54,7 +54,8 @@
       "endGoal": "The agent reports 3682913, printed by Python code that ran inside a Daytona v2 sandbox.",
       "checks": {
         "output": "The agent reported 3682913 as the code's output.",
-        "ran-in-sandbox": "The Python code ran inside the Daytona sandbox, not on the agent's machine."
+        "ran-in-sandbox": "The Python code ran inside the Daytona sandbox, not on the agent's machine.",
+        "computed": "The Python code that ran in the sandbox generated the first 1000 prime numbers and summed them; the agent did not print a precomputed constant."
       }
     },
     "custom-image": {
@@ -76,7 +77,8 @@
       "checks": {
         "uploaded": "data.csv reached the sandbox through a Daytona file upload, not through its contents embedded in a shell command.",
         "computed-in-sandbox": "The sum was computed inside the sandbox.",
-        "downloaded": "result.txt was downloaded from the sandbox through a Daytona file download and contains 5050."
+        "downloaded": "result.txt was downloaded from the sandbox through a Daytona file download and contains 5050.",
+        "input": "data.csv contained exactly the numbers 1 to 100, one per line, when it was uploaded."
       }
     },
     "git-commit": {

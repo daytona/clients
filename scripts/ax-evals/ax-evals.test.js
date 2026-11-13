@@ -152,6 +152,10 @@ test('plan: label trigger', async () => {
 })
 
 test('plan: rejects triage users and non-collaborators', async () => {
+  for (const role of ['triage', 'read', 'none']) {
+    const blocked = mockGithub({ role })
+    assert.equal((await runPlan(blocked, dispatchContext('all'))).matrix, '[]', role)
+  }
   let github = mockGithub({ role: 'read' })
   assert.equal((await runPlan(github, dispatchContext('all'))).matrix, '[]')
   assert.deepEqual(github.calls, [])
