@@ -11,8 +11,8 @@ name: '[PR] AX evals (Firegoat)'
 #   (tokens are combined: `cli preview-url` is every CLI eval plus every preview-URL eval)
 # Prompts and setup scripts live in scripts/ax-evals and are stored on Firegoat; they
 # are synced from main by ax_evals_config.yaml, so a PR is evaluated with main's
-# prompts, and this harness itself runs from the PR's base commit. release/v0 keeps
-# its own AX evals for the 0.x line.
+# prompts, and this harness itself runs from main, never from the PR. release/v0
+# keeps its own AX evals for the 0.x line.
 
 on:
   pull_request:
@@ -37,17 +37,15 @@ jobs:
     name: Plan
     # Only same-repo PRs get past this gate (fork PRs never reach a checkout), and the
     # labeler needs write access: those gates are the control. The harness scripts
-    # come from the PR's base commit, so a PR can only change what runs with the
-    # tokens by editing this workflow file, where the labeler sees it in the diff.
-    # Manual runs need write access and run the dispatched ref's code.
+    # come from the tip of the PR's base branch (main), never from the PR, so a PR can
+    # only change what runs with the tokens by editing this workflow file, where the
+    # labeler sees it in the diff. Manual runs need write access and run the
+    # dispatched ref's code. Plan records the commit it used, and the eval and report
+    # jobs check out the same one.
     if: >-
       (github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' &&
         github.event.pull_request.head.repo.full_name == github.repository) ||
       github.event_name == 'workflow_dispatch'
-    # Plan also writes the PR comment: share the report jobs' group so the two
-    # never update it at the same time.
-    concurrency:
-      group: ax-evals-report-${{ github.event.pull_request.number || inputs.pr }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -57,15 +55,18 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       sha: ${{ steps.plan.outputs.sha }}
       pr: ${{ steps.plan.outputs.pr }}
+      harness: ${{ steps.harness.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
           # The harness runs with a write token and the Firegoat key: on a label
-          # event take it from the PR's base commit, so changing it takes an edit
-          # to this workflow; a manual run uses the dispatched ref.
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          # event take it from the base branch's tip (the PR's base.sha goes stale
+          # until the PR is pushed again); a manual run uses the dispatched ref.
+          ref: ${{ github.event.pull_request.base.ref || github.sha }}
           sparse-checkout: scripts/ax-evals
+      - id: harness
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - id: plan
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -90,10 +91,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          # The harness runs with a write token and the Firegoat key: on a label
-          # event take it from the PR's base commit, so changing it takes an edit
-          # to this workflow; a manual run uses the dispatched ref.
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ needs.plan.outputs.harness }}
           sparse-checkout: scripts/ax-evals
       # firegoat-ai/evals-action is a composite wrapper around `actions/github-script@v9`
       # (a tag, which this repo's SHA-pinning policy rejects), so run its script
@@ -146,7 +144,6 @@ jobs:
       - name: Save result
         if: always()
         env:
-          EVALS_API_KEY: ${{ secrets.EVALS_API_KEY }}
           NAME: ${{ matrix.eval.name }}
           RUN_ID: ${{ steps.eval.outputs.run-id }}
           FINAL_STATUS: ${{ steps.eval.outputs.final-status }}
@@ -180,10 +177,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          # The harness runs with a write token and the Firegoat key: on a label
-          # event take it from the PR's base commit, so changing it takes an edit
-          # to this workflow; a manual run uses the dispatched ref.
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ needs.plan.outputs.harness }}
           sparse-checkout: scripts/ax-evals
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

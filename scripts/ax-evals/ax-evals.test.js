@@ -113,7 +113,7 @@ test('selectByPaths', () => {
   assert.deepEqual(plan.selectByPaths(config, ['cli/main.go', 'sdk-typescript/src/a.ts']), [...onSurface('typescript'), ...onSurface('cli')])
   assert.deepEqual(plan.selectByPaths(config, ['docs/x.md', 'examples/a.py']), [])
   assert.deepEqual(plan.selectByPaths(config, ['contract/api-openapi.json']), ALL)
-  assert.deepEqual(plan.selectByPaths(config, ['scripts/ax-evals/evals.json']), ALL)
+  assert.deepEqual(plan.selectByPaths(config, ['scripts/ax-evals/evals.json']), [])
   assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml']), ALL)
   assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml.bak', 'contracts/x']), [])
 })
@@ -165,6 +165,8 @@ test('plan: forks, other bases, unknown evals, selection, renames, nothing chang
   assert.equal(JSON.parse((await runPlan(mockGithub(), dispatchContext('all'))).matrix).length, ALL.length)
   const renamed = mockGithub({ files: [{ filename: 'legacy/x.py', previous_filename: 'sdk-python/x.py' }] })
   assert.deepEqual(names(await runPlan(renamed, dispatchContext(''))), onSurface('python'))
+  const huge = mockGithub({ files: Array.from({ length: 3000 }, (_, i) => ({ filename: `docs/${i}.md` })) })
+  assert.equal(names(await runPlan(huge, dispatchContext(''))).length, ALL.length)
   const docsOnly = mockGithub({ files: [{ filename: 'README.md' }] })
   assert.equal((await runPlan(docsOnly, dispatchContext(''))).matrix, '[]')
   assert.match(docsOnly.calls[0][1], /nothing was evaluated/)
@@ -379,39 +381,38 @@ test('setup: node_satisfies compares the node on PATH with an engines floor', ()
   assert.equal(ok(`>=${major}.${minor + 1}.0`), false)
 })
 
-async function saveResult(reportBody, env = {}) {
+function saveResult(report, env = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ax-save-'))
-  const server = require('node:http').createServer((req, res) => {
-    res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify(reportBody))
+  const out = path.join(dir, 'r.json')
+  execFileSync(process.execPath, [path.join(__dirname, 'save-result.js'), out], {
+    env: { ...process.env, NAME: 'cli-run-python', REPORT_JSON: JSON.stringify(report), ...env },
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const { port } = server.address()
-  try {
-    const source = fs.readFileSync(path.join(__dirname, 'save-result.js'), 'utf8')
-    fs.writeFileSync(path.join(dir, 'save-result.js'), source.replace("const API_ORIGIN = 'https://firegoat.ai'", `const API_ORIGIN = 'http://127.0.0.1:${port}'`))
-    fs.copyFileSync(path.join(__dirname, 'redact.js'), path.join(dir, 'redact.js'))
-    const out = path.join(dir, 'r.json')
-    const childEnv = { ...process.env, NAME: 'cli-run-python', EVALS_API_KEY: 'k', REPORT_JSON: JSON.stringify({ apiUrl: `http://127.0.0.1:${port}/r` }), ...env }
-    await new Promise((resolve, reject) =>
-      require('node:child_process').execFile(process.execPath, [path.join(dir, 'save-result.js'), out], { env: childEnv }, (e) => (e ? reject(e) : resolve())),
-    )
-    return JSON.parse(fs.readFileSync(out, 'utf8'))
-  } finally {
-    server.close()
-  }
+  return JSON.parse(fs.readFileSync(out, 'utf8'))
 }
 
-test('save-result: the top-level narrative wins, legacy is the fallback, credentials are redacted', async () => {
+test('save-result: the top-level narrative wins, legacy is the fallback, credentials are redacted', () => {
   const legacy = { keyFinding: 'legacy', frictionPoints: [{ severity: 'minor', desc: 'old' }] }
-  const top = await saveResult({ keyFinding: 'top', frictionPoints: [{ severity: 'major', desc: 'new' }], legacy })
+  const top = saveResult({ keyFinding: 'top', frictionPoints: [{ severity: 'major', desc: 'new' }], legacy })
   assert.equal(top.keyFinding, 'top')
   assert.deepEqual(top.frictionPoints, [{ severity: 'major', text: 'new' }])
-  const fallback = await saveResult({ keyFinding: null, frictionPoints: [], legacy })
+  const fallback = saveResult({ keyFinding: null, frictionPoints: [], legacy })
   assert.equal(fallback.keyFinding, 'legacy')
   assert.deepEqual(fallback.frictionPoints, [{ severity: 'minor', text: 'old' }])
   const key = `dtn_${'b2'.repeat(16)}`
-  const leaked = await saveResult({ keyFinding: `ran env: ${key}` }, { FAILURE_REASON: `also ${key}` })
+  const leaked = saveResult({ keyFinding: `ran env:\n${key}` }, { FAILURE_REASON: `also ${key}` })
   assert.ok(!JSON.stringify(leaked).includes(key))
-  assert.equal(leaked.keyFinding, 'ran env: [redacted]')
+  assert.equal(leaked.keyFinding, 'ran env:\n[redacted]')
+})
+
+test('workflow: the harness comes from the base branch tip, and every job uses the commit plan used', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8')
+  const refs = [...workflow.matchAll(/^\s+ref: (.+)$/gm)].map((m) => m[1].trim())
+  assert.deepEqual(refs.filter((ref) => !ref.startsWith('18bd03')), [
+    '${{ github.event.pull_request.base.ref || github.sha }}',
+    '${{ needs.plan.outputs.harness }}',
+    '${{ needs.plan.outputs.harness }}',
+  ])
+  assert.ok(refs.every((ref) => !/pull_request\.(base\.sha|head)/.test(ref)))
+  const save = workflow.slice(workflow.indexOf('- name: Save result'), workflow.indexOf('upload-artifact'))
+  assert.doesNotMatch(save, /EVALS_API_KEY/)
 })

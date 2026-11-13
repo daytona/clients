@@ -13,6 +13,7 @@ const WRITE_ROLES = new Set(['admin', 'maintain', 'write'])
 // evals.json paths describe the 2.x layout; release/v0 has its own AX evals.
 const BASE_BRANCH = 'main'
 const HEADING = '### AX evals (Firegoat)'
+const MAX_LISTED_FILES = 3000
 const DISPATCH_HINT = `gh workflow run ax_evals.yaml --repo daytona/clients --ref ${BASE_BRANCH} -f pr=<number> -f evals=all`
 
 function loadConfig() {
@@ -105,10 +106,14 @@ async function run({ github, context, core }) {
     selected = names
   } else {
     const files = await github.paginate(github.rest.pulls.listFiles, { ...repo, pull_number: prNumber, per_page: 100 })
-    selected = selectByPaths(
-      config,
-      files.flatMap((file) => [file.filename, file.previous_filename].filter(Boolean)),
-    )
+    // The API lists at most 3,000 files; past that, the changed surfaces are unknown.
+    selected =
+      files.length >= MAX_LISTED_FILES
+        ? evalsOf(config).map((e) => e.name)
+        : selectByPaths(
+            config,
+            files.flatMap((file) => [file.filename, file.previous_filename].filter(Boolean)),
+          )
   }
 
   const sha = pr.head.sha

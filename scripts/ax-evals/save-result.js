@@ -2,42 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Writes one eval's outcome (from the evals-action outputs in env) to a JSON file for
-// the report job. The run response omits the report narrative, so fetch the key
-// finding and friction points from the full report.
+// the report job. The report the action returns carries the narrative: Firegoat puts
+// the key finding and friction points at its top level or under `legacy`.
 
 const fs = require('fs')
 const path = require('path')
+const { redact } = require('./redact.js')
 
 const API_ORIGIN = 'https://firegoat.ai'
-const { redact } = require('./redact.js')
 
 function truncate(text, max) {
   const value = String(text || '').trim()
   return value.length > max ? `${value.slice(0, max - 1)}…` : value
 }
 
-async function fetchReport(apiUrl, apiKey) {
-  if (!apiUrl || !apiKey) return null
-  try {
-    const url = new URL(apiUrl)
-    if (url.origin !== API_ORIGIN) return null
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(15_000),
-    })
-    return response.ok ? await response.json() : null
-  } catch {
-    return null
-  }
+function keyFindingOf(report) {
+  if (!report) return ''
+  return report.keyFinding || (report.legacy && report.legacy.keyFinding) || ''
 }
 
-function frictionOf(full) {
-  if (!full) return []
-  if (Array.isArray(full.frictionPoints) && full.frictionPoints.length > 0) return full.frictionPoints
-  return (full.legacy && Array.isArray(full.legacy.frictionPoints) && full.legacy.frictionPoints) || []
+function frictionOf(report) {
+  if (!report) return []
+  if (Array.isArray(report.frictionPoints) && report.frictionPoints.length > 0) return report.frictionPoints
+  return (report.legacy && Array.isArray(report.legacy.frictionPoints) && report.legacy.frictionPoints) || []
 }
 
-async function main(outFile) {
+function main(outFile) {
   const env = process.env
   let report = null
   try {
@@ -45,7 +35,6 @@ async function main(outFile) {
   } catch {
     report = null
   }
-  const full = await fetchReport(report && report.apiUrl, env.EVALS_API_KEY)
   const result = {
     name: env.NAME,
     runId: env.RUN_ID,
@@ -55,9 +44,8 @@ async function main(outFile) {
     reportUrl: env.REPORT_URL,
     reportJson: env.REPORT_JSON,
     failureReason: env.FAILURE_REASON,
-    // Firegoat moved the narrative under `legacy`; read the top level first.
-    keyFinding: (full && (full.keyFinding || (full.legacy && full.legacy.keyFinding))) || '',
-    frictionPoints: frictionOf(full).slice(0, 3).map((point) => ({
+    keyFinding: keyFindingOf(report),
+    frictionPoints: frictionOf(report).slice(0, 3).map((point) => ({
       severity: point.severity,
       text: truncate(redact(point.desc || point.title), 240),
     })),
