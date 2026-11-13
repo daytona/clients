@@ -1532,8 +1532,9 @@ class SignedPreviewLink:
 
     The token is embedded in the hostname — no extra headers or credentials are
     needed. The link expires at ``expires_at``, which the contract requires
-    (a response without it is a ``BadRequestError``). Revoke it early with
-    :meth:`~daytona.v2.ports.AsyncPortsService.expire_signed_preview_link`.
+    (a response without it is a ``BadRequestError``). Expire it early with
+    :meth:`~daytona.v2.ports.AsyncPortsService.expire_signed_preview_links`,
+    which expires every signed preview link of the sandbox.
     """
 
     url: str = field(repr=False)

@@ -4,5 +4,4 @@
 `ports` of `create_access_token()` / `createAccessToken()` refuse them with
 `BadRequestError` (400, `BAD_REQUEST`, source `SDK`) before any request, as
 the API does, and `daytona sandbox port preview-url` refuses them as a usage
-error. Unexposing such a port and revoking its signed preview links still
-work.
+error. Unexposing such a port still works.

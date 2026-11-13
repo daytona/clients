@@ -1740,17 +1740,10 @@
             "format": "int64",
             "minimum": 0,
             "type": "integer"
-          },
-          "revoked_preview_grants": {
-            "description": "The number of preview grants the change would revoke.",
-            "format": "int64",
-            "minimum": 0,
-            "type": "integer"
           }
         },
         "required": [
-          "revoked_api_keys",
-          "revoked_preview_grants"
+          "revoked_api_keys"
         ],
         "type": "object"
       },
@@ -5169,14 +5162,6 @@
             "format": "int64",
             "type": "integer"
           },
-          "revoked_preview_grants": {
-            "description": "The number of signed preview grants the removal would delete, or\n`null` when unknown.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "user_id": {
             "description": "The user ID that would be removed.",
             "format": "uuid",
@@ -8146,18 +8131,6 @@
         ],
         "type": "object"
       },
-      "RevokeSandboxSignedPreviewUrlRequest": {
-        "properties": {
-          "token": {
-            "description": "The plaintext signed token returned by the mint operation.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "token"
-        ],
-        "type": "object"
-      },
       "Role": {
         "properties": {
           "description": {
@@ -9580,16 +9553,16 @@
         "description": "A signed preview link.",
         "properties": {
           "expires_at": {
-            "description": "When the link stops resolving (natural expiry).",
+            "description": "When the link stops resolving (natural expiry), to the second.",
             "format": "date-time",
             "type": "string"
           },
           "token": {
-            "description": "The signed token (`s` followed by 32 hexadecimal characters), returned only once. Required separately from `url` to revoke access.",
+            "description": "The link's signed token, as it appears in `url`.",
             "type": "string"
           },
           "url": {
-            "description": "Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` \u2014 the\ntoken replaces the sandbox id in the hostname, so the link reveals no\nsandbox identity.",
+            "description": "Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` \u2014 the\ntoken stands in the hostname where the sandbox ID otherwise would.",
             "type": "string"
           }
         },
@@ -19183,7 +19156,7 @@
     },
     "/orgs/{org_id}/members/{user_id}/removal-preview": {
       "get": {
-        "description": "Shows the credentials and preview grants that removal would revoke.",
+        "description": "Shows the API keys that removal would revoke.",
         "operationId": "get_member_removal_preview",
         "parameters": [
           {
@@ -28968,7 +28941,7 @@
     },
     "/sandboxes/{sandbox_id}/ports/{port}/signed-preview-urls": {
       "post": {
-        "description": "Creates a short-lived preview link for one port. Each link can be revoked independently.",
+        "description": "Creates a short-lived preview link for one port. Revoking signed preview links revokes every link on the sandbox.",
         "operationId": "create_sandbox_signed_preview_url",
         "parameters": [
           {
@@ -29054,26 +29027,8 @@
                 }
               }
             },
-            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
+            "description": "The sandbox is deleted, being deleted, failed, lost, or stopped without being persistent (`CONFLICT`)",
             "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Signed preview URLs are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
-            "headers": {
-              "Retry-After": {
-                "$ref": "#/components/headers/Retry-After"
-              },
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
@@ -29093,110 +29048,6 @@
           }
         ],
         "summary": "Create a signed sandbox preview URL",
-        "tags": [
-          "previews"
-        ]
-      }
-    },
-    "/sandboxes/{sandbox_id}/ports/{port}/signed-preview-urls/revoke": {
-      "post": {
-        "description": "Revokes one signed preview link. An unknown or expired token is accepted without revealing whether it existed.",
-        "operationId": "revoke_sandbox_signed_preview_url",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/SandboxId"
-          },
-          {
-            "$ref": "#/components/parameters/PortNumber"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevokeSandboxSignedPreviewUrlRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Signed preview URL revoked",
-            "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "The port is outside 1 through 65535 (`BAD_REQUEST`)",
-            "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Sandbox not found",
-            "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Signed preview URL revocation is temporarily unavailable (`SERVICE_UNAVAILABLE`)",
-            "headers": {
-              "Retry-After": {
-                "$ref": "#/components/headers/Retry-After"
-              },
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "api_key": [
-              "write:sandboxes"
-            ]
-          },
-          {
-            "platform_token": [
-              "write:sandboxes"
-            ]
-          }
-        ],
-        "summary": "Revoke a signed sandbox preview URL",
         "tags": [
           "previews"
         ]
@@ -29276,6 +29127,107 @@
           }
         ],
         "summary": "Reset a sandbox idle timer",
+        "tags": [
+          "sandboxes"
+        ]
+      }
+    },
+    "/sandboxes/{sandbox_id}/restart": {
+      "post": {
+        "description": "Restarts a running persistent sandbox: it stops and keeps its disk, then\nstarts again. Running processes and memory are not kept. Linux and Windows\nsandboxes only.",
+        "operationId": "restart_sandbox",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SandboxId"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncOperation"
+                }
+              }
+            },
+            "description": "Accepted: the sandbox restart. The sandbox stops, then starts again; `status` is the sandbox's status at acceptance, `stopping`",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The organization is suspended (`ORG_SUSPENDED`), or the project reached its monthly budget (`PROJECT_BUDGET_EXCEEDED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox class does not support restarting (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not persistent or not running (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "write:sandboxes"
+            ]
+          },
+          {
+            "sandbox_token": []
+          },
+          {
+            "sandbox_token": []
+          },
+          {
+            "platform_token": [
+              "write:sandboxes"
+            ]
+          }
+        ],
+        "summary": "Restart a sandbox",
         "tags": [
           "sandboxes"
         ]
@@ -29630,6 +29582,64 @@
         "summary": "Set the sandbox secrets",
         "tags": [
           "sandboxes"
+        ]
+      }
+    },
+    "/sandboxes/{sandbox_id}/signed-preview-urls/revoke": {
+      "post": {
+        "description": "Revokes every signed preview link on the sandbox, on every port. Links created afterwards work.",
+        "operationId": "revoke_sandbox_signed_preview_urls",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SandboxId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Signed preview URLs revoked",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "write:sandboxes"
+            ]
+          },
+          {
+            "platform_token": [
+              "write:sandboxes"
+            ]
+          }
+        ],
+        "summary": "Revoke all signed sandbox preview URLs",
+        "tags": [
+          "previews"
         ]
       }
     },

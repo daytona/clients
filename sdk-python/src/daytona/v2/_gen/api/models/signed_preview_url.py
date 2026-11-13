@@ -71,9 +71,9 @@ class SignedPreviewUrl(BaseModel):
     """
     A signed preview link.
     """ # noqa: E501
-    expires_at: datetime = Field(description="When the link stops resolving (natural expiry).")
-    token: StrictStr = Field(description="The signed token (`s` followed by 32 hexadecimal characters), returned only once. Required separately from `url` to revoke access.")
-    url: StrictStr = Field(description="Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the token replaces the sandbox id in the hostname, so the link reveals no sandbox identity.")
+    expires_at: datetime = Field(description="When the link stops resolving (natural expiry), to the second.")
+    token: StrictStr = Field(description="The link's signed token, as it appears in `url`.")
+    url: StrictStr = Field(description="Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the token stands in the hostname where the sandbox ID otherwise would.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["expires_at", "token", "url"]
     _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset(["token", "url", ])

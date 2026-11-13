@@ -990,7 +990,8 @@ checked-out branch or a checkout that would overwrite local changes.
 `list()`, `isInUse(port)`, `expose(port, { public })`,
 `previewLink(port)`,
 `signedPreviewLink(port, { expiresInSeconds })`,
-`expireSignedPreviewLink(port, token)`, paginated `listEndpoints(options)`, and
+`expireSignedPreviewLinks()` (expires every signed preview link of the
+sandbox, on every port), paginated `listEndpoints(options)`, and
 `iterEndpoints(options)`. The sandbox daemon's ports 2280, 2281 and 22220 are
 never preview ports: `expose()`, `previewLink()`, `signedPreviewLink()` and
 `createAccessToken({ ports })` refuse them with `BadRequestError` before any
@@ -1140,7 +1141,7 @@ On a sandbox that is deleted or being deleted, `setLabels()`,
 `updateLifecyclePolicy()`, `resetIdleTimer()` and the preview-endpoint calls
 (`ports.expose()`, `ports.listEndpoints()`, `ports.previewLink()`,
 `ports.signedPreviewLink()`) throw `ConflictError` (`CONFLICT`);
-`ports.unexpose()` and `ports.expireSignedPreviewLink()` still work.
+`ports.unexpose()` and `ports.expireSignedPreviewLinks()` still work.
 
 ## Versioning and releases
 

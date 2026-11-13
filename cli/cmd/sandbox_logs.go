@@ -6,13 +6,11 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -159,18 +157,11 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 
 func newSandboxPreviewURLExpireCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "expire <sandbox-id> <port> <token>",
-		Short: "Expire one signed preview URL",
-		Long:  "Expire one signed preview URL. The token is not printed back.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
-		Args:  cobra.ExactArgs(3),
+		Use:   "expire <sandbox-id>",
+		Short: "Expire every signed preview URL of a sandbox",
+		Long:  "Expire every signed preview URL of a sandbox, on every port. Signed preview URLs created afterwards work.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id>",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			port, err := parsePortArg(args[1])
-			if err != nil {
-				return err
-			}
-			if strings.TrimSpace(args[2]) == "" {
-				return cerr.Usage("the signed preview URL token must not be empty")
-			}
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -180,28 +171,13 @@ func newSandboxPreviewURLExpireCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := fmt.Sprintf("/sandboxes/%s/ports/%d/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id), port)
-			body := gen.RevokeSandboxSignedPreviewUrlRequest{Token: args[2]}
-			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, body, nil); err != nil {
-				return redactInError(err, args[2])
+			path := fmt.Sprintf("/sandboxes/%s/signed-preview-urls/revoke", url.PathEscape(resolved.Detail.Id))
+			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, nil, nil); err != nil {
+				return err
 			}
-			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "port": port, "revoked": true})
+			return a.Printer().Raw("revoked", map[string]any{"sandbox_id": resolved.Detail.Id, "revoked": true})
 		},
 	}
-}
-
-// redactInError keeps err's exit code and details but drops secret from its
-// message, should the server echo it.
-func redactInError(err error, secret string) error {
-	if secret == "" || !strings.Contains(err.Error(), secret) {
-		return err
-	}
-	out := &cerr.Error{Code: cerr.ExitCode(err), Msg: strings.ReplaceAll(err.Error(), secret, "[redacted]"), Err: err}
-	var ce *cerr.Error
-	if errors.As(err, &ce) {
-		out.Hint, out.Source = strings.ReplaceAll(ce.Hint, secret, "[redacted]"), ce.Source
-	}
-	return out
 }
 
 // reservedPreviewPorts are the sandbox daemon's own ports: the API never

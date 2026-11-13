@@ -455,8 +455,9 @@ never prompts:
   with a control character.
 - `sandbox port preview-url` and `sandbox port expose` refuse the sandbox
   daemon's ports 2280, 2281 and 22220, which are never preview ports, as a
-  usage error (exit 2) before any request; `preview-url expire` and
-  `unexpose` still take them.
+  usage error (exit 2) before any request; `unexpose` still takes them.
+- `sandbox port preview-url expire <id>` expires every signed preview URL of
+  the sandbox, on every port; signed preview URLs created afterwards work.
 - Ports are private by default: a private preview URL needs the token from
   `preview-url` in the `X-Daytona-Preview-Token` header. For a browser,
   `preview-url --signed` gives a short-lived, revocable link with the token in
@@ -561,8 +562,7 @@ request. While a sandbox is stopped, commands that work inside it
   - `org_id`: `billing automatic-top-up delete`, `billing
     balance-notification delete` (`deleted`).
   `invite decline` prints `{"declined": true}` (the token is not echoed),
-  `sandbox port preview-url expire` `{"sandbox_id", "port", "revoked": true}`
-  (`port` a number; the token is not echoed, and a blank one is refused),
+  `sandbox port preview-url expire` `{"sandbox_id", "revoked": true}`,
   `sandbox port unexpose` `{"sandbox_id", "port", "unexposed": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
   With table output `org delete`, `project delete` and `project budget
   remove` print a sentence on stderr instead.

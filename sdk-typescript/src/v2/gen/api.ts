@@ -1184,7 +1184,7 @@ export interface paths {
         };
         /**
          * Get a member removal preview
-         * @description Shows the credentials and preview grants that removal would revoke.
+         * @description Shows the API keys that removal would revoke.
          */
         get: operations["get_member_removal_preview"];
         put?: never;
@@ -2479,29 +2479,9 @@ export interface paths {
         put?: never;
         /**
          * Create a signed sandbox preview URL
-         * @description Creates a short-lived preview link for one port. Each link can be revoked independently.
+         * @description Creates a short-lived preview link for one port. Revoking signed preview links revokes every link on the sandbox.
          */
         post: operations["create_sandbox_signed_preview_url"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/sandboxes/{sandbox_id}/ports/{port}/signed-preview-urls/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Revoke a signed sandbox preview URL
-         * @description Revokes one signed preview link. An unknown or expired token is accepted without revealing whether it existed.
-         */
-        post: operations["revoke_sandbox_signed_preview_url"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2519,6 +2499,28 @@ export interface paths {
         put?: never;
         /** Reset a sandbox idle timer */
         post: operations["reset_sandbox_idle_timer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sandboxes/{sandbox_id}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart a sandbox
+         * @description Restarts a running persistent sandbox: it stops and keeps its disk, then
+         *     starts again. Running processes and memory are not kept. Linux and Windows
+         *     sandboxes only.
+         */
+        post: operations["restart_sandbox"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2554,6 +2556,26 @@ export interface paths {
         /** Set the sandbox secrets */
         put: operations["set_sandbox_secrets"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sandboxes/{sandbox_id}/signed-preview-urls/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke all signed sandbox preview URLs
+         * @description Revokes every signed preview link on the sandbox, on every port. Links created afterwards work.
+         */
+        post: operations["revoke_sandbox_signed_preview_urls"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3386,11 +3408,6 @@ export interface components {
              * @description The number of API keys the change would revoke.
              */
             revoked_api_keys: number;
-            /**
-             * Format: int64
-             * @description The number of preview grants the change would revoke.
-             */
-            revoked_preview_grants: number;
         };
         Charge: {
             /**
@@ -5116,12 +5133,6 @@ export interface components {
              */
             revoked_api_keys: number;
             /**
-             * Format: int64
-             * @description The number of signed preview grants the removal would delete, or
-             *     `null` when unknown.
-             */
-            revoked_preview_grants?: number | null;
-            /**
              * Format: uuid
              * @description The user ID that would be removed.
              */
@@ -6528,10 +6539,6 @@ export interface components {
             /** @description The reservations in this page. */
             reservations: components["schemas"]["MacReservation"][];
         };
-        RevokeSandboxSignedPreviewUrlRequest: {
-            /** @description The plaintext signed token returned by the mint operation. */
-            token: string;
-        };
         Role: {
             /** @description The role's purpose. */
             description: string;
@@ -7254,15 +7261,14 @@ export interface components {
         SignedPreviewUrl: {
             /**
              * Format: date-time
-             * @description When the link stops resolving (natural expiry).
+             * @description When the link stops resolving (natural expiry), to the second.
              */
             expires_at: string;
-            /** @description The signed token (`s` followed by 32 hexadecimal characters), returned only once. Required separately from `url` to revoke access. */
+            /** @description The link's signed token, as it appears in `url`. */
             token: string;
             /**
              * @description Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the
-             *     token replaces the sandbox id in the hostname, so the link reveals no
-             *     sandbox identity.
+             *     token stands in the hostname where the sandbox ID otherwise would.
              */
             url: string;
         };
@@ -18810,81 +18816,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            /** @description The sandbox is deleted, being deleted, failed, lost, or stopped without being persistent (`CONFLICT`) */
             409: {
                 headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Signed preview URLs are temporarily unavailable (`SERVICE_UNAVAILABLE`) */
-            503: {
-                headers: {
-                    "Retry-After": components["headers"]["Retry-After"];
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    revoke_sandbox_signed_preview_url: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The sandbox ID */
-                sandbox_id: components["parameters"]["SandboxId"];
-                /** @description The port number */
-                port: components["parameters"]["PortNumber"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RevokeSandboxSignedPreviewUrlRequest"];
-            };
-        };
-        responses: {
-            /** @description Signed preview URL revoked */
-            204: {
-                headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The port is outside 1 through 65535 (`BAD_REQUEST`) */
-            400: {
-                headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            /** @description Sandbox not found */
-            404: {
-                headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Signed preview URL revocation is temporarily unavailable (`SERVICE_UNAVAILABLE`) */
-            503: {
-                headers: {
-                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -18929,6 +18863,62 @@ export interface operations {
                 };
             };
             /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    restart_sandbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The sandbox ID */
+                sandbox_id: components["parameters"]["SandboxId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted: the sandbox restart. The sandbox stops, then starts again; `status` is the sandbox's status at acceptance, `stopping` */
+            202: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncOperation"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The organization is suspended (`ORG_SUSPENDED`), or the project reached its monthly budget (`PROJECT_BUDGET_EXCEEDED`) */
+            402: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Sandbox not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox class does not support restarting (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not persistent or not running (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -19132,6 +19122,40 @@ export interface operations {
             };
             /** @description The If-Match header is missing (`IF_MATCH_REQUIRED`) */
             428: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    revoke_sandbox_signed_preview_urls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The sandbox ID */
+                sandbox_id: components["parameters"]["SandboxId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed preview URLs revoked */
+            204: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Sandbox not found */
+            404: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;

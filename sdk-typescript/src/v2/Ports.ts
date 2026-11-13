@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
+import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 import { listPage } from './listPage.js'
@@ -288,8 +288,10 @@ export class PortsService {
    *
    * The default lifetime is 60 seconds. Pass a longer `expiresInSeconds` for
    * multi-step use (the deployment caps the maximum, typically 7 days).
-   * Revoke the link early with {@link expireSignedPreviewLink}.
-   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
+   * Expire it early with {@link expireSignedPreviewLinks}, which expires every
+   * signed preview link of the sandbox.
+   * A sandbox that is deleted, being deleted, failed, lost, or stopped without
+   * being persistent throws `ConflictError` (`CONFLICT`).
    *
    * @param port TCP port inside the sandbox (1–65535, except the sandbox
    *   daemon's reserved ports 2280, 2281 and 22220).
@@ -307,7 +309,7 @@ export class PortsService {
     assertKnownOptions('SignedPreviewLinkOptions', options, SIGNED_PREVIEW_LINK_KEYS)
     assertPreviewPort(port)
     if (options.expiresInSeconds !== undefined) assertSignedPreviewTtl(options.expiresInSeconds)
-    const path = `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports/${port}/signed-preview-urls`
+    const path = `${this.sandboxPath()}/ports/${port}/signed-preview-urls`
     const body = options.expiresInSeconds === undefined ? {} : { expires_in_seconds: options.expiresInSeconds }
     const response = await this.requireApi().post<api.SignedPreviewUrlResponse>(path, body)
       .then((result) => checkResponse<api.SignedPreviewUrlResponse>(result.data, { url: 'string', token: 'string', expires_at: 'timestamp' }, 'signed preview url'))
@@ -316,18 +318,19 @@ export class PortsService {
   }
 
   /**
-   * Revoke a signed preview link before its natural expiry.
+   * Expire every signed preview link of the sandbox before its natural expiry.
    *
-   * Unlike minting, revoking still works while the sandbox is being deleted.
+   * Every signed preview link the sandbox has, on every port, stops working.
+   * Links created afterwards work. Unlike minting, expiring still works while
+   * the sandbox is being deleted.
    *
-   * @param port TCP port the link was issued for.
-   * @param token The `token` field from {@link SignedPreviewLink}.
+   * @example
+   * ```ts
+   * await sandbox.ports.expireSignedPreviewLinks()
+   * ```
    */
-  public async expireSignedPreviewLink(port: number, token: string): Promise<void> {
-    assertPort(port)
-    const given: unknown = token
-    if (typeof given !== 'string' || isBlank(given)) throw badRequest('token must be a non-empty string')
-    await this.requireApi().post(`${this.portPath(port)}/signed-preview-urls/revoke`, { token })
+  public async expireSignedPreviewLinks(): Promise<void> {
+    await this.requireApi().post(`${this.sandboxPath()}/signed-preview-urls/revoke`)
   }
 
   /** Remove a port's preview endpoint; this still works while the sandbox is being deleted. */
@@ -357,8 +360,13 @@ export class PortsService {
     return this.sandboxId
   }
 
+  /** `pathSegment` refuses `.` and `..`, which `strictUriEncode` leaves as they are and a URL resolver would collapse onto another route. */
+  private sandboxPath(): string {
+    return `/sandboxes/${pathSegment(this.requireSandboxId(), 'sandboxId')}`
+  }
+
   private portsPath(): string {
-    return `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports`
+    return `${this.sandboxPath()}/ports`
   }
 
   private portPath(port: number): string {

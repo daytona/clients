@@ -21,8 +21,8 @@ func TestMemberCommands_JSONAndYesGuard(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
 	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members", 200, map[string]any{"members": []map[string]any{organizationMemberFixture(testUserID, "a@example.com", "Alice")}})
-	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview", 200, map[string]any{"revoked_api_keys": 2, "revoked_preview_grants": 1})
-	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/removal-preview", 200, map[string]any{"user_id": testUserID, "revoked_api_keys": 3, "revoked_preview_grants": 1})
+	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview", 200, map[string]any{"revoked_api_keys": 2})
+	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/removal-preview", 200, map[string]any{"user_id": testUserID, "revoked_api_keys": 3})
 	f.on("DELETE", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID, 204, "")
 
 	out, errb, code := runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "list")
@@ -30,7 +30,7 @@ func TestMemberCommands_JSONAndYesGuard(t *testing.T) {
 		t.Fatalf("list: %d %s %s", code, out, errb)
 	}
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "member", "update", "a@example.com", "--role", "developer,auditor", "--dry-run")
-	if code != 0 || mustJSON(t, out)["revoked_api_keys"].(float64) != 2 || mustJSON(t, out)["revoked_preview_grants"].(float64) != 1 {
+	if code != 0 || mustJSON(t, out)["revoked_api_keys"].(float64) != 2 {
 		t.Fatalf("update: %d %s", code, out)
 	}
 	if f.requests[2].Method != http.MethodPost || f.requests[2].Path != "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview" || f.requests[2].Body["roles"] == nil {
@@ -131,5 +131,20 @@ func TestProjectMemberCommands_JSON(t *testing.T) {
 	out, _, code = runMgmt(t, f, d, "--org", "0000000a-0000-4000-8000-00000000a001", "--project", "proj-1", "project", "member", "remove", testUserID, "--yes")
 	if code != 0 || !isAck(t, out, "user_id", testUserID, "removed") {
 		t.Fatalf("remove: %d %s", code, out)
+	}
+}
+
+func TestMemberDryRunTablesShowOnlyTheRevokedAPIKeyCount(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members", 200, map[string]any{"members": []map[string]any{organizationMemberFixture(testUserID, "a@example.com", "Alice")}})
+	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview", 200, map[string]any{"revoked_api_keys": 2})
+	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/removal-preview", 200, map[string]any{"user_id": testUserID, "revoked_api_keys": 3})
+	base := []string{"--api-url", f.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "table", "member"}
+	for _, args := range [][]string{{"update", "a@example.com", "--role", "developer", "--dry-run"}, {"remove", testUserID, "--dry-run"}} {
+		out, errb, code := run(t, d, nil, append(append([]string{}, base...), args...)...)
+		if code != 0 || !has(out, "revoked_api_keys") || has(out, "preview_grants") {
+			t.Fatalf("%v: %d %q %q", args, code, out, errb)
+		}
 	}
 }

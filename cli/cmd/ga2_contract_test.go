@@ -192,22 +192,18 @@ func TestSandboxWait_targetsAreContractStatuses(t *testing.T) {
 	}
 }
 
-func TestPreviewURLExpire_doesNotEchoTheToken(t *testing.T) {
-	stdout, _, err := runCLI(t, []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080", "secret-preview-token"}, []expectedRequest{
+func TestPreviewURLExpire_expiresEverySignedLinkOfTheSandbox(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
-		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/8080/signed-preview-urls/revoke", status: 204, bodyJSON: `{"token":"secret-preview-token"}`},
+		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/signed-preview-urls/revoke", status: 204},
 	})
 	require.NoError(t, err)
-	require.NotContains(t, stdout, "secret-preview-token")
-	got := requireJSONStdout(t, stdout)
-	require.Equal(t, float64(8080), got["port"])
-	require.Equal(t, true, got["revoked"])
-	_, hasToken := got["token"]
-	require.False(t, hasToken)
+	require.Equal(t, map[string]any{"sandbox_id": ga2SandboxID, "revoked": true}, requireJSONStdout(t, stdout))
 
 	for _, args := range [][]string{
-		{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080", " "},
-		{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "abc", "t"},
+		{"sandbox", "port", "preview-url", "expire"},
+		{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080"},
+		{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080", "tok"},
 		{"sandbox", "port", "preview-url", ga2SandboxID, "65536"},
 		{"sandbox", "port", "preview-url", ga2SandboxID, "0"},
 		{"sandbox", "port", "preview-url", ga2SandboxID, "2280"},
@@ -295,18 +291,6 @@ func TestSandboxPortExpose_refusesInvalidPortsBeforeAnyRequest(t *testing.T) {
 		_, _, err := runCLI(t, args, nil)
 		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%v", args)
 	}
-}
-
-func TestPreviewURLExpire_acceptsAReservedPort(t *testing.T) {
-	// Given a signed preview URL revoke for a daemon port, which the API still serves
-	args := []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "2280", "tok"}
-	// When
-	_, _, err := runCLI(t, args, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
-		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/2280/signed-preview-urls/revoke", status: 204, bodyJSON: `{"token":"tok"}`},
-	})
-	// Then the request is sent
-	require.NoError(t, err)
 }
 
 func TestSandboxUpdate_keepsTheNameLabel(t *testing.T) {
@@ -559,17 +543,6 @@ func TestSandboxCreate_noWaitReadFailureFallsBackToTheAck(t *testing.T) {
 	require.Equal(t, map[string]any{"id": ga2SandboxID, "name": "box", "status": "pending"}, requireJSONStdout(t, stdout))
 	require.Contains(t, stderr, "was created, but reading it failed")
 	require.NotContains(t, stdout+stderr, "sandbox-token-must-not-print")
-}
-
-func TestPreviewURLExpire_errorNeverEchoesTheToken(t *testing.T) {
-	_, _, err := runCLI(t, []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "8080", "secret-preview-token"}, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
-		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/8080/signed-preview-urls/revoke", status: 400, bodyJSON: `{"token":"secret-preview-token"}`,
-			response: `{"code":"BAD_REQUEST","message":"unknown token secret-preview-token","source":"DAYTONA_API"}`},
-	})
-	require.Error(t, err)
-	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
-	require.NotContains(t, err.Error(), "secret-preview-token")
 }
 
 func TestSavedCredential_urlComparisonIgnoresSchemeAndHostCase(t *testing.T) {

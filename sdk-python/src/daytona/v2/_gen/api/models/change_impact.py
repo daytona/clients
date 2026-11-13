@@ -36,9 +36,8 @@ class ChangeImpact(BaseModel):
     ChangeImpact
     """ # noqa: E501
     revoked_api_keys: Annotated[int, Field(strict=True, ge=0)] = Field(description="The number of API keys the change would revoke.")
-    revoked_preview_grants: Annotated[int, Field(strict=True, ge=0)] = Field(description="The number of preview grants the change would revoke.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["revoked_api_keys", "revoked_preview_grants"]
+    __properties: ClassVar[List[str]] = ["revoked_api_keys"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -100,8 +99,7 @@ class ChangeImpact(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "revoked_api_keys": obj.get("revoked_api_keys"),
-            "revoked_preview_grants": obj.get("revoked_preview_grants")
+            "revoked_api_keys": obj.get("revoked_api_keys")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
