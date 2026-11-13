@@ -264,7 +264,7 @@ test('render: every status label', () => {
     ],
   }).join('\n')
   const expected = {
-    A: '❌ goal_not_met',
+    A: '❌ goal\\_not\\_met',
     B: '💥 Failed',
     C: '↪️ Superseded',
     D: '⏱️ Timed out',
@@ -308,6 +308,25 @@ test('redact: Daytona credentials never reach the comment', () => {
   assert.ok(!redact(JSON.stringify(encoded)).includes(key))
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Cli', finalStatus: 'failed', failureReason: `env shows ${key}` }] }).join('\n')
   assert.ok(!out.includes(key) && out.includes('env shows REDACTED'))
+})
+
+test('render: report fields cannot break the table or link elsewhere', () => {
+  const reportJson = JSON.stringify({ reward: { checklist: { 'a|b': 0, ok: 1 } }, metrics: { time: '1m|2', cost: '$1\n| x', errors: 0 } })
+  const out = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [
+      { title: 'A', finalStatus: 'completed', outcome: 'succeeded', reportJson, reportUrl: 'https://evil.example/r' },
+      { title: 'B', finalStatus: 'completed', outcome: 'goal|not', reportUrl: 'https://firegoat.ai/evals/daytona.io/reports/x(1)' },
+    ],
+  })
+  const rowA = out.find((l) => l.startsWith('| A |'))
+  assert.equal(rowA.split(/(?<!\\)\|/).length, 9)
+  assert.ok(rowA.endsWith('| – |'))
+  assert.ok(rowA.includes('| 0 |'))
+  const rowB = out.find((l) => l.startsWith('| B |'))
+  assert.equal(rowB.split(/(?<!\\)\|/).length, 9)
+  assert.ok(rowB.includes('[report](https://firegoat.ai/evals/daytona.io/reports/x%281%29)'))
 })
 
 test('render: long agent text is capped', () => {

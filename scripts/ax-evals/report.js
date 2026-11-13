@@ -45,7 +45,7 @@ function resultLabel(result) {
       ? '⚠️ Succeeded, checks failed'
       : '⚠️ Succeeded, checks missing'
   }
-  if (result.finalStatus === 'completed') return `❌ ${result.outcome || 'no report'}`
+  if (result.finalStatus === 'completed') return `❌ ${oneLine(result.outcome || 'no report')}`
   if (result.finalStatus === 'failed') return '💥 Failed'
   if (result.finalStatus === 'superseded') return '↪️ Superseded'
   if (result.finalStatus === 'running') return '⏱️ Timed out'
@@ -57,7 +57,7 @@ function checksCell(report) {
   if (total === 0) return '–'
   const failed = failedChecks(report)
   const summary = `${total - failed.length}/${total}`
-  return failed.length === 0 ? summary : `${summary} (failed: ${failed.map((slug) => `\`${slug}\``).join(', ')})`
+  return failed.length === 0 ? summary : `${summary} (failed: ${failed.map(oneLine).join(', ')})`
 }
 
 // Agent and judge text is capped so the whole comment stays under GitHub's limit.
@@ -75,12 +75,25 @@ function oneLine(text) {
   )
 }
 
+// Links in the comment only ever point at Firegoat; anything else is dropped.
+function firegoatUrl(value) {
+  try {
+    const url = new URL(String(value || ''))
+    return url.origin === 'https://firegoat.ai' ? url.href.replace(/\(/g, '%28').replace(/\)/g, '%29') : ''
+  } catch {
+    return ''
+  }
+}
+
 function render({ results, sha, runUrl, pr }) {
   const rows = results.map((result) => {
     const report = parseReport(result.reportJson)
     const metrics = (report && report.metrics) || {}
-    const link = result.reportUrl ? `[report](${result.reportUrl})` : result.runUrl ? `[run](${result.runUrl})` : '–'
-    return `| ${result.title} | ${resultLabel(result)} | ${checksCell(report)} | ${metrics.time || '–'} | ${metrics.cost || '–'} | ${metrics.errors ?? '–'} | ${link} |`
+    const reportUrl = firegoatUrl(result.reportUrl)
+    const runUrl = firegoatUrl(result.runUrl)
+    const link = reportUrl ? `[report](${reportUrl})` : runUrl ? `[run](${runUrl})` : '–'
+    const cell = (value) => (value === undefined || value === null || value === '' ? '–' : oneLine(value))
+    return `| ${result.title} | ${resultLabel(result)} | ${checksCell(report)} | ${cell(metrics.time)} | ${cell(metrics.cost)} | ${cell(metrics.errors)} | ${link} |`
   })
   const details = results
     .map((result) => {
