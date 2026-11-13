@@ -70,10 +70,13 @@ function oneLine(text) {
   const flat = redact(text).replace(/\s+/g, ' ').trim()
   return (
     (flat.length > MAX_TEXT ? `${flat.slice(0, MAX_TEXT - 1)}…` : flat)
-      // Agent-written text is shown as plain text: no Markdown links, images, HTML,
+      // Agent-written text is shown as plain text: no Markdown links, images, HTML, math,
       // character references (`&commat;` would become a mention) or formatting of its
       // own, and no table cell breaks.
       .replace(/[&\\`*_{}\[\]()<>#+!|~]/g, '\\$&')
+      // `$…$` would render as math, where the escapes above are undone; a dollar
+      // inside a tag is plain text. (A function: a `$<` string is a group reference.)
+      .replace(/\$/g, () => '<span>$</span>')
       // Nor may it notify users or teams, cross-reference issues, or autolink URLs.
       .replace(/@(?=[\w-])/g, '@\u200b')
       .replace(/#(?=\w)/g, '#\u200b')

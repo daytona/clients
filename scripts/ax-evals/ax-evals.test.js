@@ -218,6 +218,17 @@ test('upsertComment: newest run wins, spoofed and duplicate markers', async () =
   assert.equal(await upsertComment(github, REPO, 7, 300, ['x']), true)
 })
 
+test('loadResults: a results directory that was never created reads as not started', () => {
+  const results = loadResults(path.join(os.tmpdir(), 'ax-results-missing-' + process.pid), [{ name: 'cli-run-python', title: 'CLI: Run Python' }])
+  assert.deepEqual(results.map((r) => [r.title, r.finalStatus]), [['CLI: Run Python', '']])
+})
+
+test('workflow: the report renders even when no eval saved an artifact', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8')
+  const download = workflow.slice(workflow.indexOf('actions/download-artifact'), workflow.indexOf('merge-multiple'))
+  assert.match(download, /continue-on-error: true/)
+})
+
 test('loadResults: reads <eval>.json from one directory, missing ones as not started', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ax-results-'))
   fs.writeFileSync(
@@ -349,6 +360,13 @@ test('render: agent text cannot autolink or cross-reference', () => {
     results: [{ title: 'Ts', finalStatus: 'failed', failureReason: `ping &commat;octocat, see &num;1, dtn&lowbar;${'c3'.repeat(16)}` }],
   }).join('\n')
   assert.ok(refs.includes('\\&commat;octocat') && refs.includes('\\&num;1') && refs.includes('dtn\\&lowbar;'))
+})
+
+test('render: agent text cannot render as math', () => {
+  const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Py', finalStatus: 'failed', failureReason: 'is $O(n^2)$ and $\\Huge{x}$, cost $0.25' }] }).join('\n')
+  const line = out.split('\n').find((l) => l.startsWith('- **Py'))
+  assert.equal(line.replace(/<span>\$<\/span>/g, '').includes('$'), false)
+  assert.equal((line.match(/<span>\$<\/span>/g) || []).length, 5)
 })
 
 test('render: long agent text is capped', () => {
