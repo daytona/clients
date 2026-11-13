@@ -20,6 +20,9 @@ async function upsertComment(github, repo, prNumber, runId, lines) {
   const ours = comments.filter(
     (comment) => comment.user && comment.user.login === BOT_LOGIN && comment.body && comment.body.startsWith(MARKER),
   )
+  // Keep the comment written by the newest run, so deleting duplicates never drops it.
+  const runOf = (comment) => Number((RUN_ID_PATTERN.exec(comment.body) || [])[1] || 0)
+  ours.sort((a, b) => runOf(b) - runOf(a))
   const [existing, ...duplicates] = ours
   for (const duplicate of duplicates) {
     // A concurrent run may have deleted it already; a leftover duplicate is cosmetic.

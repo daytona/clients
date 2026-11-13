@@ -30,6 +30,12 @@ async function fetchReport(apiUrl, apiKey) {
   }
 }
 
+function frictionOf(full) {
+  if (!full) return []
+  if (Array.isArray(full.frictionPoints) && full.frictionPoints.length > 0) return full.frictionPoints
+  return (full.legacy && Array.isArray(full.legacy.frictionPoints) && full.legacy.frictionPoints) || []
+}
+
 async function main(outFile) {
   const env = process.env
   let report = null
@@ -48,8 +54,9 @@ async function main(outFile) {
     reportUrl: env.REPORT_URL,
     reportJson: env.REPORT_JSON,
     failureReason: env.FAILURE_REASON,
-    keyFinding: (full && full.keyFinding) || '',
-    frictionPoints: ((full && full.frictionPoints) || []).slice(0, 3).map((point) => ({
+    // Firegoat moved the narrative under `legacy`; read the top level first.
+    keyFinding: (full && (full.keyFinding || (full.legacy && full.legacy.keyFinding))) || '',
+    frictionPoints: frictionOf(full).slice(0, 3).map((point) => ({
       severity: point.severity,
       text: truncate(point.desc || point.title, 240),
     })),

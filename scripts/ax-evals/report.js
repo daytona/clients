@@ -52,9 +52,8 @@ function resultLabel(result) {
 }
 
 function checksCell(report) {
-  const checklist = report && report.reward && report.reward.checklist
-  if (!checklist) return '–'
-  const total = Object.keys(checklist).length
+  const total = Object.keys(checklistOf(report)).length
+  if (total === 0) return '–'
   const failed = failedChecks(report)
   const summary = `${total - failed.length}/${total}`
   return failed.length === 0 ? summary : `${summary} (failed: ${failed.map((slug) => `\`${slug}\``).join(', ')})`
@@ -82,9 +81,9 @@ function render({ results, sha, runUrl, pr }) {
   const details = results
     .map((result) => {
       const finding = result.keyFinding || result.failureReason || (parseReport(result.reportJson) || {}).nullNotice
-      if (!finding) return null
       const frictions = (result.frictionPoints || []).map((point) => `  - _${point.severity}_: ${oneLine(point.text)}`)
-      return [`- **${result.title}:** ${oneLine(finding)}`, ...frictions].join('\n')
+      if (!finding && frictions.length === 0) return null
+      return [`- **${result.title}:** ${finding ? oneLine(finding) : 'friction points'}`, ...frictions].join('\n')
     })
     .filter(Boolean)
   const allSucceeded = results.every(isClean)

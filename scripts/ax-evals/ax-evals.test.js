@@ -113,6 +113,8 @@ test('selectByPaths', () => {
   assert.deepEqual(plan.selectByPaths(config, ['docs/x.md', 'examples/a.py']), [])
   assert.deepEqual(plan.selectByPaths(config, ['contract/api-openapi.json']), ALL)
   assert.deepEqual(plan.selectByPaths(config, ['scripts/ax-evals/evals.json']), ALL)
+  assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml']), ALL)
+  assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml.bak', 'contracts/x']), [])
 })
 
 test('plan: changed surfaces for a write user', async () => {
@@ -192,6 +194,11 @@ test('upsertComment: newest run wins, spoofed and duplicate markers', async () =
   assert.equal(await upsertComment(github, REPO, 7, 300, ['newer']), true)
   assert.equal(github.calls[0][1], 6)
 
+  // The newest run's comment survives even when it is not the first one listed.
+  github = mockGithub({ comments: [comments[2], comments[1]] })
+  assert.equal(await upsertComment(github, REPO, 7, 100, ['older']), false)
+  assert.deepEqual(github.calls, [['delete', 7]])
+
   github = mockGithub({ comments: comments.slice(1) })
   github.rest.issues.deleteComment = async () => {
     throw Object.assign(new Error('Not Found'), { status: 404 })
@@ -266,6 +273,18 @@ test('render: a nulled score explains itself when there is no key finding', () =
   assert.ok(out.includes('- **Py:** Score nulled: the session ended early'))
 })
 
+test('render: friction points without a finding, and an empty checklist', () => {
+  const out = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [
+      { title: 'Ts', finalStatus: 'completed', outcome: 'succeeded', reportJson: JSON.stringify({ reward: { checklist: {} } }), frictionPoints: [{ severity: 'minor', text: 'slow docs' }] },
+    ],
+  }).join('\n')
+  assert.ok(out.includes('| Ts | ⚠️ Succeeded, checks missing | – |'))
+  assert.ok(out.includes('- **Ts:** friction points\n  - _minor_: slow docs'))
+})
+
 test('render: re-run hint names the PR and main', () => {
   const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
   assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref main -f pr=42 -f evals=all/)
@@ -306,7 +325,8 @@ test('setup: commit under test is parsed from URL_MAP, never silently main', () 
     }
   }
   assert.equal(ref(`git-ref.invalid=https://${SHA}.invalid`), SHA)
-  assert.equal(ref('x.com=https://a.b,git-ref.invalid=https://ABC1234.invalid'), 'abc1234')
+  assert.equal(ref(`x.com=https://a.b,git-ref.invalid=https://${SHA.toUpperCase()}.invalid`), SHA)
+  assert.equal(ref('git-ref.invalid=https://abc1234.invalid'), 'ERROR')
   assert.equal(ref(''), 'main')
   assert.equal(ref('docs.example.com=https://preview.example.com'), 'main')
   assert.equal(ref('{"git-ref.invalid":"https://abc1234.invalid"}'), 'ERROR')
@@ -343,4 +363,27 @@ test('setup: node_satisfies compares the node on PATH with an engines floor', ()
   assert.equal(ok(`>= ${major - 1}`), true)
   assert.equal(ok(`>=${major + 1}.0.0`), false)
   assert.equal(ok(`>=${major}.${minor + 1}.0`), false)
+})
+
+test('save-result: reads the narrative from the top level, falling back to legacy', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ax-save-'))
+  const server = require('node:http').createServer((req, res) => {
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify({ keyFinding: null, frictionPoints: [], legacy: { keyFinding: 'kf', frictionPoints: [{ severity: 'major', desc: 'd' }] } }))
+  })
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)).then(() => {
+    const { port } = server.address()
+    const script = fs.readFileSync(path.join(__dirname, 'save-result.js'), 'utf8').replace("const API_ORIGIN = 'https://firegoat.ai'", `const API_ORIGIN = 'http://127.0.0.1:${port}'`)
+    const copy = path.join(dir, 'save-result.js')
+    fs.writeFileSync(copy, script)
+    const out = path.join(dir, 'r.json')
+    const env = { ...process.env, NAME: 'cli-run-python', EVALS_API_KEY: 'k', REPORT_JSON: JSON.stringify({ apiUrl: `http://127.0.0.1:${port}/r` }) }
+    return new Promise((resolve, reject) => {
+      require('node:child_process').execFile(process.execPath, [copy, out], { env }, (error) => (error ? reject(error) : resolve()))
+    }).finally(() => server.close()).then(() => {
+      const saved = JSON.parse(fs.readFileSync(out, 'utf8'))
+      assert.equal(saved.keyFinding, 'kf')
+      assert.deepEqual(saved.frictionPoints, [{ severity: 'major', text: 'd' }])
+    })
+  })
 })

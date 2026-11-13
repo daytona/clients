@@ -48,8 +48,10 @@ function selectByTokens(config, tokens) {
 }
 
 // Every task of each surface whose sources the PR changes; all evals for a shared path.
+// An entry ending in `/` is a directory and matches by prefix; any other entry is one file.
 function selectByPaths(config, files) {
-  const touches = (prefixes) => files.some((file) => prefixes.some((prefix) => file.startsWith(prefix)))
+  const matches = (file, entry) => (entry.endsWith('/') ? file.startsWith(entry) : file === entry)
+  const touches = (entries) => files.some((file) => entries.some((entry) => matches(file, entry)))
   const all = evalsOf(config)
   if (touches(config.sharedPaths)) return all.map((e) => e.name)
   return all.filter((e) => touches(config.surfaces[e.surface].paths)).map((e) => e.name)

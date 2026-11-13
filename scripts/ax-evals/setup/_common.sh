@@ -27,7 +27,7 @@ SUDO=""
 [ "$(id -u)" = 0 ] || SUDO="sudo"
 
 REF=$(printf '%s\n' "${URL_MAP:-}" | tr ', ;' '\n\n\n' | tr 'A-F' 'a-f' |
-  sed -n 's#^git-ref\.invalid=https\{0,1\}://\([0-9a-f]\{7,40\}\)\.invalid/\{0,1\}$#\1#p' | head -n 1)
+  sed -n 's#^git-ref\.invalid=https\{0,1\}://\([0-9a-f]\{40\}\)\.invalid/\{0,1\}$#\1#p' | head -n 1)
 case "${URL_MAP:-}" in
 *git-ref.invalid*)
   # Never fall back to main when the workflow asked for a commit: the result would
