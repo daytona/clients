@@ -329,6 +329,16 @@ test('render: report fields cannot break the table or link elsewhere', () => {
   assert.ok(rowB.includes('[report](https://firegoat.ai/evals/daytona.io/reports/x%281%29)'))
 })
 
+test('render: agent text cannot autolink or cross-reference', () => {
+  const out = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [{ title: 'Py', finalStatus: 'failed', failureReason: 'see daytona/clients#609, GH-5, https://e.example/x and www.e.example' }],
+  }).join('\n')
+  const line = out.split('\n').find((l) => l.startsWith('- **Py'))
+  for (const live of ['clients\\#609', 'clients#609', 'GH-5', 'https://', 'www.']) assert.ok(!line.includes(live), live)
+})
+
 test('render: long agent text is capped', () => {
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Ts', finalStatus: 'failed', failureReason: 'x'.repeat(20000) }] }).join('\n')
   assert.ok(out.length < 2000)
@@ -356,7 +366,7 @@ test('render: escapes agent text', () => {
   const mdLine = md.split('\n').find((l) => l.startsWith('- **Py'))
   assert.equal(
     mdLine,
-    '- **Py:** \\!\\[x\\]\\(https://e.example/i.png\\) \\[click\\]\\(https://e.example\\) \\<img src=x\\> \\*\\*bold\\*\\* \\`code\\`',
+    '- **Py:** \\!\\[x\\]\\(https:\u200b//e.example/i.png\\) \\[click\\]\\(https:\u200b//e.example\\) \\<img src=x\\> \\*\\*bold\\*\\* \\`code\\`',
   )
 })
 
