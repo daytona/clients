@@ -167,9 +167,10 @@ no closed validator on an open inline enum), and every public SDK field backed b
 a contract enum is CLOSED known values + `'unknown'`, normalized at the
 boundary, with the raw string on a `raw<Field>` / `raw_<field>` sibling.
 Vocabularies the contract does not declare as an enum (`ImageStatus`,
-`MacBootMode`, …) stay open until it does, as do the two the
+`MacBootMode`, …) stay open until it does, as do those the
 SDKs leave open on purpose (`LifecycleAction` on `lifecycle`, the interpreter
-`language`). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
+`language`, and a chart's axis scale and bar/box orientation, `ChartScale` and
+`ChartOrientation`, which the contract documents as open vocabularies). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
 `daytona/v2/_gen` enums; never cast an open wire value into a closed public type.
 
 TypeScript: consumers import the alias layers as namespaces (`import type *

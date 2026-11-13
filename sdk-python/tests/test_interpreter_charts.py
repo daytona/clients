@@ -295,8 +295,8 @@ async def test_a_resume_point_already_read_from_raises() -> None:
 
 @pytest.mark.anyio
 async def test_a_process_run_whose_log_head_was_evicted_returns_what_the_sandbox_kept() -> None:
-    # The inline page is not the end, so run() reads the log from the start,
-    # which retention evicted.
+    # The inline page is not the end, so run() reads on from it; retention
+    # evicted what followed, and the inline frames are kept.
     created = dict(
         _process("p1"),
         kind="exec",
@@ -311,5 +311,22 @@ async def test_a_process_run_whose_log_head_was_evicted_returns_what_the_sandbox
 
     result = await service.run("echo")
 
-    assert result.stdout == "late"
-    assert transport.paths[-2:] == ["GET /processes/p1/logs", "GET /processes/p1/logs?cursor=c7"]
+    assert result.stdout == "earlylate"
+    assert transport.paths[-2:] == ["GET /processes/p1/logs?cursor=c1", "GET /processes/p1/logs?cursor=c7"]
+
+
+@pytest.mark.anyio
+async def test_a_page_in_hand_is_kept_and_counted_as_a_page() -> None:
+    def page(i: int, *, eof: bool = False) -> LogPage:
+        frame = LogFrame(cursor=f"c{i}", channel="stdout", data=f"p{i}", timestamp_ms=i)
+        return LogPage(items=(frame,), next_cursor=f"c{i}", truncated_head=False, eof=eof)
+
+    handle = _ExpiringLogs([page(i) for i in range(1, 10)])
+    frames = await _all_logs(handle, max_pages=3, first=page(0))  # type: ignore[arg-type]
+    assert [frame.data for frame in frames] == ["p0", "p1", "p2"]
+    assert handle.cursors == ["c0", "c1"]
+    # An empty page in hand carries nothing to keep: the read starts over.
+    handle = _ExpiringLogs([page(0, eof=True)])
+    empty = LogPage(items=(), next_cursor="c9", truncated_head=False, eof=False)
+    frames = await _all_logs(handle, first=empty)  # type: ignore[arg-type]
+    assert [frame.data for frame in frames] == ["p0"] and handle.cursors == [None]

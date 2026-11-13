@@ -6,7 +6,7 @@
 import type { HttpTransport } from './http.js'
 import { encodeQuery } from './http.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import type { LogFrame, ProcessResult, RunKeepLogs, WaitResult } from './types.js'
+import type { LogFrame, LogPage, ProcessResult, RunKeepLogs, WaitResult } from './types.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import {
   bodyFor, frameFromWire, processFromWire, runKeepLogs, runStdin, secondsToMs, startedProcessKind, waitResult, WAIT_READ_SLACK_MS,
@@ -30,12 +30,27 @@ export const TIMED_OUT_LOG_PAGE_LIMIT = 8
  * Every frame retention kept, in order. Frames the sandbox evicted before they
  * were read are skipped: the read resumes at the first one kept, as `run()`'s
  * inline log page does, instead of failing the whole read.
+ *
+ * `first` is a page already in hand (`run()`'s inline one): its frames are
+ * kept, it counts as one of `maxPages`, and the read goes on from its cursor,
+ * so retention evicting them meanwhile loses none of them.
  */
-export async function collectAllLogs(handle: ProcessHandle, options: { maxPages?: number } = {}): Promise<LogFrame[]> {
+export async function collectAllLogs(
+  handle: ProcessHandle,
+  options: { maxPages?: number; first?: LogPage } = {},
+): Promise<LogFrame[]> {
   const logs: LogFrame[] = []
   let cursor: string | undefined
   const resumed = new Set<string>()
-  for (let pages = 0; ; pages++) {
+  let start = 0
+  const first = options.first
+  if (first !== undefined && first.items.length > 0 && first.nextCursor) {
+    logs.push(...first.items)
+    if (first.eof) return logs
+    cursor = first.nextCursor
+    start = 1
+  }
+  for (let pages = start; ; pages++) {
     if (options.maxPages !== undefined && pages >= options.maxPages) return logs
     let page
     try {
@@ -106,7 +121,10 @@ export async function runProcess(
   const inline = started.logs === undefined || started.logs === null ? undefined : logPageFromWire(started.logs)
   const logs = settled && inline?.eof
     ? inline.items
-    : await collectAllLogs(handle, result.reason === 'timed_out' ? { maxPages: TIMED_OUT_LOG_PAGE_LIMIT } : {})
+    : await collectAllLogs(handle, {
+        ...(result.reason === 'timed_out' ? { maxPages: TIMED_OUT_LOG_PAGE_LIMIT } : {}),
+        ...(inline === undefined ? {} : { first: inline }),
+      })
   const stdout = logs.filter((frame) => frame.channel === 'stdout' || frame.channel === 'pty').map((frame) => frame.data).join('')
   const stderr = logs.filter((frame) => frame.channel === 'stderr').map((frame) => frame.data).join('')
   const output = logs

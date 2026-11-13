@@ -195,8 +195,8 @@ describe('log reads after retention', () => {
   })
 
   it('returns what the sandbox kept from a process run whose log head was evicted', async () => {
-    // The inline page is not the end, so run() reads the log from the start,
-    // which retention evicted.
+    // The inline page is not the end, so run() reads on from it; retention
+    // evicted what followed, and the inline frames are kept.
     const { transport, requests } = transportStub([
       {
         ...PROCESS,
@@ -213,7 +213,25 @@ describe('log reads after retention', () => {
 
     const result = await new ProcessService(INTERNAL, transport, 'sbx').run('echo')
 
-    expect(result.stdout).toBe('late')
-    expect(requests.slice(-2)).toEqual(['GET /processes/p1/logs', 'GET /processes/p1/logs?cursor=c7'])
+    expect(result.stdout).toBe('earlylate')
+    expect(requests.slice(-2)).toEqual(['GET /processes/p1/logs?cursor=c1', 'GET /processes/p1/logs?cursor=c7'])
+  })
+
+  it('keeps a page in hand and counts it as a page', async () => {
+    const page = (i: number, eof = false): LogPage => ({
+      items: [{ cursor: `c${i}`, channel: 'stdout', data: `p${i}`, timestampMs: i }],
+      nextCursor: `c${i}`,
+      truncatedHead: false,
+      eof,
+    })
+    let { handle, cursors } = expiringLogs(Array.from({ length: 9 }, (_, i) => page(i + 1)))
+    let logs = await collectAllLogs(handle, { maxPages: 3, first: page(0) })
+    expect(logs.map((frame) => frame.data)).toEqual(['p0', 'p1', 'p2'])
+    expect(cursors).toEqual(['c0', 'c1'])
+    // An empty page in hand carries nothing to keep: the read starts over.
+    ;({ handle, cursors } = expiringLogs([page(0, true)]))
+    logs = await collectAllLogs(handle, { first: { items: [], nextCursor: 'c9', truncatedHead: false, eof: false } })
+    expect(logs.map((frame) => frame.data)).toEqual(['p0'])
+    expect(cursors).toEqual([undefined])
   })
 })

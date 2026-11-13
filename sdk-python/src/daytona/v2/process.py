@@ -164,14 +164,26 @@ def _started_process_kind(reported: ProcessReportedKind, requested: ProcessKind)
 TIMED_OUT_LOG_PAGE_LIMIT = 8
 
 
-async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = None) -> List[LogFrame]:
+async def _all_logs(
+    handle: AsyncProcessHandle, *, max_pages: Optional[int] = None, first: Optional[LogPage] = None
+) -> List[LogFrame]:
     """Every frame retention kept, in order. Frames the sandbox evicted before
     they were read are skipped: the read resumes at the first one kept, as
-    ``run()``'s inline log page does, instead of failing the whole read."""
+    ``run()``'s inline log page does, instead of failing the whole read.
+
+    ``first`` is a page already in hand (``run()``'s inline one): its frames
+    are kept, it counts as one of ``max_pages``, and the read goes on from its
+    cursor, so retention evicting them meanwhile loses none of them."""
     frames: List[LogFrame] = []
     cursor: Optional[str] = None
     resumed: Set[str] = set()
     pages = 0
+    if first is not None and first.items and first.next_cursor:
+        frames.extend(first.items)
+        if first.eof:
+            return frames
+        cursor = first.next_cursor
+        pages = 1
     while True:
         if max_pages is not None and pages >= max_pages:
             return frames
@@ -726,7 +738,8 @@ class AsyncProcessService:
         The common case is one round trip: the sandbox starts the process, holds
         the request until it exits (or ``timeout`` expires), and returns the
         output inline. A process that outlives the wait window or produces more
-        output than fits in one page falls back to split calls automatically.
+        output than fits in one page falls back to split calls automatically,
+        reading on after the inline page.
 
         The result holds the output available when the call returns:
         its per-process log is bounded, so very large output loses its oldest
@@ -813,7 +826,9 @@ class AsyncProcessService:
             logs = parse_log_page(inline).items
         else:
             logs = await _all_logs(
-                handle, max_pages=TIMED_OUT_LOG_PAGE_LIMIT if wait.reason == "timed_out" else None
+                handle,
+                max_pages=TIMED_OUT_LOG_PAGE_LIMIT if wait.reason == "timed_out" else None,
+                first=parse_log_page(inline) if inline is not None else None,
             )
         stdout = "".join(frame.data for frame in logs if frame.channel in ("stdout", "pty"))
         stderr = "".join(frame.data for frame in logs if frame.channel == "stderr")
