@@ -1,0 +1,322 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+// Run with: node --test scripts/ax-evals/ax-evals.test.js
+
+const assert = require('node:assert/strict')
+const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+const { test } = require('node:test')
+
+const plan = require('./plan.js')
+const { render, loadResults } = require('./report.js')
+const { upsertComment } = require('./comment.js')
+const config = require('./evals.json')
+
+const BOT = { login: 'github-actions[bot]' }
+const SHA = 'c8114371cbfae6ee7ffce6aea618f8de7f161c91'
+const REPO = { owner: 'daytona', repo: 'clients' }
+const ALL = plan.evalsOf(config).map((e) => e.name)
+const TASKS = Object.keys(config.tasks)
+const WORKFLOW = path.join(__dirname, '..', '..', '.github', 'workflows', 'ax_evals.yaml')
+
+function mockGithub({
+  role = 'write',
+  fork = false,
+  base = 'main',
+  files = [{ filename: 'cli/cmd/root.go' }],
+  comments = [],
+} = {}) {
+  const calls = []
+  return {
+    calls,
+    paginate: async (fn, args) => (await fn(args)).data,
+    rest: {
+      repos: { getCollaboratorPermissionLevel: async () => ({ data: { role_name: role } }) },
+      pulls: {
+        get: async () => ({
+          data: {
+            state: 'open',
+            base: { ref: base },
+            head: { sha: SHA, repo: { full_name: fork ? 'someone/clients' : 'daytona/clients' } },
+          },
+        }),
+        listFiles: async () => ({ data: files }),
+      },
+      issues: {
+        listComments: async () => ({ data: comments }),
+        createComment: async ({ body }) => calls.push(['create', body]),
+        updateComment: async ({ comment_id, body }) => calls.push(['update', comment_id, body]),
+        deleteComment: async ({ comment_id }) => calls.push(['delete', comment_id]),
+      },
+    },
+  }
+}
+
+function mockCore() {
+  const outputs = {}
+  return {
+    outputs,
+    setOutput: (k, v) => (outputs[k] = v),
+    info() {},
+    notice: (m) => (outputs.notice = m),
+    setFailed: (m) => (outputs.failed = m),
+  }
+}
+
+function dispatchContext(evals, actor = 'dev', pr = '7') {
+  return {
+    eventName: 'workflow_dispatch',
+    repo: REPO,
+    serverUrl: 'https://github.com',
+    runId: 100,
+    payload: { inputs: { pr, evals }, sender: { login: actor } },
+  }
+}
+
+async function runPlan(github, context) {
+  const core = mockCore()
+  await plan({ github, context, core })
+  return core.outputs
+}
+
+const names = (outputs) => JSON.parse(outputs.matrix).map((entry) => entry.name)
+const onSurface = (surface) => TASKS.map((task) => `${surface}-${task}`)
+
+test('evals.json: every eval has a Firegoat prompt id and only known ids are listed', () => {
+  assert.deepEqual(Object.keys(config.promptIds).sort(), [...ALL].sort())
+  for (const id of Object.values(config.promptIds)) assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+  for (const surface of Object.keys(config.surfaces)) {
+    assert.ok(fs.existsSync(path.join(__dirname, 'setup', `${surface}.sh`)), `setup/${surface}.sh`)
+  }
+})
+
+test('parseEvals', () => {
+  assert.deepEqual(plan.parseEvals(''), [])
+  assert.deepEqual(plan.parseEvals(undefined), [])
+  assert.deepEqual(plan.parseEvals(' python, TS  cli-preview-url'), ['python', 'ts', 'cli-preview-url'])
+})
+
+test('selectByTokens: surfaces, tasks, single evals, aliases and all', () => {
+  assert.deepEqual(plan.selectByTokens(config, ['all']).names, ALL)
+  assert.deepEqual(plan.selectByTokens(config, ['py']).names, onSurface('python'))
+  assert.deepEqual(plan.selectByTokens(config, ['preview-url']).names, ['python-preview-url', 'typescript-preview-url', 'cli-preview-url'])
+  assert.deepEqual(plan.selectByTokens(config, ['cli-git-commit', 'ts']).names, [...onSurface('typescript'), 'cli-git-commit'])
+  assert.deepEqual(plan.selectByTokens(config, ['go']), { unknown: 'go' })
+})
+
+test('selectByPaths', () => {
+  assert.deepEqual(plan.selectByPaths(config, ['sdk-python/src/x.py', 'README.md']), onSurface('python'))
+  assert.deepEqual(plan.selectByPaths(config, ['cli/main.go', 'sdk-typescript/src/a.ts']), [...onSurface('typescript'), ...onSurface('cli')])
+  assert.deepEqual(plan.selectByPaths(config, ['docs/x.md', 'examples/a.py']), [])
+  assert.deepEqual(plan.selectByPaths(config, ['contract/api-openapi.json']), ALL)
+  assert.deepEqual(plan.selectByPaths(config, ['scripts/ax-evals/evals.json']), ALL)
+})
+
+test('plan: changed surfaces for a write user', async () => {
+  const github = mockGithub()
+  const outputs = await runPlan(github, dispatchContext(''))
+  assert.deepEqual(names(outputs), onSurface('cli'))
+  assert.equal(JSON.parse(outputs.matrix)[0].title, 'CLI: Run Python')
+  assert.equal(JSON.parse(outputs.matrix)[0].promptId, config.promptIds['cli-run-python'])
+  assert.equal(outputs.sha, SHA)
+  assert.equal(outputs.pr, '7')
+  assert.match(github.calls[0][1], /Running 5 evals/)
+})
+
+test('plan: label trigger', async () => {
+  const context = {
+    ...dispatchContext(''),
+    eventName: 'pull_request',
+    payload: { pull_request: { number: 7 }, sender: { login: 'dev' } },
+  }
+  assert.deepEqual(names(await runPlan(mockGithub(), context)), onSurface('cli'))
+})
+
+test('plan: rejects triage users and non-collaborators', async () => {
+  let github = mockGithub({ role: 'triage' })
+  assert.equal((await runPlan(github, dispatchContext('all'))).matrix, '[]')
+  assert.deepEqual(github.calls, [])
+
+  github = mockGithub()
+  github.rest.repos.getCollaboratorPermissionLevel = async () => {
+    throw Object.assign(new Error('Not Found'), { status: 404 })
+  }
+  assert.equal((await runPlan(github, dispatchContext('all', 'stranger'))).matrix, '[]')
+  assert.deepEqual(github.calls, [])
+})
+
+test('plan: forks, other bases, unknown evals, selection, renames, nothing changed', async () => {
+  assert.match((await runPlan(mockGithub({ fork: true }), dispatchContext('all'))).notice, /forks/)
+  const toV0 = await runPlan(mockGithub({ base: 'release/v0' }), dispatchContext('all'))
+  assert.match(toV0.notice, /targets release\/v0/)
+  assert.equal(toV0.matrix, '[]')
+  assert.match((await runPlan(mockGithub(), dispatchContext('rust'))).failed, /Unknown eval 'rust'/)
+  assert.deepEqual(names(await runPlan(mockGithub(), dispatchContext('preview-url, cli-preview-url'))), [
+    'python-preview-url',
+    'typescript-preview-url',
+    'cli-preview-url',
+  ])
+  assert.equal(JSON.parse((await runPlan(mockGithub(), dispatchContext('all'))).matrix).length, ALL.length)
+  const renamed = mockGithub({ files: [{ filename: 'legacy/x.py', previous_filename: 'sdk-python/x.py' }] })
+  assert.deepEqual(names(await runPlan(renamed, dispatchContext(''))), onSurface('python'))
+  const docsOnly = mockGithub({ files: [{ filename: 'README.md' }] })
+  assert.equal((await runPlan(docsOnly, dispatchContext(''))).matrix, '[]')
+  assert.match(docsOnly.calls[0][1], /nothing was evaluated/)
+  assert.match(docsOnly.calls[0][1], /--ref main -f pr=7 -f evals=all/)
+})
+
+test('plan: manual runs need a pull request number', async () => {
+  for (const pr of ['', '0', '-3', '1.5', 'abc']) {
+    const github = mockGithub()
+    const outputs = await runPlan(github, dispatchContext('all', 'dev', pr))
+    assert.match(outputs.failed, /Not a pull request number/)
+    assert.equal(outputs.matrix, '[]')
+    assert.deepEqual(github.calls, [])
+  }
+})
+
+test('upsertComment: newest run wins, spoofed and duplicate markers', async () => {
+  const comments = [
+    { id: 5, user: { login: 'mallory' }, body: '<!-- ax-evals -->\n<!-- ax-evals-run:999999 -->' },
+    { id: 6, user: BOT, body: '<!-- ax-evals -->\n<!-- ax-evals-run:200 -->' },
+    { id: 7, user: BOT, body: '<!-- ax-evals -->\n<!-- ax-evals-run:150 -->' },
+  ]
+  let github = mockGithub({ comments })
+  assert.equal(await upsertComment(github, REPO, 7, 100, ['older']), false)
+  assert.deepEqual(github.calls, [['delete', 7]])
+
+  github = mockGithub({ comments: comments.slice(0, 2) })
+  assert.equal(await upsertComment(github, REPO, 7, 300, ['newer']), true)
+  assert.equal(github.calls[0][1], 6)
+
+  github = mockGithub({ comments: comments.slice(1) })
+  github.rest.issues.deleteComment = async () => {
+    throw Object.assign(new Error('Not Found'), { status: 404 })
+  }
+  assert.equal(await upsertComment(github, REPO, 7, 300, ['x']), true)
+})
+
+test('loadResults: reads <eval>.json from one directory, missing ones as not started', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ax-results-'))
+  fs.writeFileSync(
+    path.join(dir, 'cli-preview-url.json'),
+    JSON.stringify({ name: 'cli-preview-url', finalStatus: 'completed', outcome: 'succeeded' }),
+  )
+  const results = loadResults(dir, [
+    { name: 'cli-preview-url', title: 'CLI: Preview URL' },
+    { name: 'python-git-commit', title: 'Python SDK: Git commit' },
+  ])
+  assert.deepEqual(
+    results.map((r) => [r.title, r.finalStatus, r.outcome]),
+    [
+      ['CLI: Preview URL', 'completed', 'succeeded'],
+      ['Python SDK: Git commit', '', undefined],
+    ],
+  )
+})
+
+test('workflow: results are written and downloaded as <eval>.json in one directory', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8')
+  const evalJob = workflow.slice(workflow.indexOf('  eval:'), workflow.indexOf('  report:'))
+  const reportJob = workflow.slice(workflow.indexOf('  report:'))
+  assert.match(evalJob, /save-result\.js "result\/\$\{NAME\}\.json"/)
+  assert.match(evalJob, /path: result\/\$\{\{ matrix\.eval\.name \}\}\.json/)
+  assert.match(evalJob, /EVALS_API_BASE_URL: https:\/\/firegoat\.ai\/evals/)
+  assert.match(reportJob, /merge-multiple: true/)
+})
+
+test('render: every status label', () => {
+  const checklist = (values) => JSON.stringify({ reward: { checklist: values } })
+  const out = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [
+      { title: 'A', finalStatus: 'completed', outcome: 'goal_not_met' },
+      { title: 'B', finalStatus: 'failed' },
+      { title: 'C', finalStatus: 'superseded' },
+      { title: 'D', finalStatus: 'running' },
+      { title: 'E', finalStatus: '' },
+      { title: 'F', finalStatus: 'completed', outcome: 'succeeded', reportJson: checklist({ a: 1, b: 0 }) },
+      { title: 'G', finalStatus: 'completed', outcome: 'succeeded', reportJson: checklist({ a: 1 }) },
+      { title: 'H', finalStatus: 'completed', outcome: 'succeeded', reportJson: '' },
+    ],
+  }).join('\n')
+  const expected = {
+    A: '❌ goal_not_met',
+    B: '💥 Failed',
+    C: '↪️ Superseded',
+    D: '⏱️ Timed out',
+    E: '⚠️ Not started',
+    F: '⚠️ Succeeded, checks failed',
+    G: '✅ Succeeded',
+    H: '⚠️ Succeeded, checks missing',
+  }
+  for (const [title, label] of Object.entries(expected))
+    assert.ok(out.includes(`| ${title} | ${label} |`), `${title}: ${label}`)
+  assert.doesNotMatch(out, /All evals succeeded/)
+  assert.match(out, /^### AX evals \(Firegoat\)$/m)
+})
+
+test('render: re-run hint names the PR and main', () => {
+  const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
+  assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref main -f pr=42 -f evals=all/)
+})
+
+test('render: escapes agent text', () => {
+  const out = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [{ title: 'CLI', finalStatus: 'failed', failureReason: 'ping @daytona/team a\\|b | c' }],
+  }).join('\n')
+  const line = out.split('\n').find((l) => l.startsWith('- **CLI'))
+  assert.ok(line.includes('@\u200bdaytona/team'))
+  assert.ok(line.includes('a\\\\\\|b \\| c'))
+})
+
+test('workflow: fork PRs never run PR-controlled code on label events', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8')
+  const planJob = workflow.slice(workflow.indexOf('  plan:'), workflow.indexOf('    steps:'))
+  const labelClause = /github\.event_name == 'pull_request'[^|]*\)/.exec(planJob)
+  assert.ok(labelClause, 'plan job has a pull_request clause')
+  assert.match(labelClause[0], /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/)
+})
+
+test('setup: commit under test is parsed from URL_MAP, never silently main', () => {
+  const common = fs.readFileSync(path.join(__dirname, 'setup', '_common.sh'), 'utf8')
+  const snippet = common.slice(common.indexOf('REF=$('), common.indexOf('esac') + 'esac'.length)
+  const ref = (urlMap) => {
+    try {
+      return execFileSync('bash', ['-c', `set -euo pipefail\n${snippet}\necho "$REF"`], {
+        env: { ...process.env, URL_MAP: urlMap },
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+        .toString()
+        .trim()
+    } catch {
+      return 'ERROR'
+    }
+  }
+  assert.equal(ref(`git-ref.invalid=https://${SHA}.invalid`), SHA)
+  assert.equal(ref('x.com=https://a.b,git-ref.invalid=https://ABC1234.invalid'), 'abc1234')
+  assert.equal(ref(''), 'main')
+  assert.equal(ref('docs.example.com=https://preview.example.com'), 'main')
+  assert.equal(ref('{"git-ref.invalid":"https://abc1234.invalid"}'), 'ERROR')
+  assert.equal(ref('git-ref.invalid=https://not-a-sha.invalid'), 'ERROR')
+})
+
+test('sync: prompt text names the surface, the pre-installed build and the docs', () => {
+  const out = execFileSync('python3', [path.join(__dirname, 'sync.py'), '--dry-run', '--only', 'cli-preview-url'], {
+    env: { ...process.env, EVALS_API_KEY: '' },
+  }).toString()
+  const prompt = JSON.parse(out)
+  assert.equal(prompt.eval, 'cli-preview-url')
+  assert.equal(prompt.title, '[CI] clients v2 — CLI: Preview URL')
+  assert.match(prompt.text, /^Using the Daytona CLI, start a web server/)
+  assert.match(prompt.text, /already installed on PATH from the build under test/)
+  assert.match(prompt.text, /DAYTONA_API_KEY/)
+  assert.ok(prompt.checks['opens-without-credential'] && prompt.checks.surface && prompt.checks['sandbox-deleted'])
+  assert.match(prompt.setupCommand, /install_go\n/)
+})

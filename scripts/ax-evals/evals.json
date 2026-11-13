@@ -1,0 +1,123 @@
+{
+  "$comment": "AX evals on Firegoat for the 2.x line. Each eval is one task run through one surface (an SDK or the CLI) built from the commit under test. Firegoat stores the prompt text, checks and setup scripts; the workflow only sends a promptId and the commit. Merging changes under scripts/ax-evals to main syncs them (ax_evals_config.yaml), so a PR that edits prompts or setup/*.sh is still evaluated with the version on main. A change under sharedPaths runs every eval.",
+  "sharedPaths": [
+    "scripts/ax-evals/",
+    ".github/workflows/ax_evals.yaml",
+    "contract/"
+  ],
+  "defaults": {
+    "checks": {
+      "v2-sandbox": "Every sandbox the agent created is a Daytona v2 sandbox, created through https://api.daytona.com.",
+      "sandbox-deleted": "Every sandbox the agent created is deleted before the run ends."
+    },
+    "harnessModel": {
+      "harness": "claude-code",
+      "model": "claude-opus-5-5"
+    },
+    "tags": [
+      "ci",
+      "clients",
+      "v2"
+    ]
+  },
+  "surfaces": {
+    "python": {
+      "name": "Python SDK",
+      "lead": "Using the Daytona Python SDK",
+      "environment": "The `daytona` Python package is already installed from the build under test. Do not install or upgrade it from PyPI.",
+      "surfaceCheck": "Every Daytona operation the agent ran went through `daytona.v2` of the pre-installed `daytona` Python package, which the agent did not install or upgrade from PyPI.",
+      "paths": [
+        "sdk-python/"
+      ]
+    },
+    "typescript": {
+      "name": "TypeScript SDK",
+      "lead": "Using the Daytona TypeScript SDK",
+      "environment": "A Node project at /app/tseval already has `@daytona/sdk` installed from the build under test. Write your code inside that project and do not install the SDK from npm.",
+      "surfaceCheck": "Every Daytona operation the agent ran went through `daytona.v2` of the `@daytona/sdk` package pre-installed in /app/tseval, which the agent did not install from npm.",
+      "paths": [
+        "sdk-typescript/"
+      ]
+    },
+    "cli": {
+      "name": "CLI",
+      "lead": "Using the Daytona CLI",
+      "environment": "The `daytona` CLI is already installed on PATH from the build under test. Do not reinstall it.",
+      "surfaceCheck": "Every Daytona operation the agent ran went through the pre-installed `daytona` CLI, which the agent did not reinstall.",
+      "paths": [
+        "cli/"
+      ]
+    }
+  },
+  "tasks": {
+    "run-python": {
+      "name": "Run Python",
+      "text": "run Python in a cloud sandbox that prints the sum of the first 1000 prime numbers, and tell me the result. Delete the sandbox when you are done.",
+      "endGoal": "The agent reports 3682913, printed by Python code that ran inside a Daytona v2 sandbox.",
+      "checks": {
+        "output": "The agent reported 3682913 as the code's output.",
+        "ran-in-sandbox": "The Python code ran inside the Daytona sandbox, not on the agent's machine."
+      }
+    },
+    "custom-image": {
+      "name": "Custom image",
+      "text": "set up a reusable sandbox image with Python 3.12 and pandas preinstalled, start a sandbox from it, and show me the pandas version it has. Delete the sandbox and the image when you are done.",
+      "endGoal": "A Daytona v2 sandbox started from an image the agent built with Python 3.12 and pandas printed the pandas version without installing anything at runtime.",
+      "checks": {
+        "image-built": "The agent built a Daytona image with Python 3.12 and pandas.",
+        "sandbox-from-image": "The sandbox was created from that image.",
+        "no-runtime-install": "Nothing was installed in the sandbox after it started.",
+        "version": "The agent reported the pandas version printed inside the sandbox.",
+        "image-deleted": "The image the agent built is deleted before the run ends."
+      }
+    },
+    "file-roundtrip": {
+      "name": "File round trip",
+      "text": "write the numbers 1 to 100 into data.csv here, one per line, upload it to a cloud sandbox, have the sandbox write their sum to result.txt, and download result.txt back here. Delete the sandbox when you are done.",
+      "endGoal": "result.txt in the agent's working directory contains 5050 and was downloaded from a Daytona v2 sandbox that computed it from the uploaded data.csv.",
+      "checks": {
+        "uploaded": "data.csv reached the sandbox through a Daytona file upload, not through its contents embedded in a shell command.",
+        "computed-in-sandbox": "The sum was computed inside the sandbox.",
+        "downloaded": "result.txt was downloaded from the sandbox through a Daytona file download and contains 5050."
+      }
+    },
+    "git-commit": {
+      "name": "Git commit",
+      "text": "clone https://github.com/octocat/Hello-World in a cloud sandbox, create a branch named ax-eval, commit a file NOTES.md on it, and show me the last two commits on that branch. Delete the sandbox when you are done.",
+      "endGoal": "In a Daytona v2 sandbox, a clone of octocat/Hello-World has a branch ax-eval whose latest commit adds NOTES.md, and the agent reported the last two commits of that branch.",
+      "checks": {
+        "cloned": "The repository was cloned inside the sandbox.",
+        "branch": "A branch named ax-eval exists in the clone and is checked out.",
+        "commit": "The latest commit on ax-eval adds NOTES.md.",
+        "log": "The agent reported the last two commits of ax-eval as printed inside the sandbox."
+      }
+    },
+    "preview-url": {
+      "name": "Preview URL",
+      "text": "start a web server in a cloud sandbox on port 8080 that responds with \"hello from daytona\", and give me a URL I can open in my browser. Delete the sandbox after you have checked that the URL works.",
+      "endGoal": "A Daytona preview URL for port 8080 of a v2 sandbox returned \"hello from daytona\" with status 200 to a request that carried no credential: no Authorization or preview-token header and no token in the URL.",
+      "checks": {
+        "server": "A web server listening on port 8080 ran inside the sandbox.",
+        "preview-url": "The agent created a Daytona preview URL for port 8080 of the sandbox.",
+        "opens-without-credential": "A request to the URL with no Authorization or preview-token header and no token in the URL returned status 200 and the body \"hello from daytona\"."
+      }
+    }
+  },
+  "promptIds": {
+    "python-run-python": "765cb73b-155f-4ff4-afd3-1e0be362b6ea",
+    "python-custom-image": "27749c23-4cd7-456c-90aa-faed06051431",
+    "python-file-roundtrip": "fb32fefb-6562-4f65-a177-deb62ae0cf15",
+    "python-git-commit": "9da2b15f-258e-43cb-af60-a68a5ce9ba4e",
+    "python-preview-url": "4ef4e14e-172c-4196-b605-91c671ce95ec",
+    "typescript-run-python": "16a149a0-1768-458a-8391-963bcd513fd2",
+    "typescript-custom-image": "6f89e5ce-e925-47f0-aee3-54ab9598da7e",
+    "typescript-file-roundtrip": "9a1d1930-d1a6-4dae-9388-60b5c1205de1",
+    "typescript-git-commit": "4556ba1b-e712-43ad-b238-53e72536735d",
+    "typescript-preview-url": "eb717744-dee9-4961-b7e7-c21b2a51e4c4",
+    "cli-run-python": "8303c699-f27d-4e63-b195-54c67b8e609a",
+    "cli-custom-image": "e253232f-d081-44f8-9116-abd181b5b038",
+    "cli-file-roundtrip": "4024c349-f631-4fb0-83d0-969390d86d03",
+    "cli-git-commit": "f0bc74b1-bf54-47a6-9141-da9e7902a37d",
+    "cli-preview-url": "b671a5ab-378d-4ce2-8af5-6faa8c74b69f"
+  }
+}
