@@ -31,6 +31,25 @@ type SandboxWaitOptions struct {
 	// A macOS fork can finish running or stopped. With Target running, a stopped
 	// response also completes the wait; a stopping response does not.
 	StoppedSettles bool
+	// A Linux pause that fails returns the sandbox to running with PauseFailedError, or stops it
+	// with that error when its guest could not be resumed. The API answers a loose `?wait=paused`
+	// with either row, so both are the failed pause: a conflict. A running or stopped answer
+	// without that error keeps the wait going: running is the state the pause is leaving, and a
+	// pause that outlasts the server's stuck-teardown limit reads stopped, without an error,
+	// before it lands paused.
+	PauseFailureFails bool
+}
+
+// PauseFailedError is the error a Linux sandbox carries after a pause that failed returned it to
+// running.
+const PauseFailedError = "the sandbox could not be paused"
+
+func failedPause(detail gen.Sandbox) bool {
+	switch detail.Status {
+	case "stopped", "running":
+		return detail.Error != nil && *detail.Error == PauseFailedError
+	}
+	return false
 }
 
 func ParseTimeout(raw string) (time.Duration, error) {
@@ -77,6 +96,12 @@ func WaitForSandbox(ctx context.Context, client *api.Client, options SandboxWait
 				return true, nil
 			}
 			if detail.Status == "running" && options.RunningAgainFails {
+				return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s", options.ID, detail.Status, options.Target)
+			}
+			if options.PauseFailureFails && failedPause(detail) {
+				if detail.Error != nil && *detail.Error != "" {
+					return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s: %s", options.ID, detail.Status, options.Target, *detail.Error)
+				}
 				return false, cerr.New(cerr.ExitConflict, "sandbox %s reached %s, not %s", options.ID, detail.Status, options.Target)
 			}
 			switch detail.Status {

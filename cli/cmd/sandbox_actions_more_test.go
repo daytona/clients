@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,6 +58,91 @@ func TestSandboxPause_linuxRouteAndWait(t *testing.T) {
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
 		{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/pause", status: 202, response: `{"status":"pausing","id":"11111111-1111-1111-1111-111111111111"}`},
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "paused")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "paused", requireJSONStdout(t, stdout)["status"])
+}
+
+// sandboxDetailWithError is sandboxDetailFixture with an `error` field.
+func sandboxDetailWithError(id, class, status, msg string) string {
+	return strings.Replace(sandboxDetailFixture(id, class, status), `"status":`, `"error":`+strconv.Quote(msg)+`,"status":`, 1)
+}
+
+// A running answer without the pause-failure error is the state the pause is leaving: keep waiting.
+func TestSandboxPause_linuxKeepsWaitingThroughAPlainRunning(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	stdout, _, err := runCLI(t, []string{"sandbox", "pause", id}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/pause", status: 202, response: `{"status":"pausing","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "linux", "paused")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "paused", requireJSONStdout(t, stdout)["status"])
+}
+
+// A Linux pause that fails returns the sandbox to running with the pause-failure error. The
+// first read may already carry it: a fast failure need not be seen pausing first.
+func TestSandboxPause_linuxConflictsWhenThePauseFailed(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	_, _, err := runCLI(t, []string{"sandbox", "pause", id}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/pause", status: 202, response: `{"status":"pausing","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailWithError(id, "linux", "running", workload.PauseFailedError)},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "sandbox "+id+" reached running, not paused: the sandbox could not be paused")
+}
+
+// A Linux pause whose guest could not be resumed stops the sandbox: a conflict, not a wait.
+func TestSandboxPause_linuxConflictsWhenThePauseStoppedTheSandbox(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	_, _, err := runCLI(t, []string{"sandbox", "pause", id}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/pause", status: 202, response: `{"status":"pausing","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "linux", "pausing")},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailWithError(id, "linux", "stopped", workload.PauseFailedError)},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "sandbox "+id+" reached stopped, not paused: the sandbox could not be paused")
+}
+
+// A pause that outlasts the server's stuck-teardown limit reads stopped, without an error, before
+// it lands paused: keep waiting.
+func TestSandboxPause_linuxKeepsWaitingThroughAStoppedWithoutTheError(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	stdout, _, err := runCLI(t, []string{"sandbox", "pause", id}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/pause", status: 202, response: `{"status":"pausing","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "linux", "stopped")},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "linux", "paused")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "paused", requireJSONStdout(t, stdout)["status"])
+}
+
+// `sandbox wait --for paused` on a Linux sandbox whose pause failed reports it instead of polling.
+func TestSandboxWait_linuxPausedConflictsOnAFailedPause(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	_, _, err := runCLI(t, []string{"sandbox", "wait", id, "--for", "paused"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "pausing")},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailWithError(id, "linux", "running", workload.PauseFailedError)},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "reached running, not paused: the sandbox could not be paused")
+}
+
+// A running answer carrying some other error is not the pause failure.
+func TestSandboxPause_linuxIgnoresAnotherErrorOnRunning(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	stdout, _, err := runCLI(t, []string{"sandbox", "pause", id}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/pause", status: 202, response: `{"status":"pausing","id":"` + id + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailWithError(id, "linux", "running", "some earlier failure")},
+		{method: http.MethodGet, path: "/sandboxes/" + id, query: "wait=paused&timeout_ms=55000", status: 200, response: sandboxDetailFixture(id, "linux", "paused")},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "paused", requireJSONStdout(t, stdout)["status"])

@@ -278,6 +278,9 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 			if verb == "pause" && resolved.Detail.Class == workload.ClassMacOS {
 				waitOptions.RunningAgainFails = true
 			}
+			if verb == "pause" && resolved.Detail.Class == workload.ClassLinux {
+				waitOptions.PauseFailureFails = true
+			}
 			if verb == "fork" && resolved.Detail.Class == workload.ClassMacOS {
 				waitOptions.StoppedSettles = true
 			}
