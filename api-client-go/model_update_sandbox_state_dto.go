@@ -27,6 +27,10 @@ type UpdateSandboxStateDto struct {
 	ErrorReason *string `json:"errorReason,omitempty"`
 	// Whether the sandbox is recoverable
 	Recoverable *bool `json:"recoverable,omitempty"`
+	// Physical gang-member incarnation producing this report.
+	Incarnation *int32 `json:"incarnation,omitempty"`
+	// The runner has restored an idle-closed fabric state for this failed member.
+	FabricFenced         *bool `json:"fabricFenced,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -138,8 +142,72 @@ func (o *UpdateSandboxStateDto) SetRecoverable(v bool) {
 	o.Recoverable = &v
 }
 
+// GetIncarnation returns the Incarnation field value if set, zero value otherwise.
+func (o *UpdateSandboxStateDto) GetIncarnation() int32 {
+	if o == nil || IsNil(o.Incarnation) {
+		var ret int32
+		return ret
+	}
+	return *o.Incarnation
+}
+
+// GetIncarnationOk returns a tuple with the Incarnation field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *UpdateSandboxStateDto) GetIncarnationOk() (*int32, bool) {
+	if o == nil || IsNil(o.Incarnation) {
+		return nil, false
+	}
+	return o.Incarnation, true
+}
+
+// HasIncarnation returns a boolean if a field has been set.
+func (o *UpdateSandboxStateDto) HasIncarnation() bool {
+	if o != nil && !IsNil(o.Incarnation) {
+		return true
+	}
+
+	return false
+}
+
+// SetIncarnation gets a reference to the given int32 and assigns it to the Incarnation field.
+func (o *UpdateSandboxStateDto) SetIncarnation(v int32) {
+	o.Incarnation = &v
+}
+
+// GetFabricFenced returns the FabricFenced field value if set, zero value otherwise.
+func (o *UpdateSandboxStateDto) GetFabricFenced() bool {
+	if o == nil || IsNil(o.FabricFenced) {
+		var ret bool
+		return ret
+	}
+	return *o.FabricFenced
+}
+
+// GetFabricFencedOk returns a tuple with the FabricFenced field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *UpdateSandboxStateDto) GetFabricFencedOk() (*bool, bool) {
+	if o == nil || IsNil(o.FabricFenced) {
+		return nil, false
+	}
+	return o.FabricFenced, true
+}
+
+// HasFabricFenced returns a boolean if a field has been set.
+func (o *UpdateSandboxStateDto) HasFabricFenced() bool {
+	if o != nil && !IsNil(o.FabricFenced) {
+		return true
+	}
+
+	return false
+}
+
+// SetFabricFenced gets a reference to the given bool and assigns it to the FabricFenced field.
+func (o *UpdateSandboxStateDto) SetFabricFenced(v bool) {
+	o.FabricFenced = &v
+}
+
 func (o UpdateSandboxStateDto) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -154,6 +222,12 @@ func (o UpdateSandboxStateDto) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Recoverable) {
 		toSerialize["recoverable"] = o.Recoverable
+	}
+	if !IsNil(o.Incarnation) {
+		toSerialize["incarnation"] = o.Incarnation
+	}
+	if !IsNil(o.FabricFenced) {
+		toSerialize["fabricFenced"] = o.FabricFenced
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -176,10 +250,10 @@ func (o *UpdateSandboxStateDto) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -201,6 +275,8 @@ func (o *UpdateSandboxStateDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "state")
 		delete(additionalProperties, "errorReason")
 		delete(additionalProperties, "recoverable")
+		delete(additionalProperties, "incarnation")
+		delete(additionalProperties, "fabricFenced")
 		o.AdditionalProperties = additionalProperties
 	}
 
@@ -242,5 +318,3 @@ func (v *NullableUpdateSandboxStateDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

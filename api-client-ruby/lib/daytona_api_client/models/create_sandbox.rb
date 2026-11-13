@@ -54,7 +54,6 @@ module DaytonaApiClient
     # The target (region) where the sandbox will be created
     attr_accessor :target
 
-    # CPU cores allocated to the sandbox
     attr_accessor :cpu
 
     # GPU units allocated to the sandbox
@@ -66,10 +65,8 @@ module DaytonaApiClient
     # GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
     attr_accessor :spot
 
-    # Memory allocated to the sandbox in GB
     attr_accessor :memory
 
-    # Disk space allocated to the sandbox in GB
     attr_accessor :disk
 
     # Auto-stop interval in minutes (0 means disabled)
@@ -163,12 +160,12 @@ module DaytonaApiClient
         :'outbound_proxy_url' => :'String',
         :'otel_endpoint_override' => :'String',
         :'target' => :'String',
-        :'cpu' => :'Integer',
+        :'cpu' => :'CreateSandboxCpu',
         :'gpu' => :'Integer',
         :'gpu_type' => :'Array<GpuType>',
         :'spot' => :'Boolean',
-        :'memory' => :'Integer',
-        :'disk' => :'Integer',
+        :'memory' => :'CreateSandboxMemory',
+        :'disk' => :'CreateSandboxDisk',
         :'auto_stop_interval' => :'Integer',
         :'auto_pause_interval' => :'Integer',
         :'auto_archive_interval' => :'Integer',

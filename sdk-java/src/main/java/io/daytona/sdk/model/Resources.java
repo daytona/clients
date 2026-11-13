@@ -25,6 +25,20 @@ public class Resources {
     @JsonProperty("disk")
     private Integer disk;
 
+    private List<Integer> cpuPerNode;
+    private List<Integer> memoryPerNode;
+    private List<Integer> diskPerNode;
+
+    /** Rank-ordered CPU allocations; mutually exclusive with scalar CPU. */
+    public List<Integer> getCpuPerNode() { return cpuPerNode; }
+    public void setCpuPerNode(List<Integer> values) { cpuPerNode = values; }
+    /** Rank-ordered memory allocations in GiB; mutually exclusive with scalar memory. */
+    public List<Integer> getMemoryPerNode() { return memoryPerNode; }
+    public void setMemoryPerNode(List<Integer> values) { memoryPerNode = values; }
+    /** Rank-ordered disk allocations in GiB; mutually exclusive with scalar disk. */
+    public List<Integer> getDiskPerNode() { return diskPerNode; }
+    public void setDiskPerNode(List<Integer> values) { diskPerNode = values; }
+
     /**
      * Returns CPU allocation in cores.
      *

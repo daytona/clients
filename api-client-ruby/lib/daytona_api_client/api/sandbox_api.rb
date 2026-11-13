@@ -19,6 +19,81 @@ module DaytonaApiClient
     def initialize(api_client = ApiClient.default)
       @api_client = api_client
     end
+    # Append nodes to a multi-node sandbox
+    # @param sandbox_id_or_name [String] 
+    # @param add_gang_nodes [AddGangNodes] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [GangMembershipOperation]
+    def add_sandbox_nodes(sandbox_id_or_name, add_gang_nodes, opts = {})
+      data, _status_code, _headers = add_sandbox_nodes_with_http_info(sandbox_id_or_name, add_gang_nodes, opts)
+      data
+    end
+
+    # Append nodes to a multi-node sandbox
+    # @param sandbox_id_or_name [String] 
+    # @param add_gang_nodes [AddGangNodes] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(GangMembershipOperation, Integer, Hash)>] GangMembershipOperation data, response status code and response headers
+    def add_sandbox_nodes_with_http_info(sandbox_id_or_name, add_gang_nodes, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: SandboxApi.add_sandbox_nodes ...'
+      end
+      # verify the required parameter 'sandbox_id_or_name' is set
+      if @api_client.config.client_side_validation && sandbox_id_or_name.nil?
+        fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.add_sandbox_nodes"
+      end
+      # verify the required parameter 'add_gang_nodes' is set
+      if @api_client.config.client_side_validation && add_gang_nodes.nil?
+        fail ArgumentError, "Missing the required parameter 'add_gang_nodes' when calling SandboxApi.add_sandbox_nodes"
+      end
+      # resource path
+      local_var_path = '/sandbox/{sandboxIdOrName}/nodes'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(add_gang_nodes)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'GangMembershipOperation'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"SandboxApi.add_sandbox_nodes",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: SandboxApi#add_sandbox_nodes\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Archive sandbox
     # @param sandbox_id_or_name [String] 
     # @param [Hash] opts the optional parameters
@@ -700,6 +775,76 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: SandboxApi#get_build_logs_url\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Get a gang membership operation
+    # @param sandbox_id_or_name [String] 
+    # @param operation_id [String] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [GangMembershipOperation]
+    def get_gang_membership_operation(sandbox_id_or_name, operation_id, opts = {})
+      data, _status_code, _headers = get_gang_membership_operation_with_http_info(sandbox_id_or_name, operation_id, opts)
+      data
+    end
+
+    # Get a gang membership operation
+    # @param sandbox_id_or_name [String] 
+    # @param operation_id [String] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(GangMembershipOperation, Integer, Hash)>] GangMembershipOperation data, response status code and response headers
+    def get_gang_membership_operation_with_http_info(sandbox_id_or_name, operation_id, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: SandboxApi.get_gang_membership_operation ...'
+      end
+      # verify the required parameter 'sandbox_id_or_name' is set
+      if @api_client.config.client_side_validation && sandbox_id_or_name.nil?
+        fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.get_gang_membership_operation"
+      end
+      # verify the required parameter 'operation_id' is set
+      if @api_client.config.client_side_validation && operation_id.nil?
+        fail ArgumentError, "Missing the required parameter 'operation_id' when calling SandboxApi.get_gang_membership_operation"
+      end
+      # resource path
+      local_var_path = '/sandbox/{sandboxIdOrName}/membership-operations/{operationId}'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'operationId' + '}', CGI.escape(operation_id.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body]
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'GangMembershipOperation'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"SandboxApi.get_gang_membership_operation",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:GET, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: SandboxApi#get_gang_membership_operation\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -2082,6 +2227,81 @@ module DaytonaApiClient
       return data, status_code, headers
     end
 
+    # Remove the highest ranks from a multi-node sandbox
+    # @param sandbox_id_or_name [String] 
+    # @param remove_gang_nodes [RemoveGangNodes] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [GangMembershipOperation]
+    def remove_sandbox_nodes(sandbox_id_or_name, remove_gang_nodes, opts = {})
+      data, _status_code, _headers = remove_sandbox_nodes_with_http_info(sandbox_id_or_name, remove_gang_nodes, opts)
+      data
+    end
+
+    # Remove the highest ranks from a multi-node sandbox
+    # @param sandbox_id_or_name [String] 
+    # @param remove_gang_nodes [RemoveGangNodes] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(GangMembershipOperation, Integer, Hash)>] GangMembershipOperation data, response status code and response headers
+    def remove_sandbox_nodes_with_http_info(sandbox_id_or_name, remove_gang_nodes, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: SandboxApi.remove_sandbox_nodes ...'
+      end
+      # verify the required parameter 'sandbox_id_or_name' is set
+      if @api_client.config.client_side_validation && sandbox_id_or_name.nil?
+        fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.remove_sandbox_nodes"
+      end
+      # verify the required parameter 'remove_gang_nodes' is set
+      if @api_client.config.client_side_validation && remove_gang_nodes.nil?
+        fail ArgumentError, "Missing the required parameter 'remove_gang_nodes' when calling SandboxApi.remove_sandbox_nodes"
+      end
+      # resource path
+      local_var_path = '/sandbox/{sandboxIdOrName}/nodes/remove'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(remove_gang_nodes)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'GangMembershipOperation'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"SandboxApi.remove_sandbox_nodes",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: SandboxApi#remove_sandbox_nodes\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
     # Replace sandbox labels
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param sandbox_labels [SandboxLabels] 
@@ -2153,6 +2373,87 @@ module DaytonaApiClient
       data, status_code, headers = @api_client.call_api(:PUT, local_var_path, new_options)
       if @api_client.config.debugging
         @api_client.config.logger.debug "API called: SandboxApi#replace_labels\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
+      end
+      return data, status_code, headers
+    end
+
+    # Replace a failed multi-node sandbox rank
+    # @param sandbox_id_or_name [String] 
+    # @param rank [String] 
+    # @param replace_gang_node [ReplaceGangNode] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [GangMembershipOperation]
+    def replace_sandbox_node(sandbox_id_or_name, rank, replace_gang_node, opts = {})
+      data, _status_code, _headers = replace_sandbox_node_with_http_info(sandbox_id_or_name, rank, replace_gang_node, opts)
+      data
+    end
+
+    # Replace a failed multi-node sandbox rank
+    # @param sandbox_id_or_name [String] 
+    # @param rank [String] 
+    # @param replace_gang_node [ReplaceGangNode] 
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
+    # @return [Array<(GangMembershipOperation, Integer, Hash)>] GangMembershipOperation data, response status code and response headers
+    def replace_sandbox_node_with_http_info(sandbox_id_or_name, rank, replace_gang_node, opts = {})
+      if @api_client.config.debugging
+        @api_client.config.logger.debug 'Calling API: SandboxApi.replace_sandbox_node ...'
+      end
+      # verify the required parameter 'sandbox_id_or_name' is set
+      if @api_client.config.client_side_validation && sandbox_id_or_name.nil?
+        fail ArgumentError, "Missing the required parameter 'sandbox_id_or_name' when calling SandboxApi.replace_sandbox_node"
+      end
+      # verify the required parameter 'rank' is set
+      if @api_client.config.client_side_validation && rank.nil?
+        fail ArgumentError, "Missing the required parameter 'rank' when calling SandboxApi.replace_sandbox_node"
+      end
+      # verify the required parameter 'replace_gang_node' is set
+      if @api_client.config.client_side_validation && replace_gang_node.nil?
+        fail ArgumentError, "Missing the required parameter 'replace_gang_node' when calling SandboxApi.replace_sandbox_node"
+      end
+      # resource path
+      local_var_path = '/sandbox/{sandboxIdOrName}/nodes/{rank}/replace'.sub('{' + 'sandboxIdOrName' + '}', CGI.escape(sandbox_id_or_name.to_s)).sub('{' + 'rank' + '}', CGI.escape(rank.to_s))
+
+      # query parameters
+      query_params = opts[:query_params] || {}
+
+      # header parameters
+      header_params = opts[:header_params] || {}
+      # HTTP header 'Accept' (if needed)
+      header_params['Accept'] = @api_client.select_header_accept(['application/json']) unless header_params['Accept']
+      # HTTP header 'Content-Type'
+      content_type = @api_client.select_header_content_type(['application/json'])
+      if !content_type.nil?
+          header_params['Content-Type'] = content_type
+      end
+      header_params[:'X-Daytona-Organization-ID'] = opts[:'x_daytona_organization_id'] if !opts[:'x_daytona_organization_id'].nil?
+
+      # form parameters
+      form_params = opts[:form_params] || {}
+
+      # http body (model)
+      post_body = opts[:debug_body] || @api_client.object_to_http_body(replace_gang_node)
+
+      # return_type
+      return_type = opts[:debug_return_type] || 'GangMembershipOperation'
+
+      # auth_names
+      auth_names = opts[:debug_auth_names] || ['bearer', 'oauth2']
+
+      new_options = opts.merge(
+        :operation => :"SandboxApi.replace_sandbox_node",
+        :header_params => header_params,
+        :query_params => query_params,
+        :form_params => form_params,
+        :body => post_body,
+        :auth_names => auth_names,
+        :return_type => return_type
+      )
+
+      data, status_code, headers = @api_client.call_api(:POST, local_var_path, new_options)
+      if @api_client.config.debugging
+        @api_client.config.logger.debug "API called: SandboxApi#replace_sandbox_node\nData: #{data.inspect}\nStatus code: #{status_code}\nHeaders: #{headers}"
       end
       return data, status_code, headers
     end
@@ -2709,7 +3010,7 @@ module DaytonaApiClient
 
     # Set sandbox TTL
     # @param sandbox_id_or_name [String] ID or name of the sandbox
-    # @param ttl_minutes [Float] Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+    # @param ttl_minutes [Float] Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @return [Sandbox]
@@ -2720,7 +3021,7 @@ module DaytonaApiClient
 
     # Set sandbox TTL
     # @param sandbox_id_or_name [String] ID or name of the sandbox
-    # @param ttl_minutes [Float] Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+    # @param ttl_minutes [Float] Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
     # @return [Array<(Sandbox, Integer, Hash)>] Sandbox data, response status code and response headers
@@ -2844,6 +3145,7 @@ module DaytonaApiClient
     end
 
     # Stop sandbox
+    # Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID
@@ -2855,6 +3157,7 @@ module DaytonaApiClient
     end
 
     # Stop sandbox
+    # Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
     # @param sandbox_id_or_name [String] ID or name of the sandbox
     # @param [Hash] opts the optional parameters
     # @option opts [String] :x_daytona_organization_id Use with JWT to specify the organization ID

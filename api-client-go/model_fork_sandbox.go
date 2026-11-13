@@ -21,7 +21,7 @@ var _ MappedNullable = &ForkSandbox{}
 // ForkSandbox struct for ForkSandbox
 type ForkSandbox struct {
 	// The name for the forked sandbox. If not provided, a unique name will be generated.
-	Name *string `json:"name,omitempty"`
+	Name                 *string `json:"name,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -77,7 +77,7 @@ func (o *ForkSandbox) SetName(v string) {
 }
 
 func (o ForkSandbox) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -153,5 +153,3 @@ func (v *NullableForkSandbox) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

@@ -10,7 +10,7 @@ import pytest
 
 from daytona.common.daytona import CreateSandboxFromImageParams, CreateSandboxFromSnapshotParams, DaytonaConfig
 from daytona.common.errors import DaytonaAuthenticationError, DaytonaError, DaytonaValidationError
-from daytona.common.sandbox import Resources
+from daytona.common.sandbox import CreateSandboxResources, Resources
 from daytona_api_client_async import SandboxState
 
 from .conftest import make_sandbox_dto
@@ -521,9 +521,9 @@ class TestAsyncDaytonaCreateValidation:
         params = CreateSandboxFromImageParams(image="python:3.12", resources=Resources(cpu=2, memory=4, disk=8, gpu=1))
         await daytona.create(params)
         create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
-        assert create_request.cpu == 2
-        assert create_request.memory == 4
-        assert create_request.disk == 8
+        assert create_request.cpu.actual_instance == 2
+        assert create_request.memory.actual_instance == 4
+        assert create_request.disk.actual_instance == 8
         assert create_request.gpu == 1
 
     @pytest.mark.asyncio
@@ -572,6 +572,27 @@ class TestAsyncDaytonaCreateValidation:
         ):
             with pytest.raises(DaytonaError, match="stream broke"):
                 await daytona.create(params, on_snapshot_create_logs=lambda _chunk: None)
+
+    @pytest.mark.asyncio
+    async def test_create_forwards_rank_ordered_per_node_resources(self, env_with_api_key, sandbox_dto):
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.create_sandbox = AsyncMock(return_value=sandbox_dto)
+        params = CreateSandboxFromImageParams(
+            image="python:3.12",
+            resources=CreateSandboxResources(
+                cpu=[16, 16, 32, 32],
+                memory=256,
+                disk=[180, 180, 300, 300],
+                gpu=32,
+            ),
+        )
+
+        await daytona.create(params)
+
+        create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
+        assert create_request.cpu.actual_instance == [16, 16, 32, 32]
+        assert create_request.memory.actual_instance == 256
+        assert create_request.disk.actual_instance == [180, 180, 300, 300]
 
     @pytest.mark.asyncio
     async def test_create_from_snapshot_sets_snapshot_and_volume_mounts(self, env_with_api_key, sandbox_dto):
@@ -746,6 +767,75 @@ class TestAsyncDaytonaGetAndList:
         assert daytona._sandbox_api.list_sandboxes.call_count == 2
         second_call_kwargs = daytona._sandbox_api.list_sandboxes.call_args_list[1].kwargs
         assert second_call_kwargs["cursor"] == "cursor-2"
+
+    @pytest.mark.parametrize("status", [404, 500])
+    @pytest.mark.asyncio
+    async def test_list_hydration_only_skips_not_found(self, env_with_api_key, sandbox_dto, status):
+        from daytona_api_client_async.exceptions import ApiException, NotFoundException
+
+        daytona = _make_async_daytona()
+        listed = sandbox_dto.model_copy(update={"gpu": 16, "nodes": []})
+        daytona._sandbox_api = AsyncMock()
+        daytona._sandbox_api.list_sandboxes.return_value = MagicMock(items=[listed, sandbox_dto], next_cursor=None)
+        daytona._sandbox_api.get_sandbox.side_effect = (
+            NotFoundException(status=404) if status == 404 else ApiException(status=500)
+        )
+        if status == 404:
+            values = [sandbox async for sandbox in daytona.list()]
+            assert len(values) == 1
+            assert values[0].id == sandbox_dto.id
+        else:
+            with pytest.raises(DaytonaError):
+                await anext(daytona.list())
+
+    @pytest.mark.asyncio
+    async def test_list_hydrates_gang_nodes(self, env_with_api_key, sandbox_dto):
+        from daytona_api_client import SandboxNode
+
+        listed = sandbox_dto.model_copy(update={"gpu": 16, "nodes": []})
+        full = sandbox_dto.model_copy(
+            update={
+                "gpu": 16,
+                "node_count": 2,
+                "nodes": [
+                    SandboxNode(
+                        rank=0,
+                        id=sandbox_dto.id,
+                        state=SandboxState.STARTED,
+                        incarnation=1,
+                        cpu=16,
+                        gpu=8,
+                        memory=192,
+                        disk=512,
+                    ),
+                    SandboxNode(
+                        rank=1,
+                        id="worker-1",
+                        state=SandboxState.STARTED,
+                        incarnation=1,
+                        cpu=16,
+                        gpu=8,
+                        memory=192,
+                        disk=512,
+                    ),
+                ],
+            }
+        )
+        daytona = _make_async_daytona()
+        daytona._sandbox_api.list_sandboxes = AsyncMock(return_value=MagicMock(items=[listed], next_cursor=None))
+        daytona._sandbox_api.get_sandbox = AsyncMock(return_value=full)
+
+        sandboxes = [sandbox async for sandbox in daytona.list()]
+
+        daytona._sandbox_api.get_sandbox.assert_awaited_once_with(sandbox_dto.id, _request_timeout=None)
+        assert [(node.rank, node.id) for node in sandboxes[0].nodes] == [
+            (0, sandbox_dto.id),
+            (1, "worker-1"),
+        ]
+        assert [(node.cpu, node.memory, node.disk) for node in sandboxes[0].nodes] == [
+            (16, 192, 512),
+            (16, 192, 512),
+        ]
 
     @pytest.mark.asyncio
     async def test_list_early_termination_stops_fetching(self, env_with_api_key, sandbox_dto):

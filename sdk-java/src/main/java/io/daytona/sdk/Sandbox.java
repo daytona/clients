@@ -61,6 +61,21 @@ import java.util.concurrent.atomic.AtomicReference;
  * or observed by polling only when the deprecated polling mode is enabled.
  */
 public class Sandbox {
+    private final SandboxNodes nodes = new SandboxNodes(this);
+    private int nodeCount = 1;
+    private Integer topologyGeneration;
+    private boolean degraded;
+
+    /** Rank-ordered nodes, including the head at rank zero. */
+    public SandboxNodes getNodes() { return nodes; }
+    /** Number of nodes reported by the last refresh. */
+    public int getNodeCount() { return nodeCount; }
+    /** Current topology generation, or null when elasticity is unavailable. */
+    public Integer getTopologyGeneration() { return topologyGeneration; }
+    /** Whether the API reports a degraded gang. */
+    public boolean isDegraded() { return degraded; }
+    SandboxApi nodeSandboxApi() { return sandboxApi; }
+    void applyNodeResponse(io.daytona.api.client.model.Sandbox data) { populateFromDTO(data); }
     private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(
             "daytona.sandbox.cpu.utilization", "cpuUsedPct",
             "daytona.sandbox.cpu.limit", "cpuCount",
@@ -212,6 +227,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
+        nodes.update(data.getNodes());
         ensureSubscribed();
     }
 
@@ -233,6 +249,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
+        nodes.update(null);
         ensureSubscribed();
     }
 
@@ -908,6 +925,10 @@ public class Sandbox {
         this.volumes = d.getVolumes() == null ? null : Collections.unmodifiableList(d.getVolumes());
         this.buildInfo = d.getBuildInfo();
         this.backupCreatedAt = d.getBackupCreatedAt();
+        if (d.getNodeCount() != null) this.nodeCount = d.getNodeCount();
+        if (d.getTopologyGeneration() != null) this.topologyGeneration = d.getTopologyGeneration();
+        if (d.getDegraded() != null) this.degraded = d.getDegraded();
+        if (toolboxApiClient != null) nodes.update(d.getNodes());
 
         applyState(d.getState() == null ? "" : d.getState().getValue());
     }
@@ -979,6 +1000,7 @@ public class Sandbox {
         String newProxyUrl = asString(toolboxProxyUrl);
         if (!newProxyUrl.isEmpty() && !newProxyUrl.equals(this.toolboxProxyUrl) && this.toolboxApiClient != null) {
             this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
+            nodes.updateProxy(newProxyUrl);
         }
         this.toolboxProxyUrl = newProxyUrl;
         this.autoDestroyAt = autoDestroyAt;

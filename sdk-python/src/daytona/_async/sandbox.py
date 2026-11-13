@@ -6,32 +6,36 @@ import asyncio
 import functools
 import inspect
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any, TypeVar
 
 from deprecated import deprecated
-from pydantic import ConfigDict, PrivateAttr
+from pydantic import ConfigDict, PrivateAttr, field_serializer
 
 from daytona_analytics_api_client_async import ApiClient as AnalyticsApiClient
 from daytona_analytics_api_client_async import Configuration as AnalyticsConfiguration
 from daytona_analytics_api_client_async import TelemetryApi
 from daytona_api_client_async import (
+    AddGangNodes,
     BuildInfo,
     ConfigApi,
     CreateSandboxSnapshot,
     ForkSandbox,
+    GangMembershipOperation,
+    GangNodeFailure,
+    GangNodeResources,
     GpuType,
     PortPreviewUrl,
+    RemoveGangNodes,
+    ReplaceGangNode,
     ResizeSandbox,
 )
 from daytona_api_client_async import Sandbox as SandboxDto
+from daytona_api_client_async import SandboxApi, SandboxClass, SandboxDesiredState, SandboxLabels, SandboxListItem
+from daytona_api_client_async import SandboxNode as SandboxNodeDto
 from daytona_api_client_async import (
-    SandboxApi,
-    SandboxClass,
-    SandboxDesiredState,
-    SandboxLabels,
-    SandboxListItem,
     SandboxState,
     SandboxVolume,
     SignedPortPreviewUrl,
@@ -64,15 +68,19 @@ from ..common.errors import (
     DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
     DaytonaSpotEvictedError,
+    DaytonaTimeoutError,
     DaytonaValidationError,
 )
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
+from ..common.process import ExecuteResponse, ExecutionArtifacts, OutputHandler, SessionExecuteRequest
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
+    NodeResources,
     Resources,
     SandboxMetrics,
     pivot_sandbox_metrics,
     sandbox_metrics_from_system_metrics,
+    validate_node_exec_timeout,
 )
 from ..internal.event_subscription_manager import AsyncEventSubscriptionManager
 from ..internal.pool_tracker import AsyncPoolSaturationTracker
@@ -85,6 +93,343 @@ from .lsp_server import AsyncLspServer
 from .process import AsyncProcess
 
 _T = TypeVar("_T")
+
+_RDMA_USERSPACE_CHECK = (
+    "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && "
+    'find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
+)
+_RDMA_USERSPACE_WARNING = (
+    "WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; "
+    + "NCCL may fall back to sockets."
+)
+
+
+class AsyncSandboxNode:
+    """Lightweight async data-plane handle for one node in a multi-node Sandbox."""
+
+    def __init__(
+        self,
+        node: SandboxNodeDto,
+        toolbox_api: ApiClient,
+        toolbox_proxy_url: str,
+        sandbox_api: SandboxApi,
+        language: str,
+        pool_tracker: AsyncPoolSaturationTracker | None,
+    ) -> None:
+        self.rank: int = node.rank
+        self.id: str = node.id
+        self.cpu: int = node.cpu
+        self.gpu: int = node.gpu
+        self.memory: int = node.memory
+        self.disk: int = node.disk
+        self.state: SandboxState = node.state
+        self.incarnation: int = node.incarnation
+        self.failure: GangNodeFailure | None = node.failure
+        self.fabric_address: str | None = None
+        self.fabric_prefix_length: int | None = None
+        self.fabric_healthy: bool | None = None
+        self.fabric_unhealthy_since: str | None = None
+        self.warnings: list[str] = []
+        self._sandbox_api: SandboxApi = sandbox_api
+        self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
+            toolbox_api, self.id, toolbox_proxy_url, pool_tracker
+        )
+        self.fs: AsyncFileSystem = AsyncFileSystem(FileSystemApi(self._toolbox_api))
+        self.process: AsyncProcess = AsyncProcess(language, ProcessApi(self._toolbox_api))
+        self.update(node)
+
+    def update(self, node: SandboxNodeDto) -> None:
+        """Refresh health and address metadata without replacing data-plane clients."""
+        if node.rank != self.rank or node.id != self.id:
+            raise DaytonaError(
+                f"Sandbox node identity changed from rank {self.rank}/{self.id} to {node.rank}/{node.id}"
+            )
+        self.cpu = node.cpu
+        self.gpu = node.gpu
+        self.memory = node.memory
+        self.disk = node.disk
+        self.state = node.state
+        self.incarnation = node.incarnation
+        self.failure = node.failure
+        self.fabric_address = node.fabric_address
+        self.fabric_prefix_length = node.fabric_prefix_length
+        self.fabric_healthy = node.fabric_healthy
+        self.fabric_unhealthy_since = node.fabric_unhealthy_since
+
+    def _to_dto(self) -> SandboxNodeDto:
+        return SandboxNodeDto(
+            rank=self.rank,
+            id=self.id,
+            state=self.state,
+            incarnation=self.incarnation,
+            failure=self.failure,
+            cpu=self.cpu,
+            gpu=self.gpu,
+            memory=self.memory,
+            disk=self.disk,
+            fabric_address=self.fabric_address,
+            fabric_prefix_length=self.fabric_prefix_length,
+            fabric_healthy=self.fabric_healthy,
+            fabric_unhealthy_since=self.fabric_unhealthy_since,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this live handle in the generated node DTO wire shape."""
+        return self._to_dto().to_dict()
+
+    @intercept_errors(message_prefix="Failed to get node preview link: ")
+    @with_instrumentation()
+    async def get_preview_link(self, port: int, request_timeout: float | None = None) -> PortPreviewUrl:
+        """Get a preview URL for a port on this node."""
+        return await self._sandbox_api.get_port_preview_url(
+            self.id, port, _request_timeout=http_timeout(request_timeout)
+        )
+
+    @intercept_errors(message_prefix="Failed to create node SSH access: ")
+    @with_instrumentation()
+    async def create_ssh_access(
+        self,
+        expires_in_minutes: int | None = None,
+        request_timeout: float | None = None,
+    ) -> SshAccessDto:
+        """Create an SSH access token for this node."""
+        return await self._sandbox_api.create_ssh_access(
+            self.id,
+            expires_in_minutes=expires_in_minutes,
+            _request_timeout=http_timeout(request_timeout),
+        )
+
+    @intercept_errors(message_prefix="Failed to revoke node SSH access: ")
+    @with_instrumentation()
+    async def revoke_ssh_access(self, token: str, request_timeout: float | None = None) -> None:
+        """Revoke an SSH access token for this node."""
+        _ = await self._sandbox_api.revoke_ssh_access(
+            self.id, token=token, _request_timeout=http_timeout(request_timeout)
+        )
+
+
+class AsyncSandboxNodeProcess:
+    """Async process operations applied to every node in a Sandbox."""
+
+    def __init__(self, nodes: AsyncSandboxNodeCollection) -> None:
+        self._nodes: AsyncSandboxNodeCollection = nodes
+
+    @with_instrumentation()
+    async def exec(
+        self,
+        command: str,
+        on_stdout: OutputHandler[str] | None = None,
+        on_stderr: OutputHandler[str] | None = None,
+        *,
+        timeout: int | None = None,
+    ) -> dict[int, ExecuteResponse]:
+        """Execute a command on every node, keyed by rank.
+
+        ``timeout`` limits execution on each rank in seconds; None or 0 disables
+        the limit. Streaming deadlines are enforced by the SDK, which deletes its
+        temporary session to stop the command. Cleanup requires API connectivity.
+        Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
+        and, with a positive timeout, a 10-second session-creation request.
+        A timeout raises DaytonaTimeoutError; completed peer work is not undone.
+        Cleanup errors after command completion are recorded in each node's warnings.
+        """
+        validate_node_exec_timeout(timeout)
+
+        async def emit(handler: OutputHandler[str] | None, rank: int, chunk: str) -> None:
+            if handler is None:
+                return
+            result = handler(f"[rank {rank}] {chunk}")
+            if inspect.isawaitable(result):
+                await result
+
+        async def execute_node(node: AsyncSandboxNode) -> tuple[int, ExecuteResponse]:
+            try:
+                check = await node.process.exec(_RDMA_USERSPACE_CHECK, timeout=5) if len(self._nodes) > 1 else None
+                warning = "" if check is None or check.exit_code == 0 else _RDMA_USERSPACE_WARNING
+            except Exception:  # An advisory diagnostic must not prevent the user's command.
+                warning = "WARNING: Could not check RDMA userspace; continuing without verification."
+            if warning and warning not in node.warnings:
+                node.warnings.append(warning)
+            if warning:
+                await emit(on_stderr, node.rank, warning + "\n")
+
+            if on_stdout is None and on_stderr is None:
+                result = (
+                    await node.process.exec(command, timeout=timeout)
+                    if timeout is not None
+                    else await node.process.exec(command)
+                )
+            else:
+                session_id = f"daytona-nodes-exec-{uuid.uuid4()}"
+
+                async def execute_session() -> ExecuteResponse:
+                    started = await node.process.execute_session_command(
+                        session_id, SessionExecuteRequest(command=command, run_async=True), timeout=timeout
+                    )
+                    await node.process.get_session_command_logs_async(
+                        session_id,
+                        started.cmd_id,
+                        lambda chunk: emit(on_stdout, node.rank, chunk),
+                        lambda chunk: emit(on_stderr, node.rank, chunk),
+                    )
+                    completed, logs = await asyncio.gather(
+                        node.process.get_session_command(session_id, started.cmd_id),
+                        node.process.get_session_command_logs(session_id, started.cmd_id),
+                    )
+                    stdout = logs.stdout or ""
+                    return ExecuteResponse.model_construct(
+                        exit_code=completed.exit_code if completed.exit_code is not None else -1,
+                        result=logs.output or f"{stdout}{logs.stderr or ''}",
+                        artifacts=ExecutionArtifacts(stdout=stdout, charts=[]),
+                        additional_properties={},
+                    )
+
+                failure: BaseException | None = None
+                try:
+                    if timeout:
+                        await node.process.create_session(session_id, request_timeout=10)
+                    else:
+                        await node.process.create_session(session_id)
+                    try:
+                        result = await asyncio.wait_for(execute_session(), timeout=timeout or None)
+                    except asyncio.TimeoutError as error:
+                        raise DaytonaTimeoutError(
+                            f"Command on rank {node.rank} exceeded timeout of {timeout} seconds"
+                        ) from error
+                except BaseException as error:
+                    failure = error
+                    raise
+                finally:
+                    try:
+                        if timeout:
+                            await node.process.delete_session(session_id, request_timeout=10)
+                        else:
+                            await node.process.delete_session(session_id)
+                    except Exception as cleanup_error:
+                        if failure is not None:
+                            raise failure from cleanup_error
+                        node.warnings.append(f"Session {session_id} cleanup failed: {cleanup_error}")
+            if warning:
+                result.result = warning + "\n" + result.result
+                if result.artifacts:
+                    result.artifacts.stdout = warning + "\n" + result.artifacts.stdout
+            return node.rank, result
+
+        entries = await asyncio.gather(*(execute_node(node) for node in self._nodes))
+        return dict(sorted(entries))
+
+
+class AsyncSandboxNodeFileSystem:
+    """Async file-system operations applied to every node in a Sandbox."""
+
+    def __init__(self, nodes: AsyncSandboxNodeCollection) -> None:
+        self._nodes: AsyncSandboxNodeCollection = nodes
+
+    @with_instrumentation()
+    async def upload_file(self, src: str | bytes, dst: str, timeout: int = 30 * 60) -> None:
+        """Upload the same file to every node in parallel without rollback."""
+        nodes = tuple(self._nodes)
+        results = await asyncio.gather(
+            *(node.fs.upload_file(src, dst, timeout) for node in nodes), return_exceptions=True
+        )
+        failures = {
+            node.rank: result for node, result in zip(nodes, results, strict=True) if isinstance(result, Exception)
+        }
+        if failures:
+            details = "; ".join(f"rank {rank}: {failures[rank]}" for rank in sorted(failures))
+            raise DaytonaError(f"Failed to upload file to node ranks {sorted(failures)}: {details}")
+
+
+class AsyncSandboxNodeCollection(list[AsyncSandboxNode]):
+    """Live, rank-ordered async node collection with aggregate and topology operations."""
+
+    def __init__(self, sandbox: AsyncSandbox | None) -> None:
+        super().__init__()
+        self._sandbox: AsyncSandbox | None = sandbox
+        self.process: AsyncSandboxNodeProcess = AsyncSandboxNodeProcess(self)
+        self.fs: AsyncSandboxNodeFileSystem = AsyncSandboxNodeFileSystem(self)
+
+    def _replace(self, nodes: list[AsyncSandboxNode]) -> None:
+        list.__setitem__(self, slice(None), nodes)
+
+    def _require_sandbox(self) -> AsyncSandbox:
+        if self._sandbox is None:
+            raise DaytonaError("Sandbox node collection is not initialized")
+        return self._sandbox
+
+    def _remaining(self, deadline: float | None) -> float | None:
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DaytonaTimeoutError("Node membership operation exceeded its timeout")
+        return remaining
+
+    async def _generation(self, deadline: float | None = None) -> int:
+        sandbox = self._require_sandbox()
+        await sandbox.refresh_data(request_timeout=self._remaining(deadline))
+        _ = self._remaining(deadline)
+        generation = sandbox.topology_generation
+        if generation is None:
+            raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
+        return generation
+
+    async def _wait(self, operation: GangMembershipOperation, deadline: float | None) -> GangMembershipOperation:
+        sandbox = self._require_sandbox()
+        _ = self._remaining(deadline)
+        while operation.status not in {"COMPLETED", "FAILED"}:
+            await asyncio.sleep(min(1.0, self._remaining(deadline) or 1.0))
+            operation = await sandbox._sandbox_api.get_gang_membership_operation(
+                sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
+            )
+            _ = self._remaining(deadline)
+        if operation.status == "FAILED":
+            raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
+        await sandbox.refresh_data(request_timeout=self._remaining(deadline))
+        _ = self._remaining(deadline)
+        return operation
+
+    @intercept_errors(message_prefix="Failed to add Sandbox nodes: ")
+    @with_timeout()
+    @with_instrumentation()
+    async def add(self, nodes: list[NodeResources], timeout: float | None = 600) -> GangMembershipOperation:
+        """Append rank-ordered nodes and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
+        sandbox = self._require_sandbox()
+        request = AddGangNodes(
+            expected_generation=await self._generation(deadline),
+            nodes=[GangNodeResources(cpu=node.cpu, memory=node.memory, disk=node.disk) for node in nodes],
+        )
+        operation = await sandbox._sandbox_api.add_sandbox_nodes(
+            sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
+        )
+        return await self._wait(operation, deadline)
+
+    @intercept_errors(message_prefix="Failed to release Sandbox nodes: ")
+    @with_timeout()
+    @with_instrumentation()
+    async def release(self, count: int = 1, timeout: float | None = 600) -> GangMembershipOperation:
+        """Release the highest ranks and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
+        sandbox = self._require_sandbox()
+        request = RemoveGangNodes(expected_generation=await self._generation(deadline), count=count)
+        operation = await sandbox._sandbox_api.remove_sandbox_nodes(
+            sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
+        )
+        return await self._wait(operation, deadline)
+
+    @intercept_errors(message_prefix="Failed to replace Sandbox node: ")
+    @with_timeout()
+    @with_instrumentation()
+    async def replace(self, rank: int, timeout: float | None = 600) -> GangMembershipOperation:
+        """Replace a degraded rank and wait for the topology change to complete."""
+        deadline = time.monotonic() + timeout if timeout else None
+        sandbox = self._require_sandbox()
+        request = ReplaceGangNode(expected_generation=await self._generation(deadline))
+        operation = await sandbox._sandbox_api.replace_sandbox_node(
+            sandbox.id, str(rank), request, _request_timeout=http_timeout(self._remaining(deadline))
+        )
+        return await self._wait(operation, deadline)
 
 
 def with_events(cls: _T) -> _T:
@@ -197,6 +542,7 @@ class AsyncSandbox(SandboxDto):
     env: dict[str, str] | None = None  # pyright: ignore[reportRedeclaration]
     network_block_all: bool | None = None  # pyright: ignore[reportRedeclaration]
     kvm: bool | None = None  # pyright: ignore[reportRedeclaration]
+    nodes: AsyncSandboxNodeCollection  # pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 
     _fs: AsyncFileSystem = PrivateAttr()
     _git: AsyncGit = PrivateAttr()
@@ -205,9 +551,16 @@ class AsyncSandbox(SandboxDto):
     _code_interpreter: AsyncCodeInterpreter = PrivateAttr()
     _state_waiters: list[Callable[[SandboxState | None], None]] = PrivateAttr(default_factory=list)
     _sub_id: str | None = PrivateAttr(default=None)
+    _toolbox_api_client: ApiClient = PrivateAttr()
+    _language: str = PrivateAttr()
+    _pool_tracker: AsyncPoolSaturationTracker | None = PrivateAttr(default=None)
 
     # TODO: Remove model_config once everything is migrated to pydantic # pylint: disable=fixme
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+
+    @field_serializer("nodes")
+    def _serialize_nodes(self, nodes: AsyncSandboxNodeCollection) -> list[SandboxNodeDto]:
+        return [node._to_dto() for node in nodes]
 
     def __init__(
         self,
@@ -229,11 +582,19 @@ class AsyncSandbox(SandboxDto):
             subscription_manager: AsyncEventSubscriptionManager for real-time updates.
             pool_tracker (AsyncPoolSaturationTracker | None): Tracker for connection pool saturation.
         """
-        super().__init__(**sandbox_dto.model_dump())
+        node_collection = AsyncSandboxNodeCollection(None)
+        model_data = sandbox_dto.model_dump()
+        model_data["nodes"] = node_collection
+        model_data.setdefault("node_count", 1)
+        super().__init__(**model_data)
+        node_collection._sandbox = self
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
         self._analytics_api_url_provider: Callable[[], Awaitable[str | None]] | None = analytics_api_url_provider
         self._subscription_manager: AsyncEventSubscriptionManager = subscription_manager
+        self._toolbox_api_client = toolbox_api
+        self._language = language
+        self._pool_tracker = pool_tracker
         self._signing_key: str | None = None
         self._signing_key_fetched_at: float = 0
         # Wrap the toolbox API client to inject the sandbox ID into the resource path
@@ -249,6 +610,8 @@ class AsyncSandbox(SandboxDto):
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
         self._server_api: ServerApi = ServerApi(self._toolbox_api)
         self._system_api: SystemApi = SystemApi(self._toolbox_api)
+
+        self.__process_nodes(sandbox_dto)
 
         self._ensure_subscribed()
 
@@ -616,6 +979,9 @@ class AsyncSandbox(SandboxDto):
     async def stop(self, timeout: float | None = 60, force: bool = False):
         """Stops the Sandbox and waits for it to be fully stopped.
 
+        For a multi-node GPU Sandbox this irreversibly destroys the complete
+        gang and all ephemeral local data; it cannot be started again.
+
         Args:
             timeout (float | None): Maximum time to wait in seconds. 0 means no timeout. Default is 60 seconds.
             force (bool): If True, uses SIGKILL instead of SIGTERM to stop the sandbox. Default is False.
@@ -820,7 +1186,8 @@ class AsyncSandbox(SandboxDto):
 
         The Sandbox will be destroyed after the specified number of minutes, counted as
         wall-clock time from the current moment, regardless of its state (started, stopped,
-        paused, or archived). Setting to 0 disables the TTL.
+        paused, or archived). Setting to 0 disables the TTL. For a multi-node
+        head, expiry destroys every member and all ephemeral local data.
 
         Args:
             ttl_minutes (int): Number of minutes until the Sandbox is destroyed.
@@ -1220,7 +1587,9 @@ class AsyncSandbox(SandboxDto):
                 the operation on the server. Positive values under 1 second are rounded up to 1
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = await self._sandbox_api.revoke_ssh_access(self.id, token, _request_timeout=http_timeout(request_timeout))
+        _ = await self._sandbox_api.revoke_ssh_access(
+            self.id, token=token, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to validate SSH access: ")
     @with_instrumentation()
@@ -1565,6 +1934,8 @@ class AsyncSandbox(SandboxDto):
         if new_proxy_url:
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
+                for node in self.nodes:
+                    node._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
         self.sandbox_class: str | None = (
             sandbox_dto.sandbox_class.value
@@ -1575,6 +1946,13 @@ class AsyncSandbox(SandboxDto):
         self.daemon_version: str | None = sandbox_dto.daemon_version
         self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
         self.queue_timeout: int | None = sandbox_dto.queue_timeout
+        self.node_count: int = int(  # pyright: ignore[reportIncompatibleVariableOverride]
+            getattr(sandbox_dto, "node_count", None) or getattr(self, "node_count", None) or 1
+        )
+        topology_generation = getattr(sandbox_dto, "topology_generation", None)
+        if topology_generation is not None:
+            self.topology_generation = topology_generation  # pyright: ignore[reportUnannotatedClassAttribute]
+        self.degraded: bool | None = getattr(sandbox_dto, "degraded", getattr(self, "degraded", None))
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):
@@ -1592,6 +1970,47 @@ class AsyncSandbox(SandboxDto):
             self.otel_endpoint_override: str | None = sandbox_dto.otel_endpoint_override
 
         self._apply_state(sandbox_dto.state)
+
+        # Realtime list-item events omit nodes; do not collapse a gang back to
+        # a synthetic head-only array until a full response is fetched.
+        if hasattr(self, "_toolbox_api_client") and getattr(sandbox_dto, "nodes", None) is not None:
+            self.__process_nodes(sandbox_dto)
+
+    def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
+        raw_nodes = getattr(sandbox_dto, "nodes", None)
+        if not raw_nodes:
+            node_count = getattr(sandbox_dto, "node_count", None) or 1
+            raw_nodes = [
+                SandboxNodeDto(
+                    rank=0,
+                    id=sandbox_dto.id,
+                    state=sandbox_dto.state or SandboxState.UNKNOWN,
+                    incarnation=getattr(sandbox_dto, "incarnation", None) or 1,
+                    cpu=sandbox_dto.cpu // node_count,
+                    gpu=sandbox_dto.gpu // node_count,
+                    memory=sandbox_dto.memory // node_count,
+                    disk=sandbox_dto.disk // node_count,
+                )
+            ]
+        if any(node.rank != index for index, node in enumerate(raw_nodes)) or raw_nodes[0].id != sandbox_dto.id:
+            raise DaytonaError("Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head")
+        existing = {node.id: node for node in self.nodes}
+        updated: list[AsyncSandboxNode] = []
+        for node_dto in raw_nodes:
+            node = existing.get(node_dto.id)
+            if node is not None:
+                node.update(node_dto)
+            else:
+                node = AsyncSandboxNode(
+                    node_dto,
+                    self._toolbox_api_client,
+                    self.toolbox_proxy_url,
+                    self._sandbox_api,
+                    self._language,
+                    self._pool_tracker,
+                )
+            updated.append(node)
+        self.nodes._replace(updated)  # pylint: disable=no-member
 
     async def __refresh_data_safe(self) -> None:
         """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""

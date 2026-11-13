@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing_extensions import override
 
 from .image import Image
-from .sandbox import Resources
+from .sandbox import CreateSandboxResources, Resources
 from .volume import VolumeMount
 
 CODE_TOOLBOX_LANGUAGE_LABEL = "code-toolbox-language"
@@ -241,12 +241,12 @@ class CreateSandboxFromImageParams(CreateSandboxBaseParams):
     Attributes:
         image (str | Image): Custom Docker image to use for the Sandbox. If an Image object is provided,
             the image will be dynamically built.
-        resources (Resources | None): Resource configuration for the Sandbox. If not provided, sandbox will
-            have default resources.
+        resources (Resources | CreateSandboxResources | None): Resource configuration for the Sandbox.
+            If not provided, the Sandbox will have default resources.
     """
 
     image: str | Image
-    resources: Resources | None = None
+    resources: Resources | CreateSandboxResources | None = None
 
 
 class CreateSandboxFromSnapshotParams(CreateSandboxBaseParams):

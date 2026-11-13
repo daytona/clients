@@ -35,7 +35,7 @@ type IntFilter struct {
 	// Match values strictly greater than this value.
 	Gt *float32 `json:"gt,omitempty"`
 	// Match values strictly less than this value.
-	Lt *float32 `json:"lt,omitempty"`
+	Lt                   *float32 `json:"lt,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -315,7 +315,7 @@ func (o *IntFilter) SetLt(v float32) {
 }
 
 func (o IntFilter) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -419,5 +419,3 @@ func (v *NullableIntFilter) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

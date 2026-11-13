@@ -27,7 +27,7 @@ type UpdateRegion struct {
 	// Snapshot Manager URL for the region
 	SnapshotManagerUrl NullableString `json:"snapshotManagerUrl,omitempty"`
 	// OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.
-	OtelEndpoint NullableString `json:"otelEndpoint,omitempty"`
+	OtelEndpoint         NullableString `json:"otelEndpoint,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -82,6 +82,7 @@ func (o *UpdateRegion) HasProxyUrl() bool {
 func (o *UpdateRegion) SetProxyUrl(v string) {
 	o.ProxyUrl.Set(&v)
 }
+
 // SetProxyUrlNil sets the value for ProxyUrl to be an explicit nil
 func (o *UpdateRegion) SetProxyUrlNil() {
 	o.ProxyUrl.Set(nil)
@@ -124,6 +125,7 @@ func (o *UpdateRegion) HasSshGatewayUrl() bool {
 func (o *UpdateRegion) SetSshGatewayUrl(v string) {
 	o.SshGatewayUrl.Set(&v)
 }
+
 // SetSshGatewayUrlNil sets the value for SshGatewayUrl to be an explicit nil
 func (o *UpdateRegion) SetSshGatewayUrlNil() {
 	o.SshGatewayUrl.Set(nil)
@@ -166,6 +168,7 @@ func (o *UpdateRegion) HasSnapshotManagerUrl() bool {
 func (o *UpdateRegion) SetSnapshotManagerUrl(v string) {
 	o.SnapshotManagerUrl.Set(&v)
 }
+
 // SetSnapshotManagerUrlNil sets the value for SnapshotManagerUrl to be an explicit nil
 func (o *UpdateRegion) SetSnapshotManagerUrlNil() {
 	o.SnapshotManagerUrl.Set(nil)
@@ -208,6 +211,7 @@ func (o *UpdateRegion) HasOtelEndpoint() bool {
 func (o *UpdateRegion) SetOtelEndpoint(v string) {
 	o.OtelEndpoint.Set(&v)
 }
+
 // SetOtelEndpointNil sets the value for OtelEndpoint to be an explicit nil
 func (o *UpdateRegion) SetOtelEndpointNil() {
 	o.OtelEndpoint.Set(nil)
@@ -219,7 +223,7 @@ func (o *UpdateRegion) UnsetOtelEndpoint() {
 }
 
 func (o UpdateRegion) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -307,5 +311,3 @@ func (v *NullableUpdateRegion) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona_api_client.models.runner_fabric_health import RunnerFabricHealth
 from daytona_api_client.models.runner_health_metrics import RunnerHealthMetrics
 from daytona_api_client.models.runner_service_health import RunnerServiceHealth
 from pydantic import TypeAdapter
@@ -38,8 +39,9 @@ class RunnerHealthcheck(BaseModel):
     proxy_url: Optional[StrictStr] = Field(default=None, description="Runner proxy URL", serialization_alias="proxyUrl")
     api_url: Optional[StrictStr] = Field(default=None, description="Runner API URL", serialization_alias="apiUrl")
     app_version: StrictStr = Field(description="Runner app version", serialization_alias="appVersion")
+    fabric: Optional[RunnerFabricHealth] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["metrics", "serviceHealth", "domain", "proxyUrl", "apiUrl", "appVersion"]
+    __properties: ClassVar[List[str]] = ["metrics", "serviceHealth", "domain", "proxyUrl", "apiUrl", "appVersion", "fabric"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -91,6 +93,9 @@ class RunnerHealthcheck(BaseModel):
                 if _item_service_health:
                     _items.append(_item_service_health.to_dict())
             _dict['serviceHealth'] = _items
+        # override the default output from pydantic by calling `to_dict()` of fabric
+        if self.fabric:
+            _dict['fabric'] = self.fabric.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -113,7 +118,8 @@ class RunnerHealthcheck(BaseModel):
             "domain": obj.get("domain"),
             "proxy_url": obj.get("proxyUrl"),
             "api_url": obj.get("apiUrl"),
-            "app_version": obj.get("appVersion")
+            "app_version": obj.get("appVersion"),
+            "fabric": RunnerFabricHealth.from_dict(obj["fabric"]) if obj.get("fabric") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

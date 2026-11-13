@@ -22,13 +22,23 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.semconv.attributes import service_attributes
 
-from daytona_api_client import ApiClient, ConfigApi, Configuration, CreateBuildInfo, CreateSandbox
+from daytona_api_client import (
+    ApiClient,
+    ConfigApi,
+    Configuration,
+    CreateBuildInfo,
+    CreateSandbox,
+    CreateSandboxCpu,
+    CreateSandboxDisk,
+    CreateSandboxMemory,
+)
 from daytona_api_client import GpuType as SyncGpuType
 from daytona_api_client import ObjectStorageApi
 from daytona_api_client import Sandbox as SandboxDto
 from daytona_api_client import SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
 from daytona_api_client import VolumesApi as VolumesApi
 from daytona_api_client import WarmPoolsApi
+from daytona_api_client.exceptions import NotFoundException
 from daytona_toolbox_api_client import ApiClient as ToolboxApiClient
 
 from .._utils.enum import to_enum
@@ -47,6 +57,7 @@ from ..common.daytona import (
 )
 from ..common.errors import (
     DaytonaAuthenticationError,
+    DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
     DaytonaTimeoutError,
     DaytonaValidationError,
@@ -571,9 +582,12 @@ class Daytona:
                 )
 
             if params.resources:
-                sandbox_data.cpu = params.resources.cpu
-                sandbox_data.memory = params.resources.memory
-                sandbox_data.disk = params.resources.disk
+                if params.resources.cpu is not None:
+                    sandbox_data.cpu = CreateSandboxCpu(params.resources.cpu)
+                if params.resources.memory is not None:
+                    sandbox_data.memory = CreateSandboxMemory(params.resources.memory)
+                if params.resources.disk is not None:
+                    sandbox_data.disk = CreateSandboxDisk(params.resources.disk)
                 sandbox_data.gpu = params.resources.gpu
                 if params.resources.gpu_type is not None:
                     gpu_types = (
@@ -719,6 +733,9 @@ class Daytona:
     ) -> Iterator[Sandbox]:
         """Iterates over Sandboxes matching the given query.
 
+        Multi-node GPU sandboxes currently use whole 8-GPU nodes.
+        A gang deleted between listing and fetching its node details is skipped.
+
         Args:
             query: Optional filters, sorting, and per-page size.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
@@ -749,9 +766,26 @@ class Daytona:
             first_page = False
             response = self._fetch_sandbox_page(q, cursor, request_timeout)
             for sandbox in response.items:
-                language = self._validate_language_label(sandbox.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)).value
+                # SandboxListItem intentionally omits internal member rows.
+                # This release uses whole 8-GPU nodes, so gangs have more than 8 GPUs.
+                # Hydrate those heads without adding a GET for ordinary sandboxes.
+                try:
+                    sandbox_with_nodes = (
+                        self._sandbox_api.get_sandbox(
+                            sandbox.id,
+                            _request_timeout=http_timeout(request_timeout),
+                        )
+                        if sandbox.gpu > 8
+                        else sandbox
+                    )
+                except (NotFoundException, DaytonaNotFoundError):
+                    # A listed gang may be deleted before its hydration GET.
+                    continue
+                language = self._validate_language_label(
+                    sandbox_with_nodes.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)
+                ).value
                 yield Sandbox(
-                    sandbox,
+                    sandbox_with_nodes,
                     self._toolbox_api_client,
                     self._sandbox_api,
                     language,

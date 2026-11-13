@@ -30,7 +30,7 @@ type CreateRegion struct {
 	// Snapshot Manager URL for the region
 	SnapshotManagerUrl NullableString `json:"snapshotManagerUrl,omitempty"`
 	// OTel collector endpoint for sandboxes created in this region. When set, sandbox OTel data is sent to this endpoint instead of the Daytona-hosted collector and will not be available in the Daytona analytics API or dashboard.
-	OtelEndpoint NullableString `json:"otelEndpoint,omitempty"`
+	OtelEndpoint         NullableString `json:"otelEndpoint,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -110,6 +110,7 @@ func (o *CreateRegion) HasProxyUrl() bool {
 func (o *CreateRegion) SetProxyUrl(v string) {
 	o.ProxyUrl.Set(&v)
 }
+
 // SetProxyUrlNil sets the value for ProxyUrl to be an explicit nil
 func (o *CreateRegion) SetProxyUrlNil() {
 	o.ProxyUrl.Set(nil)
@@ -152,6 +153,7 @@ func (o *CreateRegion) HasSshGatewayUrl() bool {
 func (o *CreateRegion) SetSshGatewayUrl(v string) {
 	o.SshGatewayUrl.Set(&v)
 }
+
 // SetSshGatewayUrlNil sets the value for SshGatewayUrl to be an explicit nil
 func (o *CreateRegion) SetSshGatewayUrlNil() {
 	o.SshGatewayUrl.Set(nil)
@@ -194,6 +196,7 @@ func (o *CreateRegion) HasSnapshotManagerUrl() bool {
 func (o *CreateRegion) SetSnapshotManagerUrl(v string) {
 	o.SnapshotManagerUrl.Set(&v)
 }
+
 // SetSnapshotManagerUrlNil sets the value for SnapshotManagerUrl to be an explicit nil
 func (o *CreateRegion) SetSnapshotManagerUrlNil() {
 	o.SnapshotManagerUrl.Set(nil)
@@ -236,6 +239,7 @@ func (o *CreateRegion) HasOtelEndpoint() bool {
 func (o *CreateRegion) SetOtelEndpoint(v string) {
 	o.OtelEndpoint.Set(&v)
 }
+
 // SetOtelEndpointNil sets the value for OtelEndpoint to be an explicit nil
 func (o *CreateRegion) SetOtelEndpointNil() {
 	o.OtelEndpoint.Set(nil)
@@ -247,7 +251,7 @@ func (o *CreateRegion) UnsetOtelEndpoint() {
 }
 
 func (o CreateRegion) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -290,10 +294,10 @@ func (o *CreateRegion) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -358,5 +362,3 @@ func (v *NullableCreateRegion) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

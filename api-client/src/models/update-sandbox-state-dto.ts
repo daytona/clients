@@ -27,6 +27,14 @@ export interface UpdateSandboxStateDto {
      * Whether the sandbox is recoverable
      */
     'recoverable'?: boolean;
+    /**
+     * Physical gang-member incarnation producing this report.
+     */
+    'incarnation'?: number;
+    /**
+     * The runner has restored an idle-closed fabric state for this failed member.
+     */
+    'fabricFenced'?: boolean;
 }
 
 export const UpdateSandboxStateDtoStateEnum = {

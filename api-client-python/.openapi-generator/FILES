@@ -25,6 +25,7 @@ daytona_api_client/configuration.py
 daytona_api_client/exceptions.py
 daytona_api_client/models/__init__.py
 daytona_api_client/models/account_provider.py
+daytona_api_client/models/add_gang_nodes.py
 daytona_api_client/models/announcement.py
 daytona_api_client/models/api_key_list.py
 daytona_api_client/models/api_key_response.py
@@ -48,6 +49,9 @@ daytona_api_client/models/create_runner.py
 daytona_api_client/models/create_runner_response.py
 daytona_api_client/models/create_runner_sandbox_class.py
 daytona_api_client/models/create_sandbox.py
+daytona_api_client/models/create_sandbox_cpu.py
+daytona_api_client/models/create_sandbox_disk.py
+daytona_api_client/models/create_sandbox_memory.py
 daytona_api_client/models/create_sandbox_snapshot.py
 daytona_api_client/models/create_secret.py
 daytona_api_client/models/create_snapshot.py
@@ -58,6 +62,9 @@ daytona_api_client/models/daytona_configuration.py
 daytona_api_client/models/directory_sync_status.py
 daytona_api_client/models/docker_registry.py
 daytona_api_client/models/fork_sandbox.py
+daytona_api_client/models/gang_membership_operation.py
+daytona_api_client/models/gang_node_failure.py
+daytona_api_client/models/gang_node_resources.py
 daytona_api_client/models/generate_workos_admin_portal_link.py
 daytona_api_client/models/gpu_capacity.py
 daytona_api_client/models/gpu_capacity_response.py
@@ -103,10 +110,14 @@ daytona_api_client/models/region_quota.py
 daytona_api_client/models/region_type.py
 daytona_api_client/models/region_usage_overview.py
 daytona_api_client/models/registry_push_access_dto.py
+daytona_api_client/models/remove_gang_nodes.py
+daytona_api_client/models/replace_gang_node.py
 daytona_api_client/models/resize_sandbox.py
 daytona_api_client/models/resolve_sandbox_secrets200_response_inner.py
 daytona_api_client/models/runner.py
 daytona_api_client/models/runner_class.py
+daytona_api_client/models/runner_fabric_health.py
+daytona_api_client/models/runner_fabric_rail.py
 daytona_api_client/models/runner_full.py
 daytona_api_client/models/runner_health_metrics.py
 daytona_api_client/models/runner_healthcheck.py
@@ -117,11 +128,13 @@ daytona_api_client/models/sandbox.py
 daytona_api_client/models/sandbox_class.py
 daytona_api_client/models/sandbox_created_webhook.py
 daytona_api_client/models/sandbox_desired_state.py
+daytona_api_client/models/sandbox_gang_member_failed_webhook.py
 daytona_api_client/models/sandbox_identity.py
 daytona_api_client/models/sandbox_labels.py
 daytona_api_client/models/sandbox_list_item.py
 daytona_api_client/models/sandbox_list_sort_direction.py
 daytona_api_client/models/sandbox_list_sort_field.py
+daytona_api_client/models/sandbox_node.py
 daytona_api_client/models/sandbox_state.py
 daytona_api_client/models/sandbox_state_updated_webhook.py
 daytona_api_client/models/sandbox_volume.py

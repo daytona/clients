@@ -33,7 +33,7 @@ type UpdateIdentityProvider struct {
 	// Organization role IDs assigned to users who join the organization via SSO through this identity provider. Roles must be global or belong to this organization. Empty grants the lowest access: membership with no resource permissions.
 	DefaultAssignedRoleIds []string `json:"defaultAssignedRoleIds,omitempty"`
 	// Whether the identity provider is enabled
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled              *bool `json:"enabled,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -281,7 +281,7 @@ func (o *UpdateIdentityProvider) SetEnabled(v bool) {
 }
 
 func (o UpdateIdentityProvider) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -381,5 +381,3 @@ func (v *NullableUpdateIdentityProvider) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

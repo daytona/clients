@@ -34,7 +34,7 @@ type CreateIdentityProvider struct {
 	// Organization role IDs assigned to users who join the organization via SSO through this identity provider. Roles must be global or belong to this organization. Empty (default) grants the lowest access: membership with no resource permissions.
 	DefaultAssignedRoleIds []string `json:"defaultAssignedRoleIds,omitempty"`
 	// Whether the identity provider is enabled
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled              *bool `json:"enabled,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -273,7 +273,7 @@ func (o *CreateIdentityProvider) SetEnabled(v bool) {
 }
 
 func (o CreateIdentityProvider) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -320,10 +320,10 @@ func (o *CreateIdentityProvider) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -390,5 +390,3 @@ func (v *NullableCreateIdentityProvider) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

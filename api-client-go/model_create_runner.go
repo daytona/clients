@@ -22,11 +22,11 @@ var _ MappedNullable = &CreateRunner{}
 // CreateRunner struct for CreateRunner
 type CreateRunner struct {
 	RegionId string `json:"regionId"`
-	Name string `json:"name"`
+	Name     string `json:"name"`
 	// Tags to associate with the runner
 	Tags []string `json:"tags,omitempty"`
 	// The sandbox class supported by the runner. Defaults to container when omitted or null.
-	SandboxClass NullableCreateRunnerSandboxClass `json:"sandboxClass,omitempty"`
+	SandboxClass         NullableCreateRunnerSandboxClass `json:"sandboxClass,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -167,6 +167,7 @@ func (o *CreateRunner) HasSandboxClass() bool {
 func (o *CreateRunner) SetSandboxClass(v CreateRunnerSandboxClass) {
 	o.SandboxClass.Set(&v)
 }
+
 // SetSandboxClassNil sets the value for SandboxClass to be an explicit nil
 func (o *CreateRunner) SetSandboxClassNil() {
 	o.SandboxClass.Set(nil)
@@ -178,7 +179,7 @@ func (o *CreateRunner) UnsetSandboxClass() {
 }
 
 func (o CreateRunner) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -217,10 +218,10 @@ func (o *CreateRunner) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -284,5 +285,3 @@ func (v *NullableCreateRunner) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

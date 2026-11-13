@@ -23,6 +23,7 @@ import {
   DaytonaAuthenticationError,
   createAxiosDaytonaError,
   DaytonaError,
+  DaytonaNotFoundError,
   DaytonaInvalidArgumentError,
   DaytonaQueueTimeoutError,
   DaytonaTimeoutError,
@@ -178,6 +179,16 @@ export interface Resources {
   disk?: number
 }
 
+/** Resource allocation used when creating a Sandbox from an image. */
+export type CreateSandboxResources = Omit<Resources, 'cpu' | 'memory' | 'disk'> & {
+  /** CPU cores per node. A scalar applies to every node; an array is ordered by rank. */
+  cpu?: number | number[]
+  /** Memory in GiB per node. A scalar applies to every node; an array is ordered by rank. */
+  memory?: number | number[]
+  /** Disk in GiB per node. A scalar applies to every node; an array is ordered by rank. */
+  disk?: number | number[]
+}
+
 /**
  * Base parameters for creating a new Sandbox.
  *
@@ -244,7 +255,7 @@ export type CreateSandboxBaseParams = {
  */
 export type CreateSandboxFromImageParams = CreateSandboxBaseParams & {
   image: string | Image
-  resources?: Resources
+  resources?: CreateSandboxResources
 }
 
 /**
@@ -699,7 +710,7 @@ export class Daytona implements AsyncDisposable {
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
-      let resources: Resources | undefined
+      let resources: CreateSandboxResources | undefined
 
       if ('snapshot' in params) {
         snapshot = params.snapshot
@@ -880,6 +891,8 @@ export class Daytona implements AsyncDisposable {
 
   /**
    * Iterates over Sandboxes matching the given query.
+   * Multi-node GPU sandboxes currently use whole 8-GPU nodes. A gang deleted
+   * between listing and fetching its node details is skipped.
    *
    * @param {ListSandboxesQuery} [query] - Optional filters, sorting, and per-page size.
    * @returns {AsyncIterableIterator<Sandbox>}
@@ -967,8 +980,19 @@ export class Daytona implements AsyncDisposable {
         firstPage = false
 
         for (const sandbox of response.data.items) {
+          // SandboxListItem deliberately stays lightweight and does not carry
+          // internal member rows. This release uses whole 8-GPU nodes, so
+          // gangs have more than 8 GPUs. Ordinary sandboxes need no extra GET.
+          let sandboxWithNodes: SandboxDto | typeof sandbox
+          try {
+            sandboxWithNodes = sandbox.gpu > 8 ? (await sandboxApi.getSandbox(sandbox.id)).data : sandbox
+          } catch (error) {
+            // A listed gang may be deleted before its hydration GET.
+            if (error instanceof DaytonaNotFoundError) continue
+            throw error
+          }
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
-          const hydratedSandbox = await ensureToolboxProxyUrl(sandbox)
+          const hydratedSandbox = await ensureToolboxProxyUrl(sandboxWithNodes)
           yield new Sandbox(
             hydratedSandbox,
             structuredClone(clientConfig),

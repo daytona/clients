@@ -595,6 +595,36 @@ describe('Daytona', () => {
     expect(payload.kvm).toBeUndefined()
   })
 
+  it('forwards rank-ordered per-node resources', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+
+    mockSandboxApi.createSandbox.mockResolvedValue(
+      createApiResponse({ id: 'gang-1', gpu: 32, state: 'started', labels: { 'code-toolbox-language': 'python' } }),
+    )
+
+    await instance.create({
+      image: 'ubuntu:24.04',
+      resources: {
+        gpu: 32,
+        gpuType: 'H100',
+        cpu: [16, 16, 32, 32],
+        memory: 256,
+        disk: [180, 180, 300, 300],
+      },
+    })
+
+    expect(mockSandboxApi.createSandbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cpu: [16, 16, 32, 32],
+        memory: 256,
+        disk: [180, 180, 300, 300],
+      }),
+      undefined,
+      { timeout: 60000 },
+    )
+  })
+
   it('creates sandboxes from image names using buildInfo dockerfile content', async () => {
     const { Daytona } = await import('../Daytona')
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
@@ -871,6 +901,50 @@ describe('Daytona', () => {
     expect(mockSandboxCtor).toHaveBeenCalledTimes(3)
     const configs = mockSandboxCtor.mock.calls.map((call: unknown[]) => call[1])
     expect(new Set(configs).size).toBe(3)
+  })
+
+  it('hydrates listed gang heads so their node array is complete', async () => {
+    const { Daytona } = await import('../Daytona')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+    const nodes = [
+      { rank: 0, id: 'gang-1', cpu: 16, gpu: 8, memory: 192, disk: 512 },
+      { rank: 1, id: 'worker-1', cpu: 16, gpu: 8, memory: 192, disk: 512 },
+    ]
+
+    mockSandboxApi.listSandboxes.mockResolvedValue(
+      createApiResponse({ items: [{ id: 'gang-1', gpu: 16, labels: {} }], nextCursor: null }),
+    )
+    mockSandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({ id: 'gang-1', gpu: 16, labels: {}, nodeCount: 2, nodes }),
+    )
+
+    await instance.list().next()
+
+    expect(mockSandboxApi.getSandbox).toHaveBeenCalledWith('gang-1')
+    expect(mockSandboxCtor.mock.calls.at(-1)?.[0]).toEqual(expect.objectContaining({ nodes }))
+  })
+
+  it.each([404, 500])('handles hydration failures without hiding other errors (status=%s)', async (status) => {
+    const { Daytona } = await import('../Daytona')
+    const { DaytonaNotFoundError, DaytonaError } = await import('../errors/DaytonaError')
+    const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
+    mockSandboxApi.listSandboxes.mockResolvedValue(
+      createApiResponse({
+        items: [
+          { id: 'gone', gpu: 16, labels: {} },
+          { id: 'live', gpu: 0, labels: {}, toolboxProxyUrl: 'http://proxy' },
+        ],
+        nextCursor: null,
+      }),
+    )
+    const error = status === 404 ? new DaytonaNotFoundError('deleted', 404) : new DaytonaError('unavailable', 500)
+    mockSandboxApi.getSandbox.mockRejectedValueOnce(error)
+    if (status === 404) {
+      await instance.list().next()
+      expect(mockSandboxCtor.mock.calls.at(-1)?.[0].id).toBe('live')
+    } else {
+      await expect(instance.list().next()).rejects.toBe(error)
+    }
   })
 
   it('serializes label filters when listing sandboxes', async () => {

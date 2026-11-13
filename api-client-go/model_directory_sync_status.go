@@ -20,9 +20,9 @@ type DirectorySyncStatus string
 
 // List of DirectorySyncStatus
 const (
-	DIRECTORYSYNCSTATUS_ACTIVE DirectorySyncStatus = "active"
-	DIRECTORYSYNCSTATUS_INACTIVE DirectorySyncStatus = "inactive"
-	DIRECTORYSYNCSTATUS_DELETED DirectorySyncStatus = "deleted"
+	DIRECTORYSYNCSTATUS_ACTIVE                   DirectorySyncStatus = "active"
+	DIRECTORYSYNCSTATUS_INACTIVE                 DirectorySyncStatus = "inactive"
+	DIRECTORYSYNCSTATUS_DELETED                  DirectorySyncStatus = "deleted"
 	DIRECTORYSYNCSTATUS_UNKNOWN_DEFAULT_OPEN_API DirectorySyncStatus = "11184809"
 )
 
@@ -114,4 +114,3 @@ func (v *NullableDirectorySyncStatus) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

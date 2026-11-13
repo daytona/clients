@@ -283,3 +283,60 @@ daytona.volume.list.each { |vol| puts vol.name }
 query = Daytona::ListSandboxesQuery.new(labels: { 'env' => 'dev' })
 daytona.list(query).each { |sandbox| puts sandbox.id }
 ```
+
+## Multi-node GPU sandboxes
+
+Multi-node access requires an enabled organization quota and compatible fabric capacity.
+Initial profiles use whole 8-GPU nodes: 16 GPUs creates two nodes. Use an image containing
+your framework and RDMA userspace (`libibverbs.so.1` and an mlx5 provider).
+
+```ruby
+params = Daytona::CreateSandboxFromImageParams.new(
+  image: 'your-registry/rdma-workload:tag',
+  resources: Daytona::Resources.new(gpu: 16, cpu: [16, 16], memory: [64, 64], disk: [100, 100])
+)
+sandbox = daytona.create(params)
+worker = sandbox.nodes[1] # Rank zero is the head.
+worker.process.exec(command: 'hostname')
+
+begin
+  results = sandbox.nodes.process.exec(
+    command: 'hostname', timeout: 120,
+    on_stdout: ->(rank, chunk) { print "[rank #{rank}] #{chunk}" }
+  )
+  puts results.transform_values(&:result)
+rescue Daytona::Sdk::NodeOperationError => error
+  puts error.failures # Errors keyed by rank.
+  puts error.results  # Successful ranks remain available.
+end
+sandbox.nodes.fs.upload_file('hello', '/tmp/shared.txt')
+puts worker.preview_url(8080).url
+ssh = worker.create_ssh_access(60)
+puts ssh.ssh_command
+worker.revoke_ssh_access(ssh.token)
+
+sandbox.nodes.add(nodes: [Daytona::NodeResources.new(cpu: 16, memory: 64, disk: 100)])
+sandbox.nodes.release(count: 1) # Releases the highest rank.
+# When a rank fails: sandbox.nodes.replace(rank: rank).
+```
+
+Scalar resources remain supported; arrays specify per-node allocations ordered by rank.
+Node handles expose resources, state, incarnation, failure and fabric health; the sandbox
+exposes `node_count`, `topology_generation` and `degraded`. Call `sandbox.refresh` for current
+metadata. Retained node handles survive refreshes; enumerate the collection again after
+membership changes to find replacements. Existing sandbox services address the head.
+
+Membership helpers refresh the generation, submit, wait and refresh membership. They default
+to `timeout: 600`; zero disables the overall wait limit. A timeout ends the SDK wait without
+canceling the submitted operation. Admission errors propagate directly; the SDK adds no queue.
+Configured transport timeouts still apply.
+
+Parallel helpers capture current membership, settle every rank and report rank-specific
+errors. Exec uses a private session on every node even without streaming. Callbacks receive
+`(rank, chunk)` and are serialized. A positive timeout applies per command; zero has no SDK
+execution limit. Session cleanup is attempted after success, error or cancellation, with an
+independent ten-second budget that needs connectivity. Successful commands remain successful
+if cleanup fails; inspect `node.warnings`. RDMA checks warn without blocking execution.
+Uploads are not rolled back on partial failure; IO input is read once before parallel upload.
+Applications must coordinate checkpointing and process restarts after membership changes;
+environment variables in existing processes are not rewritten.

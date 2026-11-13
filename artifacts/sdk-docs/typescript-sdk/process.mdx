@@ -245,7 +245,7 @@ await ptyHandle.disconnect();
 #### createSession()
 
 ```ts
-createSession(sessionId: string): Promise<void>;
+createSession(sessionId: string, timeout?: number): Promise<void>;
 ```
 
 Creates a new long-running background session in the Sandbox.
@@ -257,6 +257,7 @@ long-running commands and monitor process status.
 **Parameters**:
 
 - `sessionId` _string_ - Unique identifier for the new session
+- `timeout?` _number_ - Optional HTTP request timeout in seconds; 0 disables it.
 
 
 **Returns**:
@@ -277,7 +278,7 @@ await process.deleteSession(sessionId);
 #### deleteSession()
 
 ```ts
-deleteSession(sessionId: string): Promise<void>;
+deleteSession(sessionId: string, timeout?: number): Promise<void>;
 ```
 
 Delete a session from the Sandbox.
@@ -285,6 +286,7 @@ Delete a session from the Sandbox.
 **Parameters**:
 
 - `sessionId` _string_ - Unique identifier of the session to delete
+- `timeout?` _number_ - HTTP cleanup request timeout in seconds; 0 disables the request deadline
 
 
 **Returns**:
@@ -618,7 +620,8 @@ getSessionCommandLogs(
    sessionId: string, 
    commandId: string, 
    onStdout: (chunk: string) => void, 
-   onStderr: (chunk: string) => void
+   onStderr: (chunk: string) => void, 
+   signal?: AbortSignal
 ): Promise<void>;
 ```
 
@@ -630,6 +633,7 @@ Asynchronously retrieve and process the logs for a command executed in a session
 - `commandId` _string_ - Unique identifier of the command
 - `onStdout` _\(chunk: string\) =\> void_ - Callback function to handle stdout log chunks
 - `onStderr` _\(chunk: string\) =\> void_ - Callback function to handle stderr log chunks
+- `signal?` _AbortSignal_ - Stop the local log stream without deleting the remote session
 
 **Returns**:
 

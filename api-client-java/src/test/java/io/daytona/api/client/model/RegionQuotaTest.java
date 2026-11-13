@@ -170,4 +170,12 @@ public class RegionQuotaTest {
         // TODO: test maxSandboxLifespan
     }
 
+    /**
+     * Test the property 'maxNodesPerSandbox'
+     */
+    @Test
+    public void maxNodesPerSandboxTest() {
+        // TODO: test maxNodesPerSandbox
+    }
+
 }

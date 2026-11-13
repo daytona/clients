@@ -34,7 +34,7 @@ type StorageAccessDto struct {
 	// S3 bucket name
 	Bucket string `json:"bucket"`
 	// Region for the storage backend (e.g. \"us-east-2\")
-	Region string `json:"region"`
+	Region               string `json:"region"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -233,7 +233,7 @@ func (o *StorageAccessDto) SetRegion(v string) {
 }
 
 func (o StorageAccessDto) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -276,10 +276,10 @@ func (o *StorageAccessDto) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -346,5 +346,3 @@ func (v *NullableStorageAccessDto) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

@@ -20,7 +20,7 @@ type RunnerClass string
 
 // List of RunnerClass
 const (
-	RUNNERCLASS_CONTAINER RunnerClass = "container"
+	RUNNERCLASS_CONTAINER                RunnerClass = "container"
 	RUNNERCLASS_UNKNOWN_DEFAULT_OPEN_API RunnerClass = "11184809"
 )
 
@@ -110,4 +110,3 @@ func (v *NullableRunnerClass) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

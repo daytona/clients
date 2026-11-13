@@ -27,7 +27,7 @@ type StringFilter struct {
 	// Match values present in this list. Accepts comma-separated values or repeated query parameters. Maximum 100 entries.
 	In []string `json:"in,omitempty"`
 	// Match values not present in this list. Accepts comma-separated values or repeated query parameters. Maximum 100 entries.
-	NotIn []string `json:"notIn,omitempty"`
+	NotIn                []string `json:"notIn,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -179,7 +179,7 @@ func (o *StringFilter) SetNotIn(v []string) {
 }
 
 func (o StringFilter) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -267,5 +267,3 @@ func (v *NullableStringFilter) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

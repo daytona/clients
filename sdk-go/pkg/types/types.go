@@ -85,11 +85,15 @@ type DaytonaConfig struct {
 
 // Resources represents resource allocation for a sandbox.
 type Resources struct {
-	CPU     int
-	GPU     int
-	GpuType []GpuType
-	Memory  int
-	Disk    int
+	// Per-node arrays are ordered by rank. Set either the scalar or its array, not both.
+	CPUPerNode    []int
+	MemoryPerNode []int
+	DiskPerNode   []int
+	CPU           int
+	GPU           int
+	GpuType       []GpuType
+	Memory        int
+	Disk          int
 }
 
 // VolumeMount represents a volume mount configuration

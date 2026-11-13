@@ -20,8 +20,8 @@ type SandboxListSortDirection string
 
 // List of SandboxListSortDirection
 const (
-	SANDBOXLISTSORTDIRECTION_ASC SandboxListSortDirection = "asc"
-	SANDBOXLISTSORTDIRECTION_DESC SandboxListSortDirection = "desc"
+	SANDBOXLISTSORTDIRECTION_ASC                      SandboxListSortDirection = "asc"
+	SANDBOXLISTSORTDIRECTION_DESC                     SandboxListSortDirection = "desc"
 	SANDBOXLISTSORTDIRECTION_UNKNOWN_DEFAULT_OPEN_API SandboxListSortDirection = "11184809"
 )
 
@@ -112,4 +112,3 @@ func (v *NullableSandboxListSortDirection) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

@@ -20,15 +20,15 @@ type GpuType string
 
 // List of GpuType
 const (
-	GPUTYPE_H100 GpuType = "H100"
-	GPUTYPE_H200 GpuType = "H200"
-	GPUTYPE_B200 GpuType = "B200"
-	GPUTYPE_B300 GpuType = "B300"
-	GPUTYPE_L40S GpuType = "L40S"
-	GPUTYPE_RTX_PRO_6000 GpuType = "RTX-PRO-6000"
-	GPUTYPE_RTX_4090 GpuType = "RTX-4090"
-	GPUTYPE_RTX_5090 GpuType = "RTX-5090"
-	GPUTYPE_MI355X GpuType = "MI355X"
+	GPUTYPE_H100                     GpuType = "H100"
+	GPUTYPE_H200                     GpuType = "H200"
+	GPUTYPE_B200                     GpuType = "B200"
+	GPUTYPE_B300                     GpuType = "B300"
+	GPUTYPE_L40S                     GpuType = "L40S"
+	GPUTYPE_RTX_PRO_6000             GpuType = "RTX-PRO-6000"
+	GPUTYPE_RTX_4090                 GpuType = "RTX-4090"
+	GPUTYPE_RTX_5090                 GpuType = "RTX-5090"
+	GPUTYPE_MI355X                   GpuType = "MI355X"
 	GPUTYPE_UNKNOWN_DEFAULT_OPEN_API GpuType = "11184809"
 )
 
@@ -126,4 +126,3 @@ func (v *NullableGpuType) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

@@ -24,7 +24,7 @@ type CreateSandboxSnapshot struct {
 	// Name for the new snapshot
 	Name string `json:"name"`
 	// Include the VM's memory in the snapshot. VM sandboxes only. When true the sandbox must be STARTED; when false (default) VM sandboxes must be STOPPED. Container sandboxes do not support memory snapshots.
-	IncludeMemory *bool `json:"includeMemory,omitempty"`
+	IncludeMemory        *bool `json:"includeMemory,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -109,7 +109,7 @@ func (o *CreateSandboxSnapshot) SetIncludeMemory(v bool) {
 }
 
 func (o CreateSandboxSnapshot) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -143,10 +143,10 @@ func (o *CreateSandboxSnapshot) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -208,5 +208,3 @@ func (v *NullableCreateSandboxSnapshot) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

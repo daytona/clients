@@ -21,7 +21,7 @@ var _ MappedNullable = &UpdateLastActivity{}
 // UpdateLastActivity struct for UpdateLastActivity
 type UpdateLastActivity struct {
 	// Optional type of interaction that reset the activity timer.
-	ActivityType *string `json:"activityType,omitempty"`
+	ActivityType         *string `json:"activityType,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -77,7 +77,7 @@ func (o *UpdateLastActivity) SetActivityType(v string) {
 }
 
 func (o UpdateLastActivity) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -153,5 +153,3 @@ func (v *NullableUpdateLastActivity) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

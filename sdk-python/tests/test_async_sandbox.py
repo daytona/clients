@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import warnings
 from unittest.mock import AsyncMock, MagicMock
 
@@ -16,6 +17,8 @@ from daytona.common.errors import (
     DaytonaTimeoutError,
     DaytonaValidationError,
 )
+from daytona.common.process import ExecuteResponse
+from daytona.common.sandbox import NodeResources
 from daytona_api_client import SandboxState
 from daytona_api_client_async import Sandbox as AsyncSandboxDto
 from daytona_api_client_async import UpdateSandboxSecrets
@@ -35,7 +38,60 @@ def make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sa
     )
 
 
+class TestAsyncSandboxNodeSsh:
+    @pytest.mark.parametrize("rank", [0, 1])
+    @pytest.mark.parametrize(
+        "expires_in_minutes,request_timeout,expected_timeout",
+        [(None, None, None), (30, 0.25, 1)],
+    )
+    @pytest.mark.asyncio
+    async def test_node_ssh_targets_selected_member(
+        self,
+        mock_async_toolbox_api_client,
+        mock_async_sandbox_api,
+        rank,
+        expires_in_minutes,
+        request_timeout,
+        expected_timeout,
+    ):
+        dto = make_sandbox_dto(
+            node_count=2,
+            nodes=[{"rank": 0, "id": "test-sandbox-id"}, {"rank": 1, "id": "worker-1"}],
+        )
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        access = MagicMock(token="ssh-token", ssh_command="ssh ssh-token@gateway.example.com")
+        mock_async_sandbox_api.create_ssh_access = AsyncMock(return_value=access)
+        mock_async_sandbox_api.revoke_ssh_access = AsyncMock()
+        node = sandbox.nodes[rank]
+
+        result = await node.create_ssh_access(expires_in_minutes, request_timeout=request_timeout)
+        await node.revoke_ssh_access(access.token, request_timeout=request_timeout)
+
+        assert result is access
+        mock_async_sandbox_api.create_ssh_access.assert_awaited_once_with(
+            node.id,
+            expires_in_minutes=expires_in_minutes,
+            _request_timeout=expected_timeout,
+        )
+        mock_async_sandbox_api.revoke_ssh_access.assert_awaited_once_with(
+            node.id,
+            token=access.token,
+            _request_timeout=expected_timeout,
+        )
+
+
 class TestAsyncSandboxInit:
+    def test_old_api_response_defaults_to_one_head_node(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        payload = make_sandbox_dto().to_dict()
+        payload.pop("nodes")
+        payload.pop("nodeCount")
+        dto = AsyncSandboxDto.from_dict(payload)
+
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
+        assert sandbox.node_count == 1
+        assert [(node.rank, node.id) for node in sandbox.nodes] == [(0, sandbox.id)]
+
     def test_sandbox_properties(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
         sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         assert sandbox.id == "test-sandbox-id"
@@ -50,6 +106,17 @@ class TestAsyncSandboxInit:
         assert sandbox.process is not None
         assert sandbox.computer_use is not None
         assert sandbox.code_interpreter is not None
+
+    def test_sandbox_serialization_includes_live_nodes(
+        self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
+        payload = json.loads(sandbox.model_dump_json(by_alias=True))
+
+        assert payload["nodes"][0]["id"] == sandbox.id
+        assert payload["nodes"][0]["rank"] == 0
+        assert sandbox.to_dict()["nodes"][0]["incarnation"] == 1
 
     def test_process_dto_preserves_proxy_url_when_missing(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
         dto = make_sandbox_dto(toolbox_proxy_url="http://hydrated:2280")
@@ -140,6 +207,83 @@ class TestAsyncSandboxLifecycleSettings:
 
 class TestAsyncSandboxOperations:
     @pytest.mark.asyncio
+    async def test_exec_all_runs_same_command_on_every_node(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(
+            node_count=2,
+            nodes=[{"rank": 0, "id": "test-sandbox-id"}, {"rank": 1, "id": "worker-1"}],
+        )
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        for node in sandbox.nodes:
+            node.process.exec = AsyncMock(
+                side_effect=[
+                    ExecuteResponse.model_construct(exit_code=0, result="", additional_properties={}),
+                    ExecuteResponse.model_construct(
+                        exit_code=node.rank, result=f"node-{node.rank}", additional_properties={}
+                    ),
+                ]
+            )
+
+        results = await sandbox.nodes.process.exec("hostname")
+
+        assert list(results) == [0, 1]
+        assert results[0].result == "node-0"
+        assert results[1].exit_code == 1
+        assert all(node.process.exec.await_args_list[1].args == ("hostname",) for node in sandbox.nodes)
+
+    @pytest.mark.asyncio
+    async def test_nodes_upload_file_reports_all_failed_ranks(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        dto = make_sandbox_dto(
+            node_count=2,
+            nodes=[{"rank": 0, "id": "test-sandbox-id"}, {"rank": 1, "id": "worker-1"}],
+        )
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        sandbox.nodes[0].fs.upload_file = AsyncMock(return_value=None)
+        sandbox.nodes[1].fs.upload_file = AsyncMock(side_effect=RuntimeError("disk full"))
+
+        with pytest.raises(DaytonaError, match=r"node ranks \[1\].*disk full"):
+            await sandbox.nodes.fs.upload_file(b"data", "/workspace/data.bin")
+
+        assert sandbox.nodes[0].fs.upload_file.await_count == 1
+        assert sandbox.nodes[1].fs.upload_file.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_nodes_collection_stays_live_after_add(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(topology_generation=1)
+        updated = make_sandbox_dto(
+            topology_generation=2,
+            node_count=2,
+            cpu=36,
+            memory=264,
+            disk=330,
+            nodes=[
+                {"rank": 0, "id": "test-sandbox-id", "cpu": 4, "memory": 8, "disk": 30},
+                {"rank": 1, "id": "worker-1", "cpu": 32, "memory": 256, "disk": 300},
+            ],
+        )
+        operation = MagicMock(id="op-1", status="COMPLETED", type="ADD", error_reason=None)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=[dto, updated])
+        mock_async_sandbox_api.add_sandbox_nodes = AsyncMock(return_value=operation)
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        nodes = sandbox.nodes
+
+        result = await nodes.add([NodeResources(cpu=32, memory=256, disk=300)], timeout=0)
+
+        assert sandbox.nodes is nodes
+        assert [(node.rank, node.id) for node in nodes] == [(0, "test-sandbox-id"), (1, "worker-1")]
+        assert result is operation
+        request = mock_async_sandbox_api.add_sandbox_nodes.await_args.args[1]
+        assert request.expected_generation == 1
+        assert request.nodes[0].model_dump(exclude={"additional_properties"}) == {
+            "cpu": 32,
+            "memory": 256,
+            "disk": 300,
+        }
+
+    @pytest.mark.asyncio
     async def test_set_labels(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
         sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         new_labels = {"project": "test", "env": "dev"}
@@ -203,7 +347,9 @@ class TestAsyncSandboxOperations:
         await sandbox.refresh_activity()
 
         mock_async_sandbox_api.get_port_preview_url.assert_awaited_once_with(sandbox.id, 3000, _request_timeout=None)
-        mock_async_sandbox_api.revoke_ssh_access.assert_awaited_once_with(sandbox.id, "token", _request_timeout=None)
+        mock_async_sandbox_api.revoke_ssh_access.assert_awaited_once_with(
+            sandbox.id, token="token", _request_timeout=None
+        )
         mock_async_sandbox_api.update_last_activity.assert_awaited_once_with(sandbox.id, _request_timeout=None)
 
     @pytest.mark.asyncio
@@ -501,3 +647,42 @@ class TestAsyncSandboxPollingSemantics:
 
         with pytest.warns(DeprecationWarning, match="Use `create_snapshot` instead"):
             await sandbox._experimental_create_snapshot("my-snapshot", timeout=0)
+
+
+def test_lightweight_event_preserves_gang_metadata(mock_async_toolbox_api_client, mock_async_sandbox_api):
+    dto = make_sandbox_dto(
+        node_count=2,
+        topology_generation=7,
+        degraded=True,
+        nodes=[{"rank": 0, "id": "test-sandbox-id"}, {"rank": 1, "id": "worker-1"}],
+    )
+    sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+    from daytona_api_client_async import SandboxListItem
+
+    update = SandboxListItem.model_validate(dto.model_dump())
+
+    assert sandbox.degraded is True
+    sandbox._AsyncSandbox__process_sandbox_dto(update)
+
+    assert sandbox.node_count == 2
+    assert sandbox.degraded is True
+    assert sandbox.topology_generation == 7
+    assert len(sandbox.nodes) == 2
+
+
+@pytest.mark.parametrize("with_nodes", [True, False])
+def test_proxy_refresh_updates_existing_node_clients(mock_async_toolbox_api_client, mock_async_sandbox_api, with_nodes):
+    dto = make_sandbox_dto(node_count=2, toolbox_proxy_url="https://old.example/toolbox")
+    sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+    handles = list(sandbox.nodes)
+    processes = [node.process for node in handles]
+    update = dto.model_copy(update={"toolbox_proxy_url": "https://new.example/toolbox"})
+    if not with_nodes:
+        from daytona_api_client_async import SandboxListItem
+
+        update = SandboxListItem.model_validate(update.model_dump())
+    sandbox._AsyncSandbox__process_sandbox_dto(update)
+    assert len(sandbox.nodes) == len(handles) == 2
+    assert all(node is old for node, old in zip(sandbox.nodes, handles))
+    assert all(node.process is old for node, old in zip(sandbox.nodes, processes))
+    assert all(node._toolbox_api._toolbox_base_url == "https://new.example/toolbox" for node in handles)

@@ -20,15 +20,15 @@ type SnapshotState string
 
 // List of SnapshotState
 const (
-	SNAPSHOTSTATE_BUILDING SnapshotState = "building"
-	SNAPSHOTSTATE_PENDING SnapshotState = "pending"
-	SNAPSHOTSTATE_PULLING SnapshotState = "pulling"
-	SNAPSHOTSTATE_SNAPSHOTTING SnapshotState = "snapshotting"
-	SNAPSHOTSTATE_ACTIVE SnapshotState = "active"
-	SNAPSHOTSTATE_INACTIVE SnapshotState = "inactive"
-	SNAPSHOTSTATE_ERROR SnapshotState = "error"
-	SNAPSHOTSTATE_BUILD_FAILED SnapshotState = "build_failed"
-	SNAPSHOTSTATE_REMOVING SnapshotState = "removing"
+	SNAPSHOTSTATE_BUILDING                 SnapshotState = "building"
+	SNAPSHOTSTATE_PENDING                  SnapshotState = "pending"
+	SNAPSHOTSTATE_PULLING                  SnapshotState = "pulling"
+	SNAPSHOTSTATE_SNAPSHOTTING             SnapshotState = "snapshotting"
+	SNAPSHOTSTATE_ACTIVE                   SnapshotState = "active"
+	SNAPSHOTSTATE_INACTIVE                 SnapshotState = "inactive"
+	SNAPSHOTSTATE_ERROR                    SnapshotState = "error"
+	SNAPSHOTSTATE_BUILD_FAILED             SnapshotState = "build_failed"
+	SNAPSHOTSTATE_REMOVING                 SnapshotState = "removing"
 	SNAPSHOTSTATE_UNKNOWN_DEFAULT_OPEN_API SnapshotState = "11184809"
 )
 
@@ -126,4 +126,3 @@ func (v *NullableSnapshotState) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

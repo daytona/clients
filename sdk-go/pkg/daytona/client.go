@@ -59,6 +59,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"iter"
@@ -654,8 +655,11 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	}
 
 	if resources != nil {
+		if err := applyPerNodeResources(createReq, resources); err != nil {
+			return nil, err
+		}
 		if resources.CPU > 0 {
-			createReq.SetCpu(int32(resources.CPU))
+			createReq.SetCpu(apiclient.Int32AsCreateSandboxCpu(apiclient.PtrInt32(int32(resources.CPU))))
 		}
 		if resources.GPU > 0 {
 			createReq.SetGpu(int32(resources.GPU))
@@ -664,10 +668,10 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 			createReq.SetGpuType(resources.GpuType)
 		}
 		if resources.Memory > 0 {
-			createReq.SetMemory(int32(resources.Memory))
+			createReq.SetMemory(apiclient.Int32AsCreateSandboxMemory(apiclient.PtrInt32(int32(resources.Memory))))
 		}
 		if resources.Disk > 0 {
-			createReq.SetDisk(int32(resources.Disk))
+			createReq.SetDisk(apiclient.Int32AsCreateSandboxDisk(apiclient.PtrInt32(int32(resources.Disk))))
 		}
 	}
 
@@ -689,6 +693,9 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 
 	language := types.CodeLanguage(sandboxResp.GetLabels()[types.CodeToolboxLanguageLabel])
 	sandbox := NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager)
+	if err := sandbox.Nodes.Err(); err != nil {
+		return nil, err
+	}
 
 	// Handle snapshot build logs
 	if sandbox.currentState() == apiclient.SANDBOXSTATE_PENDING_BUILD {
@@ -773,7 +780,11 @@ func (c *Client) doGet(ctx context.Context, sandboxIDOrName string) (*Sandbox, e
 	}
 
 	language := types.CodeLanguage(sandboxResp.GetLabels()[types.CodeToolboxLanguageLabel])
-	return NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager), nil
+	sandbox := NewSandbox(c, toolboxClient, sandboxResp, language, c.subscriptionManager)
+	if err := sandbox.Nodes.Err(); err != nil {
+		return nil, err
+	}
+	return sandbox, nil
 }
 
 // List returns an iterator over Sandboxes matching the given query, following
@@ -919,7 +930,7 @@ func (c *Client) fetchPage(ctx context.Context, query *ListSandboxesQuery, curso
 		}
 
 		items := result.GetItems()
-		sandboxes := make([]*Sandbox, len(items))
+		sandboxes := make([]*Sandbox, 0, len(items))
 		for i := range items {
 			toolboxClient, tcErr := c.createToolboxClient(items[i].GetToolboxProxyUrl(), items[i].GetId())
 			if tcErr != nil {
@@ -927,7 +938,19 @@ func (c *Client) fetchPage(ctx context.Context, query *ListSandboxesQuery, curso
 			}
 
 			lang := types.CodeLanguage(items[i].GetLabels()[types.CodeToolboxLanguageLabel])
-			sandboxes[i] = NewSandbox(c, toolboxClient, &items[i], lang, c.subscriptionManager)
+			sandbox := NewSandbox(c, toolboxClient, &items[i], lang, c.subscriptionManager)
+			if items[i].GetGpu() > gpuUnitsPerGangNode {
+				if err := sandbox.doRefreshData(ctx); err != nil {
+					if stderrors.Is(err, errors.ErrNotFound) {
+						continue
+					}
+					return nil, err
+				}
+			}
+			if err := sandbox.Nodes.Err(); err != nil {
+				return nil, err
+			}
+			sandboxes = append(sandboxes, sandbox)
 		}
 
 		var nextCursor *string

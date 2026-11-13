@@ -26,7 +26,7 @@ type TestIdentityProviderConnectionResponse struct {
 	// The discovered issuer from the OIDC configuration
 	Issuer *string `json:"issuer,omitempty"`
 	// Error message if the connection test failed
-	Error *string `json:"error,omitempty"`
+	Error                *string `json:"error,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -139,7 +139,7 @@ func (o *TestIdentityProviderConnectionResponse) SetError(v string) {
 }
 
 func (o TestIdentityProviderConnectionResponse) MarshalJSON() ([]byte, error) {
-	toSerialize,err := o.ToMap()
+	toSerialize, err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -176,10 +176,10 @@ func (o *TestIdentityProviderConnectionResponse) UnmarshalJSON(data []byte) (err
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
-	for _, requiredProperty := range(requiredProperties) {
+	for _, requiredProperty := range requiredProperties {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -242,5 +242,3 @@ func (v *NullableTestIdentityProviderConnectionResponse) UnmarshalJSON(src []byt
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

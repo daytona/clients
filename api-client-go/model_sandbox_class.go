@@ -20,9 +20,9 @@ type SandboxClass string
 
 // List of SandboxClass
 const (
-	SANDBOXCLASS_LINUX_VM SandboxClass = "linux-vm"
-	SANDBOXCLASS_CONTAINER SandboxClass = "container"
-	SANDBOXCLASS_WINDOWS SandboxClass = "windows"
+	SANDBOXCLASS_LINUX_VM                 SandboxClass = "linux-vm"
+	SANDBOXCLASS_CONTAINER                SandboxClass = "container"
+	SANDBOXCLASS_WINDOWS                  SandboxClass = "windows"
 	SANDBOXCLASS_UNKNOWN_DEFAULT_OPEN_API SandboxClass = "11184809"
 )
 
@@ -114,4 +114,3 @@ func (v *NullableSandboxClass) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-

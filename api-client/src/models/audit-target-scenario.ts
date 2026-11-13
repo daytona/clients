@@ -115,6 +115,9 @@ export const AuditTargetScenarioActionsEnum = {
     TTL_EXPIRE: 'ttl_expire',
     QUEUE_TIMEOUT_EXPIRE: 'queue_timeout_expire',
     SPOT_EVICT: 'spot_evict',
+    ADD_NODES: 'add_nodes',
+    REMOVE_NODES: 'remove_nodes',
+    REPLACE_NODE: 'replace_node',
     UNKNOWN_DEFAULT_OPEN_API: '11184809',
 } as const;
 
