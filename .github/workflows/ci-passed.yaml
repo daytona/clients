@@ -14,8 +14,9 @@ name: CI passed
 #   pull request depends on API changes that are not deployed yet, so it stays
 #   visible but does not block merging;
 # - checks that are not `pull_request` workflow runs: third-party apps (cubic,
-#   FOSSA, DCO), CodeQL default setup, and the CLA workflow
-#   (`pull_request_target`), which is required on its own.
+#   FOSSA, DCO), CodeQL default setup, the CLA workflow
+#   (`pull_request_target`), which is required on its own, and the
+#   informational AX evals (`pull_request_target` and manual runs).
 #
 # A re-run of a counted workflow re-runs this check when it completes
 # (ci-passed-rerun.yaml); re-running `CI passed` by hand also works.

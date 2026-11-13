@@ -12,6 +12,7 @@ name: CI passed re-run
 on:
   workflow_run:
     workflows:
+      - '[CI] AX evals config'
       - Changelog fragments
       - CLI CI
       - Contract types
