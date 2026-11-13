@@ -121,16 +121,18 @@ async function run({ github, context, core }) {
   const runUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`
   if (selected.length === 0) {
     // A label run uses main's harness: changes to it are tested from the PR's branch.
-    const harness = (files || []).some(
-      (file) => file.filename.startsWith('scripts/ax-evals/') || file.filename === '.github/workflows/ax_evals.yaml',
-    )
+    const harness = (files || [])
+      .flatMap((file) => [file.filename, file.previous_filename].filter(Boolean))
+      .some((name) => name.startsWith('scripts/ax-evals/') || name === '.github/workflows/ax_evals.yaml')
+    // Single-quoted for the shell; a quote inside the branch name is closed and escaped.
+    const ref = `'${pr.head.ref.replace(/'/g, `'\\''`)}'`
     await upsertComment(github, repo, prNumber, context.runId, [
       HEADING,
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
       `To run evals anyway: \`${DISPATCH_HINT.replace('<number>', prNumber)}\` (replace \`all\` with a surface such as \`cli\`, a task such as \`preview-url\`, or one eval such as \`cli-preview-url\`).`,
       ...(harness
-        ? [`This PR changes the AX evals harness, which a run from \`main\` does not use: to test it, dispatch with \`--ref ${pr.head.ref}\` instead.`]
+        ? [`This PR changes the AX evals harness, which a run from \`main\` does not use: to test it, dispatch with \`--ref ${ref}\` instead.`]
         : []),
     ]).catch((error) => core.warning(`Could not write the AX evals comment: ${error.message}`))
     return

@@ -180,7 +180,19 @@ test('plan: forks, other bases, unknown evals, selection, renames, nothing chang
   assert.doesNotMatch(docsOnly.calls[0][1], /harness/)
   const harnessOnly = mockGithub({ files: [{ filename: 'scripts/ax-evals/plan.js' }] })
   assert.equal((await runPlan(harnessOnly, dispatchContext(''))).matrix, '[]')
-  assert.match(harnessOnly.calls[0][1], /dispatch with `--ref feature\/x` instead/)
+  assert.match(harnessOnly.calls[0][1], /dispatch with `--ref 'feature\/x'` instead/)
+  const moved = mockGithub({ files: [{ filename: 'legacy/plan.js', previous_filename: 'scripts/ax-evals/plan.js' }] })
+  await runPlan(moved, dispatchContext(''))
+  assert.match(moved.calls[0][1], /harness/)
+  const odd = mockGithub({ files: [{ filename: 'scripts/ax-evals/plan.js' }] })
+  const get = odd.rest.pulls.get
+  odd.rest.pulls.get = async (args) => {
+    const r = await get(args)
+    r.data.head.ref = "x';rm -rf ~;'$HOME"
+    return r
+  }
+  await runPlan(odd, dispatchContext(''))
+  assert.ok(odd.calls[0][1].includes(`--ref 'x'\\'';rm -rf ~;'\\''$HOME'`))
   const failing = mockGithub({ files: [{ filename: 'README.md' }] })
   failing.rest.issues.createComment = async () => {
     throw new Error('secondary rate limit')
