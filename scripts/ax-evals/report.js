@@ -60,10 +60,13 @@ function checksCell(report) {
   return failed.length === 0 ? summary : `${summary} (failed: ${failed.map((slug) => `\`${slug}\``).join(', ')})`
 }
 
+// Agent and judge text is capped so the whole comment stays under GitHub's limit.
+const MAX_TEXT = 600
+
 function oneLine(text) {
+  const flat = redact(text).replace(/\s+/g, ' ').trim()
   return (
-    redact(text)
-      .replace(/\s+/g, ' ')
+    (flat.length > MAX_TEXT ? `${flat.slice(0, MAX_TEXT - 1)}…` : flat)
       .replace(/\\/g, '\\\\')
       // Agent-written text must not notify users or teams.
       .replace(/@(?=[\w-])/g, '@\u200b')

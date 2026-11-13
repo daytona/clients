@@ -10,6 +10,8 @@ const path = require('path')
 const { redact } = require('./redact.js')
 
 const API_ORIGIN = 'https://firegoat.ai'
+// Friction severities Firegoat reports; anything else is shown as `other`.
+const SEVERITIES = new Set(['critical', 'major', 'minor'])
 
 function truncate(text, max) {
   const value = String(text || '').trim()
@@ -45,10 +47,13 @@ function main(outFile) {
     reportJson: env.REPORT_JSON,
     failureReason: env.FAILURE_REASON,
     keyFinding: truncate(redact(keyFindingOf(report)), 600),
-    frictionPoints: frictionOf(report).slice(0, 3).map((point) => ({
-      severity: point.severity,
-      text: truncate(redact(point.desc || point.title), 240),
-    })),
+    frictionPoints: frictionOf(report)
+      .filter((point) => point && typeof point === 'object')
+      .slice(0, 3)
+      .map((point) => ({
+        severity: SEVERITIES.has(point.severity) ? point.severity : 'other',
+        text: truncate(redact(point.desc || point.title), 240),
+      })),
   }
   fs.mkdirSync(path.dirname(outFile), { recursive: true })
   // The result is uploaded as an artifact and rendered in the PR comment.

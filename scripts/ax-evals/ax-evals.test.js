@@ -310,6 +310,11 @@ test('redact: Daytona credentials never reach the comment', () => {
   assert.ok(!out.includes(key) && out.includes('env shows [redacted]'))
 })
 
+test('render: long agent text is capped', () => {
+  const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Ts', finalStatus: 'failed', failureReason: 'x'.repeat(20000) }] }).join('\n')
+  assert.ok(out.length < 2000)
+})
+
 test('render: re-run hint names the PR and main', () => {
   const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
   assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref main -f pr=42 -f evals=all/)
@@ -423,6 +428,8 @@ test('save-result: the top-level narrative wins, legacy is the fallback, credent
   assert.ok(!JSON.stringify(leaked).includes(key))
   assert.equal(leaked.keyFinding, 'ran env:\n[redacted]')
   assert.ok(saveResult({ keyFinding: 'x'.repeat(5000) }).keyFinding.length <= 600)
+  const odd = saveResult({ frictionPoints: [null, 'x', { severity: '@team **bold**', desc: 'd' }] })
+  assert.deepEqual(odd.frictionPoints, [{ severity: 'other', text: 'd' }])
 })
 
 test('workflow: the harness comes from the base branch tip, and every job uses the commit plan used', () => {
