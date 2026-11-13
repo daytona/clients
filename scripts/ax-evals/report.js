@@ -50,6 +50,8 @@ function resultLabel(result) {
   if (result.finalStatus === 'superseded') return '↪️ Superseded'
   if (result.finalStatus === 'running') return '⏱️ Timed out'
   if (!result.runId && result.failureReason) return '💥 Could not start'
+  // Started on Firegoat, but the job lost track of it (stopped, timed out or a polling error).
+  if (result.runId) return '⏹️ Did not finish'
   return '⚠️ Not started'
 }
 

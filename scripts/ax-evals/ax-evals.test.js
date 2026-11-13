@@ -262,6 +262,8 @@ test('render: every status label', () => {
       { title: 'G', finalStatus: 'completed', outcome: 'succeeded', reportJson: checklist({ a: 1 }) },
       { title: 'H', finalStatus: 'completed', outcome: 'succeeded', reportJson: '' },
       { title: 'I', finalStatus: '', failureReason: 'failed to start eval: 401' },
+      { title: 'J', finalStatus: '', runId: 'r1', failureReason: 'fatal error during polling (404)' },
+      { title: 'K', finalStatus: '', runId: 'r2' },
     ],
   }).join('\n')
   const expected = {
@@ -272,6 +274,8 @@ test('render: every status label', () => {
     E: '⚠️ Not started',
     F: '⚠️ Succeeded, checks failed',
     I: '💥 Could not start',
+    J: '⏹️ Did not finish',
+    K: '⏹️ Did not finish',
     G: '✅ Succeeded',
     H: '⚠️ Succeeded, checks missing',
   }

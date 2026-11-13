@@ -11,8 +11,9 @@ name: '[PR] AX evals (Firegoat)'
 #   (tokens are combined: `cli preview-url` is every CLI eval plus every preview-URL eval)
 # Prompts and setup scripts live in scripts/ax-evals and are stored on Firegoat; they
 # are synced from main by ax_evals_config.yaml, so a PR is evaluated with main's
-# prompts, and this harness itself runs from main, never from the PR. release/v0
-# keeps its own AX evals for the 0.x line.
+# prompts. The harness itself never runs from the PR: a label run takes it from
+# main's tip, a manual run from the dispatched ref. release/v0 keeps its own AX
+# evals for the 0.x line.
 
 on:
   pull_request:
@@ -166,8 +167,8 @@ jobs:
   report:
     name: Report
     needs: [plan, eval]
-    # Also after a cancel, so the comment never stays at "Running": stopped evals
-    # show as not started. No concurrency group: a pending report would be cancelled
+    # Also after a cancel, so the comment never stays at "Running": a stopped eval
+    # shows as not started or did not finish. No concurrency group: a pending report would be cancelled
     # by a newer one, and comment.js already keeps the newest run's comment.
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
