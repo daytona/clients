@@ -105,10 +105,19 @@ jobs:
           EVALS_TIMEOUT_FAILS: 'false'
           EVALS_SKIP_COMMENT: 'true'
           EVALS_SKIP_STATUS: 'true'
+          AX_PR: ${{ needs.plan.outputs.pr }}
+          AX_SHA: ${{ needs.plan.outputs.sha }}
         with:
           script: |
             const run = require(`${process.env.GITHUB_WORKSPACE}/.evals-action/scripts/run.js`)
-            await run({ core, github, context })
+            // The action reads the PR under test from payload.pull_request. A manual run
+            // has none (it would look up the PR of the dispatched ref's tip commit), so
+            // hand it the PR and head commit the plan job checked.
+            const pull_request = {
+              number: Number(process.env.AX_PR),
+              head: { sha: process.env.AX_SHA, repo: { full_name: `${context.repo.owner}/${context.repo.repo}` } },
+            }
+            await run({ core, github, context: { ...context, repo: context.repo, payload: { ...context.payload, pull_request } } })
       - name: Save result
         if: always()
         env:

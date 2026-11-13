@@ -260,6 +260,12 @@ test('render: every status label', () => {
   assert.match(out, /^### AX evals \(Firegoat\)$/m)
 })
 
+test('render: a nulled score explains itself when there is no key finding', () => {
+  const reportJson = JSON.stringify({ reward: { checklist: { a: 1 } }, nullNotice: 'Score nulled: the session ended early' })
+  const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Py', finalStatus: 'completed', outcome: 'goal_not_met', reportJson }] })
+  assert.ok(out.includes('- **Py:** Score nulled: the session ended early'))
+})
+
 test('render: re-run hint names the PR and main', () => {
   const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
   assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref main -f pr=42 -f evals=all/)
@@ -315,8 +321,26 @@ test('sync: prompt text names the surface, the pre-installed build and the docs'
   assert.equal(prompt.eval, 'cli-preview-url')
   assert.equal(prompt.title, '[CI] clients v2 — CLI: Preview URL')
   assert.match(prompt.text, /^Using the Daytona CLI, start a web server/)
-  assert.match(prompt.text, /already installed on PATH from the build under test/)
+  assert.match(prompt.text, /installed at \/opt\/daytona-cli\/bin\/daytona/)
   assert.match(prompt.text, /DAYTONA_API_KEY/)
   assert.ok(prompt.checks['opens-without-credential'] && prompt.checks.surface && prompt.checks['sandbox-deleted'])
   assert.match(prompt.setupCommand, /install_go\n/)
+})
+
+test('setup: node_satisfies compares the node on PATH with an engines floor', () => {
+  const common = fs.readFileSync(path.join(__dirname, 'setup', '_common.sh'), 'utf8')
+  const fn = common.slice(common.indexOf('node_satisfies() {'), common.indexOf('install_node() {'))
+  const ok = (floor) => {
+    try {
+      execFileSync('bash', ['-c', `${fn}\nnode_satisfies "$1"`, 'x', floor], { stdio: 'ignore' })
+      return true
+    } catch {
+      return false
+    }
+  }
+  const [major, minor] = process.versions.node.split('.').map(Number)
+  assert.equal(ok(`>=${major}.${minor}.0`), true)
+  assert.equal(ok(`>= ${major - 1}`), true)
+  assert.equal(ok(`>=${major + 1}.0.0`), false)
+  assert.equal(ok(`>=${major}.${minor + 1}.0`), false)
 })

@@ -42,8 +42,8 @@
     "cli": {
       "name": "CLI",
       "lead": "Using the Daytona CLI",
-      "environment": "The `daytona` CLI is already installed on PATH from the build under test. Do not reinstall it.",
-      "surfaceCheck": "Every Daytona operation the agent ran went through the pre-installed `daytona` CLI, which the agent did not reinstall.",
+      "environment": "The `daytona` CLI from the build under test is installed at /opt/daytona-cli/bin/daytona and linked from ~/.local/bin; use that binary and do not reinstall it.",
+      "surfaceCheck": "Every Daytona operation the agent ran went through the pre-installed `daytona` CLI at /opt/daytona-cli/bin/daytona (directly or through its ~/.local/bin link), which the agent did not reinstall.",
       "paths": [
         "cli/"
       ]

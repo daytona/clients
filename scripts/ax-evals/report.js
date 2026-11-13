@@ -81,7 +81,7 @@ function render({ results, sha, runUrl, pr }) {
   })
   const details = results
     .map((result) => {
-      const finding = result.keyFinding || result.failureReason
+      const finding = result.keyFinding || result.failureReason || (parseReport(result.reportJson) || {}).nullNotice
       if (!finding) return null
       const frictions = (result.frictionPoints || []).map((point) => `  - _${point.severity}_: ${oneLine(point.text)}`)
       return [`- **${result.title}:** ${oneLine(finding)}`, ...frictions].join('\n')

@@ -13,6 +13,8 @@ name: CI passed
 # - E2E: it runs against a live deployment and is expected to fail while a
 #   pull request depends on API changes that are not deployed yet, so it stays
 #   visible but does not block merging;
+# - AX evals (ax_evals.yaml): label-triggered and informational, and a run can
+#   outlast this check's deadline;
 # - checks that are not `pull_request` workflow runs: third-party apps (cubic,
 #   FOSSA, DCO), CodeQL default setup, and the CLA workflow
 #   (`pull_request_target`), which is required on its own.
@@ -58,6 +60,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
-          CI_PASSED_IGNORE: .github/workflows/ci-passed.yaml .github/workflows/e2e.yaml
+          CI_PASSED_IGNORE: .github/workflows/ci-passed.yaml .github/workflows/e2e.yaml .github/workflows/ax_evals.yaml
           CI_PASSED_TIMEOUT: '3600'
         run: scripts/ci-passed.sh "$REPO" "$SHA"

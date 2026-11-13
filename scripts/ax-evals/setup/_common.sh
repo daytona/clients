@@ -62,18 +62,24 @@ install_go() {
   go version
 }
 
-# Install the Node.js major the TypeScript SDK's engines field needs when the
-# image's Node is older.
+# Install the newest Node.js of the needed major when the image's Node does not satisfy the TypeScript
+# SDK's engines field (a ">=X.Y.Z" floor), then fail unless the node on PATH does.
+node_satisfies() {
+  node -e '
+    const floor = process.argv[1].replace(/^>=\s*/, "").split(".").map(Number)
+    const have = process.versions.node.split(".").map(Number)
+    for (let i = 0; i < 3; i++) if ((have[i] || 0) !== (floor[i] || 0)) process.exit((have[i] || 0) > (floor[i] || 0) ? 0 : 1)
+  ' "$1" 2>/dev/null
+}
 install_node() {
-  local need major minor
-  need=$(node -p "require('/opt/clients/sdk-typescript/package.json').engines.node" 2>/dev/null || echo '>=22.15.0')
-  major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
-  minor=$(node -p 'process.versions.node.split(".")[1]' 2>/dev/null || echo 0)
-  if [ "$major" -lt 22 ] || { [ "$major" -eq 22 ] && [ "$minor" -lt 15 ]; }; then
-    t "install node 22 (image has $(node -v 2>/dev/null || echo none); SDK needs ${need})"
-    local version
+  local need major version
+  need=$(python3 -c 'import json; print(json.load(open("/opt/clients/sdk-typescript/package.json"))["engines"]["node"])')
+  case "$need" in ">="[0-9]*) ;; *) echo "unsupported engines.node '${need}': expected >=X.Y.Z" >&2; return 1 ;; esac
+  if ! node_satisfies "$need"; then
+    major=$(printf '%s' "${need#>=}" | tr -d ' ' | cut -d. -f1)
     version=$(curl -fsSL --retry 3 https://nodejs.org/dist/index.json |
-      python3 -c 'import json,sys; print(next(r["version"] for r in json.load(sys.stdin) if r["version"].startswith("v22.")))')
+      python3 -c 'import json,sys; m=sys.argv[1]; print(next(r["version"] for r in json.load(sys.stdin) if r["version"].startswith("v"+m+".")))' "$major")
+    t "install node ${version} (image has $(node -v 2>/dev/null || echo none); SDK needs ${need})"
     # Its own prefix: unpacking over the image's /usr/local mixes two npm installs.
     $SUDO rm -rf /opt/node
     $SUDO mkdir -p /opt/node
@@ -82,5 +88,6 @@ install_node() {
     for bin in node npm npx corepack; do $SUDO ln -sf "/opt/node/bin/${bin}" "/usr/local/bin/${bin}"; done
     hash -r
   fi
+  node_satisfies "$need" || { echo "node $(node -v) on PATH does not satisfy ${need}" >&2; return 1; }
   node -v
 }
