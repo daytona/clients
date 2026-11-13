@@ -9570,7 +9570,7 @@
             "type": "string"
           },
           "token": {
-            "description": "The signed token (`s` followed by 53 lowercase base32 characters). It carries the sandbox ID, the port binding and the expiry, so it needs no storage.",
+            "description": "The link's signed token, as it appears in `url`.",
             "type": "string"
           },
           "url": {
