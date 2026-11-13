@@ -684,6 +684,9 @@ function routeExpressionValue(
 function knownRouteHelperVariants(rawExpression: ts.Expression): readonly string[] {
   const expression = unwrapRouteExpression(rawExpression)
   if (!ts.isCallExpression(expression)) return []
+  if (ts.isPropertyAccessExpression(expression.expression) && expression.expression.name.text === 'sandboxPath') {
+    return ['/sandboxes/{param}']
+  }
   if (ts.isPropertyAccessExpression(expression.expression) && expression.expression.name.text === 'portsPath') {
     return ['/sandboxes/{param}/ports']
   }
