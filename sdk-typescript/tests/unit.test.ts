@@ -11519,6 +11519,17 @@ describe('toolbox endpoint e2e', () => {
     ])
   })
 
+  it('refuses a dot-segment sandbox id on the ports paths before any request, as Python does', async () => {
+    for (const sandboxId of ['.', '..']) {
+      const portsApi = { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() }
+      const ports = new PortsService(INTERNAL, transportStub().object, portsApi as never, sandboxId)
+      await expect(ports.expireSignedPreviewLinks()).rejects.toMatchObject({ name: 'BadRequestError', message: "sandboxId must not be '.' or '..'" })
+      await expect(ports.unexpose(8080)).rejects.toMatchObject({ name: 'BadRequestError', message: "sandboxId must not be '.' or '..'" })
+      expect(portsApi.post).not.toHaveBeenCalled()
+      expect(portsApi.delete).not.toHaveBeenCalled()
+    }
+  })
+
   it('shapes port and lsp requests and unwraps their payloads', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ ports: [3000, 8080] }).mockResolvedValueOnce({ isInUse: true })

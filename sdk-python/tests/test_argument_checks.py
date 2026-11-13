@@ -1081,6 +1081,17 @@ async def test_expire_signed_preview_links_takes_no_arguments() -> None:
             await lazy_sandbox(root.v2, "sbx").ports.expire_signed_preview_links(8080, "tok")  # type: ignore[call-arg]
 
 
+@pytest.mark.parametrize("sandbox_id", [".", ".."])
+async def test_ports_refuse_a_dot_segment_sandbox_id_before_any_request(sandbox_id: str) -> None:
+    # quote() leaves "." and ".." as they are, and a URL resolver would
+    # collapse them onto another route; the TypeScript twin refuses them too.
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        ports = lazy_sandbox(root.v2, sandbox_id).ports
+        for call in (ports.expire_signed_preview_links, lambda: ports.unexpose(8080)):
+            with pytest.raises(BadRequestError, match="sandbox_id must not be '.' or '..'"):
+                await call()
+
+
 @pytest.mark.parametrize("bound", _TIMESTAMPS["refusedAsDates"])
 async def test_a_datetime_bound_outside_years_1_to_9999_in_utc_is_refused(api: FakeApi, bound: str) -> None:
     # Sent in UTC, the instant falls outside years 0001-9999: the shared

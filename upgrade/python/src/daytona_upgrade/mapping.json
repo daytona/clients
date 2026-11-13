@@ -4769,12 +4769,12 @@
       "notes": {
         "py": [
           "Moves to the ports namespace",
-          "Takes no arguments and expires every signed preview link of the sandbox",
+          "Takes no arguments and expires every signed preview link of the sandbox, on every port, not just the one you passed: confirm that revoking all of them is what you meant",
           "request_timeout is no longer accepted"
         ],
         "ts": [
           "Moves to the ports namespace",
-          "Takes no arguments and expires every signed preview link of the sandbox"
+          "Takes no arguments and expires every signed preview link of the sandbox, on every port, not just the one you passed: confirm that revoking all of them is what you meant"
         ]
       },
       "anchor": "sandbox",

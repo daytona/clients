@@ -140,7 +140,7 @@ func TestMemberDryRunTablesShowOnlyTheRevokedAPIKeyCount(t *testing.T) {
 	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members", 200, map[string]any{"members": []map[string]any{organizationMemberFixture(testUserID, "a@example.com", "Alice")}})
 	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/update-preview", 200, map[string]any{"revoked_api_keys": 2})
 	f.on("GET", "/orgs/0000000a-0000-4000-8000-00000000a001/members/"+testUserID+"/removal-preview", 200, map[string]any{"user_id": testUserID, "revoked_api_keys": 3})
-	base := []string{"--api-url", f.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "member"}
+	base := []string{"--api-url", f.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "table", "member"}
 	for _, args := range [][]string{{"update", "a@example.com", "--role", "developer", "--dry-run"}, {"remove", testUserID, "--dry-run"}} {
 		out, errb, code := run(t, d, nil, append(append([]string{}, base...), args...)...)
 		if code != 0 || !has(out, "revoked_api_keys") || has(out, "preview_grants") {

@@ -4,6 +4,7 @@
  */
 
 import { pageParams } from './pageParams.js'
+import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
 import { listPage } from './listPage.js'
@@ -307,7 +308,7 @@ export class PortsService {
     assertKnownOptions('SignedPreviewLinkOptions', options, SIGNED_PREVIEW_LINK_KEYS)
     assertPreviewPort(port)
     if (options.expiresInSeconds !== undefined) assertSignedPreviewTtl(options.expiresInSeconds)
-    const path = `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports/${port}/signed-preview-urls`
+    const path = `${this.sandboxPath()}/ports/${port}/signed-preview-urls`
     const body = options.expiresInSeconds === undefined ? {} : { expires_in_seconds: options.expiresInSeconds }
     const response = await this.requireApi().post<api.SignedPreviewUrlResponse>(path, body)
       .then((result) => checkResponse<api.SignedPreviewUrlResponse>(result.data, { url: 'string', token: 'string', expires_at: 'timestamp' }, 'signed preview url'))
@@ -328,7 +329,7 @@ export class PortsService {
    * ```
    */
   public async expireSignedPreviewLinks(): Promise<void> {
-    await this.requireApi().post(`/sandboxes/${strictUriEncode(this.requireSandboxId())}/signed-preview-urls/revoke`)
+    await this.requireApi().post(`${this.sandboxPath()}/signed-preview-urls/revoke`)
   }
 
   /** Remove a port's preview endpoint; this still works while the sandbox is being deleted. */
@@ -358,8 +359,13 @@ export class PortsService {
     return this.sandboxId
   }
 
+  /** `pathSegment` refuses `.` and `..`, which `strictUriEncode` leaves as they are and a URL resolver would collapse onto another route. */
+  private sandboxPath(): string {
+    return `/sandboxes/${pathSegment(this.requireSandboxId(), 'sandboxId')}`
+  }
+
   private portsPath(): string {
-    return `/sandboxes/${strictUriEncode(this.requireSandboxId())}/ports`
+    return `${this.sandboxPath()}/ports`
   }
 
   private portPath(port: number): string {

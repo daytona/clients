@@ -27,6 +27,7 @@ from ._core import (
     expect_port_list,
     page_params,
     parse_timestamp,
+    path_segment,
     preview_port,
 )
 from ._gen.api import SandboxPort as PreviewEndpointDto
@@ -325,7 +326,7 @@ class AsyncPortsService:
         await self._require_api().send(
             RequestSpec(
                 "POST",
-                f"/sandboxes/{quote(self._require_sandbox_id(), safe='')}/signed-preview-urls/revoke",
+                f"{self._sandbox_path()}/signed-preview-urls/revoke",
             )
         )
 
@@ -364,8 +365,13 @@ class AsyncPortsService:
             )
         return self._sandbox_id
 
+    def _sandbox_path(self) -> str:
+        # path_segment refuses "." and "..", which quote() leaves as they are
+        # and a URL resolver would collapse onto another route.
+        return f"/sandboxes/{path_segment(self._require_sandbox_id(), 'sandbox_id')}"
+
     def _ports_path(self) -> str:
-        return f"/sandboxes/{quote(self._require_sandbox_id(), safe='')}/ports"
+        return f"{self._sandbox_path()}/ports"
 
     def _port_path(self, port: int) -> str:
         return f"{self._ports_path()}/{_port_segment(port)}"
