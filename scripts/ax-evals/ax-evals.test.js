@@ -454,3 +454,13 @@ test('workflow: the harness comes from the base branch tip, and every job uses t
   const save = workflow.slice(workflow.indexOf('- name: Save result'), workflow.indexOf('upload-artifact'))
   assert.doesNotMatch(save, /EVALS_API_KEY/)
 })
+
+test('workflow: the eval step redacts everything the evals action logs or outputs', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8')
+  const step = workflow.slice(workflow.indexOf('      - id: eval'), workflow.indexOf('- name: Save result'))
+  assert.match(step, /require\(`\$\{process\.env\.GITHUB_WORKSPACE\}\/scripts\/ax-evals\/redact\.js`\)/)
+  for (const method of ['setOutput', 'setFailed', 'warning', 'notice', 'info']) {
+    assert.match(step, new RegExp(`${method}: \\([^)]*\\) => core\\.${method}\\([^\\n]*redact\\(`), method)
+  }
+  assert.match(step, /await run\(\{ core: redacting,/)
+})
