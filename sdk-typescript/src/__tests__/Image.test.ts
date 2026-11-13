@@ -52,6 +52,36 @@ describe('Image', () => {
     expect(image.dockerfile).toContain('CMD')
   })
 
+  it('keeps options ahead of the terminator and packages behind it', async () => {
+    const { Image } = await import('../Image')
+
+    const image = Image.base('python:3.12').pipInstall('requests', { indexUrl: 'https://pypi.example.com/simple' })
+
+    const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))
+    if (line === undefined) {
+      throw new Error('missing pip install line')
+    }
+    const [options, operands] = line.split(' -- ')
+    expect(options).toContain('--index-url')
+    expect(operands).toBe('requests')
+  })
+
+  it('passes a package name beginning with a dash as a requirement', async () => {
+    const { Image } = await import('../Image')
+
+    const image = Image.base('python:3.12').pipInstall([
+      '--extra-index-url=https://elsewhere.invalid/simple',
+      'requests',
+    ])
+
+    const line = image.dockerfile.split('\n').find((l) => l.startsWith('RUN python -m pip install'))
+    if (line === undefined) {
+      throw new Error('missing pip install line')
+    }
+    expect(line.startsWith('RUN python -m pip install -- ')).toBe(true)
+    expect(line.indexOf(' -- ')).toBeLessThan(line.indexOf('--extra-index-url'))
+  })
+
   it('encodes invalid cmd and entrypoint lines and keeps shell-form run', async () => {
     const { Image } = await import('../Image')
 
@@ -110,7 +140,7 @@ describe('Image', () => {
       extraOptions: '  --no-cache-dir  ',
     })
 
-    expect(image.dockerfile).toContain('pip install numpy pandas')
+    expect(image.dockerfile).toContain('-- numpy pandas')
     expect(image.dockerfile).toContain('--find-links')
     expect(image.dockerfile).toContain('--index-url')
     expect(image.dockerfile).toContain('--extra-index-url')
@@ -289,7 +319,7 @@ describe('Image', () => {
 
     expect(image.dockerfile).toContain('COPY requirements.txt /.requirements.txt')
     expect(image.dockerfile).toContain('pip install -r /.requirements.txt')
-    expect(image.dockerfile).toContain('pip install numpy pytest requests')
+    expect(image.dockerfile).toContain('pip install -- numpy pytest requests')
   })
 
   it('validates missing or malformed pyproject files', async () => {
