@@ -44,7 +44,7 @@ function main(outFile) {
     reportUrl: env.REPORT_URL,
     reportJson: env.REPORT_JSON,
     failureReason: env.FAILURE_REASON,
-    keyFinding: keyFindingOf(report),
+    keyFinding: truncate(redact(keyFindingOf(report)), 600),
     frictionPoints: frictionOf(report).slice(0, 3).map((point) => ({
       severity: point.severity,
       text: truncate(redact(point.desc || point.title), 240),

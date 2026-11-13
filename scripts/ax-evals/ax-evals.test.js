@@ -63,6 +63,7 @@ function mockCore() {
     setOutput: (k, v) => (outputs[k] = v),
     info() {},
     notice: (m) => (outputs.notice = m),
+    warning: (m) => (outputs.warning = m),
     setFailed: (m) => (outputs.failed = m),
   }
 }
@@ -171,6 +172,14 @@ test('plan: forks, other bases, unknown evals, selection, renames, nothing chang
   assert.equal((await runPlan(docsOnly, dispatchContext(''))).matrix, '[]')
   assert.match(docsOnly.calls[0][1], /nothing was evaluated/)
   assert.match(docsOnly.calls[0][1], /--ref main -f pr=7 -f evals=all/)
+  const failing = mockGithub({ files: [{ filename: 'README.md' }] })
+  failing.rest.issues.createComment = async () => {
+    throw new Error('secondary rate limit')
+  }
+  const quiet = await runPlan(failing, dispatchContext(''))
+  assert.equal(quiet.matrix, '[]')
+  assert.equal(quiet.failed, undefined)
+  assert.match(quiet.warning, /secondary rate limit/)
 })
 
 test('plan: manual runs need a pull request number', async () => {
@@ -317,6 +326,17 @@ test('render: escapes agent text', () => {
   assert.ok(line.includes('a\\\\\\|b \\| c'))
 })
 
+test('workflow: plan only starts for the ax-eval label, and for manual runs', () => {
+  const workflow = fs.readFileSync(WORKFLOW, 'utf8')
+  const planJob = workflow.slice(workflow.indexOf('  plan:'), workflow.indexOf('    steps:'))
+  const condition = /if: >-\n([\s\S]*?)\n    [a-z]/.exec(planJob)[1].replace(/\s+/g, ' ').trim()
+  assert.equal(
+    condition,
+    "(github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'",
+  )
+  assert.match(workflow, /pull_request:\n    types: \[labeled\]\n    branches: \[main\]/)
+})
+
 test('workflow: fork PRs never run PR-controlled code on label events', () => {
   const workflow = fs.readFileSync(WORKFLOW, 'utf8')
   const planJob = workflow.slice(workflow.indexOf('  plan:'), workflow.indexOf('    steps:'))
@@ -402,6 +422,7 @@ test('save-result: the top-level narrative wins, legacy is the fallback, credent
   const leaked = saveResult({ keyFinding: `ran env:\n${key}` }, { FAILURE_REASON: `also ${key}` })
   assert.ok(!JSON.stringify(leaked).includes(key))
   assert.equal(leaked.keyFinding, 'ran env:\n[redacted]')
+  assert.ok(saveResult({ keyFinding: 'x'.repeat(5000) }).keyFinding.length <= 600)
 })
 
 test('workflow: the harness comes from the base branch tip, and every job uses the commit plan used', () => {

@@ -35,7 +35,7 @@ function parseEvals(input) {
 }
 
 // A token selects every eval of a surface (`python`, alias `py`), every surface of a
-// task (`preview-url`), or one eval (`cli-preview-url`). Returns null for an unknown one.
+// task (`preview-url`), or one eval (`cli-preview-url`). Returns { unknown } for an unknown token.
 function selectByTokens(config, tokens) {
   const all = evalsOf(config)
   const selected = new Set()
@@ -124,7 +124,7 @@ async function run({ github, context, core }) {
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
       `To run evals anyway: \`${DISPATCH_HINT.replace('<number>', prNumber)}\` (replace \`all\` with a surface such as \`cli\`, a task such as \`preview-url\`, or one eval such as \`cli-preview-url\`).`,
-    ])
+    ]).catch((error) => core.warning(`Could not write the AX evals comment: ${error.message}`))
     return
   }
 

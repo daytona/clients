@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Sticky PR comment shared by every AX eval run. Each body records the workflow run
-// that wrote it, so a slower, older run never overwrites a newer one. Report jobs are
-// serialized per PR by the workflow's concurrency group; if two runs still race to
-// create the comment, the next write keeps the oldest one and deletes the rest.
+// that wrote it, so a slower, older run never overwrites a newer one. If two runs race
+// to create the comment, the next write keeps the newest run's comment and deletes the
+// rest.
 
 const MARKER = '<!-- ax-evals -->'
 const RUN_ID_PATTERN = /<!-- ax-evals-run:(\d+) -->/
