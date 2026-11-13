@@ -211,11 +211,14 @@ public class Daytona implements AutoCloseable {
             }
 
             if (params.getResources() != null) {
-                if (params.getResources().getCpu() != null) body.setCpu(new CreateSandboxCpu(params.getResources().getCpu()));
+                if (perNode(params.getResources().getCpu(), params.getResources().getCpuPerNode(), "cpu")) body.setCpu(new CreateSandboxCpu(params.getResources().getCpuPerNode()));
+                else if (params.getResources().getCpu() != null) body.setCpu(new CreateSandboxCpu(params.getResources().getCpu()));
                 if (params.getResources().getGpu() != null) body.setGpu(params.getResources().getGpu());
                 if (params.getResources().getGpuType() != null) body.setGpuType(params.getResources().getGpuType());
-                if (params.getResources().getMemory() != null) body.setMemory(new CreateSandboxMemory(params.getResources().getMemory()));
-                if (params.getResources().getDisk() != null) body.setDisk(new CreateSandboxDisk(params.getResources().getDisk()));
+                if (perNode(params.getResources().getMemory(), params.getResources().getMemoryPerNode(), "memory")) body.setMemory(new CreateSandboxMemory(params.getResources().getMemoryPerNode()));
+                else if (params.getResources().getMemory() != null) body.setMemory(new CreateSandboxMemory(params.getResources().getMemory()));
+                if (perNode(params.getResources().getDisk(), params.getResources().getDiskPerNode(), "disk")) body.setDisk(new CreateSandboxDisk(params.getResources().getDiskPerNode()));
+                else if (params.getResources().getDisk() != null) body.setDisk(new CreateSandboxDisk(params.getResources().getDisk()));
             }
         }
 
@@ -455,16 +458,27 @@ public class Daytona implements AutoCloseable {
         List<Sandbox> items = new ArrayList<>();
         if (result != null && result.getItems() != null) {
             for (io.daytona.api.client.model.SandboxListItem item : result.getItems()) {
-                items.add(new Sandbox(sandboxApi, config, item, this::getAnalyticsApiUrl, subscriptionManager));
+                Sandbox sandbox = new Sandbox(sandboxApi, config, item, this::getAnalyticsApiUrl, subscriptionManager);
+                if (item.getGpu() != null && item.getGpu() > SandboxNodes.GPUS_PER_GANG_NODE) {
+                    try { sandbox.refreshData(); }
+                    catch (io.daytona.sdk.exception.DaytonaNotFoundException gone) { continue; }
+                }
+                items.add(sandbox);
             }
         }
         String nextCursor = result != null ? result.getNextCursor() : null;
         return new PageResult(items, nextCursor);
     }
 
-    /**
-     * Internal page payload used by {@link SandboxIterator}.
-     */
+    private static boolean perNode(Integer scalar, List<Integer> values, String name) {
+        if (values == null) return false;
+        if (scalar != null || values.isEmpty() || values.stream().anyMatch(v -> v == null || v <= 0)) {
+            throw new io.daytona.sdk.exception.DaytonaException(name + " must specify either a scalar or a non-empty array of positive per-node values");
+        }
+        return true;
+    }
+
+    /** Internal page payload used by {@link SandboxIterator}. */
     static final class PageResult {
         final List<Sandbox> items;
         final String nextCursor;

@@ -52,6 +52,11 @@ import (
 //	// Work with files
 //	err = sandbox.FileSystem.UploadFile(ctx, "local.txt", "/home/user/remote.txt")
 type Sandbox struct {
+	// Nodes exposes physical members, per-node data-plane clients and aggregate helpers.
+	Nodes               *SandboxNodes
+	NodeCount           int
+	TopologyGeneration  *int32
+	Degraded            bool
 	client              *Client
 	otel                *otelState
 	ToolboxClient       *toolbox.APIClient // Internal API client
@@ -502,6 +507,7 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	} else if listItem, ok := dto.(*apiclient.SandboxListItem); ok {
 		s.SandboxClass = listItem.SandboxClass
 	}
+	s.syncNodes(dto)
 }
 
 func (s *Sandbox) ensureSubscribed() {
@@ -859,7 +865,7 @@ func (s *Sandbox) doRefreshData(ctx context.Context) error {
 	}
 
 	s.updateFromAPIResponse(sandboxResp)
-	return nil
+	return s.Nodes.Err()
 }
 
 func (s *Sandbox) ensureSigningKey(ctx context.Context) (string, error) {

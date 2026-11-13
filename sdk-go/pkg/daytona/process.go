@@ -634,6 +634,8 @@ func (p *ProcessService) GetSessionCommandLogsStream(ctx context.Context, sessio
 		defer conn.Close()
 
 		// Process the WebSocket stream and demux stdout/stderr
+		stopClosing := context.AfterFunc(ctx, func() { _ = conn.Close() })
+		defer stopClosing()
 		return processWebsocketStream(ctx, conn, stdout, stderr)
 	})
 }

@@ -55,11 +55,21 @@ public class Process {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final ProcessApi processApi;
-    private final Sandbox sandbox;
+    private final java.util.function.Supplier<String> language;
+    private final java.util.function.Supplier<io.daytona.toolbox.client.ApiClient> toolboxClient;
+    private final java.util.function.Supplier<String> apiKey;
 
     Process(ProcessApi processApi, Sandbox sandbox) {
+        this(processApi, sandbox::getLanguage, sandbox::getToolboxApiClient, sandbox::getApiKey);
+    }
+
+    Process(ProcessApi processApi, java.util.function.Supplier<String> language,
+            java.util.function.Supplier<io.daytona.toolbox.client.ApiClient> toolboxClient,
+            java.util.function.Supplier<String> apiKey) {
         this.processApi = processApi;
-        this.sandbox = sandbox;
+        this.language = language;
+        this.toolboxClient = toolboxClient;
+        this.apiKey = apiKey;
     }
 
     /**
@@ -131,7 +141,7 @@ public class Process {
     public ExecuteResponse codeRun(String code, List<String> argv, Map<String, String> env, Integer timeout) {
         CodeRunRequest request = new CodeRunRequest()
                 .code(code == null ? "" : code)
-                .language(sandbox.getLanguage());
+                .language(language.get());
         if (argv != null && !argv.isEmpty()) {
             request.argv(argv);
         }
@@ -235,9 +245,14 @@ public class Process {
             Consumer<String> onStdout,
             Consumer<String> onStderr
     ) {
-        String wsUrl = buildWsUrl(sandbox.getToolboxApiClient().getBasePath(),
+        getSessionCommandLogs(sessionId, commandId, onStdout, onStderr, 0);
+    }
+
+    void getSessionCommandLogs(String sessionId, String commandId,
+            Consumer<String> onStdout, Consumer<String> onStderr, long timeoutMillis) {
+        String wsUrl = buildWsUrl(toolboxClient.get().getBasePath(),
                 "/process/session/" + sessionId + "/command/" + commandId + "/logs?follow=true");
-        streamDemuxedLogsViaWebSocket(wsUrl, onStdout, onStderr);
+        streamDemuxedLogsViaWebSocket(wsUrl, onStdout, onStderr, timeoutMillis);
     }
 
     /**
@@ -258,7 +273,7 @@ public class Process {
      * @throws DaytonaException if streaming fails
      */
     public void getEntrypointLogs(Consumer<String> onStdout, Consumer<String> onStderr) {
-        String wsUrl = buildWsUrl(sandbox.getToolboxApiClient().getBasePath(),
+        String wsUrl = buildWsUrl(toolboxClient.get().getBasePath(),
                 "/process/session/entrypoint/logs?follow=true");
         streamDemuxedLogsViaWebSocket(wsUrl, onStdout, onStderr);
     }
@@ -323,7 +338,7 @@ public class Process {
         }
 
         String wsUrl = buildPtyCreateConnectUrl(
-                sandbox.getToolboxApiClient().getBasePath(),
+                toolboxClient.get().getBasePath(),
                 id,
                 createOptions.getCols(),
                 createOptions.getRows(),
@@ -331,7 +346,7 @@ public class Process {
         );
         Request.Builder requestBuilder = new Request.Builder()
                 .url(wsUrl)
-                .addHeader("Authorization", "Bearer " + sandbox.getApiKey());
+                .addHeader("Authorization", "Bearer " + apiKey.get());
 
         // Advertise the exit-control capability and pass envs as WebSocket subprotocol
         // tokens (kept uniform across SDKs and the daemon, out of the URL/logs). okhttp
@@ -346,7 +361,7 @@ public class Process {
         Request wsRequest = requestBuilder.build();
 
         PtyHandle handle = new PtyHandle(
-                sandbox.getToolboxApiClient().getHttpClient(),
+                toolboxClient.get().getHttpClient(),
                 wsRequest,
                 id,
                 this::resizePtySession,
@@ -388,15 +403,15 @@ public class Process {
      */
     public PtyHandle connectPty(String sessionId, PtyCreateOptions options) {
         PtyCreateOptions connectOptions = options == null ? new PtyCreateOptions() : options;
-        String wsUrl = buildPtyWebSocketUrl(sandbox.getToolboxApiClient().getBasePath(), sessionId);
+        String wsUrl = buildPtyWebSocketUrl(toolboxClient.get().getBasePath(), sessionId);
         Request wsRequest = new Request.Builder()
                 .url(wsUrl)
-                .addHeader("Authorization", "Bearer " + sandbox.getApiKey())
+                .addHeader("Authorization", "Bearer " + apiKey.get())
                 .addHeader("Sec-WebSocket-Protocol", PTY_EXIT_CONTROL_SUBPROTOCOL)
                 .build();
 
         PtyHandle handle = new PtyHandle(
-                sandbox.getToolboxApiClient().getHttpClient(),
+                toolboxClient.get().getHttpClient(),
                 wsRequest,
                 sessionId,
                 this::resizePtySession,
@@ -501,15 +516,35 @@ public class Process {
     }
 
     private void streamDemuxedLogsViaWebSocket(String wsUrl, Consumer<String> onStdout, Consumer<String> onStderr) {
+        streamDemuxedLogsViaWebSocket(wsUrl, onStdout, onStderr, 0);
+    }
+
+    private void streamDemuxedLogsViaWebSocket(String wsUrl, Consumer<String> onStdout, Consumer<String> onStderr, long timeoutMillis) {
         Request wsRequest = new Request.Builder()
                 .url(wsUrl)
-                .addHeader("Authorization", "Bearer " + sandbox.getApiKey())
+                .addHeader("Authorization", "Bearer " + apiKey.get())
                 .build();
 
         final CountDownLatch doneLatch = new CountDownLatch(1);
         final AtomicReference<RuntimeException> failure = new AtomicReference<>(null);
 
-        sandbox.getToolboxApiClient().getHttpClient().newWebSocket(wsRequest, new WebSocketListener() {
+        final Object callbackLock = new Object();
+        final java.util.concurrent.atomic.AtomicBoolean active = new java.util.concurrent.atomic.AtomicBoolean(true);
+        Consumer<String> safeStdout = chunk -> {
+            synchronized (callbackLock) {
+                if (!active.get() || onStdout == null) return;
+                try { onStdout.accept(chunk); }
+                catch (RuntimeException e) { failure.compareAndSet(null, e); doneLatch.countDown(); }
+            }
+        };
+        Consumer<String> safeStderr = chunk -> {
+            synchronized (callbackLock) {
+                if (!active.get() || onStderr == null) return;
+                try { onStderr.accept(chunk); }
+                catch (RuntimeException e) { failure.compareAndSet(null, e); doneLatch.countDown(); }
+            }
+        };
+        WebSocket socket = toolboxClient.get().getHttpClient().newWebSocket(wsRequest, new WebSocketListener() {
             final ByteArrayOutputStream stdoutBuf = new ByteArrayOutputStream();
             final ByteArrayOutputStream stderrBuf = new ByteArrayOutputStream();
             final ByteArrayOutputStream markerBuf = new ByteArrayOutputStream();
@@ -566,8 +601,8 @@ public class Process {
                             markerCount = 1;
                         }
                         if (markerCount >= PREFIX_REPEAT_COUNT) {
-                            emitBuffer(stdoutBuf, onStdout);
-                            emitBuffer(stderrBuf, onStderr);
+                            emitBuffer(stdoutBuf, safeStdout);
+                            emitBuffer(stderrBuf, safeStderr);
                             markerBuf.reset();
                             markerCount = 0;
                             streamState = markerByte == STDOUT_PREFIX_BYTE ? LOG_STREAM_STDOUT : LOG_STREAM_STDERR;
@@ -595,8 +630,8 @@ public class Process {
 
             private void flush() {
                 drainMarker();
-                emitBuffer(stdoutBuf, onStdout);
-                emitBuffer(stderrBuf, onStderr);
+                emitBuffer(stdoutBuf, safeStdout);
+                emitBuffer(stderrBuf, safeStderr);
             }
 
             private void emitBuffer(ByteArrayOutputStream buf, Consumer<String> consumer) {
@@ -607,10 +642,17 @@ public class Process {
         });
 
         try {
-            doneLatch.await();
+            if (timeoutMillis > 0) {
+                if (!doneLatch.await(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                    throw new io.daytona.sdk.exception.DaytonaTimeoutException("Session log stream exceeded its timeout");
+                }
+            } else doneLatch.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new DaytonaException("Interrupted while streaming logs", e);
+            throw new io.daytona.sdk.exception.DaytonaTimeoutException("Interrupted while streaming logs");
+        } finally {
+            synchronized (callbackLock) { active.set(false); }
+            socket.cancel();
         }
         RuntimeException ex = failure.get();
         if (ex != null) throw ex;

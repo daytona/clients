@@ -1515,6 +1515,42 @@ public DaytonaLspServerNotInitializedException(String message, Throwable cause, 
 - `code` _String_ -
 - `source` _String_ -
 
+## DaytonaNodeOperationException
+
+Rank-specific failures and successful results from a parallel node operation.
+
+### Constructors
+
+#### new DaytonaNodeOperationException()
+```java
+public DaytonaNodeOperationException(Map<Integer, Throwable> failures, Map<Integer, ExecuteResponse> results)
+```
+
+**Parameters**:
+
+- `failures` _Map\<Integer, Throwable\>_ -
+- `results` _Map\<Integer, ExecuteResponse\>_ -
+
+### Methods
+
+#### getFailures()
+```java
+public Map<Integer, Throwable> getFailures()
+```
+
+**Returns**:
+
+- `Map\<Integer, Throwable\>` -
+
+#### getResults()
+```java
+public Map<Integer, ExecuteResponse> getResults()
+```
+
+**Returns**:
+
+- `Map\<Integer, ExecuteResponse\>` -
+
 ## DaytonaNotFoundException
 
 Raised when a requested resource does not exist (HTTP 404).

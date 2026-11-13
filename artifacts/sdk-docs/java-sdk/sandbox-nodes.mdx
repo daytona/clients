@@ -1,0 +1,196 @@
+---
+title: "SandboxNodes"
+hideTitleOnPage: true
+---
+
+## SandboxNodes
+
+Read-only, live rank-ordered members, including the head at index zero.
+
+### Methods
+
+#### get()
+```java
+public SandboxNode get(int rank)
+```
+
+**Parameters**:
+
+- `rank` _int_ -
+
+**Returns**:
+
+- `SandboxNode` -
+
+#### size()
+```java
+public int size()
+```
+
+**Returns**:
+
+- `int` -
+
+#### getProcess()
+```java
+public NodeProcess getProcess()
+```
+
+**Returns**:
+
+- `NodeProcess` -
+
+#### getFs()
+```java
+public NodeFileSystem getFs()
+```
+
+**Returns**:
+
+- `NodeFileSystem` -
+
+#### add()
+```java
+public GangMembershipOperation add(List<NodeResources> nodes)
+```
+
+Append rank-ordered nodes; a timeout ends the wait, not the server-side operation.
+
+**Parameters**:
+
+- `nodes` _List\<NodeResources\>_ -
+
+**Returns**:
+
+- `GangMembershipOperation` -
+
+#### add()
+```java
+public GangMembershipOperation add(List<NodeResources> nodes, long timeoutSeconds)
+```
+
+**Parameters**:
+
+- `nodes` _List\<NodeResources\>_ -
+- `timeoutSeconds` _long_ -
+
+**Returns**:
+
+- `GangMembershipOperation` -
+
+#### release()
+```java
+public GangMembershipOperation release(int count)
+```
+
+Release the highest count ranks. Zero timeout disables the overall wait limit.
+
+**Parameters**:
+
+- `count` _int_ -
+
+**Returns**:
+
+- `GangMembershipOperation` -
+
+#### release()
+```java
+public GangMembershipOperation release(int count, long timeoutSeconds)
+```
+
+**Parameters**:
+
+- `count` _int_ -
+- `timeoutSeconds` _long_ -
+
+**Returns**:
+
+- `GangMembershipOperation` -
+
+#### replace()
+```java
+public GangMembershipOperation replace(int rank)
+```
+
+Replace a degraded logical rank and refresh retained node handles after completion.
+
+**Parameters**:
+
+- `rank` _int_ -
+
+**Returns**:
+
+- `GangMembershipOperation` -
+
+#### replace()
+```java
+public GangMembershipOperation replace(int rank, long timeoutSeconds)
+```
+
+**Parameters**:
+
+- `rank` _int_ -
+- `timeoutSeconds` _long_ -
+
+**Returns**:
+
+- `GangMembershipOperation` -
+
+## SandboxNodes.NodeProcess
+
+Parallel process execution over a membership snapshot.
+
+### Methods
+
+#### executeCommand()
+```java
+public Map<Integer, ExecuteResponse> executeCommand(String command)
+```
+
+**Parameters**:
+
+- `command` _String_ -
+
+**Returns**:
+
+- `Map\<Integer, ExecuteResponse\>` -
+
+#### executeCommand()
+```java
+public Map<Integer, ExecuteResponse> executeCommand(String command, NodeExecuteOptions options)
+```
+
+**Parameters**:
+
+- `command` _String_ -
+- `options` _NodeExecuteOptions_ -
+
+**Returns**:
+
+- `Map\<Integer, ExecuteResponse\>` -
+
+## SandboxNodes.NodeFileSystem
+
+Upload the same bytes to each node; successful uploads are not rolled back.
+
+### Methods
+
+#### uploadFile()
+```java
+public void uploadFile(byte[] content, String destination)
+```
+
+**Parameters**:
+
+- `content` _byte[]_ -
+- `destination` _String_ -
+
+#### uploadFile()
+```java
+public void uploadFile(Path source, String destination)
+```
+
+**Parameters**:
+
+- `source` _Path_ -
+- `destination` _String_ -

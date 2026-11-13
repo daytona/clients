@@ -206,6 +206,15 @@ module Daytona
     # @return [Daytona::Process]
     attr_reader :process
 
+    # @return [Daytona::SandboxNodes] Rank-ordered node handles including the head
+    attr_reader :nodes
+    # @return [Integer] Number of nodes reported by the last refresh
+    attr_reader :node_count
+    # @return [Integer, nil] Current topology generation
+    attr_reader :topology_generation
+    # @return [Boolean, nil] Whether the API reports a degraded gang
+    attr_reader :degraded
+
     # @return [Daytona::FileSystem]
     attr_reader :fs
 
@@ -283,6 +292,8 @@ module Daytona
       @info_api = info_api
       @server_api = server_api
       @system_api = system_api
+      @nodes = SandboxNodes.new(self)
+      @nodes.send(:update, sandbox_dto.respond_to?(:nodes) ? sandbox_dto.nodes : nil)
 
       ensure_subscribed
     end
@@ -1141,6 +1152,7 @@ module Daytona
       return if sandbox_dto.nil?
 
       new_state = sandbox_dto.state
+      @node_count ||= 1
 
       # Fields shared by both DaytonaApiClient::Sandbox and DaytonaApiClient::SandboxListItem.
       @id = sandbox_dto.id
@@ -1193,6 +1205,10 @@ module Daytona
         @volumes = sandbox_dto.volumes
         @build_info = sandbox_dto.build_info
         @backup_created_at = sandbox_dto.backup_created_at
+        @node_count = sandbox_dto.node_count unless sandbox_dto.node_count.nil?
+        @topology_generation = sandbox_dto.topology_generation unless sandbox_dto.topology_generation.nil?
+        @degraded = sandbox_dto.degraded unless sandbox_dto.degraded.nil?
+        @nodes&.send(:update, sandbox_dto.nodes)
       end
 
       apply_state(new_state)

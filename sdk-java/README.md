@@ -263,3 +263,70 @@ try (Daytona daytona = new Daytona()) {
     }
 }
 ```
+
+## Multi-node GPU sandboxes
+
+Multi-node access requires an enabled organization quota and compatible fabric capacity.
+Initial profiles use whole 8-GPU nodes: 16 GPUs creates two nodes. Use a workload image
+containing your framework and RDMA userspace (`libibverbs.so.1` and an mlx5 provider).
+
+```java
+import io.daytona.sdk.SandboxNode;
+import io.daytona.sdk.exception.DaytonaNodeOperationException;
+import io.daytona.sdk.model.CreateSandboxFromImageParams;
+import io.daytona.sdk.model.NodeExecuteOptions;
+import io.daytona.sdk.model.NodeResources;
+import io.daytona.sdk.model.Resources;
+import java.util.Arrays;
+import java.util.Collections;
+
+Resources resources = new Resources();
+resources.setGpu(16);
+resources.setCpuPerNode(Arrays.asList(16, 16));
+resources.setMemoryPerNode(Arrays.asList(64, 64));
+resources.setDiskPerNode(Arrays.asList(100, 100));
+CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+params.setImage("your-registry/rdma-workload:tag");
+params.setResources(resources);
+Sandbox sandbox = daytona.create(params);
+SandboxNode worker = sandbox.getNodes().get(1); // Rank zero is the head.
+worker.getProcess().executeCommand("hostname");
+
+NodeExecuteOptions options = new NodeExecuteOptions();
+options.setTimeoutSeconds(120);
+options.setOnStdout((rank, chunk) -> System.out.print("[rank " + rank + "] " + chunk));
+try {
+    sandbox.getNodes().getProcess().executeCommand("hostname", options);
+} catch (DaytonaNodeOperationException error) {
+    System.out.println(error.getFailures()); // Errors keyed by rank.
+    System.out.println(error.getResults());  // Successful ranks remain available.
+}
+sandbox.getNodes().getFs().uploadFile("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), "/tmp/shared.txt");
+System.out.println(worker.getPreviewLink(8080).getUrl());
+var ssh = worker.createSshAccess(60);
+System.out.println(ssh.getSshCommand());
+worker.revokeSshAccess(ssh.getToken());
+
+sandbox.getNodes().add(Collections.singletonList(new NodeResources(16, 64, 100)));
+sandbox.getNodes().release(1); // Releases the highest rank.
+// When a rank fails: sandbox.getNodes().replace(rank).
+```
+
+Scalar `setCpu`, `setMemory` and `setDisk` remain supported. Use either a scalar or its
+`*PerNode` array. Node metadata includes rank, id, resources, state, incarnation, failure
+and fabric health; the sandbox also exposes node count, topology generation and degradation.
+Retained handles remain stable across refreshes. Enumerate the collection again after
+membership changes to find replacement members. Existing sandbox services address the head.
+
+Membership helpers share a deadline across generation refresh, submission, polling and final
+refresh. The default is 600 seconds; passing zero disables the overall wait limit. Timing
+out or interrupting the wait does not cancel a submitted server operation. API admission
+errors propagate directly. Existing transport timeouts still apply.
+
+Parallel execution captures current membership and uses a private session per rank,
+including without streaming. Callbacks receive `(rank, chunk)` and are serialized.
+An execution timeout or interrupted wait closes log streams and attempts session deletion;
+each cleanup has a separate ten-second budget and needs connectivity. Successful commands
+remain successful if cleanup fails; inspect `node.getWarnings()`. RDMA checks are advisory.
+The application must coordinate checkpointing and process restarts after membership changes;
+existing process environment variables are not rewritten.
