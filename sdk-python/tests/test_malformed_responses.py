@@ -23,7 +23,7 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import BadRequestError, Image, ImageBuilder, Snapshot
+from daytona.v2 import BadRequestError, Image, ImageBuilder, PendingFinalCommit, Snapshot
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.sandbox import AsyncSandbox
 from daytona.v2.types import JsonObject, JsonValue
@@ -1306,3 +1306,91 @@ async def test_a_volume_create_response_with_a_blank_id_is_refused(volume_id: st
             with _sdk_bad_request("^volume response is missing its id$"):
                 await root.v2.volumes.create(name="data")
     assert len(api.requests) == 1
+
+
+_PENDING_FINAL_COMMIT: JsonObject = {
+    "sandbox_id": "sbx_1",
+    "status": "saving",
+    "ending_at": "2026-01-02T00:00:00Z",
+    "last_failure_at": None,
+}
+
+
+async def test_a_volume_reports_its_pending_final_commits() -> None:
+    # The TypeScript twin is in malformed-responses.test.ts.
+    entries = [
+        _PENDING_FINAL_COMMIT,
+        {
+            **_PENDING_FINAL_COMMIT,
+            "sandbox_id": "sbx_2",
+            "status": "failing",
+            "last_failure_at": "2026-01-02T00:05:00Z",
+        },
+        # A status a later API added is kept verbatim beside `unknown`; unknown fields are dropped.
+        {**_PENDING_FINAL_COMMIT, "sandbox_id": "sbx_3", "status": "future_status", "later_field": 1},
+    ]
+    volume: JsonObject = {**_VOLUME, "pending_final_commits": entries}
+    with FakeApi([PlannedResponse(200, volume), PlannedResponse(200, {"volumes": [volume]})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            got = await root.v2.volumes.get("data")
+            listed = (await root.v2.volumes.list()).items[0]
+    assert got.pending_final_commits == (
+        PendingFinalCommit(
+            sandbox_id="sbx_1",
+            status="saving",
+            raw_status="saving",
+            ending_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        ),
+        PendingFinalCommit(
+            sandbox_id="sbx_2",
+            status="failing",
+            raw_status="failing",
+            ending_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+            last_failure_at=datetime(2026, 1, 2, 0, 5, tzinfo=timezone.utc),
+        ),
+        PendingFinalCommit(
+            sandbox_id="sbx_3",
+            status="unknown",
+            raw_status="future_status",
+            ending_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        ),
+    )
+    assert listed.pending_final_commits == got.pending_final_commits
+
+
+async def test_a_volume_without_pending_final_commits_has_none() -> None:
+    # An API that does not report the list omits it; an empty one reads the same.
+    responses = [
+        PlannedResponse(200, _VOLUME),
+        PlannedResponse(200, {"volumes": [_VOLUME]}),
+        PlannedResponse(200, {**_VOLUME, "pending_final_commits": []}),
+    ]
+    with FakeApi(responses) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            got = await root.v2.volumes.get("data")
+            listed = (await root.v2.volumes.list()).items[0]
+            empty = await root.v2.volumes.get("data")
+    assert got.pending_final_commits == listed.pending_final_commits == empty.pending_final_commits == ()
+
+
+@pytest.mark.parametrize(
+    ("value", "match"),
+    [
+        (None, "pending_final_commits"),
+        ({}, "pending_final_commits"),
+        ([{k: v for k, v in _PENDING_FINAL_COMMIT.items() if k != "ending_at"}], "ending_at"),
+        ([{k: v for k, v in _PENDING_FINAL_COMMIT.items() if k != "last_failure_at"}], "last_failure_at"),
+        ([{**_PENDING_FINAL_COMMIT, "sandbox_id": 1}], "sandbox_id"),
+        ([{**_PENDING_FINAL_COMMIT, "status": None}], "status"),
+        ([{**_PENDING_FINAL_COMMIT, "ending_at": "soon"}], "ending_at"),
+    ],
+    ids=["null", "object", "no-ending-at", "no-last-failure-at", "sandbox-id", "status", "timestamp"],
+)
+async def test_a_malformed_pending_final_commits_list_is_refused(value: JsonValue, match: str) -> None:
+    with FakeApi([PlannedResponse(200, {**_VOLUME, "pending_final_commits": value})]) as api:
+        os.environ["DAYTONA_V2_API_URL"] = api.url
+        async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+            with _sdk_bad_request(match):
+                await root.v2.volumes.get("data")

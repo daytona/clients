@@ -859,6 +859,7 @@ describe('V2 model', () => {
       rawStatus: 'ready',
       createdAt: '2026-10-14T00:00:00Z',
       updatedAt: '2026-10-14T00:00:00Z',
+      pendingFinalCommits: [],
     }
 
     expect(FeatureNotEnabledError).toBe(publicSdk.FeatureNotEnabledError)
@@ -8657,7 +8658,7 @@ describe('toolbox service request shaping', () => {
     try {
       const client = withApiUrl(`http://127.0.0.1:${address.port}`, () => new Daytona({ apiKey: 'key' }))
       const volumes = client.volumes
-      await expect(volumes.get('missing', { create: true })).resolves.toEqual({ id: 'created-volume', name: 'missing', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+      await expect(volumes.get('missing', { create: true })).resolves.toEqual({ id: 'created-volume', name: 'missing', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z', pendingFinalCommits: [] })
       expect(requests).toEqual(['GET /volumes/missing', 'POST /volumes'])
     } finally {
       await new Promise<void>((resolve, reject) => http.close(error => error ? reject(error) : resolve()))
@@ -8695,15 +8696,15 @@ describe('toolbox service request shaping', () => {
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
 
     await expect(volumes.list()).resolves.toEqual({
-      items: [{ id: 'vol 1', name: 'listed', type: 'disk', rawType: 'disk', sizeGib: 4, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' }],
+      items: [{ id: 'vol 1', name: 'listed', type: 'disk', rawType: 'disk', sizeGib: 4, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z', pendingFinalCommits: [] }],
       nextCursor: undefined,
     })
     expect(get.mock.calls[0]).toEqual(['/volumes', { params: { cursor: undefined, limit: undefined } }])
-    await expect(volumes.get('vol/name')).resolves.toEqual({ id: 'vol 1', name: 'fetched', type: 'disk', rawType: 'disk', sizeGib: 8, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+    await expect(volumes.get('vol/name')).resolves.toEqual({ id: 'vol 1', name: 'fetched', type: 'disk', rawType: 'disk', sizeGib: 8, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z', pendingFinalCommits: [] })
     expect(get.mock.calls[1]?.[0]).toBe('/volumes/vol%2Fname')
     expect(post).not.toHaveBeenCalled()
     const created = await volumes.create({ name: 'created', sizeGib: 16 })
-    expect(created).toEqual({ id: 'vol 2', name: 'created', type: 'disk', rawType: 'disk', sizeGib: 16, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+    expect(created).toEqual({ id: 'vol 2', name: 'created', type: 'disk', rawType: 'disk', sizeGib: 16, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z', pendingFinalCommits: [] })
     await volumes.delete('vol/id')
     expect(del.mock.calls[0]?.[0]).toBe('/volumes/vol%2Fid')
   })
@@ -8718,7 +8719,7 @@ describe('toolbox service request shaping', () => {
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: response })
 
     await expect(volumes.delete('named-volume')).resolves.toBeUndefined()
-    await expect(volumes.get(volumeId, { idOnly: true })).resolves.toEqual({ id: volumeId, name: 'named-volume', type: 'disk', rawType: 'disk', status: 'deleting', rawStatus: 'deleting', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+    await expect(volumes.get(volumeId, { idOnly: true })).resolves.toEqual({ id: volumeId, name: 'named-volume', type: 'disk', rawType: 'disk', status: 'deleting', rawStatus: 'deleting', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z', pendingFinalCommits: [] })
     await expect(volumes.delete(volumeId, { idOnly: true })).resolves.toBeUndefined()
     expect(del.mock.calls).toEqual([
       ['/volumes/named-volume', undefined],
@@ -9533,6 +9534,15 @@ describe('toolbox error-code drift', () => {
     }
   })
 
+  it('dispatches the volume final-commit codes to their status classes', () => {
+    const pending = createDaytonaError('not saved yet', 409, 'VOLUME_FINAL_COMMIT_PENDING', 'DAYTONA_API')
+    expect(pending).toBeInstanceOf(ConflictError)
+    expect(pending).toMatchObject({ statusCode: 409, code: 'VOLUME_FINAL_COMMIT_PENDING' })
+    const unavailable = createDaytonaError('retry shortly', 503, 'VOLUMES_UNAVAILABLE', 'DAYTONA_API')
+    expect(unavailable).toBeInstanceOf(ServiceUnavailableError)
+    expect(unavailable).toMatchObject({ statusCode: 503, code: 'VOLUMES_UNAVAILABLE' })
+  })
+
   it('dispatches router errors by (source, code)', () => {
     expect(createDaytonaError('two regions', 400, 'REGION_MISMATCH', 'DAYTONA_ROUTER')).toBeInstanceOf(BadRequestError)
     expect(createDaytonaError('region unavailable', 503, 'PLACEMENT_UNAVAILABLE', 'DAYTONA_ROUTER')).toBeInstanceOf(ServiceUnavailableError)
@@ -9678,7 +9688,7 @@ describe('service response mapping', () => {
     const payload = { id: 'vol', name: 'vol', type: 'disk', status: 'ready', error: null, used_bytes: null, created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z' }
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: payload })
     const volume = await client.volumes.get('vol')
-    expect(volume).toEqual({ id: 'vol', name: 'vol', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', error: undefined, usedBytes: undefined, createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
+    expect(volume).toEqual({ id: 'vol', name: 'vol', type: 'disk', rawType: 'disk', status: 'ready', rawStatus: 'ready', error: undefined, usedBytes: undefined, createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z', pendingFinalCommits: [] })
     expect(volume.lastUsedAt).toBeUndefined()
   })
 

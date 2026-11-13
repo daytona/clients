@@ -140,6 +140,7 @@ ArtifactRetention = Literal["permanent", "idle", "unknown"]
 SnapshotKind = Literal["full", "unknown"]
 VolumeState = Literal["ready", "deleting", "deleted", "error", "unknown"]
 VolumeType = Literal["disk", "bucket", "unknown"]
+PendingFinalCommitStatus = Literal["pending", "saving", "failing", "unknown"]
 SearchTotalRelation = Literal["eq", "gte", "unknown"]
 DockerState = Literal[
     "ready",
@@ -635,6 +636,21 @@ class SnapshotRef:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class PendingFinalCommit:
+    """An ended sandbox whose last writes to a volume are not saved yet."""
+
+    sandbox_id: str
+    #: ``pending`` until saving the sandbox's last writes starts, ``saving``
+    #: while they are saved, ``failing`` while a failed save is retried.
+    status: PendingFinalCommitStatus
+    raw_status: str
+    #: When the sandbox ended.
+    ending_at: datetime
+    #: When saving the sandbox's last writes last failed; ``None`` when it has not failed.
+    last_failure_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Volume:
     id: str
     name: str
@@ -651,6 +667,10 @@ class Volume:
     options: Optional[Mapping[str, JsonValue]] = None
     used_bytes: Optional[int] = None
     used_bytes_at: Optional[datetime] = None
+    #: Ended sandboxes whose last writes to this volume are not saved yet. A
+    #: create that mounts the volume is refused (``ConflictError``, code
+    #: ``VOLUME_FINAL_COMMIT_PENDING``) until it is empty.
+    pending_final_commits: tuple[PendingFinalCommit, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

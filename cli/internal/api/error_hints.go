@@ -72,8 +72,12 @@ func hintFor(ae *APIError) string {
 		return "check the id and the selected --org/--project; a resource in another project also answers 404"
 	case ae.Status == http.StatusConflict && ae.Code == CodeNotSupportedForClass:
 		return "this sandbox class does not support that operation — see the server message for the class-specific alternative"
+	case ae.Status == http.StatusConflict && ae.Code == CodeVolumeFinalCommitPending:
+		return "an ended sandbox's last writes to a volume are not saved yet — retry once `daytona volume get <volume>` shows no pending final commits"
 	case ae.Status == http.StatusConflict:
 		return ""
+	case ae.Status == http.StatusServiceUnavailable && ae.Code == CodeVolumesUnavailable:
+		return "a sandbox with volumes cannot be stopped or deleted right now — retry shortly"
 	case ae.Status == http.StatusTooManyRequests && ae.Code == CodeLimitExceeded:
 		limit, _ := ae.Body["limit"].(string)
 		cur, max := ae.Body["current"], ae.Body["max"]

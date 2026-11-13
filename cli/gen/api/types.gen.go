@@ -135,6 +135,8 @@ const (
 	V0MIGRATIONDEFAULTPROJECTONLY       ApiErrorCode = "V0_MIGRATION_DEFAULT_PROJECT_ONLY"
 	V0SANDBOXNOTFOUND                   ApiErrorCode = "V0_SANDBOX_NOT_FOUND"
 	V0SANDBOXNOTIMPORTABLE              ApiErrorCode = "V0_SANDBOX_NOT_IMPORTABLE"
+	VOLUMEFINALCOMMITPENDING            ApiErrorCode = "VOLUME_FINAL_COMMIT_PENDING"
+	VOLUMESUNAVAILABLE                  ApiErrorCode = "VOLUMES_UNAVAILABLE"
 	WORKLOADPLANEELSEWHERE              ApiErrorCode = "WORKLOAD_PLANE_ELSEWHERE"
 )
 
@@ -384,6 +386,10 @@ func (e ApiErrorCode) Valid() bool {
 	case V0SANDBOXNOTFOUND:
 		return true
 	case V0SANDBOXNOTIMPORTABLE:
+		return true
+	case VOLUMEFINALCOMMITPENDING:
+		return true
+	case VOLUMESUNAVAILABLE:
 		return true
 	case WORKLOADPLANEELSEWHERE:
 		return true
@@ -1403,6 +1409,27 @@ func (e PaymentMethodBrand) Valid() bool {
 	case PaymentMethodBrandUnionpay:
 		return true
 	case PaymentMethodBrandVisa:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PendingFinalCommitStatus.
+const (
+	PendingFinalCommitStatusFailing PendingFinalCommitStatus = "failing"
+	PendingFinalCommitStatusPending PendingFinalCommitStatus = "pending"
+	PendingFinalCommitStatusSaving  PendingFinalCommitStatus = "saving"
+)
+
+// Valid indicates whether the value is a known member of the PendingFinalCommitStatus enum.
+func (e PendingFinalCommitStatus) Valid() bool {
+	switch e {
+	case PendingFinalCommitStatusFailing:
+		return true
+	case PendingFinalCommitStatusPending:
+		return true
+	case PendingFinalCommitStatusSaving:
 		return true
 	default:
 		return false
@@ -4810,6 +4837,26 @@ type PaymentMethodPage struct {
 	PaymentMethods []PaymentMethod `json:"payment_methods"`
 }
 
+// PendingFinalCommit An ended sandbox whose last writes to a volume are not saved yet.
+type PendingFinalCommit struct {
+	// EndingAt When the sandbox ended.
+	EndingAt time.Time `json:"ending_at"`
+
+	// LastFailureAt When saving the sandbox's last writes last failed, or null when it has
+	// not failed.
+	LastFailureAt *time.Time `json:"last_failure_at"`
+
+	// SandboxId The ended sandbox's ID.
+	SandboxId string `json:"sandbox_id"`
+
+	// Status `pending` until saving the sandbox's last writes starts, `saving`
+	// while they are saved, and `failing` while a failed save is retried.
+	Status PendingFinalCommitStatus `json:"status"`
+}
+
+// PendingFinalCommitStatus defines model for PendingFinalCommitStatus.
+type PendingFinalCommitStatus string
+
 // PendingPlanChange defines model for PendingPlanChange.
 type PendingPlanChange struct {
 	// EffectiveAt When the scheduled plan takes effect.
@@ -7098,6 +7145,11 @@ type Volume struct {
 	// Options Type-specific options. Disk volumes use an empty object; bucket volumes
 	// include their bucket settings and credential secret names.
 	Options *map[string]interface{} `json:"options,omitempty"`
+
+	// PendingFinalCommits Ended sandboxes whose last writes to this volume are not saved yet.
+	// A create that mounts the volume is refused until the list is empty.
+	// Empty when nothing is pending.
+	PendingFinalCommits []PendingFinalCommit `json:"pending_final_commits"`
 
 	// SizeGib Scratch capacity in GiB. Disk volumes only — a bucket volume has no
 	// capacity of its own and reports `null`.

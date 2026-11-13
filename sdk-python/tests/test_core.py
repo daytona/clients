@@ -5088,6 +5088,15 @@ def test_codes_module_matches_router_error_catalog():
     }
 
 
+def test_volume_final_commit_codes_dispatch_to_their_status_classes():
+    pending = create_error("not saved yet", 409, code_names.VOLUME_FINAL_COMMIT_PENDING, "DAYTONA_API")
+    assert isinstance(pending, ConflictError)
+    assert (pending.status_code, pending.code) == (409, "VOLUME_FINAL_COMMIT_PENDING")
+    unavailable = create_error("retry shortly", 503, code_names.VOLUMES_UNAVAILABLE, "DAYTONA_API")
+    assert isinstance(unavailable, ServiceUnavailableError)
+    assert (unavailable.status_code, unavailable.code) == (503, "VOLUMES_UNAVAILABLE")
+
+
 def test_router_source_dispatches_by_source_and_code():
     assert isinstance(
         create_error("two regions", 400, code_names.REGION_MISMATCH, "DAYTONA_ROUTER"), BadRequestError

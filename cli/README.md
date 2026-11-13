@@ -440,6 +440,14 @@ never prompts:
   `--bucket`, `--endpoint`, `--bucket-region`, `--prefix`, `--path-style`,
   `--access-key-secret`, and `--secret-key-secret` for a customer bucket.
   `--size-gib` sizes a disk volume and must be greater than zero.
+- `volume get` and `volume list` report `pending_final_commits` in JSON: the
+  ended sandboxes whose last writes to the volume are not saved yet (empty
+  when nothing is pending). The `volume get` table shows them as
+  `SANDBOX_ID (STATUS)` while there are any. Until the list is empty, a
+  `sandbox create --volume` naming that volume answers
+  `VOLUME_FINAL_COMMIT_PENDING` (409); retry it then. A `sandbox stop` or
+  `sandbox delete` of a sandbox with volumes can answer `VOLUMES_UNAVAILABLE`
+  (503) when it cannot be done right now; retry after a few seconds.
 - `audit list --start-at` and `--end-at` require RFC3339 timestamps and reject
   invalid values locally, before any request.
 - `sandbox create --volume` accepts `VOLUME:MOUNT_PATH`,

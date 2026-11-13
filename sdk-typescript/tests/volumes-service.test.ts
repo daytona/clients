@@ -118,7 +118,8 @@ describe('platform volumes', () => {
     // Then
     expect(result).toEqual({ id: 'vol_1', name: 'data', type: 'unknown', rawType: 'future_type',
       status: 'unknown', rawStatus: 'future_status', createdAt: volume.created_at, updatedAt: volume.updated_at,
-      options, sizeGib: undefined, error: undefined, lastUsedAt: undefined, usedBytes: 0, usedBytesAt: undefined })
+      options, sizeGib: undefined, error: undefined, lastUsedAt: undefined, usedBytes: 0, usedBytesAt: undefined,
+      pendingFinalCommits: [] })
   })
 
   it('deletes by encoded name with an explicit ID-only lookup', async () => {

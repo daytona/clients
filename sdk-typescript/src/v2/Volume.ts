@@ -13,13 +13,32 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
-import type { JsonValue, ListResult, VolumeState, VolumeType } from './types.js'
-import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './gen/api-enums.js'
+import type { JsonValue, ListResult, PendingFinalCommitStatus, VolumeState, VolumeType } from './types.js'
+import {
+  PendingFinalCommitStatus as PENDING_FINAL_COMMIT_STATUSES,
+  VolumeStatus as VOLUME_STATUSES,
+  VolumeType as VOLUME_TYPES,
+} from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
 import { MAX_INT32, assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
-import { checkResponse } from './responseFields.js'
+import { arrayOf, checkResponse, nested } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
+
+/** An ended sandbox whose last writes to a volume are not saved yet. */
+export interface PendingFinalCommit {
+  readonly sandboxId: string
+  /**
+   * `pending` until saving the sandbox's last writes starts, `saving` while
+   * they are saved, `failing` while a failed save is retried.
+   */
+  readonly status: PendingFinalCommitStatus
+  readonly rawStatus: string
+  /** When the sandbox ended. */
+  readonly endingAt: string
+  /** When saving the sandbox's last writes last failed; absent when it has not failed. */
+  readonly lastFailureAt?: string
+}
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -37,6 +56,12 @@ export interface Volume {
   readonly options?: Readonly<Record<string, JsonValue>>
   readonly usedBytes?: number
   readonly usedBytesAt?: string
+  /**
+   * Ended sandboxes whose last writes to this volume are not saved yet. A
+   * create that mounts the volume is refused (`ConflictError`, code
+   * `VOLUME_FINAL_COMMIT_PENDING`) until it is empty.
+   */
+  readonly pendingFinalCommits: readonly PendingFinalCommit[]
 }
 
 export interface GetVolumeOptions {
@@ -75,6 +100,30 @@ const VOLUME: ResponseFields = {
   size_gib: 'integer?', error: 'string?', last_used_at: 'timestamp?', options: 'object?', used_bytes: 'integer?', used_bytes_at: 'timestamp?',
 }
 
+const PENDING_FINAL_COMMITS = arrayOf(nested({
+  sandbox_id: 'string', status: 'string', ending_at: 'timestamp', last_failure_at: 'timestamp|null',
+}))
+
+/**
+ * The volume's pending final commits. An API that does not report the list
+ * omits it: it reads as empty (nothing pending), as in Python. A present one
+ * keeps every contract check.
+ */
+function mapPendingFinalCommits(value: api.Volume): readonly PendingFinalCommit[] {
+  const reported: unknown = Reflect.get(value, 'pending_final_commits')
+  if (reported === undefined) return []
+  const { pending_final_commits: items } = checkResponse<Pick<api.Volume, 'pending_final_commits'>>(
+    value, { pending_final_commits: PENDING_FINAL_COMMITS }, 'volume',
+  )
+  return items.map((item) => ({
+    sandboxId: item.sandbox_id,
+    status: knownOrUnknown(item.status, PENDING_FINAL_COMMIT_STATUSES),
+    rawStatus: item.status,
+    endingAt: item.ending_at,
+    lastFailureAt: item.last_failure_at ?? undefined,
+  }))
+}
+
 function mapVolume(value: api.Volume): Volume {
   const volume = checkResponse<api.Volume>(value, VOLUME, 'volume')
   return deepFrozen({
@@ -94,6 +143,7 @@ function mapVolume(value: api.Volume): Volume {
     options: volume.options ?? undefined,
     usedBytes: volume.used_bytes ?? undefined,
     usedBytesAt: volume.used_bytes_at ?? undefined,
+    pendingFinalCommits: mapPendingFinalCommits(volume),
   })
 }
 
