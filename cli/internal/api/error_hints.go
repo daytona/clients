@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
+
+var sandboxPortPath = regexp.MustCompile(`^/sandboxes/[^/]+/ports/[0-9]+$`)
 
 func hintFor(ae *APIError) string {
 	switch {
@@ -61,6 +64,10 @@ func hintFor(ae *APIError) string {
 				return "create takes an image name or img_… id; `daytona image list` shows available images, and `daytona image create NAME --ref REF` imports a registry image"
 			}
 			return "check the image name or id and the selected --project; `daytona image list` shows available images"
+		}
+		if path, _, _ := strings.Cut(ae.Path, "?"); ae.Method == http.MethodDelete && sandboxPortPath.MatchString(path) {
+			// The CLI resolves the sandbox first, so a 404 here is the port.
+			return "that port is not exposed; `daytona sandbox port endpoints <sandbox-id>` lists the exposed ports"
 		}
 		return "check the id and the selected --org/--project; a resource in another project also answers 404"
 	case ae.Status == http.StatusConflict && ae.Code == CodeNotSupportedForClass:

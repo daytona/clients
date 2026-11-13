@@ -161,3 +161,14 @@ func TestHintFor_refusedSignedPreviewLinkPointsToPublicExpose(t *testing.T) {
 	revoke := &APIError{Status: http.StatusForbidden, Code: "FORBIDDEN", Method: http.MethodPost, Path: "/sandboxes/sbx/ports/8080/signed-preview-urls/revoke"}
 	require.Equal(t, "this credential is not allowed to do that here", hintFor(revoke))
 }
+
+func TestHintFor_unexposeOfAPortThatIsNotExposed(t *testing.T) {
+	// Given a 404 from deleting a sandbox port, after the sandbox itself resolved
+	h := hintFor(&APIError{Status: http.StatusNotFound, Code: "NOT_FOUND", Method: http.MethodDelete, Path: "/sandboxes/sbx/ports/9999"})
+	// Then the hint names the port, not the org or project
+	require.Contains(t, h, "that port is not exposed")
+	require.Contains(t, h, "sandbox port endpoints")
+	// And other 404s on the port routes keep the generic hint
+	g := hintFor(&APIError{Status: http.StatusNotFound, Code: "NOT_FOUND", Method: http.MethodGet, Path: "/sandboxes/sbx/ports/9999"})
+	require.Contains(t, g, "check the id")
+}
