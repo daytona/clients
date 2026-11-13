@@ -288,6 +288,7 @@ func TestSandboxPortExpose_refusesInvalidPortsBeforeAnyRequest(t *testing.T) {
 		{"sandbox", "port", "expose", ga2SandboxID, "0"},
 		{"sandbox", "port", "expose", ga2SandboxID, "65536", "--public"},
 		{"sandbox", "port", "expose", ga2SandboxID, "2280", "--public"},
+		{"sandbox", "port", "expose", ga2SandboxID, "2281", "--public"},
 		{"sandbox", "port", "expose", ga2SandboxID, "22220"},
 		{"sandbox", "port", "unexpose", ga2SandboxID, "abc"},
 	} {
