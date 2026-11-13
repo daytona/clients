@@ -45,7 +45,7 @@ function resultLabel(result) {
       ? '⚠️ Succeeded, checks failed'
       : '⚠️ Succeeded, checks missing'
   }
-  if (result.finalStatus === 'completed') return `❌ ${oneLine(result.outcome || 'no report')}`
+  if (result.finalStatus === 'completed') return `❌ ${oneLine(result.outcome || 'no report', MAX_CELL)}`
   if (result.finalStatus === 'failed') return '💥 Failed'
   if (result.finalStatus === 'superseded') return '↪️ Superseded'
   if (result.finalStatus === 'running') return '⏱️ Timed out'
@@ -60,25 +60,27 @@ function checksCell(report) {
   if (total === 0) return '–'
   const failed = failedChecks(report)
   const summary = `${total - failed.length}/${total}`
-  return failed.length === 0 ? summary : `${summary} (failed: ${failed.map(oneLine).join(', ')})`
+  return failed.length === 0 ? summary : `${summary} (failed: ${failed.map((slug) => oneLine(slug, MAX_CELL)).join(', ')})`
 }
 
-// Agent and judge text is capped so the whole comment stays under GitHub's limit.
+// Agent and judge text is capped before escaping; table cells far more tightly.
 const MAX_TEXT = 600
-// Room left for the findings once the table and the rest of the comment are written.
-const MAX_DETAILS = 50000
+const MAX_CELL = 40
+// GitHub refuses a comment over 65,536 characters; keep a margin.
+const MAX_COMMENT = 65000
 
-function oneLine(text) {
+function oneLine(text, max = MAX_TEXT) {
   const flat = redact(text).replace(/\s+/g, ' ').trim()
   return (
-    (flat.length > MAX_TEXT ? `${flat.slice(0, MAX_TEXT - 1)}…` : flat)
+    (flat.length > max ? `${flat.slice(0, max - 1)}…` : flat)
       // Agent-written text is shown as plain text: no Markdown links, images, HTML, math,
       // character references (`&commat;` would become a mention) or formatting of its
       // own, and no table cell breaks.
       .replace(/[&\\`*_{}\[\]()<>#+!|~]/g, '\\$&')
-      // `$…$` would render as math, where the escapes above are undone; a dollar
-      // inside a tag is plain text. (A function: a `$<` string is a group reference.)
-      .replace(/\$/g, () => '<span>$</span>')
+      // `$…$` would render as math, where the escapes above are undone. With two or
+      // more dollars, each goes inside a tag, which is plain text. (A function: a `$<`
+      // replacement string is a group reference.)
+      .replace(/\$/g, (dollar, offset, all) => (all.indexOf('$') === all.lastIndexOf('$') ? dollar : '<span>$</span>'))
       // Nor may it notify users or teams, cross-reference issues, or autolink URLs.
       .replace(/@(?=[\w-])/g, '@\u200b')
       .replace(/#(?=\w)/g, '#\u200b')
@@ -105,7 +107,7 @@ function render({ results, sha, runUrl, pr }) {
     const reportUrl = firegoatUrl(result.reportUrl)
     const runUrl = firegoatUrl(result.runUrl)
     const link = reportUrl ? `[report](${reportUrl})` : runUrl ? `[run](${runUrl})` : '–'
-    const cell = (value) => (value === undefined || value === null || value === '' ? '–' : oneLine(value))
+    const cell = (value) => (value === undefined || value === null || value === '' ? '–' : oneLine(value, MAX_CELL))
     return `| ${result.title} | ${resultLabel(result)} | ${checksCell(report)} | ${cell(metrics.time)} | ${cell(metrics.cost)} | ${cell(metrics.errors)} | ${link} |`
   })
   const details = results
@@ -117,10 +119,7 @@ function render({ results, sha, runUrl, pr }) {
     })
     .filter(Boolean)
   const allSucceeded = results.every(isClean)
-  // Escaping can grow agent text well past its cap (a `$` becomes 14 characters):
-  // drop details from the end until the comment fits GitHub's 65,536-character limit.
-  while (details.length > 0 && details.join('\n').length > MAX_DETAILS) details.pop()
-  return [
+  const lines = (shown) => [
     HEADING,
     '',
     `${allSucceeded ? '✅ All evals succeeded' : 'Some evals did not succeed'} on commit \`${sha.slice(0, 7)}\`. Informational only, this never blocks merging.`,
@@ -128,12 +127,17 @@ function render({ results, sha, runUrl, pr }) {
     '| Eval | Result | Checks | Agent time | Cost | Errors | Details |',
     '| --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
-    ...(details.length
-      ? ['', '<details><summary>Key findings and friction points</summary>', '', ...details, '', '</details>']
+    ...(shown.length
+      ? ['', '<details><summary>Key findings and friction points</summary>', '', ...shown, '', '</details>']
       : []),
     '',
     `Re-run: remove and re-add the \`ax-eval\` label, or \`${DISPATCH_HINT.replace('<number>', pr || '<number>')}\` · [workflow run](${runUrl})`,
   ]
+  // Escaping can grow text well past its cap (a `$` becomes 14 characters): drop
+  // findings from the end until the whole comment fits GitHub's limit.
+  let shown = details
+  while (shown.length > 0 && lines(shown).join('\n').length > MAX_COMMENT) shown = shown.slice(0, -1)
+  return lines(shown)
 }
 
 function loadResults(dir, matrix) {

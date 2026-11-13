@@ -380,6 +380,11 @@ test('render: the comment stays under GitHub\'s limit even when escaping grows t
   const out = render({ sha: SHA, runUrl: 'u', results }).join('\n')
   assert.ok(out.length < 65536, String(out.length))
   assert.ok(out.includes('| E14 |'))
+  const huge = { reward: { checklist: { a: 1 } }, metrics: { time: 'x'.repeat(1000), cost: '$'.repeat(1000), errors: '$'.repeat(1000) } }
+  const table = render({ sha: SHA, runUrl: 'u', results: Array.from({ length: 15 }, (_, i) => ({ title: `T${i}`, finalStatus: 'completed', outcome: '$'.repeat(1000), reportJson: JSON.stringify(huge) })) }).join('\n')
+  assert.ok(table.length < 65536, String(table.length))
+  const cost = render({ sha: SHA, runUrl: 'u', results: [{ title: 'C', finalStatus: 'completed', outcome: 'succeeded', reportJson: JSON.stringify({ reward: { checklist: { a: 1 } }, metrics: { cost: '$0.46' } }) }] }).join('\n')
+  assert.ok(cost.includes('| $0.46 |'))
 })
 
 test('render: long agent text is capped', () => {
