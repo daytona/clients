@@ -13,7 +13,6 @@ import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('./check-v2-surface.mjs', import.meta.url));
 const receivers = {
-  lspServer: { py: { types: ['LspServer', 'AsyncLspServer'] }, ts: { types: ['LspServer'] } },
   ptyHandle: { py: { types: ['PtyHandle', 'AsyncPtyHandle'] }, ts: { types: ['PtyHandle'] }, producedBy: ['connect-pty'] },
 };
 
@@ -62,7 +61,6 @@ test('binds typed handles when forms contain local declarations and opaque user 
       py: '{client}.v2.get(id).fork(name=name, memory=False)',
       ts: '{client}.v2.get(id).then(source => source.fork({ name, memory: false }))',
     } },
-    { id: 'lsp', receiver: 'lspServer', v2: { py: 'lsp.completions(uri, position)', ts: 'lsp.completions(uri, position)' } },
     { id: 'connect-pty', v2: { py: '{sandbox}.pty.connect(pty_id)', ts: '{sandbox}.pty.connect(ptyId)' } },
     { id: 'handle', receiver: 'ptyHandle', v2: { py: 'handle.wait()', ts: 'handle.wait()' } },
     { id: 'connection', receiver: 'ptyHandle', v2: { py: null, ts: 'connection.close()' } },
@@ -72,7 +70,7 @@ test('binds typed handles when forms contain local declarations and opaque user 
   const result = runMapping(suggestions, context);
   // Then: the typed chains bind without spurious user-data diagnostics.
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, 'v2 surface bound: 5 py forms, 6 ts forms\n');
+  assert.equal(result.stdout, 'v2 surface bound: 4 py forms, 5 ts forms\n');
 });
 
 test('rejects missing service chains when unrelated SDK methods still exist', (context) => {

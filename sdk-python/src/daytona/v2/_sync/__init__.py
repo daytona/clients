@@ -16,7 +16,6 @@ from .. import docker as _m_docker
 from .. import filesystem as _m_filesystem
 from .. import git as _m_git
 from .. import interpreter as _m_interpreter
-from .. import lsp as _m_lsp
 from .. import ports as _m_ports
 from .. import process as _m_process
 from .. import sandbox as _m_sandbox
@@ -40,7 +39,6 @@ from .docker import DockerService
 from .filesystem import FileSystemService, WatchHandle
 from .git import GitService
 from .interpreter import InterpreterService
-from .lsp import LspServer, LspService
 from .ports import PortsService
 from .process import ProcessHandle, ProcessService, PtyService
 from .sandbox import Sandbox
@@ -70,8 +68,6 @@ _rt.REGISTRY.update(
         _m_git.AsyncGitService: GitService,
         _m_interpreter.AsyncInterpreterService: InterpreterService,
         _m_types.AsyncInterpreterContext: InterpreterContext,
-        _m_lsp.AsyncLspServer: LspServer,
-        _m_lsp.AsyncLspService: LspService,
         _m_ports.AsyncPortsService: PortsService,
         _m_sandbox_volumes.AsyncSandboxVolumesService: SandboxVolumesService,
         _m_docker.AsyncDockerService: DockerService,
@@ -105,8 +101,6 @@ __all__ = [
     "InterpreterContext",
     "InterpreterService",
     "KeyboardService",
-    "LspServer",
-    "LspService",
     "MacModelsService",
     "MouseService",
     "PortsService",

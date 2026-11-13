@@ -58,8 +58,6 @@ export {
   ScreenService,
 } from './ComputerUseNamespaces.js'
 export type { RecordingDownloadOptions } from './ComputerUseNamespaces.js'
-export { LspServer, LspService } from './Lsp.js'
-export { LspServer as LspServerV2 } from './Lsp.js'
 export { PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE, PortsService } from './Ports.js'
 export { DockerService } from './Docker.js'
 export type { DockerOwner, DockerState, DockerStatus, DockerWaitOptions } from './Docker.js'
@@ -402,16 +400,5 @@ export type {
   ListEndpointsOptions,
   SignedPreviewLinkOptions,
 } from './Ports.js'
-export type {
-  LspCompletionsOptions,
-  LspCompletionContext,
-  LspCompletionItem,
-  LspCompletionList,
-  LspMarkupContent,
-  LspLocation,
-  LspPosition,
-  LspRange,
-  LspSymbol,
-} from './Lsp.js'
 export { BuildLogInterruptedError } from './BuildLogs.js'
 export type { BuildLogDoneReason, BuildLogEvent, BuildLogFollowOptions, BuildLogFollowResult, BuildLogInterruptedErrorOptions } from './BuildLogs.js'

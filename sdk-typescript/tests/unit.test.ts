@@ -40,7 +40,6 @@ import { FileSystemService } from '../src/v2/FileSystem'
 import type { FilesystemEvent, FilesystemEventType } from '../src/v2/FileSystem'
 import { GitService } from '../src/v2/Git'
 import { InterpreterService } from '../src/v2/Interpreter'
-import { LspService } from '../src/v2/Lsp'
 import { PortsService } from '../src/v2/Ports'
 import { SecretsService } from '../src/v2/Secret'
 import { VolumesService } from '../src/v2/Volume'
@@ -356,6 +355,13 @@ const SDK_TOOLBOX_ROUTE_ALLOWLIST = {
   'GET /info': 'No public SDK method exposes this metadata endpoint.',
   'GET /sessions/{id}': 'Session handles expose operations without a separate metadata lookup.',
   'GET /version': 'No public SDK method exposes this version endpoint.',
+  'POST /lsp/completions': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
+  'POST /lsp/did-close': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
+  'POST /lsp/did-open': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
+  'GET /lsp/document-symbols': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
+  'POST /lsp/start': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
+  'POST /lsp/stop': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
+  'GET /lsp/workspacesymbols': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
 } as const satisfies Record<string, string>
 
 const CONTRACT_ROUTE_PREFIXES = [
@@ -11533,7 +11539,7 @@ describe('toolbox endpoint e2e', () => {
     }
   })
 
-  it('shapes port and lsp requests and unwraps their payloads', async () => {
+  it('shapes port requests and unwraps their payloads', async () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ ports: [3000, 8080] }).mockResolvedValueOnce({ isInUse: true })
     const portsApi = {
@@ -11569,33 +11575,6 @@ describe('toolbox endpoint e2e', () => {
     expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/signed-preview-urls/revoke')
     expect(portsApi.delete).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080')
 
-    const lspTransport = transportStub()
-    lspTransport.post
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce({ isIncomplete: false, items: [{ label: 'append' }] })
-      .mockResolvedValueOnce(undefined)
-    lspTransport.get
-      .mockResolvedValueOnce([{ name: 'main', kind: 12, location: { uri: 'file:///p/a.py', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } } } }])
-      .mockResolvedValueOnce([])
-    const lsp = new LspService(INTERNAL, lspTransport.object)
-    const server = await lsp.start('python', '/p')
-
-    await server.openDocument('file:///p/a.py')
-    await server.closeDocument('file:///p/a.py')
-    await expect(server.completions('file:///p/a.py', { line: 2, character: 5 })).resolves.toEqual({ isIncomplete: false, items: [{ label: 'append' }] })
-    await expect(server.completions('file:///p/a.py', { line: -1, character: 5 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
-    await expect(server.documentSymbols('file:///p/a.py')).resolves.toHaveLength(1)
-    await expect(server.workspaceSymbols('main')).resolves.toEqual([])
-    await server[Symbol.asyncDispose]()
-    expect(lspTransport.post.mock.calls[0]).toEqual(['/lsp/start', { languageId: 'python', pathToProject: '/p' }])
-    expect(lspTransport.post.mock.calls[1]).toEqual(['/lsp/did-open', { languageId: 'python', pathToProject: '/p', uri: 'file:///p/a.py' }])
-    expect(lspTransport.post.mock.calls[2]).toEqual(['/lsp/did-close', { languageId: 'python', pathToProject: '/p', uri: 'file:///p/a.py' }])
-    expect(lspTransport.post.mock.calls[3]).toEqual(['/lsp/completions', { languageId: 'python', pathToProject: '/p', uri: 'file:///p/a.py', position: { line: 2, character: 5 } }])
-    expect(lspTransport.post.mock.calls[4]).toEqual(['/lsp/stop', { languageId: 'python', pathToProject: '/p' }])
-    expect(lspTransport.get.mock.calls[0]?.[0]).toBe('/lsp/document-symbols?languageId=python&pathToProject=%2Fp&uri=file%3A%2F%2F%2Fp%2Fa.py')
-    expect(lspTransport.get.mock.calls[1]?.[0]).toBe('/lsp/workspacesymbols?query=main&languageId=python&pathToProject=%2Fp')
   })
 
   it('runs python through the interpreter (kind=code)', async () => {
@@ -12241,7 +12220,6 @@ describe('computer-use namespace', () => {
     const fromJson = (text: string): unknown => JSON.parse(text)
     const read = async (kind: string, value: string): Promise<unknown> => {
       const transport = transportStub()
-      const range = '{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}'
       switch (kind) {
         case 'process pid':
           transport.post.mockResolvedValueOnce({ ...createdWire({ id: 'p' }), pid: fromJson(value) })
@@ -12281,12 +12259,6 @@ describe('computer-use namespace', () => {
         case 'git ahead':
           transport.get.mockResolvedValueOnce({ ...gitStatusWire(), ahead: fromJson(value) })
           return new GitService(INTERNAL, transport.object).status('/repo')
-        case 'LSP position': {
-          transport.post.mockResolvedValue(undefined)
-          const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
-          transport.get.mockResolvedValueOnce(fromJson(`[{"name":"s","kind":1,"location":{"uri":"u","range":{"start":{"line":${value},"character":0},"end":${range.slice(range.indexOf('"end":') + 6, -1)}}}}]`))
-          return server.documentSymbols('u')
-        }
         case 'window x':
           transport.get.mockResolvedValueOnce(fromJson(`{"windows":[{"id":1,"title":"t","x":${value},"y":0,"width":1,"height":1,"isActive":true}]}`))
           return new ComputerUseService(INTERNAL, transport.computerUseObject).display.windows()
@@ -12298,7 +12270,7 @@ describe('computer-use namespace', () => {
     const cases = [
       ['process pid', 'pid'], ['logs() timestamp', 'timestamp'], ['streamLogs() timestamp', 'timestamp'],
       ['watch fs timestamp', 'timestamp'], ['FileInfo.size', 'size'], ['git ahead', 'ahead'],
-      ['LSP position', 'line'], ['window x', 'x'], ['sizeBytes', 'sizeBytes'],
+      ['window x', 'x'], ['sizeBytes', 'sizeBytes'],
     ] as const
 
     it.each(cases.flatMap(([kind, field]) => [[kind, field, huge], [kind, field, `-${huge}`]] as const))(
@@ -12571,18 +12543,6 @@ describe('toolbox surface', () => {
     else await expect(call).rejects.toMatchObject({ message: 'expected process response: terminal: cols must be an integer between 1 and 65535', code: 'BAD_REQUEST' })
   })
 
-  it.each([
-    [{ isIncomplete: false, items: {} }, 'expected LSP completion list: items must be a list'],
-    [{ isIncomplete: false, items: 'x' }, 'expected LSP completion list: items must be a list'],
-    [{ isIncomplete: false }, 'expected LSP completion list: items is required'],
-    [{ isIncomplete: false, items: null }, 'expected LSP completion list: items is required'],
-  ])('names a malformed LSP completion list %p', async (payload, message) => {
-    const transport = transportStub()
-    transport.post.mockResolvedValueOnce(undefined).mockResolvedValueOnce(payload)
-    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
-    await expect(server.completions('u', { line: 0, character: 0 })).rejects.toMatchObject({ message, code: 'BAD_REQUEST', source: 'SDK' })
-  })
-
   // Shared with the Python SDK's test_toolbox_surface.py: computer-use geometry
   // and process-status integers are int32 in the contract (widths, heights and
   // RestartAttempts non-negative); a value outside is a malformed response.
@@ -12756,7 +12716,6 @@ describe('toolbox surface', () => {
     construct(() => new (ProcessService as unknown as new (...args: unknown[]) => unknown)(transport.object, 'sbx'))
     construct(() => new (FileSystemService as unknown as new (...args: unknown[]) => unknown)(transport.object))
     construct(() => new (GitService as unknown as new (...args: unknown[]) => unknown)(transport.object))
-    construct(() => new (LspService as unknown as new (...args: unknown[]) => unknown)(transport.object))
     construct(() => new (InterpreterService as unknown as new (...args: unknown[]) => unknown)(transport.object, 'sbx'))
     construct(() => new (ComputerUseService as unknown as new (...args: unknown[]) => unknown)(transport.computerUseObject))
     construct(() => new (ProcessHandle as unknown as new (...args: unknown[]) => unknown)(transport.object, 'sbx', 'p'))
@@ -12766,11 +12725,9 @@ describe('toolbox surface', () => {
   it('builds every toolbox handle and sub-service only through the SDK', async () => {
     const transport = transportStub()
     const namespaces = await import('../src/v2/ComputerUseNamespaces')
-    const { LspServer } = await import('../src/v2/Lsp')
     const { Session } = await import('../src/v2/Session')
     const { InterpreterContext } = await import('../src/v2/Interpreter')
     const classes: Array<[string, unknown, unknown[]]> = [
-      ['LspServer', LspServer, [transport.object, 'python', '/p']],
       ['Session', Session, [{ transport: transport.object, sandboxId: 'sbx' }, 's']],
       ['PtyService', PtyService, [new ProcessService(INTERNAL, transport.object, 'sbx'), transport.object]],
       ['InterpreterContext', InterpreterContext, [{ sandboxId: 'sbx', contextId: 'c', language: 'python' }]],
@@ -12975,32 +12932,6 @@ describe('toolbox surface', () => {
     const { systemMetricsFromWire } = await import('../src/v2/toolboxModels')
     expect(systemMetricsFromWire(sandboxMetrics)).toStrictEqual(metrics)
     expect(() => systemMetricsFromWire({ cpuCount: 2 } as never)).toThrow('expected system metrics')
-  })
-
-  it('returns SDK LSP models and sends a typed completion context', async () => {
-    const transport = transportStub()
-    transport.post
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce({
-        isIncomplete: false,
-        items: [
-          { label: 'plain', documentation: 'text', kind: 3, detail: null },
-          { label: 'rich', documentation: { kind: 'markdown', value: '**x**' }, sortText: 'a', unknownKey: 1 },
-        ],
-      })
-    transport.get.mockResolvedValueOnce([{ name: 'f', kind: 12, location: { uri: 'file:///p/a.py', range: { start: { line: 0, character: 1 }, end: { line: 2, character: 3 } } } }])
-    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
-    await expect(server.completions('file:///p/a.py', { line: 1, character: 2 }, { context: { triggerKind: 2, triggerCharacter: '.' } })).resolves.toStrictEqual({
-      isIncomplete: false,
-      items: [
-        { label: 'plain', kind: 3, documentation: 'text' },
-        { label: 'rich', documentation: { kind: 'markdown', value: '**x**' }, sortText: 'a' },
-      ],
-    })
-    expect(transport.post.mock.calls[1]?.[1]).toMatchObject({ context: { triggerKind: 2, triggerCharacter: '.' } })
-    await expect(server.documentSymbols('file:///p/a.py')).resolves.toStrictEqual([
-      { name: 'f', kind: 12, location: { uri: 'file:///p/a.py', range: { start: { line: 0, character: 1 }, end: { line: 2, character: 3 } } } },
-    ])
   })
 
   it('reads null optional computer-use fields as absent and keeps required ones required', async () => {
@@ -13487,27 +13418,6 @@ describe('toolbox surface', () => {
     await expect(new GitService(INTERNAL, transport.object)[method]('/repo')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 
-  it('checks LSP symbols, completion items and the completion context', async () => {
-    const transport = transportStub()
-    transport.post.mockResolvedValue(undefined)
-    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
-    const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }
-    for (const symbol of [
-      { name: 'f', kind: 1, location: { uri: 'u', range: { ...range, start: { line: -1, character: 0 } } } },
-      { name: 'f', kind: 1, location: { uri: 'u', range: { ...range, end: { line: 0, character: 1.5 } } } },
-      { name: 'f', kind: 1.5, location: { uri: 'u', range } },
-    ]) {
-      transport.get.mockResolvedValueOnce([symbol])
-      await expect(server.documentSymbols('u')).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    for (const item of [{ label: 'x', kind: 1.5 }, { label: 'x', detail: 3 }, { label: 'x', documentation: 7 }, { label: 'x', documentation: { kind: 'markdown' } }]) {
-      transport.post.mockResolvedValueOnce({ isIncomplete: false, items: [item] })
-      await expect(server.completions('u', { line: 0, character: 0 })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    await expect(server.completions('u', { line: 0, character: 0 }, { context: { triggerKind: 1, triggerCharacter: 3 as never } }))
-      .rejects.toThrow('triggerCharacter must be a string')
-  })
-
   it('requires the contract fields of a process record and log page', async () => {
     const transport = transportStub()
     transport.get
@@ -13616,15 +13526,10 @@ describe('toolbox surface', () => {
 
   it('refuses a null options value or nested option with BadRequestError and sends nothing', async () => {
     const transport = transportStub()
-    transport.post.mockResolvedValue(undefined)
-    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
-    transport.post.mockClear()
     const git = new GitService(INTERNAL, transport.object)
     const mouse = new ComputerUseService(INTERNAL, transport.computerUseObject).mouse
     const refused = { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }
     await expect(git.clone('u', null as never)).rejects.toMatchObject(refused)
-    await expect(server.completions('u', { line: 0, character: 0 }, null as never)).rejects.toMatchObject(refused)
-    await expect(server.completions('u', { line: 0, character: 0 }, { context: null as never })).rejects.toMatchObject(refused)
     await expect(mouse.move(null as never)).rejects.toMatchObject(refused)
     expect(transport.post).not.toHaveBeenCalled()
     expect(transport.get).not.toHaveBeenCalled()
@@ -13966,14 +13871,6 @@ describe('toolbox surface', () => {
     await expect(git.setConfig('user.name', 'Ada', { scope: scope as never })).rejects.toThrow("scope must be 'global' or 'local'")
     expect(transport.get).not.toHaveBeenCalled()
     expect(transport.post).not.toHaveBeenCalled()
-  })
-
-  it('names what a mistyped LSP documentation must be', async () => {
-    const transport = transportStub()
-    transport.post.mockResolvedValue(undefined)
-    const server = await new LspService(INTERNAL, transport.object).start('python', '/p')
-    transport.post.mockResolvedValueOnce({ isIncomplete: false, items: [{ label: 'x', documentation: 7 }] })
-    await expect(server.completions('u', { line: 0, character: 0 })).rejects.toThrow('documentation must be a string or a markup content with kind and value')
   })
 
   it('has a standalone LogPage with exactly the five page fields, like the Python SDK', async () => {

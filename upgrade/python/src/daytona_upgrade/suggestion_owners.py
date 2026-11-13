@@ -54,8 +54,9 @@ class ServiceOwners(Flow):
         ):
             return self.owner(node.value)
         definition = self.resolver.mapping.receivers.get(kind)
-        # A handle a sandbox call produced (`sandbox.create_lsp_server(...)`)
-        # is owned by that call's sandbox; a new sandbox (a fork) is not.
+        # A handle a sandbox call produced (a PTY from
+        # `sandbox.process.create_pty_session(...)`) is owned by that call's
+        # sandbox; a new sandbox (a fork) is not.
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)

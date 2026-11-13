@@ -28,7 +28,7 @@ export function sandboxOwner(node: Node, use: Node, receivers: Receivers): Node 
       });
       return accessible ? expression : undefined;
     }
-    // A handle a sandbox call produced (`sandbox.createLspServer(...)`) is
+    // A handle a sandbox call produced (`sandbox.process.createPty(...)`) is
     // owned by that call's sandbox; a new sandbox (a fork) is not.
     if (Node.isCallExpression(value)) {
       const callee = value.getExpression();

@@ -439,8 +439,9 @@ def _suggest(source: str) -> list[tuple[int, str, str | None]]:
     ]
 
 
-def test_root_sandbox_calls_and_lsp_servers_render_on_their_sandbox() -> None:
-    # Given root sandbox calls and an LSP server created from a sandbox named box.
+def test_lsp_server_calls_report_no_v2_equivalent() -> None:
+    # Given root sandbox calls and 0.x LSP server calls, one on a server
+    # whose sandbox is unknown.
     source = (
         "from daytona import Daytona, LspServer, Sandbox\n"
         "def main(sb: Sandbox):\n"
@@ -453,19 +454,13 @@ def test_root_sandbox_calls_and_lsp_servers_render_on_their_sandbox() -> None:
     )
     # When
     items = _suggest(source)
-    # Then the root call is a plain suggestion, the server starts on box, and a
-    # server whose sandbox is unknown is a manual move (as in the TypeScript tool).
+    # Then the root call is a plain suggestion and every LSP call is a
+    # suggestion with no v2 form (v2 has no LSP service), never an ownership
+    # move (as in the TypeScript tool).
     assert (3, "suggestion", "sb.refresh_data()") in items
-    assert (
-        6,
-        "suggestion",
-        "lsp = box.lsp.start(language_id, path_to_project)",
-    ) in items
-    assert (
-        8,
-        "fixme",
-        "lsp = sandbox.lsp.start(language_id, path_to_project)",
-    ) in items
+    assert (5, "suggestion", None) in items
+    assert (6, "suggestion", None) in items
+    assert (8, "suggestion", None) in items
 
 
 def test_workflow_items_carry_the_data_guide_link() -> None:

@@ -210,7 +210,7 @@ Python: sync and async method names match
 <a id="sandbox"></a>
 ## `sandbox`
 
-Python: sync and async method names match; create_lsp_server is synchronous even on AsyncSandbox and returns an AsyncLspServer
+Python: sync and async method names match
 
 v2 fork waits for the new sandbox with a wait_seconds / waitSeconds budget in seconds (default 60; 0 returns once the fork is accepted) and returns the fork however the wait ends
 
@@ -219,7 +219,7 @@ v2 fork waits for the new sandbox with a wait_seconds / waitSeconds budget in se
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `sandbox.archive(...)` | None | none; No v2 equivalent; keep 0.x archive workflows on .v0 |
-| `sandbox.create_lsp_server(...)` | `{sandbox}.lsp.start(language_id, path_to_project)` | differs; Starts the server immediately instead of constructing a server for a later start call; On AsyncDaytona this call must be awaited; v0 AsyncSandbox.create_lsp_server was synchronous |
+| `sandbox.create_lsp_server(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
 | `sandbox.create_snapshot(...)` | `{sandbox}.capture_image(name=name)` | differs; V0 filesystem snapshots correspond to v2 images; Returns an Image and has no timeout argument; Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait="ready", timeout=timeout), which returns the image once it settles ("ready", "failed" or "error"; check that it is "ready" before booting from it) and raises RequestTimeoutError when the budget runs out; V2 create_snapshot(name) captures sandbox state and is a different operation |
 | `sandbox._experimental_create_snapshot(...)` | `{sandbox}.capture_image(name=name)` | differs; Deprecated alias of create_snapshot in 0.x; V0 filesystem snapshots correspond to v2 images; Returns an Image and has no timeout argument; Returns before the image is ready; wait with daytona.v2.images.get(image.id, wait="ready", timeout=timeout), which returns the image once it settles ("ready", "failed" or "error"; check that it is "ready" before booting from it) and raises RequestTimeoutError when the budget runs out; V2 create_snapshot(name) captures sandbox state and is a different operation |
 | `sandbox.create_ssh_access(...)` | None | none; No equivalent v0 SSH access-token management helper; V2 scoped access tokens are a different credential model |
@@ -265,7 +265,7 @@ v2 fork waits for the new sandbox with a wait_seconds / waitSeconds budget in se
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
 | `sandbox.archive(...)` | None | none; No v2 equivalent; keep 0.x archive workflows on .v0 |
-| `sandbox.createLspServer(...)` | `{sandbox}.lsp.start(languageId, pathToProject)` | differs; Starts the server immediately instead of constructing a server for a later start call |
+| `sandbox.createLspServer(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
 | `sandbox.createSnapshot(...)` | `{sandbox}.captureImage({ name })` | differs; V0 filesystem snapshots correspond to v2 images; Returns an Image and has no timeout argument; Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), which returns the image once it settles ('ready', 'failed' or 'error'; check that it is 'ready' before booting from it) and throws RequestTimeoutError when the budget runs out; V2 createSnapshot(name) captures sandbox state and is a different operation |
 | `sandbox._experimental_createSnapshot(...)` | `{sandbox}.captureImage({ name })` | differs; Deprecated alias of createSnapshot in 0.x; V0 filesystem snapshots correspond to v2 images; Returns an Image and has no timeout argument; Returns before the image is ready; wait with daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds }), which returns the image once it settles ('ready', 'failed' or 'error'; check that it is 'ready' before booting from it) and throws RequestTimeoutError when the budget runs out; V2 createSnapshot(name) captures sandbox state and is a different operation |
 | `sandbox.createSshAccess(...)` | None | none; No equivalent v0 SSH access-token management helper; V2 scoped access tokens are a different credential model |
@@ -706,35 +706,33 @@ Python: v2 returns dataclasses and removes request_timeout
 <a id="lsp-server"></a>
 ## `lsp_server` / `lspServer`
 
-Python: AsyncLspServer exposes the same method names with await
-
-Python and TypeScript: retain the v2 handle returned by sandbox.lsp.start as lsp
+V2 has no LSP service: no 0.x LSP server call has a v2 equivalent; keep 0.x LSP workflows on .v0
 
 ### Python
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `lsp_server.completions(...)` | `lsp.completions(uri, position)` | differs; Pass a file URI; v0 added the file:// prefix to path; Pass position as a dict {"line": p.line, "character": p.character} or a v2 LspPosition; a v0 LspCompletionPosition is rejected; request_timeout is removed |
-| `lsp_server.did_close(...)` | `lsp.close_document(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
-| `lsp_server.did_open(...)` | `lsp.open_document(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
-| `lsp_server.document_symbols(...)` | `lsp.document_symbols(uri)` | differs; Pass a file URI rather than the v0 path argument; request_timeout is removed |
-| `lsp_server.sandbox_symbols(...)` | `lsp.workspace_symbols(query)` | differs; request_timeout is removed |
-| `lsp_server.start(...)` | `lsp = {sandbox}.lsp.start(language_id, path_to_project)` | differs; Start through sandbox.lsp and retain the returned server handle; A v2 server handle has no start() method; request_timeout is removed; On AsyncDaytona this call must be awaited |
-| `lsp_server.stop(...)` | `lsp.stop()` | differs; request_timeout is removed |
-| `lsp_server.workspace_symbols(...)` | `lsp.workspace_symbols(query)` | differs; request_timeout is removed |
+| `lsp_server.completions(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.did_close(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.did_open(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.document_symbols(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.sandbox_symbols(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.start(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.stop(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lsp_server.workspace_symbols(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
 
 ### TypeScript
 
 | v0 call | v2 equivalent | Notes |
 | --- | --- | --- |
-| `lspServer.completions(...)` | `lsp.completions(uri, position)` | differs; Pass a file URI; v0 added the file:// prefix to path |
-| `lspServer.didClose(...)` | `lsp.closeDocument(uri)` | differs; Pass a file URI rather than the v0 path argument |
-| `lspServer.didOpen(...)` | `lsp.openDocument(uri)` | differs; Pass a file URI rather than the v0 path argument |
-| `lspServer.documentSymbols(...)` | `lsp.documentSymbols(uri)` | differs; Pass a file URI rather than the v0 path argument |
-| `lspServer.sandboxSymbols(...)` | `lsp.workspaceSymbols(query)` | differs; Renamed to workspaceSymbols on the v2 LSP handle |
-| `lspServer.start(...)` | `const lsp = await {sandbox}.lsp.start(languageId, pathToProject)` | differs; Start through sandbox.lsp and retain the returned server handle; A v2 server handle has no start() method |
-| `lspServer.stop(...)` | `lsp.stop()` | differs; Same name on the v2 LSP handle |
-| `lspServer.workspaceSymbols(...)` | `lsp.workspaceSymbols(query)` | differs; Same name and argument on the v2 LSP handle |
+| `lspServer.completions(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.didClose(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.didOpen(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.documentSymbols(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.sandboxSymbols(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.start(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.stop(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
+| `lspServer.workspaceSymbols(...)` | None | none; V2 has no LSP service; keep 0.x LSP workflows on .v0 |
 
 <a id="pty-handle"></a>
 ## `pty_handle` / `ptyHandle`

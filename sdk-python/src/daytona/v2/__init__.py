@@ -161,8 +161,6 @@ from ._sync import (
     InterpreterService,
     InterpreterContext,
     WatchHandle,
-    LspServer,
-    LspService,
     PortsService,
     DockerService,
     PtyService,
@@ -302,18 +300,6 @@ from .filesystem import (
 from .docker import AsyncDockerService
 from .git import AsyncGitService
 from .interpreter import AsyncInterpreterService
-from .lsp import (
-    LspCompletionItem,
-    LspCompletionList,
-    LspCompletionContext,
-    LspLocation,
-    LspMarkupContent,
-    LspPosition,
-    LspRange,
-    AsyncLspServer,
-    AsyncLspService,
-    LspSymbol,
-)
 from .ports import PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE, AsyncPortsService
 from .process import AsyncProcessHandle, AsyncProcessService, AsyncPtyService
 from .session import AsyncSession
@@ -618,21 +604,11 @@ __all__ = [
     "GitFileStatus",
     "GitCommit",
     "GitRemote",
-    "LspMarkupContent",
-    "LspCompletionContext",
     "WatchEventCallback",
     "WatchOverflowCallback",
     "WatchExitCallback",
-    "LspCompletionItem",
-    "LspCompletionList",
-    "LspLocation",
     "LspNotStartedError",
-    "LspPosition",
-    "LspRange",
-    "AsyncLspServer",
     "LspServerUnavailableError",
-    "AsyncLspService",
-    "LspSymbol",
     "MacBootMode",
     "MacCatalog",
     "MacModel",
@@ -705,8 +681,6 @@ __all__ = [
     "InterpreterService",
     "InterpreterContext",
     "WatchHandle",
-    "LspServer",
-    "LspService",
     "PortsService",
     "PtyService",
     "ComputerUseService",

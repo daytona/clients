@@ -68,7 +68,6 @@ TARGETS: dict[str, list[str]] = {
     "git": ["AsyncGitService"],
     "interpreter": ["AsyncInterpreterService"],
     "types": ["AsyncInterpreterContext"],
-    "lsp": ["AsyncLspServer", "AsyncLspService"],
     "ports": ["AsyncPortsService"],
     "sandbox_volumes": ["AsyncSandboxVolumesService"],
     "docker": ["AsyncDockerService"],
