@@ -162,9 +162,14 @@ function redact(value) {
     if (last && start <= last[1]) last[1] = Math.max(last[1], end)
     else merged.push([start, end])
   }
-  let out = text
-  for (const [start, end] of merged.reverse()) out = `${out.slice(0, start)}REDACTED${out.slice(end)}`
-  return out
+  const parts = []
+  let position = 0
+  for (const [start, end] of merged) {
+    parts.push(text.slice(position, start), 'REDACTED')
+    position = end
+  }
+  parts.push(text.slice(position))
+  return parts.join('')
 }
 
 module.exports = { redact }

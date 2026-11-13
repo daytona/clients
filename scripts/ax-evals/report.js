@@ -97,7 +97,7 @@ function oneLine(text, max = MAX_TEXT) {
 function firegoatUrl(value) {
   try {
     const url = new URL(String(value || ''))
-    return url.origin === 'https://firegoat.ai' ? url.href.replace(/\(/g, '%28').replace(/\)/g, '%29') : ''
+    return url.origin === 'https://firegoat.ai' ? url.href.replace(/[()|[\]<>\\` ]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`) : ''
   } catch {
     return ''
   }

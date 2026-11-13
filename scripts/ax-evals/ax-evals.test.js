@@ -376,6 +376,11 @@ test('redact: Daytona credentials never reach the comment', () => {
   assert.equal(redact(`a ${nest(20)} b`), 'REDACTED (text too deeply encoded to check)')
   // A cut takes only the key's own bytes out of a percent-encoded run.
   assert.equal(redact(`q=%E4%B8%AD%20%64tn_${hex}%20%E4%B8%AD&x=1`), 'q=%E4%B8%AD%20REDACTED%20%E4%B8%AD&x=1')
+  // Many keys in one text stay linear.
+  const keys = `dtn_${hex} `.repeat(20000)
+  const many = Date.now()
+  assert.equal(redact(keys), 'REDACTED '.repeat(20000))
+  assert.ok(Date.now() - many < 3000)
   // A long backslash run stays linear.
   const started = Date.now()
   redact('\\'.repeat(100000))
@@ -405,6 +410,10 @@ test('render: report fields cannot break the table or link elsewhere', () => {
   const rowB = out.find((l) => l.startsWith('| B |'))
   assert.equal(rowB.split(/(?<!\\)\|/).length, 9)
   assert.ok(rowB.includes('[report](https://firegoat.ai/evals/daytona.io/reports/x%281%29)'))
+  const piped = render({ sha: SHA, runUrl: 'u', results: [{ title: 'P', finalStatus: 'failed', reportUrl: 'https://firegoat.ai/r/x|https://evil.example/|y' }] })
+  const rowP = piped.find((l) => l.startsWith('| P |'))
+  assert.equal(rowP.split(/(?<!\\)\|/).length, 9)
+  assert.ok(rowP.includes('[report](https://firegoat.ai/r/x%7Chttps://evil.example/%7Cy)'))
 })
 
 test('render: agent text cannot autolink or cross-reference', () => {
