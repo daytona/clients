@@ -494,6 +494,15 @@ chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
 `await daytona.v2.volumes.delete(volume.id, { idOnly: true })`. `{ idOnly: true }`
 accepts an ID only and turns off the name lookup.
 
+A volume's `pendingFinalCommits` lists the ended sandboxes whose last writes
+to it are not saved yet; it is empty when nothing is pending. Each entry has
+the `sandboxId`, a `status` (`pending`, `saving` or `failing`; any other value
+reads `unknown`, with the original in `rawStatus`), `endingAt` and
+`lastFailureAt` (`undefined` when saving has not failed). While the list is
+not empty, a create that mounts the volume throws `ConflictError` with
+`code === 'VOLUME_FINAL_COMMIT_PENDING'`: read the volume again with
+`daytona.v2.volumes.get()` and retry the create once the list is empty.
+
 Pulling an attachment is separate from the `daytona.v2.volumes` management
 service. The volume ID is the attached volume's `vol_` ID or its UUID. IDs
 contain 1–128 ASCII letters, digits, underscores or hyphens. The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
@@ -1083,6 +1092,10 @@ finish, that is its `reason`. Such a sandbox can still reach `destroyed`
 later. To keep waiting for it, catch the error, pause for a few seconds and
 call `sandbox.wait({ until: 'destroyed', timeoutSeconds: 600 })`: while the
 sandbox still reports `error`, the call throws again at once.
+
+`stop()` and `delete()` of a sandbox with volumes throw
+`ServiceUnavailableError` with `code === 'VOLUMES_UNAVAILABLE'` when the
+sandbox cannot be stopped or deleted right now; retry after a few seconds.
 
 Reaching `destroyed` does not guarantee that deleting an image or snapshot
 will succeed: deleting the image or snapshot immediately afterwards can still

@@ -12,6 +12,7 @@ import {
   BuildLogDoneReason as API_BUILD_LOG_DONE_REASONS,
   BuildLogGapReason as API_BUILD_LOG_GAP_REASONS,
   ImageRetention as API_IMAGE_RETENTIONS,
+  PendingFinalCommitStatus as API_PENDING_FINAL_COMMIT_STATUSES,
   SearchTotalRelation as API_SEARCH_TOTAL_RELATIONS,
   SnapshotKind as API_SNAPSHOT_KINDS,
   VolumeStatus as API_VOLUME_STATUSES,
@@ -1386,6 +1387,7 @@ export type ImageSource =
 
 export type VolumeState = (typeof API_VOLUME_STATUSES)[number] | 'unknown'
 export type VolumeType = (typeof API_VOLUME_TYPES)[number] | 'unknown'
+export type PendingFinalCommitStatus = (typeof API_PENDING_FINAL_COMMIT_STATUSES)[number] | 'unknown'
 
 export type {
   MacResources, MacModel, MacPrice, MacCatalogModel, MacCatalogRegion, MacCatalog,

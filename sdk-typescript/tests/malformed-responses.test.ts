@@ -874,6 +874,73 @@ it('reads secrets.set allowedDomains once', async () => {
   }
 })
 
+const PENDING_FINAL_COMMIT = { sandbox_id: 'sbx_1', status: 'saving', ending_at: '2026-01-02T00:00:00Z', last_failure_at: null }
+
+// As in Python.
+it('reports a volume\'s pending final commits', async () => {
+  const entries = [
+    PENDING_FINAL_COMMIT,
+    { ...PENDING_FINAL_COMMIT, sandbox_id: 'sbx_2', status: 'failing', last_failure_at: '2026-01-02T00:05:00Z' },
+    // A status a later API added is kept verbatim beside `unknown`; unknown fields are dropped.
+    { ...PENDING_FINAL_COMMIT, sandbox_id: 'sbx_3', status: 'future_status', later_field: 1 },
+  ]
+  const volume = { ...VOLUME, pending_final_commits: entries }
+  const api = await startFakeApi([{ status: 200, body: volume }, { status: 200, body: { volumes: [volume] } }])
+  const client = clientAt(api.url)
+  try {
+    const got = await client.v2.volumes.get('data')
+    const listed = (await client.v2.volumes.list()).items[0]
+    expect(got.pendingFinalCommits).toEqual([
+      { sandboxId: 'sbx_1', status: 'saving', rawStatus: 'saving', endingAt: '2026-01-02T00:00:00Z', lastFailureAt: undefined },
+      { sandboxId: 'sbx_2', status: 'failing', rawStatus: 'failing', endingAt: '2026-01-02T00:00:00Z', lastFailureAt: '2026-01-02T00:05:00Z' },
+      { sandboxId: 'sbx_3', status: 'unknown', rawStatus: 'future_status', endingAt: '2026-01-02T00:00:00Z', lastFailureAt: undefined },
+    ])
+    expect(listed?.pendingFinalCommits).toEqual(got.pendingFinalCommits)
+    expect(Object.isFrozen(got.pendingFinalCommits)).toBe(true)
+    expect(Object.isFrozen(got.pendingFinalCommits[0])).toBe(true)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// An API that does not report the list omits it; an empty one reads the same.
+it('reads a volume without pending final commits as having none', async () => {
+  const api = await startFakeApi([
+    { status: 200, body: VOLUME },
+    { status: 200, body: { volumes: [VOLUME] } },
+    { status: 200, body: { ...VOLUME, pending_final_commits: [] } },
+  ])
+  const client = clientAt(api.url)
+  try {
+    expect((await client.v2.volumes.get('data')).pendingFinalCommits).toEqual([])
+    expect((await client.v2.volumes.list()).items[0]?.pendingFinalCommits).toEqual([])
+    expect((await client.v2.volumes.get('data')).pendingFinalCommits).toEqual([])
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it.each<[string, unknown, string]>([
+  ['null', null, 'volume response is missing its pending_final_commits'],
+  ['object', {}, 'volume response has a pending_final_commits that is not an array'],
+  ['no ending_at', [{ ...PENDING_FINAL_COMMIT, ending_at: undefined }], 'volume response is missing its pending_final_commits[0].ending_at'],
+  ['no last_failure_at', [{ ...PENDING_FINAL_COMMIT, last_failure_at: undefined }], 'volume response is missing its pending_final_commits[0].last_failure_at'],
+  ['sandbox_id', [{ ...PENDING_FINAL_COMMIT, sandbox_id: 1 }], 'volume response has a pending_final_commits[0].sandbox_id that is not a string'],
+  ['status', [{ ...PENDING_FINAL_COMMIT, status: null }], 'volume response is missing its pending_final_commits[0].status'],
+  ['timestamp', [{ ...PENDING_FINAL_COMMIT, ending_at: 'soon' }], 'volume response has a pending_final_commits[0].ending_at that is not an RFC 3339 timestamp'],
+])('refuses a malformed pending final commits list (%s)', async (_name, value, message) => {
+  const api = await startFakeApi([{ status: 200, body: { ...VOLUME, pending_final_commits: value } }])
+  const client = clientAt(api.url)
+  try {
+    await expect(client.v2.volumes.get('data')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message })
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
 // As in Python.
 it.each(['', '  '])('refuses a volumes.create() response whose id is %j', async (id) => {
   const api = await startFakeApi([{ status: 200, body: { ...VOLUME, id } }])

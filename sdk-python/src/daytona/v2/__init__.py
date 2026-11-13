@@ -380,6 +380,8 @@ from .types import (
     Volume,
     VolumeState,
     VolumeType,
+    PendingFinalCommit,
+    PendingFinalCommitStatus,
     VolumeMount,
 )
 
@@ -408,6 +410,8 @@ __all__ = [
     "Volume",
     "VolumeState",
     "VolumeType",
+    "PendingFinalCommit",
+    "PendingFinalCommitStatus",
     "VolumeMount",
     "AuditActionGroup",
     "AuditActionList",

@@ -889,6 +889,8 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.SOURCE_AMBIGUOUS: ConflictError,
     codes.SECRET_ALREADY_EXISTS: SecretAlreadyExistsError,
     codes.UNSUPPORTED_VOLUME_TYPE: UnsupportedVolumeTypeError,
+    codes.VOLUME_FINAL_COMMIT_PENDING: ConflictError,
+    codes.VOLUMES_UNAVAILABLE: ServiceUnavailableError,
     codes.WORKLOAD_PLANE_ELSEWHERE: NotSupportedError,
     codes.NO_ACTIVE_RESERVATION: ConflictError,
     codes.NO_FREE_SLOT: ConflictError,
