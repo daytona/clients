@@ -323,6 +323,25 @@ test('redact: Daytona credentials never reach the comment', () => {
   const encoded = JSON.stringify({ n: `printed:\n${key}`, t: `\t${key}_x` })
   assert.ok(!redact(encoded).includes(key))
   assert.ok(!redact(JSON.stringify(encoded)).includes(key))
+  // Escaped or encoded forms of the key are redacted too, and the text around them is kept.
+  const hex = key.slice(4)
+  const forms = [
+    `\\u0064tn_${hex}`,
+    `\\\\u0064\\\\u0074n\\\\u005f${hex}`,
+    `%64%74%6e%5f${hex}`,
+    `dtn&lowbar;${hex}`,
+    `dtn&#95;${hex}`,
+    `&#x64;tn_${hex}`,
+    `dtn\\_${hex}`,
+    `dtn_${hex.slice(0, 10)}\u200b${hex.slice(10)}`,
+  ]
+  for (const form of forms) {
+    assert.equal(redact(`before ${form} after`), 'before REDACTED after', form)
+    assert.ok(!redact(JSON.stringify({ t: form })).includes(hex.slice(0, 16)), `json ${form}`)
+  }
+  const json = JSON.stringify({ a: `x \\u0064tn_${hex} y`, b: 'z' })
+  assert.deepEqual(JSON.parse(redact(json)), { a: 'x REDACTED y', b: 'z' })
+  assert.equal(redact('100% of %20 and \\u0041 stay'), '100% of %20 and \\u0041 stay')
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Cli', finalStatus: 'failed', failureReason: `env shows ${key}` }] }).join('\n')
   assert.ok(!out.includes(key) && out.includes('env shows REDACTED'))
 })
@@ -359,7 +378,7 @@ test('render: agent text cannot autolink or cross-reference', () => {
     runUrl: 'u',
     results: [{ title: 'Ts', finalStatus: 'failed', failureReason: `ping &commat;octocat, see &num;1, dtn&lowbar;${'c3'.repeat(16)}` }],
   }).join('\n')
-  assert.ok(refs.includes('\\&commat;octocat') && refs.includes('\\&num;1') && refs.includes('dtn\\&lowbar;'))
+  assert.ok(refs.includes('\\&commat;octocat') && refs.includes('\\&num;1') && refs.includes('REDACTED') && !refs.includes('c3c3'))
 })
 
 test('render: agent text cannot render as math', () => {
