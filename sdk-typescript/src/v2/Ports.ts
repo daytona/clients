@@ -288,7 +288,8 @@ export class PortsService {
    *
    * The default lifetime is 60 seconds. Pass a longer `expiresInSeconds` for
    * multi-step use (the deployment caps the maximum, typically 7 days).
-   * Revoke the link early with {@link expireSignedPreviewLink}.
+   * Revoke the link early with {@link expireSignedPreviewLink}, which revokes
+   * every signed preview link on the sandbox.
    * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
    * @param port TCP port inside the sandbox (1–65535, except the sandbox
@@ -316,8 +317,11 @@ export class PortsService {
   }
 
   /**
-   * Revoke a signed preview link before its natural expiry.
+   * Revoke the sandbox's signed preview links before their natural expiry.
    *
+   * Expiring a link revokes every signed preview link on the sandbox, on
+   * every port, not only the one `token` names. A token that is not a live
+   * link for this sandbox and port changes nothing and throws no error.
    * Unlike minting, revoking still works while the sandbox is being deleted.
    *
    * @param port TCP port the link was issued for.

@@ -156,8 +156,8 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 func newSandboxPreviewURLExpireCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "expire <sandbox-id> <port> <token>",
-		Short: "Expire one signed preview URL",
-		Long:  "Expire one signed preview URL. The token is not printed back.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
+		Short: "Expire every signed preview URL of a sandbox",
+		Long:  "Expire every signed preview URL of a sandbox, on every port, when <token> is a live signed preview URL token for that sandbox and port; any other token changes nothing and is not an error. The token is not printed back.\nExample:\n  daytona sandbox port preview-url expire <sandbox-id> 8080 <token>",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			port, err := parsePortArg(args[1])

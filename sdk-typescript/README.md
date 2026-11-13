@@ -990,7 +990,8 @@ checked-out branch or a checkout that would overwrite local changes.
 `list()`, `isInUse(port)`, `expose(port, { public })`,
 `previewLink(port)`,
 `signedPreviewLink(port, { expiresInSeconds })`,
-`expireSignedPreviewLink(port, token)`, paginated `listEndpoints(options)`, and
+`expireSignedPreviewLink(port, token)` (revokes every signed preview link on
+the sandbox, on every port), paginated `listEndpoints(options)`, and
 `iterEndpoints(options)`. The sandbox daemon's ports 2280, 2281 and 22220 are
 never preview ports: `expose()`, `previewLink()`, `signedPreviewLink()` and
 `createAccessToken({ ports })` refuse them with `BadRequestError` before any

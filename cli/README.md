@@ -455,6 +455,10 @@ never prompts:
 - `sandbox port preview-url` refuses the sandbox daemon's ports 2280, 2281
   and 22220, which are never preview ports, as a usage error (exit 2) before
   any request; `preview-url expire` still takes them.
+- `sandbox port preview-url expire <id> <port> <token>` revokes every signed
+  preview URL of the sandbox, on every port, when the token is a live signed
+  preview URL for that sandbox and port; any other token changes nothing and
+  still exits 0.
 - `sandbox create --allow-domain api.example.com --allow-cidr 10.1.0.0/16`
   (or `sandbox create-macos` with the same flags) sets a `network_policy`: a domain list implies default-deny (allowed
   domains are reachable on HTTP/HTTPS only) and `--allow-cidr` opens addresses

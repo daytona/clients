@@ -37,8 +37,11 @@ class PortsService:
         return hash(self._impl)
 
     def expire_signed_preview_link(self, port: int, token: str, /) -> None:
-        """Revoke a signed preview link before its natural expiry.
+        """Revoke the sandbox's signed preview links before their natural expiry.
 
+        Expiring a link revokes every signed preview link on the sandbox, on
+        every port, not only the one ``token`` names. A token that is not a live
+        link for this sandbox and port changes nothing and raises no error.
         Unlike minting, revoking still works while the sandbox is being deleted.
 
         :param port: TCP port the link was issued for.
@@ -130,7 +133,8 @@ class PortsService:
 
         The default lifetime is 60 seconds. Pass a longer ``expires_in_seconds``
         for multi-step use (the deployment caps the maximum, typically 7 days).
-        Revoke the link early with :meth:`expire_signed_preview_link`.
+        Revoke the link early with :meth:`expire_signed_preview_link`, which
+        revokes every signed preview link on the sandbox.
         A sandbox that is deleted or being deleted raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 

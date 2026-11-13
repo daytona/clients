@@ -840,7 +840,8 @@ export interface PreviewLink {
  *
  * The token is embedded in the hostname — no extra headers or credentials are
  * needed. The link expires at `expiresAt` (RFC 3339). Revoke it early with
- * {@link PortsService.expireSignedPreviewLink}.
+ * {@link PortsService.expireSignedPreviewLink}, which revokes every signed
+ * preview link on the sandbox.
  */
 export interface SignedPreviewLink {
   readonly url: string

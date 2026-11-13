@@ -1062,7 +1062,8 @@ that would overwrite local changes.
 `list()`, `is_in_use(port)`, `expose(port, public=...)` (also changes the
 visibility of an exposed port), `preview_link(port)`,
 `signed_preview_link(port, expires_in_seconds=...)`,
-`expire_signed_preview_link(port, token)`, paginated `list_endpoints(...)`, and
+`expire_signed_preview_link(port, token)` (revokes every signed preview link
+on the sandbox, on every port), paginated `list_endpoints(...)`, and
 `iter_endpoints(...)`. The sandbox daemon's ports 2280, 2281 and 22220 are
 never preview ports: `expose()`, `preview_link()`, `signed_preview_link()` and
 `create_access_token(ports=...)` refuse them with `BadRequestError` before any
