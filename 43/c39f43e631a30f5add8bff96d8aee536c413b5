@@ -1,0 +1,22 @@
+AGENTS.md
+  h_e7759ddd73fa65 173
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 176-179
+sdk-python/tests/test_interpreter_charts.py
+  h_e7759ddd73fa65 333-342
+sdk-typescript/src/v2/ProcessRun.ts
+  h_e7759ddd73fa65 36-38
+sdk-typescript/tests/interpreter-charts.test.ts
+  h_e7759ddd73fa65 236-246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43c39f43e631a30f5add8bff96d8aee536c413b5",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
