@@ -8131,18 +8131,6 @@
         ],
         "type": "object"
       },
-      "RevokeSandboxSignedPreviewUrlRequest": {
-        "properties": {
-          "token": {
-            "description": "A signed token returned by the create operation for this sandbox and port.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "token"
-        ],
-        "type": "object"
-      },
       "Role": {
         "properties": {
           "description": {
@@ -29060,92 +29048,6 @@
           }
         ],
         "summary": "Create a signed sandbox preview URL",
-        "tags": [
-          "previews"
-        ]
-      }
-    },
-    "/sandboxes/{sandbox_id}/ports/{port}/signed-preview-urls/revoke": {
-      "post": {
-        "description": "Revokes every signed preview link on the sandbox when the token is a live link for this sandbox and port. Any other token is accepted without revealing whether it was valid, and revokes nothing.",
-        "operationId": "revoke_sandbox_signed_preview_url",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/SandboxId"
-          },
-          {
-            "$ref": "#/components/parameters/PortNumber"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevokeSandboxSignedPreviewUrlRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Signed preview URLs revoked",
-            "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "The port is outside 1 through 65535 (`BAD_REQUEST`)",
-            "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Sandbox not found",
-            "headers": {
-              "x-daytona-trace-id": {
-                "$ref": "#/components/headers/x-daytona-trace-id"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "api_key": [
-              "write:sandboxes"
-            ]
-          },
-          {
-            "platform_token": [
-              "write:sandboxes"
-            ]
-          }
-        ],
-        "summary": "Revoke a signed sandbox preview URL",
         "tags": [
           "previews"
         ]
