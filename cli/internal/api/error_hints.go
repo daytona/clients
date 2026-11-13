@@ -38,7 +38,7 @@ func hintFor(ae *APIError) string {
 			return ""
 		}
 		if path, _, _ := strings.Cut(ae.Path, "?"); ae.Method == http.MethodPost && strings.HasSuffix(path, "/signed-preview-urls") {
-			return "signed preview links are refused for this credential; for a URL with no credential run `daytona sandbox port expose <sandbox-id> <port> --public`, or send the token from `daytona sandbox port preview-url` in the X-Daytona-Preview-Token header"
+			return "this credential is not allowed to mint signed preview links here; if it can write sandboxes, the alternatives are `daytona sandbox port preview-url` (token in the X-Daytona-Preview-Token header) and `daytona sandbox port expose <sandbox-id> <port> --public` (no credential, anyone can open it)"
 		}
 		return "this credential is not allowed to do that here"
 	case ae.Status == http.StatusNotImplemented && ae.Code == CodeSearchNotConfigured:

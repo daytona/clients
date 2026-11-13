@@ -153,6 +153,8 @@ func TestHintFor_refusedSignedPreviewLinkPointsToPublicExpose(t *testing.T) {
 	// When
 	h := hintFor(failure)
 	// Then the hint names the alternatives instead of the generic credential hint
+	require.Contains(t, h, "not allowed to mint signed preview links")
+	require.Contains(t, h, "if it can write sandboxes")
 	require.Contains(t, h, "sandbox port expose <sandbox-id> <port> --public")
 	require.Contains(t, h, "X-Daytona-Preview-Token")
 	// And the revoke route keeps the generic hint
