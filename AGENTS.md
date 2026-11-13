@@ -170,7 +170,7 @@ Vocabularies the contract does not declare as an enum (`ImageStatus`,
 `MacBootMode`, …) stay open until it does, as do those the
 SDKs leave open on purpose (`LifecycleAction` on `lifecycle`, the interpreter
 `language`, and a chart's axis scale and bar/box orientation, `ChartScale` and
-`ChartOrientation`, which the contract documents as open vocabularies). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
+`ChartOrientation`). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
 `daytona/v2/_gen` enums; never cast an open wire value into a closed public type.
 
 TypeScript: consumers import the alias layers as namespaces (`import type *

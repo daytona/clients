@@ -173,7 +173,10 @@ async def _all_logs(
 
     ``first`` is a page already in hand (``run()``'s inline one): its frames
     are kept, it counts as one of ``max_pages``, and the read goes on from its
-    cursor, so retention evicting them meanwhile loses none of them."""
+    cursor, so retention evicting them meanwhile loses none of them. It costs
+    no request, so it is kept even when ``max_pages`` allows none. Without a
+    cursor to go on from, the read starts over and its frames come from that
+    read instead."""
     frames: List[LogFrame] = []
     cursor: Optional[str] = None
     resumed: Set[str] = set()

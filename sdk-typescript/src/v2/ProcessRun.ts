@@ -33,7 +33,9 @@ export const TIMED_OUT_LOG_PAGE_LIMIT = 8
  *
  * `first` is a page already in hand (`run()`'s inline one): its frames are
  * kept, it counts as one of `maxPages`, and the read goes on from its cursor,
- * so retention evicting them meanwhile loses none of them.
+ * so retention evicting them meanwhile loses none of them. It costs no
+ * request, so it is kept even when `maxPages` allows none. Without a cursor to
+ * go on from, the read starts over and its frames come from that read instead.
  */
 export async function collectAllLogs(
   handle: ProcessHandle,

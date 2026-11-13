@@ -233,5 +233,16 @@ describe('log reads after retention', () => {
     logs = await collectAllLogs(handle, { first: { items: [], nextCursor: 'c9', truncatedHead: false, eof: false } })
     expect(logs.map((frame) => frame.data)).toEqual(['p0'])
     expect(cursors).toEqual([undefined])
+    // A page in hand costs no request: a budget that allows none keeps it.
+    ;({ handle, cursors } = expiringLogs([]))
+    logs = await collectAllLogs(handle, { maxPages: 0, first: page(0) })
+    expect(logs.map((frame) => frame.data)).toEqual(['p0'])
+    expect(cursors).toEqual([])
+    // A page in hand without a cursor to go on from: the read starts over,
+    // and each frame comes back once.
+    ;({ handle, cursors } = expiringLogs([page(0, true)]))
+    logs = await collectAllLogs(handle, { first: { ...page(0), nextCursor: '' } })
+    expect(logs.map((frame) => frame.data)).toEqual(['p0'])
+    expect(cursors).toEqual([undefined])
   })
 })

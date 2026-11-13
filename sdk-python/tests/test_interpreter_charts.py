@@ -330,3 +330,13 @@ async def test_a_page_in_hand_is_kept_and_counted_as_a_page() -> None:
     empty = LogPage(items=(), next_cursor="c9", truncated_head=False, eof=False)
     frames = await _all_logs(handle, first=empty)  # type: ignore[arg-type]
     assert [frame.data for frame in frames] == ["p0"] and handle.cursors == [None]
+    # A page in hand costs no request: a budget that allows none keeps it.
+    handle = _ExpiringLogs([])
+    frames = await _all_logs(handle, max_pages=0, first=page(0))  # type: ignore[arg-type]
+    assert [frame.data for frame in frames] == ["p0"] and handle.cursors == []
+    # A page in hand without a cursor to go on from: the read starts over,
+    # and each frame comes back once.
+    handle = _ExpiringLogs([page(0, eof=True)])
+    cursorless = LogPage(items=page(0).items, next_cursor="", truncated_head=False, eof=False)
+    frames = await _all_logs(handle, first=cursorless)  # type: ignore[arg-type]
+    assert [frame.data for frame in frames] == ["p0"] and handle.cursors == [None]
