@@ -72,7 +72,7 @@ class SignedPreviewUrl(BaseModel):
     A signed preview link.
     """ # noqa: E501
     expires_at: datetime = Field(description="When the link stops resolving (natural expiry), to the second.")
-    token: StrictStr = Field(description="The signed token (`s` followed by 53 lowercase base32 characters). It carries the sandbox ID, the port binding and the expiry, so it needs no storage.")
+    token: StrictStr = Field(description="The link's signed token, as it appears in `url`.")
     url: StrictStr = Field(description="Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the token stands in the hostname where the sandbox ID otherwise would.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["expires_at", "token", "url"]

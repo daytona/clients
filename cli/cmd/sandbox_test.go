@@ -121,10 +121,10 @@ func TestSandboxCommands_routeAndRenderJSON(t *testing.T) {
 		},
 		{
 			name: "preview url expire",
-			args: []string{"sandbox", "port", "preview-url", "expire", "11111111-1111-1111-1111-111111111111", "8080", "tok"},
+			args: []string{"sandbox", "port", "preview-url", "expire", "11111111-1111-1111-1111-111111111111"},
 			expected: []expectedRequest{
 				{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},
-				{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/ports/8080/signed-preview-urls/revoke", status: 204, bodyJSON: `{"token":"tok"}`, response: ``},
+				{method: http.MethodPost, path: "/sandboxes/11111111-1111-1111-1111-111111111111/signed-preview-urls/revoke", status: 204, response: ``},
 			},
 			wantExit: 0,
 		},

@@ -3308,18 +3308,15 @@ describe('V2 model', () => {
     expect(post).not.toHaveBeenCalled()
   })
 
-  it('expires signed preview links with a URL-encoded token path segment', async () => {
+  it('expires every signed preview link of the sandbox with one bodiless POST', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const sandbox = createSandbox({ class: 'linux', id: "sbx!'()*", status: 'running', name: "sbx!'()*", cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     const post = jest.spyOn(api, 'post').mockResolvedValue({ status: 204, data: undefined })
 
-    await expect(sandbox.ports.expireSignedPreviewLink(8080, 'tok/en')).resolves.toBeUndefined()
-    expect(post).toHaveBeenCalledWith(
-      "/sandboxes/sbx%21%27%28%29%2A/ports/8080/signed-preview-urls/revoke",
-      { token: 'tok/en' },
-    )
-    expect('expireSignedPreviewLink' in sandbox).toBe(false)
+    await expect(sandbox.ports.expireSignedPreviewLinks()).resolves.toBeUndefined()
+    expect(post).toHaveBeenCalledWith("/sandboxes/sbx%21%27%28%29%2A/signed-preview-urls/revoke")
+    expect('expireSignedPreviewLinks' in sandbox).toBe(false)
   })
 
   it('accepts toolbox_proxy_url and next_cursor response fields', async () => {
@@ -8370,6 +8367,7 @@ describe('toolbox service request shaping', () => {
       ['/sandboxes/sbx/ports/8080/preview-url', '/sandboxes/{id}/ports/{port}/preview-url'],
       ['/sandboxes/sbx/ports/8080/signed-preview-urls', '/sandboxes/{id}/ports/{port}/signed-preview-urls'],
       ['/sandboxes/sbx/ports/8080/signed-preview-urls/revoke', '/sandboxes/{id}/ports/{port}/signed-preview-urls/revoke'],
+      ['/sandboxes/sbx/signed-preview-urls/revoke', '/sandboxes/{id}/signed-preview-urls/revoke'],
       ['/secrets/MY_SECRET', '/secrets/{id}'],
       ['/volumes/vol-1', '/volumes/{id}'],
       ['/volumes/vol-1/pull', '/volumes/{id}/pull'],
@@ -11546,7 +11544,7 @@ describe('toolbox endpoint e2e', () => {
     await expect(ports.previewLink(8080)).resolves.toEqual({ url: 'https://p', token: 'preview-token' })
     await expect(ports.signedPreviewLink(8080, { expiresInSeconds: 300 })).resolves.toEqual({ url: 'https://signed', token: 'signed-token', expiresAt: '2026-01-01T00:00:00Z' })
     await expect(ports.expose(8080, { public: true })).resolves.toEqual({ port: 8080, public: true, url: 'https://p', createdAt: '2026-01-01T00:00:00Z' })
-    await expect(ports.expireSignedPreviewLink(8080, 'tok/en')).resolves.toBeUndefined()
+    await expect(ports.expireSignedPreviewLinks()).resolves.toBeUndefined()
     await ports.unexpose(8080)
     expect(transport.get.mock.calls[0]).toEqual(['/port'])
     expect(transport.get.mock.calls[1]).toEqual(['/port/3999/in-use'])
@@ -11555,7 +11553,7 @@ describe('toolbox endpoint e2e', () => {
     expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080/preview-url')
   expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080/signed-preview-urls', { expires_in_seconds: 300 })
     expect(portsApi.put).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080', { public: true })
-    expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080/signed-preview-urls/revoke', { token: 'tok/en' })
+    expect(portsApi.post).toHaveBeenCalledWith('/sandboxes/sbx/signed-preview-urls/revoke')
     expect(portsApi.delete).toHaveBeenCalledWith('/sandboxes/sbx/ports/8080')
 
     const lspTransport = transportStub()

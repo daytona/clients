@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
@@ -288,8 +287,8 @@ export class PortsService {
    *
    * The default lifetime is 60 seconds. Pass a longer `expiresInSeconds` for
    * multi-step use (the deployment caps the maximum, typically 7 days).
-   * Revoke the link early with {@link expireSignedPreviewLink}, which revokes
-   * every signed preview link on the sandbox.
+   * Expire it early with {@link expireSignedPreviewLinks}, which expires every
+   * signed preview link of the sandbox.
    * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
    *
    * @param port TCP port inside the sandbox (1–65535, except the sandbox
@@ -317,21 +316,19 @@ export class PortsService {
   }
 
   /**
-   * Revoke the sandbox's signed preview links before their natural expiry.
+   * Expire every signed preview link of the sandbox before its natural expiry.
    *
-   * Expiring a link revokes every signed preview link on the sandbox, on
-   * every port, not only the one `token` names. A token that is not a live
-   * link for this sandbox and port changes nothing and throws no error.
-   * Unlike minting, revoking still works while the sandbox is being deleted.
+   * Every signed preview link the sandbox has, on every port, stops working.
+   * Links created afterwards work. Unlike minting, expiring still works while
+   * the sandbox is being deleted.
    *
-   * @param port TCP port the link was issued for.
-   * @param token The `token` field from {@link SignedPreviewLink}.
+   * @example
+   * ```ts
+   * await sandbox.ports.expireSignedPreviewLinks()
+   * ```
    */
-  public async expireSignedPreviewLink(port: number, token: string): Promise<void> {
-    assertPort(port)
-    const given: unknown = token
-    if (typeof given !== 'string' || isBlank(given)) throw badRequest('token must be a non-empty string')
-    await this.requireApi().post(`${this.portPath(port)}/signed-preview-urls/revoke`, { token })
+  public async expireSignedPreviewLinks(): Promise<void> {
+    await this.requireApi().post(`/sandboxes/${strictUriEncode(this.requireSandboxId())}/signed-preview-urls/revoke`)
   }
 
   /** Remove a port's preview endpoint; this still works while the sandbox is being deleted. */

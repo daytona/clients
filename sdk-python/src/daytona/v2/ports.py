@@ -274,8 +274,8 @@ class AsyncPortsService:
 
         The default lifetime is 60 seconds. Pass a longer ``expires_in_seconds``
         for multi-step use (the deployment caps the maximum, typically 7 days).
-        Revoke the link early with :meth:`expire_signed_preview_link`, which
-        revokes every signed preview link on the sandbox.
+        Expire it early with :meth:`expire_signed_preview_links`, which expires
+        every signed preview link of the sandbox.
         A sandbox that is deleted or being deleted raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
@@ -311,25 +311,21 @@ class AsyncPortsService:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         return SignedPreviewLink(url=payload.url, token=payload.token, expires_at=expires_at)
 
-    async def expire_signed_preview_link(self, port: int, token: str, /) -> None:
-        """Revoke the sandbox's signed preview links before their natural expiry.
+    async def expire_signed_preview_links(self) -> None:
+        """Expire every signed preview link of the sandbox before its natural expiry.
 
-        Expiring a link revokes every signed preview link on the sandbox, on
-        every port, not only the one ``token`` names. A token that is not a live
-        link for this sandbox and port changes nothing and raises no error.
-        Unlike minting, revoking still works while the sandbox is being deleted.
+        Every signed preview link the sandbox has, on every port, stops working.
+        Links created afterwards work. Unlike minting, expiring still works
+        while the sandbox is being deleted.
 
-        :param port: TCP port the link was issued for.
-        :param token: The ``token`` field from :class:`~daytona.v2.types.SignedPreviewLink`.
+        Example::
+
+            await sandbox.ports.expire_signed_preview_links()
         """
-        _assert_port(port)
-        if not isinstance(token, str) or not token.strip():
-            raise create_error("token must be a non-empty string", 400, "BAD_REQUEST", "SDK")
         await self._require_api().send(
             RequestSpec(
                 "POST",
-                f"{self._port_path(port)}/signed-preview-urls/revoke",
-                json_body={"token": token},
+                f"/sandboxes/{quote(self._require_sandbox_id(), safe='')}/signed-preview-urls/revoke",
             )
         )
 

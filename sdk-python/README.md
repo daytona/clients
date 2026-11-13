@@ -1062,8 +1062,8 @@ that would overwrite local changes.
 `list()`, `is_in_use(port)`, `expose(port, public=...)` (also changes the
 visibility of an exposed port), `preview_link(port)`,
 `signed_preview_link(port, expires_in_seconds=...)`,
-`expire_signed_preview_link(port, token)` (revokes every signed preview link
-on the sandbox, on every port), paginated `list_endpoints(...)`, and
+`expire_signed_preview_links()` (expires every signed preview link of the
+sandbox, on every port), paginated `list_endpoints(...)`, and
 `iter_endpoints(...)`. The sandbox daemon's ports 2280, 2281 and 22220 are
 never preview ports: `expose()`, `preview_link()`, `signed_preview_link()` and
 `create_access_token(ports=...)` refuse them with `BadRequestError` before any
@@ -1227,7 +1227,7 @@ On a sandbox that is deleted or being deleted, `set_labels()`,
 `update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls
 (`ports.expose()`, `ports.list_endpoints()`, `ports.preview_link()`,
 `ports.signed_preview_link()`) raise `ConflictError` (`CONFLICT`);
-`ports.unexpose()` and `ports.expire_signed_preview_link()` still work.
+`ports.unexpose()` and `ports.expire_signed_preview_links()` still work.
 
 ## Versioning and releases
 

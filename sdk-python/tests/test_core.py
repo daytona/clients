@@ -3171,18 +3171,18 @@ async def test_signed_preview_link_rejects_non_positive_ttl_before_posting():
 
 
 @pytest.mark.anyio
-async def test_expire_signed_preview_link_quotes_token_and_treats_204_as_success():
+async def test_expire_signed_preview_links_posts_without_a_body_and_treats_204_as_success():
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     api = RecordingTransport([None])
     client._api = api  # type: ignore[attr-defined]
-    sandbox = lazy_sandbox(client, "sbx")
+    sandbox = lazy_sandbox(client, "sb/x")
 
-    assert await sandbox.ports.expire_signed_preview_link(8080, "tok/en") is None
+    assert await sandbox.ports.expire_signed_preview_links() is None
 
     assert [(spec.method, spec.path) for spec in api.specs] == [
-        ("POST", "/sandboxes/sbx/ports/8080/signed-preview-urls/revoke"),
+        ("POST", "/sandboxes/sb%2Fx/signed-preview-urls/revoke"),
     ]
-    assert api.specs[0].json_body == {"token": "tok/en"}
+    assert api.specs[0].json_body is None
 
 
 @pytest.mark.anyio
@@ -8805,10 +8805,10 @@ async def test_sandbox_snapshot_and_signed_preview_methods_live_on_ports_namespa
     assert isinstance(snapshot, Snapshot)
     assert snapshot.id == "snap"
     assert (await sandbox.ports.signed_preview_link(8080)).token == "sdeadbeef"
-    assert await sandbox.ports.expire_signed_preview_link(8080, "tok/en") is None
+    assert await sandbox.ports.expire_signed_preview_links() is None
     assert api.specs[2].path == "/sandboxes/sbx/ports/8080/signed-preview-urls"
-    assert api.specs[3].path == "/sandboxes/sbx/ports/8080/signed-preview-urls/revoke"
-    assert api.specs[3].json_body == {"token": "tok/en"}
+    assert api.specs[3].path == "/sandboxes/sbx/signed-preview-urls/revoke"
+    assert api.specs[3].json_body is None
 
 
 @pytest.mark.anyio
@@ -11907,6 +11907,9 @@ def test_route_template_keeps_static_segments_and_templates_resource_ids() -> No
     )
     assert _route_template(["sandboxes", "sbx", "ports", "8080", "signed-preview-urls", "revoke"]) == (
         "/sandboxes/{id}/ports/{port}/signed-preview-urls/revoke"
+    )
+    assert _route_template(["sandboxes", "sbx", "signed-preview-urls", "revoke"]) == (
+        "/sandboxes/{id}/signed-preview-urls/revoke"
     )
     # computeruse is a namespace, not an id collection; only process/<name> and recordings/<id> carry ids
     assert (

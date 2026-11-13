@@ -6429,7 +6429,7 @@ type SignedPreviewUrl struct {
 	// ExpiresAt When the link stops resolving (natural expiry), to the second.
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Token The signed token (`s` followed by 53 lowercase base32 characters). It carries the sandbox ID, the port binding and the expiry, so it needs no storage.
+	// Token The link's signed token, as it appears in `url`.
 	Token string `json:"token"`
 
 	// Url Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the

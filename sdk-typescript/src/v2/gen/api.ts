@@ -7266,7 +7266,7 @@ export interface components {
              * @description When the link stops resolving (natural expiry), to the second.
              */
             expires_at: string;
-            /** @description The signed token (`s` followed by 53 lowercase base32 characters). It carries the sandbox ID, the port binding and the expiry, so it needs no storage. */
+            /** @description The link's signed token, as it appears in `url`. */
             token: string;
             /**
              * @description Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the

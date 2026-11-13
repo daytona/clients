@@ -454,11 +454,9 @@ never prompts:
   with a control character.
 - `sandbox port preview-url` refuses the sandbox daemon's ports 2280, 2281
   and 22220, which are never preview ports, as a usage error (exit 2) before
-  any request; `preview-url expire` still takes them.
-- `sandbox port preview-url expire <id> <port> <token>` revokes every signed
-  preview URL of the sandbox, on every port, when the token is a live signed
-  preview URL for that sandbox and port; any other token changes nothing and
-  still exits 0.
+  any request.
+- `sandbox port preview-url expire <id>` expires every signed preview URL of
+  the sandbox, on every port; signed preview URLs created afterwards work.
 - `sandbox create --allow-domain api.example.com --allow-cidr 10.1.0.0/16`
   (or `sandbox create-macos` with the same flags) sets a `network_policy`: a domain list implies default-deny (allowed
   domains are reachable on HTTP/HTTPS only) and `--allow-cidr` opens addresses
@@ -555,8 +553,7 @@ request. While a sandbox is stopped, commands that work inside it
   - `org_id`: `billing automatic-top-up delete`, `billing
     balance-notification delete` (`deleted`).
   `invite decline` prints `{"declined": true}` (the token is not echoed),
-  `sandbox port preview-url expire` `{"sandbox_id", "port", "revoked": true}`
-  (`port` a number; the token is not echoed, and a blank one is refused), and `sandbox process signal` / `kill` `{"id", "signal"}`.
+  `sandbox port preview-url expire` `{"sandbox_id", "revoked": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
   With table output `org delete`, `project delete` and `project budget
   remove` print a sentence on stderr instead.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,

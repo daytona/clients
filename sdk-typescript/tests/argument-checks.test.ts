@@ -12,6 +12,7 @@ import { createHttpClient } from '../src/v2/http'
 import { Image } from '../src/v2/Image'
 import { INTERNAL } from '../src/v2/internal'
 import { pathSegment } from '../src/v2/pathSegment'
+import { PortsService } from '../src/v2/Ports'
 import { imageWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
@@ -668,14 +669,8 @@ it.each([['create', ''], ['create', '  '], ['create', ' LOCAL '], ['findByName',
   }
 })
 
-it.each([null, undefined, 5, '', '  '])('expireSignedPreviewLink refuses the token %j before any request, as Python does', async (token) => {
-  const api = await startFakeApi([])
-  try {
-    await expect(handle(api).ports.expireSignedPreviewLink(8080, token as never)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'token must be a non-empty string' })
-    expect(api.requests).toEqual([])
-  } finally {
-    await api.close()
-  }
+it('expireSignedPreviewLinks takes no arguments, as Python does', () => {
+  expect(PortsService.prototype.expireSignedPreviewLinks.length).toBe(0)
 })
 
 it.each([['year 0', new Date('0000-06-01T00:00:00Z')], ['year 10000', new Date('+010000-01-01T00:00:00Z')]] as const)('refuses a Date bound in %s, as the string rule does', async (_name, bound) => {
@@ -793,16 +788,13 @@ it.each([
   }
 })
 
-it.each([2280, 2281, 22220])('still unexposes reserved port %d and revokes its signed links, as Python does', async (port) => {
+it.each([2280, 2281, 22220])('still unexposes reserved port %d, as Python does', async (port) => {
   // The API refuses the daemon's ports only where a preview is made.
-  const api = await startFakeApi([{ status: 204, body: undefined }, { status: 204, body: undefined }])
+  const api = await startFakeApi([{ status: 204, body: undefined }])
   try {
-    const sandbox = handle(api)
-    await sandbox.ports.unexpose(port)
-    await sandbox.ports.expireSignedPreviewLink(port, 'tok')
+    await handle(api).ports.unexpose(port)
     expect(api.requests.map((request) => [request.method, request.path])).toEqual([
       ['DELETE', `/sandboxes/sbx/ports/${port}`],
-      ['POST', `/sandboxes/sbx/ports/${port}/signed-preview-urls/revoke`],
     ])
   } finally {
     await api.close()

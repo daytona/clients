@@ -1074,13 +1074,11 @@ async def test_a_blank_region_selects_the_default_region(call: str, region: str)
         assert "region_id" not in json.loads(request.body)
 
 
-@pytest.mark.parametrize("token", [None, 5, "", "  "], ids=["None", "number", "empty", "blank"])
-async def test_expire_signed_preview_link_needs_a_token(api: FakeApi, token: object) -> None:
-    # The TypeScript twin refuses the same values.
+async def test_expire_signed_preview_links_takes_no_arguments() -> None:
+    # The TypeScript twin takes none either.
     async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-        with pytest.raises(BadRequestError, match="^token must be a non-empty string$"):
-            await lazy_sandbox(root.v2, "sbx").ports.expire_signed_preview_link(8080, token)  # type: ignore[arg-type]
-    assert api.requests == []
+        with pytest.raises(TypeError):
+            await lazy_sandbox(root.v2, "sbx").ports.expire_signed_preview_links(8080, "tok")  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize("bound", _TIMESTAMPS["refusedAsDates"])
@@ -1262,16 +1260,13 @@ async def test_a_blank_image_name_is_refused_before_any_request(api: FakeApi, ca
 
 
 @pytest.mark.parametrize("port", [2280, 2281, 22220])
-async def test_a_reserved_port_can_still_be_unexposed_and_its_signed_links_revoked(port: int) -> None:
+async def test_a_reserved_port_can_still_be_unexposed(port: int) -> None:
     # The API refuses the daemon's ports only where a preview is made; the
-    # TypeScript twin sends the same requests.
-    with FakeApi([PlannedResponse(204, None), PlannedResponse(204, None)]) as fake:
+    # TypeScript twin sends the same request.
+    with FakeApi([PlannedResponse(204, None)]) as fake:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            sandbox = lazy_sandbox(root.v2, "sbx")
-            await sandbox.ports.unexpose(port)
-            await sandbox.ports.expire_signed_preview_link(port, "tok")
+            await lazy_sandbox(root.v2, "sbx").ports.unexpose(port)
     assert [(request.method, request.path) for request in fake.requests] == [
         ("DELETE", f"/sandboxes/sbx/ports/{port}"),
-        ("POST", f"/sandboxes/sbx/ports/{port}/signed-preview-urls/revoke"),
     ]
