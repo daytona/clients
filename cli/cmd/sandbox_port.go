@@ -25,8 +25,10 @@ import (
 )
 
 func newSandboxPortSubcommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "port", Short: "Inspect sandbox ports and mint preview URLs"}
+	cmd := &cobra.Command{Use: "port", Short: "Inspect sandbox ports, expose them and mint preview URLs"}
 	cmd.AddCommand(newSandboxPreviewURLCommand())
+	cmd.AddCommand(newSandboxPortExposeCommand())
+	cmd.AddCommand(newSandboxPortUnexposeCommand())
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list <sandbox-id>",
 		Short: "List listening ports inside a sandbox",

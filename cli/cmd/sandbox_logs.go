@@ -111,7 +111,7 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview-url <sandbox-id> <port>",
 		Short: "Mint a preview URL for a sandbox port",
-		Long:  "Mint a preview URL for a sandbox port. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
+		Long:  "Mint a preview URL for a sandbox port. Unless the port was exposed with --public, the URL needs the printed token in the X-Daytona-Preview-Token header, which a browser cannot send. For a URL that opens in a browser as-is, run `daytona sandbox port expose <sandbox-id> <port> --public`. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flags().Changed("ttl") && !signed {
@@ -144,13 +144,81 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, nil, &resp); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}})
+			if err := a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}}); err != nil {
+				return err
+			}
+			if resp.V.Token != "" {
+				a.Info("note: send the token in the X-Daytona-Preview-Token header; for a URL that opens in a browser with no credential, run `daytona sandbox port expose %s %d --public`", resolved.Detail.Id, port)
+			}
+			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&signed, "signed", false, "mint a short-lived signed preview URL")
 	addSecondsFlag(cmd.Flags(), &ttl, "ttl", "60s", "lifetime of a --signed preview URL (Go duration)")
 	cmd.AddCommand(newSandboxPreviewURLExpireCommand())
 	return cmd
+}
+
+func newSandboxPortExposeCommand() *cobra.Command {
+	public := false
+	cmd := &cobra.Command{
+		Use:   "expose <sandbox-id> <port>",
+		Short: "Expose a sandbox port as a preview URL, privately or publicly",
+		Long:  "Expose a sandbox port as a preview URL (PUT /sandboxes/{id}/ports/{port}). The SDK twin is sandbox.ports.expose(port, public=…).\nPorts are private by default: a private URL needs the token from `daytona sandbox port preview-url` in the X-Daytona-Preview-Token header. With --public the URL needs no credential and opens in a browser as-is. Exposing an exposed port again sets its visibility, so running it without --public makes a public port private. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port expose <sandbox-id> 8080 --public\n  daytona sandbox port expose <sandbox-id> 8080",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			port, err := parsePreviewPortArg(args[1])
+			if err != nil {
+				return err
+			}
+			a := FromContext(cmd.Context())
+			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
+			if err != nil {
+				return err
+			}
+			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/sandboxes/%s/ports/%d", url.PathEscape(resolved.Detail.Id), port)
+			var resp api.Raw[gen.SandboxPort]
+			if err := resolved.Client.Do(cmd.Context(), http.MethodPut, path, nil, gen.SetSandboxPortRequest{Public: public}, &resp); err != nil {
+				return err
+			}
+			return a.Printer().Object(resp, [][2]string{{"port", strconv.Itoa(int(resp.V.Port))}, {"public", strconv.FormatBool(resp.V.Public)}, {"url", resp.V.Url}})
+		},
+	}
+	cmd.Flags().BoolVar(&public, "public", false, "make the preview URL reachable without any credential")
+	return cmd
+}
+
+func newSandboxPortUnexposeCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "unexpose <sandbox-id> <port>",
+		Short: "Remove a sandbox port's preview URL",
+		Long:  "Remove a sandbox port's preview URL (DELETE /sandboxes/{id}/ports/{port}); it also works while the sandbox is being deleted. The SDK twin is sandbox.ports.unexpose(port).\nExample:\n  daytona sandbox port unexpose <sandbox-id> 8080",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			port, err := parsePortArg(args[1])
+			if err != nil {
+				return err
+			}
+			a := FromContext(cmd.Context())
+			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
+			if err != nil {
+				return err
+			}
+			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/sandboxes/%s/ports/%d", url.PathEscape(resolved.Detail.Id), port)
+			if err := resolved.Client.Do(cmd.Context(), http.MethodDelete, path, nil, nil, nil); err != nil {
+				return err
+			}
+			return a.Printer().Raw("unexposed", map[string]any{"sandbox_id": resolved.Detail.Id, "port": port, "unexposed": true})
+		},
+	}
 }
 
 func newSandboxPreviewURLExpireCommand() *cobra.Command {

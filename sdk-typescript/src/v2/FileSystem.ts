@@ -368,6 +368,7 @@ export class FileSystemService {
 
   /** Stream a local file to the sandbox without buffering the full body in memory. Progress callback errors are swallowed. Node.js only. */
   public async uploadFile(localPath: string, remotePath: string, options: UploadFileOptions = {}): Promise<void> {
+    if (typeof localPath !== 'string') throw badRequest('localPath must be a path to a local file; use writeBytes() or writeText() for in-memory content')
     sandboxPath('remotePath', remotePath)
     assertKnownOptions('UploadFileOptions', options, UPLOAD_FILE_OPTION_KEYS)
     await uploadFile(this.transport, localPath, remotePath, options)
