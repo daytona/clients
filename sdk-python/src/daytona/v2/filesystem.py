@@ -451,6 +451,13 @@ class AsyncFileSystemService:
         atomic: bool = False,
     ) -> None:
         """Stream a local file into the sandbox without buffering it whole in memory."""
+        if not isinstance(local_path, (str, os.PathLike)):
+            raise create_error(
+                "local_path must be a path to a local file; use write_bytes() or write_text() for in-memory content",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         sandbox_path(remote_path, "remote_path")
         _raise_if_transfer_cancelled(cancel, operation="upload")
         source_path = Path(local_path)

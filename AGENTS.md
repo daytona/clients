@@ -72,7 +72,7 @@ husky hooks. Scans need git 2.36 or later.
 | `sdk-typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
 | `cli/` | the `daytona` CLI (Go) |
 | `contract/` | the machine-readable API contracts the SDKs and the CLI are built against |
-| `scripts/` | v0 bundling (+ the `scripts/v0-sdk-version` pin), release helpers, the changelog tool |
+| `scripts/` | v0 bundling (+ the `scripts/v0-sdk-version` pin), release helpers, the changelog tool, the AX evals harness (`scripts/ax-evals/`) |
 | `changelog.d/` | changelog fragments, one per user-visible change (see below) |
 | `examples/` | runnable examples for both SDKs |
 | `upgrade/` | `daytona-upgrade`, the 0.x → 2.x migration tool (npm + PyPI) |
@@ -1101,6 +1101,11 @@ for one).
   other `pull_request` workflow that ran on the PR and fails if any of them did
   (E2E excluded; `.github/workflows/ci-passed.yaml`). A new CI workflow is
   counted automatically; add its name to `ci-passed-rerun.yaml` too.
+- AX evals (`.github/workflows/ax_evals.yaml`) are informational and outside
+  `CI passed`: a maintainer runs them with the `ax-eval` label or a manual
+  dispatch, and a coding agent tries real tasks with the SDK or CLI built from
+  the PR. A red row is a finding about agent experience, not a failed check;
+  the harness and prompts (`scripts/ax-evals/`) take effect from `main`.
 
 ### After opening a PR — iterate until it is clean
 

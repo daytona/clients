@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
+
+var sandboxPortPath = regexp.MustCompile(`^/sandboxes/[^/]+/ports/[0-9]+$`)
 
 func hintFor(ae *APIError) string {
 	switch {
@@ -37,6 +40,9 @@ func hintFor(ae *APIError) string {
 			// provider; the message says so, and no credential fixes it.
 			return ""
 		}
+		if path, _, _ := strings.Cut(ae.Path, "?"); ae.Method == http.MethodPost && strings.HasSuffix(path, "/signed-preview-urls") {
+			return "this credential is not allowed to mint signed preview links here; if it can write sandboxes, the alternatives are `daytona sandbox port preview-url` (token in the X-Daytona-Preview-Token header) and `daytona sandbox port expose <sandbox-id> <port> --public` (no credential, anyone can open it)"
+		}
 		return "this credential is not allowed to do that here"
 	case ae.Status == http.StatusNotImplemented && ae.Code == CodeSearchNotConfigured:
 		return "sandbox search is not enabled; use `sandbox list` (with --region to narrow) instead"
@@ -58,6 +64,10 @@ func hintFor(ae *APIError) string {
 				return "create takes an image name or img_… id; `daytona image list` shows available images, and `daytona image create NAME --ref REF` imports a registry image"
 			}
 			return "check the image name or id and the selected --project; `daytona image list` shows available images"
+		}
+		if path, _, _ := strings.Cut(ae.Path, "?"); ae.Method == http.MethodDelete && sandboxPortPath.MatchString(path) {
+			// The CLI resolves the sandbox first, so a 404 here is the port.
+			return "that port is not exposed; `daytona sandbox port endpoints <sandbox-id>` lists the exposed ports"
 		}
 		return "check the id and the selected --org/--project; a resource in another project also answers 404"
 	case ae.Status == http.StatusConflict && ae.Code == CodeNotSupportedForClass:

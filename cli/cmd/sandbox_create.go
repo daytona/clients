@@ -164,7 +164,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	f.StringVar(&flags.name, "name", "", "sandbox name")
 	f.StringVar(&flags.idempotencyKey, "idempotency-key", "", "idempotency key")
 	f.StringArrayVar(&flags.labels, "label", nil, "label KEY=VALUE (repeatable)")
-	f.StringArrayVar(&flags.ports, "port", nil, "port as PORT or PORT/PROTO (repeatable)")
+	f.StringArrayVar(&flags.ports, "port", nil, "platform port mapping as PORT or PORT/PROTO (repeatable); not a preview URL (see: daytona sandbox port expose)")
 	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; re-arms on every start")
 	flags.idleTimeout.min = minIdleSeconds
 	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires")
