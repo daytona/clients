@@ -111,7 +111,7 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview-url <sandbox-id> <port>",
 		Short: "Mint a preview URL for a sandbox port",
-		Long:  "Mint a preview URL for a sandbox port. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
+		Long:  "Mint a preview URL for a sandbox port. Without --signed, a URL for a private port needs the printed token in the X-Daytona-Preview-Token header, which a browser cannot send. For a URL that opens in a browser: --signed gives a short-lived, revocable link with the token in its hostname, and `daytona sandbox port expose <sandbox-id> <port> --public` makes the port reachable by anyone with no credential until it is made private again. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flags().Changed("ttl") && !signed {
@@ -144,7 +144,11 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, path, nil, nil, &resp); err != nil {
 				return err
 			}
-			return a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}})
+			if err := a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}}); err != nil {
+				return err
+			}
+			a.Info("note: unless the port is public, send the token in the X-Daytona-Preview-Token header; for a browser URL use --signed (short-lived), or `daytona sandbox port expose %s %d --public` (anyone can open it)", resolved.Detail.Id, port)
+			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&signed, "signed", false, "mint a short-lived signed preview URL")

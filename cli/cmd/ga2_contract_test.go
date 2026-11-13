@@ -219,6 +219,84 @@ func TestPreviewURLExpire_doesNotEchoTheToken(t *testing.T) {
 	}
 }
 
+func TestSandboxPortExpose_setsVisibility(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		body string
+	}{
+		{args: []string{"--public"}, body: `{"public":true}`},
+		{args: nil, body: `{"public":false}`},
+	} {
+		// Given an expose request with or without --public
+		args := append([]string{"sandbox", "port", "expose", ga2SandboxID, "8080"}, tc.args...)
+		// When
+		stdout, _, err := runCLI(t, args, []expectedRequest{
+			{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+			{method: http.MethodPut, path: "/sandboxes/" + ga2SandboxID + "/ports/8080", status: 200, bodyJSON: tc.body,
+				response: `{"port":8080,"public":` + strings.TrimSuffix(strings.TrimPrefix(tc.body, `{"public":`), "}") + `,"url":"https://8080-x.example/","created_at":"2026-11-13T00:00:00Z"}`},
+		})
+		// Then the port is set to that visibility and the endpoint printed
+		require.NoError(t, err, tc.args)
+		got := requireJSONStdout(t, stdout)
+		require.Equal(t, float64(8080), got["port"])
+		require.Equal(t, "https://8080-x.example/", got["url"])
+		require.Equal(t, tc.body == `{"public":true}`, got["public"])
+	}
+}
+
+func TestSandboxPreviewURL_namesTheBrowserOptionsOnStderr(t *testing.T) {
+	// Given a preview URL with its token
+	stdout, stderr, err := runCLI(t, []string{"sandbox", "port", "preview-url", ga2SandboxID, "8080"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/8080/preview-url", status: 201, response: `{"url":"https://8080-x.example/","token":"tok"}`},
+	})
+	// Then stdout keeps the URL and token, and stderr names both browser options
+	require.NoError(t, err)
+	require.Equal(t, "tok", requireJSONStdout(t, stdout)["token"])
+	require.Contains(t, stderr, "X-Daytona-Preview-Token")
+	require.Contains(t, stderr, "--signed")
+	require.Contains(t, stderr, "daytona sandbox port expose "+ga2SandboxID+" 8080 --public")
+}
+
+func TestSandboxPortEndpoints_listsVisibility(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"sandbox", "port", "endpoints", ga2SandboxID}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID + "/ports", status: 200,
+			response: `{"ports":[{"port":8080,"public":true,"url":"https://8080-x.example/","created_at":"2026-11-13T00:00:00Z"}],"next_cursor":"c2"}`},
+	})
+	require.NoError(t, err)
+	got := requireJSONStdout(t, stdout)
+	items := got["items"].([]any)
+	require.Len(t, items, 1)
+	require.Equal(t, true, items[0].(map[string]any)["public"])
+	require.Equal(t, "c2", got["next_cursor"])
+}
+
+func TestSandboxPortUnexpose_deletesTheEndpoint(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"sandbox", "port", "unexpose", ga2SandboxID, "8080"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+		{method: http.MethodDelete, path: "/sandboxes/" + ga2SandboxID + "/ports/8080", status: 204},
+	})
+	require.NoError(t, err)
+	got := requireJSONStdout(t, stdout)
+	require.Equal(t, float64(8080), got["port"])
+	require.Equal(t, true, got["unexposed"])
+}
+
+func TestSandboxPortExpose_refusesInvalidPortsBeforeAnyRequest(t *testing.T) {
+	for _, args := range [][]string{
+		{"sandbox", "port", "expose", ga2SandboxID, "0"},
+		{"sandbox", "port", "expose", ga2SandboxID, "65536", "--public"},
+		{"sandbox", "port", "expose", ga2SandboxID, "2280", "--public"},
+		{"sandbox", "port", "expose", ga2SandboxID, "2281", "--public"},
+		{"sandbox", "port", "expose", ga2SandboxID, "22220"},
+		{"sandbox", "port", "unexpose", ga2SandboxID, "abc"},
+	} {
+		_, _, err := runCLI(t, args, nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%v", args)
+	}
+}
+
 func TestPreviewURLExpire_acceptsAReservedPort(t *testing.T) {
 	// Given a signed preview URL revoke for a daemon port, which the API still serves
 	args := []string{"sandbox", "port", "preview-url", "expire", ga2SandboxID, "2280", "tok"}

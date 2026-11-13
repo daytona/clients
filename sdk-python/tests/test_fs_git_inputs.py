@@ -59,6 +59,7 @@ async def test_fs_refuses_invalid_paths_before_request(method, args, kwargs, pat
     [
         ("move", ("/a", "relative"), {}, "destination"),
         ("upload_file", ("missing-local", "relative"), {}, "remote_path"),
+        ("upload_file", (b"hello", "/remote.txt"), {}, "local_path must be a path"),
         ("write_many", ({"relative": b"x"},), {}, "files"),
         ("read_many", (["/a", "relative"],), {}, "paths"),
         ("replace", (["/a", "relative"], "x", "y"), {}, "files"),
