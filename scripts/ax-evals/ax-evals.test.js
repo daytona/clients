@@ -291,6 +291,10 @@ test('redact: Daytona credentials never reach the comment', () => {
   const invite = `dtni_${'A'.repeat(43)}`
   assert.equal(redact(`DAYTONA_API_KEY=${key} and ${invite}.`), 'DAYTONA_API_KEY=[redacted] and [redacted].')
   assert.equal(redact('dtn_short and plain text'), 'dtn_short and plain text')
+  // Encoded text: the key follows `\\n` (a word character) or is glued to more word characters.
+  const encoded = JSON.stringify({ n: `printed:\n${key}`, t: `\t${key}_x` })
+  assert.ok(!redact(encoded).includes(key))
+  assert.ok(!redact(JSON.stringify(encoded)).includes(key))
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Cli', finalStatus: 'failed', failureReason: `env shows ${key}` }] }).join('\n')
   assert.ok(!out.includes(key) && out.includes('env shows [redacted]'))
 })

@@ -59,7 +59,7 @@ async function main(outFile) {
     keyFinding: (full && (full.keyFinding || (full.legacy && full.legacy.keyFinding))) || '',
     frictionPoints: frictionOf(full).slice(0, 3).map((point) => ({
       severity: point.severity,
-      text: truncate(point.desc || point.title, 240),
+      text: truncate(redact(point.desc || point.title), 240),
     })),
   }
   fs.mkdirSync(path.dirname(outFile), { recursive: true })
