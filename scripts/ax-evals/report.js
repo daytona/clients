@@ -147,7 +147,12 @@ function loadResults(dir, matrix) {
   return matrix.map((entry) => {
     const file = path.join(dir, `${entry.name}.json`)
     if (!fs.existsSync(file)) return { name: entry.name, title: entry.title, finalStatus: '' }
-    return { ...JSON.parse(fs.readFileSync(file, 'utf8')), title: entry.title }
+    try {
+      return { ...JSON.parse(fs.readFileSync(file, 'utf8')), title: entry.title }
+    } catch {
+      // One unreadable result must not keep the rest of the comment from being written.
+      return { name: entry.name, title: entry.title, finalStatus: '', runId: 'unreadable', failureReason: 'the saved result could not be read' }
+    }
   })
 }
 

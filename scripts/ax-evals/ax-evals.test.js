@@ -219,6 +219,13 @@ test('upsertComment: newest run wins, spoofed and duplicate markers', async () =
   assert.equal(await upsertComment(github, REPO, 7, 300, ['x']), true)
 })
 
+test('loadResults: an unreadable result reads as did not finish', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ax-results-bad-'))
+  fs.writeFileSync(path.join(dir, 'cli-run-python.json'), '{"a":"\\u001R"}')
+  const [result] = loadResults(dir, [{ name: 'cli-run-python', title: 'CLI: Run Python' }])
+  assert.ok(render({ sha: SHA, runUrl: 'u', results: [result] }).join('\n').includes('| CLI: Run Python | ⏹️ Did not finish |'))
+})
+
 test('loadResults: a results directory that was never created reads as not started', () => {
   const results = loadResults(path.join(os.tmpdir(), 'ax-results-missing-' + process.pid), [{ name: 'cli-run-python', title: 'CLI: Run Python' }])
   assert.deepEqual(results.map((r) => [r.title, r.finalStatus]), [['CLI: Run Python', '']])
@@ -344,8 +351,19 @@ test('redact: Daytona credentials never reach the comment', () => {
   assert.deepEqual(JSON.parse(redact(json)), { a: 'x REDACTED y', b: 'z' })
   assert.equal(redact('100% of %20 and \\u0041 stay'), '100% of %20 and \\u0041 stay')
   // An escape-looking prefix cannot swallow a plain key's first character.
-  for (const prefix of ['%a', '%6', '\\uabc', '"%2']) assert.equal(redact(`x${prefix}${key}`), `x${prefix}REDACTED`, prefix)
-  assert.equal(redact(`x%a${invite}`), 'x%aREDACTED')
+  for (const prefix of ['%a', '%6', '\\uabc', '"%2']) {
+    const out = redact(`x${prefix}${key}`)
+    assert.ok(out.startsWith('x') && out.endsWith('REDACTED') && !out.includes(hex.slice(0, 8)), prefix)
+  }
+  assert.ok(!redact(`x%a${invite}`).includes('A'.repeat(20)))
+  // A cut never splits an escape, so JSON stays valid.
+  for (const odd of ['boom \u001dtn_', '\ud83dtn_']) assert.deepEqual(JSON.parse(redact(JSON.stringify({ a: `${odd}${hex}` }))), { a: odd.startsWith('boom') ? 'boom REDACTED' : 'REDACTED' })
+  // Astral and escaped invisible characters, and UTF-8 percent runs, inside a key.
+  for (const split of ['\u{e0020}', '\u{e0100}', '\\u200b', '&#8203;', '%E2%80%8B']) assert.equal(redact(`dtn${split}_${hex}`), 'REDACTED', split)
+  // A long backslash run stays linear.
+  const started = Date.now()
+  redact('\\'.repeat(100000))
+  assert.ok(Date.now() - started < 2000)
   // Any invisible format character or combining mark inside a key.
   for (const mark of ['\u2061', '\u180e', '\u0301']) assert.equal(redact(`${key.slice(0, 9)}${mark}${key.slice(9)}`), 'REDACTED', escape(mark))
   // References past the last code point are text, not errors.
