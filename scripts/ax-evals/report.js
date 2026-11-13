@@ -7,6 +7,7 @@
 const fs = require('fs')
 const path = require('path')
 const { upsertComment } = require('./comment.js')
+const { redact } = require('./redact.js')
 const { DISPATCH_HINT, HEADING } = require('./plan.js')
 
 function parseReport(raw) {
@@ -61,7 +62,7 @@ function checksCell(report) {
 
 function oneLine(text) {
   return (
-    String(text || '')
+    redact(text)
       .replace(/\s+/g, ' ')
       .replace(/\\/g, '\\\\')
       // Agent-written text must not notify users or teams.

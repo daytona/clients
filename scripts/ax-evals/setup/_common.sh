@@ -78,7 +78,7 @@ install_node() {
   if ! node_satisfies "$need"; then
     major=$(printf '%s' "${need#>=}" | tr -d ' ' | cut -d. -f1)
     version=$(curl -fsSL --retry 3 https://nodejs.org/dist/index.json |
-      python3 -c 'import json,sys; m=sys.argv[1]; print(next(r["version"] for r in json.load(sys.stdin) if r["version"].startswith("v"+m+".")))' "$major")
+      python3 -c 'import json,re,sys; m=sys.argv[1]; print(next(r["version"] for r in json.load(sys.stdin) if re.fullmatch(r"v"+m+r"\.\d+\.\d+", r["version"])))' "$major")
     t "install node ${version} (image has $(node -v 2>/dev/null || echo none); SDK needs ${need})"
     # Its own prefix: unpacking over the image's /usr/local mixes two npm installs.
     $SUDO rm -rf /opt/node

@@ -7,10 +7,12 @@ name: '[PR] AX evals (Firegoat)'
 # Trigger (requires write access to the repo), for PRs against main (the 2.x line):
 #   - add the `ax-eval` label to a PR (evaluates every task on the changed surfaces)
 #   - gh workflow run ax_evals.yaml --repo daytona/clients --ref main \
-#       -f pr=<number> [-f evals='all' | -f evals='cli preview-url' | -f evals=python-git-commit]
+#       -f pr=<number> [-f evals='all' | -f evals=cli | -f evals=cli-preview-url]
+#   (tokens are combined: `cli preview-url` is every CLI eval plus every preview-URL eval)
 # Prompts and setup scripts live in scripts/ax-evals and are stored on Firegoat; they
 # are synced from main by ax_evals_config.yaml, so a PR is evaluated with main's
-# prompts. release/v0 keeps its own AX evals for the 0.x line.
+# prompts, and this harness itself runs from the PR's base commit. release/v0 keeps
+# its own AX evals for the 0.x line.
 
 on:
   pull_request:
@@ -23,7 +25,7 @@ on:
         required: true
         type: number
       evals:
-        description: 'Evals to run: empty for the changed surfaces, `all`, or surfaces / tasks / evals, e.g. `cli preview-url`'
+        description: 'Evals to run: empty for the changed surfaces, `all`, or surfaces / tasks / evals (combined), e.g. `cli` or `cli-preview-url`'
         required: false
         default: ''
         type: string
@@ -33,9 +35,10 @@ permissions: {}
 jobs:
   plan:
     name: Plan
-    # Label events check out and run the PR's scripts/ax-evals code, so only same-repo
-    # PRs (whose authors already have write access) may get that far; fork PRs never
-    # reach the checkout. Manual runs need write access and run the selected ref's code.
+    # Only same-repo PRs get past this gate (fork PRs never reach a checkout), and the
+    # harness code always comes from the PR's base commit, not the PR, so a PR cannot
+    # change the code that holds the tokens. Manual runs need write access and run
+    # the dispatched ref's code.
     if: >-
       (github.event_name == 'pull_request' && github.event.label.name == 'ax-eval' &&
         github.event.pull_request.head.repo.full_name == github.repository) ||
@@ -57,6 +60,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          # The harness runs with a write token and the Firegoat key: on a label
+          # event take it from the PR's base commit, never from the PR itself; a
+          # manual run uses the dispatched ref, which needs write access to pick.
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: scripts/ax-evals
       - id: plan
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -82,6 +89,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          # The harness runs with a write token and the Firegoat key: on a label
+          # event take it from the PR's base commit, never from the PR itself; a
+          # manual run uses the dispatched ref, which needs write access to pick.
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: scripts/ax-evals
       # firegoat-ai/evals-action is a composite wrapper around `actions/github-script@v9`
       # (a tag, which this repo's SHA-pinning policy rejects), so run its script
@@ -121,7 +132,10 @@ jobs:
               number: Number(process.env.AX_PR),
               head: { sha: process.env.AX_SHA, repo: { full_name: `${context.repo.owner}/${context.repo.repo}` } },
             }
-            await run({ core, github, context: { ...context, repo: context.repo, payload: { ...context.payload, pull_request } } })
+            // Step outputs land in logs, artifacts and the PR comment: redact credentials.
+            const { redact } = require(`${process.env.GITHUB_WORKSPACE}/scripts/ax-evals/redact.js`)
+            const redacting = Object.assign(Object.create(core), { setOutput: (name, value) => core.setOutput(name, redact(value)) })
+            await run({ core: redacting, github, context: { ...context, repo: context.repo, payload: { ...context.payload, pull_request } } })
       - name: Save result
         if: always()
         env:
@@ -144,7 +158,8 @@ jobs:
   report:
     name: Report
     needs: [plan, eval]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.matrix != '[]'
+    # Not after a cancel: the evals were stopped, so there is nothing to report.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
     # Serialize comment writes per PR (with the plan job); comment.js still lets the
     # newest run win.
@@ -158,6 +173,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          # The harness runs with a write token and the Firegoat key: on a label
+          # event take it from the PR's base commit, never from the PR itself; a
+          # manual run uses the dispatched ref, which needs write access to pick.
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: scripts/ax-evals
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

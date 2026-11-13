@@ -9,6 +9,7 @@ const fs = require('fs')
 const path = require('path')
 
 const API_ORIGIN = 'https://firegoat.ai'
+const { redact } = require('./redact.js')
 
 function truncate(text, max) {
   const value = String(text || '').trim()
@@ -62,7 +63,8 @@ async function main(outFile) {
     })),
   }
   fs.mkdirSync(path.dirname(outFile), { recursive: true })
-  fs.writeFileSync(outFile, JSON.stringify(result))
+  // The result is uploaded as an artifact and rendered in the PR comment.
+  fs.writeFileSync(outFile, redact(JSON.stringify(result)))
 }
 
 main(process.argv[2])

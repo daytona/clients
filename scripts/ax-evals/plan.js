@@ -131,11 +131,13 @@ async function run({ github, context, core }) {
   core.setOutput('matrix', JSON.stringify(matrix))
   core.setOutput('sha', sha)
   core.setOutput('pr', String(prNumber))
+  // The pending comment is cosmetic (the report job rewrites it): a failed write must
+  // not fail the plan, which would drop the evals.
   await upsertComment(github, repo, prNumber, context.runId, [
     HEADING,
     '',
     `⏳ Running ${matrix.length} eval${matrix.length === 1 ? '' : 's'} on commit \`${sha.slice(0, 7)}\`: ${matrix.map((m) => m.title).join(', ')}. Results usually take 10–20 minutes, longer when the Firegoat queue is busy ([workflow run](${runUrl})).`,
-  ])
+  ]).catch((error) => core.warning(`Could not write the pending AX evals comment: ${error.message}`))
 }
 
 module.exports = run

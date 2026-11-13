@@ -13,6 +13,7 @@ const { test } = require('node:test')
 const plan = require('./plan.js')
 const { render, loadResults } = require('./report.js')
 const { upsertComment } = require('./comment.js')
+const { redact } = require('./redact.js')
 const config = require('./evals.json')
 
 const BOT = { login: 'github-actions[bot]' }
@@ -285,6 +286,15 @@ test('render: friction points without a finding, and an empty checklist', () => 
   assert.ok(out.includes('- **Ts:** friction points\n  - _minor_: slow docs'))
 })
 
+test('redact: Daytona credentials never reach the comment', () => {
+  const key = `dtn_${'a1'.repeat(16)}`
+  const invite = `dtni_${'A'.repeat(43)}`
+  assert.equal(redact(`DAYTONA_API_KEY=${key} and ${invite}.`), 'DAYTONA_API_KEY=[redacted] and [redacted].')
+  assert.equal(redact('dtn_short and plain text'), 'dtn_short and plain text')
+  const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Cli', finalStatus: 'failed', failureReason: `env shows ${key}` }] }).join('\n')
+  assert.ok(!out.includes(key) && out.includes('env shows [redacted]'))
+})
+
 test('render: re-run hint names the PR and main', () => {
   const out = render({ sha: SHA, runUrl: 'u', pr: '42', results: [] }).join('\n')
   assert.match(out, /gh workflow run ax_evals\.yaml --repo daytona\/clients --ref main -f pr=42 -f evals=all/)
@@ -365,25 +375,39 @@ test('setup: node_satisfies compares the node on PATH with an engines floor', ()
   assert.equal(ok(`>=${major}.${minor + 1}.0`), false)
 })
 
-test('save-result: reads the narrative from the top level, falling back to legacy', () => {
+async function saveResult(reportBody, env = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ax-save-'))
   const server = require('node:http').createServer((req, res) => {
     res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify({ keyFinding: null, frictionPoints: [], legacy: { keyFinding: 'kf', frictionPoints: [{ severity: 'major', desc: 'd' }] } }))
+    res.end(JSON.stringify(reportBody))
   })
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)).then(() => {
-    const { port } = server.address()
-    const script = fs.readFileSync(path.join(__dirname, 'save-result.js'), 'utf8').replace("const API_ORIGIN = 'https://firegoat.ai'", `const API_ORIGIN = 'http://127.0.0.1:${port}'`)
-    const copy = path.join(dir, 'save-result.js')
-    fs.writeFileSync(copy, script)
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address()
+  try {
+    const source = fs.readFileSync(path.join(__dirname, 'save-result.js'), 'utf8')
+    fs.writeFileSync(path.join(dir, 'save-result.js'), source.replace("const API_ORIGIN = 'https://firegoat.ai'", `const API_ORIGIN = 'http://127.0.0.1:${port}'`))
+    fs.copyFileSync(path.join(__dirname, 'redact.js'), path.join(dir, 'redact.js'))
     const out = path.join(dir, 'r.json')
-    const env = { ...process.env, NAME: 'cli-run-python', EVALS_API_KEY: 'k', REPORT_JSON: JSON.stringify({ apiUrl: `http://127.0.0.1:${port}/r` }) }
-    return new Promise((resolve, reject) => {
-      require('node:child_process').execFile(process.execPath, [copy, out], { env }, (error) => (error ? reject(error) : resolve()))
-    }).finally(() => server.close()).then(() => {
-      const saved = JSON.parse(fs.readFileSync(out, 'utf8'))
-      assert.equal(saved.keyFinding, 'kf')
-      assert.deepEqual(saved.frictionPoints, [{ severity: 'major', text: 'd' }])
-    })
-  })
+    const childEnv = { ...process.env, NAME: 'cli-run-python', EVALS_API_KEY: 'k', REPORT_JSON: JSON.stringify({ apiUrl: `http://127.0.0.1:${port}/r` }), ...env }
+    await new Promise((resolve, reject) =>
+      require('node:child_process').execFile(process.execPath, [path.join(dir, 'save-result.js'), out], { env: childEnv }, (e) => (e ? reject(e) : resolve())),
+    )
+    return JSON.parse(fs.readFileSync(out, 'utf8'))
+  } finally {
+    server.close()
+  }
+}
+
+test('save-result: the top-level narrative wins, legacy is the fallback, credentials are redacted', async () => {
+  const legacy = { keyFinding: 'legacy', frictionPoints: [{ severity: 'minor', desc: 'old' }] }
+  const top = await saveResult({ keyFinding: 'top', frictionPoints: [{ severity: 'major', desc: 'new' }], legacy })
+  assert.equal(top.keyFinding, 'top')
+  assert.deepEqual(top.frictionPoints, [{ severity: 'major', text: 'new' }])
+  const fallback = await saveResult({ keyFinding: null, frictionPoints: [], legacy })
+  assert.equal(fallback.keyFinding, 'legacy')
+  assert.deepEqual(fallback.frictionPoints, [{ severity: 'minor', text: 'old' }])
+  const key = `dtn_${'b2'.repeat(16)}`
+  const leaked = await saveResult({ keyFinding: `ran env: ${key}` }, { FAILURE_REASON: `also ${key}` })
+  assert.ok(!JSON.stringify(leaked).includes(key))
+  assert.equal(leaked.keyFinding, 'ran env: [redacted]')
 })

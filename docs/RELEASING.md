@@ -82,9 +82,10 @@ from it: `release.yaml` (a stub, so
 only dispatches workflows that exist on the default branch), `CLA.md`
 (linked by the CLA check of every line), and
 `assets/images/Daytona-logotype-black.png` (loaded from `main` by released
-0.x CLIs). The 0.x Pages site (`deploy-pages.yml`) and the AX evals sync on
-`release/v0` still deploy only from `main`; change them there before 0.x
-next needs a deployment.
+0.x CLIs). The 0.x Pages site (`deploy-pages.yml`) still deploys only from `main`;
+change it there before 0.x next needs a deployment. The AX evals are
+separate per line: `release/v0` syncs its 0.x prompts from `hack/ax-evals`,
+and `main` syncs the 2.x prompts from `scripts/ax-evals`.
 
 ## What a version derives
 
