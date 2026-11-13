@@ -360,6 +360,12 @@ test('redact: Daytona credentials never reach the comment', () => {
   for (const odd of ['boom \u001dtn_', '\ud83dtn_']) assert.deepEqual(JSON.parse(redact(JSON.stringify({ a: `${odd}${hex}` }))), { a: odd.startsWith('boom') ? 'boom REDACTED' : 'REDACTED' })
   // Astral and escaped invisible characters, and UTF-8 percent runs, inside a key.
   for (const split of ['\u{e0020}', '\u{e0100}', '\\u200b', '&#8203;', '%E2%80%8B']) assert.equal(redact(`dtn${split}_${hex}`), 'REDACTED', split)
+  // Nested encodings and any number of backslashes.
+  for (const nested of [`%5Cu0064tn_${hex}`, `\\u0025\\u0036\\u0034tn_${hex}`, `${'\\'.repeat(20)}u0064tn_${hex}`, `&#x25;64tn_${hex}`]) {
+    assert.ok(!redact(`a ${nested} b`).includes(hex.slice(0, 16)), nested)
+  }
+  // A cut takes only the key's own bytes out of a percent-encoded run.
+  assert.equal(redact(`q=%E4%B8%AD%20%64tn_${hex}%20%E4%B8%AD&x=1`), 'q=%E4%B8%AD%20REDACTED%20%E4%B8%AD&x=1')
   // A long backslash run stays linear.
   const started = Date.now()
   redact('\\'.repeat(100000))
