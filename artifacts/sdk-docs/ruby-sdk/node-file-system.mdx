@@ -1,0 +1,33 @@
+---
+title: "NodeFileSystem"
+hideTitleOnPage: true
+---
+
+## NodeFileSystem
+
+NodeFileSystem class for Daytona SDK.
+
+### Constructors
+
+#### new NodeFileSystem()
+
+```ruby
+def initialize(nodes)
+
+```
+
+**Returns**:
+
+- `NodeFileSystem` - a new instance of NodeFileSystem
+
+### Methods
+
+#### upload_file()
+
+```ruby
+def upload_file(source, remote_path)
+
+```
+
+A shared IO must be read once before parallel uploads. Individual uploads
+own their file descriptors; successful uploads are not rolled back.

@@ -360,3 +360,70 @@ For issues and questions:
 
 - **GitHub Issues**: https://github.com/daytona/clients/issues
 - **Documentation**: https://www.daytona.io/docs
+
+## Multi-node GPU sandboxes
+
+Multi-node GPU access requires an enabled organization quota and compatible fabric capacity.
+The initial profiles use whole 8-GPU nodes: requesting 16 GPUs creates two nodes.
+Scalar CPU, memory and disk allocations remain supported; the corresponding `*PerNode`
+arrays specify rank-ordered allocations instead. Use either the scalar or its array.
+Use an image with your framework and RDMA userspace (`libibverbs.so.1` and an mlx5 provider).
+
+```go
+params := &types.ImageParams{
+    Image: "your-registry/rdma-workload:tag",
+    Resources: &types.Resources{
+        GPU: 16, CPUPerNode: []int{16, 16},
+        MemoryPerNode: []int{64, 64}, DiskPerNode: []int{100, 100},
+    },
+}
+sandbox, _, err := client.Create(ctx, params)
+if err != nil { return err }
+worker, err := sandbox.Nodes.Get(1) // Rank zero is the head.
+if err != nil { return err }
+_, err = worker.Process.ExecuteCommand(ctx, "hostname")
+if err != nil { return err }
+
+results, err := sandbox.Nodes.Process.ExecuteCommand(ctx, "hostname", daytona.NodeExecuteOptions{
+    Timeout: 2 * time.Minute,
+    OnStdout: func(rank int32, chunk string) { fmt.Printf("[rank %d] %s", rank, chunk) },
+})
+// results contains successful ranks even when err is *daytona.NodeErrors.
+if err != nil { return err }
+fmt.Println(results)
+if err := sandbox.Nodes.FileSystem.UploadFile(ctx, []byte("hello"), "/tmp/shared.txt"); err != nil { return err }
+
+preview, err := worker.GetPreviewLink(ctx, 8080)
+if err != nil { return err }
+fmt.Println(preview.URL)
+ssh, err := worker.CreateSSHAccess(ctx, nil) // Server-default expiration.
+if err != nil { return err }
+fmt.Println(ssh.GetSshCommand())
+if err := worker.RevokeSSHAccess(ctx, ssh.GetToken()); err != nil { return err }
+
+_, err = sandbox.Nodes.Add(ctx, []daytona.NodeResources{{CPU: 16, Memory: 64, Disk: 100}})
+if err != nil { return err }
+_, err = sandbox.Nodes.Release(ctx, 1) // Releases the highest rank.
+if err != nil { return err }
+// When a rank fails, replace it with: sandbox.Nodes.Replace(ctx, rank).
+```
+
+`NodeCount`, `TopologyGeneration`, `Degraded`, and each node's state, incarnation,
+failure and fabric fields reflect the latest refresh. Retained node handles survive
+refreshes; enumerate `Nodes.All()` again after a topology change to discover replacements.
+The sandbox's existing `Process` and `FileSystem` interfaces address the head.
+
+Membership helpers refresh the generation, submit the operation, wait for completion and
+refresh membership. They default to ten minutes; an optional duration of zero removes that
+wait limit. A timeout or canceled context does not roll back an already submitted operation.
+They propagate capacity/admission errors from the API rather than implementing a queue.
+
+Parallel execution and upload use a snapshot of the current membership and report failures
+by rank. Streaming callbacks receive `(rank, chunk)` and are serialized. Execution uses
+private sessions on all nodes, including non-streaming execution, and attempts to delete
+those sessions on success, error or cancellation. Cleanup has an independent ten-second
+budget and requires connectivity. Cleanup failures become node warnings if execution
+succeeded. Positive execution timeouts apply per rank; zero leaves the limit to the context
+and transport. RDMA checks are advisory and available through `worker.Warnings()`.
+Membership changes do not relaunch workloads or update environment variables in existing
+processes; coordinate checkpoints/restarts in the application.

@@ -153,6 +153,29 @@ class DaytonaTest {
     }
 
     @Test
+    void createEncodesPerNodeResourcesWithoutChangingScalarSetters() {
+        Resources resources = new Resources();
+        resources.setGpu(16);
+        resources.setCpuPerNode(java.util.Arrays.asList(8, 16));
+        resources.setMemoryPerNode(java.util.Arrays.asList(32, 64));
+        resources.setDiskPerNode(java.util.Arrays.asList(100, 200));
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("example/image:tag");
+        params.setResources(resources);
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        daytona.create(params);
+        ArgumentCaptor<CreateSandbox> body = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(body.capture(), isNull());
+        assertThat(body.getValue().getCpu().getActualInstance()).isEqualTo(java.util.Arrays.asList(8, 16));
+        assertThat(body.getValue().getMemory().getActualInstance()).isEqualTo(java.util.Arrays.asList(32, 64));
+        assertThat(body.getValue().getDisk().getActualInstance()).isEqualTo(java.util.Arrays.asList(100, 200));
+        resources.setCpu(4);
+        assertThatThrownBy(() -> daytona.create(params)).isInstanceOf(DaytonaException.class)
+                .hasMessageContaining("either a scalar");
+    }
+
+    @Test
     void createUsesDefaultSnapshotParamsAndWaitsUntilStarted() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTING));
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
