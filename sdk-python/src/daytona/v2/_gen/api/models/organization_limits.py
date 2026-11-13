@@ -39,7 +39,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class OrganizationLimits(BaseModel):
     """
-    OrganizationLimits
+    An organization's limits and current usage. Some organization limits are not returned. Daytona determines them for each organization to keep the platform available for everyone. A create that reaches one is refused with `LIMIT_EXCEEDED`; contact support to request a higher limit.
     """ # noqa: E501
     api_keys_per_organization: UsageLimit
     api_keys_per_project: UsageLimit

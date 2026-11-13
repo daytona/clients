@@ -34,7 +34,7 @@ class UsageLimit(BaseModel):
     """
     UsageLimit
     """ # noqa: E501
-    limit: Optional[StrictInt] = Field(description="The effective cap; `null` means no limit. A ceiling, not a reservation: reaching it refuses new work, but nothing is set aside.")
+    limit: Optional[StrictInt] = Field(description="The effective cap; `null` means no limit, except on a count whose limit is not returned. A ceiling, not a reservation: reaching it refuses new work, but nothing is set aside.")
     usage: StrictInt = Field(description="The current usage counted against the limit.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["limit", "usage"]

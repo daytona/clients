@@ -1108,7 +1108,7 @@ export interface paths {
         };
         /**
          * Get organization limits
-         * @description Returns effective limits and current usage. A null limit means unlimited.
+         * @description Returns effective limits and current usage. A null limit means unlimited, except on a count whose limit is not returned.
          */
         get: operations["get_org_limits"];
         put?: never;
@@ -1863,7 +1863,7 @@ export interface paths {
         head?: never;
         /**
          * Update the project limits
-         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox that limit counts; the sandboxes it already has keep running, and lowering a limit never stops one.
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` cannot be set on a project: send null or omit them.
          */
         patch: operations["update_project_limits"];
         trace?: never;
@@ -2918,7 +2918,7 @@ export interface components {
          * @description Stable machine-readable error codes, returned as `ErrorBody.code`
          *     when `source` is `DAYTONA_API`.
          */
-        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
+        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "VOLUME_NOT_FOUND" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -5483,6 +5483,7 @@ export interface components {
                 [key: string]: boolean;
             };
         };
+        /** @description An organization's limits and current usage. Some organization limits are not returned. Daytona determines them for each organization to keep the platform available for everyone. A create that reaches one is refused with `LIMIT_EXCEEDED`; contact support to request a higher limit. */
         OrganizationLimits: {
             /** @description The organization's live API-key limit and current usage. */
             api_keys_per_organization: components["schemas"]["UsageLimit"];
@@ -5502,7 +5503,7 @@ export interface components {
             sandboxes: components["schemas"]["SandboxLimits"];
             /** @description The maximum number of secrets in any one project and the highest current usage. */
             secrets_per_project: components["schemas"]["UsageLimit"];
-            /** @description Volume, image, and snapshot count limits. */
+            /** @description Volume, image, and snapshot counts. Their organization limits are not returned. */
             storage: components["schemas"]["StorageLimits"];
         };
         /** @description An organization together with the signed-in user's membership. */
@@ -6187,6 +6188,11 @@ export interface components {
              */
             updated_at: string | null;
         };
+        /** @description The project's concurrent image-build limit and current usage. */
+        ProjectImageBuildLimits: {
+            /** @description The project's concurrent image-build limit and current usage. */
+            concurrent: components["schemas"]["UsageLimit"];
+        };
         ProjectLifecycleDefaults: {
             /** @description Defaults for ephemeral sandboxes. */
             ephemeral: components["schemas"]["EphemeralLifecycleDefaults"];
@@ -6198,13 +6204,15 @@ export interface components {
             policy: components["schemas"]["ProjectLifecycleDefaults"];
         };
         /**
-         * @description The project's own sandbox limits, each with the project's current usage
-         *     against it.
+         * @description The project's own limits on sandboxes and image builds, each with the
+         *     project's current usage against it.
          */
         ProjectLimits: {
+            /** @description The project's image-build limits. */
+            image_builds: components["schemas"]["ProjectImageBuildLimits"];
             /**
-             * @description The project's sandbox count limits. A stored limit is always returned,
-             *     and takes effect only while limit enforcement is turned on.
+             * @description The project's sandbox counts. Only the concurrent count can carry a
+             *     project limit.
              */
             sandboxes: components["schemas"]["ProjectSandboxLimits"];
         };
@@ -6244,18 +6252,24 @@ export interface components {
             projects: components["schemas"]["Project"][];
         };
         /**
-         * @description The three sandbox counts a project can be limited on, each with its
-         *     limit and current usage.
+         * @description The project's sandbox counts, each with its current usage. Only the
+         *     concurrent count can carry a project limit.
          */
         ProjectSandboxLimits: {
             /** @description The project's concurrent sandbox limit and current usage. */
             concurrent: components["schemas"]["UsageLimit"];
             /**
-             * @description The project's persistent sandbox limit and current usage. Stopped and
-             *     paused persistent sandboxes count.
+             * @deprecated
+             * @description The project's persistent sandbox count. Stopped and paused persistent
+             *     sandboxes count. Projects have no persistent sandbox limit of their
+             *     own, so `limit` is always `null`.
              */
             persistent: components["schemas"]["UsageLimit"];
-            /** @description The project's total sandbox limit and current usage. */
+            /**
+             * @deprecated
+             * @description The project's total sandbox count. Projects have no total sandbox
+             *     limit of their own, so `limit` is always `null`.
+             */
             total: components["schemas"]["UsageLimit"];
         };
         ProjectServiceAccount: {
@@ -6785,6 +6799,15 @@ export interface components {
              *     platform default image; omitted for a sandbox restored from a snapshot.
              */
             image?: null | components["schemas"]["ImageReference"];
+            /**
+             * @description Automatic timeout and idle-expiry behavior: the object
+             *     `GET /sandboxes/{id}` returns, as the create set it (on an idempotent
+             *     replay, as the sandbox has it now). Starting the sandbox restarts
+             *     `timeout_at` and `idle_timeout_at`, so after a start, even one `status`
+             *     already reports as `running`, `GET /sandboxes/{id}` returns the new
+             *     deadlines. Null when the policy could not be read.
+             */
+            lifecycle_policy?: null | components["schemas"]["LifecyclePolicy"];
             /** @description Sandbox name (caller-provided or the generated `sandbox-<short-id>`). */
             name: string;
             /**
@@ -6838,7 +6861,10 @@ export interface components {
         SandboxLimits: {
             /** @description The concurrent sandbox limit and current usage. */
             concurrent: components["schemas"]["UsageLimit"];
-            /** @description The total sandbox limit and current usage. */
+            /**
+             * @deprecated
+             * @description The total sandbox count. Its organization limit is not returned, so `limit` is always `null`.
+             */
             total: components["schemas"]["UsageLimit"];
         };
         /** @description The requested sandboxes, after the optional wait. */
@@ -7407,11 +7433,20 @@ export interface components {
             url: string;
         };
         StorageLimits: {
-            /** @description The image limit and current usage. Captured, built, and imported images count; failed images do not. */
+            /**
+             * @deprecated
+             * @description The image count. Captured, built, and imported images count; failed images do not. Its organization limit is not returned, so `limit` is always `null`.
+             */
             images: components["schemas"]["UsageLimit"];
-            /** @description The snapshot limit and current usage. Failed snapshots do not count. */
+            /**
+             * @deprecated
+             * @description The snapshot count. Failed snapshots do not count. Its organization limit is not returned, so `limit` is always `null`.
+             */
             snapshots: components["schemas"]["UsageLimit"];
-            /** @description The volume limit and current usage. Deleted volumes do not count. */
+            /**
+             * @deprecated
+             * @description The volume count. Deleted volumes do not count. Its organization limit is not returned, so `limit` is always `null`.
+             */
             volumes: components["schemas"]["UsageLimit"];
         };
         TimeoutSource: ("project" | "platform" | "none") | (string & {});
@@ -7551,20 +7586,28 @@ export interface components {
         UpdateProjectLimitsRequest: {
             /**
              * Format: int64
+             * @description The most image builds the project may run at once, or null for no
+             *     project limit.
+             */
+            max_concurrent_builds?: number | null;
+            /**
+             * Format: int64
              * @description The most sandboxes the project may run at once, or null for no project
              *     limit.
              */
             max_concurrent_vms?: number | null;
             /**
              * Format: int64
-             * @description The most persistent sandboxes the project may have, or null for no
-             *     project limit.
+             * @deprecated
+             * @description Cannot be set on a project: projects do not limit their persistent sandbox count. Send null
+             *     or omit it; an integer is refused.
              */
             max_persistent_vms?: number | null;
             /**
              * Format: int64
-             * @description The most sandboxes the project may have, resting ones included, or null
-             *     for no project limit.
+             * @deprecated
+             * @description Cannot be set on a project: projects do not limit their total sandbox count. Send null or
+             *     omit it; an integer is refused.
              */
             max_total_vms?: number | null;
         };
@@ -7645,8 +7688,9 @@ export interface components {
         UsageLimit: {
             /**
              * Format: int64
-             * @description The effective cap; `null` means no limit. A ceiling, not a
-             *     reservation: reaching it refuses new work, but nothing is set aside.
+             * @description The effective cap; `null` means no limit, except on a count whose
+             *     limit is not returned. A ceiling, not a reservation: reaching it
+             *     refuses new work, but nothing is set aside.
              */
             limit: number | null;
             /**
@@ -8018,7 +8062,7 @@ export interface components {
              *     no empty or `..` segments and no control characters.
              */
             subpath?: string | null;
-            /** @description The volume name or a `vol_` id. */
+            /** @description The volume name or a `vol_` id. A sandbox can mount a volume once. */
             volume: string;
         };
         /** @description Response envelope for `GET /volumes`. */
@@ -16048,7 +16092,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectLimits"];
                 };
             };
-            /** @description A limit is outside the accepted range, or the body carries an unknown field (`BAD_REQUEST`) */
+            /** @description A limit is outside the accepted range, a limit that cannot be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -19256,7 +19300,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`) */
+            /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
