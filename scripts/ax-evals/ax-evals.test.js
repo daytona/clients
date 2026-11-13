@@ -116,7 +116,7 @@ test('selectByPaths', () => {
   assert.deepEqual(plan.selectByPaths(config, ['docs/x.md', 'examples/a.py']), [])
   assert.deepEqual(plan.selectByPaths(config, ['contract/api-openapi.json']), ALL)
   assert.deepEqual(plan.selectByPaths(config, ['scripts/ax-evals/evals.json']), [])
-  assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml']), ALL)
+  assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml']), [])
   assert.deepEqual(plan.selectByPaths(config, ['.github/workflows/ax_evals.yaml.bak', 'contracts/x']), [])
 })
 
@@ -502,7 +502,9 @@ test('workflow: plan only starts for the ax-eval label, and for manual runs', ()
   )
   assert.match(workflow, /pull_request_target:\n    types: \[labeled\]\n    branches: \[main\]/)
   // pull_request_target is safe only while no job checks out or runs PR code.
-  assert.doesNotMatch(workflow, /^\s+on:\s*\n\s+pull_request:/m)
+  const triggers = workflow.slice(workflow.indexOf('\non:\n'), workflow.indexOf('\npermissions:'))
+  const keys = triggers.split('\n').filter((line) => /^  [a-z_]+:/.test(line)).map((line) => line.trim())
+  assert.deepEqual(keys, ['pull_request_target:', 'workflow_dispatch:'])
 })
 
 test('workflow: fork PRs never run PR-controlled code on label events', () => {

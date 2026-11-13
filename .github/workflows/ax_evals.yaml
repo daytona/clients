@@ -11,10 +11,10 @@ name: '[PR] AX evals (Firegoat)'
 #   (tokens are combined: `cli preview-url` is every CLI eval plus every preview-URL eval)
 # Prompts and setup scripts live in scripts/ax-evals and are stored on Firegoat; they
 # are synced from main by ax_evals_config.yaml, so a PR is evaluated with main's
-# prompts. Nothing from the PR runs here: a label run takes this workflow and the
-# harness from main (pull_request_target), a manual run from the dispatched ref, and
-# the code under test only reaches Firegoat as a commit SHA. release/v0 keeps its own
-# AX evals for the 0.x line.
+# prompts. A label run executes nothing from the PR: the workflow and the harness come
+# from main (pull_request_target), and the code under test reaches Firegoat only as a
+# commit SHA. A manual run executes the dispatched ref. release/v0 keeps its own AX
+# evals for the 0.x line.
 
 on:
   # pull_request_target runs main's copy of this workflow, so a PR cannot change what

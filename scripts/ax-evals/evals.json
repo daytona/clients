@@ -1,7 +1,6 @@
 {
-  "$comment": "AX evals on Firegoat for the 2.x line. Each eval is one task run through one surface (an SDK or the CLI) built from the commit under test. Firegoat stores the prompt text, checks and setup scripts; the workflow only sends a promptId and the commit. Merging changes under scripts/ax-evals to main syncs them (ax_evals_config.yaml), so a PR that edits prompts or setup/*.sh is still evaluated with the version on main. A change under sharedPaths runs every eval; scripts/ax-evals itself is not one, since a PR's harness changes only take effect on main.",
+  "$comment": "AX evals on Firegoat for the 2.x line. Each eval is one task run through one surface (an SDK or the CLI) built from the commit under test. Firegoat stores the prompt text, checks and setup scripts; the workflow only sends a promptId and the commit. Merging changes under scripts/ax-evals to main syncs them (ax_evals_config.yaml), so a PR that edits prompts or setup/*.sh is still evaluated with the version on main. A change under sharedPaths runs every eval. scripts/ax-evals and ax_evals.yaml are not shared paths: a label run uses main's copies, so a PR's changes to them are tested by dispatching from its branch.",
   "sharedPaths": [
-    ".github/workflows/ax_evals.yaml",
     "contract/"
   ],
   "defaults": {
