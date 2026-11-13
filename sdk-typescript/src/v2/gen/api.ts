@@ -2505,6 +2505,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sandboxes/{sandbox_id}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart a sandbox
+         * @description Restarts a running persistent sandbox: it stops and keeps its disk, then
+         *     starts again. Running processes and memory are not kept. Linux and Windows
+         *     sandboxes only.
+         */
+        post: operations["restart_sandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sandboxes/{sandbox_id}/resume": {
         parameters: {
             query?: never;
@@ -18794,7 +18816,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            /** @description The sandbox is deleted, being deleted, failed, lost, or stopped without being persistent (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -18841,6 +18863,62 @@ export interface operations {
                 };
             };
             /** @description The sandbox is deleted or being deleted (`CONFLICT`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    restart_sandbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The sandbox ID */
+                sandbox_id: components["parameters"]["SandboxId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted: the sandbox restart. The sandbox stops, then starts again; `status` is the sandbox's status at acceptance, `stopping` */
+            202: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AsyncOperation"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The organization is suspended (`ORG_SUSPENDED`), or the project reached its monthly budget (`PROJECT_BUDGET_EXCEEDED`) */
+            402: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Sandbox not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The sandbox class does not support restarting (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not persistent or not running (`CONFLICT`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
