@@ -1,0 +1,27 @@
+.github/workflows/sdk-ci.yaml
+  s_064c0b8e00db0e::t_d056d71b6b84f3 13,25
+.github/workflows/upgrade-tool-ci.yaml
+  s_064c0b8e00db0e::t_e7a556c0d566e5 12,24
+docs/RELEASING.md
+  s_064c0b8e00db0e::t_d466a2cedd67d7 85-88
+scripts/ax-evals/plan.js
+  s_064c0b8e00db0e::t_90217b53d91e05 134-135,140
+scripts/ax-evals/setup/_common.sh
+  s_064c0b8e00db0e::t_4858f93489191a 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d2611f08c002880e3f7d982b41f08a3740245d88",
+  "prompts": {},
+  "sessions": {
+    "s_064c0b8e00db0e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bacef24ffei0uFPJReys7dVu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

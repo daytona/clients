@@ -1,0 +1,19 @@
+scripts/ax-evals/redact.js
+  s_3e54feecb26907::t_1e63ba641ffabc 165-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea89cff647dcc8f770fd9715d21f20dad11c50a0",
+  "prompts": {},
+  "sessions": {
+    "s_3e54feecb26907": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2b22feafffeL3Akd3b0Cksvup",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

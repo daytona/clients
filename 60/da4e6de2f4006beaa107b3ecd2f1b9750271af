@@ -1,0 +1,46 @@
+sdk-python/src/daytona/v2/filesystem.py
+  s_ef561ed5f0ed65::t_37ed9485ce8b44 454-460
+cli/cmd/sandbox_port.go
+  s_ef561ed5f0ed65::t_0fe4300e9e0fab 28,30-31
+cli/cmd/ga2_contract_test.go
+  s_ef561ed5f0ed65::t_2ddcd86d847a80 222-283
+cli/cmd/sandbox_logs.go
+  s_ef561ed5f0ed65::t_c67e73d1e7dbe9 114
+  s_ef561ed5f0ed65::t_77177e2865d3b3 148-149,153,162-223
+  s_ef561ed5f0ed65::t_0a57a8383c90dc 147
+  s_ef561ed5f0ed65::t_6e85ae10773e07 150-152
+sdk-typescript/src/v2/FileSystem.ts
+  s_ef561ed5f0ed65::t_79c256299f74d2 371
+changelog.d/upload-file-content-hint.fixed.md
+  s_c48dd57ec3639a::t_50d608f0c86f1b 1-5
+cli/README.md
+  s_c48dd57ec3639a::t_0743924ece0ba4 105,309,456-463,561-562
+sdk-python/tests/test_fs_git_inputs.py
+  s_c48dd57ec3639a::t_3203cae7461d63 62
+sdk-typescript/tests/fs-git-inputs.test.ts
+  s_c48dd57ec3639a::t_decaa11f73dc05 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "60da4e6de2f4006beaa107b3ecd2f1b9750271af",
+  "prompts": {},
+  "sessions": {
+    "s_c48dd57ec3639a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bf2220cffeA8i504tK7VgExf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ef561ed5f0ed65": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bebe1e8ffeYnSEWlHMdr5yu6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
