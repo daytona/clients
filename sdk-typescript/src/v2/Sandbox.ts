@@ -22,7 +22,6 @@ import { GitService } from './Git.js'
 import { InterpreterService } from './Interpreter.js'
 import { ComputerUseService } from './ComputerUse.js'
 import { DockerService } from './Docker.js'
-import { LspService } from './Lsp.js'
 import { parseNetworkPolicyResponse, serializeNetworkPolicyInput } from './NetworkPolicy.js'
 import { PortsService } from './Ports.js'
 import { SandboxVolumesService } from './SandboxVolumes.js'
@@ -384,7 +383,6 @@ export class Sandbox {
   private dockerNamespace?: DockerService
   private portsNamespace?: PortsService
   private volumesNamespace?: SandboxVolumesService
-  private lspNamespace?: LspService
   private _hub?: WaitHub
 
   /** @internal */
@@ -481,12 +479,6 @@ export class Sandbox {
     this.portsNamespace ??= new PortsService(INTERNAL, this.toolboxTransport, this.api, this.id, (port) => this.auth.previewToken(port))
     return this.portsNamespace
   }
-
-  public get lsp(): LspService {
-    this.lspNamespace ??= new LspService(INTERNAL, this.requireToolbox())
-    return this.lspNamespace
-  }
-
 
   /** A snapshot of the sandbox's CPU, memory and disk usage. */
   public async metrics(): Promise<SystemMetrics> {
@@ -603,7 +595,6 @@ export class Sandbox {
     this.dockerNamespace = undefined
     this.portsNamespace = undefined
     this.volumesNamespace = undefined
-    this.lspNamespace = undefined
   }
 
   private requireToolbox(): HttpTransport {

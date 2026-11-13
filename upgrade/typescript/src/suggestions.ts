@@ -153,7 +153,7 @@ export function suggest(source: SourceFile, mapping: Mapping, root: string): { r
       continue;
     }
     const client = ownerClient ? displayText(ownerClient.getText()) : 'daytona';
-    // A handle a sandbox call produced (an LSP server, a PTY) is not its sandbox.
+    // A handle a sandbox call produced (a PTY) is not its sandbox.
     const sandboxProduced = mapping.receivers[entry.receiver]?.producedBy?.some(id => id.startsWith('sandbox')) === true;
     const ownerSandbox = entry.receiver.startsWith('sandbox') || sandboxProduced ? sandboxOwner(access.getExpression(), call, receivers) : undefined;
     const sandbox = ownerSandbox ? displayText(ownerSandbox.getText()) : receiver;

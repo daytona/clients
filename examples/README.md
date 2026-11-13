@@ -75,7 +75,7 @@ The examples exercise the V2 SDK surface in both languages.
 | `secrets` (+ env) | `secrets-env` | ✅ `secrets.set/iter/delete` (a run-scoped name) + attach via `secrets: [name]`, alongside per-sandbox `env`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
 | volumes | `volumes` | `volumes.get(name, { create: true })` / `volumes.get(name, create=True)` and mounts at different paths, including a subpath. See also `volumes_share.*`. |
 
-Not covered here: LSP servers and network settings.
+Not covered here: network settings.
 
 ## Environment
 

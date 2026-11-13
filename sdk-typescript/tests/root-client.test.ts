@@ -141,7 +141,7 @@ describe('root Daytona client', () => {
     const root = new Daytona({ apiKey: 'key' })
     const first = root.v2
     const close = jest.spyOn(root, 'close')
-    // Same key the class uses (as unit.test.ts does for Sandbox / Lsp).
+    // Same key the class uses (as unit.test.ts does for Sandbox).
     await root[Symbol.asyncDispose]()
     expect(close).toHaveBeenCalledTimes(1)
     expect(root.v2).not.toBe(first)

@@ -15,7 +15,6 @@ import { ComputerUseService } from '../src/v2/ComputerUse'
 import { FileSystemService } from '../src/v2/FileSystem'
 import { GitService } from '../src/v2/Git'
 import { InterpreterService } from '../src/v2/Interpreter'
-import { LspService } from '../src/v2/Lsp'
 import { ProcessService, PtyService } from '../src/v2/Process'
 import { BadRequestError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { HttpTransport } from '../src/v2/http'
@@ -39,8 +38,6 @@ const FILE_INFO = {
   name: 'a', path: '/d/a', size: 3, mode: '-rw-r--r--', modTime: 'x', modifiedAt: CREATED_AT,
   isDir: false, owner: 'u', group: 'g', permissions: '0644',
 }
-const RANGE = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }
-const SYMBOLS = [{ name: 's', kind: 1, location: { uri: 'u', range: RANGE } }]
 const PROCESS_STATUS = { Running: true, Priority: 1, AutoRestart: true, Pid: 5, Failed: false, RestartAttempts: 0, RestartBackoffMs: 1500, Status: 'RUNNING', Extra: { a: [1] } }
 const NODE = {
   id: 'n', role: 'r', name: 'nm', bounds: { x: 0, y: 0, width: 1, height: 1 }, states: ['s'],
@@ -81,9 +78,6 @@ function respond(request: IncomingMessage): unknown {
     'POST /git/commit': { hash: 'h' },
     'GET /git/branches': { branches: ['main'] },
     'GET /git/history': [{ hash: 'h', message: 'm', author: 'a', email: 'e', timestamp: CREATED_AT }],
-    'POST /lsp/completions': { isIncomplete: false, items: [{ label: 'l', kind: 1, documentation: { kind: 'markdown', value: 'v' } }] },
-    'GET /lsp/document-symbols': SYMBOLS,
-    'GET /lsp/workspacesymbols': SYMBOLS,
     'GET /computeruse/status': { status: 'inactive', desktop: 'failed', cause: { code: 'X', message: 'm', detail: { a: [1] } } },
     'POST /computeruse/start': { message: 'm', status: { xvfb: PROCESS_STATUS } },
     'POST /computeruse/stop': { message: 'm', status: { xvfb: PROCESS_STATUS } },
@@ -222,7 +216,6 @@ describe('toolbox results are frozen at run time', () => {
   const git = () => new GitService(INTERNAL, transport)
   const process = () => new ProcessService(INTERNAL, transport, 'sbx')
   const cu = () => new ComputerUseService(INTERNAL, transport)
-  const lsp = async () => new LspService(INTERNAL, transport).start('python', '/p')
   const at = (prefix: string) => new HttpTransport(`${base}${prefix}`, 'k', 5_000)
 
   const rows: ReadonlyArray<readonly [string, () => Promise<unknown>]> = [
@@ -259,9 +252,6 @@ describe('toolbox results are frozen at run time', () => {
     ['git.listBranches', () => git().listBranches('/r')],
     ['git.history', () => git().history('/r')],
     ['git.history ({ items })', () => new GitService(INTERNAL, at('/envelope')).history('/r')],
-    ['lsp.completions', async () => (await lsp()).completions('u', { line: 0, character: 0 })],
-    ['lsp.documentSymbols', async () => (await lsp()).documentSymbols('u')],
-    ['lsp.workspaceSymbols', async () => (await lsp()).workspaceSymbols('s')],
     ['computerUse.status (failed, with its cause)', () => cu().status()],
     ['computerUse.status (ready)', () => new ComputerUseService(INTERNAL, at('/ready')).status()],
     ['computerUse.status (starting)', () => new ComputerUseService(INTERNAL, at('/starting')).status()],
@@ -327,14 +317,6 @@ describe('toolbox results are frozen at run time', () => {
     const result = await call()
     expect(result.reason ?? result.process?.reason).toBe(reason)
     expectDeeplyFrozen(result)
-  })
-
-  it.each(['documentSymbols', 'workspaceSymbols'] as const)('refuses an LSP %s response that is not a bare array', async (method) => {
-    const server = await new LspService(INTERNAL, at('/envelope')).start('python', '/p')
-    const call = method === 'documentSymbols' ? server.documentSymbols('u') : server.workspaceSymbols('s')
-    await expect(call).rejects.toMatchObject({
-      constructor: BadRequestError, message: 'expected LSP symbol list', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK',
-    })
   })
 
   it('freezes the children of an already frozen object, ends on a cycle, and leaves class instances alone', () => {

@@ -142,7 +142,6 @@ from daytona.v2.errors import (
 from daytona.v2.filesystem import AsyncFileSystemService, AsyncWatchHandle
 from daytona.v2.git import AsyncGitService
 from daytona.v2.interpreter import AsyncInterpreterService
-from daytona.v2.lsp import AsyncLspService
 from daytona.v2.ports import AsyncPortsService
 from daytona.v2.process import (
     TIMED_OUT_LOG_PAGE_LIMIT,
@@ -227,6 +226,7 @@ _TS_STAR_EXPORT_RE = re.compile(
 )
 
 _HTTP_METHOD_NAMES: Final = frozenset({"DELETE", "GET", "PATCH", "POST", "PUT"})
+_LSP_REMOVED: Final = "LSP was removed from the SDK; the daemon still serves it until its own removal."
 _TOOLBOX_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
     ("GET", "/info"): "Not exposed by the SDK.",
     (
@@ -238,6 +238,13 @@ _TOOLBOX_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
         "/sessions/{id}",
     ): "Not exposed by the SDK.",
     ("GET", "/version"): "Not exposed by the SDK.",
+    ("POST", "/lsp/completions"): _LSP_REMOVED,
+    ("POST", "/lsp/did-close"): _LSP_REMOVED,
+    ("POST", "/lsp/did-open"): _LSP_REMOVED,
+    ("GET", "/lsp/document-symbols"): _LSP_REMOVED,
+    ("POST", "/lsp/start"): _LSP_REMOVED,
+    ("POST", "/lsp/stop"): _LSP_REMOVED,
+    ("GET", "/lsp/workspacesymbols"): _LSP_REMOVED,
 }
 _CONTRACT_ROUTE_PREFIXES: Final = (
     "/computeruse",
@@ -3716,28 +3723,13 @@ def test_computer_use_literals_are_publicly_exported():
 
 
 @pytest.mark.anyio
-async def test_ports_and_lsp_namespaces_shape_requests_and_parse_results():
+async def test_ports_namespace_shapes_requests_and_parses_results():
     class Transport:
         def __init__(self):
             self.sent = []
             self.responses = {
                 ("GET", "/port"): {"ports": [3000, 8080]},
                 ("GET", "/port/3999/in-use"): {"isInUse": True},
-                ("POST", "/lsp/completions"): {"isIncomplete": False, "items": [{"label": "append"}]},
-                ("GET", "/lsp/document-symbols"): [
-                    {
-                        "name": "main",
-                        "kind": 12,
-                        "location": {
-                            "uri": "file:///p/a.py",
-                            "range": {
-                                "start": {"line": 0, "character": 0},
-                                "end": {"line": 0, "character": 4},
-                            },
-                        },
-                    }
-                ],
-                ("GET", "/lsp/workspacesymbols"): [],
             }
 
         async def send(self, spec):
@@ -3799,74 +3791,6 @@ async def test_ports_and_lsp_namespaces_shape_requests_and_parse_results():
     assert [(s.method, s.path) for s in ports_transport.sent] == [
         ("GET", "/port"),
         ("GET", "/port/3999/in-use"),
-    ]
-
-    lsp_transport = Transport()
-    lsp = AsyncLspService(lsp_transport)  # type: ignore[arg-type]
-    server = await lsp.start("python", "/p")
-    await server.open_document("file:///p/a.py")
-    await server.close_document("file:///p/a.py")
-    assert lsp_transport.sent[0].json_body == {"languageId": "python", "pathToProject": "/p"}
-    assert lsp_transport.sent[1].json_body == {
-        "languageId": "python",
-        "pathToProject": "/p",
-        "uri": "file:///p/a.py",
-    }
-    assert lsp_transport.sent[2].json_body == {
-        "languageId": "python",
-        "pathToProject": "/p",
-        "uri": "file:///p/a.py",
-    }
-    completions = await server.completions("file:///p/a.py", {"line": 2, "character": 5})
-    assert completions.is_incomplete is False
-    assert completions.items[0].label == "append"
-    assert "context" not in (lsp_transport.sent[3].json_body or {})
-    assert len(await server.document_symbols("file:///p/a.py")) == 1
-    assert lsp_transport.sent[4].params == {
-        "languageId": "python",
-        "pathToProject": "/p",
-        "uri": "file:///p/a.py",
-    }
-    assert await server.workspace_symbols("main") == []
-    assert lsp_transport.sent[5].params == {"query": "main", "languageId": "python", "pathToProject": "/p"}
-    await server.stop()
-
-
-@pytest.mark.anyio
-async def test_lsp_completion_parse_errors_raise_typed_bad_request():
-    class Transport:
-        async def send(self, _spec):
-            return {"isIncomplete": False, "items": {"label": "append"}}
-
-    server = await AsyncLspService(Transport()).start("python", "/p")  # type: ignore[arg-type]
-
-    with pytest.raises(DaytonaError, match="expected LSP completion list") as exc_info:
-        await server.completions("file:///p/a.py", {"line": 2, "character": 5})
-
-    assert exc_info.value.code == code_names.BAD_REQUEST
-    assert exc_info.value.source == "SDK"
-
-
-@pytest.mark.anyio
-async def test_lsp_completion_rejects_invalid_mapping_positions_before_request():
-    class Transport:
-        def __init__(self) -> None:
-            self.sent: list[RequestSpec] = []
-
-        async def send(self, spec: RequestSpec):
-            self.sent.append(spec)
-            return {"isIncomplete": False, "items": []}
-
-    transport = Transport()
-    server = await AsyncLspService(transport).start("python", "/p")  # type: ignore[arg-type]
-
-    with pytest.raises(DaytonaError, match="expected LSP position") as exc_info:
-        await server.completions("file:///p/a.py", {"line": -1, "character": 5})
-
-    assert exc_info.value.code == code_names.BAD_REQUEST
-    assert exc_info.value.source == "SDK"
-    assert transport.sent == [
-        RequestSpec("POST", "/lsp/start", json_body={"languageId": "python", "pathToProject": "/p"})
     ]
 
 
@@ -9362,12 +9286,10 @@ def test_transport_request_timeout_zero_builds_unbounded_httpx_timeouts() -> Non
     asyncio.run(AsyncTransport("http://api.invalid", request_timeout=0).close())
 
 
-def test_root_exports_interpreter_context_json_and_lsp_completion_item() -> None:
-    from daytona.v2 import InterpreterContextJSON, LspCompletionItem
+def test_root_exports_interpreter_context_json() -> None:
+    from daytona.v2 import InterpreterContextJSON
 
     assert InterpreterContextJSON.__name__ == "InterpreterContextJSON"
-    assert LspCompletionItem.__name__ == "LspCompletionItem"
-    assert LspCompletionItem.__module__ == "daytona.v2.lsp"
 
 
 @pytest.mark.anyio

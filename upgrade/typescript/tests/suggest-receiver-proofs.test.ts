@@ -51,15 +51,15 @@ it('suggests root service calls the same way before and after the default pass',
   expect(ids(after)).toEqual(ids(before));
 });
 
-it('renders an LSP server start on the sandbox that created the server', async () => {
-  // Given
+it('reports every LSP server call with no v2 equivalent', async () => {
+  // Given: 0.x LSP calls on a server from a known sandbox and on one whose sandbox is unknown.
   const report = await suggest({ 'index.ts': "import { LspServer, Sandbox } from '@daytonaio/sdk';\n" +
     "async function f(sandbox: Sandbox) {\n  const lsp = await sandbox.createLspServer('python', '/p');\n  await lsp.start();\n}\n" +
     'async function g(server: LspServer) {\n  await server.start();\n}\n' });
-  // Then: the owner is traced back through createLspServer; an unproven owner is a manual move.
-  expect(report.items.find(item => item.line === 4)?.suggestion?.v2).toBe('const lsp = await sandbox.lsp.start(languageId, pathToProject)');
-  expect(report.items.find(item => item.line === 7)).toMatchObject({ kind: 'fixme',
-    message: 'move this call to the owning sandbox: const lsp = await sandbox.lsp.start(languageId, pathToProject)' });
+  // Then: v2 has no LSP service, so each call is a suggestion with no v2 form, never an ownership move.
+  for (const [line, id] of [[3, 'sandbox.createLspServer'], [4, 'lspServer.start'], [7, 'lspServer.start']] as const) {
+    expect(report.items.find(item => item.line === line)).toMatchObject({ kind: 'suggestion', suggestion: { id, v2: null } });
+  }
 });
 
 it('drops service proofs after a sandbox method the code replaced', async () => {

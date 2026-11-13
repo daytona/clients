@@ -159,7 +159,7 @@ wire carries `null`; only the public result reads it as `undefined`).
   aliases for names also exported by v2, and merges the v0 runtime dependency
   set into `package.json`. Re-running it replaces the bundle in place.
 - Names also exported by v0 at the pinned tag (`v0.231.1`) on the v2 surface are committed as
-  `...V2` aliases: `DaytonaError`, `Image`, `LspServer`, and `Sandbox`.
+  `...V2` aliases: `DaytonaError`, `Image`, and `Sandbox`.
   `scripts/bundle-v0.mjs` fails when this set and the pinned release's shared
   value exports disagree.
 
@@ -315,8 +315,8 @@ bearer and the refresh with the same timeout signal.
 ### Construction of toolbox handles and services
 
 `ProcessService`, `ProcessHandle`, `Session`, `PtyService`,
-`InterpreterService`, `InterpreterContext`, `FileSystemService`, `GitService`,
-`LspService`, `LspServer` and the computer-use services take `INTERNAL`
+`InterpreterService`, `InterpreterContext`, `FileSystemService`, `GitService`
+and the computer-use services take `INTERNAL`
 (`src/v2/internal.ts`) as their first constructor argument and throw a
 `TypeError` without it. The module is not reachable through the package
 `exports`, so callers get these objects from a sandbox; tests import the token

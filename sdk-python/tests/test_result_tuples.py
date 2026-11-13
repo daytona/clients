@@ -21,7 +21,6 @@ from daytona.v2._core import (
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.computer_use_core import parse_computer_use_a11y_find_payload
 from daytona.v2.interpreter import AsyncInterpreterService
-from daytona.v2.lsp import _expect_completion_list
 from daytona.v2.process import AsyncProcessService
 from daytona.v2.types import JsonObject
 
@@ -104,7 +103,6 @@ async def test_parsed_result_collections_are_tuples_and_hashable_without_dicts()
             "fileStatus": [{"name": "a", "staging": "M", "worktree": " ", "extra": ""}],
         }
     )
-    completion = _expect_completion_list({"isIncomplete": False, "items": [{"label": "name"}]})
     found = parse_computer_use_a11y_find_payload(
         {
             "matches": [
@@ -138,7 +136,6 @@ async def test_parsed_result_collections_are_tuples_and_hashable_without_dicts()
         bulk.errors,
         read.errors,
         status.file_status,
-        completion.items,
         found.matches,
         root.states,
         root.actions,
@@ -162,7 +159,6 @@ async def test_parsed_result_collections_are_tuples_and_hashable_without_dicts()
         interpreted.error,
         bulk,
         status,
-        completion,
         found,
     ):
         assert isinstance(hash(model), int)

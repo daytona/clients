@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from .filesystem import FileSystemService
     from .git import GitService
     from .interpreter import InterpreterService
-    from .lsp import LspService
     from .ports import PortsService
     from .process import ProcessService, PtyService
     from .sandbox_volumes import SandboxVolumesService
@@ -629,12 +628,6 @@ class Sandbox:
     @property
     def lifecycle_policy(self) -> Optional[SandboxLifecycle]:
         return self._impl.lifecycle_policy
-
-    @property
-    def lsp(self) -> LspService:
-        from .lsp import LspService
-
-        return LspService(self._bridge.call_sync(lambda: self._impl.lsp), self._bridge)
 
     @property
     def mac_boot_mode(self) -> Optional[MacBootMode]:

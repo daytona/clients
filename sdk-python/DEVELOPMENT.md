@@ -14,9 +14,9 @@ version namespace:
 - **`src/daytona/v2/`** — the v2 SDK. The authored classes are async-native:
   every network-touching method is `async def` and the async names carry the
   `Async` prefix (`AsyncDaytona`, `AsyncSandbox`, `AsyncProcessHandle`,
-  `AsyncLspServer`, …; the clients `Daytona` / `AsyncDaytona` are not exported
+  `AsyncWatchHandle`, …; the clients `Daytona` / `AsyncDaytona` are not exported
   from `daytona.v2`, the root builds them). The synchronous surface (`Daytona`, `Sandbox`,
-  `ProcessHandle`, `LspServer`, …) lives in `src/daytona/v2/_sync/`, which is
+  `ProcessHandle`, `WatchHandle`, …) lives in `src/daytona/v2/_sync/`, which is
   **generated from the async classes** by `gen/gen_sync.py`. Never edit files
   in `_sync/` except `_sync/_runtime.py` (the hand-written sync bridge).
   Change the async class, run `python gen/gen_sync.py`, commit both.
@@ -215,7 +215,7 @@ the explicit exception to the one-page list rule.
   `sessionId` and share per-language interpreter state, whose `env` is fixed on
   first use. Isolated runs create their throwaway context with the private
   `_create_context(..., request_timeout=)`, which spends the run's budget.
-- The async process, session, PTY, interpreter, filesystem, watch, git, LSP and
+- The async process, session, PTY, interpreter, filesystem, watch, git and
   computer-use classes take `_`-prefixed constructor parameters
   (`AsyncProcessService(_sandbox_id, _transport, ...)`): construction is
   internal, and tests build them positionally. (The generated sync wrappers'

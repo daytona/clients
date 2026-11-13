@@ -26,10 +26,6 @@ from daytona.v2 import (
     GitCommit,
     GitFileStatus,
     GitStatus,
-    LspCompletionContext,
-    LspCompletionItem,
-    LspMarkupContent,
-    LspPosition,
     ProcessResult,
     StreamLogEofEvent,
     StreamLogFrameEvent,
@@ -45,7 +41,6 @@ from daytona.v2.errors import BadRequestError, ConnectionError, ProcessNotFoundE
 from daytona.v2.filesystem import AsyncFileSystemService
 from daytona.v2.git import AsyncGitService
 from daytona.v2.interpreter import AsyncInterpreterService
-from daytona.v2.lsp import AsyncLspServer
 from daytona.v2.process import AsyncProcessService, AsyncPtyService
 from daytona.v2.types import JsonValue, LogFrame, LogPage
 
@@ -105,8 +100,6 @@ def test_public_models_are_frozen_keyword_only_dataclasses() -> None:
         GitCommit,
         SystemMetrics,
         TerminalSize,
-        LspPosition,
-        LspCompletionItem,
         ComputerUseScreenshot,
         ComputerUseDesktopFailure,
     ):
@@ -417,46 +410,6 @@ async def test_git_results_are_sdk_models() -> None:
         await git.status("/repo")
 
 
-@pytest.mark.anyio
-async def test_lsp_completions_return_sdk_models_and_send_a_typed_context() -> None:
-    transport = Transport(
-        [
-            {
-                "isIncomplete": False,
-                "items": [
-                    {"label": "plain", "documentation": "text", "kind": 3},
-                    {
-                        "label": "rich",
-                        "documentation": {"kind": "markdown", "value": "**x**"},
-                        "sortText": "a",
-                    },
-                ],
-            }
-        ]
-    )
-    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
-
-    completions = await server.completions(
-        "file:///p/a.py",
-        LspPosition(line=1, character=2),
-        context=LspCompletionContext(trigger_kind=2, trigger_character="."),
-    )
-
-    assert completions.items == (
-        LspCompletionItem(label="plain", kind=3, documentation="text"),
-        LspCompletionItem(
-            label="rich", documentation=LspMarkupContent(kind="markdown", value="**x**"), sort_text="a"
-        ),
-    )
-    assert transport.specs[0].json_body == {
-        "languageId": "python",
-        "pathToProject": "/p",
-        "uri": "file:///p/a.py",
-        "position": {"line": 1, "character": 2},
-        "context": {"triggerKind": 2, "triggerCharacter": "."},
-    }
-
-
 def test_system_metrics_is_an_sdk_model_with_an_aware_timestamp() -> None:
     metrics = expect_system_metrics(
         {
@@ -649,24 +602,6 @@ async def test_list_remotes_rejects_a_response_without_remotes() -> None:
     ):
         with pytest.raises(BadRequestError, match=f"remotes {problem}"):
             await AsyncGitService(Transport([payload])).list_remotes("/repo")  # type: ignore[arg-type]
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize(
-    "context",
-    [
-        LspCompletionContext(trigger_kind="2"),  # type: ignore[arg-type]
-        LspCompletionContext(trigger_kind=True),
-        LspCompletionContext(trigger_kind=2, trigger_character=1),  # type: ignore[arg-type]
-    ],
-)
-async def test_lsp_completion_context_fields_are_type_checked(context: LspCompletionContext) -> None:
-    transport = Transport()
-    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
-
-    with pytest.raises(BadRequestError):
-        await server.completions("file:///a.py", LspPosition(line=0, character=0), context=context)
-    assert transport.specs == []
 
 
 # The same malformed computer-use responses as the TypeScript SDK's
@@ -1132,7 +1067,6 @@ def _toolbox_classes() -> list[type]:
         filesystem,
         git,
         interpreter,
-        lsp,
         process,
         session,
     )
@@ -1148,8 +1082,6 @@ def _toolbox_classes() -> list[type]:
         filesystem.AsyncFileSystemService,
         filesystem.AsyncWatchHandle,
         git.AsyncGitService,
-        lsp.AsyncLspService,
-        lsp.AsyncLspServer,
         computer_use.AsyncComputerUseService,
         computer_use_services.AsyncAddonProcessesService,
         computer_use_services.AsyncMouseService,
@@ -1224,18 +1156,6 @@ def test_connect_session_refuses_a_non_string_non_mapping_identity() -> None:
     for bad in (5, ""):
         with pytest.raises(BadRequestError, match="session identity needs a non-empty string sessionId"):
             process.connect_session(bad)  # type: ignore[arg-type]
-
-
-@pytest.mark.anyio
-async def test_lsp_rejects_unknown_position_keys_and_names_a_malformed_documentation() -> None:
-    transport = Transport([{"isIncomplete": False, "items": [{"label": "x", "documentation": 7}]}])
-    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
-
-    with pytest.raises(BadRequestError, match="LSP position: unknown key 'col'"):
-        await server.completions("file:///a.py", {"line": 0, "col": 1})  # type: ignore[typeddict-unknown-key]
-    assert transport.specs == []
-    with pytest.raises(BadRequestError, match="LSP completion list: documentation must be"):
-        await server.completions("file:///a.py", LspPosition(line=0, character=0))
 
 
 @pytest.mark.anyio
@@ -2260,10 +2180,6 @@ _FILE_INFO: dict[str, JsonValue] = {
     "group": "g",
     "permissions": "0644",
 }
-_SYMBOL_RANGE: dict[str, JsonValue] = {
-    "start": {"line": 0, "character": 0},
-    "end": {"line": 0, "character": 1},
-}
 
 
 async def _read_integer_field(case: str, value: int) -> object:
@@ -2299,13 +2215,6 @@ async def _read_integer_field(case: str, value: int) -> object:
             "behind": 0,
         }
         return await AsyncGitService(Transport([status])).status("/r")  # type: ignore[arg-type]
-    if case == "LSP position":
-        symbol: JsonValue = {
-            "name": "s",
-            "kind": 1,
-            "location": {"uri": "u", "range": {**_SYMBOL_RANGE, "start": {"line": value, "character": 0}}},
-        }
-        return await AsyncLspServer(Transport([[symbol]]), "python", "/p").document_symbols("u")  # type: ignore[arg-type]
     window: JsonValue = {"id": 1, "title": "t", "x": value, "y": 0, "width": 1, "height": 1, "isActive": True}
     if case == "window x":
         return await AsyncComputerUseService(Transport([{"windows": [window]}])).display.windows()  # type: ignore[arg-type]
@@ -2320,7 +2229,6 @@ _INTEGER_CASES = [
     ("watch fs timestamp", "timestamp"),
     ("FileInfo.size", "size"),
     ("git ahead", "ahead"),
-    ("LSP position", "line"),
     ("window x", "x"),
     ("sizeBytes", "sizeBytes"),
 ]
@@ -2833,15 +2741,6 @@ async def test_a_process_record_terminal_is_read_only_within_the_contract_range(
         # The generated wire model checks the contract's maximum first.
         with pytest.raises(BadRequestError, match=r"^expected process response: cols: .*65535"):
             await call
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize("items", [{}, "x"])
-async def test_a_completion_list_whose_items_are_not_a_list_is_named(items: JsonValue) -> None:
-    transport = Transport([{"isIncomplete": False, "items": items}])
-    server = AsyncLspServer(transport, "python", "/p")  # type: ignore[arg-type]
-    with pytest.raises(BadRequestError, match="expected LSP completion list: items must be a list"):
-        await server.completions("u", LspPosition(line=0, character=0))
 
 
 @pytest.mark.anyio

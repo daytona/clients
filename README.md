@@ -5,7 +5,7 @@ The Daytona V2 client libraries and the `daytona` CLI. Package names are
 [`cli/`](cli/).
 
 The SDKs expose Daytona's API through resource handles and namespaces for
-processes, files, Git, code execution, ports, LSP and computer use.
+processes, files, Git, code execution, ports and computer use.
 
 ## Layout
 
@@ -68,7 +68,7 @@ processes, files, Git, code execution, ports, LSP and computer use.
   rehydrating a serialized code-process handle elsewhere. If an explicit named
   context vanished, the SDK surfaces the typed `SESSION_NOT_FOUND` error; the
   caller recreates the context and chooses what to rerun.
-- **Sandbox service namespaces stay mirrored.** Both SDKs expose `ports`, `lsp`,
+- **Sandbox service namespaces stay mirrored.** Both SDKs expose `ports`
   and `computer-use` alongside `process`, `fs`, `git`, `interpreter`, and
   `pty`, with matching wire fields and mirrored tests.
 - **Network policy (Linux and macOS sandboxes) uses explicit compare-and-swap.** Both SDKs expose an

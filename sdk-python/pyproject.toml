@@ -132,11 +132,6 @@ follow_imports = "skip"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "daytona.v2.lsp"
-# LSP symbol responses are open-vocabulary wire data with no stable typed shape.
-disallow_any_explicit = false
-
-[[tool.mypy.overrides]]
 module = "daytona.v2._core"
 # The json.loads stub returns Any despite its JSON-only runtime result.
 warn_return_any = false

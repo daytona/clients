@@ -394,7 +394,7 @@ make asynchronous callback work cancellation-aware when needed.
   capture metadata. Writes are full replacement only,
   use caller-supplied `If-Match`, and never send or return secret values.
 - **`Sandbox`** — a serializable handle with `fork()`, `wait()` and
-  the `process`, `fs`, `git`, `interpreter`, `pty`, `ports`, `volumes`, `lsp`,
+  the `process`, `fs`, `git`, `interpreter`, `pty`, `ports`, `volumes`,
   `docker` and `computerUse` namespaces. Sandbox handles do not need explicit
   disposal. `autoDelete` defaults to `false`; pass `autoDelete: true` to a
   create, `get()` or `fork()` call to delete the sandbox on `await using` scope exit
@@ -984,7 +984,7 @@ failures throw typed errors: `GitAuthFailedError` (401),
 `GitBranchExistsError` (409), and `ConflictError` for an unmerged branch, a
 checked-out branch or a checkout that would overwrite local changes.
 
-### Ports, LSP, computer use
+### Ports, computer use
 
 `ports` owns both listener discovery and preview exposure:
 `list()`, `isInUse(port)`, `expose(port, { public })`,
@@ -1001,10 +1001,6 @@ if an event is missed.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
 exported from `@daytona/sdk/v2`) with its requests.
-`lsp.start(languageId, pathToProject)` returns an `LspServer` handle with
-`openDocument()`, `closeDocument()`, `completions(uri, position, { context })`,
-`documentSymbols()`, `workspaceSymbols()` and `stop()`. A completion item's
-`documentation` is absent, a string or an `LspMarkupContent`.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a

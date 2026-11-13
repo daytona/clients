@@ -416,7 +416,7 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   ends are exclusive.
 - **`Sandbox`** (sync) / **`AsyncSandbox`** (async) — a handle with
   `fork()`, `wait()` and the `process`, `fs`, `git`, `interpreter`,
-  `pty`, `ports`, `volumes`, `lsp`, `docker` and `computer_use` namespaces.
+  `pty`, `ports`, `volumes`, `docker` and `computer_use` namespaces.
   Sandbox handles borrow the client's shared transport; they do not need
   closing.
 - **Network policy** (Linux and macOS sandboxes; the API rejects unsupported
@@ -1056,7 +1056,7 @@ delete it anyway. Expected git failures raise typed errors:
 `ConflictError` for an unmerged branch, a checked-out branch or a checkout
 that would overwrite local changes.
 
-### Ports, LSP, computer use
+### Ports, computer use
 
 `ports` owns both listener discovery and preview exposure:
 `list()`, `is_in_use(port)`, `expose(port, public=...)` (also changes the
@@ -1073,11 +1073,6 @@ if an event is missed.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.
-`lsp.start(language_id, path_to_project)` returns an `LspServer` handle with
-`open_document(uri)`, `close_document(uri)`, `completions(uri, position,
-context=LspCompletionContext(...))`, `document_symbols(uri)`,
-`workspace_symbols(query)` and `stop()`. A completion item's `documentation`
-is `None`, a plain string or an `LspMarkupContent`.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. `screen.screenshot()` captures the whole screen or a

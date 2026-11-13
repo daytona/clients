@@ -486,7 +486,7 @@
         "sandbox._experimental_fork"
       ],
       "notes": [
-        "Python: sync and async method names match; create_lsp_server is synchronous even on AsyncSandbox and returns an AsyncLspServer",
+        "Python: sync and async method names match",
         "v2 fork waits for the new sandbox with a wait_seconds / waitSeconds budget in seconds (default 60; 0 returns once the fork is accepted) and returns the fork however the wait ends"
       ]
     },
@@ -1012,8 +1012,7 @@
         "sandbox.create_lsp_server"
       ],
       "notes": [
-        "Python: AsyncLspServer exposes the same method names with await",
-        "Python and TypeScript: retain the v2 handle returned by sandbox.lsp.start as lsp"
+        "V2 has no LSP service: no 0.x LSP server call has a v2 equivalent; keep 0.x LSP workflows on .v0"
       ]
     },
     "ptyHandle": {
@@ -2567,18 +2566,16 @@
         "ts": "completions"
       },
       "v2": {
-        "py": "lsp.completions(uri, position)",
-        "ts": "lsp.completions(uri, position)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "Pass a file URI; v0 added the file:// prefix to path",
-          "Pass position as a dict {\"line\": p.line, \"character\": p.character} or a v2 LspPosition; a v0 LspCompletionPosition is rejected",
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Pass a file URI; v0 added the file:// prefix to path"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2592,17 +2589,16 @@
         "ts": "didClose"
       },
       "v2": {
-        "py": "lsp.close_document(uri)",
-        "ts": "lsp.closeDocument(uri)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "Pass a file URI rather than the v0 path argument",
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Pass a file URI rather than the v0 path argument"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2616,17 +2612,16 @@
         "ts": "didOpen"
       },
       "v2": {
-        "py": "lsp.open_document(uri)",
-        "ts": "lsp.openDocument(uri)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "Pass a file URI rather than the v0 path argument",
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Pass a file URI rather than the v0 path argument"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2640,17 +2635,16 @@
         "ts": "documentSymbols"
       },
       "v2": {
-        "py": "lsp.document_symbols(uri)",
-        "ts": "lsp.documentSymbols(uri)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "Pass a file URI rather than the v0 path argument",
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Pass a file URI rather than the v0 path argument"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2664,16 +2658,16 @@
         "ts": "sandboxSymbols"
       },
       "v2": {
-        "py": "lsp.workspace_symbols(query)",
-        "ts": "lsp.workspaceSymbols(query)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Renamed to workspaceSymbols on the v2 LSP handle"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2687,19 +2681,16 @@
         "ts": "start"
       },
       "v2": {
-        "py": "lsp = {sandbox}.lsp.start(language_id, path_to_project)",
-        "ts": "const lsp = await {sandbox}.lsp.start(languageId, pathToProject)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "Start through sandbox.lsp and retain the returned server handle",
-          "A v2 server handle has no start() method; request_timeout is removed",
-          "On AsyncDaytona this call must be awaited"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Start through sandbox.lsp and retain the returned server handle",
-          "A v2 server handle has no start() method"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2713,16 +2704,16 @@
         "ts": "stop"
       },
       "v2": {
-        "py": "lsp.stop()",
-        "ts": "lsp.stop()"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Same name on the v2 LSP handle"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -2736,16 +2727,16 @@
         "ts": "workspaceSymbols"
       },
       "v2": {
-        "py": "lsp.workspace_symbols(query)",
-        "ts": "lsp.workspaceSymbols(query)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "request_timeout is removed"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Same name and argument on the v2 LSP handle"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "lsp-server",
@@ -4600,17 +4591,16 @@
         "ts": "createLspServer"
       },
       "v2": {
-        "py": "{sandbox}.lsp.start(language_id, path_to_project)",
-        "ts": "{sandbox}.lsp.start(languageId, pathToProject)"
+        "py": null,
+        "ts": null
       },
-      "category": "differs",
+      "category": "none",
       "notes": {
         "py": [
-          "Starts the server immediately instead of constructing a server for a later start call",
-          "On AsyncDaytona this call must be awaited; v0 AsyncSandbox.create_lsp_server was synchronous"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ],
         "ts": [
-          "Starts the server immediately instead of constructing a server for a later start call"
+          "V2 has no LSP service; keep 0.x LSP workflows on .v0"
         ]
       },
       "anchor": "sandbox",

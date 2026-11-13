@@ -19,7 +19,7 @@ function noteForms(entry, language) {
   const roots = {
     client: '{client}', sandbox: '{sandbox}',
     fs: '{sandbox}.fs', git: '{sandbox}.git', process: '{sandbox}.process',
-    pty: '{sandbox}.pty', lsp: '{sandbox}.lsp', images: '{client}.v2.images',
+    pty: '{sandbox}.pty', images: '{client}.v2.images',
     handle: '{sandbox}.process.connect("id")',
     session: `{sandbox}.process.${language === 'py' ? 'connect_session' : 'connectSession'}("id")`,
   };

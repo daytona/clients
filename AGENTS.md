@@ -634,9 +634,8 @@ skipping exist only in the TypeScript tool).
   (nested `resources`, ports and volume mounts included, and the
   `IfMatchOptions` of the network-policy and secrets updates) and to every
   toolbox options object (process, session, PTY, interpreter, filesystem,
-  git, LSP, computer use, including nested `TerminalSize` /
-  `ComputerUseRegion` / `LspCompletionContext` and the `{ cmd }` / `{ argv }`
-  command).
+  git, computer use, including nested `TerminalSize` /
+  `ComputerUseRegion` and the `{ cmd }` / `{ argv }` command).
 - **TypeScript `null` in options, as it stands.** Over every option of the
   client, the `Sandbox` handle's lifecycle and platform calls and the
   platform services (toolbox namespaces aside), TypeScript reads `null`
@@ -842,7 +841,7 @@ skipping exist only in the TypeScript tool).
   and so is one that ends without `eof`: the server ends it with `eof`, so
   an iteration that ends normally always has the whole log.
 - **Toolbox results are SDK-owned models.** File info, grep / replace items,
-  git status / commits / remotes, system metrics, the LSP types and the
+  git status / commits / remotes, system metrics and the
   computer-use results are hand-written (Python frozen keyword-only
   dataclasses, timestamps as aware `datetime`; TS readonly interfaces,
   frozen at run time at every depth with `deepFrozen` from `frozen.ts`
@@ -1001,8 +1000,6 @@ skipping exist only in the TypeScript tool).
   reconnect with `get(sandboxId)`.
 - **Ports own preview exposure.** Preview/public port verbs live under
   `sandbox.ports` in both SDKs.
-- **LSP is handle-shaped.** `lsp.start(...)` returns an `LspServer` handle;
-  do not reintroduce flat per-request `(language, path, ...)` APIs.
 - Python is **authored once, async**: every network-touching method is
   `async def` on the caller's loop, on classes named `Async*` (`AsyncDaytona`,
   `AsyncSandbox`, …). **`_sync/` is generated — never edit

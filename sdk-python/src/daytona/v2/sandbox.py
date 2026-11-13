@@ -100,7 +100,6 @@ from .errors import (
 from .filesystem import AsyncFileSystemService
 from .git import AsyncGitService
 from .interpreter import AsyncInterpreterService
-from .lsp import AsyncLspService
 from .network_policy import parse_network_policy_response, serialize_network_policy_input
 from .ports import AsyncPortsService
 from .process import AsyncProcessService, AsyncPtyService
@@ -308,7 +307,6 @@ class AsyncSandbox:
         self._docker: Optional[AsyncDockerService] = None
         self._ports: Optional[AsyncPortsService] = None
         self._volumes: Optional[AsyncSandboxVolumesService] = None
-        self._lsp: Optional[AsyncLspService] = None
         self._bind_sandbox_token_auth()
 
     def _bind_sandbox_token_auth(self) -> None:
@@ -646,12 +644,6 @@ class AsyncSandbox:
         return self._ports
 
     @property
-    def lsp(self) -> AsyncLspService:
-        if self._lsp is None:
-            self._lsp = AsyncLspService(self._require_toolbox())
-        return self._lsp
-
-    @property
     def volumes(self) -> AsyncSandboxVolumesService:
         if self._volumes is None:
             self._volumes = AsyncSandboxVolumesService(self._require_toolbox())
@@ -985,7 +977,6 @@ class AsyncSandbox:
             self._docker = None
             self._ports = None
             self._volumes = None
-            self._lsp = None
 
     async def _wait_for_state(
         self,
