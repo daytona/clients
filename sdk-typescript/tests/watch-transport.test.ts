@@ -130,11 +130,27 @@ describe('watch stream drops', () => {
         response.write(frames.join(''))
         return
       }
-      const truncated = request.url?.startsWith('/truncated') === true
+      const gone = /^\/((?:file-)?gone[a-z-]*)/.exec(request.url ?? '')?.[1]
+      if (gone !== undefined && gone !== 'gone-truncated') {
+        // The watched directory's own removal after the first event
+        // (file-gone: the same name, not a directory), then per case one more
+        // event, and the end of the stream.
+        const removal = JSON.stringify({ type: 'remove', name: '', isDir: gone !== 'file-gone', timestamp: 2 })
+        const late = gone === 'gone-then-event'
+          ? `event: fs\ndata: ${JSON.stringify({ type: 'create', name: 'late', isDir: false, timestamp: 3 })}\n\n`
+          : gone === 'gone-then-overflow' ? 'event: overflow\ndata: {"dropped":true}\n\n' : ''
+        response.writeHead(200, { 'Content-Type': 'text/event-stream', Connection: 'close' })
+        response.end(`${START}event: fs\ndata: ${EVENT}\n\nevent: fs\ndata: ${removal}\n\n${late}`)
+        return
+      }
+      const truncated = request.url?.startsWith('/truncated') === true || gone === 'gone-truncated'
       response.writeHead(200, truncated
         ? { 'Content-Type': 'text/event-stream', 'Content-Length': '100000' }
         : { 'Content-Type': 'text/event-stream', Connection: 'close' })
       response.write(`event: start\ndata: {}\n\nevent: fs\ndata: ${EVENT}\n\n`)
+      if (gone === 'gone-truncated') {
+        response.write(`event: fs\ndata: ${JSON.stringify({ type: 'remove', name: '', isDir: true, timestamp: 2 })}\n\n`)
+      }
       if (truncated) setTimeout(() => response.socket?.destroy(), 20)
       else response.end()
     })
@@ -165,6 +181,32 @@ describe('watch stream drops', () => {
     expect(error).toMatchObject({ source: 'SDK' })
     if (message !== undefined) expect(error?.message).toBe(message)
   })
+
+  it('ends a watch without an error after its directory is removed', async () => {
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/gone`, 'k', 5_000))
+    const seen: [string, string, boolean][] = []
+    const exits: (Error | undefined)[] = []
+    const handle = await fs.watchDir('/', (event) => {
+      seen.push([event.type, event.name, event.isDir])
+    }, { onExit: (error) => { exits.push(error) } })
+    const error = await handle.waitForExit()
+    // The removal is delivered like any event, and is the last one.
+    expect(seen).toEqual([['create', 'a', false], ['remove', '', true]])
+    expect(error).toBeUndefined()
+    expect(handle.exitError).toBeUndefined()
+    expect(exits).toEqual([undefined])
+  })
+
+  it.each(['gone-then-event', 'gone-then-overflow', 'gone-truncated', 'file-gone'] as const)(
+    'treats only a stream that ends right after the removal as a clean exit (%s)',
+    async (path) => {
+      const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/${path}`, 'k', 5_000))
+      const handle = await fs.watchDir('/', () => undefined)
+      const error = await handle.waitForExit()
+      expect(error).toBeInstanceOf(ConnectionError)
+      expect(error).toMatchObject({ source: 'SDK' })
+    },
+  )
 
   it.each(['burst', 'early'] as const)('runs no callback before watchDir() returns, so a callback can stop its own watch (%s)', async (path) => {
     const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/${path}`, 'k', 5_000))
