@@ -135,7 +135,8 @@ class PortsService:
         for multi-step use (the deployment caps the maximum, typically 7 days).
         Expire it early with :meth:`expire_signed_preview_links`, which expires
         every signed preview link of the sandbox.
-        A sandbox that is deleted or being deleted raises
+        A sandbox that is deleted, being deleted, failed, lost, or stopped
+        without being persistent raises
         :class:`~daytona.v2.errors.ConflictError` (``CONFLICT``).
 
         :param port: TCP port inside the sandbox (1–65535, except the sandbox

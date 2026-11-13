@@ -290,7 +290,8 @@ export class PortsService {
    * multi-step use (the deployment caps the maximum, typically 7 days).
    * Expire it early with {@link expireSignedPreviewLinks}, which expires every
    * signed preview link of the sandbox.
-   * A sandbox that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
+   * A sandbox that is deleted, being deleted, failed, lost, or stopped without
+   * being persistent throws `ConflictError` (`CONFLICT`).
    *
    * @param port TCP port inside the sandbox (1–65535, except the sandbox
    *   daemon's reserved ports 2280, 2281 and 22220).

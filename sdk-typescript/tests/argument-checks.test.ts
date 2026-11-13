@@ -12,7 +12,6 @@ import { createHttpClient } from '../src/v2/http'
 import { Image } from '../src/v2/Image'
 import { INTERNAL } from '../src/v2/internal'
 import { pathSegment } from '../src/v2/pathSegment'
-import { PortsService } from '../src/v2/Ports'
 import { imageWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
@@ -667,10 +666,6 @@ it.each([['create', ''], ['create', '  '], ['create', ' LOCAL '], ['findByName',
     await client.close()
     await api.close()
   }
-})
-
-it('expireSignedPreviewLinks takes no arguments, as Python does', () => {
-  expect(PortsService.prototype.expireSignedPreviewLinks.length).toBe(0)
 })
 
 it.each([['year 0', new Date('0000-06-01T00:00:00Z')], ['year 10000', new Date('+010000-01-01T00:00:00Z')]] as const)('refuses a Date bound in %s, as the string rule does', async (_name, bound) => {

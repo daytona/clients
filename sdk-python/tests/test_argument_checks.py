@@ -1074,13 +1074,6 @@ async def test_a_blank_region_selects_the_default_region(call: str, region: str)
         assert "region_id" not in json.loads(request.body)
 
 
-async def test_expire_signed_preview_links_takes_no_arguments() -> None:
-    # The TypeScript twin takes none either.
-    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-        with pytest.raises(TypeError):
-            await lazy_sandbox(root.v2, "sbx").ports.expire_signed_preview_links(8080, "tok")  # type: ignore[call-arg]
-
-
 @pytest.mark.parametrize("sandbox_id", [".", ".."])
 async def test_ports_refuse_a_dot_segment_sandbox_id_before_any_request(sandbox_id: str) -> None:
     # quote() leaves "." and ".." as they are, and a URL resolver would

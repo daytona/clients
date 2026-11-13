@@ -9,9 +9,7 @@ says), `auto_renew` / `autoRenew` and the counts (`count` 1 to 100,
 `min_count` / `minCount` 1 to `count`), so none is silently left out of the
 request; `volumes.delete()` takes a name or id (not a `Volume`);
 `volumes.get()` needs boolean `create` and `id_only` / `idOnly` flags (a
-string `"false"` created a volume after a 404); `expire_signed_preview_link()`
-/ `expireSignedPreviewLink()` needs a non-blank string `token` (it sent `{}`,
-`{"token": null}` or the blank string); `ports.expose()` needs a boolean
+string `"false"` created a volume after a 404); `ports.expose()` needs a boolean
 `public`; `create_access_token()` / `createAccessToken()` operations must be
 strings and its `ports` a list of port numbers; `secrets.set()` needs a string
 `value`, a string `description` when given, a boolean `if_not_exists` /
