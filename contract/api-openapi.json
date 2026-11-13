@@ -29027,7 +29027,7 @@
                 }
               }
             },
-            "description": "The sandbox is deleted or being deleted (`CONFLICT`)",
+            "description": "The sandbox is deleted, being deleted, failed, lost, or stopped without being persistent (`CONFLICT`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -29127,6 +29127,107 @@
           }
         ],
         "summary": "Reset a sandbox idle timer",
+        "tags": [
+          "sandboxes"
+        ]
+      }
+    },
+    "/sandboxes/{sandbox_id}/restart": {
+      "post": {
+        "description": "Restarts a running persistent sandbox: it stops and keeps its disk, then\nstarts again. Running processes and memory are not kept. Linux and Windows\nsandboxes only.",
+        "operationId": "restart_sandbox",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SandboxId"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncOperation"
+                }
+              }
+            },
+            "description": "Accepted: the sandbox restart. The sandbox stops, then starts again; `status` is the sandbox's status at acceptance, `stopping`",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The organization is suspended (`ORG_SUSPENDED`), or the project reached its monthly budget (`PROJECT_BUDGET_EXCEEDED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Sandbox not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The sandbox class does not support restarting (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not persistent or not running (`CONFLICT`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "write:sandboxes"
+            ]
+          },
+          {
+            "sandbox_token": []
+          },
+          {
+            "sandbox_token": []
+          },
+          {
+            "platform_token": [
+              "write:sandboxes"
+            ]
+          }
+        ],
+        "summary": "Restart a sandbox",
         "tags": [
           "sandboxes"
         ]
