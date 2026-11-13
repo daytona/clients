@@ -369,6 +369,19 @@ test('render: agent text cannot render as math', () => {
   assert.equal((line.match(/<span>\$<\/span>/g) || []).length, 5)
 })
 
+test('render: the comment stays under GitHub\'s limit even when escaping grows the text', () => {
+  const dollars = '$'.repeat(600)
+  const results = Array.from({ length: 15 }, (_, i) => ({
+    title: `E${i}`,
+    finalStatus: 'failed',
+    failureReason: dollars,
+    frictionPoints: [1, 2, 3].map(() => ({ severity: 'minor', text: '$'.repeat(240) })),
+  }))
+  const out = render({ sha: SHA, runUrl: 'u', results }).join('\n')
+  assert.ok(out.length < 65536, String(out.length))
+  assert.ok(out.includes('| E14 |'))
+})
+
 test('render: long agent text is capped', () => {
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Ts', finalStatus: 'failed', failureReason: 'x'.repeat(20000) }] }).join('\n')
   assert.ok(out.length < 2000)

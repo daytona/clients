@@ -65,6 +65,8 @@ function checksCell(report) {
 
 // Agent and judge text is capped so the whole comment stays under GitHub's limit.
 const MAX_TEXT = 600
+// Room left for the findings once the table and the rest of the comment are written.
+const MAX_DETAILS = 50000
 
 function oneLine(text) {
   const flat = redact(text).replace(/\s+/g, ' ').trim()
@@ -115,6 +117,9 @@ function render({ results, sha, runUrl, pr }) {
     })
     .filter(Boolean)
   const allSucceeded = results.every(isClean)
+  // Escaping can grow agent text well past its cap (a `$` becomes 14 characters):
+  // drop details from the end until the comment fits GitHub's 65,536-character limit.
+  while (details.length > 0 && details.join('\n').length > MAX_DETAILS) details.pop()
   return [
     HEADING,
     '',

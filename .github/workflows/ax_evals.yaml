@@ -58,7 +58,7 @@ jobs:
       pr: ${{ steps.plan.outputs.pr }}
       harness: ${{ steps.harness.outputs.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           # The harness runs with a write token and the Firegoat key: on a label
@@ -89,7 +89,7 @@ jobs:
       matrix:
         eval: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.plan.outputs.harness }}
@@ -97,7 +97,7 @@ jobs:
       # firegoat-ai/evals-action is a composite wrapper around `actions/github-script@v9`
       # (a tag, which this repo's SHA-pinning policy rejects), so run its script
       # through our own pinned github-script with the same inputs.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: firegoat-ai/evals-action
           ref: 18bd0381b4a80ba7357de0330762d7cfb6e5e670 # v0.8.0
@@ -177,7 +177,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.plan.outputs.harness }}
