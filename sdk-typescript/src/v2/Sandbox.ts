@@ -912,6 +912,10 @@ export class Sandbox {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error
     }
+    // The target comes from the source state read before the POST. If the
+    // source stops between that read and the POST, a macOS fork rests
+    // `stopped` while this waits for `started`: the call then returns the
+    // handle at the end of the budget, not at once. Callers check `fork.state`.
     const states: readonly SandboxWaitState[] = sourceState === 'started' ? ['started']
       : sandboxClass === 'linux' && sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
     // `timeoutSeconds: 0` is the state wait's no deadline.

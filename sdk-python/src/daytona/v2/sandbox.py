@@ -1442,6 +1442,10 @@ class AsyncSandbox:
         if waits:
             # Refresh once before the POST; loading the class may already have
             # read the source. A running macOS fork's stopped state is interim.
+            # The target comes from this read: if the source stops between it
+            # and the POST, a macOS fork rests stopped while the wait looks for
+            # started, and fork() returns the handle at the end of the budget,
+            # not at once. Callers check fork.state.
             if class_known:
                 await self.refresh_data()
             if self.state == "started":

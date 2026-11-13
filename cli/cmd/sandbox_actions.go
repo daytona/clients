@@ -110,7 +110,10 @@ func newSandboxForkCommand() *cobra.Command {
 			return nil, "", "", err
 		}
 		// A macOS fork of a running source starts after its disk is ready;
-		// paused and stopped sources produce a stopped fork.
+		// paused and stopped sources produce a stopped fork. The target comes
+		// from the status resolved before the POST: if the source stops in
+		// between, a macOS fork stays stopped while the wait looks for running,
+		// and the wait ends at --timeout with a timeout error, not at once.
 		waitFor := "paused"
 		if resolved.Detail.Status == "running" {
 			waitFor = "running"
