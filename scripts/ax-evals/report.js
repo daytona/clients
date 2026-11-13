@@ -49,6 +49,7 @@ function resultLabel(result) {
   if (result.finalStatus === 'failed') return '💥 Failed'
   if (result.finalStatus === 'superseded') return '↪️ Superseded'
   if (result.finalStatus === 'running') return '⏱️ Timed out'
+  if (!result.runId && result.failureReason) return '💥 Could not start'
   return '⚠️ Not started'
 }
 
@@ -67,9 +68,10 @@ function oneLine(text) {
   const flat = redact(text).replace(/\s+/g, ' ').trim()
   return (
     (flat.length > MAX_TEXT ? `${flat.slice(0, MAX_TEXT - 1)}…` : flat)
-      // Agent-written text is shown as plain text: no Markdown links, images, HTML or
-      // formatting of its own, and no table cell breaks.
-      .replace(/[\\`*_{}\[\]()<>#+!|~]/g, '\\$&')
+      // Agent-written text is shown as plain text: no Markdown links, images, HTML,
+      // character references (`&commat;` would become a mention) or formatting of its
+      // own, and no table cell breaks.
+      .replace(/[&\\`*_{}\[\]()<>#+!|~]/g, '\\$&')
       // Nor may it notify users or teams, cross-reference issues, or autolink URLs.
       .replace(/@(?=[\w-])/g, '@\u200b')
       .replace(/#(?=\w)/g, '#\u200b')

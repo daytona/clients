@@ -261,6 +261,7 @@ test('render: every status label', () => {
       { title: 'F', finalStatus: 'completed', outcome: 'succeeded', reportJson: checklist({ a: 1, b: 0 }) },
       { title: 'G', finalStatus: 'completed', outcome: 'succeeded', reportJson: checklist({ a: 1 }) },
       { title: 'H', finalStatus: 'completed', outcome: 'succeeded', reportJson: '' },
+      { title: 'I', finalStatus: '', failureReason: 'failed to start eval: 401' },
     ],
   }).join('\n')
   const expected = {
@@ -270,6 +271,7 @@ test('render: every status label', () => {
     D: '⏱️ Timed out',
     E: '⚠️ Not started',
     F: '⚠️ Succeeded, checks failed',
+    I: '💥 Could not start',
     G: '✅ Succeeded',
     H: '⚠️ Succeeded, checks missing',
   }
@@ -337,6 +339,12 @@ test('render: agent text cannot autolink or cross-reference', () => {
   }).join('\n')
   const line = out.split('\n').find((l) => l.startsWith('- **Py'))
   for (const live of ['clients\\#609', 'clients#609', 'GH-5', 'https://', 'www.']) assert.ok(!line.includes(live), live)
+  const refs = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [{ title: 'Ts', finalStatus: 'failed', failureReason: `ping &commat;octocat, see &num;1, dtn&lowbar;${'c3'.repeat(16)}` }],
+  }).join('\n')
+  assert.ok(refs.includes('\\&commat;octocat') && refs.includes('\\&num;1') && refs.includes('dtn\\&lowbar;'))
 })
 
 test('render: long agent text is capped', () => {
@@ -480,6 +488,10 @@ test('workflow: the harness comes from the base branch tip, and every job uses t
     '${{ needs.plan.outputs.harness }}',
   ])
   assert.ok(refs.every((ref) => !/pull_request\.(base\.sha|head)/.test(ref)))
+  const planJob = workflow.slice(workflow.indexOf('  plan:'), workflow.indexOf('  eval:'))
+  assert.match(planJob, /harness: \$\{\{ steps\.harness\.outputs\.sha \}\}/)
+  assert.match(planJob, /- id: harness\n\s+run: echo "sha=\$\(git rev-parse HEAD\)" >> "\$GITHUB_OUTPUT"/)
+  assert.ok(planJob.indexOf('- id: harness') > planJob.indexOf('actions/checkout'), 'records the commit after the checkout')
   const save = workflow.slice(workflow.indexOf('- name: Save result'), workflow.indexOf('upload-artifact'))
   assert.doesNotMatch(save, /EVALS_API_KEY/)
 })
@@ -489,7 +501,7 @@ test('workflow: the eval step redacts everything the evals action logs or output
   const step = workflow.slice(workflow.indexOf('      - id: eval'), workflow.indexOf('- name: Save result'))
   assert.match(step, /require\(`\$\{process\.env\.GITHUB_WORKSPACE\}\/scripts\/ax-evals\/redact\.js`\)/)
   for (const method of ['setOutput', 'setFailed', 'warning', 'notice', 'info']) {
-    assert.match(step, new RegExp(`${method}: \\([^)]*\\) => core\\.${method}\\([^\\n]*redact\\(`), method)
+    assert.match(step, new RegExp(`${method}: \\([^)]*\\) => (\\{[^}]*)?core\\.${method}\\([^\\n]*redact\\(`), method)
   }
   assert.match(step, /await run\(\{ core: redacting,/)
 })

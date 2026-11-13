@@ -135,7 +135,11 @@ jobs:
             const { redact } = require(`${process.env.GITHUB_WORKSPACE}/scripts/ax-evals/redact.js`)
             const redacting = Object.assign(Object.create(core), {
               setOutput: (name, value) => core.setOutput(name, redact(value)),
-              setFailed: (message) => core.setFailed(redact(message)),
+              // A failure before the eval starts sets no other output: keep its reason.
+              setFailed: (message) => {
+                core.setOutput('start-error', redact(message))
+                core.setFailed(redact(message))
+              },
               warning: (message, props) => core.warning(redact(message), props),
               notice: (message, props) => core.notice(redact(message), props),
               info: (message) => core.info(redact(message)),
@@ -150,7 +154,7 @@ jobs:
           OUTCOME: ${{ steps.eval.outputs.outcome }}
           REPORT_URL: ${{ steps.eval.outputs.report-url }}
           REPORT_JSON: ${{ steps.eval.outputs.report-json }}
-          FAILURE_REASON: ${{ steps.eval.outputs.failure-reason }}
+          FAILURE_REASON: ${{ steps.eval.outputs.failure-reason || steps.eval.outputs.start-error }}
         run: node scripts/ax-evals/save-result.js "result/${NAME}.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
