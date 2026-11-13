@@ -98,7 +98,7 @@ WatchEventCallback = Callable[[FilesystemEvent], "None | Awaitable[None]"]
 WatchOverflowCallback = Callable[[], "None | Awaitable[None]"]
 """``watch_dir()`` overflow callback: the sandbox dropped events; may be a coroutine function."""
 WatchExitCallback = Callable[[Optional[Exception]], "None | Awaitable[None]"]
-"""``watch_dir()`` exit callback: ``None`` after ``stop()``, else the error that ended the watch."""
+"""``watch_dir()`` exit callback: ``None`` after ``stop()`` or once the watched directory is deleted, else the error that ended the watch."""
 
 
 async def _invoke(result: None | Awaitable[None]) -> None:
@@ -728,7 +728,10 @@ class AsyncFileSystemService:
         time, in order.
         A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
-        when the watch ends, and its own failure is ignored. A failure before
+        when the watch ends, and its own failure is ignored. Deleting the
+        watched directory ends the watch without an error, after a last
+        ``remove`` event whose ``name`` is empty, where the sandbox reports
+        it. A failure before
         the watch starts is raised from this call and does not call ``on_exit``;
         a stream that sends more than 4096 events, or more than 1 MiB, before
         ``start`` is one (``BadRequestError``). After ``start`` an event larger
@@ -795,6 +798,10 @@ class AsyncFileSystemService:
         async def read_events() -> None:
             nonlocal started
             early_events = 0
+            # Whether the last listed event reported the watched directory's
+            # own removal: the sandbox ends the stream after it, and that end
+            # is the watch finishing, not a dropped connection.
+            root_removed = False
             exit_error: Exception | None = None
             try:
                 async for event_name, data, _id, _size in parse_sse_events_bounded(
@@ -824,9 +831,11 @@ class AsyncFileSystemService:
                         continue
                     if event_name == "fs":
                         event = _parse_filesystem_event(sse_json("fs", data, "filesystem watch event"))
+                        root_removed = event.type == "remove" and event.name == "" and event.is_dir
                         callback = functools.partial(on_event, event)
                     elif event_name == "overflow":
                         _check_overflow_event(data)
+                        root_removed = False
                         callback = on_overflow
                     if callback is None:
                         continue
@@ -835,9 +844,10 @@ class AsyncFileSystemService:
                     else:
                         held.append(callback)
                 # A stream that ends on its own is a dropped connection, as a
-                # truncated body is (the transport raises ConnectionError).
+                # truncated body is (the transport raises ConnectionError),
+                # unless it ends right after the watched directory's removal.
                 if started:
-                    if not handle._stopped:
+                    if not handle._stopped and not root_removed:
                         exit_error = ConnectionError("filesystem watch stream ended unexpectedly")
                 else:
                     # Ended before start: watch_dir() raises it (no handle was

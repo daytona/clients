@@ -504,6 +504,8 @@ export class FileSystemService {
    * the watch is established. Callbacks run one at a time, in order, and are
    * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
    * error. `onExit` runs once when the watch ends; its own failure is ignored.
+   * Deleting the watched directory ends the watch without an error, after a
+   * last `remove` event whose `name` is empty, where the sandbox reports it.
    * A failure before the watch starts rejects this call and does not call
    * `onExit`. Callbacks are held until this call has returned its handle, so
    * after a direct `await watchDir(...)` a callback can call `stop()` on it;
@@ -553,6 +555,9 @@ export class FileSystemService {
     // most WATCH_MAX_EVENTS_BEFORE_START of them are held.
     const held: (() => void | Promise<void>)[] = []
     let earlyEvents = 0
+    // Whether the last listed event reported the watched directory's own
+    // removal: the sandbox ends the stream after it.
+    let rootRemoved = false
     // The stream's bytes are counted as they arrive: before start the whole
     // stream (every frame, data-less and comment-only ones too) may not pass
     // WATCH_MAX_BYTES_BEFORE_START, after it each event is bounded by the
@@ -647,9 +652,11 @@ export class FileSystemService {
             let callback: (() => void | Promise<void>) | undefined
             if (message.event === 'fs') {
               const event = parseFilesystemEvent(message.data)
+              rootRemoved = event.type === 'remove' && event.name === '' && event.isDir
               callback = () => onEvent(event)
             } else if (message.event === 'overflow') {
               checkOverflowEvent(message.data)
+              rootRemoved = false
               const onOverflow = options.onOverflow
               if (onOverflow !== undefined) callback = () => onOverflow()
             }
@@ -667,9 +674,13 @@ export class FileSystemService {
           }
         }
         // A stream that ends on its own is a dropped connection, as a
-        // truncated body is: ConnectionError, as in the Python SDK.
+        // truncated body is: ConnectionError, as in the Python SDK. Not so
+        // right after the watched directory's removal: that end is the watch
+        // finishing.
         if (started) {
-          await notifyExit(stopRequested ? undefined : new ConnectionError('filesystem watch stream ended unexpectedly'))
+          await notifyExit(
+            stopRequested || rootRemoved ? undefined : new ConnectionError('filesystem watch stream ended unexpectedly'),
+          )
           return
         }
         const error = stopRequested
