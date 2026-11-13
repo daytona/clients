@@ -1,0 +1,28 @@
+sdk-python/README.md
+  h_e7759ddd73fa65 823-825,1037-1040
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 8,173,182-184,186
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 1397-1398
+sdk-python/tests/test_interpreter_charts.py
+  h_e7759ddd73fa65 286-295
+sdk-typescript/README.md
+  h_e7759ddd73fa65 741-743,962-964
+sdk-typescript/src/v2/ProcessRun.ts
+  h_e7759ddd73fa65 37,45-48
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 1365
+sdk-typescript/tests/interpreter-charts.test.ts
+  h_e7759ddd73fa65 189-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed557792dee4a7039c7ddc6b6d911a07b51a5167",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

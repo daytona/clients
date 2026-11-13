@@ -1,0 +1,19 @@
+changelog.d/search-first-lists.changed.md
+  s_12b7af04ebe607::t_2d8fc313e00a28 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "590d8d4732ef3482e97c72e537d8b6d5e81fe43d",
+  "prompts": {},
+  "sessions": {
+    "s_12b7af04ebe607": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac5c6274-9758-45fd-8940-f474da2b81ff",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Tpuljak <toma.puljak@hotmail.com>"
+    }
+  }
+}
