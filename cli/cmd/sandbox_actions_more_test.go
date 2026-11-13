@@ -100,6 +100,36 @@ func TestSandboxFork_rejectsUnknownClass(t *testing.T) {
 	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
 }
 
+// A fork is a new sandbox the caller has no id for yet. When the wait for it
+// times out, the error names it, as a create's does.
+func TestSandboxFork_waitTimeoutNamesTheFork(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	fork := "22222222-2222-2222-2222-222222222222"
+	stdout, _, err := runCLI(t, []string{"sandbox", "fork", id, "--name", "copy", "--timeout", "150ms"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `{"name":"copy"}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
+		// The long poll's timeout_ms follows the remaining budget, so the query is not pinned.
+		{method: http.MethodGet, path: "/sandboxes/" + fork, status: 200, response: sandboxDetailFixture(fork, "linux", "pending")},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitTimeout, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "sandbox "+fork+" was created, but timed out after 150ms")
+	require.Empty(t, stdout)
+}
+
+func TestSandboxFork_failedForkNamesTheFork(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	fork := "22222222-2222-2222-2222-222222222222"
+	_, _, err := runCLI(t, []string{"sandbox", "fork", id, "--name", "copy"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `{"name":"copy"}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + fork, query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture(fork, "linux", "failed")},
+	})
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitConflict, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "sandbox "+fork+" was created, but sandbox "+fork+" reached failed, not running")
+}
+
 func TestSandboxDelete_requiresYesInNonInteractive(t *testing.T) {
 	_, _, err := runCLI(t, []string{"sandbox", "delete", "11111111-1111-1111-1111-111111111111"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/11111111-1111-1111-1111-111111111111", status: 200, response: sandboxDetailFixture("11111111-1111-1111-1111-111111111111", "linux", "running")},

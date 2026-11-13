@@ -293,6 +293,11 @@ func newSandboxActionCommand(verb string, run func(cmd *cobra.Command, resolved 
 			}
 			final, err := workload.WaitForSandbox(cmd.Context(), resolved.Client, waitOptions)
 			if err != nil {
+				if waitID != resolved.Detail.Id {
+					// A fork is a new sandbox the caller has no id for yet: a
+					// failed wait still names it, as for a create.
+					return createdButUnreadable(waitID, err)
+				}
 				return err
 			}
 			return a.Printer().Object(final, sandboxDetailKV(final.V))
