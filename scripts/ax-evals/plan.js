@@ -97,6 +97,7 @@ async function run({ github, context, core }) {
   }
 
   let selected
+  let files = null
   if (requested.length > 0) {
     const { names, unknown } = selectByTokens(config, requested)
     if (unknown) {
@@ -105,7 +106,7 @@ async function run({ github, context, core }) {
     }
     selected = names
   } else {
-    const files = await github.paginate(github.rest.pulls.listFiles, { ...repo, pull_number: prNumber, per_page: 100 })
+    files = await github.paginate(github.rest.pulls.listFiles, { ...repo, pull_number: prNumber, per_page: 100 })
     // The API lists at most 3,000 files; past that, the changed surfaces are unknown.
     selected =
       files.length >= MAX_LISTED_FILES
@@ -119,11 +120,18 @@ async function run({ github, context, core }) {
   const sha = pr.head.sha
   const runUrl = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`
   if (selected.length === 0) {
+    // A label run uses main's harness: changes to it are tested from the PR's branch.
+    const harness = (files || []).some(
+      (file) => file.filename.startsWith('scripts/ax-evals/') || file.filename === '.github/workflows/ax_evals.yaml',
+    )
     await upsertComment(github, repo, prNumber, context.runId, [
       HEADING,
       '',
       `This PR doesn't change any SDK or CLI sources (commit \`${sha.slice(0, 7)}\`), so nothing was evaluated.`,
       `To run evals anyway: \`${DISPATCH_HINT.replace('<number>', prNumber)}\` (replace \`all\` with a surface such as \`cli\`, a task such as \`preview-url\`, or one eval such as \`cli-preview-url\`).`,
+      ...(harness
+        ? [`This PR changes the AX evals harness, which a run from \`main\` does not use: to test it, dispatch with \`--ref ${pr.head.ref}\` instead.`]
+        : []),
     ]).catch((error) => core.warning(`Could not write the AX evals comment: ${error.message}`))
     return
   }
