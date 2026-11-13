@@ -73,6 +73,7 @@ Get started:
   daytona image create py312 --ref python:3.12   import a registry image once
   daytona sandbox create --image py312
   daytona sandbox exec <id> -- python -c 'print(1)'
+  daytona sandbox port expose <id> 8080 --public   a preview URL with no credential
   daytona docs --full               the whole reference in one page`,
 		SilenceUsage:  true,
 		SilenceErrors: true,

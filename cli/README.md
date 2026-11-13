@@ -102,6 +102,7 @@ daytona sandbox exec <id> -- python -c 'print("hello")'
 daytona sandbox docker status <id> --wait
 daytona sandbox ssh <id>
 daytona sandbox cp ./data.csv <id>:/work/data.csv
+daytona sandbox port expose <id> 8080 --public   # a preview URL anyone can open, with no credential
 daytona sandbox port preview-url <id> 8080 --signed --ttl 10m
 daytona volume create shared --type bucket
 daytona sandbox create --image py312 --volume shared:/models:ro
@@ -305,7 +306,7 @@ reservation ends.
 | `profile` | `list`, `use`, `delete` (`login --profile NAME` creates one) |
 | `config` | `get`, `set`, `path` (the only setting is `confirm`) |
 | `sandbox` | `create`, `create-from-snapshot`, `create-macos`, `list`, `search`, `get`, `wait`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `update`, `logs`, `usage`, `exec`, `ssh`, `cp` |
-| `sandbox port` | `list`, `preview-url` (and `preview-url expire`) |
+| `sandbox port` | `list`, `endpoints`, `expose`, `unexpose`, `preview-url` (and `preview-url expire`) |
 | `sandbox process` | `list`, `get`, `wait`, `signal`, `kill`, `logs`, `attach` |
 | `sandbox docker` | `status` |
 | `image` | `create`, `build`, `capture`, `promote`, `list`, `get`, `delete`, `logs` |
@@ -452,9 +453,18 @@ never prompts:
   `/bin`, `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`,
   `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`, and one
   with a control character.
-- `sandbox port preview-url` refuses the sandbox daemon's ports 2280, 2281
-  and 22220, which are never preview ports, as a usage error (exit 2) before
-  any request; `preview-url expire` still takes them.
+- `sandbox port preview-url` and `sandbox port expose` refuse the sandbox
+  daemon's ports 2280, 2281 and 22220, which are never preview ports, as a
+  usage error (exit 2) before any request; `preview-url expire` and
+  `unexpose` still take them.
+- Ports are private by default: a private preview URL needs the token from
+  `preview-url` in the `X-Daytona-Preview-Token` header. For a browser,
+  `preview-url --signed` gives a short-lived, revocable link with the token in
+  its hostname, and `sandbox port expose <id> <port> --public` makes the port
+  reachable by anyone with no credential; `expose` without `--public` makes it
+  private again. `sandbox port endpoints <id>` lists the exposed ports with
+  their URLs and visibility (`sandbox port list` lists the ports listening
+  inside the sandbox).
 - `sandbox create --allow-domain api.example.com --allow-cidr 10.1.0.0/16`
   (or `sandbox create-macos` with the same flags) sets a `network_policy`: a domain list implies default-deny (allowed
   domains are reachable on HTTP/HTTPS only) and `--allow-cidr` opens addresses
@@ -552,7 +562,8 @@ request. While a sandbox is stopped, commands that work inside it
     balance-notification delete` (`deleted`).
   `invite decline` prints `{"declined": true}` (the token is not echoed),
   `sandbox port preview-url expire` `{"sandbox_id", "port", "revoked": true}`
-  (`port` a number; the token is not echoed, and a blank one is refused), and `sandbox process signal` / `kill` `{"id", "signal"}`.
+  (`port` a number; the token is not echoed, and a blank one is refused),
+  `sandbox port unexpose` `{"sandbox_id", "port", "unexposed": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
   With table output `org delete`, `project delete` and `project budget
   remove` print a sentence on stderr instead.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,

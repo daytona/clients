@@ -62,6 +62,7 @@ function detachedView(): Uint8Array {
 const REFUSED: readonly (readonly [string, readonly unknown[], string])[] = [
   ['move', ['/a', 'relative'], 'destination'],
   ['uploadFile', ['missing-local', 'relative'], 'remotePath'],
+  ['uploadFile', [new Uint8Array([104, 105]), '/remote.txt'], 'writeBytes() or writeText()'],
   ['writeMany', [{ relative: new Uint8Array([1]) }], 'files'],
   ['readMany', [['/a', 'relative']], 'paths'],
   ['replace', [['/a', 'relative'], 'x', 'y'], 'files'],

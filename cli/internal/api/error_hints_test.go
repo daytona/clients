@@ -146,3 +146,29 @@ func TestImageNotFoundHint_targetsOnlySandboxCreate(t *testing.T) {
 		})
 	}
 }
+
+func TestHintFor_refusedSignedPreviewLinkPointsToPublicExpose(t *testing.T) {
+	// Given a 403 from the signed preview link mint
+	failure := &APIError{Status: http.StatusForbidden, Code: "FORBIDDEN", Method: http.MethodPost, Path: "/sandboxes/sbx/ports/8080/signed-preview-urls"}
+	// When
+	h := hintFor(failure)
+	// Then the hint names the alternatives instead of the generic credential hint
+	require.Contains(t, h, "not allowed to mint signed preview links")
+	require.Contains(t, h, "if it can write sandboxes")
+	require.Contains(t, h, "sandbox port expose <sandbox-id> <port> --public")
+	require.Contains(t, h, "X-Daytona-Preview-Token")
+	// And the revoke route keeps the generic hint
+	revoke := &APIError{Status: http.StatusForbidden, Code: "FORBIDDEN", Method: http.MethodPost, Path: "/sandboxes/sbx/ports/8080/signed-preview-urls/revoke"}
+	require.Equal(t, "this credential is not allowed to do that here", hintFor(revoke))
+}
+
+func TestHintFor_unexposeOfAPortThatIsNotExposed(t *testing.T) {
+	// Given a 404 from deleting a sandbox port, after the sandbox itself resolved
+	h := hintFor(&APIError{Status: http.StatusNotFound, Code: "NOT_FOUND", Method: http.MethodDelete, Path: "/sandboxes/sbx/ports/9999"})
+	// Then the hint names the port, not the org or project
+	require.Contains(t, h, "that port is not exposed")
+	require.Contains(t, h, "sandbox port endpoints")
+	// And other 404s on the port routes keep the generic hint
+	g := hintFor(&APIError{Status: http.StatusNotFound, Code: "NOT_FOUND", Method: http.MethodGet, Path: "/sandboxes/sbx/ports/9999"})
+	require.Contains(t, g, "check the id")
+}
