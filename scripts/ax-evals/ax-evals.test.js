@@ -300,14 +300,14 @@ test('render: friction points without a finding, and an empty checklist', () => 
 test('redact: Daytona credentials never reach the comment', () => {
   const key = `dtn_${'a1'.repeat(16)}`
   const invite = `dtni_${'A'.repeat(43)}`
-  assert.equal(redact(`DAYTONA_API_KEY=${key} and ${invite}.`), 'DAYTONA_API_KEY=[redacted] and [redacted].')
+  assert.equal(redact(`DAYTONA_API_KEY=${key} and ${invite}.`), 'DAYTONA_API_KEY=REDACTED and REDACTED.')
   assert.equal(redact('dtn_short and plain text'), 'dtn_short and plain text')
   // Encoded text: the key follows `\\n` (a word character) or is glued to more word characters.
   const encoded = JSON.stringify({ n: `printed:\n${key}`, t: `\t${key}_x` })
   assert.ok(!redact(encoded).includes(key))
   assert.ok(!redact(JSON.stringify(encoded)).includes(key))
   const out = render({ sha: SHA, runUrl: 'u', results: [{ title: 'Cli', finalStatus: 'failed', failureReason: `env shows ${key}` }] }).join('\n')
-  assert.ok(!out.includes(key) && out.includes('env shows [redacted]'))
+  assert.ok(!out.includes(key) && out.includes('env shows REDACTED'))
 })
 
 test('render: long agent text is capped', () => {
@@ -329,6 +329,16 @@ test('render: escapes agent text', () => {
   const line = out.split('\n').find((l) => l.startsWith('- **CLI'))
   assert.ok(line.includes('@\u200bdaytona/team'))
   assert.ok(line.includes('a\\\\\\|b \\| c'))
+  const md = render({
+    sha: SHA,
+    runUrl: 'u',
+    results: [{ title: 'Py', finalStatus: 'failed', failureReason: '![x](https://e.example/i.png) [click](https://e.example) <img src=x> **bold** `code`' }],
+  }).join('\n')
+  const mdLine = md.split('\n').find((l) => l.startsWith('- **Py'))
+  assert.equal(
+    mdLine,
+    '- **Py:** \\!\\[x\\]\\(https://e.example/i.png\\) \\[click\\]\\(https://e.example\\) \\<img src=x\\> \\*\\*bold\\*\\* \\`code\\`',
+  )
 })
 
 test('workflow: plan only starts for the ax-eval label, and for manual runs', () => {
@@ -426,7 +436,7 @@ test('save-result: the top-level narrative wins, legacy is the fallback, credent
   const key = `dtn_${'b2'.repeat(16)}`
   const leaked = saveResult({ keyFinding: `ran env:\n${key}` }, { FAILURE_REASON: `also ${key}` })
   assert.ok(!JSON.stringify(leaked).includes(key))
-  assert.equal(leaked.keyFinding, 'ran env:\n[redacted]')
+  assert.equal(leaked.keyFinding, 'ran env:\nREDACTED')
   assert.ok(saveResult({ keyFinding: 'x'.repeat(5000) }).keyFinding.length <= 600)
   const odd = saveResult({ frictionPoints: [null, 'x', { severity: '@team **bold**', desc: 'd' }] })
   assert.deepEqual(odd.frictionPoints, [{ severity: 'other', text: 'd' }])

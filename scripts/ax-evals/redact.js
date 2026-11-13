@@ -8,7 +8,7 @@
 const CREDENTIAL = /dtn[ov]?_[a-f0-9]{32}(?:[a-f0-9]{32})?|dtni_[A-Za-z0-9_-]{43}/g
 
 function redact(text) {
-  return String(text ?? '').replace(CREDENTIAL, '[redacted]')
+  return String(text ?? '').replace(CREDENTIAL, 'REDACTED')
 }
 
 module.exports = { redact }

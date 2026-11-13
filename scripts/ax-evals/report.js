@@ -67,11 +67,11 @@ function oneLine(text) {
   const flat = redact(text).replace(/\s+/g, ' ').trim()
   return (
     (flat.length > MAX_TEXT ? `${flat.slice(0, MAX_TEXT - 1)}…` : flat)
-      .replace(/\\/g, '\\\\')
-      // Agent-written text must not notify users or teams.
+      // Agent-written text is shown as plain text: no links, images, HTML or
+      // formatting of its own, and no table cell breaks.
+      .replace(/[\\`*_{}\[\]()<>#+!|~]/g, '\\$&')
+      // Nor may it notify users or teams.
       .replace(/@(?=[\w-])/g, '@\u200b')
-      .replace(/\|/g, '\\|')
-      .trim()
   )
 }
 
