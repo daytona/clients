@@ -29,6 +29,7 @@ func newSandboxPortSubcommand() *cobra.Command {
 	cmd.AddCommand(newSandboxPreviewURLCommand())
 	cmd.AddCommand(newSandboxPortExposeCommand())
 	cmd.AddCommand(newSandboxPortUnexposeCommand())
+	cmd.AddCommand(newSandboxPortEndpointsCommand())
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list <sandbox-id>",
 		Short: "List listening ports inside a sandbox",

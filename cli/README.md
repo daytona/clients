@@ -102,7 +102,7 @@ daytona sandbox exec <id> -- python -c 'print("hello")'
 daytona sandbox docker status <id> --wait
 daytona sandbox ssh <id>
 daytona sandbox cp ./data.csv <id>:/work/data.csv
-daytona sandbox port expose <id> 8080 --public   # a preview URL that opens in a browser with no credential
+daytona sandbox port expose <id> 8080 --public   # a preview URL anyone can open, with no credential
 daytona sandbox port preview-url <id> 8080 --signed --ttl 10m
 daytona volume create shared --type bucket
 daytona sandbox create --image py312 --volume shared:/models:ro
@@ -306,7 +306,7 @@ reservation ends.
 | `profile` | `list`, `use`, `delete` (`login --profile NAME` creates one) |
 | `config` | `get`, `set`, `path` (the only setting is `confirm`) |
 | `sandbox` | `create`, `create-from-snapshot`, `create-macos`, `list`, `search`, `get`, `wait`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `update`, `logs`, `usage`, `exec`, `ssh`, `cp` |
-| `sandbox port` | `list`, `expose`, `unexpose`, `preview-url` (and `preview-url expire`) |
+| `sandbox port` | `list`, `endpoints`, `expose`, `unexpose`, `preview-url` (and `preview-url expire`) |
 | `sandbox process` | `list`, `get`, `wait`, `signal`, `kill`, `logs`, `attach` |
 | `sandbox docker` | `status` |
 | `image` | `create`, `build`, `capture`, `promote`, `list`, `get`, `delete`, `logs` |
@@ -458,9 +458,13 @@ never prompts:
   usage error (exit 2) before any request; `preview-url expire` and
   `unexpose` still take them.
 - Ports are private by default: a private preview URL needs the token from
-  `preview-url` in the `X-Daytona-Preview-Token` header.
-  `sandbox port expose <id> <port> --public` makes the URL reachable with no
-  credential; `expose` without `--public` makes it private again.
+  `preview-url` in the `X-Daytona-Preview-Token` header. For a browser,
+  `preview-url --signed` gives a short-lived, revocable link with the token in
+  its hostname, and `sandbox port expose <id> <port> --public` makes the port
+  reachable by anyone with no credential; `expose` without `--public` makes it
+  private again. `sandbox port endpoints <id>` lists the exposed ports with
+  their URLs and visibility (`sandbox port list` lists the ports listening
+  inside the sandbox).
 - `sandbox create --allow-domain api.example.com --allow-cidr 10.1.0.0/16`
   (or `sandbox create-macos` with the same flags) sets a `network_policy`: a domain list implies default-deny (allowed
   domains are reachable on HTTP/HTTPS only) and `--allow-cidr` opens addresses

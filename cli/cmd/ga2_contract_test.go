@@ -244,17 +244,32 @@ func TestSandboxPortExpose_setsVisibility(t *testing.T) {
 	}
 }
 
-func TestSandboxPreviewURL_pointsToPublicExposeWhenTheURLNeedsAToken(t *testing.T) {
-	// Given a private preview URL, which comes with a token
+func TestSandboxPreviewURL_namesTheBrowserOptionsOnStderr(t *testing.T) {
+	// Given a preview URL with its token
 	stdout, stderr, err := runCLI(t, []string{"sandbox", "port", "preview-url", ga2SandboxID, "8080"}, []expectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
 		{method: http.MethodPost, path: "/sandboxes/" + ga2SandboxID + "/ports/8080/preview-url", status: 201, response: `{"url":"https://8080-x.example/","token":"tok"}`},
 	})
-	// Then stdout keeps the URL and token, and stderr names the no-credential alternative
+	// Then stdout keeps the URL and token, and stderr names both browser options
 	require.NoError(t, err)
 	require.Equal(t, "tok", requireJSONStdout(t, stdout)["token"])
 	require.Contains(t, stderr, "X-Daytona-Preview-Token")
+	require.Contains(t, stderr, "--signed")
 	require.Contains(t, stderr, "daytona sandbox port expose "+ga2SandboxID+" 8080 --public")
+}
+
+func TestSandboxPortEndpoints_listsVisibility(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{"sandbox", "port", "endpoints", ga2SandboxID}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID, status: 200, response: sandboxDetailFixture(ga2SandboxID, "linux", "running")},
+		{method: http.MethodGet, path: "/sandboxes/" + ga2SandboxID + "/ports", status: 200,
+			response: `{"ports":[{"port":8080,"public":true,"url":"https://8080-x.example/","created_at":"2026-11-13T00:00:00Z"}],"next_cursor":"c2"}`},
+	})
+	require.NoError(t, err)
+	got := requireJSONStdout(t, stdout)
+	items := got["items"].([]any)
+	require.Len(t, items, 1)
+	require.Equal(t, true, items[0].(map[string]any)["public"])
+	require.Equal(t, "c2", got["next_cursor"])
 }
 
 func TestSandboxPortUnexpose_deletesTheEndpoint(t *testing.T) {

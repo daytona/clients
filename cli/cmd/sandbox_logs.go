@@ -111,7 +111,7 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preview-url <sandbox-id> <port>",
 		Short: "Mint a preview URL for a sandbox port",
-		Long:  "Mint a preview URL for a sandbox port. Unless the port was exposed with --public, the URL needs the printed token in the X-Daytona-Preview-Token header, which a browser cannot send. For a URL that opens in a browser as-is, run `daytona sandbox port expose <sandbox-id> <port> --public`. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
+		Long:  "Mint a preview URL for a sandbox port. Without --signed, a URL for a private port needs the printed token in the X-Daytona-Preview-Token header, which a browser cannot send. For a URL that opens in a browser: --signed gives a short-lived, revocable link with the token in its hostname, and `daytona sandbox port expose <sandbox-id> <port> --public` makes the port reachable by anyone with no credential until it is made private again. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port preview-url <sandbox-id> 8080\n  daytona sandbox port preview-url <sandbox-id> 8080 --signed --ttl 5m",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flags().Changed("ttl") && !signed {
@@ -147,9 +147,7 @@ func newSandboxPreviewURLCommand() *cobra.Command {
 			if err := a.Printer().Object(resp, [][2]string{{"url", resp.V.Url}, {"token", resp.V.Token}}); err != nil {
 				return err
 			}
-			if resp.V.Token != "" {
-				a.Info("note: send the token in the X-Daytona-Preview-Token header; for a URL that opens in a browser with no credential, run `daytona sandbox port expose %s %d --public`", resolved.Detail.Id, port)
-			}
+			a.Info("note: unless the port is public, send the token in the X-Daytona-Preview-Token header; for a browser URL use --signed (short-lived), or `daytona sandbox port expose %s %d --public` (anyone can open it)", resolved.Detail.Id, port)
 			return nil
 		},
 	}
@@ -164,7 +162,7 @@ func newSandboxPortExposeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "expose <sandbox-id> <port>",
 		Short: "Expose a sandbox port as a preview URL, privately or publicly",
-		Long:  "Expose a sandbox port as a preview URL (PUT /sandboxes/{id}/ports/{port}). The SDK twin is sandbox.ports.expose(port, public=…).\nPorts are private by default: a private URL needs the token from `daytona sandbox port preview-url` in the X-Daytona-Preview-Token header. With --public the URL needs no credential and opens in a browser as-is. Exposing an exposed port again sets its visibility, so running it without --public makes a public port private. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port expose <sandbox-id> 8080 --public\n  daytona sandbox port expose <sandbox-id> 8080",
+		Long:  "Expose a sandbox port as a preview URL (PUT /sandboxes/{id}/ports/{port}). The SDK twin is sandbox.ports.expose(port, public=…).\nPorts are private by default: a private URL needs the token from `daytona sandbox port preview-url` in the X-Daytona-Preview-Token header, or a short-lived `preview-url --signed` link. With --public the URL needs no credential and anyone who has it can open it, until the port is made private again: exposing an exposed port again sets its visibility, so running it without --public makes a public port private. `daytona sandbox port endpoints <sandbox-id>` shows each exposed port's visibility. The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports and are refused.\nExamples:\n  daytona sandbox port expose <sandbox-id> 8080 --public\n  daytona sandbox port expose <sandbox-id> 8080",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			port, err := parsePreviewPortArg(args[1])
@@ -189,6 +187,49 @@ func newSandboxPortExposeCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&public, "public", false, "make the preview URL reachable without any credential")
+	return cmd
+}
+
+func newSandboxPortEndpointsCommand() *cobra.Command {
+	var flags pageFlags
+	cmd := &cobra.Command{
+		Use:   "endpoints <sandbox-id>",
+		Short: "List a sandbox's exposed ports with their preview URLs and visibility",
+		Long:  "List a sandbox's exposed ports (GET /sandboxes/{id}/ports): each one's preview URL and whether it is public. The SDK twin is sandbox.ports.list_endpoints(). `sandbox port list` instead lists the ports listening inside the sandbox.\nExample:\n  daytona sandbox port endpoints <sandbox-id>",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a := FromContext(cmd.Context())
+			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
+			if err != nil {
+				return err
+			}
+			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/sandboxes/%s/ports", url.PathEscape(resolved.Detail.Id))
+			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.SandboxPort]], error) {
+				return getRawList[gen.SandboxPort](ctx, resolved.Client, path, listQuery(flags, cursor), "ports")
+			}
+			var list output.List[api.Raw[gen.SandboxPort]]
+			if flags.all {
+				list, err = collectPaged(cmd.Context(), flags.cursor, fetch)
+			} else {
+				list, err = fetch(cmd.Context(), flags.cursor)
+			}
+			if err != nil {
+				return err
+			}
+			return listOutRaw(a.Printer(), list, func(items []gen.SandboxPort) output.Table {
+				rows := make([][]string, 0, len(items))
+				for _, item := range items {
+					rows = append(rows, []string{strconv.Itoa(int(item.Port)), strconv.FormatBool(item.Public), item.Url})
+				}
+				return output.Table{Headers: []string{"PORT", "PUBLIC", "URL"}, Rows: rows}
+			})
+		},
+	}
+	addPageFlags(cmd, &flags)
 	return cmd
 }
 
