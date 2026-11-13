@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -35,10 +35,9 @@ class MemberRemovalPreview(BaseModel):
     MemberRemovalPreview
     """ # noqa: E501
     revoked_api_keys: StrictInt = Field(description="The number of API keys the removal would revoke.")
-    revoked_preview_grants: Optional[StrictInt] = Field(default=None, description="The number of signed preview grants the removal would delete, or `null` when unknown.")
     user_id: StrictStr = Field(description="The user ID that would be removed.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["revoked_api_keys", "revoked_preview_grants", "user_id"]
+    __properties: ClassVar[List[str]] = ["revoked_api_keys", "user_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -88,11 +87,6 @@ class MemberRemovalPreview(BaseModel):
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
-        # set to None if revoked_preview_grants (nullable) is None
-        # and model_fields_set contains the field
-        if self.revoked_preview_grants is None and "revoked_preview_grants" in self.model_fields_set:
-            _dict['revoked_preview_grants'] = None
-
         return _dict
 
     @classmethod
@@ -106,7 +100,6 @@ class MemberRemovalPreview(BaseModel):
 
         _obj = cls.model_validate({
             "revoked_api_keys": obj.get("revoked_api_keys"),
-            **({"revoked_preview_grants": obj["revoked_preview_grants"]} if "revoked_preview_grants" in obj else {}),
             "user_id": obj.get("user_id")
         })
         # store additional fields in additional_properties

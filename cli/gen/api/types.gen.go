@@ -2437,9 +2437,6 @@ type BuildLogsUrl struct {
 type ChangeImpact struct {
 	// RevokedApiKeys The number of API keys the change would revoke.
 	RevokedApiKeys int64 `json:"revoked_api_keys"`
-
-	// RevokedPreviewGrants The number of preview grants the change would revoke.
-	RevokedPreviewGrants int64 `json:"revoked_preview_grants"`
 }
 
 // Charge defines model for Charge.
@@ -4064,10 +4061,6 @@ type MemberRemovalPreview struct {
 	// RevokedApiKeys The number of API keys the removal would revoke.
 	RevokedApiKeys int64 `json:"revoked_api_keys"`
 
-	// RevokedPreviewGrants The number of signed preview grants the removal would delete, or
-	// `null` when unknown.
-	RevokedPreviewGrants *int64 `json:"revoked_preview_grants,omitempty"`
-
 	// UserId The user ID that would be removed.
 	UserId openapi_types.UUID `json:"user_id"`
 }
@@ -5664,7 +5657,7 @@ type ReservationPage struct {
 
 // RevokeSandboxSignedPreviewUrlRequest defines model for RevokeSandboxSignedPreviewUrlRequest.
 type RevokeSandboxSignedPreviewUrlRequest struct {
-	// Token The plaintext signed token returned by the mint operation.
+	// Token A signed token returned by the create operation for this sandbox and port.
 	Token string `json:"token"`
 }
 
@@ -6433,15 +6426,14 @@ type SignedFileUrl struct {
 
 // SignedPreviewUrl A signed preview link.
 type SignedPreviewUrl struct {
-	// ExpiresAt When the link stops resolving (natural expiry).
+	// ExpiresAt When the link stops resolving (natural expiry), to the second.
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Token The signed token (`s` followed by 32 hexadecimal characters), returned only once. Required separately from `url` to revoke access.
+	// Token The signed token (`s` followed by 53 lowercase base32 characters). It carries the sandbox ID, the port binding and the expiry, so it needs no storage.
 	Token string `json:"token"`
 
 	// Url Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the
-	// token replaces the sandbox id in the hostname, so the link reveals no
-	// sandbox identity.
+	// token stands in the hostname where the sandbox ID otherwise would.
 	Url string `json:"url"`
 }
 

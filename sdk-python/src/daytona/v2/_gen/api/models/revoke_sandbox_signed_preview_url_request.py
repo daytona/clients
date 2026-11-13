@@ -70,7 +70,7 @@ class RevokeSandboxSignedPreviewUrlRequest(BaseModel):
     """
     RevokeSandboxSignedPreviewUrlRequest
     """ # noqa: E501
-    token: StrictStr = Field(description="The plaintext signed token returned by the mint operation.")
+    token: StrictStr = Field(description="A signed token returned by the create operation for this sandbox and port.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["token"]
     _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset(["token", ])

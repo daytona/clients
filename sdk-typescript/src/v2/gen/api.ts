@@ -1184,7 +1184,7 @@ export interface paths {
         };
         /**
          * Get a member removal preview
-         * @description Shows the credentials and preview grants that removal would revoke.
+         * @description Shows the API keys that removal would revoke.
          */
         get: operations["get_member_removal_preview"];
         put?: never;
@@ -2479,7 +2479,7 @@ export interface paths {
         put?: never;
         /**
          * Create a signed sandbox preview URL
-         * @description Creates a short-lived preview link for one port. Each link can be revoked independently.
+         * @description Creates a short-lived preview link for one port. Revoking signed preview links revokes every link on the sandbox.
          */
         post: operations["create_sandbox_signed_preview_url"];
         delete?: never;
@@ -2499,7 +2499,7 @@ export interface paths {
         put?: never;
         /**
          * Revoke a signed sandbox preview URL
-         * @description Revokes one signed preview link. An unknown or expired token is accepted without revealing whether it existed.
+         * @description Revokes every signed preview link on the sandbox when the token is a live link for this sandbox and port. Any other token is accepted without revealing whether it was valid, and revokes nothing.
          */
         post: operations["revoke_sandbox_signed_preview_url"];
         delete?: never;
@@ -2554,6 +2554,26 @@ export interface paths {
         /** Set the sandbox secrets */
         put: operations["set_sandbox_secrets"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sandboxes/{sandbox_id}/signed-preview-urls/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke all signed sandbox preview URLs
+         * @description Revokes every signed preview link on the sandbox, on every port. Links created afterwards work.
+         */
+        post: operations["revoke_sandbox_signed_preview_urls"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3386,11 +3406,6 @@ export interface components {
              * @description The number of API keys the change would revoke.
              */
             revoked_api_keys: number;
-            /**
-             * Format: int64
-             * @description The number of preview grants the change would revoke.
-             */
-            revoked_preview_grants: number;
         };
         Charge: {
             /**
@@ -5116,12 +5131,6 @@ export interface components {
              */
             revoked_api_keys: number;
             /**
-             * Format: int64
-             * @description The number of signed preview grants the removal would delete, or
-             *     `null` when unknown.
-             */
-            revoked_preview_grants?: number | null;
-            /**
              * Format: uuid
              * @description The user ID that would be removed.
              */
@@ -6529,7 +6538,7 @@ export interface components {
             reservations: components["schemas"]["MacReservation"][];
         };
         RevokeSandboxSignedPreviewUrlRequest: {
-            /** @description The plaintext signed token returned by the mint operation. */
+            /** @description A signed token returned by the create operation for this sandbox and port. */
             token: string;
         };
         Role: {
@@ -7254,15 +7263,14 @@ export interface components {
         SignedPreviewUrl: {
             /**
              * Format: date-time
-             * @description When the link stops resolving (natural expiry).
+             * @description When the link stops resolving (natural expiry), to the second.
              */
             expires_at: string;
-            /** @description The signed token (`s` followed by 32 hexadecimal characters), returned only once. Required separately from `url` to revoke access. */
+            /** @description The signed token (`s` followed by 53 lowercase base32 characters). It carries the sandbox ID, the port binding and the expiry, so it needs no storage. */
             token: string;
             /**
              * @description Host-based preview URL, `<scheme>://<port>-<token>.<domain>/` — the
-             *     token replaces the sandbox id in the hostname, so the link reveals no
-             *     sandbox identity.
+             *     token stands in the hostname where the sandbox ID otherwise would.
              */
             url: string;
         };
@@ -18820,17 +18828,6 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Signed preview URLs are temporarily unavailable (`SERVICE_UNAVAILABLE`) */
-            503: {
-                headers: {
-                    "Retry-After": components["headers"]["Retry-After"];
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
         };
     };
     revoke_sandbox_signed_preview_url: {
@@ -18851,7 +18848,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Signed preview URL revoked */
+            /** @description Signed preview URLs revoked */
             204: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -18874,17 +18871,6 @@ export interface operations {
             /** @description Sandbox not found */
             404: {
                 headers: {
-                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description Signed preview URL revocation is temporarily unavailable (`SERVICE_UNAVAILABLE`) */
-            503: {
-                headers: {
-                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -19132,6 +19118,40 @@ export interface operations {
             };
             /** @description The If-Match header is missing (`IF_MATCH_REQUIRED`) */
             428: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    revoke_sandbox_signed_preview_urls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The sandbox ID */
+                sandbox_id: components["parameters"]["SandboxId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed preview URLs revoked */
+            204: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Sandbox not found */
+            404: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;

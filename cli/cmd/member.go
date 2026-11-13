@@ -90,7 +90,7 @@ func newMemberUpdateCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return a.Printer().Object(preview, [][2]string{{"user_id", member.UserId.String()}, {"revoked_api_keys", toString(preview.V.RevokedApiKeys)}, {"revoked_preview_grants", toString(preview.V.RevokedPreviewGrants)}})
+				return a.Printer().Object(preview, [][2]string{{"user_id", member.UserId.String()}, {"revoked_api_keys", toString(preview.V.RevokedApiKeys)}})
 			}
 			updated, err := mgmt.UpdateMember(ctx, mc, orgID, member.UserId.String(), req)
 			if err != nil {
@@ -136,7 +136,7 @@ func newMemberRemoveCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return a.Printer().Object(resp, [][2]string{{"user_id", memberID}, {"revoked_api_keys", toString(resp.V.RevokedApiKeys)}, {"revoked_preview_grants", toString(resp.V.RevokedPreviewGrants)}})
+				return a.Printer().Object(resp, [][2]string{{"user_id", memberID}, {"revoked_api_keys", toString(resp.V.RevokedApiKeys)}})
 			}
 			if err := a.Confirm("remove", "member "+args[0]); err != nil {
 				return err
@@ -147,7 +147,7 @@ func newMemberRemoveCmd() *cobra.Command {
 			return printAck(a, "user_id", memberID, "removed", "")
 		},
 	}
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show revoked API-key and preview-grant counts without removing the member")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show the revoked API-key count without removing the member")
 	return cmd
 }
 
