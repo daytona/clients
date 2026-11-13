@@ -83,7 +83,6 @@ jobs:
     timeout-minutes: 65
     permissions:
       contents: read
-      pull-requests: read
     strategy:
       fail-fast: false
       matrix:

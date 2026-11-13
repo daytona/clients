@@ -383,6 +383,10 @@ test('render: the comment stays under GitHub\'s limit even when escaping grows t
   const huge = { reward: { checklist: { a: 1 } }, metrics: { time: 'x'.repeat(1000), cost: '$'.repeat(1000), errors: '$'.repeat(1000) } }
   const table = render({ sha: SHA, runUrl: 'u', results: Array.from({ length: 15 }, (_, i) => ({ title: `T${i}`, finalStatus: 'completed', outcome: '$'.repeat(1000), reportJson: JSON.stringify(huge) })) }).join('\n')
   assert.ok(table.length < 65536, String(table.length))
+  const many = { reward: { checklist: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`${'$'.repeat(40)}${i}`, 0])) } }
+  const checks = render({ sha: SHA, runUrl: 'u', results: Array.from({ length: 15 }, (_, i) => ({ title: `M${i}`, finalStatus: 'completed', outcome: 'succeeded', reportJson: JSON.stringify(many) })) }).join('\n')
+  assert.ok(checks.length < 65536, String(checks.length))
+  assert.ok(checks.includes('+27 more'))
   const cost = render({ sha: SHA, runUrl: 'u', results: [{ title: 'C', finalStatus: 'completed', outcome: 'succeeded', reportJson: JSON.stringify({ reward: { checklist: { a: 1 } }, metrics: { cost: '$0.46' } }) }] }).join('\n')
   assert.ok(cost.includes('| $0.46 |'))
 })

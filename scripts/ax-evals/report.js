@@ -60,7 +60,10 @@ function checksCell(report) {
   if (total === 0) return '–'
   const failed = failedChecks(report)
   const summary = `${total - failed.length}/${total}`
-  return failed.length === 0 ? summary : `${summary} (failed: ${failed.map((slug) => oneLine(slug, MAX_CELL)).join(', ')})`
+  if (failed.length === 0) return summary
+  const named = failed.slice(0, 3).map((slug) => oneLine(slug, MAX_CELL))
+  const more = failed.length > named.length ? `, +${failed.length - named.length} more` : ''
+  return `${summary} (failed: ${named.join(', ')}${more})`
 }
 
 // Agent and judge text is capped before escaping; table cells far more tightly.
