@@ -4,6 +4,7 @@
  */
 
 import type { OtelApiLike } from './http.js'
+import type { Chart } from './charts.js'
 import { optionKeys } from './options.js'
 /** Public V2 SDK types. */
 
@@ -1362,6 +1363,8 @@ export interface InterpreterOutput {
   readonly png?: string
   readonly svg?: string
   readonly json?: unknown
+  /** The data of the matplotlib figure this output shows (its image, when one was captured, is `png`); absent for any other output. */
+  readonly chart?: Chart
 }
 
 export interface InterpreterResult {
@@ -1369,6 +1372,8 @@ export interface InterpreterResult {
   readonly results: readonly InterpreterOutput[]
   readonly logs: InterpreterLogs
   readonly error?: InterpreterError
+  /** Every chart in `results`, in order: the figures the run displayed (the SDK always sets it). */
+  readonly charts?: readonly Chart[]
 }
 
 /**

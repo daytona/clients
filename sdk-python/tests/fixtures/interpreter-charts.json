@@ -1,0 +1,1168 @@
+{
+  "_comment": "Shared by sdk-python/tests/test_interpreter_charts.py and sdk-typescript/tests/interpreter-charts.test.ts: the chart a display bundle carries (expected in the TypeScript shape; null = no chart) and how a run's display frames become its results.",
+  "charts": [
+    {
+      "name": "a line chart with dates, labels and thinned series",
+      "wire": {
+        "type": "line",
+        "title": "temperature",
+        "xLabel": "day",
+        "yLabel": "°C",
+        "xScale": "datetime",
+        "yScale": "linear",
+        "xTicks": [
+          "2024-01-01T00:00:00+00:00",
+          "2024-01-02T00:00:00+00:00"
+        ],
+        "xTickLabels": [
+          "Jan 01",
+          "Jan 02"
+        ],
+        "yTicks": [
+          0,
+          2.5,
+          5
+        ],
+        "yTickLabels": [
+          "0.0",
+          "2.5",
+          "5.0"
+        ],
+        "elements": [
+          {
+            "label": "Zagreb",
+            "points": [
+              [
+                "2024-01-01T00:00:00+00:00",
+                1.5
+              ],
+              [
+                "2024-01-02T00:00:00+00:00",
+                4
+              ]
+            ]
+          },
+          {
+            "points": [
+              [
+                "2024-01-01T00:00:00+00:00",
+                0
+              ]
+            ]
+          }
+        ],
+        "truncated": true
+      },
+      "expected": {
+        "type": "line",
+        "title": "temperature",
+        "xLabel": "day",
+        "yLabel": "°C",
+        "xScale": "datetime",
+        "yScale": "linear",
+        "xTicks": [
+          "2024-01-01T00:00:00+00:00",
+          "2024-01-02T00:00:00+00:00"
+        ],
+        "xTickLabels": [
+          "Jan 01",
+          "Jan 02"
+        ],
+        "yTicks": [
+          0,
+          2.5,
+          5
+        ],
+        "yTickLabels": [
+          "0.0",
+          "2.5",
+          "5.0"
+        ],
+        "elements": [
+          {
+            "label": "Zagreb",
+            "points": [
+              [
+                "2024-01-01T00:00:00+00:00",
+                1.5
+              ],
+              [
+                "2024-01-02T00:00:00+00:00",
+                4
+              ]
+            ]
+          },
+          {
+            "points": [
+              [
+                "2024-01-01T00:00:00+00:00",
+                0
+              ]
+            ]
+          }
+        ],
+        "truncated": true
+      }
+    },
+    {
+      "name": "a scatter chart on a category axis and a log axis",
+      "wire": {
+        "type": "scatter",
+        "xScale": "categorical",
+        "yScale": "log",
+        "xTicks": [
+          "a",
+          "b"
+        ],
+        "xTickLabels": [
+          "a",
+          "b"
+        ],
+        "yTicks": [
+          1,
+          10
+        ],
+        "yTickLabels": [
+          "10^{0}",
+          "10^{1}"
+        ],
+        "elements": [
+          {
+            "points": [
+              [
+                "a",
+                1
+              ],
+              [
+                "b",
+                10
+              ]
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "type": "scatter",
+        "xScale": "categorical",
+        "yScale": "log",
+        "xTicks": [
+          "a",
+          "b"
+        ],
+        "xTickLabels": [
+          "a",
+          "b"
+        ],
+        "yTicks": [
+          1,
+          10
+        ],
+        "yTickLabels": [
+          "10^{0}",
+          "10^{1}"
+        ],
+        "elements": [
+          {
+            "points": [
+              [
+                "a",
+                1
+              ],
+              [
+                "b",
+                10
+              ]
+            ]
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a horizontal grouped bar chart",
+      "wire": {
+        "type": "bar",
+        "orientation": "horizontal",
+        "xLabel": "count",
+        "elements": [
+          {
+            "label": "x",
+            "value": 3,
+            "group": "2023"
+          },
+          {
+            "label": "y",
+            "value": 2.5,
+            "group": "2023"
+          },
+          {
+            "label": "x",
+            "value": 4
+          }
+        ]
+      },
+      "expected": {
+        "type": "bar",
+        "orientation": "horizontal",
+        "xLabel": "count",
+        "elements": [
+          {
+            "label": "x",
+            "value": 3,
+            "group": "2023"
+          },
+          {
+            "label": "y",
+            "value": 2.5,
+            "group": "2023"
+          },
+          {
+            "label": "x",
+            "value": 4
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a pie chart with and without labels",
+      "wire": {
+        "type": "pie",
+        "title": "share",
+        "elements": [
+          {
+            "label": "a",
+            "angle": 36,
+            "radius": 1,
+            "value": 1,
+            "autopct": "10%"
+          },
+          {
+            "angle": 324,
+            "radius": 1.5
+          }
+        ]
+      },
+      "expected": {
+        "type": "pie",
+        "title": "share",
+        "elements": [
+          {
+            "label": "a",
+            "angle": 36,
+            "radius": 1,
+            "value": 1,
+            "autopct": "10%"
+          },
+          {
+            "angle": 324,
+            "radius": 1.5
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a box chart with an empty box",
+      "wire": {
+        "type": "box_and_whisker",
+        "orientation": "vertical",
+        "yLabel": "ms",
+        "elements": [
+          {
+            "label": "u",
+            "min": 1,
+            "firstQuartile": 2,
+            "median": 3,
+            "thirdQuartile": 4,
+            "max": 4,
+            "outliers": [
+              10
+            ]
+          },
+          {
+            "label": "empty",
+            "outliers": []
+          }
+        ]
+      },
+      "expected": {
+        "type": "box_and_whisker",
+        "orientation": "vertical",
+        "yLabel": "ms",
+        "elements": [
+          {
+            "label": "u",
+            "min": 1,
+            "firstQuartile": 2,
+            "median": 3,
+            "thirdQuartile": 4,
+            "max": 4,
+            "outliers": [
+              10
+            ]
+          },
+          {
+            "label": "empty",
+            "outliers": []
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a composite of subplots",
+      "wire": {
+        "type": "composite_chart",
+        "title": "grid",
+        "elements": [
+          {
+            "type": "scatter",
+            "xScale": "categorical",
+            "yScale": "log",
+            "xTicks": [
+              "a",
+              "b"
+            ],
+            "xTickLabels": [
+              "a",
+              "b"
+            ],
+            "yTicks": [
+              1,
+              10
+            ],
+            "yTickLabels": [
+              "10^{0}",
+              "10^{1}"
+            ],
+            "elements": [
+              {
+                "points": [
+                  [
+                    "a",
+                    1
+                  ],
+                  [
+                    "b",
+                    10
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "type": "bar",
+            "orientation": "horizontal",
+            "xLabel": "count",
+            "elements": [
+              {
+                "label": "x",
+                "value": 3,
+                "group": "2023"
+              },
+              {
+                "label": "y",
+                "value": 2.5,
+                "group": "2023"
+              },
+              {
+                "label": "x",
+                "value": 4
+              }
+            ]
+          },
+          {
+            "type": "unknown"
+          }
+        ]
+      },
+      "expected": {
+        "type": "composite_chart",
+        "title": "grid",
+        "elements": [
+          {
+            "type": "scatter",
+            "xScale": "categorical",
+            "yScale": "log",
+            "xTicks": [
+              "a",
+              "b"
+            ],
+            "xTickLabels": [
+              "a",
+              "b"
+            ],
+            "yTicks": [
+              1,
+              10
+            ],
+            "yTickLabels": [
+              "10^{0}",
+              "10^{1}"
+            ],
+            "elements": [
+              {
+                "points": [
+                  [
+                    "a",
+                    1
+                  ],
+                  [
+                    "b",
+                    10
+                  ]
+                ]
+              }
+            ],
+            "truncated": false
+          },
+          {
+            "type": "bar",
+            "orientation": "horizontal",
+            "xLabel": "count",
+            "elements": [
+              {
+                "label": "x",
+                "value": 3,
+                "group": "2023"
+              },
+              {
+                "label": "y",
+                "value": 2.5,
+                "group": "2023"
+              },
+              {
+                "label": "x",
+                "value": 4
+              }
+            ],
+            "truncated": false
+          },
+          {
+            "type": "unknown",
+            "rawType": "unknown",
+            "truncated": false
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "an unknown figure",
+      "wire": {
+        "type": "unknown",
+        "title": "map",
+        "truncated": true
+      },
+      "expected": {
+        "type": "unknown",
+        "rawType": "unknown",
+        "title": "map",
+        "truncated": true
+      }
+    },
+    {
+      "name": "a type this release does not know",
+      "wire": {
+        "type": "heatmap",
+        "title": "h",
+        "cells": [
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      "expected": {
+        "type": "unknown",
+        "rawType": "heatmap",
+        "title": "h",
+        "truncated": false
+      }
+    },
+    {
+      "name": "fields a later sandbox adds are ignored",
+      "wire": {
+        "type": "bar",
+        "orientation": "horizontal",
+        "xLabel": "count",
+        "elements": [
+          {
+            "label": "x",
+            "value": 1,
+            "color": "red"
+          }
+        ],
+        "legend": {
+          "loc": "best"
+        }
+      },
+      "expected": {
+        "type": "bar",
+        "orientation": "horizontal",
+        "xLabel": "count",
+        "elements": [
+          {
+            "label": "x",
+            "value": 1
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a null optional field is absent",
+      "wire": {
+        "type": "pie",
+        "title": null,
+        "elements": [
+          {
+            "angle": 360,
+            "radius": 1,
+            "label": null
+          }
+        ]
+      },
+      "expected": {
+        "type": "pie",
+        "elements": [
+          {
+            "angle": 360,
+            "radius": 1
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a null truncated is false",
+      "wire": {
+        "type": "pie",
+        "elements": [
+          {
+            "angle": 360,
+            "radius": 1
+          }
+        ],
+        "truncated": null
+      },
+      "expected": {
+        "type": "pie",
+        "elements": [
+          {
+            "angle": 360,
+            "radius": 1
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "name": "a composite nested three deep",
+      "wire": {
+        "type": "composite_chart",
+        "elements": [
+          {
+            "type": "composite_chart",
+            "elements": [
+              {
+                "type": "composite_chart",
+                "elements": [
+                  {
+                    "type": "unknown"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "type": "composite_chart",
+        "truncated": false,
+        "elements": [
+          {
+            "type": "composite_chart",
+            "truncated": false,
+            "elements": [
+              {
+                "type": "composite_chart",
+                "truncated": false,
+                "elements": [
+                  {
+                    "type": "unknown",
+                    "rawType": "unknown",
+                    "truncated": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a composite nested four deep",
+      "wire": {
+        "type": "composite_chart",
+        "elements": [
+          {
+            "type": "composite_chart",
+            "elements": [
+              {
+                "type": "composite_chart",
+                "elements": [
+                  {
+                    "type": "composite_chart",
+                    "elements": [
+                      {
+                        "type": "unknown"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "not an object",
+      "wire": [
+        {
+          "type": "line",
+          "title": "temperature",
+          "xLabel": "day",
+          "yLabel": "°C",
+          "xScale": "datetime",
+          "yScale": "linear",
+          "xTicks": [
+            "2024-01-01T00:00:00+00:00",
+            "2024-01-02T00:00:00+00:00"
+          ],
+          "xTickLabels": [
+            "Jan 01",
+            "Jan 02"
+          ],
+          "yTicks": [
+            0,
+            2.5,
+            5
+          ],
+          "yTickLabels": [
+            "0.0",
+            "2.5",
+            "5.0"
+          ],
+          "elements": [
+            {
+              "label": "Zagreb",
+              "points": [
+                [
+                  "2024-01-01T00:00:00+00:00",
+                  1.5
+                ],
+                [
+                  "2024-01-02T00:00:00+00:00",
+                  4
+                ]
+              ]
+            },
+            {
+              "points": [
+                [
+                  "2024-01-01T00:00:00+00:00",
+                  0
+                ]
+              ]
+            }
+          ],
+          "truncated": true
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "no type",
+      "wire": {
+        "title": "t"
+      },
+      "expected": null
+    },
+    {
+      "name": "a type that is not a string",
+      "wire": {
+        "type": 7
+      },
+      "expected": null
+    },
+    {
+      "name": "a required field missing",
+      "wire": {
+        "type": "line",
+        "title": "temperature",
+        "xLabel": "day",
+        "yLabel": "°C",
+        "yScale": "linear",
+        "xTicks": [
+          "2024-01-01T00:00:00+00:00",
+          "2024-01-02T00:00:00+00:00"
+        ],
+        "xTickLabels": [
+          "Jan 01",
+          "Jan 02"
+        ],
+        "yTicks": [
+          0,
+          2.5,
+          5
+        ],
+        "yTickLabels": [
+          "0.0",
+          "2.5",
+          "5.0"
+        ],
+        "elements": [
+          {
+            "label": "Zagreb",
+            "points": [
+              [
+                "2024-01-01T00:00:00+00:00",
+                1.5
+              ],
+              [
+                "2024-01-02T00:00:00+00:00",
+                4
+              ]
+            ]
+          },
+          {
+            "points": [
+              [
+                "2024-01-01T00:00:00+00:00",
+                0
+              ]
+            ]
+          }
+        ],
+        "truncated": true
+      },
+      "expected": null
+    },
+    {
+      "name": "a bar value that is not a number",
+      "wire": {
+        "type": "bar",
+        "orientation": "horizontal",
+        "xLabel": "count",
+        "elements": [
+          {
+            "label": "x",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a boolean where a number belongs",
+      "wire": {
+        "type": "bar",
+        "orientation": "horizontal",
+        "xLabel": "count",
+        "elements": [
+          {
+            "label": "x",
+            "value": true
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a point that is not a pair",
+      "wire": {
+        "type": "scatter",
+        "xScale": "categorical",
+        "yScale": "log",
+        "xTicks": [
+          "a",
+          "b"
+        ],
+        "xTickLabels": [
+          "a",
+          "b"
+        ],
+        "yTicks": [
+          1,
+          10
+        ],
+        "yTickLabels": [
+          "10^{0}",
+          "10^{1}"
+        ],
+        "elements": [
+          {
+            "points": [
+              [
+                1,
+                2,
+                3
+              ]
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "a point value that is neither a number nor a string",
+      "wire": {
+        "type": "scatter",
+        "xScale": "categorical",
+        "yScale": "log",
+        "xTicks": [
+          "a",
+          "b"
+        ],
+        "xTickLabels": [
+          "a",
+          "b"
+        ],
+        "yTicks": [
+          1,
+          10
+        ],
+        "yTickLabels": [
+          "10^{0}",
+          "10^{1}"
+        ],
+        "elements": [
+          {
+            "points": [
+              [
+                null,
+                2
+              ]
+            ]
+          }
+        ]
+      },
+      "expected": null
+    },
+    {
+      "name": "truncated that is not a boolean",
+      "wire": {
+        "type": "pie",
+        "title": "share",
+        "elements": [
+          {
+            "label": "a",
+            "angle": 36,
+            "radius": 1,
+            "value": 1,
+            "autopct": "10%"
+          },
+          {
+            "angle": 324,
+            "radius": 1.5
+          }
+        ],
+        "truncated": "yes"
+      },
+      "expected": null
+    },
+    {
+      "name": "a malformed subplot",
+      "wire": {
+        "type": "composite_chart",
+        "elements": [
+          {
+            "type": "bar"
+          }
+        ]
+      },
+      "expected": null
+    }
+  ],
+  "runs": [
+    {
+      "name": "a figure carries its image and its chart",
+      "frames": [
+        {
+          "channel": "stdout",
+          "data": "hi\n"
+        },
+        {
+          "channel": "execute_result",
+          "data": "{\"text/plain\": \"<Axes: >\"}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"image/png\": \"iVBOR\", \"text/plain\": \"<Figure>\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"bar\", \"orientation\": \"vertical\", \"elements\": [{\"label\": \"a\", \"value\": 1}]}}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": true,
+            "dataKeys": [
+              "text/plain"
+            ],
+            "chartType": null
+          },
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "image/png",
+              "text/plain"
+            ],
+            "chartType": "bar",
+            "png": "iVBOR"
+          }
+        ],
+        "charts": [
+          "bar"
+        ]
+      }
+    },
+    {
+      "name": "an update replaces the output with its display id",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"<Figure>\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"bar\", \"orientation\": \"vertical\", \"elements\": [{\"label\": \"a\", \"value\": 1}]}, \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"d1\", \"update\": false}}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"other\"}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"<Figure>\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"bar\", \"orientation\": \"vertical\", \"elements\": [{\"label\": \"a\", \"value\": 1}, {\"label\": \"b\", \"value\": 2}]}, \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"d1\", \"update\": true}}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "text/plain"
+            ],
+            "chartType": "bar",
+            "bars": 2
+          },
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "text/plain"
+            ],
+            "chartType": null
+          }
+        ],
+        "charts": [
+          "bar"
+        ]
+      }
+    },
+    {
+      "name": "an update replaces every output that shares its display id",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"1\", \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"d\", \"update\": false}}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"2\", \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"d\", \"update\": false}}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"3\", \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"d\", \"update\": true}}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "text/plain"
+            ],
+            "chartType": null,
+            "text": "3"
+          },
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "text/plain"
+            ],
+            "chartType": null,
+            "text": "3"
+          }
+        ],
+        "charts": []
+      }
+    },
+    {
+      "name": "an update of a display this run did not publish is a new output",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"late\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"bar\", \"orientation\": \"vertical\", \"elements\": [{\"label\": \"a\", \"value\": 1}]}, \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"old\", \"update\": true}}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"later\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"bar\", \"orientation\": \"vertical\", \"elements\": [{\"label\": \"a\", \"value\": 1}, {\"label\": \"b\", \"value\": 2}]}, \"application/vnd.daytona.display.v1+json\": {\"displayId\": \"old\", \"update\": true}}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "text/plain"
+            ],
+            "chartType": "bar",
+            "bars": 2,
+            "text": "later"
+          }
+        ],
+        "charts": [
+          "bar"
+        ]
+      }
+    },
+    {
+      "name": "a malformed chart is no chart and the raw value stays in data",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"<Figure>\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"bar\"}}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "text/plain"
+            ],
+            "chartType": null,
+            "rawChart": {
+              "type": "bar"
+            }
+          }
+        ],
+        "charts": []
+      }
+    },
+    {
+      "name": "a malformed display id is ignored",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"a\", \"application/vnd.daytona.display.v1+json\": {\"displayId\": 1, \"update\": true}}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"b\", \"application/vnd.daytona.display.v1+json\": \"d\"}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "text/plain"
+            ],
+            "chartType": null,
+            "text": "a"
+          },
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "text/plain"
+            ],
+            "chartType": null,
+            "text": "b"
+          }
+        ],
+        "charts": []
+      }
+    },
+    {
+      "name": "a figure split by an older sandbox is dropped",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"image/png\": \"iVBOR"
+        },
+        {
+          "channel": "display",
+          "data": "ORw0KGgo\", \"text/plain\": \"<Figure>\"}"
+        }
+      ],
+      "expected": {
+        "results": [],
+        "charts": []
+      }
+    },
+    {
+      "name": "every chart in order, composites included",
+      "frames": [
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"1\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"composite_chart\", \"title\": \"grid\", \"elements\": [{\"type\": \"scatter\", \"xScale\": \"categorical\", \"yScale\": \"log\", \"xTicks\": [\"a\", \"b\"], \"xTickLabels\": [\"a\", \"b\"], \"yTicks\": [1, 10], \"yTickLabels\": [\"10^{0}\", \"10^{1}\"], \"elements\": [{\"points\": [[\"a\", 1], [\"b\", 10]]}]}, {\"type\": \"bar\", \"orientation\": \"horizontal\", \"xLabel\": \"count\", \"elements\": [{\"label\": \"x\", \"value\": 3, \"group\": \"2023\"}, {\"label\": \"y\", \"value\": 2.5, \"group\": \"2023\"}, {\"label\": \"x\", \"value\": 4}]}, {\"type\": \"unknown\"}]}}"
+        },
+        {
+          "channel": "display",
+          "data": "{\"text/plain\": \"2\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"unknown\"}}"
+        },
+        {
+          "channel": "execute_result",
+          "data": "{\"text/plain\": \"3\", \"application/vnd.daytona.chart.v1+json\": {\"type\": \"pie\", \"title\": \"share\", \"elements\": [{\"label\": \"a\", \"angle\": 36, \"radius\": 1, \"value\": 1, \"autopct\": \"10%\"}, {\"angle\": 324, \"radius\": 1.5}]}}"
+        }
+      ],
+      "expected": {
+        "results": [
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "text/plain"
+            ],
+            "chartType": "composite_chart"
+          },
+          {
+            "isMainResult": false,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "text/plain"
+            ],
+            "chartType": "unknown"
+          },
+          {
+            "isMainResult": true,
+            "dataKeys": [
+              "application/vnd.daytona.chart.v1+json",
+              "text/plain"
+            ],
+            "chartType": "pie"
+          }
+        ],
+        "charts": [
+          "composite_chart",
+          "unknown",
+          "pie"
+        ]
+      }
+    }
+  ]
+}

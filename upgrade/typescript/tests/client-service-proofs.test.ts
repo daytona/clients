@@ -139,3 +139,19 @@ it('flags the server-chosen volume type on volume suggestions', async () => {
   expect((await invoke(root, ['--suggest-v2'])).code).toBe(0)
   expect(contents(root)['app.ts']).toContain('daytona-v2:   differs: Review the volume type')
 });
+
+it('points code_run chart artifacts at the v2 result', async () => {
+  // Given a 0.x code run whose chart artifacts the caller reads.
+  const root = temporaryProject({ ...manifest, 'app.ts': prefix + "const sandbox = await daytona.create();\nconst response = await sandbox.process.codeRun('plot()');\nconsole.log(response.artifacts?.charts);\n" });
+  // When
+  const result = await invoke(root, ['--suggest-v2', '--json']);
+  // Then the suggestion says where the charts and their images are in v2.
+  const report: Report = JSON.parse(result.output);
+  expect(result.code, result.output).toBe(0);
+  const notes = report.items.find(item => item.suggestion?.id === 'sandbox.process.codeRun')?.suggestion?.notes;
+  expect(notes?.at(-1)).toBe(
+    "Returns InterpreterResult: response.artifacts.charts becomes result.charts; the output that carries a chart (output.chart) also carries its image when there is one (output.png); timeout becomes timeoutSeconds (still seconds)");
+  // And the written comment carries it.
+  expect((await invoke(root, ['--suggest-v2'])).code).toBe(0);
+  expect(contents(root)['app.ts']).toContain('daytona-v2:   differs: Returns InterpreterResult: response.artifacts.charts becomes result.charts');
+});

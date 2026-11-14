@@ -299,6 +299,24 @@ from .filesystem import (
 )
 from .docker import AsyncDockerService
 from .git import AsyncGitService
+from .charts import (
+    BarChart,
+    BoxAndWhiskerChart,
+    Chart,
+    ChartBar,
+    ChartBox,
+    ChartOrientation,
+    ChartPieSlice,
+    ChartScale,
+    ChartSeries,
+    ChartType,
+    ChartValue,
+    CompositeChart,
+    LineChart,
+    PieChart,
+    ScatterChart,
+    UnknownChart,
+)
 from .interpreter import AsyncInterpreterService
 from .ports import PREVIEW_WARNING_SKIP_HEADER, PREVIEW_WARNING_SKIP_HEADER_VALUE, AsyncPortsService
 from .process import AsyncProcessHandle, AsyncProcessService, AsyncPtyService
@@ -371,12 +389,20 @@ from .types import (
 
 # Version-suffixed aliases for the names v0 shares (see _exports.SHARED_WITH_V0).
 AsyncSandboxV2 = AsyncSandbox
+BarChartV2 = BarChart
+BoxAndWhiskerChartV2 = BoxAndWhiskerChart
+ChartV2 = Chart
+ChartTypeV2 = ChartType
+CompositeChartV2 = CompositeChart
 DaytonaErrorV2 = DaytonaError
 ImageV2 = Image
+LineChartV2 = LineChart
+PieChartV2 = PieChart
 ResourcesV2 = Resources
 SandboxV2 = Sandbox
 SandboxClassV2 = SandboxClass
 SandboxStateV2 = SandboxState
+ScatterChartV2 = ScatterChart
 SecretV2 = Secret
 VolumeMountV2 = VolumeMount
 
@@ -552,6 +578,22 @@ __all__ = [
     "InvoiceNotFoundError",
     "InvoiceNotPayableError",
     "AsyncInterpreterContext",
+    "BarChart",
+    "BoxAndWhiskerChart",
+    "Chart",
+    "ChartBar",
+    "ChartBox",
+    "ChartOrientation",
+    "ChartPieSlice",
+    "ChartScale",
+    "ChartSeries",
+    "ChartType",
+    "ChartValue",
+    "CompositeChart",
+    "LineChart",
+    "PieChart",
+    "ScatterChart",
+    "UnknownChart",
     "InterpreterContextJSON",
     "InterpreterError",
     "InterpreterLogs",
@@ -739,12 +781,20 @@ __all__ = [
     "AsyncWatchHandle",
     "DEFAULT_V2_API_URL",
     "AsyncSandboxV2",
+    "BarChartV2",
+    "BoxAndWhiskerChartV2",
+    "ChartV2",
+    "ChartTypeV2",
+    "CompositeChartV2",
     "DaytonaErrorV2",
     "ImageV2",
+    "LineChartV2",
+    "PieChartV2",
     "ResourcesV2",
     "SandboxV2",
     "SandboxClassV2",
     "SandboxStateV2",
+    "ScatterChartV2",
     "SecretV2",
     "VolumeMountV2",
 ]

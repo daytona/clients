@@ -2290,8 +2290,8 @@ def test_an_interpreter_output_carrying_a_non_standard_json_constant_is_dropped_
     assert _parse_output(f'{{"text/plain": "x", "v": {constant}}}', is_main_result=True) is None
     assert _parse_error(f'{{"ename": "E", "evalue": {constant}}}') is None
     # 1e400 is JSON: it decodes (to inf) and is kept, as JSON.parse keeps Infinity.
-    output = _parse_output('{"text/plain": "x", "v": 1e400}', is_main_result=True)
-    assert output is not None and output.data["v"] == float("inf")
+    parsed = _parse_output('{"text/plain": "x", "v": 1e400}', is_main_result=True)
+    assert parsed is not None and parsed.output.data["v"] == float("inf")
 
 
 # Shared with the TypeScript SDK's json-bodies.test.ts: a 2xx response that

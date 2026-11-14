@@ -8576,22 +8576,23 @@ def test_process_create_spec_rejects_terminal_geometry_for_non_pty_processes():
 
 @pytest.mark.anyio
 async def test_process_run_falls_back_to_split_calls_when_the_inline_page_is_incomplete():
+    # The inline page is kept, and the read goes on after it.
     transport = RecordingTransport(
         [
             {
                 **_process_payload("proc", "exec", "terminal"),
                 "reason": "exited",
                 "exitCode": 0,
-                "logs": _log_page_payload([_log_frame_payload("c1", "partial")], next_cursor="c1", eof=False),
+                "logs": _log_page_payload([_log_frame_payload("c1", "whole ")], next_cursor="c1", eof=False),
             },
-            _log_page_payload([_log_frame_payload("c1", "whole ")], next_cursor="c1"),
             _log_page_payload([_log_frame_payload("c2", "output")], next_cursor="c2"),
             _log_page_payload([], next_cursor="c2"),
         ]
     )
     result = await AsyncProcessService("sbx", transport).run("echo whole output")  # type: ignore[arg-type]
     assert result.output == "whole output"
-    assert [spec.path for spec in transport.specs][1:] == ["/processes/proc/logs"] * 3
+    assert [spec.path for spec in transport.specs][1:] == ["/processes/proc/logs"] * 2
+    assert [spec.params.get("cursor") for spec in transport.specs][1:] == ["c1", "c2"]
 
 
 @pytest.mark.anyio

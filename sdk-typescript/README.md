@@ -746,7 +746,11 @@ reported them; `reason` is always set (`'unknown'` with the value on
 `rawReason` for one this release does not know). `run()` reads the output back
 from the process log, so its `keepLogs` takes `'on_exit_ttl'` (default) or
 `'until_cleanup'`, not `'none'`. It returns no handle to write to, so it
-refuses `stdin: 'open'`: use `start()` for a process that reads stdin.
+refuses `stdin: 'open'`: use `start()` for a process that reads stdin. A run
+whose output outgrew the sandbox's log retention returns what it had read and
+what the sandbox kept, from where the sandbox says its log now starts: output
+retention dropped before it was read is missing. When the sandbox names no new
+point to resume from, `run()` still throws `CursorExpiredError`.
 
 `process.start()` (and `session.start()`) sends `keepLogs: 'on_exit_ttl'`
 unless you pass another value: the sandbox keeps the record and log for a while
@@ -957,9 +961,60 @@ takes no `env`: set it when the context is created. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
 `timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded). Results are split into
-`results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
+`results[]`, `logs{stdout,stderr}`, `error`, `process` and `charts`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
-code-process handle later does not recreate it.
+code-process handle later does not recreate it. A display updated in place
+(IPython `display(obj, display_id=True)` then `handle.update(obj)`) is one
+entry in `results[]`, holding its last state; an update to a display an
+earlier run published is a new entry. As with `process.run()`, a run whose
+output outgrew the sandbox's log retention returns what the sandbox kept, from
+where the sandbox says its log now starts: outputs retention dropped before
+they were read are missing. When the sandbox names no new point to resume
+from, `run()` still throws `CursorExpiredError`.
+
+#### Charts
+
+A matplotlib figure that a Python run displays (`plt.show()`, a figure as the
+last expression, pandas `plot()`, seaborn, or a figure still open when the
+cell ends) comes back with its data as well as its image. The output that
+shows the figure carries its data in `chart` and, when an image was
+captured, the image in `png`. `result.charts` lists every chart of the run
+in order; it skips outputs without a chart, so its indexes are not those of
+`results`, and the figure is not always `results[0]` (a pandas or seaborn
+call returns its axes as the cell's result). To pair a chart with its image,
+use the output that carries the chart.
+
+```ts
+const result = await sandbox.interpreter.run(`
+import matplotlib.pyplot as plt
+plt.bar(["a", "b"], [3, 1]); plt.title("visits")
+plt.show()
+`)
+if (result.error) throw new Error(`${result.error.name}: ${result.error.value}`)
+if (result.process.exitCode !== 0) throw new Error(`the run exited ${result.process.exitCode}`)
+const chart = result.charts?.[0]
+if (chart?.type === 'bar') {
+  console.log(chart.title, chart.elements.map((bar) => [bar.label, bar.value])) // visits [['a', 3], ['b', 1]]
+}
+for (const output of result.results) { // each chart's image is on the output that carries it
+  if (output.chart && output.png) console.log(output.chart.type, output.png.length) // bar 12345 (base64 characters)
+}
+```
+
+`chart.type` is `line`, `scatter`, `bar`, `pie`, `box_and_whisker`,
+`composite_chart` (a figure with several axes; `elements` holds one chart per
+axes) or `unknown` (a figure that is not one of these, such as an image plot,
+or a type a later sandbox reports, with `rawType`); switch on it and keep a
+default branch. Values are as plotted: numbers, category names on a
+`categorical` axis, and ISO 8601 UTC strings on a `datetime` axis. Long series
+are thinned (a line series keeps each stretch's lowest and highest point, a
+point series is sampled evenly), and the chart says so with `truncated`.
+Charts need matplotlib in the sandbox image, and only Python runs produce
+them; a sandbox started before charts reached its deployment returns none, so
+`result.charts` can be empty. A run that changes matplotlib's backend away
+from the default (`MPLBACKEND`, `%matplotlib agg`) shows no figure on
+`plt.show()`; a figure returned as the last expression still comes back, with
+its chart but without an image.
 
 ### Git
 

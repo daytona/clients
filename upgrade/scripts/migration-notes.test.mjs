@@ -30,6 +30,23 @@ for (const language of ['py', 'ts']) {
     });
   }
 
+  test(`${language} code-run guidance points the v0 chart artifacts at the v2 result`, () => {
+    // Given: a consumer of the v0 code-run artifacts, not only its arguments.
+    const entry = mapping.suggestions.find((candidate) => candidate.id === 'sandbox.process.codeRun');
+    assert.ok(entry);
+    // When: reading the migration notes and the generated guide.
+    const notes = entry.notes[language].join(' ');
+    const row = guide.split('\n').find((line) => line.startsWith(`| \`${entry.receiver}.${entry.v0[language]}(`));
+    assert.ok(row);
+    // Then: both name where the charts are in v2, and that an image is there
+    // only when one was captured.
+    const where =
+      'response.artifacts.charts becomes result.charts; the output that carries a chart (output.chart) also carries its image when there is one (output.png)';
+    for (const text of [notes, row]) {
+      assert.ok(text.includes(where), text);
+    }
+  });
+
   test(`${language} commit guidance identifies the result-field migration`, () => {
     // Given: a consumer of the v0 commit result, not only its arguments.
     const entry = mapping.suggestions.find((candidate) => candidate.id === 'sandbox.git.commit');

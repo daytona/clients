@@ -14,6 +14,7 @@ import { writeFileSync } from 'node:fs'
 import { Daytona } from '@daytona/sdk'
 import { ConflictError, ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
 import type {
+  Chart,
   BuildLogFollowOptions,
   CreateFromBuildOptions,
   CreateSandboxOptions,
@@ -32,6 +33,8 @@ export interface Scenario {
   interpreterExitCode?: number
   /** The interpreter run raises this exception name (exit code stays 0). */
   interpreterError?: string
+  /** A figure the code shows comes back without its chart (default: with it). */
+  interpreterCharts?: boolean
   /** followBuildLogs delivers no output. */
   emptyBuildLogs?: boolean
   secretDeleteThrows?: string
@@ -198,12 +201,32 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
       return run(command, env, dockerfile, mounts, disk, name)
     } },
     interpreter: {
-      run: async () => ({
-        process: { processId: 'p', reason: 'exited' as const, exitCode: scenario.interpreterExitCode ?? 0 },
-        logs: { stdout: 'Hello World from code!\n', stderr: '' },
-        results: [],
-        error: scenario.interpreterError ? { name: scenario.interpreterError, value: '', traceback: [] } : undefined,
-      }),
+      run: async (code: string) => {
+        // The figure typescript/charts/index.ts draws.
+        const figure: Chart = {
+          type: 'composite_chart',
+          truncated: false,
+          elements: [
+            {
+              type: 'line', title: 'traffic', xScale: 'linear', yScale: 'linear', xTicks: [], xTickLabels: [], yTicks: [], yTickLabels: [],
+              elements: [{ label: 'visits', points: [[1, 10], [2, 20], [3, 15], [4, 30]] }], truncated: false,
+            },
+            {
+              type: 'bar', title: 'signups', orientation: 'vertical', truncated: false,
+              elements: [{ label: 'a', value: 3 }, { label: 'b', value: 7 }, { label: 'c', value: 5 }],
+            },
+          ],
+        }
+        const shows = code.includes('plt.show()')
+        const withChart = shows && scenario.interpreterCharts !== false
+        return {
+          process: { processId: 'p', reason: 'exited' as const, exitCode: scenario.interpreterExitCode ?? 0 },
+          logs: { stdout: 'Hello World from code!\n', stderr: '' },
+          results: shows ? [{ data: { 'image/png': 'iVBOR' }, isMainResult: false, png: 'iVBOR', ...(withChart ? { chart: figure } : {}) }] : [],
+          charts: withChart ? [figure] : [],
+          error: scenario.interpreterError ? { name: scenario.interpreterError, value: '', traceback: [] } : undefined,
+        }
+      },
     },
     fs: {
       mkdir: async () => undefined,
