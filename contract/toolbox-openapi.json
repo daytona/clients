@@ -1442,6 +1442,17 @@
             "$ref": "#/components/schemas/ComputerUseDesktopState",
             "description": "The current desktop state."
           },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComputerUseResolution",
+                "description": "The resolution the desktop runs at, or, when it is not running, the\none the next plain start or restart uses: the last one selected, or\n1280x720 if none was. Linux only; absent on Windows and macOS, and\nfrom daemons that predate it."
+              }
+            ]
+          },
           "status": {
             "$ref": "#/components/schemas/ComputerUseActivityStatus",
             "description": "Activity status corresponding to `desktop`."

@@ -2390,6 +2390,7 @@ export interface components {
             cause?: null | components["schemas"]["ComputerUseDesktopFailure"];
             /** @description The current desktop state. */
             desktop: components["schemas"]["ComputerUseDesktopState"];
+            resolution?: null | components["schemas"]["ComputerUseResolution"];
             /** @description Activity status corresponding to `desktop`. */
             status: components["schemas"]["ComputerUseActivityStatus"];
         };

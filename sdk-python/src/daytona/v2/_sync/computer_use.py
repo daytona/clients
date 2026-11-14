@@ -93,7 +93,8 @@ class ComputerUseService:
         """Restart the desktop, at ``resolution`` when given (kept for later
         starts). Omitted, it restarts at its current resolution. Linux sandboxes
         only: other platforms raise ``UnsupportedOperationError`` for a
-        ``resolution``.
+        ``resolution``. With a ``resolution``, the SDK reads it back as
+        ``start`` does.
         """
         return self._bridge.call(lambda: self._impl.restart(resolution=resolution))
 
@@ -105,7 +106,12 @@ class ComputerUseService:
         resolution it last started at, or 1280x720. Starting a running desktop at
         a different resolution raises ``ConflictError``; call ``restart`` with
         the new resolution instead. Linux sandboxes only: other platforms raise
-        ``UnsupportedOperationError`` for a ``resolution``.
+        ``UnsupportedOperationError`` for a ``resolution``. With a
+        ``resolution``, the SDK reads back the size the desktop runs at and
+        raises ``UnsupportedOperationError`` when it differs: a guest that
+        predates resolution selection ignores it, and the desktop keeps running
+        at its own. If that read itself fails, its error is raised although the
+        start took effect; starting again at the same resolution is a no-op.
         """
         return self._bridge.call(lambda: self._impl.start(resolution=resolution))
 

@@ -12180,8 +12180,10 @@ describe('computer-use namespace', () => {
     const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
     transport.post.mockResolvedValue({ message: 'computer use started', status: {} })
     await computerUse.start()
+    transport.get.mockResolvedValueOnce({ status: 'active', desktop: 'ready', resolution: { width: 1920, height: 1080 } })
     await computerUse.start({ resolution: { width: 1920, height: 1080 } })
     transport.post.mockResolvedValue({ message: 'computer use restarted', status: 'active', desktop: 'ready' })
+    transport.get.mockResolvedValueOnce({ status: 'active', desktop: 'ready', resolution: { width: 1024, height: 768 } })
     await computerUse.restart({ resolution: { width: 1024, height: 768 } })
     expect(transport.post.mock.calls).toEqual([
       ['/computeruse/start', undefined],
@@ -12195,6 +12197,94 @@ describe('computer-use namespace', () => {
       computerUse.restart({ resolution: { width: 1920, height: 1080, depth: 24 } as never }),
     ).rejects.toThrow(/depth/)
     expect(transport.post.mock.calls).toHaveLength(3)
+  })
+
+  it('reads back the resolution after a start or restart that sends one', async () => {
+    const transport = transportStub()
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+    const fullHd = { width: 1920, height: 1080 }
+    transport.post.mockResolvedValue({ message: 'computer use started', status: {} })
+
+    // A plain start reads nothing back.
+    await computerUse.start()
+    expect(transport.get).not.toHaveBeenCalled()
+
+    // The status reports the requested resolution.
+    transport.get.mockResolvedValueOnce({ status: 'active', desktop: 'ready', resolution: fullHd })
+    await expect(computerUse.start({ resolution: fullHd })).resolves.toEqual({ message: 'computer use started', status: {} })
+    expect(transport.get.mock.calls).toEqual([['/computeruse/status']])
+
+    // A guest that predates the status field: the first display decides.
+    transport.get.mockReset()
+    transport.get
+      .mockResolvedValueOnce({ status: 'active', desktop: 'ready' })
+      .mockResolvedValueOnce({ displays: [{ id: 0, x: 0, y: 0, width: 1920, height: 1080, isActive: true }] })
+    await computerUse.start({ resolution: fullHd })
+    expect(transport.get.mock.calls).toEqual([['/computeruse/status'], ['/computeruse/display/info']])
+  })
+
+  it.each([
+    [
+      'the status reports another resolution',
+      [{ status: 'active', desktop: 'ready', resolution: { width: 1280, height: 720 } }],
+      'desktop runs at 1280x720, not the requested 1920x1080; a guest that predates resolution selection ignores it',
+    ],
+    [
+      'an older guest runs its default',
+      [
+        { status: 'active', desktop: 'ready' },
+        { displays: [{ id: 0, x: 0, y: 0, width: 1280, height: 720, isActive: true }] },
+      ],
+      'desktop runs at 1280x720, not the requested 1920x1080; a guest that predates resolution selection ignores it',
+    ],
+    [
+      'an older guest reports no display',
+      [{ status: 'active', desktop: 'ready', resolution: null }, { displays: [] }],
+      'desktop runs at an unknown resolution, not the requested 1920x1080; a guest that predates resolution selection ignores it',
+    ],
+  ] as const)('throws UnsupportedOperationError when %s', async (_case, reads, message) => {
+    for (const verb of ['start', 'restart'] as const) {
+      const transport = transportStub()
+      const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+      transport.post.mockResolvedValue(
+        verb === 'start'
+          ? { message: 'computer use started', status: {} }
+          : { message: 'computer use restarted', status: 'active', desktop: 'ready' },
+      )
+      for (const read of reads) transport.get.mockResolvedValueOnce(read)
+      const error = await computerUse[verb]({ resolution: { width: 1920, height: 1080 } }).catch((caught: Error) => caught)
+      expect(error).toBeInstanceOf(UnsupportedOperationError)
+      expect(error).toMatchObject({ message, statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' })
+    }
+  })
+
+  it('maps the status resolution and keeps it out of extraFields', () => {
+    const hd = { width: 1280, height: 720 }
+    expect(mapComputerUseStatusResponse({ status: 'inactive', desktop: 'not_started', resolution: hd, future: 1 })).toEqual({
+      status: 'inactive',
+      desktop: 'not_started',
+      resolution: hd,
+      extraFields: { future: 1 },
+    })
+    expect(mapComputerUseStatusResponse({ status: 'active', desktop: 'ready', resolution: hd })).toEqual({ status: 'active', desktop: 'ready', resolution: hd })
+    expect(
+      mapComputerUseStatusResponse({ status: 'inactive', desktop: 'failed', cause: { code: 'desktop_exited', message: 'm' }, resolution: hd }),
+    ).toMatchObject({ desktop: 'failed', resolution: hd })
+    expect(mapComputerUseStatusResponse({ status: 'paused', desktop: 'parked', resolution: hd })).toMatchObject({ desktop: 'unknown', resolution: hd })
+    // null is "not reported", as an absent field is.
+    expect(mapComputerUseStatusResponse({ status: 'active', desktop: 'ready', resolution: null })).toEqual({ status: 'active', desktop: 'ready' })
+  })
+
+  it.each([
+    [{ status: 'active', desktop: 'ready', resolution: '1280x720' }, 'resolution must be null or an object'],
+    [{ status: 'active', desktop: 'ready', resolution: [1280, 720] }, 'resolution must be null or an object'],
+    [{ status: 'active', desktop: 'ready', resolution: { height: 720 } }, 'resolution.width must be a non-negative int32'],
+    [{ status: 'active', desktop: 'ready', resolution: { width: 1280.5, height: 720 } }, 'resolution.width must be a non-negative int32'],
+    [{ status: 'active', desktop: 'ready', resolution: { width: 1280, height: -1 } }, 'resolution.height must be a non-negative int32'],
+    [{ status: 'active', desktop: 'ready', resolution: { width: 2 ** 31, height: 720 } }, 'resolution.width must be a non-negative int32'],
+    [{ status: 'active', desktop: 'ready', resolution: { width: 1280, height: '720' } }, 'resolution.height must be a non-negative int32'],
+  ] as const)('names the malformed resolution of status response %p', (payload, detail) => {
+    expectSdkProtocolError(() => mapComputerUseStatusResponse(payload), `Invalid computer-use status response: ${detail}`)
   })
 
   it('maps the full computer-use process-status field set and keeps future additions', () => {

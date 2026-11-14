@@ -207,19 +207,152 @@ async def test_start_and_restart_send_a_resolution_only_when_given() -> None:
     restarted = {"message": "computer use restarted", "status": "active", "desktop": "ready"}
     full_hd = ComputerUseResolution(width=1920, height=1080)
 
-    start = _Stub(lifecycle)
-    await AsyncComputerUseService(start).start()  # type: ignore[arg-type]
+    read_back = {"status": "active", "desktop": "ready", "resolution": {"width": 1920, "height": 1080}}
+
+    start = _Script(lifecycle, read_back)
+    await AsyncComputerUseService(_Script(lifecycle)).start()  # type: ignore[arg-type]
     await AsyncComputerUseService(start).start(resolution=full_hd)  # type: ignore[arg-type]
-    assert [(spec.path, spec.json_body) for spec in start.specs] == [
-        ("/computeruse/start", None),
+    assert [(spec.path, spec.json_body) for spec in start.specs][:1] == [
         ("/computeruse/start", {"resolution": {"width": 1920, "height": 1080}}),
     ]
 
-    restart = _Stub(restarted)
+    restart = _Script(restarted, read_back)
     await AsyncComputerUseService(restart).restart(resolution=full_hd)  # type: ignore[arg-type]
-    assert [(spec.path, spec.json_body) for spec in restart.specs] == [
+    assert [(spec.path, spec.json_body) for spec in restart.specs][:1] == [
         ("/computeruse/restart", {"resolution": {"width": 1920, "height": 1080}}),
     ]
+
+
+class _Script:
+    """Answers each request with the next scripted response."""
+
+    def __init__(self, *responses: dict[str, Any]) -> None:
+        self.responses = list(responses)
+        self.specs: list[RequestSpec] = []
+
+    async def send(self, spec: RequestSpec) -> dict[str, Any]:
+        self.specs.append(spec)
+        return self.responses.pop(0)
+
+
+_STARTED = {"message": "computer use started", "status": {}}
+_RESTARTED = {"message": "computer use restarted", "status": "active", "desktop": "ready"}
+
+
+@pytest.mark.anyio
+async def test_start_reads_back_the_resolution_it_sent() -> None:
+    from daytona.v2 import ComputerUseResolution
+
+    full_hd = ComputerUseResolution(width=1920, height=1080)
+
+    # A plain start reads nothing back.
+    plain = _Script(_STARTED)
+    await AsyncComputerUseService(plain).start()  # type: ignore[arg-type]
+    assert [spec.path for spec in plain.specs] == ["/computeruse/start"]
+
+    # The status reports the requested resolution.
+    reported = _Script(
+        _STARTED, {"status": "active", "desktop": "ready", "resolution": {"width": 1920, "height": 1080}}
+    )
+    result = await AsyncComputerUseService(reported).start(resolution=full_hd)  # type: ignore[arg-type]
+    assert result.message == "computer use started"
+    assert [(spec.method, spec.path) for spec in reported.specs] == [
+        ("POST", "/computeruse/start"),
+        ("GET", "/computeruse/status"),
+    ]
+
+    # A guest that predates the status field: the first display decides.
+    older = _Script(
+        _STARTED,
+        {"status": "active", "desktop": "ready"},
+        {"displays": [{"id": 0, "x": 0, "y": 0, "width": 1920, "height": 1080, "isActive": True}]},
+    )
+    await AsyncComputerUseService(older).start(resolution=full_hd)  # type: ignore[arg-type]
+    assert [(spec.method, spec.path) for spec in older.specs] == [
+        ("POST", "/computeruse/start"),
+        ("GET", "/computeruse/status"),
+        ("GET", "/computeruse/display/info"),
+    ]
+
+
+_UNAPPLIED = "not the requested 1920x1080; a guest that predates resolution selection ignores it"
+
+
+@pytest.mark.parametrize(
+    ("reads", "message"),
+    [
+        pytest.param(
+            [{"status": "active", "desktop": "ready", "resolution": {"width": 1280, "height": 720}}],
+            f"desktop runs at 1280x720, {_UNAPPLIED}",
+            id="the status reports another resolution",
+        ),
+        pytest.param(
+            [
+                {"status": "active", "desktop": "ready"},
+                {"displays": [{"id": 0, "x": 0, "y": 0, "width": 1280, "height": 720, "isActive": True}]},
+            ],
+            f"desktop runs at 1280x720, {_UNAPPLIED}",
+            id="an older guest runs its default",
+        ),
+        pytest.param(
+            [{"status": "active", "desktop": "ready", "resolution": None}, {"displays": []}],
+            f"desktop runs at an unknown resolution, {_UNAPPLIED}",
+            id="an older guest reports no display",
+        ),
+    ],
+)
+@pytest.mark.parametrize("verb", ["start", "restart"])
+@pytest.mark.anyio
+async def test_an_unapplied_resolution_raises_unsupported_operation(
+    reads: list[dict[str, Any]], message: str, verb: str
+) -> None:
+    from daytona.v2 import ComputerUseResolution
+    from daytona.v2.errors import UnsupportedOperationError
+
+    transport = _Script(_STARTED if verb == "start" else _RESTARTED, *reads)
+    service = AsyncComputerUseService(transport)  # type: ignore[arg-type]
+    with pytest.raises(UnsupportedOperationError) as exc_info:
+        await getattr(service, verb)(resolution=ComputerUseResolution(width=1920, height=1080))
+    assert exc_info.value.message == message
+    assert (exc_info.value.status_code, exc_info.value.code, exc_info.value.source) == (
+        400,
+        "UNSUPPORTED_OPERATION",
+        "SDK",
+    )
+
+
+def test_the_status_resolution_is_typed_and_kept_out_of_extra_fields() -> None:
+    from daytona.v2 import ComputerUseResolution
+    from daytona.v2.computer_use_core import parse_computer_use_status
+
+    hd = {"width": 1280, "height": 720}
+    typed = ComputerUseResolution(width=1280, height=720)
+    not_started = parse_computer_use_status(
+        {"status": "inactive", "desktop": "not_started", "resolution": hd, "future": 1}
+    )
+    assert not_started.resolution == typed
+    assert not_started.extra_fields == {"future": 1}
+    assert (
+        parse_computer_use_status({"status": "active", "desktop": "ready", "resolution": hd}).resolution
+        == typed
+    )
+    failed = parse_computer_use_status(
+        {
+            "status": "inactive",
+            "desktop": "failed",
+            "cause": {"code": "desktop_exited", "message": "m"},
+            "resolution": hd,
+        }
+    )
+    assert failed.resolution == typed
+    unknown = parse_computer_use_status({"status": "paused", "desktop": "parked", "resolution": hd})
+    assert (unknown.desktop, unknown.resolution) == ("unknown", typed)
+    # None is "not reported", as an absent field is.
+    assert (
+        parse_computer_use_status({"status": "active", "desktop": "ready", "resolution": None}).resolution
+        is None
+    )
+    assert parse_computer_use_status({"status": "active", "desktop": "ready"}).resolution is None
 
 
 def _desktop_not_ready_response(request: httpx.Request) -> httpx.Response:
@@ -598,6 +731,40 @@ _STATUS_FIELD_CASES = [
     (
         {"status": "inactive", "desktop": "starting", "cause": {"code": "desktop_exited", "message": "m"}},
         "cause must be absent when status is 'inactive' and desktop is 'starting'",
+    ),
+]
+_STATUS_FIELD_CASES += [
+    (
+        {"status": "active", "desktop": "ready", "resolution": "1280x720"},
+        "resolution must be null or an object",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": [1280, 720]},
+        "resolution must be null or an object",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": {"height": 720}},
+        "resolution.width must be a non-negative int32",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": {"width": 1280.5, "height": 720}},
+        "resolution.width must be a non-negative int32",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": {"width": True, "height": 720}},
+        "resolution.width must be a non-negative int32",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": {"width": 1280, "height": -1}},
+        "resolution.height must be a non-negative int32",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": {"width": 2**31, "height": 720}},
+        "resolution.width must be a non-negative int32",
+    ),
+    (
+        {"status": "active", "desktop": "ready", "resolution": {"width": 1280, "height": "720"}},
+        "resolution.height must be a non-negative int32",
     ),
 ]
 _RESTART_FIELD_CASES = [
