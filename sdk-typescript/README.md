@@ -9,14 +9,16 @@ The SDK provides an interface for sandbox management, file system operations, Gi
 Install the package using **npm**:
 
 ```bash
-npm install @daytona/sdk
+npm install @daytona/sdk@0
 ```
 
 or using **yarn**:
 
 ```bash
-yarn add @daytona/sdk
+yarn add @daytona/sdk@0
 ```
+
+The `@0` keeps you on the 0.x line: `@daytona/sdk` 2.x is a new major version with breaking changes.
 
 ## Get API key
 

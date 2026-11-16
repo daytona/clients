@@ -10,22 +10,24 @@ See the [Daytona documentation](https://www.daytona.io/docs) for guides, example
 
 ## Installation
 
+These commands install the 0.x line. The 2.x SDKs are a new major version with breaking changes; see the [`main` branch](https://github.com/daytona/clients) for them.
+
 ### TypeScript
 
 ```bash
-npm install @daytona/sdk
+npm install @daytona/sdk@0
 ```
 
 ### Python
 
 ```bash
-pip install daytona
+pip install "daytona<1"
 ```
 
 ### Ruby
 
 ```bash
-gem install daytona
+gem install daytona -v '< 1'
 ```
 
 ### Go

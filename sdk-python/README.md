@@ -9,8 +9,10 @@ The SDK provides an interface for sandbox management, file system operations, Gi
 Install the package using **pip**:
 
 ```bash
-pip install daytona
+pip install "daytona<1"
 ```
+
+The `<1` pin keeps you on the 0.x line: `daytona` 2.x is a new major version with breaking changes.
 
 ## Get API key
 

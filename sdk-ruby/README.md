@@ -11,14 +11,16 @@ Requires **Ruby >= 3.2**. Check your version with `ruby -v` before installing â€
 Install the package using **gem**:
 
 ```bash
-gem install daytona
+gem install daytona -v '< 1'
 ```
 
 or add it to your **Gemfile**:
 
 ```ruby
-gem 'daytona'
+gem 'daytona', '< 1'
 ```
+
+The `< 1` pin keeps you on the 0.x line: `daytona` 2.x is a new major version with breaking changes.
 
 ## Get API key
 
