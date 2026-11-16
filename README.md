@@ -52,6 +52,12 @@ brew install daytonaio/cli/daytona@0
 
 Or download the binary for your platform from a `v0.x.y` [GitHub release](https://github.com/daytona/clients/releases). The release page lists it as `daytona-v0-cli-<version>-<os>-<arch>` (`.exe` on Windows), and it downloads as `daytona-v0-<os>-<arch>`. Linux and macOS can use the release's `install-v0.sh`; pass `--version 0.X.Y` to pick a release that has `daytona-v0-*` assets. Some 0.x releases name the binary `daytona-<os>-<arch>` instead.
 
+On Windows, `install-v0.ps1` installs the newest 0.x release as `daytona-v0.exe` (set `$env:DAYTONA_VERSION` for a specific one):
+
+```powershell
+irm https://raw.githubusercontent.com/daytona/clients/release/v0/cli/install-v0.ps1 | iex
+```
+
 #### Verify the binary
 
 Release binaries carry a [GitHub artifact attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) (SLSA build provenance). Verify a downloaded binary with the [GitHub CLI](https://cli.github.com/):
