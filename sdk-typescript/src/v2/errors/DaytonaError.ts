@@ -699,6 +699,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   IMPORTED_KEY_ALWAYS_SYNCED: ConflictError,
   KEY_SYNC_NOT_APPLICABLE: ConflictError,
   ORG_SUSPENDED: OrgSuspendedError,
+  SANDBOX_ABUSE_HOLD: ForbiddenError,
   PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
   OVERLOADED: OverloadedError,
   PLACEMENT_UNAVAILABLE: ServiceUnavailableError,

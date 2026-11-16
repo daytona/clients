@@ -108,6 +108,7 @@ const (
 	RESERVATIONNOTFOUND                 ApiErrorCode = "RESERVATION_NOT_FOUND"
 	ROLEINUSE                           ApiErrorCode = "ROLE_IN_USE"
 	RUNNERHASSANDBOXES                  ApiErrorCode = "RUNNER_HAS_SANDBOXES"
+	SANDBOXABUSEHOLD                    ApiErrorCode = "SANDBOX_ABUSE_HOLD"
 	SEARCHNOTCONFIGURED                 ApiErrorCode = "SEARCH_NOT_CONFIGURED"
 	SEARCHUNAVAILABLE                   ApiErrorCode = "SEARCH_UNAVAILABLE"
 	SECRETALREADYEXISTS                 ApiErrorCode = "SECRET_ALREADY_EXISTS"
@@ -330,6 +331,8 @@ func (e ApiErrorCode) Valid() bool {
 	case ROLEINUSE:
 		return true
 	case RUNNERHASSANDBOXES:
+		return true
+	case SANDBOXABUSEHOLD:
 		return true
 	case SEARCHNOTCONFIGURED:
 		return true
@@ -7089,6 +7092,9 @@ type Volume struct {
 	// Id The volume ID.
 	Id string `json:"id"`
 
+	// ImportedFrom The source platform and resource ID when this volume was imported.
+	ImportedFrom *ImportedFrom `json:"imported_from,omitempty"`
+
 	// LastUsedAt When the volume was last attached, or null when it has not been used.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
@@ -7125,14 +7131,16 @@ type VolumeMount struct {
 	// (repeated slashes, `.` components and a trailing slash removed) and
 	// may not be `/` or be on or beneath a system directory: `/bin`,
 	// `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
-	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
+	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to
+	// or beneath another mount's `mount_path`.
 	MountPath string `json:"mount_path"`
 
 	// ReadOnly Mount without write access. Supported only for bucket volumes.
 	ReadOnly *bool `json:"read_only,omitempty"`
 
 	// Subpath Mount only this subtree: a subdirectory for a disk volume, a key prefix
-	// under the volume's own prefix for a bucket volume.
+	// under the volume's own prefix for a bucket volume. A relative path with
+	// no empty or `..` segments and no control characters.
 	Subpath *string `json:"subpath,omitempty"`
 
 	// Volume The volume name or a `vol_` id.

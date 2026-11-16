@@ -1,0 +1,1 @@
+**`SANDBOX_ABUSE_HOLD` error code** — a sandbox stopped after suspected abuse refuses start, resume, fork, snapshot and image capture with this 403 until an operator releases it. Both SDKs raise `ForbiddenError` for it, as for `FORBIDDEN`.

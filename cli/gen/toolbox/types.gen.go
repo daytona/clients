@@ -1225,7 +1225,7 @@ type LogFrameDto struct {
 	// Cursor Cursor naming this frame.
 	Cursor string `json:"cursor"`
 
-	// Data Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).
+	// Data Frame payload in the requested encoding. With `text`, the bytes of a character that the next frame on the same channel completes move to that frame, so `data` can be empty. `base64` is the frame's exact bytes, standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).
 	Data string `json:"data"`
 
 	// Timestamp Unix timestamp in milliseconds.
@@ -2006,7 +2006,7 @@ type CreateProcessParams struct {
 	// WaitMs Wait up to this many milliseconds before replying; timing out still returns 201 with a running record.
 	WaitMs *int64 `form:"waitMs,omitempty" json:"waitMs,omitempty"`
 
-	// Logs Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.
+	// Logs Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.
 	Logs *string `form:"logs,omitempty" json:"logs,omitempty"`
 }
 
@@ -2024,7 +2024,7 @@ type ProcessLogsParams struct {
 	// Limit Page size for JSON reads; clamped by the API.
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Encoding Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.
+	// Encoding Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.
 	Encoding *string `form:"encoding,omitempty" json:"encoding,omitempty"`
 
 	// Follow When true, answer an SSE follow stream instead of a JSON page.
