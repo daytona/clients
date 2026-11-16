@@ -50,6 +50,7 @@ const (
 	FORBIDDEN                           ApiErrorCode = "FORBIDDEN"
 	GATEWAYTIMEOUT                      ApiErrorCode = "GATEWAY_TIMEOUT"
 	GONE                                ApiErrorCode = "GONE"
+	GPUACCESSUNDERREVIEW                ApiErrorCode = "GPU_ACCESS_UNDER_REVIEW"
 	IDEMPOTENCYKEYREUSED                ApiErrorCode = "IDEMPOTENCY_KEY_REUSED"
 	IDLEOUTOFRANGE                      ApiErrorCode = "IDLE_OUT_OF_RANGE"
 	IFMATCHREQUIRED                     ApiErrorCode = "IF_MATCH_REQUIRED"
@@ -214,6 +215,8 @@ func (e ApiErrorCode) Valid() bool {
 	case GATEWAYTIMEOUT:
 		return true
 	case GONE:
+		return true
+	case GPUACCESSUNDERREVIEW:
 		return true
 	case IDEMPOTENCYKEYREUSED:
 		return true
@@ -2543,7 +2546,7 @@ type CouponRedemption struct {
 	// CreditCents The granted credit in cents.
 	CreditCents int64 `json:"credit_cents"`
 
-	// CreditExpiresAt When the granted credit expires, or `null` when it does not expire.
+	// CreditExpiresAt When the granted credit expires, or `null` when the expiry is not known.
 	CreditExpiresAt *time.Time `json:"credit_expires_at,omitempty"`
 
 	// Currency The lowercase ISO 4217 currency code.
@@ -7089,6 +7092,9 @@ type Volume struct {
 	// Id The volume ID.
 	Id string `json:"id"`
 
+	// ImportedFrom The source platform and resource ID when this volume was imported.
+	ImportedFrom *ImportedFrom `json:"imported_from,omitempty"`
+
 	// LastUsedAt When the volume was last attached, or null when it has not been used.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
@@ -7125,14 +7131,16 @@ type VolumeMount struct {
 	// (repeated slashes, `.` components and a trailing slash removed) and
 	// may not be `/` or be on or beneath a system directory: `/bin`,
 	// `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
-	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
+	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to
+	// or beneath another mount's `mount_path`.
 	MountPath string `json:"mount_path"`
 
 	// ReadOnly Mount without write access. Supported only for bucket volumes.
 	ReadOnly *bool `json:"read_only,omitempty"`
 
 	// Subpath Mount only this subtree: a subdirectory for a disk volume, a key prefix
-	// under the volume's own prefix for a bucket volume.
+	// under the volume's own prefix for a bucket volume. A relative path with
+	// no empty or `..` segments and no control characters.
 	Subpath *string `json:"subpath,omitempty"`
 
 	// Volume The volume name or a `vol_` id.

@@ -37,7 +37,7 @@ class CouponRedemption(BaseModel):
     """ # noqa: E501
     code: StrictStr = Field(description="The redeemed coupon code.")
     credit_cents: StrictInt = Field(description="The granted credit in cents.")
-    credit_expires_at: Optional[datetime] = Field(default=None, description="When the granted credit expires, or `null` when it does not expire.")
+    credit_expires_at: Optional[datetime] = Field(default=None, description="When the granted credit expires, or `null` when the expiry is not known.")
     currency: StrictStr = Field(description="The lowercase ISO 4217 currency code.")
     redeemed_at: datetime = Field(description="When the coupon was redeemed.")
     additional_properties: Dict[str, Any] = {}

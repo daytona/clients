@@ -36,7 +36,7 @@ class LogsQuery(BaseModel):
     `GET /processes/{id}/logs` query parameters.
     """ # noqa: E501
     cursor: Optional[StrictStr] = Field(default=None, description="Resume after this cursor. Empty or omitted starts from the beginning.")
-    encoding: Optional[StrictStr] = Field(default=None, description="Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.")
+    encoding: Optional[StrictStr] = Field(default=None, description="Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.")
     follow: Optional[StrictBool] = Field(default=None, description="When true, answer an SSE follow stream instead of a JSON page.")
     limit: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Page size for JSON reads; clamped by the API.")
     additional_properties: Dict[str, Any] = {}

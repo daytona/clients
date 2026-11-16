@@ -763,7 +763,7 @@ export interface paths {
         put?: never;
         /**
          * Upload many files
-         * @description Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
+         * @description Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. A malformed or truncated multipart body is reported as an entry in `errors`, beside the files written before it. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
          */
         post: operations["bulk_upload"];
         delete?: never;
@@ -2427,7 +2427,7 @@ export interface components {
         };
         /** @description Query parameters that change the call shape of `POST /processes`. */
         CreateProcessQuery: {
-            /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
+            /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
             logs?: string | null;
             /**
              * Format: int64
@@ -2734,7 +2734,7 @@ export interface components {
             channel: string;
             /** @description Cursor naming this frame. */
             cursor: string;
-            /** @description Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). */
+            /** @description Frame payload in the requested encoding. With `text`, the bytes of a character that the next frame on the same channel completes move to that frame, so `data` can be empty. `base64` is the frame's exact bytes, standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). */
             data: string;
             /**
              * Format: int64
@@ -2746,7 +2746,7 @@ export interface components {
         LogsQuery: {
             /** @description Resume after this cursor. Empty or omitted starts from the beginning. */
             cursor?: string | null;
-            /** @description Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
+            /** @description Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
             encoding?: string | null;
             /** @description When true, answer an SSE follow stream instead of a JSON page. */
             follow?: boolean | null;
@@ -7781,7 +7781,7 @@ export interface operations {
             query?: {
                 /** @description Wait up to this many milliseconds before replying; timing out still returns 201 with a running record. */
                 waitMs?: number;
-                /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
+                /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
                 logs?: string;
             };
             header?: never;
@@ -7978,7 +7978,7 @@ export interface operations {
                 cursor?: string;
                 /** @description Page size for JSON reads; clamped by the API. */
                 limit?: number;
-                /** @description Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
+                /** @description Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
                 encoding?: string;
                 /** @description When true, answer an SSE follow stream instead of a JSON page. */
                 follow?: boolean;
