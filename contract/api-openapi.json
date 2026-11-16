@@ -411,6 +411,7 @@
         "description": "Stable machine-readable error codes, returned as `ErrorBody.code`\nwhen `source` is `DAYTONA_API`.",
         "enum": [
           "ORG_SUSPENDED",
+          "SANDBOX_ABUSE_HOLD",
           "PROJECT_BUDGET_EXCEEDED",
           "FEATURE_NOT_ENABLED",
           "ENTITLEMENT_REQUIRED",
@@ -10885,6 +10886,10 @@
             "example": "vol_7fJk2mQpXv9dLc3RtY",
             "type": "string"
           },
+          "imported_from": {
+            "$ref": "#/components/schemas/ImportedFrom",
+            "description": "The source platform and resource ID when this volume was imported."
+          },
           "last_used_at": {
             "description": "When the volume was last attached, or null when it has not been used.",
             "format": "date-time",
@@ -10953,7 +10958,7 @@
         "description": "A volume attachment as requested on `POST /sandboxes`.",
         "properties": {
           "mount_path": {
-            "description": "The absolute path inside the sandbox, with no `..`. It is normalized\n(repeated slashes, `.` components and a trailing slash removed) and\nmay not be `/` or be on or beneath a system directory: `/bin`,\n`/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,\n`/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.",
+            "description": "The absolute path inside the sandbox, with no `..`. It is normalized\n(repeated slashes, `.` components and a trailing slash removed) and\nmay not be `/` or be on or beneath a system directory: `/bin`,\n`/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,\n`/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to\nor beneath another mount's `mount_path`.",
             "example": "/mnt/data",
             "type": "string"
           },
@@ -10965,7 +10970,7 @@
             ]
           },
           "subpath": {
-            "description": "Mount only this subtree: a subdirectory for a disk volume, a key prefix\nunder the volume's own prefix for a bucket volume.",
+            "description": "Mount only this subtree: a subdirectory for a disk volume, a key prefix\nunder the volume's own prefix for a bucket volume. A relative path with\nno empty or `..` segments and no control characters.",
             "type": [
               "string",
               "null"
@@ -32173,6 +32178,11 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 409
+    },
+    "SANDBOX_ABUSE_HOLD": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 403
     },
     "SEARCH_NOT_CONFIGURED": {
       "extras": [],
