@@ -43,7 +43,7 @@ permissions: {}
 jobs:
   # Off the environment, so its summary is on the run page while `publish`
   # waits for approval. The tap row mirrors "Resolve Homebrew tap updates" and
-  # "Validate daytona@0 version" below; keep them in sync.
+  # "Validate daytona-v0 version" below; keep them in sync.
   plan:
     name: Show the plan
     if: github.repository == 'daytona/clients'
@@ -70,9 +70,9 @@ jobs:
             if [ "$V0_CUTOVER" != true ]; then
               tap="skipped (release/v0 updates the tap only after the cutover, \`DAYTONA_V0_CUTOVER\`)"
             elif [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
-              tap=":x: **will fail** — \`daytona@0\` takes stable v0.X.Y only (got $(or_dash "$VERSION")); dispatch prereleases with \`publish_cli\` off"
+              tap=":x: **will fail** — \`daytona-v0\` takes stable v0.X.Y only (got $(or_dash "$VERSION")); dispatch prereleases with \`publish_cli\` off"
             else
-              tap="\`daytona@0\` (and \`daytona\` while no stable 2.x release exists)"
+              tap="\`daytona-v0\` (and \`daytona\` while no stable 2.x release exists)"
             fi
           elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
             tap="skipped (${GITHUB_REF_NAME} never updates the tap)"
@@ -251,7 +251,7 @@ jobs:
         # The `plan` job's tap row repeats this decision; keep them in sync.
         # From main, the `daytona` formula follows the main release line. From
         # release/v0, once the 2.x CLI has taken the `daytona` name (repository
-        # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona@0` formula
+        # variable DAYTONA_V0_CUTOVER, see PUBLISHING.md), the `daytona-v0` formula
         # follows the 0.x line, and so does the `daytona` formula until the first
         # stable 2.x release exists (read from the releases on every run); before
         # the cutover, release branches never update the tap.
@@ -271,9 +271,9 @@ jobs:
               events+=(update-version-v0)
               stable_v2=$(bash hack/stable-v2-release.sh)
               if [[ -n "$stable_v2" ]]; then
-                echo "Stable 2.x release $stable_v2 exists: the daytona formula follows 2.x; updating daytona@0 only."
+                echo "Stable 2.x release $stable_v2 exists: the daytona formula follows 2.x; updating daytona-v0 only."
               else
-                echo "No stable 2.x release yet: updating daytona@0 and daytona."
+                echo "No stable 2.x release yet: updating daytona-v0 and daytona."
                 events+=(update-version)
               fi
             else
@@ -298,11 +298,11 @@ jobs:
             echo "::error::Invalid version format: $VERSION (expected vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
-      - name: Validate daytona@0 version
+      - name: Validate daytona-v0 version
         if: steps.tap.outputs.events != '' && github.ref == 'refs/heads/release/v0'
         run: |
           if [[ ! "$VERSION" =~ ^v0\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::The daytona@0 formula takes stable v0.X.Y versions only (got $VERSION); publish prereleases with publish_cli off"
+            echo "::error::The daytona-v0 formula takes stable v0.X.Y versions only (got $VERSION); publish prereleases with publish_cli off"
             exit 1
           fi
       - name: Check the daytona formula assets

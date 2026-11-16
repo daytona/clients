@@ -61,12 +61,12 @@ GOOS=${GOOS:-linux}
 GOARCH=${GOARCH:-amd64}
 CGO_ENABLED=${CGO_ENABLED:-0}
 
-# The 0.x line ships as daytona-v0 (Homebrew formula daytona@0) once the 2.x CLI
+# The 0.x line ships as daytona-v0 (binary and Homebrew formula) once the 2.x CLI
 # takes the daytona name; release.yaml sets CLI_BINARY_NAME from its cutover switch.
 CLI_BINARY_NAME=${CLI_BINARY_NAME:-daytona}
 case "$CLI_BINARY_NAME" in
     daytona) CLI_HOMEBREW_FORMULA="daytonaio/cli/daytona" ;;
-    daytona-v0) CLI_HOMEBREW_FORMULA="daytonaio/cli/daytona@0" ;;
+    daytona-v0) CLI_HOMEBREW_FORMULA="daytonaio/cli/daytona-v0" ;;
     *)
         echo "Error: CLI_BINARY_NAME must be daytona or daytona-v0 (got '$CLI_BINARY_NAME')"
         exit 1
