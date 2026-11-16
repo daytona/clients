@@ -1,0 +1,20 @@
+sdk-go/README.md
+  h_e7759ddd73fa65 103-105
+sdk-python/README.md
+  h_e7759ddd73fa65 66
+sdk-ruby/README.md
+  h_e7759ddd73fa65 88,90,103-105,119,132,205,219,229-232,239,249,261
+sdk-typescript/README.md
+  h_e7759ddd73fa65 82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6323944131e1bb800bb08538962423a2c47b0e07",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

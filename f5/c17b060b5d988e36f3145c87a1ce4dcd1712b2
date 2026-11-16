@@ -1,0 +1,113 @@
+cli/internal/input/input.go
+  s_0df31975f3464b::t_9b0c7b9ee51d48 126-135,137,139-149,152,154-163,165-167,172-173,181-190,194-294,385
+  s_0df31975f3464b::t_6e95e2545c85e4 70-71
+  s_0df31975f3464b::t_75c4baa7cb0ce1 15,17-18,60,66-69,72-125,136,138,295-305,386-387
+  s_0df31975f3464b::t_1d2c9e2ec80862 191-193
+  s_0df31975f3464b::t_290df9b7eedaa2 306
+cli/cmd/invite.go
+  s_0df31975f3464b::t_ceb7e884a3f445 205
+cli/cmd/sandbox_process.go
+  s_0df31975f3464b::t_f0fbd391b91827 184-185
+cli/cmd/volume.go
+  s_0df31975f3464b::t_ceb7e884a3f445 181
+cli/cmd/mgmt_ctx_test.go
+  s_0df31975f3464b::t_c84dd0f1094dbb 251
+  s_0df31975f3464b::t_ff1f09d79c88b4 74-76,250,252
+  s_0df31975f3464b::t_f7890d8beda85a 138
+cli/cmd/service_account_project.go
+  s_0df31975f3464b::t_ceb7e884a3f445 112
+cli/cmd/project.go
+  s_0df31975f3464b::t_ceb7e884a3f445 9,219
+cli/cmd/project_member.go
+  s_0df31975f3464b::t_ceb7e884a3f445 158
+cli/cmd/image.go
+  s_0df31975f3464b::t_ceb7e884a3f445 85
+cli/internal/input/input_test.go
+  s_0df31975f3464b::t_1d2c9e2ec80862 180-191
+  s_0df31975f3464b::t_e1bb7acb6fdd37 127-156,159-165,168,170-175,177-179,192-210,213-215
+cli/cmd/member.go
+  s_0df31975f3464b::t_ceb7e884a3f445 147
+cli/cmd/registry.go
+  s_0df31975f3464b::t_ceb7e884a3f445 77,153
+cli/cmd/service_account.go
+  s_0df31975f3464b::t_ceb7e884a3f445 156
+cli/cmd/snapshot_test.go
+  s_0df31975f3464b::t_f9e9aaf02c7477 64-66
+cli/internal/wait/wait_test.go
+  s_0df31975f3464b::t_f923a35e829184 8,34-37
+  s_0df31975f3464b::t_8cbe73e089e436 38
+cli/cmd/billing_settings_test.go
+  s_0df31975f3464b::t_b16175785a8d05 26,34,152-165
+  s_0df31975f3464b::t_c84dd0f1094dbb 54,59-61
+  s_0df31975f3464b::t_135a831318448d 166
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_f7890d8beda85a 642-649
+  s_0df31975f3464b::t_90a3c2b3c047ad 476-500
+  s_0df31975f3464b::t_3650e67e2d07a8 626-628
+  s_0df31975f3464b::t_7cffac94a07e0f 579,593,597-598
+  s_0df31975f3464b::t_9a8f17355fba2c 650-677
+cli/cmd/image_list.go
+  s_0df31975f3464b::t_8a1313df8c78d9 61
+cli/cmd/raw_output.go
+  s_0df31975f3464b::t_8a1313df8c78d9 7,29-34,36-37,40,42-51,55-58,61-62,67,73,108-110
+cli/cmd/sandbox_actions_more_test.go
+  s_0df31975f3464b::t_57841548a37c7e 520-532
+cli/cmd/snapshot.go
+  s_0df31975f3464b::t_ceb7e884a3f445 161
+cli/internal/wait/wait.go
+  s_0df31975f3464b::t_cca819162050aa 64,86
+cli/cmd/key_test.go
+  s_0df31975f3464b::t_ff1f09d79c88b4 142-148,150-158
+  s_0df31975f3464b::t_300b4e38ce8f5f 149
+  s_0df31975f3464b::t_7fb3aae81fff0a 53
+  s_0df31975f3464b::t_f7890d8beda85a 40,139
+cli/cmd/member_test.go
+  s_0df31975f3464b::t_f7890d8beda85a 49,132
+cli/cmd/project_budget_test.go
+  s_0df31975f3464b::t_f7890d8beda85a 127-129
+  s_0df31975f3464b::t_3650e67e2d07a8 73-74
+cli/cmd/image_cursor.go
+  s_0df31975f3464b::t_46d18466f39356 41
+  s_0df31975f3464b::t_8a1313df8c78d9 47
+cli/cmd/key_scaffold.go
+  s_0df31975f3464b::t_f0fbd391b91827 85-86
+  s_0df31975f3464b::t_ceb7e884a3f445 141
+cli/cmd/image_test.go
+  s_0df31975f3464b::t_f9e9aaf02c7477 74,76
+cli/cmd/ack.go
+  s_0df31975f3464b::t_ceb7e884a3f445 1-21
+cli/cmd/invite_test.go
+  s_0df31975f3464b::t_f7890d8beda85a 150
+cli/cmd/billing_settings.go
+  s_0df31975f3464b::t_ceb7e884a3f445 46-47,111-114
+  s_0df31975f3464b::t_61568bb200a2fa 7,30,37-40,45,140,145-147,152-154
+cli/cmd/project_budget.go
+  s_0df31975f3464b::t_ceb7e884a3f445 113
+cli/cmd/sandbox.go
+  s_0df31975f3464b::t_8a1313df8c78d9 54,136
+  s_0df31975f3464b::t_46d18466f39356 130
+cli/cmd/org.go
+  s_0df31975f3464b::t_ceb7e884a3f445 351,401
+cli/internal/output/output.go
+  s_0df31975f3464b::t_d24c427fcb57ac 52-53,59
+cli/internal/regions/regions.go
+  s_0df31975f3464b::t_d24c427fcb57ac 163,203,207-223
+cli/cmd/secret.go
+  s_0df31975f3464b::t_ceb7e884a3f445 93,168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5c17b060b5d988e36f3145c87a1ce4dcd1712b2",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+sdk-typescript/src/v2/contextArchive.ts
+  s_86295fe57ce14d::t_e3a432a71e04fa 108
+sdk-python/tests/test_dockerignore.py
+  s_86295fe57ce14d::t_63ad6fd07323dc 231
+  s_86295fe57ce14d::t_9ced5727e491c1 229,235,238-239
+  s_86295fe57ce14d::t_d0b94e24272d63 234
+  s_86295fe57ce14d::t_c9da6585adccb8 237
+  s_86295fe57ce14d::t_7a90e6fc8d486a 240
+upgrade/mapping/mapping.json
+  s_86295fe57ce14d::t_1f78cfc22ba9d3 3780,3791,4041,4048
+sdk-typescript/src/v2/contextEntries.ts
+  s_86295fe57ce14d::t_e3a432a71e04fa 40
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_86295fe57ce14d::t_d0b94e24272d63 91-98
+  s_86295fe57ce14d::t_8ec1bc6284cc55 90
+sdk-python/src/daytona/v2/daytona.py
+  s_86295fe57ce14d::t_e3a432a71e04fa 604-608
+sdk-python/src/daytona/v2/_image_context.py
+  s_86295fe57ce14d::t_e3a432a71e04fa 9,63-66,147-150
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  s_86295fe57ce14d::t_d0b94e24272d63 11,48-74,106-124
+  s_86295fe57ce14d::t_2cdc443460af9c 125
+sdk-python/tests/test_image_context_races.py
+  s_86295fe57ce14d::t_d0b94e24272d63 51-70
+sdk-python/src/daytona/v2/_dockerignore.py
+  s_86295fe57ce14d::t_e3a432a71e04fa 177,191,193-198
+upgrade/MIGRATION.md
+  s_86295fe57ce14d::t_543023e68621a1 87,98,118,129
+docs/adr/0006-image-builder-local-context.md
+  s_86295fe57ce14d::t_63ad6fd07323dc 44-48
+  s_86295fe57ce14d::t_e3a432a71e04fa 145-149,155-158,181-184
+.github/workflows/cli-ci.yaml
+  s_86295fe57ce14d::t_e3a432a71e04fa 9,15
+sdk-typescript/src/v2/archiveWalk.ts
+  s_86295fe57ce14d::t_e3a432a71e04fa 48-51
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_86295fe57ce14d::t_16511a44909833 234-238
+.github/workflows/sdk-ci.yaml
+  s_86295fe57ce14d::t_e3a432a71e04fa 11,22
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_86295fe57ce14d::t_8c1244cb3b036f 3780,3791,4041,4048
+upgrade/typescript/src/mapping.json
+  s_86295fe57ce14d::t_a19cb560ac3192 3780,3791,4041,4048
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d706b092e1d15c2ae1f925b6c98e503b0fc84309",
+  "prompts": {},
+  "sessions": {
+    "s_86295fe57ce14d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3713b0e2ffe7JIZIF8XxxkUwB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

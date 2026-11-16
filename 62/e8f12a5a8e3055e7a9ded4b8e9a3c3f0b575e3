@@ -1,0 +1,39 @@
+changelog.d/594-macos-sandboxes.changed.md
+  s_99f7d0d06ad207::t_1ddcfd3308b0af 1-8
+cli/README.md
+  s_99f7d0d06ad207::t_0ab1eac1b1ac03 230-231,267
+cli/cmd/sandbox_create_macos.go
+  s_99f7d0d06ad207::t_397879cedd3242 22-23,92-94,96
+cli/cmd/sandbox_create_macos_test.go
+  s_99f7d0d06ad207::t_354acb37178bd5 70-72,75-77
+sdk-python/README.md
+  s_99f7d0d06ad207::t_6030033fbfa221 628-629,665-666,674,715-716
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_99f7d0d06ad207::t_94b24c19b38cd7 353-355,357
+sdk-python/src/daytona/v2/daytona.py
+  s_99f7d0d06ad207::t_67041b963deb79 493-495,497
+sdk-python/src/daytona/v2/types.py
+  s_99f7d0d06ad207::t_d60d7b5ea7f275 432,437-439
+sdk-typescript/README.md
+  s_99f7d0d06ad207::t_19de65be5a74cf 589-590,598,636-637
+sdk-typescript/src/v2/Daytona.ts
+  s_99f7d0d06ad207::t_c1ed334a54a7f2 226-227
+sdk-typescript/src/v2/types.ts
+  s_99f7d0d06ad207::t_e3833dac507d75 511-515
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62e8f12a5a8e3055e7a9ded4b8e9a3c3f0b575e3",
+  "prompts": {},
+  "sessions": {
+    "s_99f7d0d06ad207": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5397d916ffexzBaDLNSmvvX0N",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

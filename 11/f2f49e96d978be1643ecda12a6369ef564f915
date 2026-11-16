@@ -1,0 +1,54 @@
+examples/python/git_ops.py
+  s_9a337fd66d5341::t_263a90a706b18c 16,24
+examples/typescript/exec-command/index.ts
+  s_9a337fd66d5341::t_263a90a706b18c 10,37
+examples/typescript/file-operations/index.ts
+  s_9a337fd66d5341::t_263a90a706b18c 13,17
+examples/python/secrets_env.py
+  s_9a337fd66d5341::t_263a90a706b18c 33,73
+examples/README.md
+  s_9a337fd66d5341::t_263a90a706b18c 83
+examples/python/lifecycle.py
+  s_9a337fd66d5341::t_263a90a706b18c 13,20
+examples/typescript/lifecycle/index.ts
+  s_9a337fd66d5341::t_263a90a706b18c 9,15
+examples/python/file_operations.py
+  s_9a337fd66d5341::t_263a90a706b18c 17,22
+examples/python/exec_command.py
+  s_9a337fd66d5341::t_263a90a706b18c 13,43
+examples/typescript/secrets-env/index.ts
+  s_9a337fd66d5341::t_263a90a706b18c 30,71
+examples/typescript/examples.test.ts
+  s_9a337fd66d5341::t_263a90a706b18c 21,41,75-123
+  s_9a337fd66d5341::t_16ac55a82d1200 124
+examples/typescript/test-support/fake-sdk.ts
+  s_9a337fd66d5341::t_263a90a706b18c 15,38-43,53-54,65-66,73-75,163-164,191-212
+examples/python/test_examples.py
+  s_9a337fd66d5341::t_263a90a706b18c 20,34,46,74-79,118-123,127-154,158-160,314-381
+  s_9a337fd66d5341::t_dac27c80fdc65e 382-383
+examples/python/_common.py
+  s_9a337fd66d5341::t_263a90a706b18c 9,14,16,19,22,25-34,36-37,71-105
+  s_9a337fd66d5341::t_b4883cbeca2e72 106-107
+examples/typescript/git/index.ts
+  s_9a337fd66d5341::t_263a90a706b18c 12,19
+changelog.d/528.fixed.md
+  s_9a337fd66d5341::t_263a90a706b18c 1-5
+examples/typescript/_common.ts
+  s_9a337fd66d5341::t_263a90a706b18c 10,13,16,19-30,59-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "11f2f49e96d978be1643ecda12a6369ef564f915",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

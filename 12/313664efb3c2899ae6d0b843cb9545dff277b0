@@ -1,0 +1,42 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 178-179,782-783,786
+docs/RELEASING.md
+  h_e7759ddd73fa65 149-151,192-194,197-199
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  h_e7759ddd73fa65 16,136-142,146-153,274,277,281-286
+upgrade/python/src/daytona_upgrade/cli.py
+  h_e7759ddd73fa65 226-227
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 14-79,83-84,86-87
+upgrade/python/src/daytona_upgrade/notebooks.py
+  h_e7759ddd73fa65 14,147-152
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  h_e7759ddd73fa65 12,38-47
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 19,127-128,139,212
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 414-479
+upgrade/scripts/check-examples.sh
+  h_e7759ddd73fa65 49-59,95-96,141-142
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 168-177
+upgrade/typescript/src/dependency-scope.ts
+  h_e7759ddd73fa65 11,55-56
+upgrade/typescript/src/manifests.ts
+  h_e7759ddd73fa65 15,102-105
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 7,35-46
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 48-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12313664efb3c2899ae6d0b843cb9545dff277b0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

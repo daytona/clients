@@ -1,0 +1,38 @@
+examples/go/go.mod
+  h_e7759ddd73fa65 11-23
+examples/go/go.sum
+  h_e7759ddd73fa65 1-38
+analytics-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 5
+analytics-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 5
+api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 5
+api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 5
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 61,89,115
+hack/python-client/openapi-templates/test-requirements.mustache
+  h_e7759ddd73fa65 9
+poetry.lock
+  h_e7759ddd73fa65 1124,1146,1165,1187,1206,1228,3804,3810-3811,3816,3826,3832-3971
+toolbox-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 5
+toolbox-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 5
+package.json
+  h_e7759ddd73fa65 51
+yarn.lock
+  h_e7759ddd73fa65 3045-3047,3049-3051,3070-3072,3074,3076,3082-3083,3840,5334-5340,6760,7258-7266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1666068ec9aa1636e2b74e89f860d91935e4254e",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

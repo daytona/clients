@@ -1,0 +1,29 @@
+.github/workflows/pr_checks.yaml
+  s_c0faa7047dbab6::t_d20144d3feca30 65
+flake.nix
+  s_7946b37139a8ce::t_0a4c6a16a11e3d 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55e5f302bbd48d17d18e0d7b2c577be61240cf1d",
+  "prompts": {},
+  "sessions": {
+    "s_7946b37139a8ce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eea100857ffedytNaLo4gcKbzR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_c0faa7047dbab6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

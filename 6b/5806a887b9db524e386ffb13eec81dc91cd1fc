@@ -1,0 +1,27 @@
+sdk-python/src/daytona/v2/_dockerignore_regexp.py
+  s_35c1b93d4ebbc5::t_f0d9b436addafc 36-39
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_f0f45fc1a834ea 95-96
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  s_35c1b93d4ebbc5::t_fef3ada0100ddc 309-330
+sdk-python/tests/fixtures/image-builder-context.json
+  s_35c1b93d4ebbc5::t_a8f28eb2719d8b 452-468
+sdk-typescript/src/v2/contextArchive.ts
+  s_35c1b93d4ebbc5::t_73c18b7d7d7198 63-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b5806a887b9db524e386ffb13eec81dc91cd1fc",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

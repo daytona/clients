@@ -1,0 +1,39 @@
+sdk-typescript/src/Daytona.ts
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 258
+AGENTS.md
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 272
+  s_6d5a32d861f1c6::t_5ffa9ca7d0250d 459-464
+sdk-typescript/DEVELOPMENT.md
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 158
+sdk-python/tests/test_root_client.py
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 1031,1056
+upgrade/python/DEVELOPMENT.md
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 184
+changelog.d/v0-pin-0-231-1.changed.md
+  s_6d5a32d861f1c6::t_402c900fce5363 1-4
+  s_6d5a32d861f1c6::t_f166b23bd93a9d 5-7
+sdk-typescript/src/v0-unbundled.ts
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 25
+scripts/v0-sdk-version
+  s_6d5a32d861f1c6::t_eec3c7a4c094b5 1-2
+scripts/check-no-bundled-v0.sh
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 49
+sdk-python/DEVELOPMENT.md
+  s_6d5a32d861f1c6::t_f2b72d778c97e9 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2e71c21d2833975b09b217a5ed1f1cc392a56649",
+  "prompts": {},
+  "sessions": {
+    "s_6d5a32d861f1c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e0ef6ffe4ThnB0HvntgsFq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

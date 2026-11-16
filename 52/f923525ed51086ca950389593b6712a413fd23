@@ -1,0 +1,74 @@
+sdk-typescript/src/v2/http.ts
+  s_f23bcae77f0e63::t_f6d75acc2930ff 1412,1791
+  s_f23bcae77f0e63::t_8e432f171568e1 11,1462
+  s_f23bcae77f0e63::t_742facf505dbf9 579-599,604,616,628,637,1659,1662,1787-1790,1792-1795,1862-1866,1868-1869,1896,1898,1953-1955,1964,1966-1967
+  s_f23bcae77f0e63::t_6fa314a6f03d70 1236,1239-1243,1245-1249,1255-1310,1312,1314-1317,1319-1342,1397-1399,1422-1423
+  s_f23bcae77f0e63::t_4a4d7f58f7ad71 1250-1254
+  s_f23bcae77f0e63::t_6386c399bf11dc 1311,1313,1318,1401-1407
+  s_f23bcae77f0e63::t_9b19c8fc6609c6 8,262-263,881,884,984-990,994,1216-1224,1734-1740
+  s_f23bcae77f0e63::t_f1bb526029be36 1346-1363,1366,1370-1372,1424-1425,1433
+  s_f23bcae77f0e63::t_f32943878ffef6 1364-1365,1367-1369
+  s_f23bcae77f0e63::t_a59ab61adaa379 163-166,222-226,237-241,1150,1156-1159,1514-1519
+  s_f23bcae77f0e63::t_e76b5522bd363b 7,1206-1215,1225-1235,1237-1238,1244,1343-1345,1373-1396,1400,1408-1411,1413-1421,1426-1432,1434-1461,1463-1477
+  s_f23bcae77f0e63::t_eddf8cbabccb00 26-27,1478-1479
+sdk-typescript/src/v2/index.ts
+  s_f23bcae77f0e63::t_dcec96fef600c1 59
+sdk-typescript/src/types.ts
+  s_f23bcae77f0e63::t_be3c5453479441 13-14,41,44-49
+sdk-typescript/runtime-tests/mock-api.mjs
+  s_f23bcae77f0e63::t_3a3c392f4a5be7 105-114,142
+sdk-typescript/runtime-tests/runtime-checks.d.mts
+  s_f23bcae77f0e63::t_3a3c392f4a5be7 11,22
+sdk-typescript/src/root-config.ts
+  s_f23bcae77f0e63::t_be3c5453479441 40,86
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_f23bcae77f0e63::t_90db2c8fe91ca8 50-58,64,222-233
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_f23bcae77f0e63::t_3a3c392f4a5be7 13-14,36-48,50,96-108
+  s_f23bcae77f0e63::t_7238088577a2d6 109-110
+sdk-typescript/src/Daytona.ts
+  s_f23bcae77f0e63::t_be3c5453479441 174
+sdk-typescript/src/v2/FileSystem.ts
+  s_f23bcae77f0e63::t_90db2c8fe91ca8 20-23,58-69,75-86,88-90,221-228,233,236-237,241-242,255,298,305-310,314,316-317
+  s_f23bcae77f0e63::t_dcec96fef600c1 87
+sdk-typescript/src/v2/bodyLimit.ts
+  s_f23bcae77f0e63::t_917b57754c1ddf 1-160,168-232
+  s_f23bcae77f0e63::t_8e432f171568e1 161-167
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_be3c5453479441 495,521,524
+  s_f23bcae77f0e63::t_45310ef0ebd675 9
+sdk-typescript/src/v2/types.ts
+  s_f23bcae77f0e63::t_be3c5453479441 96-97,100-108,134
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_8955c2c990b14e 4091,4132-4133,4836,6370,6488,7062
+sdk-typescript/runtime-tests/assert-result.mjs
+  s_f23bcae77f0e63::t_3a3c392f4a5be7 13
+sdk-typescript/tests/client-config.test.ts
+  s_f23bcae77f0e63::t_b9c378a3c3b807 389-391
+sdk-typescript/tests/transfer-timeouts.test.ts
+  s_f23bcae77f0e63::t_0e5ac2a75247d5 71-72
+  s_f23bcae77f0e63::t_b9c378a3c3b807 6-9,12,27,34,53,60-61,64,66,68
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_f1bb526029be36 184-186,190-196
+  s_f23bcae77f0e63::t_635ddde0d16e04 1-17,19-136,141-169,177-178,197-249,254-405
+  s_f23bcae77f0e63::t_4a4d7f58f7ad71 18,137-140,170-176,179-183,187-189,250-253
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_8e432f171568e1 814-824,826,866-878,882-918
+  s_f23bcae77f0e63::t_40f6f13974354e 919
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52f923525ed51086ca950389593b6712a413fd23",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

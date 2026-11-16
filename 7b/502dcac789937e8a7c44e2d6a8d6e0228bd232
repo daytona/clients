@@ -1,0 +1,21 @@
+cli/README.md
+  s_a3ea68093feda0::t_c7d888e5ca0273 301-304
+cli/cmd/surface_test.go
+  s_a3ea68093feda0::t_75aa490381cb95 172-176,180-190,194-200,209,596-600,602-606
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b502dcac789937e8a7c44e2d6a8d6e0228bd232",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+.claude/skills/contract-refresh/SKILL.md
+  s_a3ea68093feda0::t_cac02c50247cdf 71-78
+AGENTS.md
+  s_a3ea68093feda0::t_cac02c50247cdf 547-556
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "505f82bd02a8d1e73a1200ac2113dd71c195f281",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

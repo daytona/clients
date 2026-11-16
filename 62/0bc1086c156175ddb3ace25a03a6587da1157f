@@ -1,0 +1,27 @@
+sdk-typescript/src/v2/dockerignoreClass.ts
+  s_9d2460a3a992dc::t_61acbb2e828f92 71-72
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  s_9d2460a3a992dc::t_61acbb2e828f92 2-21
+sdk-python/src/daytona/v2/_dockerignore_class.py
+  s_9d2460a3a992dc::t_61acbb2e828f92 115,117
+docs/adr/0006-image-builder-local-context.md
+  s_9d2460a3a992dc::t_61acbb2e828f92 186-187
+sdk-python/src/daytona/v2/_dockerignore_regexp.py
+  s_9d2460a3a992dc::t_61acbb2e828f92 29-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "620bc1086c156175ddb3ace25a03a6587da1157f",
+  "prompts": {},
+  "sessions": {
+    "s_9d2460a3a992dc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37760cffffefqPD4DBGkpGP79",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

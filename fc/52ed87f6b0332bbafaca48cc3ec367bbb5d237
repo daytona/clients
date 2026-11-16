@@ -1,0 +1,21 @@
+sdk-python/README.md
+  s_e0c492b29b83d0::t_2d6f1018f4be89 719-720
+sdk-typescript/README.md
+  s_e0c492b29b83d0::t_01d02e1950b3a4 665-666
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc52ed87f6b0332bbafaca48cc3ec367bbb5d237",
+  "prompts": {},
+  "sessions": {
+    "s_e0c492b29b83d0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5472b357ffepjYLlIgsowxOUO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+examples/python/_common.py
+  h_e7759ddd73fa65 87,105-109
+examples/python/test_examples.py
+  h_e7759ddd73fa65 74,124-129,144-145,361-371
+examples/typescript/_common.ts
+  h_e7759ddd73fa65 77,95-98,100
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 111-118
+examples/typescript/test-support/fake-sdk.ts
+  h_e7759ddd73fa65 40-41,74,201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2cbc3a3630d7a2ac10551d0c4c47b8af762a7369",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

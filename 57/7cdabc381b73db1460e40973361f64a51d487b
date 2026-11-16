@@ -1,0 +1,53 @@
+changelog.d/sandbox-abuse-hold.added.md
+  s_7f80e38b4509ca::t_283fc82f87f9b5 1
+cli/gen/api/types.gen.go
+  s_7f80e38b4509ca::t_6dee8bce950e5c 111,335-336,7095-7097,7134-7135,7142-7143
+cli/gen/toolbox/types.gen.go
+  s_7f80e38b4509ca::t_a0a4d0c8cf3d5f 1228,2009,2027
+sdk-python/src/daytona/v2/_codes.py
+  s_7f80e38b4509ca::t_c9752517f00856 119,269,445
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_7f80e38b4509ca::t_3269406b8a9945 30
+sdk-python/src/daytona/v2/_gen/api/models/volume.py
+  s_7f80e38b4509ca::t_fc3fd6292a57be 23,44,55,100-102,148
+sdk-python/src/daytona/v2/_gen/api/models/volume_mount.py
+  s_7f80e38b4509ca::t_8434ef3d69dbad 37,39
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_query.py
+  s_7f80e38b4509ca::t_acc9342712ae6a 38
+sdk-python/src/daytona/v2/_gen/toolbox/models/log_frame_dto.py
+  s_7f80e38b4509ca::t_c4acec7ac507ef 39
+sdk-python/src/daytona/v2/_gen/toolbox/models/logs_query.py
+  s_7f80e38b4509ca::t_eef75d3bfd549e 39
+sdk-python/src/daytona/v2/errors.py
+  s_7f80e38b4509ca::t_e767046fe8d5f4 879
+sdk-python/tests/test_core.py
+  s_7f80e38b4509ca::t_57892b311362e9 7696-7698
+sdk-typescript/src/v2/codes.ts
+  s_7f80e38b4509ca::t_d7e7f112782a67 129,310
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_7f80e38b4509ca::t_1f4577cbc977da 702
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_7f80e38b4509ca::t_0502796c6dd415 3
+sdk-typescript/src/v2/gen/api.ts
+  s_7f80e38b4509ca::t_8eabc9a1e18a08 2921,7959-7960,8006-8007,8015-8016
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_7f80e38b4509ca::t_833a8810005f4e 766,2430,2737,2749,7784,7981
+sdk-typescript/tests/unit.test.ts
+  s_7f80e38b4509ca::t_b2da4f92e19aa7 9273-9275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "577cdabc381b73db1460e40973361f64a51d487b",
+  "prompts": {},
+  "sessions": {
+    "s_7f80e38b4509ca": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ea1514406ffeXbMKqBT3AxQSEx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Bruno Grbavac <bruno.grbavac@outlook.com>"
+    }
+  }
+}

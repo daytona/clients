@@ -1,0 +1,36 @@
+AGENTS.md
+  s_f23bcae77f0e63::t_4d37c49fc8bef3 489-495
+sdk-python/src/daytona/v2/services.py
+  s_f23bcae77f0e63::t_7fa0b14998e7d9 207
+sdk-python/tests/test_client_config.py
+  s_f23bcae77f0e63::t_5c13c9442c9d84 146,183-227,265-269
+  s_f23bcae77f0e63::t_6bcc061f02cfc2 367-368,377-381
+sdk-python/src/daytona/v2/daytona.py
+  s_f23bcae77f0e63::t_6c3b11cd396696 49
+sdk-typescript/tests/client-config.test.ts
+  s_f23bcae77f0e63::t_f571e8a7d16829 19-20,328-345
+  s_f23bcae77f0e63::t_29e76a258b4d5c 307,426-428,458-460,463,468-469,481-483,492,498,505-508,512-514
+  s_f23bcae77f0e63::t_b47f6868a4f234 346
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_8d523491921df1 8291-8293,8320,8322
+sdk-python/src/daytona/v2/_transport.py
+  s_f23bcae77f0e63::t_6c3b11cd396696 69-72,643,907-913,1032-1033,1035-1040,1042-1053,1082-1083
+changelog.d/537-request-timeout.breaking.md
+  s_f23bcae77f0e63::t_9a147a9fd2fce5 7-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b0883a868642d767d38b007ef89095d9c68a3f8",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

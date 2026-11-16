@@ -1,0 +1,62 @@
+sdk-typescript/src/v2/http.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 10,803-813,930-931,933,935,1499-1500,1504,1512
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 7288-7289
+sdk-python/tests/test_transfer_timeouts.py
+  s_ca009e77d17705::t_4de3bad1f1dc20 17,37-39,41-43,45-59,72-80,98-100,122-123
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_773292305e4a72 46
+  s_ca009e77d17705::t_4de3bad1f1dc20 28,1207,1209-1213
+changelog.d/537-error-constructors.breaking.md
+  s_ca009e77d17705::t_4de3bad1f1dc20 23-36
+sdk-typescript/src/v2/ProcessWire.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 10,12,31,130,177
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_4de3bad1f1dc20 1303-1304
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 9,170
+sdk-typescript/src/v2/Reservations.ts
+  s_ca009e77d17705::t_fdb4505ace34a1 155
+  s_ca009e77d17705::t_554ebf9af21f24 17
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 101-130,162,165,309-310,326-327,338-339,349-350,459-460
+sdk-typescript/src/v2/options.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 6,144-145
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 8,10,61-62,481
+changelog.d/537-ts-config-keys.breaking.md
+  s_ca009e77d17705::t_4de3bad1f1dc20 4-7
+sdk-typescript/tests/errors-contract.test.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 146-175
+AGENTS.md
+  s_ca009e77d17705::t_4de3bad1f1dc20 532-536
+  s_ca009e77d17705::t_4729a5c112379e 537-540
+sdk-typescript/src/v2/filesystemTransfers.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 6,114,171,305,388,411,428
+sdk-typescript/tests/sdk-raised-errors.test.ts
+  s_ca009e77d17705::t_b054ee3e6e0981 74-75
+  s_ca009e77d17705::t_4de3bad1f1dc20 1-46,48-73,76-82
+  s_ca009e77d17705::t_e41c17513fc6a0 47
+changelog.d/537-config-env.breaking.md
+  s_ca009e77d17705::t_4de3bad1f1dc20 7-8
+sdk-python/tests/test_client_config.py
+  s_ca009e77d17705::t_4de3bad1f1dc20 78-93
+sdk-typescript/src/v2/Interpreter.ts
+  s_ca009e77d17705::t_4de3bad1f1dc20 20,22,139,174,181,193,459,496,499,518
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9465944cf5644bd0eeb3e240fd221fe2aa664e6f",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

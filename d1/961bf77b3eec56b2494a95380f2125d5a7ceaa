@@ -1,0 +1,43 @@
+changelog.d/539-volume-create-id.breaking.md
+  s_ca009e77d17705::t_e4fa1eb885efe4 1-4
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_3412deff8c13e0 566,569-572,956-958
+changelog.d/539-secret-domains.breaking.md
+  s_ca009e77d17705::t_17e2e2e063bd45 1-3
+  s_ca009e77d17705::t_e4fa1eb885efe4 4
+changelog.d/538-interpreter-session-checks.breaking.md
+  s_ca009e77d17705::t_17e2e2e063bd45 4-6
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_d724c4a3ff0af4 85-86
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_d724c4a3ff0af4 188-189
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_d724c4a3ff0af4 35,850-857
+  s_ca009e77d17705::t_6698e36f708f81 858-862
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_d724c4a3ff0af4 67,1298-1308
+changelog.d/539-access-token-expiry.breaking.md
+  s_ca009e77d17705::t_17e2e2e063bd45 6-9
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_3412deff8c13e0 171-174
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_17e2e2e063bd45 30-43
+sdk-typescript/src/v2/Secret.ts
+  s_ca009e77d17705::t_3412deff8c13e0 116,128-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d1961bf77b3eec56b2494a95380f2125d5a7ceaa",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

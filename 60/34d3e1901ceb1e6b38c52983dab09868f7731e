@@ -1,0 +1,40 @@
+changelog.d/539-images.breaking.md
+  s_ca009e77d17705::t_8a1b39bbba19e6 10-12
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_b4a3655c3ad334 8,57,59-68
+  s_ca009e77d17705::t_b2b2303ee91124 58
+changelog.d/539-fork-wait.breaking.md
+  s_ca009e77d17705::t_8a1b39bbba19e6 2-5
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_a5c047236f2c6a 234-236,243-246,250-254,258-272
+  s_ca009e77d17705::t_ed56c2699ba8c6 237-238,240-242,247-249,255-257
+  s_ca009e77d17705::t_f82983d07508df 239
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_ed56c2699ba8c6 68-71,75-78,95-98,108-110
+  s_ca009e77d17705::t_a5c047236f2c6a 26,66-67,72-74,79-94,102-107
+  s_ca009e77d17705::t_8aa76c74ed9ab4 111-112
+changelog.d/539-models.breaking.md
+  s_ca009e77d17705::t_dc96ff565e0ea1 6
+  s_ca009e77d17705::t_8a1b39bbba19e6 4-5
+  s_ca009e77d17705::t_91ff195b33ea2a 7-8
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_b4a3655c3ad334 139-161
+changelog.d/539-argument-checks.breaking.md
+  s_ca009e77d17705::t_8a1b39bbba19e6 2-11,16-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6034d3e1901ceb1e6b38c52983dab09868f7731e",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

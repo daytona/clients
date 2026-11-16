@@ -1,0 +1,27 @@
+AGENTS.md
+  s_4d9fba4bce0dac::t_c207649c6574b8 183-189
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_44c0ddfa5520a9 313,318,320-321,325-329
+  s_4d9fba4bce0dac::t_e5153fc2bd610d 11,16-28,89-90,97-115,187,251-312,316-317,319,322,334,336,338,344-345
+docs/VERSIONING.md
+  s_4d9fba4bce0dac::t_9be814ade1a996 157-176
+  s_4d9fba4bce0dac::t_e2d6facc708ae3 185
+docs/adr/0003-cli.md
+  s_4d9fba4bce0dac::t_c207649c6574b8 39-41,44-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "617c47982b7105d0f644ffaa3237fb74e4ab1da5",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

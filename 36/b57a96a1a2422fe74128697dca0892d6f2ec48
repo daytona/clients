@@ -1,0 +1,19 @@
+cli/cmd/volume_helpers.go
+  s_c85c66a4c5af54::t_a67f57cfb30ca7 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "36b57a96a1a2422fe74128697dca0892d6f2ec48",
+  "prompts": {},
+  "sessions": {
+    "s_c85c66a4c5af54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e0bd101ffeZjAnumrf4BzHhw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

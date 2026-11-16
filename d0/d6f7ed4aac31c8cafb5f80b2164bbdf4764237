@@ -1,0 +1,19 @@
+.github/workflows/license-headers.yaml
+  s_170baf016701c2::t_cdf56c2148ed21 6-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d0d6f7ed4aac31c8cafb5f80b2164bbdf4764237",
+  "prompts": {},
+  "sessions": {
+    "s_170baf016701c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179970ffel5mD5rtZsQQcTa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

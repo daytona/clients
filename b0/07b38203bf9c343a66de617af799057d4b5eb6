@@ -1,0 +1,51 @@
+cli/cmd/sandbox_ssh.go
+  s_dda305198a66db::t_4ccad1c567bf73 7,10,14,16,60-67,142,146-149,152-202
+cli/cmd/image_direct_upload_test.go
+  s_dda305198a66db::t_38d1fe28b67efa 428-434,437,449,452-453,457-459,461-462,472-489
+  s_dda305198a66db::t_76643c6d68b5eb 450-451,454-456,460,464-471
+  s_dda305198a66db::t_ae46724690675a 463,490
+cli/internal/toolbox/websocket.go
+  s_dda305198a66db::t_5a4bb74560e495 14,16,26-63,74-76,104-106
+changelog.d/cli-build-context-part-progress.fixed.md
+  s_dda305198a66db::t_559de7064ac555 1-3
+cli/internal/toolbox/websocket_cancel_test.go
+  s_dda305198a66db::t_3049569ff8bff3 118-159
+cli/cmd/sandbox_ssh_test.go
+  s_dda305198a66db::t_59c08473fa7eed 9,58-109
+  s_dda305198a66db::t_4ccad1c567bf73 37
+changelog.d/cli-ssh-credential-redaction.security.md
+  s_dda305198a66db::t_559de7064ac555 1-4
+cli/cmd/sandbox_ssh_flags_test.go
+  s_dda305198a66db::t_4ccad1c567bf73 52
+cli/README.md
+  s_dda305198a66db::t_496bb07f70e076 191-195
+  s_dda305198a66db::t_57e62d2d02e999 172-174,205-207
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  s_dda305198a66db::t_4ccad1c567bf73 25
+  s_dda305198a66db::t_59c08473fa7eed 10
+changelog.d/cli-attach-close-code.breaking.md
+  s_dda305198a66db::t_559de7064ac555 1-6
+cli/internal/toolbox/terminal_attach_test.go
+  s_dda305198a66db::t_3049569ff8bff3 66-103
+cli/cmd/image_direct_upload.go
+  s_dda305198a66db::t_3163e5b2bf7754 49-57,60-61,71-84,253-260,262-263,265-274,281,283-284,286-287,311-312
+  s_dda305198a66db::t_a1b512457d3b55 264,277-279,313
+  s_dda305198a66db::t_76643c6d68b5eb 68-70,261
+  s_dda305198a66db::t_7357fbf0b326e4 275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b007b38203bf9c343a66de617af799057d4b5eb6",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

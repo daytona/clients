@@ -1,0 +1,18 @@
+sdk-python/README.md
+  h_e7759ddd73fa65 821-823,1032-1034
+sdk-python/src/daytona/v2/charts.py
+  h_e7759ddd73fa65 14-15,29-30
+sdk-typescript/README.md
+  h_e7759ddd73fa65 739-741,957-959
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab534336c9fdb6e435db59d294f36aaf3d8fc843",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

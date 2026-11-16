@@ -1,0 +1,54 @@
+hack/ax-evals/setup/python.sh
+  s_aaffc58b6b5f1a::t_8c0aaeadd4d2b6 1-22
+hack/ax-evals/report.js
+  s_aaffc58b6b5f1a::t_863a11b78bcc7e 1-89
+  s_aaffc58b6b5f1a::t_d1c2394ec359b1 90-92
+.github/workflows/ax_evals.yaml
+  s_aaffc58b6b5f1a::t_a0eeac4e04c109 1-123
+hack/ax-evals/setup/typescript.sh
+  s_aaffc58b6b5f1a::t_1d8037f63c5eb6 1-32
+hack/ax-evals/sync.py
+  s_aaffc58b6b5f1a::t_c577edabec5d25 1-142
+  s_5d6ae5810083ee::t_b2f518d64f862e 143-149
+hack/ax-evals/plan.js
+  s_aaffc58b6b5f1a::t_2030adc71182f6 1-105
+  s_5d6ae5810083ee::t_6fe2b45270526a 106-117
+hack/ax-evals/setup/_common.sh
+  s_aaffc58b6b5f1a::t_6e8f394b41dec1 1-34
+  s_aaffc58b6b5f1a::t_aa58250e7ce159 35-37
+hack/ax-evals/setup/cli.sh
+  s_aaffc58b6b5f1a::t_b74ff3cdcc112e 1-7
+hack/ax-evals/setup/java.sh
+  s_aaffc58b6b5f1a::t_43a6cccef33977 1-18
+hack/ax-evals/setup/go.sh
+  s_aaffc58b6b5f1a::t_55458a9039340e 1-29
+hack/ax-evals/comment.js
+  s_aaffc58b6b5f1a::t_c0a04eb27c07f5 1-24
+  s_5d6ae5810083ee::t_9859169844abbe 25-28
+hack/ax-evals/setup/ruby.sh
+  s_aaffc58b6b5f1a::t_aa1b655b79ff54 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1e7409c3c164af5080519f09551a8a566bdf736b",
+  "prompts": {},
+  "sessions": {
+    "s_5d6ae5810083ee": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ed0f388ebffeLM0H3JGYweI69r",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_aaffc58b6b5f1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ed0eeedb9ffeT3ElCabF0QHD41",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

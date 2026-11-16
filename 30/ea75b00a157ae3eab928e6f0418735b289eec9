@@ -1,0 +1,44 @@
+sdk-typescript/src/v2/FileSystem.ts
+  s_f23bcae77f0e63::t_8021552ecca96a 223-224
+sdk-typescript/src/v2/types.ts
+  s_f23bcae77f0e63::t_8021552ecca96a 97-98
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_f23bcae77f0e63::t_b2b35eaa4f7479 37,40-46,105-107
+sdk-typescript/src/v2/events.ts
+  s_f23bcae77f0e63::t_762a7d802cf844 2138-2142,2144-2145,2149-2152
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_e67caf9d6bad48 19,421-437
+  s_f23bcae77f0e63::t_14149618e85d67 203-241,438
+  s_f23bcae77f0e63::t_8883ba21f72157 439
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_f23bcae77f0e63::t_8021552ecca96a 225
+sdk-typescript/src/types.ts
+  s_f23bcae77f0e63::t_8021552ecca96a 41-42
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_f23bcae77f0e63::t_31022a70a88275 14,172
+sdk-typescript/runtime-tests/runtime-checks.d.mts
+  s_f23bcae77f0e63::t_b2b35eaa4f7479 22
+sdk-typescript/src/v2/http.ts
+  s_f23bcae77f0e63::t_31022a70a88275 13,583-587,589-594,626,647,1598
+  s_f23bcae77f0e63::t_8021552ecca96a 1472
+sdk-typescript/src/v2/bodyLimit.ts
+  s_f23bcae77f0e63::t_31022a70a88275 161-191
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_762a7d802cf844 452,497,554-555,557
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "30ea75b00a157ae3eab928e6f0418735b289eec9",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

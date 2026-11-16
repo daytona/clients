@@ -1,0 +1,36 @@
+sdk-python/src/daytona/v2/build_logs.py
+  s_f23bcae77f0e63::t_c5a97dd48d32e2 22-32,40
+  s_f23bcae77f0e63::t_fdf25a99374329 579,593-595,619
+sdk-python/src/daytona/v2/_core.py
+  s_f23bcae77f0e63::t_fdf25a99374329 184-203
+sdk-python/tests/test_transfer_bounds.py
+  s_f23bcae77f0e63::t_056cf4be2e968b 40,936-967,969-974,976-998,1000-1009
+  s_f23bcae77f0e63::t_5fd91a6426ca48 23,968,975,999
+sdk-python/src/daytona/v2/_auth.py
+  s_f23bcae77f0e63::t_fdf25a99374329 156-158
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_96b8f0894e0f58 11679-11706
+  s_f23bcae77f0e63::t_b813fefbe07a1c 115
+  s_f23bcae77f0e63::t_51b48391223ffb 11678
+sdk-python/src/daytona/v2/_transport.py
+  s_f23bcae77f0e63::t_fdf25a99374329 329,356,828,1024,1224-1226
+  s_f23bcae77f0e63::t_c5a97dd48d32e2 330-331,357-358,829-830,1025-1026
+sdk-python/tests/test_build_logs.py
+  s_f23bcae77f0e63::t_96b8f0894e0f58 811-820
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1c894e95950eea73329955a657dc1d054aaaf39",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

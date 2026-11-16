@@ -1,0 +1,184 @@
+sdk-python/src/daytona/v2/_gen/api/models/organization_region_page.py
+  s_982ebece9dd4e3::t_8b71276daa2043 1-125
+sdk-python/src/daytona/v2/_gen/api/models/complete_build_context_upload_request.py
+  s_982ebece9dd4e3::t_ac6012ab2bf5d1 1-97
+sdk-python/src/daytona/v2/services.py
+  s_ad074a7dcce098::t_b59becaaeddeff 639-640,666,730
+sdk-python/src/daytona/v2/_gen/api/models/update_organization_region_request.py
+  s_982ebece9dd4e3::t_e2dd8142d05f2f 1-116
+sdk-python/src/daytona/v2/_gen/api/models/create_reservations_bulk_request.py
+  s_982ebece9dd4e3::t_c459efcbee8ad4 39
+sdk-python/src/daytona/v2/_gen/api/models/registration_token_with_token.py
+  s_982ebece9dd4e3::t_388aa05b8dc210 1-174
+sdk-python/src/daytona/v2/errors.py
+  s_ad074a7dcce098::t_eb5c45453924d7 803-810,812
+cli/cmd/org_limits_test.go
+  s_ad074a7dcce098::t_dc49368034bc75 19,31,70,127-141
+  s_ad074a7dcce098::t_d9fed9bc028d9e 142-143
+  s_ad074a7dcce098::t_5fcae2a9ea3879 28
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ad074a7dcce098::t_eb5c45453924d7 606-613,615
+sdk-python/src/daytona/v2/_gen/api/models/parent_region.py
+  s_982ebece9dd4e3::t_c2940025a080c5 1-112
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_982ebece9dd4e3::t_53ba0f8ca49723 34-36,51,59,64,68-69,153-158,162-163,204,208-214,222,241,282
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_982ebece9dd4e3::t_5df0e2d89e00f1 3,7,24-25,30
+sdk-typescript/src/v2/Reservations.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 97,111,161
+sdk-python/src/daytona/v2/daytona.py
+  s_ad074a7dcce098::t_b59becaaeddeff 514-516
+sdk-python/src/daytona/v2/_gen/api/models/registration_token.py
+  s_982ebece9dd4e3::t_9e4883ee14b4c7 1-125
+sdk-python/README.md
+  s_982ebece9dd4e3::t_df5dbc9d24f6b8 665-669,692-696,701-705
+sdk-python/src/daytona/v2/_gen/api/models/registration_token_page.py
+  s_982ebece9dd4e3::t_9b12d6404f9480 1-125
+sdk-python/src/daytona/v2/_gen/api/models/create_image_request.py
+  s_982ebece9dd4e3::t_0e76580e3e8b06 38,45,91-95,138
+cli/cmd/reservation_create.go
+  s_ad074a7dcce098::t_dc49368034bc75 119
+sdk-python/src/daytona/v2/_gen/api/models/parent_region_list.py
+  s_982ebece9dd4e3::t_f634f3bc4ab533 1-118
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_982ebece9dd4e3::t_1792ced63751b3 8253
+sdk-python/src/daytona/v2/_gen/api/models/region_status.py
+  s_982ebece9dd4e3::t_9f4f4c2db913b2 1-55
+sdk-typescript/src/v2/gen/api.ts
+  s_982ebece9dd4e3::t_e5f683e51c4fb7 64-103,1206-1225,1267-1509,2748,3098-3186,3286-3293,3403-3432,3440-3441,3466-3473,3619-3636,3674-3700,3733,5042,5148-5149,5154-5155,5217-5320,5393-5404,5481-5485,5501-5505,5891-5925,5952-6054,6119-6138,6343-6345,6492-6504,6979-6985,6987-6998,7591-7592,7597-7598,7605-7606,7728-7858,8104,8144,8155-8165,9108,12220-13227,13234-13237,13243,13247-13248,13254,13257,13269,13279,13289-13299,13302,13304-13309,13314-13315,13321,13328-13338,13343,13353-13363,13366,13373-13374,13380,13384-13385,13391,13394,13406,13416-13417,13419,13429,13436-13439,13445-13446,13451,13455,13465-13475,13478,13480-13485,13490-13491,13495,13497,13504,13507,13518-13519,13529-13539,13542,13549-13552,13558-13559,13564-13566,13570,13580-13590,13593,13600-13603,13607,13609-13620,13626,13629-13630,13639-13640,13642,13652,13654,13659-13662,13668,13675,13678-13681,13690-13691,13700-13710,13713,13720-13723,13727,13729-13730,13736,13739-13742,13751-13752,13761-13762,13764,15629-15638,15730-15739,15934,16134,16331-16340,16379-16380,16438
+sdk-python/src/daytona/v2/_codes.py
+  s_ad074a7dcce098::t_eb5c45453924d7 85-92,94,232-239,241,403-410,412
+changelog.d/mac-reservation-limit.added.md
+  s_ad074a7dcce098::t_9ad5a5f4baee48 1
+sdk-typescript/tests/frozen-results.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 48
+sdk-python/src/daytona/v2/_gen/api/models/region_proxy_token.py
+  s_982ebece9dd4e3::t_9fb6b5b364505d 1-145
+sdk-python/src/daytona/v2/_gen/api/models/region_proxy_token_with_token.py
+  s_982ebece9dd4e3::t_6b1fe32bc43b76 1-194
+sdk-python/src/daytona/v2/_gen/api/models/organization_region.py
+  s_982ebece9dd4e3::t_8910f22c71efb4 1-142
+sdk-typescript/tests/unit.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 8486,8501
+  s_ad074a7dcce098::t_5fcae2a9ea3879 8485
+cli/cmd/org.go
+  s_ad074a7dcce098::t_dc49368034bc75 575-576
+  s_ad074a7dcce098::t_9256dac6ad52a5 577
+  s_982ebece9dd4e3::t_4d7b8bcc307ea8 186-193
+sdk-python/src/daytona/v2/_gen/api/models/create_build_context_upload_request.py
+  s_982ebece9dd4e3::t_3645617400da4e 1-121
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload_state.py
+  s_982ebece9dd4e3::t_132b8cf494f3f2 1-55
+sdk-python/src/daytona/v2/_gen/api/models/region_installation.py
+  s_982ebece9dd4e3::t_cf9fcfa762c406 1-168
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_ad074a7dcce098::t_dcb50781177104 375-377
+cli/internal/api/error_hints_test.go
+  s_982ebece9dd4e3::t_65ab4bcccc8aca 71,75-80,83,86
+  s_ad074a7dcce098::t_dc49368034bc75 69-70,72-74,81-82,84-85,87-90
+sdk-python/src/daytona/v2/_gen/api/models/region_proxy_token_page.py
+  s_982ebece9dd4e3::t_6de48ba659c82c 1-125
+sdk-typescript/README.md
+  s_982ebece9dd4e3::t_3a99ecfae97c81 585-589,610-614,619-623
+changelog.d/region-error-codes.added.md
+  s_982ebece9dd4e3::t_cff376490f7fd1 2-5
+  s_982ebece9dd4e3::t_428d7090279b62 1
+sdk-python/src/daytona/v2/_api_core.py
+  s_ad074a7dcce098::t_b59becaaeddeff 149
+sdk-python/src/daytona/v2/_gen/api/models/create_region_registration_token_request.py
+  s_982ebece9dd4e3::t_347151850d714b 1-111
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner.py
+  s_982ebece9dd4e3::t_082f668a5f45a4 1-141
+cli/cmd/reservation_create_test.go
+  s_ad074a7dcce098::t_dc49368034bc75 178
+sdk-python/src/daytona/v2/_gen/api/models/organization_limits.py
+  s_982ebece9dd4e3::t_965fc859cc2fc0 26,47,50,55,109-111,118-120,150,153
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner_status.py
+  s_982ebece9dd4e3::t_d6b6d6ff8b57d8 1-56
+cli/internal/api/error_hints.go
+  s_ad074a7dcce098::t_dc49368034bc75 67-78,85-86
+  s_982ebece9dd4e3::t_392863c5025759 79-84
+sdk-python/src/daytona/v2/_sync/services.py
+  s_ad074a7dcce098::t_f9381993c0f0fe 410-411,431,461
+cli/README.md
+  s_982ebece9dd4e3::t_67479e20db9a4d 205-207
+sdk-python/src/daytona/v2/_gen/api/models/rotate_region_proxy_token_request.py
+  s_982ebece9dd4e3::t_239a909bdde0b2 1-119
+sdk-python/tests/test_model_serialization.py
+  s_ad074a7dcce098::t_5fcae2a9ea3879 141
+sdk-python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  s_982ebece9dd4e3::t_ac41056b631976 43
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload_part.py
+  s_982ebece9dd4e3::t_0dd97785f12e54 1-114
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload.py
+  s_982ebece9dd4e3::t_1c31ee94fb4048 1-160
+sdk-typescript/src/v2/accountTypes.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 86-87
+sdk-typescript/src/v2/Daytona.ts
+  s_ad074a7dcce098::t_3be29c0e2879ee 212
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_982ebece9dd4e3::t_429e79e52fb477 123-131
+sdk-typescript/src/v2/accountMappers.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 34,110
+sdk-python/src/daytona/v2/_gen/api/models/create_region_proxy_token_request.py
+  s_982ebece9dd4e3::t_1a9dc60c973e3b 1-112
+sdk-python/src/daytona/v2/_gen/api/models/update_organization_request.py
+  s_982ebece9dd4e3::t_38cf3cad7e8430 37
+sdk-python/src/daytona/v2/_gen/api/models/create_organization_region_request.py
+  s_982ebece9dd4e3::t_ea1b0f56bf6608 1-113
+sdk-python/tests/test_core.py
+  s_ad074a7dcce098::t_5fcae2a9ea3879 5446
+  s_ad074a7dcce098::t_9a1c0b05d2faea 55
+  s_ad074a7dcce098::t_b59becaaeddeff 5447,5474
+sdk-python/src/daytona/v2/_gen/api/models/organization.py
+  s_982ebece9dd4e3::t_25aefd1aedd565 42
+sdk-typescript/src/v2/codes.ts
+  s_ad074a7dcce098::t_eb5c45453924d7 77-84,86,252-259,261
+cli/gen/api/types.gen.go
+  s_982ebece9dd4e3::t_d69e9b29db4f3e 67-70,101-104,108,244-251,312-319,326-327,770-787,1145-1183,1319-1336,2127-2180,2247-2254,2374-2395,2399-2400,2423-2428,2550-2566,2604-2627,2653,3870,4006-4008,4015-4017,4043,4137-4233,4296-4310,4400-4402,4411-4413,4904-4940,4968-5105,5178-5193,5366-5368,5630-5638,6135-6149,6152,6614-6616,6623-6625,6635-6637,6878-6913,7057-7058,7269-7274,7350-7364
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_982ebece9dd4e3::t_fbe127f4fab10c 85
+sdk-python/tests/test_malformed_responses.py
+  s_ad074a7dcce098::t_b59becaaeddeff 1265
+  s_ad074a7dcce098::t_5fcae2a9ea3879 168
+cli/internal/input/request_fields_gen.go
+  s_ad074a7dcce098::t_c86af3af719579 12
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_timeout_limits.py
+  s_982ebece9dd4e3::t_c909f9b236be6c 1-112
+sdk-python/src/daytona/v2/types.py
+  s_ad074a7dcce098::t_b59becaaeddeff 820-821
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 112,808,813
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner_page.py
+  s_982ebece9dd4e3::t_f6b6b363f84427 1-125
+sdk-typescript/tests/account-models.test.ts
+  s_ad074a7dcce098::t_40bc50be7ed704 63,67,80
+sdk-python/src/daytona/v2/_gen/api/models/organization_runner_admin_state.py
+  s_982ebece9dd4e3::t_5cb2fbcab5c6b6 1-55
+sdk-python/src/daytona/v2/_gen/api/models/plan_limits.py
+  s_982ebece9dd4e3::t_d1ddb54495a255 38,42,44,114-118,132,135-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4c04dcd724cc7807666f80882d83ae6150d90e9",
+  "prompts": {},
+  "sessions": {
+    "s_982ebece9dd4e3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b6804deffenaHLGFAXZjV0hR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    },
+    "s_ad074a7dcce098": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b116abdffeFh8oykjJiSODXP",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,111 @@
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 37,515-519,537
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  s_03db1f9437b107::t_3bd84acc517dd2 70,74,89,585
+  s_03db1f9437b107::t_5744d3a8c7e94d 100
+sdk-go/README.md
+  s_03db1f9437b107::t_85a6c598c54ec6 98,100-102,108-113
+  s_8d4fda28aa1056::t_78383d9b45b362 114
+artifacts/sdk-docs/java-sdk/config.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 42-44,119-122
+sdk-go/pkg/daytona/client_test.go
+  s_03db1f9437b107::t_3099cbb87ddc4d 207
+sdk-ruby/lib/daytona/common/snapshot.rb
+  s_03db1f9437b107::t_42c629e6dc9054 33-34
+sdk-java/src/test/java/io/daytona/sdk/DaytonaConfigTest.java
+  s_03db1f9437b107::t_e18d801c511039 15
+sdk-typescript/src/Snapshot.ts
+  s_03db1f9437b107::t_42c629e6dc9054 57
+artifacts/sdk-docs/java-sdk/snapshot.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 57-76
+  s_8d4fda28aa1056::t_a8695831f67b13 55-56
+sdk-java/src/main/java/io/daytona/sdk/SnapshotService.java
+  s_03db1f9437b107::t_5744d3a8c7e94d 43,54-58,63-70,95-109,114,160-178,195
+artifacts/sdk-docs/python-sdk/sync/snapshot.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 223-224
+artifacts/sdk-docs/java-sdk/daytona.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 29
+sdk-ruby/README.md
+  s_03db1f9437b107::t_85a6c598c54ec6 33,44,64,66,73-75
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 145-147,179-187
+sdk-python/src/daytona/common/snapshot.py
+  s_03db1f9437b107::t_42c629e6dc9054 87-88
+artifacts/sdk-docs/python-sdk/async/async-snapshot.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 223-224
+sdk-python/src/daytona/_async/daytona.py
+  s_03db1f9437b107::t_3bd84acc517dd2 171-172
+sdk-python/tests/test_snapshot.py
+  s_03db1f9437b107::t_42c629e6dc9054 408-448
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 70-71,445-449
+sdk-python/src/daytona/common/daytona.py
+  s_03db1f9437b107::t_3bd84acc517dd2 63-67
+sdk-typescript/README.md
+  s_03db1f9437b107::t_85a6c598c54ec6 31,65,67,74
+artifacts/sdk-docs/ruby-sdk/config.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 27-29,153-154,167-168
+sdk-typescript/src/Daytona.ts
+  s_03db1f9437b107::t_3bd84acc517dd2 90,108-114,294
+sdk-go/pkg/daytona/client.go
+  s_03db1f9437b107::t_3bd84acc517dd2 24,147-148,194-195
+sdk-python/src/daytona/_sync/daytona.py
+  s_03db1f9437b107::t_3bd84acc517dd2 123-124
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 34,570
+artifacts/sdk-docs/typescript-sdk/snapshot.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 241
+sdk-java/README.md
+  s_03db1f9437b107::t_85a6c598c54ec6 41,84,86,92,98-99
+sdk-java/src/test/java/io/daytona/sdk/SnapshotServiceTest.java
+  s_03db1f9437b107::t_e18d801c511039 88-153
+sdk-go/pkg/daytona/snapshot.go
+  s_03db1f9437b107::t_5744d3a8c7e94d 323-330
+sdk-go/pkg/daytona/snapshot_test.go
+  s_03db1f9437b107::t_e18d801c511039 417-463
+sdk-ruby/lib/daytona/snapshot_service.rb
+  s_03db1f9437b107::t_42c629e6dc9054 120
+sdk-ruby/spec/daytona/snapshot_service_spec.rb
+  s_03db1f9437b107::t_305a6647f13625 186-204
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  s_03db1f9437b107::t_291a9b92ffde98 67-68,391-395
+sdk-typescript/src/__tests__/Snapshot.test.ts
+  s_03db1f9437b107::t_42c629e6dc9054 152-169
+sdk-java/src/main/java/io/daytona/sdk/DaytonaConfig.java
+  s_03db1f9437b107::t_3bd84acc517dd2 50,53-56,58,121-122,126-129,131
+sdk-java/src/test/java/io/daytona/sdk/E2ETest.java
+  s_03db1f9437b107::t_e18d801c511039 84
+sdk-java/src/test/java/io/daytona/sdk/TestSupport.java
+  s_03db1f9437b107::t_e18d801c511039 81
+sdk-python/README.md
+  s_03db1f9437b107::t_85a6c598c54ec6 25,57,59,62,66
+sdk-ruby/lib/daytona/config.rb
+  s_03db1f9437b107::t_3bd84acc517dd2 80-81,83-84,114-116
+sdk-go/pkg/types/types.go
+  s_03db1f9437b107::t_5744d3a8c7e94d 178-180
+  s_03db1f9437b107::t_3bd84acc517dd2 60-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ff5eefa813e9602ca15323ec43551d81776df554",
+  "prompts": {},
+  "sessions": {
+    "s_03db1f9437b107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_8d4fda28aa1056": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

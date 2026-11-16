@@ -1,0 +1,45 @@
+examples/python/_common.py
+  s_2461be2ea4fb6e::t_685956161a0b9a 48-49
+examples/volumes_share.py
+  s_2461be2ea4fb6e::t_685956161a0b9a 54-55
+examples/python/dynamic_build.py
+  s_2461be2ea4fb6e::t_685956161a0b9a 102,104-111
+sdk-python/README.md
+  s_a31b9a41eaefcc::t_5360ac67fe90bf 44-46
+sdk-typescript/README.md
+  s_a31b9a41eaefcc::t_5360ac67fe90bf 49-50,430-432
+sdk-python/DEVELOPMENT.md
+  s_a31b9a41eaefcc::t_5360ac67fe90bf 205-206
+examples/python/dockerfile_sandbox.py
+  s_2461be2ea4fb6e::t_685956161a0b9a 116,118-124
+examples/typescript/examples.test.ts
+  s_2461be2ea4fb6e::t_685956161a0b9a 69,94-95
+examples/typescript/_common.ts
+  s_2461be2ea4fb6e::t_685956161a0b9a 35-37
+docs/adr/0001-sdk-parity.md
+  s_a31b9a41eaefcc::t_5360ac67fe90bf 89-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "22bf705b0a39ecdd37f4b9d0e4735b8493b1b2be",
+  "prompts": {},
+  "sessions": {
+    "s_2461be2ea4fb6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e45f193dbffedpCxcbvCIMyfOS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a31b9a41eaefcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e45f16a11ffeACbr53m1u6Zang",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

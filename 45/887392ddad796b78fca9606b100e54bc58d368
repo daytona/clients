@@ -1,0 +1,38 @@
+artifacts/sdk-docs/python-sdk/root-daytona.mdx
+  h_e7759ddd73fa65 1-99
+artifacts/sdk-docs/typescript-sdk/root-daytona.mdx
+  h_e7759ddd73fa65 1-356
+examples/go/lsp_usage/main.go
+  h_e7759ddd73fa65 75
+sdk-java/src/main/java/io/daytona/sdk/CodeLanguage.java
+  h_e7759ddd73fa65 40
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  h_e7759ddd73fa65 278-279
+sdk-python/README.md
+  h_e7759ddd73fa65 38-41
+sdk-python/package.json
+  h_e7759ddd73fa65 8,12
+sdk-ruby/README.md
+  h_e7759ddd73fa65 82
+sdk-ruby/lib/daytona/otel.rb
+  h_e7759ddd73fa65 150-158,167
+sdk-ruby/spec/daytona/root_namespace_spec.rb
+  h_e7759ddd73fa65 98-130
+sdk-typescript/README.md
+  h_e7759ddd73fa65 45-48
+sdk-typescript/src/__tests__/v1.test.ts
+  h_e7759ddd73fa65 169-191
+sdk-typescript/typedoc.json
+  h_e7759ddd73fa65 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45887392ddad796b78fca9606b100e54bc58d368",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+hack/stable-v2-release.sh
+  s_2e6041b22161fe::t_6a8eed7764b677 1-45
+cli/hack/homebrew/README.md
+  s_2e6041b22161fe::t_7a2024d0fa1245 32-34
+PUBLISHING.md
+  s_2e6041b22161fe::t_c29849e8409e6b 134,159-166
+  s_2e6041b22161fe::t_ca9d04d35792d0 167
+.github/workflows/sdk_publish.yaml
+  s_2e6041b22161fe::t_c83ade1129a9f2 162-167,172-174,179,189-195,225-227,229-238,240-242,247,250-257,259-260,264,266-269,271-282
+  s_2e6041b22161fe::t_51c44bbef4c36b 228,239
+  s_2e6041b22161fe::t_b8c25da16a567e 270
+hack/stable-v2-release.test.sh
+  s_2e6041b22161fe::t_c9b08d9dc194e7 1-58
+cli/hack/stage-release-assets.test.sh
+  s_2e6041b22161fe::t_2bd21ae60c90ff 76-105
+cli/hack/stage-release-assets.sh
+  s_2e6041b22161fe::t_a3a33ef07b32a3 16-20,33-34,43-50,72-73,78,80-81
+  s_2e6041b22161fe::t_4cd2fe6c65dc6c 74-77,79
+  s_2e6041b22161fe::t_2300342ddf5c4f 82
+.github/workflows/release.yaml
+  s_2e6041b22161fe::t_a26ac7054ad749 39,74-92,146-147,152-153,156,166-167,169-170,242,245,247-254,256-260,270-271
+  s_2e6041b22161fe::t_246b79e1e39ad2 154-155
+.github/workflows/pr_checks.yaml
+  s_2e6041b22161fe::t_1a37c4c41017ea 196-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f181051268b091e8b94e9afc304d23ae110118b",
+  "prompts": {},
+  "sessions": {
+    "s_2e6041b22161fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e553a139affeVhy9pfmd6KKsqk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

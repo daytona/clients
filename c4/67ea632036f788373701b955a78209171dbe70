@@ -1,0 +1,91 @@
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_3825e57b746077 72-74
+  s_0df31975f3464b::t_a3462c2a4d5469 84-93
+  s_0df31975f3464b::t_6d7c95a527dcfd 75-78
+  s_0df31975f3464b::t_47e4c7c0e487b0 615-633,635
+  s_0df31975f3464b::t_95087875110565 715-724,760
+  s_0df31975f3464b::t_60c32a54f4c914 725-759
+cli/cmd/root.go
+  s_0df31975f3464b::t_3825e57b746077 81-83
+  s_0df31975f3464b::t_dd6bd85d8a5556 113
+  s_0df31975f3464b::t_093409570f9234 114
+cli/cmd/snapshot.go
+  s_0df31975f3464b::t_8fbcfb2dea1bcf 145,147,158-162,165
+cli/cmd/image_test.go
+  s_0df31975f3464b::t_29a42d6b7775b0 65
+  s_0df31975f3464b::t_7837b70d9883f4 66-71
+cli/cmd/image.go
+  s_0df31975f3464b::t_8fbcfb2dea1bcf 69,71,82-86,89
+cli/cmd/billing_helpers.go
+  s_0df31975f3464b::t_6aff8a33e9b8e9 81-89,91-93
+cli/cmd/auth_test.go
+  s_0df31975f3464b::t_ab5b62925e199c 959
+cli/internal/regions/fanout.go
+  s_0df31975f3464b::t_a8b827848ee499 9,113-125
+cli/cmd/raw_output.go
+  s_0df31975f3464b::t_bc147955d8da11 9,32,43-44,46,50-51
+cli/cmd/image_list.go
+  s_0df31975f3464b::t_58b960d01df747 61-75,89
+cli/cmd/usage_errors.go
+  s_0df31975f3464b::t_a3462c2a4d5469 40-42,49-54
+  s_0df31975f3464b::t_b6dbc7c4bdccd9 55-56
+cli/cmd/ack.go
+  s_0df31975f3464b::t_8fbcfb2dea1bcf 7-11,13,28-43
+  s_0df31975f3464b::t_e232560027f2c2 44
+cli/cmd/snapshot_test.go
+  s_0df31975f3464b::t_7837b70d9883f4 41-44
+  s_0df31975f3464b::t_29a42d6b7775b0 39-40
+cli/cmd/volume_test.go
+  s_0df31975f3464b::t_29a42d6b7775b0 43-44
+  s_0df31975f3464b::t_7837b70d9883f4 45-48
+cli/cmd/list_cursor_deduplication_test.go
+  s_0df31975f3464b::t_ab5b62925e199c 65
+cli/cmd/billing_settings.go
+  s_0df31975f3464b::t_b2286367c67d24 30,99,140
+cli/cmd/list_alias_cursor_test.go
+  s_0df31975f3464b::t_ab5b62925e199c 176-178,180-183,250-254,264
+cli/cmd/billing_settings_test.go
+  s_0df31975f3464b::t_6aff8a33e9b8e9 139-146,148,150-152
+cli/internal/regions/regions.go
+  s_0df31975f3464b::t_a8b827848ee499 207,220-221
+  s_0df31975f3464b::t_5d9bf2c4c07d61 222
+cli/internal/input/input.go
+  s_0df31975f3464b::t_af8a905106161d 127-131,133-152,155-156,159-162,165,168,174,178,182,187-190,192,198,202,208,210
+cli/cmd/billing.go
+  s_0df31975f3464b::t_0c1c3768623d63 8,77
+cli/cmd/volume.go
+  s_0df31975f3464b::t_8fbcfb2dea1bcf 166,176-179,181,185
+cli/cmd/sandbox.go
+  s_0df31975f3464b::t_58b960d01df747 13,55-59,67,261-306
+cli/cmd/command_flags.go
+  s_0df31975f3464b::t_dd6bd85d8a5556 8,131-153,232
+  s_0df31975f3464b::t_6d7c95a527dcfd 228-230
+  s_0df31975f3464b::t_3825e57b746077 217-227,231
+cli/internal/cerr/cerr.go
+  s_0df31975f3464b::t_b2286367c67d24 176
+cli/cmd/sandbox_process_test.go
+  s_0df31975f3464b::t_53f692f154d949 72-78,80-82
+  s_0df31975f3464b::t_5e707536ff5b04 79
+cli/cmd/auth_login_command.go
+  s_0df31975f3464b::t_3825e57b746077 64-67
+cli/cmd/auth.go
+  s_0df31975f3464b::t_d6cd17b81e4253 86-91
+cli/cmd/catalog_test.go
+  s_0df31975f3464b::t_fd66648f71d087 294-298
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c467ea632036f788373701b955a78209171dbe70",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

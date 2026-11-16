@@ -1,0 +1,22 @@
+changelog.d/598-cli-org-project-names.breaking.md
+  h_e7759ddd73fa65 8-9
+cli/README.md
+  h_e7759ddd73fa65 391-392
+cli/cmd/org.go
+  h_e7759ddd73fa65 303
+cli/cmd/org_project_name.go
+  h_e7759ddd73fa65 39-42
+cli/cmd/project.go
+  h_e7759ddd73fa65 181-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0a134ef5488b171e4c4f1b617baf127870d8dd7",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

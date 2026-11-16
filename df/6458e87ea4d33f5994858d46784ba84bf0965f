@@ -1,0 +1,31 @@
+.claude/skills/coverage-preflight/SKILL.md
+  s_0db6920e7d62ed::t_e7d546383d4db6 17-18
+.claude/skills/cubic-loop/SKILL.md
+  s_0db6920e7d62ed::t_7a06ec3782a358 153
+.claude/skills/deep-review/SKILL.md
+  s_0db6920e7d62ed::t_fa58f73db8bef1 28,95
+AGENTS.md
+  s_0db6920e7d62ed::t_290e1a588ac79f 527-528
+CONTRIBUTING.md
+  s_0db6920e7d62ed::t_997cc29f675bd5 95-96
+RELEASING.md
+  s_0db6920e7d62ed::t_e14c5bdea45209 41,50,68,75-77,162
+docs/design/0002-versioning-and-release-lines.md
+  s_0db6920e7d62ed::t_a2b4c54b30ec81 66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df6458e87ea4d33f5994858d46784ba84bf0965f",
+  "prompts": {},
+  "sessions": {
+    "s_0db6920e7d62ed": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e72b35601ffeXWSfJyhae684Ku",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

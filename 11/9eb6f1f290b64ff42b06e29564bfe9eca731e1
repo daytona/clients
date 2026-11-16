@@ -1,0 +1,57 @@
+sdk-python/src/daytona/v2/computer_use_services.py
+  s_f23bcae77f0e63::t_cbcfd2a8142d5e 443-447
+  s_f23bcae77f0e63::t_3db6e134190640 6,9,435-442,449-454
+sdk-python/src/daytona/v2/_core.py
+  s_f23bcae77f0e63::t_413bbd0eea457d 126-129
+sdk-python/src/daytona/v2/_transport.py
+  s_f23bcae77f0e63::t_2b9a856c4a96b8 75-76,762,995-997,1081-1082,1102-1103
+  s_f23bcae77f0e63::t_982e910bb484d5 621,631,1113-1117,1119,1149-1152
+  s_f23bcae77f0e63::t_413bbd0eea457d 33-40,215,219,265,276-279,319,341-345,561,566-567,650,658-662,688-692,803,928,935-940,942,945-946,965,974,983,1013
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_0a6f6fac5d7320 23
+  s_f23bcae77f0e63::t_e0df467e1e8087 8856,8858,8861-8862
+  s_f23bcae77f0e63::t_ed3e083bf8e322 8863
+sdk-python/src/daytona/v2/types.py
+  s_f23bcae77f0e63::t_c829a2c2077e75 369-374,388
+sdk-python/src/daytona/v2/filesystem.py
+  s_f23bcae77f0e63::t_cbcfd2a8142d5e 13,32,262-263,407-409,417-421
+  s_f23bcae77f0e63::t_3db6e134190640 249-250,252-261,264-269,413-415
+  s_f23bcae77f0e63::t_08e7618d2a4913 426-431
+sdk-python/src/daytona/v2/_auth.py
+  s_f23bcae77f0e63::t_808745e78c109b 14,51,55,129,140
+sdk-python/src/daytona/v2/_body_limit.py
+  s_f23bcae77f0e63::t_e71838eb4aea7e 1-111,113-121
+  s_f23bcae77f0e63::t_2b9a856c4a96b8 112
+sdk-python/src/daytona/v2/sandbox.py
+  s_f23bcae77f0e63::t_4594c30691b01e 27,436-438
+sdk-python/tests/test_transfer_bounds.py
+  s_f23bcae77f0e63::t_fa837a34cc1f7b 19,154-158,169-171,273-275,328,334-336,435-437,485-488
+  s_f23bcae77f0e63::t_e384a6b5f18e3f 256,258-260,264-265,268,302
+  s_f23bcae77f0e63::t_18f0f6c4245a86 1-14,16-18,20-93,103-105,107-114,116-121,123-153,159-168,172-235,250-255,257,261-263,266-267,269-272,276-301,303-327,329-333,337-434,438-484,489-494
+  s_f23bcae77f0e63::t_2252ee8cf60539 15,94-102,106,115,122,236-249,495-505
+sdk-python/src/daytona/v2/_sync/computer_use_services.py
+  s_f23bcae77f0e63::t_cbcfd2a8142d5e 14,232-234
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_f23bcae77f0e63::t_cbcfd2a8142d5e 95,97,99,101,103-105
+sdk-python/src/daytona/_client.py
+  s_f23bcae77f0e63::t_c829a2c2077e75 181-185,198,313,334
+sdk-python/src/daytona/v2/daytona.py
+  s_f23bcae77f0e63::t_4594c30691b01e 32
+  s_f23bcae77f0e63::t_c829a2c2077e75 136,193,203,212,1352-1354
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "119eb6f1f290b64ff42b06e29564bfe9eca731e1",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+.github/CODEOWNERS
+  h_e7759ddd73fa65 24-25,27,48,52
+  h_e7759ddd73fa65 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46fa7727a28516d683a5f94144edbf3176a29f0b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

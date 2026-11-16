@@ -1,0 +1,19 @@
+sdk-python/tests/test_wait_final_read.py
+  s_aa070e7b745b4c::t_1c01d6b4b45706 125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "068b1b6114396a92ace26da2faaa7523a283bd65",
+  "prompts": {},
+  "sessions": {
+    "s_aa070e7b745b4c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e1df5bdffeOek82jW7CuPE6C",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

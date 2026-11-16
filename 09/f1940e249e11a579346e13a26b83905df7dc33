@@ -1,0 +1,31 @@
+upgrade/typescript/src/mapping.json
+  s_c85c66a4c5af54::t_a9e0d8ecc30f9c 4158-4159,4163-4164,4210-4211,4215-4216
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_c85c66a4c5af54::t_a9e0d8ecc30f9c 4158-4159,4163-4164,4210-4211,4215-4216
+upgrade/python/tests/test_client_service_parity.py
+  s_c85c66a4c5af54::t_1cfc075b24127d 186-204
+  s_c85c66a4c5af54::t_10c36bcca7165c 205-208
+upgrade/typescript/tests/client-service-proofs.test.ts
+  s_c85c66a4c5af54::t_1cfc075b24127d 120-122,124-133,137
+  s_c85c66a4c5af54::t_f75638257ecfb2 123,134-136
+upgrade/mapping/mapping.json
+  s_c85c66a4c5af54::t_a9e0d8ecc30f9c 4158-4159,4163-4164,4210-4211,4215-4216
+upgrade/MIGRATION.md
+  s_c85c66a4c5af54::t_a9e0d8ecc30f9c 144,146,153,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09f1940e249e11a579346e13a26b83905df7dc33",
+  "prompts": {},
+  "sessions": {
+    "s_c85c66a4c5af54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e0bd101ffeZjAnumrf4BzHhw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

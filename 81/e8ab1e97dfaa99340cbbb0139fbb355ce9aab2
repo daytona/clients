@@ -1,0 +1,146 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  h_e7759ddd73fa65 86,104,343-348,442-450,760,5638,5672,5833,5877,6122-6276,6282,6318,6461,6494
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  h_e7759ddd73fa65 99-132
+examples/jupyter/daytona.ipynb
+  h_e7759ddd73fa65 33-34
+examples/python/auto-archive/_async/auto_archive.py
+  h_e7759ddd73fa65 3-4
+examples/python/auto-archive/auto_archive.py
+  h_e7759ddd73fa65 1-2
+examples/python/auto-delete/_async/auto_delete.py
+  h_e7759ddd73fa65 3-4
+examples/python/auto-delete/auto_delete.py
+  h_e7759ddd73fa65 1-2
+examples/python/charts/_async/main.py
+  h_e7759ddd73fa65 6-7
+examples/python/charts/main.py
+  h_e7759ddd73fa65 5-6
+examples/python/declarative-image/_async/main.py
+  h_e7759ddd73fa65 4-5
+examples/python/declarative-image/main.py
+  h_e7759ddd73fa65 3-4
+examples/python/exec-command/_async/exec.py
+  h_e7759ddd73fa65 3-4
+examples/python/exec-command/_async/exec_logs_async.py
+  h_e7759ddd73fa65 3-4
+examples/python/exec-command/_async/exec_session.py
+  h_e7759ddd73fa65 3-4
+examples/python/exec-command/exec.py
+  h_e7759ddd73fa65 1-2
+examples/python/exec-command/exec_linked.py
+  h_e7759ddd73fa65 1-2
+examples/python/exec-command/exec_logs_async.py
+  h_e7759ddd73fa65 3-4
+examples/python/exec-command/exec_session.py
+  h_e7759ddd73fa65 1-2
+examples/python/file-operations/_async/main.py
+  h_e7759ddd73fa65 6-7
+examples/python/file-operations/main.py
+  h_e7759ddd73fa65 6-7
+examples/python/git-lsp/_async/main.py
+  h_e7759ddd73fa65 3-4
+examples/python/git-lsp/main.py
+  h_e7759ddd73fa65 1-2
+examples/python/lifecycle/_async/lifecycle.py
+  h_e7759ddd73fa65 3-4
+examples/python/lifecycle/lifecycle.py
+  h_e7759ddd73fa65 1-2
+examples/python/network-settings/_async/main.py
+  h_e7759ddd73fa65 3-4
+examples/python/network-settings/main.py
+  h_e7759ddd73fa65 1-2
+examples/python/pagination/_async/sandbox.py
+  h_e7759ddd73fa65 3-4
+examples/python/pagination/sandbox.py
+  h_e7759ddd73fa65 1-2
+examples/python/pty/_async/main.py
+  h_e7759ddd73fa65 4-5
+examples/python/pty/main.py
+  h_e7759ddd73fa65 5-6
+examples/python/region/_async/main.py
+  h_e7759ddd73fa65 4-5
+examples/python/region/main.py
+  h_e7759ddd73fa65 3-4
+examples/python/secrets/_async/secret.py
+  h_e7759ddd73fa65 4-5
+examples/python/secrets/secret.py
+  h_e7759ddd73fa65 3-4
+examples/python/volumes/_async/volume.py
+  h_e7759ddd73fa65 4-5
+examples/python/volumes/volume.py
+  h_e7759ddd73fa65 3-4
+examples/typescript/charts/index.ts
+  h_e7759ddd73fa65 1,12
+examples/typescript/declarative-image/index.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/domain-allow-list/index.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/exec-command/index.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/git-lsp/index.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/lifecycle/index.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/pagination/sandbox.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/pty/index.ts
+  h_e7759ddd73fa65 1-2
+examples/typescript/region/index.tsx
+  h_e7759ddd73fa65 1-2
+sdk-go/README.md
+  h_e7759ddd73fa65 98,223,226,233
+sdk-go/pkg/daytona/client.go
+  h_e7759ddd73fa65 121,310
+sdk-go/pkg/daytona/client_test.go
+  h_e7759ddd73fa65 1317,1332,1337-1338,1355-1356,1379-1380,1397,1399,1416,1418,1432,1434
+sdk-go/pkg/daytona/deprecation.go
+  h_e7759ddd73fa65 47-50,65
+sdk-go/pkg/daytona/secret.go
+  h_e7759ddd73fa65 21,45
+sdk-go/pkg/daytona/snapshot.go
+  h_e7759ddd73fa65 45,79
+sdk-go/pkg/daytona/v1_client.go
+  h_e7759ddd73fa65 13,15,19,27-28,48,55,61,66,86,121,143,152,163,179
+sdk-go/pkg/daytona/volume.go
+  h_e7759ddd73fa65 19,45
+sdk-go/pkg/daytona/volume_test.go
+  h_e7759ddd73fa65 69
+sdk-go/pkg/daytona/warm_pool.go
+  h_e7759ddd73fa65 21,44
+sdk-python/README.md
+  h_e7759ddd73fa65 69-70,82-83,99-100,113-114,236
+sdk-python/src/daytona/_async/daytona.py
+  h_e7759ddd73fa65 52,248,357
+sdk-python/src/daytona/_root.py
+  h_e7759ddd73fa65 31-32,34-46,51,56,71-72,172-187,191,196,211
+sdk-python/src/daytona/_sync/daytona.py
+  h_e7759ddd73fa65 14,41,200,292,341-372
+sdk-python/src/daytona/_versioning.py
+  h_e7759ddd73fa65 42,44,60,70
+sdk-python/tests/test_v1.py
+  h_e7759ddd73fa65 211-238
+sdk-ruby/lib/daytona/config.rb
+  h_e7759ddd73fa65 96,173
+sdk-ruby/lib/daytona/daytona.rb
+  h_e7759ddd73fa65 78,80,470,477,484,491,498,505,512,519,526,540,549,557,565,574,583
+sdk-ruby/lib/daytona/sdk/deprecation.rb
+  h_e7759ddd73fa65 21-24,27,34,37,40-48
+sdk-ruby/spec/daytona/root_namespace_spec.rb
+  h_e7759ddd73fa65 65
+sdk-typescript/README.md
+  h_e7759ddd73fa65 97-98
+sdk-typescript/src/RootDaytona.ts
+  h_e7759ddd73fa65 14-27,31,36,41,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81e8ab1e97dfaa99340cbbb0139fbb355ce9aab2",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

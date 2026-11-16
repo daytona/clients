@@ -1,0 +1,16 @@
+hack/ax-evals/setup/_common.sh
+  h_e7759ddd73fa65 47-49,51-52
+hack/ax-evals/setup/java.sh
+  h_e7759ddd73fa65 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "63394bbc86e0d2b02120f3a60791eb2869fba93d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

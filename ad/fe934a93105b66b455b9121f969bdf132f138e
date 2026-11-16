@@ -1,0 +1,25 @@
+changelog.d/process-kill-tree.changed.md
+  s_717b45cf151505::t_18f0ac8b3fab16 2-4
+changelog.d/process-tags.added.md
+  s_717b45cf151505::t_d7c16c075ad233 4-6
+e2e/e2e.py
+  s_717b45cf151505::t_31796d9494fee6 191-197,208-210
+e2e/e2e.ts
+  s_717b45cf151505::t_55a2d253155d5d 126-129,142-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "adfe934a93105b66b455b9121f969bdf132f138e",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

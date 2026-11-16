@@ -1,0 +1,46 @@
+api-client-go/VERSION
+  h_e7759ddd73fa65 1
+api-client-go/api/openapi.yaml
+  h_e7759ddd73fa65 7399,7409
+api-client-go/model_gpu_type.go
+  h_e7759ddd73fa65 25,38
+api-client-java/src/main/java/io/daytona/api/client/model/GpuType.java
+  h_e7759ddd73fa65 36-37
+api-client-python-async/daytona_api_client_async/models/gpu_type.py
+  h_e7759ddd73fa65 32
+api-client-python/daytona_api_client/models/gpu_type.py
+  h_e7759ddd73fa65 32
+api-client-ruby/lib/daytona_api_client/models/gpu_type.rb
+  h_e7759ddd73fa65 20,29
+api-client/src/models/gpu-type.ts
+  h_e7759ddd73fa65 21
+artifacts/sdk-docs/go-sdk/types.mdx
+  h_e7759ddd73fa65 393
+cli/go.mod
+  h_e7759ddd73fa65 7
+examples/go/go.mod
+  h_e7759ddd73fa65 27-28
+openapi-specs/api.json
+  h_e7759ddd73fa65 10491,10501
+sdk-go/go.mod
+  h_e7759ddd73fa65 12-13
+sdk-go/go.sum
+  h_e7759ddd73fa65 45-47
+sdk-go/pkg/daytona/VERSION
+  h_e7759ddd73fa65 1
+sdk-go/pkg/types/types.go
+  h_e7759ddd73fa65 33
+toolbox-api-client-go/VERSION
+  h_e7759ddd73fa65 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "698b2f3586287457e13e3e4e60e362a48dd0174f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

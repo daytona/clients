@@ -1,0 +1,26 @@
+changelog.d/598-cli-org-project-names.breaking.md
+  h_e7759ddd73fa65 3-8
+cli/cmd/org.go
+  h_e7759ddd73fa65 312-315
+cli/cmd/org_project_name.go
+  h_e7759ddd73fa65 41-42,48-50,69-71
+cli/cmd/org_project_name_test.go
+  h_e7759ddd73fa65 152-170
+cli/cmd/project.go
+  h_e7759ddd73fa65 12,191-194
+sdk-python/README.md
+  h_e7759ddd73fa65 1059-1060
+sdk-typescript/README.md
+  h_e7759ddd73fa65 989-990
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "688750d98575e3515d5436d8918c4c4f93e000b3",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

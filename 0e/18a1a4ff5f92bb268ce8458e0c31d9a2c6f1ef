@@ -1,0 +1,19 @@
+docs/VERSIONING.md
+  s_38ebc15778ccce::t_15459e62dac04a 93-95,210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e18a1a4ff5f92bb268ce8458e0c31d9a2c6f1ef",
+  "prompts": {},
+  "sessions": {
+    "s_38ebc15778ccce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d72dcffeAkVTofnSAe9VO0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

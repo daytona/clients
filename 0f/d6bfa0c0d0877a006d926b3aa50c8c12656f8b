@@ -1,0 +1,118 @@
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_8dab6d18955d75 12,2402-2412,2414-2430,2437-2443,2445-2461
+  s_9a337fd66d5341::t_9433ef00bd4269 546-552
+  s_9a337fd66d5341::t_df63bd4008367f 2413,2431-2436
+  s_9a337fd66d5341::t_f0f480eff9b60b 2517-2526
+  s_9a337fd66d5341::t_05cbec17240393 2527-2540
+  s_9a337fd66d5341::t_9c6e0f26e9700b 2444
+  s_9a337fd66d5341::t_cab75e456f0acd 2368-2401
+  s_9a337fd66d5341::t_a6f765905324b6 2462-2492
+  s_9a337fd66d5341::t_92b5f9f7119323 2493-2516
+  s_9a337fd66d5341::t_3fc5cae9d954e5 2541-2559
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_9a337fd66d5341::t_085d732121d35c 116,118
+  s_9a337fd66d5341::t_b8b0d9d3e83104 68,124,129,133,137,347,364,369
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_66009ab48e30e9 7500,12823-12846
+  s_9a337fd66d5341::t_ef3d935c2dfb9a 12315
+  s_9a337fd66d5341::t_d004a4d6b0bba4 12289-12307
+  s_9a337fd66d5341::t_edba5d0fd7cd31 12308-12314,12316-12323
+  s_9a337fd66d5341::t_33a7961b8c02c2 12324-12358
+sdk-python/src/daytona/v2/git.py
+  s_9a337fd66d5341::t_7517bd0e4ae39c 114-124
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_e0d7f5047342a2 29,208
+sdk-python/tests/test_watch_transport.py
+  s_9a337fd66d5341::t_d3f847706e58d2 121-146
+  s_9a337fd66d5341::t_595f7e5a79eb70 498-542
+  s_9a337fd66d5341::t_2f42d79daa2145 120
+sdk-python/src/daytona/v2/interpreter.py
+  s_9a337fd66d5341::t_19590f2b9f3960 19,21,296-298
+  s_9a337fd66d5341::t_dd495d25a84cd3 410
+sdk-python/src/daytona/v2/session.py
+  s_9a337fd66d5341::t_19590f2b9f3960 12
+  s_9a337fd66d5341::t_dd495d25a84cd3 24-25
+sdk-typescript/src/v2/Interpreter.ts
+  s_9a337fd66d5341::t_b8b0d9d3e83104 28,471,494
+  s_9a337fd66d5341::t_cde2b102ddea0c 273,289
+  s_9a337fd66d5341::t_e0d7f5047342a2 29,299-305,307,312-313
+  s_9a337fd66d5341::t_c07d9bfc0f5eb9 23
+sdk-typescript/src/v2/filesystemWire.ts
+  s_9a337fd66d5341::t_e0d7f5047342a2 10,133
+  s_9a337fd66d5341::t_7811651b33bdd8 30-32
+sdk-python/src/daytona/v2/_transport.py
+  s_9a337fd66d5341::t_a79648c09bf27d 41,1232
+  s_9a337fd66d5341::t_9e52dd8d641903 385-388,456,465,490,510
+sdk-typescript/src/v2/Git.ts
+  s_9a337fd66d5341::t_7517bd0e4ae39c 164-171
+sdk-python/src/daytona/v2/filesystem.py
+  s_9a337fd66d5341::t_bb80857b21925a 140-149,230,286-292,294
+sdk-typescript/tests/toolbox-frozen-results.test.ts
+  s_9a337fd66d5341::t_7811651b33bdd8 26,366-373
+  s_9a337fd66d5341::t_d1bc409e0df2d5 374-375
+sdk-python/tests/test_core.py
+  s_9a337fd66d5341::t_92b5f9f7119323 11740-11743
+sdk-python/src/daytona/v2/computer_use_services.py
+  s_9a337fd66d5341::t_b00003d34277b9 9
+  s_9a337fd66d5341::t_19590f2b9f3960 96,108,120,132,433,458,466
+  s_9a337fd66d5341::t_dd495d25a84cd3 67-68
+sdk-typescript/src/v2/ComputerUseTypes.ts
+  s_9a337fd66d5341::t_085d732121d35c 25,32,39,46,53,68,82,95,100
+sdk-typescript/src/v2/http.ts
+  s_9a337fd66d5341::t_fc490c62b62e2a 179-180,1198-1200,1208-1217,1219,1247,1250,1252,1257-1258,1319-1322
+  s_9a337fd66d5341::t_131d9dc5a3f4fb 12,892
+  s_9a337fd66d5341::t_c04e82ac74a97f 1323
+sdk-typescript/src/v2/jsonDepth.ts
+  s_9a337fd66d5341::t_fc490c62b62e2a 1-33
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_dd495d25a84cd3 262-275
+  s_9a337fd66d5341::t_a79648c09bf27d 253-261
+  s_9a337fd66d5341::t_241362c96b7931 215-237,239-243,248-249
+  s_9a337fd66d5341::t_a8b9a55691d344 954-957,1367-1375,1379-1380
+  s_9a337fd66d5341::t_a14edee3b5dd22 1025,1139-1149
+  s_9a337fd66d5341::t_19590f2b9f3960 1170,1209,1344-1346,1362-1364,1382-1384,1389
+  s_9a337fd66d5341::t_ee7e1a12cdb169 22
+  s_9a337fd66d5341::t_5eeb299d2857a6 1365-1366
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_9a337fd66d5341::t_b8b0d9d3e83104 24,84,91,110,130,136,153,164,188,204,212
+  s_9a337fd66d5341::t_a8b9a55691d344 194-195
+  s_9a337fd66d5341::t_2515fa81057094 15
+  s_9a337fd66d5341::t_b20a3987dac545 6
+sdk-typescript/src/v2/Lsp.ts
+  s_9a337fd66d5341::t_085d732121d35c 103,214,219
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9a337fd66d5341::t_a14edee3b5dd22 247
+  s_9a337fd66d5341::t_a8b9a55691d344 176-185,188
+  s_9a337fd66d5341::t_ece77394ed8835 16
+  s_9a337fd66d5341::t_e0d7f5047342a2 20,299
+sdk-typescript/tests/json-bodies.test.ts
+  s_9a337fd66d5341::t_116c35e5243ac0 28-30,47,109-127
+sdk-typescript/src/v2/toolboxPath.ts
+  s_9a337fd66d5341::t_b8b0d9d3e83104 1-23
+sdk-python/src/daytona/v2/process.py
+  s_9a337fd66d5341::t_dd495d25a84cd3 213-214
+  s_9a337fd66d5341::t_19590f2b9f3960 27,33,251-253,296,766-768
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_085d732121d35c 198
+sdk-typescript/src/v2/Process.ts
+  s_9a337fd66d5341::t_b8b0d9d3e83104 25,61,181
+  s_9a337fd66d5341::t_b20a3987dac545 6
+sdk-typescript/src/v2/Session.ts
+  s_9a337fd66d5341::t_b8b0d9d3e83104 14,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0fd6bfa0c0d0877a006d926b3aa50c8c12656f8b",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

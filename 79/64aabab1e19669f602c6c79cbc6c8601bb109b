@@ -1,0 +1,48 @@
+upgrade/typescript/src/error-import-suggestions.ts
+  s_f23bcae77f0e63::t_5e772783f149ad 64-88
+upgrade/python/src/daytona_upgrade/shared_error_guidance.py
+  s_f23bcae77f0e63::t_e367d7fe7ceca7 17-22,24-27,53-55,93-95,97
+upgrade/typescript/src/mapping.json
+  s_f23bcae77f0e63::t_395934f200c6bf 106-109
+upgrade/scripts/check-v0-surface.mjs
+  s_f23bcae77f0e63::t_6ecbf58c585a4a 273-281
+upgrade/typescript/src/mapping.ts
+  s_f23bcae77f0e63::t_5e772783f149ad 72-73
+upgrade/python/tests/test_shared_errors.py
+  s_f23bcae77f0e63::t_f5356c6c7e496e 117,170-171,176-178,183-191
+  s_f23bcae77f0e63::t_395934f200c6bf 172-175,179-182
+upgrade/typescript/src/model.ts
+  s_f23bcae77f0e63::t_5e772783f149ad 30-31
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_f23bcae77f0e63::t_395934f200c6bf 106-109
+upgrade/python/src/daytona_upgrade/models.py
+  s_f23bcae77f0e63::t_e367d7fe7ceca7 9,97
+  s_f23bcae77f0e63::t_82c1d30890f14a 96
+  s_f23bcae77f0e63::t_395934f200c6bf 175-178
+upgrade/mapping/mapping.schema.json
+  s_f23bcae77f0e63::t_6ecbf58c585a4a 125-127,134-135
+  s_f23bcae77f0e63::t_32eabdd7cc6978 128-133
+upgrade/mapping/mapping.json
+  s_f23bcae77f0e63::t_6ecbf58c585a4a 106-109
+upgrade/typescript/tests/shared-errors.test.ts
+  s_f23bcae77f0e63::t_5e772783f149ad 89-98
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_f23bcae77f0e63::t_e367d7fe7ceca7 39,44-45,48
+  s_f23bcae77f0e63::t_395934f200c6bf 41-43,46-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7964aabab1e19669f602c6c79cbc6c8601bb109b",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

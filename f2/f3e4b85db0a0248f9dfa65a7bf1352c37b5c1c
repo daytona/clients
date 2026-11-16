@@ -1,0 +1,41 @@
+changelog.d/594.added.md
+  s_99f7d0d06ad207::t_e33a031eea6ff0 1-9
+cli/cmd/invite_test.go
+  s_99f7d0d06ad207::t_3ba0411e6a3c8b 118
+cli/cmd/org_limits_test.go
+  s_99f7d0d06ad207::t_02ff98ec33a622 28
+sdk-python/src/daytona/v2/_codes.py
+  s_99f7d0d06ad207::t_3b1222a4e5ba40 136-146,276-286,460-470
+sdk-python/src/daytona/v2/errors.py
+  s_99f7d0d06ad207::t_e64c201e27f3d1 893-903
+sdk-python/tests/test_core.py
+  s_99f7d0d06ad207::t_6c557f361e2cc8 5445
+sdk-python/tests/test_malformed_responses.py
+  s_99f7d0d06ad207::t_2d6ad3c9036c14 168
+sdk-python/tests/test_model_serialization.py
+  s_99f7d0d06ad207::t_6473123da6d342 141
+sdk-typescript/src/v2/codes.ts
+  s_99f7d0d06ad207::t_7011ca9d2751f7 143-153,323-333
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_99f7d0d06ad207::t_5d75e4d6d358cb 710-720
+sdk-typescript/tests/account-models.test.ts
+  s_99f7d0d06ad207::t_1cc75132c2a4a9 66
+sdk-typescript/tests/unit.test.ts
+  s_99f7d0d06ad207::t_b86e3916e25fe5 8492
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2f3e4b85db0a0248f9dfa65a7bf1352c37b5c1c",
+  "prompts": {},
+  "sessions": {
+    "s_99f7d0d06ad207": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5397d916ffexzBaDLNSmvvX0N",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

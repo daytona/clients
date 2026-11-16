@@ -1,0 +1,16 @@
+python/src/daytona/v2/__init__.py
+  h_e7759ddd73fa65 361,713
+python/src/daytona/v2/_exports.py
+  h_e7759ddd73fa65 356
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4e5017de6840b64e52818cca494a790d4999390",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

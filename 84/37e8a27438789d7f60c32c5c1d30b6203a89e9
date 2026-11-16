@@ -1,0 +1,18 @@
+upgrade/python/README.md
+  h_e7759ddd73fa65 99
+upgrade/python/tests/test_report_schema.py
+  h_e7759ddd73fa65 94-99
+upgrade/typescript/tests/report.test.ts
+  h_e7759ddd73fa65 149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8437e8a27438789d7f60c32c5c1d30b6203a89e9",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

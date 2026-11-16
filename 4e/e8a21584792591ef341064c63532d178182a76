@@ -1,0 +1,809 @@
+upgrade/typescript/tests/config-observation-and-escape.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 11,122
+changelog.d/587-cli-audit-timestamp-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-create-no-wait-shape.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-6
+changelog.d/587-cli-terminal-queries.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+upgrade/python/src/daytona_upgrade/partial_analysis.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 17,72
+cli/internal/ui/startup_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-215
+sdk-python/src/daytona/v2/types.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 509,514-515,541-542,545,899-910,916,1045,1187,1206,1208,1223,1281,1328,1349,1368
+changelog.d/587-cli-key-lifetime-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-create-name-idempotency.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-server-wait-no-wait.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_cp.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 37,49-53,76-84,96-110
+  s_1d65fa05b6bddd::t_054db1f1c74d7d 111-112
+sdk-python/tests/test_sandbox_secrets_parity.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 113,134,247-248
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 33,45
+cli/internal/toolbox/terminal_resize_initial_unix_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-65
+cli/cmd/registry_input_order_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-34
+cli/internal/toolbox/transfer.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 11,14,18,30,35,50,65-69,72-74,81,91-120,125,149-152
+cli/internal/toolbox/transfer_url.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-19
+sdk-python/src/daytona/v2/_auth.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 152
+sdk-python/tests/test_core.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 925,1559,2224,6204-6206,7664
+changelog.d/587-cli-api-url-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-6
+changelog.d/587-cli-ssh-flags.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/internal/app/app_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7,239-255,257
+  s_1d65fa05b6bddd::t_c40ec7e0e79ee6 256
+cli/cmd/sandbox_create_result.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-94
+cli/internal/toolbox/websocket_dial.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-146
+sdk-python/README.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 374-377,450-454,472-474,477-478,1101-1102
+cli/cmd/sandbox_create_macos.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 11,39-41,50-81
+  s_1d65fa05b6bddd::t_c9146c35a1d7ec 82-83
+changelog.d/539-models.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 9-10
+changelog.d/587-cli-cp-local-directory.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_cp_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 43-45
+cli/cmd/docs.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 11,26,31-33
+changelog.d/build-context-response-checks.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-5
+sdk-python/tests/test_build_context_upload.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 33,72-73,106-107,116-117,172-174,354-414
+  s_1d65fa05b6bddd::t_4df5d8c58f061e 415-416
+sdk-typescript/DEVELOPMENT.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 95-97,105-107,161
+upgrade/typescript/README.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 5-6,16,129-130
+cli/internal/app/app.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 14,53-55,86-89,107-121,147-157,204,206-207,209-212,222,224-226,245,250-256,258,261-267,269
+cli/internal/toolbox/websocket_error_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-38
+cli/internal/ui/terminal_input.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-54
+cli/cmd/image_precheck_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-46
+cli/internal/auth/session_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 61-63,65,73-74
+sdk-python/src/daytona/v2/_events.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 387-394,399
+upgrade/typescript/src/optional-arguments.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 14-20,24,29-33,39-40,42-46,48-50
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-102
+cli/internal/app/presentation.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-115
+sdk-python/src/daytona/v2/_exports.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 159
+changelog.d/build-log-unknown-events.changed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-5
+sdk-typescript/src/v2/NetworkPolicy.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 111-112
+changelog.d/create-handle-labels.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-8
+changelog.d/587-cli-saved-credential-url.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-5
+cli/cmd/volume_size_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-35
+sdk-python/tests/test_result_tuples.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-168
+cli/cmd/auth_login_command.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 24-25,33-35,56-64,88-89
+  s_1d65fa05b6bddd::t_6fa8d71e513e3c 90
+changelog.d/upgrade-suggest-keyboard.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/audit.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 9,13,26-32
+upgrade/python/src/daytona_upgrade/project_paths.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 22-23,121-123,130-136,148-152,154-158,164,166-169
+changelog.d/587-cli-signal-exit-codes.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-7
+cli/cmd/sandbox_display_actions_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-105
+cli/internal/toolbox/process_client.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 58,62,77,81,127,135-153,162,167,170-191
+changelog.d/587-cli-registry-update-metadata.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_actions_more_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 32,35,87,114,117,148,151,158,161,385,388
+changelog.d/upgrade-unknown-extras.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-5
+cli/cmd/sandbox_search.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8-9,12-14,28,63-98,114-130,146,154
+changelog.d/587-cli-static-key-project.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+changelog.d/587-cli-output-format.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-create-blank-name.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-start-state-aware.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/context-object.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/image_precheck.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-72
+cli/internal/toolbox/process_encoding_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-35
+sdk-python/DEVELOPMENT.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 69
+sdk-typescript/src/v2/Sandbox.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 312-322,331-332,342,345,697-698,1116-1118,1154-1158
+cli/cmd/ga2_contract_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-499
+sdk-typescript/tests/malformed-responses.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 563-565
+upgrade/typescript/tests/indirect-config-url-sources.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 53
+changelog.d/587-cli-stdin-base64url.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_cursor_regions_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-34
+cli/cmd/sandbox_ssh_more_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 120-121,123-124,133-135
+changelog.d/587-cli-cp-directory.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+cli/internal/api/error_hints.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 57-60
+cli/internal/toolbox/terminal_size_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-37
+upgrade/mapping/mapping.json
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 4,7,19-22,2888,2912,2984,3008,3032,3228-3229,3252-3253,3277-3278,3353,3378,3405,3433,3459,3483,3555,3828,3957,3982,4609,4686,4713,5254,5279,5458,5483
+upgrade/mapping/mapping.schema.json
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 63,77-79
+  s_1d65fa05b6bddd::t_ae191b6703753a 80
+cli/internal/toolbox/terminal_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-18
+changelog.d/upgrade-both-package-names.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_process.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 221-229
+cli/cmd/sandbox_create_macos_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 15-16,24,26-29,38,117
+cli/cmd/sandbox_ssh_flags_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-70
+cli/cmd/reservation.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 120,130-134
+sdk-typescript/README.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 299-302,402-407,413-416,477,1011-1012
+upgrade/python/tests/test_dependency_namespace_endpoint_boundaries.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 122-124
+upgrade/typescript/tests/optional-arguments.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 32-38
+cli/cmd/sandbox_create_more_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 24-27,29,41,52-54,56,113,115,120,126-127,129,133,139-140,143-144,175,180-182,188-190,192-193,201-204,206,208-209,237,247,269-270,272,295,311,328,361,393
+sdk-typescript/tests/unit.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1207,1237-1239,1303-1305,2150-2151,3975-3976,7383,9234-9235,10451,10497-10498,13719,13723
+changelog.d/absent-values.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-7
+sdk-python/src/daytona/v2/_context_upload.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 35,220-226,253-262,264,272-274,317,320-322
+cli/cmd/org.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 28,50,73
+changelog.d/587-cli-no-wait-action-fallback.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+changelog.d/587-cli-profile-selection.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-tty-size.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/websockets-floor.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/command_flags.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 106-107,130,132-133,140-141,232-234,253-259
+  s_1d65fa05b6bddd::t_85b4dc7ba5371d 260-261
+cli/internal/ui/prompt_context_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-54
+sdk-typescript/src/v2/imageModel.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 11,32
+upgrade/typescript/src/sdk-methods.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 42-74,80-106
+upgrade/typescript/tests/root-import-and-package-constraints.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 86-96
+sdk-python/src/daytona/v2/build_logs.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 75,236-243,393-398,457-458,645-647,691-693,859-870,933-934
+sdk-python/tests/test_root_client.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1031,1056
+upgrade/python/tests/test_dependency_fixes.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 110-205
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 16-47,61-68
+upgrade/typescript/src/mapping.json
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 4,7,19-22,2888,2912,2984,3008,3032,3228-3229,3252-3253,3277-3278,3353,3378,3405,3433,3459,3483,3555,3828,3957,3982,4609,4686,4713,5254,5279,5458,5483
+changelog.d/536-duration-flags.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 3
+cli/cmd/sandbox_cp_probe.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-29
+sdk-python/src/daytona/v2/interpreter.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 58,62-63,95,497,591
+cli/internal/api/error_hints_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 10-11,14-27,95-126
+changelog.d/587-cli-create-invalid-id.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-preview-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-process-execution-deadline.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/internal/output/format.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-28
+cli/internal/toolbox/process_create.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-37
+cli/internal/ui/cancellation_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-91
+upgrade/python/src/daytona_upgrade/analysis_filter.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 18,82-84
+sdk-typescript/src/v2/BuildLogs.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 9,76-79,152-161,253,258,461-465,588-598,634
+upgrade/python/src/daytona_upgrade/optional_arguments.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 12-19,30,35-37,46-49,51-53,58
+changelog.d/587-cli-process-attach-alias.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 230-234,579,581-584,646-647
+changelog.d/587-cli-attach-interrupt.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+upgrade/python/src/daytona_upgrade/project.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 24,71,95,101-105,131-133
+sdk-python/src/daytona/v2/_body_limit.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 23,48-49,92-93,239-242,285-287,290-291,304-305
+changelog.d/587-cli-image-wait-failures.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_create_retry_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-110
+cli/cmd/registry.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 10,33-36,53-56,79,86,171-177,185
+cli/cmd/sandbox_process_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 72-73
+sdk-python/src/daytona/v2/process.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 796
+upgrade/python/tests/test_async_mock_spec_origins.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 19
+cli/internal/toolbox/websocket.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 10,43-47
+upgrade/MIGRATION.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 31-32,49-50,510-511,514-516,605-608,630-631,655
+cli/cmd/key_scaffold.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 85
+changelog.d/empty-cursor.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/auth.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 25-46,162-177
+cli/cmd/image_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 86
+upgrade/python/tests/test_suggestions.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 84-88,108-112,129-133,270-272,296-298,360-409,426-488
+changelog.d/upgrade-pyw-sources.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+sdk-python/src/daytona/v2/ports.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 165
+sdk-typescript/tests/networkPolicyWire.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 122-123,125,164-165,197
+cli/cmd/key_helpers_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 14-23,27-31,36-45
+upgrade/typescript/src/run.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 46-50
+changelog.d/587-cli-list-cursor.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-attach-dropped.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+upgrade/python/README.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 17,65-67,72-73
+changelog.d/587-cli-image-logs-cap.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_ssh_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 20,29
+sdk-typescript/src/v2/Git.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 222-223,229
+sdk-typescript/tests/sandboxSecretsWire.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 43,69
+sdk-typescript/src/v2/Image.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 258,279,289,310,359-361,371-373,378,386-388
+upgrade/typescript/src/sandbox-owner.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 31-39
+sdk-typescript/tests/artifact-models.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 31-32,38,44,48-63
+  s_1d65fa05b6bddd::t_b3a171f02ace47 64
+sdk-python/tests/fixtures/sandbox-handle-json.json
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 95
+changelog.d/587-cli-exec-bytes.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/upgrade-suggest-root-services.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/root.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 87-91,100,131,174-175
+  s_1d65fa05b6bddd::t_868dfc5f2258c2 176
+cli/cmd/reservation_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 237
+cli/internal/toolbox/ssh_host_keys_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-160
+cli/internal/toolbox/transfer_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 190,348-401
+cli/internal/ui/prompt_width_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-36
+changelog.d/upgrade-suggest-lsp-owner.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_toolbox_harness_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-125
+sdk-python/src/daytona/v2/lsp.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,79,140
+upgrade/python/DEVELOPMENT.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 184
+upgrade/python/tests/test_cli.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 314,345-362
+upgrade/scripts/docs-links.test.mjs
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-48
+cli/internal/ui/terminal_input_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-109
+upgrade/typescript/tests/property-client-service-proofs.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 39,48-49,51
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 150-152
+changelog.d/587-cli-image-log-names.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-ssh-exit-codes.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-macos-prechecks.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_search_helpers.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 130
+sdk-typescript/src/v2/contextUpload.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 18,182-183,196-197,244,247,250,259-287,308-310,314-315
+sdk-typescript/tests/list-pages.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 129-143
+sdk-python/pyproject.toml
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 34
+cli/cmd/image_wait_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-60
+changelog.d/upgrade-drop-api-url-message.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+sdk-typescript/tests/build-context-upload.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 36,81,98-99,112,117-118,145-178
+  s_1d65fa05b6bddd::t_be5826f1a408ca 179
+sdk-python/src/daytona/v2/computer_use_types.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,240,259,279,281-282,300,321
+cli/cmd/sandbox_create_idempotency.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-87
+changelog.d/587-cli-image-platform-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+sdk-python/tests/test_build_logs.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 354-357,359,361,823-833,835-853
+cli/README.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 84-89,122-123,168-199,246-259,262-263,266,317-318,321-322,354-358,365-369,371-372,374-384,393-395,425,428,432,461-464,468-469,471-475,496-497,505-506,509-515,540,543,548,550-554,558,579,597-608,633-635,639-642,663-665
+upgrade/typescript/tests/client-service-proofs.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 82-92,111,117-118,120-121
+cli/cmd/api_url_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 11-12,49,55-56,58,60,62,64-68,73-79
+cli/internal/ui/prompt.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7-14,19,21-28,30-48,50-53,66-164,167-171
+cli/cmd/command_more_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7,66-68,76-78,133
+sdk-python/src/daytona/v2/_api_core.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 6-7,9,45,61,305-380,383-398,404-413
+cli/internal/toolbox/terminal.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-157
+cli/cmd/image_logs.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-140
+changelog.d/587-cli-search-region.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-registry-kind-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/policy-http-status.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+changelog.d/587-cli-exec-interrupt.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/toolbox_output.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7,10,16-43
+  s_1d65fa05b6bddd::t_d256da3e68e793 44
+sdk-typescript/tests/build-logs.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 100-104,570-578,580-584,588-604
+  s_1d65fa05b6bddd::t_26531072d30020 605
+upgrade/typescript/tests/config-safety.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 72-87,99
+upgrade/python/src/daytona_upgrade/project_discovery.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 20-25,93-94,118
+changelog.d/587-cli-dockerfile-context.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_cp_probe_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-40
+cli/cmd/signal.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,12-13,16-24,26-52
+changelog.d/587-cli-tty-resize.added.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-volume-size-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-device-login.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+changelog.d/587-cli-tty-replay.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+upgrade/scripts/optional-arguments.test.mjs
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 6,41-50,57-66
+upgrade/typescript/src/suggestions.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,17,86-128,132,155-157,168-169
+sdk-python/src/daytona/v2/services.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 122-123,367
+changelog.d/587-cli-create-idempotency-key.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-6
+cli/internal/workload/wait.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8-9,112-113,121,128-141,147-151,155-156,164,172-174,181-185
+changelog.d/build-log-discovery-errors.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-8
+cli/cmd/image_list.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 43-49
+cli/cmd/volume_argument_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-35
+cli/internal/toolbox/terminal_resize_tty_unix_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-44
+changelog.d/587-cli-websocket-errors.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+sdk-typescript/src/v2/http.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,641-642,664-665,702-704,1022,1661-1662
+changelog.d/sandbox-state-type.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-37
+sdk-typescript/src/v0-unbundled.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 25
+changelog.d/587-cli-server-wait.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+changelog.d/587-cli-actions-no-wait-shape.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/secret_registry_more_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 29,71,86
+cli/cmd/sandbox_search_filters_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-66
+cli/cmd/mac_purchase_confirmation_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 79-81,102-106
+changelog.d/587-cli-create-name-validation.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-cp-upload-diagnostics.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+cli/cmd/sandbox_exec_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 37,97,142
+cli/cmd/image_create.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 30-32,91,93
+  s_1d65fa05b6bddd::t_9c3f5402986260 92
+cli/cmd/signal_portable_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-30
+changelog.d/587-cli-exec-start-exit.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-search-label-commas.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/upgrade-suggest-result-names.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/v0-pin-0-231-1.changed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/cli_contract_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 74,374,377,532
+changelog.d/unknown-image-source.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-9
+cli/internal/cerr/cerr.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 20-28
+cli/internal/toolbox/ssh.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7-8,10,12-13,15-17,28-38,51-76,87-92,103,105,109-153
+  s_1d65fa05b6bddd::t_3429dcfeea9128 154
+sdk-python/src/daytona/v2/_otel.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 69-70,75
+cli/internal/toolbox/process_cancel_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-119
+sdk-typescript/tests/sandbox-metadata.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 58-61,68-69,85,88
+cli/cmd/sandbox_exec.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 64,68,74-76,100-106,116-126,128-135,147,159-165
+upgrade/python/src/daytona_upgrade/importflow.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 18,28
+cli/cmd/reservation_update_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-39
+cli/internal/app/clients.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-253
+changelog.d/587-cli-cp-missing-source.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/internal/workload/wait_failures_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-47
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 4,7,19-22,2888,2912,2984,3008,3032,3228-3229,3252-3253,3277-3278,3353,3378,3405,3433,3459,3483,3555,3828,3957,3982,4609,4686,4713,5254,5279,5458,5483
+upgrade/typescript/tests/qualified-package-constraints.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 39-74
+upgrade/scripts/optional-arguments.mjs
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 6-8,10-16,20,29,31-32,36-50,52,57-58,61
+changelog.d/v0-pin-run-commands-quoting.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/image_logs_bounds_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-62
+cli/cmd/volume_helpers.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 60-62
+cli/cmd/sandbox_create.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 78,88,111,151-155,180
+examples/python/test_examples.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 406,449,451,1018
+cli/cmd/sandbox_exec_cancel_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-101
+changelog.d/587-cli-update-name-label.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+upgrade/typescript/tests/config-alias-escape-boundaries.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 21,45
+changelog.d/587-cli-profile-names.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 20,92-93,104,126-127,137,156,188-189,191
+cli/cmd/auth_login_output_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-79
+changelog.d/539-build-log-deadline.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 4
+changelog.d/587-cli-ssh-host-keys.security.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-8
+cli/cmd/secret_validation_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-52
+cli/internal/config/profile_name.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-21
+changelog.d/587-cli-secret-empty-domain.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/raw-state-none.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_logs.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 9,14-15,120-123,133,135,160,163-169,179,182,184,189-210
+  s_1d65fa05b6bddd::t_5e1525454bd16f 211
+changelog.d/587-cli-search-labels.added.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+sdk-python/src/daytona/v2/computer_use_core.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 148-149,156-157,164-170,190,193-197,601,605-608,611-614,642,656-657
+changelog.d/587-cli-wait-for.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_exec_timeout_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-134
+changelog.d/587-cli-attach-size.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+cli/cmd/sandbox.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 87,90-93,110,119-120,125-158,164-166
+changelog.d/result-tuples.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-10
+cli/internal/ui/terminal.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-220
+sdk-typescript/tests/volume-pull.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 51,66,72,94
+changelog.d/587-cli-profile-credential.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_display.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-95
+upgrade/python/src/daytona_upgrade/suggestion_owners.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 57-64,76-85,178-179,184-185
+changelog.d/587-cli-image-not-found-hint.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+sdk-python/src/daytona/v2/daytona.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 800,1186
+cli/cmd/image_validation_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-98
+changelog.d/redirects.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-11
+cli/cmd/auth_context.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-132
+cli/cmd/key_helpers.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 40-42
+cli/cmd/mac_purchase_confirmation_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 32,90-95,125-126
+cli/cmd/sandbox_action_output.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-41
+upgrade/scripts/check-v2-surface.mjs
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 12,65,72-74,79
+cli/internal/toolbox/terminal_resize_windows.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-13
+cli/cmd/registry_validation_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-55
+changelog.d/587-cli-image-source-prechecks.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+sdk-python/src/daytona/v2/sandbox.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 112,327-328,380-381,409,411-415,773,775,778,1075,1078-1079,1483-1485,1752-1756,2089-2092,2100
+upgrade/scripts/gen-guide.mjs
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 63-64,81-82
+cli/internal/toolbox/process_stream.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 39,51,55-60,68-76,82,90,101,132,138,144-145
+cli/internal/toolbox/terminal_resize_unix.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-48
+cli/cmd/sandbox_port.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 12,120-127,139-140,142,155-168,170-172
+cli/cmd/sandbox_create_helpers.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 27-29,52,62-64,126-136,138-155,157-158,160-162
+sdk-typescript/src/v2/Docker.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 31-32
+upgrade/python/src/daytona_upgrade/source_suffixes.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-15
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 148-149,238,257-258,298
+changelog.d/587-cli-whoami-static-key.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-7
+changelog.d/upgrade-docs-links.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-5
+changelog.d/587-cli-preview-expire.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+docs/RELEASING.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 293-316,411
+sdk-python/src/daytona/v2/_core.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 81,352-358,1117,1120,1288,1609,1933-1934,1964,2340,2356,2396-2397
+changelog.d/587-cli-sigterm-exit-code.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+sdk-python/src/daytona/v2/_transport.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 293,325,348,362,762,882,1019,1107,1316
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 369-373,688,841-858,941,979,998-1001
+sdk-python/tests/test_redirects.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-119
+cli/internal/app/auth_url_binding_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-85
+cli/internal/ui/picker_interrupt_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-50
+upgrade/typescript/src/config.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 21,41-42,139-141,143
+changelog.d/587-cli-resource-wait-identifiers.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/internal/auth/session_race_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 112-114,124-129,135
+sdk-python/tests/test_toolbox_surface.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 212,405,445,450,1007,1044,1406
+changelog.d/587-cli-reservation-autorenew.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/upgrade-api-url-spacing.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/auth_login.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,48-58,110-112
+changelog.d/587-cli-cp-signed-url.security.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/sandbox_ssh.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 12,16,21-24,29-32,48-51,56,59,63-87
+cli/internal/toolbox/process_wait_deadline_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-44
+sdk-python/tests/test_network_policy_wire.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 91,267
+upgrade/typescript/src/manifests.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 73-85,147
+cli/cmd/image_more_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 156,175-177,228-230,283,295,311,336,542,558,731-733,751
+sdk-typescript/src/v2/types.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 232,237,292,865-866,1306-1311,1314,1317
+cli/internal/config/profile_name_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-62
+cli/cmd/profile_validation_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-87
+changelog.d/538-toolbox-identities.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7-8
+changelog.d/587-cli-exec-create-deadline.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/cmd/secret.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 8,101,184-185,208-230
+  s_1d65fa05b6bddd::t_ea1e5a0021d7b7 231-232
+cli/internal/toolbox/transfer_errors_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-64
+cli/cmd/security_regressions_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 86,89-92,94,101
+upgrade/typescript/src/source-safety.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 13,40-41
+sdk-python/src/daytona/v2/errors.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 250-252,869,978-985
+  s_1d65fa05b6bddd::t_ef202800531315 986-987
+changelog.d/587-cli-create-name-label.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/587-cli-execution-timeout.added.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/internal/toolbox/terminal_attach_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-65
+upgrade/python/src/daytona_upgrade/models.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 98-99,181
+changelog.d/upgrade-suggest-after-sandbox-methods.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+changelog.d/upgrade-suggest-none-timeout.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/image_precheck_symlinks_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-107
+cli/internal/toolbox/process_create_deadline_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-46
+cli/internal/config/profile_upsert_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-42
+sdk-typescript/src/v2/clientCreate.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 12,97-99
+changelog.d/587-cli-docs-full-dir.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+sdk-typescript/src/Daytona.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 281
+cli/internal/app/context.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-126
+sdk-typescript/tests/sandboxSecretsParity.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 106,117,244-245
+cli/internal/config/config.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 224-226,229-232,235,238-239,246-248
+upgrade/typescript/tests/deployment-and-manifest-edge-cases.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 77
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 120-122,125,207-212
+cli/cmd/sandbox_volumes_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 39-42,47-49,63-65
+cli/cmd/auth_context_checks_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-82
+changelog.d/v0-pin-image-exec-forms.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/internal/toolbox/ssh_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 15,51
+sdk-python/src/daytona/v2/__init__.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 114,554
+changelog.d/rate-limited-error.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_exec_tty_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-230
+upgrade/python/src/daytona_upgrade/project_configs.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 14,59
+cli/cmd/profile.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 7-8,37,62,65-67,84-86,93,95-110
+cli/internal/output/output_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 118-119
+upgrade/python/src/daytona_upgrade/manifests.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 130-132
+cli/cmd/sandbox_exec_binary_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-62
+cli/cmd/sandbox_exec_tty_cancel_linux_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-102
+cli/internal/workload/wait_timeout_hints_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-133
+changelog.d/upgrade-suggest-workflow-docs.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-4
+cli/cmd/sandbox_search_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 20,135
+changelog.d/upgrade-file-path-refusal.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+cli/internal/toolbox/websocket_cancel_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-151
+scripts/check-no-bundled-v0.sh
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 49
+upgrade/python/tests/test_multiline_workflow_guidance.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 139-143,203
+AGENTS.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 273,460-465,698-711,765-766,893,982-987
+changelog.d/587-cli-create-wait-seconds-no-wait.breaking.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-3
+changelog.d/587-cli-prompt-bracketed-paste.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+changelog.d/v0-pin-l40s.added.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 23-28,49-50,104-115,148-155,160-165,169-176,268-278,280
+cli/cmd/sandbox_actions.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 24-32,118-119,166-168,185,243,279-299
+  s_1d65fa05b6bddd::t_06b345b7fd16ab 300-301
+scripts/v0-sdk-version
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+sdk-python/tests/test_forward_compat.py
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-127
+changelog.d/587-cli-image-build-errors.fixed.md
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-2
+cli/internal/output/format_test.go
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-33
+sdk-typescript/tests/redirects.test.ts
+  s_1d65fa05b6bddd::t_2a04b2e71ec4d4 1-98
+sdk-python/uv.lock
+  s_1d65fa05b6bddd::t_d1938149fc5d38 288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ee8a21584792591ef341064c63532d178182a76",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

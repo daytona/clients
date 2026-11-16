@@ -1,0 +1,23 @@
+changelog.d/mac-reservation-limit.added.md
+  s_982ebece9dd4e3::t_7553f42214565d 1-13
+sdk-python/README.md
+  s_982ebece9dd4e3::t_6e82c4d438f0c3 678-682
+sdk-typescript/README.md
+  s_982ebece9dd4e3::t_49677bed2d0c6b 600-604
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a238667702a657468cbac5889fce1e4cd8410b3d",
+  "prompts": {},
+  "sessions": {
+    "s_982ebece9dd4e3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b6804deffenaHLGFAXZjV0hR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+changelog.d/539-internal-constructors.breaking.md
+  s_ca009e77d17705::t_1e54523cff3426 5-9
+sdk-typescript/tests/artifact-waits-contract.test.ts
+  s_ca009e77d17705::t_459bd414e82dc8 18-19,26-29
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_0eb4071e4794b4 68,99,102,105-110,114-118,120,123-124,134,136
+changelog.d/539-create-fork-return.breaking.md
+  s_ca009e77d17705::t_1e54523cff3426 5-21
+examples/python/test_examples.py
+  s_ca009e77d17705::t_f9715eaf183915 26,63-71,93-94,191-193,196,201-203,206-217,265,314,687,693-698,717-740
+changelog.d/539-handle-json.breaking.md
+  s_ca009e77d17705::t_1e54523cff3426 2-5
+changelog.d/539-model-exports.breaking.md
+  s_ca009e77d17705::t_1e54523cff3426 1-22
+examples/typescript/examples.test.ts
+  s_ca009e77d17705::t_0eb4071e4794b4 304-319
+examples/typescript/test-support/volume-mounts.ts
+  s_ca009e77d17705::t_0eb4071e4794b4 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d44ee383b79ac997898fac6f7908d9625f1c043c",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

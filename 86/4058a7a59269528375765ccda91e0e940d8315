@@ -1,0 +1,27 @@
+sdk-python/tests/conftest.py
+  s_f23bcae77f0e63::t_5d5b48bb567553 5,8,26,35
+  s_f23bcae77f0e63::t_476d3515f4655a 17-25,27-34,36-42
+sdk-python/tests/test_events.py
+  s_f23bcae77f0e63::t_01a4d5bb5fb7ad 1615-1616
+sdk-python/pyproject.toml
+  s_f23bcae77f0e63::t_9f97e23cd26186 74-77
+sdk-python/tests/test_root_client.py
+  s_f23bcae77f0e63::t_5a632818d26804 48-58,149,188,209,228,240,774,785,793,797,886,948,957,967,999,1018,1049,1076,1102,1136,1186,1200,1227,1248,1264,1282,1311,1343,1508
+  s_f23bcae77f0e63::t_d7e99bf84efdc7 100-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "864058a7a59269528375765ccda91e0e940d8315",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

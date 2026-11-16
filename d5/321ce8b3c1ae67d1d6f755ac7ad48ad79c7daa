@@ -1,0 +1,34 @@
+changelog.d/539-response-timestamps.breaking.md
+  s_ca009e77d17705::t_e21fea9dbdcecb 11-13
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_521aad52c5b014 1482,1484-1485,1489-1492,1497-1498,1534,1538
+sdk-typescript/src/v2/clientSearch.ts
+  s_ca009e77d17705::t_521aad52c5b014 39-40,42-43,48-49
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_ae247002b16d0b 924-925
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_521aad52c5b014 18,78
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_ae247002b16d0b 567-568
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_210a249e829433 64
+  s_ca009e77d17705::t_521aad52c5b014 789
+sdk-python/tests/fixtures/search-timestamps.json
+  s_ca009e77d17705::t_2d11d1b0217b4a 12-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5321ce8b3c1ae67d1d6f755ac7ad48ad79c7daa",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+.githooks/pre-commit
+  s_f634d6515dfc0f::t_64b3db350393c4 1-16
+.githooks/pre-push
+  s_f634d6515dfc0f::t_24d12ef90cd989 1-19
+.github/workflows/secret-scan.yaml
+  s_f634d6515dfc0f::t_6a9b480cf08e87 1-53
+.gitleaks.toml
+  s_f634d6515dfc0f::t_3d9547a8952d86 1-58
+AGENTS.md
+  s_f634d6515dfc0f::t_e60756a3b77607 54-77
+CONTRIBUTING.md
+  s_f634d6515dfc0f::t_485d0ff902f0f0 49-64
+scripts/secret-scan.sh
+  s_f634d6515dfc0f::t_032639464b8cf3 1-295
+scripts/secret-scan_test.sh
+  s_f634d6515dfc0f::t_e8af0d0f764029 1-339
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2daa3f55b3341fc518649d5822e7d1b685b67309",
+  "prompts": {},
+  "sessions": {
+    "s_f634d6515dfc0f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe5ffdSFgY4DdDZq1hEw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

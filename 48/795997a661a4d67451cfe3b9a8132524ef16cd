@@ -1,0 +1,25 @@
+.claude/skills/deep-review/scripts/scripts_test.sh
+  s_170baf016701c2::t_009e08cb8b4d94 1-52
+.claude/skills/deep-review/SKILL.md
+  s_170baf016701c2::t_475af10292d2ec 108
+.claude/skills/deep-review/scripts/branch_context.sh
+  s_170baf016701c2::t_5e397236611d84 28-29
+.claude/skills/deep-review/scripts/preflight.sh
+  s_170baf016701c2::t_c71bcdc8d29390 27-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48795997a661a4d67451cfe3b9a8132524ef16cd",
+  "prompts": {},
+  "sessions": {
+    "s_170baf016701c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179970ffel5mD5rtZsQQcTa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

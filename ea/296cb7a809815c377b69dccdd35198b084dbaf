@@ -1,0 +1,74 @@
+changelog.d/upgrade-dockerfile-image-suggestions.added.md
+  s_dda305198a66db::t_559de7064ac555 1-8
+upgrade/python/tests/test_dockerfile_image_suggestions.py
+  s_dda305198a66db::t_fd94c01de4f93d 1-61,64-75,82-92
+  s_dda305198a66db::t_faf499a3ed49f1 93-111
+  s_dda305198a66db::t_f6244727b7ce2f 62-63,76-81
+upgrade/scripts/gen-guide.mjs
+  s_dda305198a66db::t_5bd27433364462 125-131
+upgrade/typescript/src/model.ts
+  s_dda305198a66db::t_560c43edb3e790 22-23,41-42
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_dda305198a66db::t_0e54e7d24cb5af 194-205,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1218,1221-1222,1242-1243,1246-1247,1268-1269,1272-1273,1293-1294,1297-1298,1319-1320,1323-1324,1344-1345,1348-1349,1369-1370,1373-1374,1395-1396,1400-1401,1423-1424,1429-1430,1452-1453,1458-1459,3839-3859,4112-4130
+upgrade/python/src/daytona_upgrade/call_proofs.py
+  s_dda305198a66db::t_1475c0f7622ecd 55-56
+  s_dda305198a66db::t_1e996a57d5b313 15
+upgrade/python/src/daytona_upgrade/call_sites.py
+  s_dda305198a66db::t_a8b38ded7150ee 41-42
+upgrade/scripts/migration-notes.test.mjs
+  s_dda305198a66db::t_7866408387bb78 94-122
+upgrade/typescript/src/dockerfile-image.ts
+  s_dda305198a66db::t_f5d7ef4908e9c2 1-75
+upgrade/python/src/daytona_upgrade/models.py
+  s_dda305198a66db::t_c5efa7d6845a98 75-88,114,175,204,208-210
+  s_dda305198a66db::t_f6244727b7ce2f 166-171,205-207
+upgrade/mapping/mapping.schema.json
+  s_dda305198a66db::t_4abadd55bc2ff3 186-202,409-425,453-472
+changelog.d/upgrade-absolute-fs-paths.changed.md
+  s_dda305198a66db::t_559de7064ac555 1-5
+upgrade/mapping/mapping.json
+  s_dda305198a66db::t_6b8ddc67828a4f 194-205,3839-3859,4112-4130
+  s_dda305198a66db::t_d61ff05f4a556d 547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1218,1221-1222,1242-1243,1246-1247,1268-1269,1272-1273,1293-1294,1297-1298,1319-1320,1323-1324,1344-1345,1348-1349,1369-1370,1373-1374,1395-1396,1400-1401,1423-1424,1429-1430,1452-1453,1458-1459
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_dda305198a66db::t_f4d79f3e2a09dc 94-98,102,111,118,148,150,159
+upgrade/scripts/check-v2-surface.mjs
+  s_dda305198a66db::t_9081d7fadea939 55-59,66
+upgrade/python/src/daytona_upgrade/resolution.py
+  s_dda305198a66db::t_1475c0f7622ecd 86-92
+upgrade/python/src/daytona_upgrade/flow.py
+  s_dda305198a66db::t_f6244727b7ce2f 21
+  s_dda305198a66db::t_a8b38ded7150ee 223-228
+  s_dda305198a66db::t_f4d79f3e2a09dc 48-53
+upgrade/typescript/src/mapping.ts
+  s_dda305198a66db::t_560c43edb3e790 64-67,69,87-88
+upgrade/typescript/src/mapping.json
+  s_dda305198a66db::t_0e54e7d24cb5af 194-205,547-548,1077-1078,1081-1082,1102-1103,1106-1107,1129-1130,1135-1136,1158-1159,1164-1165,1188-1189,1195-1196,1217-1218,1221-1222,1242-1243,1246-1247,1268-1269,1272-1273,1293-1294,1297-1298,1319-1320,1323-1324,1344-1345,1348-1349,1369-1370,1373-1374,1395-1396,1400-1401,1423-1424,1429-1430,1452-1453,1458-1459,3839-3859,4112-4130
+upgrade/MIGRATION.md
+  s_dda305198a66db::t_5bd27433364462 88,100,121,133
+  s_dda305198a66db::t_0e54e7d24cb5af 318-319,324-338,344-358
+upgrade/typescript/tests/dockerfile-image-suggestions.test.ts
+  s_dda305198a66db::t_a34a01a44cbd51 61-71
+  s_dda305198a66db::t_faf499a3ed49f1 72-83
+  s_dda305198a66db::t_f5e9b428faaf0c 1-60
+upgrade/typescript/src/suggestions.ts
+  s_dda305198a66db::t_0e54e7d24cb5af 21,197-199,201-202
+upgrade/python/src/daytona_upgrade/dockerfile_images.py
+  s_dda305198a66db::t_192d1cd0ca695b 1-8,10-29,31-46,51-55,59
+  s_dda305198a66db::t_f6244727b7ce2f 9,30,47-50,56-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea296cb7a809815c377b69dccdd35198b084dbaf",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

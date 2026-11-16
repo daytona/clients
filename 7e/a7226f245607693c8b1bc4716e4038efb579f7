@@ -1,0 +1,47 @@
+hack/npm-publish.sh
+  s_d56170e68a44d6::t_c52a657bb56005 1-4,10-20,27-32,34-37
+  s_d56170e68a44d6::t_f3343b0c204b11 5-9,21-26,33,38
+hack/npm-latest-guard.test.sh
+  s_d56170e68a44d6::t_1990cf923cd567 104-112
+hack/npm-latest-guard.sh
+  s_d56170e68a44d6::t_028906d2cf3ea7 75,77-80
+  s_d56170e68a44d6::t_52ea4650611eae 11-13
+hack/npm-publish.test.sh
+  s_d56170e68a44d6::t_904f34431cdb65 1-4,6-17,24-26,28,30-31,33-37,39,41-47,60-65
+  s_d56170e68a44d6::t_7820558bed84a7 5,18,20-23,27,29,32,38,40,48-59
+  s_d56170e68a44d6::t_0f171ad09de23e 19
+.github/workflows/pr_checks.yaml
+  s_d56170e68a44d6::t_adce6981523cc2 196-197
+analytics-api-client/project.json
+  s_9e564478d3759c::t_c1f8ec0027d517 48
+api-client/project.json
+  s_9e564478d3759c::t_5928929b336936 47,49
+sdk-typescript/project.json
+  s_9e564478d3759c::t_6da05a2fbca235 120,123
+toolbox-api-client/project.json
+  s_9e564478d3759c::t_8c915b8fba7ada 47,49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ea7226f245607693c8b1bc4716e4038efb579f7",
+  "prompts": {},
+  "sessions": {
+    "s_9e564478d3759c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4632bf75ffewSSQ4Lp9sJG1gg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_d56170e68a44d6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4a8263ceffe2EUb7Uol0nw1sx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
