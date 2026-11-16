@@ -665,6 +665,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   EMAIL_ACCESS_DENIED: ForbiddenError,
   ENTITLEMENT_REQUIRED: ForbiddenError,
   FEATURE_NOT_ENABLED: FeatureNotEnabledError,
+  GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
   INVALID_FOR_SOURCE: BadRequestError,
   LIMIT_EXCEEDED: LimitExceededError,
   USAGE_UNAVAILABLE: ServiceUnavailableError,
