@@ -126,6 +126,7 @@ func (p Printer) Raw(s string, v any) error {
 
 func (p Printer) json(v any) error {
 	enc := json.NewEncoder(p.W)
+	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
 }
