@@ -1,0 +1,96 @@
+sdk-python/tests/test_model_serialization.py
+  s_ca009e77d17705::t_6e6c4a24916bba 111-119,164
+  s_ca009e77d17705::t_008cf2c5ebfe06 29,163
+  s_ca009e77d17705::t_06f4c4f594c709 1-28,30-31,35-110,120-162,165
+  s_ca009e77d17705::t_735fbec25531e5 32-34,166
+upgrade/typescript/src/mapping.json
+  s_ca009e77d17705::t_dcae02b43662a0 3905
+  s_2461be2ea4fb6e::t_2043dec117c4ac 3775,3784,3824,3851,3875,3953,3978,4529,4560,4601,4678,4705,4901,5246,5271,5450,5475,5487
+sdk-python/src/daytona/v2/git.py
+  s_ca009e77d17705::t_03085b6b59de5d 95,103,110
+  s_ca009e77d17705::t_a78cb73463d030 111-112
+upgrade/mapping/mapping.json
+  s_2461be2ea4fb6e::t_2043dec117c4ac 3775,3784,3824,3851,3875,3953,3978,4529,4560,4601,4678,4705,4901,5246,5271,5450,5475,5487
+  s_ca009e77d17705::t_dcae02b43662a0 3905
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_03085b6b59de5d 294,412
+  s_ca009e77d17705::t_34adb439cc1b9b 413-414,485,638-640,744-746,837-839
+sdk-python/tests/test_services_contract.py
+  s_ca009e77d17705::t_3be368185de511 171-176
+  s_ca009e77d17705::t_7528638b49f627 186,201-202,204
+  s_ca009e77d17705::t_b1e42d307fcda3 15
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_7528638b49f627 343-345
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_ca009e77d17705::t_6d934363266c91 301-303
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_ca009e77d17705::t_dcae02b43662a0 3905
+  s_2461be2ea4fb6e::t_2043dec117c4ac 3775,3784,3824,3851,3875,3953,3978,4529,4560,4601,4678,4705,4901,5246,5271,5450,5475,5487
+sdk-typescript/tests/published-declarations.test.ts
+  s_ca009e77d17705::t_c703eeae3f3920 35-36
+  s_ca009e77d17705::t_b67ad8fca0f0ff 6,10-17,34,38,43,45,47-49,52-60,63-77
+  s_ca009e77d17705::t_456d76c1c4d1bb 18-33
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_c703eeae3f3920 182-185
+  s_ca009e77d17705::t_0eb9f120edd125 468,493
+sdk-typescript/tests/sandbox-waits.test.ts
+  s_ca009e77d17705::t_7b8e24cebc31e2 44-67
+upgrade/MIGRATION.md
+  s_2461be2ea4fb6e::t_2043dec117c4ac 87,98,100-102,105-106,265-266,268,271-272,280,294-295,302-303
+  s_ca009e77d17705::t_dcae02b43662a0 89
+sdk-python/src/daytona/v2/filesystem.py
+  s_ca009e77d17705::t_03085b6b59de5d 456,461
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_ca009e77d17705::t_49f02a61e78b20 100,117
+examples/python/test_examples.py
+  s_ca009e77d17705::t_3be368185de511 91
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_3be368185de511 845,885
+  s_ca009e77d17705::t_eeb44611114cdc 1074-1075
+  s_ca009e77d17705::t_03085b6b59de5d 969
+  s_ca009e77d17705::t_da76f6bf4ff90a 846,849
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_0eb9f120edd125 583,602,625
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_03085b6b59de5d 313-314,320,342
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_ca009e77d17705::t_7528638b49f627 274-277
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_ca009e77d17705::t_a362a4072d1866 348
+sdk-typescript/tests/sandbox-fork.test.ts
+  s_ca009e77d17705::t_7b8e24cebc31e2 128
+sdk-typescript/tests/secrets-service.test.ts
+  s_ca009e77d17705::t_7b8e24cebc31e2 26-27
+sdk-typescript/src/v2/Daytona.ts
+  s_ca009e77d17705::t_49f02a61e78b20 272
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_3bbd52c74763ff 12064
+  s_ca009e77d17705::t_d18257f671f615 6517
+  s_ca009e77d17705::t_3be368185de511 9717-9718,9720-9723
+sdk-typescript/tests/options-objects.test.ts
+  s_ca009e77d17705::t_7b8e24cebc31e2 55-56,90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61a3087ada5d2907a1379cc593bf6cc578f107b1",
+  "prompts": {},
+  "sessions": {
+    "s_2461be2ea4fb6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e45f193dbffedpCxcbvCIMyfOS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

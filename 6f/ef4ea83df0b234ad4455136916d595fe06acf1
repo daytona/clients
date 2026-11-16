@@ -1,0 +1,4286 @@
+.claude/skills/contract-refresh/SKILL.md
+  h_e7759ddd73fa65 1-80
+.claude/skills/coverage-preflight/SKILL.md
+  h_e7759ddd73fa65 1-55
+.claude/skills/cubic-loop/SKILL.md
+  h_e7759ddd73fa65 1-337
+.claude/skills/deep-review/SKILL.md
+  h_e7759ddd73fa65 1-235
+.claude/skills/deep-review/references/decomposition.md
+  h_e7759ddd73fa65 1-38
+.claude/skills/deep-review/references/drivers.md
+  h_e7759ddd73fa65 1-139
+.claude/skills/deep-review/references/failure-classes.md
+  h_e7759ddd73fa65 1-182
+.claude/skills/deep-review/references/preflight.md
+  h_e7759ddd73fa65 1-61
+.claude/skills/deep-review/references/rebuttals.md
+  h_e7759ddd73fa65 1-20
+.claude/skills/deep-review/scripts/branch_context.sh
+  h_e7759ddd73fa65 1-62
+.claude/skills/deep-review/scripts/pr_context.sh
+  h_e7759ddd73fa65 1-73
+.claude/skills/deep-review/scripts/preflight.sh
+  h_e7759ddd73fa65 1-72
+.github/workflows/changelog.yaml
+  h_e7759ddd73fa65 1-28
+.github/workflows/cli-ci.yaml
+  h_e7759ddd73fa65 1-54
+.github/workflows/contracts.yaml
+  h_e7759ddd73fa65 1-53
+.github/workflows/e2e.yaml
+  h_e7759ddd73fa65 1-69
+.github/workflows/license-headers.yaml
+  h_e7759ddd73fa65 1-27
+.github/workflows/prepare-release.yaml
+  h_e7759ddd73fa65 3-15,20,22,29,36-37,39,42,44-68,70-77,79,82-83,86,91-96,98,100-101,103
+.github/workflows/release.yaml
+  h_e7759ddd73fa65 3-8,13,15,20-21,24-25,27-28
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 1-375
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 1-90,96,98-100,102-105,107-115,117-120,122-125,127-130,132-133,135,139-140,142-146,150-160,162-258,261-294,296-300,302-318,321-452,455-474,476-479,481-611,614-709,711-724,726-808,811-849,851-876,878-919
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 1-173
+.github/workflows/upgrade-tool-publish.yaml
+  h_e7759ddd73fa65 1-249
+.gitignore
+  h_e7759ddd73fa65 1-24
+.licenserc.yaml
+  h_e7759ddd73fa65 2,17-18,32-50,52-72
+AGENTS.md
+  h_e7759ddd73fa65 1,3-5,7-8,10,12-13,15-27,29,31-42,44,46-56,58-61,63-68,70-77,79-84,86-468,471-475,478-479,481-483,485-486,488-520,522,524-525
+CHANGELOG.md
+  h_e7759ddd73fa65 1-14
+CONTRIBUTING.md
+  h_e7759ddd73fa65 1,3-4,17,24-28,30-35,39-40,43-45,48-49,51,57-58,61-62,74-76,79-80
+NOTICE
+  h_e7759ddd73fa65 6-11
+README.md
+  h_e7759ddd73fa65 1,3-5,7-8,10,13-24,27-102,105-108,111-115,117-120,124-126
+RELEASING.md
+  h_e7759ddd73fa65 1-311
+VERSIONING.md
+  h_e7759ddd73fa65 1-188
+assets/README.md
+  h_e7759ddd73fa65 1-5
+changelog.d/README.md
+  h_e7759ddd73fa65 1-26
+changelog.d/initial-2x.added.md
+  h_e7759ddd73fa65 1-12
+cli/.gitignore
+  h_e7759ddd73fa65 1-3
+cli/.golangci.yml
+  h_e7759ddd73fa65 1-27
+cli/README.md
+  h_e7759ddd73fa65 1-293
+cli/cmd/api_url_test.go
+  h_e7759ddd73fa65 1-69
+cli/cmd/audit.go
+  h_e7759ddd73fa65 1-100
+cli/cmd/auth.go
+  h_e7759ddd73fa65 1-188
+cli/cmd/auth_login.go
+  h_e7759ddd73fa65 1-239
+cli/cmd/auth_login_command.go
+  h_e7759ddd73fa65 1-83
+cli/cmd/auth_login_replacement_test.go
+  h_e7759ddd73fa65 1-123
+cli/cmd/auth_logout.go
+  h_e7759ddd73fa65 1-34
+cli/cmd/auth_logout_test.go
+  h_e7759ddd73fa65 1-156
+cli/cmd/auth_test.go
+  h_e7759ddd73fa65 1-1071
+cli/cmd/billing.go
+  h_e7759ddd73fa65 1-259
+cli/cmd/billing_helpers.go
+  h_e7759ddd73fa65 1-225
+cli/cmd/billing_invoice.go
+  h_e7759ddd73fa65 1-57
+cli/cmd/billing_settings.go
+  h_e7759ddd73fa65 1-179
+cli/cmd/billing_settings_test.go
+  h_e7759ddd73fa65 1-134
+cli/cmd/billing_test.go
+  h_e7759ddd73fa65 1-388
+cli/cmd/billing_validation_test.go
+  h_e7759ddd73fa65 1-79
+cli/cmd/build_logs_url.go
+  h_e7759ddd73fa65 1-197
+cli/cmd/build_logs_url_test.go
+  h_e7759ddd73fa65 1-86
+cli/cmd/catalog.go
+  h_e7759ddd73fa65 1-380
+cli/cmd/catalog_test.go
+  h_e7759ddd73fa65 1-627
+cli/cmd/command_more_test.go
+  h_e7759ddd73fa65 1-200
+cli/cmd/config.go
+  h_e7759ddd73fa65 1-63
+cli/cmd/contract_enums_test.go
+  h_e7759ddd73fa65 1-45
+cli/cmd/contract_fixtures_test.go
+  h_e7759ddd73fa65 1-49
+cli/cmd/contract_test.go
+  h_e7759ddd73fa65 1-248
+cli/cmd/docs.go
+  h_e7759ddd73fa65 8-9,12,15-67
+cli/cmd/docs_test.go
+  h_e7759ddd73fa65 1-21
+cli/cmd/fixtures_test.go
+  h_e7759ddd73fa65 1-145
+cli/cmd/image.go
+  h_e7759ddd73fa65 1-257
+cli/cmd/image_create.go
+  h_e7759ddd73fa65 1-138
+cli/cmd/image_cursor.go
+  h_e7759ddd73fa65 1-164
+cli/cmd/image_input_test.go
+  h_e7759ddd73fa65 1-56
+cli/cmd/image_list.go
+  h_e7759ddd73fa65 1-77
+cli/cmd/image_more_test.go
+  h_e7759ddd73fa65 1-676
+cli/cmd/image_multipart.go
+  h_e7759ddd73fa65 1-212
+cli/cmd/image_test.go
+  h_e7759ddd73fa65 1-154
+cli/cmd/invite.go
+  h_e7759ddd73fa65 1-273
+cli/cmd/invite_test.go
+  h_e7759ddd73fa65 1-290
+cli/cmd/key.go
+  h_e7759ddd73fa65 1-57
+cli/cmd/key_helpers.go
+  h_e7759ddd73fa65 1-91
+cli/cmd/key_helpers_test.go
+  h_e7759ddd73fa65 1-33
+cli/cmd/key_scaffold.go
+  h_e7759ddd73fa65 1-156
+cli/cmd/key_test.go
+  h_e7759ddd73fa65 1-161
+cli/cmd/list_alias_cursor_test.go
+  h_e7759ddd73fa65 1-264
+cli/cmd/list_collect.go
+  h_e7759ddd73fa65 1-53
+cli/cmd/list_collect_test.go
+  h_e7759ddd73fa65 1-27
+cli/cmd/list_cursor_deduplication_test.go
+  h_e7759ddd73fa65 1-160
+cli/cmd/list_cursor_streams.go
+  h_e7759ddd73fa65 1-61
+cli/cmd/list_deduplication_test.go
+  h_e7759ddd73fa65 1-172
+cli/cmd/mac_purchase_confirmation_linux_test.go
+  h_e7759ddd73fa65 1-112
+cli/cmd/mac_purchase_confirmation_test.go
+  h_e7759ddd73fa65 1-140
+cli/cmd/member.go
+  h_e7759ddd73fa65 1-170
+cli/cmd/member_helpers.go
+  h_e7759ddd73fa65 1-56
+cli/cmd/member_test.go
+  h_e7759ddd73fa65 1-135
+cli/cmd/mgmt_ctx_test.go
+  h_e7759ddd73fa65 1-580
+cli/cmd/org.go
+  h_e7759ddd73fa65 1-592
+cli/cmd/org_limits_test.go
+  h_e7759ddd73fa65 1-278
+cli/cmd/org_uuid_more_test.go
+  h_e7759ddd73fa65 1-22
+cli/cmd/orgkey.go
+  h_e7759ddd73fa65 1-43
+cli/cmd/platform_token_test.go
+  h_e7759ddd73fa65 1-385
+cli/cmd/profile.go
+  h_e7759ddd73fa65 1-87
+cli/cmd/project.go
+  h_e7759ddd73fa65 1-290
+cli/cmd/project_budget.go
+  h_e7759ddd73fa65 1-260
+cli/cmd/project_budget_test.go
+  h_e7759ddd73fa65 1-279
+cli/cmd/project_member.go
+  h_e7759ddd73fa65 1-155
+cli/cmd/ref_resolution_more_test.go
+  h_e7759ddd73fa65 1-39
+cli/cmd/region.go
+  h_e7759ddd73fa65 1-127
+cli/cmd/registry.go
+  h_e7759ddd73fa65 1-192
+cli/cmd/reservation.go
+  h_e7759ddd73fa65 1-210
+cli/cmd/reservation_create.go
+  h_e7759ddd73fa65 1-205
+cli/cmd/reservation_create_test.go
+  h_e7759ddd73fa65 1-200
+cli/cmd/reservation_list.go
+  h_e7759ddd73fa65 1-49
+cli/cmd/reservation_list_test.go
+  h_e7759ddd73fa65 1-64
+cli/cmd/reservation_test.go
+  h_e7759ddd73fa65 1-231
+cli/cmd/role.go
+  h_e7759ddd73fa65 1-41
+cli/cmd/root.go
+  h_e7759ddd73fa65 1-147
+cli/cmd/sandbox.go
+  h_e7759ddd73fa65 1-246
+cli/cmd/sandbox_actions.go
+  h_e7759ddd73fa65 1-334
+cli/cmd/sandbox_actions_more_test.go
+  h_e7759ddd73fa65 1-416
+cli/cmd/sandbox_cp.go
+  h_e7759ddd73fa65 1-238
+cli/cmd/sandbox_cp_more_test.go
+  h_e7759ddd73fa65 1-204
+cli/cmd/sandbox_cp_test.go
+  h_e7759ddd73fa65 1-145
+cli/cmd/sandbox_create.go
+  h_e7759ddd73fa65 1-227
+cli/cmd/sandbox_create_helpers.go
+  h_e7759ddd73fa65 1-173
+cli/cmd/sandbox_create_macos.go
+  h_e7759ddd73fa65 1-64
+cli/cmd/sandbox_create_macos_test.go
+  h_e7759ddd73fa65 1-119
+cli/cmd/sandbox_create_more_test.go
+  h_e7759ddd73fa65 1-330
+cli/cmd/sandbox_cursor.go
+  h_e7759ddd73fa65 1-213
+cli/cmd/sandbox_cursor_more_test.go
+  h_e7759ddd73fa65 1-216
+cli/cmd/sandbox_docker.go
+  h_e7759ddd73fa65 1-197
+cli/cmd/sandbox_docker_test.go
+  h_e7759ddd73fa65 1-94
+cli/cmd/sandbox_exec.go
+  h_e7759ddd73fa65 1-164
+cli/cmd/sandbox_exec_test.go
+  h_e7759ddd73fa65 1-464
+cli/cmd/sandbox_lifecycle_fixture_test.go
+  h_e7759ddd73fa65 1-16
+cli/cmd/sandbox_logs.go
+  h_e7759ddd73fa65 1-283
+cli/cmd/sandbox_logs_follow.go
+  h_e7759ddd73fa65 1-64
+cli/cmd/sandbox_logs_follow_test.go
+  h_e7759ddd73fa65 1-86
+cli/cmd/sandbox_logs_more_test.go
+  h_e7759ddd73fa65 1-281
+cli/cmd/sandbox_pagination_test.go
+  h_e7759ddd73fa65 1-109
+cli/cmd/sandbox_port.go
+  h_e7759ddd73fa65 1-144
+cli/cmd/sandbox_port_test.go
+  h_e7759ddd73fa65 1-110
+cli/cmd/sandbox_process.go
+  h_e7759ddd73fa65 1-258
+cli/cmd/sandbox_process_logs.go
+  h_e7759ddd73fa65 1-172
+cli/cmd/sandbox_process_test.go
+  h_e7759ddd73fa65 1-261
+cli/cmd/sandbox_response_test.go
+  h_e7759ddd73fa65 1-42
+cli/cmd/sandbox_search.go
+  h_e7759ddd73fa65 1-121
+cli/cmd/sandbox_search_helpers.go
+  h_e7759ddd73fa65 1-218
+cli/cmd/sandbox_search_query.go
+  h_e7759ddd73fa65 1-86
+cli/cmd/sandbox_search_test.go
+  h_e7759ddd73fa65 1-153
+cli/cmd/sandbox_ssh.go
+  h_e7759ddd73fa65 1-257
+cli/cmd/sandbox_ssh_more_test.go
+  h_e7759ddd73fa65 1-133
+cli/cmd/sandbox_ssh_test.go
+  h_e7759ddd73fa65 1-55
+cli/cmd/sandbox_test.go
+  h_e7759ddd73fa65 1-351
+cli/cmd/sandbox_unknown_input_test.go
+  h_e7759ddd73fa65 1-57
+cli/cmd/sandbox_volumes_test.go
+  h_e7759ddd73fa65 1-66
+cli/cmd/secret.go
+  h_e7759ddd73fa65 1-232
+cli/cmd/secret_registry_more_test.go
+  h_e7759ddd73fa65 1-274
+cli/cmd/service_account.go
+  h_e7759ddd73fa65 1-154
+cli/cmd/service_account_helpers.go
+  h_e7759ddd73fa65 1-67
+cli/cmd/service_account_project.go
+  h_e7759ddd73fa65 1-106
+cli/cmd/signal.go
+  h_e7759ddd73fa65 1-15
+cli/cmd/snapshot.go
+  h_e7759ddd73fa65 1-189
+cli/cmd/snapshot_more_test.go
+  h_e7759ddd73fa65 1-42
+cli/cmd/snapshot_test.go
+  h_e7759ddd73fa65 1-66
+cli/cmd/testutil_test.go
+  h_e7759ddd73fa65 1-245
+cli/cmd/version.go
+  h_e7759ddd73fa65 7-8,10-13,16-19,22-172
+cli/cmd/version_test.go
+  h_e7759ddd73fa65 1-231
+cli/cmd/volume.go
+  h_e7759ddd73fa65 1-193
+cli/cmd/volume_helpers.go
+  h_e7759ddd73fa65 1-156
+cli/cmd/volume_more_test.go
+  h_e7759ddd73fa65 1-94
+cli/cmd/volume_test.go
+  h_e7759ddd73fa65 1-66
+cli/gen/api/types.gen.go
+  h_e7759ddd73fa65 1-7041
+cli/gen/toolbox/types.gen.go
+  h_e7759ddd73fa65 1-2154
+cli/go.mod
+  h_e7759ddd73fa65 3,6-9,11,13-18,22,25-30,32-33,36-40,42,47,50-53,56-58
+cli/go.sum
+  h_e7759ddd73fa65 1-4,7-11,16-45,48-56,58-61,66-86,89-91,94-106,112-114,117-120,127,130-133,138-151,155-156,160-161,164,166-183,185-194,197-202,204-205,209
+cli/hack/build.sh
+  h_e7759ddd73fa65 1,5-25,27-34
+cli/hack/gen.sh
+  h_e7759ddd73fa65 1-47
+cli/hack/homebrew/README-PATCH.md
+  h_e7759ddd73fa65 1-17
+cli/hack/homebrew/brew_publish_alpha.yaml
+  h_e7759ddd73fa65 1-41
+cli/hack/homebrew/daytona-alpha.rb
+  h_e7759ddd73fa65 1-29
+cli/hack/homebrew/update_sha.sh
+  h_e7759ddd73fa65 1-102
+cli/install.ps1
+  h_e7759ddd73fa65 1-57
+cli/install.sh
+  h_e7759ddd73fa65 1-75
+cli/install_test.go
+  h_e7759ddd73fa65 1-145
+cli/internal/api/client.go
+  h_e7759ddd73fa65 1-269
+cli/internal/api/client_test.go
+  h_e7759ddd73fa65 1-129
+cli/internal/api/codes.go
+  h_e7759ddd73fa65 1-93
+cli/internal/api/codes_test.go
+  h_e7759ddd73fa65 1-99
+cli/internal/api/error_hints.go
+  h_e7759ddd73fa65 1-140
+cli/internal/api/error_hints_test.go
+  h_e7759ddd73fa65 1-78
+cli/internal/app/app.go
+  h_e7759ddd73fa65 1-577
+cli/internal/app/app_test.go
+  h_e7759ddd73fa65 1-237
+cli/internal/auth/key_cleanup.go
+  h_e7759ddd73fa65 1-123
+cli/internal/auth/key_cleanup_test.go
+  h_e7759ddd73fa65 1-95
+cli/internal/auth/key_cleanup_unix_test.go
+  h_e7759ddd73fa65 1-69
+cli/internal/auth/loopback.go
+  h_e7759ddd73fa65 1-150
+cli/internal/auth/oidc.go
+  h_e7759ddd73fa65 1-385
+cli/internal/auth/oidc_test.go
+  h_e7759ddd73fa65 1-353
+cli/internal/auth/platform_token.go
+  h_e7759ddd73fa65 1-206
+cli/internal/auth/session.go
+  h_e7759ddd73fa65 1-107
+cli/internal/auth/session_lifecycle_test.go
+  h_e7759ddd73fa65 1-178
+cli/internal/auth/session_race_test.go
+  h_e7759ddd73fa65 1-150
+cli/internal/auth/session_refresh.go
+  h_e7759ddd73fa65 1-87
+cli/internal/auth/session_test.go
+  h_e7759ddd73fa65 1-132
+cli/internal/auth/workload_cache.go
+  h_e7759ddd73fa65 1-99
+cli/internal/auth/workload_install.go
+  h_e7759ddd73fa65 1-32
+cli/internal/auth/workload_login.go
+  h_e7759ddd73fa65 1-38
+cli/internal/auth/workload_mint.go
+  h_e7759ddd73fa65 1-135
+cli/internal/auth/workload_static.go
+  h_e7759ddd73fa65 1-61
+cli/internal/cerr/cerr.go
+  h_e7759ddd73fa65 1-107
+cli/internal/cerr/cerr_test.go
+  h_e7759ddd73fa65 1-42
+cli/internal/config/config.go
+  h_e7759ddd73fa65 1-296
+cli/internal/config/config_test.go
+  h_e7759ddd73fa65 1-177
+cli/internal/config/credentials.go
+  h_e7759ddd73fa65 1-52
+cli/internal/input/input.go
+  h_e7759ddd73fa65 1-134
+cli/internal/input/input_test.go
+  h_e7759ddd73fa65 1-98
+cli/internal/mgmt/client.go
+  h_e7759ddd73fa65 1-216
+cli/internal/mgmt/client_audit.go
+  h_e7759ddd73fa65 1-21
+cli/internal/mgmt/client_budgets.go
+  h_e7759ddd73fa65 1-43
+cli/internal/mgmt/client_invites.go
+  h_e7759ddd73fa65 1-58
+cli/internal/mgmt/client_keys.go
+  h_e7759ddd73fa65 1-65
+cli/internal/mgmt/client_limits.go
+  h_e7759ddd73fa65 1-55
+cli/internal/mgmt/client_members.go
+  h_e7759ddd73fa65 1-87
+cli/internal/mgmt/client_roles.go
+  h_e7759ddd73fa65 1-20
+cli/internal/mgmt/client_service_accounts.go
+  h_e7759ddd73fa65 1-77
+cli/internal/mgmt/client_test.go
+  h_e7759ddd73fa65 1-169
+cli/internal/mgmt/deref.go
+  h_e7759ddd73fa65 1-8
+cli/internal/mgmt/types.go
+  h_e7759ddd73fa65 1-7
+cli/internal/output/output.go
+  h_e7759ddd73fa65 1-493
+cli/internal/output/output_test.go
+  h_e7759ddd73fa65 1-249
+cli/internal/regions/fanout.go
+  h_e7759ddd73fa65 1-119
+cli/internal/regions/list_targets.go
+  h_e7759ddd73fa65 1-94
+cli/internal/regions/list_targets_test.go
+  h_e7759ddd73fa65 1-61
+cli/internal/regions/regions.go
+  h_e7759ddd73fa65 1-194
+cli/internal/regions/regions_test.go
+  h_e7759ddd73fa65 1-182
+cli/internal/toolbox/archive.go
+  h_e7759ddd73fa65 1-178
+cli/internal/toolbox/archive_boundaries_test.go
+  h_e7759ddd73fa65 1-195
+cli/internal/toolbox/archive_extract_windows.go
+  h_e7759ddd73fa65 1-162
+cli/internal/toolbox/archive_open_unix.go
+  h_e7759ddd73fa65 1-190
+cli/internal/toolbox/archive_open_unix_helpers.go
+  h_e7759ddd73fa65 1-163
+cli/internal/toolbox/archive_open_windows.go
+  h_e7759ddd73fa65 1-69
+cli/internal/toolbox/archive_open_windows_test.go
+  h_e7759ddd73fa65 1-38
+cli/internal/toolbox/archive_paths.go
+  h_e7759ddd73fa65 1-122
+cli/internal/toolbox/archive_symlink_root_test.go
+  h_e7759ddd73fa65 1-108
+cli/internal/toolbox/archive_test.go
+  h_e7759ddd73fa65 1-219
+cli/internal/toolbox/client.go
+  h_e7759ddd73fa65 1-222
+cli/internal/toolbox/client_test.go
+  h_e7759ddd73fa65 1-420
+cli/internal/toolbox/files_test.go
+  h_e7759ddd73fa65 1-80
+cli/internal/toolbox/process_client.go
+  h_e7759ddd73fa65 1-175
+cli/internal/toolbox/process_client_test.go
+  h_e7759ddd73fa65 1-560
+cli/internal/toolbox/process_logs_follow.go
+  h_e7759ddd73fa65 1-184
+cli/internal/toolbox/process_stream.go
+  h_e7759ddd73fa65 1-258
+cli/internal/toolbox/process_stream_test.go
+  h_e7759ddd73fa65 1-199
+cli/internal/toolbox/signing.go
+  h_e7759ddd73fa65 1-162
+cli/internal/toolbox/signing_test.go
+  h_e7759ddd73fa65 1-181
+cli/internal/toolbox/sse.go
+  h_e7759ddd73fa65 1-131
+cli/internal/toolbox/sse_test.go
+  h_e7759ddd73fa65 1-216
+cli/internal/toolbox/ssh.go
+  h_e7759ddd73fa65 1-79
+cli/internal/toolbox/ssh_test.go
+  h_e7759ddd73fa65 1-67
+cli/internal/toolbox/target.go
+  h_e7759ddd73fa65 1-165
+cli/internal/toolbox/target_strict_test.go
+  h_e7759ddd73fa65 1-24
+cli/internal/toolbox/target_test.go
+  h_e7759ddd73fa65 1-187
+cli/internal/toolbox/transfer.go
+  h_e7759ddd73fa65 1-194
+cli/internal/toolbox/transfer_download_atomic_test.go
+  h_e7759ddd73fa65 1-162
+cli/internal/toolbox/transfer_test.go
+  h_e7759ddd73fa65 1-347
+cli/internal/toolbox/websocket.go
+  h_e7759ddd73fa65 1-296
+cli/internal/toolbox/websocket_test.go
+  h_e7759ddd73fa65 1-675
+cli/internal/ui/mode.go
+  h_e7759ddd73fa65 1-76
+cli/internal/ui/mode_test.go
+  h_e7759ddd73fa65 1-36
+cli/internal/ui/prompt.go
+  h_e7759ddd73fa65 1-42
+cli/internal/wait/wait.go
+  h_e7759ddd73fa65 1-88
+cli/internal/wait/wait_test.go
+  h_e7759ddd73fa65 1-102
+cli/internal/workload/body.go
+  h_e7759ddd73fa65 1-117
+cli/internal/workload/catalog.go
+  h_e7759ddd73fa65 1-29
+cli/internal/workload/resolve_sandbox_test.go
+  h_e7759ddd73fa65 1-149
+cli/internal/workload/sandbox.go
+  h_e7759ddd73fa65 1-143
+cli/internal/workload/sandbox_response_test.go
+  h_e7759ddd73fa65 1-56
+cli/internal/workload/volume_test.go
+  h_e7759ddd73fa65 1-53
+cli/internal/workload/wait.go
+  h_e7759ddd73fa65 1-163
+cli/internal/workload/workload_more_test.go
+  h_e7759ddd73fa65 1-280
+cli/internal/workload/workload_test.go
+  h_e7759ddd73fa65 1-137
+cli/main.go
+  h_e7759ddd73fa65 4,13
+cli/readme_install_test.go
+  h_e7759ddd73fa65 1-82
+contract/api-openapi.json
+  h_e7759ddd73fa65 1-27016
+contract/proxy-errors.json
+  h_e7759ddd73fa65 1-62
+contract/router-errors.json
+  h_e7759ddd73fa65 1-132
+contract/sandbox-events-protocol.json
+  h_e7759ddd73fa65 1-92
+contract/toolbox-openapi.json
+  h_e7759ddd73fa65 1-10462
+docs/design/0001-sdk-parity.md
+  h_e7759ddd73fa65 1-134
+docs/design/0002-versioning-and-release-lines.md
+  h_e7759ddd73fa65 1-113
+docs/design/0003-cli.md
+  h_e7759ddd73fa65 1-97
+docs/design/0004-version-namespaces-and-v0-migration.md
+  h_e7759ddd73fa65 1-140
+docs/design/README.md
+  h_e7759ddd73fa65 1-36
+e2e.py
+  h_e7759ddd73fa65 1-245
+e2e.ts
+  h_e7759ddd73fa65 1-152
+examples/README.md
+  h_e7759ddd73fa65 1-142
+examples/package.json
+  h_e7759ddd73fa65 1-26
+examples/python/_common.py
+  h_e7759ddd73fa65 1-66
+examples/python/build_logs.py
+  h_e7759ddd73fa65 1-161
+examples/python/dockerfile_sandbox.py
+  h_e7759ddd73fa65 1-146
+examples/python/dynamic_build.py
+  h_e7759ddd73fa65 1-116
+examples/python/exec_command.py
+  h_e7759ddd73fa65 1-50
+examples/python/file_operations.py
+  h_e7759ddd73fa65 1-74
+examples/python/follow_build_logs.py
+  h_e7759ddd73fa65 1-47
+examples/python/git_ops.py
+  h_e7759ddd73fa65 1-81
+examples/python/lifecycle.py
+  h_e7759ddd73fa65 1-46
+examples/python/pagination.py
+  h_e7759ddd73fa65 1-44
+examples/python/secrets_env.py
+  h_e7759ddd73fa65 1-113
+examples/python/snapshots.py
+  h_e7759ddd73fa65 1-93
+examples/python/volumes.py
+  h_e7759ddd73fa65 1-74
+examples/run-examples.sh
+  h_e7759ddd73fa65 1-70
+examples/tsconfig.json
+  h_e7759ddd73fa65 1-15
+examples/typescript/_common.ts
+  h_e7759ddd73fa65 1-49
+examples/typescript/build-logs/index.ts
+  h_e7759ddd73fa65 1-150
+examples/typescript/dockerfile-sandbox/index.ts
+  h_e7759ddd73fa65 1-136
+examples/typescript/dynamic-build/index.ts
+  h_e7759ddd73fa65 1-108
+examples/typescript/exec-command/index.ts
+  h_e7759ddd73fa65 1-7,9-10,12-13,15-18,20-23,27,29-30,35,37,41-44
+examples/typescript/file-operations/index.ts
+  h_e7759ddd73fa65 1-13,16-18,20,22-55,58,60,62-63,66-69
+examples/typescript/follow-build-logs/index.ts
+  h_e7759ddd73fa65 1-46
+examples/typescript/follow-build-logs/output.test.ts
+  h_e7759ddd73fa65 1-66
+examples/typescript/follow-build-logs/output.ts
+  h_e7759ddd73fa65 1-26
+examples/typescript/git/index.ts
+  h_e7759ddd73fa65 1-80
+examples/typescript/lifecycle/index.ts
+  h_e7759ddd73fa65 1-9,12-60,62-63,65-71,73-74,76-77,80-83
+examples/typescript/pagination/index.ts
+  h_e7759ddd73fa65 1-39
+examples/typescript/secrets-env/index.ts
+  h_e7759ddd73fa65 1-114
+examples/typescript/snapshots/index.ts
+  h_e7759ddd73fa65 1-57
+examples/typescript/volumes/index.ts
+  h_e7759ddd73fa65 1-72,75-78
+examples/volumes_share.py
+  h_e7759ddd73fa65 1-110
+examples/volumes_share.ts
+  h_e7759ddd73fa65 1-113
+python/.gitignore
+  h_e7759ddd73fa65 1-3
+python/DEVELOPMENT.md
+  h_e7759ddd73fa65 1-215
+python/README.md
+  h_e7759ddd73fa65 1-816
+python/gen-contract.sh
+  h_e7759ddd73fa65 1-95
+python/gen/.gitignore
+  h_e7759ddd73fa65 1-5
+python/gen/gen_sync.py
+  h_e7759ddd73fa65 1-862
+python/gen/openapitools.json
+  h_e7759ddd73fa65 1-42
+python/gen/package-lock.json
+  h_e7759ddd73fa65 1-2019
+python/gen/package.json
+  h_e7759ddd73fa65 1-9
+python/gen/templates/model_enum.mustache
+  h_e7759ddd73fa65 1-64
+python/gen/templates/model_generic.mustache
+  h_e7759ddd73fa65 27-33,68-71,105,143-146,312-317,320-321,325-331,337-342,345-350,354-359,368-369,381-395,398-399,407-417,421-422,428-436,440-445,449-454,461-466,469-479,484,487-492
+python/pyproject.toml
+  h_e7759ddd73fa65 1-142
+python/src/daytona/__init__.py
+  h_e7759ddd73fa65 1-197
+python/src/daytona/_client.py
+  h_e7759ddd73fa65 1-582
+python/src/daytona/_errors.py
+  h_e7759ddd73fa65 1-99
+python/src/daytona/_v0_root_names.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/__init__.py
+  h_e7759ddd73fa65 1-735
+python/src/daytona/v2/_api_core.py
+  h_e7759ddd73fa65 1-148
+python/src/daytona/v2/_auth.py
+  h_e7759ddd73fa65 1-165
+python/src/daytona/v2/_bridge.py
+  h_e7759ddd73fa65 1-406
+python/src/daytona/v2/_clock.py
+  h_e7759ddd73fa65 1-17
+python/src/daytona/v2/_core.py
+  h_e7759ddd73fa65 1-1407
+python/src/daytona/v2/_events.py
+  h_e7759ddd73fa65 1-1692
+python/src/daytona/v2/_exports.py
+  h_e7759ddd73fa65 1-366
+python/src/daytona/v2/_gen/api/__init__.py
+  h_e7759ddd73fa65 1-284
+python/src/daytona/v2/_gen/api/models/accept_invitation_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/accept_privacy_policy_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/add_project_members_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/add_project_service_account_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/analytics_config.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/api_error_code.py
+  h_e7759ddd73fa65 1-165
+python/src/daytona/v2/_gen/api/models/async_operation.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/audit_action_group.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/audit_action_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/audit_config.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/audit_log_entry.py
+  h_e7759ddd73fa65 1-207
+python/src/daytona/v2/_gen/api/models/audit_log_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/automatic_top_up.py
+  h_e7759ddd73fa65 1-126
+python/src/daytona/v2/_gen/api/models/balance.py
+  h_e7759ddd73fa65 1-142
+python/src/daytona/v2/_gen/api/models/balance_applicable_to.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/balance_notification.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/balance_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/balance_type.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/billing_address.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/billing_contact.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/billing_period.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/api/models/billing_plan.py
+  h_e7759ddd73fa65 1-149
+python/src/daytona/v2/_gen/api/models/billing_profile.py
+  h_e7759ddd73fa65 1-130
+python/src/daytona/v2/_gen/api/models/billing_session.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/billing_tax_id.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/api/models/billing_tax_id_type.py
+  h_e7759ddd73fa65 1-164
+python/src/daytona/v2/_gen/api/models/billing_type.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/billing_usage_period.py
+  h_e7759ddd73fa65 1-136
+python/src/daytona/v2/_gen/api/models/bucket_credentials.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/bucket_options.py
+  h_e7759ddd73fa65 1-152
+python/src/daytona/v2/_gen/api/models/build_log_chunk.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/build_log_done.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/build_log_done_reason.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/api/models/build_log_error.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/api/models/build_log_gap.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/build_log_gap_reason.py
+  h_e7759ddd73fa65 1-54
+python/src/daytona/v2/_gen/api/models/build_log_source_changed.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/build_log_state.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/build_log_unavailable.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/build_logs_url.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/change_impact.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/api/models/charge.py
+  h_e7759ddd73fa65 1-147
+python/src/daytona/v2/_gen/api/models/charge_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/charge_status.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/config.py
+  h_e7759ddd73fa65 1-183
+python/src/daytona/v2/_gen/api/models/coupon_redemption.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/api/models/cpu_arch_availability.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/api/models/cpu_architecture.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/cpu_catalog.py
+  h_e7759ddd73fa65 1-138
+python/src/daytona/v2/_gen/api/models/cpu_catalog_region.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/cpu_type.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/api/models/create_image_request.py
+  h_e7759ddd73fa65 1-141
+python/src/daytona/v2/_gen/api/models/create_invitation_request.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  h_e7759ddd73fa65 1-218
+python/src/daytona/v2/_gen/api/models/create_organization_api_key_request.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/api/models/create_organization_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/create_project_api_key_request.py
+  h_e7759ddd73fa65 1-147
+python/src/daytona/v2/_gen/api/models/create_project_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/create_reservation_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/create_reservations_bulk_request.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/create_sandbox_from_snapshot_request.py
+  h_e7759ddd73fa65 1-155
+python/src/daytona/v2/_gen/api/models/create_sandbox_image_request.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  h_e7759ddd73fa65 1-250
+python/src/daytona/v2/_gen/api/models/create_sandbox_signed_preview_url_request.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/api/models/create_sandbox_snapshot_request.py
+  h_e7759ddd73fa65 1-97
+python/src/daytona/v2/_gen/api/models/create_service_account_request.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/create_sso_setup_link_request.py
+  h_e7759ddd73fa65 1-98
+python/src/daytona/v2/_gen/api/models/create_top_up_session_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/create_v0_sandbox_import_request.py
+  h_e7759ddd73fa65 1-97
+python/src/daytona/v2/_gen/api/models/create_volume_request.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/api/models/decline_invitation_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/effective_lifecycle_policies.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/effective_lifecycle_policy.py
+  h_e7759ddd73fa65 1-142
+python/src/daytona/v2/_gen/api/models/effective_linux_lifecycle_policies.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/effective_macos_lifecycle_policies.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/entitlements.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/ephemeral_lifecycle_defaults.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/error_body.py
+  h_e7759ddd73fa65 1-186
+python/src/daytona/v2/_gen/api/models/exchange_token_request.py
+  h_e7759ddd73fa65 1-149
+python/src/daytona/v2/_gen/api/models/external_bucket_origin.py
+  h_e7759ddd73fa65 1-54
+python/src/daytona/v2/_gen/api/models/fork_sandbox_operation.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/api/models/fork_sandbox_request.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/health.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/image.py
+  h_e7759ddd73fa65 1-199
+python/src/daytona/v2/_gen/api/models/image_build_limits.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/image_conversion.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/image_list_item.py
+  h_e7759ddd73fa65 1-201
+python/src/daytona/v2/_gen/api/models/image_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/image_platform_filter.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/image_reference.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/image_retention.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/image_source_value.py
+  h_e7759ddd73fa65 1-165
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of1.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of2.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/image_source_value_one_of3.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/imported_from.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/invitation.py
+  h_e7759ddd73fa65 1-131
+python/src/daytona/v2/_gen/api/models/invitation_lookup.py
+  h_e7759ddd73fa65 1-128
+python/src/daytona/v2/_gen/api/models/invitation_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/invitation_status.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/invitation_with_token.py
+  h_e7759ddd73fa65 1-138
+python/src/daytona/v2/_gen/api/models/invoice.py
+  h_e7759ddd73fa65 1-159
+python/src/daytona/v2/_gen/api/models/invoice_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/invoice_payment_status.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/invoice_status.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/invoice_type.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/api/models/lifecycle_action.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/lifecycle_policy.py
+  h_e7759ddd73fa65 1-166
+python/src/daytona/v2/_gen/api/models/lookup_invitation_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/mac_catalog.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/mac_catalog_model.py
+  h_e7759ddd73fa65 1-127
+python/src/daytona/v2/_gen/api/models/mac_catalog_region.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/mac_model.py
+  h_e7759ddd73fa65 1-133
+python/src/daytona/v2/_gen/api/models/mac_model_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/mac_price.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  h_e7759ddd73fa65 1-217
+python/src/daytona/v2/_gen/api/models/mac_reservation_batch.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/api/models/mac_reservation_end_reason.py
+  h_e7759ddd73fa65 1-59
+python/src/daytona/v2/_gen/api/models/mac_reservation_origin.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/mac_reservation_status.py
+  h_e7759ddd73fa65 1-59
+python/src/daytona/v2/_gen/api/models/mac_resources.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/macos_settings.py
+  h_e7759ddd73fa65 1-127
+python/src/daytona/v2/_gen/api/models/member_limits.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/member_removal_preview.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/mint_sandbox_access_token_request.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/network_policy.py
+  h_e7759ddd73fa65 1-159
+python/src/daytona/v2/_gen/api/models/network_policy_rules.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/api/models/oidc_provider.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/oidc_public_config.py
+  h_e7759ddd73fa65 1-131
+python/src/daytona/v2/_gen/api/models/organization.py
+  h_e7759ddd73fa65 1-154
+python/src/daytona/v2/_gen/api/models/organization_api_key.py
+  h_e7759ddd73fa65 1-161
+python/src/daytona/v2/_gen/api/models/organization_api_key_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/organization_api_key_with_token.py
+  h_e7759ddd73fa65 1-163
+python/src/daytona/v2/_gen/api/models/organization_feature_flags.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/organization_limits.py
+  h_e7759ddd73fa65 1-154
+python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  h_e7759ddd73fa65 1-160
+python/src/daytona/v2/_gen/api/models/organization_member.py
+  h_e7759ddd73fa65 1-128
+python/src/daytona/v2/_gen/api/models/organization_member_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/organization_membership.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/api/models/organization_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/organization_service_account.py
+  h_e7759ddd73fa65 1-146
+python/src/daytona/v2/_gen/api/models/organization_service_account_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/otel_config.py
+  h_e7759ddd73fa65 1-132
+python/src/daytona/v2/_gen/api/models/payment_method.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/api/models/payment_method_brand.py
+  h_e7759ddd73fa65 1-65
+python/src/daytona/v2/_gen/api/models/payment_method_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/pending_plan_change.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/permission.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/permission_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/plan.py
+  h_e7759ddd73fa65 1-127
+python/src/daytona/v2/_gen/api/models/plan_limits.py
+  h_e7759ddd73fa65 1-136
+python/src/daytona/v2/_gen/api/models/plan_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/plan_name.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/port_assignment.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/api/models/port_mapping.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/api/models/port_protocol.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/portal_intent.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/preview_member_update_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/preview_service_account_update_request.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/api/models/preview_url.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/preview_warning.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/privacy_policy_status.py
+  h_e7759ddd73fa65 1-139
+python/src/daytona/v2/_gen/api/models/project.py
+  h_e7759ddd73fa65 1-128
+python/src/daytona/v2/_gen/api/models/project_api_key.py
+  h_e7759ddd73fa65 1-186
+python/src/daytona/v2/_gen/api/models/project_api_key_context.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/project_api_key_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/project_api_key_with_context.py
+  h_e7759ddd73fa65 1-192
+python/src/daytona/v2/_gen/api/models/project_api_key_with_token.py
+  h_e7759ddd73fa65 1-188
+python/src/daytona/v2/_gen/api/models/project_budget.py
+  h_e7759ddd73fa65 1-165
+python/src/daytona/v2/_gen/api/models/project_lifecycle_defaults.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/api/models/project_lifecycle_policy.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/project_member.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/api/models/project_member_list.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/project_member_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/project_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/project_service_account.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/api/models/project_service_account_list.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/project_service_account_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/public_image_source.py
+  h_e7759ddd73fa65 1-137
+python/src/daytona/v2/_gen/api/models/public_image_source_one_of.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/public_image_source_one_of1.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/redeem_coupon_request.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/region.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/api/models/region_list.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/region_multiplier.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/region_multiplier_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/registry.py
+  h_e7759ddd73fa65 1-127
+python/src/daytona/v2/_gen/api/models/registry_kind.py
+  h_e7759ddd73fa65 1-58
+python/src/daytona/v2/_gen/api/models/registry_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/reservation_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/revoke_sandbox_signed_preview_url_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/role.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/api/models/role_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/sandbox.py
+  h_e7759ddd73fa65 1-332
+python/src/daytona/v2/_gen/api/models/sandbox_access_token.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/sandbox_class.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  h_e7759ddd73fa65 1-159
+python/src/daytona/v2/_gen/api/models/sandbox_event_ticket.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/api/models/sandbox_labels.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/sandbox_lifecycle_policy.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/api/models/sandbox_limits.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/sandbox_list.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  h_e7759ddd73fa65 1-319
+python/src/daytona/v2/_gen/api/models/sandbox_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/sandbox_port.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/sandbox_port_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/sandbox_resource_limits.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/sandbox_search_page.py
+  h_e7759ddd73fa65 1-131
+python/src/daytona/v2/_gen/api/models/sandbox_search_sort.py
+  h_e7759ddd73fa65 1-60
+python/src/daytona/v2/_gen/api/models/sandbox_secrets.py
+  h_e7759ddd73fa65 1-147
+python/src/daytona/v2/_gen/api/models/sandbox_status.py
+  h_e7759ddd73fa65 1-66
+python/src/daytona/v2/_gen/api/models/sandbox_usage.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/sandbox_usage_history.py
+  h_e7759ddd73fa65 1-130
+python/src/daytona/v2/_gen/api/models/sandbox_usage_sample.py
+  h_e7759ddd73fa65 1-140
+python/src/daytona/v2/_gen/api/models/search_total_relation.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/secret.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/api/models/secret_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/set_automatic_top_up_request.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/api/models/set_balance_notification_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/set_billing_contact_request.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/api/models/set_otel_config_request.py
+  h_e7759ddd73fa65 1-99
+python/src/daytona/v2/_gen/api/models/set_plan_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/set_project_budget_request.py
+  h_e7759ddd73fa65 1-98
+python/src/daytona/v2/_gen/api/models/set_registry_request.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/api/models/set_sandbox_labels_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/set_sandbox_network_policy_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/set_sandbox_port_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/set_sandbox_secrets_request.py
+  h_e7759ddd73fa65 1-97
+python/src/daytona/v2/_gen/api/models/set_secret_request.py
+  h_e7759ddd73fa65 1-106
+python/src/daytona/v2/_gen/api/models/sign_sandbox_file_url_request.py
+  h_e7759ddd73fa65 1-102
+python/src/daytona/v2/_gen/api/models/signed_file_url.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/signed_preview_url.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/api/models/snapshot.py
+  h_e7759ddd73fa65 1-157
+python/src/daytona/v2/_gen/api/models/snapshot_class.py
+  h_e7759ddd73fa65 1-54
+python/src/daytona/v2/_gen/api/models/snapshot_kind.py
+  h_e7759ddd73fa65 1-54
+python/src/daytona/v2/_gen/api/models/snapshot_list_item.py
+  h_e7759ddd73fa65 1-159
+python/src/daytona/v2/_gen/api/models/snapshot_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/snapshot_reference.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/sort_order.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/ssh_gateway_config.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/api/models/sso_connection.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/api/models/sso_connection_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/sso_setup_link.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/storage_limits.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/api/models/timeout_source.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/api/models/token_exchange.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/update_audit_config_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/update_ephemeral_lifecycle_defaults.py
+  h_e7759ddd73fa65 1-109
+python/src/daytona/v2/_gen/api/models/update_image_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/update_macos_settings_request.py
+  h_e7759ddd73fa65 1-109
+python/src/daytona/v2/_gen/api/models/update_member_request.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/api/models/update_organization_request.py
+  h_e7759ddd73fa65 1-104
+python/src/daytona/v2/_gen/api/models/update_preview_warning_request.py
+  h_e7759ddd73fa65 1-97
+python/src/daytona/v2/_gen/api/models/update_project_api_key_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/api/models/update_project_lifecycle_policy_request.py
+  h_e7759ddd73fa65 1-106
+python/src/daytona/v2/_gen/api/models/update_project_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/api/models/update_reservation_request.py
+  h_e7759ddd73fa65 1-97
+python/src/daytona/v2/_gen/api/models/update_sandbox_lifecycle_policy_request.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/update_service_account_request.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/api/models/usage_charge.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/api/models/usage_history_resolution.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/usage_limit.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/api/models/usage_period.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/api/models/usage_period_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/usage_period_status.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/usage_report.py
+  h_e7759ddd73fa65 1-143
+python/src/daytona/v2/_gen/api/models/usage_report_entry.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/usage_report_resolution.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/usage_resources.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/api/models/user.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/api/models/v0_migration_summary.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/api/models/v0_sandbox.py
+  h_e7759ddd73fa65 1-150
+python/src/daytona/v2/_gen/api/models/v0_sandbox_import.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/api/models/v0_sandbox_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/volume.py
+  h_e7759ddd73fa65 1-160
+python/src/daytona/v2/_gen/api/models/volume_mount.py
+  h_e7759ddd73fa65 1-126
+python/src/daytona/v2/_gen/api/models/volume_page.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/api/models/volume_status.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/api/models/volume_type.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/api/models/wallet.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/toolbox/__init__.py
+  h_e7759ddd73fa65 1-138
+python/src/daytona/v2/_gen/toolbox/models/add_remote_request.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/toolbox/models/add_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/attach_query.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/toolbox/models/branch_list.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/branch_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/bulk_download_request.py
+  h_e7759ddd73fa65 1-97
+python/src/daytona/v2/_gen/toolbox/models/bulk_upload_query.py
+  h_e7759ddd73fa65 1-102
+python/src/daytona/v2/_gen/toolbox/models/bulk_upload_response.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/toolbox/models/checkout_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/clone_request.py
+  h_e7759ddd73fa65 1-155
+python/src/daytona/v2/_gen/toolbox/models/commit_info.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/commit_request.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/commit_response.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/completion_context.py
+  h_e7759ddd73fa65 1-117
+python/src/daytona/v2/_gen/toolbox/models/completion_documentation.py
+  h_e7759ddd73fa65 1-140
+python/src/daytona/v2/_gen/toolbox/models/completion_item.py
+  h_e7759ddd73fa65 1-156
+python/src/daytona/v2/_gen/toolbox/models/completion_list.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/toolbox/models/completion_request.py
+  h_e7759ddd73fa65 1-131
+python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_find_request.py
+  h_e7759ddd73fa65 1-132
+python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_find_response.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_node_request.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_tree_query.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_tree_response.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/computer_use_accessibility_bounds.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/computer_use_accessibility_node.py
+  h_e7759ddd73fa65 1-161
+python/src/daytona/v2/_gen/toolbox/models/computer_use_activity_status.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_failure.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_failure_code.py
+  h_e7759ddd73fa65 1-61
+python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_state.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/toolbox/models/computer_use_display.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/toolbox/models/computer_use_display_info_response.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/computer_use_display_windows_response.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/computer_use_keyboard_hotkey_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/computer_use_keyboard_key_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_keyboard_type_request.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/toolbox/models/computer_use_lifecycle_response.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_click_request.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_drag_request.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_move_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_scroll_request.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_gen/toolbox/models/computer_use_point.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_process_errors_response.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_process_logs_response.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_process_restart_response.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_process_running_status.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/computer_use_process_status.py
+  h_e7759ddd73fa65 1-130
+python/src/daytona/v2/_gen/toolbox/models/computer_use_recording.py
+  h_e7759ddd73fa65 1-139
+python/src/daytona/v2/_gen/toolbox/models/computer_use_recording_start_request.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/toolbox/models/computer_use_recording_stop_request.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/computer_use_recordings_response.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/computer_use_restart_response.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_query.py
+  h_e7759ddd73fa65 1-164
+python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_response.py
+  h_e7759ddd73fa65 1-124
+python/src/daytona/v2/_gen/toolbox/models/computer_use_scroll_response.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/toolbox/models/computer_use_window.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/toolbox/models/create_process_query.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  h_e7759ddd73fa65 1-205
+python/src/daytona/v2/_gen/toolbox/models/create_session_request.py
+  h_e7759ddd73fa65 1-127
+python/src/daytona/v2/_gen/toolbox/models/delete_query.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/toolbox/models/docker_owner.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/toolbox/models/docker_state.py
+  h_e7759ddd73fa65 1-61
+python/src/daytona/v2/_gen/toolbox/models/docker_status.py
+  h_e7759ddd73fa65 1-128
+python/src/daytona/v2/_gen/toolbox/models/docker_status_query.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/document_request.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/toolbox/models/env_request.py
+  h_e7759ddd73fa65 1-99
+python/src/daytona/v2/_gen/toolbox/models/error_code.py
+  h_e7759ddd73fa65 1-80
+python/src/daytona/v2/_gen/toolbox/models/error_envelope.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/exit_result.py
+  h_e7759ddd73fa65 1-130
+python/src/daytona/v2/_gen/toolbox/models/file_info.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/toolbox/models/file_status.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/fs_path_query.py
+  h_e7759ddd73fa65 1-109
+python/src/daytona/v2/_gen/toolbox/models/git_config_query.py
+  h_e7759ddd73fa65 1-129
+python/src/daytona/v2/_gen/toolbox/models/git_config_response.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/toolbox/models/git_path_query.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/toolbox/models/git_remote.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/info_response.py
+  h_e7759ddd73fa65 1-133
+python/src/daytona/v2/_gen/toolbox/models/init_request.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/toolbox/models/is_port_in_use_response.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/keep_logs.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/toolbox/models/kernel_kind.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/toolbox/models/kind.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/toolbox/models/list_query.py
+  h_e7759ddd73fa65 1-144
+python/src/daytona/v2/_gen/toolbox/models/list_remotes_response.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/log_frame_dto.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/logs_query.py
+  h_e7759ddd73fa65 1-137
+python/src/daytona/v2/_gen/toolbox/models/markup_content.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/match.py
+  h_e7759ddd73fa65 1-115
+python/src/daytona/v2/_gen/toolbox/models/metrics.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/toolbox/models/move_query.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/toolbox/models/path_mode_query.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/toolbox/models/permissions_query.py
+  h_e7759ddd73fa65 1-136
+python/src/daytona/v2/_gen/toolbox/models/port_list.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_gen/toolbox/models/process_dto.py
+  h_e7759ddd73fa65 1-272
+python/src/daytona/v2/_gen/toolbox/models/process_eof_event_dto.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/process_error_event_dto.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/process_list_response.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/process_logs_response.py
+  h_e7759ddd73fa65 1-131
+python/src/daytona/v2/_gen/toolbox/models/process_record.py
+  h_e7759ddd73fa65 1-255
+python/src/daytona/v2/_gen/toolbox/models/process_state_event_dto.py
+  h_e7759ddd73fa65 1-269
+python/src/daytona/v2/_gen/toolbox/models/process_warning_event_dto.py
+  h_e7759ddd73fa65 1-114
+python/src/daytona/v2/_gen/toolbox/models/pull_volume_request.py
+  h_e7759ddd73fa65 1-107
+python/src/daytona/v2/_gen/toolbox/models/pull_volume_response.py
+  h_e7759ddd73fa65 1-120
+python/src/daytona/v2/_gen/toolbox/models/pull_volume_status.py
+  h_e7759ddd73fa65 1-56
+python/src/daytona/v2/_gen/toolbox/models/reason.py
+  h_e7759ddd73fa65 1-58
+python/src/daytona/v2/_gen/toolbox/models/replace_request.py
+  h_e7759ddd73fa65 1-106
+python/src/daytona/v2/_gen/toolbox/models/replace_result.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/toolbox/models/repo_request.py
+  h_e7759ddd73fa65 1-145
+python/src/daytona/v2/_gen/toolbox/models/reset_request.py
+  h_e7759ddd73fa65 1-126
+python/src/daytona/v2/_gen/toolbox/models/resize_request.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/toolbox/models/restore_request.py
+  h_e7759ddd73fa65 1-133
+python/src/daytona/v2/_gen/toolbox/models/search_query.py
+  h_e7759ddd73fa65 1-122
+python/src/daytona/v2/_gen/toolbox/models/search_response.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/server_request.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/_gen/toolbox/models/session_dto.py
+  h_e7759ddd73fa65 1-123
+python/src/daytona/v2/_gen/toolbox/models/session_list_response.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/set_config_request.py
+  h_e7759ddd73fa65 1-126
+python/src/daytona/v2/_gen/toolbox/models/signal_request.py
+  h_e7759ddd73fa65 1-125
+python/src/daytona/v2/_gen/toolbox/models/state.py
+  h_e7759ddd73fa65 1-57
+python/src/daytona/v2/_gen/toolbox/models/status_response.py
+  h_e7759ddd73fa65 1-126
+python/src/daytona/v2/_gen/toolbox/models/stdin_mode.py
+  h_e7759ddd73fa65 1-55
+python/src/daytona/v2/_gen/toolbox/models/stdin_request.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/toolbox/models/symbol_info.py
+  h_e7759ddd73fa65 1-118
+python/src/daytona/v2/_gen/toolbox/models/symbol_location.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/symbol_position.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/toolbox/models/symbol_range.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_gen/toolbox/models/symbols_query.py
+  h_e7759ddd73fa65 1-136
+python/src/daytona/v2/_gen/toolbox/models/terminal_size.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/toolbox/models/upload_query.py
+  h_e7759ddd73fa65 1-109
+python/src/daytona/v2/_gen/toolbox/models/uploaded_file.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/_gen/toolbox/models/version_response.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/wait_query.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/watch_fs_event.py
+  h_e7759ddd73fa65 1-116
+python/src/daytona/v2/_gen/toolbox/models/watch_overflow_event.py
+  h_e7759ddd73fa65 1-110
+python/src/daytona/v2/_gen/toolbox/models/watch_query.py
+  h_e7759ddd73fa65 1-106
+python/src/daytona/v2/_image_pull.py
+  h_e7759ddd73fa65 1-93
+python/src/daytona/v2/_otel.py
+  h_e7759ddd73fa65 1-233
+python/src/daytona/v2/_sync/__init__.py
+  h_e7759ddd73fa65 1-126
+python/src/daytona/v2/_sync/_runtime.py
+  h_e7759ddd73fa65 1-111
+python/src/daytona/v2/_sync/computer_use.py
+  h_e7759ddd73fa65 1-102
+python/src/daytona/v2/_sync/computer_use_services.py
+  h_e7759ddd73fa65 1-313
+python/src/daytona/v2/_sync/daytona.py
+  h_e7759ddd73fa65 1-506
+python/src/daytona/v2/_sync/docker.py
+  h_e7759ddd73fa65 1-43
+python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 1-215
+python/src/daytona/v2/_sync/git.py
+  h_e7759ddd73fa65 1-180
+python/src/daytona/v2/_sync/interpreter.py
+  h_e7759ddd73fa65 1-121
+python/src/daytona/v2/_sync/lsp.py
+  h_e7759ddd73fa65 1-88
+python/src/daytona/v2/_sync/ports.py
+  h_e7759ddd73fa65 1-80
+python/src/daytona/v2/_sync/process.py
+  h_e7759ddd73fa65 1-307
+python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 1-472
+python/src/daytona/v2/_sync/sandbox_volumes.py
+  h_e7759ddd73fa65 1-41
+python/src/daytona/v2/_sync/services.py
+  h_e7759ddd73fa65 1-394
+python/src/daytona/v2/_sync/session.py
+  h_e7759ddd73fa65 1-119
+python/src/daytona/v2/_sync/types.py
+  h_e7759ddd73fa65 1-72
+python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 1-1048
+python/src/daytona/v2/_wait.py
+  h_e7759ddd73fa65 1-6
+python/src/daytona/v2/build_logs.py
+  h_e7759ddd73fa65 1-837
+python/src/daytona/v2/codes.py
+  h_e7759ddd73fa65 1-494
+python/src/daytona/v2/computer_use.py
+  h_e7759ddd73fa65 1-64
+python/src/daytona/v2/computer_use_core.py
+  h_e7759ddd73fa65 1-520
+python/src/daytona/v2/computer_use_services.py
+  h_e7759ddd73fa65 1-512
+python/src/daytona/v2/computer_use_types.py
+  h_e7759ddd73fa65 1-311
+python/src/daytona/v2/daytona.py
+  h_e7759ddd73fa65 1-1726
+python/src/daytona/v2/docker.py
+  h_e7759ddd73fa65 1-113
+python/src/daytona/v2/errors.py
+  h_e7759ddd73fa65 1-869
+python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 1-855
+python/src/daytona/v2/git.py
+  h_e7759ddd73fa65 1-337
+python/src/daytona/v2/http.py
+  h_e7759ddd73fa65 1-9
+python/src/daytona/v2/image.py
+  h_e7759ddd73fa65 1-160
+python/src/daytona/v2/interpreter.py
+  h_e7759ddd73fa65 1-561
+python/src/daytona/v2/lsp.py
+  h_e7759ddd73fa65 1-181
+python/src/daytona/v2/network_policy.py
+  h_e7759ddd73fa65 1-157
+python/src/daytona/v2/ports.py
+  h_e7759ddd73fa65 1-332
+python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 1-742
+python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 1-1957
+python/src/daytona/v2/sandbox_secrets.py
+  h_e7759ddd73fa65 1-79
+python/src/daytona/v2/sandbox_volumes.py
+  h_e7759ddd73fa65 1-112
+python/src/daytona/v2/secret.py
+  h_e7759ddd73fa65 1-8
+python/src/daytona/v2/services.py
+  h_e7759ddd73fa65 1-804
+python/src/daytona/v2/session.py
+  h_e7759ddd73fa65 1-160
+python/src/daytona/v2/snapshot.py
+  h_e7759ddd73fa65 1-8
+python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 1-1312
+python/src/daytona/v2/volume.py
+  h_e7759ddd73fa65 1-8
+python/tests/_handles.py
+  h_e7759ddd73fa65 1-65
+python/tests/conftest.py
+  h_e7759ddd73fa65 1-43
+python/tests/network_policy_test_server.py
+  h_e7759ddd73fa65 1-106
+python/tests/test_billing_error_exports.py
+  h_e7759ddd73fa65 1-30
+python/tests/test_bridge.py
+  h_e7759ddd73fa65 1-962
+python/tests/test_build_logs.py
+  h_e7759ddd73fa65 1-1333
+python/tests/test_core.py
+  h_e7759ddd73fa65 1-12693
+python/tests/test_credential_inspection.py
+  h_e7759ddd73fa65 1-114
+python/tests/test_desktop.py
+  h_e7759ddd73fa65 1-515
+python/tests/test_events.py
+  h_e7759ddd73fa65 1-2891
+python/tests/test_fs_transfer.py
+  h_e7759ddd73fa65 1-1003
+python/tests/test_generated_billing_models.py
+  h_e7759ddd73fa65 1-21
+python/tests/test_image_pull_deadline_http.py
+  h_e7759ddd73fa65 1-206
+python/tests/test_image_pull_wait.py
+  h_e7759ddd73fa65 1-166
+python/tests/test_lazy_network_policy.py
+  h_e7759ddd73fa65 1-76
+python/tests/test_lazy_sandbox_secrets.py
+  h_e7759ddd73fa65 1-57
+python/tests/test_macos_persistence.py
+  h_e7759ddd73fa65 1-27
+python/tests/test_namespace_credential_inspection.py
+  h_e7759ddd73fa65 1-162
+python/tests/test_network_policy_validation.py
+  h_e7759ddd73fa65 1-107
+python/tests/test_network_policy_wire.py
+  h_e7759ddd73fa65 1-297
+python/tests/test_presigned_expiry.py
+  h_e7759ddd73fa65 1-51
+python/tests/test_readme_quickstart.py
+  h_e7759ddd73fa65 1-102
+python/tests/test_readme_types.py
+  h_e7759ddd73fa65 1-102
+python/tests/test_reservation_fields.py
+  h_e7759ddd73fa65 1-151
+python/tests/test_root_client.py
+  h_e7759ddd73fa65 1-1635
+python/tests/test_root_config_urls.py
+  h_e7759ddd73fa65 1-67
+python/tests/test_sandbox_region.py
+  h_e7759ddd73fa65 1-110
+python/tests/test_sandbox_secrets_parity.py
+  h_e7759ddd73fa65 1-248
+python/tests/test_sandbox_secrets_wire.py
+  h_e7759ddd73fa65 1-132
+python/tests/test_sandbox_tokens.py
+  h_e7759ddd73fa65 1-1141
+python/tests/test_shell_sessions.py
+  h_e7759ddd73fa65 1-371
+python/tests/test_shell_sessions_sync.py
+  h_e7759ddd73fa65 1-63
+python/tests/test_stream_isolation.py
+  h_e7759ddd73fa65 1-270
+python/tests/test_sync_surface.py
+  h_e7759ddd73fa65 1-809
+python/tests/test_v0_bundle.py
+  h_e7759ddd73fa65 1-352
+python/tests/test_volume_pull.py
+  h_e7759ddd73fa65 1-236
+python/tests/typing_contract_smoke.py
+  h_e7759ddd73fa65 1-55
+python/uv.lock
+  h_e7759ddd73fa65 1-1192
+run-e2e.sh
+  h_e7759ddd73fa65 1-50
+scripts/bundle-v0.sh
+  h_e7759ddd73fa65 1-147
+scripts/bundle_v0_python.py
+  h_e7759ddd73fa65 1-505
+scripts/changelog/assemble.py
+  h_e7759ddd73fa65 1-453
+scripts/changelog/test_assemble.py
+  h_e7759ddd73fa65 1-557
+scripts/check-no-bundled-v0.sh
+  h_e7759ddd73fa65 1-96
+scripts/check_dist_artifacts.py
+  h_e7759ddd73fa65 1-77
+scripts/gen-contract-types.sh
+  h_e7759ddd73fa65 1-40
+scripts/patch_coverage.py
+  h_e7759ddd73fa65 1-330
+scripts/resolve-v0-tag.sh
+  h_e7759ddd73fa65 1-112
+scripts/sdk-version.sh
+  h_e7759ddd73fa65 1-93
+scripts/sdk-version_test.sh
+  h_e7759ddd73fa65 1-95
+scripts/test-upgrade.sh
+  h_e7759ddd73fa65 1-19
+scripts/v0-publish-mode.sh
+  h_e7759ddd73fa65 1-92
+typescript/.gitignore
+  h_e7759ddd73fa65 1-3
+typescript/DEVELOPMENT.md
+  h_e7759ddd73fa65 1-152
+typescript/README.md
+  h_e7759ddd73fa65 1-749
+typescript/jest.config.cjs
+  h_e7759ddd73fa65 1-25
+typescript/lint/anti-slop/LICENSE
+  h_e7759ddd73fa65 1-21
+typescript/lint/anti-slop/README.md
+  h_e7759ddd73fa65 1-17
+typescript/lint/anti-slop/index.ts
+  h_e7759ddd73fa65 1-46
+typescript/lint/anti-slop/rules/no-chained-type-assertions.ts
+  h_e7759ddd73fa65 1-82
+typescript/lint/anti-slop/rules/no-conditional-empty-object-spread.test.ts
+  h_e7759ddd73fa65 1-37
+typescript/lint/anti-slop/rules/no-conditional-empty-object-spread.ts
+  h_e7759ddd73fa65 1-54
+typescript/lint/anti-slop/rules/no-known-value-widening.test.ts
+  h_e7759ddd73fa65 1-119
+typescript/lint/anti-slop/rules/no-known-value-widening.ts
+  h_e7759ddd73fa65 1-252
+typescript/lint/anti-slop/rules/no-module-mocking.test.ts
+  h_e7759ddd73fa65 1-33
+typescript/lint/anti-slop/rules/no-module-mocking.ts
+  h_e7759ddd73fa65 1-96
+typescript/lint/anti-slop/rules/no-object-parameters.test.ts
+  h_e7759ddd73fa65 1-37
+typescript/lint/anti-slop/rules/no-object-parameters.ts
+  h_e7759ddd73fa65 1-131
+typescript/lint/anti-slop/rules/no-reflect-apply.test.ts
+  h_e7759ddd73fa65 1-24
+typescript/lint/anti-slop/rules/no-reflect-apply.ts
+  h_e7759ddd73fa65 1-33
+typescript/lint/anti-slop/rules/no-reflect-get.test.ts
+  h_e7759ddd73fa65 1-25
+typescript/lint/anti-slop/rules/no-reflect-get.ts
+  h_e7759ddd73fa65 1-33
+typescript/lint/anti-slop/rules/no-runtime-typeof.test.ts
+  h_e7759ddd73fa65 1-47
+typescript/lint/anti-slop/rules/no-runtime-typeof.ts
+  h_e7759ddd73fa65 1-72
+typescript/lint/anti-slop/rules/no-shape-in-symbol-names.ts
+  h_e7759ddd73fa65 1-44
+typescript/lint/anti-slop/rules/no-unknown-parameters.ts
+  h_e7759ddd73fa65 1-88
+typescript/lint/anti-slop/rules/no-unknown-returns.test.ts
+  h_e7759ddd73fa65 1-38
+typescript/lint/anti-slop/rules/no-unknown-returns.ts
+  h_e7759ddd73fa65 1-120
+typescript/lint/anti-slop/rules/no-unknown-type-aliases.test.ts
+  h_e7759ddd73fa65 1-23
+typescript/lint/anti-slop/rules/no-unknown-type-aliases.ts
+  h_e7759ddd73fa65 1-75
+typescript/lint/anti-slop/rules/no-unsafe-dictionary-type.test.ts
+  h_e7759ddd73fa65 1-108
+typescript/lint/anti-slop/rules/no-unsafe-dictionary-type.ts
+  h_e7759ddd73fa65 1-139
+typescript/lint/anti-slop/rules/no-widen-then-assert.test.ts
+  h_e7759ddd73fa65 1-24
+typescript/lint/anti-slop/rules/no-widen-then-assert.ts
+  h_e7759ddd73fa65 1-371
+typescript/lint/anti-slop/rules/require-safety-comment-for-type-assertion.test.ts
+  h_e7759ddd73fa65 1-34
+typescript/lint/anti-slop/rules/require-safety-comment-for-type-assertion.ts
+  h_e7759ddd73fa65 1-67
+typescript/lint/anti-slop/shared/dictionary-types.ts
+  h_e7759ddd73fa65 1-507
+typescript/lint/anti-slop/shared/lexical-type-parameters.ts
+  h_e7759ddd73fa65 1-66
+typescript/lint/anti-slop/shared/oxlint-plugins.ts
+  h_e7759ddd73fa65 1-11
+typescript/lint/anti-slop/shared/reflect-method.ts
+  h_e7759ddd73fa65 1-40
+typescript/loaders/cjs/v0-browser.cjs
+  h_e7759ddd73fa65 1-13
+typescript/loaders/cjs/v0-node-webpack.cjs
+  h_e7759ddd73fa65 1-15
+typescript/loaders/cjs/v0-node.cjs
+  h_e7759ddd73fa65 1-21
+typescript/loaders/v0-browser.mjs
+  h_e7759ddd73fa65 1-17
+typescript/loaders/v0-loader.d.ts
+  h_e7759ddd73fa65 1-14
+typescript/loaders/v0-node-webpack.cjs
+  h_e7759ddd73fa65 1-15
+typescript/loaders/v0-node.cjs
+  h_e7759ddd73fa65 1-20
+typescript/oxlint.config.ts
+  h_e7759ddd73fa65 1-56
+typescript/package-lock.json
+  h_e7759ddd73fa65 1-4634
+typescript/package.json
+  h_e7759ddd73fa65 1-144
+typescript/scripts/browser-bundle-fixture/entry.mjs
+  h_e7759ddd73fa65 1-11
+typescript/scripts/browser-bundle-fixture/root-v0.mjs
+  h_e7759ddd73fa65 1-13
+typescript/scripts/browser-bundle-fixture/v0-import.mjs
+  h_e7759ddd73fa65 1-10
+typescript/scripts/browser-bundle-fixture/v2-import.mjs
+  h_e7759ddd73fa65 1-10
+typescript/scripts/build-v0.mjs
+  h_e7759ddd73fa65 1-182
+typescript/scripts/bundle-v0.mjs
+  h_e7759ddd73fa65 1-426
+typescript/scripts/cjs-types-fixture/checks.ts
+  h_e7759ddd73fa65 1-46
+typescript/scripts/cjs-types-fixture/esm.mts
+  h_e7759ddd73fa65 1-22
+typescript/scripts/cjs-types-fixture/index.cts
+  h_e7759ddd73fa65 1-19
+typescript/scripts/cjs-types-fixture/no-v0-client-hint.ts
+  h_e7759ddd73fa65 1-13
+typescript/scripts/cjs-types-fixture/no-v2-client.ts
+  h_e7759ddd73fa65 1-14
+typescript/scripts/cjs-types-fixture/strict-root.ts
+  h_e7759ddd73fa65 1-10
+typescript/scripts/cjs-types-fixture/tsconfig.bundler.json
+  h_e7759ddd73fa65 1-13
+typescript/scripts/cjs-types-fixture/tsconfig.json
+  h_e7759ddd73fa65 1-13
+typescript/scripts/cjs-types-fixture/tsconfig.no-v0-client-hint.json
+  h_e7759ddd73fa65 1-4
+typescript/scripts/cjs-types-fixture/tsconfig.no-v2-client.json
+  h_e7759ddd73fa65 1-4
+typescript/scripts/cjs-types-fixture/tsconfig.node10.json
+  h_e7759ddd73fa65 1-12
+typescript/scripts/cjs-types-fixture/tsconfig.strict.bundler.json
+  h_e7759ddd73fa65 1-12
+typescript/scripts/cjs-types-fixture/tsconfig.strict.node10.json
+  h_e7759ddd73fa65 1-18
+typescript/scripts/cjs-types-fixture/tsconfig.strict.node16.json
+  h_e7759ddd73fa65 1-12
+typescript/scripts/gen-contract.mjs
+  h_e7759ddd73fa65 1-278
+typescript/scripts/gen-contract.test.mjs
+  h_e7759ddd73fa65 1-171
+typescript/scripts/node-bundle-fixture/v0-cjs.cjs
+  h_e7759ddd73fa65 1-10
+typescript/scripts/node-bundle-fixture/v0-static.mjs
+  h_e7759ddd73fa65 1-12
+typescript/scripts/node-bundle-fixture/v0.mjs
+  h_e7759ddd73fa65 1-11
+typescript/scripts/node-bundle-fixture/v2-only.mjs
+  h_e7759ddd73fa65 1-12
+typescript/scripts/stamp-version.mjs
+  h_e7759ddd73fa65 1-20
+typescript/scripts/v0-bundle-smoke.cjs
+  h_e7759ddd73fa65 1-263
+typescript/scripts/write-cjs-package.mjs
+  h_e7759ddd73fa65 1-54
+typescript/src/Daytona.ts
+  h_e7759ddd73fa65 1-305
+typescript/src/diagnostics.ts
+  h_e7759ddd73fa65 1-23
+typescript/src/errors.ts
+  h_e7759ddd73fa65 1-109
+typescript/src/index.ts
+  h_e7759ddd73fa65 1-28
+typescript/src/root-config.ts
+  h_e7759ddd73fa65 1-96
+typescript/src/types.ts
+  h_e7759ddd73fa65 1-42
+typescript/src/v0-unbundled.ts
+  h_e7759ddd73fa65 1-56
+typescript/src/v2/BuildLogs.ts
+  h_e7759ddd73fa65 1-581
+typescript/src/v2/ComputerUse.ts
+  h_e7759ddd73fa65 1-62
+typescript/src/v2/ComputerUseMappers.ts
+  h_e7759ddd73fa65 1-213
+typescript/src/v2/ComputerUseNamespaces.ts
+  h_e7759ddd73fa65 1-293
+typescript/src/v2/ComputerUseTypes.ts
+  h_e7759ddd73fa65 1-298
+typescript/src/v2/Daytona.ts
+  h_e7759ddd73fa65 1-1122
+typescript/src/v2/Docker.ts
+  h_e7759ddd73fa65 1-124
+typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 1-472
+typescript/src/v2/Git.ts
+  h_e7759ddd73fa65 1-227
+typescript/src/v2/Image.ts
+  h_e7759ddd73fa65 1-258
+typescript/src/v2/Images.ts
+  h_e7759ddd73fa65 1-166
+typescript/src/v2/Interpreter.ts
+  h_e7759ddd73fa65 1-559
+typescript/src/v2/Lsp.ts
+  h_e7759ddd73fa65 1-124
+typescript/src/v2/MacModels.ts
+  h_e7759ddd73fa65 1-32
+typescript/src/v2/NetworkPolicy.ts
+  h_e7759ddd73fa65 1-138
+typescript/src/v2/Ports.ts
+  h_e7759ddd73fa65 1-315
+typescript/src/v2/Process.ts
+  h_e7759ddd73fa65 1-167
+typescript/src/v2/ProcessHandle.ts
+  h_e7759ddd73fa65 1-209
+typescript/src/v2/ProcessRun.ts
+  h_e7759ddd73fa65 1-92
+typescript/src/v2/ProcessWire.ts
+  h_e7759ddd73fa65 1-187
+typescript/src/v2/Reservations.ts
+  h_e7759ddd73fa65 1-139
+typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 1-1573
+typescript/src/v2/SandboxSecrets.ts
+  h_e7759ddd73fa65 1-64
+typescript/src/v2/SandboxVolumes.ts
+  h_e7759ddd73fa65 1-67
+typescript/src/v2/Secret.ts
+  h_e7759ddd73fa65 1-90
+typescript/src/v2/Session.ts
+  h_e7759ddd73fa65 1-110
+typescript/src/v2/Snapshots.ts
+  h_e7759ddd73fa65 1-66
+typescript/src/v2/Volume.ts
+  h_e7759ddd73fa65 1-125
+typescript/src/v2/buildLogIdentity.ts
+  h_e7759ddd73fa65 1-41
+typescript/src/v2/codes.ts
+  h_e7759ddd73fa65 1-362
+typescript/src/v2/errors/DaytonaError.ts
+  h_e7759ddd73fa65 1-838
+typescript/src/v2/events.ts
+  h_e7759ddd73fa65 1-2152
+typescript/src/v2/filesystemTransfers.ts
+  h_e7759ddd73fa65 1-447
+typescript/src/v2/filesystemWire.ts
+  h_e7759ddd73fa65 1-196
+typescript/src/v2/gen/api-enums.ts
+  h_e7759ddd73fa65 1-40
+typescript/src/v2/gen/api-types.ts
+  h_e7759ddd73fa65 1-86
+typescript/src/v2/gen/api.ts
+  h_e7759ddd73fa65 1-16856
+typescript/src/v2/gen/toolbox-enums.ts
+  h_e7759ddd73fa65 1-15
+typescript/src/v2/gen/toolbox-types.ts
+  h_e7759ddd73fa65 1-138
+typescript/src/v2/gen/toolbox.ts
+  h_e7759ddd73fa65 1-8254
+typescript/src/v2/http.ts
+  h_e7759ddd73fa65 1-1707
+typescript/src/v2/index.ts
+  h_e7759ddd73fa65 1-407
+typescript/src/v2/knownValue.ts
+  h_e7759ddd73fa65 1-14
+typescript/src/v2/types.ts
+  h_e7759ddd73fa65 1-1292
+typescript/src/v2/waitConstants.ts
+  h_e7759ddd73fa65 1-6
+typescript/src/version.ts
+  h_e7759ddd73fa65 1-2
+typescript/tests/build-log-identity.test.ts
+  h_e7759ddd73fa65 1-32
+typescript/tests/build-logs.test.ts
+  h_e7759ddd73fa65 1-822
+typescript/tests/credential-inspection.test.ts
+  h_e7759ddd73fa65 1-187
+typescript/tests/events.test.ts
+  h_e7759ddd73fa65 1-2135
+typescript/tests/image-pull-deadline.test.ts
+  h_e7759ddd73fa65 1-199
+typescript/tests/image-pull-wait.test.ts
+  h_e7759ddd73fa65 1-99
+typescript/tests/jest.setup.ts
+  h_e7759ddd73fa65 1-11
+typescript/tests/lazySandbox.ts
+  h_e7759ddd73fa65 1-17
+typescript/tests/networkPolicyTestServer.ts
+  h_e7759ddd73fa65 1-76
+typescript/tests/networkPolicyTypes.ts
+  h_e7759ddd73fa65 1-17
+typescript/tests/networkPolicyValidation.test.ts
+  h_e7759ddd73fa65 1-112
+typescript/tests/networkPolicyWire.test.ts
+  h_e7759ddd73fa65 1-226
+typescript/tests/process-exit.test.ts
+  h_e7759ddd73fa65 1-521
+typescript/tests/readme-quickstart.test.ts
+  h_e7759ddd73fa65 1-95
+typescript/tests/reservation-fields.test.ts
+  h_e7759ddd73fa65 1-131
+typescript/tests/root-client.test.ts
+  h_e7759ddd73fa65 1-692
+typescript/tests/root-config-snapshot.test.ts
+  h_e7759ddd73fa65 1-104
+typescript/tests/root-guard-minified.test.ts
+  h_e7759ddd73fa65 1-30
+typescript/tests/sandbox-region.test.ts
+  h_e7759ddd73fa65 1-113
+typescript/tests/sandbox-response-compatibility.test.ts
+  h_e7759ddd73fa65 1-35
+typescript/tests/sandboxSecretsParity.test.ts
+  h_e7759ddd73fa65 1-248
+typescript/tests/sandboxSecretsValidation.test.ts
+  h_e7759ddd73fa65 1-74
+typescript/tests/sandboxSecretsWire.test.ts
+  h_e7759ddd73fa65 1-122
+typescript/tests/search-options.consumer.ts
+  h_e7759ddd73fa65 1-30
+typescript/tests/session-options.consumer.ts
+  h_e7759ddd73fa65 1-24
+typescript/tests/session-process.test.ts
+  h_e7759ddd73fa65 1-63
+typescript/tests/sessions.test.ts
+  h_e7759ddd73fa65 1-210
+typescript/tests/setup-env.cjs
+  h_e7759ddd73fa65 1-11
+typescript/tests/transport-url-diagnostics.test.ts
+  h_e7759ddd73fa65 1-74
+typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 1-11689
+typescript/tests/volume-pull.test.ts
+  h_e7759ddd73fa65 1-124
+typescript/tsconfig.cjs.json
+  h_e7759ddd73fa65 1-10
+typescript/tsconfig.esm.json
+  h_e7759ddd73fa65 1-10
+typescript/tsconfig.json
+  h_e7759ddd73fa65 1-25
+typescript/tsconfig.tests.json
+  h_e7759ddd73fa65 1-10
+typescript/tsconfig.v0.esm.json
+  h_e7759ddd73fa65 1-10
+typescript/tsconfig.v0.json
+  h_e7759ddd73fa65 1-19
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 1-761
+upgrade/mapping/mapping.json
+  h_e7759ddd73fa65 1-5732
+upgrade/mapping/mapping.schema.json
+  h_e7759ddd73fa65 1-399
+upgrade/mapping/report.schema.json
+  h_e7759ddd73fa65 1-77
+upgrade/mapping/yaml-environment-cases.json
+  h_e7759ddd73fa65 1-61
+upgrade/python/.gitignore
+  h_e7759ddd73fa65 1-5
+upgrade/python/DEVELOPMENT.md
+  h_e7759ddd73fa65 1-273
+upgrade/python/LICENSE
+  h_e7759ddd73fa65 1-202
+upgrade/python/README.md
+  h_e7759ddd73fa65 1-277
+upgrade/python/pyproject.toml
+  h_e7759ddd73fa65 1-48
+upgrade/python/src/daytona_upgrade/__init__.py
+  h_e7759ddd73fa65 1-14
+upgrade/python/src/daytona_upgrade/__main__.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/src/daytona_upgrade/_assignment_proofs.py
+  h_e7759ddd73fa65 1-260
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  h_e7759ddd73fa65 1-264
+upgrade/python/src/daytona_upgrade/_manifest_cfg.py
+  h_e7759ddd73fa65 1-127
+upgrade/python/src/daytona_upgrade/_manifest_resolvers.py
+  h_e7759ddd73fa65 1-123
+upgrade/python/src/daytona_upgrade/_manifest_setup.py
+  h_e7759ddd73fa65 1-256
+upgrade/python/src/daytona_upgrade/_member_write_flow.py
+  h_e7759ddd73fa65 1-67
+upgrade/python/src/daytona_upgrade/_project_index_model.py
+  h_e7759ddd73fa65 1-68
+upgrade/python/src/daytona_upgrade/_requirements.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/src/daytona_upgrade/_scopes.py
+  h_e7759ddd73fa65 1-264
+upgrade/python/src/daytona_upgrade/_setup_values.py
+  h_e7759ddd73fa65 1-60
+upgrade/python/src/daytona_upgrade/_setup_writes.py
+  h_e7759ddd73fa65 1-49
+upgrade/python/src/daytona_upgrade/_workflow_index.py
+  h_e7759ddd73fa65 1-210
+upgrade/python/src/daytona_upgrade/_workflow_scopes.py
+  h_e7759ddd73fa65 1-136
+upgrade/python/src/daytona_upgrade/analysis_filter.py
+  h_e7759ddd73fa65 1-144
+upgrade/python/src/daytona_upgrade/annotation_exports.py
+  h_e7759ddd73fa65 1-146
+upgrade/python/src/daytona_upgrade/annotation_flow.py
+  h_e7759ddd73fa65 1-144
+upgrade/python/src/daytona_upgrade/annotation_proofs.py
+  h_e7759ddd73fa65 1-260
+upgrade/python/src/daytona_upgrade/annotations.py
+  h_e7759ddd73fa65 1-112
+upgrade/python/src/daytona_upgrade/attribute_proofs.py
+  h_e7759ddd73fa65 1-244
+upgrade/python/src/daytona_upgrade/attributes.py
+  h_e7759ddd73fa65 1-153
+upgrade/python/src/daytona_upgrade/augmented_proofs.py
+  h_e7759ddd73fa65 1-52
+upgrade/python/src/daytona_upgrade/bindings.py
+  h_e7759ddd73fa65 1-153
+upgrade/python/src/daytona_upgrade/call_proofs.py
+  h_e7759ddd73fa65 1-103
+upgrade/python/src/daytona_upgrade/call_sites.py
+  h_e7759ddd73fa65 1-96
+upgrade/python/src/daytona_upgrade/calls.py
+  h_e7759ddd73fa65 1-234
+upgrade/python/src/daytona_upgrade/class_field_mutations.py
+  h_e7759ddd73fa65 1-63
+upgrade/python/src/daytona_upgrade/class_imports.py
+  h_e7759ddd73fa65 1-49
+upgrade/python/src/daytona_upgrade/class_method_stores.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/src/daytona_upgrade/class_stores.py
+  h_e7759ddd73fa65 1-228
+upgrade/python/src/daytona_upgrade/classflow.py
+  h_e7759ddd73fa65 1-252
+upgrade/python/src/daytona_upgrade/cli.py
+  h_e7759ddd73fa65 1-265
+upgrade/python/src/daytona_upgrade/client_double_targets.py
+  h_e7759ddd73fa65 1-223
+upgrade/python/src/daytona_upgrade/client_parameters.py
+  h_e7759ddd73fa65 1-167
+upgrade/python/src/daytona_upgrade/cloud_api_url.py
+  h_e7759ddd73fa65 1-18
+upgrade/python/src/daytona_upgrade/collection_proofs.py
+  h_e7759ddd73fa65 1-226
+upgrade/python/src/daytona_upgrade/comments.py
+  h_e7759ddd73fa65 1-48
+upgrade/python/src/daytona_upgrade/compose_detection.py
+  h_e7759ddd73fa65 1-68
+upgrade/python/src/daytona_upgrade/compose_discovery.py
+  h_e7759ddd73fa65 1-67
+upgrade/python/src/daytona_upgrade/compose_environment.py
+  h_e7759ddd73fa65 1-143
+upgrade/python/src/daytona_upgrade/compose_includes.py
+  h_e7759ddd73fa65 1-238
+upgrade/python/src/daytona_upgrade/compose_projects.py
+  h_e7759ddd73fa65 1-110
+upgrade/python/src/daytona_upgrade/compose_yaml.py
+  h_e7759ddd73fa65 1-274
+upgrade/python/src/daytona_upgrade/compoundflow.py
+  h_e7759ddd73fa65 1-120
+upgrade/python/src/daytona_upgrade/config.py
+  h_e7759ddd73fa65 1-144
+upgrade/python/src/daytona_upgrade/config_arguments.py
+  h_e7759ddd73fa65 1-57
+upgrade/python/src/daytona_upgrade/config_constructor.py
+  h_e7759ddd73fa65 1-58
+upgrade/python/src/daytona_upgrade/config_factory_calls.py
+  h_e7759ddd73fa65 1-160
+upgrade/python/src/daytona_upgrade/config_literal_mappings.py
+  h_e7759ddd73fa65 1-64
+upgrade/python/src/daytona_upgrade/config_members.py
+  h_e7759ddd73fa65 1-159
+upgrade/python/src/daytona_upgrade/config_messages.py
+  h_e7759ddd73fa65 1-41
+upgrade/python/src/daytona_upgrade/config_origins.py
+  h_e7759ddd73fa65 1-236
+upgrade/python/src/daytona_upgrade/config_readers.py
+  h_e7759ddd73fa65 1-185
+upgrade/python/src/daytona_upgrade/config_uses.py
+  h_e7759ddd73fa65 1-207
+upgrade/python/src/daytona_upgrade/constructor_access.py
+  h_e7759ddd73fa65 1-140
+upgrade/python/src/daytona_upgrade/constructor_errors.py
+  h_e7759ddd73fa65 1-195
+upgrade/python/src/daytona_upgrade/constructor_parameters.py
+  h_e7759ddd73fa65 1-96
+upgrade/python/src/daytona_upgrade/constructor_safety.py
+  h_e7759ddd73fa65 1-183
+upgrade/python/src/daytona_upgrade/context_managers.py
+  h_e7759ddd73fa65 1-87
+upgrade/python/src/daytona_upgrade/controlflow.py
+  h_e7759ddd73fa65 1-277
+upgrade/python/src/daytona_upgrade/dependency_scope.py
+  h_e7759ddd73fa65 1-120
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 1-33
+upgrade/python/src/daytona_upgrade/descriptors.py
+  h_e7759ddd73fa65 1-181
+upgrade/python/src/daytona_upgrade/docker_environment.py
+  h_e7759ddd73fa65 1-113
+upgrade/python/src/daytona_upgrade/dotenv_environment.py
+  h_e7759ddd73fa65 1-165
+upgrade/python/src/daytona_upgrade/double_ownership.py
+  h_e7759ddd73fa65 1-146
+upgrade/python/src/daytona_upgrade/double_rewrites.py
+  h_e7759ddd73fa65 1-65
+upgrade/python/src/daytona_upgrade/environment.py
+  h_e7759ddd73fa65 1-218
+upgrade/python/src/daytona_upgrade/environment_paths.py
+  h_e7759ddd73fa65 1-133
+upgrade/python/src/daytona_upgrade/environment_python.py
+  h_e7759ddd73fa65 1-261
+upgrade/python/src/daytona_upgrade/environment_values.py
+  h_e7759ddd73fa65 1-20
+upgrade/python/src/daytona_upgrade/export_checks.py
+  h_e7759ddd73fa65 1-72
+upgrade/python/src/daytona_upgrade/expression_names.py
+  h_e7759ddd73fa65 1-26
+upgrade/python/src/daytona_upgrade/external_calls.py
+  h_e7759ddd73fa65 1-70
+upgrade/python/src/daytona_upgrade/factory_consumers.py
+  h_e7759ddd73fa65 1-78
+upgrade/python/src/daytona_upgrade/factory_patch_reviews.py
+  h_e7759ddd73fa65 1-67
+upgrade/python/src/daytona_upgrade/factory_patch_scopes.py
+  h_e7759ddd73fa65 1-133
+upgrade/python/src/daytona_upgrade/fallback_proofs.py
+  h_e7759ddd73fa65 1-78
+upgrade/python/src/daytona_upgrade/field_arguments.py
+  h_e7759ddd73fa65 1-195
+upgrade/python/src/daytona_upgrade/field_effects.py
+  h_e7759ddd73fa65 1-211
+upgrade/python/src/daytona_upgrade/field_factories.py
+  h_e7759ddd73fa65 1-122
+upgrade/python/src/daytona_upgrade/field_initialization.py
+  h_e7759ddd73fa65 1-110
+upgrade/python/src/daytona_upgrade/field_safety.py
+  h_e7759ddd73fa65 1-93
+upgrade/python/src/daytona_upgrade/flow.py
+  h_e7759ddd73fa65 1-268
+upgrade/python/src/daytona_upgrade/function_proofs.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/src/daytona_upgrade/functionflow.py
+  h_e7759ddd73fa65 1-263
+upgrade/python/src/daytona_upgrade/generated_parameters.py
+  h_e7759ddd73fa65 1-106
+upgrade/python/src/daytona_upgrade/generator_proofs.py
+  h_e7759ddd73fa65 1-262
+upgrade/python/src/daytona_upgrade/import_only_clients.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/src/daytona_upgrade/importflow.py
+  h_e7759ddd73fa65 1-176
+upgrade/python/src/daytona_upgrade/imports.py
+  h_e7759ddd73fa65 1-176
+upgrade/python/src/daytona_upgrade/instance_fields.py
+  h_e7759ddd73fa65 1-162
+upgrade/python/src/daytona_upgrade/lexical.py
+  h_e7759ddd73fa65 1-78
+upgrade/python/src/daytona_upgrade/local_class_doubles.py
+  h_e7759ddd73fa65 1-137
+upgrade/python/src/daytona_upgrade/local_double_targets.py
+  h_e7759ddd73fa65 1-192
+upgrade/python/src/daytona_upgrade/local_doubles.py
+  h_e7759ddd73fa65 1-254
+upgrade/python/src/daytona_upgrade/loopflow.py
+  h_e7759ddd73fa65 1-148
+upgrade/python/src/daytona_upgrade/manifest_errors.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/src/daytona_upgrade/manifests.py
+  h_e7759ddd73fa65 1-228
+upgrade/python/src/daytona_upgrade/mapping.json
+  h_e7759ddd73fa65 1-5732
+upgrade/python/src/daytona_upgrade/member_mutations.py
+  h_e7759ddd73fa65 1-162
+upgrade/python/src/daytona_upgrade/mock_configuration.py
+  h_e7759ddd73fa65 1-26
+upgrade/python/src/daytona_upgrade/mock_filter.py
+  h_e7759ddd73fa65 1-92
+upgrade/python/src/daytona_upgrade/mock_inference.py
+  h_e7759ddd73fa65 1-231
+upgrade/python/src/daytona_upgrade/mock_links.py
+  h_e7759ddd73fa65 1-33
+upgrade/python/src/daytona_upgrade/mock_module_factories.py
+  h_e7759ddd73fa65 1-64
+upgrade/python/src/daytona_upgrade/mock_proofs.py
+  h_e7759ddd73fa65 1-222
+upgrade/python/src/daytona_upgrade/mock_spec_origins.py
+  h_e7759ddd73fa65 1-244
+upgrade/python/src/daytona_upgrade/models.py
+  h_e7759ddd73fa65 1-168
+upgrade/python/src/daytona_upgrade/module_proofs.py
+  h_e7759ddd73fa65 1-27
+upgrade/python/src/daytona_upgrade/notebook_environment.py
+  h_e7759ddd73fa65 1-43
+upgrade/python/src/daytona_upgrade/notebook_json.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/src/daytona_upgrade/notebooks.py
+  h_e7759ddd73fa65 1-247
+upgrade/python/src/daytona_upgrade/parameter_proofs.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/src/daytona_upgrade/parameter_relay_flow.py
+  h_e7759ddd73fa65 1-97
+upgrade/python/src/daytona_upgrade/parameter_relay_uses.py
+  h_e7759ddd73fa65 1-234
+upgrade/python/src/daytona_upgrade/parameter_usage.py
+  h_e7759ddd73fa65 1-205
+upgrade/python/src/daytona_upgrade/partial_analysis.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/src/daytona_upgrade/persistent_workflow.py
+  h_e7759ddd73fa65 1-51
+upgrade/python/src/daytona_upgrade/prefix_proofs.py
+  h_e7759ddd73fa65 1-57
+upgrade/python/src/daytona_upgrade/project.py
+  h_e7759ddd73fa65 1-260
+upgrade/python/src/daytona_upgrade/project_configs.py
+  h_e7759ddd73fa65 1-189
+upgrade/python/src/daytona_upgrade/project_dependencies.py
+  h_e7759ddd73fa65 1-34
+upgrade/python/src/daytona_upgrade/project_discovery.py
+  h_e7759ddd73fa65 1-172
+upgrade/python/src/daytona_upgrade/project_environment.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/src/daytona_upgrade/project_index.py
+  h_e7759ddd73fa65 1-128
+upgrade/python/src/daytona_upgrade/project_paths.py
+  h_e7759ddd73fa65 1-214
+upgrade/python/src/daytona_upgrade/project_progress.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/src/daytona_upgrade/project_result.py
+  h_e7759ddd73fa65 1-46
+upgrade/python/src/daytona_upgrade/proof_mutations.py
+  h_e7759ddd73fa65 1-91
+upgrade/python/src/daytona_upgrade/pytest_collection.py
+  h_e7759ddd73fa65 1-103
+upgrade/python/src/daytona_upgrade/python_floor.py
+  h_e7759ddd73fa65 1-51
+upgrade/python/src/daytona_upgrade/reachability.py
+  h_e7759ddd73fa65 1-21
+upgrade/python/src/daytona_upgrade/reflective_names.py
+  h_e7759ddd73fa65 1-119
+upgrade/python/src/daytona_upgrade/regular_files.py
+  h_e7759ddd73fa65 1-35
+upgrade/python/src/daytona_upgrade/report_items.py
+  h_e7759ddd73fa65 1-21
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  h_e7759ddd73fa65 1-43
+upgrade/python/src/daytona_upgrade/resolution.py
+  h_e7759ddd73fa65 1-215
+upgrade/python/src/daytona_upgrade/return_proofs.py
+  h_e7759ddd73fa65 1-178
+upgrade/python/src/daytona_upgrade/review_forwarding.py
+  h_e7759ddd73fa65 1-63
+upgrade/python/src/daytona_upgrade/safety.py
+  h_e7759ddd73fa65 1-80
+upgrade/python/src/daytona_upgrade/shared_error_guidance.py
+  h_e7759ddd73fa65 1-103
+upgrade/python/src/daytona_upgrade/source_encoding.py
+  h_e7759ddd73fa65 1-79
+upgrade/python/src/daytona_upgrade/source_text.py
+  h_e7759ddd73fa65 1-41
+upgrade/python/src/daytona_upgrade/source_transform.py
+  h_e7759ddd73fa65 1-49
+upgrade/python/src/daytona_upgrade/store_names.py
+  h_e7759ddd73fa65 1-49
+upgrade/python/src/daytona_upgrade/subclasses.py
+  h_e7759ddd73fa65 1-231
+upgrade/python/src/daytona_upgrade/suggestion_owners.py
+  h_e7759ddd73fa65 1-173
+upgrade/python/src/daytona_upgrade/suggestions.py
+  h_e7759ddd73fa65 1-246
+upgrade/python/src/daytona_upgrade/toml_values.py
+  h_e7759ddd73fa65 1-38
+upgrade/python/src/daytona_upgrade/transform.py
+  h_e7759ddd73fa65 1-279
+upgrade/python/src/daytona_upgrade/url_writes.py
+  h_e7759ddd73fa65 1-168
+upgrade/python/src/daytona_upgrade/wildcard_exports.py
+  h_e7759ddd73fa65 1-85
+upgrade/python/src/daytona_upgrade/wildcard_imports.py
+  h_e7759ddd73fa65 1-45
+upgrade/python/src/daytona_upgrade/writes.py
+  h_e7759ddd73fa65 1-92
+upgrade/python/src/daytona_upgrade/yaml_flow.py
+  h_e7759ddd73fa65 1-208
+upgrade/python/tests/fixtures/aliases/expected/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/aliases/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/aliases/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/aliases/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/annotated-param/expected/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/annotated-param/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/annotated-param/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/annotated-param/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/cloud-api-url-dropped/expected/app.py
+  h_e7759ddd73fa65 1-3
+upgrade/python/tests/fixtures/cloud-api-url-dropped/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/cloud-api-url-dropped/input/app.py
+  h_e7759ddd73fa65 1-3
+upgrade/python/tests/fixtures/cloud-api-url-dropped/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/compose-custom-api-url-stop/expected/compose.yaml
+  h_e7759ddd73fa65 1-3
+upgrade/python/tests/fixtures/compose-custom-api-url-stop/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/compose-custom-api-url-stop/input/compose.yaml
+  h_e7759ddd73fa65 1-3
+upgrade/python/tests/fixtures/compose-custom-api-url-stop/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/config-fields/expected/app.py
+  h_e7759ddd73fa65 1-6
+upgrade/python/tests/fixtures/config-fields/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/config-fields/input/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/config-fields/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/context-manager/expected/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/context-manager/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/context-manager/input/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/context-manager/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/cross-module-client/expected/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/cross-module-client/expected/config.py
+  h_e7759ddd73fa65 1-6
+upgrade/python/tests/fixtures/cross-module-client/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/cross-module-client/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/cross-module-client/input/config.py
+  h_e7759ddd73fa65 1-6
+upgrade/python/tests/fixtures/cross-module-client/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/custom-api-url-stop/expected/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/custom-api-url-stop/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/custom-api-url-stop/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/custom-api-url-stop/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/deep-import/expected/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/deep-import/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/deep-import/input/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/deep-import/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/dependency-groups/expected/pyproject.toml
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/dependency-groups/input/pyproject.toml
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/harbor_utils.py
+  h_e7759ddd73fa65 1-141
+upgrade/python/tests/fixtures/idempotent/expected/app.py
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/idempotent/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/idempotent/input/app.py
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/idempotent/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/mock-target/expected/app.py
+  h_e7759ddd73fa65 1-6
+upgrade/python/tests/fixtures/mock-target/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/mock-target/input/app.py
+  h_e7759ddd73fa65 1-6
+upgrade/python/tests/fixtures/mock-target/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/named-imports/expected/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/named-imports/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/named-imports/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/named-imports/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/namespace-import/expected/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/namespace-import/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/namespace-import/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/namespace-import/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/notebook-environment/input.ipynb
+  h_e7759ddd73fa65 1-9
+upgrade/python/tests/fixtures/notebook/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/notebook/expected/workflow.ipynb
+  h_e7759ddd73fa65 1-28
+upgrade/python/tests/fixtures/notebook/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/notebook/input/workflow.ipynb
+  h_e7759ddd73fa65 1-27
+upgrade/python/tests/fixtures/old-package-names/expected/app.py
+  h_e7759ddd73fa65 1-9
+upgrade/python/tests/fixtures/old-package-names/expected/requirements.txt
+  h_e7759ddd73fa65 1-2
+upgrade/python/tests/fixtures/old-package-names/input/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/old-package-names/input/requirements.txt
+  h_e7759ddd73fa65 1-2
+upgrade/python/tests/fixtures/other-ecosystem/expected/app.py
+  h_e7759ddd73fa65 1-3
+upgrade/python/tests/fixtures/other-ecosystem/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/other-ecosystem/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/other-ecosystem/input/app.py
+  h_e7759ddd73fa65 1-3
+upgrade/python/tests/fixtures/other-ecosystem/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/other-ecosystem/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/pep621/expected/pyproject.toml
+  h_e7759ddd73fa65 1-13
+upgrade/python/tests/fixtures/pep621/input/pyproject.toml
+  h_e7759ddd73fa65 1-13
+upgrade/python/tests/fixtures/pipfile/expected/Pipfile
+  h_e7759ddd73fa65 1-12
+upgrade/python/tests/fixtures/pipfile/input/Pipfile
+  h_e7759ddd73fa65 1-12
+upgrade/python/tests/fixtures/poetry/expected/pyproject.toml
+  h_e7759ddd73fa65 1-13
+upgrade/python/tests/fixtures/poetry/input/pyproject.toml
+  h_e7759ddd73fa65 1-13
+upgrade/python/tests/fixtures/remove-suggestions/expected/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/remove-suggestions/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/remove-suggestions/input/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/remove-suggestions/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/requirements/expected/requirements-dev.txt
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/requirements/input/requirements-dev.txt
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/self-attribute/expected/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/self-attribute/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/self-attribute/input/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/self-attribute/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/service-chain/expected/app.py
+  h_e7759ddd73fa65 1-9
+upgrade/python/tests/fixtures/service-chain/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/service-chain/input/app.py
+  h_e7759ddd73fa65 1-9
+upgrade/python/tests/fixtures/service-chain/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/setup-cfg/expected/setup.cfg
+  h_e7759ddd73fa65 1-14
+upgrade/python/tests/fixtures/setup-cfg/input/setup.cfg
+  h_e7759ddd73fa65 1-14
+upgrade/python/tests/fixtures/setup-py/expected/setup.py
+  h_e7759ddd73fa65 1-14
+upgrade/python/tests/fixtures/setup-py/input/setup.py
+  h_e7759ddd73fa65 1-14
+upgrade/python/tests/fixtures/suggest-v2-basic/expected/app.py
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/suggest-v2-basic/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-basic/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/suggest-v2-basic/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-rerun/expected/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/suggest-v2-rerun/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-rerun/input/app.py
+  h_e7759ddd73fa65 1-6
+upgrade/python/tests/fixtures/suggest-v2-rerun/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-workflow-client-arguments/expected/app.py
+  h_e7759ddd73fa65 1-14
+upgrade/python/tests/fixtures/suggest-v2-workflow-client-arguments/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-workflow-client-arguments/input/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/suggest-v2-workflow-client-arguments/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-workflow-header/expected/app.py
+  h_e7759ddd73fa65 1-13
+upgrade/python/tests/fixtures/suggest-v2-workflow-header/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/suggest-v2-workflow-header/input/app.py
+  h_e7759ddd73fa65 1-5
+upgrade/python/tests/fixtures/suggest-v2-workflow-header/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/type-only-imports/expected/app.py
+  h_e7759ddd73fa65 1-8
+upgrade/python/tests/fixtures/type-only-imports/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/type-only-imports/input/app.py
+  h_e7759ddd73fa65 1-7
+upgrade/python/tests/fixtures/type-only-imports/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/unannotated-param-fixme/expected/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/unannotated-param-fixme/expected/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/fixtures/unannotated-param-fixme/input/app.py
+  h_e7759ddd73fa65 1-4
+upgrade/python/tests/fixtures/unannotated-param-fixme/input/requirements.txt
+  h_e7759ddd73fa65 1
+upgrade/python/tests/test_alias_iteration_and_class_proofs.py
+  h_e7759ddd73fa65 1-100
+upgrade/python/tests/test_alias_scope.py
+  h_e7759ddd73fa65 1-65
+upgrade/python/tests/test_analysis_filter_boundaries.py
+  h_e7759ddd73fa65 1-82
+upgrade/python/tests/test_ancestor_pytest_collection.py
+  h_e7759ddd73fa65 1-100
+upgrade/python/tests/test_ancestor_requirement_includes.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_ancestor_runtime_dependencies.py
+  h_e7759ddd73fa65 1-132
+upgrade/python/tests/test_ancestor_sdk_dependencies.py
+  h_e7759ddd73fa65 1-112
+upgrade/python/tests/test_ancestor_uv_sources.py
+  h_e7759ddd73fa65 1-197
+upgrade/python/tests/test_ancestor_write_parser_boundaries.py
+  h_e7759ddd73fa65 1-86
+upgrade/python/tests/test_annotation_aliases.py
+  h_e7759ddd73fa65 1-164
+upgrade/python/tests/test_annotation_proofs.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_annotation_scan_negative_controls.py
+  h_e7759ddd73fa65 1-99
+upgrade/python/tests/test_assignment_target_evaluation.py
+  h_e7759ddd73fa65 1-149
+upgrade/python/tests/test_async_mock_spec_origins.py
+  h_e7759ddd73fa65 1-162
+upgrade/python/tests/test_async_mock_specs.py
+  h_e7759ddd73fa65 1-92
+upgrade/python/tests/test_atomic_writes.py
+  h_e7759ddd73fa65 1-137
+upgrade/python/tests/test_bounded_inputs.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/tests/test_branch_exports.py
+  h_e7759ddd73fa65 1-158
+upgrade/python/tests/test_branched_generators_async_stack.py
+  h_e7759ddd73fa65 1-207
+upgrade/python/tests/test_builtin_dict_pairs.py
+  h_e7759ddd73fa65 1-115
+upgrade/python/tests/test_call_field_effects.py
+  h_e7759ddd73fa65 1-156
+upgrade/python/tests/test_call_safety.py
+  h_e7759ddd73fa65 1-211
+upgrade/python/tests/test_class_comprehension_scopes.py
+  h_e7759ddd73fa65 1-142
+upgrade/python/tests/test_cli.py
+  h_e7759ddd73fa65 1-347
+upgrade/python/tests/test_cli_endpoint_dependency_preflight.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_cli_error_and_declined_write_reports.py
+  h_e7759ddd73fa65 1-96
+upgrade/python/tests/test_cli_input_and_scan_diagnostics.py
+  h_e7759ddd73fa65 1-152
+upgrade/python/tests/test_client_defaults.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_client_member_writes.py
+  h_e7759ddd73fa65 1-69
+upgrade/python/tests/test_client_parameter_boundaries.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_client_proof_precision.py
+  h_e7759ddd73fa65 1-154
+upgrade/python/tests/test_client_service_parity.py
+  h_e7759ddd73fa65 1-185
+upgrade/python/tests/test_cloud_config.py
+  h_e7759ddd73fa65 1-61
+upgrade/python/tests/test_collection_attribute_evidence.py
+  h_e7759ddd73fa65 1-244
+upgrade/python/tests/test_collection_wrappers.py
+  h_e7759ddd73fa65 1-136
+upgrade/python/tests/test_comment_lexical.py
+  h_e7759ddd73fa65 1-64
+upgrade/python/tests/test_compose_anchors_and_base_files.py
+  h_e7759ddd73fa65 1-183
+upgrade/python/tests/test_compose_detection.py
+  h_e7759ddd73fa65 1-83
+upgrade/python/tests/test_compose_include_boundaries.py
+  h_e7759ddd73fa65 1-106
+upgrade/python/tests/test_compose_include_classification.py
+  h_e7759ddd73fa65 1-88
+upgrade/python/tests/test_compose_includes.py
+  h_e7759ddd73fa65 1-271
+upgrade/python/tests/test_compose_loader_mapping.py
+  h_e7759ddd73fa65 1-143
+upgrade/python/tests/test_compose_provenance.py
+  h_e7759ddd73fa65 1-121
+upgrade/python/tests/test_compose_scalar_refusal.py
+  h_e7759ddd73fa65 1-47
+upgrade/python/tests/test_compose_selection_paths.py
+  h_e7759ddd73fa65 1-153
+upgrade/python/tests/test_compound_joins.py
+  h_e7759ddd73fa65 1-158
+upgrade/python/tests/test_comprehension_external_stores.py
+  h_e7759ddd73fa65 1-175
+upgrade/python/tests/test_computed_environment_writes.py
+  h_e7759ddd73fa65 1-171
+upgrade/python/tests/test_conditional_mock_specs.py
+  h_e7759ddd73fa65 1-37
+upgrade/python/tests/test_config_boundaries.py
+  h_e7759ddd73fa65 1-187
+upgrade/python/tests/test_config_constructors.py
+  h_e7759ddd73fa65 1-122
+upgrade/python/tests/test_config_definition_time_ownership.py
+  h_e7759ddd73fa65 1-92
+upgrade/python/tests/test_config_duplicates_and_patch_targets.py
+  h_e7759ddd73fa65 1-98
+upgrade/python/tests/test_config_escape_regressions.py
+  h_e7759ddd73fa65 1-71
+upgrade/python/tests/test_config_factory_boundaries.py
+  h_e7759ddd73fa65 1-115
+upgrade/python/tests/test_config_functions.py
+  h_e7759ddd73fa65 1-124
+upgrade/python/tests/test_config_hooks.py
+  h_e7759ddd73fa65 1-63
+upgrade/python/tests/test_config_keyword_layout.py
+  h_e7759ddd73fa65 1-80
+upgrade/python/tests/test_config_keyword_order.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/tests/test_config_member_regressions.py
+  h_e7759ddd73fa65 1-52
+upgrade/python/tests/test_config_merge_regressions.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_config_reads.py
+  h_e7759ddd73fa65 1-182
+upgrade/python/tests/test_config_url_alias_guidance.py
+  h_e7759ddd73fa65 1-64
+upgrade/python/tests/test_config_writes.py
+  h_e7759ddd73fa65 1-48
+upgrade/python/tests/test_constructor_access.py
+  h_e7759ddd73fa65 1-86
+upgrade/python/tests/test_constructor_contracts.py
+  h_e7759ddd73fa65 1-128
+upgrade/python/tests/test_constructor_credentials.py
+  h_e7759ddd73fa65 1-172
+upgrade/python/tests/test_constructor_doubles.py
+  h_e7759ddd73fa65 1-63
+upgrade/python/tests/test_constructor_evaluation.py
+  h_e7759ddd73fa65 1-110
+upgrade/python/tests/test_constructor_execution.py
+  h_e7759ddd73fa65 1-84
+upgrade/python/tests/test_constructor_parity.py
+  h_e7759ddd73fa65 1-41
+upgrade/python/tests/test_constructor_patches.py
+  h_e7759ddd73fa65 1-115
+upgrade/python/tests/test_consumer_boundaries.py
+  h_e7759ddd73fa65 1-80
+upgrade/python/tests/test_context_yield_and_store_order.py
+  h_e7759ddd73fa65 1-133
+upgrade/python/tests/test_core_edges.py
+  h_e7759ddd73fa65 1-155
+upgrade/python/tests/test_dataclass_instances.py
+  h_e7759ddd73fa65 1-84
+upgrade/python/tests/test_declared_annotation_bindings.py
+  h_e7759ddd73fa65 1-195
+upgrade/python/tests/test_decorated_collections.py
+  h_e7759ddd73fa65 1-54
+upgrade/python/tests/test_decorator_and_collection_mutations.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_deep_error_guidance.py
+  h_e7759ddd73fa65 1-65
+upgrade/python/tests/test_deferred_workflow_captures.py
+  h_e7759ddd73fa65 1-96
+upgrade/python/tests/test_deferred_workflows.py
+  h_e7759ddd73fa65 1-172
+upgrade/python/tests/test_dependency_alternatives.py
+  h_e7759ddd73fa65 1-116
+upgrade/python/tests/test_dependency_declarations_and_python_floor.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_dependency_docker_and_namespace_proofs.py
+  h_e7759ddd73fa65 1-191
+upgrade/python/tests/test_dependency_fixes.py
+  h_e7759ddd73fa65 1-109
+upgrade/python/tests/test_dependency_includes.py
+  h_e7759ddd73fa65 1-142
+upgrade/python/tests/test_dependency_namespace_endpoint_boundaries.py
+  h_e7759ddd73fa65 1-147
+upgrade/python/tests/test_dependency_project.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_dependency_records.py
+  h_e7759ddd73fa65 1-91
+upgrade/python/tests/test_dependency_trivia.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/tests/test_dependency_upgrade_reporting.py
+  h_e7759ddd73fa65 1-107
+upgrade/python/tests/test_descriptor_client_results.py
+  h_e7759ddd73fa65 1-209
+upgrade/python/tests/test_discovery_permissions.py
+  h_e7759ddd73fa65 1-100
+upgrade/python/tests/test_distribution_version.py
+  h_e7759ddd73fa65 1-123
+upgrade/python/tests/test_docker_continuation_comments.py
+  h_e7759ddd73fa65 1-65
+upgrade/python/tests/test_docker_scope.py
+  h_e7759ddd73fa65 1-98
+upgrade/python/tests/test_dotenv_loader_bindings.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_dotenv_search_and_settings_overrides.py
+  h_e7759ddd73fa65 1-209
+upgrade/python/tests/test_double_adaptation.py
+  h_e7759ddd73fa65 1-192
+upgrade/python/tests/test_double_boundaries.py
+  h_e7759ddd73fa65 1-174
+upgrade/python/tests/test_double_runtime.py
+  h_e7759ddd73fa65 1-140
+upgrade/python/tests/test_dynamic_wildcards.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_edit_encoding.py
+  h_e7759ddd73fa65 1-154
+upgrade/python/tests/test_encoding.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_endpoint_declaration_interpolation.py
+  h_e7759ddd73fa65 1-97
+upgrade/python/tests/test_environment_bulk_updates.py
+  h_e7759ddd73fa65 1-50
+upgrade/python/tests/test_environment_path_roots.py
+  h_e7759ddd73fa65 1-58
+upgrade/python/tests/test_environment_templates_and_unions.py
+  h_e7759ddd73fa65 1-219
+upgrade/python/tests/test_environment_unpacking_writes.py
+  h_e7759ddd73fa65 1-98
+upgrade/python/tests/test_environment_url_preflight.py
+  h_e7759ddd73fa65 1-263
+upgrade/python/tests/test_examples.py
+  h_e7759ddd73fa65 1-88
+upgrade/python/tests/test_exception_and_receiver_flow.py
+  h_e7759ddd73fa65 1-206
+upgrade/python/tests/test_explicit_dotenv_preflight.py
+  h_e7759ddd73fa65 1-108
+upgrade/python/tests/test_export_indexes.py
+  h_e7759ddd73fa65 1-213
+upgrade/python/tests/test_expression_and_protocol_results.py
+  h_e7759ddd73fa65 1-185
+upgrade/python/tests/test_expression_rebinding.py
+  h_e7759ddd73fa65 1-52
+upgrade/python/tests/test_external_wrappers.py
+  h_e7759ddd73fa65 1-84
+upgrade/python/tests/test_factory_consumer_adaptation.py
+  h_e7759ddd73fa65 1-155
+upgrade/python/tests/test_factory_convergence.py
+  h_e7759ddd73fa65 1-88
+upgrade/python/tests/test_factory_descriptors.py
+  h_e7759ddd73fa65 1-82
+upgrade/python/tests/test_factory_patch_consumer_links.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_factory_patch_scopes.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_factory_patches.py
+  h_e7759ddd73fa65 1-161
+upgrade/python/tests/test_fallback_joins.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_field_arguments.py
+  h_e7759ddd73fa65 1-142
+upgrade/python/tests/test_field_cli.py
+  h_e7759ddd73fa65 1-64
+upgrade/python/tests/test_field_defaults.py
+  h_e7759ddd73fa65 1-116
+upgrade/python/tests/test_field_escapes.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_field_factories.py
+  h_e7759ddd73fa65 1-109
+upgrade/python/tests/test_field_initializers.py
+  h_e7759ddd73fa65 1-133
+upgrade/python/tests/test_field_injection_and_async_forwarding.py
+  h_e7759ddd73fa65 1-120
+upgrade/python/tests/test_field_interception.py
+  h_e7759ddd73fa65 1-155
+upgrade/python/tests/test_field_positions.py
+  h_e7759ddd73fa65 1-129
+upgrade/python/tests/test_file_boundaries.py
+  h_e7759ddd73fa65 1-96
+upgrade/python/tests/test_fixture_eligibility.py
+  h_e7759ddd73fa65 1-157
+upgrade/python/tests/test_fixture_precedence.py
+  h_e7759ddd73fa65 1-115
+upgrade/python/tests/test_fixtures.py
+  h_e7759ddd73fa65 1-113
+upgrade/python/tests/test_flow.py
+  h_e7759ddd73fa65 1-336
+upgrade/python/tests/test_generator_context_entries.py
+  h_e7759ddd73fa65 1-297
+upgrade/python/tests/test_generator_fallback.py
+  h_e7759ddd73fa65 1-85
+upgrade/python/tests/test_git_locale.py
+  h_e7759ddd73fa65 1-31
+upgrade/python/tests/test_git_target_isolation.py
+  h_e7759ddd73fa65 1-80
+upgrade/python/tests/test_import_boundaries.py
+  h_e7759ddd73fa65 1-166
+upgrade/python/tests/test_import_comments_and_type_strings.py
+  h_e7759ddd73fa65 1-194
+upgrade/python/tests/test_import_suppressions_and_quoted_types.py
+  h_e7759ddd73fa65 1-175
+upgrade/python/tests/test_import_workflow_suggestion_layout.py
+  h_e7759ddd73fa65 1-257
+upgrade/python/tests/test_imported_class_fields.py
+  h_e7759ddd73fa65 1-165
+upgrade/python/tests/test_imported_class_mutations.py
+  h_e7759ddd73fa65 1-119
+upgrade/python/tests/test_imported_fields.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_independent_attribute_writes.py
+  h_e7759ddd73fa65 1-221
+upgrade/python/tests/test_independent_config_dataclass.py
+  h_e7759ddd73fa65 1-161
+upgrade/python/tests/test_independent_interpreter.py
+  h_e7759ddd73fa65 1-55
+upgrade/python/tests/test_independent_project_safety.py
+  h_e7759ddd73fa65 1-188
+upgrade/python/tests/test_injected_consumer_runtime.py
+  h_e7759ddd73fa65 1-178
+upgrade/python/tests/test_inline_cases.py
+  h_e7759ddd73fa65 1-68
+upgrade/python/tests/test_iteration_evidence.py
+  h_e7759ddd73fa65 1-142
+upgrade/python/tests/test_join_and_descriptor_regressions.py
+  h_e7759ddd73fa65 1-114
+upgrade/python/tests/test_join_cli.py
+  h_e7759ddd73fa65 1-44
+upgrade/python/tests/test_keyword_forwarding.py
+  h_e7759ddd73fa65 1-56
+upgrade/python/tests/test_known_wildcards.py
+  h_e7759ddd73fa65 1-88
+upgrade/python/tests/test_kubernetes_env.py
+  h_e7759ddd73fa65 1-59
+upgrade/python/tests/test_lexical_receiver_proofs.py
+  h_e7759ddd73fa65 1-121
+upgrade/python/tests/test_literal_url_and_branch_config_origins.py
+  h_e7759ddd73fa65 1-105
+upgrade/python/tests/test_local_client_doubles.py
+  h_e7759ddd73fa65 1-132
+upgrade/python/tests/test_local_module_doubles.py
+  h_e7759ddd73fa65 1-90
+upgrade/python/tests/test_lookups.py
+  h_e7759ddd73fa65 1-170
+upgrade/python/tests/test_loop_precision.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_manifest_bindings_and_python_floor.py
+  h_e7759ddd73fa65 1-114
+upgrade/python/tests/test_manifest_cli.py
+  h_e7759ddd73fa65 1-78
+upgrade/python/tests/test_manifest_regressions.py
+  h_e7759ddd73fa65 1-208
+upgrade/python/tests/test_manifest_table_order.py
+  h_e7759ddd73fa65 1-125
+upgrade/python/tests/test_manifests.py
+  h_e7759ddd73fa65 1-210
+upgrade/python/tests/test_manifests_cli.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_member_replacement_policy.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_member_summary_regressions.py
+  h_e7759ddd73fa65 1-123
+upgrade/python/tests/test_member_summary_runtime.py
+  h_e7759ddd73fa65 1-91
+upgrade/python/tests/test_member_write_flow.py
+  h_e7759ddd73fa65 1-233
+upgrade/python/tests/test_method_annotation_scope.py
+  h_e7759ddd73fa65 1-48
+upgrade/python/tests/test_mock_analysis_filter.py
+  h_e7759ddd73fa65 1-109
+upgrade/python/tests/test_mock_collisions.py
+  h_e7759ddd73fa65 1-47
+upgrade/python/tests/test_mock_configuration.py
+  h_e7759ddd73fa65 1-238
+upgrade/python/tests/test_mock_constructor_mutations.py
+  h_e7759ddd73fa65 1-161
+upgrade/python/tests/test_mock_discovery.py
+  h_e7759ddd73fa65 1-55
+upgrade/python/tests/test_mock_expression_safety.py
+  h_e7759ddd73fa65 1-152
+upgrade/python/tests/test_mock_precision.py
+  h_e7759ddd73fa65 1-105
+upgrade/python/tests/test_mock_runtime.py
+  h_e7759ddd73fa65 1-58
+upgrade/python/tests/test_mock_spec_rebinding.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_module_factory_mocks.py
+  h_e7759ddd73fa65 1-175
+upgrade/python/tests/test_module_join_uncertainty.py
+  h_e7759ddd73fa65 1-96
+upgrade/python/tests/test_module_metadata.py
+  h_e7759ddd73fa65 1-30
+upgrade/python/tests/test_module_return_boundaries.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_module_return_proofs.py
+  h_e7759ddd73fa65 1-131
+upgrade/python/tests/test_moved_config_factory.py
+  h_e7759ddd73fa65 1-42
+upgrade/python/tests/test_multiline_workflow_guidance.py
+  h_e7759ddd73fa65 1-240
+upgrade/python/tests/test_namespace_certification.py
+  h_e7759ddd73fa65 1-114
+upgrade/python/tests/test_namespace_roots.py
+  h_e7759ddd73fa65 1-108
+upgrade/python/tests/test_notebook_cr.py
+  h_e7759ddd73fa65 1-40
+upgrade/python/tests/test_notebook_environment.py
+  h_e7759ddd73fa65 1-122
+upgrade/python/tests/test_notebook_formatting.py
+  h_e7759ddd73fa65 1-138
+upgrade/python/tests/test_notebook_lexical.py
+  h_e7759ddd73fa65 1-148
+upgrade/python/tests/test_notebook_locations.py
+  h_e7759ddd73fa65 1-37
+upgrade/python/tests/test_notebook_preflight.py
+  h_e7759ddd73fa65 1-132
+upgrade/python/tests/test_notebook_syntax.py
+  h_e7759ddd73fa65 1-149
+upgrade/python/tests/test_notebooks.py
+  h_e7759ddd73fa65 1-163
+upgrade/python/tests/test_optional_writes_and_object_proofs.py
+  h_e7759ddd73fa65 1-246
+upgrade/python/tests/test_override_and_local_import_provenance.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_pair_spread_aliases.py
+  h_e7759ddd73fa65 1-151
+upgrade/python/tests/test_parameter_links.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_partial_scope.py
+  h_e7759ddd73fa65 1-98
+upgrade/python/tests/test_patch_multiple.py
+  h_e7759ddd73fa65 1-195
+upgrade/python/tests/test_patch_object.py
+  h_e7759ddd73fa65 1-215
+upgrade/python/tests/test_patch_strings.py
+  h_e7759ddd73fa65 1-227
+upgrade/python/tests/test_performance_annotations.py
+  h_e7759ddd73fa65 1-31
+upgrade/python/tests/test_performance_environment_resolution.py
+  h_e7759ddd73fa65 1-45
+upgrade/python/tests/test_performance_equivalence.py
+  h_e7759ddd73fa65 1-72
+upgrade/python/tests/test_performance_factory_worklist.py
+  h_e7759ddd73fa65 1-68
+upgrade/python/tests/test_performance_filter.py
+  h_e7759ddd73fa65 1-225
+upgrade/python/tests/test_performance_progress.py
+  h_e7759ddd73fa65 1-35
+upgrade/python/tests/test_performance_segments.py
+  h_e7759ddd73fa65 1-99
+upgrade/python/tests/test_persistent_workflows.py
+  h_e7759ddd73fa65 1-136
+upgrade/python/tests/test_pinned_export_boundaries.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/tests/test_policy_receiver_identity.py
+  h_e7759ddd73fa65 1-114
+upgrade/python/tests/test_positional_only_parameter_links.py
+  h_e7759ddd73fa65 1-49
+upgrade/python/tests/test_precise_field_escapes.py
+  h_e7759ddd73fa65 1-86
+upgrade/python/tests/test_prefix_proofs.py
+  h_e7759ddd73fa65 1-76
+upgrade/python/tests/test_project_configs.py
+  h_e7759ddd73fa65 1-128
+upgrade/python/tests/test_project_diagnostic_context.py
+  h_e7759ddd73fa65 1-160
+upgrade/python/tests/test_proof_boundaries.py
+  h_e7759ddd73fa65 1-165
+upgrade/python/tests/test_proof_retention.py
+  h_e7759ddd73fa65 1-145
+upgrade/python/tests/test_proofs_decorators.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_proofs_mutations.py
+  h_e7759ddd73fa65 1-150
+upgrade/python/tests/test_property_annotation_conflicts.py
+  h_e7759ddd73fa65 1-69
+upgrade/python/tests/test_provenance.py
+  h_e7759ddd73fa65 1-193
+upgrade/python/tests/test_pytest_collection.py
+  h_e7759ddd73fa65 1-115
+upgrade/python/tests/test_read_permissions.py
+  h_e7759ddd73fa65 1-132
+upgrade/python/tests/test_readonly_git.py
+  h_e7759ddd73fa65 1-57
+upgrade/python/tests/test_receiver_annotation_boundaries.py
+  h_e7759ddd73fa65 1-128
+upgrade/python/tests/test_receiver_provenance.py
+  h_e7759ddd73fa65 1-205
+upgrade/python/tests/test_reflective_aliases.py
+  h_e7759ddd73fa65 1-43
+upgrade/python/tests/test_reflective_class_keys.py
+  h_e7759ddd73fa65 1-87
+upgrade/python/tests/test_reflective_collection_assignments.py
+  h_e7759ddd73fa65 1-34
+upgrade/python/tests/test_reflective_instance_writes.py
+  h_e7759ddd73fa65 1-67
+upgrade/python/tests/test_reflective_owner_regressions.py
+  h_e7759ddd73fa65 1-108
+upgrade/python/tests/test_reflective_provenance.py
+  h_e7759ddd73fa65 1-159
+upgrade/python/tests/test_reflective_subscript_bindings.py
+  h_e7759ddd73fa65 1-98
+upgrade/python/tests/test_relay_runtime.py
+  h_e7759ddd73fa65 1-106
+upgrade/python/tests/test_relay_slots.py
+  h_e7759ddd73fa65 1-43
+upgrade/python/tests/test_report_items.py
+  h_e7759ddd73fa65 1-48
+upgrade/python/tests/test_required_field_forwarding.py
+  h_e7759ddd73fa65 1-82
+upgrade/python/tests/test_resolver_manifests.py
+  h_e7759ddd73fa65 1-208
+upgrade/python/tests/test_return_links.py
+  h_e7759ddd73fa65 1-94
+upgrade/python/tests/test_return_links_controls.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_return_links_project.py
+  h_e7759ddd73fa65 1-90
+upgrade/python/tests/test_runtime_calls_in_type_positions.py
+  h_e7759ddd73fa65 1-71
+upgrade/python/tests/test_sdk_wildcards.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/tests/test_service_aliases_and_annotation_proofs.py
+  h_e7759ddd73fa65 1-163
+upgrade/python/tests/test_service_holder_cli.py
+  h_e7759ddd73fa65 1-73
+upgrade/python/tests/test_service_holders.py
+  h_e7759ddd73fa65 1-138
+upgrade/python/tests/test_service_suggestion_ownership.py
+  h_e7759ddd73fa65 1-199
+upgrade/python/tests/test_settings_and_compose_environment.py
+  h_e7759ddd73fa65 1-174
+upgrade/python/tests/test_setup_bindings.py
+  h_e7759ddd73fa65 1-88
+upgrade/python/tests/test_setuptools.py
+  h_e7759ddd73fa65 1-214
+upgrade/python/tests/test_setuptools_ancestor_dependencies.py
+  h_e7759ddd73fa65 1-70
+upgrade/python/tests/test_shared_config.py
+  h_e7759ddd73fa65 1-155
+upgrade/python/tests/test_shared_error_module_guidance.py
+  h_e7759ddd73fa65 1-162
+upgrade/python/tests/test_shared_errors.py
+  h_e7759ddd73fa65 1-155
+upgrade/python/tests/test_shared_scopes.py
+  h_e7759ddd73fa65 1-168
+upgrade/python/tests/test_singleton_client_methods.py
+  h_e7759ddd73fa65 1-189
+upgrade/python/tests/test_slow_progress.py
+  h_e7759ddd73fa65 1-69
+upgrade/python/tests/test_source_boundaries.py
+  h_e7759ddd73fa65 1-104
+upgrade/python/tests/test_source_receiver_bindings.py
+  h_e7759ddd73fa65 1-143
+upgrade/python/tests/test_source_roots.py
+  h_e7759ddd73fa65 1-126
+upgrade/python/tests/test_spec_client_mocks.py
+  h_e7759ddd73fa65 1-283
+upgrade/python/tests/test_spread_tuple.py
+  h_e7759ddd73fa65 1-107
+upgrade/python/tests/test_stored_namespace_suggestions.py
+  h_e7759ddd73fa65 1-111
+upgrade/python/tests/test_strict_declined_prompt.py
+  h_e7759ddd73fa65 1-48
+upgrade/python/tests/test_subclass_config_safety.py
+  h_e7759ddd73fa65 1-146
+upgrade/python/tests/test_subclass_construction.py
+  h_e7759ddd73fa65 1-93
+upgrade/python/tests/test_subclass_interception.py
+  h_e7759ddd73fa65 1-35
+upgrade/python/tests/test_subclass_mro.py
+  h_e7759ddd73fa65 1-117
+upgrade/python/tests/test_subclass_owned_config.py
+  h_e7759ddd73fa65 1-134
+upgrade/python/tests/test_subclasses.py
+  h_e7759ddd73fa65 1-201
+upgrade/python/tests/test_suggestions.py
+  h_e7759ddd73fa65 1-221
+upgrade/python/tests/test_synchronous_mock_specs.py
+  h_e7759ddd73fa65 1-165
+upgrade/python/tests/test_target_expressions.py
+  h_e7759ddd73fa65 1-45
+upgrade/python/tests/test_targets_and_construction.py
+  h_e7759ddd73fa65 1-100
+upgrade/python/tests/test_terminal_layout.py
+  h_e7759ddd73fa65 1-55
+upgrade/python/tests/test_terminated_branches.py
+  h_e7759ddd73fa65 1-79
+upgrade/python/tests/test_transparent_contexts.py
+  h_e7759ddd73fa65 1-132
+upgrade/python/tests/test_tuple_client_returns.py
+  h_e7759ddd73fa65 1-132
+upgrade/python/tests/test_typed_collections.py
+  h_e7759ddd73fa65 1-160
+upgrade/python/tests/test_typing_wrappers.py
+  h_e7759ddd73fa65 1-68
+upgrade/python/tests/test_unknown_environment_names.py
+  h_e7759ddd73fa65 1-40
+upgrade/python/tests/test_url_cleanup.py
+  h_e7759ddd73fa65 1-86
+upgrade/python/tests/test_url_write_evaluation.py
+  h_e7759ddd73fa65 1-98
+upgrade/python/tests/test_url_write_transactions.py
+  h_e7759ddd73fa65 1-150
+upgrade/python/tests/test_variadic_and_generic_annotations.py
+  h_e7759ddd73fa65 1-178
+upgrade/python/tests/test_with_dependencies.py
+  h_e7759ddd73fa65 1-81
+upgrade/python/tests/test_with_encoding_comments.py
+  h_e7759ddd73fa65 1-138
+upgrade/python/tests/test_workflow_binding_lifetimes.py
+  h_e7759ddd73fa65 1-119
+upgrade/python/tests/test_workflow_membership.py
+  h_e7759ddd73fa65 1-137
+upgrade/python/tests/test_workflow_nested_writes.py
+  h_e7759ddd73fa65 1-60
+upgrade/python/tests/test_wrapped_types.py
+  h_e7759ddd73fa65 1-122
+upgrade/python/tests/test_write_cleanup.py
+  h_e7759ddd73fa65 1-61
+upgrade/python/tests/test_write_safety.py
+  h_e7759ddd73fa65 1-86
+upgrade/python/tests/test_yaml_parity.py
+  h_e7759ddd73fa65 1-78
+upgrade/python/tests/test_zero_walrus.py
+  h_e7759ddd73fa65 1-65
+upgrade/python/tests/upgrade_helpers.py
+  h_e7759ddd73fa65 1-25
+upgrade/python/uv.lock
+  h_e7759ddd73fa65 1-1025
+upgrade/scripts/check-examples.sh
+  h_e7759ddd73fa65 1-137
+upgrade/scripts/check-v0-surface.mjs
+  h_e7759ddd73fa65 1-271
+upgrade/scripts/check-v0-surface.test.mjs
+  h_e7759ddd73fa65 1-75
+upgrade/scripts/check-v2-surface.mjs
+  h_e7759ddd73fa65 1-81
+upgrade/scripts/check-v2-surface.test.mjs
+  h_e7759ddd73fa65 1-164
+upgrade/scripts/gen-guide.mjs
+  h_e7759ddd73fa65 1-142
+upgrade/scripts/migration-notes.test.mjs
+  h_e7759ddd73fa65 1-60
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 1-151
+upgrade/scripts/root-ts-exports.cases.json
+  h_e7759ddd73fa65 1-37
+upgrade/scripts/root-ts-exports.mjs
+  h_e7759ddd73fa65 1-59
+upgrade/scripts/root-ts-exports.test.mjs
+  h_e7759ddd73fa65 1-27
+upgrade/scripts/sync-mapping.mjs
+  h_e7759ddd73fa65 1-39
+upgrade/scripts/v0-exports-schema.test.mjs
+  h_e7759ddd73fa65 1-39
+upgrade/scripts/v0-ts-exports.mjs
+  h_e7759ddd73fa65 1-48
+upgrade/scripts/v0-ts-exports.test.mjs
+  h_e7759ddd73fa65 1-38
+upgrade/scripts/v2-note-surface.test.mjs
+  h_e7759ddd73fa65 1-84
+upgrade/scripts/v2-python-surface.py
+  h_e7759ddd73fa65 1-289
+upgrade/scripts/v2-typescript-surface.mjs
+  h_e7759ddd73fa65 1-97
+upgrade/typescript/.gitignore
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/LICENSE
+  h_e7759ddd73fa65 1-202
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 1-279
+upgrade/typescript/package-lock.json
+  h_e7759ddd73fa65 1-1325
+upgrade/typescript/package.json
+  h_e7759ddd73fa65 1-21
+upgrade/typescript/src/arguments.ts
+  h_e7759ddd73fa65 1-39
+upgrade/typescript/src/binding-assignments.ts
+  h_e7759ddd73fa65 1-60
+upgrade/typescript/src/binding-key.ts
+  h_e7759ddd73fa65 1-27
+upgrade/typescript/src/bindings.ts
+  h_e7759ddd73fa65 1-202
+upgrade/typescript/src/callback-analysis.ts
+  h_e7759ddd73fa65 1-84
+upgrade/typescript/src/callback-call-index.ts
+  h_e7759ddd73fa65 1-109
+upgrade/typescript/src/callback-parameter-values.ts
+  h_e7759ddd73fa65 1-121
+upgrade/typescript/src/cli.ts
+  h_e7759ddd73fa65 1-56
+upgrade/typescript/src/cloud-api-url.ts
+  h_e7759ddd73fa65 1-11
+upgrade/typescript/src/comment-tokens.ts
+  h_e7759ddd73fa65 1-29
+upgrade/typescript/src/compose-env-files.ts
+  h_e7759ddd73fa65 1-86
+upgrade/typescript/src/config-bindings.ts
+  h_e7759ddd73fa65 1-22
+upgrade/typescript/src/config-ownership.ts
+  h_e7759ddd73fa65 1-82
+upgrade/typescript/src/config-readers.ts
+  h_e7759ddd73fa65 1-114
+upgrade/typescript/src/config-readonly.ts
+  h_e7759ddd73fa65 1-89
+upgrade/typescript/src/config-references.ts
+  h_e7759ddd73fa65 1-77
+upgrade/typescript/src/config-sources.ts
+  h_e7759ddd73fa65 1-212
+upgrade/typescript/src/config-url-fallback.ts
+  h_e7759ddd73fa65 1-25
+upgrade/typescript/src/config.ts
+  h_e7759ddd73fa65 1-143
+upgrade/typescript/src/constructor-errors.ts
+  h_e7759ddd73fa65 1-119
+upgrade/typescript/src/constructor-inputs.ts
+  h_e7759ddd73fa65 1-123
+upgrade/typescript/src/dependency-scope.ts
+  h_e7759ddd73fa65 1-66
+upgrade/typescript/src/discovery.ts
+  h_e7759ddd73fa65 1-142
+upgrade/typescript/src/double-consumer-flow.ts
+  h_e7759ddd73fa65 1-99
+upgrade/typescript/src/edits.ts
+  h_e7759ddd73fa65 1-112
+upgrade/typescript/src/env-api-url.ts
+  h_e7759ddd73fa65 1-271
+upgrade/typescript/src/environment-file-references.ts
+  h_e7759ddd73fa65 1-221
+upgrade/typescript/src/environment-loads.ts
+  h_e7759ddd73fa65 1-188
+upgrade/typescript/src/environment-setting.ts
+  h_e7759ddd73fa65 1-23
+upgrade/typescript/src/environment-text.ts
+  h_e7759ddd73fa65 1-36
+upgrade/typescript/src/environment-writes.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/src/error-import-suggestions.ts
+  h_e7759ddd73fa65 1-80
+upgrade/typescript/src/export-provenance.ts
+  h_e7759ddd73fa65 1-273
+upgrade/typescript/src/external-receiver-kind.ts
+  h_e7759ddd73fa65 1-41
+upgrade/typescript/src/factory-mock-targets.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/src/factory-provenance.ts
+  h_e7759ddd73fa65 1-94
+upgrade/typescript/src/holder-escapes.ts
+  h_e7759ddd73fa65 1-215
+upgrade/typescript/src/holder-methods.ts
+  h_e7759ddd73fa65 1-135
+upgrade/typescript/src/import-style.ts
+  h_e7759ddd73fa65 1-29
+upgrade/typescript/src/imported-receivers.ts
+  h_e7759ddd73fa65 1-45
+upgrade/typescript/src/imports.ts
+  h_e7759ddd73fa65 1-257
+upgrade/typescript/src/intrinsics.ts
+  h_e7759ddd73fa65 1-25
+upgrade/typescript/src/line-diff.ts
+  h_e7759ddd73fa65 1-93
+upgrade/typescript/src/local-client-doubles.ts
+  h_e7759ddd73fa65 1-146
+upgrade/typescript/src/local-double-consumers.ts
+  h_e7759ddd73fa65 1-72
+upgrade/typescript/src/manifests.ts
+  h_e7759ddd73fa65 1-136
+upgrade/typescript/src/mapping-deletions.ts
+  h_e7759ddd73fa65 1-64
+upgrade/typescript/src/mapping.json
+  h_e7759ddd73fa65 1-5732
+upgrade/typescript/src/mapping.ts
+  h_e7759ddd73fa65 1-84
+upgrade/typescript/src/member-access.ts
+  h_e7759ddd73fa65 1-20
+upgrade/typescript/src/member-write-effects.ts
+  h_e7759ddd73fa65 1-106
+upgrade/typescript/src/member-writes.ts
+  h_e7759ddd73fa65 1-72
+upgrade/typescript/src/mock-factories.ts
+  h_e7759ddd73fa65 1-34
+upgrade/typescript/src/mock-replacement-shape.ts
+  h_e7759ddd73fa65 1-78
+upgrade/typescript/src/model.ts
+  h_e7759ddd73fa65 1-70
+upgrade/typescript/src/module-augmentations.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/src/module-loader.ts
+  h_e7759ddd73fa65 1-34
+upgrade/typescript/src/named-list.ts
+  h_e7759ddd73fa65 1-55
+upgrade/typescript/src/namespace-imports.ts
+  h_e7759ddd73fa65 1-111
+upgrade/typescript/src/object-identity.ts
+  h_e7759ddd73fa65 1-85
+upgrade/typescript/src/object-member-proof.ts
+  h_e7759ddd73fa65 1-40
+upgrade/typescript/src/output.ts
+  h_e7759ddd73fa65 1-54
+upgrade/typescript/src/outside-providers.ts
+  h_e7759ddd73fa65 1-92
+upgrade/typescript/src/project-daytona.ts
+  h_e7759ddd73fa65 1-38
+upgrade/typescript/src/project-modules.ts
+  h_e7759ddd73fa65 1-46
+upgrade/typescript/src/property-proofs.ts
+  h_e7759ddd73fa65 1-64
+upgrade/typescript/src/provenance-origin.ts
+  h_e7759ddd73fa65 1-26
+upgrade/typescript/src/read-failures.ts
+  h_e7759ddd73fa65 1-50
+upgrade/typescript/src/receiver-constraints.ts
+  h_e7759ddd73fa65 1-18
+upgrade/typescript/src/receiver-hints.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/src/receiver-packages.ts
+  h_e7759ddd73fa65 1-94
+upgrade/typescript/src/receiver-value-flow.ts
+  h_e7759ddd73fa65 1-137
+upgrade/typescript/src/receivers.ts
+  h_e7759ddd73fa65 1-258
+upgrade/typescript/src/reflected-writes.ts
+  h_e7759ddd73fa65 1-41
+upgrade/typescript/src/run.ts
+  h_e7759ddd73fa65 1-231
+upgrade/typescript/src/safety.ts
+  h_e7759ddd73fa65 1-31
+upgrade/typescript/src/sandbox-owner.ts
+  h_e7759ddd73fa65 1-49
+upgrade/typescript/src/scans.ts
+  h_e7759ddd73fa65 1-183
+upgrade/typescript/src/sdk-methods.ts
+  h_e7759ddd73fa65 1-50
+upgrade/typescript/src/sdk-v0-access.ts
+  h_e7759ddd73fa65 1-25
+upgrade/typescript/src/source-safety.ts
+  h_e7759ddd73fa65 1-83
+upgrade/typescript/src/source-support.ts
+  h_e7759ddd73fa65 1-30
+upgrade/typescript/src/spy-targets.ts
+  h_e7759ddd73fa65 1-52
+upgrade/typescript/src/stable-bindings.ts
+  h_e7759ddd73fa65 1-218
+upgrade/typescript/src/suggestions.ts
+  h_e7759ddd73fa65 1-210
+upgrade/typescript/src/test-bindings.ts
+  h_e7759ddd73fa65 1-78
+upgrade/typescript/src/type-members.ts
+  h_e7759ddd73fa65 1-79
+upgrade/typescript/src/typed-configs.ts
+  h_e7759ddd73fa65 1-44
+upgrade/typescript/src/unresolved-client-doubles.ts
+  h_e7759ddd73fa65 1-89
+upgrade/typescript/src/upgrade.ts
+  h_e7759ddd73fa65 1-129
+upgrade/typescript/src/v0-exports.ts
+  h_e7759ddd73fa65 1-21
+upgrade/typescript/src/v0-object.ts
+  h_e7759ddd73fa65 1-117
+upgrade/typescript/src/workspace-names.ts
+  h_e7759ddd73fa65 1-95
+upgrade/typescript/src/write-changes.ts
+  h_e7759ddd73fa65 1-87
+upgrade/typescript/src/yaml-flow.ts
+  h_e7759ddd73fa65 1-129
+upgrade/typescript/tests/accessor-review-cases.ts
+  h_e7759ddd73fa65 1-30
+upgrade/typescript/tests/accessor-write-cases.ts
+  h_e7759ddd73fa65 1-44
+upgrade/typescript/tests/accessor-writes.test.ts
+  h_e7759ddd73fa65 1-24
+upgrade/typescript/tests/aliased-service-owner-suggestions.test.ts
+  h_e7759ddd73fa65 1-34
+upgrade/typescript/tests/analysis.test.ts
+  h_e7759ddd73fa65 1-129
+upgrade/typescript/tests/ancestor-runtime-dependency-scope.test.ts
+  h_e7759ddd73fa65 1-158
+upgrade/typescript/tests/app-and-spec-config-candidates.test.ts
+  h_e7759ddd73fa65 1-58
+upgrade/typescript/tests/assign-target-and-helper-return-safety.test.ts
+  h_e7759ddd73fa65 1-101
+upgrade/typescript/tests/async-factory-replacement-boundaries.test.ts
+  h_e7759ddd73fa65 1-103
+upgrade/typescript/tests/atomic-file-replacement.test.ts
+  h_e7759ddd73fa65 1-94
+upgrade/typescript/tests/auxiliary-config-and-symlink-resolution.test.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/tests/awaited-client-and-import-types.test.ts
+  h_e7759ddd73fa65 1-75
+upgrade/typescript/tests/backslash-discovery-and-empty-diffs.test.ts
+  h_e7759ddd73fa65 1-46
+upgrade/typescript/tests/binding-index-snapshot-invalidation.test.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/tests/binding-write-invalidation.test.ts
+  h_e7759ddd73fa65 1-73
+upgrade/typescript/tests/bounded-environment-scan-inputs.test.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/tests/built-cli-url-preflight.test.ts
+  h_e7759ddd73fa65 1-38
+upgrade/typescript/tests/cached-factory-client-provenance.test.ts
+  h_e7759ddd73fa65 1-143
+upgrade/typescript/tests/callback-analysis.test.ts
+  h_e7759ddd73fa65 1-80
+upgrade/typescript/tests/callback-binding-cases.ts
+  h_e7759ddd73fa65 1-45
+upgrade/typescript/tests/callback-bindings.test.ts
+  h_e7759ddd73fa65 1-27
+upgrade/typescript/tests/callback-budget-identity.test.ts
+  h_e7759ddd73fa65 1-22
+upgrade/typescript/tests/callback-budget-regression.test.ts
+  h_e7759ddd73fa65 1-89
+upgrade/typescript/tests/callsite-accessor-review.test.ts
+  h_e7759ddd73fa65 1-39
+upgrade/typescript/tests/chained-result-provenance.test.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/tests/child-config-and-imported-receivers.test.ts
+  h_e7759ddd73fa65 1-168
+upgrade/typescript/tests/cjs-spy-targets.test.ts
+  h_e7759ddd73fa65 1-39
+upgrade/typescript/tests/cjs-statement-splits.test.ts
+  h_e7759ddd73fa65 1-91
+upgrade/typescript/tests/class-expression-config-paths.test.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/tests/cli-environment-assertion-help.test.ts
+  h_e7759ddd73fa65 1-18
+upgrade/typescript/tests/client-dispatch-runtime.ts
+  h_e7759ddd73fa65 1-19
+upgrade/typescript/tests/client-service-proofs.test.ts
+  h_e7759ddd73fa65 1-119
+upgrade/typescript/tests/compose-filename-classification.test.ts
+  h_e7759ddd73fa65 1-63
+upgrade/typescript/tests/compose-include-symlinks.test.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/tests/compose-inline-url-forms.test.ts
+  h_e7759ddd73fa65 1-46
+upgrade/typescript/tests/compose-project-control-inputs.test.ts
+  h_e7759ddd73fa65 1-206
+upgrade/typescript/tests/compose-root-formatting.test.ts
+  h_e7759ddd73fa65 1-51
+upgrade/typescript/tests/compose-selection-boundaries.test.ts
+  h_e7759ddd73fa65 1-95
+upgrade/typescript/tests/computed-import-and-binding-keys.test.ts
+  h_e7759ddd73fa65 1-76
+upgrade/typescript/tests/config-alias-escape-boundaries.test.ts
+  h_e7759ddd73fa65 1-68
+upgrade/typescript/tests/config-coercion-and-expando-writes.test.ts
+  h_e7759ddd73fa65 1-92
+upgrade/typescript/tests/config-logical-url-writes.test.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/tests/config-observation-and-escape.test.ts
+  h_e7759ddd73fa65 1-122
+upgrade/typescript/tests/config-origin-certification.test.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/tests/config-safety.test.ts
+  h_e7759ddd73fa65 1-158
+upgrade/typescript/tests/config-spread-url-order.test.ts
+  h_e7759ddd73fa65 1-61
+upgrade/typescript/tests/conflicting-config-url-safety.test.ts
+  h_e7759ddd73fa65 1-62
+upgrade/typescript/tests/conflicting-project-config-ownership.test.ts
+  h_e7759ddd73fa65 1-65
+upgrade/typescript/tests/conjunction-selected-values.test.ts
+  h_e7759ddd73fa65 1-36
+upgrade/typescript/tests/conservative-member-writes.test.ts
+  h_e7759ddd73fa65 1-86
+upgrade/typescript/tests/conservative-property-proofs.test.ts
+  h_e7759ddd73fa65 1-97
+upgrade/typescript/tests/constrained-client-receivers.test.ts
+  h_e7759ddd73fa65 1-74
+upgrade/typescript/tests/constrained-subclass-overrides.test.ts
+  h_e7759ddd73fa65 1-37
+upgrade/typescript/tests/constructor-callback-cases.ts
+  h_e7759ddd73fa65 1-40
+upgrade/typescript/tests/constructor-callbacks.test.ts
+  h_e7759ddd73fa65 1-26
+upgrade/typescript/tests/constructor-callsite-url-inputs.test.ts
+  h_e7759ddd73fa65 1-115
+upgrade/typescript/tests/constructor-config-forwarding.test.ts
+  h_e7759ddd73fa65 1-63
+upgrade/typescript/tests/constructor-errors.test.ts
+  h_e7759ddd73fa65 1-164
+upgrade/typescript/tests/constructor-guaranteed-v0.test.ts
+  h_e7759ddd73fa65 1-73
+upgrade/typescript/tests/constructor-return-identity.test.ts
+  h_e7759ddd73fa65 1-53
+upgrade/typescript/tests/constructor-v0-catches.test.ts
+  h_e7759ddd73fa65 1-61
+upgrade/typescript/tests/container-read-provenance.test.ts
+  h_e7759ddd73fa65 1-68
+upgrade/typescript/tests/correlated-callback-cases.ts
+  h_e7759ddd73fa65 1-26
+upgrade/typescript/tests/cross-module-export-mutations.test.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/tests/cross-platform-project-safety.test.ts
+  h_e7759ddd73fa65 1-98
+upgrade/typescript/tests/default-config-and-url-mutations.test.ts
+  h_e7759ddd73fa65 1-45
+upgrade/typescript/tests/deferred-workflow-binding-calls.test.ts
+  h_e7759ddd73fa65 1-33
+upgrade/typescript/tests/deployment-and-manifest-edge-cases.test.ts
+  h_e7759ddd73fa65 1-99
+upgrade/typescript/tests/deployment-boundaries-and-import-trivia.test.ts
+  h_e7759ddd73fa65 1-89
+upgrade/typescript/tests/deployment-environment-url-refusal.test.ts
+  h_e7759ddd73fa65 1-51
+upgrade/typescript/tests/destructured-environment-aliases.test.ts
+  h_e7759ddd73fa65 1-68
+upgrade/typescript/tests/docker-continuation-comments.test.ts
+  h_e7759ddd73fa65 1-55
+upgrade/typescript/tests/docker-heredoc-boundaries.test.ts
+  h_e7759ddd73fa65 1-56
+upgrade/typescript/tests/docker-instruction-and-dotenv-scope.test.ts
+  h_e7759ddd73fa65 1-68
+upgrade/typescript/tests/docker-workspace-regressions.test.ts
+  h_e7759ddd73fa65 1-61
+upgrade/typescript/tests/dotenv-loaders.test.ts
+  h_e7759ddd73fa65 1-173
+upgrade/typescript/tests/double-consumer-argument-contracts.test.ts
+  h_e7759ddd73fa65 1-102
+upgrade/typescript/tests/double-consumer-value-joins.test.ts
+  h_e7759ddd73fa65 1-64
+upgrade/typescript/tests/double-flow-budget-and-array-keys.test.ts
+  h_e7759ddd73fa65 1-85
+upgrade/typescript/tests/dynamic-import-promise-chains.test.ts
+  h_e7759ddd73fa65 1-65
+upgrade/typescript/tests/dynamic-members-and-client-membership.test.ts
+  h_e7759ddd73fa65 1-135
+upgrade/typescript/tests/edited-source-utf8-atomicity.test.ts
+  h_e7759ddd73fa65 1-46
+upgrade/typescript/tests/environment-alias-and-continuation-urls.test.ts
+  h_e7759ddd73fa65 1-109
+upgrade/typescript/tests/environment-assign-and-template-exemptions.test.ts
+  h_e7759ddd73fa65 1-123
+upgrade/typescript/tests/environment-declaration-and-delete-order.test.ts
+  h_e7759ddd73fa65 1-80
+upgrade/typescript/tests/environment-growth.test.ts
+  h_e7759ddd73fa65 1-57
+upgrade/typescript/tests/environment-interpolation-defaults.test.ts
+  h_e7759ddd73fa65 1-61
+upgrade/typescript/tests/environment-loads.test.ts
+  h_e7759ddd73fa65 1-87
+upgrade/typescript/tests/error-import-guidance.test.ts
+  h_e7759ddd73fa65 1-94
+upgrade/typescript/tests/es5-callback-performance.test.ts
+  h_e7759ddd73fa65 1-41
+upgrade/typescript/tests/examples.test.ts
+  h_e7759ddd73fa65 1-50
+upgrade/typescript/tests/explicitly-selected-environment-files.test.ts
+  h_e7759ddd73fa65 1-120
+upgrade/typescript/tests/exported-and-typed-config-discovery.test.ts
+  h_e7759ddd73fa65 1-121
+upgrade/typescript/tests/exported-holder-proofs.test.ts
+  h_e7759ddd73fa65 1-69
+upgrade/typescript/tests/external-factory-alias-values.test.ts
+  h_e7759ddd73fa65 1-31
+upgrade/typescript/tests/external-factory-fallback-values.test.ts
+  h_e7759ddd73fa65 1-30
+upgrade/typescript/tests/external-receivers.test.ts
+  h_e7759ddd73fa65 1-98
+upgrade/typescript/tests/external-wrapper-receivers.test.ts
+  h_e7759ddd73fa65 1-86
+upgrade/typescript/tests/factory-mock-consumer-contracts.test.ts
+  h_e7759ddd73fa65 1-136
+upgrade/typescript/tests/factory-mock-runtime.ts
+  h_e7759ddd73fa65 1-58
+upgrade/typescript/tests/factory-replacement-return-completion.test.ts
+  h_e7759ddd73fa65 1-65
+upgrade/typescript/tests/fake-sdk/index.d.ts
+  h_e7759ddd73fa65 1-15
+upgrade/typescript/tests/fake-sdk/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fallback-parameter-client-evidence.test.ts
+  h_e7759ddd73fa65 1-34
+upgrade/typescript/tests/fixtures.test.ts
+  h_e7759ddd73fa65 1-40
+upgrade/typescript/tests/fixtures/aliases/expected/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/aliases/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/aliases/input/index.ts
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/aliases/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/annotated-param/expected/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/annotated-param/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/annotated-param/input/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/annotated-param/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/cloud-api-url-dropped/expected/index.ts
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/cloud-api-url-dropped/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/cloud-api-url-dropped/input/index.ts
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/cloud-api-url-dropped/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/compose-custom-api-url-stop/expected/compose.yaml
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/compose-custom-api-url-stop/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/compose-custom-api-url-stop/input/compose.yaml
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/compose-custom-api-url-stop/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/config-fields/expected/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/config-fields/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/config-fields/input/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/config-fields/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/context-manager/expected/index.ts
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/context-manager/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/context-manager/input/index.ts
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/context-manager/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/cross-module-client/expected/client.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/cross-module-client/expected/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/cross-module-client/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/cross-module-client/input/client.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/cross-module-client/input/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/cross-module-client/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/custom-api-url-stop/expected/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/custom-api-url-stop/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/custom-api-url-stop/input/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/custom-api-url-stop/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/deep-import/expected/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/deep-import/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/deep-import/input/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/deep-import/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/fallback-elements/expected/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/fallback-elements/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/fallback-elements/input/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/fallback-elements/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/idempotent/expected/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/idempotent/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/idempotent/input/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/idempotent/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/js-file/expected/index.js
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/js-file/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/js-file/input/index.js
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/js-file/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/mock-target/expected/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/mock-target/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/mock-target/input/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/mock-target/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/named-imports/expected/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/named-imports/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/named-imports/input/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/named-imports/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/namespace-import/expected/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/namespace-import/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/namespace-import/input/index.ts
+  h_e7759ddd73fa65 1-6
+upgrade/typescript/tests/fixtures/namespace-import/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/old-package-names/expected/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/old-package-names/expected/package.json
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/old-package-names/input/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/old-package-names/input/package.json
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/other-ecosystem/expected/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/other-ecosystem/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/other-ecosystem/expected/pyproject.toml
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/other-ecosystem/input/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/other-ecosystem/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/other-ecosystem/input/pyproject.toml
+  h_e7759ddd73fa65 1-3
+upgrade/typescript/tests/fixtures/peer-dependency/expected/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/peer-dependency/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/peer-dependency/input/index.ts
+  h_e7759ddd73fa65 1-2
+upgrade/typescript/tests/fixtures/peer-dependency/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/remove-suggestions/expected/index.ts
+  h_e7759ddd73fa65 1-4
+upgrade/typescript/tests/fixtures/remove-suggestions/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/remove-suggestions/input/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/remove-suggestions/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/require/expected/index.js
+  h_e7759ddd73fa65 1-6
+upgrade/typescript/tests/fixtures/require/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/require/input/index.js
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/require/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/self-attribute/expected/index.ts
+  h_e7759ddd73fa65 1-12
+upgrade/typescript/tests/fixtures/self-attribute/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/self-attribute/input/index.ts
+  h_e7759ddd73fa65 1-12
+upgrade/typescript/tests/fixtures/self-attribute/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/service-chain/expected/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/service-chain/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/service-chain/input/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/service-chain/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/split-comments/expected/app.ts
+  h_e7759ddd73fa65 1-8
+upgrade/typescript/tests/fixtures/split-comments/input/app.ts
+  h_e7759ddd73fa65 1-6
+upgrade/typescript/tests/fixtures/suggest-v2-basic/expected/index.ts
+  h_e7759ddd73fa65 1-15
+upgrade/typescript/tests/fixtures/suggest-v2-basic/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/suggest-v2-basic/input/index.ts
+  h_e7759ddd73fa65 1-8
+upgrade/typescript/tests/fixtures/suggest-v2-basic/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/suggest-v2-rerun/expected/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/suggest-v2-rerun/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/suggest-v2-rerun/input/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/suggest-v2-rerun/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/suggest-v2-workflow-header/expected/index.ts
+  h_e7759ddd73fa65 1-15
+upgrade/typescript/tests/fixtures/suggest-v2-workflow-header/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/suggest-v2-workflow-header/input/index.ts
+  h_e7759ddd73fa65 1-5
+upgrade/typescript/tests/fixtures/suggest-v2-workflow-header/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/type-checker/expected/index.ts
+  h_e7759ddd73fa65 1-8
+upgrade/typescript/tests/fixtures/type-checker/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/type-checker/input/index.ts
+  h_e7759ddd73fa65 1-8
+upgrade/typescript/tests/fixtures/type-checker/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/type-only-imports/expected/index.ts
+  h_e7759ddd73fa65 1-9
+upgrade/typescript/tests/fixtures/type-only-imports/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/type-only-imports/input/index.ts
+  h_e7759ddd73fa65 1-7
+upgrade/typescript/tests/fixtures/type-only-imports/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/unannotated-param-fixme/expected/index.ts
+  h_e7759ddd73fa65 1-6
+upgrade/typescript/tests/fixtures/unannotated-param-fixme/expected/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/fixtures/unannotated-param-fixme/input/index.ts
+  h_e7759ddd73fa65 1-6
+upgrade/typescript/tests/fixtures/unannotated-param-fixme/input/package.json
+  h_e7759ddd73fa65 1
+upgrade/typescript/tests/generated-config-and-global-env-safety.test.ts
+  h_e7759ddd73fa65 1-68
+upgrade/typescript/tests/generated-config-literal-forms.test.ts
+  h_e7759ddd73fa65 1-86
+upgrade/typescript/tests/generated-descriptor-and-refusal-limits.test.ts
+  h_e7759ddd73fa65 1-114
+upgrade/typescript/tests/generated-helper-and-binding-url-flow.test.ts
+  h_e7759ddd73fa65 1-116
+upgrade/typescript/tests/generated-source-and-parse-safety.test.ts
+  h_e7759ddd73fa65 1-157
+upgrade/typescript/tests/generated-url-and-source-classification.test.ts
+  h_e7759ddd73fa65 1-150
+upgrade/typescript/tests/git-environment-case.test.ts
+  h_e7759ddd73fa65 1-65
+upgrade/typescript/tests/git-environment-isolation.test.ts
+  h_e7759ddd73fa65 1-60
+upgrade/typescript/tests/git-root-fallback.test.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/tests/helper-dispatch-escapes.test.ts
+  h_e7759ddd73fa65 1-126
+upgrade/typescript/tests/helper-member-writes.test.ts
+  h_e7759ddd73fa65 1-70
+upgrade/typescript/tests/helpers.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/tests/holder-helper-performance.test.ts
+  h_e7759ddd73fa65 1-40
+upgrade/typescript/tests/holder-hierarchy.test.ts
+  h_e7759ddd73fa65 1-75
+upgrade/typescript/tests/holder-performance.test.ts
+  h_e7759ddd73fa65 1-35
+upgrade/typescript/tests/holder-source-growth.test.ts
+  h_e7759ddd73fa65 1-54
+upgrade/typescript/tests/ignored-and-generated-source-reporting.test.ts
+  h_e7759ddd73fa65 1-119
+upgrade/typescript/tests/import-style.test.ts
+  h_e7759ddd73fa65 1-48
+upgrade/typescript/tests/import-type-and-report-details.test.ts
+  h_e7759ddd73fa65 1-49
+upgrade/typescript/tests/imported-config-annotations.test.ts
+  h_e7759ddd73fa65 1-96
+upgrade/typescript/tests/imported-dynamic-receivers.test.ts
+  h_e7759ddd73fa65 1-55
+upgrade/typescript/tests/imported-native-container-values.test.ts
+  h_e7759ddd73fa65 1-28
+upgrade/typescript/tests/independent-call-effects.test.ts
+  h_e7759ddd73fa65 1-118
+upgrade/typescript/tests/independent-effect-boundaries.test.ts
+  h_e7759ddd73fa65 1-78
+upgrade/typescript/tests/independent-import-bindings.test.ts
+  h_e7759ddd73fa65 1-42
+upgrade/typescript/tests/independent-member-writes.test.ts
+  h_e7759ddd73fa65 1-58
+upgrade/typescript/tests/indexed-service-types.test.ts
+  h_e7759ddd73fa65 1-56
+upgrade/typescript/tests/indirect-config-url-sources.test.ts
+  h_e7759ddd73fa65 1-86
+upgrade/typescript/tests/indirect-constructor-configs.test.ts
+  h_e7759ddd73fa65 1-70
+upgrade/typescript/tests/indirect-constructor-spreads.test.ts
+  h_e7759ddd73fa65 1-117
+upgrade/typescript/tests/injected-double-contracts.test.ts
+  h_e7759ddd73fa65 1-89
+upgrade/typescript/tests/injection-key-literals.test.ts
+  h_e7759ddd73fa65 1-21
+upgrade/typescript/tests/injection-provider-evidence.test.ts
+  h_e7759ddd73fa65 1-69
+upgrade/typescript/tests/install-directory.test.ts
+  h_e7759ddd73fa65 1-53
+upgrade/typescript/tests/installed-package-runtime.test.ts
+  h_e7759ddd73fa65 1-51
+upgrade/typescript/tests/invocation-member-writes.test.ts
+  h_e7759ddd73fa65 1-63
+upgrade/typescript/tests/javascript-receiver-uncertainty.test.ts
+  h_e7759ddd73fa65 1-66
+upgrade/typescript/tests/json-replacer-config-effects.test.ts
+  h_e7759ddd73fa65 1-33
+upgrade/typescript/tests/kubernetes-env-url-forms.test.ts
+  h_e7759ddd73fa65 1-37
+upgrade/typescript/tests/lazy-export-client-provenance.test.ts
+  h_e7759ddd73fa65 1-72
+upgrade/typescript/tests/lazy-module-loaders.test.ts
+  h_e7759ddd73fa65 1-89
+upgrade/typescript/tests/lexical-loader-and-member-bindings.test.ts
+  h_e7759ddd73fa65 1-109
+upgrade/typescript/tests/loaded-environment-file-discovery.test.ts
+  h_e7759ddd73fa65 1-105
+upgrade/typescript/tests/local-client-double-boundaries.test.ts
+  h_e7759ddd73fa65 1-126
+upgrade/typescript/tests/local-client-double-consumers.test.ts
+  h_e7759ddd73fa65 1-120
+upgrade/typescript/tests/local-client-doubles.test.ts
+  h_e7759ddd73fa65 1-186
+upgrade/typescript/tests/local-import-parse-and-trivia-safety.test.ts
+  h_e7759ddd73fa65 1-130
+upgrade/typescript/tests/localized-git-repository-detection.test.ts
+  h_e7759ddd73fa65 1-25
+upgrade/typescript/tests/logical-assignment-client-evidence.test.ts
+  h_e7759ddd73fa65 1-31
+upgrade/typescript/tests/long-line-and-local-bundle-discovery.test.ts
+  h_e7759ddd73fa65 1-116
+upgrade/typescript/tests/missing-and-unexecutable-git.test.ts
+  h_e7759ddd73fa65 1-44
+upgrade/typescript/tests/mock-dependencies/package.json
+  h_e7759ddd73fa65 1-9
+upgrade/typescript/tests/module-helpers.test.ts
+  h_e7759ddd73fa65 1-152
+upgrade/typescript/tests/multiline-comment-roundtrip.test.ts
+  h_e7759ddd73fa65 1-105
+upgrade/typescript/tests/multiline-guidance-and-service-owners.test.ts
+  h_e7759ddd73fa65 1-145
+upgrade/typescript/tests/namespace-alias-resource-imports.test.ts
+  h_e7759ddd73fa65 1-80
+upgrade/typescript/tests/namespace-destructuring-overlap.test.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/tests/namespace-factory-provenance.test.ts
+  h_e7759ddd73fa65 1-81
+upgrade/typescript/tests/namespace-resource-shadowing.test.ts
+  h_e7759ddd73fa65 1-35
+upgrade/typescript/tests/namespace-types-and-process-imports.test.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/tests/namespaced-result-object-provenance.test.ts
+  h_e7759ddd73fa65 1-77
+upgrade/typescript/tests/nested-service-suggestion-stability.test.ts
+  h_e7759ddd73fa65 1-63
+upgrade/typescript/tests/npm-cross-entry-references.test.ts
+  h_e7759ddd73fa65 1-32
+upgrade/typescript/tests/object-literal-this.test.ts
+  h_e7759ddd73fa65 1-92
+upgrade/typescript/tests/optional-peer-package-hints.test.ts
+  h_e7759ddd73fa65 1-34
+upgrade/typescript/tests/options-callback-cases.ts
+  h_e7759ddd73fa65 1-53
+upgrade/typescript/tests/options-callbacks.test.ts
+  h_e7759ddd73fa65 1-27
+upgrade/typescript/tests/out-of-scope-provider-diagnostics.test.ts
+  h_e7759ddd73fa65 1-157
+upgrade/typescript/tests/output-bounded.test.ts
+  h_e7759ddd73fa65 1-57
+upgrade/typescript/tests/output-context.test.ts
+  h_e7759ddd73fa65 1-105
+upgrade/typescript/tests/output-linear.test.ts
+  h_e7759ddd73fa65 1-61
+upgrade/typescript/tests/output-pipes.test.ts
+  h_e7759ddd73fa65 1-59
+upgrade/typescript/tests/outside-provider-rerun.test.ts
+  h_e7759ddd73fa65 1-71
+upgrade/typescript/tests/overloaded-callbacks.test.ts
+  h_e7759ddd73fa65 1-102
+upgrade/typescript/tests/ownerless-service-guidance.test.ts
+  h_e7759ddd73fa65 1-56
+upgrade/typescript/tests/package-and-workspace-alias-evidence.test.ts
+  h_e7759ddd73fa65 1-54
+upgrade/typescript/tests/parse-error-write-atomicity.test.ts
+  h_e7759ddd73fa65 1-27
+upgrade/typescript/tests/path-and-redeclared-binding-safety.test.ts
+  h_e7759ddd73fa65 1-103
+upgrade/typescript/tests/payload-flow-cases.ts
+  h_e7759ddd73fa65 1-70
+upgrade/typescript/tests/payload-flow-provenance.test.ts
+  h_e7759ddd73fa65 1-65
+upgrade/typescript/tests/payload-flow-upgrade.test.ts
+  h_e7759ddd73fa65 1-36
+upgrade/typescript/tests/persistence-method-workflows.test.ts
+  h_e7759ddd73fa65 1-29
+upgrade/typescript/tests/persistence-workflow-call-order.test.ts
+  h_e7759ddd73fa65 1-119
+upgrade/typescript/tests/pnpm-flow-and-bracket-discovery.test.ts
+  h_e7759ddd73fa65 1-57
+upgrade/typescript/tests/project-export-client-provenance.test.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/tests/project-modules.test.ts
+  h_e7759ddd73fa65 1-97
+upgrade/typescript/tests/project-relative-error-diagnostics.test.ts
+  h_e7759ddd73fa65 1-63
+upgrade/typescript/tests/property-client-service-proofs.test.ts
+  h_e7759ddd73fa65 1-52
+upgrade/typescript/tests/qualified-package-constraints.test.ts
+  h_e7759ddd73fa65 1-38
+upgrade/typescript/tests/read-failures.test.ts
+  h_e7759ddd73fa65 1-39
+upgrade/typescript/tests/readonly-suggestions-safety.test.ts
+  h_e7759ddd73fa65 1-21
+upgrade/typescript/tests/reassigned-intrinsic-mutators.test.ts
+  h_e7759ddd73fa65 1-27
+upgrade/typescript/tests/reassigned-receiver-and-loader-proofs.test.ts
+  h_e7759ddd73fa65 1-57
+upgrade/typescript/tests/receiver-flow-boundaries.test.ts
+  h_e7759ddd73fa65 1-47
+upgrade/typescript/tests/receiver-write-and-extraction-proofs.test.ts
+  h_e7759ddd73fa65 1-93
+upgrade/typescript/tests/recursive-compose-includes.test.ts
+  h_e7759ddd73fa65 1-119
+upgrade/typescript/tests/recursive-config-reference-discovery.test.ts
+  h_e7759ddd73fa65 1-118
+upgrade/typescript/tests/reflective-client-target-mutations.test.ts
+  h_e7759ddd73fa65 1-134
+upgrade/typescript/tests/reflective-environment-setters.test.ts
+  h_e7759ddd73fa65 1-196
+upgrade/typescript/tests/reflective-mutator-aliases.test.ts
+  h_e7759ddd73fa65 1-83
+upgrade/typescript/tests/registry-and-container-client-evidence.test.ts
+  h_e7759ddd73fa65 1-136
+upgrade/typescript/tests/report.test.ts
+  h_e7759ddd73fa65 1-102
+upgrade/typescript/tests/review-cli-manifests.test.ts
+  h_e7759ddd73fa65 1-75
+upgrade/typescript/tests/review-direct-modules.test.ts
+  h_e7759ddd73fa65 1-81
+upgrade/typescript/tests/review-receiver-cases.ts
+  h_e7759ddd73fa65 1-54
+upgrade/typescript/tests/review-receiver-flow.test.ts
+  h_e7759ddd73fa65 1-38
+upgrade/typescript/tests/review-static-client.test.ts
+  h_e7759ddd73fa65 1-55
+upgrade/typescript/tests/root-client-augmentation-diagnostics.test.ts
+  h_e7759ddd73fa65 1-24
+upgrade/typescript/tests/root-import-and-package-constraints.test.ts
+  h_e7759ddd73fa65 1-87
+upgrade/typescript/tests/safety.test.ts
+  h_e7759ddd73fa65 1-114
+upgrade/typescript/tests/scan-only-encoding-and-error-aggregation.test.ts
+  h_e7759ddd73fa65 1-87
+upgrade/typescript/tests/sdk-module-augmentation-routing.test.ts
+  h_e7759ddd73fa65 1-49
+upgrade/typescript/tests/secondary-upgrade-guidance.test.ts
+  h_e7759ddd73fa65 1-54
+upgrade/typescript/tests/service-holder-escapes.test.ts
+  h_e7759ddd73fa65 1-93
+upgrade/typescript/tests/service-holder-proofs.test.ts
+  h_e7759ddd73fa65 1-80
+upgrade/typescript/tests/service-named-clients.test.ts
+  h_e7759ddd73fa65 1-32
+upgrade/typescript/tests/shadowed-object-mutator.test.ts
+  h_e7759ddd73fa65 1-25
+upgrade/typescript/tests/shared-client-binding-suggestions.test.ts
+  h_e7759ddd73fa65 1-35
+upgrade/typescript/tests/shared-config-assignment-declarations.test.ts
+  h_e7759ddd73fa65 1-31
+upgrade/typescript/tests/shared-config-property-readers.test.ts
+  h_e7759ddd73fa65 1-66
+upgrade/typescript/tests/shared-error-runtime.test.ts
+  h_e7759ddd73fa65 1-84
+upgrade/typescript/tests/shared-errors.test.ts
+  h_e7759ddd73fa65 1-79
+upgrade/typescript/tests/shell-and-yaml-backslash-paths.test.ts
+  h_e7759ddd73fa65 1-115
+upgrade/typescript/tests/skipped-consumer-dependency-modes.test.ts
+  h_e7759ddd73fa65 1-38
+upgrade/typescript/tests/skipped-logical-urls-and-block-directives.test.ts
+  h_e7759ddd73fa65 1-41
+upgrade/typescript/tests/skipped-source-suggestions.test.ts
+  h_e7759ddd73fa65 1-30
+upgrade/typescript/tests/source-environment-write-classification.test.ts
+  h_e7759ddd73fa65 1-156
+upgrade/typescript/tests/source-pragmas-and-catalog-scope.test.ts
+  h_e7759ddd73fa65 1-111
+upgrade/typescript/tests/split-import-comments.test.ts
+  h_e7759ddd73fa65 1-144
+upgrade/typescript/tests/split-import-leading-comments.test.ts
+  h_e7759ddd73fa65 1-48
+upgrade/typescript/tests/spy-targets.test.ts
+  h_e7759ddd73fa65 1-172
+upgrade/typescript/tests/static-helper-override-provenance.test.ts
+  h_e7759ddd73fa65 1-139
+upgrade/typescript/tests/subclass-and-reexported-configs.test.ts
+  h_e7759ddd73fa65 1-41
+upgrade/typescript/tests/subclass-double-overrides.test.ts
+  h_e7759ddd73fa65 1-38
+upgrade/typescript/tests/subclass-forwarding-url-boundaries.test.ts
+  h_e7759ddd73fa65 1-71
+upgrade/typescript/tests/suggestion-mapping.ts
+  h_e7759ddd73fa65 1-24
+upgrade/typescript/tests/suggestion-regeneration-roundtrip.test.ts
+  h_e7759ddd73fa65 1-129
+upgrade/typescript/tests/template-specifiers.test.ts
+  h_e7759ddd73fa65 1-136
+upgrade/typescript/tests/type-level-client-members.test.ts
+  h_e7759ddd73fa65 1-203
+upgrade/typescript/tests/typed-cjs-splits.test.ts
+  h_e7759ddd73fa65 1-65
+upgrade/typescript/tests/typed-deep-mock-execution.test.ts
+  h_e7759ddd73fa65 1-113
+upgrade/typescript/tests/unknown-origin-policy.test.ts
+  h_e7759ddd73fa65 1-188
+upgrade/typescript/tests/unknown-origin-review-cases.ts
+  h_e7759ddd73fa65 1-91
+upgrade/typescript/tests/unreadable.test.ts
+  h_e7759ddd73fa65 1-195
+upgrade/typescript/tests/unrelated-factory-return-evidence.test.ts
+  h_e7759ddd73fa65 1-88
+upgrade/typescript/tests/unrelated-global-process-properties.test.ts
+  h_e7759ddd73fa65 1-28
+upgrade/typescript/tests/unresolved-double-consumer-diagnostics.test.ts
+  h_e7759ddd73fa65 1-129
+upgrade/typescript/tests/unresolved-environment-write-names.test.ts
+  h_e7759ddd73fa65 1-27
+upgrade/typescript/tests/unresolved-receiver-identity-hints.test.ts
+  h_e7759ddd73fa65 1-59
+upgrade/typescript/tests/v0-identity-regressions.test.ts
+  h_e7759ddd73fa65 1-76
+upgrade/typescript/tests/v0-service-rerun.test.ts
+  h_e7759ddd73fa65 1-100
+upgrade/typescript/tests/v0-suggestion-ownership.test.ts
+  h_e7759ddd73fa65 1-163
+upgrade/typescript/tests/windows-config-precedence.test.ts
+  h_e7759ddd73fa65 1-26
+upgrade/typescript/tests/workflow-membership.test.ts
+  h_e7759ddd73fa65 1-122
+upgrade/typescript/tests/workflow-review.test.ts
+  h_e7759ddd73fa65 1-83
+upgrade/typescript/tests/workspace-dependency-certification.test.ts
+  h_e7759ddd73fa65 1-23
+upgrade/typescript/tests/wrapped-double-consumers.test.ts
+  h_e7759ddd73fa65 1-40
+upgrade/typescript/tests/write-changes.test.ts
+  h_e7759ddd73fa65 1-83
+upgrade/typescript/tests/write-safety.test.ts
+  h_e7759ddd73fa65 1-70
+upgrade/typescript/tests/yaml-url-delimiters.test.ts
+  h_e7759ddd73fa65 1-35
+upgrade/typescript/tsconfig.json
+  h_e7759ddd73fa65 1-11
+upgrade/typescript/tsconfig.test.json
+  h_e7759ddd73fa65 1-6
+v0-sdk-version
+  h_e7759ddd73fa65 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6fef4ea83df0b234ad4455136916d595fe06acf1",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

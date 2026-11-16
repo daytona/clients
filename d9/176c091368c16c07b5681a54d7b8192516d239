@@ -1,0 +1,33 @@
+cli/internal/config/credentials.go
+  s_aec3b70e676052::t_bed7134c4cab6c 48-50
+cli/README.md
+  s_aec3b70e676052::t_d6e0cde94196e1 271-275
+cli/cmd/security_regressions_test.go
+  s_aec3b70e676052::t_19d897d38af87b 1-111
+cli/cmd/auth_login_command.go
+  s_aec3b70e676052::t_7db3386a1efaf0 49-52
+  s_aec3b70e676052::t_848579520424a2 8
+cli/internal/auth/platform_token.go
+  s_aec3b70e676052::t_a812667ac4a704 106,111,123,135,152-153,156,164
+cli/cmd/profile.go
+  s_aec3b70e676052::t_4a91dc00dd7371 9
+  s_aec3b70e676052::t_39b15b86610de8 72-76,82-85,88-89,93-94
+changelog.d/security-cubic-cli-credentials.security.md
+  s_aec3b70e676052::t_d6e0cde94196e1 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9176c091368c16c07b5681a54d7b8192516d239",
+  "prompts": {},
+  "sessions": {
+    "s_aec3b70e676052": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179965ffeH0RQLkfVpwv3D7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

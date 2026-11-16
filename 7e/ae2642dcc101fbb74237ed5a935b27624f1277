@@ -1,0 +1,25 @@
+upgrade/MIGRATION.md
+  s_35c1b93d4ebbc5::t_746ef45eed8a54 87,98,118,129
+upgrade/mapping/mapping.json
+  s_35c1b93d4ebbc5::t_213359e31139ea 3779,3789,4038,4044
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_35c1b93d4ebbc5::t_b2a7629878b8e3 3779,3789,4038,4044
+upgrade/typescript/src/mapping.json
+  s_35c1b93d4ebbc5::t_c99e8a493e0904 3779,3789,4038,4044
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7eae2642dcc101fbb74237ed5a935b27624f1277",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

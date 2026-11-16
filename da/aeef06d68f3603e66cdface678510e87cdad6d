@@ -1,0 +1,21 @@
+sdk-python/tests/test_wait_final_read.py
+  s_aa070e7b745b4c::t_8ec51a4b6c228b 265-266
+sdk-typescript/tests/wait-final-read.test.ts
+  s_aa070e7b745b4c::t_6a0065617af588 213-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "daaeef06d68f3603e66cdface678510e87cdad6d",
+  "prompts": {},
+  "sessions": {
+    "s_aa070e7b745b4c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e1df5bdffeOek82jW7CuPE6C",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

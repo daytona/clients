@@ -1,0 +1,31 @@
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_0b2777a75be7ad 117-122,131-133,276-281,290-291
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_0b2777a75be7ad 8692
+sdk-typescript/tests/errors-contract.test.ts
+  s_f23bcae77f0e63::t_88792deb6d8665 176-195
+sdk-typescript/src/v2/Sandbox.ts
+  s_f23bcae77f0e63::t_0b2777a75be7ad 1166,1179
+sdk-typescript/src/v2/index.ts
+  s_f23bcae77f0e63::t_88792deb6d8665 189
+sdk-typescript/src/v2/events.ts
+  s_f23bcae77f0e63::t_0b2777a75be7ad 520,888,1080,1091,1174,1602
+changelog.d/537-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_e056ddc1c083b3 23-25,28-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e44b12e1f876decacc4cce2798d61aabbd5e7a8d",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

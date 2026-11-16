@@ -1,0 +1,63 @@
+.github/workflows/changelog.yaml
+  s_99e5c120850106::t_4a65c8a360f44e 20
+.github/workflows/ci-passed.yaml
+  s_99e5c120850106::t_b715d89aa38648 51
+.github/workflows/cli-ci.yaml
+  s_99e5c120850106::t_0ecba4d3541661 27
+.github/workflows/contracts.yaml
+  s_99e5c120850106::t_822d2c210871e4 37
+.github/workflows/e2e.yaml
+  s_99e5c120850106::t_3a383bcbf9bf82 59
+.github/workflows/license-headers.yaml
+  s_99e5c120850106::t_158dab79c6cfd3 19
+.github/workflows/prepare-release.yaml
+  s_99e5c120850106::t_c43e60503242bb 39
+.github/workflows/sdk-ci.yaml
+  s_99e5c120850106::t_d6d4e773319cb3 37,49,62,106,137,171,316,353
+.github/workflows/sdk_publish.yaml
+  s_99e5c120850106::t_89a484faf7559d 196,204
+.github/workflows/secret-scan.yaml
+  s_99e5c120850106::t_10bc1f452c4d83 31
+.github/workflows/upgrade-tool-ci.yaml
+  s_99e5c120850106::t_09edf9dbd7d339 40,77,122,151,180,217,243
+.github/workflows/upgrade-tool-publish.yaml
+  s_99e5c120850106::t_9d4c34f2a88eed 78
+typescript/tests/unit.test.ts
+  s_9f424cdd06a807::t_9d9d85f47faeea 7127-7132
+upgrade/python/pyproject.toml
+  s_fb35183cdc4e0a::t_fee46810c435e8 12
+upgrade/python/uv.lock
+  s_fb35183cdc4e0a::t_9b6d5f837c84cb 88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7da197f10859b0cf1157dd7f9c362bea60f57284",
+  "prompts": {},
+  "sessions": {
+    "s_99e5c120850106": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5517996bffel0i7jbnk4QE4Xt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_9f424cdd06a807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "claude-fable-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_fb35183cdc4e0a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e54e363f0ffeLwmqznuZyV2vVQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

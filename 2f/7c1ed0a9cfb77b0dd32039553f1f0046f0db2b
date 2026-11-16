@@ -1,0 +1,18 @@
+changelog.d/cli-port-expose.added.md
+  h_e7759ddd73fa65 6
+changelog.d/cli-preview-url-guidance.changed.md
+  h_e7759ddd73fa65 1-5
+cli/cmd/ga2_contract_test.go
+  h_e7759ddd73fa65 291
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f7c1ed0a9cfb77b0dd32039553f1f0046f0db2b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

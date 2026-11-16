@@ -1,0 +1,19 @@
+sdk-python/tests/test_json_depth.py
+  s_ca009e77d17705::t_3d8c995a3aaeb8 10,12,26-33,73-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35f31b7d20dde771e7353bb158baa4a3fe550a1f",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

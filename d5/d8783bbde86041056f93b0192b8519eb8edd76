@@ -1,0 +1,25 @@
+sdk-python/src/daytona/v2/_events.py
+  s_5cb265932ccc1a::t_4f22fa564157d3 647-649
+sdk-python/tests/test_events.py
+  s_5cb265932ccc1a::t_f0f7a2c7c76268 1189-1231
+sdk-typescript/src/v2/events.ts
+  s_5cb265932ccc1a::t_9ae91c6ee3bee8 826-829
+sdk-typescript/tests/events.test.ts
+  s_5cb265932ccc1a::t_8ebff98e10a4e1 1399-1429
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5d8783bbde86041056f93b0192b8519eb8edd76",
+  "prompts": {},
+  "sessions": {
+    "s_5cb265932ccc1a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b846b9fffeTdidOrstFmugr0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

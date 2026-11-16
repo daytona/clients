@@ -1,0 +1,31 @@
+sdk-python/src/daytona/v2/_sync/services.py
+  s_35c1b93d4ebbc5::t_f106f7df37b91a 102-107
+sdk-python/src/daytona/v2/image.py
+  s_35c1b93d4ebbc5::t_83f83260e500f9 76,85-87,238,250-252
+sdk-python/src/daytona/v2/services.py
+  s_35c1b93d4ebbc5::t_0e2bbd48dcd37c 257-262
+sdk-python/tests/fixtures/image-builder-context.json
+  s_35c1b93d4ebbc5::t_6aa92c97730a45 281-306
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_72560143e458d2 70,81
+sdk-typescript/src/v2/archiveWalk.ts
+  s_35c1b93d4ebbc5::t_0d1cec30ba1f6f 61-72
+sdk-typescript/src/v2/builderText.ts
+  s_35c1b93d4ebbc5::t_46fe0af067e40d 77,80-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e18340f67768a3aa4c5011fe138a4b24b6997f3",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

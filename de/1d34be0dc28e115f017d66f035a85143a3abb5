@@ -1,0 +1,24 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 440,1184-1193,1249-1255
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 105,113-123,153
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 574-576
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 30-37,52,73,215-250
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 8,52,65-73,83
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 111-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de1d34be0dc28e115f017d66f035a85143a3abb5",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+sdk-python/src/daytona/v2/_transport.py
+  s_9a337fd66d5341::t_b535749dc9d758 1176-1177
+sdk-typescript/tests/json-bodies.test.ts
+  s_9a337fd66d5341::t_b535749dc9d758 43-44,78-83
+  s_9a337fd66d5341::t_9fad14970ff4af 19,84-92
+changelog.d/538-json-bodies.breaking.md
+  s_9a337fd66d5341::t_6cf4e843a5824f 8-11
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_b535749dc9d758 2306-2328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01a88fa96886d09c68bb5d62725578bcd808754b",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+upgrade/python/tests/test_suggestions.py
+  s_9a337fd66d5341::t_1d253ca2d04e59 224-238,240,245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1c70279540109aaf2b0e50ef36fbdd81ae2f1972",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

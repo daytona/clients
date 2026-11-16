@@ -1,0 +1,20 @@
+analytics-api-client-python-async/daytona_analytics_api_client_async/api_client.py
+  h_e7759ddd73fa65 207
+analytics-api-client-python/daytona_analytics_api_client/api_client.py
+  h_e7759ddd73fa65 204
+toolbox-api-client-python-async/daytona_toolbox_api_client_async/api_client.py
+  h_e7759ddd73fa65 207
+toolbox-api-client-python/daytona_toolbox_api_client/api_client.py
+  h_e7759ddd73fa65 204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3ed18c26eaaca2729dbe702e3e146db85e6e869",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

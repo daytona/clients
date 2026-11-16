@@ -1,0 +1,65 @@
+changelog.d/process-kill-tree.changed.md
+  s_717b45cf151505::t_386e40a99d1305 1-4
+changelog.d/process-tags.added.md
+  s_717b45cf151505::t_8bb8831b9b17de 1-4
+sdk-python/README.md
+  s_717b45cf151505::t_9b94725fd3f278 659-695
+sdk-python/src/daytona/v2/__init__.py
+  s_717b45cf151505::t_bd7b6ba82a6643 242,600
+sdk-python/src/daytona/v2/_core.py
+  s_717b45cf151505::t_529b61aa75f3ab 40,524-529,594,628,678,721,730,737-748
+sdk-python/src/daytona/v2/_exports.py
+  s_717b45cf151505::t_e29aba35897c4d 233
+sdk-python/src/daytona/v2/_sync/process.py
+  s_717b45cf151505::t_ff2fe375383aba 157,164-166,175-178,187,190-192,211,229,248,266,310,315
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_717b45cf151505::t_9af3adf97e729a 227,245
+sdk-python/src/daytona/v2/codes.py
+  s_717b45cf151505::t_257cd40a597411 8,160,327
+sdk-python/src/daytona/v2/errors.py
+  s_717b45cf151505::t_f3cd94fb2384e5 318-321,656
+sdk-python/src/daytona/v2/process.py
+  s_717b45cf151505::t_81936da2259a32 6,20,30,389,403,435,480,503,528,551,604,684,686,688,691-713,731,740
+sdk-python/src/daytona/v2/sandbox.py
+  s_717b45cf151505::t_ae718fd3f41c30 555,604
+sdk-python/src/daytona/v2/types.py
+  s_717b45cf151505::t_ffca5e6a166e9b 913
+sdk-python/tests/test_process_tags.py
+  s_717b45cf151505::t_6a0a9a057b3b84 1-181
+sdk-typescript/README.md
+  s_717b45cf151505::t_cb3706287d0781 596-636
+sdk-typescript/src/v2/Process.ts
+  s_717b45cf151505::t_394d922a7b0259 15,119,121,124-143
+sdk-typescript/src/v2/ProcessWire.ts
+  s_717b45cf151505::t_f9e248594a37cb 139
+sdk-typescript/src/v2/Session.ts
+  s_717b45cf151505::t_fba69715182daf 22-23
+sdk-typescript/src/v2/codes.ts
+  s_717b45cf151505::t_6ad832fc91aec7 11,180
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_717b45cf151505::t_7f3da7b7b607d0 318,429,773
+sdk-typescript/src/v2/gen/toolbox-types.ts
+  s_717b45cf151505::t_0235d8351c09d4 85-86
+sdk-typescript/src/v2/index.ts
+  s_717b45cf151505::t_9560ea03888781 142
+sdk-typescript/src/v2/types.ts
+  s_717b45cf151505::t_cc8edbb062e679 848-849,904-905,970
+sdk-typescript/tests/process-tags.test.ts
+  s_717b45cf151505::t_1a98094847c219 1-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35c7ee91f953fd8c216abd2006522a25fb75c5f1",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

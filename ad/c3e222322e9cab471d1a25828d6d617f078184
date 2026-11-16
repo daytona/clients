@@ -1,0 +1,24 @@
+README.md
+  h_e7759ddd73fa65 49
+sdk-python/src/daytona/__init__.py
+  h_e7759ddd73fa65 25
+sdk-python/src/daytona/v1.py
+  h_e7759ddd73fa65 4-11,39-40,42-54,56,58,60,62-80,82-83,85,87-90,92,94-95,97-114,116-119,121-126,128-129,131-138,140-148,150,152-158,160-281,283,303
+sdk-python/tests/test_v1.py
+  h_e7759ddd73fa65 6-9,12,301-316,422-453
+sdk-typescript/src/__tests__/v1.test.ts
+  h_e7759ddd73fa65 6-16,100
+sdk-typescript/src/v1.ts
+  h_e7759ddd73fa65 12-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "adc3e222322e9cab471d1a25828d6d617f078184",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

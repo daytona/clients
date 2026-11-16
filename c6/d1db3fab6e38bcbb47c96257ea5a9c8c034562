@@ -1,0 +1,20 @@
+api-client-python-async/daytona_api_client_async/api_client.py
+  h_e7759ddd73fa65 208
+api-client-python/daytona_api_client/api_client.py
+  h_e7759ddd73fa65 205
+hack/python-client/postprocess.sh
+  h_e7759ddd73fa65 46-49
+sdk-python/tests/test_sandbox.py
+  h_e7759ddd73fa65 421-434
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c6d1db3fab6e38bcbb47c96257ea5a9c8c034562",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

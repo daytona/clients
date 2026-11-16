@@ -1,0 +1,23 @@
+cli/cmd/image_direct_upload.go
+  s_aadd141013e7c9::t_7888d9d7b2a3c0 1-273
+cli/cmd/image_precheck.go
+  s_aadd141013e7c9::t_28dd769807cf2e 51
+cli/cmd/image_precheck_symlinks_test.go
+  s_aadd141013e7c9::t_a740ee8662213f 80-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3b850d308c553c1caa6c744c80cf1a71189c1ad",
+  "prompts": {},
+  "sessions": {
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

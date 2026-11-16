@@ -1,0 +1,27 @@
+.github/workflows/sdk-ci.yaml
+  s_a3ea68093feda0::t_934abfc0640d80 331-336,371-376
+docs/VERSIONING.md
+  s_a3ea68093feda0::t_57b173cd2ee947 190-204
+.github/workflows/ci-passed-rerun.yaml
+  s_a3ea68093feda0::t_934abfc0640d80 15
+.claude/skills/contract-refresh/SKILL.md
+  s_a3ea68093feda0::t_f483aab8456c50 69-73
+AGENTS.md
+  s_a3ea68093feda0::t_e3ee959f3fba17 532-551
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69d2659e3523b6e4272a88f77d255e1894da3903",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

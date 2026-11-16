@@ -1,0 +1,22 @@
+.github/workflows/release.yaml
+  s_728305197922d6::t_15a07e83c43250 30-33
+  s_728305197922d6::t_bc375301bea24a 120-132
+README.md
+  s_728305197922d6::t_cdb809b21b1d8d 43-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71800045256be7e402ac8dae7b4666c89d519d48",
+  "prompts": {},
+  "sessions": {
+    "s_728305197922d6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e95bb81d2ffeSS0BfPQDsutpQg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

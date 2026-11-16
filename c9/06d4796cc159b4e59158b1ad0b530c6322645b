@@ -1,0 +1,21 @@
+package.json
+  s_717b45cf151505::t_253bce8ba4019d 90
+yarn.lock
+  s_717b45cf151505::t_be9facff0557d7 5324-5335,5553,6298,6322,6839,6848,7221,7803,7871,8143,8431,8438,8600,8662-8664,8666-8669,8673,8718,8821,10221-10227,10425,10755,10764,10800,10924,11286,11357,12760,12767,12795,13612,14321,14546
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c906d4796cc159b4e59158b1ad0b530c6322645b",
+  "prompts": {},
+  "sessions": {
+    "s_717b45cf151505": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5f98bc59ffe3SvHjoeFwp524O",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

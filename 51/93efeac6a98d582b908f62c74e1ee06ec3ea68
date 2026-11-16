@@ -1,0 +1,16 @@
+sdk-ruby/lib/daytona/sandbox.rb
+  h_e7759ddd73fa65 1298,1321,1343-1345,1351-1380,1469-1476
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  h_e7759ddd73fa65 44-46,49-50,672-729,761,763,787,789,834,837-838,856,858,874,876
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5193efeac6a98d582b908f62c74e1ee06ec3ea68",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

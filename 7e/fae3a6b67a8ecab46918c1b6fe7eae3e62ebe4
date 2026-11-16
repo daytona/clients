@@ -1,0 +1,26 @@
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 311
+changelog.d/522-node-floor.changed.md
+  h_e7759ddd73fa65 1-4
+sdk-typescript/DEVELOPMENT.md
+  h_e7759ddd73fa65 114-115
+sdk-typescript/README.md
+  h_e7759ddd73fa65 4
+sdk-typescript/package-lock.json
+  h_e7759ddd73fa65 28
+sdk-typescript/package.json
+  h_e7759ddd73fa65 143
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 3983-3984
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7efae3a6b67a8ecab46918c1b6fe7eae3e62ebe4",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

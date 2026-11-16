@@ -1,0 +1,30 @@
+.github/workflows/release.yaml
+  h_e7759ddd73fa65 1-28
+scripts/patch_coverage.py
+  h_e7759ddd73fa65 201-202,209-213,215
+assets/README.md
+  h_e7759ddd73fa65 1-5
+RELEASING.md
+  s_dbb1ce24822e1b::t_a805f05ea935ba 75-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28d108c2b6fd1e6df88032d37da30ac60c7cb8cd",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_dbb1ce24822e1b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5a3783d1ffeDtStNWeklt1IIQ",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}

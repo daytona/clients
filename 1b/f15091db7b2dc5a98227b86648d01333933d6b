@@ -1,0 +1,55 @@
+sdk-python/src/daytona/v2/types.py
+  s_b3e701c41242f9::t_f0a6161aa1387a 134-137,493-494,528,563,644
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_b3e701c41242f9::t_4821b4ae2e2df2 135-137
+changelog.d/gpu-sandboxes.added.md
+  s_b3e701c41242f9::t_e0cd74ea1c44e3 1-7
+sdk-typescript/src/v2/types.ts
+  s_b3e701c41242f9::t_b8d56a4bd2066b 14,117-118,192-198,449-478,580,582-583
+sdk-python/src/daytona/v2/_exports.py
+  s_b3e701c41242f9::t_4821b4ae2e2df2 331
+sdk-typescript/src/v2/Sandbox.ts
+  s_b3e701c41242f9::t_3ae209ccdff7c9 171,335,450-451,716,770,807,1283
+sdk-typescript/src/v2/gen/api-types.ts
+  s_b3e701c41242f9::t_b8d56a4bd2066b 81
+sdk-typescript/src/v2/index.ts
+  s_b3e701c41242f9::t_01883a605502c9 223,229
+sdk-python/src/daytona/v2/__init__.py
+  s_b3e701c41242f9::t_4821b4ae2e2df2 340,698
+sdk-typescript/README.md
+  s_b3e701c41242f9::t_e0cd74ea1c44e3 543-563
+sdk-python/tests/test_gpu_sandboxes.py
+  s_b3e701c41242f9::t_4c7abf98726123 173-188
+  s_b3e701c41242f9::t_2d368ae4f05455 7
+  s_b3e701c41242f9::t_d7098d89ab975f 1-6,8-18,23-172,189-209
+  s_b3e701c41242f9::t_d94895ec59a6bf 20-22
+sdk-typescript/tests/gpu-sandboxes.test.ts
+  s_b3e701c41242f9::t_0722c0541c065c 133,137,143-144
+  s_b3e701c41242f9::t_59cc89ae34b8fc 1-132,134-136,138-142,145-163
+sdk-python/src/daytona/v2/daytona.py
+  s_b3e701c41242f9::t_6c806dc005196d 74,490-575,1459-1476,1667-1671,1707-1708,1713,1715
+sdk-typescript/src/v2/Daytona.ts
+  s_b3e701c41242f9::t_c15d0513a48f06 25,313-315,317-325,327-328,776-829,887,943
+sdk-python/README.md
+  s_b3e701c41242f9::t_e0cd74ea1c44e3 609-629
+sdk-python/src/daytona/v2/sandbox.py
+  s_b3e701c41242f9::t_f0a6161aa1387a 107,186-187,327,356,414,652,794
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_b3e701c41242f9::t_4821b4ae2e2df2 222-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1bf15091db7b2dc5a98227b86648d01333933d6b",
+  "prompts": {},
+  "sessions": {
+    "s_b3e701c41242f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b7f97c1-6295-4839-a27b-f5f1f098b4d1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+sdk-python/src/daytona/v2/charts.py
+  s_0d53f24eb50637::t_6515fe4dc574a2 1-347
+  s_561a8fcd3925d9::t_3c97992c1b5171 348-359
+sdk-typescript/src/v2/charts.ts
+  s_0d53f24eb50637::t_ef58f3e9cb85b9 1-314
+sdk-typescript/tests/interpreter-charts.test.ts
+  s_0d53f24eb50637::t_db136b9ba3141f 1-147
+examples/python/charts.py
+  s_0d53f24eb50637::t_ced3f79281f43e 1-89
+  s_561a8fcd3925d9::t_b83be57f319f8a 90-94
+changelog.d/interpreter-charts.added.md
+  s_561a8fcd3925d9::t_c4e0a33a47e1a7 1-8
+changelog.d/interpreter-display-updates.changed.md
+  s_561a8fcd3925d9::t_dad49d83d404ea 1-4
+changelog.d/interpreter-log-retention.fixed.md
+  s_561a8fcd3925d9::t_208e232d619bc1 1-4
+changelog.d/upgrade-code-run-charts.changed.md
+  s_561a8fcd3925d9::t_13475c1a7eae65 1-4
+examples/README.md
+  s_561a8fcd3925d9::t_c6c3281f41e958 38-39,55,68
+examples/python/test_examples.py
+  s_561a8fcd3925d9::t_a801e5029ec409 38-42,49,52,124-126,448-465,470,473,534,748-772,1057
+examples/run-examples.sh
+  s_561a8fcd3925d9::t_c6592c0c49807d 15-16,28-29
+examples/typescript/charts/index.ts
+  s_561a8fcd3925d9::t_3dfdd10f1a187b 1-98
+examples/typescript/examples.test.ts
+  s_561a8fcd3925d9::t_cec89577d1b56a 63,116,270-286
+examples/typescript/test-support/fake-sdk.ts
+  s_561a8fcd3925d9::t_a17c9fd764ab36 17,36-37,204-224
+sdk-python/README.md
+  s_561a8fcd3925d9::t_dd79f49e79dc70 1025-1066
+sdk-python/src/daytona/v2/__init__.py
+  s_561a8fcd3925d9::t_c10b99a7ad89ff 304-321,406-410,413-414,419,595-610,810-814,817-818,823
+sdk-python/src/daytona/v2/_exports.py
+  s_561a8fcd3925d9::t_c7afc8051b29dd 172-187,395-399,402-403,408
+sdk-python/src/daytona/v2/interpreter.py
+  s_5bc2ff2248b948::t_1815909ea1946f 9,24,43,47-50,496,499,511,514,574-605,615-621,629,631
+sdk-python/src/daytona/v2/process.py
+  s_561a8fcd3925d9::t_069753755a82b9 42-49,168-170,177-185
+sdk-python/src/daytona/v2/types.py
+  s_561a8fcd3925d9::t_1fe945bd197eaa 34,1396-1398,1409-1410
+sdk-python/tests/test_interpreter_charts.py
+  s_561a8fcd3925d9::t_c6cf0f49138e3d 1-233
+sdk-python/tests/test_root_client.py
+  s_561a8fcd3925d9::t_a2f7ef31a882a7 414-415
+sdk-python/tests/test_toolbox_surface.py
+  s_561a8fcd3925d9::t_eaded803d86545 2385-2386
+sdk-typescript/README.md
+  s_561a8fcd3925d9::t_4e0012a19eb2fa 950,952-988
+sdk-typescript/src/v2/Interpreter.ts
+  s_561a8fcd3925d9::t_bcbb4143ec0dad 30-31,40-45,256,266,275,279-314,317-321,323-334
+sdk-typescript/src/v2/ProcessRun.ts
+  s_561a8fcd3925d9::t_136896914eedb4 18,29-33,39-47
+sdk-typescript/src/v2/index.ts
+  s_561a8fcd3925d9::t_8fbf75ef22002f 50-67
+sdk-typescript/src/v2/types.ts
+  s_561a8fcd3925d9::t_af94115b27dd6e 7,1365-1366,1374-1375
+sdk-typescript/tests/unit.test.ts
+  s_561a8fcd3925d9::t_c13d7a77a16cef 5510
+upgrade/MIGRATION.md
+  s_561a8fcd3925d9::t_9fefd42e1e369f 432,457
+upgrade/mapping/mapping.json
+  s_561a8fcd3925d9::t_da6dde6d92f9e9 1965,1970
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_561a8fcd3925d9::t_76737ea9b42f38 1965,1970
+upgrade/python/tests/test_client_service_parity.py
+  s_561a8fcd3925d9::t_045076f1002205 210-236
+upgrade/scripts/migration-notes.test.mjs
+  s_561a8fcd3925d9::t_de5b8ead419721 33-46
+upgrade/typescript/src/mapping.json
+  s_561a8fcd3925d9::t_cd6df7a0c277f1 1965,1970
+upgrade/typescript/tests/client-service-proofs.test.ts
+  s_561a8fcd3925d9::t_dfa5a273d865b3 142-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ba5035bcb9a3825c41fe860e93a88f57a72efd0",
+  "prompts": {},
+  "sessions": {
+    "s_0d53f24eb50637": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e306353edffeN9cTc7m0Dubyml",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_561a8fcd3925d9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2fbe9e0bffe9mMiJyvfgbsmng",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_5bc2ff2248b948": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2fbd5d15ffe3Dlq08qPP42Ai8",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

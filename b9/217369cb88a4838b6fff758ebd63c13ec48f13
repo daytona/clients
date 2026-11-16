@@ -1,0 +1,21 @@
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_7946b37139a8ce::t_44dbc1022d887c 12,14-17
+sdk-typescript/src/__tests__/v1.test.ts
+  s_7946b37139a8ce::t_3c6bcb88d6d82b 173-174,176,178-183,185-190,193-195,197-199,201-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9217369cb88a4838b6fff758ebd63c13ec48f13",
+  "prompts": {},
+  "sessions": {
+    "s_7946b37139a8ce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eea100857ffedytNaLo4gcKbzR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+sdk-python/src/daytona/common/daytona.py
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 14,260
+  s_5aac13771cd1c2::t_eec73e819335bc 255-256
+sdk-python/tests/test_common.py
+  s_5aac13771cd1c2::t_6c11aa9b3dea60 53,164-167
+sdk-python/tests/test_async_daytona.py
+  s_5aac13771cd1c2::t_d13b9eebe8ccaa 653-656
+  s_5aac13771cd1c2::t_6c11aa9b3dea60 14,522-524,527-546
+  s_5aac13771cd1c2::t_49187bd26ec95d 670-673
+sdk-python/src/daytona/_async/daytona.py
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 29-30,32,692-697
+sdk-python/src/daytona/_sync/sandbox.py
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 108-111,131-134
+  s_5aac13771cd1c2::t_4dd2695b1d61d5 1647
+  s_5aac13771cd1c2::t_74733b50b1a086 1648-1657
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_5aac13771cd1c2::t_1aff90679ab209 46,135-136,144-147,155-156,181-182
+sdk-typescript/src/index.ts
+  s_5aac13771cd1c2::t_25e99f6fab8038 10
+sdk-python/src/daytona/__init__.py
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 104,124,330
+openapi-specs/api.json
+  s_5aac13771cd1c2::t_addcc587dafb4c 13655-13670,13690-13694,14138-14158,14182-14197,14200-14220
+sdk-python/tests/conftest.py
+  s_5aac13771cd1c2::t_d13b9eebe8ccaa 47-53,56,62
+sdk-typescript/src/Sandbox.ts
+  s_5aac13771cd1c2::t_25e99f6fab8038 1622-1633
+  s_5aac13771cd1c2::t_6ac5a8a50d1fbe 1620
+sdk-python/src/daytona/common/sandbox.py
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 53-67
+sdk-python/src/daytona/_async/sandbox.py
+  s_5aac13771cd1c2::t_4dd2695b1d61d5 1660
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 106-109,129-132
+  s_5aac13771cd1c2::t_74733b50b1a086 1661-1670
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_5aac13771cd1c2::t_1aff90679ab209 711-712
+  s_5aac13771cd1c2::t_5ff2d9d02a5090 557-586
+sdk-python/src/daytona/_sync/daytona.py
+  s_5aac13771cd1c2::t_e6fcf970dfc0ca 31-32,34,572-577
+sdk-typescript/src/SandboxNode.ts
+  s_5aac13771cd1c2::t_fa33dccbb8ec0a 16-19
+  s_5aac13771cd1c2::t_25e99f6fab8038 62-65
+sdk-python/tests/test_daytona.py
+  s_5aac13771cd1c2::t_d13b9eebe8ccaa 338-341
+  s_5aac13771cd1c2::t_6c11aa9b3dea60 15,212-214,217-236
+  s_5aac13771cd1c2::t_49187bd26ec95d 353-356
+sdk-typescript/src/Daytona.ts
+  s_5aac13771cd1c2::t_25e99f6fab8038 180-189,252,699
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b7e427110bf6fac2b67e166991d1ce30ca8742d1",
+  "prompts": {},
+  "sessions": {
+    "s_5aac13771cd1c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c9b2-8186-75e2-8ef6-b77798ac50b7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

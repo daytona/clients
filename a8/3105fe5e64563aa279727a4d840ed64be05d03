@@ -1,0 +1,63 @@
+artifacts/sdk-docs/typescript-sdk/root-daytona.mdx
+  s_80d62670d81377::t_b41dc036ad1191 48-65,82-99,130-147,164-181
+sdk-go/pkg/daytona/client_test.go
+  s_193b75232234b3::t_d7498cb4f5fe50 1433-1471
+sdk-java/src/test/java/io/daytona/sdk/DaytonaWrapperTest.java
+  s_193b75232234b3::t_07021a97d5db21 15,111-156
+sdk-python/tests/test_v1.py
+  s_154bf8a0ae1d14::t_1146068b14d171 6,12,327-394
+sdk-ruby/spec/daytona/root_namespace_spec.rb
+  s_7946b37139a8ce::t_5a88a903a8cb46 111-132
+sdk-typescript/src/RootDaytona.ts
+  s_7946b37139a8ce::t_2dd34455b0253f 17-18,63-70,77-84,91-98,105-112
+sdk-typescript/src/__tests__/v1.test.ts
+  s_3bb83500e9ed4a::t_bf760d27db8d1f 317-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a83105fe5e64563aa279727a4d840ed64be05d03",
+  "prompts": {},
+  "sessions": {
+    "s_154bf8a0ae1d14": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb10e46e2ffe8r3R0l6tmXLorx",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_193b75232234b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb10dc3bdffem3XymOZqNUubFV",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_3bb83500e9ed4a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb10dff68ffe3Te9aglh8QC2RU",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7946b37139a8ce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eea100857ffedytNaLo4gcKbzR",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_80d62670d81377": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb10ebb36ffeiuliwJ5V3LYH0r",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

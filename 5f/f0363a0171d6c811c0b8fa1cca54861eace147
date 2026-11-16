@@ -1,0 +1,20 @@
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  h_e7759ddd73fa65 128-139
+sdk-typescript/src/Daytona.ts
+  h_e7759ddd73fa65 547-553
+sdk-typescript/src/RootDaytona.ts
+  h_e7759ddd73fa65 43
+sdk-typescript/src/__tests__/v1.test.ts
+  h_e7759ddd73fa65 29,54,200,204-206,212-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ff0363a0171d6c811c0b8fa1cca54861eace147",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

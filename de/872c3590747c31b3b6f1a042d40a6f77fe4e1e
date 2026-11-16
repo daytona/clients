@@ -1,0 +1,202 @@
+hack/go-vanity/README.md
+  s_652a0bb2d4b744::t_9ebcb2458d1ffc 7,9-14,16,18-23,27-28,32-35,40-44,50,52-58,60-62,67-69,75
+  s_3710a0cff554c8::t_1a6a600dbadc68 1,3
+.claude/agents/batch-dependabot.md
+  s_3710a0cff554c8::t_3eeae2673c5636 86-87
+.github/workflows/deploy-pages.yml
+  s_3710a0cff554c8::t_af40a7286ad747 26,29-30
+.github/workflows/release.yaml
+  s_3710a0cff554c8::t_94757744d98b42 16,57,154
+AGENTS.md
+  s_3710a0cff554c8::t_55d303f0909b0a 29
+README.md
+  s_3710a0cff554c8::t_08974be64865b0 32
+analytics-api-client-go/go.mod
+  s_3710a0cff554c8::t_0e1a7e6afeb535 1
+analytics-api-client-go/project.json
+  s_3710a0cff554c8::t_530b66963ee401 63
+api-client-go/go.mod
+  s_3710a0cff554c8::t_e1d346202c9bb4 1
+api-client-go/project.json
+  s_3710a0cff554c8::t_86b02bef7eb9e2 42,73-74
+cli/apiclient/api_client.go
+  s_3710a0cff554c8::t_13cc0a63503d8c 13-16
+cli/apiclient/api_client_test.go
+  s_3710a0cff554c8::t_db0112735f50d9 13
+cli/apiclient/error_handler_test.go
+  s_3710a0cff554c8::t_11e236574583e2 12
+cli/apiclient/latest_release.go
+  s_3710a0cff554c8::t_3d426b56043fab 17-18
+cli/auth/auth_test.go
+  s_3710a0cff554c8::t_6d452eb1468023 18
+cli/cmd/auth/login_test.go
+  s_3710a0cff554c8::t_6470dfd5353f8d 13-14
+cli/config/config.go
+  s_3710a0cff554c8::t_cdcecf9069aed5 14-15
+cli/go.mod
+  s_3710a0cff554c8::t_06bdc96dd2e34f 1,7-8
+cli/hack/build.sh
+  s_3710a0cff554c8::t_eed3479032f0c4 104-109
+cli/main_test.go
+  s_3710a0cff554c8::t_ef755febc542e7 41-42
+cli/toolbox/api_client.go
+  s_3710a0cff554c8::t_e7d4c69695935a 13-17
+cli/toolbox/api_client_test.go
+  s_3710a0cff554c8::t_2c73d8224ca37a 13-14
+cli/toolbox/toolbox.go
+  s_3710a0cff554c8::t_e7049bc4026e75 15-16
+cli/toolbox/toolbox_test.go
+  s_3710a0cff554c8::t_8ca75655d4b872 17-18
+cli/views/organization/info.go
+  s_3710a0cff554c8::t_22ccf06793ce67 11-13
+cli/views/organization/list.go
+  s_3710a0cff554c8::t_c509cd289d5387 10-12
+cli/views/organization/members.go
+  s_3710a0cff554c8::t_917a5ce8881882 11-13
+cli/views/organization/select.go
+  s_3710a0cff554c8::t_83609d1e87f671 8-9
+cli/views/sandbox/info.go
+  s_3710a0cff554c8::t_20312a3a3212f7 12-14
+cli/views/sandbox/list.go
+  s_3710a0cff554c8::t_f0036a079c8165 10-12
+cli/views/snapshot/info.go
+  s_3710a0cff554c8::t_0655da0c22d4a8 11-13
+cli/views/snapshot/list.go
+  s_3710a0cff554c8::t_11455f69f18b94 10-12
+cli/views/util/empty_list.go
+  s_3710a0cff554c8::t_aa793c9008e42e 7
+cli/views/util/info.go
+  s_3710a0cff554c8::t_815c82d77f72b5 8
+cli/views/util/table.go
+  s_3710a0cff554c8::t_41d5ff0863f8f3 14
+cli/views/volume/info.go
+  s_3710a0cff554c8::t_fa42724f350956 11-13
+cli/views/volume/list.go
+  s_3710a0cff554c8::t_4884085cc0b576 10-12
+examples/go/auto_archive/main.go
+  s_3710a0cff554c8::t_f7415c9fc658f9 11-13
+examples/go/auto_delete/main.go
+  s_3710a0cff554c8::t_a6c9abe7fa445b 11-13
+examples/go/charts/main.go
+  s_3710a0cff554c8::t_0479bd205ac7ed 13-15
+examples/go/code_interpreter/main.go
+  s_3710a0cff554c8::t_4cfb758ca66151 11-13
+examples/go/computer_use/main.go
+  s_3710a0cff554c8::t_b91b7a3f8e145c 13-15
+examples/go/exec_linked/main.go
+  s_3710a0cff554c8::t_5a1abaa64498b7 12-14
+examples/go/exec_sessions/main.go
+  s_3710a0cff554c8::t_5b4c652467101e 11-12
+examples/go/filesystem/main.go
+  s_3710a0cff554c8::t_2f9604fd518b0c 14-16
+examples/go/fromimage/main.go
+  s_3710a0cff554c8::t_95f5eaf701f7cc 12-14
+examples/go/git_operations/main.go
+  s_3710a0cff554c8::t_d068e0528fccfc 13-15
+examples/go/go.mod
+  s_3710a0cff554c8::t_62d1b442bcdad5 1,7,30-32,52,54,56,58
+examples/go/lifecycle/main.go
+  s_3710a0cff554c8::t_c0e4216a414b5a 11-13
+examples/go/lsp_usage/main.go
+  s_3710a0cff554c8::t_496c939530e608 11-13
+examples/go/network_settings/main.go
+  s_3710a0cff554c8::t_991e8bbc9fde16 11-13
+examples/go/pagination/main.go
+  s_3710a0cff554c8::t_449945758eef58 11
+examples/go/pty_channel/main.go
+  s_3710a0cff554c8::t_41a0f0725033ce 11-12
+examples/go/sandbox/main.go
+  s_3710a0cff554c8::t_ab0166466a1dfb 11-13
+examples/go/secrets/main.go
+  s_3710a0cff554c8::t_761f05ee7d0623 12-13
+examples/go/snapshots_simple/main.go
+  s_3710a0cff554c8::t_ea58964a4343a7 10
+examples/go/stream_logs/main.go
+  s_3710a0cff554c8::t_0edd0ba05b3227 13-14
+examples/go/volumes/main.go
+  s_3710a0cff554c8::t_f913790fc77c0c 10
+examples/go/volumes_with_sandbox/main.go
+  s_3710a0cff554c8::t_d3f9ec6430e1e1 12-14
+examples/go/warm_pools/main.go
+  s_3710a0cff554c8::t_d2d593d78baf2a 10-11
+go.work
+  s_3710a0cff554c8::t_c26b565fa2422b 12,14,16
+hack/go-vanity/generate-site.sh
+  s_3710a0cff554c8::t_283279ecbf0ce4 3,6,13
+sdk-go/README.md
+  s_3710a0cff554c8::t_4e5ad94fcfa64d 15-16
+sdk-go/go.mod
+  s_3710a0cff554c8::t_4919a07bc3e5dd 1,11-13
+sdk-go/pkg/common/event_dispatcher.go
+  s_3710a0cff554c8::t_b67e1774a77085 13
+sdk-go/pkg/daytona/client.go
+  s_3710a0cff554c8::t_303a874e870ab9 72-77
+sdk-go/pkg/daytona/computer_use.go
+  s_3710a0cff554c8::t_61835b15a1f8ff 13-15
+sdk-go/pkg/daytona/enums.go
+  s_3710a0cff554c8::t_70b9fd5abe6a3c 6
+sdk-go/pkg/daytona/file_transfer.go
+  s_3710a0cff554c8::t_4e569b37050d74 18-19
+sdk-go/pkg/daytona/file_url_signing.go
+  s_3710a0cff554c8::t_2aef458ef27ea6 15
+sdk-go/pkg/daytona/filesystem.go
+  s_3710a0cff554c8::t_ccb59d758ed2fb 14-17
+sdk-go/pkg/daytona/git.go
+  s_3710a0cff554c8::t_72732e36a0ab86 9-12
+sdk-go/pkg/daytona/image.go
+  s_3710a0cff554c8::t_bde64647303bfd 11
+sdk-go/pkg/daytona/lsp_server.go
+  s_3710a0cff554c8::t_ccaeb079298f2b 10-12
+sdk-go/pkg/daytona/object_storage.go
+  s_3710a0cff554c8::t_31492a958ecd0f 25
+sdk-go/pkg/daytona/sandbox.go
+  s_3710a0cff554c8::t_2b8b1f8beb7fe2 16-21
+sdk-go/pkg/daytona/secret.go
+  s_3710a0cff554c8::t_00e527a6aa4b29 9-11
+sdk-go/pkg/daytona/snapshot.go
+  s_3710a0cff554c8::t_ac855080ff888c 18-20
+sdk-go/pkg/daytona/volume.go
+  s_3710a0cff554c8::t_dce2779cfba9d2 10-12
+sdk-go/pkg/daytona/warm_pool.go
+  s_3710a0cff554c8::t_f52e1cef3fb6ad 10-12
+sdk-go/pkg/errors/deprecated_test.go
+  s_3710a0cff554c8::t_36ee5e24901b8e 11
+sdk-go/pkg/errors/errors.go
+  s_3710a0cff554c8::t_aeb15e3af18583 39-40
+sdk-go/pkg/errors/errors_test.go
+  s_3710a0cff554c8::t_6f6a759d568202 12
+sdk-go/pkg/options/process.go
+  s_3710a0cff554c8::t_27239f939df28d 9
+sdk-go/pkg/types/types.go
+  s_3710a0cff554c8::t_e486b1b417b807 10-11
+sdk-go/project.json
+  s_3710a0cff554c8::t_44b7fd4e722093 136,147
+toolbox-api-client-go/go.mod
+  s_3710a0cff554c8::t_5e34ae0720477f 1
+toolbox-api-client-go/project.json
+  s_3710a0cff554c8::t_c48cfc621f7a2e 58,84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de872c3590747c31b3b6f1a042d40a6f77fe4e1e",
+  "prompts": {},
+  "sessions": {
+    "s_3710a0cff554c8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f3ca10f0efferVtB1CPkq5poJB",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_652a0bb2d4b744": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f092e3d05ffePJqYpThsHwhKZN",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

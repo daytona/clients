@@ -1,0 +1,21 @@
+sdk-typescript/hooks/typedoc-custom.mjs
+  s_9f424cdd06a807::t_ef47eefba54d85 282-283
+sdk-typescript/src/Daytona.ts
+  s_9f424cdd06a807::t_6b8677c03a5450 518-519,522
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45f0022bb4a34bfe22e14c8e97724bc97cdccc79",
+  "prompts": {},
+  "sessions": {
+    "s_9f424cdd06a807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "claude-fable-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

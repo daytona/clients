@@ -1,0 +1,28 @@
+cli/hack/homebrew/README.md
+  s_4d9fba4bce0dac::t_53ed335daca09a 10
+docs/VERSIONING.md
+  s_4d9fba4bce0dac::t_9fe5a287ba4a80 203-206
+  s_4d9fba4bce0dac::t_b10c8da04a04ff 7-11
+cli/README.md
+  s_4d9fba4bce0dac::t_aa2130fa93e50f 46
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_3971f2fdab5d9f 286-289
+  s_4d9fba4bce0dac::t_215a5ad8792576 180-187
+  s_4d9fba4bce0dac::t_b10c8da04a04ff 280-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea39ea3ae535c4ff38fc1c02af70426873af1965",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

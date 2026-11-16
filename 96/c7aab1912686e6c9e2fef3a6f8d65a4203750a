@@ -1,0 +1,19 @@
+sdk-typescript/src/v2/contextUpload.ts
+  s_1d65fa05b6bddd::t_c7d4cca39564ea 140-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96c7aab1912686e6c9e2fef3a6f8d65a4203750a",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

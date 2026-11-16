@@ -1,0 +1,14 @@
+upgrade/python/tests/test_dependency_records.py
+  h_e7759ddd73fa65 50-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a120d823d36c46e595e8aff301d6ee993bb98615",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

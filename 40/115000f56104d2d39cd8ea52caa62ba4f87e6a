@@ -1,0 +1,14 @@
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  h_e7759ddd73fa65 145-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40115000f56104d2d39cd8ea52caa62ba4f87e6a",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

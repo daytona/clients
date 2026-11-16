@@ -1,0 +1,97 @@
+upgrade/scripts/docs-links.test.mjs
+  s_3a78f9367300e1::t_3bc701f0ea2993 32-48
+upgrade/python/src/daytona_upgrade/project_paths.py
+  s_3a78f9367300e1::t_c99bf5cdb6ecc3 22-23,164
+  s_3a78f9367300e1::t_191aaade88b7ca 131-134,148-152
+changelog.d/upgrade-suggest-none-timeout.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+upgrade/typescript/tests/client-service-proofs.test.ts
+  s_3a78f9367300e1::t_0963beab46067e 118,121
+changelog.d/upgrade-both-package-names.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-4
+upgrade/python/src/daytona_upgrade/source_suffixes.py
+  s_3a78f9367300e1::t_c99bf5cdb6ecc3 1-15
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_3a78f9367300e1::t_1ed57ed3b3549a 122
+changelog.d/upgrade-drop-api-url-message.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  s_3a78f9367300e1::t_1ed57ed3b3549a 19-20,22-23,27-30,39-44
+  s_3a78f9367300e1::t_1d4084cc1ca4a3 45-47
+upgrade/python/tests/test_dependency_fixes.py
+  s_3a78f9367300e1::t_1ed57ed3b3549a 154-176
+changelog.d/upgrade-suggest-lsp-owner.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+changelog.d/upgrade-unknown-extras.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-4
+upgrade/typescript/tests/qualified-package-constraints.test.ts
+  s_3a78f9367300e1::t_0658d0ab2c0f58 53-63
+changelog.d/upgrade-api-url-spacing.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+changelog.d/upgrade-suggest-result-names.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-2
+changelog.d/v0-pin-image-exec-forms.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+upgrade/scripts/check-v2-surface.mjs
+  s_3a78f9367300e1::t_3bc701f0ea2993 65,73
+upgrade/scripts/optional-arguments.mjs
+  s_3a78f9367300e1::t_3bc701f0ea2993 32-36,39
+changelog.d/upgrade-suggest-root-services.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-4
+changelog.d/upgrade-pyw-sources.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+upgrade/typescript/src/manifests.ts
+  s_3a78f9367300e1::t_0658d0ab2c0f58 80-81
+changelog.d/upgrade-suggest-keyboard.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-4
+changelog.d/v0-pin-run-commands-quoting.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+upgrade/python/src/daytona_upgrade/analysis_filter.py
+  s_3a78f9367300e1::t_c99bf5cdb6ecc3 18,82-84
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  s_3a78f9367300e1::t_1ed57ed3b3549a 25,102-113
+upgrade/scripts/optional-arguments.test.mjs
+  s_3a78f9367300e1::t_3bc701f0ea2993 45-47
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_3a78f9367300e1::t_571ab33bf0c5ca 14,69-78
+changelog.d/upgrade-file-path-refusal.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-3
+changelog.d/upgrade-suggest-after-sandbox-methods.fixed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-4
+upgrade/python/tests/test_async_mock_spec_origins.py
+  s_3a78f9367300e1::t_221a3a5bb810a2 19
+upgrade/typescript/src/suggestions.ts
+  s_3a78f9367300e1::t_85fc7993ea5b3c 17,89,91-93,96,103
+  s_3a78f9367300e1::t_571ab33bf0c5ca 106-109
+changelog.d/v0-pin-l40s.added.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 1-2
+changelog.d/v0-pin-0-231-1.changed.md
+  s_3a78f9367300e1::t_5f0a330ac70ba3 3
+upgrade/python/src/daytona_upgrade/project_configs.py
+  s_3a78f9367300e1::t_c99bf5cdb6ecc3 14,59
+upgrade/python/tests/test_cli.py
+  s_3a78f9367300e1::t_221a3a5bb810a2 345-346,350,352-353,356,358-361
+  s_3a78f9367300e1::t_191aaade88b7ca 347-349,351,354-355,357,362
+docs/RELEASING.md
+  s_3a78f9367300e1::t_3bc701f0ea2993 301-303
+upgrade/typescript/src/sdk-methods.ts
+  s_3a78f9367300e1::t_85fc7993ea5b3c 61-62
+upgrade/python/src/daytona_upgrade/importflow.py
+  s_3a78f9367300e1::t_c99bf5cdb6ecc3 18,28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ff1ee2474937121e2519d4e7e86cb970fb526c3",
+  "prompts": {},
+  "sessions": {
+    "s_3a78f9367300e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39ebaad0ffeVnwNETxVFiRbJd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

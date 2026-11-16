@@ -1,0 +1,19 @@
+changelog.d/redirects.breaking.md
+  s_e8864ccceb0d86::t_6c736112f8b01a 5-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "911c66a5401bb25845e50c6d734dc969d1f77ece",
+  "prompts": {},
+  "sessions": {
+    "s_e8864ccceb0d86": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e3dcfffeiMacsS74Cjbqod",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_57e35983e79be0::t_e3e5a41c41bf58 4969-4972,4975-4978
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_2a882320044229::t_df258b457fc4e5 875-877,882-886
+artifacts/sdk-docs/ruby-sdk/process.mdx
+  s_57e35983e79be0::t_0169cf423b6b86 95,116,121,124,127
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  s_57e35983e79be0::t_5bd7184e154b77 962-964,1091-1094,1099-1100
+sdk-go/pkg/daytona/sandbox.go
+  s_2a882320044229::t_03528a262bf0a6 1575-1578,1581-1584
+sdk-python/src/daytona/_async/sandbox.py
+  s_2a882320044229::t_16d640102f6cfa 1004-1006,1011-1015
+sdk-python/src/daytona/_sync/sandbox.py
+  s_2a882320044229::t_ccd343efd9ddf2 984-985
+sdk-ruby/lib/daytona/process.rb
+  s_2a882320044229::t_b76f959d058d8f 50,64,69,72,75
+sdk-ruby/lib/daytona/sandbox.rb
+  s_2a882320044229::t_09d587b4646ce8 560-562,649-652,655-656
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f601e77956dbd0fffaed0e7c3120b05936a7018d",
+  "prompts": {},
+  "sessions": {
+    "s_2a882320044229": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa3949cc8ffee9tW84tr3t3lcG",
+        "model": "claude-opus-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_57e35983e79be0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee524f2bdffe0ikJb6ixf1IJ7Z",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

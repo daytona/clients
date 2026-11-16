@@ -1,0 +1,81 @@
+sdk-typescript/tests/reservation-fields.test.ts
+  s_c85c66a4c5af54::t_d42e45a79ece7a 42
+cli/cmd/fixtures_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 19-21
+cli/internal/mgmt/client_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 144,157
+sdk-python/src/daytona/v2/_gen/api/models/create_project_api_key_request.py
+  s_c85c66a4c5af54::t_249488e10d9075 45,131
+sdk-python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  s_c85c66a4c5af54::t_249488e10d9075 55
+sdk-typescript/tests/argument-checks.test.ts
+  s_c85c66a4c5af54::t_d42e45a79ece7a 299
+sdk-python/tests/test_core.py
+  s_c85c66a4c5af54::t_c74932ea2424e7 12688-12689
+changelog.d/559-sandboxes-per-mac.breaking.md
+  s_c85c66a4c5af54::t_a5924d57900c3c 1-3,7
+  s_c85c66a4c5af54::t_3d85645b7810d4 4-6
+sdk-typescript/tests/frozen-results.test.ts
+  s_c85c66a4c5af54::t_d42e45a79ece7a 21
+cli/cmd/reservation_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 21
+  s_c85c66a4c5af54::t_add811a8dd6283 174-175
+sdk-typescript/src/v2/responseFields.ts
+  s_c85c66a4c5af54::t_0a46e477b0a9d4 145
+sdk-python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  s_c85c66a4c5af54::t_249488e10d9075 66
+contract/sandbox-events-protocol.json
+  s_c85c66a4c5af54::t_18c589b8c18144 86-87
+sdk-python/src/daytona/v2/_gen/api/models/v0_sandbox.py
+  s_c85c66a4c5af54::t_249488e10d9075 51,139
+cli/cmd/auth_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 904
+cli/cmd/command_more_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 20,30,38,153,165
+contract/api-openapi.json
+  s_c85c66a4c5af54::t_18c589b8c18144 2119,2136,2188,6118,8581
+sdk-python/src/daytona/v2/_gen/api/models/project_api_key_with_context.py
+  s_c85c66a4c5af54::t_249488e10d9075 56
+cli/gen/api/types.gen.go
+  s_c85c66a4c5af54::t_249488e10d9075 2281,2287,2306,5600
+sdk-python/src/daytona/v2/_gen/api/models/v0_sandbox_import.py
+  s_c85c66a4c5af54::t_249488e10d9075 45
+cli/cmd/contract_fixtures_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 10
+sdk-typescript/tests/malformed-responses.test.ts
+  s_c85c66a4c5af54::t_d42e45a79ece7a 733
+sdk-python/src/daytona/v2/_gen/api/models/v0_migration_summary.py
+  s_c85c66a4c5af54::t_249488e10d9075 45
+sdk-typescript/src/v2/gen/api.ts
+  s_c85c66a4c5af54::t_249488e10d9075 3116,3126,3151,6242
+sdk-python/src/daytona/v2/_gen/api/models/update_project_api_key_request.py
+  s_c85c66a4c5af54::t_249488e10d9075 37,39,101
+sdk-python/src/daytona/v2/_gen/api/models/project_api_key_with_token.py
+  s_c85c66a4c5af54::t_249488e10d9075 91
+sdk-python/src/daytona/v2/_gen/api/models/project_api_key.py
+  s_c85c66a4c5af54::t_249488e10d9075 54,175
+cli/cmd/key_test.go
+  s_c85c66a4c5af54::t_0497a753c6ca6d 20-21
+sdk-python/src/daytona/v2/_gen/api/models/organization.py
+  s_c85c66a4c5af54::t_249488e10d9075 53,143
+sdk-typescript/tests/unit.test.ts
+  s_c85c66a4c5af54::t_d42e45a79ece7a 169,8434,10654-10655,10657
+sdk-python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  s_c85c66a4c5af54::t_249488e10d9075 43,45,51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc178f39da85d26b328e2b593b879d5503cd85c0",
+  "prompts": {},
+  "sessions": {
+    "s_c85c66a4c5af54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e0bd101ffeZjAnumrf4BzHhw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

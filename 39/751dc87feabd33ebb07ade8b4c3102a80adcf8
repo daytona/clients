@@ -1,0 +1,34 @@
+poetry.lock
+  h_e7759ddd73fa65 1100,3342
+sdk-python/pyproject.toml
+  h_e7759ddd73fa65 32-33
+sdk-python/src/daytona/_async/object_storage.py
+  h_e7759ddd73fa65 11,17,74-81,95,103,125-127,144-146,148-151,154-155,160-161,190-196,215-218
+sdk-python/src/daytona/_async/snapshot.py
+  h_e7759ddd73fa65 286-289
+sdk-python/src/daytona/_sync/object_storage.py
+  h_e7759ddd73fa65 11,15,72-79,93,101,123-125,142-144,146-149,152-153,158-159,188-194,213-216
+sdk-python/src/daytona/_sync/snapshot.py
+  h_e7759ddd73fa65 283-286
+sdk-python/src/daytona/_utils/dockerignore.py
+  h_e7759ddd73fa65 1-100
+sdk-python/src/daytona/common/image.py
+  h_e7759ddd73fa65 38,423-424,431-437,445,470,480-486
+sdk-python/tests/test_async_object_storage.py
+  h_e7759ddd73fa65 6-7,129-132,156-197
+sdk-python/tests/test_image.py
+  h_e7759ddd73fa65 192-203
+sdk-python/tests/test_object_storage.py
+  h_e7759ddd73fa65 6-7,130-133,153-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "39751dc87feabd33ebb07ade8b4c3102a80adcf8",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

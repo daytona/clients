@@ -1,0 +1,71 @@
+sdk-typescript/src/v2/filesystemWire.ts
+  s_9a337fd66d5341::t_b924ab48658304 6,194,197-204
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_b924ab48658304 906,969,982-994,999,1014,1032,1046,1056,1059,1067,8094,9068,9080,9101,9121,9139,9156,9197,9211,9220,9248,9268,9273,9647,9662,10231
+sdk-python/DEVELOPMENT.md
+  s_9a337fd66d5341::t_b924ab48658304 240-245
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_9a337fd66d5341::t_b924ab48658304 801-831,874-875,883,895
+  s_9a337fd66d5341::t_9e7dc3481d98d0 877-878,900,942-943
+sdk-typescript/tests/process-tags.test.ts
+  s_9a337fd66d5341::t_b924ab48658304 179
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_b9915ded4f3e0a 2410,2412-2414
+sdk-python/src/daytona/v2/_auth.py
+  s_9a337fd66d5341::t_b924ab48658304 155-157
+AGENTS.md
+  s_9a337fd66d5341::t_b924ab48658304 93-97,540-549,614-619
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_9a337fd66d5341::t_b924ab48658304 19,358-404
+  s_9a337fd66d5341::t_44d7a13ba2df29 405
+sdk-python/src/daytona/v2/_body_limit.py
+  s_9a337fd66d5341::t_b924ab48658304 22,97-99,103-109,116-120,139-154,156-162,166-167,169,174-180
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_d7f7cf0141b316 297-306
+  s_9a337fd66d5341::t_118064950eca18 291-293
+  s_9a337fd66d5341::t_b924ab48658304 288-290,294-296,307
+sdk-typescript/src/v2/http.ts
+  s_9a337fd66d5341::t_c850ab904bdadc 8
+sdk-python/tests/test_transfer_bounds.py
+  s_9a337fd66d5341::t_b924ab48658304 23,34,40,808-907,936-1009
+sdk-python/src/daytona/v2/_transport.py
+  s_9a337fd66d5341::t_b924ab48658304 330-332,357-359,859-861,1055-1057
+  s_9a337fd66d5341::t_d7f7cf0141b316 1255-1257
+changelog.d/537-error-media-type.changed.md
+  s_9a337fd66d5341::t_b924ab48658304 1-8
+sdk-typescript/src/v2/BuildLogs.ts
+  s_9a337fd66d5341::t_b924ab48658304 410
+sdk-python/tests/test_build_logs.py
+  s_9a337fd66d5341::t_b924ab48658304 811-820
+changelog.d/537-transfer-bounds.breaking.md
+  s_9a337fd66d5341::t_b924ab48658304 37-47
+sdk-python/src/daytona/v2/build_logs.py
+  s_9a337fd66d5341::t_b924ab48658304 22-32,40,579,593-595,619
+sdk-python/tests/test_core.py
+  s_9a337fd66d5341::t_b924ab48658304 115,11997-12023
+  s_9a337fd66d5341::t_a58ff150421968 12024-12025
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_b924ab48658304 406
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_9a337fd66d5341::t_b924ab48658304 15,297-302
+sdk-typescript/tests/errors-contract.test.ts
+  s_9a337fd66d5341::t_b924ab48658304 25-26,85,91
+changelog.d/537-byte-read-errors.fixed.md
+  s_9a337fd66d5341::t_b924ab48658304 5-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f7381a6df8eb1bff328c5226a931bac0b3f8f78",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

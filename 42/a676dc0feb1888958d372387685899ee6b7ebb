@@ -1,0 +1,42 @@
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_8a3702ceeb6fb8 891-892,896
+changelog.d/538-process-records.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 1-5
+changelog.d/538-watch-callbacks.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 1-7
+changelog.d/538-watch-limits.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 1-12
+sdk-python/README.md
+  s_9a337fd66d5341::t_8a3702ceeb6fb8 977-978
+changelog.d/538-process-list.breaking.md
+  s_9a337fd66d5341::t_0c94f0fd038de0 3-4
+  s_9a337fd66d5341::t_f7081876446691 1-2
+changelog.d/538-watch-lifecycle.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 1-10
+  s_9a337fd66d5341::t_0c94f0fd038de0 11-32
+changelog.d/538-process-int32.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 1-4
+changelog.d/538-process-streams.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 24-26
+changelog.d/538-watch-stream-ends.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 1
+  s_9a337fd66d5341::t_0c94f0fd038de0 2-6
+changelog.d/538-process-tags.breaking.md
+  s_9a337fd66d5341::t_f7081876446691 16-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "42a676dc0feb1888958d372387685899ee6b7ebb",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

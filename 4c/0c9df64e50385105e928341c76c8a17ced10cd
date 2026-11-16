@@ -1,0 +1,38 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 933,995,1010,1191-1207
+upgrade/mapping/v0-version-messages.json
+  h_e7759ddd73fa65 2,6-9,14-17,19-46
+upgrade/python/src/daytona_upgrade/cli.py
+  h_e7759ddd73fa65 80-81,250-257,259
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 62-75,117-126
+upgrade/python/src/daytona_upgrade/manifests.py
+  h_e7759ddd73fa65 222,232-233
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 229
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 571-573,777-784,791,794-795,797,802-803,836-861
+upgrade/typescript/src/dependency-scope.ts
+  h_e7759ddd73fa65 11,60-62,64
+upgrade/typescript/src/run.ts
+  h_e7759ddd73fa65 203
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 66-70
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 191,195
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 108-110
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 372-373,377-378,380,383,388
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4c0c9df64e50385105e928341c76c8a17ced10cd",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

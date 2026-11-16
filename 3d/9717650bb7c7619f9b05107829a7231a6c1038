@@ -1,0 +1,36 @@
+sdk-typescript/tests/watch-transport.test.ts
+  s_9a337fd66d5341::t_156bdb416427e1 14,35,38-40,60-70,135-163
+  s_9a337fd66d5341::t_de29ff6818e3db 164
+changelog.d/538-watches.breaking.md
+  s_9a337fd66d5341::t_49cce6641c4463 32-40
+sdk-python/src/daytona/v2/filesystem.py
+  s_9a337fd66d5341::t_b32d08618c6f45 67-69
+  s_9a337fd66d5341::t_98624a1bbfea4c 610-612,621-622,665-672
+sdk-python/DEVELOPMENT.md
+  s_9a337fd66d5341::t_8e8e808ac7c311 171
+sdk-python/tests/test_watch_transport.py
+  s_9a337fd66d5341::t_cd5789c0066ed4 30-32,44-57,394-401,404-435
+  s_9a337fd66d5341::t_c320391150de98 265,305
+  s_9a337fd66d5341::t_3418e752e9fa58 25,402-403
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_ab1a3c8b5497df 102-106
+  s_9a337fd66d5341::t_f264cbcb6b0fe4 413-415,449-450,530-532
+AGENTS.md
+  s_9a337fd66d5341::t_8e8e808ac7c311 646-647
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d9717650bb7c7619f9b05107829a7231a6c1038",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_54e896644a049e 164-180
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_f3945e3777d202 6,95-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0954ac0eda8fc6e1e396c080998b1026a8eed64",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

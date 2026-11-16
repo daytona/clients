@@ -1,0 +1,33 @@
+changelog.d/539-create-resources.breaking.md
+  s_ca009e77d17705::t_5678bbd5b67e97 9-12
+changelog.d/539-models.breaking.md
+  s_ca009e77d17705::t_5678bbd5b67e97 6-10,12-13,15-20,22-32
+changelog.d/539-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_5678bbd5b67e97 6-37
+README.md
+  s_ca009e77d17705::t_f37eb137660eb9 34
+changelog.d/539-platform-services.breaking.md
+  s_ca009e77d17705::t_5678bbd5b67e97 5-16,23-29
+AGENTS.md
+  s_ca009e77d17705::t_29e6c51b6a13e7 89-91,470-472,491-492,506-507,596-606,610-616
+changelog.d/539-ts-option-keys.breaking.md
+  s_ca009e77d17705::t_5678bbd5b67e97 3-5,7-8
+changelog.d/539-list-search.breaking.md
+  s_ca009e77d17705::t_5678bbd5b67e97 5-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5f90258703e65f64b01c76dd86be59866a46c64",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

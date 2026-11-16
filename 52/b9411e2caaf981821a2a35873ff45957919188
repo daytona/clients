@@ -1,0 +1,21 @@
+scripts/secret-scan.sh
+  s_170baf016701c2::t_65ba8feb39073a 135-137,139,146
+scripts/secret-scan_test.sh
+  s_170baf016701c2::t_797f6ad849bc96 139,141-146,148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52b9411e2caaf981821a2a35873ff45957919188",
+  "prompts": {},
+  "sessions": {
+    "s_170baf016701c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e55179970ffel5mD5rtZsQQcTa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

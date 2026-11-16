@@ -1,0 +1,37 @@
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_b910909c53ccf3 155-157
+sdk-python/src/daytona/_client.py
+  s_f23bcae77f0e63::t_40194355d71a2b 180-181
+sdk-typescript/src/v2/types.ts
+  s_f23bcae77f0e63::t_f14452dbd7e2d0 121-123
+  s_f23bcae77f0e63::t_40194355d71a2b 95-96
+sdk-typescript/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_b910909c53ccf3 125-129
+sdk-python/src/daytona/v2/types.py
+  s_f23bcae77f0e63::t_40194355d71a2b 367-368
+sdk-typescript/src/types.ts
+  s_f23bcae77f0e63::t_40194355d71a2b 39-40
+AGENTS.md
+  s_f23bcae77f0e63::t_f8a1a221690eaf 486-492,586-587
+sdk-python/README.md
+  s_f23bcae77f0e63::t_b910909c53ccf3 538
+  s_f23bcae77f0e63::t_7e57fa69f81cc3 215-216
+sdk-typescript/README.md
+  s_f23bcae77f0e63::t_b910909c53ccf3 70-72,187,480
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bccabcbdb71371079618e6290c2bb5b6c7adb3e8",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

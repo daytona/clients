@@ -1,0 +1,27 @@
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_90936d2b2e0ad6 472-491
+sdk-typescript/src/v2/events.ts
+  s_f23bcae77f0e63::t_babedbad561c85 2120,2122-2124,2132-2133,2166-2169
+sdk-python/tests/test_transfer_bounds.py
+  s_f23bcae77f0e63::t_90936d2b2e0ad6 490-523
+sdk-python/src/daytona/v2/_events.py
+  s_f23bcae77f0e63::t_babedbad561c85 1646-1647,1649-1651,1660-1661,1685-1692
+changelog.d/537-transfer-bounds.breaking.md
+  s_f23bcae77f0e63::t_e8ccb4cd280a41 30-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "baed5c254c3158d73df007da4cc99b4a2cd21086",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

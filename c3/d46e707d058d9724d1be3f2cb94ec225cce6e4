@@ -1,0 +1,16 @@
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 113,116
+yarn.lock
+  h_e7759ddd73fa65 5960,6002
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c3d46e707d058d9724d1be3f2cb94ec225cce6e4",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

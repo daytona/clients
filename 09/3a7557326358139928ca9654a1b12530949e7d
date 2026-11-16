@@ -1,0 +1,28 @@
+AGENTS.md
+  s_aa070e7b745b4c::t_8de11f2ae6a8f8 924-928
+sdk-python/src/daytona/v2/sandbox.py
+  s_aa070e7b745b4c::t_8de11f2ae6a8f8 1048-1049,1091-1094,1096-1099,1179-1181
+sdk-typescript/src/v2/sandboxWait.ts
+  s_aa070e7b745b4c::t_8de11f2ae6a8f8 95,97,125-128,157-158,197-201,203-204
+sdk-python/tests/test_wait_final_read.py
+  s_aa070e7b745b4c::t_88cf7fd1e97783 166-167,181,189-190,203,273-288
+sdk-typescript/tests/wait-final-read.test.ts
+  s_aa070e7b745b4c::t_88cf7fd1e97783 51-52,136-137,157-158,226-235
+  s_aa070e7b745b4c::t_ebba0648fac32a 236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "093a7557326358139928ca9654a1b12530949e7d",
+  "prompts": {},
+  "sessions": {
+    "s_aa070e7b745b4c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3e1df5bdffeOek82jW7CuPE6C",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

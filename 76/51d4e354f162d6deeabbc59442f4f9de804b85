@@ -1,0 +1,16 @@
+sdk-typescript/src/__tests__/Daytona.test.ts
+  h_e7759ddd73fa65 176-178
+sdk-typescript/src/__tests__/v1.test.ts
+  h_e7759ddd73fa65 287-316
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7651d4e354f162d6deeabbc59442f4f9de804b85",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+sdk-python/src/daytona/v2/_image_context.py
+  s_8a7ddf2071703b::t_1e16f911cd29d8 14,118-127,130,141
+sdk-python/tests/test_image_source_errors.py
+  s_8a7ddf2071703b::t_d679682e6b7e4a 8,36-39,41-42
+  s_8a7ddf2071703b::t_7b501d1354d008 1-7,9-35,40,43-81
+sdk-python/src/daytona/v2/_image_source.py
+  s_8a7ddf2071703b::t_1e16f911cd29d8 8,11,61-64,67-79,82,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3ec0e5dc92b23a4ad01285ec2c330c05db81463",
+  "prompts": {},
+  "sessions": {
+    "s_8a7ddf2071703b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3775b1bbffez7tKuLPkiq3gJj",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  h_e7759ddd73fa65 169
+sdk-ruby/README.md
+  h_e7759ddd73fa65 129,133,136,139,152-154
+sdk-ruby/lib/daytona/daytona.rb
+  h_e7759ddd73fa65 115,404-405,414,456,469,478-486
+sdk-ruby/spec/daytona/daytona_spec.rb
+  h_e7759ddd73fa65 9,12,563-565,567-570,572-573,575,577-587,589-592
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6712e6b5de708b4f0895c55bb6e7b669acda88d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

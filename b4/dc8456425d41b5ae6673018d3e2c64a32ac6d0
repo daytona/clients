@@ -1,0 +1,23 @@
+changelog.d/558.fixed.md
+  s_81f62e21ddee63::t_b38f8e9e1d1bf0 8-14
+sdk-python/src/daytona/v2/_events.py
+  s_81f62e21ddee63::t_7f02c103211ca3 95-101,104-105,107-111,374-376,449-450,809,821-823,837,1276-1277,1618-1630,1632-1638,1640,1644,1664-1666,1670-1673
+sdk-typescript/src/v2/events.ts
+  s_81f62e21ddee63::t_51db2821438b13 112-113,120-126,130-134,531-533,599-600,622-623,660-661,902,1605-1607,2072-2079,2081-2084,2086-2088,2090,2095,2111,2114-2116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4dc8456425d41b5ae6673018d3e2c64a32ac6d0",
+  "prompts": {},
+  "sessions": {
+    "s_81f62e21ddee63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b223a5affeoYrJAIdDFFPv8B",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

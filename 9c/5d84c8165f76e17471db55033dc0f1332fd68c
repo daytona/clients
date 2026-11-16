@@ -1,0 +1,30 @@
+changelog.d/538-stream-encodings.breaking.md
+  s_9a337fd66d5341::t_5cce25a03d5823 1,4-5
+  s_9a337fd66d5341::t_34b22da893aae4 2-3
+changelog.d/538-stream-truncated.breaking.md
+  s_9a337fd66d5341::t_34b22da893aae4 1-2
+  s_9a337fd66d5341::t_5cce25a03d5823 3-5
+changelog.d/538-watch-limits.breaking.md
+  s_9a337fd66d5341::t_2ab918145eeee7 17-19
+changelog.d/538-stream-decoding.breaking.md
+  s_9a337fd66d5341::t_34b22da893aae4 3-7
+  s_9a337fd66d5341::t_4f3a2dc1ac9584 1-2
+changelog.d/538-computer-use-int32.breaking.md
+  s_9a337fd66d5341::t_34b22da893aae4 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c5d84c8165f76e17471db55033dc0f1332fd68c",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

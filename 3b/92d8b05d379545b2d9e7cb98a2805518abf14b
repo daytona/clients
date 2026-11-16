@@ -1,0 +1,62 @@
+scripts/ax-evals/evals.json
+  s_ef561ed5f0ed65::t_508537640b091b 1-90
+  s_70a7b932ced586::t_6b0c18ff45de99 91-123
+scripts/ax-evals/setup/cli.sh
+  s_ef561ed5f0ed65::t_d0f321f4abd10d 4-11
+  s_ef561ed5f0ed65::t_c456599a69e3e9 1-3
+scripts/ax-evals/setup/python.sh
+  s_ef561ed5f0ed65::t_34178d5e0350b3 4-9
+  s_ef561ed5f0ed65::t_a78e15dd08eb4e 1-3
+scripts/ax-evals/setup/typescript.sh
+  s_ef561ed5f0ed65::t_6f9b381936ab5a 1-22
+  s_ef561ed5f0ed65::t_a421ac2a9ad1ce 23-25
+scripts/ax-evals/ax-evals.test.js
+  s_ef561ed5f0ed65::t_3660700cd0301a 1-322
+scripts/ax-evals/setup/_common.sh
+  s_ef561ed5f0ed65::t_5403136e5889b8 77-79,81-82
+  s_ef561ed5f0ed65::t_427b5712a87521 1-76,80,83-86
+scripts/ax-evals/plan.js
+  s_ef561ed5f0ed65::t_72256afad8597b 1-145
+scripts/ax-evals/sync.py
+  s_ef561ed5f0ed65::t_396a9bcc1d6228 1-176
+.github/workflows/ax_evals.yaml
+  s_73d91427fb63e1::t_832f134bd18732 1-164
+.github/workflows/ax_evals_config.yaml
+  s_73d91427fb63e1::t_46af8974efc6be 1-58
+scripts/ax-evals/report.js
+  s_70a7b932ced586::t_26a749fb011100 1-127
+scripts/ax-evals/save-result.js
+  s_70a7b932ced586::t_76a94899ea1cfc 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b92d8b05d379545b2d9e7cb98a2805518abf14b",
+  "prompts": {},
+  "sessions": {
+    "s_70a7b932ced586": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bcdf455ffe1oKOn4yzGe079f",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_73d91427fb63e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bcdb14bffeqtclLQnQJp2Qdp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ef561ed5f0ed65": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bebe1e8ffeYnSEWlHMdr5yu6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

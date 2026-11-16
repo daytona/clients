@@ -1,0 +1,47 @@
+sdk-python/src/daytona/v2/daytona.py
+  s_f23bcae77f0e63::t_3c22c736130146 1302-1314,1316,1318,1328-1330
+examples/volumes_share.ts
+  s_f23bcae77f0e63::t_e225d9780ed2b6 28
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_e225d9780ed2b6 7068,7071,7075-7076,7078,7083-7084
+e2e/e2e.py
+  s_f23bcae77f0e63::t_e225d9780ed2b6 102
+examples/volumes_share.py
+  s_f23bcae77f0e63::t_e225d9780ed2b6 43
+sdk-typescript/src/v2/Daytona.ts
+  s_f23bcae77f0e63::t_f3cafde93e611f 8,469,530
+  s_f23bcae77f0e63::t_deafcd3c543bc6 459
+  s_f23bcae77f0e63::t_3c22c736130146 224-225,475-481,483-484,492
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_4a8fc0f11544b8 10622-10633,10635-10643
+sdk-python/tests/test_client_config.py
+  s_f23bcae77f0e63::t_7f16e2c5a4d824 265-274
+sdk-typescript/tests/client-config.test.ts
+  s_f23bcae77f0e63::t_6cdda4f97c0d52 71-96
+  s_f23bcae77f0e63::t_7f16e2c5a4d824 367-391
+  s_f23bcae77f0e63::t_df7eafabb3ccaf 296,299-300,302-303
+sdk-typescript/src/v2/options.ts
+  s_f23bcae77f0e63::t_5eec339b650872 60-64,66-67,70-80,83,85-113,115,125
+  s_f23bcae77f0e63::t_df7eafabb3ccaf 69
+sdk-typescript/tests/root-config-snapshot.test.ts
+  s_f23bcae77f0e63::t_deafcd3c543bc6 10,61,79
+sdk-typescript/src/root-config.ts
+  s_f23bcae77f0e63::t_5eec339b650872 7,9,98-99,101-103,105-117,123-127
+  s_f23bcae77f0e63::t_df7eafabb3ccaf 96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa654ca9b197336d14d222dbff3e24ed42f52cb7",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

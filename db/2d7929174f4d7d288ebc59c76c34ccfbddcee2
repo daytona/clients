@@ -1,0 +1,19 @@
+examples/typescript/file-operations/index.ts
+  s_bcb2dd57ef8ca1::t_f938b05483cb63 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db2d7929174f4d7d288ebc59c76c34ccfbddcee2",
+  "prompts": {},
+  "sessions": {
+    "s_bcb2dd57ef8ca1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffegmosi5Ke0ybB8o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

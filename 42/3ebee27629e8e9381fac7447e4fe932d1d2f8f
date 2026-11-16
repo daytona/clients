@@ -1,0 +1,62 @@
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_ba134266d5b16a 939,946-950,1028-1033,1040-1071,1365
+  s_ca009e77d17705::t_630ad3ffd8253a 1148-1149,1356-1357
+  s_ca009e77d17705::t_767af9d1e0122e 1036-1038
+sdk-python/tests/network_policy_test_server.py
+  s_ca009e77d17705::t_cbf834c659df04 55-57
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_630ad3ffd8253a 854-856,1017
+  s_ca009e77d17705::t_cc80fc3a015ec9 1021-1022
+sdk-python/README.md
+  s_ca009e77d17705::t_456a71da43becb 107-109
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_cbf6a3202bbc16 38-39
+upgrade/scripts/migration-notes.test.mjs
+  s_ca009e77d17705::t_e4535c0b01de5f 61-83
+changelog.d/539-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_ddac41aa1fb22d 17-28
+sdk-typescript/tests/events.test.ts
+  s_ca009e77d17705::t_2e5f06b7dcdd04 2168
+  s_ca009e77d17705::t_106a6a3399778b 2137-2167,2169-2172
+upgrade/mapping/mapping.json
+  s_ca009e77d17705::t_92d706ef4c12bf 3851,3858,3875,3883,4677-4678,4684,4689,4704-4705,4712,4718
+upgrade/MIGRATION.md
+  s_ca009e77d17705::t_1a406d4c05d31a 101-102,225-226,271-272
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_cbf6a3202bbc16 54-55
+sdk-typescript/src/v2/sandboxWait.ts
+  s_ca009e77d17705::t_bd2b0365018a82 123-138,140-143
+AGENTS.md
+  s_ca009e77d17705::t_087f004e4ab3ed 553-572
+  s_ca009e77d17705::t_61fe9cade1d7c3 675-680
+sdk-typescript/tests/terminal-report.test.ts
+  s_ca009e77d17705::t_f067e245ec9483 1-95
+sdk-python/tests/test_terminal_report.py
+  s_ca009e77d17705::t_8666eab7922b28 22-23
+  s_ca009e77d17705::t_4bb973e9853172 15-17,19,138-139,141-142,149-156,158-183,185-186,190-192,194-206
+  s_ca009e77d17705::t_dc2ccb70ffea3b 1-14,18,20-21,24-71,75-97,101-104,108-112,116,120-131,135-137
+  s_ca009e77d17705::t_88ca706249ed81 140,143-148,157,184,187-189,193
+  s_ca009e77d17705::t_767af9d1e0122e 72-74,98-100,105-107,113-115,117-119,132-134
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_ca009e77d17705::t_630ad3ffd8253a 131-132,462-463
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_ca009e77d17705::t_1a406d4c05d31a 3851,3858,3875,3883,4677-4678,4684,4689,4704-4705,4712,4718
+upgrade/typescript/src/mapping.json
+  s_ca009e77d17705::t_1a406d4c05d31a 3851,3858,3875,3883,4677-4678,4684,4689,4704-4705,4712,4718
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "423ebee27629e8e9381fac7447e4fe932d1d2f8f",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

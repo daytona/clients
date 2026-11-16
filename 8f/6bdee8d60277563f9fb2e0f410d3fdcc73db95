@@ -1,0 +1,30 @@
+sdk-typescript/DEVELOPMENT.md
+  s_a3ea68093feda0::t_e36180c8cc9578 158-164
+sdk-typescript/api-surface/index.api.txt
+  s_a3ea68093feda0::t_37456c6a471a8d 57-61,96-111
+  s_a3ea68093feda0::t_5082091130f517 62-95
+sdk-typescript/api-surface/v2.api.txt
+  s_a3ea68093feda0::t_5082091130f517 2203
+  s_a3ea68093feda0::t_37456c6a471a8d 2144-2202,2204-2229
+sdk-typescript/scripts/api-surface.mjs
+  s_a3ea68093feda0::t_37456c6a471a8d 65-72,82-100,102-121,123-125,127-140,144-146,148-156,158-182,185-189,191,194-203,205-209,211-251,253-282,285-291,294-309,312-319,321-325,327-328,332-373,378-381,411-412
+  s_a3ea68093feda0::t_5082091130f517 141-142
+sdk-typescript/tests/api-surface.test.ts
+  s_a3ea68093feda0::t_45ffd7836756a9 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f6bdee8d60277563f9fb2e0f410d3fdcc73db95",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

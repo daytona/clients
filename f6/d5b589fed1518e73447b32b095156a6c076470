@@ -1,0 +1,20 @@
+.github/workflows/ax_evals.yaml
+  h_e7759ddd73fa65 39-42,65-66,94-95,138-144,184-185
+scripts/ax-evals/ax-evals.test.js
+  h_e7759ddd73fa65 294-297
+scripts/ax-evals/redact.js
+  h_e7759ddd73fa65 6-8
+scripts/ax-evals/save-result.js
+  h_e7759ddd73fa65 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f6d5b589fed1518e73447b32b095156a6c076470",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

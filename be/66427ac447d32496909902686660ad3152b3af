@@ -1,0 +1,16 @@
+cli/internal/api/error_hints.go
+  h_e7759ddd73fa65 41
+cli/internal/api/error_hints_test.go
+  h_e7759ddd73fa65 156-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be66427ac447d32496909902686660ad3152b3af",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

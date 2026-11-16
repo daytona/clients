@@ -1,0 +1,26 @@
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_bde863491fd160 117-124
+.github/workflows/sdk_publish.yaml
+  s_4d9fba4bce0dac::t_dca21c1d5f332b 1394-1396,1436-1483
+upgrade/scripts/publish-channels.test.mjs
+  s_4d9fba4bce0dac::t_f3ab711e82287a 430,455-457
+  s_4d9fba4bce0dac::t_7c086dc57a96c9 379-383,385,420,423-424,429,431-437,444,446-447,451-454,458-459,462,465-467
+cli/hack/homebrew/README.md
+  s_4d9fba4bce0dac::t_bde863491fd160 25-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9cdc68b7402ec4d0b5321f9bed54b8fe7b6c1b35",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+cli/cmd/auth/login.go
+  s_cdcca325ebec29::t_07f375ec540709 170-183,233
+cli/cmd/auth/login_test.go
+  s_cdcca325ebec29::t_9abb302b29cac0 137-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a7eb0fe627ef53a5440cc57f01023569d5a320f",
+  "prompts": {},
+  "sessions": {
+    "s_cdcca325ebec29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "812a6538-4ac3-4092-8851-688528598dba",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    }
+  }
+}

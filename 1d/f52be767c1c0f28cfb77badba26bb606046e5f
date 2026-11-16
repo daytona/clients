@@ -1,0 +1,20 @@
+sdk-typescript/tests/transfer-timeouts.test.ts
+  s_f23bcae77f0e63::t_a88b44388f4bcb 13-18
+  s_f23bcae77f0e63::t_24862296bae7da 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1df52be767c1c0f28cfb77badba26bb606046e5f",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

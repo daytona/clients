@@ -1,0 +1,47 @@
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_1598ae621ef40a 480-483
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_c8246215c119fb 24,27,31
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_c8246215c119fb 71-72
+sdk-typescript/src/v2/accountMappers.ts
+  s_ca009e77d17705::t_c8246215c119fb 17-18,23-24
+sdk-typescript/tests/list-pages.test.ts
+  s_ca009e77d17705::t_049bc6deb519ce 108
+sdk-typescript/src/v2/Secret.ts
+  s_ca009e77d17705::t_c8246215c119fb 58
+changelog.d/539-response-timestamps.breaking.md
+  s_ca009e77d17705::t_186083675adbf9 1-27
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_58bef2d22a9d47 8727,8738,11522,11533
+  s_ca009e77d17705::t_7bd1ac05cfc799 11534
+  s_ca009e77d17705::t_b570d1584dd1c2 8721-8723,8741,11519,11524
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_186083675adbf9 36-39
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_25e256cda97f92 789-791,800-801
+  s_ca009e77d17705::t_0e5a04484fecce 1107-1132,1139-1157,1164-1166,1173-1188,1195-1199,1203-1219,1221,1224-1230
+  s_ca009e77d17705::t_f547d1e3d821f1 1133-1138,1158-1163,1167-1172,1189-1194,1200-1202,1220,1222-1223,1231-1233
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_ca009e77d17705::t_c8246215c119fb 72
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_c121c9e479f276 728-786
+sdk-typescript/src/v2/Ports.ts
+  s_ca009e77d17705::t_c8246215c119fb 70,287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f0bf24dd2f5f86e191d1c9678cfaebda9134faa",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

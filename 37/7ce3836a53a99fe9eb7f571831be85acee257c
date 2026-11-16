@@ -1,0 +1,35 @@
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_e01047f4ff573b::t_6b685567ea0e77 7,168-170
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  s_e01047f4ff573b::t_af5daa9dee799b 12-18
+  s_e01047f4ff573b::t_ac7d6ea0d3bef0 9-11
+sdk-python/tests/test_dockerignore.py
+  s_e01047f4ff573b::t_6b685567ea0e77 15,57,60,63
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_e01047f4ff573b::t_6b685567ea0e77 16,135,186-187,190
+docs/adr/0006-image-builder-local-context.md
+  s_e01047f4ff573b::t_af5daa9dee799b 175
+sdk-typescript/src/v2/dockerignoreNfa.ts
+  s_e01047f4ff573b::t_ac7d6ea0d3bef0 6
+  s_e01047f4ff573b::t_6b685567ea0e77 1-5,7-89
+sdk-python/src/daytona/v2/_dockerignore_nfa.py
+  s_e01047f4ff573b::t_6b685567ea0e77 1-91
+sdk-typescript/tests/dockerignore.test.ts
+  s_e01047f4ff573b::t_6b685567ea0e77 17,21,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "377ce3836a53a99fe9eb7f571831be85acee257c",
+  "prompts": {},
+  "sessions": {
+    "s_e01047f4ff573b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37d09c89ffenwRKWOLt7QOKce",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

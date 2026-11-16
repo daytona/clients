@@ -1,0 +1,34 @@
+sdk-python/README.md
+  s_9a337fd66d5341::t_4216d05c5c6c0f 707-708
+changelog.d/538-stream-log-headers.fixed.md
+  s_9a337fd66d5341::t_f99e11d3c6f547 1-2
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_4216d05c5c6c0f 652
+changelog.d/538-process-streams.breaking.md
+  s_9a337fd66d5341::t_a4bd2a305ba8f7 11-14
+AGENTS.md
+  s_9a337fd66d5341::t_539467f3292479 535-536,592-595,602-606
+  s_9a337fd66d5341::t_f99e11d3c6f547 537-538
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_f99e11d3c6f547 29-41
+changelog.d/538-restart-backoff.breaking.md
+  s_9a337fd66d5341::t_f99e11d3c6f547 1-4
+changelog.d/538-watches.breaking.md
+  s_9a337fd66d5341::t_f99e11d3c6f547 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7d7a4fd0a238c1320aac577f772a51f2f986d90",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

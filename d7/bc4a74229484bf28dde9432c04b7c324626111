@@ -1,0 +1,14 @@
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  h_e7759ddd73fa65 323-324
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d7bc4a74229484bf28dde9432c04b7c324626111",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

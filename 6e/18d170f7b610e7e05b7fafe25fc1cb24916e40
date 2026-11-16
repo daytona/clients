@@ -1,0 +1,28 @@
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_f23bcae77f0e63::t_27dfb6f5747e31 16,267
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_4285d4556a9234 20,497-530
+  s_f23bcae77f0e63::t_89d263c1025021 531
+sdk-typescript/src/v2/bodyBuffer.ts
+  s_f23bcae77f0e63::t_27dfb6f5747e31 1-67
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_27dfb6f5747e31 8,896-897,902,910
+sdk-typescript/src/v2/bodyLimit.ts
+  s_f23bcae77f0e63::t_27dfb6f5747e31 20,103-105,107,124,143,147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e18d170f7b610e7e05b7fafe25fc1cb24916e40",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
