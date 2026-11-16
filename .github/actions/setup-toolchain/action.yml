@@ -72,7 +72,7 @@ runs:
     - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
       if: inputs.install-ruby == 'true'
       with:
-        ruby-version: '3.4.5'
+        ruby-version: '3.4'
         bundler-cache: false
 
     - name: Bundle install
