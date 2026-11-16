@@ -201,7 +201,7 @@ func TestDaytonaV0BuildInstalledAsDaytona(t *testing.T) {
 
 	built := buildCLI(t,
 		"-X github.com/daytona/clients/cli/internal.BinaryName=daytona-v0",
-		"-X github.com/daytona/clients/cli/internal.HomebrewFormula=daytonaio/cli/daytona@0")
+		"-X github.com/daytona/clients/cli/internal.HomebrewFormula=daytonaio/cli/daytona-v0")
 	bin := filepath.Join(t.TempDir(), "daytona")
 	if err := os.Rename(built, bin); err != nil {
 		t.Fatalf("renaming CLI under test: %v", err)

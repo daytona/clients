@@ -30,7 +30,7 @@ brew install daytonaio/cli/daytona
 From the first `daytona-v0` release on, use instead:
 
 ```bash
-brew install daytonaio/cli/daytona@0
+brew install daytonaio/cli/daytona-v0
 # or, without Homebrew:
 # replace v0.X.Y with that release's tag, e.g. v0.230.0
 curl -fsSL "https://github.com/daytona/clients/releases/download/v0.X.Y/install-v0.sh" | sh

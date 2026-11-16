@@ -384,11 +384,11 @@ func TestVersionCheckIgnoresCacheOfAnotherMajorLine(t *testing.T) {
 
 func TestVersionCheckNamesBuildHomebrewFormula(t *testing.T) {
 	f := newVersionCheckFixture(t, "v0.215.0", "v0.216.0", http.StatusOK)
-	internal.HomebrewFormula = "daytonaio/cli/daytona@0"
+	internal.HomebrewFormula = "daytonaio/cli/daytona-v0"
 
 	checkVersionsMismatch(apiResponse("0.216.0"))
 
-	if !strings.Contains(f.logs.String(), "brew upgrade daytonaio/cli/daytona@0'") {
+	if !strings.Contains(f.logs.String(), "brew upgrade daytonaio/cli/daytona-v0'") {
 		t.Errorf("warning must name the build's formula, got %q", f.logs.String())
 	}
 }

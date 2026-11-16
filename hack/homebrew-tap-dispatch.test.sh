@@ -5,7 +5,7 @@
 # Dry run of the "Update Homebrew CLI tap" step of sdk_publish.yaml, extracted
 # from the workflow and run against stubbed gh, curl and sleep: events are
 # dispatched in order, each waits for its tap run, and update-version is
-# skipped when a stable 2.x release appears while the daytona@0 run is in
+# skipped when a stable 2.x release appears while the daytona-v0 run is in
 # flight.
 #
 # Usage: bash hack/homebrew-tap-dispatch.test.sh

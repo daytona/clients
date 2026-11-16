@@ -11,7 +11,7 @@
 # Until the first stable 2.x release exists, the `daytona` Homebrew formula still
 # follows the 0.x line: release/v0 also uploads the 0.x binaries as
 # daytona-<os>-<arch> assets (release.yaml) and dispatches the `daytona` formula
-# update next to `daytona@0` (sdk_publish.yaml). See PUBLISHING.md.
+# update next to `daytona-v0` (sdk_publish.yaml). See PUBLISHING.md.
 #
 # Usage:
 #   stable-v2-release.sh                   read the releases of GITHUB_REPOSITORY

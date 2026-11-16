@@ -16,9 +16,9 @@ func TestAdoptInvokedName(t *testing.T) {
 		{"daytona-v0", filepath.Join("usr", "local", "bin", "daytona"), "daytona", "daytonaio/cli/daytona"},
 		{"daytona-v0", "daytona.exe", "daytona", "daytonaio/cli/daytona"},
 		{"daytona-v0", "Daytona.EXE", "daytona", "daytonaio/cli/daytona"},
-		{"daytona-v0", filepath.Join("bin", "daytona-v0"), "daytona-v0", "daytonaio/cli/daytona@0"},
-		{"daytona-v0", "daytona-v0-linux-amd64", "daytona-v0", "daytonaio/cli/daytona@0"},
-		{"daytona-v0", "daytona-linux-amd64", "daytona-v0", "daytonaio/cli/daytona@0"},
+		{"daytona-v0", filepath.Join("bin", "daytona-v0"), "daytona-v0", "daytonaio/cli/daytona-v0"},
+		{"daytona-v0", "daytona-v0-linux-amd64", "daytona-v0", "daytonaio/cli/daytona-v0"},
+		{"daytona-v0", "daytona-linux-amd64", "daytona-v0", "daytonaio/cli/daytona-v0"},
 		{"daytona", "daytona-v0", "daytona", "daytonaio/cli/daytona"},
 	}
 	for _, tt := range tests {
@@ -29,7 +29,7 @@ func TestAdoptInvokedName(t *testing.T) {
 			BinaryName = tt.built
 			HomebrewFormula = "daytonaio/cli/daytona"
 			if tt.built == "daytona-v0" {
-				HomebrewFormula = "daytonaio/cli/daytona@0"
+				HomebrewFormula = "daytonaio/cli/daytona-v0"
 			}
 
 			adoptInvokedName(tt.arg0)
