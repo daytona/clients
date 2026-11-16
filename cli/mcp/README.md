@@ -42,8 +42,11 @@ curl -fsSL "https://github.com/daytona/clients/releases/download/v0.X.Y/install-
 powershell -Command "irm https://get.daytona.io/windows | iex"
 ```
 
-From the first `daytona-v0` release on, download `daytona-v0-windows-<arch>.exe` from that release on
-[GitHub](https://github.com/daytona/clients/releases) instead.
+From the first `daytona-v0` release on, use instead (installs `daytona-v0.exe`):
+
+```powershell
+irm https://raw.githubusercontent.com/daytona/clients/release/v0/cli/install-v0.ps1 | iex
+```
 
 2. **Log in to your Daytona account:**
 

@@ -8,7 +8,7 @@
 #
 # Reads the binaries hack/build.sh wrote to dist/cli (CLI_DIST_DIR), copies them
 # to dist/cli-release (CLI_RELEASE_DIR) together with a SHA256SUMS file and, for
-# the daytona-v0 name, the install-v0.sh script. Prints one `gh release upload`
+# the daytona-v0 name, the install-v0.sh and install-v0.ps1 scripts. Prints one `gh release upload`
 # argument per line: `path#label` for binaries, the bare path for the rest.
 #
 # CLI_BINARY_NAME (daytona or daytona-v0, default daytona) selects the asset
@@ -80,12 +80,14 @@ if [ -n "$alias" ]; then
   done
 fi
 
-# The 0.x install script resolves the newest v0 release and installs daytona-v0,
-# so it only ships with releases whose assets carry that name.
+# The 0.x install scripts resolve the newest v0 release and install daytona-v0,
+# so they only ship with releases whose assets carry that name.
 if [ "$name" = daytona-v0 ]; then
-  cp "${cli_dir}/install-v0.sh" "${release_dir}/install-v0.sh"
-  assets+=(install-v0.sh)
-  uploads+=("${release_dir}/install-v0.sh")
+  for script in install-v0.sh install-v0.ps1; do
+    cp "${cli_dir}/${script}" "${release_dir}/${script}"
+    assets+=("$script")
+    uploads+=("${release_dir}/${script}")
+  done
 fi
 
 (cd "$release_dir" && sha256sum "${assets[@]}" >SHA256SUMS)

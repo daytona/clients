@@ -199,7 +199,7 @@ jobs:
         run: bash hack/stable-v2-release.test.sh
       - name: Homebrew tap dispatch
         run: bash hack/homebrew-tap-dispatch.test.sh
-      - name: CLI release assets and install-v0.sh
+      - name: CLI release assets and the install-v0 scripts
         run: bash cli/hack/stage-release-assets.test.sh
 
   license-check:
