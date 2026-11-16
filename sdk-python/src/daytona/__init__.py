@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 if __name__ == "daytona_sdk":
     warnings.warn(
         "The 'daytona_sdk' package is deprecated and will eventually be discontinued. "
-        + "Please migrate to the 'daytona' package: pip install daytona, then `import daytona`.",
+        + "Please migrate to the 'daytona' package's 0.x line: pip install \"daytona<1\", then `import daytona`.",
         DeprecationWarning,
         stacklevel=2,
     )
