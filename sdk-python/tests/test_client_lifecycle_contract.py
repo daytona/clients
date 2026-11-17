@@ -647,12 +647,14 @@ async def test_a_missing_or_malformed_create_lifecycle_policy_is_absent(lifecycl
     response: dict[str, object] = {"id": "sbx", "status": "pending"}
     if lifecycle is not _OMITTED:
         response["lifecycle_policy"] = lifecycle
-    client._api = _Api([response])  # type: ignore[assignment]
+    api = _Api([response])
+    client._api = api  # type: ignore[assignment]
 
     sandbox = await client.create("img_1", wait_seconds=0)
 
     assert sandbox.id == "sbx"
     assert sandbox.lifecycle_policy is None
+    assert [spec.method for spec in api.specs] == ["POST"]
 
 
 @pytest.mark.anyio

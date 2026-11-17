@@ -67,9 +67,10 @@ describe('create handle lifecycle policy', () => {
     { ...LIFECYCLE, timeout_seconds: {} },
     { ...LIFECYCLE, on_timeout: 5 },
   ].flatMap((lifecycle) => ROUTES.map((route) => [route, lifecycle] as const)))('%s leaves a missing or malformed create lifecycle policy (%j) absent', async (route, lifecycle) => {
-    const { sandbox } = await createWith(route, lifecycle)
+    const { sandbox, requests } = await createWith(route, lifecycle)
 
     expect(sandbox.id).toBe('sbx')
     expect(sandbox.lifecyclePolicy).toBeUndefined()
+    expect(requests).toEqual(['POST'])
   })
 })
