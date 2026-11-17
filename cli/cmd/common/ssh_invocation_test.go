@@ -49,7 +49,7 @@ func TestNewSSHInvocationKeepsTokenOffCommandLine(t *testing.T) {
 			if err != nil {
 				t.Fatalf("newSSHInvocation returned error: %v", err)
 			}
-			defer invocation.Cleanup()
+			defer func() { _ = invocation.Cleanup() }()
 
 			for _, arg := range invocation.Args {
 				if strings.Contains(arg, testToken) {
@@ -79,11 +79,15 @@ func TestNewSSHInvocationKeepsTokenOffCommandLine(t *testing.T) {
 				}
 			}
 
-			invocation.Cleanup()
+			if err := invocation.Cleanup(); err != nil {
+				t.Fatalf("Cleanup returned error: %v", err)
+			}
 			if _, err := os.Stat(invocation.ConfigPath); !errors.Is(err, fs.ErrNotExist) {
 				t.Errorf("SSH config still present after Cleanup (stat error: %v)", err)
 			}
-			invocation.Cleanup()
+			if err := invocation.Cleanup(); err != nil {
+				t.Errorf("second Cleanup returned %v, want nil", err)
+			}
 		})
 	}
 }
@@ -128,7 +132,7 @@ func TestNewSSHInvocationResolvesWithOpenSSH(t *testing.T) {
 			if err != nil {
 				t.Fatalf("newSSHInvocation returned error: %v", err)
 			}
-			defer invocation.Cleanup()
+			defer func() { _ = invocation.Cleanup() }()
 
 			out, err := exec.Command(sshPath, append([]string{"-G"}, invocation.Args...)...).Output()
 			if err != nil {

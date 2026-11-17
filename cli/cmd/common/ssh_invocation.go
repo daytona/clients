@@ -6,6 +6,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 )
@@ -51,8 +52,8 @@ func newSSHInvocation(dir string, target SSHTarget) (SSHInvocation, error) {
 		fmt.Fprintf(&config, "\tPort %s\n", target.Port)
 	}
 
-	// os.CreateTemp creates the file with mode 0600.
-	file, err := os.CreateTemp(dir, "daytona-ssh-*.conf")
+	// Only the current user can open the file (see createPrivateTemp).
+	file, err := createPrivateTemp(dir, "daytona-ssh-", ".conf")
 	if err != nil {
 		return SSHInvocation{}, fmt.Errorf("failed to create SSH config: %w", err)
 	}
@@ -72,9 +73,22 @@ func newSSHInvocation(dir string, target SSHTarget) (SSHInvocation, error) {
 	return SSHInvocation{Args: []string{"-F", file.Name(), host}, ConfigPath: file.Name()}, nil
 }
 
-// Cleanup removes the temporary ssh_config. It is safe to call more than once.
-func (i SSHInvocation) Cleanup() {
-	if i.ConfigPath != "" {
-		_ = os.Remove(i.ConfigPath)
+// Cleanup removes the temporary ssh_config. It is safe to call more than
+// once: a config that is already gone is not an error.
+func (i SSHInvocation) Cleanup() error {
+	if i.ConfigPath == "" {
+		return nil
+	}
+	if err := os.Remove(i.ConfigPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+// cleanupOrWarn removes the config and tells the user when that fails, since
+// the file left behind holds the SSH access token.
+func cleanupOrWarn(invocation SSHInvocation) {
+	if err := invocation.Cleanup(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not remove %s, which holds the SSH access token; delete it manually: %v\n", invocation.ConfigPath, err)
 	}
 }

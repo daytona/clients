@@ -91,3 +91,22 @@ func TestExecuteSSHRemovesConfigBeforeExit(t *testing.T) {
 	}
 	checkFakeSSHRecord(t, record)
 }
+
+func TestCleanupReportsFailedRemoval(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can remove the file regardless of directory permissions")
+	}
+	dir := t.TempDir()
+	invocation, err := newSSHInvocation(dir, executeTarget)
+	if err != nil {
+		t.Fatalf("newSSHInvocation returned error: %v", err)
+	}
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+	if err := invocation.Cleanup(); err == nil {
+		t.Fatal("Cleanup returned nil for a config it could not remove")
+	}
+}

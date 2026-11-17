@@ -35,7 +35,6 @@ func ExecuteSSH(target SSHTarget) error {
 		signal.Stop(sigChan)
 		return err
 	}
-	defer invocation.Cleanup()
 
 	// Create the command
 	sshCmd := exec.Command(sshPath, invocation.Args...)
@@ -45,6 +44,7 @@ func ExecuteSSH(target SSHTarget) error {
 
 	// Start the SSH process
 	if err := sshCmd.Start(); err != nil {
+		cleanupOrWarn(invocation)
 		signal.Stop(sigChan)
 		return fmt.Errorf("failed to start SSH: %w", err)
 	}
@@ -62,8 +62,8 @@ func ExecuteSSH(target SSHTarget) error {
 	err = sshCmd.Wait()
 
 	// Remove the config holding the token while signals are still caught,
-	// and before os.Exit below, which skips deferred calls.
-	invocation.Cleanup()
+	// and before os.Exit below.
+	cleanupOrWarn(invocation)
 
 	// Stop signal handling
 	signal.Stop(sigChan)
