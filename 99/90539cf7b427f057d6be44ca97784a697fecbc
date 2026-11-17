@@ -1,0 +1,19 @@
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  s_0aae4455ccb615::t_648be6df0cd30e 1062,1067-1070
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9990539cf7b427f057d6be44ca97784a697fecbc",
+  "prompts": {},
+  "sessions": {
+    "s_0aae4455ccb615": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1765fdecffeFb9q7mqYJq87fa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
