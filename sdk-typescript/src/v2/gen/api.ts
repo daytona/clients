@@ -6783,6 +6783,11 @@ export interface components {
              *     platform default image; omitted for a sandbox restored from a snapshot.
              */
             image?: null | components["schemas"]["ImageReference"];
+            /**
+             * @description Automatic timeout and idle-expiry behavior, the same object
+             *     `GET /sandboxes/{id}` returns; null when the sandbox no longer exists.
+             */
+            lifecycle_policy?: null | components["schemas"]["LifecyclePolicy"];
             /** @description Sandbox name (caller-provided or the generated `sandbox-<short-id>`). */
             name: string;
             /**

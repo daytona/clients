@@ -8615,6 +8615,17 @@
               }
             ]
           },
+          "lifecycle_policy": {
+            "description": "Automatic timeout and idle-expiry behavior, the same object\n`GET /sandboxes/{id}` returns; null when the sandbox no longer exists.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LifecyclePolicy"
+              }
+            ]
+          },
           "name": {
             "description": "Sandbox name (caller-provided or the generated `sandbox-<short-id>`).",
             "type": "string"

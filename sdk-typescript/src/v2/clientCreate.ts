@@ -4,7 +4,7 @@
  */
 
 import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, TransferCancelledError } from './errors/DaytonaError.js'
-import { sandboxState, sleep } from './http.js'
+import { parseSandboxLifecycle, sandboxState, sleep } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
 import { scopedProxyToolboxUrl } from './Sandbox.js'
 import { usablePathId } from './pathSegment.js'
@@ -84,6 +84,9 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   // id the caller passed (a name is never an id), and the class the create
   // route fixes (linux, or macos for createMacos). A partial DTO would mark
   // absent fields known.
+  // The effective policy, so the handle shows the deadline the sandbox is
+  // deleted or stopped at; a missing or mistyped one is absent.
+  const lifecycle = created.lifecycle_policy
   const booted: unknown = Reflect.get(created, 'image')
   const bootedId = text(booted, 'id')
   const sandbox = context.buildSandbox({
@@ -100,6 +103,9 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     sandboxClass: metadata.sandboxClass,
     rawSandboxClass: metadata.sandboxClass,
     reservationId: text(created, 'reservation_id'),
+    lifecyclePolicy: typeof lifecycle === 'object' && lifecycle !== null && !Array.isArray(lifecycle)
+      ? parseSandboxLifecycle(lifecycle)
+      : undefined,
   }, connectOptions)
   sandbox.learnEventDestination(createdEventDestination)
   const waitCap = typeof created.wait_cap_seconds === 'number' && Number.isFinite(created.wait_cap_seconds) ? Math.max(0, created.wait_cap_seconds) : 0
