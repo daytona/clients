@@ -41,6 +41,7 @@ class AuditLogEntry(BaseModel):
     actor_key_id: Optional[StrictStr] = Field(default=None, description="The actor's key ID, or `null`.")
     actor_key_prefix: Optional[StrictStr] = Field(default=None, description="The actor key prefix, or `null`.")
     actor_kind: StrictStr = Field(description="The actor type.")
+    actor_partner: Optional[StrictStr] = Field(default=None, description="The partner application that authenticated the actor, or `null`.")
     actor_service_account_id: Optional[StrictStr] = Field(default=None, description="The actor's service account ID, or `null`.")
     actor_user_id: Optional[StrictStr] = Field(default=None, description="The actor's user ID, or `null`.")
     created_at: datetime = Field(description="When the action occurred.")
@@ -55,7 +56,7 @@ class AuditLogEntry(BaseModel):
     target_type: StrictStr = Field(description="The target resource type.")
     user_agent: Optional[StrictStr] = Field(default=None, description="The request user agent, or `null`.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["action", "actor_created_by", "actor_email", "actor_key_id", "actor_key_prefix", "actor_kind", "actor_service_account_id", "actor_user_id", "created_at", "error_message", "id", "ip_address", "metadata", "org_id", "project_id", "status_code", "target_id", "target_type", "user_agent"]
+    __properties: ClassVar[List[str]] = ["action", "actor_created_by", "actor_email", "actor_key_id", "actor_key_prefix", "actor_kind", "actor_partner", "actor_service_account_id", "actor_user_id", "created_at", "error_message", "id", "ip_address", "metadata", "org_id", "project_id", "status_code", "target_id", "target_type", "user_agent"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -125,6 +126,11 @@ class AuditLogEntry(BaseModel):
         if self.actor_key_prefix is None and "actor_key_prefix" in self.model_fields_set:
             _dict['actor_key_prefix'] = None
 
+        # set to None if actor_partner (nullable) is None
+        # and model_fields_set contains the field
+        if self.actor_partner is None and "actor_partner" in self.model_fields_set:
+            _dict['actor_partner'] = None
+
         # set to None if actor_service_account_id (nullable) is None
         # and model_fields_set contains the field
         if self.actor_service_account_id is None and "actor_service_account_id" in self.model_fields_set:
@@ -183,6 +189,7 @@ class AuditLogEntry(BaseModel):
             **({"actor_key_id": obj["actor_key_id"]} if "actor_key_id" in obj else {}),
             **({"actor_key_prefix": obj["actor_key_prefix"]} if "actor_key_prefix" in obj else {}),
             "actor_kind": obj.get("actor_kind"),
+            **({"actor_partner": obj["actor_partner"]} if "actor_partner" in obj else {}),
             **({"actor_service_account_id": obj["actor_service_account_id"]} if "actor_service_account_id" in obj else {}),
             **({"actor_user_id": obj["actor_user_id"]} if "actor_user_id" in obj else {}),
             "created_at": obj.get("created_at"),
