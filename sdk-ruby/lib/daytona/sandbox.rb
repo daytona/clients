@@ -22,30 +22,6 @@ module Daytona
     # Pass as a timeout to wait without a limit.
     NO_TIMEOUT = 0
 
-    def self.with_events(*method_names)
-      method_names.each do |method_name|
-        original = instance_method(method_name)
-
-        visibility = if private_method_defined?(method_name, false)
-                       :private
-                     elsif protected_method_defined?(method_name, false)
-                       :protected
-                     else
-                       :public
-                     end
-
-        define_method(method_name) do |*args, **kwargs, &blk|
-          ensure_subscribed
-          original.bind_call(self, *args, **kwargs, &blk)
-        end
-
-        case visibility
-        when :private then private method_name
-        when :protected then protected method_name
-        end
-      end
-    end
-
     SANDBOX_METRIC_FIELD_BY_NAME = {
       'daytona.sandbox.cpu.utilization' => :cpu_used_pct,
       'daytona.sandbox.cpu.limit' => :cpu_count,
@@ -234,7 +210,6 @@ module Daytona
       @otel_state = otel_state
       @analytics_api_url_provider = analytics_api_url_provider
       @subscription_manager = subscription_manager
-      @sub_id = nil
       @signing_key = nil
       @signing_key_fetched_at = 0
 
@@ -283,8 +258,6 @@ module Daytona
       @info_api = info_api
       @server_api = server_api
       @system_api = system_api
-
-      ensure_subscribed
     end
 
     # Archives the sandbox, making it inactive and preserving its state. When sandboxes are
@@ -479,8 +452,6 @@ module Daytona
           deadline:
         )
       end
-    ensure
-      unsubscribe_from_events
     end
 
     # Gets the user's home directory path for the logged in user inside the Sandbox.
@@ -962,14 +933,6 @@ module Daytona
       end
     end
 
-    with_events :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_stop_interval=, :public=,
-                :create_ssh_access, :delete, :get_user_home_dir, :get_work_dir, :labels=,
-                :preview_url, :create_signed_preview_url, :expire_signed_preview_url,
-                :refresh, :refresh_activity, :revoke_ssh_access, :start, :recover, :stop,
-                :create_lsp_server, :validate_ssh_access, :wait_for_sandbox_start,
-                :wait_for_sandbox_stop, :resize, :wait_for_resize_complete,
-                :fork, :create_snapshot, :pause
-
     instrument :archive, :auto_archive_interval=, :auto_delete_interval=, :auto_pause_interval=, :auto_stop_interval=,
                :ttl_minutes=, :public=,
                :update_network_settings, :update_secrets, :update_env,
@@ -1238,6 +1201,9 @@ module Daytona
     # Waits for the Sandbox to reach one of the target states via WebSocket events
     # with periodic polling safety net.
     #
+    # The Sandbox is subscribed to its state events only for the duration of the wait, and unsubscribed on
+    # every exit.
+    #
     # @param target_states [Array<DaytonaApiClient::SandboxState>] States that indicate success.
     # @param error_states [Array<DaytonaApiClient::SandboxState>] States that indicate failure.
     # @param safe_refresh [Boolean] If true, use refresh_data_safe for polling (swallows transient errors).
@@ -1245,14 +1211,30 @@ module Daytona
     #   without a limit.
     # @return [void]
     # @raise [Daytona::Sdk::Error]
-    def wait_for_state(target_states:, error_states:, safe_refresh: false, deadline: nil) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
-      ensure_subscribed
-      subscribed = !@sub_id.nil?
+    def wait_for_state(target_states:, error_states:, safe_refresh: false, deadline: nil)
+      # Already there: nothing to wait for, so no subscription (and no event connection) is needed.
+      return if target_states.map(&:to_s).include?(state.to_s)
 
+      subscription = { id: nil }
+      begin
+        subscription[:id] = subscribe_to_state_events
+        poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription:)
+      ensure
+        unsubscribe_from_state_events(subscription[:id])
+      end
+    end
+
+    # The body of #wait_for_state. Polls every MAX_POLL_INTERVAL as a safety net while state events can
+    # arrive (the wait holds a subscription and the event connection is up), faster otherwise; re-evaluated
+    # after every poll.
+    #
+    # @param subscription [Hash] { id: String, nil } The wait's event subscription, renewed after every poll
+    def poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription:) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/AbcSize
       target_strings = target_states.map(&:to_s)
       error_strings = error_states.map(&:to_s)
       started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-      poll_interval = subscribed ? MAX_POLL_INTERVAL : INITIAL_POLL_INTERVAL
+      fast_poll_interval = INITIAL_POLL_INTERVAL
+      poll_interval = INITIAL_POLL_INTERVAL
 
       mutex = Mutex.new
       state_changed = ConditionVariable.new
@@ -1305,11 +1287,9 @@ module Daytona
             result_state = current if target_strings.include?(current) || error_strings.include?(current)
           end
 
-          poll_interval = next_wait_for_state_poll_interval(
-            current_interval: poll_interval,
-            started_at: started_at,
-            subscribed: subscribed
-          )
+          fast_poll_interval = next_fast_poll_interval(current_interval: fast_poll_interval, started_at:)
+          renew_state_subscription(subscription)
+          poll_interval = event_backed?(subscription) ? MAX_POLL_INTERVAL : fast_poll_interval
         end
 
         if result_state && error_strings.include?(result_state)
@@ -1348,7 +1328,7 @@ module Daytona
     rescue StandardError # rubocop:disable Lint/SuppressedException
     end
 
-    # Does what #refresh does, recorded as #refresh and renewing the event subscription, but through +api+.
+    # Does what #refresh does, recorded as #refresh, but through +api+.
     #
     # @param api [DaytonaApiClient::SandboxApi] sandbox_api, or a copy of it with an HTTP timeout
     # @return [void]
@@ -1356,7 +1336,6 @@ module Daytona
       return refresh if api.equal?(sandbox_api)
 
       instrument_as(:refresh, component: 'Sandbox') do
-        ensure_subscribed
         process_response(api.get_sandbox(id))
       end
     end
@@ -1422,61 +1401,54 @@ module Daytona
       "Sandbox #{id} was destroyed after waiting#{waited} for a runner (queue timed out at #{queue_timed_out_at})"
     end
 
-    def ensure_subscribed
-      @waiter_mutex.synchronize do
-        return unless @subscription_manager
-
-        if @sub_id
-          return if @subscription_manager.refresh(@sub_id)
-
-          @sub_id = nil
-        end
-
-        subscribe_to_events
-      end
+    # @return [String, nil] The subscription id; nil when events are unavailable (polling-only mode, closed
+    #   client)
+    def subscribe_to_state_events
+      @subscription_manager&.subscribe(resource_id: id, handler: method(:handle_event), events: STATE_EVENTS)
     end
 
-    def subscribe_to_events
-      return if @sub_id || !@subscription_manager
-
-      @sub_id = @subscription_manager.subscribe(
-        resource_id: id,
-        handler: method(:handle_event),
-        events: ['sandbox.state.updated', 'sandbox.created']
-      )
+    def unsubscribe_from_state_events(sub_id)
+      @subscription_manager.unsubscribe(sub_id) if sub_id
     end
 
-    def handle_event(event_name, data)
+    # Keeps a wait's subscription alive, subscribing again (new id) if it expired meanwhile.
+    #
+    # @param subscription [Hash] { id: String, nil }
+    def renew_state_subscription(subscription)
+      return unless subscription[:id]
+
+      subscription[:id] = subscribe_to_state_events unless @subscription_manager.refresh(subscription[:id])
+    end
+
+    # @param subscription [Hash] { id: String, nil }
+    # @return [Boolean] Whether state events can arrive: the wait holds a subscription and the event
+    #   connection is up
+    def event_backed?(subscription)
+      !subscription[:id].nil? && @subscription_manager.connected?
+    end
+
+    # Accepts both the full and the slim state payload: { sandbox: { id, state, ... }, oldState, newState }.
+    def handle_event(_event_name, data)
       return unless data.is_a?(Hash)
 
       raw = data['sandbox'] || data
       return unless raw.is_a?(Hash)
 
-      if event_name == 'sandbox.created'
-        process_response(DaytonaApiClient::Sandbox.build_from_hash(raw))
-      else
-        new_state = raw['state'] || data['newState']
-        apply_state(new_state) if new_state
-      end
+      new_state = raw['state'] || data['newState']
+      apply_state(new_state) if new_state
     rescue StandardError
       nil
     end
 
-    def unsubscribe_from_events
-      return unless @sub_id
-
-      @subscription_manager&.unsubscribe(@sub_id)
-      @sub_id = nil
-    end
-
-    def next_wait_for_state_poll_interval(current_interval:, started_at:, subscribed:)
-      return [current_interval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL].min if subscribed
-
+    def next_fast_poll_interval(current_interval:, started_at:)
       elapsed = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at
       return current_interval if elapsed <= POLL_BACKOFF_DELAY
 
       [current_interval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL].min
     end
+
+    STATE_EVENTS = ['sandbox.state.updated'].freeze
+    private_constant :STATE_EVENTS
 
     INITIAL_POLL_INTERVAL = 0.1
     private_constant :INITIAL_POLL_INTERVAL

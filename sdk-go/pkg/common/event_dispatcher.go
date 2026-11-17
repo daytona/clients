@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -42,6 +43,20 @@ type SandboxEvent struct {
 
 type SandboxEventHandler func(event SandboxEvent)
 
+// maxSubscriptionIDsPerMessage is the most resource ids sent in a single
+// subscribe or unsubscribe message.
+const maxSubscriptionIDsPerMessage = 100
+
+// subscriptionMessage is the payload of the subscribe and unsubscribe client
+// events.
+type subscriptionMessage struct {
+	SandboxIDs []string `json:"sandboxIds"`
+}
+
+// EventDispatcher owns the event socket for a client. It connects lazily when
+// the first listener subscribes, tells the server which resource ids currently
+// have listeners (so the server only sends events for those), and still filters
+// incoming events by id because older servers send every organization event.
 type EventDispatcher struct {
 	mu sync.RWMutex
 
@@ -170,6 +185,9 @@ func (es *EventDispatcher) Connect(ctx context.Context) error {
 	es.failed = false
 	es.failError = ""
 	es.reconnectAttempt = 0
+	// Subscriptions belong to the socket: send the whole current set on every
+	// connect and reconnect.
+	es.emitSubscriptionLocked("subscribe", es.subscribedIDsLocked())
 	if len(es.listeners) == 0 {
 		es.scheduleDelayedDisconnectLocked()
 	}
@@ -206,6 +224,9 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 	es.nextSubID++
 	if es.listeners[resourceID] == nil {
 		es.listeners[resourceID] = make(map[int]SandboxEventHandler)
+		// First listener for this id. While disconnected the next connect
+		// sends the whole set instead.
+		es.emitSubscriptionLocked("subscribe", []string{resourceID})
 	}
 	es.listeners[resourceID][subID] = handler
 	// Mark events as registered under lock to prevent drops
@@ -218,15 +239,50 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 
 	return func() {
 		es.mu.Lock()
-		delete(es.listeners[resourceID], subID)
-		if len(es.listeners[resourceID]) == 0 {
-			delete(es.listeners, resourceID)
+		handlers, ok := es.listeners[resourceID]
+		if ok {
+			if _, exists := handlers[subID]; exists {
+				delete(handlers, subID)
+				if len(handlers) == 0 {
+					delete(es.listeners, resourceID)
+					es.emitSubscriptionLocked("unsubscribe", []string{resourceID})
+				}
+			}
 		}
 
 		if len(es.listeners) == 0 {
 			es.scheduleDelayedDisconnectLocked()
 		}
 		es.mu.Unlock()
+	}
+}
+
+// subscribedIDsLocked returns the resource ids that have at least one listener.
+func (es *EventDispatcher) subscribedIDsLocked() []string {
+	ids := make([]string, 0, len(es.listeners))
+	for id := range es.listeners {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// emitSubscriptionLocked sends a subscribe or unsubscribe message for ids on the
+// current connection, chunked to maxSubscriptionIDsPerMessage ids per message.
+// It is fire-and-forget (acknowledgements are not awaited) and does nothing
+// while disconnected; nothing is buffered for a later connection because every
+// connect re-sends the current set.
+func (es *EventDispatcher) emitSubscriptionLocked(event string, ids []string) {
+	if !es.connected || es.client == nil {
+		return
+	}
+	for start := 0; start < len(ids); start += maxSubscriptionIDsPerMessage {
+		end := min(start+maxSubscriptionIDsPerMessage, len(ids))
+		payload, err := json.Marshal(subscriptionMessage{SandboxIDs: ids[start:end]})
+		if err != nil {
+			return
+		}
+		_ = es.client.emit(event, payload)
 	}
 }
 
@@ -295,8 +351,16 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 	var event SandboxEvent
 	switch eventName {
 	case "sandbox.state.updated":
-		var stateEvent SandboxStateEvent
-		if err := json.Unmarshal(data, &stateEvent); err != nil {
+		var payload struct {
+			Sandbox  json.RawMessage        `json:"sandbox"`
+			OldState apiclient.SandboxState `json:"oldState"`
+			NewState apiclient.SandboxState `json:"newState"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return
+		}
+		stateEvent := SandboxStateEvent{OldState: payload.OldState, NewState: payload.NewState}
+		if err := unmarshalSandboxLenient(payload.Sandbox, &stateEvent.Sandbox); err != nil {
 			return
 		}
 		event = SandboxEvent{
@@ -305,8 +369,19 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 		}
 
 	case "sandbox.desired-state.updated":
-		var desiredStateEvent SandboxDesiredStateEvent
-		if err := json.Unmarshal(data, &desiredStateEvent); err != nil {
+		var payload struct {
+			Sandbox         json.RawMessage               `json:"sandbox"`
+			OldDesiredState apiclient.SandboxDesiredState `json:"oldDesiredState"`
+			NewDesiredState apiclient.SandboxDesiredState `json:"newDesiredState"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return
+		}
+		desiredStateEvent := SandboxDesiredStateEvent{
+			OldDesiredState: payload.OldDesiredState,
+			NewDesiredState: payload.NewDesiredState,
+		}
+		if err := unmarshalSandboxLenient(payload.Sandbox, &desiredStateEvent.Sandbox); err != nil {
 			return
 		}
 		event = SandboxEvent{
@@ -329,6 +404,28 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 	}
 
 	es.dispatch(entityID, event)
+}
+
+// lenientSandbox has the fields of apiclient.Sandbox but not its UnmarshalJSON,
+// which rejects objects that miss any required property.
+type lenientSandbox apiclient.Sandbox
+
+// unmarshalSandboxLenient decodes a sandbox object that may carry only a subset
+// of its fields (state events can contain just the id and state-related fields).
+// Absent fields keep their zero values.
+func unmarshalSandboxLenient(data json.RawMessage, out *apiclient.Sandbox) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(data, out); err == nil {
+		return nil
+	}
+	var sandbox lenientSandbox
+	if err := json.Unmarshal(data, &sandbox); err != nil {
+		return err
+	}
+	*out = apiclient.Sandbox(sandbox)
+	return nil
 }
 
 func extractEntityID(data json.RawMessage) string {

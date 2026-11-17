@@ -30,6 +30,11 @@ export class EventSubscriptionManager {
 
   constructor(private readonly dispatcher: EventDispatcher | null) {}
 
+  /** Whether events are currently being delivered (dispatcher present and connected). */
+  get isConnected(): boolean {
+    return !this._closed && !!this.dispatcher?.isConnected
+  }
+
   subscribe(resourceId: string, handler: EventHandler, events: string[]): string {
     // No-op when shut down or when streaming is disabled (no dispatcher) — callers poll.
     if (this._closed || !this.dispatcher) {

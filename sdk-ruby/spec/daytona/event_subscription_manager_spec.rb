@@ -166,6 +166,20 @@ RSpec.describe Daytona::EventSubscriptionManager do
     end
   end
 
+  describe '#connected?' do
+    it 'reports the dispatcher connection state' do
+      connected_dispatcher = instance_double(Daytona::EventDispatcher, connected?: true)
+
+      expect(described_class.new(connected_dispatcher).connected?).to be(true)
+      allow(connected_dispatcher).to receive(:connected?).and_return(false)
+      expect(described_class.new(connected_dispatcher).connected?).to be(false)
+    end
+
+    it 'is false without a dispatcher' do
+      expect(described_class.new(nil).connected?).to be(false)
+    end
+  end
+
   describe '#shutdown' do
     it 'unsubscribes everything and rejects new subscriptions' do
       manager = described_class.new(dispatcher)

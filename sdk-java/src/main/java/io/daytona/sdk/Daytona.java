@@ -101,10 +101,10 @@ public class Daytona implements AutoCloseable {
         @SuppressWarnings("deprecation")
         boolean legacyPolling = config.isUseDeprecatedPolling();
         if (!legacyPolling) {
+            // Connects lazily, when a state wait first subscribes to sandbox events.
             String eventSdkVersion = Daytona.class.getPackage().getImplementationVersion();
             this.eventDispatcher = new EventDispatcher(config.getApiUrl(), config.getApiKey(), null,
                     "sdk-java", eventSdkVersion != null ? eventSdkVersion : "dev");
-            this.eventDispatcher.ensureConnected();
         } else {
             this.eventDispatcher = null;
         }

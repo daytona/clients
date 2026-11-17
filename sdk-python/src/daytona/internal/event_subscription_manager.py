@@ -143,8 +143,8 @@ class SyncEventSubscriptionManager:
     """Thread-safe variant of AsyncEventSubscriptionManager.
 
     All subscriptions share ONE lazily started expiry worker thread instead of a
-    ``threading.Timer`` (a dedicated OS thread) per subscription. Listing many
-    sandboxes therefore costs one thread total, not one thread each
+    ``threading.Timer`` (a dedicated OS thread) per subscription. Many concurrent
+    subscriptions therefore cost one thread total, not one thread each
     (https://github.com/daytona/clients/issues/108). ``refresh()`` only bumps the
     subscription deadline — it never creates or cancels threads.
     """

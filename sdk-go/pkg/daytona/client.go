@@ -285,8 +285,8 @@ func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error) {
 	}
 	if token != "" && !useDeprecatedPolling(config) {
 		client.eventDispatcher = common.NewEventDispatcher(client.apiURL, token, client.organizationID, sdkSource, Version)
+		// The dispatcher connects lazily, when a wait first subscribes to events.
 		client.subscriptionManager = common.NewEventSubscriptionManager(client.eventDispatcher)
-		client.eventDispatcher.EnsureConnected()
 	}
 
 	return client, nil

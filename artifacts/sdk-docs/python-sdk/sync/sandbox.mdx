@@ -6,7 +6,6 @@ hideTitleOnPage: true
 ## Sandbox
 
 ```python
-@with_events
 class Sandbox(SandboxDto)
 ```
 
@@ -130,7 +129,8 @@ Initialize a new Sandbox instance.
 - `sandbox_dto` _SandboxDto | SandboxListItem_ - The sandbox data from the API.
 - `toolbox_api` _ApiClient_ - API client for toolbox operations.
 - `sandbox_api` _SandboxApi_ - API client for Sandbox operations.
-- `subscription_manager` - SyncEventSubscriptionManager for real-time updates.
+- `subscription_manager` - SyncEventSubscriptionManager used for state events while waiting
+  for a state change.
 - `http_client` _httpx.Client_ - Shared pooled client for file transfers.
 
 #### Sandbox.refresh\_data

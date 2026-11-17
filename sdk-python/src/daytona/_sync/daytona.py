@@ -297,7 +297,7 @@ class Daytona:
                 "sdk-python",
                 sdk_version,
             )
-            self._event_dispatcher.ensure_connected()
+            # The event connection opens lazily, when a wait for a sandbox state first needs it.
 
         self._subscription_manager: SyncEventSubscriptionManager = SyncEventSubscriptionManager(self._event_dispatcher)
 

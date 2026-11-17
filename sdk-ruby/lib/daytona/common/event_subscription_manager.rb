@@ -77,6 +77,14 @@ module Daytona
       end
     end
 
+    # @return [Boolean] Whether the dispatcher currently has a live connection, i.e. whether
+    #   subscribed events can arrive.
+    def connected?
+      return false if @dispatcher.nil?
+
+      @dispatcher.connected?
+    end
+
     def unsubscribe(sub_id)
       subscription = @mutex.synchronize do
         removed = @subscriptions.delete(sub_id)

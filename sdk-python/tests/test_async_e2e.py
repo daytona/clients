@@ -211,6 +211,8 @@ async def test_async_close_closes_event_socket_before_returning():
     try:
         dispatcher = daytona._event_dispatcher
         assert dispatcher is not None
+        # The client connects lazily; open the socket the way a sandbox wait would.
+        dispatcher.ensure_connected()
         for _ in range(100):
             if dispatcher.is_connected:
                 break

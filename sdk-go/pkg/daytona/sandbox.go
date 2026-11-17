@@ -62,7 +62,6 @@ type Sandbox struct {
 	mu                  sync.RWMutex
 	stateWaiters        []chan apiclient.SandboxState
 	subscriptionManager *common.EventSubscriptionManager
-	subID               string
 
 	ID             string                         // Unique sandbox identifier
 	Name           string                         // Human-readable sandbox name
@@ -390,7 +389,6 @@ func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO
 	}
 	s.populateFromDTO(dto)
 	s.State = dto.GetState()
-	s.ensureSubscribed()
 	return s
 }
 
@@ -405,7 +403,11 @@ func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO
 // *[apiclient.SandboxListItem] they remain at their zero values.
 func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	// Fields shared by both apiclient.Sandbox and apiclient.SandboxListItem.
-	s.ID = dto.GetId()
+	// ID is read without the lock (API paths, concurrent waits), so it is only
+	// written when it actually changes.
+	if id := dto.GetId(); id != s.ID {
+		s.ID = id
+	}
 	s.Name = dto.GetName()
 	s.OrganizationId = dto.GetOrganizationId()
 	if v, ok := dto.GetSnapshotOk(); ok {
@@ -504,52 +506,50 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	}
 }
 
-func (s *Sandbox) ensureSubscribed() {
-	if s.subscriptionManager == nil {
-		return
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.subID != "" {
-		if s.subscriptionManager.Refresh(s.subID) {
-			return
-		}
-		s.subID = ""
-	}
-
-	s.subscribeToEventsLocked()
+// waitSubscription is the event subscription held by a single waitForState
+// call. Sandboxes only subscribe to state events while a wait is running.
+type waitSubscription struct {
+	sandbox *Sandbox
+	subID   string
 }
 
-func (s *Sandbox) subscribeToEventsLocked() {
-	if s.subscriptionManager == nil {
-		return
-	}
-
-	if s.subID != "" {
-		return
-	}
-
-	s.subID = s.subscriptionManager.Subscribe(
-		s.ID,
-		s.handleEvent,
-		[]string{"sandbox.state.updated", "sandbox.created"},
-	)
+func (s *Sandbox) subscribeForWait() *waitSubscription {
+	w := &waitSubscription{sandbox: s}
+	w.ensure()
+	return w
 }
 
-func (s *Sandbox) hasActiveSubscription() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.subID != ""
+// ensure keeps the subscription alive (refreshing its TTL), re-subscribing if
+// it lapsed, and reports whether one is held.
+func (w *waitSubscription) ensure() bool {
+	manager := w.sandbox.subscriptionManager
+	if manager == nil {
+		return false
+	}
+	if w.subID != "" && manager.Refresh(w.subID) {
+		return true
+	}
+	w.subID = manager.Subscribe(w.sandbox.ID, w.sandbox.handleEvent, []string{"sandbox.state.updated"})
+	return w.subID != ""
 }
 
-func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration, subscribed bool) time.Duration {
-	if subscribed {
-		return waitForStateStreamingSafetyInterval
-	}
+// eventBacked reports whether state events can currently reach this wait: it
+// holds a subscription and the event connection is up. It runs on every poll
+// iteration, so it also keeps the subscription from expiring during long waits.
+func (w *waitSubscription) eventBacked() bool {
+	return w.ensure() && w.sandbox.subscriptionManager.IsConnected()
+}
 
+func (w *waitSubscription) close() {
+	if w.subID != "" && w.sandbox.subscriptionManager != nil {
+		w.sandbox.subscriptionManager.Unsubscribe(w.subID)
+	}
+	w.subID = ""
+}
+
+// nextWaitForStatePollInterval returns the next poll interval for a wait that
+// is not receiving state events: fast at first, then backing off.
+func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration) time.Duration {
 	if elapsed <= waitForStatePollingBackoffDelay {
 		return current
 	}
@@ -562,28 +562,21 @@ func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration, 
 	return next
 }
 
+// waitForStatePollInterval picks the poll interval for the next wait iteration:
+// a sparse safety-net interval while events are flowing, else pollingInterval.
+func waitForStatePollInterval(pollingInterval time.Duration, eventBacked bool) time.Duration {
+	if eventBacked {
+		return waitForStateStreamingSafetyInterval
+	}
+	return pollingInterval
+}
+
 func (s *Sandbox) handleEvent(event common.SandboxEvent) {
 	switch event.Type {
 	case common.SandboxEventStateUpdated:
 		if event.StateEvent != nil {
 			s.applyState(event.StateEvent.NewState)
 		}
-	case common.SandboxEventCreated:
-		if event.CreatedEvent != nil {
-			s.updateFromAPIResponse(event.CreatedEvent)
-		}
-	}
-}
-
-func (s *Sandbox) unsubscribe() {
-	s.mu.Lock()
-	subID := s.subID
-	s.subID = ""
-	manager := s.subscriptionManager
-	s.mu.Unlock()
-
-	if subID != "" && manager != nil {
-		manager.Unsubscribe(subID)
 	}
 }
 
@@ -657,9 +650,6 @@ func (s *Sandbox) waitForState(
 	errorStates []apiclient.SandboxState,
 	safeRefresh bool,
 ) error {
-	s.ensureSubscribed()
-	subscribed := s.hasActiveSubscription()
-
 	stateCh := make(chan apiclient.SandboxState, 1)
 	s.mu.Lock()
 	s.stateWaiters = append(s.stateWaiters, stateCh)
@@ -689,6 +679,11 @@ func (s *Sandbox) waitForState(
 	if err := s.destroyedLifecycleError(targetStates); err != nil {
 		return err
 	}
+
+	// State events are subscribed only for the duration of the wait, and before
+	// the first refresh so no transition after it is missed.
+	sub := s.subscribeForWait()
+	defer sub.close()
 
 	refresh := func(rctx context.Context) (done bool, err error) {
 		if safeRefresh {
@@ -720,11 +715,8 @@ func (s *Sandbox) waitForState(
 		return err
 	}
 
-	pollInterval := waitForStatePollingInitialInterval
-	if subscribed {
-		pollInterval = waitForStateStreamingSafetyInterval
-	}
-	pollTimer := time.NewTimer(pollInterval)
+	pollingInterval := waitForStatePollingInitialInterval
+	pollTimer := time.NewTimer(waitForStatePollInterval(pollingInterval, sub.eventBacked()))
 	defer pollTimer.Stop()
 	startTime := time.Now()
 
@@ -758,8 +750,8 @@ func (s *Sandbox) waitForState(
 				return err
 			}
 
-			pollInterval = nextWaitForStatePollInterval(pollInterval, time.Since(startTime), subscribed)
-			pollTimer.Reset(pollInterval)
+			pollingInterval = nextWaitForStatePollInterval(pollingInterval, time.Since(startTime))
+			pollTimer.Reset(waitForStatePollInterval(pollingInterval, sub.eventBacked()))
 		}
 	}
 }
@@ -845,7 +837,6 @@ func containsSandboxState(states []apiclient.SandboxState, state apiclient.Sandb
 //	}
 //	fmt.Printf("Current state: %s\n", sandbox.State)
 func (s *Sandbox) RefreshData(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "RefreshData", func(ctx context.Context) error {
 		return s.doRefreshData(ctx)
 	})
@@ -895,7 +886,6 @@ func (s *Sandbox) ensureSigningKey(ctx context.Context) (string, error) {
 //	}
 //	fmt.Printf("Home directory: %s\n", homeDir) // e.g., "/home/daytona"
 func (s *Sandbox) GetUserHomeDir(ctx context.Context) (string, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetUserHomeDir", func(ctx context.Context) (string, error) {
 		resp, httpResp, err := s.ToolboxClient.InfoAPI.GetUserHomeDir(ctx).Execute()
 		if err != nil {
@@ -1111,7 +1101,6 @@ func sandboxMetricsFromSystemMetrics(m *toolbox.SystemMetrics) SandboxMetrics {
 //	}
 //	fmt.Printf("Working directory: %s\n", workDir)
 func (s *Sandbox) GetWorkingDir(ctx context.Context) (string, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetWorkingDir", func(ctx context.Context) (string, error) {
 		resp, httpResp, err := s.ToolboxClient.InfoAPI.GetWorkDir(ctx).Execute()
 		if err != nil {
@@ -1152,7 +1141,6 @@ func (s *Sandbox) CreateLspServer(languageID types.LspLanguageID, pathToProject 
 //	}
 //	// Sandbox is now running
 func (s *Sandbox) Start(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Start", func(ctx context.Context) error {
 		return s.StartWithTimeout(ctx, 60*time.Second)
 	})
@@ -1170,7 +1158,6 @@ func (s *Sandbox) Start(ctx context.Context) error {
 //	    return err
 //	}
 func (s *Sandbox) StartWithTimeout(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "StartWithTimeout", func(ctx context.Context) error {
 		return s.doStartWithTimeout(ctx, timeout)
 	})
@@ -1206,7 +1193,6 @@ func (s *Sandbox) doStartWithTimeout(ctx context.Context, timeout time.Duration)
 //
 //	err := sandbox.Stop(ctx)
 func (s *Sandbox) Stop(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Stop", func(ctx context.Context) error {
 		return s.StopWithTimeout(ctx, 60*time.Second, false)
 	})
@@ -1222,7 +1208,6 @@ func (s *Sandbox) Stop(ctx context.Context) error {
 //
 //	err := sandbox.StopWithTimeout(ctx, 2*time.Minute, false)
 func (s *Sandbox) StopWithTimeout(ctx context.Context, timeout time.Duration, force bool) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "StopWithTimeout", func(ctx context.Context) error {
 		return s.doStopWithTimeout(ctx, timeout, force)
 	})
@@ -1311,7 +1296,6 @@ func (s *Sandbox) doDeleteWithTimeout(ctx context.Context, timeout time.Duration
 //
 //	err := sandbox.DeleteAndWait(ctx, 60*time.Second)
 func (s *Sandbox) DeleteAndWait(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "DeleteAndWait", func(ctx context.Context) error {
 		return s.doDeleteAndWait(ctx, timeout)
 	})
@@ -1333,7 +1317,6 @@ func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) er
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	defer s.unsubscribe()
 	s.updateFromAPIResponse(sandboxResp)
 
 	err = s.waitForState(ctx,
@@ -1368,7 +1351,6 @@ func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) er
 //	}
 //	// Sandbox is now archived and can be restored later
 func (s *Sandbox) Archive(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Archive", func(ctx context.Context) error {
 		return s.doArchive(ctx)
 	})
@@ -1398,7 +1380,6 @@ func (s *Sandbox) doArchive(ctx context.Context) error {
 //	}
 //	// Sandbox is now running
 func (s *Sandbox) WaitForStart(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForStart", func(ctx context.Context) error {
 		return s.doWaitForStart(ctx, timeout)
 	})
@@ -1441,7 +1422,6 @@ func (s *Sandbox) doWaitForStart(ctx context.Context, timeout time.Duration) err
 //
 //	err := sandbox.WaitForStop(ctx, 2*time.Minute)
 func (s *Sandbox) WaitForStop(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForStop", func(ctx context.Context) error {
 		return s.doWaitForStop(ctx, timeout)
 	})
@@ -1488,7 +1468,6 @@ func (s *Sandbox) doWaitForStop(ctx context.Context, timeout time.Duration) erro
 //	    "project": "api-server",
 //	})
 func (s *Sandbox) SetLabels(ctx context.Context, labels map[string]string) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetLabels", func(ctx context.Context) error {
 		return s.doSetLabels(ctx, labels)
 	})
@@ -1597,7 +1576,6 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 //	}
 //	defer resp.Body.Close()
 func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetPreviewLink", func(ctx context.Context) (*types.PreviewLink, error) {
 		result, httpResp, err := s.client.apiClient.SandboxAPI.GetPortPreviewUrl(
 			s.client.getAuthContext(ctx),
@@ -1632,7 +1610,6 @@ func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewL
 //	}
 //	fmt.Printf("Sandbox ID: %s\nPort: %d\nURL: %s\nToken: %s\n", preview.SandboxID, preview.Port, preview.URL, preview.Token)
 func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInSeconds int) (*types.SignedPreviewLink, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetSignedPreviewLink", func(ctx context.Context) (*types.SignedPreviewLink, error) {
 		result, httpResp, err := s.client.apiClient.SandboxAPI.GetSignedPortPreviewUrl(
 			s.client.getAuthContext(ctx),
@@ -1664,7 +1641,6 @@ func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInS
 //	    return err
 //	}
 func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token string) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "ExpireSignedPreviewLink", func(ctx context.Context) error {
 		httpResp, err := s.client.apiClient.SandboxAPI.ExpireSignedPortPreviewUrl(
 			s.client.getAuthContext(ctx),
@@ -1693,7 +1669,6 @@ func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token s
 //	    return err
 //	}
 func (s *Sandbox) SetPublic(ctx context.Context, isPublic bool) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetPublic", func(ctx context.Context) error {
 		return s.doSetPublic(ctx, isPublic)
 	})
@@ -1730,7 +1705,6 @@ func (s *Sandbox) doSetPublic(ctx context.Context, isPublic bool) error {
 //	interval := 0
 //	err := sandbox.SetAutoArchiveInterval(ctx, &interval)
 func (s *Sandbox) SetAutoArchiveInterval(ctx context.Context, intervalMinutes *int) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetAutoArchiveInterval", func(ctx context.Context) error {
 		return s.doSetAutoArchiveInterval(ctx, intervalMinutes)
 	})
@@ -1778,7 +1752,6 @@ func (s *Sandbox) doSetAutoArchiveInterval(ctx context.Context, intervalMinutes 
 //	interval := -1
 //	err := sandbox.SetAutoDeleteInterval(ctx, &interval)
 func (s *Sandbox) SetAutoDeleteInterval(ctx context.Context, intervalMinutes *int) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetAutoDeleteInterval", func(ctx context.Context) error {
 		return s.doSetAutoDeleteInterval(ctx, intervalMinutes)
 	})
@@ -2171,7 +2144,6 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 //	sandbox.Stop(ctx)
 //	err := sandbox.Resize(ctx, &types.Resources{CPU: 2, Memory: 4, Disk: 30})
 func (s *Sandbox) Resize(ctx context.Context, resources *types.Resources) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Resize", func(ctx context.Context) error {
 		return s.ResizeWithTimeout(ctx, resources, 60*time.Second)
 	})
@@ -2190,7 +2162,6 @@ func (s *Sandbox) Resize(ctx context.Context, resources *types.Resources) error 
 //
 //	err := sandbox.ResizeWithTimeout(ctx, &types.Resources{CPU: 4, Memory: 8}, 2*time.Minute)
 func (s *Sandbox) ResizeWithTimeout(ctx context.Context, resources *types.Resources, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "ResizeWithTimeout", func(ctx context.Context) error {
 		return s.doResizeWithTimeout(ctx, resources, timeout)
 	})
@@ -2261,7 +2232,6 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 //
 //	err := sandbox.WaitForResize(ctx, 2*time.Minute)
 func (s *Sandbox) WaitForResize(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForResize", func(ctx context.Context) error {
 		if timeout < 0 {
 			return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)

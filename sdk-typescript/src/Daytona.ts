@@ -469,6 +469,7 @@ export class Daytona implements AsyncDisposable {
     const useDeprecatedPolling =
       config?.useDeprecatedPolling ?? envReader()?.get('DAYTONA_USE_DEPRECATED_POLLING') === 'true'
 
+    // The dispatcher connects lazily, when a sandbox wait first subscribes to events.
     if (!useDeprecatedPolling) {
       this.eventDispatcher = new EventDispatcher(
         this.apiUrl,
@@ -477,7 +478,6 @@ export class Daytona implements AsyncDisposable {
         sdkLabel,
         packageJson.version,
       )
-      this.eventDispatcher.ensureConnected()
     }
     this.eventSubscriptionManager = new EventSubscriptionManager(this.eventDispatcher ?? null)
 

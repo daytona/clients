@@ -18,9 +18,18 @@ logger = logging.getLogger(__name__)
 EventHandler = Callable[[str, Any], None]
 AsyncEventHandler = Callable[[str, Any], Awaitable[None] | None]
 
+# The server accepts at most this many ids per subscribe/unsubscribe message.
+_SUBSCRIBE_CHUNK_SIZE = 100
+
 
 class AsyncEventDispatcher:
-    """Async event dispatcher that connects to the Socket.IO notification gateway."""
+    """Async event dispatcher that connects to the Socket.IO notification gateway.
+
+    The connection opens lazily with the first subscription and asks the server for explicit
+    subscriptions: only events for resources that currently have a listener are sent. Servers
+    without explicit subscriptions send all organization events, so events are still filtered
+    by resource id on the client.
+    """
 
     _api_url: str
     _token: str
@@ -63,6 +72,7 @@ class AsyncEventDispatcher:
         self._connect_task: asyncio.Task[None] | None = None
         self._disconnect_generation = 0
         self._lock = asyncio.Lock()
+        self._emit_tasks: set[asyncio.Task[None]] = set()
 
     def ensure_connected(self) -> None:
         """Idempotent: ensure a connection attempt is in progress or already established.
@@ -119,9 +129,14 @@ class AsyncEventDispatcher:
 
         @sio.event  # type: ignore[misc]
         async def connect() -> None:  # pyright: ignore[reportUnusedFunction]
+            # Subscriptions belong to the socket: send the whole set on every connect and reconnect.
+            # Ids added from here on are sent by subscribe() because the dispatcher is now connected.
+            resource_ids = list(dispatcher._listeners)
             dispatcher._connected = True
             dispatcher._failed = False
             dispatcher._fail_error = None
+            for chunk in _chunks(resource_ids):
+                await _emit_async(sio, "subscribe", chunk)
 
         @sio.event  # type: ignore[misc]
         async def disconnect() -> None:  # pyright: ignore[reportUnusedFunction]
@@ -146,7 +161,8 @@ class AsyncEventDispatcher:
             params.append(f"source={quote(self._source, safe='')}")
         if self._sdk_version:
             params.append(f"sdkVersion={quote(self._sdk_version, safe='')}")
-        connect_url = f"{origin}?{'&'.join(params)}" if params else origin
+        params.append("subscriptionMode=explicit")
+        connect_url = f"{origin}?{'&'.join(params)}"
 
         try:
             await asyncio.wait_for(
@@ -204,6 +220,7 @@ class AsyncEventDispatcher:
 
         if resource_id not in self._listeners:
             self._listeners[resource_id] = []
+            self._emit("subscribe", resource_id)
         self._listeners[resource_id].append(handler)
 
         def unsubscribe() -> None:
@@ -320,16 +337,36 @@ class AsyncEventDispatcher:
             except Exception:
                 logger.debug("Handler error for %s/%s", resource_id, event_name, exc_info=True)
 
+    def _emit(self, event: str, resource_id: str) -> None:
+        """Fire-and-forget subscribe/unsubscribe for one id while connected.
+
+        While disconnected nothing is sent: the connect handler sends the full set.
+        """
+        sio = self._sio
+        if sio is None or not self._connected:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        task = loop.create_task(_emit_async(sio, event, [resource_id]))
+        self._emit_tasks.add(task)
+        task.add_done_callback(self._emit_tasks.discard)
+
     def _unsubscribe_resource(self, resource_id: str) -> None:
         if resource_id in self._listeners:
             del self._listeners[resource_id]
+            self._emit("unsubscribe", resource_id)
 
         if not self._listeners:
             self._schedule_delayed_disconnect()
 
 
 class SyncEventDispatcher:
-    """Sync event dispatcher using socketio.Client on a background thread."""
+    """Sync event dispatcher using socketio.Client on a background thread.
+
+    Connects lazily and uses explicit subscriptions, like AsyncEventDispatcher.
+    """
 
     _api_url: str
     _token: str
@@ -425,13 +462,19 @@ class SyncEventDispatcher:
 
         @sio.event  # type: ignore[misc]
         def connect() -> None:  # pyright: ignore[reportUnusedFunction]
-            dispatcher._connected = True
-            dispatcher._failed = False
-            dispatcher._fail_error = None
+            # Subscriptions belong to the socket: send the whole set on every connect and reconnect.
+            # Emitting under the lock keeps these messages ordered with subscribe()/unsubscribe().
+            with dispatcher._lock:
+                dispatcher._connected = True
+                dispatcher._failed = False
+                dispatcher._fail_error = None
+                for chunk in _chunks(list(dispatcher._listeners)):
+                    _emit_sync(sio, "subscribe", chunk)
 
         @sio.event  # type: ignore[misc]
         def disconnect() -> None:  # pyright: ignore[reportUnusedFunction]
-            dispatcher._connected = False
+            with dispatcher._lock:
+                dispatcher._connected = False
 
         @sio.event  # type: ignore[misc]
         def connect_error(data: Any) -> None:  # pyright: ignore[reportUnusedFunction]
@@ -454,7 +497,8 @@ class SyncEventDispatcher:
                 params.append(f"source={quote(self._source, safe='')}")
             if self._sdk_version:
                 params.append(f"sdkVersion={quote(self._sdk_version, safe='')}")
-            connect_url = f"{origin}?{'&'.join(params)}" if params else origin
+            params.append("subscriptionMode=explicit")
+            connect_url = f"{origin}?{'&'.join(params)}"
 
             sio.connect(
                 connect_url,
@@ -518,6 +562,7 @@ class SyncEventDispatcher:
             self._disconnect_generation += 1
             if resource_id not in self._listeners:
                 self._listeners[resource_id] = []
+                self._emit_locked("subscribe", resource_id)
             self._listeners[resource_id].append(handler)
 
         self.ensure_connected()
@@ -616,7 +661,34 @@ class SyncEventDispatcher:
                 logger.debug("Handler error for %s/%s", resource_id, event_name, exc_info=True)
 
     def _unsubscribe_resource_locked(self, resource_id: str) -> None:
-        _ = self._listeners.pop(resource_id, None)
+        if self._listeners.pop(resource_id, None) is not None:
+            self._emit_locked("unsubscribe", resource_id)
+
+    def _emit_locked(self, event: str, resource_id: str) -> None:
+        """Fire-and-forget subscribe/unsubscribe for one id while connected. Caller holds self._lock.
+
+        While disconnected nothing is sent: the connect handler sends the full set.
+        """
+        if self._sio is not None and self._connected:
+            _emit_sync(self._sio, event, [resource_id])
+
+
+def _chunks(resource_ids: list[str]) -> list[list[str]]:
+    return [resource_ids[i : i + _SUBSCRIBE_CHUNK_SIZE] for i in range(0, len(resource_ids), _SUBSCRIBE_CHUNK_SIZE)]
+
+
+async def _emit_async(sio: socketio.AsyncClient, event: str, resource_ids: list[str]) -> None:
+    try:
+        await sio.emit(event, {"sandboxIds": resource_ids})
+    except Exception:
+        logger.debug("Failed to send %s for %d resource(s)", event, len(resource_ids), exc_info=True)
+
+
+def _emit_sync(sio: socketio.Client, event: str, resource_ids: list[str]) -> None:
+    try:
+        sio.emit(event, {"sandboxIds": resource_ids})
+    except Exception:
+        logger.debug("Failed to send %s for %d resource(s)", event, len(resource_ids), exc_info=True)
 
 
 def _websocket_closed(sio: socketio.AsyncClient) -> asyncio.Future[None] | None:

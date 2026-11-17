@@ -62,16 +62,6 @@ import { WithInstrumentation } from './utils/otel.decorator'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 import { buildSignedFileUrl } from './utils/fileUrlSigning'
 
-function withEvents<This, Args extends unknown[], Return>(
-  target: (this: This, ...args: Args) => Return,
-  _context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
-): (this: This, ...args: Args) => Return {
-  return function (this: This, ...args: Args): Return {
-    ;(this as { ensureSubscribed(): void }).ensureSubscribed()
-    return target.apply(this, args)
-  }
-}
-
 /**
  * Represents a Daytona Sandbox.
  *
@@ -206,7 +196,6 @@ export class Sandbox {
     (typeof this.stateWaiters)[number],
     (state: string) => string
   >()
-  private subId: string | undefined
   private signingKey: string | null = null
   private signingKeyFetchedAt = 0
 
@@ -219,7 +208,7 @@ export class Sandbox {
    * @param {SandboxDto} sandboxDto - The API Sandbox instance
    * @param {SandboxApi} sandboxApi - API client for Sandbox operations
    * @param {InfoApi} infoApi - API client for info operations
-   * @param {EventSubscriptionManager} subscriptionManager - Event subscription manager for real-time updates
+   * @param {EventSubscriptionManager} subscriptionManager - Event subscription manager used while waiting for state changes
    */
   constructor(
     sandboxDto: SandboxDto | SandboxListItemDto,
@@ -253,8 +242,6 @@ export class Sandbox {
     this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
     this.serverApi = new ServerApi(this.clientConfig, '', this.axiosInstance)
     this.systemApi = new SystemApi(this.clientConfig, '', this.axiosInstance)
-
-    this.subscribeToEvents()
   }
 
   /**
@@ -267,7 +254,6 @@ export class Sandbox {
    * console.log(`Sandbox user home: ${userHomeDir}`);
    */
   @WithInstrumentation()
-  @withEvents
   public async getUserHomeDir(): Promise<string | undefined> {
     const response = await this.infoApi.getUserHomeDir()
     return response.data.dir
@@ -339,7 +325,6 @@ export class Sandbox {
    * @deprecated Use `getUserHomeDir` instead. This method will be removed in a future version.
    */
   @WithInstrumentation()
-  @withEvents
   public async getUserRootDir(): Promise<string | undefined> {
     return this.getUserHomeDir()
   }
@@ -355,7 +340,6 @@ export class Sandbox {
    * console.log(`Sandbox working directory: ${workDir}`);
    */
   @WithInstrumentation()
-  @withEvents
   public async getWorkDir(): Promise<string | undefined> {
     const response = await this.infoApi.getWorkDir()
     return response.data.dir
@@ -375,7 +359,6 @@ export class Sandbox {
    * const lsp = await sandbox.createLspServer('typescript', 'workspace/project');
    */
   @WithInstrumentation()
-  @withEvents
   public async createLspServer(languageId: LspLanguageId | string, pathToProject: string): Promise<LspServer> {
     return new LspServer(
       languageId as LspLanguageId,
@@ -401,7 +384,6 @@ export class Sandbox {
    * });
    */
   @WithInstrumentation()
-  @withEvents
   public async setLabels(labels: Record<string, string>): Promise<Record<string, string>> {
     this.labels = (await this.sandboxApi.replaceLabels(this.id, { labels })).data.labels
     return this.labels
@@ -423,7 +405,6 @@ export class Sandbox {
    * console.log('Sandbox started successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async start(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -449,7 +430,6 @@ export class Sandbox {
    * await sandbox.recover();
    * console.log('Sandbox recovered successfully');
    */
-  @withEvents
   public async recover(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -478,7 +458,6 @@ export class Sandbox {
    * console.log('Sandbox stopped successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async stop(timeout = 60, force = false): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -510,7 +489,6 @@ export class Sandbox {
    * console.log(`Forked sandbox: ${forked.id}`);
    */
   @WithInstrumentation()
-  @withEvents
   public async fork(params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -573,7 +551,6 @@ export class Sandbox {
    * console.log('Snapshot created successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async createSnapshot(name: string, timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -636,7 +613,6 @@ export class Sandbox {
    * console.log('Sandbox paused successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async pause(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -679,7 +655,6 @@ export class Sandbox {
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
-  @withEvents
   public async delete(timeout = 60, wait = false): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -691,23 +666,16 @@ export class Sandbox {
       this.processSandboxDto(response.data)
     }
 
-    try {
-      if (wait && this.state !== SandboxState.DESTROYED) {
-        const timeElapsed = Date.now() - startTime
-        await this.waitForState(
-          [SandboxState.DESTROYED],
-          [SandboxState.ERROR, SandboxState.BUILD_FAILED],
-          timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout,
-          'Sandbox failed to be destroyed within the timeout period',
-          (state) => `Sandbox ${this.id} failed to delete with state: ${state}, error reason: ${this.errorReason}`,
-          true,
-        )
-      }
-    } finally {
-      if (this.subId) {
-        this.subscriptionManager.unsubscribe(this.subId)
-        this.subId = undefined
-      }
+    if (wait && this.state !== SandboxState.DESTROYED) {
+      const timeElapsed = Date.now() - startTime
+      await this.waitForState(
+        [SandboxState.DESTROYED],
+        [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+        timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout,
+        'Sandbox failed to be destroyed within the timeout period',
+        (state) => `Sandbox ${this.id} failed to delete with state: ${state}, error reason: ${this.errorReason}`,
+        true,
+      )
     }
   }
 
@@ -723,7 +691,6 @@ export class Sandbox {
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox ends up in an error state or fails to start within the timeout period.
    */
   @WithInstrumentation()
-  @withEvents
   public async waitUntilStarted(timeout = 60) {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -759,7 +726,6 @@ export class Sandbox {
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox fails to stop within the timeout period.
    */
   @WithInstrumentation()
-  @withEvents
   public async waitUntilStopped(timeout = 60) {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -792,7 +758,6 @@ export class Sandbox {
    * console.log(`Resources: ${sandbox.cpu} CPU, ${sandbox.memory} GiB RAM`);
    */
   @WithInstrumentation()
-  @withEvents
   public async refreshData(): Promise<void> {
     const response = await this.sandboxApi.getSandbox(this.id)
     this.processSandboxDto(response.data)
@@ -810,7 +775,6 @@ export class Sandbox {
    * // Keep sandbox activity alive
    * await sandbox.refreshActivity();
    */
-  @withEvents
   public async refreshActivity(): Promise<void> {
     await this.sandboxApi.updateLastActivity(this.id)
   }
@@ -834,7 +798,6 @@ export class Sandbox {
    * await sandbox.setAutostopInterval(0);
    */
   @WithInstrumentation()
-  @withEvents
   public async setAutostopInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
       throw new DaytonaInvalidArgumentError('autoStopInterval must be a non-negative integer')
@@ -859,7 +822,6 @@ export class Sandbox {
    * // preview.url can now be opened without credentials
    */
   @WithInstrumentation()
-  @withEvents
   public async setPublic(isPublic: boolean): Promise<void> {
     await this.sandboxApi.updatePublicStatus(this.id, isPublic)
     this.public = isPublic
@@ -942,7 +904,6 @@ export class Sandbox {
    * await sandbox.setAutoArchiveInterval(0);
    */
   @WithInstrumentation()
-  @withEvents
   public async setAutoArchiveInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
       throw new DaytonaInvalidArgumentError('autoArchiveInterval must be a non-negative integer')
@@ -970,7 +931,6 @@ export class Sandbox {
    * await sandbox.setAutoDeleteInterval(-1);
    */
   @WithInstrumentation()
-  @withEvents
   public async setAutoDeleteInterval(interval: number): Promise<void> {
     await this.sandboxApi.setAutoDeleteInterval(this.id, interval)
     this.autoDeleteInterval = interval
@@ -1090,7 +1050,6 @@ export class Sandbox {
    * });
    */
   @WithInstrumentation()
-  @withEvents
   public async getPreviewLink(port: number): Promise<PortPreviewUrl> {
     return (await this.sandboxApi.getPortPreviewUrl(this.id, port)).data
   }
@@ -1183,7 +1142,6 @@ export class Sandbox {
    * const signed = await sandbox.getSignedPreviewUrl(3000, 3600);
    * console.log(`Preview URL (valid for one hour): ${signed.url}`);
    */
-  @withEvents
   public async getSignedPreviewUrl(port: number, expiresInSeconds?: number): Promise<SignedPortPreviewUrl> {
     return (await this.sandboxApi.getSignedPortPreviewUrl(this.id, port, undefined, expiresInSeconds)).data
   }
@@ -1195,7 +1153,6 @@ export class Sandbox {
    * @param {string} token - The token to expire the signed preview url on.
    * @returns {Promise<void>}
    */
-  @withEvents
   public async expireSignedPreviewUrl(port: number, token: string): Promise<void> {
     await this.sandboxApi.expireSignedPortPreviewUrl(this.id, port, token)
   }
@@ -1207,7 +1164,6 @@ export class Sandbox {
    * Sandbox must be stopped before archiving.
    */
   @WithInstrumentation()
-  @withEvents
   public async archive(): Promise<void> {
     await this.sandboxApi.archiveSandbox(this.id)
     await this.refreshData()
@@ -1233,7 +1189,6 @@ export class Sandbox {
    * await sandbox.resize({ cpu: 2, memory: 4, disk: 30 })
    */
   @WithInstrumentation()
-  @withEvents
   public async resize(resources: Pick<Resources, 'cpu' | 'memory' | 'disk'>, timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -1268,7 +1223,6 @@ export class Sandbox {
    * @throws {DaytonaError} - If the sandbox ends up in an error state or resize times out.
    */
   @WithInstrumentation()
-  @withEvents
   public async waitForResizeComplete(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -1298,7 +1252,6 @@ export class Sandbox {
    * @returns {Promise<SshAccessDto>} The SSH access token.
    */
   @WithInstrumentation()
-  @withEvents
   public async createSshAccess(expiresInMinutes?: number): Promise<SshAccessDto> {
     return (await this.sandboxApi.createSshAccess(this.id, undefined, expiresInMinutes)).data
   }
@@ -1310,7 +1263,6 @@ export class Sandbox {
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
-  @withEvents
   public async revokeSshAccess(token: string): Promise<void> {
     await this.sandboxApi.revokeSshAccess(this.id, undefined, token)
   }
@@ -1322,47 +1274,30 @@ export class Sandbox {
    * @returns {Promise<SshAccessValidationDto>} The SSH access validation result.
    */
   @WithInstrumentation()
-  @withEvents
   public async validateSshAccess(token: string): Promise<SshAccessValidationDto> {
     return (await this.sandboxApi.validateSshAccess(token)).data
   }
 
   /**
-   * Subscribes to real-time events for this sandbox.
-   * Auto-updates sandbox metadata on every event.
+   * Subscribes to state events for this sandbox for the duration of one wait.
+   * Returns an empty id when events are unavailable (polling mode or client closed).
    */
-  private subscribeToEvents(): void {
-    if (this.subId) {
-      return
+  private subscribeToStateEvents(): string {
+    try {
+      return this.subscriptionManager.subscribe(this.id, this.handleEvent.bind(this), ['sandbox.state.updated'])
+    } catch {
+      return ''
     }
-
-    this.subId = this.subscriptionManager.subscribe(this.id, this.handleEvent.bind(this), [
-      'sandbox.state.updated',
-      'sandbox.created',
-    ])
   }
 
-  private ensureSubscribed(): void {
-    if (this.subId) {
-      if (this.subscriptionManager.refresh(this.subId)) {
-        return
-      }
-
-      this.subId = undefined
-    }
-
-    this.subscribeToEvents()
-  }
-
-  private handleEvent(eventName: string, data: any): void {
+  /**
+   * Applies the state from a `sandbox.state.updated` event. Payloads may carry only a
+   * subset of the sandbox fields; everything else is picked up by the wait's refreshes.
+   */
+  private handleEvent(_eventName: string, data: any): void {
     if (!data || typeof data !== 'object') return
     const raw = data.sandbox ?? data
     if (!raw || typeof raw !== 'object') return
-
-    if (eventName === 'sandbox.created') {
-      this.processSandboxDto(raw as SandboxDto)
-      return
-    }
 
     const newState = raw.state ?? data.newState
     if (newState) {
@@ -1389,12 +1324,12 @@ export class Sandbox {
     errorMessageFn: (state: string) => string,
     safeRefresh = false,
   ): Promise<void> {
-    this.ensureSubscribed()
-
     return new Promise<void>((resolve, reject) => {
       let timeoutTimer: ReturnType<typeof setTimeout> | null = null
       let pollTimer: ReturnType<typeof setTimeout> | null = null
       let settled = false
+      // Event subscription held by this wait only; released on every exit path.
+      let subId = ''
 
       const waiter = {
         targetStates: new Set(targetStates),
@@ -1420,6 +1355,10 @@ export class Sandbox {
         if (timeoutTimer) clearTimeout(timeoutTimer)
         if (pollTimer) clearTimeout(pollTimer)
         this.removeStateWaiter(waiter)
+        if (subId) {
+          this.subscriptionManager.unsubscribe(subId)
+          subId = ''
+        }
       }
 
       // Fast-path only on cached *target* states (parity with main's pre-check).
@@ -1429,6 +1368,8 @@ export class Sandbox {
         waiter.resolve(this.state)
         return
       }
+
+      subId = this.subscribeToStateEvents()
 
       if (timeout !== 0) {
         timeoutTimer = setTimeout(() => {
@@ -1462,12 +1403,22 @@ export class Sandbox {
         }, timeout * 1000)
       }
 
-      // Poll as a safety net for missed state changes. With an active event subscription
-      // a sparse 1s cadence suffices; without events (polling mode) replicate main's
-      // cadence exactly: 100ms steady for the first 5s, then exponential backoff capped at 1s.
-      const streaming = !!this.subId
+      // Poll as a safety net for missed state changes. While this wait is event-backed
+      // (holds a subscription and the connection is up) a sparse 1s cadence suffices;
+      // otherwise replicate main's cadence exactly: 100ms steady for the first 5s, then
+      // exponential backoff capped at 1s. Re-evaluated on every iteration so the cadence
+      // follows the connection as it comes up or drops.
       const pollStart = Date.now()
-      let pollInterval = streaming ? 1000 : 100
+      let fastPollInterval = 100
+      const isEventBacked = (): boolean => {
+        if (!subId) return false
+        // Keep the subscription alive for long waits (subscriptions expire after a TTL).
+        if (!this.subscriptionManager.refresh(subId)) {
+          subId = this.subscribeToStateEvents()
+          if (!subId) return false
+        }
+        return this.subscriptionManager.isConnected
+      }
       const doPoll = async () => {
         if (settled) return
 
@@ -1493,8 +1444,12 @@ export class Sandbox {
             return
           }
 
-          if (!streaming && Date.now() - pollStart > 5000) {
-            pollInterval = Math.min(pollInterval * 1.1, 1000)
+          let pollInterval = 1000
+          if (!isEventBacked()) {
+            if (Date.now() - pollStart > 5000) {
+              fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
+            }
+            pollInterval = fastPollInterval
           }
           pollTimer = setTimeout(() => {
             void doPoll()

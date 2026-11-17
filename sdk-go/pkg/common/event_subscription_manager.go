@@ -106,6 +106,15 @@ func (m *EventSubscriptionManager) Unsubscribe(subID string) {
 	}
 }
 
+// IsConnected reports whether the underlying event dispatcher currently has a
+// live connection, i.e. whether subscribed events can arrive.
+func (m *EventSubscriptionManager) IsConnected() bool {
+	if m == nil || m.dispatcher == nil {
+		return false
+	}
+	return m.dispatcher.IsConnected()
+}
+
 func (m *EventSubscriptionManager) Shutdown() {
 	if m == nil {
 		return

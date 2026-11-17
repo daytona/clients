@@ -103,14 +103,15 @@ class TestDaytonaInit:
             _make_daytona(DaytonaConfig(jwt_token="jwt", api_url="https://api.test.io", target="us"))
 
     @patch(f"{SYNC_MODULE}.SyncEventDispatcher")
-    def test_init_default_creates_event_dispatcher(self, mock_dispatcher, env_with_api_key):
+    def test_init_creates_event_dispatcher_without_connecting(self, mock_dispatcher, env_with_api_key):
         dispatcher = MagicMock()
         mock_dispatcher.return_value = dispatcher
 
         daytona = _make_daytona()
 
         assert daytona._event_dispatcher is dispatcher
-        dispatcher.ensure_connected.assert_called_once_with()
+        dispatcher.ensure_connected.assert_not_called()
+        dispatcher.subscribe.assert_not_called()
 
     @patch(f"{SYNC_MODULE}.SyncEventDispatcher")
     def test_deprecated_polling_config_disables_dispatcher(self, mock_dispatcher, env_with_api_key):
@@ -145,7 +146,8 @@ class TestDaytonaInit:
         )
 
         assert daytona._event_dispatcher is dispatcher
-        dispatcher.ensure_connected.assert_called_once_with()
+        dispatcher.ensure_connected.assert_not_called()
+        dispatcher.subscribe.assert_not_called()
 
 
 class TestDaytonaCreateValidation:
@@ -631,3 +633,19 @@ class TestDaytonaCreateTarget:
         daytona = self._client(sandbox_dto)
         daytona.create(CreateSandboxFromSnapshotParams())
         assert daytona._sandbox_api.create_sandbox.call_args.args[0].target is None
+
+
+class TestDaytonaNoEagerSubscriptions:
+    def test_get_and_list_do_not_subscribe_or_connect(self, env_with_api_key, sandbox_dto):
+        daytona = _make_daytona()
+        dispatcher = daytona._event_dispatcher
+        assert dispatcher is not None
+        daytona._sandbox_api = MagicMock()
+        daytona._sandbox_api.get_sandbox.return_value = sandbox_dto
+        daytona._sandbox_api.list_sandboxes.return_value = MagicMock(items=[sandbox_dto], next_cursor=None)
+
+        _ = daytona.get("test-sandbox-id")
+        _ = list(daytona.list())
+
+        assert dispatcher._listeners == {}
+        assert dispatcher._bg_thread is None

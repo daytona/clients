@@ -9,6 +9,9 @@ import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.client.SocketOptionBuilder;
 import io.socket.engineio.client.transports.WebSocket;
+import io.socket.thread.EventThread;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -31,6 +34,12 @@ import java.util.logging.Logger;
  * Manages a Socket.IO connection to the Daytona notification gateway and
  * dispatches sandbox events to per-resource handlers.
  *
+ * <p>The connection is opened lazily by the first {@link #subscribe} call and uses
+ * explicit subscription mode: the dispatcher tells the server which resource ids
+ * it listens to ({@code subscribe} / {@code unsubscribe} messages) and re-sends the
+ * whole set after every connect and reconnect. Servers without explicit mode ignore
+ * it and send all organization events; those are still filtered here by id.
+ *
  * <p>Events are dynamically registered and dispatched based on the event names
  * passed to {@link #subscribe}. When no listeners remain, the connection is
  * closed after a 30-second grace period and re-established when a new
@@ -42,6 +51,10 @@ public class EventDispatcher {
     private static final long DISCONNECT_DELAY_SECONDS = 30;
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String[] NESTED_ENTITY_KEYS = {"sandbox", "volume", "snapshot", "runner"};
+    static final String SUBSCRIPTION_MODE = "explicit";
+    static final int MAX_IDS_PER_MESSAGE = 100;
+    static final String SUBSCRIBE_EVENT = "subscribe";
+    static final String UNSUBSCRIBE_EVENT = "unsubscribe";
 
     private final String apiUrl;
     private final String token;
@@ -58,6 +71,8 @@ public class EventDispatcher {
     private final ScheduledExecutorService scheduler;
     private ScheduledFuture<?> disconnectTimer;
     private long disconnectGeneration;
+    // Incremented on every connect; guarded by lock. Lets queued emits detect a newer connection.
+    private long connectionGeneration;
 
     private volatile boolean connected;
     private volatile boolean connecting;
@@ -150,6 +165,7 @@ public class EventDispatcher {
                     .setReconnectionAttempts(Integer.MAX_VALUE);
 
             java.util.List<String> queryParts = new java.util.ArrayList<>();
+            queryParts.add("subscriptionMode=" + SUBSCRIPTION_MODE);
             if (organizationId != null && !organizationId.isEmpty()) {
                 queryParts.add("organizationId=" + encodeQueryValue(organizationId));
             }
@@ -159,9 +175,7 @@ public class EventDispatcher {
             if (sdkVersion != null && !sdkVersion.isEmpty()) {
                 queryParts.add("sdkVersion=" + encodeQueryValue(sdkVersion));
             }
-            if (!queryParts.isEmpty()) {
-                builder.setQuery(String.join("&", queryParts));
-            }
+            builder.setQuery(String.join("&", queryParts));
 
             Socket sock = IO.socket(baseUri, builder.build());
 
@@ -177,13 +191,16 @@ public class EventDispatcher {
             }
 
             sock.on(Socket.EVENT_CONNECT, args -> {
+                bindPendingEvents(sock);
                 synchronized (lock) {
                     connected = true;
                     connecting = false;
                     failed = false;
                     failError = "";
+                    connectionGeneration++;
+                    // The server drops subscriptions on disconnect: send the whole set again.
+                    emitIdsLocked(sock, SUBSCRIBE_EVENT, new ArrayList<>(listeners.keySet()));
                 }
-                bindPendingEvents(sock);
             });
 
             sock.on(Socket.EVENT_CONNECT_ERROR, args -> {
@@ -235,7 +252,13 @@ public class EventDispatcher {
                 return () -> {
                 };
             }
-            listeners.computeIfAbsent(resourceId, k -> new ConcurrentHashMap<>()).put(subId, handler);
+            Map<Integer, BiConsumer<String, JsonNode>> subs = listeners.get(resourceId);
+            boolean firstListener = subs == null;
+            if (firstListener) {
+                subs = new ConcurrentHashMap<>();
+                listeners.put(resourceId, subs);
+            }
+            subs.put(subId, handler);
 
             if (disconnectTimer != null) {
                 disconnectTimer.cancel(false);
@@ -244,15 +267,15 @@ public class EventDispatcher {
 
             disconnectGeneration++;
 
-            // Mark events as registered under lock to prevent first-event drops
-            for (String event : events) {
-                registeredEvents.add(event);
+            // Register and bind events before subscribing to prevent first-event drops
+            registerEvents(events);
+
+            if (firstListener) {
+                emitIdsLocked(socket, SUBSCRIBE_EVENT, Collections.singletonList(resourceId));
             }
         }
 
         ensureConnected();
-        // Bind socket handlers for any newly registered events
-        registerEvents(events);
 
         return () -> {
             synchronized (lock) {
@@ -377,6 +400,49 @@ public class EventDispatcher {
 
     private void unsubscribeResourceLocked(String resourceId) {
         listeners.remove(resourceId);
+        emitIdsLocked(socket, UNSUBSCRIBE_EVENT, Collections.singletonList(resourceId));
+    }
+
+    /**
+     * Sends {@code subscribe}/{@code unsubscribe} for the given ids, at most
+     * {@link #MAX_IDS_PER_MESSAGE} per message, fire-and-forget.
+     *
+     * <p>Only sends while connected: while disconnected the next connect re-sends the
+     * whole set, so nothing may land in the client library's offline send buffer. The
+     * emit runs on the Socket.IO event thread, where the socket's connection state
+     * cannot change underneath it.
+     */
+    private void emitIdsLocked(Socket sock, String event, List<String> ids) {
+        if (!connected || sock == null || sock != socket || ids.isEmpty()) {
+            return;
+        }
+        final long generation = connectionGeneration;
+        final List<String> idsCopy = new ArrayList<>(ids);
+        try {
+            EventThread.exec(() -> {
+                synchronized (lock) {
+                    if (generation != connectionGeneration || sock != socket || !connected || !sock.connected()) {
+                        return;
+                    }
+                    for (int i = 0; i < idsCopy.size(); i += MAX_IDS_PER_MESSAGE) {
+                        List<String> chunk = idsCopy.subList(i, Math.min(i + MAX_IDS_PER_MESSAGE, idsCopy.size()));
+                        try {
+                            JSONArray sandboxIds = new JSONArray();
+                            for (String id : chunk) {
+                                sandboxIds.put(id);
+                            }
+                            JSONObject payload = new JSONObject();
+                            payload.put("sandboxIds", sandboxIds);
+                            sock.emit(event, payload);
+                        } catch (Exception e) {
+                            LOG.log(Level.FINE, "Failed to send " + event, e);
+                        }
+                    }
+                }
+            });
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "Failed to schedule " + event, e);
+        }
     }
 
     private void scheduleDelayedDisconnectLocked() {

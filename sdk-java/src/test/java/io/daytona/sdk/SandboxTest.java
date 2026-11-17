@@ -24,7 +24,11 @@ import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaSpotEvictedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
 import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.daytona.sdk.internal.EventDispatcher;
 import io.daytona.sdk.internal.EventSubscriptionManager;
+import io.daytona.sdk.internal.FakeEventGateway;
 import io.daytona.toolbox.client.api.InfoApi;
 import io.daytona.toolbox.client.api.ServerApi;
 import io.daytona.toolbox.client.model.UpdateEnvRequest;
@@ -44,7 +48,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Duration;
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +65,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -226,7 +238,6 @@ class SandboxTest {
         pollingSandbox.waitUntilStarted(2);
 
         assertThat(pollingSandbox.getState()).isEqualTo("started");
-        assertThat(TestSupport.getField(pollingSandbox, "subId", String.class)).isNull();
     }
 
     @Test
@@ -712,6 +723,269 @@ class SandboxTest {
                 assertThatThrownBy(() -> sandbox.waitUntilStarted(0))
                         .isInstanceOf(DaytonaException.class)
                         .hasMessageContaining("error"));
+    }
+
+    @Test
+    void constructorsListItemsAndMethodCallsDoNotSubscribe() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox fromModel = new Sandbox(sandboxApi, TestSupport.config(),
+                TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null, manager);
+        new Sandbox(sandboxApi, TestSupport.config(),
+                TestSupport.mainSandboxListItem("sb-2", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        when(sandboxApi.setAutostopInterval("sb-1", BigDecimal.valueOf(5), null))
+                .thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        fromModel.refreshData();
+        fromModel.setAutostopInterval(5);
+        fromModel.createLspServer("python", "/project");
+        fromModel.waitUntilStarted(1);
+
+        verify(manager, never()).subscribe(any(), any(), any());
+        verify(manager, never()).refresh(any());
+    }
+
+    @Test
+    void waitReturningOnCachedTargetStateDoesNotSubscribe() throws Exception {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-1", manager);
+        java.lang.reflect.Method waitForState = Sandbox.class.getDeclaredMethod(
+                "waitForState", java.util.Set.class, java.util.Set.class, long.class, boolean.class);
+        waitForState.setAccessible(true);
+
+        waitForState.invoke(sb, java.util.Set.of("starting"), java.util.Set.of("error"), 5L, false);
+
+        verify(manager, never()).subscribe(any(), any(), any());
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+    }
+
+    @Test
+    void waitFailingFastOnCachedQueueTimeoutDoesNotSubscribe() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        io.daytona.api.client.model.Sandbox destroyed = TestSupport.mainSandbox("sb-1", SandboxState.DESTROYED);
+        destroyed.setQueueTimedOutAt("2026-09-29T12:00:00Z");
+        Sandbox cached = new Sandbox(sandboxApi, TestSupport.config(), destroyed, () -> null, manager);
+
+        assertThatThrownBy(() -> cached.waitUntilStarted(2)).isInstanceOf(DaytonaQueueTimeoutException.class);
+
+        verify(manager, never()).subscribe(any(), any(), any());
+    }
+
+    @Test
+    void waitSubscribesToStateEventsOnlyAndUnsubscribesOnSuccess() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-w", manager);
+        when(sandboxApi.getSandbox("sb-w", null, null)).thenReturn(TestSupport.mainSandbox("sb-w", SandboxState.STARTED));
+
+        sb.waitUntilStarted(2);
+
+        verify(manager).subscribe(eq("sb-w"), any(), eq(List.of("sandbox.state.updated")));
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void waitUnsubscribesOnErrorState() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-w", manager);
+        when(sandboxApi.getSandbox("sb-w", null, null)).thenReturn(TestSupport.mainSandbox("sb-w", SandboxState.ERROR));
+
+        assertThatThrownBy(() -> sb.waitUntilStarted(2)).isInstanceOf(DaytonaException.class);
+
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void waitUnsubscribesOnTimeout() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-w", manager);
+        when(sandboxApi.getSandbox("sb-w", null, null)).thenReturn(TestSupport.mainSandbox("sb-w", SandboxState.STARTING));
+
+        assertThatThrownBy(() -> sb.waitUntilStarted(1)).isInstanceOf(DaytonaTimeoutException.class);
+
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void waitUnsubscribesOnPollFailure() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-w", manager);
+        when(sandboxApi.getSandbox("sb-w", null, null)).thenThrow(new IllegalStateException("boom"));
+
+        assertThatThrownBy(() -> sb.waitUntilStarted(2)).isInstanceOf(RuntimeException.class);
+
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void waitUnsubscribesWhenInterrupted() throws Exception {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-w", manager);
+        lenient().when(sandboxApi.getSandbox("sb-w", null, null)).thenReturn(TestSupport.mainSandbox("sb-w", SandboxState.STARTING));
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread waiter = new Thread(() -> {
+            try {
+                sb.waitUntilStarted(0);
+            } catch (Throwable e) {
+                error.set(e);
+            }
+        });
+
+        waiter.start();
+        verify(manager, timeout(2000)).subscribe(eq("sb-w"), any(), any());
+        waiter.interrupt();
+        waiter.join(5000);
+
+        assertThat(error.get()).isInstanceOf(DaytonaException.class).hasMessageContaining("Interrupted");
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void longWaitSubscribesAgainWhenTheSubscriptionExpired() {
+        EventSubscriptionManager manager = mock(EventSubscriptionManager.class);
+        when(manager.subscribe(eq("sb-w"), any(), any())).thenReturn("sub-1", "sub-2");
+        lenient().when(manager.refresh("sub-1")).thenReturn(false);
+        lenient().when(manager.refresh("sub-2")).thenReturn(true);
+        Sandbox sb = startingSandbox("sb-w", manager);
+        io.daytona.api.client.model.Sandbox starting = TestSupport.mainSandbox("sb-w", SandboxState.STARTING);
+        when(sandboxApi.getSandbox("sb-w", null, null)).thenReturn(starting, starting, starting,
+                TestSupport.mainSandbox("sb-w", SandboxState.STARTED));
+
+        sb.waitUntilStarted(5);
+
+        verify(manager, times(2)).subscribe(eq("sb-w"), any(), any());
+        verify(manager).unsubscribe("sub-2");
+        verify(manager, never()).unsubscribe("sub-1");
+    }
+
+    @Test
+    void concurrentWaitsOnTheSameSandboxEachHoldAndReleaseTheirOwnSubscription() throws Exception {
+        EventSubscriptionManager manager = mock(EventSubscriptionManager.class);
+        when(manager.subscribe(eq("sb-w"), any(), any())).thenReturn("sub-a", "sub-b");
+        lenient().when(manager.refresh(any())).thenReturn(true);
+        Sandbox sb = startingSandbox("sb-w", manager);
+        AtomicBoolean started = new AtomicBoolean(false);
+        when(sandboxApi.getSandbox("sb-w", null, null)).thenAnswer(inv ->
+                TestSupport.mainSandbox("sb-w", started.get() ? SandboxState.STARTED : SandboxState.STARTING));
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread first = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(5), error));
+        Thread second = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(5), error));
+
+        first.start();
+        second.start();
+        verify(manager, timeout(2000).times(2)).subscribe(eq("sb-w"), any(), any());
+        started.set(true);
+        first.join(5000);
+        second.join(5000);
+
+        assertThat(error.get()).isNull();
+        verify(manager).unsubscribe("sub-a");
+        verify(manager).unsubscribe("sub-b");
+    }
+
+    @Test
+    void pollCadenceSwitchesToSafetyNetWhenConnectionComesUpMidWait() throws Exception {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        AtomicBoolean connected = new AtomicBoolean(false);
+        when(manager.isConnected()).thenAnswer(inv -> connected.get());
+        Sandbox sb = startingSandbox("sb-c", manager);
+        AtomicInteger polls = new AtomicInteger();
+        AtomicBoolean started = new AtomicBoolean(false);
+        when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv -> {
+            polls.incrementAndGet();
+            return TestSupport.mainSandbox("sb-c", started.get() ? SandboxState.STARTED : SandboxState.STARTING);
+        });
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(10), error));
+
+        waiter.start();
+        Thread.sleep(1100);
+        int disconnectedPolls = polls.get();
+        connected.set(true);
+        Thread.sleep(300);
+        int before = polls.get();
+        Thread.sleep(1500);
+        int connectedPolls = polls.get() - before;
+        started.set(true);
+        waiter.join(5000);
+
+        assertThat(error.get()).isNull();
+        assertThat(disconnectedPolls).isGreaterThanOrEqualTo(4);
+        assertThat(connectedPolls).isBetween(1, 2);
+    }
+
+    @Test
+    void stateEventResolvesWaitAndAppliesOnlyTheState() throws Exception {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        Sandbox sb = startingSandbox("sb-e", manager);
+        lenient().when(sandboxApi.getSandbox("sb-e", null, null)).thenReturn(TestSupport.mainSandbox("sb-e", SandboxState.STARTING));
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(10), error));
+
+        waiter.start();
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<BiConsumer<String, JsonNode>> handler = ArgumentCaptor.forClass(BiConsumer.class);
+        verify(manager, timeout(2000)).subscribe(eq("sb-e"), handler.capture(), any());
+        handler.getValue().accept("sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\":{\"id\":\"sb-e\",\"state\":\"started\",\"cpu\":64,\"errorReason\":\"from-event\"},"
+                        + "\"oldState\":\"starting\",\"newState\":\"started\"}"));
+        waiter.join(5000);
+
+        assertThat(error.get()).isNull();
+        assertThat(waiter.isAlive()).isFalse();
+        assertThat(sb.getCpu()).isEqualTo(1);
+        assertThat(sb.getErrorReason()).isNull();
+    }
+
+    @Test
+    void waitOpensTheEventConnectionAndSubscribesOnlyForItsDuration() throws Exception {
+        try (FakeEventGateway gateway = new FakeEventGateway()) {
+            EventDispatcher dispatcher = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "test");
+            EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+            try {
+                lenient().when(sandboxApi.getSandbox("sb-g", null, null))
+                        .thenReturn(TestSupport.mainSandbox("sb-g", SandboxState.STARTING));
+                Sandbox sb = startingSandbox("sb-g", manager);
+                Thread.sleep(200);
+                assertThat(gateway.requestCount()).isZero();
+
+                AtomicReference<Throwable> error = new AtomicReference<>();
+                Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(10), error));
+                waiter.start();
+
+                FakeEventGateway.Emitted subscribe = gateway.takeEmitted(5000);
+                assertThat(subscribe).isNotNull();
+                assertThat(subscribe.event).isEqualTo("subscribe");
+                assertThat(subscribe.payload.toString()).isEqualTo("{\"sandboxIds\":[\"sb-g\"]}");
+
+                gateway.sendEvent("sandbox.state.updated",
+                        "{\"sandbox\":{\"id\":\"sb-g\",\"state\":\"started\",\"desiredState\":\"started\"},"
+                                + "\"oldState\":\"starting\",\"newState\":\"started\"}");
+                waiter.join(5000);
+                assertThat(error.get()).isNull();
+                assertThat(sb.getState()).isEqualTo("started");
+
+                FakeEventGateway.Emitted unsubscribe = gateway.takeEmitted(5000);
+                assertThat(unsubscribe).isNotNull();
+                assertThat(unsubscribe.event).isEqualTo("unsubscribe");
+                assertThat(unsubscribe.payload.toString()).isEqualTo("{\"sandboxIds\":[\"sb-g\"]}");
+            } finally {
+                manager.shutdown();
+                dispatcher.shutdown();
+            }
+        }
+    }
+
+    private Sandbox startingSandbox(String id, EventSubscriptionManager manager) {
+        return new Sandbox(sandboxApi, TestSupport.config(),
+                TestSupport.mainSandbox(id, SandboxState.STARTING), () -> null, manager);
+    }
+
+    private static void runCapturing(Runnable action, AtomicReference<Throwable> error) {
+        try {
+            action.run();
+        } catch (Throwable e) {
+            error.set(e);
+        }
     }
 
     private EventSubscriptionManager mockSubscriptionManager() {

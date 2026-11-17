@@ -8,8 +8,16 @@ require_relative 'socketio_client'
 module Daytona
   # Manages a Socket.IO connection and dispatches events to per-resource handlers.
   # Generic — works for sandboxes, volumes, snapshots, runners, etc.
+  #
+  # The connection opens lazily with the first subscription and closes DISCONNECT_DELAY seconds
+  # after the last one goes away. The server is told which resource ids have listeners
+  # (subscribe / unsubscribe events), so it only sends events for those. Older servers ignore
+  # this and send every organization event; incoming events are always filtered by id.
   class EventDispatcher
     DISCONNECT_DELAY = 30
+
+    # Most resource ids per subscribe / unsubscribe message.
+    SUBSCRIBE_BATCH_SIZE = 100
 
     # @param api_url [String]
     # @param token [String]
@@ -92,6 +100,8 @@ module Daytona
         @connected = true
         @failed = false
         @fail_error = nil
+        # Subscriptions belong to the socket: send the whole set after every (re)connect.
+        emit_ids_locked('subscribe', @listeners.keys)
         schedule_delayed_disconnect_locked if @listeners.empty?
       end
     rescue StandardError => e
@@ -117,24 +127,25 @@ module Daytona
         @disconnect_timer = nil
         @disconnect_generation += 1
 
+        first_listener = !@listeners.key?(resource_id)
         @listeners[resource_id] ||= []
         @listeners[resource_id] << handler
         # Mark events in filter under lock to avoid dropping first event
         events.each { |evt| @registered_events.add(evt) }
+        # While disconnected only the set changes; the next connect sends it.
+        emit_ids_locked('subscribe', [resource_id]) if first_listener && @connected
       end
 
       ensure_connected
 
+      removed = false
       lambda {
-        return if @close_requested || @closed
-
-        should_schedule = false
         @mutex.synchronize do
-          @listeners[resource_id]&.delete(handler)
-          unsubscribe_resource_locked(resource_id) if @listeners[resource_id] && @listeners[resource_id].empty?
-          should_schedule = @listeners.empty?
+          next if removed || @closed
 
-          schedule_delayed_disconnect_locked if should_schedule
+          removed = true
+          remove_listener_locked(resource_id, handler)
+          schedule_delayed_disconnect_locked if @listeners.empty?
         end
       }
     end
@@ -163,8 +174,29 @@ module Daytona
 
     private
 
-    def unsubscribe_resource_locked(resource_id)
+    # Removes this exact handler once (handlers can compare equal, e.g. two Method objects of the same
+    # receiver), and tells the server when the resource loses its last listener.
+    def remove_listener_locked(resource_id, handler)
+      handlers = @listeners[resource_id]
+      return unless handlers
+
+      index = handlers.index { |h| h.equal?(handler) }
+      handlers.delete_at(index) if index
+      return unless handlers.empty?
+
       @listeners.delete(resource_id)
+      emit_ids_locked('unsubscribe', [resource_id]) if @connected
+    end
+
+    # Fire-and-forget; sent under the lock so subscribe / unsubscribe messages keep their order.
+    def emit_ids_locked(event_name, ids)
+      return if ids.empty? || @client.nil?
+
+      ids.each_slice(SUBSCRIBE_BATCH_SIZE) do |batch|
+        @client.emit(event_name, { sandboxIds: batch })
+      end
+    rescue StandardError
+      nil
     end
 
     def schedule_delayed_disconnect_locked

@@ -550,18 +550,18 @@ func TestSandboxCreateLspServer(t *testing.T) {
 }
 
 func TestNextWaitForStatePollInterval(t *testing.T) {
-	t.Run("polling mode stays fast for first five seconds", func(t *testing.T) {
-		assert.Equal(t, waitForStatePollingInitialInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 5*time.Second, false))
+	t.Run("polling stays fast for first five seconds", func(t *testing.T) {
+		assert.Equal(t, waitForStatePollingInitialInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 5*time.Second))
 	})
 
-	t.Run("polling mode backs off like origin main after five seconds", func(t *testing.T) {
-		assert.Equal(t, 110*time.Millisecond, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 6*time.Second, false))
-		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second, false))
+	t.Run("polling backs off after five seconds", func(t *testing.T) {
+		assert.Equal(t, 110*time.Millisecond, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 6*time.Second))
+		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second))
 	})
 
-	t.Run("streaming mode keeps sparse one second safety polling", func(t *testing.T) {
-		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 10*time.Second, true))
-		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStateStreamingSafetyInterval, 10*time.Second, true))
+	t.Run("event-backed waits keep sparse one second safety polling", func(t *testing.T) {
+		assert.Equal(t, waitForStateStreamingSafetyInterval, waitForStatePollInterval(waitForStatePollingInitialInterval, true))
+		assert.Equal(t, waitForStatePollingInitialInterval, waitForStatePollInterval(waitForStatePollingInitialInterval, false))
 	})
 }
 

@@ -29,9 +29,18 @@ function extractIdFromEvent(data: any): string | undefined {
   return undefined
 }
 
+/** Maximum number of ids sent in one subscribe/unsubscribe message. */
+const SUBSCRIPTION_CHUNK_SIZE = 100
+
 /**
  * Manages a Socket.IO connection to the Daytona notification gateway
  * and dispatches resource events to per-resource handlers.
+ *
+ * The connection is opened lazily by the first {@link subscribe} call and uses
+ * explicit subscription mode: the server only sends events for the resource ids
+ * this client subscribed to. The current id set is re-sent after every
+ * (re)connect. Servers without explicit mode ignore it and send all organization
+ * events, so incoming events are always filtered by resource id.
  */
 export class EventDispatcher {
   private socket: Socket | undefined
@@ -143,6 +152,7 @@ export class EventDispatcher {
       if (this.sdkVersion) {
         query.sdkVersion = this.sdkVersion
       }
+      query.subscriptionMode = 'explicit'
 
       this.socket = io(origin, {
         path: socketPath,
@@ -178,6 +188,9 @@ export class EventDispatcher {
         this._failed = false
         this._failError = null
         this.reconnectAttempts = 0
+        // Fires on the initial connect and on every reconnect; the server drops
+        // subscriptions with the socket, so send the whole current set.
+        this.emitSubscriptionChange('subscribe', [...this.listeners.keys()])
         resolve()
       })
 
@@ -274,21 +287,22 @@ export class EventDispatcher {
     this.disconnectGeneration++
     this.ensureConnected()
 
-    if (!this.listeners.has(resourceId)) {
-      this.listeners.set(resourceId, new Set())
+    let handlers = this.listeners.get(resourceId)
+    if (!handlers) {
+      handlers = new Set()
+      this.listeners.set(resourceId, handlers)
+      this.emitSubscriptionChange('subscribe', [resourceId])
     }
-    this.listeners.get(resourceId)!.add(handler)
+    handlers.add(handler)
 
     // Register any new events with the Socket.IO client
     this.registerEvents(events)
 
     return () => {
       const handlers = this.listeners.get(resourceId)
-      if (handlers) {
-        handlers.delete(handler)
-        if (handlers.size === 0) {
-          this.listeners.delete(resourceId)
-        }
+      if (handlers && handlers.delete(handler) && handlers.size === 0) {
+        this.listeners.delete(resourceId)
+        this.emitSubscriptionChange('unsubscribe', [resourceId])
       }
 
       // Schedule delayed disconnect when no resources are listening anymore
@@ -374,6 +388,24 @@ export class EventDispatcher {
       }
     } catch {
       if (this.supportsBackgroundUnref === undefined) this.supportsBackgroundUnref = false
+    }
+  }
+
+  /**
+   * Fire-and-forget subscribe/unsubscribe for the given ids, chunked per message.
+   *
+   * Only emits while the socket is connected: Socket.IO would otherwise buffer the
+   * message and replay it on connect, duplicating the full set sent by the connect handler.
+   */
+  private emitSubscriptionChange(event: 'subscribe' | 'unsubscribe', resourceIds: string[]): void {
+    const socket = this.socket
+    if (!socket || !socket.connected) return
+    for (let i = 0; i < resourceIds.length; i += SUBSCRIPTION_CHUNK_SIZE) {
+      try {
+        socket.emit(event, { sandboxIds: resourceIds.slice(i, i + SUBSCRIPTION_CHUNK_SIZE) })
+      } catch {
+        // Best effort: event delivery is an optimization, waits keep polling.
+      }
     }
   }
 

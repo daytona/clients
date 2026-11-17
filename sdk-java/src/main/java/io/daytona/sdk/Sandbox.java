@@ -4,7 +4,6 @@
 package io.daytona.sdk;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.GpuType;
@@ -57,8 +56,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * Represents a Daytona Sandbox instance.
  *
  * <p>Exposes lifecycle controls and operation facades for process execution, file-system access,
- * and Git. State changes are streamed over WebSocket by default with polling as a safety net,
- * or observed by polling only when the deprecated polling mode is enabled.
+ * and Git. While a lifecycle call waits for a state change it subscribes to this Sandbox's
+ * state events over WebSocket (connecting on first use) with polling as a safety net, or
+ * observes the state by polling only when the deprecated polling mode is enabled.
  */
 public class Sandbox {
     private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(
@@ -73,10 +73,9 @@ public class Sandbox {
     private static final List<String> SANDBOX_METRIC_NAMES =
             List.copyOf(SANDBOX_METRIC_FIELD_BY_NAME.keySet());
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private static final long POLL_ONLY_INTERVAL_MILLIS = 250;
     private static final long POLL_STREAMING_INTERVAL_MILLIS = 1000;
+    private static final String SANDBOX_STATE_UPDATED_EVENT = "sandbox.state.updated";
     private static final Set<String> STARTED_STATES = Collections.singleton("started");
     private static final Set<String> STOPPED_STATES = new HashSet<>(Arrays.asList("stopped", "destroyed"));
     private static final Set<String> DESTROYED_STATES = Collections.singleton("destroyed");
@@ -128,8 +127,6 @@ public class Sandbox {
     private final String apiKey;
     private final java.util.function.Supplier<String> analyticsApiUrlProvider;
     private final EventSubscriptionManager subscriptionManager;
-    private final Object subscriptionLock = new Object();
-    private String subId;
     private final CopyOnWriteArrayList<StateWaiter> stateWaiters = new CopyOnWriteArrayList<>();
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
@@ -212,7 +209,6 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
-        ensureSubscribed();
     }
 
     Sandbox(SandboxApi sandboxApi, DaytonaConfig config, SandboxListItem data,
@@ -233,7 +229,6 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
-        ensureSubscribed();
     }
 
     /**
@@ -269,7 +264,6 @@ public class Sandbox {
      * @return a new {@link LspServer} configured for the given language
      */
     public LspServer createLspServer(String languageId, String pathToProject) {
-        ensureSubscribed();
         return new LspServer(new io.daytona.toolbox.client.api.LspApi(toolboxApiClient));
     }
 
@@ -287,7 +281,6 @@ public class Sandbox {
      * @throws DaytonaException if the Sandbox fails to start
      */
     public void start() {
-        ensureSubscribed();
         start(60);
     }
 
@@ -301,7 +294,6 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.startSandbox(id, null));
         if (response != null) {
@@ -318,7 +310,6 @@ public class Sandbox {
      * @throws DaytonaException if the Sandbox fails to stop
      */
     public void stop() {
-        ensureSubscribed();
         stop(60);
     }
 
@@ -332,7 +323,6 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
         ExceptionMapper.callMain(() -> sandboxApi.stopSandbox(id, null, null));
         refreshData();
@@ -348,7 +338,6 @@ public class Sandbox {
      * @throws DaytonaException if timeout is invalid, state becomes error, or timeout expires
      */
     public void waitUntilStopped(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -397,22 +386,15 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
         ExceptionMapper.callMain(() -> sandboxApi.deleteSandbox(id, null));
 
-        try {
-            if (wait) {
-                refreshDataSafe();
-                if (!"destroyed".equalsIgnoreCase(state)) {
-                    long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-                    long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
-                    waitForState(DESTROYED_STATES, ERROR_STATES, remaining, true);
-                }
-            }
-        } finally {
-            synchronized (subscriptionLock) {
-                unsubscribeFromEventsLocked();
+        if (wait) {
+            refreshDataSafe();
+            if (!"destroyed".equalsIgnoreCase(state)) {
+                long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+                long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
+                waitForState(DESTROYED_STATES, ERROR_STATES, remaining, true);
             }
         }
     }
@@ -425,7 +407,6 @@ public class Sandbox {
      * @throws DaytonaException if label update fails
      */
     public Map<String, String> setLabels(Map<String, String> labels) {
-        ensureSubscribed();
         ExceptionMapper.callMain(() -> {
             okhttp3.Call call = sandboxApi.replaceLabelsCall(id, new SandboxLabels().labels(labels), null, null);
             sandboxApi.getApiClient().execute(call, null);
@@ -445,7 +426,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setPublic(boolean isPublic) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.updatePublicStatus(id, isPublic, null));
         if (response != null) {
             populateFromDTO(response);
@@ -459,7 +439,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setAutostopInterval(int minutes) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutostopInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
@@ -486,7 +465,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setAutoArchiveInterval(int minutes) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutoArchiveInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
@@ -500,7 +478,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setAutoDeleteInterval(int minutes) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutoDeleteInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
@@ -567,7 +544,6 @@ public class Sandbox {
      * @throws DaytonaException if the request fails
      */
     public String getUserHomeDir() {
-        ensureSubscribed();
         io.daytona.toolbox.client.model.UserHomeDirResponse value = ExceptionMapper.callToolbox(() -> infoApi.getUserHomeDir());
         return value == null ? "" : asString(value.getDir());
     }
@@ -697,7 +673,6 @@ public class Sandbox {
      * @throws DaytonaException if the request fails
      */
     public String getWorkDir() {
-        ensureSubscribed();
         io.daytona.toolbox.client.model.WorkDirResponse value = ExceptionMapper.callToolbox(() -> infoApi.getWorkDir());
         return value == null ? "" : asString(value.getDir());
     }
@@ -833,7 +808,6 @@ public class Sandbox {
      * @throws DaytonaException if timeout is invalid, state becomes failure, or timeout expires
      */
     public void waitUntilStarted(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -850,7 +824,6 @@ public class Sandbox {
      * @throws DaytonaException if resize times out or fails
      */
     public void waitForResizeComplete(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -867,7 +840,6 @@ public class Sandbox {
      * @throws DaytonaException if refresh fails
      */
     public void refreshData() {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox data = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(id, null, null));
         if (data != null) {
             populateFromDTO(data);
@@ -1000,30 +972,9 @@ public class Sandbox {
         }
     }
 
-    private void ensureSubscribed() {
-        synchronized (subscriptionLock) {
-            if (subId != null) {
-                if (subscriptionManager.refresh(subId)) {
-                    return;
-                }
-                subId = null;
-            }
-
-            subId = subscriptionManager.subscribe(id, this::handleEvent,
-                    Arrays.asList("sandbox.state.updated", "sandbox.created"));
-        }
-    }
-
+    // Reads only the state, so slim payloads ({sandbox: {id, state, ...}, oldState, newState}) work.
     private void handleEvent(String eventName, JsonNode data) {
         if (data == null || !data.isObject()) {
-            return;
-        }
-
-        if ("sandbox.created".equals(eventName)) {
-            JsonNode sandboxNode = data.has("sandbox") ? data.get("sandbox") : data;
-            if (sandboxNode != null) {
-                updateFromJsonEvent(sandboxNode);
-            }
             return;
         }
 
@@ -1040,20 +991,15 @@ public class Sandbox {
         }
     }
 
-    private void unsubscribeFromEventsLocked() {
-        if (subId == null) {
-            subId = null;
-            return;
-        }
-
-        subscriptionManager.unsubscribe(subId);
-        subId = null;
-    }
-
+    /**
+     * Waits for one of {@code targetStates}. The wait holds its own subscription to this
+     * Sandbox's state events for its whole duration and releases it on every exit.
+     * While the subscription is backed by a live connection, polling is only a slow safety
+     * net; otherwise the state is polled at the fast interval. This is re-evaluated before
+     * every poll.
+     */
     private void waitForState(Set<String> targetStates, Set<String> errorStates,
                               long timeoutSeconds, boolean safeRefresh) {
-        ensureSubscribed();
-        boolean subscribed = hasActiveSubscription();
         StateWaiter waiter = new StateWaiter(targetStates, errorStates);
         stateWaiters.add(waiter);
 
@@ -1071,24 +1017,9 @@ public class Sandbox {
                 waiter.throwIfError(this);
             }
 
-            long pollIntervalMillis = subscribed ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS;
-            AtomicBoolean refreshInFlight = new AtomicBoolean(false);
-            ScheduledFuture<?> pollFuture = POLL_SCHEDULER.scheduleAtFixedRate(() -> {
-                if (waiter.isResolved()) {
-                    return;
-                }
-                if (refreshInFlight.compareAndSet(false, true)) {
-                    REFRESH_EXECUTOR.submit(() -> {
-                        try {
-                            runPollingRefresh(waiter, safeRefresh);
-                        } finally {
-                            refreshInFlight.set(false);
-                        }
-                    });
-                }
-            }, 0, pollIntervalMillis, TimeUnit.MILLISECONDS);
-
+            Poller poller = new Poller(waiter, safeRefresh);
             try {
+                poller.start();
                 boolean completed;
                 if (timeoutSeconds > 0) {
                     completed = waiter.latch.await(timeoutSeconds, TimeUnit.SECONDS);
@@ -1098,7 +1029,7 @@ public class Sandbox {
                 }
 
                 if (!completed) {
-                    pollFuture.cancel(false);
+                    poller.stop();
                     try {
                         if (safeRefresh) {
                             refreshDataSafe();
@@ -1121,10 +1052,98 @@ public class Sandbox {
                 Thread.currentThread().interrupt();
                 throw new DaytonaException("Interrupted while waiting for sandbox state change", e);
             } finally {
-                pollFuture.cancel(false);
+                poller.stop();
             }
         } finally {
             stateWaiters.remove(waiter);
+        }
+    }
+
+    /**
+     * Polls the Sandbox state for one wait and owns the wait's event subscription, which is
+     * created by {@link #start()} and released by {@link #stop()}.
+     */
+    private final class Poller {
+        private final StateWaiter waiter;
+        private final boolean safeRefresh;
+        private final AtomicBoolean refreshInFlight = new AtomicBoolean(false);
+        private final Object pollLock = new Object();
+        private boolean stopped;
+        private String subId;
+        private ScheduledFuture<?> next;
+
+        Poller(StateWaiter waiter, boolean safeRefresh) {
+            this.waiter = waiter;
+            this.safeRefresh = safeRefresh;
+        }
+
+        void start() {
+            synchronized (pollLock) {
+                subId = subscribe();
+            }
+            schedule(0);
+        }
+
+        void stop() {
+            String toRelease;
+            synchronized (pollLock) {
+                stopped = true;
+                if (next != null) {
+                    next.cancel(false);
+                    next = null;
+                }
+                toRelease = subId;
+                subId = null;
+            }
+            if (toRelease != null) {
+                subscriptionManager.unsubscribe(toRelease);
+            }
+        }
+
+        private String subscribe() {
+            return subscriptionManager.subscribe(id, Sandbox.this::handleEvent,
+                    Collections.singletonList(SANDBOX_STATE_UPDATED_EVENT));
+        }
+
+        private void schedule(long delayMillis) {
+            synchronized (pollLock) {
+                if (stopped) {
+                    return;
+                }
+                next = POLL_SCHEDULER.schedule(this::tick, delayMillis, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        private void tick() {
+            if (waiter.isResolved()) {
+                return;
+            }
+            if (refreshInFlight.compareAndSet(false, true)) {
+                REFRESH_EXECUTOR.submit(() -> {
+                    try {
+                        runPollingRefresh(waiter, safeRefresh);
+                    } finally {
+                        refreshInFlight.set(false);
+                    }
+                });
+            }
+            schedule(isEventBacked() ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS);
+        }
+
+        /**
+         * Keeps the wait's subscription alive (subscribing again if it expired) and reports
+         * whether it is backed by a live event connection.
+         */
+        private boolean isEventBacked() {
+            synchronized (pollLock) {
+                if (stopped) {
+                    return false;
+                }
+                if (subId == null || !subscriptionManager.refresh(subId)) {
+                    subId = subscribe();
+                }
+                return subId != null && subscriptionManager.isConnected();
+            }
         }
     }
 
@@ -1155,26 +1174,6 @@ public class Sandbox {
         String current = this.state;
         if (current != null) {
             waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null);
-        }
-    }
-
-    private boolean hasActiveSubscription() {
-        synchronized (subscriptionLock) {
-            return subId != null;
-        }
-    }
-
-    private void updateFromJsonEvent(JsonNode node) {
-        try {
-            io.daytona.api.client.model.Sandbox model = OBJECT_MAPPER.treeToValue(node, io.daytona.api.client.model.Sandbox.class);
-            if (model != null) {
-                populateFromDTO(model);
-            }
-        } catch (Exception e) {
-            JsonNode stateNode = node.path("state");
-            if (stateNode.isTextual()) {
-                applyState(stateNode.asText());
-            }
         }
     }
 
@@ -1414,7 +1413,6 @@ public class Sandbox {
     }
 
     private void waitForSnapshotComplete(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -1446,7 +1444,6 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be a non-negative number");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
         ExceptionMapper.callMain(() -> sandboxApi.pauseSandbox(id, null));
         refreshData();

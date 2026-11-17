@@ -50,7 +50,7 @@ RSpec.describe Daytona::Daytona do
       expect(daytona.snapshot).to be_a(Daytona::SnapshotService)
     end
 
-    it 'creates and connects an event dispatcher by default' do
+    it 'creates an event dispatcher by default without connecting it' do
       described_class.new(config)
 
       expect(Daytona::EventDispatcher).to have_received(:new).with(
@@ -60,7 +60,8 @@ RSpec.describe Daytona::Daytona do
         source: 'sdk-ruby',
         sdk_version: Daytona::Sdk::VERSION
       )
-      expect(event_dispatcher).to have_received(:ensure_connected)
+      # The dispatcher connects lazily, when a sandbox wait first subscribes.
+      expect(event_dispatcher).not_to have_received(:ensure_connected)
       expect(Daytona::EventSubscriptionManager).to have_received(:new).with(event_dispatcher)
     end
 
@@ -93,7 +94,7 @@ RSpec.describe Daytona::Daytona do
       described_class.new(build_config(use_deprecated_polling: false))
 
       expect(Daytona::EventDispatcher).to have_received(:new)
-      expect(event_dispatcher).to have_received(:ensure_connected)
+      expect(event_dispatcher).not_to have_received(:ensure_connected)
     ensure
       original ? ENV['DAYTONA_USE_DEPRECATED_POLLING'] = original : ENV.delete('DAYTONA_USE_DEPRECATED_POLLING')
     end

@@ -20,6 +20,7 @@ import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
 import io.daytona.sdk.internal.EventDispatcher;
 import io.daytona.sdk.internal.EventSubscriptionManager;
+import io.daytona.sdk.internal.FakeEventGateway;
 import io.daytona.sdk.model.CreateSandboxFromImageParams;
 import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 import io.daytona.sdk.model.ListSandboxesQuery;
@@ -94,6 +95,43 @@ class DaytonaTest {
 
         assertThat(dispatcher).isNotNull();
         assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
+    }
+
+    @Test
+    void eventConnectionIsOpenedByTheFirstWaitNotByConstructorGetOrList() throws Exception {
+        try (FakeEventGateway gateway = new FakeEventGateway();
+             Daytona lazyDaytona = new Daytona(new DaytonaConfig.Builder()
+                     .apiKey("test-key")
+                     .apiUrl(gateway.apiUrl())
+                     .target("eu")
+                     .build())) {
+            TestSupport.setField(lazyDaytona, "sandboxApi", sandboxApi);
+            when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(
+                    TestSupport.mainSandbox("sb-1", SandboxState.STARTING),
+                    TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+            ListSandboxesResponse response = new ListSandboxesResponse();
+            response.setItems(Collections.singletonList(TestSupport.mainSandboxListItem("sb-2", SandboxState.STARTED)));
+            doReturn(response).when(sandboxApi).listSandboxes(
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+            Sandbox sandbox = lazyDaytona.get("sb-1");
+            List<Sandbox> listed = new ArrayList<>();
+            lazyDaytona.list().forEach(listed::add);
+            Thread.sleep(300);
+
+            assertThat(listed).hasSize(1);
+            EventDispatcher dispatcher = TestSupport.getField(lazyDaytona, "eventDispatcher", EventDispatcher.class);
+            assertThat(TestSupport.getField(dispatcher, "connecting", Boolean.class)).isFalse();
+            assertThat(gateway.requestCount()).isZero();
+
+            sandbox.waitUntilStarted(5);
+
+            okhttp3.mockwebserver.RecordedRequest handshake = gateway.takeHandshake(5000);
+            assertThat(handshake).isNotNull();
+            assertThat(handshake.getRequestUrl().queryParameter("subscriptionMode")).isEqualTo("explicit");
+        }
     }
 
     @SuppressWarnings("deprecation")

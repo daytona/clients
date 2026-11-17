@@ -94,6 +94,14 @@ public class EventSubscriptionManager {
         }
     }
 
+    /**
+     * Returns whether the underlying event connection is currently established.
+     * Always {@code false} in polling mode (no dispatcher) and after shutdown.
+     */
+    public boolean isConnected() {
+        return !closed && dispatcher != null && dispatcher.isConnected();
+    }
+
     public void unsubscribe(String subId) {
         Subscription subscription;
         synchronized (lock) {

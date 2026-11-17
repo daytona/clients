@@ -27,7 +27,8 @@ RSpec.describe Daytona::Sandbox do
       Daytona::EventSubscriptionManager,
       subscribe: 'sub-123',
       refresh: true,
-      unsubscribe: nil
+      unsubscribe: nil,
+      connected?: true
     )
   end
 
@@ -700,7 +701,7 @@ RSpec.describe Daytona::Sandbox do
       end
 
       [5, Daytona::Sandbox::NO_TIMEOUT].each do |timeout|
-        it "renews the event subscription and records a refresh on each poll with timeout #{timeout}" do
+        it "renews the wait's event subscription and records a refresh on each poll with timeout #{timeout}" do
           # A separate copy, as in production, so a poll through it does not take the #refresh shortcut.
           bounded_api = instance_double(DaytonaApiClient::SandboxApi)
           allow(DaytonaApiClient::SandboxApi).to receive(:new).and_return(bounded_api)
@@ -717,8 +718,8 @@ RSpec.describe Daytona::Sandbox do
           pending_sandbox.wait_for_sandbox_start(timeout)
 
           expect(Daytona).to have_received(:with_instrumentation).with(nil, 'Sandbox', 'refresh').twice
-          # Twice as the wait starts (wait_for_sandbox_start and wait_for_state), then once for each poll.
-          expect(subscription_manager).to have_received(:refresh).with('sub-123').exactly(4).times
+          # Once after each poll; nothing renews it as the wait starts.
+          expect(subscription_manager).to have_received(:refresh).with('sub-123').twice
         end
       end
 
@@ -1089,6 +1090,173 @@ RSpec.describe Daytona::Sandbox do
         .to output(/DEPRECATION.*experimental_fork/).to_stderr
 
       expect(sandbox).to have_received(:fork).with(name: 'my-fork', timeout: 5)
+    end
+  end
+
+  describe 'state event subscriptions' do
+    let(:pending_sandbox) do
+      described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+    end
+
+    def stub_polls(*states)
+      dtos = states.map { |state| build_sandbox_dto(state:) }
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(*dtos)
+    end
+
+    it 'does not subscribe when constructed or on ordinary method calls' do
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'archived'))
+      allow(sandbox_api).to receive(:archive_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:update_last_activity).with('sandbox-123')
+
+      sandbox.refresh
+      sandbox.archive
+      sandbox.refresh_activity
+
+      expect(subscription_manager).not_to have_received(:subscribe)
+      expect(subscription_manager).not_to have_received(:refresh)
+    end
+
+    it 'subscribes to state events only for the wait and unsubscribes when it succeeds' do
+      stub_polls('pending', 'started')
+      stub_condition_variable_waits { |_seconds| nil }
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(subscription_manager).to have_received(:subscribe)
+        .with(resource_id: 'sandbox-123', handler: kind_of(Method), events: ['sandbox.state.updated']).once
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'neither subscribes nor polls when the cached state already is the target' do
+      allow(sandbox_api).to receive(:get_sandbox)
+
+      sandbox.wait_for_sandbox_start
+
+      expect(subscription_manager).not_to have_received(:subscribe)
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+    end
+
+    it 'unsubscribes when the wait ends in an error state' do
+      stub_polls('error')
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(Daytona::Sdk::Error, /entered error state/)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'unsubscribes when the wait times out' do
+      stub_polls('pending')
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      stub_wait_clock
+
+      expect { pending_sandbox.wait_for_sandbox_start(0.2) }.to raise_error(Daytona::Sdk::TimeoutError)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'unsubscribes when a poll raises' do
+      allow(sandbox_api).to receive(:get_sandbox).and_raise(DaytonaApiClient::ApiError.new(code: 500, message: 'boom'))
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(DaytonaApiClient::ApiError)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'unsubscribes when the waiting thread is interrupted' do
+      cancelled = Class.new(Exception) # rubocop:disable Lint/InheritException
+      allow(sandbox_api).to receive(:get_sandbox).and_raise(cancelled)
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(cancelled)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'gives concurrent waits on the same sandbox their own subscriptions' do
+      allow(subscription_manager).to receive(:subscribe).and_return('sub-a', 'sub-b')
+      first_polled = Queue.new
+      release = Queue.new
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        if Thread.current[:first_wait]
+          first_polled << true
+          release.pop
+        end
+        build_sandbox_dto(state: 'started')
+      end
+
+      first = Thread.new do
+        Thread.current[:first_wait] = true
+        pending_sandbox.wait_for_sandbox_start
+      end
+      first_polled.pop
+      # The second wait ends while the first one is still waiting.
+      pending_sandbox.wait_for_sandbox_start
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-b').once
+      expect(subscription_manager).not_to have_received(:unsubscribe).with('sub-a')
+      release << true
+      first.join
+
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-a').once
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-b').once
+    end
+
+    it 'subscribes again when the wait subscription expired, and releases the new one' do
+      allow(subscription_manager).to receive(:subscribe).and_return('sub-1', 'sub-2')
+      allow(subscription_manager).to receive(:refresh).with('sub-1').and_return(false)
+      allow(subscription_manager).to receive(:refresh).with('sub-2').and_return(true)
+      stub_polls('pending', 'pending', 'started')
+      stub_condition_variable_waits { |_seconds| nil }
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(subscription_manager).to have_received(:subscribe).twice
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-2').once
+      expect(subscription_manager).not_to have_received(:unsubscribe).with('sub-1')
+    end
+
+    it 'polls fast until the event connection is up, sparsely while it is, and fast again once it drops' do
+      allow(subscription_manager).to receive(:connected?).and_return(false, true, false)
+      stub_polls('pending', 'pending', 'pending', 'started')
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(waits).to eq([0.1, 1.0, 0.1])
+    end
+
+    it 'polls fast when no subscription could be created' do
+      allow(subscription_manager).to receive(:subscribe).and_return(nil)
+      stub_polls('pending', 'started')
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(waits).to eq([0.1])
+      expect(subscription_manager).not_to have_received(:connected?)
+      expect(subscription_manager).not_to have_received(:unsubscribe)
+    end
+
+    it 'ends the wait on a slim state event and applies only the state' do
+      handler = nil
+      allow(subscription_manager).to receive(:subscribe) do |**kwargs|
+        handler = kwargs[:handler]
+        'sub-123'
+      end
+      allow(subscription_manager).to receive(:refresh) do
+        handler.call('sandbox.state.updated',
+                     { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'started', 'cpu' => 99 },
+                       'oldState' => 'pending', 'newState' => 'started' })
+        true
+      end
+      stub_polls('pending')
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(pending_sandbox.state).to eq('started')
+      expect(pending_sandbox.cpu).to eq(4)
+      expect(sandbox_api).to have_received(:get_sandbox).once
     end
   end
 

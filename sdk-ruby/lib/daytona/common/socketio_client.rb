@@ -12,7 +12,7 @@ require 'uri'
 
 module Daytona
   # Minimal Engine.IO/Socket.IO v4 client over raw WebSocket.
-  # Supports connect with auth, heartbeat, and event reception.
+  # Supports connect with auth, heartbeat, event reception and fire-and-forget event emission.
   #
   # Engine.IO v4 heartbeat protocol (WebSocket transport):
   #   - Server sends PING (type 2) every pingInterval ms
@@ -151,6 +151,20 @@ module Daytona
       @mutex.synchronize { @connected }
     end
 
+    # Send a Socket.IO event without requesting an acknowledgement. Nothing is buffered:
+    # the event is dropped when the connection is not established. Never raises.
+    #
+    # @param event_name [String]
+    # @param data [Object] JSON-serializable payload
+    # @return [Boolean] true if the event was written to the socket
+    def emit(event_name, data)
+      return false unless connected?
+
+      send_raw("#{EIO_MESSAGE}#{SIO_EVENT}#{JSON.generate([event_name, data])}")
+    rescue StandardError
+      false
+    end
+
     # Gracefully close the connection.
     def close
       @close_requested = true
@@ -216,6 +230,9 @@ module Daytona
       query_parts << "organizationId=#{URI.encode_www_form_component(@organization_id)}" if @organization_id
       query_parts << "source=#{URI.encode_www_form_component(@source)}" if @source
       query_parts << "sdkVersion=#{URI.encode_www_form_component(@sdk_version)}" if @sdk_version
+      # Receive events only for explicitly subscribed sandboxes. Servers without support ignore
+      # it and send all organization events, which the dispatcher still filters by id.
+      query_parts << 'subscriptionMode=explicit'
 
       port_str = (parsed.scheme == 'https' && port == 443) || (parsed.scheme == 'http' && port == 80) ? '' : ":#{port}"
       base_path = parsed.path.to_s.chomp('/')
@@ -349,12 +366,17 @@ module Daytona
       end
     end
 
+    # @return [Boolean] false when there is no socket or the write failed
     def send_raw(msg)
       @write_mutex.synchronize do
-        @ws&.send(msg)
+        return false unless @ws
+
+        @ws.send(msg)
+        true
       end
     rescue StandardError
       # Ignore write errors
+      false
     end
   end
 end

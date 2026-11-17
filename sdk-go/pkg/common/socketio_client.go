@@ -77,6 +77,12 @@ type socketIOClient struct {
 	closeCh            chan struct{}
 	healthStopCh       chan struct{}
 	writemu            sync.Mutex // serializes WebSocket writes
+
+	// Outgoing EVENT packets, written in order by writeLoop so emit never
+	// blocks its caller.
+	outMu     sync.Mutex
+	outQueue  []string
+	outSignal chan struct{}
 }
 
 // socketIOClientConfig holds configuration for creating a socketIOClient.
@@ -111,6 +117,7 @@ func newSocketIOClient(cfg socketIOClientConfig) (*socketIOClient, error) {
 		disconnectOnce: sync.Once{},
 		closeCh:        make(chan struct{}),
 		healthStopCh:   make(chan struct{}),
+		outSignal:      make(chan struct{}, 1),
 	}
 
 	wsURL, err := buildWebSocketURL(cfg.APIURL, cfg.OrganizationID, cfg.Source, cfg.SdkVersion)
@@ -154,6 +161,7 @@ func newSocketIOClient(cfg socketIOClientConfig) (*socketIOClient, error) {
 	// Start background goroutines
 	go c.readLoop()
 	go c.healthMonitorLoop()
+	go c.writeLoop()
 
 	return c, nil
 }
@@ -175,6 +183,9 @@ func buildWebSocketURL(apiURL string, organizationID string, source string, sdkV
 	query := url.Values{}
 	query.Set("EIO", "4")
 	query.Set("transport", "websocket")
+	// Ask the server to send events only for sandboxes this socket subscribes to.
+	// Servers without support ignore it and keep sending all organization events.
+	query.Set("subscriptionMode", "explicit")
 	if organizationID != "" {
 		query.Set("organizationId", organizationID)
 	}
@@ -481,6 +492,76 @@ func (c *socketIOClient) healthMonitorLoop() {
 			}
 		}
 	}
+}
+
+// emitWriteTimeout bounds a single queued event write so a stalled connection
+// cannot block the writer goroutine indefinitely.
+const emitWriteTimeout = 10 * time.Second
+
+// emit queues a Socket.IO EVENT packet (42["event",payload]) and returns without
+// waiting for it to be written or acknowledged. Packets are written in queue
+// order; packets still queued when the client closes are dropped.
+func (c *socketIOClient) emit(event string, payload json.RawMessage) error {
+	name, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event name: %w", err)
+	}
+	packet := fmt.Sprintf("%c%c[%s,%s]", eioMessage, sioEvent, name, payload)
+
+	select {
+	case <-c.closeCh:
+		return fmt.Errorf("connection is closed")
+	default:
+	}
+
+	c.outMu.Lock()
+	c.outQueue = append(c.outQueue, packet)
+	c.outMu.Unlock()
+
+	select {
+	case c.outSignal <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+// writeLoop writes queued EVENT packets until the client is closed.
+func (c *socketIOClient) writeLoop() {
+	for {
+		select {
+		case <-c.closeCh:
+			return
+		case <-c.outSignal:
+		}
+
+		c.outMu.Lock()
+		packets := c.outQueue
+		c.outQueue = nil
+		c.outMu.Unlock()
+
+		for _, packet := range packets {
+			select {
+			case <-c.closeCh:
+				return
+			default:
+			}
+			_ = c.writeMessageWithTimeout(packet, emitWriteTimeout)
+		}
+	}
+}
+
+// writeMessageWithTimeout sends a text message with a write deadline.
+func (c *socketIOClient) writeMessageWithTimeout(msg string, timeout time.Duration) error {
+	c.writemu.Lock()
+	defer c.writemu.Unlock()
+
+	if c.conn == nil {
+		return fmt.Errorf("connection is closed")
+	}
+
+	_ = c.conn.SetWriteDeadline(time.Now().Add(timeout))
+	defer func() { _ = c.conn.SetWriteDeadline(time.Time{}) }()
+	return c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
 }
 
 // writeMessage sends a text message on the WebSocket, serializing writes.

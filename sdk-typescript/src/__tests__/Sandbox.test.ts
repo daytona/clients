@@ -62,10 +62,21 @@ const baseDto: SandboxDto = {
   toolboxProxyUrl: 'http://proxy',
 }
 
+type SubscriptionManagerMock = {
+  subscribe: jest.Mock
+  refresh: jest.Mock
+  unsubscribe: jest.Mock
+  isConnected: boolean
+}
+
 const makeSandbox = (
   overrides: Partial<SandboxDto> = {},
   subscribeReturns = 'sub-1',
-): { sandbox: import('../Sandbox').Sandbox; sandboxApi: Record<string, jest.Mock> } => {
+): {
+  sandbox: import('../Sandbox').Sandbox
+  sandboxApi: Record<string, jest.Mock>
+  subscriptionManager: SubscriptionManagerMock
+} => {
   const { Sandbox } = require('../Sandbox') as typeof import('../Sandbox')
   const sandboxApi = {
     startSandbox: jest.fn(),
@@ -92,10 +103,11 @@ const makeSandbox = (
     validateSshAccess: jest.fn(),
     updateSandboxSecrets: jest.fn(),
   }
-  const subscriptionManager = {
+  const subscriptionManager: SubscriptionManagerMock = {
     subscribe: jest.fn(() => subscribeReturns),
     refresh: jest.fn(() => true),
     unsubscribe: jest.fn(),
+    isConnected: subscribeReturns !== '',
   }
 
   const cfg: Configuration = {
@@ -118,7 +130,7 @@ const makeSandbox = (
     subscriptionManager as unknown as EventSubscriptionManager,
   )
 
-  return { sandbox, sandboxApi }
+  return { sandbox, sandboxApi, subscriptionManager }
 }
 
 describe('Sandbox', () => {
@@ -661,5 +673,148 @@ describe('Sandbox', () => {
 
     const lsp = await sandbox.createLspServer('typescript', '/workspace/project')
     expect(lsp).toBeTruthy()
+  })
+})
+
+describe('Sandbox event subscriptions', () => {
+  type StateEventHandler = (eventName: string, data: unknown) => void
+
+  const subscribedHandler = (subscriptionManager: SubscriptionManagerMock, call = 0): StateEventHandler =>
+    subscriptionManager.subscribe.mock.calls[call][1] as StateEventHandler
+
+  const slimStateEvent = (state: string) => ({
+    sandbox: { id: 'sb-1', state, desiredState: 'started' },
+    oldState: 'starting',
+    newState: state,
+  })
+
+  it('constructing a sandbox and calling ordinary methods does not subscribe to events', async () => {
+    const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+    sandboxApi.replaceLabels.mockResolvedValue(createApiResponse({ labels: { a: 'b' } }))
+    sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'started' }))
+    sandboxApi.createSshAccess.mockResolvedValue(createApiResponse({ token: 't' }))
+    const infoApi = (sandbox as unknown as { infoApi: { getUserHomeDir: jest.Mock } }).infoApi
+    infoApi.getUserHomeDir.mockResolvedValue(createApiResponse({ dir: '/home/daytona' }))
+
+    await sandbox.setLabels({ a: 'b' })
+    await sandbox.refreshData()
+    await sandbox.createSshAccess()
+    await sandbox.getUserHomeDir()
+    await sandbox.waitUntilStarted(5)
+
+    expect(subscriptionManager.subscribe).not.toHaveBeenCalled()
+    expect(subscriptionManager.refresh).not.toHaveBeenCalled()
+  })
+
+  it('a wait subscribes to state events only and resolves from a slim state payload', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    jest.spyOn(sandbox, 'refreshData').mockResolvedValue(undefined)
+
+    const wait = sandbox.waitUntilStarted(5)
+    expect(subscriptionManager.subscribe).toHaveBeenCalledWith('sb-1', expect.any(Function), ['sandbox.state.updated'])
+    expect(subscriptionManager.unsubscribe).not.toHaveBeenCalled()
+
+    subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('started'))
+
+    await expect(wait).resolves.toBeUndefined()
+    expect(sandbox.state).toBe('started')
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+  })
+
+  it('unsubscribes when the wait fails on an error state', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('error')
+    })
+
+    await expect(sandbox.waitUntilStarted(5)).rejects.toThrow(/error/)
+    expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+  })
+
+  it('unsubscribes when the wait times out', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    jest.spyOn(sandbox, 'refreshData').mockResolvedValue(undefined)
+
+    await expect(sandbox.waitUntilStarted(0.05)).rejects.toBeInstanceOf(DaytonaTimeoutError)
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+  })
+
+  it('unsubscribes when a refresh during the wait throws', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    jest.spyOn(sandbox, 'refreshData').mockRejectedValue(new Error('network down'))
+
+    await expect(sandbox.waitUntilStarted(5)).rejects.toThrow('network down')
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+  })
+
+  it('delete(wait=true) holds a subscription only for the wait', async () => {
+    const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+    sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('destroyed')
+    })
+
+    await sandbox.delete(5, true)
+
+    expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+  })
+
+  it('concurrent waits hold independent subscriptions', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    subscriptionManager.subscribe.mockReturnValueOnce('sub-a').mockReturnValueOnce('sub-b')
+    jest.spyOn(sandbox, 'refreshData').mockResolvedValue(undefined)
+
+    const first = sandbox.waitUntilStarted(5)
+    const second = sandbox.waitUntilStarted(5)
+    expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(2)
+
+    subscribedHandler(subscriptionManager, 1)('sandbox.state.updated', slimStateEvent('started'))
+
+    await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined])
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-a')
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-b')
+  })
+
+  it('re-subscribes when the wait subscription expired', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    subscriptionManager.subscribe.mockReturnValueOnce('sub-a').mockReturnValueOnce('sub-b')
+    subscriptionManager.refresh.mockReturnValueOnce(false)
+    let calls = 0
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      calls++
+      if (calls >= 2) {
+        ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+      }
+    })
+
+    await sandbox.waitUntilStarted(5)
+
+    expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(2)
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-b')
+  })
+
+  it('polls fast while not connected and switches to the safety-net cadence once connected', async () => {
+    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+    subscriptionManager.isConnected = false
+    const times: number[] = []
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      times.push(Date.now())
+      if (times.length === 3) {
+        subscriptionManager.isConnected = true
+      }
+      if (times.length >= 4) {
+        ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+      }
+    })
+
+    await sandbox.waitUntilStarted(5)
+
+    expect(times).toHaveLength(4)
+    expect(times[1] - times[0]).toBeLessThan(400)
+    expect(times[2] - times[1]).toBeLessThan(400)
+    expect(times[3] - times[2]).toBeGreaterThan(800)
   })
 })

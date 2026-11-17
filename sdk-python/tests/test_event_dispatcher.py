@@ -5,8 +5,13 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
-from daytona.internal.event_dispatcher import AsyncEventDispatcher
+import pytest
+
+from daytona.internal import event_dispatcher as event_dispatcher_module
+from daytona.internal.event_dispatcher import AsyncEventDispatcher, SyncEventDispatcher
 
 
 def _dispatcher() -> AsyncEventDispatcher:
@@ -135,3 +140,353 @@ class TestAsyncEventDispatcherDisconnect:
         assert not task.cancelled()
         assert sio.disconnected
         assert dispatcher._sio is None
+
+
+SLIM_STATE_EVENT = {
+    "sandbox": {"id": "sb-1", "state": "started", "desiredState": "started"},
+    "oldState": "starting",
+    "newState": "started",
+}
+
+
+class FakeAsyncClient:
+    """socketio.AsyncClient stand-in that records the handshake URL and emitted messages."""
+
+    instances: list[FakeAsyncClient] = []
+
+    def __init__(self, **_kwargs: object) -> None:
+        self.handlers: dict[str, Any] = {}
+        self.connect_url: str | None = None
+        self.connected = False
+        self.emitted: list[tuple[str, Any]] = []
+        self.fail_emit = False
+        FakeAsyncClient.instances.append(self)
+
+    def event(self, handler: Any) -> Any:
+        self.handlers[handler.__name__] = handler
+        return handler
+
+    def on(self, event: str, handler: Any) -> None:
+        self.handlers[event] = handler
+
+    async def connect(self, url: str, **_kwargs: object) -> None:
+        self.connect_url = url
+        await self.simulate_connect()
+
+    async def simulate_connect(self) -> None:
+        self.connected = True
+        await self.handlers["connect"]()
+
+    async def simulate_disconnect(self) -> None:
+        self.connected = False
+        await self.handlers["disconnect"]()
+
+    async def emit(self, event: str, data: Any) -> None:
+        if self.fail_emit or not self.connected:
+            raise RuntimeError("/ is not a connected namespace.")
+        self.emitted.append((event, data))
+
+    async def disconnect(self) -> None:
+        if self.connected:
+            await self.simulate_disconnect()
+
+
+class FakeSyncClient:
+    """socketio.Client stand-in that records the handshake URL and emitted messages."""
+
+    instances: list[FakeSyncClient] = []
+
+    def __init__(self, **_kwargs: object) -> None:
+        self.handlers: dict[str, Any] = {}
+        self.connect_url: str | None = None
+        self.connected = False
+        self.emitted: list[tuple[str, Any]] = []
+        self.fail_emit = False
+        FakeSyncClient.instances.append(self)
+
+    def event(self, handler: Any) -> Any:
+        self.handlers[handler.__name__] = handler
+        return handler
+
+    def on(self, event: str, handler: Any) -> None:
+        self.handlers[event] = handler
+
+    def connect(self, url: str, **_kwargs: object) -> None:
+        self.connect_url = url
+        self.simulate_connect()
+
+    def simulate_connect(self) -> None:
+        self.connected = True
+        self.handlers["connect"]()
+
+    def simulate_disconnect(self) -> None:
+        self.connected = False
+        self.handlers["disconnect"]()
+
+    def emit(self, event: str, data: Any) -> None:
+        if self.fail_emit or not self.connected:
+            raise RuntimeError("/ is not a connected namespace.")
+        self.emitted.append((event, data))
+
+    def disconnect(self) -> None:
+        if self.connected:
+            self.simulate_disconnect()
+
+
+def _noop(_event: str, _data: Any) -> None:
+    pass
+
+
+async def _settle() -> None:
+    for _ in range(5):
+        await asyncio.sleep(0)
+
+
+@pytest.fixture
+def fake_async_sio(monkeypatch: pytest.MonkeyPatch) -> type[FakeAsyncClient]:
+    FakeAsyncClient.instances = []
+    monkeypatch.setattr(event_dispatcher_module.socketio, "AsyncClient", FakeAsyncClient)
+    return FakeAsyncClient
+
+
+@pytest.fixture
+def fake_sync_sio(monkeypatch: pytest.MonkeyPatch) -> type[FakeSyncClient]:
+    FakeSyncClient.instances = []
+    monkeypatch.setattr(event_dispatcher_module.socketio, "Client", FakeSyncClient)
+    return FakeSyncClient
+
+
+def _subscribe_messages(sio: FakeAsyncClient | FakeSyncClient) -> list[list[str]]:
+    return [data["sandboxIds"] for event, data in sio.emitted if event == "subscribe"]
+
+
+class TestAsyncEventDispatcherExplicitSubscriptions:
+    async def test_construction_does_not_connect(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+
+        await _settle()
+
+        assert dispatcher._connect_task is None
+        assert not fake_async_sio.instances
+
+    async def test_first_subscription_connects_in_background(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+
+        _ = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        assert not dispatcher.is_connected  # does not block the caller
+        assert dispatcher._connect_task is not None
+        await dispatcher._connect_task
+
+        assert dispatcher.is_connected
+        assert _subscribe_messages(fake_async_sio.instances[0]) == [["sb-1"]]
+        await dispatcher.disconnect()
+
+    async def test_handshake_opts_into_explicit_subscriptions(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher(
+            "https://test.daytona.io/api", "test-token", "org-1", "sdk-python-async", "1.2.3"
+        )
+
+        await dispatcher.connect()
+
+        url = fake_async_sio.instances[0].connect_url
+        assert url is not None
+        query = parse_qs(urlparse(url).query)
+        assert query["subscriptionMode"] == ["explicit"]
+        assert query["organizationId"] == ["org-1"]
+        assert query["source"] == ["sdk-python-async"]
+        assert query["sdkVersion"] == ["1.2.3"]
+        await dispatcher.disconnect()
+
+    async def test_connect_and_reconnect_send_the_full_set_in_chunks(self, fake_async_sio, monkeypatch):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        monkeypatch.setattr(dispatcher, "ensure_connected", lambda: None)
+        ids = [f"sb-{i}" for i in range(250)]
+        for resource_id in ids:
+            _ = dispatcher.subscribe(resource_id, _noop, ["sandbox.state.updated"])
+
+        await dispatcher.connect()
+        sio = fake_async_sio.instances[0]
+
+        chunks = _subscribe_messages(sio)
+        assert [len(chunk) for chunk in chunks] == [100, 100, 50]
+        assert [i for chunk in chunks for i in chunk] == ids
+
+        await sio.simulate_disconnect()
+        sio.emitted.clear()
+        await sio.simulate_connect()
+
+        assert [i for chunk in _subscribe_messages(sio) for i in chunk] == ids
+        await dispatcher.disconnect()
+
+    async def test_first_and_last_listener_emit_while_connected(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        await dispatcher.connect()
+        sio = fake_async_sio.instances[0]
+
+        unsub_a = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        unsub_b = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        await _settle()
+        assert sio.emitted == [("subscribe", {"sandboxIds": ["sb-1"]})]
+
+        unsub_a()
+        await _settle()
+        assert len(sio.emitted) == 1
+
+        unsub_b()
+        await _settle()
+        assert sio.emitted[1:] == [("unsubscribe", {"sandboxIds": ["sb-1"]})]
+        await dispatcher.disconnect()
+
+    async def test_nothing_is_sent_while_disconnected(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        await dispatcher.connect()
+        sio = fake_async_sio.instances[0]
+        await sio.simulate_disconnect()
+
+        unsub = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        unsub()
+        unsub_2 = dispatcher.subscribe("sb-2", _noop, ["sandbox.state.updated"])
+        await _settle()
+        assert sio.emitted == []
+
+        await sio.simulate_connect()
+        assert sio.emitted == [("subscribe", {"sandboxIds": ["sb-2"]})]
+        unsub_2()
+        await dispatcher.disconnect()
+
+    async def test_emit_failure_does_not_reach_the_caller(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        await dispatcher.connect()
+        fake_async_sio.instances[0].fail_emit = True
+
+        unsub = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        unsub()
+        await _settle()
+
+        assert not dispatcher._emit_tasks
+        await dispatcher.disconnect()
+
+    async def test_slim_state_payload_is_routed_by_sandbox_id(self, fake_async_sio):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        await dispatcher.connect()
+        received: list[tuple[str, Any]] = []
+        other: list[Any] = []
+        _ = dispatcher.subscribe("sb-1", lambda event, data: received.append((event, data)), ["sandbox.state.updated"])
+        _ = dispatcher.subscribe("sb-2", lambda _event, data: other.append(data), ["sandbox.state.updated"])
+
+        await fake_async_sio.instances[0].handlers["sandbox.state.updated"](SLIM_STATE_EVENT)
+
+        assert received == [("sandbox.state.updated", SLIM_STATE_EVENT)]
+        assert other == []
+        await dispatcher.disconnect()
+
+
+class TestSyncEventDispatcherExplicitSubscriptions:
+    def test_construction_does_not_connect(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+
+        assert dispatcher._bg_thread is None
+        assert not fake_sync_sio.instances
+
+    def test_first_subscription_connects_in_background(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+
+        _ = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        assert dispatcher._bg_thread is not None
+        dispatcher._bg_thread.join(timeout=5)
+
+        assert dispatcher.is_connected
+        assert _subscribe_messages(fake_sync_sio.instances[0]) == [["sb-1"]]
+        dispatcher.disconnect()
+
+    def test_handshake_opts_into_explicit_subscriptions(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token", "org-1", "sdk-python", "1.2.3")
+
+        dispatcher.connect()
+
+        url = fake_sync_sio.instances[0].connect_url
+        assert url is not None
+        query = parse_qs(urlparse(url).query)
+        assert query["subscriptionMode"] == ["explicit"]
+        assert query["organizationId"] == ["org-1"]
+        assert query["source"] == ["sdk-python"]
+        assert query["sdkVersion"] == ["1.2.3"]
+        dispatcher.disconnect()
+
+    def test_connect_and_reconnect_send_the_full_set_in_chunks(self, fake_sync_sio, monkeypatch):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        monkeypatch.setattr(dispatcher, "ensure_connected", lambda: None)
+        ids = [f"sb-{i}" for i in range(201)]
+        for resource_id in ids:
+            _ = dispatcher.subscribe(resource_id, _noop, ["sandbox.state.updated"])
+
+        dispatcher.connect()
+        sio = fake_sync_sio.instances[0]
+
+        chunks = _subscribe_messages(sio)
+        assert [len(chunk) for chunk in chunks] == [100, 100, 1]
+        assert [i for chunk in chunks for i in chunk] == ids
+
+        sio.simulate_disconnect()
+        sio.emitted.clear()
+        sio.simulate_connect()
+
+        assert [i for chunk in _subscribe_messages(sio) for i in chunk] == ids
+        dispatcher.disconnect()
+
+    def test_first_and_last_listener_emit_while_connected(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        dispatcher.connect()
+        sio = fake_sync_sio.instances[0]
+
+        unsub_a = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        unsub_b = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        assert sio.emitted == [("subscribe", {"sandboxIds": ["sb-1"]})]
+
+        unsub_a()
+        assert len(sio.emitted) == 1
+
+        unsub_b()
+        assert sio.emitted[1:] == [("unsubscribe", {"sandboxIds": ["sb-1"]})]
+        dispatcher.disconnect()
+
+    def test_nothing_is_sent_while_disconnected(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        dispatcher.connect()
+        sio = fake_sync_sio.instances[0]
+        sio.simulate_disconnect()
+
+        unsub = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        unsub()
+        unsub_2 = dispatcher.subscribe("sb-2", _noop, ["sandbox.state.updated"])
+        assert sio.emitted == []
+
+        sio.simulate_connect()
+        assert sio.emitted == [("subscribe", {"sandboxIds": ["sb-2"]})]
+        unsub_2()
+        dispatcher.disconnect()
+
+    def test_emit_failure_does_not_reach_the_caller(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        dispatcher.connect()
+        fake_sync_sio.instances[0].fail_emit = True
+
+        unsub = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
+        unsub()
+
+        assert dispatcher._listeners == {}
+        dispatcher.disconnect()
+
+    def test_slim_state_payload_is_routed_by_sandbox_id(self, fake_sync_sio):
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        dispatcher.connect()
+        received: list[tuple[str, Any]] = []
+        other: list[Any] = []
+        _ = dispatcher.subscribe("sb-1", lambda event, data: received.append((event, data)), ["sandbox.state.updated"])
+        _ = dispatcher.subscribe("sb-2", lambda _event, data: other.append(data), ["sandbox.state.updated"])
+
+        fake_sync_sio.instances[0].handlers["sandbox.state.updated"](SLIM_STATE_EVENT)
+
+        assert received == [("sandbox.state.updated", SLIM_STATE_EVENT)]
+        assert other == []
+        dispatcher.disconnect()

@@ -1,0 +1,184 @@
+# Copyright Daytona Platforms Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# frozen_string_literal: true
+
+RSpec.describe Daytona::EventDispatcher do
+  # Stands in for SocketIOClient: records emitted events; #connect can be held until released.
+  let(:fake_client_class) do
+    Class.new do
+      attr_reader :options, :emitted
+
+      def initialize(options, gate: nil, failing_emit: false)
+        @options = options
+        @gate = gate
+        @failing_emit = failing_emit
+        @emitted = []
+        @mutex = Mutex.new
+      end
+
+      def connect
+        @gate&.pop
+      end
+
+      def emit(event_name, data)
+        raise IOError, 'socket closed' if @failing_emit
+
+        @mutex.synchronize { @emitted << [event_name, data] }
+      end
+
+      def emitted_events
+        @mutex.synchronize { @emitted.dup }
+      end
+
+      def close; end
+    end
+  end
+
+  let(:clients) { [] }
+  let(:gate) { nil }
+  let(:failing_emit) { false }
+  let(:dispatcher) { described_class.new(api_url: 'https://api.example.com/api', token: 'token') }
+  let(:events) { ['sandbox.state.updated'] }
+  let(:noop) { proc { |_event_name, _data| } }
+
+  before do
+    allow(Daytona::SocketIOClient).to receive(:new) do |**options|
+      fake_client_class.new(options, gate:, failing_emit:).tap { |client| clients << client }
+    end
+    # Reconnect without the backoff delay; the 30 s disconnect linger keeps its real sleep.
+    allow(dispatcher).to receive(:sleep).and_call_original
+    allow(dispatcher).to receive(:sleep).with(1)
+  end
+
+  after { dispatcher.disconnect }
+
+  def wait_until(timeout: 5)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    sleep(0.01) while !yield && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+    yield
+  end
+
+  def subscribe_and_connect(resource_id, &handler)
+    handler ||= noop
+    unsubscribe = dispatcher.subscribe(resource_id, events:, &handler)
+    expect(wait_until { dispatcher.connected? }).to be(true)
+    unsubscribe
+  end
+
+  def emitted
+    clients.last.emitted_events
+  end
+
+  def state_event(resource_id)
+    { 'sandbox' => { 'id' => resource_id, 'state' => 'started' }, 'oldState' => 'pending', 'newState' => 'started' }
+  end
+
+  it 'does not connect before the first subscription' do
+    dispatcher
+
+    expect(Daytona::SocketIOClient).not_to have_received(:new)
+    expect(dispatcher.connected?).to be(false)
+  end
+
+  it 'connects in the background on the first subscription' do
+    subscribe_and_connect('sandbox-1')
+
+    expect(Daytona::SocketIOClient).to have_received(:new).once
+  end
+
+  context 'when the connection is not up yet' do
+    let(:gate) { Queue.new }
+
+    it 'sends nothing while subscribing, then the whole set in messages of at most 100 ids' do
+      ids = Array.new(250) { |i| format('sandbox-%03d', i) }
+      unsubscribes = ids.map { |id| dispatcher.subscribe(id, events:, &noop) }
+      unsubscribes.last.call
+      expect(wait_until { clients.size == 1 }).to be(true)
+      expect(emitted).to be_empty
+
+      gate << true
+      expect(wait_until { dispatcher.connected? }).to be(true)
+
+      expect(emitted.map(&:first)).to eq(%w[subscribe subscribe subscribe])
+      expect(emitted.map { |_name, data| data[:sandboxIds].size }).to eq([100, 100, 49])
+      expect(emitted.flat_map { |_name, data| data[:sandboxIds] }).to eq(ids[0...249])
+    end
+  end
+
+  it 'sends subscribe for the first listener of an id and unsubscribe for its last one' do
+    first = subscribe_and_connect('sandbox-1')
+    expect(emitted).to eq([['subscribe', { sandboxIds: ['sandbox-1'] }]])
+
+    second = dispatcher.subscribe('sandbox-1', events:, &noop)
+    first.call
+    expect(emitted.size).to eq(1)
+
+    second.call
+    expect(emitted.last).to eq(['unsubscribe', { sandboxIds: ['sandbox-1'] }])
+  end
+
+  it 'only updates the set while disconnected and sends it again after reconnecting' do
+    old_listener = subscribe_and_connect('sandbox-1')
+    first_client = clients.first
+    changed = false
+    # Change the set while the connection is down, before the reconnect attempt.
+    allow(dispatcher).to receive(:sleep).with(1) do
+      next if changed
+
+      changed = true
+      old_listener.call
+      dispatcher.subscribe('sandbox-2', events:, &noop)
+    end
+
+    first_client.options[:on_disconnect].call
+
+    expect(wait_until { clients.size == 2 && dispatcher.connected? }).to be(true)
+    expect(first_client.emitted_events).to eq([['subscribe', { sandboxIds: ['sandbox-1'] }]])
+    expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: ['sandbox-2'] }]])
+  end
+
+  it 'removes only the released handler when handlers compare equal' do
+    receiver = Class.new do
+      attr_reader :received
+
+      def initialize
+        @received = []
+      end
+
+      def on_event(_event_name, data)
+        @received << data
+      end
+    end.new
+    first = subscribe_and_connect('sandbox-1', &receiver.method(:on_event))
+    dispatcher.subscribe('sandbox-1', events:, &receiver.method(:on_event))
+
+    first.call
+    first.call
+    clients.last.options[:on_event].call('sandbox.state.updated', state_event('sandbox-1'))
+
+    expect(receiver.received.size).to eq(1)
+    expect(emitted).to eq([['subscribe', { sandboxIds: ['sandbox-1'] }]])
+  end
+
+  it 'still filters incoming events by id' do
+    received = []
+    subscribe_and_connect('sandbox-1') { |_event_name, data| received << data }
+
+    clients.last.options[:on_event].call('sandbox.state.updated', state_event('sandbox-other'))
+    clients.last.options[:on_event].call('sandbox.state.updated', state_event('sandbox-1'))
+
+    expect(received).to eq([state_event('sandbox-1')])
+  end
+
+  context 'when emitting fails' do
+    let(:failing_emit) { true }
+
+    it 'does not raise into the caller' do
+      unsubscribe = subscribe_and_connect('sandbox-1')
+
+      expect { dispatcher.subscribe('sandbox-2', events:, &noop) }.not_to raise_error
+      expect { unsubscribe.call }.not_to raise_error
+    end
+  end
+end

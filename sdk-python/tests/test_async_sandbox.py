@@ -501,3 +501,259 @@ class TestAsyncSandboxPollingSemantics:
 
         with pytest.warns(DeprecationWarning, match="Use `create_snapshot` instead"):
             await sandbox._experimental_create_snapshot("my-snapshot", timeout=0)
+
+
+def _subscription_manager(connected: bool = True) -> MagicMock:
+    manager = MagicMock()
+    manager.subscribe.side_effect = [f"sub-{i}" for i in range(1, 10)]
+    manager.refresh.return_value = True
+    manager.dispatcher.is_connected = connected
+    return manager
+
+
+def _make_with_manager(dto, toolbox_api, sandbox_api, manager):
+    from daytona._async.sandbox import AsyncSandbox
+
+    return AsyncSandbox(dto, toolbox_api, sandbox_api, "python", subscription_manager=manager)
+
+
+class TestAsyncSandboxWaitScopedSubscriptions:
+    @pytest.mark.asyncio
+    async def test_construction_and_method_calls_do_not_subscribe(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto())
+        mock_async_sandbox_api.replace_labels = AsyncMock(return_value=MagicMock(labels={"a": "b"}))
+
+        await sandbox.refresh_data()
+        _ = await sandbox.set_labels({"a": "b"})
+
+        manager.subscribe.assert_not_called()
+        manager.refresh.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cached_target_state_returns_without_subscribing(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTED), mock_async_toolbox_api_client, mock_async_sandbox_api, manager
+        )
+
+        await sandbox._wait_for_state([SandboxState.STARTED], [SandboxState.ERROR])
+
+        manager.subscribe.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_wait_subscribes_to_state_events_and_unsubscribes_on_success(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTED))
+
+        await sandbox.wait_for_sandbox_start(timeout=0)
+
+        manager.subscribe.assert_called_once()
+        assert manager.subscribe.call_args.args[0] == "test-sandbox-id"
+        assert manager.subscribe.call_args.kwargs["events"] == ["sandbox.state.updated"]
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_wait_unsubscribes_on_error_state(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.ERROR))
+
+        with pytest.raises(DaytonaError, match="entered error state"):
+            await sandbox.wait_for_sandbox_start(timeout=0)
+
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_wait_unsubscribes_on_refresh_failure(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=Exception("401 Unauthorized"))
+
+        with pytest.raises(Exception, match="401 Unauthorized"):
+            await sandbox.wait_for_sandbox_start(timeout=0)
+
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_wait_unsubscribes_on_timeout(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTING))
+
+        with pytest.raises(DaytonaTimeoutError):
+            await sandbox.wait_for_sandbox_start(timeout=0.2)
+
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_wait_unsubscribes_on_cancellation(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTING))
+        task = asyncio.create_task(sandbox.wait_for_sandbox_start(timeout=0))
+        await asyncio.sleep(0.05)
+        manager.subscribe.assert_called_once()
+
+        _ = task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_state_event_resolves_wait(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTING))
+        task = asyncio.create_task(sandbox.wait_for_sandbox_start(timeout=0))
+        await asyncio.sleep(0.05)
+        handler = manager.subscribe.call_args.args[1]
+        refreshes = mock_async_sandbox_api.get_sandbox.await_count
+
+        handler(
+            "sandbox.state.updated",
+            {"sandbox": {"id": "test-sandbox-id", "state": "started"}, "oldState": "starting", "newState": "started"},
+        )
+        await asyncio.wait_for(task, timeout=0.5)
+
+        assert sandbox.state == SandboxState.STARTED
+        assert mock_async_sandbox_api.get_sandbox.await_count == refreshes
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_slim_state_event_only_applies_the_state(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            _subscription_manager(),
+        )
+
+        sandbox._handle_event(
+            "sandbox.state.updated",
+            {
+                "sandbox": {"id": "test-sandbox-id", "state": "error", "errorReason": "boom", "recoverable": True},
+                "oldState": "starting",
+                "newState": "error",
+            },
+        )
+
+        assert sandbox.state == SandboxState.ERROR
+        assert sandbox.error_reason is None
+        assert sandbox.cpu == 4
+
+    @pytest.mark.asyncio
+    async def test_concurrent_waits_hold_independent_subscriptions(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager()
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        states = iter([SandboxState.STARTING, SandboxState.STARTING])
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=lambda *_a, **_k: make_sandbox_dto(state=next(states, SandboxState.STARTED))
+        )
+
+        await asyncio.gather(sandbox.wait_for_sandbox_start(timeout=0), sandbox.wait_for_sandbox_start(timeout=0))
+
+        assert manager.subscribe.call_count == 2
+        assert sorted(c.args[0] for c in manager.unsubscribe.call_args_list) == ["sub-1", "sub-2"]
+
+    @pytest.mark.asyncio
+    async def test_expired_subscription_is_renewed_during_a_long_wait(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch
+    ):
+        from daytona._async import sandbox as sandbox_module
+
+        monkeypatch.setattr(sandbox_module, "_EVENT_BACKED_POLL_INTERVAL", 0.01)
+        manager = _subscription_manager()
+        manager.refresh.side_effect = lambda sub_id: sub_id != "sub-1"
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[make_sandbox_dto(state=SandboxState.STARTING)] * 3 + [make_sandbox_dto()]
+        )
+
+        await sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert manager.subscribe.call_count == 2
+        assert [c.args[0] for c in manager.refresh.call_args_list] == ["sub-1", "sub-2", "sub-2"]
+        manager.unsubscribe.assert_called_once_with("sub-2")
+
+    @pytest.mark.asyncio
+    async def test_poll_cadence_follows_the_event_connection(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch
+    ):
+        from daytona._async import sandbox as sandbox_module
+
+        monkeypatch.setattr(sandbox_module, "_FAST_POLL_INTERVAL", 0.01)
+        monkeypatch.setattr(sandbox_module, "_EVENT_BACKED_POLL_INTERVAL", 0.3)
+        manager = _subscription_manager(connected=False)
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        loop = asyncio.get_running_loop()
+        refreshed_at: list[float] = []
+
+        async def get_sandbox(*_args, **_kwargs):
+            refreshed_at.append(loop.time())
+            if len(refreshed_at) == 4:
+                manager.dispatcher.is_connected = True
+            return make_sandbox_dto(state=SandboxState.STARTED if len(refreshed_at) == 5 else SandboxState.STARTING)
+
+        mock_async_sandbox_api.get_sandbox = get_sandbox
+
+        await sandbox.wait_for_sandbox_start(timeout=0)
+
+        gaps = [b - a for a, b in zip(refreshed_at, refreshed_at[1:])]
+        assert all(gap < 0.2 for gap in gaps[:3]), gaps
+        assert gaps[3] >= 0.25, gaps
