@@ -66,6 +66,7 @@ ROOT_EXPORTS = [
     "ComputerUseActivityStatus",
     "ComputerUseAccessibilityBounds",
     "ComputerUseAccessibilityNode",
+    "ComputerUseDesktopEnvironment",
     "ComputerUseDesktopFailure",
     "ComputerUseDesktopFailureCode",
     "ComputerUseDesktopState",

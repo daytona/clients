@@ -20,6 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona.v2._gen.toolbox.models.computer_use_activity_status import ComputerUseActivityStatus
+from daytona.v2._gen.toolbox.models.computer_use_desktop_environment import ComputerUseDesktopEnvironment
 from daytona.v2._gen.toolbox.models.computer_use_desktop_failure import ComputerUseDesktopFailure
 from daytona.v2._gen.toolbox.models.computer_use_desktop_state import ComputerUseDesktopState
 from daytona.v2._gen.toolbox.models.computer_use_resolution import ComputerUseResolution
@@ -40,10 +41,11 @@ class ComputerUseStatusResponse(BaseModel):
     """ # noqa: E501
     cause: Optional[ComputerUseDesktopFailure] = None
     desktop: ComputerUseDesktopState
+    environment: Optional[ComputerUseDesktopEnvironment] = None
     resolution: Optional[ComputerUseResolution] = None
     status: ComputerUseActivityStatus
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["cause", "desktop", "resolution", "status"]
+    __properties: ClassVar[List[str]] = ["cause", "desktop", "environment", "resolution", "status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -104,6 +106,11 @@ class ComputerUseStatusResponse(BaseModel):
         if self.cause is None and "cause" in self.model_fields_set:
             _dict['cause'] = None
 
+        # set to None if environment (nullable) is None
+        # and model_fields_set contains the field
+        if self.environment is None and "environment" in self.model_fields_set:
+            _dict['environment'] = None
+
         # set to None if resolution (nullable) is None
         # and model_fields_set contains the field
         if self.resolution is None and "resolution" in self.model_fields_set:
@@ -123,6 +130,7 @@ class ComputerUseStatusResponse(BaseModel):
         _obj = cls.model_validate({
             **({"cause": ComputerUseDesktopFailure.from_dict(obj["cause"]) if obj["cause"] is not None else None} if "cause" in obj else {}),
             "desktop": obj.get("desktop"),
+            **({"environment": obj["environment"]} if "environment" in obj else {}),
             **({"resolution": ComputerUseResolution.from_dict(obj["resolution"]) if obj["resolution"] is not None else None} if "resolution" in obj else {}),
             "status": obj.get("status")
         })

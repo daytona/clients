@@ -12124,6 +12124,76 @@ describe('computer-use namespace', () => {
     expect(transport.post.mock.calls).toHaveLength(3)
   })
 
+  describe.each(['start', 'restart'] as const)('%s environment selection', (verb) => {
+    it.each([
+      {},
+      { environment: 'xfce' },
+      { environment: 'gnome' },
+      { resolution: { width: 1920, height: 1080 } },
+      { environment: 'xfce', resolution: { width: 1920, height: 1080 } },
+      { environment: 'gnome', resolution: { width: 1920, height: 1080 } },
+    ] as const)('forwards only the given settings when options are %p', async (options) => {
+      // Given a lifecycle response and a resolution-only status read-back.
+      const transport = transportStub()
+      const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+      transport.post.mockResolvedValue(
+        verb === 'start'
+          ? { message: 'computer use started', status: {} }
+          : { message: 'computer use restarted', status: 'active', desktop: 'ready' },
+      )
+      transport.get.mockResolvedValue({ status: 'active', desktop: 'ready', resolution: { width: 1920, height: 1080 } })
+
+      // When starting or restarting with the selected options.
+      await computerUse[verb](options)
+
+      // Then only resolution adds a request; an empty options object sends no body.
+      expect(transport.post.mock.calls).toEqual([[`/computeruse/${verb}`, Object.keys(options).length === 0 ? undefined : options]])
+      expect(transport.get.mock.calls).toEqual('resolution' in options ? [['/computeruse/status']] : [])
+    })
+  })
+
+  describe.each([
+    { status: 'inactive', desktop: 'not_started' },
+    { status: 'inactive', desktop: 'starting' },
+    { status: 'active', desktop: 'ready' },
+    { status: 'inactive', desktop: 'failed', cause: { code: 'desktop_exited', message: 'm' } },
+    { status: 'paused', desktop: 'parked' },
+  ])('status environment for $desktop', (payload) => {
+    it.each([
+      ['xfce', 'xfce'],
+      ['gnome', 'gnome'],
+      ['future-desktop', 'unknown'],
+      [null, undefined],
+    ])('normalizes the environment when reported as %p', (environment, expected) => {
+      // Given a status with an explicit environment and an unrelated field.
+      const response = { ...payload, environment, future: 1 }
+
+      // When parsing the status.
+      const status = mapComputerUseStatusResponse(response)
+
+      // Then environment is typed separately from future response fields.
+      expect([status.environment, status.rawEnvironment, status.extraFields]).toEqual([expected, environment ?? undefined, { future: 1 }])
+    })
+
+    it('omits the environment when the guest does not report it', () => {
+      // Given a guest status without environment.
+      // When parsing the status.
+      const status = mapComputerUseStatusResponse(payload)
+
+      // Then neither a normalized nor a raw environment is invented.
+      expect(status).not.toHaveProperty('environment')
+      expect(status).not.toHaveProperty('rawEnvironment')
+    })
+  })
+
+  it.each([42, true, [], {}])('names environment when the reported value is malformed: %p', (environment) => {
+    // Given an environment that is not a string or null.
+    const payload = { status: 'active', desktop: 'ready', environment }
+
+    // When parsing the status, then the protocol error names the field.
+    expectSdkProtocolError(() => mapComputerUseStatusResponse(payload), 'Invalid computer-use status response: environment must be null or a string')
+  })
+
   it('reads back the resolution after a start or restart that sends one', async () => {
     const transport = transportStub()
     const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)

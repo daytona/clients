@@ -344,6 +344,7 @@ export type {
 export type {
   ComputerUseActivityStatus,
   ComputerUseDesktopState,
+  ComputerUseDesktopEnvironment,
   ComputerUseDesktopFailureCode,
   ComputerUseDesktopFailure,
   ComputerUseFailedStatus,

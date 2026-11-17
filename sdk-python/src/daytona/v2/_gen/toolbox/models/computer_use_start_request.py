@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.toolbox.models.computer_use_desktop_environment import ComputerUseDesktopEnvironment
 from daytona.v2._gen.toolbox.models.computer_use_resolution import ComputerUseResolution
 from typing import Optional, Set
 from typing_extensions import Self
@@ -35,8 +36,9 @@ class ComputerUseStartRequest(BaseModel):
     """
     The optional body of `POST /computeruse/start` and `/restart`.
     """ # noqa: E501
+    environment: Optional[ComputerUseDesktopEnvironment] = None
     resolution: Optional[ComputerUseResolution] = None
-    __properties: ClassVar[List[str]] = ["resolution"]
+    __properties: ClassVar[List[str]] = ["environment", "resolution"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,6 +84,11 @@ class ComputerUseStartRequest(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of resolution
         if self.resolution:
             _dict['resolution'] = self.resolution.to_dict()
+        # set to None if environment (nullable) is None
+        # and model_fields_set contains the field
+        if self.environment is None and "environment" in self.model_fields_set:
+            _dict['environment'] = None
+
         # set to None if resolution (nullable) is None
         # and model_fields_set contains the field
         if self.resolution is None and "resolution" in self.model_fields_set:
@@ -99,6 +106,7 @@ class ComputerUseStartRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            **({"environment": obj["environment"]} if "environment" in obj else {}),
             **({"resolution": ComputerUseResolution.from_dict(obj["resolution"]) if obj["resolution"] is not None else None} if "resolution" in obj else {})
         })
         return _obj

@@ -19,6 +19,7 @@ import {
 } from './gen/api-enums.js'
 import {
   ComputerUseActivityStatus as TOOLBOX_COMPUTER_USE_ACTIVITY_STATUSES,
+  ComputerUseDesktopEnvironment as TOOLBOX_COMPUTER_USE_DESKTOP_ENVIRONMENTS,
   ComputerUseDesktopFailureCode as TOOLBOX_COMPUTER_USE_DESKTOP_FAILURE_CODES,
   ComputerUseDesktopState as TOOLBOX_COMPUTER_USE_DESKTOP_STATES,
   DockerOwner as TOOLBOX_DOCKER_OWNERS,
@@ -927,6 +928,10 @@ type _ComputerUseDesktopFailureCodesMatchContract = AssertExact<IsExact<Exclude<
 export type ComputerUseActivityStatus = 'active' | 'inactive' | 'unknown'
 export const COMPUTER_USE_ACTIVITY_STATUSES = TOOLBOX_COMPUTER_USE_ACTIVITY_STATUSES
 type _ComputerUseActivityStatusesMatchContract = AssertExact<IsExact<Exclude<ComputerUseActivityStatus, 'unknown'>, (typeof TOOLBOX_COMPUTER_USE_ACTIVITY_STATUSES)[number]>>
+
+export type ComputerUseDesktopEnvironment = 'xfce' | 'gnome' | 'unknown'
+export const COMPUTER_USE_DESKTOP_ENVIRONMENTS = TOOLBOX_COMPUTER_USE_DESKTOP_ENVIRONMENTS
+type _ComputerUseDesktopEnvironmentsMatchContract = AssertExact<IsExact<Exclude<ComputerUseDesktopEnvironment, 'unknown'>, (typeof TOOLBOX_COMPUTER_USE_DESKTOP_ENVIRONMENTS)[number]>>
 
 export type ComputerUseDesktopState = 'not_started' | 'starting' | 'ready' | 'failed' | 'unknown'
 export const COMPUTER_USE_DESKTOP_STATES = TOOLBOX_COMPUTER_USE_DESKTOP_STATES

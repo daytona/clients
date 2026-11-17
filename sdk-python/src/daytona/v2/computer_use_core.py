@@ -60,6 +60,7 @@ from .computer_use_types import (
     ComputerUseScrollResult,
     ComputerUseStartingStatus,
     ComputerUseUnknownStatus,
+    _computer_use_desktop_environment_or_unknown,
     _computer_use_desktop_failure_code_or_unknown,
 )
 from .computer_use_types import ComputerUseAccessibilityNode as ComputerUseAccessibilityNodeInfo
@@ -378,6 +379,9 @@ def _check_status_fields(payload: object) -> Mapping[str, object]:
         for field in ("code", "message"):
             if not isinstance(cause.get(field), str):
                 raise _invalid(_INVALID_STATUS, f"cause.{field} must be a string")
+    environment = payload.get("environment")
+    if environment is not None and not isinstance(environment, str):
+        raise _invalid(_INVALID_STATUS, "environment must be null or a string")
     resolution = payload.get("resolution")
     if resolution is not None:
         if not isinstance(resolution, Mapping):
@@ -408,23 +412,44 @@ def parse_computer_use_status(
     desktop = enum_str(model.desktop)
     extra_fields = _additional_json_fields(model.additional_properties)
     resolution = _parse_computer_use_resolution(model.resolution)
+    raw_environment = enum_str(model.environment) if model.environment is not None else None
+    environment = (
+        _computer_use_desktop_environment_or_unknown(raw_environment) if raw_environment is not None else None
+    )
     # Outside the failed state the contract allows `cause` to be omitted or null.
     no_cause = model.cause is None
 
     if status == "inactive" and desktop == "not_started":
         if no_cause:
-            return ComputerUseNotStartedStatus(resolution=resolution, extra_fields=extra_fields)
+            return ComputerUseNotStartedStatus(
+                resolution=resolution,
+                environment=environment,
+                raw_environment=raw_environment,
+                extra_fields=extra_fields,
+            )
     elif status == "inactive" and desktop == "starting":
         if no_cause:
-            return ComputerUseStartingStatus(resolution=resolution, extra_fields=extra_fields)
+            return ComputerUseStartingStatus(
+                resolution=resolution,
+                environment=environment,
+                raw_environment=raw_environment,
+                extra_fields=extra_fields,
+            )
     elif status == "active" and desktop == "ready":
         if no_cause:
-            return ComputerUseReadyStatus(resolution=resolution, extra_fields=extra_fields)
+            return ComputerUseReadyStatus(
+                resolution=resolution,
+                environment=environment,
+                raw_environment=raw_environment,
+                extra_fields=extra_fields,
+            )
     elif status == "inactive" and desktop == "failed":
         if model.cause is not None:
             return ComputerUseFailedStatus(
                 cause=_parse_computer_use_desktop_failure(model.cause),
                 resolution=resolution,
+                environment=environment,
+                raw_environment=raw_environment,
                 extra_fields=extra_fields,
             )
         raise _invalid(_INVALID_STATUS, "cause is required when status is 'inactive' and desktop is 'failed'")
@@ -436,6 +461,8 @@ def parse_computer_use_status(
             raw_desktop=desktop,
             cause=_parse_computer_use_desktop_failure(model.cause) if model.cause is not None else None,
             resolution=resolution,
+            environment=environment,
+            raw_environment=raw_environment,
             extra_fields=extra_fields,
         )
     raise _invalid(

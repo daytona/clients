@@ -27,6 +27,7 @@ from daytona.v2._gen.toolbox.models.computer_use_a11y_tree_response import Compu
 from daytona.v2._gen.toolbox.models.computer_use_accessibility_bounds import ComputerUseAccessibilityBounds as ComputerUseAccessibilityBounds
 from daytona.v2._gen.toolbox.models.computer_use_accessibility_node import ComputerUseAccessibilityNode as ComputerUseAccessibilityNode
 from daytona.v2._gen.toolbox.models.computer_use_activity_status import ComputerUseActivityStatus as ComputerUseActivityStatus
+from daytona.v2._gen.toolbox.models.computer_use_desktop_environment import ComputerUseDesktopEnvironment as ComputerUseDesktopEnvironment
 from daytona.v2._gen.toolbox.models.computer_use_desktop_failure import ComputerUseDesktopFailure as ComputerUseDesktopFailure
 from daytona.v2._gen.toolbox.models.computer_use_desktop_failure_code import ComputerUseDesktopFailureCode as ComputerUseDesktopFailureCode
 from daytona.v2._gen.toolbox.models.computer_use_desktop_state import ComputerUseDesktopState as ComputerUseDesktopState

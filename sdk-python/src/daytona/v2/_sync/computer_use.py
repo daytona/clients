@@ -11,7 +11,7 @@ sync twins. Regenerate with ``python gen/gen_sync.py``;
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from .. import computer_use as _async
 from .._bridge import SyncBridge
@@ -89,33 +89,60 @@ class ComputerUseService:
 
         return RecordingService(self._impl.recording, self._bridge)
 
-    def restart(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseRestartResponse:
-        """Restart the desktop, at ``resolution`` when given (kept for later
-        starts). Omitted, it restarts at its current resolution. Linux sandboxes
-        only: other platforms raise ``UnsupportedOperationError`` for a
-        ``resolution``. With a ``resolution``, the SDK reads it back as
-        ``start`` does.
+    def restart(
+        self,
+        *,
+        resolution: ComputerUseResolution | None = None,
+        environment: Literal["xfce", "gnome"] | None = None,
+    ) -> ComputerUseRestartResponse:
+        """Restart with optional ``resolution`` and ``environment`` (xfce or
+        gnome), kept for later starts. Omitted fields reuse the last selection,
+        defaulting to 1280x720 and xfce. Use this instead of ``start`` to change
+        a running desktop's settings. GNOME needs a system layer with GNOME,
+        a successful preflight, at least 4 vCPUs and 8192 MiB; insufficient
+        resources or unsupported settings raise ``BadRequestError``.
+        Windows and macOS refuse either setting with ``UnsupportedOperationError``,
+        as does a system layer without GNOME when it is requested. A concurrent
+        restart with different settings raises ``ConflictError``. With a
+        ``resolution``, the SDK reads it back as ``start`` does; environment
+        alone adds no read-back request.
         """
-        return self._bridge.call(lambda: self._impl.restart(resolution=resolution))
+        return self._bridge.call(lambda: self._impl.restart(resolution=resolution, environment=environment))
 
-    def start(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseLifecycleResult:
+    def start(
+        self,
+        *,
+        resolution: ComputerUseResolution | None = None,
+        environment: Literal["xfce", "gnome"] | None = None,
+    ) -> ComputerUseLifecycleResult:
         """Start the desktop.
 
         ``resolution`` selects its size (1024x768, 1280x720 or 1920x1080) and is
         kept for later starts and restarts. Omitted, the desktop uses the
-        resolution it last started at, or 1280x720. Starting a running desktop at
-        a different resolution raises ``ConflictError``; call ``restart`` with
-        the new resolution instead. Linux sandboxes only: other platforms raise
-        ``UnsupportedOperationError`` for a ``resolution``. With a
+        resolution it last started at, or 1280x720. ``environment`` selects
+        xfce or gnome, kept for later starts; omitted, the last selected, or
+        xfce. GNOME needs a system layer with GNOME, a successful preflight,
+        at least 4 vCPUs and 8192 MiB. Unsupported settings or insufficient
+        resources raise ``BadRequestError``. Starting a running desktop with
+        different settings raises ``ConflictError``; use ``restart`` instead.
+        Windows and macOS refuse either setting with ``UnsupportedOperationError``,
+        as does a system layer without GNOME when it is requested. Environment
+        alone adds no read-back request. With a
         ``resolution``, the SDK reads back the size the desktop runs at and
         raises ``UnsupportedOperationError`` when it differs: a guest that
         predates resolution selection ignores it, and the desktop keeps running
         at its own. If that read itself fails, its error is raised although the
         start took effect; starting again at the same resolution is a no-op.
         """
-        return self._bridge.call(lambda: self._impl.start(resolution=resolution))
+        return self._bridge.call(lambda: self._impl.start(resolution=resolution, environment=environment))
 
     def status(self) -> ComputerUseStatusResponse:
+        """Read the desktop state, resolution and environment. On Linux,
+        environment is the running desktop's, otherwise the next start's:
+        the last selected, or xfce. Settings are absent on Windows and macOS
+        and may be absent on older guests. Unknown environments retain their
+        raw_environment.
+        """
         return self._bridge.call(lambda: self._impl.status())
 
     def stop(self) -> ComputerUseLifecycleResult:
