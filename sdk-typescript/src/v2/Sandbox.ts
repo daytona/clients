@@ -283,7 +283,8 @@ function subMsMicros(value: string | undefined): number {
 // allow: SIZE_OK — Public handle facade preserves the toolbox namespaces; metadata,
 // token ownership and wait engines are isolated in their own internal modules.
 // The lifecycle echo of the policy update and the idle-timer reset (the
-// contract's `SandboxLifecyclePolicy`), checked before it is mapped.
+// contract's `SandboxLifecyclePolicy`), checked before it is mapped; the
+// policy of a create response is checked with it too.
 const LIFECYCLE_ECHO: ResponseFields = {
   id: 'string',
   lifecycle_policy: {
