@@ -4,7 +4,7 @@
     "base": "https://github.com/daytona/clients/blob/main/upgrade/MIGRATION.md",
     "placeholder": false
   },
-  "v0Version": "0.231.1",
+  "v0Version": "0.232.0",
   "packages": {
     "py": {
       "old": [
