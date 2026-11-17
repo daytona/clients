@@ -288,12 +288,16 @@ class EventDispatcherTest {
                 clamped.subscribe("sb-" + i, NOOP, STATE_EVENTS);
             }
 
+            // Wait for each expected subscribe, so slow emission cannot cut the count short; then
+            // nothing may follow, since the 1001st id is past the gateway limit.
             List<String> sent = new ArrayList<>(List.of("sb-0"));
-            FakeEventGateway.Emitted message;
-            while ((message = gateway.takeEmitted(QUIET_MILLIS)) != null) {
+            while (sent.size() < 1000) {
+                FakeEventGateway.Emitted message = gateway.takeEmitted(WAIT_MILLIS);
+                assertThat(message).as("subscribe messages up to the gateway limit").isNotNull();
                 assertThat(message.event).isEqualTo("subscribe");
                 sent.addAll(ids(message));
             }
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).as("nothing past the gateway limit").isNull();
             assertThat(sent).hasSize(1000).doesNotContain("sb-1000");
             assertThat(clamped.isServed("sb-999")).isTrue();
             assertThat(clamped.isServed("sb-1000")).isFalse();
