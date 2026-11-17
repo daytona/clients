@@ -184,6 +184,20 @@ RSpec.describe Daytona::EventDispatcher do
     end
   end
 
+  it 'is not event-backed for an id that stays served while the connection is down' do
+    subscribe_and_connect('sandbox-1')
+    expect(dispatcher.event_backed?('sandbox-1')).to be(true)
+    expect(dispatcher.event_backed?('sandbox-2')).to be(false)
+    # Keep the connection down: the reconnect attempt waits until the example ends.
+    allow(dispatcher).to receive(:sleep).with(1) { sleep }
+
+    clients.first.options[:on_disconnect].call
+
+    expect(dispatcher.served?('sandbox-1')).to be(true)
+    expect(dispatcher.event_backed?('sandbox-1')).to be(false)
+    expect(Daytona::EventSubscriptionManager.new(dispatcher).event_backed?('sandbox-1')).to be(false)
+  end
+
   it 'removes only the released subscription when the same handler is subscribed twice' do
     received = []
     handler = proc { |_event_name, data| received << data }

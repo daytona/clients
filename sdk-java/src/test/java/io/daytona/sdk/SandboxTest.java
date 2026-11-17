@@ -1411,6 +1411,33 @@ class SandboxTest {
     }
 
     @Test
+    void forkWhoseResponseLacksTheToolboxProxyUrlReadsOnceImmediately() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null, manager);
+        io.daytona.api.client.model.Sandbox forkResponse = TestSupport.mainSandbox("sb-fork", SandboxState.STARTING);
+        forkResponse.setToolboxProxyUrl(null);
+        when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull())).thenReturn(forkResponse);
+        when(sandboxApi.getToolboxProxyUrl("sb-fork", null)).thenReturn(new ToolboxProxyUrl().url("https://proxy.example"));
+        when(sandboxApi.getSandbox("sb-fork", null, null)).thenReturn(TestSupport.mainSandbox("sb-fork", SandboxState.STARTING));
+        AtomicReference<Sandbox> forked = new AtomicReference<>();
+
+        // The event comes only after the wait's immediate read, which therefore must not be skipped.
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread worker = new Thread(() -> runCapturing(() -> forked.set(sb.fork(null, 30)), error));
+        worker.start();
+        // A skipped read would leave the first GET to the safety-net poll, no earlier than 4 s.
+        verify(sandboxApi, timeout(2500)).getSandbox("sb-fork", null, null);
+        deliverState(manager, "sb-fork", "started");
+        worker.join(5000);
+
+        assertThat(error.get()).isNull();
+        assertThat(worker.isAlive()).isFalse();
+        assertThat(forked.get().getState()).isEqualTo("started");
+        verify(sandboxApi).getToolboxProxyUrl("sb-fork", null);
+        verify(sandboxApi, times(1)).getSandbox("sb-fork", null, null);
+    }
+
+    @Test
     void forkWithoutALiveConnectionReadsOnceImmediately() {
         EventSubscriptionManager manager = mockSubscriptionManager();
         // Down while subscribing, up by the time the wait starts.

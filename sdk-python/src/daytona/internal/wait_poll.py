@@ -57,15 +57,17 @@ def next_fast_poll_interval(fast_poll_interval: float) -> float:
 
 @dataclass(frozen=True)
 class WaitSubscription:
-    """A wait's state subscription taken before the operation's request is sent.
+    """A wait's state subscription, taken before the operation's request is sent (right after the
+    response for a fork, whose id is only known then).
 
     Attributes:
         sub_id: Subscription id; empty when events are unavailable.
         live: Whether events for the id arrived right after subscribing (connected and served).
         state_event_count: The sandbox's state event count when the subscription was taken.
         connection_epoch: The event connection's epoch when the subscription was taken.
-        state_fresh: Whether the cached state was set after subscribing, from the operation's
-            response or a successful read.
+        state_fresh: Whether the cached state can stand in for the wait's first read: it came from the
+            operation's response or a successful read after subscribing, or, for a fork, from the fork
+            response with no extra round trip before the subscription.
     """
 
     sub_id: str

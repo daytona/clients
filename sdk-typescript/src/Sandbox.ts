@@ -554,7 +554,8 @@ export class Sandbox {
     let prepared: PreparedStateWait | undefined
     if (forkedSandbox.state !== SandboxState.STARTED) {
       prepared = forkedSandbox.prepareStateWait()
-      prepared.hasFreshState = isSandboxDto(sandboxDto)
+      // Fetching a missing proxy URL (older servers) widens the gap before the subscription; read first then.
+      prepared.hasFreshState = isSandboxDto(sandboxDto) && !!sandboxDto.toolboxProxyUrl
     }
     try {
       const timeElapsed = Date.now() - startTime

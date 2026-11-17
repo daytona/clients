@@ -1475,7 +1475,11 @@ public class Sandbox {
         // The fork's id is only known from the response, so subscribe right after it. The fork endpoint
         // returns before the new sandbox starts, so the transition still arrives as an event.
         PreparedStateWait prepared = forked.prepareStateWait();
-        prepared.setFreshState(response != null && response.getState() != null);
+        // Constructing the fork fetches a missing proxy URL (older servers), which widens the gap
+        // before the subscription; read first then.
+        boolean proxyUrlInResponse = response != null
+                && response.getToolboxProxyUrl() != null && !response.getToolboxProxyUrl().isEmpty();
+        prepared.setFreshState(response != null && response.getState() != null && proxyUrlInResponse);
         try {
             forked.waitForState(STARTED_STATES, ERROR_STATES, timeoutSeconds, false, prepared);
         } finally {

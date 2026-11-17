@@ -107,7 +107,7 @@ public class EventSubscriptionManager {
      * serves the id (within its subscription cap).
      */
     public boolean isEventBacked(String resourceId) {
-        return isConnected() && dispatcher.isServed(resourceId);
+        return !closed && dispatcher != null && dispatcher.isEventBacked(resourceId);
     }
 
     /**

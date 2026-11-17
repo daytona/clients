@@ -604,3 +604,45 @@ func TestHandleEventParsesSlimAndFullStatePayloads(t *testing.T) {
 	require.NotNil(t, got[2].DesiredStateEvent)
 	assert.Equal(t, apiclient.SANDBOXDESIREDSTATE_STOPPED, got[2].DesiredStateEvent.NewDesiredState)
 }
+
+func TestEventDispatcherClampsTheSubscriptionLimitToTheGateways(t *testing.T) {
+	for _, configured := range []int{gatewaySubscriptionLimit + 1, 5000, 0, -1} {
+		lowerSubscriptionCap(t, configured)
+		if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != gatewaySubscriptionLimit {
+			t.Fatalf("configured %d: maxSubscriptions = %d, want %d", configured, got, gatewaySubscriptionLimit)
+		}
+	}
+
+	lowerSubscriptionCap(t, 2)
+	if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != 2 {
+		t.Fatalf("a lowered limit must be kept: maxSubscriptions = %d, want 2", got)
+	}
+}
+
+func TestHandleEventDeliversTransitionsWhenTheSandboxDoesNotDecode(t *testing.T) {
+	es := NewEventDispatcher("http://127.0.0.1:1", "test-token", "", "sdk-go", "0.0.0-test")
+	t.Cleanup(es.Disconnect)
+
+	id := testSandboxID(8)
+	var got []SandboxEvent
+	es.RegisterEvents([]string{"sandbox.state.updated", "sandbox.desired-state.updated"})
+	es.mu.Lock()
+	es.listeners[id] = map[int]SandboxEventHandler{0: func(event SandboxEvent) { got = append(got, event) }}
+	es.mu.Unlock()
+
+	es.handleEvent("sandbox.state.updated", json.RawMessage(fmt.Sprintf(
+		`{"sandbox":{"id":%q,"cpu":"four"},"oldState":"starting","newState":"started"}`, id)))
+	es.handleEvent("sandbox.desired-state.updated", json.RawMessage(fmt.Sprintf(
+		`{"sandbox":{"id":%q,"cpu":"four"},"oldDesiredState":"started","newDesiredState":"stopped"}`, id)))
+
+	require.Len(t, got, 2)
+	require.NotNil(t, got[0].StateEvent)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTING, got[0].StateEvent.OldState)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, got[0].StateEvent.NewState)
+	require.NotNil(t, got[1].DesiredStateEvent)
+	assert.Equal(t, apiclient.SANDBOXDESIREDSTATE_STOPPED, got[1].DesiredStateEvent.NewDesiredState)
+
+	// A payload that does not decode at all is still dropped.
+	es.handleEvent("sandbox.state.updated", json.RawMessage(fmt.Sprintf(`{"sandbox":{"id":%q},"newState":7}`, id)))
+	assert.Len(t, got, 2)
+}

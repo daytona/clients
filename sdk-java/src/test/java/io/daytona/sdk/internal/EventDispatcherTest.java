@@ -252,6 +252,31 @@ class EventDispatcherTest {
         assertThat(new EventSubscriptionManager(null).isEventBacked("sb-1")).isFalse();
     }
 
+    @Test
+    void anIdStillServedWhileTheConnectionIsDownIsNotEventBacked() throws Exception {
+        dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+        assertThat(dispatcher.isEventBacked("sb-1")).isTrue();
+
+        gateway.holdConnects();
+        gateway.dropConnection();
+        waitUntil(() -> !dispatcher.isConnected());
+
+        assertThat(dispatcher.isServed("sb-1")).isTrue();
+        assertThat(dispatcher.isEventBacked("sb-1")).isFalse();
+    }
+
+    @Test
+    void theManagerDelegatesToTheDispatchersAtomicCheck() {
+        // Separate reads can see "connected" and "served" from either side of a disconnect.
+        EventDispatcher stub = org.mockito.Mockito.mock(EventDispatcher.class);
+        org.mockito.Mockito.lenient().when(stub.isConnected()).thenReturn(true);
+        org.mockito.Mockito.lenient().when(stub.isServed("sb-1")).thenReturn(true);
+        org.mockito.Mockito.when(stub.isEventBacked("sb-1")).thenReturn(false);
+
+        assertThat(new EventSubscriptionManager(stub).isEventBacked("sb-1")).isFalse();
+    }
+
     private EventDispatcher cappedDispatcher() {
         return new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", 2);
     }

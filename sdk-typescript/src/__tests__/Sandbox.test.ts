@@ -1008,6 +1008,32 @@ describe('Sandbox event subscriptions', () => {
       expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
     })
 
+    it('fork() whose response lacks the toolbox proxy URL reads once immediately', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.forkSandbox = jest
+        .fn()
+        .mockResolvedValue(
+          createApiResponse({ ...baseDto, id: 'sb-fork', state: 'starting', toolboxProxyUrl: undefined }),
+        )
+      sandboxApi.getToolboxProxyUrl = jest.fn().mockResolvedValue(createApiResponse({ url: 'http://proxy' }))
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-fork', state: 'starting' }))
+
+      jest.useFakeTimers()
+      try {
+        const fork = sandbox.fork(undefined, 60)
+        await jest.advanceTimersByTimeAsync(0)
+        expect(sandboxApi.getToolboxProxyUrl).toHaveBeenCalledWith('sb-fork')
+        expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+        expect(sandboxApi.getSandbox).toHaveBeenCalledWith('sb-fork')
+        subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('started', 'sb-fork'))
+        const forked = await fork
+        expect(forked.state).toBe('started')
+      } finally {
+        jest.useRealTimers()
+      }
+      expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+    })
+
     it('fork() without a live connection reads once immediately', async () => {
       const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
       subscriptionManager.isConnected = false

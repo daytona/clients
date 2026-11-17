@@ -191,21 +191,15 @@ RSpec.describe Daytona::EventSubscriptionManager do
   end
 
   describe '#event_backed?' do
-    let(:served_dispatcher) { instance_double(Daytona::EventDispatcher, connected?: true, served?: true) }
+    let(:served_dispatcher) { instance_double(Daytona::EventDispatcher, event_backed?: true) }
 
-    it 'is true while connected and the id is served' do
+    it 'delegates to the dispatcher' do
       expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(true)
-      expect(served_dispatcher).to have_received(:served?).with('sandbox-1')
+      expect(served_dispatcher).to have_received(:event_backed?).with('sandbox-1')
     end
 
-    it 'is false while the id is not served' do
-      allow(served_dispatcher).to receive(:served?).and_return(false)
-
-      expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(false)
-    end
-
-    it 'is false while disconnected' do
-      allow(served_dispatcher).to receive(:connected?).and_return(false)
+    it 'is false when the dispatcher says so' do
+      allow(served_dispatcher).to receive(:event_backed?).and_return(false)
 
       expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(false)
     end

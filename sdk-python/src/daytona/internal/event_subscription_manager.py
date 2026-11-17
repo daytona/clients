@@ -80,12 +80,7 @@ class AsyncEventSubscriptionManager:
     def is_event_backed(self, resource_id: str) -> bool:
         """Whether state events for the id arrive now: the connection is up and the server holds the id."""
         dispatcher = self._dispatcher
-        return (
-            not self._closed
-            and dispatcher is not None
-            and dispatcher.is_connected
-            and dispatcher.is_served(resource_id)
-        )
+        return not self._closed and dispatcher is not None and dispatcher.is_event_backed(resource_id)
 
     def subscribe(
         self,
@@ -197,12 +192,7 @@ class SyncEventSubscriptionManager:
     def is_event_backed(self, resource_id: str) -> bool:
         """Whether state events for the id arrive now: the connection is up and the server holds the id."""
         dispatcher = self._dispatcher
-        return (
-            not self._closed
-            and dispatcher is not None
-            and dispatcher.is_connected
-            and dispatcher.is_served(resource_id)
-        )
+        return not self._closed and dispatcher is not None and dispatcher.is_event_backed(resource_id)
 
     def subscribe(
         self,

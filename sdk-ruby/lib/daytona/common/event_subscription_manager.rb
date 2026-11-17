@@ -96,7 +96,9 @@ module Daytona
     # @return [Boolean] Whether state events for +resource_id+ can arrive now: the manager is open, the
     #   connection is up and the server serves +resource_id+ (it does not beyond the per-connection cap)
     def event_backed?(resource_id)
-      connected? && @dispatcher.served?(resource_id)
+      return false if @dispatcher.nil? || @mutex.synchronize { @closed }
+
+      @dispatcher.event_backed?(resource_id)
     end
 
     def unsubscribe(sub_id)

@@ -1503,3 +1503,49 @@ class TestAsyncSandboxResponsesWithoutState:
 
         mock_async_sandbox_api.get_sandbox.assert_awaited_once()
         assert sandbox.state == SandboxState.ARCHIVING
+
+
+class TestAsyncSandboxReviewRound5:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @pytest.mark.asyncio
+    async def test_fork_whose_proxy_url_was_fetched_reads_first(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.fork_sandbox = AsyncMock(
+            return_value=_async_dto(sandbox_id="forked-id", state=SandboxState.FORKING, toolbox_proxy_url="")
+        )
+        mock_async_sandbox_api.get_toolbox_proxy_url = AsyncMock(return_value=MagicMock(url="http://fetched:2280"))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            return_value=_async_dto(sandbox_id="forked-id", state=SandboxState.FORKING, toolbox_proxy_url="")
+        )
+
+        task = asyncio.create_task(sandbox.fork(timeout=0))
+        await _deliver_once_waiting(manager, "started")
+        forked = await asyncio.wait_for(task, timeout=2)
+
+        assert forked.state == SandboxState.STARTED
+        assert forked.toolbox_proxy_url == "http://fetched:2280"
+        mock_async_sandbox_api.get_sandbox.assert_awaited_once_with("forked-id", _request_timeout=None)
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_delete_without_wait_applies_a_response_without_state(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(
+            return_value=_async_dto(state=None, labels={"deleted-by": "test"})
+        )
+        mock_async_sandbox_api.get_sandbox = AsyncMock()
+
+        await sandbox.delete(timeout=0)
+
+        assert sandbox.labels == {"deleted-by": "test"}
+        mock_async_sandbox_api.get_sandbox.assert_not_called()
+        manager.subscribe.assert_not_called()

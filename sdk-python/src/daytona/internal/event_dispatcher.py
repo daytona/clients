@@ -298,6 +298,10 @@ class AsyncEventDispatcher:
         """Whether the server holds, or will hold after the next connect, a subscription for the id."""
         return resource_id in self._served
 
+    def is_event_backed(self, resource_id: str) -> bool:
+        """Whether state events for the id arrive now: connected, and the server holds the id."""
+        return self._connected and resource_id in self._served
+
     @property
     def is_failed(self) -> bool:
         return self._failed
@@ -674,6 +678,14 @@ class SyncEventDispatcher:
         """Whether the server holds, or will hold after the next connect, a subscription for the id."""
         with self._lock:
             return resource_id in self._served
+
+    def is_event_backed(self, resource_id: str) -> bool:
+        """Whether state events for the id arrive now: connected, and the server holds the id.
+
+        Both are read under one lock, so a disconnect cannot land between the two reads.
+        """
+        with self._lock:
+            return self._connected and resource_id in self._served
 
     @property
     def is_failed(self) -> bool:

@@ -322,6 +322,13 @@ public class EventDispatcher {
         }
     }
 
+    /** Whether events for this id arrive now: connected and served, read together under one lock. */
+    public boolean isEventBacked(String resourceId) {
+        synchronized (lock) {
+            return connected && served.contains(resourceId);
+        }
+    }
+
     /** Incremented on every successful connect: the initial one and every reconnect. */
     public long connectionEpoch() {
         synchronized (lock) {

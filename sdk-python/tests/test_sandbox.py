@@ -1328,3 +1328,40 @@ class TestSandboxResponsesWithoutState:
 
         mock_sandbox_api.get_sandbox.assert_called_once()
         assert sandbox.state == SandboxState.ARCHIVING
+
+
+class TestSandboxReviewRound5:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    def test_fork_whose_proxy_url_was_fetched_reads_first(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.fork_sandbox.return_value = make_sandbox_dto(
+            sandbox_id="forked-id", state=SandboxState.FORKING, toolbox_proxy_url=""
+        )
+        mock_sandbox_api.get_toolbox_proxy_url.return_value = MagicMock(url="http://fetched:2280")
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(
+            sandbox_id="forked-id", state=SandboxState.FORKING, toolbox_proxy_url=""
+        )
+
+        sender = _deliver_once_waiting(manager, "started")
+        forked = sandbox.fork(timeout=5)
+        sender.join(timeout=5)
+
+        assert forked.state == SandboxState.STARTED
+        assert forked.toolbox_proxy_url == "http://fetched:2280"
+        mock_sandbox_api.get_sandbox.assert_called_once_with("forked-id", _request_timeout=None)
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_delete_without_wait_applies_a_response_without_state(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=None, labels={"deleted-by": "test"})
+
+        sandbox.delete(timeout=5)
+
+        assert sandbox.labels == {"deleted-by": "test"}
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        manager.subscribe.assert_not_called()

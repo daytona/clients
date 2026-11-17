@@ -47,11 +47,16 @@ type SandboxEventHandler func(event SandboxEvent)
 // subscribe or unsubscribe message.
 const maxSubscriptionIDsPerMessage = 100
 
+// gatewaySubscriptionLimit is the most resource ids the gateway's wire contract
+// lets one connection subscribe to; a subscribe beyond it is rejected whole,
+// and the client is not told.
+const gatewaySubscriptionLimit = 1000
+
 // MaxSubscriptionsPerConnection is the most resource ids one event connection
-// may subscribe to; the gateway's wire contract rejects a subscribe beyond it
-// whole. A variable so tests can lower it; each dispatcher reads it once, when
-// created.
-var MaxSubscriptionsPerConnection = 1000
+// subscribes to. It may only be lowered (tests do): each dispatcher reads it
+// once, when created, and clamps it to the gateway's limit, so a larger value
+// never sends subscribes the gateway would silently reject.
+var MaxSubscriptionsPerConnection = gatewaySubscriptionLimit
 
 // subscriptionMessage is the payload of the subscribe and unsubscribe client
 // events.
@@ -101,6 +106,14 @@ type EventDispatcher struct {
 	closeCh          chan struct{}
 }
 
+// subscriptionLimit clamps a configured per-connection limit to (0, gateway limit].
+func subscriptionLimit(configured int) int {
+	if configured <= 0 || configured > gatewaySubscriptionLimit {
+		return gatewaySubscriptionLimit
+	}
+	return configured
+}
+
 func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string) *EventDispatcher {
 	return &EventDispatcher{
 		apiURL:           apiURL,
@@ -110,7 +123,7 @@ func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string
 		sdkVersion:       sdkVersion,
 		listeners:        make(map[string]map[int]SandboxEventHandler),
 		served:           make(map[string]struct{}),
-		maxSubscriptions: MaxSubscriptionsPerConnection,
+		maxSubscriptions: subscriptionLimit(MaxSubscriptionsPerConnection),
 		registeredEvents: make(map[string]bool),
 		maxReconnects:    100,
 		closeCh:          make(chan struct{}),
@@ -410,9 +423,8 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 			return
 		}
 		stateEvent := SandboxStateEvent{OldState: payload.OldState, NewState: payload.NewState}
-		if err := unmarshalSandboxLenient(payload.Sandbox, &stateEvent.Sandbox); err != nil {
-			return
-		}
+		// Best effort: waits use only NewState, so a field nothing reads must not drop the transition.
+		_ = unmarshalSandboxLenient(payload.Sandbox, &stateEvent.Sandbox)
 		event = SandboxEvent{
 			Type:       SandboxEventStateUpdated,
 			StateEvent: &stateEvent,
@@ -431,9 +443,8 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 			OldDesiredState: payload.OldDesiredState,
 			NewDesiredState: payload.NewDesiredState,
 		}
-		if err := unmarshalSandboxLenient(payload.Sandbox, &desiredStateEvent.Sandbox); err != nil {
-			return
-		}
+		// Best effort, as for state events: the transition matters more than the snapshot.
+		_ = unmarshalSandboxLenient(payload.Sandbox, &desiredStateEvent.Sandbox)
 		event = SandboxEvent{
 			Type:              SandboxEventDesiredStateUpdated,
 			DesiredStateEvent: &desiredStateEvent,

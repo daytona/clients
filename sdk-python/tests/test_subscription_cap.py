@@ -387,3 +387,33 @@ class TestSyncSandboxWaitsPastTheCap:
         assert not errors
         manager.shutdown()
         dispatcher.disconnect()
+
+
+class TestAtomicIsEventBacked:
+    async def test_async_served_id_on_a_dropped_connection_is_not_event_backed(self, async_sio, monkeypatch):
+        dispatcher = await _connected_async_dispatcher(monkeypatch)
+        manager = AsyncEventSubscriptionManager(dispatcher)
+        _ = manager.subscribe("sb-1", _noop, [STATE_EVENT])
+        assert dispatcher.is_event_backed("sb-1") and manager.is_event_backed("sb-1")
+
+        await async_sio.instances[0].simulate_disconnect()
+
+        assert dispatcher.is_served("sb-1")
+        assert not dispatcher.is_event_backed("sb-1")
+        assert not manager.is_event_backed("sb-1")
+        manager.shutdown()
+        await dispatcher.disconnect()
+
+    def test_sync_served_id_on_a_dropped_connection_is_not_event_backed(self, sync_sio, monkeypatch):
+        dispatcher = _connected_sync_dispatcher(monkeypatch)
+        manager = SyncEventSubscriptionManager(dispatcher)
+        _ = manager.subscribe("sb-1", _noop, [STATE_EVENT])
+        assert dispatcher.is_event_backed("sb-1") and manager.is_event_backed("sb-1")
+
+        sync_sio.instances[0].simulate_disconnect()
+
+        assert dispatcher.is_served("sb-1")
+        assert not dispatcher.is_event_backed("sb-1")
+        assert not manager.is_event_backed("sb-1")
+        manager.shutdown()
+        dispatcher.disconnect()

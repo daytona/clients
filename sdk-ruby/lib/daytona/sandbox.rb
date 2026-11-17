@@ -855,7 +855,7 @@ module Daytona
         )
         # Under the fork deadline, but recorded as the wait_for_sandbox_start call that it replaces.
         instrument_as(:wait_for_sandbox_start, component: 'Sandbox') do
-          forked.wait_for_start_after_fork(deadline, fresh: fresh_state?(forked_dto))
+          forked.wait_for_start_after_fork(deadline, fresh: fresh_fork_response?(forked_dto))
         end
         return forked
       end
@@ -1531,6 +1531,15 @@ module Daytona
     # @return [void]
     def apply_operation_response(sandbox_dto)
       fresh_state?(sandbox_dto) ? process_response(sandbox_dto) : refresh
+    end
+
+    # A fork response whose toolbox proxy URL is missing (older servers) is not fresh: building the forked
+    # Sandbox fetched it, which widened the gap before the forked Sandbox's subscription.
+    #
+    # @param forked_dto [DaytonaApiClient::Sandbox, nil]
+    # @return [Boolean]
+    def fresh_fork_response?(forked_dto)
+      fresh_state?(forked_dto) && !forked_dto.toolbox_proxy_url.to_s.empty?
     end
 
     # @param sandbox_dto [DaytonaApiClient::Sandbox, nil]

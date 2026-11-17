@@ -1604,6 +1604,22 @@ RSpec.describe Daytona::Sandbox do
       expect(started_sandbox.state).to eq('started')
     end
 
+    it 'fork: reads once at once when the toolbox proxy URL had to be fetched' do
+      allow(sandbox_api).to receive(:fork_sandbox)
+        .and_return(build_sandbox_dto(id: 'fork-1', state: 'starting', toolbox_proxy_url: ''))
+      allow(sandbox_api).to receive(:get_toolbox_proxy_url).with('fork-1')
+                                                           .and_return(double('ToolboxProxyUrl', url: 'https://proxy.example.com'))
+      allow(sandbox_api).to receive(:get_sandbox).with('fork-1')
+                                                 .and_return(build_sandbox_dto(id: 'fork-1', state: 'starting'))
+      emit_when_waiting('started')
+
+      forked = started_sandbox.fork(timeout: 5)
+
+      expect(forked.state).to eq('started')
+      expect(sandbox_api).to have_received(:get_toolbox_proxy_url).once
+      expect(sandbox_api).to have_received(:get_sandbox).with('fork-1').once
+    end
+
     it 'fork: reads at once when the response carries no state' do
       allow(sandbox_api).to receive(:fork_sandbox).and_return(stateless_dto('fork-1'))
       allow(sandbox_api).to receive(:get_sandbox).with('fork-1')

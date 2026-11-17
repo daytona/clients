@@ -636,10 +636,11 @@ class Sandbox(SandboxDto):
             if wait:
                 subscription = self._take_wait_subscription()
             sandbox = self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
-            if wait_poll.carries_state(sandbox):
+            if sandbox:
                 self.__process_sandbox_dto(sandbox)
+                # Only a response with a state can stand in for the wait's first read.
                 if subscription is not None:
-                    subscription = subscription.with_state_fresh(True)
+                    subscription = subscription.with_state_fresh(wait_poll.carries_state(sandbox))
 
             if wait:
                 self._wait_for_state(
@@ -1271,6 +1272,9 @@ class Sandbox(SandboxDto):
             self.id, ForkSandbox(name=name), _request_timeout=http_timeout(timeout)
         )
 
+        # The constructor fetches a missing URL (older servers), which widens the gap before the fork's
+        # subscription: read first then.
+        state_fresh = wait_poll.carries_state(sandbox_dto) and bool(sandbox_dto.toolbox_proxy_url)
         language = sandbox_dto.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL) or ""
 
         forked = Sandbox(
@@ -1282,7 +1286,7 @@ class Sandbox(SandboxDto):
             http_client=self._http_client,
             analytics_api_url_provider=self._analytics_api_url_provider,
         )
-        forked._wait_for_fork_start(state_fresh=wait_poll.carries_state(sandbox_dto))
+        forked._wait_for_fork_start(state_fresh=state_fresh)
         return forked
 
     @deprecated(reason="Method is deprecated. Use `fork` instead. This method will be removed in a future version.")
@@ -1385,7 +1389,8 @@ class Sandbox(SandboxDto):
         """``wait_for_sandbox_start`` for a new fork, which can skip the first read of a live wait.
 
         Args:
-            state_fresh: Whether the fork response carried a state; without one the wait reads first.
+            state_fresh: Whether the fork response carried a state and the toolbox proxy URL; otherwise
+                the wait reads first.
         """
         self._raise_destroyed_wait_error([SandboxState.STARTED])
         if self.state == SandboxState.STARTED:

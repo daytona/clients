@@ -178,6 +178,9 @@ class FakeEventDispatcher:
     def is_served(self, resource_id: str) -> bool:
         return resource_id in self.listeners
 
+    def is_event_backed(self, resource_id: str) -> bool:
+        return self.is_connected and self.is_served(resource_id)
+
 
 class OtelRecorder:
     """Records the spans and duration metrics that the instrumentation decorators emit."""

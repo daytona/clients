@@ -172,6 +172,13 @@ module Daytona
       @mutex.synchronize { @served.include?(resource_id) }
     end
 
+    # @param resource_id [String]
+    # @return [Boolean] Whether events for +resource_id+ can arrive now: the connection is up and the id is
+    #   served, read together under one lock so a disconnect cannot fall between the two reads
+    def event_backed?(resource_id)
+      @mutex.synchronize { @connected && @served.include?(resource_id) }
+    end
+
     # @return [Integer] The number of successful connects so far
     def connection_epoch
       @mutex.synchronize { @connection_epoch }
