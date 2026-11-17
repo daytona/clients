@@ -52,7 +52,9 @@ func loginOIDC(ctx context.Context, a *app.App, device, browser bool, clientID s
 				UserCode                string `json:"user_code,omitempty"`
 				ExpiresIn               int64  `json:"expires_in,omitempty"`
 			}{dc.VerificationURI, dc.VerificationURIComplete, dc.UserCode, dc.ExpiresIn}
-			if err := json.NewEncoder(a.Stdout).Encode(event); err != nil {
+			enc := json.NewEncoder(a.Stdout)
+			enc.SetEscapeHTML(false)
+			if err := enc.Encode(event); err != nil {
 				return err
 			}
 		}
