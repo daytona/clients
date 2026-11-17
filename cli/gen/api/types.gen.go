@@ -5866,8 +5866,10 @@ type SandboxCreateOperation struct {
 	// platform default image; omitted for a sandbox restored from a snapshot.
 	Image *ImageReference `json:"image,omitempty"`
 
-	// LifecyclePolicy Automatic timeout and idle-expiry behavior, the same object
-	// `GET /sandboxes/{id}` returns; null when the sandbox no longer exists.
+	// LifecyclePolicy Automatic timeout and idle-expiry behavior: the object
+	// `GET /sandboxes/{id}` returns at the time of this response. A sandbox
+	// that has not started yet restarts its `timeout_at` countdown when it
+	// starts. Null when the policy could not be read.
 	LifecyclePolicy *LifecyclePolicy `json:"lifecycle_policy,omitempty"`
 
 	// Name Sandbox name (caller-provided or the generated `sandbox-<short-id>`).
