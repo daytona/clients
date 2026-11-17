@@ -629,7 +629,14 @@ async def test_the_create_handle_carries_the_lifecycle_policy_of_the_create_resp
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "lifecycle",
-    [None, "delete", [], {**_CREATE_LIFECYCLE, "timeout_at": "not a timestamp"}],
+    [
+        None,
+        "delete",
+        [],
+        {**_CREATE_LIFECYCLE, "timeout_at": "not a timestamp"},
+        {**_CREATE_LIFECYCLE, "timeout_seconds": {}},
+        {**_CREATE_LIFECYCLE, "on_timeout": 5},
+    ],
 )
 async def test_a_missing_or_malformed_create_lifecycle_policy_is_absent(lifecycle: object) -> None:
     # The sandbox exists once its id came back: a policy that does not parse

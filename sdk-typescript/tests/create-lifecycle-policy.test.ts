@@ -58,7 +58,14 @@ describe('create handle lifecycle policy', () => {
     expect(requests).toEqual(['POST'])
   })
 
-  it.each([null, 'delete', []])('leaves a missing or mistyped create lifecycle policy (%j) absent', async (lifecycle) => {
+  it.each([
+    null,
+    'delete',
+    [],
+    { ...LIFECYCLE, timeout_at: 'not a timestamp' },
+    { ...LIFECYCLE, timeout_seconds: {} },
+    { ...LIFECYCLE, on_timeout: 5 },
+  ])('leaves a missing or malformed create lifecycle policy (%j) absent', async (lifecycle) => {
     const { sandbox } = await createWith('create', lifecycle)
 
     expect(sandbox.id).toBe('sbx')

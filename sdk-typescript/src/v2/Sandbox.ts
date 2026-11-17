@@ -299,6 +299,22 @@ function checkLifecycleEcho(data: unknown): { lifecycle_policy: SandboxLifecycle
   return checkResponse<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(data, LIFECYCLE_ECHO, 'sandbox lifecycle policy')
 }
 
+/**
+ * The lifecycle policy of a create response, checked as the policy echo is;
+ * absent when it is missing or breaks the contract, never an error: the
+ * sandbox exists once the create returned its id.
+ * @internal
+ */
+export function createdLifecyclePolicy(id: string, lifecyclePolicy: unknown): SandboxLifecycle | undefined {
+  if (lifecyclePolicy === undefined || lifecyclePolicy === null) return undefined
+  try {
+    return parseSandboxLifecycle(checkLifecycleEcho({ id, lifecycle_policy: lifecyclePolicy }))
+  } catch (error) {
+    if (error instanceof DaytonaError) return undefined
+    throw error
+  }
+}
+
 export class Sandbox {
   private readonly sandboxId: string
   /** The sandbox id, fixed for the handle's lifetime (read-only at run time too). */

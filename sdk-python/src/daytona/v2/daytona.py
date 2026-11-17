@@ -38,6 +38,7 @@ from ._api_core import (
     expect_organization_limits,
     expect_project_budget,
     expect_sandbox_detail,
+    expect_sandbox_lifecycle_policy,
     sandbox_detail_wire,
     usable_path_id,
 )
@@ -819,13 +820,16 @@ class AsyncDaytona:
         # is unknown until a detail read. The response's `image` is canonical when present.
         booted = artifact_ref_from_wire(data.get("image"))
         # The effective policy, so the handle shows the deadline the sandbox is
-        # deleted or stopped at. A policy that does not parse is absent, never
-        # an error: the sandbox exists.
+        # deleted or stopped at; checked as the policy echo is. A missing one,
+        # or one that breaks the contract, is absent, never an error: the
+        # sandbox exists.
         raw_lifecycle = data.get("lifecycle_policy")
         lifecycle_policy = None
-        if isinstance(raw_lifecycle, dict):
+        if raw_lifecycle is not None:
             try:
-                lifecycle_policy = parse_lifecycle(raw_lifecycle)
+                lifecycle_policy = parse_lifecycle(
+                    expect_sandbox_lifecycle_policy({"id": sandbox_id, "lifecycle_policy": raw_lifecycle})
+                )
             except DaytonaError:
                 lifecycle_policy = None
         info = _SandboxInfo(
