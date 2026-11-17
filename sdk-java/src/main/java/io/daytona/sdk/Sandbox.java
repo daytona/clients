@@ -1059,14 +1059,15 @@ public class Sandbox {
         }
     }
 
-    /**
-     * Polls the Sandbox state for one wait and owns the wait's event subscription, which is
-     * created by {@link #start()} and released by {@link #stop()}.
-     */
+    /** Poll interval for a wait: the slow safety-net interval when event-backed, otherwise the fast interval. */
     static long pollIntervalMillis(boolean eventBacked) {
         return eventBacked ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS;
     }
 
+    /**
+     * Polls the Sandbox state for one wait and owns the wait's event subscription, which is
+     * created by {@link #start()} and released by {@link #stop()}.
+     */
     private final class Poller {
         private final StateWaiter waiter;
         private final boolean safeRefresh;

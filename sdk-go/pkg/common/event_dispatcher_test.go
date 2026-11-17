@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,7 +32,9 @@ type fakeSocketIOServer struct {
 	// holdOpenOnReadError keeps a server socket open after its read side fails
 	// until the test ends, instead of closing it.
 	holdOpenOnReadError atomic.Bool
-	done                chan struct{}
+	// rejectConnections makes the server refuse new socket handshakes.
+	rejectConnections atomic.Bool
+	done              chan struct{}
 
 	mu       sync.Mutex
 	queries  []url.Values
@@ -52,6 +55,10 @@ func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/socket.io") {
 			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if f.rejectConnections.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -254,6 +261,8 @@ func TestEventDispatcherResendsWholeSetInChunksAfterReconnect(t *testing.T) {
 	}
 	before := len(f.events())
 
+	// Keep the client disconnected until the listener changes below are made.
+	f.rejectConnections.Store(true)
 	f.dropConnections()
 	require.Eventually(t, func() bool { return !es.IsConnected() }, 5*time.Second, 10*time.Millisecond)
 
@@ -261,7 +270,10 @@ func TestEventDispatcherResendsWholeSetInChunksAfterReconnect(t *testing.T) {
 	unsubscribes[0]()
 	added := es.Subscribe(testSandboxID(total), noopHandler, stateEvents)
 	defer added()
+	time.Sleep(100 * time.Millisecond)
 	assert.Len(t, f.events(), before)
+	assert.False(t, es.IsConnected())
+	f.rejectConnections.Store(false)
 
 	require.Eventually(t, func() bool { return f.connectionCount() == 2 && len(f.events()) == before+3 }, 10*time.Second, 20*time.Millisecond)
 	resent := f.events()[before:]
@@ -308,6 +320,47 @@ func TestEventDispatcherReconnectsAfterFailedSubscriptionWrite(t *testing.T) {
 	assert.Equal(t, "subscribe", resent.Name)
 	assert.ElementsMatch(t, []string{idA, idB}, resent.SandboxIDs)
 	assert.True(t, es.IsConnected())
+}
+
+// countWriteLoops returns the number of running socketIOClient writer goroutines.
+func countWriteLoops() int {
+	buf := make([]byte, 1<<20)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			return strings.Count(string(buf[:n]), "(*socketIOClient).writeLoop(")
+		}
+		buf = make([]byte, 2*len(buf))
+	}
+}
+
+func TestSocketIOClientWriterExitsWhenServerDropsConnection(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	// Let writers of earlier tests' clients finish.
+	require.Eventually(t, func() bool { return countWriteLoops() == 0 }, 5*time.Second, 10*time.Millisecond)
+
+	disconnected := make(chan struct{})
+	client, err := newSocketIOClient(socketIOClientConfig{
+		APIURL:       f.server.URL,
+		Token:        "test-token",
+		OnDisconnect: func() { close(disconnected) },
+	})
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+	require.Eventually(t, func() bool { return countWriteLoops() == 1 }, 5*time.Second, 10*time.Millisecond)
+	// The server registers the socket just after completing the handshake.
+	require.Eventually(t, func() bool { return f.connectionCount() == 1 }, 5*time.Second, 10*time.Millisecond)
+
+	f.dropConnections()
+	select {
+	case <-disconnected:
+	case <-time.After(5 * time.Second):
+		t.Fatal("client did not report the disconnect")
+	}
+
+	// The writer must not outlive the connection waiting for the owner's Close.
+	require.Eventually(t, func() bool { return countWriteLoops() == 0 }, 5*time.Second, 10*time.Millisecond)
+	assert.Error(t, client.emit("subscribe", json.RawMessage(`{"sandboxIds":[]}`)))
 }
 
 func TestEventSubscriptionManagerIsNotConnectedAfterShutdown(t *testing.T) {

@@ -74,6 +74,7 @@ type socketIOClient struct {
 	eventHandler       socketIOEventHandler
 	onDisconnect       func()
 	disconnectOnce     sync.Once
+	stopOnce           sync.Once // guards closing closeCh and healthStopCh
 	closeCh            chan struct{}
 	healthStopCh       chan struct{}
 	writemu            sync.Mutex // serializes WebSocket writes
@@ -293,6 +294,9 @@ func (c *socketIOClient) readLoop() {
 		c.mu.Lock()
 		c.connected = false
 		c.mu.Unlock()
+		// The connection is gone: stop the writer and health monitor now rather
+		// than when the owner calls Close.
+		c.stopBackgroundLoops()
 
 		c.disconnectOnce.Do(func() {
 			if c.onDisconnect != nil {
@@ -600,6 +604,15 @@ func (c *socketIOClient) IsConnected() bool {
 	return c.connected
 }
 
+// stopBackgroundLoops signals the writer and health monitor goroutines to exit.
+// Safe to call more than once and from several goroutines.
+func (c *socketIOClient) stopBackgroundLoops() {
+	c.stopOnce.Do(func() {
+		close(c.closeCh)
+		close(c.healthStopCh)
+	})
+}
+
 // Close gracefully closes the Socket.IO and WebSocket connection.
 func (c *socketIOClient) Close() {
 	c.mu.Lock()
@@ -611,17 +624,7 @@ func (c *socketIOClient) Close() {
 	c.mu.Unlock()
 
 	// Signal goroutines to stop
-	select {
-	case <-c.closeCh:
-	default:
-		close(c.closeCh)
-	}
-
-	select {
-	case <-c.healthStopCh:
-	default:
-		close(c.healthStopCh)
-	}
+	c.stopBackgroundLoops()
 
 	// Send Engine.IO CLOSE
 	_ = c.writeMessage(string([]byte{byte(eioClose)}))
