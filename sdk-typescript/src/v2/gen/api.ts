@@ -6786,8 +6786,9 @@ export interface components {
             /**
              * @description Automatic timeout and idle-expiry behavior: the object
              *     `GET /sandboxes/{id}` returns at the time of this response. A sandbox
-             *     that has not started yet restarts its `timeout_at` countdown when it
-             *     starts. Null when the policy could not be read.
+             *     that has not started yet restarts its `timeout_at` and
+             *     `idle_timeout_at` countdowns when it starts. Null when the policy could
+             *     not be read.
              */
             lifecycle_policy?: null | components["schemas"]["LifecyclePolicy"];
             /** @description Sandbox name (caller-provided or the generated `sandbox-<short-id>`). */

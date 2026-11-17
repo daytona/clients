@@ -8616,7 +8616,7 @@
             ]
           },
           "lifecycle_policy": {
-            "description": "Automatic timeout and idle-expiry behavior: the object\n`GET /sandboxes/{id}` returns at the time of this response. A sandbox\nthat has not started yet restarts its `timeout_at` countdown when it\nstarts. Null when the policy could not be read.",
+            "description": "Automatic timeout and idle-expiry behavior: the object\n`GET /sandboxes/{id}` returns at the time of this response. A sandbox\nthat has not started yet restarts its `timeout_at` and\n`idle_timeout_at` countdowns when it starts. Null when the policy could\nnot be read.",
             "oneOf": [
               {
                 "type": "null"
