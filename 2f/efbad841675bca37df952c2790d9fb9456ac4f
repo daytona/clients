@@ -1,0 +1,58 @@
+changelog.d/desktop-environment.added.md
+  h_5fc330b445be98 1-8
+cli/gen/toolbox/types.gen.go
+  h_5fc330b445be98 30-47,625-627,916-917,925-927
+contract/toolbox-openapi.json
+  h_5fc330b445be98 689-697,1417-1427,1460-1470,5404,5441,5451,6092,6129,6139,6200
+sdk-python/src/daytona/v2/__init__.py
+  h_5fc330b445be98 45,467
+sdk-python/src/daytona/v2/_exports.py
+  h_5fc330b445be98 69
+sdk-python/src/daytona/v2/_gen/toolbox/__init__.py
+  h_5fc330b445be98 30
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_environment.py
+  h_5fc330b445be98 1-55
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_start_request.py
+  h_5fc330b445be98 22,39,41,87-91,109
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  h_5fc330b445be98 23,44,48,109-113,133
+sdk-python/src/daytona/v2/_sync/computer_use.py
+  h_5fc330b445be98 14,92-108,110-117,122-130,137,140-145
+sdk-python/src/daytona/v2/computer_use.py
+  h_5fc330b445be98 6-7,38-46,65-70,73-78,83-91,100-102,114-130,133-135
+sdk-python/src/daytona/v2/computer_use_core.py
+  h_5fc330b445be98 63,382-384,415-418,424-429,432-437,440-445,451-452,464-465
+sdk-python/src/daytona/v2/computer_use_types.py
+  h_5fc330b445be98 23-40,99-102,115-118,131-134,147-150,171-174
+sdk-python/tests/test_desktop.py
+  h_5fc330b445be98 7,19,23,244-328,709,715
+sdk-typescript/src/v2/ComputerUse.ts
+  h_5fc330b445be98 54-59,67-75,91-100
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  h_5fc330b445be98 7,132,136-138,142-146
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  h_5fc330b445be98 105,140-149,437-442,450-458,476-484
+sdk-typescript/src/v2/ComputerUseTypes.ts
+  h_5fc330b445be98 6,10,39-43,57-61,75-79,93-97,119-123,344-350
+sdk-typescript/src/v2/gen/toolbox-enums.ts
+  h_5fc330b445be98 4
+sdk-typescript/src/v2/gen/toolbox.ts
+  h_5fc330b445be98 522,622,640,2044-2045,2373,2381,4615,4624,4997,5006
+sdk-typescript/src/v2/index.ts
+  h_5fc330b445be98 347
+sdk-typescript/src/v2/types.ts
+  h_5fc330b445be98 22,932-935
+sdk-typescript/tests/unit.test.ts
+  h_5fc330b445be98 12127-12196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2fefbad841675bca37df952c2790d9fb9456ac4f",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
