@@ -6785,10 +6785,12 @@ export interface components {
             image?: null | components["schemas"]["ImageReference"];
             /**
              * @description Automatic timeout and idle-expiry behavior: the object
-             *     `GET /sandboxes/{id}` returns at the time of this response. A sandbox
-             *     that has not started yet restarts its `timeout_at` and
-             *     `idle_timeout_at` countdowns when it starts. Null when the policy could
-             *     not be read.
+             *     `GET /sandboxes/{id}` returns, as recorded when this response was
+             *     written. Starting the sandbox restarts `timeout_at` and
+             *     `idle_timeout_at`, and the start can be recorded just after this
+             *     response, even when `status` is already `running`;
+             *     `GET /sandboxes/{id}` returns the deadlines after the start. Null when
+             *     the policy could not be read.
              */
             lifecycle_policy?: null | components["schemas"]["LifecyclePolicy"];
             /** @description Sandbox name (caller-provided or the generated `sandbox-<short-id>`). */
