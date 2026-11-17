@@ -32,29 +32,37 @@ var (
 	sshHostLabelPattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$`)
 )
 
-// ParseSSHCommand parses the SSH command string returned by the API and
-// returns the argument vector to pass to ssh.
+// SSHTarget is a validated SSH destination. User carries the SSH access
+// token, so it must never be placed on a command line.
+type SSHTarget struct {
+	User string
+	Host string
+	// Port is empty when the API command does not set one.
+	Port string
+}
+
+// ParseSSHCommand parses the SSH command string returned by the API into its
+// validated components.
 //
 // Only the two formats the API composes are accepted, and they are enforced:
 // - "ssh user@host" (port 22)
 // - "ssh -p port user@host"
 //
-// The user, host and port components are validated individually and the
-// returned arguments are rebuilt from those validated values, so no token of
-// the original string is passed through. Anything else is rejected with an
+// The user, host and port components are validated individually, so no token
+// of the original string is passed through. Anything else is rejected with an
 // error naming the component at fault; the raw command is never echoed back.
-func ParseSSHCommand(sshCommand string) ([]string, error) {
+func ParseSSHCommand(sshCommand string) (SSHTarget, error) {
 	if len(sshCommand) > maxCommandLength {
-		return nil, errors.New("SSH command is too long")
+		return SSHTarget{}, errors.New("SSH command is too long")
 	}
 
 	fields := strings.Fields(sshCommand)
 	if len(fields) < 2 {
-		return nil, errors.New(`unexpected SSH command format; expected "ssh [-p port] user@host"`)
+		return SSHTarget{}, errors.New(`unexpected SSH command format; expected "ssh [-p port] user@host"`)
 	}
 
 	if fields[0] != "ssh" {
-		return nil, errors.New(`unexpected SSH command format; expected it to start with "ssh"`)
+		return SSHTarget{}, errors.New(`unexpected SSH command format; expected it to start with "ssh"`)
 	}
 
 	args := fields[1:]
@@ -62,42 +70,36 @@ func ParseSSHCommand(sshCommand string) ([]string, error) {
 	port := ""
 	if strings.HasPrefix(args[0], "-") {
 		if args[0] != "-p" {
-			return nil, errors.New("unsupported option in SSH command")
+			return SSHTarget{}, errors.New("unsupported option in SSH command")
 		}
 		if len(args) < 2 {
-			return nil, errors.New("invalid port in SSH command")
+			return SSHTarget{}, errors.New("invalid port in SSH command")
 		}
 		if err := validateSSHPort(args[1]); err != nil {
-			return nil, err
+			return SSHTarget{}, err
 		}
 		port = args[1]
 		args = args[2:]
 	}
 
 	if len(args) == 0 {
-		return nil, errors.New(`unexpected SSH command format; expected "ssh [-p port] user@host"`)
+		return SSHTarget{}, errors.New(`unexpected SSH command format; expected "ssh [-p port] user@host"`)
 	}
 	if len(args) > 1 {
-		return nil, errors.New("unexpected argument in SSH command")
+		return SSHTarget{}, errors.New("unexpected argument in SSH command")
 	}
 
 	destination := args[0]
 	if strings.HasPrefix(destination, "-") {
-		return nil, errors.New("unsupported option in SSH command")
+		return SSHTarget{}, errors.New("unsupported option in SSH command")
 	}
 
 	user, host, err := splitSSHDestination(destination)
 	if err != nil {
-		return nil, err
+		return SSHTarget{}, err
 	}
 
-	destination = user + "@" + host
-
-	if port != "" {
-		return []string{"-p", port, destination}, nil
-	}
-
-	return []string{destination}, nil
+	return SSHTarget{User: user, Host: host, Port: port}, nil
 }
 
 // splitSSHDestination splits "user@host" into its validated components.
