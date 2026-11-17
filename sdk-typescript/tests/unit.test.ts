@@ -12152,6 +12152,26 @@ describe('computer-use namespace', () => {
     })
   })
 
+  it.each([
+    ['start', null, 'null'],
+    ['restart', null, 'null'],
+    ['start', 42, 'number'],
+    ['restart', ['gnome'], 'object'],
+  ] as const)('%s refuses environment %p before any request', async (verb, environment, given) => {
+    // Given a caller that bypasses the option type.
+    const transport = transportStub()
+    const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
+
+    // When starting or restarting with it.
+    const call = computerUse[verb]({ environment } as never)
+
+    // Then the SDK refuses it and sends nothing.
+    await expect(call).rejects.toThrow(`ComputerUseStartOptions.environment must be a string, got ${given}`)
+    await expect(computerUse[verb]({ environment } as never)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST' })
+    expect(transport.post).not.toHaveBeenCalled()
+    expect(transport.get).not.toHaveBeenCalled()
+  })
+
   describe.each([
     { status: 'inactive', desktop: 'not_started' },
     { status: 'inactive', desktop: 'starting' },

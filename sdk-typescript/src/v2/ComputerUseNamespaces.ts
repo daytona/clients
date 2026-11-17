@@ -140,7 +140,14 @@ function desktopStartBody(options: ComputerUseStartOptions): toolbox.ComputerUse
   const environment = options.environment
   if (resolution === undefined && environment === undefined) return undefined
   const body: toolbox.ComputerUseStartRequest = {}
-  if (environment !== undefined) body.environment = environment
+  if (environment !== undefined) {
+    // Typed callers cannot pass anything else; refuse it before a request,
+    // as a `null` or non-object resolution is refused.
+    if (typeof environment !== 'string') {
+      throw badRequest(`ComputerUseStartOptions.environment must be a string, got ${environment === null ? 'null' : typeof environment}`)
+    }
+    body.environment = environment
+  }
   if (resolution !== undefined) {
     assertKnownOptions('ComputerUseResolution', resolution, RESOLUTION_KEYS)
     const { width, height } = resolution
