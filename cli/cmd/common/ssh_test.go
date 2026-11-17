@@ -4,7 +4,6 @@
 package common
 
 import (
-	"slices"
 	"strings"
 	"testing"
 )
@@ -13,57 +12,57 @@ func TestParseSSHCommandAcceptsDocumentedFormats(t *testing.T) {
 	tests := []struct {
 		name    string
 		command string
-		want    []string
+		want    SSHTarget
 	}{
 		{
 			name:    "hostname without port",
 			command: "ssh tok123@example.com",
-			want:    []string{"tok123@example.com"},
+			want:    SSHTarget{User: "tok123", Host: "example.com"},
 		},
 		{
 			name:    "hostname with port",
 			command: "ssh -p 2222 tok123@example.com",
-			want:    []string{"-p", "2222", "tok123@example.com"},
+			want:    SSHTarget{User: "tok123", Host: "example.com", Port: "2222"},
 		},
 		{
 			name:    "ipv4 literal",
 			command: "ssh tok123@192.0.2.1",
-			want:    []string{"tok123@192.0.2.1"},
+			want:    SSHTarget{User: "tok123", Host: "192.0.2.1"},
 		},
 		{
 			name:    "bracketed ipv6 literal with port",
 			command: "ssh -p 2222 tok123@[2001:db8::1]",
-			want:    []string{"-p", "2222", "tok123@[2001:db8::1]"},
+			want:    SSHTarget{User: "tok123", Host: "[2001:db8::1]", Port: "2222"},
 		},
 		{
 			name:    "bracketed ipv4 mapped ipv6 literal",
 			command: "ssh tok123@[::ffff:c000:201]",
-			want:    []string{"tok123@[::ffff:c000:201]"},
+			want:    SSHTarget{User: "tok123", Host: "[::ffff:c000:201]"},
 		},
 		{
 			name:    "bracketed ipv4 mapped ipv6 literal in dotted form",
 			command: "ssh tok123@[::ffff:192.0.2.1]",
-			want:    []string{"tok123@[::ffff:192.0.2.1]"},
+			want:    SSHTarget{User: "tok123", Host: "[::ffff:192.0.2.1]"},
 		},
 		{
 			name:    "fully qualified hostname with trailing dot",
 			command: "ssh tok123@sub.domain.example.com.",
-			want:    []string{"tok123@sub.domain.example.com."},
+			want:    SSHTarget{User: "tok123", Host: "sub.domain.example.com."},
 		},
 		{
 			name:    "irregular internal whitespace",
 			command: "ssh   -p   2222   tok123@example.com",
-			want:    []string{"-p", "2222", "tok123@example.com"},
+			want:    SSHTarget{User: "tok123", Host: "example.com", Port: "2222"},
 		},
 		{
 			name:    "lowest valid port",
 			command: "ssh -p 1 tok123@example.com",
-			want:    []string{"-p", "1", "tok123@example.com"},
+			want:    SSHTarget{User: "tok123", Host: "example.com", Port: "1"},
 		},
 		{
 			name:    "highest valid port",
 			command: "ssh -p 65535 tok123@example.com",
-			want:    []string{"-p", "65535", "tok123@example.com"},
+			want:    SSHTarget{User: "tok123", Host: "example.com", Port: "65535"},
 		},
 	}
 
@@ -73,7 +72,7 @@ func TestParseSSHCommandAcceptsDocumentedFormats(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseSSHCommand(%q) returned error: %v", test.command, err)
 			}
-			if !slices.Equal(got, test.want) {
+			if got != test.want {
 				t.Errorf("ParseSSHCommand(%q) = %#v, want %#v", test.command, got, test.want)
 			}
 		})
@@ -239,8 +238,8 @@ func TestParseSSHCommandRejectsUnsupportedInput(t *testing.T) {
 			if err == nil {
 				t.Fatalf("ParseSSHCommand(%q) = %#v, want an error", test.command, got)
 			}
-			if got != nil {
-				t.Errorf("ParseSSHCommand(%q) returned %#v alongside the error, want nil", test.command, got)
+			if got != (SSHTarget{}) {
+				t.Errorf("ParseSSHCommand(%q) returned %#v alongside the error, want the zero value", test.command, got)
 			}
 			if !strings.Contains(err.Error(), test.wantErr) {
 				t.Errorf("ParseSSHCommand(%q) error = %q, want it to contain %q", test.command, err, test.wantErr)

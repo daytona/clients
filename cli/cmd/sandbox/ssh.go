@@ -49,13 +49,13 @@ var SSHCmd = &cobra.Command{
 		}
 
 		// Parse the SSH command from the response
-		sshArgs, err := common.ParseSSHCommand(sshAccess.SshCommand)
+		sshTarget, err := common.ParseSSHCommand(sshAccess.SshCommand)
 		if err != nil {
 			return fmt.Errorf("failed to parse SSH command: %w", err)
 		}
 
 		// Execute SSH
-		return common.ExecuteSSH(sshArgs)
+		return common.ExecuteSSH(sshTarget)
 	},
 }
 
