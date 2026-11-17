@@ -101,10 +101,16 @@ public class EventDispatcher {
         this(apiUrl, token, organizationId, source, sdkVersion, MAX_SUBSCRIPTIONS_PER_CONNECTION);
     }
 
-    /** @param maxSubscriptions most ids this connection subscribes to; tests lower it */
+    /**
+     * @param maxSubscriptions most ids this connection subscribes to; tests lower it. The gateway never
+     *                         accepts more than {@link #MAX_SUBSCRIPTIONS_PER_CONNECTION}, so a larger or
+     *                         non-positive value means that default.
+     */
     public EventDispatcher(String apiUrl, String token, String organizationId, String source, String sdkVersion,
                            int maxSubscriptions) {
-        this.maxSubscriptions = maxSubscriptions;
+        this.maxSubscriptions = maxSubscriptions > 0 && maxSubscriptions <= MAX_SUBSCRIPTIONS_PER_CONNECTION
+                ? maxSubscriptions
+                : MAX_SUBSCRIPTIONS_PER_CONNECTION;
         this.apiUrl = apiUrl;
         this.token = token;
         this.organizationId = organizationId;

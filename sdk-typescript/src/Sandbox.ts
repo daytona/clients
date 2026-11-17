@@ -79,7 +79,9 @@ type PreparedStateWait = {
 
 // Older servers may return an empty body from lifecycle operations.
 function isSandboxDto(data: unknown): data is SandboxDto {
-  return typeof data === 'object' && data !== null && typeof (data as { state?: unknown }).state === 'string'
+  if (typeof data !== 'object' || data === null) return false
+  const state = (data as { state?: unknown }).state
+  return typeof state === 'string' && state !== ''
 }
 
 /**

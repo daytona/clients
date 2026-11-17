@@ -277,6 +277,47 @@ class EventDispatcherTest {
         assertThat(new EventSubscriptionManager(stub).isEventBacked("sb-1")).isFalse();
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {5000, 0, -1})
+    void aLimitAboveTheGatewayOrNotPositiveIsClampedToTheGatewayLimit(int limit) throws Exception {
+        EventDispatcher clamped = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", limit);
+        try {
+            clamped.subscribe("sb-0", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-0"));
+            for (int i = 1; i <= 1000; i++) {
+                clamped.subscribe("sb-" + i, NOOP, STATE_EVENTS);
+            }
+
+            List<String> sent = new ArrayList<>(List.of("sb-0"));
+            FakeEventGateway.Emitted message;
+            while ((message = gateway.takeEmitted(QUIET_MILLIS)) != null) {
+                assertThat(message.event).isEqualTo("subscribe");
+                sent.addAll(ids(message));
+            }
+            assertThat(sent).hasSize(1000).doesNotContain("sb-1000");
+            assertThat(clamped.isServed("sb-999")).isTrue();
+            assertThat(clamped.isServed("sb-1000")).isFalse();
+        } finally {
+            clamped.shutdown();
+        }
+    }
+
+    @Test
+    void aLoweredLimitIsKept() {
+        EventDispatcher capped = cappedDispatcher();
+        try {
+            gateway.holdConnects();
+            for (int i = 0; i < 3; i++) {
+                capped.subscribe("sb-" + i, NOOP, STATE_EVENTS);
+            }
+
+            assertThat(capped.isServed("sb-1")).isTrue();
+            assertThat(capped.isServed("sb-2")).isFalse();
+        } finally {
+            capped.shutdown();
+        }
+    }
+
     private EventDispatcher cappedDispatcher() {
         return new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", 2);
     }

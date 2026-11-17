@@ -1252,7 +1252,7 @@ class TestAsyncSandboxSubscribeBeforeRequest:
         mock_async_sandbox_api.get_sandbox.assert_awaited_once()
 
 
-class TestAsyncSandboxReviewRound2:
+class TestAsyncSandboxOperationWaitBehaviour:
     @pytest.fixture(autouse=True)
     def _stub_jitter(self, monkeypatch):
         monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
@@ -1505,7 +1505,7 @@ class TestAsyncSandboxResponsesWithoutState:
         assert sandbox.state == SandboxState.ARCHIVING
 
 
-class TestAsyncSandboxReviewRound5:
+class TestAsyncSandboxForkAndDeleteResponses:
     @pytest.fixture(autouse=True)
     def _stub_jitter(self, monkeypatch):
         monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)

@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1184,7 +1185,6 @@ class SandboxTest {
     @Test
     void anOverflowWaitReadsFirstAndPollsAtTheSubscribedCadence() throws Exception {
         withCappedGateway((gateway, manager) -> {
-            // Every scheduled poll is an hour away: any GET seen here is a wait's immediate first read.
             List<String> eventBacked = new CopyOnWriteArrayList<>();
             List<String> notEventBacked = new CopyOnWriteArrayList<>();
             Thread a = startStop(manager, "sb-a", eventBacked, notEventBacked);
@@ -1193,20 +1193,22 @@ class SandboxTest {
             assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-b");
             Thread c = startStop(manager, "sb-c", eventBacked, notEventBacked);
 
-            verify(sandboxApi, timeout(5000)).getSandbox("sb-c", null, null);
+            verify(sandboxApi, timeout(5000).atLeast(2)).getSandbox("sb-c", null, null);
             awaitCondition(() -> eventBacked.size() >= 2 && notEventBacked.contains("sb-c"));
             assertThat(gateway.takeEmitted(400)).isNull();
             assertThat(manager.isEventBacked("sb-c")).isFalse();
             assertThat(eventBacked).containsExactlyInAnyOrder("sb-a", "sb-b");
             assertThat(notEventBacked).containsOnly("sb-c");
+            assertReadFirst("sb-c");
             // pollIntervalMillis(true, false, ...) is the 1 s x jitter cadence.
             assertThat(Sandbox.pollIntervalMillis(true, false, () -> 1.0)).isEqualTo(1200);
             verify(sandboxApi, never()).getSandbox("sb-a", null, null);
             verify(sandboxApi, never()).getSandbox("sb-b", null, null);
 
-            for (String id : List.of("sb-a", "sb-b", "sb-c")) {
-                gateway.sendEvent("sandbox.state.updated", stoppedEvent(id));
-            }
+            // The gateway sends nothing for an unserved id: sb-c ends through its poll.
+            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-a"));
+            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-b"));
+            stoppedIds.add("sb-c");
             for (Thread t : List.of(a, b, c)) {
                 t.join(5000);
                 assertThat(t.isAlive()).isFalse();
@@ -1226,6 +1228,8 @@ class SandboxTest {
             assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-b");
             Thread c = startStop(manager, "sb-c", eventBacked, notEventBacked);
             verify(sandboxApi, timeout(5000)).getSandbox("sb-c", null, null);
+            awaitCondition(() -> notEventBacked.contains("sb-c"));
+            assertReadFirst("sb-c");
 
             gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-a"));
             a.join(5000);
@@ -1239,9 +1243,9 @@ class SandboxTest {
             verify(sandboxApi, never()).getSandbox("sb-d", null, null);
             assertThat(manager.isEventBacked("sb-c")).isFalse();
 
-            for (String id : List.of("sb-b", "sb-c", "sb-d")) {
-                gateway.sendEvent("sandbox.state.updated", stoppedEvent(id));
-            }
+            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-b"));
+            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-d"));
+            stoppedIds.add("sb-c");
             for (Thread t : List.of(b, c, d)) {
                 t.join(5000);
                 assertThat(t.isAlive()).isFalse();
@@ -1281,16 +1285,34 @@ class SandboxTest {
 
     // First failure of a stop started by startStop; JUnit creates a fresh instance per test.
     private final AtomicReference<Throwable> stopError = new AtomicReference<>();
+    // Ids whose reads answer stopped from now on; the others answer stopping.
+    private final Set<String> stoppedIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    // Threads on which each wait picked a poll delay.
+    private final Map<String, List<String>> pollDelayThreads = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Stops {@code id} on a new thread; its stop request answers {@code stopping} and its reads too. */
+    /**
+     * A wait that reads first schedules its first poll at once and picks every later delay on the
+     * poller thread. One that skips the read picks its first delay up front, on the caller's thread.
+     */
+    private void assertReadFirst(String id) {
+        assertThat(pollDelayThreads.get(id)).isNotEmpty().allMatch(name -> name.startsWith("daytona-sandbox-poller"));
+    }
+
+    /**
+     * Stops {@code id} on a new thread; its stop request answers {@code stopping}, and so do its reads
+     * until the id is in {@link #stoppedIds}. Event-backed waits poll an hour apart, so they can only end
+     * on an event; the others poll every 20 ms, as an unserved wait ends through its poll.
+     */
     private Thread startStop(EventSubscriptionManager manager, String id,
                              List<String> eventBacked, List<String> notEventBacked) {
         lenient().when(sandboxApi.stopSandbox(id, null, null)).thenReturn(TestSupport.mainSandbox(id, SandboxState.STOPPING));
-        lenient().when(sandboxApi.getSandbox(id, null, null)).thenReturn(TestSupport.mainSandbox(id, SandboxState.STOPPING));
+        lenient().when(sandboxApi.getSandbox(id, null, null)).thenAnswer(inv ->
+                TestSupport.mainSandbox(id, stoppedIds.contains(id) ? SandboxState.STOPPED : SandboxState.STOPPING));
         Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox(id, SandboxState.STARTED), () -> null, manager);
         sb.pollDelay = (subscribed, isEventBacked) -> {
             (isEventBacked ? eventBacked : notEventBacked).add(id);
-            return TimeUnit.HOURS.toMillis(1);
+            pollDelayThreads.computeIfAbsent(id, k -> new CopyOnWriteArrayList<>()).add(Thread.currentThread().getName());
+            return isEventBacked ? TimeUnit.HOURS.toMillis(1) : 20;
         };
         Thread worker = new Thread(() -> runCapturing(() -> sb.stop(60), stopError));
         worker.start();

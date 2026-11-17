@@ -59,11 +59,19 @@ RSpec.describe Daytona::EventDispatcher do
     yield
   end
 
-  def subscribe_and_connect(resource_id, &handler)
+  # connected? turns true inside the connect's critical section, before its subscribe batches are out, so
+  # wait for +sent+ messages on the wire too before asserting on them.
+  def subscribe_and_connect(resource_id, sent: 1, &handler)
     handler ||= noop
     unsubscribe = dispatcher.subscribe(resource_id, events:, &handler)
-    expect(wait_until { dispatcher.connected? }).to be(true)
+    expect(wait_until { dispatcher.connected? && emitted.size >= sent }).to be(true)
     unsubscribe
+  end
+
+  # Waits for a reconnect (a second client) and for its first +sent+ messages.
+  def await_reconnect(sent:)
+    expect(wait_until { clients.size == 2 && dispatcher.connected? && clients.last.emitted_events.size >= sent })
+      .to be(true)
   end
 
   def emitted
@@ -98,7 +106,7 @@ RSpec.describe Daytona::EventDispatcher do
       expect(emitted).to be_empty
 
       gate << true
-      expect(wait_until { dispatcher.connected? }).to be(true)
+      expect(wait_until { dispatcher.connected? && emitted.size >= 3 }).to be(true)
 
       expect(emitted.map(&:first)).to eq(%w[subscribe subscribe subscribe])
       expect(emitted.map { |_name, data| data[:sandboxIds].size }).to eq([100, 100, 49])
@@ -133,7 +141,7 @@ RSpec.describe Daytona::EventDispatcher do
 
     first_client.options[:on_disconnect].call
 
-    expect(wait_until { clients.size == 2 && dispatcher.connected? }).to be(true)
+    await_reconnect(sent: 1)
     expect(first_client.emitted_events).to eq([['subscribe', { sandboxIds: ['sandbox-1'] }]])
     expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: ['sandbox-2'] }]])
   end
@@ -179,7 +187,7 @@ RSpec.describe Daytona::EventDispatcher do
 
       clients.first.options[:on_disconnect].call
 
-      expect(wait_until { clients.size == 2 && dispatcher.connected? }).to be(true)
+      await_reconnect(sent: 1)
       expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: %w[sandbox-a sandbox-b] }]])
     end
   end
@@ -226,7 +234,8 @@ RSpec.describe Daytona::EventDispatcher do
     let(:failing_emit) { true }
 
     it 'does not raise into the caller' do
-      unsubscribe = subscribe_and_connect('sandbox-1')
+      # Every emit raises, so nothing reaches the wire.
+      unsubscribe = subscribe_and_connect('sandbox-1', sent: 0)
 
       expect { dispatcher.subscribe('sandbox-2', events:, &noop) }.not_to raise_error
       expect { unsubscribe.call }.not_to raise_error

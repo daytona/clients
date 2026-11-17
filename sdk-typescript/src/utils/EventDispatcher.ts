@@ -71,6 +71,7 @@ export class EventDispatcher {
   // Set once on the first Manager 'open' by capability probe, not runtime name.
   // `undefined` (pre-connect) is treated as `false` → ephemeral disconnect.
   private supportsBackgroundUnref: boolean | undefined = undefined
+  private readonly maxSubscriptions: number
 
   constructor(
     private readonly apiUrl: string,
@@ -78,8 +79,14 @@ export class EventDispatcher {
     private readonly organizationId?: string,
     private readonly source?: string,
     private readonly sdkVersion?: string,
-    private readonly maxSubscriptions = MAX_SUBSCRIPTIONS_PER_CONNECTION,
-  ) {}
+    maxSubscriptions = MAX_SUBSCRIPTIONS_PER_CONNECTION,
+  ) {
+    // The gateway never accepts more; a non-positive value means the default.
+    this.maxSubscriptions =
+      maxSubscriptions > 0 && maxSubscriptions <= MAX_SUBSCRIPTIONS_PER_CONNECTION
+        ? maxSubscriptions
+        : MAX_SUBSCRIPTIONS_PER_CONNECTION
+  }
 
   /**
    * Idempotent: ensure a connection attempt is in progress or already established.

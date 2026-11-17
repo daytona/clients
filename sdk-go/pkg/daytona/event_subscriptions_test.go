@@ -1034,9 +1034,6 @@ func TestOperationWaitsReadFirstWhenResponseCarriesNoState(t *testing.T) {
 			client := newEventTestClient(t, srv)
 			connectEvents(t, client)
 			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
-			if tt.name == "resize" {
-				sandbox = newEventTestSandbox(client, apiclient.SANDBOXSTATE_RESIZING)
-			}
 			srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
 				payload := testSandboxPayload(eventTestSandboxID, "sandbox", tt.targetState)
 				delete(payload, "state")
@@ -1050,7 +1047,7 @@ func TestOperationWaitsReadFirstWhenResponseCarriesNoState(t *testing.T) {
 	}
 }
 
-func TestArchiveIgnoresResponseWithoutState(t *testing.T) {
+func TestArchiveReadsWhenResponseCarriesNoState(t *testing.T) {
 	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_ARCHIVED)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STOPPED)
@@ -1061,5 +1058,34 @@ func TestArchiveIgnoresResponseWithoutState(t *testing.T) {
 	})
 
 	require.NoError(t, sandbox.doArchive(context.Background()))
-	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState(), "a response without a state leaves the state as it was")
+	assert.Equal(t, apiclient.SANDBOXSTATE_ARCHIVED, sandbox.currentState(), "the read replaces the missing state")
+	assert.Equal(t, 1, srv.gets())
+}
+
+// A real resize starts from a started (or stopped) sandbox, which is itself a
+// resize target: without a state in the response, the wait must start from a
+// read, or it would end before the resize does.
+func TestResizeWithoutStateInResponseWaitsForTheResize(t *testing.T) {
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_RESIZING)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		payload := testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_RESIZING)
+		delete(payload, "state")
+		writeJSONResponse(t, w, http.StatusOK, payload)
+		timer := time.AfterFunc(300*time.Millisecond, func() {
+			if srv.awaitSubscribed(eventTestSandboxID) {
+				srv.emitState(apiclient.SANDBOXSTATE_RESIZING, apiclient.SANDBOXSTATE_STARTED)
+			}
+		})
+		t.Cleanup(func() { timer.Stop() })
+	})
+
+	start := time.Now()
+	require.NoError(t, sandbox.doResizeWithTimeout(context.Background(), &types.Resources{CPU: 4}, 10*time.Second))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.currentState())
+	assert.Equal(t, 1, srv.gets(), "one read stands in for the missing state; the event ends the wait")
+	assert.GreaterOrEqual(t, time.Since(start), 250*time.Millisecond, "the wait lasts until the resize ends")
 }

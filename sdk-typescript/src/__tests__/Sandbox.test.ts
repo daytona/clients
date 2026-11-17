@@ -1066,6 +1066,7 @@ describe('Sandbox event subscriptions', () => {
     test.each([
       ['an empty body', undefined],
       ['a body without a state', { id: 'sb-1' }],
+      ['a body with an empty state', { id: 'sb-1', state: '' }],
     ])('resize() with %s refreshes once, then waits', async (_name, body) => {
       const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
       sandboxApi.resizeSandbox.mockResolvedValue(createApiResponse(body))

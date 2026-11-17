@@ -188,6 +188,48 @@ describe('EventDispatcher', () => {
   })
 
   describe('per-connection subscription cap', () => {
+    test.each([
+      ['above the gateway limit', 5000],
+      ['zero', 0],
+      ['negative', -1],
+    ])('a limit %s is clamped to the gateway limit', (_name, limit) => {
+      const dispatcher = new EventDispatcher(
+        'https://api.example.test/api',
+        'token',
+        undefined,
+        undefined,
+        undefined,
+        limit,
+      )
+      dispatchers.push(dispatcher)
+      dispatcher.subscribe(uuid(0), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      for (let i = 1; i <= 1000; i++) dispatcher.subscribe(uuid(i), noop, SANDBOX_EVENTS)
+
+      const sent = socket.emit.mock.calls.flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
+      expect(sent).toHaveLength(1000)
+      expect(dispatcher.isServed(uuid(999))).toBe(true)
+      expect(dispatcher.isServed(uuid(1000))).toBe(false)
+      expect(sent).not.toContain(uuid(1000))
+    })
+
+    it('a lowered limit is kept', () => {
+      const dispatcher = new EventDispatcher(
+        'https://api.example.test/api',
+        'token',
+        undefined,
+        undefined,
+        undefined,
+        2,
+      )
+      dispatchers.push(dispatcher)
+      for (let i = 0; i < 3; i++) dispatcher.subscribe(uuid(i), noop, SANDBOX_EVENTS)
+
+      expect(dispatcher.isServed(uuid(1))).toBe(true)
+      expect(dispatcher.isServed(uuid(2))).toBe(false)
+    })
+
     const makeCapped = (): EventDispatcher => {
       const dispatcher = new EventDispatcher(
         'https://api.example.test/api',

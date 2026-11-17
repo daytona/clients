@@ -1105,7 +1105,7 @@ class TestSandboxSubscribeBeforeRequest:
         assert sandbox._read_state_event_count() == 4000
 
 
-class TestSandboxReviewRound2:
+class TestSandboxOperationWaitBehaviour:
     @pytest.fixture(autouse=True)
     def _stub_jitter(self, monkeypatch):
         monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
@@ -1330,7 +1330,7 @@ class TestSandboxResponsesWithoutState:
         assert sandbox.state == SandboxState.ARCHIVING
 
 
-class TestSandboxReviewRound5:
+class TestSandboxForkAndDeleteResponses:
     @pytest.fixture(autouse=True)
     def _stub_jitter(self, monkeypatch):
         monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)

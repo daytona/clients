@@ -1512,11 +1512,13 @@ func (s *Sandbox) doArchive(ctx context.Context) error {
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
+	// Older servers return no body, or one without a state: read the sandbox
+	// instead, as the other SDKs do.
 	if hasFreshState(sandboxResp) {
 		s.updateFromAPIResponse(sandboxResp)
+		return nil
 	}
-
-	return nil
+	return s.RefreshData(ctx)
 }
 
 // WaitForStart waits for the sandbox to reach the "started" state.
@@ -2397,7 +2399,15 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	s.applyOperationResponse(sandboxResp, sub)
+	// Older servers return no body, or one without a state: read the sandbox, as
+	// pause does. The cached state from before the request is a resize target, so
+	// keeping it would end the wait before the resize does. Taken after the
+	// subscription, the read stands in for the wait's first read.
+	if hasFreshState(sandboxResp) {
+		s.updateFromAPIResponse(sandboxResp)
+	} else if err := s.RefreshData(ctx); err != nil {
+		return err
+	}
 
 	var remainingTimeout time.Duration
 	if timeout == 0 {
