@@ -212,9 +212,14 @@ public class EventDispatcher {
                 this.socket = sock;
             }
 
+            // off() does not stop a callback already dispatched on the EventThread, so each callback
+            // ignores a socket that is no longer current.
             sock.on(Socket.EVENT_CONNECT, args -> {
-                bindPendingEvents(sock);
                 synchronized (lock) {
+                    if (closed || socket != sock) {
+                        return;
+                    }
+                    bindPendingEvents(sock);
                     connected = true;
                     connecting = false;
                     failed = false;
@@ -228,6 +233,9 @@ public class EventDispatcher {
             sock.on(Socket.EVENT_CONNECT_ERROR, args -> {
                 String msg = args.length > 0 ? String.valueOf(args[0]) : "unknown";
                 synchronized (lock) {
+                    if (closed || socket != sock) {
+                        return;
+                    }
                     connected = false;
                     connecting = false; // Allow future ensureConnected() retries
                     failed = true;
@@ -237,6 +245,9 @@ public class EventDispatcher {
 
             sock.on(Socket.EVENT_DISCONNECT, args -> {
                 synchronized (lock) {
+                    if (closed || socket != sock) {
+                        return;
+                    }
                     connected = false;
                 }
             });

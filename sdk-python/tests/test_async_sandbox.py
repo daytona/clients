@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import warnings
+from typing import Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -524,6 +525,16 @@ def _subscription_manager(connected: bool = True) -> MagicMock:
     return manager
 
 
+async def _until(condition: Callable[[], bool], timeout: float = 5.0) -> None:
+    """Yields to the event loop until ``condition`` holds; fails after ``timeout`` seconds."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while not condition():
+        if loop.time() > deadline:
+            raise AssertionError("condition not met in time")
+        await asyncio.sleep(0.01)
+
+
 def _make_with_manager(dto, toolbox_api, sandbox_api, manager):
     from daytona._async.sandbox import AsyncSandbox
 
@@ -638,7 +649,7 @@ class TestAsyncSandboxWaitScopedSubscriptions:
         )
         mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTING))
         task = asyncio.create_task(sandbox.wait_for_sandbox_start(timeout=0))
-        await asyncio.sleep(0.05)
+        await _until(lambda: manager.subscribe.called)
         manager.subscribe.assert_called_once()
 
         _ = task.cancel()
@@ -658,7 +669,7 @@ class TestAsyncSandboxWaitScopedSubscriptions:
         )
         mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=make_sandbox_dto(state=SandboxState.STARTING))
         task = asyncio.create_task(sandbox.wait_for_sandbox_start(timeout=0))
-        await asyncio.sleep(0.05)
+        await _until(lambda: manager.subscribe.called)
         handler = manager.subscribe.call_args.args[1]
         refreshes = mock_async_sandbox_api.get_sandbox.await_count
 

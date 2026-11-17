@@ -318,6 +318,51 @@ class EventDispatcherTest {
         }
     }
 
+    @Test
+    void aStaleConnectCallbackFromAReplacedSocketChangesNothing() throws Exception {
+        BlockingQueue<JsonNode> received = new LinkedBlockingQueue<>();
+        dispatcher.subscribe("sb-1", (event, data) -> received.add(data), STATE_EVENTS);
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+        io.socket.client.Socket oldSocket = privateField("socket", io.socket.client.Socket.class);
+        // The old socket's connect callback, as if it had been dispatched just before the replacement.
+        List<io.socket.emitter.Emitter.Listener> staleConnect =
+                List.copyOf(oldSocket.listeners(io.socket.client.Socket.EVENT_CONNECT));
+        assertThat(staleConnect).isNotEmpty();
+
+        gateway.holdConnects();
+        gateway.dropConnection();
+        waitUntil(() -> !dispatcher.isConnected());
+        dispatcher.connect();
+        assertThat(privateField("socket", io.socket.client.Socket.class)).isNotSameAs(oldSocket);
+        long epoch = dispatcher.connectionEpoch();
+        Set<?> bound = privateField("socketBoundEvents", Set.class);
+        assertThat(bound).isEmpty();
+
+        for (io.socket.emitter.Emitter.Listener listener : staleConnect) {
+            listener.call();
+        }
+
+        assertThat(bound).isEmpty();
+        assertThat(dispatcher.isConnected()).isFalse();
+        assertThat(dispatcher.connectionEpoch()).isEqualTo(epoch);
+
+        gateway.resumeAccepting();
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+        assertThat(dispatcher.isConnected()).isTrue();
+        assertThat(dispatcher.connectionEpoch()).isEqualTo(epoch + 1);
+        gateway.sendEvent("sandbox.state.updated",
+                "{\"sandbox\":{\"id\":\"sb-1\",\"state\":\"started\"},\"newState\":\"started\"}");
+        JsonNode data = received.poll(WAIT_MILLIS, TimeUnit.MILLISECONDS);
+        assertThat(data).as("event delivered on the current socket").isNotNull();
+        assertThat(data.path("newState").asText()).isEqualTo("started");
+    }
+
+    private <T> T privateField(String name, Class<T> type) throws ReflectiveOperationException {
+        java.lang.reflect.Field field = EventDispatcher.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return type.cast(field.get(dispatcher));
+    }
+
     private EventDispatcher cappedDispatcher() {
         return new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", 2);
     }
