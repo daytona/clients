@@ -594,6 +594,7 @@ async def test_a_create_response_without_the_sandbox_id_is_a_contract_error(
     assert [spec.method for spec in api.specs] == ["POST"]
 
 
+_OMITTED = object()
 _CREATE_LIFECYCLE = {
     "timeout_seconds": 120,
     "on_timeout": "delete",
@@ -630,6 +631,7 @@ async def test_the_create_handle_carries_the_lifecycle_policy_of_the_create_resp
 @pytest.mark.parametrize(
     "lifecycle",
     [
+        _OMITTED,
         None,
         "delete",
         [],
@@ -642,7 +644,10 @@ async def test_a_missing_or_malformed_create_lifecycle_policy_is_absent(lifecycl
     # The sandbox exists once its id came back: a policy that does not parse
     # leaves the field unset, never an error.
     client = _client()
-    client._api = _Api([{"id": "sbx", "status": "pending", "lifecycle_policy": lifecycle}])  # type: ignore[assignment]
+    response: dict[str, object] = {"id": "sbx", "status": "pending"}
+    if lifecycle is not _OMITTED:
+        response["lifecycle_policy"] = lifecycle
+    client._api = _Api([response])  # type: ignore[assignment]
 
     sandbox = await client.create("img_1", wait_seconds=0)
 

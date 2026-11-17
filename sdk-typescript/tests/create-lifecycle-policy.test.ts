@@ -59,6 +59,7 @@ describe('create handle lifecycle policy', () => {
   })
 
   it.each([
+    undefined,
     null,
     'delete',
     [],
