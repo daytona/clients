@@ -73,6 +73,9 @@ class AsyncEventDispatcher:
         self._disconnect_generation = 0
         self._lock = asyncio.Lock()
         self._emit_tasks: set[asyncio.Task[None]] = set()
+        # Serializes all subscribe/unsubscribe sends so per-id messages never overtake the full set.
+        self._emit_lock: asyncio.Lock = asyncio.Lock()
+        self._connection_epoch: int = 0
 
     def ensure_connected(self) -> None:
         """Idempotent: ensure a connection attempt is in progress or already established.
@@ -130,13 +133,16 @@ class AsyncEventDispatcher:
         @sio.event  # type: ignore[misc]
         async def connect() -> None:  # pyright: ignore[reportUnusedFunction]
             # Subscriptions belong to the socket: send the whole set on every connect and reconnect.
-            # Ids added from here on are sent by subscribe() because the dispatcher is now connected.
-            resource_ids = list(dispatcher._listeners)
-            dispatcher._connected = True
-            dispatcher._failed = False
-            dispatcher._fail_error = None
-            for chunk in _chunks(resource_ids):
-                await _emit_async(sio, "subscribe", chunk)
+            # Ids added from here on are sent by subscribe() because the dispatcher is now connected;
+            # those sends wait for the emit lock, so they always go out after the full set.
+            async with dispatcher._emit_lock:
+                resource_ids = list(dispatcher._listeners)
+                dispatcher._connected = True
+                dispatcher._failed = False
+                dispatcher._fail_error = None
+                dispatcher._connection_epoch += 1
+                for chunk in _chunks(resource_ids):
+                    await _emit_async(sio, "subscribe", chunk)
 
         @sio.event  # type: ignore[misc]
         async def disconnect() -> None:  # pyright: ignore[reportUnusedFunction]
@@ -349,9 +355,16 @@ class AsyncEventDispatcher:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
-        task = loop.create_task(_emit_async(sio, event, [resource_id]))
+        task = loop.create_task(self._emit_serialized(sio, self._connection_epoch, event, resource_id))
         self._emit_tasks.add(task)
         task.add_done_callback(self._emit_tasks.discard)
+
+    async def _emit_serialized(self, sio: socketio.AsyncClient, epoch: int, event: str, resource_id: str) -> None:
+        async with self._emit_lock:
+            # A reconnect in between already sent the current set; this message would be stale.
+            if epoch != self._connection_epoch:
+                return
+            await _emit_async(sio, event, [resource_id])
 
     def _unsubscribe_resource(self, resource_id: str) -> None:
         if resource_id in self._listeners:

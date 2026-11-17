@@ -817,4 +817,35 @@ describe('Sandbox event subscriptions', () => {
     expect(times[2] - times[1]).toBeLessThan(400)
     expect(times[3] - times[2]).toBeGreaterThan(800)
   })
+
+  it('advances the fast-poll backoff after 5s even while event-backed', async () => {
+    jest.useFakeTimers()
+    try {
+      const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+      const times: number[] = []
+      jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+        times.push(Date.now())
+        // Event-backed polls at ~1s for 10s, then the connection drops.
+        if (times.length === 11) {
+          subscriptionManager.isConnected = false
+        }
+        if (times.length >= 13) {
+          ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+        }
+      })
+
+      const wait = sandbox.waitUntilStarted(60)
+      await jest.advanceTimersByTimeAsync(20_000)
+      await wait
+
+      expect(times).toHaveLength(13)
+      expect(times[10] - times[9]).toBe(1000)
+      // The fast interval kept growing (x1.1 per poll after 5s) while event-backed,
+      // so the first fast poll after the drop is well above the initial 100ms.
+      expect(times[11] - times[10]).toBeGreaterThan(150)
+      expect(times[11] - times[10]).toBeLessThan(1000)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
 })

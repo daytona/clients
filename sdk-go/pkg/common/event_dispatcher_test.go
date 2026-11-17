@@ -6,11 +6,13 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,6 +28,11 @@ type fakeSocketIOServer struct {
 	t      *testing.T
 	server *httptest.Server
 
+	// holdOpenOnReadError keeps a server socket open after its read side fails
+	// until the test ends, instead of closing it.
+	holdOpenOnReadError atomic.Bool
+	done                chan struct{}
+
 	mu       sync.Mutex
 	queries  []url.Values
 	conns    []*websocket.Conn
@@ -40,7 +47,7 @@ type receivedEvent struct {
 
 func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 	t.Helper()
-	f := &fakeSocketIOServer{t: t}
+	f := &fakeSocketIOServer{t: t, done: make(chan struct{})}
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/socket.io") {
@@ -72,6 +79,9 @@ func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
+				if f.holdOpenOnReadError.Load() {
+					<-f.done
+				}
 				return
 			}
 			if !strings.HasPrefix(string(msg), "42") {
@@ -92,6 +102,7 @@ func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 		}
 	}))
 	t.Cleanup(f.server.Close)
+	t.Cleanup(func() { close(f.done) })
 	return f
 }
 
@@ -262,9 +273,54 @@ func TestEventDispatcherResendsWholeSetInChunksAfterReconnect(t *testing.T) {
 	assert.Len(t, resent[0].SandboxIDs, 100)
 	assert.Len(t, resent[1].SandboxIDs, 100)
 	assert.Len(t, resent[2].SandboxIDs, 50)
-	assert.Len(t, ids, total)
-	assert.NotContains(t, ids, testSandboxID(0))
-	assert.Contains(t, ids, testSandboxID(total))
+	expected := make([]string, 0, total)
+	for i := 1; i <= total; i++ {
+		expected = append(expected, testSandboxID(i))
+	}
+	assert.ElementsMatch(t, expected, ids, "the resent set must be exactly the current set, each id once")
+}
+
+func TestEventDispatcherReconnectsAfterFailedSubscriptionWrite(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	// Keep server sockets open when their read side ends, so only the client's
+	// write failure can end the connection.
+	f.holdOpenOnReadError.Store(true)
+	es := newTestDispatcher(t, f)
+
+	idA := testSandboxID(1)
+	idB := testSandboxID(2)
+	unsubscribeA := es.Subscribe(idA, noopHandler, stateEvents)
+	defer unsubscribeA()
+	require.Eventually(t, func() bool { return len(f.events()) == 1 }, 5*time.Second, 10*time.Millisecond)
+
+	// Break the client's write direction while its read side stays open.
+	es.mu.RLock()
+	tcpConn, ok := es.client.conn.UnderlyingConn().(*net.TCPConn)
+	es.mu.RUnlock()
+	require.True(t, ok)
+	require.NoError(t, tcpConn.CloseWrite())
+
+	unsubscribeB := es.Subscribe(idB, noopHandler, stateEvents)
+	defer unsubscribeB()
+
+	require.Eventually(t, func() bool { return f.connectionCount() == 2 && len(f.events()) == 2 }, 10*time.Second, 20*time.Millisecond)
+	resent := f.events()[1]
+	assert.Equal(t, "subscribe", resent.Name)
+	assert.ElementsMatch(t, []string{idA, idB}, resent.SandboxIDs)
+	assert.True(t, es.IsConnected())
+}
+
+func TestEventSubscriptionManagerIsNotConnectedAfterShutdown(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	manager := NewEventSubscriptionManager(es)
+
+	require.NotEmpty(t, manager.Subscribe(testSandboxID(1), noopHandler, stateEvents))
+	require.Eventually(t, manager.IsConnected, 5*time.Second, 10*time.Millisecond)
+
+	manager.Shutdown()
+	assert.True(t, es.IsConnected(), "the dispatcher lingers before disconnecting")
+	assert.False(t, manager.IsConnected())
 }
 
 func TestEventDispatcherDeliversSlimStateEventsAndFiltersByID(t *testing.T) {

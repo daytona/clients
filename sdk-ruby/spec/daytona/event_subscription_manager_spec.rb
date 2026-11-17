@@ -169,10 +169,20 @@ RSpec.describe Daytona::EventSubscriptionManager do
   describe '#connected?' do
     it 'reports the dispatcher connection state' do
       connected_dispatcher = instance_double(Daytona::EventDispatcher, connected?: true)
+      manager = described_class.new(connected_dispatcher)
 
-      expect(described_class.new(connected_dispatcher).connected?).to be(true)
+      expect(manager.connected?).to be(true)
       allow(connected_dispatcher).to receive(:connected?).and_return(false)
-      expect(described_class.new(connected_dispatcher).connected?).to be(false)
+      expect(manager.connected?).to be(false)
+    end
+
+    it 'is false after shutdown even while the dispatcher is still connected' do
+      connected_dispatcher = instance_double(Daytona::EventDispatcher, connected?: true)
+      manager = described_class.new(connected_dispatcher)
+
+      manager.shutdown
+
+      expect(manager.connected?).to be(false)
     end
 
     it 'is false without a dispatcher' do

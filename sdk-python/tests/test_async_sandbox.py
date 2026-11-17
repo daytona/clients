@@ -732,8 +732,21 @@ class TestAsyncSandboxWaitScopedSubscriptions:
     ):
         from daytona._async import sandbox as sandbox_module
 
-        monkeypatch.setattr(sandbox_module, "_FAST_POLL_INTERVAL", 0.01)
-        monkeypatch.setattr(sandbox_module, "_EVENT_BACKED_POLL_INTERVAL", 0.3)
+        poll_intervals: list[float] = []
+        real_wait_for = asyncio.wait_for
+
+        class RecordingAsyncio:
+            """Proxy for the sandbox module's ``asyncio`` that records poll intervals instead of sleeping."""
+
+            def __getattr__(self, name: str):
+                return getattr(asyncio, name)
+
+            @staticmethod
+            async def wait_for(awaitable, timeout):
+                poll_intervals.append(timeout)
+                return await real_wait_for(awaitable, timeout=0)
+
+        monkeypatch.setattr(sandbox_module, "asyncio", RecordingAsyncio())
         manager = _subscription_manager(connected=False)
         sandbox = _make_with_manager(
             make_sandbox_dto(state=SandboxState.STARTING),
@@ -741,19 +754,21 @@ class TestAsyncSandboxWaitScopedSubscriptions:
             mock_async_sandbox_api,
             manager,
         )
-        loop = asyncio.get_running_loop()
-        refreshed_at: list[float] = []
+        refreshes = 0
 
         async def get_sandbox(*_args, **_kwargs):
-            refreshed_at.append(loop.time())
-            if len(refreshed_at) == 4:
-                manager.dispatcher.is_connected = True
-            return make_sandbox_dto(state=SandboxState.STARTED if len(refreshed_at) == 5 else SandboxState.STARTING)
+            nonlocal refreshes
+            refreshes += 1
+            if refreshes == 3:
+                manager.dispatcher.is_connected = True  # the connection comes up mid-wait
+            if refreshes == 5:
+                manager.dispatcher.is_connected = False  # and drops again
+            return make_sandbox_dto(state=SandboxState.STARTED if refreshes == 6 else SandboxState.STARTING)
 
         mock_async_sandbox_api.get_sandbox = get_sandbox
 
         await sandbox.wait_for_sandbox_start(timeout=0)
 
-        gaps = [b - a for a, b in zip(refreshed_at, refreshed_at[1:])]
-        assert all(gap < 0.2 for gap in gaps[:3]), gaps
-        assert gaps[3] >= 0.25, gaps
+        fast = sandbox_module._FAST_POLL_INTERVAL
+        backed = sandbox_module._EVENT_BACKED_POLL_INTERVAL
+        assert poll_intervals == [fast, fast, backed, backed, fast]

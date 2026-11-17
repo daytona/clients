@@ -1444,16 +1444,15 @@ export class Sandbox {
             return
           }
 
-          let pollInterval = 1000
-          if (!isEventBacked()) {
-            if (Date.now() - pollStart > 5000) {
-              fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
-            }
-            pollInterval = fastPollInterval
+          if (Date.now() - pollStart > 5000) {
+            fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
           }
-          pollTimer = setTimeout(() => {
-            void doPoll()
-          }, pollInterval)
+          pollTimer = setTimeout(
+            () => {
+              void doPoll()
+            },
+            isEventBacked() ? 1000 : fastPollInterval,
+          )
         }
       }
 

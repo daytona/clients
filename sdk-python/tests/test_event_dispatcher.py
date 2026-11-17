@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -153,6 +153,7 @@ class FakeAsyncClient:
     """socketio.AsyncClient stand-in that records the handshake URL and emitted messages."""
 
     instances: list[FakeAsyncClient] = []
+    after_emit: Callable[[], None] | None = None
 
     def __init__(self, **_kwargs: object) -> None:
         self.handlers: dict[str, Any] = {}
@@ -185,6 +186,9 @@ class FakeAsyncClient:
         if self.fail_emit or not self.connected:
             raise RuntimeError("/ is not a connected namespace.")
         self.emitted.append((event, data))
+        if self.after_emit is not None:
+            self.after_emit()
+        await asyncio.sleep(0)  # like a real send, give other tasks a turn
 
     async def disconnect(self) -> None:
         if self.connected:
@@ -238,7 +242,7 @@ def _noop(_event: str, _data: Any) -> None:
 
 
 async def _settle() -> None:
-    for _ in range(5):
+    for _ in range(20):
         await asyncio.sleep(0)
 
 
@@ -311,11 +315,39 @@ class TestAsyncEventDispatcherExplicitSubscriptions:
         assert [len(chunk) for chunk in chunks] == [100, 100, 50]
         assert [i for chunk in chunks for i in chunk] == ids
 
+        # python-socketio reconnects with the same client object and fires its connect handler again.
         await sio.simulate_disconnect()
         sio.emitted.clear()
         await sio.simulate_connect()
 
+        assert len(fake_async_sio.instances) == 1
         assert [i for chunk in _subscribe_messages(sio) for i in chunk] == ids
+        await dispatcher.disconnect()
+
+    async def test_unsubscribe_during_the_full_set_is_sent_after_it(self, fake_async_sio, monkeypatch):
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        monkeypatch.setattr(dispatcher, "ensure_connected", lambda: None)
+        unsubscribes = {
+            f"sb-{i}": dispatcher.subscribe(f"sb-{i}", _noop, ["sandbox.state.updated"]) for i in range(250)
+        }
+        unsubscribed = False
+
+        def unsubscribe_after_first_chunk() -> None:
+            nonlocal unsubscribed
+            if not unsubscribed:
+                unsubscribed = True
+                unsubscribes["sb-240"]()  # sb-240 is in the third chunk
+
+        monkeypatch.setattr(fake_async_sio, "after_emit", staticmethod(unsubscribe_after_first_chunk))
+
+        await dispatcher.connect()
+        await _settle()
+
+        sio = fake_async_sio.instances[0]
+        events = [(event, data["sandboxIds"]) for event, data in sio.emitted]
+        assert [event for event, _ in events] == ["subscribe", "subscribe", "subscribe", "unsubscribe"]
+        assert "sb-240" in events[2][1]
+        assert events[3] == ("unsubscribe", ["sb-240"])
         await dispatcher.disconnect()
 
     async def test_first_and_last_listener_emit_while_connected(self, fake_async_sio):
@@ -427,10 +459,12 @@ class TestSyncEventDispatcherExplicitSubscriptions:
         assert [len(chunk) for chunk in chunks] == [100, 100, 1]
         assert [i for chunk in chunks for i in chunk] == ids
 
+        # python-socketio reconnects with the same client object and fires its connect handler again.
         sio.simulate_disconnect()
         sio.emitted.clear()
         sio.simulate_connect()
 
+        assert len(fake_sync_sio.instances) == 1
         assert [i for chunk in _subscribe_messages(sio) for i in chunk] == ids
         dispatcher.disconnect()
 

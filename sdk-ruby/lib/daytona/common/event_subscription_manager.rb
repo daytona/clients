@@ -78,9 +78,9 @@ module Daytona
     end
 
     # @return [Boolean] Whether the dispatcher currently has a live connection, i.e. whether
-    #   subscribed events can arrive.
+    #   subscribed events can arrive. Always false after #shutdown.
     def connected?
-      return false if @dispatcher.nil?
+      return false if @dispatcher.nil? || @mutex.synchronize { @closed }
 
       @dispatcher.connected?
     end

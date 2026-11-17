@@ -50,8 +50,9 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
@@ -883,34 +884,50 @@ class SandboxTest {
     }
 
     @Test
-    void pollCadenceSwitchesToSafetyNetWhenConnectionComesUpMidWait() throws Exception {
+    void pollIntervalIsFastUnlessEventBacked() {
+        assertThat(Sandbox.pollIntervalMillis(false)).isEqualTo(250);
+        assertThat(Sandbox.pollIntervalMillis(true)).isEqualTo(1000);
+    }
+
+    @Test
+    void pollCadenceIsReevaluatedEachTickAndSwitchesWhenConnectionComesUpMidWait() throws Exception {
         EventSubscriptionManager manager = mockSubscriptionManager();
         AtomicBoolean connected = new AtomicBoolean(false);
-        when(manager.isConnected()).thenAnswer(inv -> connected.get());
-        Sandbox sb = startingSandbox("sb-c", manager);
-        AtomicInteger polls = new AtomicInteger();
-        AtomicBoolean started = new AtomicBoolean(false);
-        when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv -> {
-            polls.incrementAndGet();
-            return TestSupport.mainSandbox("sb-c", started.get() ? SandboxState.STARTED : SandboxState.STARTING);
+        // One entry per poll tick: {nanoTime, 1 if event-backed else 0}.
+        List<long[]> decisions = new CopyOnWriteArrayList<>();
+        when(manager.isConnected()).thenAnswer(inv -> {
+            boolean value = connected.get();
+            decisions.add(new long[]{System.nanoTime(), value ? 1 : 0});
+            return value;
         });
+        Sandbox sb = startingSandbox("sb-c", manager);
+        AtomicBoolean started = new AtomicBoolean(false);
+        when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv ->
+                TestSupport.mainSandbox("sb-c", started.get() ? SandboxState.STARTED : SandboxState.STARTING));
         AtomicReference<Throwable> error = new AtomicReference<>();
-        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(10), error));
+        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(60), error));
 
         waiter.start();
-        Thread.sleep(1100);
-        int disconnectedPolls = polls.get();
+        awaitCondition(() -> countDecisions(decisions, false) >= 3);
         connected.set(true);
-        Thread.sleep(300);
-        int before = polls.get();
-        Thread.sleep(1500);
-        int connectedPolls = polls.get() - before;
+        awaitCondition(() -> countDecisions(decisions, true) >= 3);
         started.set(true);
-        waiter.join(5000);
+        waiter.join(30_000);
 
         assertThat(error.get()).isNull();
-        assertThat(disconnectedPolls).isGreaterThanOrEqualTo(4);
-        assertThat(connectedPolls).isBetween(1, 2);
+        assertThat(waiter.isAlive()).isFalse();
+        // A tick that saw a live connection scheduled the next one at the safety-net interval.
+        // The scheduler never fires early, so this lower bound holds however loaded the machine is.
+        List<long[]> snapshot = List.copyOf(decisions);
+        int checkedGaps = 0;
+        for (int i = 0; i + 1 < snapshot.size(); i++) {
+            if (snapshot.get(i)[1] == 1) {
+                long gapMillis = TimeUnit.NANOSECONDS.toMillis(snapshot.get(i + 1)[0] - snapshot.get(i)[0]);
+                assertThat(gapMillis).as("gap after event-backed tick %d", i).isGreaterThanOrEqualTo(1000);
+                checkedGaps++;
+            }
+        }
+        assertThat(checkedGaps).isGreaterThanOrEqualTo(2);
     }
 
     @Test
@@ -972,6 +989,19 @@ class SandboxTest {
                 manager.shutdown();
                 dispatcher.shutdown();
             }
+        }
+    }
+
+    private static long countDecisions(List<long[]> decisions, boolean eventBacked) {
+        long wanted = eventBacked ? 1 : 0;
+        return decisions.stream().filter(d -> d[1] == wanted).count();
+    }
+
+    private static void awaitCondition(java.util.function.BooleanSupplier condition) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        while (!condition.getAsBoolean()) {
+            assertThat(System.nanoTime()).as("condition not met within 20 s").isLessThan(deadline);
+            Thread.sleep(10);
         }
     }
 

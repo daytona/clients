@@ -525,7 +525,10 @@ func (c *socketIOClient) emit(event string, payload json.RawMessage) error {
 	return nil
 }
 
-// writeLoop writes queued EVENT packets until the client is closed.
+// writeLoop writes queued EVENT packets until the client is closed. A failed
+// write leaves the WebSocket unusable for writing, so it aborts the connection:
+// the read loop then reports the disconnect and the owner reconnects, which
+// re-sends whatever the failed packets carried.
 func (c *socketIOClient) writeLoop() {
 	for {
 		select {
@@ -545,8 +548,22 @@ func (c *socketIOClient) writeLoop() {
 				return
 			default:
 			}
-			_ = c.writeMessageWithTimeout(packet, emitWriteTimeout)
+			if err := c.writeMessageWithTimeout(packet, emitWriteTimeout); err != nil {
+				c.abort()
+				return
+			}
 		}
+	}
+}
+
+// abort marks the client disconnected and closes the socket so the read loop
+// unblocks and runs onDisconnect.
+func (c *socketIOClient) abort() {
+	c.mu.Lock()
+	c.connected = false
+	c.mu.Unlock()
+	if c.conn != nil {
+		_ = c.conn.Close()
 	}
 }
 

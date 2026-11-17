@@ -1216,9 +1216,14 @@ module Daytona
       return if target_states.map(&:to_s).include?(state.to_s)
 
       subscription = { id: nil }
-      begin
+      # The wait runs inside Timeout.timeout, whose exception can arrive at any point. Taking and releasing the
+      # subscription defers it, so it can never land halfway and leak the subscription; only the polling can
+      # be interrupted.
+      Thread.handle_interrupt(Object => :never) do
         subscription[:id] = subscribe_to_state_events
-        poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription:)
+        Thread.handle_interrupt(Object => :immediate) do
+          poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription:)
+        end
       ensure
         unsubscribe_from_state_events(subscription[:id])
       end
@@ -1411,13 +1416,16 @@ module Daytona
       @subscription_manager.unsubscribe(sub_id) if sub_id
     end
 
-    # Keeps a wait's subscription alive, subscribing again (new id) if it expired meanwhile.
+    # Keeps a wait's subscription alive, subscribing again (new id) if it expired meanwhile. Not interruptible
+    # (see #wait_for_state), so the new id always reaches +subscription+ and is released.
     #
     # @param subscription [Hash] { id: String, nil }
     def renew_state_subscription(subscription)
       return unless subscription[:id]
 
-      subscription[:id] = subscribe_to_state_events unless @subscription_manager.refresh(subscription[:id])
+      Thread.handle_interrupt(Object => :never) do
+        subscription[:id] = subscribe_to_state_events unless @subscription_manager.refresh(subscription[:id])
+      end
     end
 
     # @param subscription [Hash] { id: String, nil }

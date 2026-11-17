@@ -111,17 +111,17 @@ class EventDispatcherTest {
         gateway.resumeAccepting();
 
         List<Integer> chunkSizes = new ArrayList<>();
-        Set<String> received = new HashSet<>();
+        List<String> received = new ArrayList<>();
         while (received.size() < expected.size()) {
             FakeEventGateway.Emitted message = gateway.takeEmitted(WAIT_MILLIS);
             assertThat(message).isNotNull();
             assertThat(message.event).isEqualTo("subscribe");
-            Set<String> ids = ids(message);
+            List<String> ids = ids(message);
             chunkSizes.add(ids.size());
             received.addAll(ids);
         }
 
-        assertThat(received).isEqualTo(expected);
+        assertThat(received).containsExactlyInAnyOrderElementsOf(expected);
         assertThat(chunkSizes).containsExactly(100, 100, 49);
         assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
     }
@@ -168,11 +168,12 @@ class EventDispatcherTest {
     private static void assertEmitted(FakeEventGateway.Emitted message, String event, Set<String> ids) {
         assertThat(message).as("expected %s %s", event, ids).isNotNull();
         assertThat(message.event).isEqualTo(event);
-        assertThat(ids(message)).isEqualTo(ids);
+        // Exact multiset: a duplicated id on the wire must fail.
+        assertThat(ids(message)).containsExactlyInAnyOrderElementsOf(ids);
     }
 
-    private static Set<String> ids(FakeEventGateway.Emitted message) {
-        Set<String> ids = new HashSet<>();
+    private static List<String> ids(FakeEventGateway.Emitted message) {
+        List<String> ids = new ArrayList<>();
         for (JsonNode id : message.payload.path("sandboxIds")) {
             ids.add(id.asText());
         }

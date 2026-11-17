@@ -1260,6 +1260,82 @@ RSpec.describe Daytona::Sandbox do
     end
   end
 
+  describe 'interrupts while the wait takes or releases its subscription' do
+    let(:dispatcher) { Daytona::EventDispatcher.new(api_url: 'https://api.example.com/api', token: 'token') }
+    let(:manager) { Daytona::EventSubscriptionManager.new(dispatcher) }
+    let(:pending_sandbox) do
+      described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'pending'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: manager
+      )
+    end
+    let(:interrupt) { Class.new(StandardError) }
+
+    before do
+      allow(Daytona::SocketIOClient).to receive(:new) { double('SocketIOClient', connect: nil, emit: true, close: nil) }
+      stub_condition_variable_waits { |_seconds| nil }
+    end
+
+    after do
+      manager.shutdown
+      dispatcher.disconnect
+    end
+
+    # As Timeout.timeout does: raises into the waiting thread from another thread.
+    def interrupt_current_thread
+      waiting = Thread.current
+      Thread.new { waiting.raise(interrupt, 'interrupted') }.join
+    end
+
+    def listener_ids
+      dispatcher.instance_variable_get(:@listeners).keys
+    end
+
+    it 'still releases the subscription when interrupted while releasing it' do
+      allow(dispatcher).to receive(:subscribe).and_wrap_original do |original, *args, **kwargs, &handler|
+        release = original.call(*args, **kwargs, &handler)
+        lambda do
+          interrupt_current_thread
+          release.call
+        end
+      end
+      allow(sandbox_api).to receive(:get_sandbox).and_return(build_sandbox_dto(state: 'started'))
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(interrupt, 'interrupted')
+      expect(listener_ids).not_to include('sandbox-123')
+    end
+
+    it 'releases the subscription when interrupted while taking it' do
+      allow(dispatcher).to receive(:subscribe).and_wrap_original do |original, *args, **kwargs, &handler|
+        original.call(*args, **kwargs, &handler).tap { interrupt_current_thread }
+      end
+      allow(sandbox_api).to receive(:get_sandbox).and_return(build_sandbox_dto(state: 'started'))
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(interrupt, 'interrupted')
+      expect(listener_ids).not_to include('sandbox-123')
+    end
+
+    it 'releases the new subscription when interrupted while subscribing again after expiry' do
+      subscribes = 0
+      allow(dispatcher).to receive(:subscribe).and_wrap_original do |original, *args, **kwargs, &handler|
+        subscribes += 1
+        original.call(*args, **kwargs, &handler).tap { interrupt_current_thread if subscribes == 2 }
+      end
+      # The first subscription expires before the first renewal.
+      allow(manager).to receive(:refresh) do |sub_id|
+        manager.unsubscribe(sub_id)
+        false
+      end
+      allow(sandbox_api).to receive(:get_sandbox).and_return(build_sandbox_dto(state: 'pending'))
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(interrupt, 'interrupted')
+      expect(subscribes).to eq(2)
+      expect(listener_ids).not_to include('sandbox-123')
+    end
+  end
+
   describe '#with_timeout (private)' do
     it 'raises TimeoutError promptly when setup exhausts a positive timeout budget' do
       elapsed = Benchmark.realtime do

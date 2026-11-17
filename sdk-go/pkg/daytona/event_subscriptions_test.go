@@ -390,8 +390,10 @@ func TestWaitSubscriptionResubscribesAfterExpiry(t *testing.T) {
 	assert.NotEmpty(t, sub.subID)
 	assert.NotEqual(t, firstID, sub.subID, "an expired subscription is replaced by a new one")
 
+	replacementID := sub.subID
 	sub.close()
-	assert.False(t, client.subscriptionManager.Refresh(sub.subID))
+	assert.Empty(t, sub.subID)
+	assert.False(t, client.subscriptionManager.Refresh(replacementID), "close releases the replacement subscription")
 	require.Eventually(t, func() bool {
 		return assert.ObjectsAreEqual([]string{subscribeEvent, unsubscribeEvent, subscribeEvent, unsubscribeEvent}, srv.events())
 	}, 5*time.Second, 10*time.Millisecond)

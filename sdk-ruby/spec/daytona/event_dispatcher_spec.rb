@@ -138,26 +138,17 @@ RSpec.describe Daytona::EventDispatcher do
     expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: ['sandbox-2'] }]])
   end
 
-  it 'removes only the released handler when handlers compare equal' do
-    receiver = Class.new do
-      attr_reader :received
-
-      def initialize
-        @received = []
-      end
-
-      def on_event(_event_name, data)
-        @received << data
-      end
-    end.new
-    first = subscribe_and_connect('sandbox-1', &receiver.method(:on_event))
-    dispatcher.subscribe('sandbox-1', events:, &receiver.method(:on_event))
+  it 'removes only the released subscription when the same handler is subscribed twice' do
+    received = []
+    handler = proc { |_event_name, data| received << data }
+    first = subscribe_and_connect('sandbox-1', &handler)
+    dispatcher.subscribe('sandbox-1', events:, &handler)
 
     first.call
     first.call
     clients.last.options[:on_event].call('sandbox.state.updated', state_event('sandbox-1'))
 
-    expect(receiver.received.size).to eq(1)
+    expect(received.size).to eq(1)
     expect(emitted).to eq([['subscribe', { sandboxIds: ['sandbox-1'] }]])
   end
 
