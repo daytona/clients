@@ -141,6 +141,16 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox.state).to eq('archived')
     end
 
+    it 'refreshes once when the response carries no state' do
+      allow(sandbox_api).to receive(:archive_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: nil))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'archived'))
+
+      sandbox.archive
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(sandbox.state).to eq('archived')
+    end
+
     it 'refreshes once when an older server returns no sandbox' do
       allow(sandbox_api).to receive(:archive_sandbox).with('sandbox-123')
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'archived'))
@@ -255,6 +265,17 @@ RSpec.describe Daytona::Sandbox do
       sandbox.delete
 
       expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(sandbox.state).to eq('destroying')
+    end
+
+    it 'refreshes once when the delete response carries no state' do
+      allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: nil))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: 'destroying'))
+
+      sandbox.delete
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
       expect(sandbox.state).to eq('destroying')
     end
 
@@ -1547,6 +1568,56 @@ RSpec.describe Daytona::Sandbox do
       expect(started_sandbox.state).to eq('stopped')
     end
 
+    # A response without a state is treated as an empty body: the refresh it falls back to, or the wait's
+    # immediate read, supplies the state.
+    def stateless_dto(sandbox_id = 'sandbox-123') = build_sandbox_dto(id: sandbox_id, state: nil)
+
+    {
+      'stop' => [:stop_sandbox, 'stopped', ->(sandbox) { sandbox.stop(5) }],
+      'pause' => [:pause_sandbox, 'paused', ->(sandbox) { sandbox.pause(timeout: 5) }],
+      'resize' => [:resize_sandbox, 'started', ->(sandbox) { sandbox.resize(Daytona::Resources.new(cpu: 4), 5) }],
+      'delete(wait: true)' => [:delete_sandbox, 'destroyed', ->(sandbox) { sandbox.delete(5, wait: true) }]
+    }.each do |operation, (api_method, final_state, run)|
+      it "#{operation}: refreshes once, without waiting, when the response carries no state" do
+        allow(sandbox_api).to receive(api_method).and_return(stateless_dto)
+        allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                   .and_return(build_sandbox_dto(state: final_state))
+        waits = []
+        stub_condition_variable_waits { |seconds| waits << seconds }
+
+        run.call(started_sandbox)
+
+        expect(sandbox_api).to have_received(:get_sandbox).once
+        expect(waits).to be_empty
+        expect(started_sandbox.state).to eq(final_state)
+      end
+    end
+
+    it 'resize: refreshes once, then waits, when the response is empty' do
+      allow(sandbox_api).to receive(:resize_sandbox)
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'resizing'))
+      emit_when_waiting('started')
+
+      started_sandbox.resize(Daytona::Resources.new(cpu: 4), 5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(started_sandbox.state).to eq('started')
+    end
+
+    it 'fork: reads at once when the response carries no state' do
+      allow(sandbox_api).to receive(:fork_sandbox).and_return(stateless_dto('fork-1'))
+      allow(sandbox_api).to receive(:get_sandbox).with('fork-1')
+                                                 .and_return(build_sandbox_dto(id: 'fork-1', state: 'started'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      forked = started_sandbox.fork(timeout: 5)
+
+      expect(forked.state).to eq('started')
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+    end
+
     it 'stop: releases the subscription and raises the original error when the request fails' do
       error = DaytonaApiClient::ApiError.new(code: 500, message: 'boom')
       allow(sandbox_api).to receive(:stop_sandbox).and_raise(error)
@@ -1735,8 +1806,12 @@ RSpec.describe Daytona::Sandbox do
 
     def eventually(timeout: 5)
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
-      sleep(0.01) until yield || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
-      expect(yield).to be(true)
+      while Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+        return if yield
+
+        sleep(0.01)
+      end
+      raise RSpec::Expectations::ExpectationNotMetError, "condition not met within #{timeout} s"
     end
 
     def interval_for(sandbox)

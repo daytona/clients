@@ -704,8 +704,8 @@ describe('Sandbox event subscriptions', () => {
   const subscribedHandler = (subscriptionManager: SubscriptionManagerMock, call = 0): StateEventHandler =>
     subscriptionManager.subscribe.mock.calls[call][1] as StateEventHandler
 
-  const slimStateEvent = (state: string) => ({
-    sandbox: { id: 'sb-1', state, desiredState: 'started' },
+  const slimStateEvent = (state: string, id = 'sb-1') => ({
+    sandbox: { id, state, desiredState: 'started' },
     oldState: 'starting',
     newState: state,
   })
@@ -999,7 +999,7 @@ describe('Sandbox event subscriptions', () => {
       expect(subscriptionManager.subscribe).toHaveBeenCalledWith('sb-fork', expect.any(Function), [
         'sandbox.state.updated',
       ])
-      subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('started'))
+      subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('started', 'sb-fork'))
 
       const forked = await fork
       expect(forked.id).toBe('sb-fork')
@@ -1035,6 +1035,25 @@ describe('Sandbox event subscriptions', () => {
 
       expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
       expect(subscriptionManager.subscribe).not.toHaveBeenCalled()
+    })
+
+    test.each([
+      ['an empty body', undefined],
+      ['a body without a state', { id: 'sb-1' }],
+    ])('resize() with %s refreshes once, then waits', async (_name, body) => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.resizeSandbox.mockResolvedValue(createApiResponse(body))
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'resizing' }))
+
+      const resize = sandbox.resize({ cpu: 4 }, 30)
+      await flush()
+      expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+      expect(sandbox.state).toBe('resizing')
+      subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('started'))
+
+      await expect(resize).resolves.toBeUndefined()
+      expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+      expect(sandbox.state).toBe('started')
     })
 
     it('delete() without wait takes no subscription', async () => {
@@ -1431,8 +1450,10 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
     expect(manager.isEventBacked('sb-c')).toBe(false)
 
     socket.fire('sandbox.state.updated', stateEvent('sb-b', 'stopped'))
-    socket.fire('sandbox.state.updated', stateEvent('sb-c', 'stopped'))
     socket.fire('sandbox.state.updated', stateEvent('sb-d', 'stopped'))
+    // The gateway sends nothing for an unserved id: sb-c resolves through its ~1 s poll.
+    c.sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-c', state: 'stopped' }))
+    await jest.advanceTimersByTimeAsync(1500)
     await Promise.all([stopB, stopC, stopD])
     // sb-c was never served, so its last listener sends no unsubscribe.
     expect(subscribedIds('unsubscribe')).toEqual(['sb-a', 'sb-b', 'sb-d'])

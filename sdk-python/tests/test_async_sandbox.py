@@ -1436,3 +1436,70 @@ class TestAsyncSandboxOperationSubscriptionRelease:
         resource_id = response.id
         assert dispatcher.listeners == {}
         assert dispatcher.sent == [("subscribe", resource_id), ("unsubscribe", resource_id)]
+
+
+class TestAsyncSandboxResponsesWithoutState:
+    """A response without a state is treated as an empty body: it is read again, never skipped on."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("operation", "api_method", "final_state"),
+        [
+            ("stop", "stop_sandbox", SandboxState.STOPPED),
+            ("delete", "delete_sandbox", SandboxState.DESTROYED),
+            ("pause", "pause_sandbox", SandboxState.PAUSED),
+            ("resize", "resize_sandbox", SandboxState.STARTED),
+            ("fork", "fork_sandbox", SandboxState.STARTED),
+        ],
+    )
+    async def test_operation_reads_before_waiting(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch, operation, api_method, final_state
+    ):
+        from daytona.common.sandbox import Resources
+
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTED),
+            mock_async_toolbox_api_client,
+            mock_async_sandbox_api,
+            manager,
+        )
+        sandbox_id = "forked-id" if operation == "fork" else "test-sandbox-id"
+        dto = {"sandbox_id": sandbox_id, "toolbox_proxy_url": "http://proxy:2280"}
+        setattr(mock_async_sandbox_api, api_method, AsyncMock(return_value=_async_dto(state=None, **dto)))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=final_state, **dto))
+        calls = {
+            "stop": lambda: sandbox.stop(timeout=0),
+            "delete": lambda: sandbox.delete(timeout=0, wait=True),
+            "pause": lambda: sandbox.pause(timeout=0),
+            "resize": lambda: sandbox.resize(Resources(cpu=2), timeout=0),
+            "fork": lambda: sandbox.fork(timeout=0),
+        }
+
+        result = await asyncio.wait_for(calls[operation](), timeout=2)
+
+        # Resolved by one read before any poll: no wait skipped its first read on the stateless response.
+        mock_async_sandbox_api.get_sandbox.assert_awaited_once()
+        assert mock_async_sandbox_api.get_sandbox.await_args.args[0] == sandbox_id
+        assert poll_intervals == []
+        assert (result if operation == "fork" else sandbox).state == final_state
+
+    @pytest.mark.asyncio
+    async def test_archive_reads_instead_of_applying_the_response(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        sandbox = make_async_sandbox(
+            make_sandbox_dto(state=SandboxState.STOPPED), mock_async_toolbox_api_client, mock_async_sandbox_api
+        )
+        mock_async_sandbox_api.archive_sandbox = AsyncMock(return_value=_async_dto(state=None))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.ARCHIVING))
+
+        await sandbox.archive()
+
+        mock_async_sandbox_api.get_sandbox.assert_awaited_once()
+        assert sandbox.state == SandboxState.ARCHIVING

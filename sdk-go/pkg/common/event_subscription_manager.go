@@ -123,10 +123,16 @@ func (m *EventSubscriptionManager) IsConnected() bool {
 }
 
 // IsEventBacked reports whether state events for resourceID can arrive now: the
-// manager is open, the connection is up and the server serves resourceID (it
-// does not beyond the per-connection subscription cap).
+// manager is open, the connection is up, and resourceID is within the
+// per-connection subscription cap, so the server sends its events.
 func (m *EventSubscriptionManager) IsEventBacked(resourceID string) bool {
-	return m.IsConnected() && m.dispatcher.IsServed(resourceID)
+	if m == nil || m.dispatcher == nil {
+		return false
+	}
+	m.mu.Lock()
+	closed := m.closed
+	m.mu.Unlock()
+	return !closed && m.dispatcher.IsEventBacked(resourceID)
 }
 
 // ConnectionEpoch returns the dispatcher's count of successful connects; it

@@ -1291,8 +1291,12 @@ export class Sandbox {
       const response = await this.sandboxApi.resizeSandbox(this.id, resizeRequest, this.organizationId, {
         timeout: timeout * 1000,
       })
-      this.processSandboxDto(response.data)
-      prepared.hasFreshState = isSandboxDto(response.data)
+      if (isSandboxDto(response.data)) {
+        this.processSandboxDto(response.data)
+      } else {
+        await this.refreshData()
+      }
+      prepared.hasFreshState = true
       const timeElapsed = Date.now() - startTime
       await this.waitForResize(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
     } finally {

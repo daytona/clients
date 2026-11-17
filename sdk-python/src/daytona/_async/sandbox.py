@@ -606,8 +606,8 @@ class AsyncSandbox(SandboxDto):
                 force=force,
                 _request_timeout=http_timeout(timeout),
             )
-            # The stop response carries the sandbox; refresh only if it came back empty.
-            if sandbox_dto:
+            # The stop response carries the sandbox; refresh only if it came back without a state.
+            if wait_poll.carries_state(sandbox_dto):
                 self.__process_sandbox_dto(sandbox_dto)
                 subscription = subscription.with_state_fresh(True)
             else:
@@ -640,7 +640,7 @@ class AsyncSandbox(SandboxDto):
             if wait:
                 subscription = self._take_wait_subscription()
             sandbox = await self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
-            if sandbox:
+            if wait_poll.carries_state(sandbox):
                 self.__process_sandbox_dto(sandbox)
                 if subscription is not None:
                     subscription = subscription.with_state_fresh(True)
@@ -1102,7 +1102,7 @@ class AsyncSandbox(SandboxDto):
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
         sandbox_dto = await self._sandbox_api.archive_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
-        if sandbox_dto:
+        if wait_poll.carries_state(sandbox_dto):
             self.__process_sandbox_dto(sandbox_dto)
         else:
             await self.refresh_data(request_timeout=request_timeout)
@@ -1149,7 +1149,10 @@ class AsyncSandbox(SandboxDto):
         try:
             subscription = self._take_wait_subscription()
             sandbox = await self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
-            self.__process_sandbox_dto(sandbox)
+            if wait_poll.carries_state(sandbox):
+                self.__process_sandbox_dto(sandbox)
+            else:
+                await self.refresh_data()
             subscription = subscription.with_state_fresh(True)
             await self._wait_for_resize_after_request(subscription)
         finally:
@@ -1292,7 +1295,7 @@ class AsyncSandbox(SandboxDto):
             self._subscription_manager,
             analytics_api_url_provider=self._analytics_api_url_provider,
         )
-        await forked._wait_for_fork_start()
+        await forked._wait_for_fork_start(state_fresh=wait_poll.carries_state(sandbox_dto))
         return forked
 
     @deprecated(reason="Method is deprecated. Use `fork` instead. This method will be removed in a future version.")
@@ -1371,7 +1374,7 @@ class AsyncSandbox(SandboxDto):
             sandbox_dto = await self._sandbox_api.pause_sandbox(
                 self.id, _request_timeout=timeout if timeout > 0 else None
             )
-            if sandbox_dto:
+            if wait_poll.carries_state(sandbox_dto):
                 self.__process_sandbox_dto(sandbox_dto)
             else:
                 await self.refresh_data()
@@ -1393,8 +1396,12 @@ class AsyncSandbox(SandboxDto):
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
     @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_start", labels={"method": "wait_for_sandbox_start"})
-    async def _wait_for_fork_start(self) -> None:
-        """``wait_for_sandbox_start`` for a new fork, which can skip the first read of a live wait."""
+    async def _wait_for_fork_start(self, state_fresh: bool) -> None:
+        """``wait_for_sandbox_start`` for a new fork, which can skip the first read of a live wait.
+
+        Args:
+            state_fresh: Whether the fork response carried a state; without one the wait reads first.
+        """
         self._raise_destroyed_wait_error([SandboxState.STARTED])
         if self.state == SandboxState.STARTED:
             return
@@ -1402,7 +1409,7 @@ class AsyncSandbox(SandboxDto):
         subscription: wait_poll.WaitSubscription | None = None
         try:
             # The id is only known now; the fork completes well after this subscription is live.
-            subscription = self._take_wait_subscription().with_state_fresh(True)
+            subscription = self._take_wait_subscription().with_state_fresh(state_fresh)
             await self._wait_for_state(
                 [SandboxState.STARTED],
                 [SandboxState.ERROR, SandboxState.BUILD_FAILED],

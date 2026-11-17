@@ -428,7 +428,7 @@ module Daytona
 
         return apply_state(DaytonaApiClient::SandboxState::DESTROYED)
       end
-      return process_response(sandbox_dto) if sandbox_dto
+      return process_response(sandbox_dto) if fresh_state?(sandbox_dto)
 
       # Older servers return no sandbox.
       begin
@@ -761,12 +761,7 @@ module Daytona
         with_timeout(
           timeout:,
           message: "Sandbox #{id} failed to resize within the #{timeout} seconds timeout period",
-          setup: proc {
-            sandbox_dto = sandbox_api.resize_sandbox(id, resize_request)
-            # Without a sandbox in the response the cached state is older than the request.
-            subscription[:live] = false if sandbox_dto.nil?
-            process_response(sandbox_dto)
-          }
+          setup: proc { apply_operation_response(sandbox_api.resize_sandbox(id, resize_request)) }
         ) do |deadline|
           # Under the resize deadline, but recorded as the wait_for_resize_complete call that it replaces.
           instrument_as(:wait_for_resize_complete, component: 'Sandbox') { wait_for_resize(deadline, subscription:) }
@@ -859,7 +854,9 @@ module Daytona
           analytics_api_url_provider: @analytics_api_url_provider
         )
         # Under the fork deadline, but recorded as the wait_for_sandbox_start call that it replaces.
-        instrument_as(:wait_for_sandbox_start, component: 'Sandbox') { forked.wait_for_start_after_fork(deadline) }
+        instrument_as(:wait_for_sandbox_start, component: 'Sandbox') do
+          forked.wait_for_start_after_fork(deadline, fresh: fresh_state?(forked_dto))
+        end
         return forked
       end
     end
@@ -951,11 +948,15 @@ module Daytona
     # so a subscription taken now sees the transition and the wait can skip its first read.
     #
     # @param deadline [WaitDeadline, nil]
+    # @param fresh [Boolean] Whether the fork response carried a state; without one the wait reads first
     # @return [void]
-    def wait_for_start_after_fork(deadline)
+    def wait_for_start_after_fork(deadline, fresh:)
       return if state.to_s == DaytonaApiClient::SandboxState::STARTED.to_s
 
-      with_operation_subscription { |subscription| wait_for_start(deadline, subscription:) }
+      with_operation_subscription do |subscription|
+        subscription[:live] = false unless fresh
+        wait_for_start(deadline, subscription:)
+      end
     end
 
     private
@@ -1523,12 +1524,19 @@ module Daytona
         @subscription_manager.connection_epoch == subscription[:connection_epoch]
     end
 
-    # Older servers return no sandbox from an operation; only then is a refresh needed.
+    # Older servers return no sandbox from an operation, or one without a state; only then is a refresh
+    # needed.
     #
     # @param sandbox_dto [DaytonaApiClient::Sandbox, nil]
     # @return [void]
     def apply_operation_response(sandbox_dto)
-      sandbox_dto.nil? ? refresh : process_response(sandbox_dto)
+      fresh_state?(sandbox_dto) ? process_response(sandbox_dto) : refresh
+    end
+
+    # @param sandbox_dto [DaytonaApiClient::Sandbox, nil]
+    # @return [Boolean] Whether an operation's response carries the Sandbox's state after the operation
+    def fresh_state?(sandbox_dto)
+      !sandbox_dto.nil? && !sandbox_dto.state.to_s.empty?
     end
 
     # Accepts both the full and the slim state payload: { sandbox: { id, state, ... }, oldState, newState }.
@@ -1625,7 +1633,7 @@ module Daytona
       with_operation_subscription do |subscription|
         begin
           sandbox_dto = sandbox_api.delete_sandbox(id)
-          if sandbox_dto
+          if fresh_state?(sandbox_dto)
             process_response(sandbox_dto)
           elsif !refresh_after_subscribing
             # Older servers return no sandbox; without a successful refresh the cached state is stale.

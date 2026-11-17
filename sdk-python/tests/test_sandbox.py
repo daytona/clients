@@ -1270,3 +1270,61 @@ class TestSandboxOperationSubscriptionRelease:
             assert dispatcher.sent == [("subscribe", resource_id), ("unsubscribe", resource_id)]
         finally:
             manager.shutdown()
+
+
+class TestSandboxResponsesWithoutState:
+    """A response without a state is treated as an empty body: it is read again, never skipped on."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @pytest.mark.parametrize(
+        ("operation", "api_method", "final_state"),
+        [
+            ("stop", "stop_sandbox", SandboxState.STOPPED),
+            ("delete", "delete_sandbox", SandboxState.DESTROYED),
+            ("pause", "pause_sandbox", SandboxState.PAUSED),
+            ("resize", "resize_sandbox", SandboxState.STARTED),
+            ("fork", "fork_sandbox", SandboxState.STARTED),
+        ],
+    )
+    def test_operation_reads_before_waiting(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, operation, api_method, final_state
+    ):
+        from daytona.common.sandbox import Resources
+
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTED), mock_toolbox_api_client, mock_sandbox_api, manager
+        )
+        sandbox_id = "forked-id" if operation == "fork" else "test-sandbox-id"
+        dto = {"sandbox_id": sandbox_id, "toolbox_proxy_url": "http://proxy:2280"}
+        getattr(mock_sandbox_api, api_method).return_value = make_sandbox_dto(state=None, **dto)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=final_state, **dto)
+        calls = {
+            "stop": lambda: sandbox.stop(timeout=2),
+            "delete": lambda: sandbox.delete(timeout=2, wait=True),
+            "pause": lambda: sandbox.pause(timeout=2),
+            "resize": lambda: sandbox.resize(Resources(cpu=2), timeout=2),
+            "fork": lambda: sandbox.fork(timeout=2),
+        }
+
+        result = calls[operation]()
+
+        # Resolved by one read before any poll: no wait skipped its first read on the stateless response.
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert mock_sandbox_api.get_sandbox.call_args.args[0] == sandbox_id
+        assert poll_intervals == []
+        assert (result if operation == "fork" else sandbox).state == final_state
+
+    def test_archive_reads_instead_of_applying_the_response(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STOPPED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.archive_sandbox.return_value = make_sandbox_dto(state=None)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.ARCHIVING)
+
+        sandbox.archive()
+
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert sandbox.state == SandboxState.ARCHIVING

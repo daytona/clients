@@ -50,6 +50,9 @@ type eventTestServer struct {
 	getTimes       []time.Time
 	getIDs         []string
 	received       []string
+	// subscribed holds the ids the current socket subscribed to, as the
+	// gateway tracks them; state events go out only for these.
+	subscribed map[string]bool
 }
 
 func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestServer {
@@ -130,6 +133,7 @@ func (s *eventTestServer) serveSocket(upgrader websocket.Upgrader, w http.Respon
 	s.mu.Lock()
 	s.connected = true
 	s.connectedAt = time.Now()
+	s.subscribed = map[string]bool{}
 	s.mu.Unlock()
 	s.writeMu.Lock()
 	s.conn = conn
@@ -155,6 +159,14 @@ func (s *eventTestServer) serveSocket(upgrader websocket.Upgrader, w http.Respon
 		_ = json.Unmarshal(packet[1], &payload)
 		s.mu.Lock()
 		s.received = append(s.received, name+":"+strings.Join(payload.SandboxIDs, ","))
+		for _, id := range payload.SandboxIDs {
+			switch name {
+			case "subscribe":
+				s.subscribed[id] = true
+			case "unsubscribe":
+				delete(s.subscribed, id)
+			}
+		}
 		s.mu.Unlock()
 	}
 }
@@ -165,10 +177,35 @@ func (s *eventTestServer) setOperation(operation http.HandlerFunc) {
 	s.operation = operation
 }
 
+// isSubscribed reports whether the current socket subscribed to id.
+func (s *eventTestServer) isSubscribed(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.subscribed[id]
+}
+
+// awaitSubscribed waits up to 5 s for the current socket to subscribe to id.
+// Subscribes are fire-and-forget, so one can reach the server after the HTTP
+// request that follows it.
+func (s *eventTestServer) awaitSubscribed(id string) bool {
+	deadline := time.Now().Add(5 * time.Second)
+	for !s.isSubscribed(id) {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return true
+}
+
 // emitState sends a sandbox.state.updated event for the test sandbox over the
-// current socket connection. Safe to call from handler goroutines.
+// current socket connection, as the gateway does: only if the socket
+// subscribed to the sandbox. Safe to call from handler goroutines.
 func (s *eventTestServer) emitState(oldState, newState apiclient.SandboxState) {
 	s.t.Helper()
+	if !s.isSubscribed(eventTestSandboxID) {
+		return
+	}
 	payload, err := json.Marshal(map[string]any{
 		"sandbox":  map[string]any{"id": eventTestSandboxID, "state": newState},
 		"oldState": oldState,
@@ -600,7 +637,11 @@ func respondThenEmit(t *testing.T, srv *eventTestServer, respondState, targetSta
 	return func(w http.ResponseWriter, _ *http.Request) {
 		srv.setState(targetState)
 		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", respondState))
-		timer := time.AfterFunc(300*time.Millisecond, func() { srv.emitState(respondState, targetState) })
+		timer := time.AfterFunc(300*time.Millisecond, func() {
+			if srv.awaitSubscribed(eventTestSandboxID) {
+				srv.emitState(respondState, targetState)
+			}
+		})
 		t.Cleanup(func() { timer.Stop() })
 	}
 }
@@ -668,6 +709,7 @@ func TestStopReadsFirstWhenStateEventArrivesDuringRequest(t *testing.T) {
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
 	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
 		// The sandbox stops before the (older) response is written.
+		assert.True(t, srv.awaitSubscribed(eventTestSandboxID))
 		srv.emitState(apiclient.SANDBOXSTATE_STOPPING, apiclient.SANDBOXSTATE_STOPPED)
 		assert.Eventually(t, func() bool { return sandbox.stateEvents.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
 		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
@@ -957,4 +999,67 @@ func TestStopReadsFirstWhenStateEventArrivesWhileSubscribing(t *testing.T) {
 	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false))
 	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
 	assertEndedOnImmediateRead(t, srv, start)
+}
+
+func TestOperationWaitsReadFirstWhenResponseCarriesNoState(t *testing.T) {
+	tests := []struct {
+		name        string
+		targetState apiclient.SandboxState
+		run         func(client *Client, sandbox *Sandbox) error
+	}{
+		{"stop", apiclient.SANDBOXSTATE_STOPPED, func(_ *Client, s *Sandbox) error {
+			return s.doStopWithTimeout(context.Background(), readsFirstTimeout, false)
+		}},
+		{"delete and wait", apiclient.SANDBOXSTATE_DESTROYED, func(_ *Client, s *Sandbox) error {
+			return s.doDeleteAndWait(context.Background(), readsFirstTimeout)
+		}},
+		{"pause", apiclient.SANDBOXSTATE_PAUSED, func(_ *Client, s *Sandbox) error {
+			return s.doPauseWithTimeout(context.Background(), readsFirstTimeout)
+		}},
+		{"resize", apiclient.SANDBOXSTATE_STARTED, func(_ *Client, s *Sandbox) error {
+			return s.doResizeWithTimeout(context.Background(), &types.Resources{CPU: 4}, readsFirstTimeout)
+		}},
+		{"fork", apiclient.SANDBOXSTATE_STARTED, func(client *Client, _ *Sandbox) error {
+			forked, err := newForkSourceSandbox(client).doForkWithTimeout(context.Background(), nil, readsFirstTimeout)
+			if err == nil {
+				assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
+			}
+			return err
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubNoScheduledPolls(t)
+			srv := newEventTestServer(t, tt.targetState)
+			client := newEventTestClient(t, srv)
+			connectEvents(t, client)
+			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+			if tt.name == "resize" {
+				sandbox = newEventTestSandbox(client, apiclient.SANDBOXSTATE_RESIZING)
+			}
+			srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+				payload := testSandboxPayload(eventTestSandboxID, "sandbox", tt.targetState)
+				delete(payload, "state")
+				writeJSONResponse(t, w, http.StatusOK, payload)
+			})
+
+			start := time.Now()
+			require.NoError(t, tt.run(client, sandbox))
+			assertEndedOnImmediateRead(t, srv, start)
+		})
+	}
+}
+
+func TestArchiveIgnoresResponseWithoutState(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_ARCHIVED)
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STOPPED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		payload := testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_ARCHIVED)
+		delete(payload, "state")
+		writeJSONResponse(t, w, http.StatusOK, payload)
+	})
+
+	require.NoError(t, sandbox.doArchive(context.Background()))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState(), "a response without a state leaves the state as it was")
 }

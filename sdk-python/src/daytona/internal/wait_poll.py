@@ -28,6 +28,14 @@ FAST_POLL_MAX_INTERVAL = 1.0
 random_unit: Callable[[], float] = random.random
 
 
+def carries_state(sandbox_dto: object | None) -> bool:
+    """Whether an operation's response is a sandbox with a state, which can stand in for a read.
+
+    A response without one is treated as an empty body: the caller falls back to a read.
+    """
+    return sandbox_dto is not None and bool(getattr(sandbox_dto, "state", None))
+
+
 def poll_interval(subscribed: bool, event_backed: bool, fast_poll_interval: float) -> float:
     """Returns the delay before the next safety-net poll of a wait.
 

@@ -291,6 +291,15 @@ func (es *EventDispatcher) servedIDsLocked() []string {
 	return ids
 }
 
+// IsEventBacked reports, under one lock, whether events for resourceID can
+// arrive now: the connection is up and resourceID is served.
+func (es *EventDispatcher) IsEventBacked(resourceID string) bool {
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	_, served := es.served[resourceID]
+	return es.connected && served
+}
+
 // IsServed reports whether the server is asked to send events for resourceID:
 // it has listeners and was within the per-connection cap when it got its first.
 func (es *EventDispatcher) IsServed(resourceID string) bool {

@@ -568,6 +568,23 @@ func (s *Sandbox) subscribeForOperation() *waitSubscription {
 	return w
 }
 
+// hasFreshState reports whether an operation's response carries the sandbox's
+// state after the operation. Older servers return no body, or one without a
+// state; neither may stand in for a read.
+func hasFreshState(resp *apiclient.Sandbox) bool {
+	return resp != nil && resp.GetState() != ""
+}
+
+// applyOperationResponse applies an operation's response that carries a state,
+// and otherwise makes sub's wait read first, as for an empty body.
+func (s *Sandbox) applyOperationResponse(resp *apiclient.Sandbox, sub *waitSubscription) {
+	if !hasFreshState(resp) {
+		sub.requireFirstRead()
+		return
+	}
+	s.updateFromAPIResponse(resp)
+}
+
 // requireFirstRead is for operations that returned no sandbox: the cached state
 // is not the one after the request.
 func (w *waitSubscription) requireFirstRead() {
@@ -1361,10 +1378,7 @@ func (s *Sandbox) doStopWithTimeout(ctx context.Context, timeout time.Duration, 
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	if sandboxResp == nil {
-		sub.requireFirstRead()
-	}
-	s.updateFromAPIResponse(sandboxResp)
+	s.applyOperationResponse(sandboxResp, sub)
 
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForStop", func(ctx context.Context) error {
 		return s.doWaitForStop(ctx, timeout, sub)
@@ -1452,10 +1466,7 @@ func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) er
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	if sandboxResp == nil {
-		sub.requireFirstRead()
-	}
-	s.updateFromAPIResponse(sandboxResp)
+	s.applyOperationResponse(sandboxResp, sub)
 
 	err = s.waitForStateWith(ctx,
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_DESTROYED},
@@ -1501,7 +1512,9 @@ func (s *Sandbox) doArchive(ctx context.Context) error {
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	s.updateFromAPIResponse(sandboxResp)
+	if hasFreshState(sandboxResp) {
+		s.updateFromAPIResponse(sandboxResp)
+	}
 
 	return nil
 }
@@ -2097,6 +2110,9 @@ func (s *Sandbox) doForkWithTimeout(ctx context.Context, name *string, timeout t
 	if forked.currentState() != apiclient.SANDBOXSTATE_STARTED {
 		sub = forked.subscribeForOperation()
 		defer sub.close()
+		if !hasFreshState(sandboxResp) {
+			sub.requireFirstRead()
+		}
 	}
 	err = withInstrumentationVoid(ctx, forked.otel, "Sandbox", "WaitForStart", func(ctx context.Context) error {
 		return forked.doWaitForStartWith(ctx, timeout, sub)
@@ -2265,9 +2281,10 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 		return errors.ConvertAPIError(err, httpResp)
 	}
 
-	// Older servers return no body; only then is a GET needed. Taken after the
-	// subscription, it stands in for the wait's first read just as the body would.
-	if sandboxResp != nil {
+	// Older servers return no body, or one without a state; only then is a GET
+	// needed. Taken after the subscription, it stands in for the wait's first
+	// read just as the body would.
+	if hasFreshState(sandboxResp) {
 		s.updateFromAPIResponse(sandboxResp)
 	} else if err := s.RefreshData(ctx); err != nil {
 		return err
@@ -2380,12 +2397,7 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	if sandboxResp == nil {
-		sub.requireFirstRead()
-	}
-
-	// Update sandbox data from response
-	s.updateFromAPIResponse(sandboxResp)
+	s.applyOperationResponse(sandboxResp, sub)
 
 	var remainingTimeout time.Duration
 	if timeout == 0 {

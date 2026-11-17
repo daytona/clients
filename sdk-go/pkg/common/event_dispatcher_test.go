@@ -496,6 +496,25 @@ func TestEventDispatcherCountsConnectionEpochs(t *testing.T) {
 	assert.Equal(t, uint64(0), NewEventSubscriptionManager(nil).ConnectionEpoch())
 }
 
+func TestEventDispatcherIsNotEventBackedWhileDisconnectedButServed(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	manager := NewEventSubscriptionManager(es)
+	id := testSandboxID(1)
+	defer es.Subscribe(id, noopHandler, stateEvents)()
+	require.Eventually(t, es.IsConnected, 5*time.Second, 10*time.Millisecond)
+	assert.True(t, es.IsEventBacked(id))
+	assert.True(t, manager.IsEventBacked(id))
+	assert.False(t, es.IsEventBacked(testSandboxID(2)), "an id without listeners is not served")
+
+	f.rejectConnections.Store(true)
+	f.dropConnections()
+	require.Eventually(t, func() bool { return !es.IsConnected() }, 5*time.Second, 10*time.Millisecond)
+	assert.True(t, es.IsServed(id), "the id stays served for the next connect")
+	assert.False(t, es.IsEventBacked(id))
+	assert.False(t, manager.IsEventBacked(id))
+}
+
 func TestEventSubscriptionManagerIsNotConnectedAfterShutdown(t *testing.T) {
 	f := newFakeSocketIOServer(t)
 	es := newTestDispatcher(t, f)
