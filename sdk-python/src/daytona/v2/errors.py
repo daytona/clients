@@ -478,14 +478,6 @@ class KernelUnavailableError(ServiceUnavailableError):
     """KERNEL_UNAVAILABLE."""
 
 
-class LspServerUnavailableError(ServiceUnavailableError):
-    """LSP_SERVER_UNAVAILABLE."""
-
-
-class LspNotStartedError(ConflictError):
-    """LSP_NOT_STARTED."""
-
-
 class AddonUnavailableError(ServiceUnavailableError):
     """ADDON_UNAVAILABLE."""
 
@@ -783,8 +775,6 @@ DAEMON_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.SESSION_NOT_FOUND: SessionNotFoundError,
     codes.SESSION_ENDED: SessionEndedError,
     codes.KERNEL_UNAVAILABLE: KernelUnavailableError,
-    codes.LSP_SERVER_UNAVAILABLE: LspServerUnavailableError,
-    codes.LSP_NOT_STARTED: LspNotStartedError,
     codes.ADDON_UNAVAILABLE: AddonUnavailableError,
     codes.FILE_NOT_FOUND: FileNotFoundError,
     codes.INVALID_FILE_PATH: InvalidFilePathError,

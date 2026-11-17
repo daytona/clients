@@ -14,11 +14,6 @@ from daytona.v2._gen.toolbox.models.clone_request import CloneRequest as CloneRe
 from daytona.v2._gen.toolbox.models.commit_info import CommitInfo as CommitInfo
 from daytona.v2._gen.toolbox.models.commit_request import CommitRequest as CommitRequest
 from daytona.v2._gen.toolbox.models.commit_response import CommitResponse as CommitResponse
-from daytona.v2._gen.toolbox.models.completion_context import CompletionContext as CompletionContext
-from daytona.v2._gen.toolbox.models.completion_documentation import CompletionDocumentation as CompletionDocumentation
-from daytona.v2._gen.toolbox.models.completion_item import CompletionItem as CompletionItem
-from daytona.v2._gen.toolbox.models.completion_list import CompletionList as CompletionList
-from daytona.v2._gen.toolbox.models.completion_request import CompletionRequest as CompletionRequest
 from daytona.v2._gen.toolbox.models.computer_use_a11y_find_request import ComputerUseA11yFindRequest as ComputerUseA11yFindRequest
 from daytona.v2._gen.toolbox.models.computer_use_a11y_find_response import ComputerUseA11yFindResponse as ComputerUseA11yFindResponse
 from daytona.v2._gen.toolbox.models.computer_use_a11y_node_request import ComputerUseA11yNodeRequest as ComputerUseA11yNodeRequest
@@ -67,7 +62,6 @@ from daytona.v2._gen.toolbox.models.docker_owner import DockerOwner as DockerOwn
 from daytona.v2._gen.toolbox.models.docker_state import DockerState as DockerState
 from daytona.v2._gen.toolbox.models.docker_status import DockerStatus as DockerStatus
 from daytona.v2._gen.toolbox.models.docker_status_query import DockerStatusQuery as DockerStatusQuery
-from daytona.v2._gen.toolbox.models.document_request import DocumentRequest as DocumentRequest
 from daytona.v2._gen.toolbox.models.env_request import EnvRequest as EnvRequest
 from daytona.v2._gen.toolbox.models.error_code import ErrorCode as ErrorCode
 from daytona.v2._gen.toolbox.models.error_envelope import ErrorEnvelope as ErrorEnvelope
@@ -92,7 +86,6 @@ from daytona.v2._gen.toolbox.models.list_query import ListQuery as ListQuery
 from daytona.v2._gen.toolbox.models.list_remotes_response import ListRemotesResponse as ListRemotesResponse
 from daytona.v2._gen.toolbox.models.log_frame_dto import LogFrameDto as LogFrameDto
 from daytona.v2._gen.toolbox.models.logs_query import LogsQuery as LogsQuery
-from daytona.v2._gen.toolbox.models.markup_content import MarkupContent as MarkupContent
 from daytona.v2._gen.toolbox.models.match import Match as Match
 from daytona.v2._gen.toolbox.models.metrics import Metrics as Metrics
 from daytona.v2._gen.toolbox.models.move_query import MoveQuery as MoveQuery
@@ -119,7 +112,6 @@ from daytona.v2._gen.toolbox.models.resize_request import ResizeRequest as Resiz
 from daytona.v2._gen.toolbox.models.restore_request import RestoreRequest as RestoreRequest
 from daytona.v2._gen.toolbox.models.search_query import SearchQuery as SearchQuery
 from daytona.v2._gen.toolbox.models.search_response import SearchResponse as SearchResponse
-from daytona.v2._gen.toolbox.models.server_request import ServerRequest as ServerRequest
 from daytona.v2._gen.toolbox.models.session_dto import SessionDto as SessionDto
 from daytona.v2._gen.toolbox.models.session_list_response import SessionListResponse as SessionListResponse
 from daytona.v2._gen.toolbox.models.set_config_request import SetConfigRequest as SetConfigRequest
@@ -128,11 +120,6 @@ from daytona.v2._gen.toolbox.models.state import State as State
 from daytona.v2._gen.toolbox.models.status_response import StatusResponse as StatusResponse
 from daytona.v2._gen.toolbox.models.stdin_mode import StdinMode as StdinMode
 from daytona.v2._gen.toolbox.models.stdin_request import StdinRequest as StdinRequest
-from daytona.v2._gen.toolbox.models.symbol_info import SymbolInfo as SymbolInfo
-from daytona.v2._gen.toolbox.models.symbol_location import SymbolLocation as SymbolLocation
-from daytona.v2._gen.toolbox.models.symbol_position import SymbolPosition as SymbolPosition
-from daytona.v2._gen.toolbox.models.symbol_range import SymbolRange as SymbolRange
-from daytona.v2._gen.toolbox.models.symbols_query import SymbolsQuery as SymbolsQuery
 from daytona.v2._gen.toolbox.models.terminal_size import TerminalSize as TerminalSize
 from daytona.v2._gen.toolbox.models.upload_query import UploadQuery as UploadQuery
 from daytona.v2._gen.toolbox.models.uploaded_file import UploadedFile as UploadedFile
