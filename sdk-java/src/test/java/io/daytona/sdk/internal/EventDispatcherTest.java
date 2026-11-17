@@ -298,7 +298,11 @@ class EventDispatcherTest {
                 sent.addAll(ids(message));
             }
             assertThat(gateway.takeEmitted(QUIET_MILLIS)).as("nothing past the gateway limit").isNull();
-            assertThat(sent).hasSize(1000).doesNotContain("sb-1000");
+            List<String> expected = new ArrayList<>();
+            for (int i = 0; i < 1000; i++) {
+                expected.add("sb-" + i);
+            }
+            assertThat(sent).containsExactlyInAnyOrderElementsOf(expected);
             assertThat(clamped.isServed("sb-999")).isTrue();
             assertThat(clamped.isServed("sb-1000")).isFalse();
         } finally {
