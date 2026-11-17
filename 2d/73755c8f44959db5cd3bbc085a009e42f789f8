@@ -1,0 +1,14 @@
+sdk-typescript/project.json
+  h_e7759ddd73fa65 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d73755c8f44959db5cd3bbc085a009e42f789f8",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
