@@ -100,8 +100,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     sandboxClass: metadata.sandboxClass,
     rawSandboxClass: metadata.sandboxClass,
     reservationId: text(created, 'reservation_id'),
-    // The effective policy, so the handle shows the deadline the sandbox is
-    // deleted or stopped at.
+    // The lifecycle policy as of the create response.
     lifecyclePolicy: createdLifecyclePolicy(created.id, created.lifecycle_policy),
   }, connectOptions)
   sandbox.learnEventDestination(createdEventDestination)

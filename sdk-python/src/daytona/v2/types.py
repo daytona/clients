@@ -1013,7 +1013,9 @@ class SandboxLifecycle:
     """Lifecycle policy as the API reports it.
 
     ``timeout_seconds`` is the timeout duration; ``timeout_at`` is the current absolute deadline it
-    derives. ``idle_timeout_at`` is when ``on_idle_timeout`` becomes eligible
+    derives. Starting the sandbox restarts that countdown, so on a handle
+    ``create()`` returned before the sandbox started, ``timeout_at`` moves
+    when it starts; ``refresh_data()`` reads the new deadline. ``idle_timeout_at`` is when ``on_idle_timeout`` becomes eligible
     to fire — ``last_activity_at + idle_expiry_seconds`` — and any activity
     (traffic, SSH, a non-PTY process or code execution started through the
     process API that is still running — ``exec``, ``process.start``,

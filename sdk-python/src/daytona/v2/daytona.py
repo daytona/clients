@@ -819,10 +819,9 @@ class AsyncDaytona:
         # the create route fixes (linux, or macos for create_macos); the rest
         # is unknown until a detail read. The response's `image` is canonical when present.
         booted = artifact_ref_from_wire(data.get("image"))
-        # The effective policy, so the handle shows the deadline the sandbox is
-        # deleted or stopped at; checked as the policy echo is. A missing one,
-        # or one that breaks the contract, is absent, never an error: the
-        # sandbox exists.
+        # The lifecycle policy as of the create response, checked as the policy
+        # echo is. A missing one, or one that breaks the contract, is absent,
+        # never an error: the sandbox exists.
         raw_lifecycle = data.get("lifecycle_policy")
         lifecycle_policy = None
         if raw_lifecycle is not None:

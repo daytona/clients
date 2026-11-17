@@ -401,6 +401,11 @@ export interface LifecyclePolicyOptions {
 export interface SandboxLifecycle {
   readonly timeoutSeconds?: number
   readonly onTimeout?: string
+  /**
+   * The current absolute timeout deadline. Starting the sandbox restarts the
+   * countdown, so on a handle `create*()` returned before the sandbox
+   * started, it moves when it starts: `refreshData()` reads the new deadline.
+   */
   readonly timeoutAt?: string
   readonly idleExpirySeconds?: number
   readonly onIdleTimeout?: string
