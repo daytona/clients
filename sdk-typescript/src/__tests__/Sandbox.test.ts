@@ -5,6 +5,7 @@ import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
 import { createApiResponse } from './helpers'
 import type { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
 import { DaytonaQueueTimeoutError, DaytonaSpotEvictedError, DaytonaTimeoutError } from '../errors/DaytonaError'
+import { waitPollIntervalMs } from '../utils/WaitPolling'
 
 jest.mock(
   '@daytona/api-client',
@@ -524,21 +525,32 @@ describe('Sandbox', () => {
     expect(times[0] - start).toBeLessThan(400)
   })
 
-  it('event-streaming mode polls immediately, then at the ~1s safety-net cadence', async () => {
-    const { sandbox } = makeSandbox({ state: 'starting' }, 'sub-1')
-    const times: number[] = []
-    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
-      times.push(Date.now())
-      if (times.length >= 2) {
-        ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
-      }
-    })
+  it('event-backed wait polls immediately, then not again before 4s and again by 6s', async () => {
+    jest.useFakeTimers()
+    try {
+      const { sandbox } = makeSandbox({ state: 'starting' }, 'sub-1')
+      const times: number[] = []
+      jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+        times.push(Date.now())
+        if (times.length >= 2) {
+          ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+        }
+      })
 
-    const start = Date.now()
-    await sandbox.waitUntilStarted(5)
+      const start = Date.now()
+      const wait = sandbox.waitUntilStarted(60)
+      await jest.advanceTimersByTimeAsync(0)
+      expect(times).toEqual([start])
 
-    expect(times[0] - start).toBeLessThan(400)
-    expect(times[1] - times[0]).toBeGreaterThan(800)
+      await jest.advanceTimersByTimeAsync(3999)
+      expect(times).toHaveLength(1)
+
+      await jest.advanceTimersByTimeAsync(2001)
+      await wait
+      expect(times).toHaveLength(2)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('waitUntilStarted rejects promptly when the error state persists after refresh', async () => {
@@ -751,6 +763,7 @@ describe('Sandbox event subscriptions', () => {
   it('delete(wait=true) holds a subscription only for the wait', async () => {
     const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
     sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
+    subscriptionManager.isConnected = false
     jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
       ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('destroyed')
     })
@@ -759,6 +772,201 @@ describe('Sandbox event subscriptions', () => {
 
     expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
     expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+  })
+
+  describe('operations that wait subscribe before their request', () => {
+    const flush = () => new Promise<void>((resolve) => setImmediate(resolve))
+
+    // The read must happen without any timer firing, i.e. as the wait's immediate first poll.
+    const expectImmediateSingleRead = async (start: () => Promise<void>, getSandbox: jest.Mock): Promise<void> => {
+      jest.useFakeTimers()
+      try {
+        const operation = start()
+        await jest.advanceTimersByTimeAsync(0)
+        expect(getSandbox).toHaveBeenCalledTimes(1)
+        await operation
+        expect(getSandbox).toHaveBeenCalledTimes(1)
+      } finally {
+        jest.useRealTimers()
+      }
+    }
+
+    it('stop() with the connection up resolves from the stopped event without any GET', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopping' }))
+
+      const stop = sandbox.stop(5)
+      expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.subscribe.mock.invocationCallOrder[0]).toBeLessThan(
+        sandboxApi.stopSandbox.mock.invocationCallOrder[0],
+      )
+      await flush()
+      subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('stopped'))
+
+      await expect(stop).resolves.toBeUndefined()
+      expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+      expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+    })
+
+    it('stop() with the connection down when the request is sent reads once immediately', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      subscriptionManager.isConnected = false
+      sandboxApi.stopSandbox.mockImplementation(async () => {
+        subscriptionManager.isConnected = true
+        return createApiResponse({ ...baseDto, state: 'stopping' })
+      })
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+    })
+
+    it('stop() reads immediately when a state event arrived during the request', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockImplementation(async () => {
+        subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('stopped'))
+        return createApiResponse({ ...baseDto, state: 'stopping' })
+      })
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
+      expect(sandbox.state).toBe('stopped')
+    })
+
+    it('stop() releases the subscription and propagates the error when the request fails', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      const error = new Error('stop failed')
+      sandboxApi.stopSandbox.mockRejectedValue(error)
+
+      await expect(sandbox.stop(5)).rejects.toBe(error)
+
+      expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+      expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+    })
+
+    it('stop() resolves at once and releases the subscription when the response is the target state', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await sandbox.stop(5)
+
+      expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+      expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+    })
+
+    test.each([
+      [
+        'delete(wait=true)',
+        'deleteSandbox',
+        'destroying',
+        'destroyed',
+        (s: import('../Sandbox').Sandbox) => s.delete(5, true),
+      ],
+      ['pause()', 'pauseSandbox', 'pausing', 'paused', (s: import('../Sandbox').Sandbox) => s.pause(5)],
+      [
+        'resize()',
+        'resizeSandbox',
+        'resizing',
+        'started',
+        (s: import('../Sandbox').Sandbox) => s.resize({ cpu: 4 }, 5),
+      ],
+    ])(
+      '%s skips the immediate read when the subscription was live',
+      async (_name, apiMethod, interim, target, call) => {
+        const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+        sandboxApi[apiMethod] = jest.fn().mockResolvedValue(createApiResponse({ ...baseDto, state: interim }))
+
+        const operation = call(sandbox)
+        expect(subscriptionManager.subscribe).toHaveBeenCalledTimes(1)
+        await flush()
+        subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent(target))
+
+        await expect(operation).resolves.toBeUndefined()
+        expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+        expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+      },
+    )
+
+    it('stop() whose response is already an error state reads immediately and fails at once', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'error' }))
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'error' }))
+
+      jest.useFakeTimers()
+      try {
+        const stop = sandbox.stop(60)
+        const outcome = expect(stop).rejects.toThrow(/error/)
+        await jest.advanceTimersByTimeAsync(0)
+        await outcome
+      } finally {
+        jest.useRealTimers()
+      }
+      expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+    })
+
+    it('fork() with a live connection resolves from the started event without any GET', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.forkSandbox = jest
+        .fn()
+        .mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-fork', state: 'starting' }))
+
+      const fork = sandbox.fork(undefined, 30)
+      await flush()
+      expect(subscriptionManager.subscribe).toHaveBeenCalledWith('sb-fork', expect.any(Function), [
+        'sandbox.state.updated',
+      ])
+      subscribedHandler(subscriptionManager)('sandbox.state.updated', slimStateEvent('started'))
+
+      const forked = await fork
+      expect(forked.id).toBe('sb-fork')
+      expect(forked.state).toBe('started')
+      expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+      expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-1')
+    })
+
+    it('fork() without a live connection reads once immediately', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      subscriptionManager.isConnected = false
+      sandboxApi.forkSandbox = jest
+        .fn()
+        .mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-fork', state: 'starting' }))
+      sandboxApi.getSandbox.mockImplementation(async () => {
+        subscriptionManager.isConnected = true
+        return createApiResponse({ ...baseDto, id: 'sb-fork', state: 'started' })
+      })
+
+      await expectImmediateSingleRead(async () => {
+        await sandbox.fork(undefined, 60)
+      }, sandboxApi.getSandbox)
+      expect(sandboxApi.getSandbox).toHaveBeenCalledWith('sb-fork')
+    })
+
+    it('fork() whose response is already started takes no wait and no subscription', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.forkSandbox = jest
+        .fn()
+        .mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-fork', state: 'started' }))
+
+      await sandbox.fork(undefined, 30)
+
+      expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+      expect(subscriptionManager.subscribe).not.toHaveBeenCalled()
+    })
+
+    it('delete() without wait takes no subscription', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
+
+      await sandbox.delete(5)
+
+      expect(subscriptionManager.subscribe).not.toHaveBeenCalled()
+    })
   })
 
   it('concurrent waits hold independent subscriptions', async () => {
@@ -781,6 +989,8 @@ describe('Sandbox event subscriptions', () => {
     const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
     subscriptionManager.subscribe.mockReturnValueOnce('sub-a').mockReturnValueOnce('sub-b')
     subscriptionManager.refresh.mockReturnValueOnce(false)
+    // Disconnected keeps the second poll at ~1s, well inside the test's time budget.
+    subscriptionManager.isConnected = false
     let calls = 0
     jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
       calls++
@@ -796,40 +1006,18 @@ describe('Sandbox event subscriptions', () => {
     expect(subscriptionManager.unsubscribe).toHaveBeenCalledWith('sub-b')
   })
 
-  it('polls fast while not connected and switches to the safety-net cadence once connected', async () => {
-    const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
-    subscriptionManager.isConnected = false
-    const times: number[] = []
-    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
-      times.push(Date.now())
-      if (times.length === 3) {
-        subscriptionManager.isConnected = true
-      }
-      if (times.length >= 4) {
-        ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
-      }
-    })
-
-    await sandbox.waitUntilStarted(5)
-
-    expect(times).toHaveLength(4)
-    expect(times[1] - times[0]).toBeLessThan(400)
-    expect(times[2] - times[1]).toBeLessThan(400)
-    expect(times[3] - times[2]).toBeGreaterThan(800)
-  })
-
-  it('advances the fast-poll backoff after 5s even while event-backed', async () => {
+  it('polls at ~1s while subscribed but disconnected, then at the event-backed cadence once connected', async () => {
     jest.useFakeTimers()
     try {
       const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+      subscriptionManager.isConnected = false
       const times: number[] = []
       jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
         times.push(Date.now())
-        // Event-backed polls at ~1s for 10s, then the connection drops.
-        if (times.length === 11) {
-          subscriptionManager.isConnected = false
+        if (times.length === 3) {
+          subscriptionManager.isConnected = true
         }
-        if (times.length >= 13) {
+        if (times.length >= 4) {
           ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
         }
       })
@@ -838,14 +1026,99 @@ describe('Sandbox event subscriptions', () => {
       await jest.advanceTimersByTimeAsync(20_000)
       await wait
 
-      expect(times).toHaveLength(13)
-      expect(times[10] - times[9]).toBe(1000)
-      // The fast interval kept growing (x1.1 per poll after 5s) while event-backed,
-      // so the first fast poll after the drop is well above the initial 100ms.
-      expect(times[11] - times[10]).toBeGreaterThan(150)
-      expect(times[11] - times[10]).toBeLessThan(1000)
+      expect(times).toHaveLength(4)
+      for (const gap of [times[1] - times[0], times[2] - times[1]]) {
+        expect(gap).toBeGreaterThanOrEqual(800)
+        expect(gap).toBeLessThanOrEqual(1200)
+      }
+      expect(times[3] - times[2]).toBeGreaterThanOrEqual(4000)
+      expect(times[3] - times[2]).toBeLessThanOrEqual(6000)
     } finally {
       jest.useRealTimers()
     }
+  })
+
+  it('advances the fast-poll backoff after 5s even while event-backed', async () => {
+    jest.useFakeTimers()
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const { sandbox, subscriptionManager } = makeSandbox({ state: 'starting' })
+      const times: number[] = []
+      jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+        times.push(Date.now())
+        // Event-backed polls every 5s for 20s, then the subscription is lost for good.
+        if (times.length === 5) {
+          subscriptionManager.refresh.mockReturnValue(false)
+          subscriptionManager.subscribe.mockReturnValue('')
+        }
+        if (times.length >= 6) {
+          ;(sandbox as unknown as { applyState: (state: string) => void }).applyState('started')
+        }
+      })
+
+      const wait = sandbox.waitUntilStarted(60)
+      await jest.advanceTimersByTimeAsync(30_000)
+      await wait
+
+      expect(times).toHaveLength(6)
+      expect(times[4] - times[3]).toBe(5000)
+      // The fast interval kept growing (x1.1 per poll after 5s) while event-backed,
+      // so the first fast poll after losing the subscription is above the initial 100ms.
+      expect(times[5] - times[4]).toBeGreaterThan(120)
+      expect(times[5] - times[4]).toBeLessThan(1000)
+    } finally {
+      random.mockRestore()
+      jest.useRealTimers()
+    }
+  })
+
+  test.each([
+    ['stop', 'stopSandbox', 'stopped', (s: import('../Sandbox').Sandbox) => s.stop(5)],
+    ['pause', 'pauseSandbox', 'paused', (s: import('../Sandbox').Sandbox) => s.pause(5)],
+    ['archive', 'archiveSandbox', 'archived', (s: import('../Sandbox').Sandbox) => s.archive()],
+  ])('%s applies the returned sandbox without a GET', async (_name, apiMethod, state, call) => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' })
+    sandboxApi[apiMethod] = jest.fn().mockResolvedValue(createApiResponse({ ...baseDto, state }))
+
+    await call(sandbox)
+
+    expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+    expect(sandbox.state).toBe(state)
+  })
+
+  test.each([
+    ['stop', 'stopSandbox', 'stopped', (s: import('../Sandbox').Sandbox) => s.stop(5)],
+    ['pause', 'pauseSandbox', 'paused', (s: import('../Sandbox').Sandbox) => s.pause(5)],
+    ['archive', 'archiveSandbox', 'archived', (s: import('../Sandbox').Sandbox) => s.archive()],
+  ])('%s refreshes once when the response is empty', async (_name, apiMethod, state, call) => {
+    const { sandbox, sandboxApi } = makeSandbox({ state: 'started' })
+    sandboxApi[apiMethod] = jest.fn().mockResolvedValue(createApiResponse(undefined))
+    sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state }))
+
+    await call(sandbox)
+
+    expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+    expect(sandbox.state).toBe(state)
+  })
+})
+
+describe('waitPollIntervalMs', () => {
+  it('uses the fast cadence unchanged and without jitter when not subscribed', () => {
+    const random = jest.fn(() => 0)
+    expect(waitPollIntervalMs(false, false, 100, random)).toBe(100)
+    expect(waitPollIntervalMs(false, true, 133.1, random)).toBe(133.1)
+    expect(random).not.toHaveBeenCalled()
+  })
+
+  it('polls every 5s x jitter when subscribed and connected', () => {
+    expect(waitPollIntervalMs(true, true, 100, () => 0)).toBe(4000)
+    expect(waitPollIntervalMs(true, true, 100, () => 0.5)).toBe(5000)
+    expect(waitPollIntervalMs(true, true, 100, () => 1)).toBe(6000)
+  })
+
+  it('polls every 1s x jitter when subscribed but disconnected', () => {
+    expect(waitPollIntervalMs(true, false, 100, () => 0)).toBe(800)
+    expect(waitPollIntervalMs(true, false, 100, () => 0.5)).toBe(1000)
+    expect(waitPollIntervalMs(true, false, 100, () => 1)).toBe(1200)
   })
 })

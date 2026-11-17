@@ -17,9 +17,18 @@ from daytona.common.errors import (
     DaytonaTimeoutError,
     DaytonaValidationError,
 )
+from daytona.internal import wait_poll
 from daytona_api_client import SandboxState, UpdateSandboxSecrets
 
-from .conftest import make_pydantic_validation_error, make_sandbox_dto
+from .conftest import FakeEventDispatcher, make_pydantic_validation_error, make_sandbox_dto
+
+
+def _polling_only_manager() -> MagicMock:
+    """A manager without event streaming: waits take no subscription and poll at the fast cadence."""
+    manager = MagicMock()
+    manager.subscribe.return_value = ""
+    manager.dispatcher = None
+    return manager
 
 
 def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
@@ -30,7 +39,7 @@ def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         mock_toolbox_api_client,
         mock_sandbox_api,
         "python",
-        subscription_manager=MagicMock(),
+        subscription_manager=_polling_only_manager(),
         http_client=MagicMock(),
     )
 
@@ -576,7 +585,10 @@ class TestSandboxWaitScopedSubscriptions:
         assert sandbox.error_reason is None
         assert sandbox.cpu == 4
 
-    def test_concurrent_waits_hold_independent_subscriptions(self, mock_toolbox_api_client, mock_sandbox_api):
+    def test_concurrent_waits_hold_independent_subscriptions(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        monkeypatch.setattr(wait_poll, "EVENT_BACKED_POLL_INTERVAL", 0.01)
         manager = _subscription_manager()
         sandbox = _make_with_manager(
             make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api, manager
@@ -604,9 +616,7 @@ class TestSandboxWaitScopedSubscriptions:
     def test_expired_subscription_is_renewed_during_a_long_wait(
         self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
     ):
-        from daytona._sync import sandbox as sandbox_module
-
-        monkeypatch.setattr(sandbox_module, "_EVENT_BACKED_POLL_INTERVAL", 0.01)
+        monkeypatch.setattr(wait_poll, "EVENT_BACKED_POLL_INTERVAL", 0.01)
         manager = _subscription_manager()
         manager.refresh.side_effect = lambda sub_id: sub_id != "sub-1"
         sandbox = _make_with_manager(
@@ -623,25 +633,8 @@ class TestSandboxWaitScopedSubscriptions:
         manager.unsubscribe.assert_called_once_with("sub-2")
 
     def test_poll_cadence_follows_the_event_connection(self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch):
-        from daytona._sync import sandbox as sandbox_module
-
-        poll_intervals: list[float] = []
-
-        class RecordingEvent(threading.Event):
-            def wait(self, timeout: float | None = None) -> bool:
-                if timeout is not None:
-                    poll_intervals.append(timeout)
-                return super().wait(0)
-
-        class RecordingThreading:
-            """Proxy for the sandbox module's ``threading`` that records poll intervals instead of sleeping."""
-
-            Event = RecordingEvent
-
-            def __getattr__(self, name: str):
-                return getattr(threading, name)
-
-        monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
         manager = _subscription_manager(connected=False)
         sandbox = _make_with_manager(
             make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api, manager
@@ -661,9 +654,164 @@ class TestSandboxWaitScopedSubscriptions:
 
         sandbox.wait_for_sandbox_start(timeout=0)
 
-        fast = sandbox_module._FAST_POLL_INTERVAL
-        backed = sandbox_module._EVENT_BACKED_POLL_INTERVAL
-        assert poll_intervals == [fast, fast, backed, backed, fast]
+        assert [interval for interval, _ in poll_intervals] == pytest.approx([1.0, 1.0, 5.0, 5.0, 1.0])
+
+    @pytest.mark.parametrize(("random_value", "expected_interval"), [(0.0, 4.0), (1.0, 6.0)])
+    def test_event_backed_wait_polls_again_only_after_four_to_six_seconds(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, random_value, expected_interval
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch, mock_sandbox_api)
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: random_value)
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_toolbox_api_client,
+            mock_sandbox_api,
+            _subscription_manager(connected=True),
+        )
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_sandbox_dto(state=SandboxState.STARTING),
+            make_sandbox_dto(state=SandboxState.STARTED),
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        # One immediate poll, then nothing until the jittered 5 s interval elapses.
+        assert poll_intervals == [(pytest.approx(expected_interval), 1)]
+        assert mock_sandbox_api.get_sandbox.call_count == 2
+
+    @pytest.mark.parametrize(("random_value", "expected_interval"), [(0.0, 0.8), (1.0, 1.2)])
+    def test_subscribed_wait_without_connection_polls_about_every_second(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, random_value, expected_interval
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: random_value)
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING),
+            mock_toolbox_api_client,
+            mock_sandbox_api,
+            _subscription_manager(connected=False),
+        )
+        mock_sandbox_api.get_sandbox.side_effect = [make_sandbox_dto(state=SandboxState.STARTING)] * 3 + [
+            make_sandbox_dto()
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert [interval for interval, _ in poll_intervals] == pytest.approx([expected_interval] * 3)
+
+    def test_unsubscribed_wait_keeps_the_fast_cadence(self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 1.0)
+        manager = _subscription_manager(connected=True)
+        manager.subscribe.side_effect = None
+        manager.subscribe.return_value = ""
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api, manager
+        )
+        mock_sandbox_api.get_sandbox.side_effect = [make_sandbox_dto(state=SandboxState.STARTING)] * 3 + [
+            make_sandbox_dto()
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert [interval for interval, _ in poll_intervals] == [wait_poll.FAST_POLL_INTERVAL] * 3
+
+
+def _record_poll_intervals(monkeypatch, sandbox_api: MagicMock | None = None) -> list[tuple[float, int]]:
+    """Makes the wait loop record (poll interval, refreshes so far) instead of sleeping."""
+    from daytona._sync import sandbox as sandbox_module
+
+    poll_intervals: list[tuple[float, int]] = []
+
+    class RecordingEvent(threading.Event):
+        def wait(self, timeout: float | None = None) -> bool:
+            if timeout is not None:
+                refreshes = sandbox_api.get_sandbox.call_count if sandbox_api is not None else -1
+                poll_intervals.append((timeout, refreshes))
+            return super().wait(0)
+
+    class RecordingThreading:
+        """Proxy for the sandbox module's ``threading`` that records poll intervals instead of sleeping."""
+
+        Event = RecordingEvent
+
+        def __getattr__(self, name: str):
+            return getattr(threading, name)
+
+    monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+    return poll_intervals
+
+
+class TestSandboxOperationResponses:
+    def test_stop_applies_the_returned_sandbox_without_a_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.stop(timeout=0)
+
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_stop_without_a_returned_sandbox_refreshes_once(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.stop_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.stop(timeout=0)
+
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_stop_without_a_returned_sandbox_keeps_the_safe_refresh(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.stop_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_pydantic_validation_error(),
+            make_sandbox_dto(state=SandboxState.STOPPED),
+        ]
+
+        sandbox.stop(timeout=0)
+
+        assert mock_sandbox_api.get_sandbox.call_count == 2
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_pause_applies_the_returned_sandbox_without_a_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.pause_sandbox.return_value = make_sandbox_dto(state=SandboxState.PAUSED)
+
+        sandbox.pause(timeout=0)
+
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.PAUSED
+
+    def test_pause_without_a_returned_sandbox_refreshes_once(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.pause_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.PAUSED)
+
+        sandbox.pause(timeout=0)
+
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert sandbox.state == SandboxState.PAUSED
+
+    def test_archive_applies_the_returned_sandbox_without_a_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STOPPED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.archive_sandbox.return_value = make_sandbox_dto(state=SandboxState.ARCHIVING)
+
+        sandbox.archive()
+
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.ARCHIVING
+
+    def test_archive_without_a_returned_sandbox_refreshes_once(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STOPPED), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.archive_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.ARCHIVING)
+
+        sandbox.archive(request_timeout=30)
+
+        mock_sandbox_api.get_sandbox.assert_called_once_with("test-sandbox-id", _request_timeout=30.0)
+        assert sandbox.state == SandboxState.ARCHIVING
 
 
 def _wait_until(condition, timeout: float = 5.0) -> bool:
@@ -673,3 +821,281 @@ def _wait_until(condition, timeout: float = 5.0) -> bool:
             return True
         time.sleep(0.01)
     return condition()
+
+
+def _state_event(state: str) -> dict[str, object]:
+    return {"sandbox": {"id": "test-sandbox-id", "state": state}, "newState": state}
+
+
+def _deliver_once_waiting(manager: MagicMock, state: str) -> threading.Thread:
+    """Sends a state event from another thread, as the dispatcher does, once the wait polls."""
+
+    def deliver() -> None:
+        if _wait_until(lambda: manager.refresh.called):
+            manager.subscribe.call_args.args[1]("sandbox.state.updated", _state_event(state))
+
+    sender = threading.Thread(target=deliver)
+    sender.start()
+    return sender
+
+
+class TestSandboxSubscribeBeforeRequest:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    def _sandbox(self, toolbox_api, sandbox_api, manager, state=SandboxState.STARTED):
+        sandbox = _make_with_manager(make_sandbox_dto(state=state), toolbox_api, sandbox_api, manager)
+        sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=state)
+        return sandbox
+
+    @staticmethod
+    def _respond(manager: MagicMock, state: SandboxState, subscribed_before: list[bool]):
+        def respond(*_args, **_kwargs):
+            subscribed_before.append(manager.subscribe.called)
+            return make_sandbox_dto(state=state)
+
+        return respond
+
+    def test_stop_with_live_events_makes_no_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        subscribed_before: list[bool] = []
+        mock_sandbox_api.stop_sandbox.side_effect = self._respond(manager, SandboxState.STOPPING, subscribed_before)
+
+        sender = _deliver_once_waiting(manager, "stopped")
+        sandbox.stop(timeout=5)
+        sender.join(timeout=5)
+
+        assert subscribed_before == [True]
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.STOPPED
+        manager.subscribe.assert_called_once()
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_stop_with_events_down_reads_once(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=False)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        subscribed_before: list[bool] = []
+        mock_sandbox_api.stop_sandbox.side_effect = self._respond(manager, SandboxState.STOPPING, subscribed_before)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.stop(timeout=5)
+
+        assert subscribed_before == [True]
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_state_event_during_the_request_forces_the_first_read(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+
+        def stop_sandbox(*_args, **_kwargs):
+            # The event overtakes the response (on the dispatcher's thread), which then carries the older state.
+            sender = threading.Thread(
+                target=manager.subscribe.call_args.args[1], args=("sandbox.state.updated", _state_event("stopped"))
+            )
+            sender.start()
+            sender.join()
+            return make_sandbox_dto(state=SandboxState.STOPPING)
+
+        mock_sandbox_api.stop_sandbox.side_effect = stop_sandbox
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.stop(timeout=5)
+
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_failed_stop_request_releases_the_subscription(self, mock_toolbox_api_client, mock_sandbox_api):
+        from daytona.internal.event_subscription_manager import SyncEventSubscriptionManager
+
+        dispatcher = FakeEventDispatcher(connected=True)
+        manager = SyncEventSubscriptionManager(dispatcher)  # pyright: ignore[reportArgumentType]
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        listeners_during_request: list[int] = []
+
+        def stop_sandbox(*_args, **_kwargs):
+            listeners_during_request.append(len(dispatcher.listeners.get("test-sandbox-id", [])))
+            raise RuntimeError("stop rejected")
+
+        mock_sandbox_api.stop_sandbox.side_effect = stop_sandbox
+
+        try:
+            with pytest.raises(DaytonaError, match="stop rejected") as exc_info:
+                sandbox.stop(timeout=5)
+        finally:
+            manager.shutdown()
+
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+        assert listeners_during_request == [1]
+        assert dispatcher.sent == [("subscribe", "test-sandbox-id"), ("unsubscribe", "test-sandbox-id")]
+        mock_sandbox_api.get_sandbox.assert_not_called()
+
+    def test_failed_stop_request_keeps_other_listeners(self, mock_toolbox_api_client, mock_sandbox_api):
+        from daytona.internal.event_subscription_manager import SyncEventSubscriptionManager
+
+        dispatcher = FakeEventDispatcher(connected=True)
+        manager = SyncEventSubscriptionManager(dispatcher)  # pyright: ignore[reportArgumentType]
+        _ = manager.subscribe("test-sandbox-id", lambda *_: None, events=["sandbox.state.updated"])
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.side_effect = RuntimeError("stop rejected")
+
+        try:
+            with pytest.raises(DaytonaError, match="stop rejected"):
+                sandbox.stop(timeout=5)
+            assert len(dispatcher.listeners["test-sandbox-id"]) == 1
+            assert dispatcher.sent == [("subscribe", "test-sandbox-id")]
+        finally:
+            manager.shutdown()
+
+    def test_stop_response_in_the_target_state_releases_the_subscription(
+        self, mock_toolbox_api_client, mock_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        subscribed_before: list[bool] = []
+        mock_sandbox_api.stop_sandbox.side_effect = self._respond(manager, SandboxState.STOPPED, subscribed_before)
+
+        sandbox.stop(timeout=5)
+
+        assert subscribed_before == [True]
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        manager.refresh.assert_not_called()
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_delete_and_wait_with_live_events_makes_no_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        subscribed_before: list[bool] = []
+        mock_sandbox_api.delete_sandbox.side_effect = self._respond(manager, SandboxState.DESTROYING, subscribed_before)
+
+        sender = _deliver_once_waiting(manager, "destroyed")
+        sandbox.delete(timeout=5, wait=True)
+        sender.join(timeout=5)
+
+        assert subscribed_before == [True]
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.DESTROYED
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_delete_without_wait_takes_no_subscription(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.delete_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYING)
+
+        sandbox.delete(timeout=5)
+
+        manager.subscribe.assert_not_called()
+        mock_sandbox_api.get_sandbox.assert_not_called()
+
+    def test_pause_with_live_events_makes_no_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        subscribed_before: list[bool] = []
+        mock_sandbox_api.pause_sandbox.side_effect = self._respond(manager, SandboxState.PAUSING, subscribed_before)
+
+        sender = _deliver_once_waiting(manager, "paused")
+        sandbox.pause(timeout=5)
+        sender.join(timeout=5)
+
+        assert subscribed_before == [True]
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.PAUSED
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_resize_with_live_events_makes_no_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        from daytona.common.sandbox import Resources
+
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        subscribed_before: list[bool] = []
+        mock_sandbox_api.resize_sandbox.side_effect = self._respond(manager, SandboxState.RESIZING, subscribed_before)
+
+        sender = _deliver_once_waiting(manager, "started")
+        sandbox.resize(Resources(cpu=2), timeout=5)
+        sender.join(timeout=5)
+
+        assert subscribed_before == [True]
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        assert sandbox.state == SandboxState.STARTED
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_stop_error_response_reads_first_and_fails_at_once(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.ERROR)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.ERROR)
+
+        with pytest.raises(DaytonaError, match="entered error state"):
+            sandbox.stop(timeout=5)
+
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @staticmethod
+    def _fork_dto(state: SandboxState):
+        return make_sandbox_dto(sandbox_id="forked-id", state=state, toolbox_proxy_url="http://forked:2280")
+
+    def test_live_fork_makes_no_get(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.fork_sandbox.return_value = self._fork_dto(SandboxState.FORKING)
+
+        sender = _deliver_once_waiting(manager, "started")
+        forked = sandbox.fork(timeout=5)
+        sender.join(timeout=5)
+
+        assert forked.state == SandboxState.STARTED
+        assert manager.subscribe.call_args.args[0] == "forked-id"
+        mock_sandbox_api.get_sandbox.assert_not_called()
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_fork_without_live_events_reads_once(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=False)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.fork_sandbox.return_value = self._fork_dto(SandboxState.FORKING)
+        mock_sandbox_api.get_sandbox.return_value = self._fork_dto(SandboxState.STARTED)
+
+        forked = sandbox.fork(timeout=5)
+
+        assert forked.state == SandboxState.STARTED
+        mock_sandbox_api.get_sandbox.assert_called_once_with("forked-id", _request_timeout=None)
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_started_fork_takes_no_wait(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.fork_sandbox.return_value = self._fork_dto(SandboxState.STARTED)
+
+        forked = sandbox.fork(timeout=5)
+
+        assert forked.state == SandboxState.STARTED
+        manager.subscribe.assert_not_called()
+        mock_sandbox_api.get_sandbox.assert_not_called()
+
+    def test_public_wait_keeps_its_first_read(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager, SandboxState.STOPPING)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.wait_for_sandbox_stop(timeout=5)
+
+        mock_sandbox_api.get_sandbox.assert_called_once()
+
+    def test_state_events_from_many_threads_are_all_counted(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, _subscription_manager())
+        senders = [
+            threading.Thread(
+                target=lambda: [
+                    sandbox._handle_event("sandbox.state.updated", _state_event("started")) for _ in range(500)
+                ]
+            )
+            for _ in range(8)
+        ]
+        for sender in senders:
+            sender.start()
+        for sender in senders:
+            sender.join()
+
+        assert sandbox._read_state_event_count() == 4000

@@ -204,6 +204,8 @@ module Daytona
     def initialize(sandbox_dto:, config:, sandbox_api:, subscription_manager:, otel_state: nil, analytics_api_url_provider: nil) # rubocop:disable Metrics/MethodLength
       @state_waiters = []
       @waiter_mutex = Mutex.new
+      # State events received; handlers run on the event connection's thread. Guarded by @waiter_mutex.
+      @state_event_count = 0
       process_response(sandbox_dto)
       @config = config
       @sandbox_api = sandbox_api
@@ -268,8 +270,7 @@ module Daytona
     #
     # @return [void]
     def archive
-      sandbox_api.archive_sandbox(id)
-      refresh
+      apply_operation_response(sandbox_api.archive_sandbox(id))
     end
 
     # Sets the auto-archive interval for the Sandbox.
@@ -417,40 +418,25 @@ module Daytona
     #   Only meaningful when +wait+ is true.
     # @param wait [Boolean] When +true+, block until the Sandbox is destroyed.
     # @return [void]
-    def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+    def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/MethodLength
+      return delete_and_wait(timeout) if wait
+
       begin
-        process_response(sandbox_api.delete_sandbox(id))
+        sandbox_dto = sandbox_api.delete_sandbox(id)
+      rescue DaytonaApiClient::ApiError => e
+        raise unless e.code == 404
+
+        return apply_state(DaytonaApiClient::SandboxState::DESTROYED)
+      end
+      return process_response(sandbox_dto) if sandbox_dto
+
+      # Older servers return no sandbox.
+      begin
+        refresh
       rescue DaytonaApiClient::ApiError => e
         raise unless e.code == 404
 
         apply_state(DaytonaApiClient::SandboxState::DESTROYED)
-      end
-
-      if wait
-        refresh_data_safe
-      else
-        begin
-          refresh
-        rescue DaytonaApiClient::ApiError => e
-          raise unless e.code == 404
-
-          apply_state(DaytonaApiClient::SandboxState::DESTROYED)
-        end
-        return
-      end
-      return if state.to_s == DaytonaApiClient::SandboxState::DESTROYED.to_s
-
-      with_timeout(
-        timeout:,
-        message: "Sandbox #{id} failed to be destroyed within the #{timeout} seconds timeout period",
-        setup: nil
-      ) do |deadline|
-        wait_for_state(
-          target_states: [DaytonaApiClient::SandboxState::DESTROYED],
-          error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-          safe_refresh: true,
-          deadline:
-        )
       end
     end
 
@@ -735,14 +721,13 @@ module Daytona
     # @param force [Boolean] If true, uses SIGKILL instead of SIGTERM (defaults to false).
     # @return [void]
     def stop(timeout = DEFAULT_TIMEOUT, force: false)
-      with_timeout(
-        timeout:,
-        message: "Sandbox #{id} failed to become stopped within the #{timeout} seconds timeout period",
-        setup: proc {
-          sandbox_api.stop_sandbox(id, { force: force })
-          refresh
-        }
-      ) { |deadline| wait_for_stop(deadline) }
+      with_operation_subscription do |subscription|
+        with_timeout(
+          timeout:,
+          message: "Sandbox #{id} failed to become stopped within the #{timeout} seconds timeout period",
+          setup: proc { apply_operation_response(sandbox_api.stop_sandbox(id, { force: force })) }
+        ) { |deadline| wait_for_stop(deadline, subscription:) }
+      end
     end
 
     # Resizes the Sandbox resources.
@@ -770,20 +755,22 @@ module Daytona
               'Resize does not support changes to gpu or gpu_type — to change GPU, create a new sandbox'
       end
 
-      with_timeout(
-        timeout:,
-        message: "Sandbox #{id} failed to resize within the #{timeout} seconds timeout period",
-        setup: proc {
-          resize_attrs = {}
-          resize_attrs[:cpu] = resources.cpu if resources.cpu
-          resize_attrs[:memory] = resources.memory if resources.memory
-          resize_attrs[:disk] = resources.disk if resources.disk
-          resize_request = DaytonaApiClient::ResizeSandbox.new(resize_attrs)
-          process_response(sandbox_api.resize_sandbox(id, resize_request))
-        }
-      ) do |deadline|
-        # Under the resize deadline, but recorded as the wait_for_resize_complete call that it replaces.
-        instrument_as(:wait_for_resize_complete, component: 'Sandbox') { wait_for_resize(deadline) }
+      resize_request = DaytonaApiClient::ResizeSandbox.new(resources.to_h.slice(:cpu, :memory, :disk).compact)
+
+      with_operation_subscription do |subscription|
+        with_timeout(
+          timeout:,
+          message: "Sandbox #{id} failed to resize within the #{timeout} seconds timeout period",
+          setup: proc {
+            sandbox_dto = sandbox_api.resize_sandbox(id, resize_request)
+            # Without a sandbox in the response the cached state is older than the request.
+            subscription[:live] = false if sandbox_dto.nil?
+            process_response(sandbox_dto)
+          }
+        ) do |deadline|
+          # Under the resize deadline, but recorded as the wait_for_resize_complete call that it replaces.
+          instrument_as(:wait_for_resize_complete, component: 'Sandbox') { wait_for_resize(deadline, subscription:) }
+        end
       end
     end
 
@@ -872,7 +859,7 @@ module Daytona
           analytics_api_url_provider: @analytics_api_url_provider
         )
         # Under the fork deadline, but recorded as the wait_for_sandbox_start call that it replaces.
-        instrument_as(:wait_for_sandbox_start, component: 'Sandbox') { forked.wait_for_start(deadline) }
+        instrument_as(:wait_for_sandbox_start, component: 'Sandbox') { forked.wait_for_start_after_fork(deadline) }
         return forked
       end
     end
@@ -917,19 +904,16 @@ module Daytona
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s)
     # @return [void]
     def pause(timeout: DEFAULT_TIMEOUT)
-      with_timeout(
-        timeout:,
-        message: "Sandbox #{id} failed to pause within the #{timeout} seconds timeout period",
-        setup: proc {
-          sandbox_api.pause_sandbox(id)
-          refresh
-        }
-      ) do |deadline|
-        error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
-        exclude = [DaytonaApiClient::SandboxState::PAUSING] + error_states
-        target_states = DaytonaApiClient::SandboxState.all_vars.reject { |s| exclude.include?(s) }
+      error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
+      exclude = [DaytonaApiClient::SandboxState::PAUSING] + error_states
+      target_states = DaytonaApiClient::SandboxState.all_vars.reject { |s| exclude.include?(s) }
 
-        wait_for_state(target_states:, error_states:, deadline:)
+      with_operation_subscription do |subscription|
+        with_timeout(
+          timeout:,
+          message: "Sandbox #{id} failed to pause within the #{timeout} seconds timeout period",
+          setup: proc { apply_operation_response(sandbox_api.pause_sandbox(id)) }
+        ) { |deadline| wait_for_state(target_states:, error_states:, deadline:, subscription:) }
       end
     end
 
@@ -952,13 +936,26 @@ module Daytona
     # can wait for the forked Sandbox under its own deadline.
     #
     # @param deadline [WaitDeadline, nil]
+    # @param subscription [Hash, nil] See #wait_for_state
     # @return [void]
-    def wait_for_start(deadline)
+    def wait_for_start(deadline, subscription: nil)
       wait_for_state(
         target_states: [DaytonaApiClient::SandboxState::STARTED],
         error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-        deadline:
+        deadline:,
+        subscription:
       )
+    end
+
+    # #wait_for_start for a Sandbox just returned by #fork. The fork endpoint returns before the fork starts,
+    # so a subscription taken now sees the transition and the wait can skip its first read.
+    #
+    # @param deadline [WaitDeadline, nil]
+    # @return [void]
+    def wait_for_start_after_fork(deadline)
+      return if state.to_s == DaytonaApiClient::SandboxState::STARTED.to_s
+
+      with_operation_subscription { |subscription| wait_for_start(deadline, subscription:) }
     end
 
     private
@@ -1209,29 +1206,54 @@ module Daytona
     # @param safe_refresh [Boolean] If true, use refresh_data_safe for polling (swallows transient errors).
     # @param deadline [WaitDeadline, nil] Raise Sdk::TimeoutError with its message once it passes; nil waits
     #   without a limit.
+    # @param subscription [Hash, nil] Taken by #with_operation_subscription; the wait releases it on
+    #   every exit. nil subscribes here.
     # @return [void]
     # @raise [Daytona::Sdk::Error]
-    def wait_for_state(target_states:, error_states:, safe_refresh: false, deadline: nil)
-      # Already there: nothing to wait for, so no subscription (and no event connection) is needed.
-      return if target_states.map(&:to_s).include?(state.to_s)
-
-      subscription = { id: nil }
+    def wait_for_state(target_states:, error_states:, safe_refresh: false, deadline: nil, subscription: nil)
+      owned = subscription || { id: nil }
       # The wait runs inside Timeout.timeout, whose exception can arrive at any point. Taking and releasing the
       # subscription defers it, so it can never land halfway and leak the subscription; only the polling can
       # be interrupted.
       Thread.handle_interrupt(Object => :never) do
-        subscription[:id] = subscribe_to_state_events
+        # Already there: nothing to wait for, so no subscription (and no event connection) is needed.
+        return if target_states.map(&:to_s).include?(state.to_s)
+
+        owned[:id] = subscribe_to_state_events unless subscription
         Thread.handle_interrupt(Object => :immediate) do
-          poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription:)
+          poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription: owned)
         end
       ensure
-        unsubscribe_from_state_events(subscription[:id])
+        release_state_subscription(owned)
       end
     end
 
-    # The body of #wait_for_state. Polls every MAX_POLL_INTERVAL as a safety net while state events can
-    # arrive (the wait holds a subscription and the event connection is up), faster otherwise; re-evaluated
-    # after every poll.
+    # Takes the state subscription of the wait that follows an operation on this Sandbox: before the
+    # operation's request, or right after it for a new Sandbox (fork). Every later state change arrives as an
+    # event, so the wait can skip its first read. Released when the block exits, if the wait has not released
+    # it already.
+    #
+    # @yieldparam subscription [Hash] { id:, live:, state_events: } for #wait_for_state
+    def with_operation_subscription
+      subscription = { id: nil, live: false, state_events: nil }
+      Thread.handle_interrupt(Object => :never) do
+        subscription[:id] = subscribe_to_state_events
+        subscription[:live] = !subscription[:id].nil? && @subscription_manager.connected?
+        subscription[:state_events] = @waiter_mutex.synchronize { @state_event_count }
+        Thread.handle_interrupt(Object => :immediate) { yield subscription }
+      ensure
+        release_state_subscription(subscription)
+      end
+    end
+
+    # @param subscription [Hash] { id: String, nil }
+    def release_state_subscription(subscription)
+      unsubscribe_from_state_events(subscription[:id])
+      subscription[:id] = nil
+    end
+
+    # The body of #wait_for_state. Polls immediately (unless #skip_first_read? says the operation's response
+    # stands in for that read), then at the interval #next_poll_interval picks, re-evaluated after every poll.
     #
     # @param subscription [Hash] { id: String, nil } The wait's event subscription, renewed after every poll
     def poll_for_state(target_states:, error_states:, safe_refresh:, deadline:, subscription:) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/AbcSize
@@ -1259,15 +1281,26 @@ module Daytona
         end
       }
 
-      @waiter_mutex.synchronize do
+      state_event_count = @waiter_mutex.synchronize do
         @state_waiters << waiter
 
         current_state = state.to_s
         result_state = current_state if target_strings.include?(current_state)
+        @state_event_count
       end
 
       begin
         first_poll = true
+        if !result_state && skip_first_read?(subscription, state_event_count, target_strings:, error_strings:)
+          first_poll = false
+          raise_destroyed_lifecycle_error_if_needed(target_strings)
+          mutex.synchronize do
+            current = state.to_s
+            result_state ||= current if error_strings.include?(current)
+          end
+          poll_interval = next_poll_interval(subscription:, fast_poll_interval:)
+        end
+
         until mutex.synchronize { result_state }
           unless first_poll
             should_refresh = mutex.synchronize do
@@ -1294,7 +1327,7 @@ module Daytona
 
           fast_poll_interval = next_fast_poll_interval(current_interval: fast_poll_interval, started_at:)
           renew_state_subscription(subscription)
-          poll_interval = event_backed?(subscription) ? MAX_POLL_INTERVAL : fast_poll_interval
+          poll_interval = next_poll_interval(subscription:, fast_poll_interval:)
         end
 
         if result_state && error_strings.include?(result_state)
@@ -1429,10 +1462,43 @@ module Daytona
     end
 
     # @param subscription [Hash] { id: String, nil }
-    # @return [Boolean] Whether state events can arrive: the wait holds a subscription and the event
-    #   connection is up
-    def event_backed?(subscription)
-      !subscription[:id].nil? && @subscription_manager.connected?
+    # @param fast_poll_interval [Float] The polling-only cadence, used as is when the wait holds no subscription
+    # @return [Float] Seconds until the next poll
+    def next_poll_interval(subscription:, fast_poll_interval:)
+      return fast_poll_interval unless subscription[:id]
+
+      interval = @subscription_manager.connected? ? EVENT_BACKED_POLL_INTERVAL : SUBSCRIBED_POLL_INTERVAL
+      interval * (1 + (POLL_JITTER * ((2 * poll_jitter_random) - 1)))
+    end
+
+    # @return [Float] Uniform in [0, 1); stubbed in specs
+    def poll_jitter_random = rand
+
+    # Whether the operation's response (or the refresh standing in for it) can replace a wait's first read:
+    # the subscription was live when taken, the connection is still up, no state event arrived since (it may
+    # be newer than the response that overwrote it), and the response does not fail the wait (read again at
+    # once, so it fails as fast as before).
+    #
+    # @param subscription [Hash] { id:, live:, state_events: }; a wait's own subscription has no :live
+    # @param state_event_count [Integer] The Sandbox's state-event count when the wait started
+    # @param target_strings [Array<String>]
+    # @param error_strings [Array<String>]
+    # @return [Boolean]
+    def skip_first_read?(subscription, state_event_count, target_strings:, error_strings:)
+      current = state.to_s
+      return false if error_strings.include?(current)
+      return false if current == DaytonaApiClient::SandboxState::DESTROYED.to_s && !target_strings.include?(current)
+
+      subscription[:live] == true && !subscription[:id].nil? && @subscription_manager.connected? &&
+        subscription[:state_events] == state_event_count
+    end
+
+    # Older servers return no sandbox from an operation; only then is a refresh needed.
+    #
+    # @param sandbox_dto [DaytonaApiClient::Sandbox, nil]
+    # @return [void]
+    def apply_operation_response(sandbox_dto)
+      sandbox_dto.nil? ? refresh : process_response(sandbox_dto)
     end
 
     # Accepts both the full and the slim state payload: { sandbox: { id, state, ... }, oldState, newState }.
@@ -1443,7 +1509,10 @@ module Daytona
       return unless raw.is_a?(Hash)
 
       new_state = raw['state'] || data['newState']
-      apply_state(new_state) if new_state
+      return unless new_state
+
+      @waiter_mutex.synchronize { @state_event_count += 1 }
+      apply_state(new_state)
     rescue StandardError
       nil
     end
@@ -1463,6 +1532,19 @@ module Daytona
 
     MAX_POLL_INTERVAL = 1.0
     private_constant :MAX_POLL_INTERVAL
+
+    # State events drive event-backed waits; polling is only a safety net.
+    EVENT_BACKED_POLL_INTERVAL = 5.0
+    private_constant :EVENT_BACKED_POLL_INTERVAL
+
+    # Keeps GET load at the polling-only steady state while the event connection is down, instead of the
+    # fast start-up cadence.
+    SUBSCRIBED_POLL_INTERVAL = 1.0
+    private_constant :SUBSCRIBED_POLL_INTERVAL
+
+    # Spreads safety-net polls of concurrent waits apart.
+    POLL_JITTER = 0.2
+    private_constant :POLL_JITTER
 
     BACKOFF_MULTIPLIER = 1.1
     private_constant :BACKOFF_MULTIPLIER
@@ -1488,20 +1570,53 @@ module Daytona
     end
     private_constant :WaitDeadline
 
-    def wait_for_stop(deadline)
+    def wait_for_stop(deadline, subscription: nil)
       wait_for_state(
         target_states: [DaytonaApiClient::SandboxState::STOPPED, DaytonaApiClient::SandboxState::DESTROYED],
         error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
-        deadline:
+        deadline:,
+        subscription:
       )
     end
 
-    def wait_for_resize(deadline)
+    def wait_for_resize(deadline, subscription: nil)
       error_states = [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED]
       exclude = [DaytonaApiClient::SandboxState::RESIZING] + error_states
       target_states = DaytonaApiClient::SandboxState.all_vars.reject { |s| exclude.include?(s) }
 
-      wait_for_state(target_states:, error_states:, deadline:)
+      wait_for_state(target_states:, error_states:, deadline:, subscription:)
+    end
+
+    # #delete with +wait: true+.
+    #
+    # @param timeout [Numeric]
+    # @return [void]
+    def delete_and_wait(timeout) # rubocop:disable Metrics/MethodLength
+      with_operation_subscription do |subscription|
+        begin
+          sandbox_dto = sandbox_api.delete_sandbox(id)
+          # Older servers return no sandbox; the refresh taken after the subscription stands in for it.
+          sandbox_dto.nil? ? refresh_data_safe : process_response(sandbox_dto)
+        rescue DaytonaApiClient::ApiError => e
+          raise unless e.code == 404
+
+          apply_state(DaytonaApiClient::SandboxState::DESTROYED)
+        end
+
+        with_timeout(
+          timeout:,
+          message: "Sandbox #{id} failed to be destroyed within the #{timeout} seconds timeout period",
+          setup: nil
+        ) do |deadline|
+          wait_for_state(
+            target_states: [DaytonaApiClient::SandboxState::DESTROYED],
+            error_states: [DaytonaApiClient::SandboxState::ERROR, DaytonaApiClient::SandboxState::BUILD_FAILED],
+            safe_refresh: true,
+            deadline:,
+            subscription:
+          )
+        end
+      end
     end
 
     def wait_for_snapshot_complete(deadline)

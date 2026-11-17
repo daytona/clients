@@ -15,6 +15,7 @@ import (
 
 	apiclient "github.com/daytona/clients/api-client-go"
 	"github.com/daytona/clients/sdk-go/pkg/common"
+	"github.com/daytona/clients/sdk-go/pkg/errors"
 	"github.com/daytona/clients/sdk-go/pkg/types"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +32,13 @@ type eventTestServer struct {
 
 	// handshakeDelay delays accepting socket connections.
 	handshakeDelay time.Duration
+	// rejectSockets fails every socket connection attempt.
+	rejectSockets bool
+	// operation, if set, answers every request other than a GET.
+	operation http.HandlerFunc
+
+	writeMu sync.Mutex
+	conn    *websocket.Conn
 
 	mu             sync.Mutex
 	state          apiclient.SandboxState
@@ -49,7 +57,12 @@ func newEventTestServer(t *testing.T, state apiclient.SandboxState, handshakeDel
 		if strings.HasPrefix(r.URL.Path, "/socket.io") {
 			s.mu.Lock()
 			s.socketAttempts++
+			reject := s.rejectSockets
 			s.mu.Unlock()
+			if reject {
+				http.Error(w, "unavailable", http.StatusServiceUnavailable)
+				return
+			}
 			time.Sleep(s.handshakeDelay)
 			s.serveSocket(upgrader, w, r)
 			return
@@ -57,10 +70,16 @@ func newEventTestServer(t *testing.T, state apiclient.SandboxState, handshakeDel
 
 		s.mu.Lock()
 		state := s.state
+		operation := s.operation
 		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/sandbox/") {
 			s.getTimes = append(s.getTimes, time.Now())
 		}
 		s.mu.Unlock()
+
+		if operation != nil && r.Method != http.MethodGet {
+			operation(w, r)
+			return
+		}
 
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/sandbox":
@@ -96,6 +115,9 @@ func (s *eventTestServer) serveSocket(upgrader websocket.Upgrader, w http.Respon
 	s.connected = true
 	s.connectedAt = time.Now()
 	s.mu.Unlock()
+	s.writeMu.Lock()
+	s.conn = conn
+	s.writeMu.Unlock()
 
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -119,6 +141,38 @@ func (s *eventTestServer) serveSocket(upgrader websocket.Upgrader, w http.Respon
 		s.received = append(s.received, name+":"+strings.Join(payload.SandboxIDs, ","))
 		s.mu.Unlock()
 	}
+}
+
+func (s *eventTestServer) setOperation(operation http.HandlerFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.operation = operation
+}
+
+// emitState sends a sandbox.state.updated event for the test sandbox over the
+// current socket connection. Safe to call from handler goroutines.
+func (s *eventTestServer) emitState(oldState, newState apiclient.SandboxState) {
+	s.t.Helper()
+	payload, err := json.Marshal(map[string]any{
+		"sandbox":  map[string]any{"id": eventTestSandboxID, "state": newState},
+		"oldState": oldState,
+		"newState": newState,
+	})
+	if !assert.NoError(s.t, err) {
+		return
+	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if !assert.NotNil(s.t, s.conn, "no socket connection") {
+		return
+	}
+	assert.NoError(s.t, s.conn.WriteMessage(websocket.TextMessage, []byte(`42["sandbox.state.updated",`+string(payload)+`]`)))
+}
+
+func (s *eventTestServer) gets() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.getTimes)
 }
 
 func (s *eventTestServer) setState(state apiclient.SandboxState) {
@@ -315,7 +369,8 @@ func TestConcurrentWaitsShareOneServerSubscription(t *testing.T) {
 	assert.Equal(t, []string{subscribeEvent, unsubscribeEvent}, srv.events())
 }
 
-func TestWaitForStatePollsFastUntilEventConnectionIsUp(t *testing.T) {
+func TestWaitForStatePollsAtSubscribedCadenceUntilEventConnectionIsUp(t *testing.T) {
+	stubWaitForStatePollRandom(t, 0.5)
 	const handshakeDelay = 800 * time.Millisecond
 	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, handshakeDelay)
 	client := newEventTestClient(t, srv)
@@ -328,15 +383,71 @@ func TestWaitForStatePollsFastUntilEventConnectionIsUp(t *testing.T) {
 	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
 
 	require.Eventually(t, func() bool { return srv.hasEvent(subscribeEvent) }, 5*time.Second, 10*time.Millisecond)
-	connectedAt := time.Now()
 	time.Sleep(2500 * time.Millisecond)
+	end := time.Now()
 	cancel()
 	require.ErrorIs(t, <-done, context.Canceled)
 
-	// Before the connection is up the wait polls at the fast cadence...
-	assert.GreaterOrEqual(t, srv.getsBetween(start, start.Add(600*time.Millisecond)), 3)
-	// ...and switches to the sparse safety-net cadence once events can arrive.
-	assert.LessOrEqual(t, srv.getsBetween(connectedAt.Add(300*time.Millisecond), connectedAt.Add(2300*time.Millisecond)), 3)
+	// While the connection is still being set up only the immediate poll runs
+	// (the fast cadence would poll several times here)...
+	assert.Equal(t, 1, srv.getsBetween(start, start.Add(600*time.Millisecond)))
+	// ...then one poll about a second in, and none once events can arrive.
+	assert.Equal(t, 2, srv.getsBetween(start, end))
+}
+
+func TestEventBackedWaitPollsOnlyAsSafetyNet(t *testing.T) {
+	// The low jitter bound puts the second poll at 4 s, the earliest it may run.
+	stubWaitForStatePollRandom(t, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
+
+	// Bring the event connection up before the wait starts.
+	holder := client.subscriptionManager.Subscribe(eventTestSandboxID, func(common.SandboxEvent) {}, []string{"sandbox.state.updated"})
+	require.NotEmpty(t, holder)
+	defer client.subscriptionManager.Unsubscribe(holder)
+	require.Eventually(t, client.subscriptionManager.IsConnected, 5*time.Second, 10*time.Millisecond)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	start := time.Now()
+	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
+
+	time.Sleep(1500 * time.Millisecond)
+	end := time.Now()
+	cancel()
+	require.ErrorIs(t, <-done, context.Canceled)
+
+	// Only the immediate first poll; the next one is 4-6 s out
+	// (TestWaitForStatePollInterval covers the bounds).
+	assert.Equal(t, 1, srv.getsBetween(start, end))
+}
+
+func TestSubscribedWaitPollsAboutEverySecondWhileDisconnected(t *testing.T) {
+	stubWaitForStatePollRandom(t, 0.5)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	srv.mu.Lock()
+	srv.rejectSockets = true
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	start := time.Now()
+	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
+
+	time.Sleep(2500 * time.Millisecond)
+	end := time.Now()
+	cancel()
+	require.ErrorIs(t, <-done, context.Canceled)
+
+	require.Positive(t, srv.socketAttemptCount())
+	assert.False(t, client.subscriptionManager.IsConnected())
+	// Polls at 0, 1 and 2 s; the fast cadence would have polled about 25 times.
+	assert.Equal(t, 3, srv.getsBetween(start, end))
 }
 
 func TestSandboxHandleEventAppliesStateFromSlimPayload(t *testing.T) {
@@ -379,14 +490,14 @@ func TestWaitSubscriptionResubscribesAfterExpiry(t *testing.T) {
 	sub := sandbox.subscribeForWait()
 	firstID := sub.subID
 	require.NotEmpty(t, firstID)
-	require.Eventually(t, sub.eventBacked, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return sub.pollMode() == waitPollEventBacked }, 5*time.Second, 10*time.Millisecond)
 	assert.Equal(t, firstID, sub.subID, "a live subscription is refreshed, not replaced")
 
 	// Simulate the manager's TTL expiring the subscription mid-wait.
 	client.subscriptionManager.Unsubscribe(firstID)
 	assert.False(t, client.subscriptionManager.Refresh(firstID))
 
-	require.True(t, sub.eventBacked())
+	require.Equal(t, waitPollEventBacked, sub.pollMode())
 	assert.NotEmpty(t, sub.subID)
 	assert.NotEqual(t, firstID, sub.subID, "an expired subscription is replaced by a new one")
 
@@ -397,4 +508,212 @@ func TestWaitSubscriptionResubscribesAfterExpiry(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return assert.ObjectsAreEqual([]string{subscribeEvent, unsubscribeEvent, subscribeEvent, unsubscribeEvent}, srv.events())
 	}, 5*time.Second, 10*time.Millisecond)
+}
+
+// connectEvents brings the event connection up through a subscription to
+// another sandbox, so the test sandbox's own subscription is its only listener.
+func connectEvents(t *testing.T, client *Client) {
+	t.Helper()
+	holder := client.subscriptionManager.Subscribe("00000000-0000-4000-8000-0000000000ff", func(common.SandboxEvent) {}, []string{"sandbox.state.updated"})
+	require.NotEmpty(t, holder)
+	t.Cleanup(func() { client.subscriptionManager.Unsubscribe(holder) })
+	require.Eventually(t, client.subscriptionManager.IsConnected, 5*time.Second, 10*time.Millisecond)
+}
+
+// respondThenEmit answers the operation with the sandbox in respondState and
+// sends the event to targetState once the wait is running.
+func respondThenEmit(t *testing.T, srv *eventTestServer, respondState, targetState apiclient.SandboxState) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		srv.setState(targetState)
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", respondState))
+		timer := time.AfterFunc(300*time.Millisecond, func() { srv.emitState(respondState, targetState) })
+		t.Cleanup(func() { timer.Stop() })
+	}
+}
+
+func TestOperationWaitsSkipFirstReadWhenSubscribedBeforeRequest(t *testing.T) {
+	tests := []struct {
+		name         string
+		respondState apiclient.SandboxState
+		targetState  apiclient.SandboxState
+		run          func(*Sandbox) error
+	}{
+		{"stop", apiclient.SANDBOXSTATE_STOPPING, apiclient.SANDBOXSTATE_STOPPED, func(s *Sandbox) error {
+			return s.doStopWithTimeout(context.Background(), 10*time.Second, false)
+		}},
+		{"delete and wait", apiclient.SANDBOXSTATE_DESTROYING, apiclient.SANDBOXSTATE_DESTROYED, func(s *Sandbox) error {
+			return s.doDeleteAndWait(context.Background(), 10*time.Second)
+		}},
+		{"pause", apiclient.SANDBOXSTATE_PAUSING, apiclient.SANDBOXSTATE_PAUSED, func(s *Sandbox) error {
+			return s.doPauseWithTimeout(context.Background(), 10*time.Second)
+		}},
+		{"resize", apiclient.SANDBOXSTATE_RESIZING, apiclient.SANDBOXSTATE_STARTED, func(s *Sandbox) error {
+			return s.doResizeWithTimeout(context.Background(), &types.Resources{CPU: 4}, 10*time.Second)
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+			client := newEventTestClient(t, srv)
+			connectEvents(t, client)
+			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+			srv.setOperation(respondThenEmit(t, srv, tt.respondState, tt.targetState))
+
+			require.NoError(t, tt.run(sandbox))
+			assert.Equal(t, tt.targetState, sandbox.currentState())
+			assert.Equal(t, 0, srv.gets(), "the response and the state event replace every read")
+			require.Eventually(t, func() bool { return srv.hasEvent(unsubscribeEvent) }, 5*time.Second, 10*time.Millisecond)
+		})
+	}
+}
+
+func TestStopReadsFirstWhenEventConnectionIsDown(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED, 0)
+	srv.mu.Lock()
+	srv.rejectSockets = true
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
+	})
+
+	start := time.Now()
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+	assert.Equal(t, 1, srv.getsBetween(start, start.Add(500*time.Millisecond)), "the read is immediate")
+	assert.Equal(t, 1, srv.gets())
+}
+
+func TestStopReadsFirstWhenStateEventArrivesDuringRequest(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED, 0)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		// The sandbox stops before the (older) response is written.
+		srv.emitState(apiclient.SANDBOXSTATE_STOPPING, apiclient.SANDBOXSTATE_STOPPED)
+		assert.Eventually(t, func() bool { return sandbox.stateEvents.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
+	})
+
+	start := time.Now()
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+	assert.Equal(t, 1, srv.getsBetween(start, start.Add(500*time.Millisecond)), "the event may be newer than the response, so the wait reads at once")
+	assert.Equal(t, 1, srv.gets())
+}
+
+func TestStopRequestFailureReleasesSubscription(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusInternalServerError, map[string]any{"message": "boom", "statusCode": 500})
+	})
+
+	err := sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false)
+	require.ErrorIs(t, err, errors.ErrInternalServer)
+	assert.Contains(t, err.Error(), "boom")
+	require.Eventually(t, func() bool { return srv.hasEvent(unsubscribeEvent) }, 5*time.Second, 10*time.Millisecond)
+	assert.True(t, srv.hasEvent(subscribeEvent), "the subscription is taken before the request")
+	assert.Equal(t, 0, srv.gets())
+}
+
+func TestStopResponseInTargetStateReleasesSubscription(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED, 0)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPED))
+	})
+
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false))
+	assert.Equal(t, 0, srv.gets())
+	require.Eventually(t, func() bool { return srv.hasEvent(unsubscribeEvent) }, 5*time.Second, 10*time.Millisecond)
+	assert.True(t, srv.hasEvent(subscribeEvent), "the subscription is taken before the request")
+}
+
+func TestDeleteWithoutWaitTakesNoSubscription(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_DESTROYING, 0)
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+
+	require.NoError(t, sandbox.doDeleteWithTimeout(context.Background(), 10*time.Second))
+	time.Sleep(200 * time.Millisecond)
+	assert.Equal(t, 0, srv.socketAttemptCount())
+	assert.Empty(t, srv.events())
+	assert.Equal(t, 0, srv.gets())
+}
+
+func TestStopReadsFirstWhenResponseIsErrorState(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_ERROR, 0)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_ERROR))
+	})
+
+	start := time.Now()
+	err := sandbox.doStopWithTimeout(context.Background(), 30*time.Second, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error state")
+	assert.Less(t, time.Since(start), 2*time.Second, "an error response fails at once, not at the first poll")
+	assert.Equal(t, 1, srv.gets())
+}
+
+func newForkSourceSandbox(client *Client) *Sandbox {
+	state := apiclient.SANDBOXSTATE_STARTED
+	return NewSandbox(client, nil, &apiclient.Sandbox{Id: "00000000-0000-4000-8000-0000000000aa", Name: "source", State: &state}, types.CodeLanguagePython, client.subscriptionManager)
+}
+
+func TestForkSkipsFirstReadWhenLive(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	srv.setOperation(respondThenEmit(t, srv, apiclient.SANDBOXSTATE_STARTING, apiclient.SANDBOXSTATE_STARTED))
+
+	forked, err := newForkSourceSandbox(client).doForkWithTimeout(context.Background(), nil, 10*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, eventTestSandboxID, forked.ID)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
+	assert.Equal(t, 0, srv.gets())
+	require.Eventually(t, func() bool { return srv.hasEvent(unsubscribeEvent) }, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestForkReadsFirstWhenNotLive(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	srv.mu.Lock()
+	srv.rejectSockets = true
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STARTING))
+	})
+
+	start := time.Now()
+	forked, err := newForkSourceSandbox(client).doForkWithTimeout(context.Background(), nil, 10*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
+	assert.Equal(t, 1, srv.getsBetween(start, start.Add(500*time.Millisecond)), "the read is immediate")
+	assert.Equal(t, 1, srv.gets())
+}
+
+func TestForkWithStartedResponseTakesNoSubscription(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	client := newEventTestClient(t, srv)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STARTED))
+	})
+
+	forked, err := newForkSourceSandbox(client).doForkWithTimeout(context.Background(), nil, 10*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
+	time.Sleep(200 * time.Millisecond)
+	assert.Equal(t, 0, srv.gets())
+	assert.Equal(t, 0, srv.socketAttemptCount())
+	assert.Empty(t, srv.events())
 }

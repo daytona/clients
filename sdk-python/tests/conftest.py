@@ -145,3 +145,29 @@ def env_with_jwt(monkeypatch):
     monkeypatch.setenv("DAYTONA_ORGANIZATION_ID", "test-org-id")
     monkeypatch.setenv("DAYTONA_API_URL", "https://test.daytona.io/api")
     monkeypatch.setenv("DAYTONA_TARGET", "us")
+
+
+class FakeEventDispatcher:
+    """Event dispatcher stand-in that tracks listeners and the subscribe messages it would send."""
+
+    def __init__(self, connected: bool = True) -> None:
+        self.is_connected: bool = connected
+        self.listeners: dict[str, list[Any]] = {}
+        self.sent: list[tuple[str, str]] = []
+
+    def subscribe(self, resource_id: str, handler: Any, events: list[str]) -> Any:
+        del events
+        if resource_id not in self.listeners:
+            self.listeners[resource_id] = []
+            self.sent.append(("subscribe", resource_id))
+        self.listeners[resource_id].append(handler)
+
+        def unsubscribe() -> None:
+            handlers = self.listeners.get(resource_id, [])
+            if handler in handlers:
+                handlers.remove(handler)
+                if not handlers:
+                    del self.listeners[resource_id]
+                    self.sent.append(("unsubscribe", resource_id))
+
+        return unsubscribe

@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -284,7 +285,7 @@ func TestSandboxWaitForStopTimeoutValidation(t *testing.T) {
 	sandbox := newSandboxForTest(client, "test-id", "test", apiclient.SANDBOXSTATE_STOPPING, "us-east-1", 60, -1, false, nil)
 
 	ctx := context.Background()
-	err = sandbox.doWaitForStop(ctx, -1*time.Second)
+	err = sandbox.doWaitForStop(ctx, -1*time.Second, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Timeout must be a non-negative number")
 
@@ -559,10 +560,133 @@ func TestNextWaitForStatePollInterval(t *testing.T) {
 		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second))
 	})
 
-	t.Run("event-backed waits keep sparse one second safety polling", func(t *testing.T) {
-		assert.Equal(t, waitForStateStreamingSafetyInterval, waitForStatePollInterval(waitForStatePollingInitialInterval, true))
-		assert.Equal(t, waitForStatePollingInitialInterval, waitForStatePollInterval(waitForStatePollingInitialInterval, false))
+}
+
+func stubWaitForStatePollRandom(t *testing.T, value float64) {
+	t.Helper()
+	original := waitForStatePollRandom
+	waitForStatePollRandom = func() float64 { return value }
+	t.Cleanup(func() { waitForStatePollRandom = original })
+}
+
+func TestWaitForStatePollInterval(t *testing.T) {
+	tests := []struct {
+		name   string
+		mode   waitPollMode
+		random float64
+		want   time.Duration
+	}{
+		{"event-backed at the low jitter bound", waitPollEventBacked, 0, 4 * time.Second},
+		{"event-backed without jitter", waitPollEventBacked, 0.5, 5 * time.Second},
+		{"event-backed at the high jitter bound", waitPollEventBacked, 1, 6 * time.Second},
+		{"subscribed but disconnected at the low jitter bound", waitPollSubscribed, 0, 800 * time.Millisecond},
+		{"subscribed but disconnected without jitter", waitPollSubscribed, 0.5, time.Second},
+		{"subscribed but disconnected at the high jitter bound", waitPollSubscribed, 1, 1200 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubWaitForStatePollRandom(t, tt.random)
+			assert.Equal(t, tt.want, waitForStatePollInterval(waitForStatePollingInitialInterval, tt.mode))
+		})
+	}
+
+	t.Run("unsubscribed keeps the fast cadence without jitter", func(t *testing.T) {
+		original := waitForStatePollRandom
+		waitForStatePollRandom = func() float64 {
+			t.Error("the fast cadence must not draw jitter")
+			return 0
+		}
+		t.Cleanup(func() { waitForStatePollRandom = original })
+
+		assert.Equal(t, waitForStatePollingInitialInterval, waitForStatePollInterval(waitForStatePollingInitialInterval, waitPollUnsubscribed))
+		assert.Equal(t, 110*time.Millisecond, waitForStatePollInterval(110*time.Millisecond, waitPollUnsubscribed))
 	})
+}
+
+func TestStopAppliesStopResponseWithoutRefresh(t *testing.T) {
+	tests := []struct {
+		name     string
+		response func(t *testing.T, w http.ResponseWriter)
+		wantGets int32
+	}{
+		{
+			name: "response already stopped",
+			response: func(t *testing.T, w http.ResponseWriter) {
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED))
+			},
+			wantGets: 0,
+		},
+		{
+			name:     "empty response from an older server",
+			response: func(_ *testing.T, w http.ResponseWriter) { w.WriteHeader(http.StatusOK) },
+			wantGets: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gets int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/stop") {
+					tt.response(t, w)
+					return
+				}
+				if r.Method == http.MethodGet {
+					atomic.AddInt32(&gets, 1)
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+			require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 5*time.Second, false))
+			assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
+		})
+	}
+}
+
+func TestPauseAppliesPauseResponseWithoutRefresh(t *testing.T) {
+	tests := []struct {
+		name     string
+		response func(t *testing.T, w http.ResponseWriter)
+		wantGets int32
+	}{
+		{
+			name: "response already paused",
+			response: func(t *testing.T, w http.ResponseWriter) {
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSED))
+			},
+			wantGets: 0,
+		},
+		{
+			name:     "empty response from an older server",
+			response: func(_ *testing.T, w http.ResponseWriter) { w.WriteHeader(http.StatusOK) },
+			wantGets: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gets int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/pause") {
+					tt.response(t, w)
+					return
+				}
+				if r.Method == http.MethodGet {
+					atomic.AddInt32(&gets, 1)
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+			require.NoError(t, sandbox.doPauseWithTimeout(context.Background(), 5*time.Second))
+			assert.Equal(t, apiclient.SANDBOXSTATE_PAUSED, sandbox.currentState())
+			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
+		})
+	}
 }
 
 func TestSandboxRefreshDataSuccess(t *testing.T) {
@@ -766,23 +890,54 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 	})
 }
 
-func TestSandboxPreviewAndLabelOperations(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPut:
-			writeJSONResponse(t, w, http.StatusOK, map[string]any{"labels": map[string]string{"env": "test"}})
-		case http.MethodGet:
-			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
-		default:
-			w.WriteHeader(http.StatusOK)
-		}
-	}))
-	defer server.Close()
+func TestSandboxSetLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		response func(t *testing.T, w http.ResponseWriter)
+		want     map[string]string
+		wantGets int32
+	}{
+		{
+			name: "applies the labels the replace call returns",
+			response: func(t *testing.T, w http.ResponseWriter) {
+				writeJSONResponse(t, w, http.StatusOK, map[string]any{"labels": map[string]string{"env": "test"}})
+			},
+			want:     map[string]string{"env": "test"},
+			wantGets: 0,
+		},
+		{
+			name:     "refreshes once when an older server returns no body",
+			response: func(_ *testing.T, w http.ResponseWriter) { w.WriteHeader(http.StatusOK) },
+			want:     map[string]string{"from": "refresh"},
+			wantGets: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gets int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case http.MethodPut:
+					tt.response(t, w)
+				case http.MethodGet:
+					atomic.AddInt32(&gets, 1)
+					payload := testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED)
+					payload["labels"] = map[string]string{"from": "refresh"}
+					writeJSONResponse(t, w, http.StatusOK, payload)
+				default:
+					w.WriteHeader(http.StatusOK)
+				}
+			}))
+			defer server.Close()
 
-	client := createTestClientWithServer(t, server)
-	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
-	require.NoError(t, sandbox.SetLabels(context.Background(), map[string]string{"env": "test"}))
-	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+			client := createTestClientWithServer(t, server)
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+			require.NoError(t, sandbox.SetLabels(context.Background(), map[string]string{"env": "test"}))
+			assert.Equal(t, tt.want, sandbox.Labels)
+			assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
+		})
+	}
 }
 
 func TestSandboxForkAndSnapshot(t *testing.T) {

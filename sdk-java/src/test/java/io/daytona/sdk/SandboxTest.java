@@ -10,6 +10,7 @@ import io.daytona.api.client.model.ForkSandbox;
 import io.daytona.api.client.model.GpuType;
 import io.daytona.api.client.model.SandboxClass;
 import io.daytona.api.client.model.SandboxDesiredState;
+import io.daytona.api.client.model.SandboxLabels;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.ToolboxProxyUrl;
 import io.daytona.api.client.model.UpdateSandboxSecrets;
@@ -34,7 +35,6 @@ import io.daytona.toolbox.client.api.ServerApi;
 import io.daytona.toolbox.client.model.UpdateEnvRequest;
 import io.daytona.toolbox.client.model.UserHomeDirResponse;
 import io.daytona.toolbox.client.model.WorkDirResponse;
-import okhttp3.Call;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -242,13 +242,24 @@ class SandboxTest {
     }
 
     @Test
-    void stopRefreshesAndWaitsUntilStopped() {
+    void stopWithAnEmptyResponseRefreshesOnceAndWaitsUntilStopped() {
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STOPPED));
 
         sandbox.stop(2);
 
         assertThat(sandbox.getState()).isEqualTo("stopped");
         verify(sandboxApi).stopSandbox("sb-1", null, null);
+        verify(sandboxApi, times(1)).getSandbox("sb-1", null, null);
+    }
+
+    @Test
+    void stopAppliesTheReturnedSandboxWithoutAGet() {
+        when(sandboxApi.stopSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STOPPED));
+
+        sandbox.stop(2);
+
+        assertThat(sandbox.getState()).isEqualTo("stopped");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
     }
 
     @Test
@@ -322,11 +333,8 @@ class SandboxTest {
 
     @Test
     void setLabelsAndIntervalsUpdateLocalState() throws Exception {
-        Call call = org.mockito.Mockito.mock(Call.class);
-        ApiClient apiClient = org.mockito.Mockito.mock(ApiClient.class);
-        when(sandboxApi.replaceLabelsCall(eq("sb-1"), any(), isNull(), isNull())).thenReturn(call);
-        when(sandboxApi.getApiClient()).thenReturn(apiClient);
-        when(apiClient.execute(eq(call), isNull())).thenReturn(null);
+        when(sandboxApi.replaceLabels(eq("sb-1"), any(), isNull()))
+                .thenReturn(new SandboxLabels().labels(Collections.singletonMap("team", "sdk")));
 
         io.daytona.api.client.model.Sandbox refreshed = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
         refreshed.setLabels(Collections.singletonMap("team", "sdk"));
@@ -334,7 +342,6 @@ class SandboxTest {
         refreshed.setAutoPauseInterval(BigDecimal.valueOf(4));
         refreshed.setAutoArchiveInterval(BigDecimal.valueOf(2));
         refreshed.setAutoDeleteInterval(BigDecimal.valueOf(3));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(refreshed);
         when(sandboxApi.setAutostopInterval("sb-1", BigDecimal.valueOf(1), null)).thenReturn(refreshed);
         when(sandboxApi.setAutoPauseInterval("sb-1", BigDecimal.valueOf(4), null)).thenReturn(refreshed);
         when(sandboxApi.setAutoArchiveInterval("sb-1", BigDecimal.valueOf(2), null)).thenReturn(refreshed);
@@ -351,6 +358,44 @@ class SandboxTest {
         assertThat(sandbox.getAutoPauseInterval()).isEqualTo(4);
         assertThat(sandbox.getAutoArchiveInterval()).isEqualTo(2);
         assertThat(sandbox.getAutoDeleteInterval()).isEqualTo(3);
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+    }
+
+    @Test
+    void setLabelsWithAnEmptyResponseRefreshesOnce() {
+        io.daytona.api.client.model.Sandbox refreshed = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        refreshed.setLabels(Collections.singletonMap("team", "sdk"));
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(refreshed);
+
+        assertThat(sandbox.setLabels(Collections.singletonMap("team", "sdk"))).containsEntry("team", "sdk");
+
+        verify(sandboxApi).replaceLabels(eq("sb-1"), any(), isNull());
+        verify(sandboxApi, times(1)).getSandbox("sb-1", null, null);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void replaceLabelsResponseDeserializesIntoTheLabelsModel() throws Exception {
+        try (okhttp3.mockwebserver.MockWebServer server = new okhttp3.mockwebserver.MockWebServer()) {
+            server.enqueue(new okhttp3.mockwebserver.MockResponse()
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("{\"labels\":{\"team\":\"sdk\"}}"));
+            server.enqueue(new okhttp3.mockwebserver.MockResponse().setResponseCode(200));
+            // The SDK's own API client setup, so the generated client deserializes as it does in use.
+            try (Daytona daytona = new Daytona(new DaytonaConfig.Builder()
+                    .apiKey("test-key")
+                    .apiUrl(server.url("/api").toString())
+                    .useDeprecatedPolling(true)
+                    .build())) {
+                SandboxApi api = TestSupport.getField(daytona, "sandboxApi", SandboxApi.class);
+
+                SandboxLabels labels = api.replaceLabels("sb-1", new SandboxLabels().labels(Map.of("team", "sdk")), null);
+                SandboxLabels empty = api.replaceLabels("sb-1", new SandboxLabels().labels(Map.of("team", "sdk")), null);
+
+                assertThat(labels.getLabels()).containsExactly(entry("team", "sdk"));
+                assertThat(empty).isNull();
+            }
+        }
     }
 
     @Test
@@ -647,6 +692,26 @@ class SandboxTest {
     }
 
     @Test
+    void pauseAppliesTheReturnedSandboxWithoutAGet() {
+        when(sandboxApi.pauseSandbox("sb-1", null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.PAUSED));
+
+        sandbox.pause(2);
+
+        assertThat(sandbox.getState()).isEqualTo("paused");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+    }
+
+    @Test
+    void pauseWithAnEmptyResponseRefreshesOnce() {
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.PAUSED));
+
+        sandbox.pause(2);
+
+        assertThat(sandbox.getState()).isEqualTo("paused");
+        verify(sandboxApi, times(1)).getSandbox("sb-1", null, null);
+    }
+
+    @Test
     void pauseLandingInStoppedResolves() {
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STOPPED));
 
@@ -884,16 +949,62 @@ class SandboxTest {
     }
 
     @Test
-    void pollIntervalIsFastUnlessEventBacked() {
-        assertThat(Sandbox.pollIntervalMillis(false)).isEqualTo(250);
-        assertThat(Sandbox.pollIntervalMillis(true)).isEqualTo(1000);
+    void pollIntervalIsFastAndUnjitteredWithoutASubscription() {
+        java.util.function.DoubleSupplier random = () -> {
+            throw new AssertionError("jitter must not apply without a subscription");
+        };
+        assertThat(Sandbox.pollIntervalMillis(false, false, random)).isEqualTo(250);
+        assertThat(Sandbox.pollIntervalMillis(false, true, random)).isEqualTo(250);
     }
 
     @Test
-    void pollCadenceIsReevaluatedEachTickAndSwitchesWhenConnectionComesUpMidWait() throws Exception {
+    void pollIntervalIsFiveSecondsWithJitterWhenEventBacked() {
+        assertThat(Sandbox.pollIntervalMillis(true, true, () -> 0.0)).isEqualTo(4000);
+        assertThat(Sandbox.pollIntervalMillis(true, true, () -> 0.5)).isEqualTo(5000);
+        assertThat(Sandbox.pollIntervalMillis(true, true, () -> 1.0)).isEqualTo(6000);
+    }
+
+    @Test
+    void pollIntervalIsOneSecondWithJitterWhenSubscribedButDisconnected() {
+        assertThat(Sandbox.pollIntervalMillis(true, false, () -> 0.0)).isEqualTo(800);
+        assertThat(Sandbox.pollIntervalMillis(true, false, () -> 0.5)).isEqualTo(1000);
+        assertThat(Sandbox.pollIntervalMillis(true, false, () -> 1.0)).isEqualTo(1200);
+    }
+
+    @Test
+    void subscribedButDisconnectedWaitPollsAtAboutOneSecond() throws Exception {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        // One entry per poll tick (nanoTime); the manager mock reports the connection as down.
+        List<Long> ticks = new CopyOnWriteArrayList<>();
+        when(manager.isConnected()).thenAnswer(inv -> {
+            ticks.add(System.nanoTime());
+            return false;
+        });
+        Sandbox sb = startingSandbox("sb-c", manager);
+        lenient().when(sandboxApi.getSandbox("sb-c", null, null)).thenReturn(TestSupport.mainSandbox("sb-c", SandboxState.STARTING));
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(60), error));
+
+        waiter.start();
+        awaitCondition(() -> ticks.size() >= 3);
+        deliverStarted(manager, "sb-c");
+        waiter.join(5000);
+
+        assertThat(error.get()).isNull();
+        assertThat(waiter.isAlive()).isFalse();
+        // The scheduler never fires early, so this lower bound holds however loaded the machine is.
+        List<Long> snapshot = List.copyOf(ticks);
+        for (int i = 0; i + 1 < snapshot.size(); i++) {
+            long gapMillis = TimeUnit.NANOSECONDS.toMillis(snapshot.get(i + 1) - snapshot.get(i));
+            assertThat(gapMillis).as("gap after tick %d", i).isGreaterThanOrEqualTo(800);
+        }
+    }
+
+    @Test
+    void pollCadenceSwitchesToTheEventBackedIntervalWhenTheConnectionComesUpMidWait() throws Exception {
         EventSubscriptionManager manager = mockSubscriptionManager();
         AtomicBoolean connected = new AtomicBoolean(false);
-        // One entry per poll tick: {nanoTime, 1 if event-backed else 0}.
+        // One entry per poll tick: {nanoTime, 1 if connected else 0}.
         List<long[]> decisions = new CopyOnWriteArrayList<>();
         when(manager.isConnected()).thenAnswer(inv -> {
             boolean value = connected.get();
@@ -901,33 +1012,259 @@ class SandboxTest {
             return value;
         });
         Sandbox sb = startingSandbox("sb-c", manager);
-        AtomicBoolean started = new AtomicBoolean(false);
-        when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv ->
-                TestSupport.mainSandbox("sb-c", started.get() ? SandboxState.STARTED : SandboxState.STARTING));
+        lenient().when(sandboxApi.getSandbox("sb-c", null, null)).thenReturn(TestSupport.mainSandbox("sb-c", SandboxState.STARTING));
         AtomicReference<Throwable> error = new AtomicReference<>();
         Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(60), error));
 
         waiter.start();
-        awaitCondition(() -> countDecisions(decisions, false) >= 3);
+        awaitCondition(() -> countDecisions(decisions, false) >= 1);
         connected.set(true);
-        awaitCondition(() -> countDecisions(decisions, true) >= 3);
-        started.set(true);
-        waiter.join(30_000);
+        awaitCondition(() -> countDecisions(decisions, true) >= 1);
+        // The next poll is at least 4 s away; the old 1 s cadence would have ticked by now.
+        Thread.sleep(1500);
+        long eventBackedTicks = countDecisions(decisions, true);
+        deliverStarted(manager, "sb-c");
+        waiter.join(5000);
 
         assertThat(error.get()).isNull();
         assertThat(waiter.isAlive()).isFalse();
-        // A tick that saw a live connection scheduled the next one at the safety-net interval.
-        // The scheduler never fires early, so this lower bound holds however loaded the machine is.
-        List<long[]> snapshot = List.copyOf(decisions);
-        int checkedGaps = 0;
-        for (int i = 0; i + 1 < snapshot.size(); i++) {
-            if (snapshot.get(i)[1] == 1) {
-                long gapMillis = TimeUnit.NANOSECONDS.toMillis(snapshot.get(i + 1)[0] - snapshot.get(i)[0]);
-                assertThat(gapMillis).as("gap after event-backed tick %d", i).isGreaterThanOrEqualTo(1000);
-                checkedGaps++;
+        assertThat(eventBackedTicks).isEqualTo(1);
+    }
+
+    @Test
+    void stopWithTheConnectionUpResolvesFromTheStoppedEventWithoutAnyGet() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenAnswer(inv -> {
+            verify(manager).subscribe(eq("sb-s"), any(), eq(List.of("sandbox.state.updated")));
+            return TestSupport.mainSandbox("sb-s", SandboxState.STOPPING);
+        });
+
+        runAndDeliverOnceWaiting(manager, "sb-s", "stopped", () -> sb.stop(30));
+
+        assertThat(sb.getState()).isEqualTo("stopped");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+        verify(manager, times(1)).subscribe(any(), any(), any());
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void stopWithTheConnectionDownWhenTheRequestIsSentReadsOnceImmediately() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        // Down while subscribing, up by the time the wait starts.
+        when(manager.isConnected()).thenReturn(false, true);
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        long start = System.nanoTime();
+        sb.stop(30);
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2000);
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void stopReadsImmediatelyWhenAStateEventArrivedDuringTheRequest() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenAnswer(inv -> {
+            deliverState(manager, "sb-s", "stopped");
+            return TestSupport.mainSandbox("sb-s", SandboxState.STOPPING);
+        });
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        long start = System.nanoTime();
+        sb.stop(30);
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2000);
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+        assertThat(sb.getState()).isEqualTo("stopped");
+    }
+
+    @Test
+    void stopReleasesTheSubscriptionAndPropagatesTheErrorWhenTheRequestFails() throws Exception {
+        try (FakeEventGateway gateway = new FakeEventGateway()) {
+            EventDispatcher dispatcher = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "test");
+            EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+            try {
+                // Connected before the request, so the subscribe and unsubscribe messages go out at once.
+                dispatcher.ensureConnected();
+                awaitCondition(dispatcher::isConnected);
+                Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(),
+                        TestSupport.mainSandbox("sb-f", SandboxState.STARTED), () -> null, manager);
+                when(sandboxApi.stopSandbox("sb-f", null, null))
+                        .thenThrow(new io.daytona.api.client.ApiException(500, "boom", null, "{\"message\":\"stop failed\"}"));
+
+                assertThatThrownBy(() -> sb.stop(5))
+                        .isInstanceOf(DaytonaServerException.class)
+                        .hasMessage("stop failed");
+
+                FakeEventGateway.Emitted subscribe = gateway.takeEmitted(5000);
+                assertThat(subscribe).isNotNull();
+                assertThat(subscribe.event).isEqualTo("subscribe");
+                FakeEventGateway.Emitted unsubscribe = gateway.takeEmitted(5000);
+                assertThat(unsubscribe).isNotNull();
+                assertThat(unsubscribe.event).isEqualTo("unsubscribe");
+                assertThat(unsubscribe.payload.toString()).isEqualTo("{\"sandboxIds\":[\"sb-f\"]}");
+                verify(sandboxApi, never()).getSandbox(any(), any(), any());
+            } finally {
+                manager.shutdown();
+                dispatcher.shutdown();
             }
         }
-        assertThat(checkedGaps).isGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    void stopResolvesAtOnceAndReleasesTheSubscriptionWhenTheResponseIsTheTargetState() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        sb.stop(30);
+
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+        verify(manager, times(1)).subscribe(any(), any(), any());
+        verify(manager, times(1)).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void deleteWithWaitSkipsTheImmediateReadWhenTheSubscriptionWasLive() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-d", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.deleteSandbox("sb-d", null)).thenReturn(TestSupport.mainSandbox("sb-d", SandboxState.DESTROYING));
+
+        runAndDeliverOnceWaiting(manager, "sb-d", "destroyed", () -> sb.delete(30, true));
+
+        assertThat(sb.getState()).isEqualTo("destroyed");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void pauseSkipsTheImmediateReadWhenTheSubscriptionWasLive() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-p", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.pauseSandbox("sb-p", null)).thenReturn(TestSupport.mainSandbox("sb-p", SandboxState.PAUSING));
+
+        runAndDeliverOnceWaiting(manager, "sb-p", "paused", () -> sb.pause(30));
+
+        assertThat(sb.getState()).isEqualTo("paused");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void stopWhoseResponseIsAlreadyAnErrorReadsImmediatelyAndFailsAtOnce() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.ERROR));
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.ERROR));
+
+        long start = System.nanoTime();
+        assertThatThrownBy(() -> sb.stop(30)).hasMessageContaining("Sandbox entered error state: error");
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2000);
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void forkWithALiveConnectionResolvesFromTheStartedEventWithoutAnyGet() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull()))
+                .thenReturn(TestSupport.mainSandbox("sb-fork", SandboxState.STARTING));
+        AtomicReference<Sandbox> forked = new AtomicReference<>();
+
+        runAndDeliverOnceWaiting(manager, "sb-fork", "started", () -> forked.set(sb.fork(null, 30)));
+
+        assertThat(forked.get().getId()).isEqualTo("sb-fork");
+        assertThat(forked.get().getState()).isEqualTo("started");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void forkWithoutALiveConnectionReadsOnceImmediately() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        // Down while subscribing, up by the time the wait starts.
+        when(manager.isConnected()).thenReturn(false, true);
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull()))
+                .thenReturn(TestSupport.mainSandbox("sb-fork", SandboxState.STARTING));
+        when(sandboxApi.getSandbox("sb-fork", null, null)).thenReturn(TestSupport.mainSandbox("sb-fork", SandboxState.STARTED));
+
+        long start = System.nanoTime();
+        Sandbox forked = sb.fork(null, 30);
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2000);
+        assertThat(forked.getState()).isEqualTo("started");
+        verify(sandboxApi, times(1)).getSandbox("sb-fork", null, null);
+        verify(manager).unsubscribe("mock-sub-id");
+    }
+
+    @Test
+    void forkWhoseResponseIsAlreadyStartedTakesNoWaitAndNoSubscription() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull()))
+                .thenReturn(TestSupport.mainSandbox("sb-fork", SandboxState.STARTED));
+
+        sb.fork(null, 30);
+
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+        verify(manager, never()).subscribe(any(), any(), any());
+    }
+
+    @Test
+    void deleteWithoutWaitTakesNoSubscription() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-d", SandboxState.STARTED), () -> null, manager);
+
+        sb.delete(5);
+
+        verify(sandboxApi).deleteSandbox("sb-d", null);
+        verify(manager, never()).subscribe(any(), any(), any());
+    }
+
+    /** Runs {@code action} on a thread and delivers {@code state} once its wait has started polling. */
+    private void runAndDeliverOnceWaiting(EventSubscriptionManager manager, String sandboxId, String state,
+                                          Runnable action) throws Exception {
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread worker = new Thread(() -> runCapturing(action, error));
+        worker.start();
+        // The wait's poller renews the subscription when it schedules its first poll.
+        verify(manager, timeout(5000)).refresh("mock-sub-id");
+        deliverState(manager, sandboxId, state);
+        worker.join(5000);
+        assertThat(error.get()).isNull();
+        assertThat(worker.isAlive()).isFalse();
+    }
+
+    private void deliverState(EventSubscriptionManager manager, String sandboxId, String state) throws Exception {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<BiConsumer<String, JsonNode>> handler = ArgumentCaptor.forClass(BiConsumer.class);
+        verify(manager).subscribe(eq(sandboxId), handler.capture(), any());
+        handler.getValue().accept("sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\":{\"id\":\"" + sandboxId + "\",\"state\":\"" + state + "\"},"
+                        + "\"newState\":\"" + state + "\"}"));
+    }
+
+    private EventSubscriptionManager connectedSubscriptionManager() {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        lenient().when(manager.isConnected()).thenReturn(true);
+        return manager;
+    }
+
+    private void deliverStarted(EventSubscriptionManager manager, String sandboxId) throws Exception {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<BiConsumer<String, JsonNode>> handler = ArgumentCaptor.forClass(BiConsumer.class);
+        verify(manager).subscribe(eq(sandboxId), handler.capture(), any());
+        handler.getValue().accept("sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\":{\"id\":\"" + sandboxId + "\",\"state\":\"started\"},"
+                        + "\"oldState\":\"starting\",\"newState\":\"started\"}"));
     }
 
     @Test

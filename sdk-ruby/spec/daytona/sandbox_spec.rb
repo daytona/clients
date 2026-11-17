@@ -127,13 +127,25 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#archive' do
-    it 'calls archive_sandbox and refreshes' do
+    it 'applies the sandbox the archive call returns without a refresh' do
+      allow(sandbox_api).to receive(:archive_sandbox).with('sandbox-123')
+                                                     .and_return(build_sandbox_dto(state: 'archived'))
+      allow(sandbox_api).to receive(:get_sandbox)
+
+      sandbox.archive
+
+      expect(sandbox_api).to have_received(:archive_sandbox).with('sandbox-123')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(sandbox.state).to eq('archived')
+    end
+
+    it 'refreshes once when an older server returns no sandbox' do
       allow(sandbox_api).to receive(:archive_sandbox).with('sandbox-123')
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'archived'))
 
       sandbox.archive
 
-      expect(sandbox_api).to have_received(:archive_sandbox).with('sandbox-123')
+      expect(sandbox_api).to have_received(:get_sandbox).once
       expect(sandbox.state).to eq('archived')
     end
   end
@@ -233,7 +245,29 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#delete' do
-    it 'returns without blocking by default' do
+    it 'applies the sandbox the delete call returns without a refresh' do
+      allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
+                                                    .and_return(build_sandbox_dto(state: 'destroying'))
+      allow(sandbox_api).to receive(:get_sandbox)
+
+      sandbox.delete
+
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(sandbox.state).to eq('destroying')
+    end
+
+    it 'treats a 404 from the delete call as destroyed without a refresh' do
+      allow(sandbox_api).to receive(:delete_sandbox).and_raise(DaytonaApiClient::ApiError.new(code: 404,
+                                                                                              message: 'Not found'))
+      allow(sandbox_api).to receive(:get_sandbox)
+
+      sandbox.delete
+
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(sandbox.state).to eq('destroyed')
+    end
+
+    it 'returns without blocking by default, refreshing once when an older server returns no sandbox' do
       allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
                                                  .and_return(build_sandbox_dto(state: 'destroying'))
@@ -241,6 +275,7 @@ RSpec.describe Daytona::Sandbox do
       sandbox.delete
 
       expect(sandbox_api).to have_received(:delete_sandbox).with('sandbox-123')
+      expect(sandbox_api).to have_received(:get_sandbox).once
       expect(sandbox.state).to eq('destroying')
     end
 
@@ -283,6 +318,7 @@ RSpec.describe Daytona::Sandbox do
     end
 
     it 'tolerates transient 502 during wait: true polling' do
+      stub_condition_variable_waits { |_seconds| nil }
       call_count = 0
       allow(sandbox_api).to receive(:delete_sandbox).with('sandbox-123')
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
@@ -495,6 +531,28 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#stop' do
+    it 'applies the stopped sandbox the stop call returns without a GET' do
+      allow(sandbox_api).to receive(:stop_sandbox).with('sandbox-123', { force: false })
+                                                  .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STOPPED))
+      allow(sandbox_api).to receive(:get_sandbox)
+
+      sandbox.stop(5)
+
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(sandbox.state).to eq('stopped')
+    end
+
+    it 'refreshes exactly once when an older server returns no sandbox' do
+      allow(sandbox_api).to receive(:stop_sandbox).with('sandbox-123', { force: false })
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STOPPED))
+
+      sandbox.stop(5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(sandbox.state).to eq('stopped')
+    end
+
     it 'calls stop_sandbox and waits for stopped state' do
       allow(sandbox_api).to receive(:stop_sandbox).with('sandbox-123', { force: false })
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::STOPPED))
@@ -817,13 +875,14 @@ RSpec.describe Daytona::Sandbox do
       expect(waits.first).to eq(0.1)
     end
 
-    it 'keeps a sparse 1s polling safety net when an event subscription is active' do
+    it 'keeps a sparse 5s polling safety net when an event subscription is active' do
       pending_sandbox = described_class.new(
         sandbox_dto: build_sandbox_dto(state: 'pending'),
         config: config,
         sandbox_api: sandbox_api,
         subscription_manager: subscription_manager
       )
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
       condition = instance_double(ConditionVariable, signal: nil)
       waits = []
       refresh_count = 0
@@ -840,7 +899,7 @@ RSpec.describe Daytona::Sandbox do
 
       pending_sandbox.wait_for_sandbox_start
 
-      expect(waits.first).to eq(1.0)
+      expect(waits.first).to eq(5.0)
     end
 
     it 'enforces timeout (deliberate keep)' do
@@ -978,6 +1037,28 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#pause' do
+    it 'applies the paused sandbox the pause call returns without a GET' do
+      allow(sandbox_api).to receive(:pause_sandbox).with('sandbox-123')
+                                                   .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::PAUSED))
+      allow(sandbox_api).to receive(:get_sandbox)
+
+      sandbox.pause(timeout: 5)
+
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(sandbox.state).to eq('paused')
+    end
+
+    it 'refreshes exactly once when an older server returns no sandbox' do
+      allow(sandbox_api).to receive(:pause_sandbox).with('sandbox-123')
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: DaytonaApiClient::SandboxState::PAUSED))
+
+      sandbox.pause(timeout: 5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(sandbox.state).to eq('paused')
+    end
+
     it 'resolves when landing in stopped state (left-pausing semantics)' do
       pausing = described_class.new(
         sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::PAUSING),
@@ -1214,15 +1295,70 @@ RSpec.describe Daytona::Sandbox do
       expect(subscription_manager).not_to have_received(:unsubscribe).with('sub-1')
     end
 
-    it 'polls fast until the event connection is up, sparsely while it is, and fast again once it drops' do
+    it 'polls every second until the event connection is up, sparsely while it is, and every second once it drops' do
       allow(subscription_manager).to receive(:connected?).and_return(false, true, false)
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
       stub_polls('pending', 'pending', 'pending', 'started')
       waits = []
       stub_condition_variable_waits { |seconds| waits << seconds }
 
       pending_sandbox.wait_for_sandbox_start
 
-      expect(waits).to eq([0.1, 1.0, 0.1])
+      expect(waits).to eq([1.0, 5.0, 1.0])
+    end
+
+    describe 'poll interval' do
+      def interval(subscription_id:, random:)
+        allow(sandbox).to receive(:poll_jitter_random).and_return(random)
+        sandbox.send(:next_poll_interval, subscription: { id: subscription_id }, fast_poll_interval: 0.1)
+      end
+
+      it 'is 5 s with up to 20 % jitter while the wait is event-backed' do
+        expect([0.0, 0.5, 1.0].map { |r| interval(subscription_id: 'sub-123', random: r) })
+          .to eq([4.0, 5.0, 6.0])
+      end
+
+      it 'is 1 s with up to 20 % jitter while subscribed but disconnected' do
+        allow(subscription_manager).to receive(:connected?).and_return(false)
+
+        expect([0.0, 0.5, 1.0].map { |r| interval(subscription_id: 'sub-123', random: r) })
+          .to eq([0.8, 1.0, 1.2])
+      end
+
+      it 'is the fast cadence, without jitter, when the wait holds no subscription' do
+        allow(sandbox).to receive(:poll_jitter_random)
+
+        expect(sandbox.send(:next_poll_interval, subscription: { id: nil }, fast_poll_interval: 0.1)).to eq(0.1)
+        expect(sandbox.send(:next_poll_interval, subscription: { id: nil }, fast_poll_interval: 0.11)).to eq(0.11)
+        expect(sandbox).not_to have_received(:poll_jitter_random)
+      end
+    end
+
+    # Records the stubbed wait clock at every poll.
+    def poll_times_until_started(polls_before_start)
+      clock = stub_wait_clock
+      times = []
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        times << clock.call
+        build_sandbox_dto(state: times.size > polls_before_start ? 'started' : 'pending')
+      end
+      pending_sandbox.wait_for_sandbox_start(60)
+      times
+    end
+
+    it 'makes no poll between the first one and 4 s while event-backed, and polls again by 6 s' do
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.0, 1.0)
+
+      expect(poll_times_until_started(2)).to eq([0.0, 4.0, 10.0])
+    end
+
+    it 'polls about every second, not every 100 ms, while subscribed but disconnected' do
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      allow(subscription_manager).to receive(:connected?).and_return(false)
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+
+      expect(poll_times_until_started(3)).to eq([0.0, 1.0, 2.0, 3.0])
     end
 
     it 'polls fast when no subscription could be created' do
@@ -1257,6 +1393,212 @@ RSpec.describe Daytona::Sandbox do
       expect(pending_sandbox.state).to eq('started')
       expect(pending_sandbox.cpu).to eq(4)
       expect(sandbox_api).to have_received(:get_sandbox).once
+    end
+  end
+
+  describe 'operations that subscribe before their request' do
+    let(:started_sandbox) do
+      described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'started'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+    end
+    let(:handler) { [] }
+
+    before do
+      allow(subscription_manager).to receive(:subscribe) do |**kwargs|
+        handler << kwargs[:handler]
+        'sub-123'
+      end
+      allow(sandbox_api).to receive(:get_sandbox)
+    end
+
+    def state_event(new_state)
+      handler.last.call('sandbox.state.updated', { 'sandbox' => { 'id' => 'sandbox-123', 'state' => new_state } })
+    end
+
+    # Sends a state event once the wait blocks between polls, from another thread as the event connection does.
+    def emit_when_waiting(new_state)
+      sent = false
+      allow(ConditionVariable).to receive(:new).and_wrap_original do |original|
+        original.call.tap do |cv|
+          allow(cv).to receive(:wait).and_wrap_original do |wait, mutex, seconds|
+            Thread.new { state_event(new_state) } unless sent
+            sent = true
+            wait.call(mutex, seconds)
+          end
+        end
+      end
+    end
+
+    it 'stop: skips the first read when the subscription was live, and ends on the event' do
+      allow(sandbox_api).to receive(:stop_sandbox) do
+        expect(subscription_manager).to have_received(:subscribe).once
+        build_sandbox_dto(state: 'stopping')
+      end
+      emit_when_waiting('stopped')
+
+      started_sandbox.stop(5)
+
+      expect(started_sandbox.state).to eq('stopped')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'stop: reads once at once when the event connection was down at the request' do
+      allow(subscription_manager).to receive(:connected?).and_return(false)
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'stopped'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      started_sandbox.stop(5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+      expect(started_sandbox.state).to eq('stopped')
+    end
+
+    it 'stop: reads once at once when a state event arrived during the request' do
+      allow(sandbox_api).to receive(:stop_sandbox) do
+        state_event('stopped')
+        build_sandbox_dto(state: 'stopping')
+      end
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'stopped'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      started_sandbox.stop(5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+      expect(started_sandbox.state).to eq('stopped')
+    end
+
+    it 'stop: releases the subscription and raises the original error when the request fails' do
+      error = DaytonaApiClient::ApiError.new(code: 500, message: 'boom')
+      allow(sandbox_api).to receive(:stop_sandbox).and_raise(error)
+
+      expect { started_sandbox.stop(5) }.to raise_error(error)
+      expect(subscription_manager).to have_received(:subscribe).once
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+    end
+
+    it 'stop: resolves at once and releases the subscription when the response is the target state' do
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopped'))
+
+      started_sandbox.stop(5)
+
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).to have_received(:subscribe).once
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'delete(wait: true): skips the first read when the subscription was live' do
+      allow(sandbox_api).to receive(:delete_sandbox) do
+        expect(subscription_manager).to have_received(:subscribe).once
+        build_sandbox_dto(state: 'destroying')
+      end
+      emit_when_waiting('destroyed')
+
+      started_sandbox.delete(5, wait: true)
+
+      expect(started_sandbox.state).to eq('destroyed')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'pause: skips the first read when the subscription was live' do
+      allow(sandbox_api).to receive(:pause_sandbox) do
+        expect(subscription_manager).to have_received(:subscribe).once
+        build_sandbox_dto(state: 'pausing')
+      end
+      emit_when_waiting('paused')
+
+      started_sandbox.pause(timeout: 5)
+
+      expect(started_sandbox.state).to eq('paused')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'resize: skips the first read when the subscription was live' do
+      allow(sandbox_api).to receive(:resize_sandbox) do
+        expect(subscription_manager).to have_received(:subscribe).once
+        build_sandbox_dto(state: 'resizing')
+      end
+      emit_when_waiting('started')
+
+      started_sandbox.resize(Daytona::Resources.new(cpu: 4), 5)
+
+      expect(started_sandbox.state).to eq('started')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'stop: reads at once and fails at once when the response is an error state' do
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'error'))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'error'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      expect { started_sandbox.stop(5) }.to raise_error(Daytona::Sdk::Error, /entered error state/)
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    def stub_fork(state)
+      allow(sandbox_api).to receive(:fork_sandbox).and_return(build_sandbox_dto(id: 'fork-1', state:))
+    end
+
+    it 'fork: skips the first read when the new sandbox subscription is live' do
+      stub_fork('starting')
+      emit_when_waiting('started')
+
+      forked = started_sandbox.fork(timeout: 5)
+
+      expect(forked.state).to eq('started')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).to have_received(:subscribe)
+        .with(resource_id: 'fork-1', handler: kind_of(Method), events: ['sandbox.state.updated']).once
+      expect(subscription_manager).to have_received(:unsubscribe).with('sub-123').once
+    end
+
+    it 'fork: reads once at once when the event connection is down' do
+      allow(subscription_manager).to receive(:connected?).and_return(false)
+      stub_fork('starting')
+      allow(sandbox_api).to receive(:get_sandbox).with('fork-1')
+                                                 .and_return(build_sandbox_dto(id: 'fork-1', state: 'started'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      forked = started_sandbox.fork(timeout: 5)
+
+      expect(forked.state).to eq('started')
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+    end
+
+    it 'fork: takes no wait and no subscription when the response is already started' do
+      stub_fork('started')
+
+      forked = started_sandbox.fork(timeout: 5)
+
+      expect(forked.state).to eq('started')
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+      expect(subscription_manager).not_to have_received(:subscribe)
+    end
+
+    it 'delete without wait takes no subscription' do
+      allow(sandbox_api).to receive(:delete_sandbox).and_return(build_sandbox_dto(state: 'destroying'))
+
+      started_sandbox.delete
+
+      expect(subscription_manager).not_to have_received(:subscribe)
     end
   end
 

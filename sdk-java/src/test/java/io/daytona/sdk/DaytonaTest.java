@@ -220,7 +220,6 @@ class DaytonaTest {
     @Test
     void createImageTargetOverridesClientTarget() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage("python:3.12-slim");
@@ -244,9 +243,35 @@ class DaytonaTest {
     }
 
     @Test
+    void createFromImageFromAStartedResponseMakesNoGet() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("python:3.12-slim");
+        Sandbox sandbox = daytona.create(params, 1);
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+        org.mockito.Mockito.verify(sandboxApi, org.mockito.Mockito.never()).getSandbox(any(), any(), any());
+    }
+
+    @Test
+    void createFromImageWithoutAStateInTheResponseReadsTheSandbox() {
+        io.daytona.api.client.model.Sandbox stateless = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        stateless.setState(null);
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(stateless);
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("python:3.12-slim");
+        Sandbox sandbox = daytona.create(params, 1);
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+        org.mockito.Mockito.verify(sandboxApi, org.mockito.Mockito.times(1)).getSandbox("sb-1", null, null);
+    }
+
+    @Test
     void createFromImageStringBuildsDockerfile() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage("python:3.12-slim");
@@ -260,7 +285,6 @@ class DaytonaTest {
     @Test
     void createFromImageObjectAddsResources() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage(Image.base("python:3.12").runCommands("echo hi"));
@@ -534,7 +558,6 @@ class DaytonaTest {
     @Test
     void createFromImageWithoutImageLeavesBuildInfoUnset() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-10", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-10", null, null)).thenReturn(TestSupport.mainSandbox("sb-10", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage("");

@@ -61,6 +61,22 @@ import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 import { buildSignedFileUrl } from './utils/fileUrlSigning'
+import { waitPollIntervalMs } from './utils/WaitPolling'
+
+/**
+ * A state subscription taken before an operation's request and handed to the operation's wait.
+ * The wait may skip its first read when the subscription was live before the request was sent.
+ */
+type PreparedStateWait = {
+  subId: string
+  live: boolean
+  stateEventCount: number
+}
+
+// Older servers may return an empty body from lifecycle operations.
+function isSandboxDto(data: unknown): data is SandboxDto {
+  return typeof data === 'object' && data !== null && typeof (data as { state?: unknown }).state === 'string'
+}
 
 /**
  * Represents a Daytona Sandbox.
@@ -198,6 +214,8 @@ export class Sandbox {
   >()
   private signingKey: string | null = null
   private signingKeyFetchedAt = 0
+  // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
+  private stateEventCount = 0
 
   /**
    * Creates a new Sandbox instance.
@@ -463,10 +481,19 @@ export class Sandbox {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
     const startTime = Date.now()
-    await this.sandboxApi.stopSandbox(this.id, undefined, force, { timeout: timeout * 1000 })
-    await this.refreshDataSafe()
-    const timeElapsed = Date.now() - startTime
-    await this.waitUntilStopped(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout)
+    const prepared = this.prepareStateWait()
+    try {
+      const response = await this.sandboxApi.stopSandbox(this.id, undefined, force, { timeout: timeout * 1000 })
+      if (isSandboxDto(response.data)) {
+        this.processSandboxDto(response.data)
+      } else {
+        await this.refreshDataSafe()
+      }
+      const timeElapsed = Date.now() - startTime
+      await this.waitForStopped(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
+    } finally {
+      this.releasePreparedStateWait(prepared)
+    }
   }
 
   /**
@@ -517,9 +544,20 @@ export class Sandbox {
       this.requestTimeoutMs,
     )
 
-    const timeElapsed = Date.now() - startTime
-    const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    await forkedSandbox.waitUntilStarted(remainingTimeout)
+    if (forkedSandbox.state === SandboxState.STARTED) {
+      return forkedSandbox
+    }
+
+    // The fork's id is only known from the response, so subscribe right after it. The fork endpoint
+    // returns before the new sandbox starts, so the transition still arrives as an event.
+    const prepared = forkedSandbox.prepareStateWait()
+    try {
+      const timeElapsed = Date.now() - startTime
+      const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
+      await forkedSandbox.waitForStarted(remainingTimeout, prepared)
+    } finally {
+      forkedSandbox.releasePreparedStateWait(prepared)
+    }
     return forkedSandbox
   }
 
@@ -619,26 +657,37 @@ export class Sandbox {
     }
 
     const startTime = Date.now()
-    await this.sandboxApi.pauseSandbox(this.id, undefined, {
-      timeout: timeout * 1000,
-    })
+    const prepared = this.prepareStateWait()
+    try {
+      const response = await this.sandboxApi.pauseSandbox(this.id, undefined, {
+        timeout: timeout * 1000,
+      })
 
-    await this.refreshData()
+      if (isSandboxDto(response.data)) {
+        this.processSandboxDto(response.data)
+      } else {
+        await this.refreshData()
+      }
 
-    const timeElapsed = Date.now() - startTime
-    const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    // Main's contract: pause completes when the sandbox has *left* PAUSING
-    // (paused, stopped, archived, ...), not only on exactly PAUSED.
-    const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
-    const excludeStates = new Set<string>([SandboxState.PAUSING, ...errorStates])
-    const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
-    await this.waitForState(
-      targetStates,
-      errorStates,
-      remainingTimeout,
-      'Sandbox failed to become paused within the timeout period',
-      (state) => `Sandbox ${this.id} pause failed with state: ${state}, error reason: ${this.errorReason}`,
-    )
+      const timeElapsed = Date.now() - startTime
+      const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
+      // Main's contract: pause completes when the sandbox has *left* PAUSING
+      // (paused, stopped, archived, ...), not only on exactly PAUSED.
+      const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+      const excludeStates = new Set<string>([SandboxState.PAUSING, ...errorStates])
+      const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
+      await this.waitForState(
+        targetStates,
+        errorStates,
+        remainingTimeout,
+        'Sandbox failed to become paused within the timeout period',
+        (state) => `Sandbox ${this.id} pause failed with state: ${state}, error reason: ${this.errorReason}`,
+        false,
+        prepared,
+      )
+    } finally {
+      this.releasePreparedStateWait(prepared)
+    }
   }
 
   /**
@@ -661,21 +710,27 @@ export class Sandbox {
     }
 
     const startTime = Date.now()
-    const response = await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
-    if (response.data) {
-      this.processSandboxDto(response.data)
-    }
+    const prepared = wait ? this.prepareStateWait() : undefined
+    try {
+      const response = await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
+      if (response.data) {
+        this.processSandboxDto(response.data)
+      }
 
-    if (wait && this.state !== SandboxState.DESTROYED) {
-      const timeElapsed = Date.now() - startTime
-      await this.waitForState(
-        [SandboxState.DESTROYED],
-        [SandboxState.ERROR, SandboxState.BUILD_FAILED],
-        timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout,
-        'Sandbox failed to be destroyed within the timeout period',
-        (state) => `Sandbox ${this.id} failed to delete with state: ${state}, error reason: ${this.errorReason}`,
-        true,
-      )
+      if (wait && this.state !== SandboxState.DESTROYED) {
+        const timeElapsed = Date.now() - startTime
+        await this.waitForState(
+          [SandboxState.DESTROYED],
+          [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+          timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout,
+          'Sandbox failed to be destroyed within the timeout period',
+          (state) => `Sandbox ${this.id} failed to delete with state: ${state}, error reason: ${this.errorReason}`,
+          true,
+          prepared,
+        )
+      }
+    } finally {
+      this.releasePreparedStateWait(prepared)
     }
   }
 
@@ -696,6 +751,10 @@ export class Sandbox {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
+    return this.waitForStarted(timeout)
+  }
+
+  private async waitForStarted(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (this.state === SandboxState.STARTED) {
       return
     }
@@ -711,6 +770,8 @@ export class Sandbox {
       timeout,
       'Sandbox failed to become ready within the timeout period',
       (state) => `Sandbox ${this.id} failed to start with status: ${state}, error reason: ${this.errorReason}`,
+      false,
+      prepared,
     )
   }
 
@@ -731,6 +792,10 @@ export class Sandbox {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
+    return this.waitForStopped(timeout)
+  }
+
+  private async waitForStopped(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     // Treat destroyed as stopped to cover ephemeral sandboxes that are automatically deleted after stopping
     if (this.state === SandboxState.STOPPED || this.state === SandboxState.DESTROYED) {
       return
@@ -743,6 +808,7 @@ export class Sandbox {
       'Sandbox failed to become stopped within the timeout period',
       (state) => `Sandbox failed to stop with status: ${state}, error reason: ${this.errorReason}`,
       true,
+      prepared,
     )
   }
 
@@ -1165,8 +1231,12 @@ export class Sandbox {
    */
   @WithInstrumentation()
   public async archive(): Promise<void> {
-    await this.sandboxApi.archiveSandbox(this.id)
-    await this.refreshData()
+    const response = await this.sandboxApi.archiveSandbox(this.id)
+    if (isSandboxDto(response.data)) {
+      this.processSandboxDto(response.data)
+    } else {
+      await this.refreshData()
+    }
   }
 
   /**
@@ -1205,12 +1275,17 @@ export class Sandbox {
       memory: resources.memory,
       disk: resources.disk,
     }
-    const response = await this.sandboxApi.resizeSandbox(this.id, resizeRequest, this.organizationId, {
-      timeout: timeout * 1000,
-    })
-    this.processSandboxDto(response.data)
-    const timeElapsed = Date.now() - startTime
-    await this.waitForResizeComplete(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout)
+    const prepared = this.prepareStateWait()
+    try {
+      const response = await this.sandboxApi.resizeSandbox(this.id, resizeRequest, this.organizationId, {
+        timeout: timeout * 1000,
+      })
+      this.processSandboxDto(response.data)
+      const timeElapsed = Date.now() - startTime
+      await this.waitForResize(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
+    } finally {
+      this.releasePreparedStateWait(prepared)
+    }
   }
 
   /**
@@ -1228,6 +1303,10 @@ export class Sandbox {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
+    return this.waitForResize(timeout)
+  }
+
+  private async waitForResize(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (this.state !== SandboxState.RESIZING) {
       return
     }
@@ -1242,6 +1321,8 @@ export class Sandbox {
       timeout,
       'Sandbox resize did not complete within the timeout period',
       (state) => `Sandbox ${this.id} resize failed with state: ${state}, error reason: ${this.errorReason}`,
+      false,
+      prepared,
     )
   }
 
@@ -1291,6 +1372,27 @@ export class Sandbox {
   }
 
   /**
+   * Takes the state subscription for an operation's wait: before the operation's request when the
+   * sandbox id is known, so every state change after the request arrives as an event.
+   */
+  private prepareStateWait(): PreparedStateWait {
+    const subId = this.subscribeToStateEvents()
+    return {
+      subId,
+      live: subId !== '' && this.subscriptionManager.isConnected,
+      stateEventCount: this.stateEventCount,
+    }
+  }
+
+  /** Releases a prepared subscription the wait did not take over (request failed, or no wait was needed). */
+  private releasePreparedStateWait(prepared?: PreparedStateWait): void {
+    if (prepared?.subId) {
+      this.subscriptionManager.unsubscribe(prepared.subId)
+      prepared.subId = ''
+    }
+  }
+
+  /**
    * Applies the state from a `sandbox.state.updated` event. Payloads may carry only a
    * subset of the sandbox fields; everything else is picked up by the wait's refreshes.
    */
@@ -1301,6 +1403,7 @@ export class Sandbox {
 
     const newState = raw.state ?? data.newState
     if (newState) {
+      this.stateEventCount++
       this.applyState(newState)
     }
   }
@@ -1315,6 +1418,7 @@ export class Sandbox {
    * @param timeoutMessage - Error message when timeout is reached.
    * @param errorMessageFn - Function that produces an error message from the current state.
    * @param safeRefresh - If true, use refreshDataSafe() for polling (for delete operations where 404 is expected).
+   * @param prepared - Subscription taken before the operation's request; this wait takes it over.
    */
   private waitForState(
     targetStates: SandboxState[],
@@ -1323,6 +1427,7 @@ export class Sandbox {
     timeoutMessage: string,
     errorMessageFn: (state: string) => string,
     safeRefresh = false,
+    prepared?: PreparedStateWait,
   ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       let timeoutTimer: ReturnType<typeof setTimeout> | null = null
@@ -1330,6 +1435,10 @@ export class Sandbox {
       let settled = false
       // Event subscription held by this wait only; released on every exit path.
       let subId = ''
+      if (prepared) {
+        subId = prepared.subId
+        prepared.subId = ''
+      }
 
       const waiter = {
         targetStates: new Set(targetStates),
@@ -1369,7 +1478,9 @@ export class Sandbox {
         return
       }
 
-      subId = this.subscribeToStateEvents()
+      if (!subId) {
+        subId = this.subscribeToStateEvents()
+      }
 
       if (timeout !== 0) {
         timeoutTimer = setTimeout(() => {
@@ -1403,21 +1514,23 @@ export class Sandbox {
         }, timeout * 1000)
       }
 
-      // Poll as a safety net for missed state changes. While this wait is event-backed
-      // (holds a subscription and the connection is up) a sparse 1s cadence suffices;
-      // otherwise replicate main's cadence exactly: 100ms steady for the first 5s, then
+      // Poll as a safety net for missed state changes (see waitPollIntervalMs). Without a
+      // subscription, replicate main's cadence exactly: 100ms steady for the first 5s, then
       // exponential backoff capped at 1s. Re-evaluated on every iteration so the cadence
-      // follows the connection as it comes up or drops.
+      // follows the subscription and the connection as they come and go.
       const pollStart = Date.now()
       let fastPollInterval = 100
-      const isEventBacked = (): boolean => {
+      const holdsSubscription = (): boolean => {
         if (!subId) return false
         // Keep the subscription alive for long waits (subscriptions expire after a TTL).
         if (!this.subscriptionManager.refresh(subId)) {
           subId = this.subscribeToStateEvents()
-          if (!subId) return false
         }
-        return this.subscriptionManager.isConnected
+        return subId !== ''
+      }
+      const nextPollDelay = (): number => {
+        const subscribed = holdsSubscription()
+        return waitPollIntervalMs(subscribed, subscribed && this.subscriptionManager.isConnected, fastPollInterval)
       }
       const doPoll = async () => {
         if (settled) return
@@ -1447,17 +1560,35 @@ export class Sandbox {
           if (Date.now() - pollStart > 5000) {
             fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
           }
-          pollTimer = setTimeout(
-            () => {
-              void doPoll()
-            },
-            isEventBacked() ? 1000 : fastPollInterval,
-          )
+          pollTimer = setTimeout(() => {
+            void doPoll()
+          }, nextPollDelay())
         }
       }
 
-      // First poll runs immediately (main refreshed before any state evaluation).
-      void doPoll()
+      // The first poll runs immediately (main refreshed before any state evaluation), unless the
+      // subscription was live before the operation's request and no state event raced its response:
+      // then every later change arrives as an event and the read is redundant. An error or unexpected
+      // destroyed state from the response still gets the read, so it fails as fast as before.
+      const responseState = this.state
+      const responseStateIsFailure =
+        responseState !== undefined &&
+        (waiter.errorStates.has(responseState) ||
+          (responseState === SandboxState.DESTROYED && !waiter.targetStates.has(responseState)))
+      const skipFirstRead =
+        prepared !== undefined &&
+        prepared.live &&
+        subId !== '' &&
+        this.subscriptionManager.isConnected &&
+        this.stateEventCount === prepared.stateEventCount &&
+        !responseStateIsFailure
+      if (skipFirstRead) {
+        pollTimer = setTimeout(() => {
+          void doPoll()
+        }, nextPollDelay())
+      } else {
+        void doPoll()
+      }
     })
   }
 
