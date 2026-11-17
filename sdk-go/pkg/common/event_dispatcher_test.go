@@ -308,6 +308,65 @@ func TestEventDispatcherResendsWholeSetInChunksAfterReconnect(t *testing.T) {
 	assert.ElementsMatch(t, expected, ids, "the resent set must be exactly the current set, each id once")
 }
 
+func lowerSubscriptionCap(t *testing.T, limit int) {
+	t.Helper()
+	original := MaxSubscriptionsPerConnection
+	MaxSubscriptionsPerConnection = limit
+	t.Cleanup(func() { MaxSubscriptionsPerConnection = original })
+}
+
+func TestEventDispatcherServesAtMostTheCap(t *testing.T) {
+	lowerSubscriptionCap(t, 2)
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	manager := NewEventSubscriptionManager(es)
+	idA, idB, idC, idD := testSandboxID(1), testSandboxID(2), testSandboxID(3), testSandboxID(4)
+
+	unsubscribeA := es.Subscribe(idA, noopHandler, stateEvents)
+	require.Eventually(t, func() bool { return es.IsConnected() && len(f.events()) == 1 }, 5*time.Second, 10*time.Millisecond)
+	unsubscribeB := es.Subscribe(idB, noopHandler, stateEvents)
+	defer unsubscribeB()
+	require.Eventually(t, func() bool { return len(f.events()) == 2 }, 5*time.Second, 10*time.Millisecond)
+	unsubscribeC := es.Subscribe(idC, noopHandler, stateEvents)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, []receivedEvent{{"subscribe", []string{idA}}, {"subscribe", []string{idB}}}, f.events(), "nothing is sent beyond the cap")
+	assert.True(t, manager.IsEventBacked(idA))
+	assert.False(t, es.IsServed(idC))
+	assert.False(t, manager.IsEventBacked(idC))
+
+	// A freed slot goes to the next new id, not to the waiting one.
+	unsubscribeA()
+	unsubscribeD := es.Subscribe(idD, noopHandler, stateEvents)
+	defer unsubscribeD()
+	require.Eventually(t, func() bool { return len(f.events()) == 4 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, receivedEvent{"unsubscribe", []string{idA}}, f.events()[2])
+	assert.Equal(t, receivedEvent{"subscribe", []string{idD}}, f.events()[3])
+	assert.False(t, es.IsServed(idC))
+
+	// The last listener of an unserved id goes without a message.
+	unsubscribeC()
+	time.Sleep(100 * time.Millisecond)
+	assert.Len(t, f.events(), 4)
+}
+
+func TestEventDispatcherResendsOnlyServedIDsAfterReconnect(t *testing.T) {
+	lowerSubscriptionCap(t, 2)
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	idA, idB, idC := testSandboxID(1), testSandboxID(2), testSandboxID(3)
+	for _, id := range []string{idA, idB, idC} {
+		defer es.Subscribe(id, noopHandler, stateEvents)()
+	}
+	require.Eventually(t, func() bool { return es.IsConnected() && len(f.events()) >= 1 }, 5*time.Second, 10*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	before := len(f.events())
+
+	f.dropConnections()
+	require.Eventually(t, func() bool { return f.connectionCount() == 2 && len(f.events()) > before }, 10*time.Second, 20*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, []receivedEvent{{"subscribe", []string{idA, idB}}}, f.events()[before:])
+}
+
 func TestEventDispatcherReconnectsAfterFailedSubscriptionWrite(t *testing.T) {
 	f := newFakeSocketIOServer(t)
 	// Keep server sockets open when their read side ends, so only the client's

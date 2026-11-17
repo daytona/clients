@@ -1237,11 +1237,13 @@ module Daytona
     def with_operation_subscription
       subscription = { id: nil, live: false, connection_epoch: nil, state_events: nil }
       Thread.handle_interrupt(Object => :never) do
-        subscription[:id] = subscribe_to_state_events
-        # Epoch before the connection check: a reconnect in between then fails the epoch comparison.
-        subscription[:connection_epoch] = @subscription_manager&.connection_epoch
-        subscription[:live] = !subscription[:id].nil? && @subscription_manager.connected?
+        # Snapshot before subscribing: an event delivered once the subscription exists may apply its state
+        # after the operation's response, so it must change the count. Likewise a reconnect from then on
+        # must change the epoch.
         subscription[:state_events] = @waiter_mutex.synchronize { @state_event_count }
+        subscription[:connection_epoch] = @subscription_manager&.connection_epoch
+        subscription[:id] = subscribe_to_state_events
+        subscription[:live] = !subscription[:id].nil? && @subscription_manager.event_backed?(id)
         Thread.handle_interrupt(Object => :immediate) { yield subscription }
       ensure
         release_state_subscription(subscription)
@@ -1484,7 +1486,7 @@ module Daytona
     def next_poll_interval(subscription:, fast_poll_interval:)
       return fast_poll_interval unless subscription[:id]
 
-      interval = @subscription_manager.connected? ? EVENT_BACKED_POLL_INTERVAL : SUBSCRIBED_POLL_INTERVAL
+      interval = @subscription_manager.event_backed?(id) ? EVENT_BACKED_POLL_INTERVAL : SUBSCRIBED_POLL_INTERVAL
       interval * (1 + (POLL_JITTER * ((2 * poll_jitter_random) - 1)))
     end
 
@@ -1492,10 +1494,10 @@ module Daytona
     def poll_jitter_random = rand
 
     # Whether the operation's response (or the refresh standing in for it) can replace a wait's first read:
-    # the subscription was live when taken, the connection is still up and was not re-established since (a
-    # reconnect loses the events emitted while the socket was down), no state event arrived since (it may be
-    # newer than the response that overwrote it), and the response does not fail the wait (read again at
-    # once, so it fails as fast as before).
+    # the subscription was live when taken, events can still arrive and the connection was not re-established
+    # since (a reconnect loses the events emitted while the socket was down), no state event arrived since (it
+    # may be newer than the response that overwrote it), and the response does not fail the wait (read again
+    # at once, so it fails as fast as before).
     #
     # @param subscription [Hash] { id:, live:, connection_epoch:, state_events: }; a wait's own subscription
     #   has no :live
@@ -1514,9 +1516,10 @@ module Daytona
 
     # @param subscription [Hash] { id:, connection_epoch: }
     # @return [Boolean] Whether every state event since +subscription+ was taken has reached this Sandbox:
-    #   it is held, the connection is up and has not been re-established meanwhile
+    #   it is held, the server serves this Sandbox, the connection is up and has not been re-established
+    #   meanwhile
     def events_reached_wait?(subscription)
-      !subscription[:id].nil? && @subscription_manager.connected? &&
+      !subscription[:id].nil? && @subscription_manager.event_backed?(id) &&
         @subscription_manager.connection_epoch == subscription[:connection_epoch]
     end
 

@@ -33,6 +33,12 @@ function extractIdFromEvent(data: any): string | undefined {
 const SUBSCRIPTION_CHUNK_SIZE = 100
 
 /**
+ * Most sandbox ids one connection may subscribe to. Set by the gateway's wire contract: a subscribe
+ * that would exceed it is rejected whole, and the client is not told.
+ */
+export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000
+
+/**
  * Manages a Socket.IO connection to the Daytona notification gateway
  * and dispatches resource events to per-resource handlers.
  *
@@ -50,6 +56,8 @@ export class EventDispatcher {
   private _failed = false
   private _failError: string | null = null
   private listeners = new Map<string, Set<EventHandler>>()
+  // Ids the server holds, or will hold after the next connect; at most maxSubscriptions.
+  private readonly served = new Set<string>()
   private registeredEvents = new Set<string>()
   private connectPromise: Promise<void> | null = null
   private ensureConnectPromise: Promise<void> | null = null
@@ -70,6 +78,7 @@ export class EventDispatcher {
     private readonly organizationId?: string,
     private readonly source?: string,
     private readonly sdkVersion?: string,
+    private readonly maxSubscriptions = MAX_SUBSCRIPTIONS_PER_CONNECTION,
   ) {}
 
   /**
@@ -191,8 +200,8 @@ export class EventDispatcher {
         this._failError = null
         this.reconnectAttempts = 0
         // Fires on the initial connect and on every reconnect; the server drops
-        // subscriptions with the socket, so send the whole current set.
-        this.emitSubscriptionChange('subscribe', [...this.listeners.keys()])
+        // subscriptions with the socket, so send the whole served set.
+        this.emitSubscriptionChange('subscribe', [...this.served])
         resolve()
       })
 
@@ -294,7 +303,11 @@ export class EventDispatcher {
     if (!handlers) {
       handlers = new Set()
       this.listeners.set(resourceId, handlers)
-      this.emitSubscriptionChange('subscribe', [resourceId])
+      // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
+      if (this.served.size < this.maxSubscriptions) {
+        this.served.add(resourceId)
+        this.emitSubscriptionChange('subscribe', [resourceId])
+      }
     }
     handlers.add(handler)
 
@@ -305,7 +318,9 @@ export class EventDispatcher {
       const handlers = this.listeners.get(resourceId)
       if (handlers && handlers.delete(handler) && handlers.size === 0) {
         this.listeners.delete(resourceId)
-        this.emitSubscriptionChange('unsubscribe', [resourceId])
+        if (this.served.delete(resourceId)) {
+          this.emitSubscriptionChange('unsubscribe', [resourceId])
+        }
       }
 
       // Schedule delayed disconnect when no resources are listening anymore
@@ -313,6 +328,11 @@ export class EventDispatcher {
         this.scheduleDelayedDisconnect()
       }
     }
+  }
+
+  /** Whether the server holds (or will hold after the next connect) a subscription for this id. */
+  isServed(resourceId: string): boolean {
+    return this.served.has(resourceId)
   }
 
   /** Whether the WebSocket is currently connected */
@@ -353,6 +373,7 @@ export class EventDispatcher {
     }
     this._connected = false
     this.listeners.clear()
+    this.served.clear()
     this.registeredEvents.clear()
   }
 

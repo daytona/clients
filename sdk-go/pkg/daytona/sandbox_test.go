@@ -25,6 +25,10 @@ import (
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/metric"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestNewSandboxConstruction(t *testing.T) {
@@ -938,6 +942,33 @@ func TestSandboxSetLabels(t *testing.T) {
 			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
 		})
 	}
+}
+
+func TestForkWithStartedResponseRecordsWaitForStartSpan(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("forked", "forked-name", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+
+	recorder := tracetest.NewSpanRecorder()
+	tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	client := createTestClientWithServer(t, server)
+	client.Otel = &otelState{
+		tracer:     tracerProvider.Tracer("test"),
+		meter:      metricnoop.NewMeterProvider().Meter("test"),
+		histograms: map[string]metric.Float64Histogram{},
+	}
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+
+	forked, err := sandbox.ForkWithTimeout(context.Background(), nil, 3*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
+
+	var names []string
+	for _, span := range recorder.Ended() {
+		names = append(names, span.Name())
+	}
+	assert.Contains(t, names, "Sandbox.WaitForStart")
 }
 
 func TestSandboxForkAndSnapshot(t *testing.T) {

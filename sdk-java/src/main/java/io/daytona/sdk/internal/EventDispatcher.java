@@ -17,6 +17,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,11 @@ public class EventDispatcher {
     private static final String[] NESTED_ENTITY_KEYS = {"sandbox", "volume", "snapshot", "runner"};
     static final String SUBSCRIPTION_MODE = "explicit";
     static final int MAX_IDS_PER_MESSAGE = 100;
+    /**
+     * Most sandbox ids one connection may subscribe to. Set by the gateway's wire contract: a
+     * subscribe that would exceed it is rejected whole, and the client is not told.
+     */
+    public static final int MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000;
     static final String SUBSCRIBE_EVENT = "subscribe";
     static final String UNSUBSCRIBE_EVENT = "unsubscribe";
 
@@ -61,6 +67,7 @@ public class EventDispatcher {
     private final String organizationId;
     private final String source;
     private final String sdkVersion;
+    private final int maxSubscriptions;
 
     private volatile Socket socket;
     private final Object lock = new Object();
@@ -68,6 +75,8 @@ public class EventDispatcher {
     private final AtomicInteger nextSubId = new AtomicInteger(0);
     private final Set<String> registeredEvents = ConcurrentHashMap.newKeySet();
     private final Set<String> socketBoundEvents = new HashSet<>();
+    // Ids the server holds, or will hold after the next connect; at most maxSubscriptions. Guarded by lock.
+    private final Set<String> served = new LinkedHashSet<>();
     private final ScheduledExecutorService scheduler;
     private ScheduledFuture<?> disconnectTimer;
     private long disconnectGeneration;
@@ -89,6 +98,13 @@ public class EventDispatcher {
     }
 
     public EventDispatcher(String apiUrl, String token, String organizationId, String source, String sdkVersion) {
+        this(apiUrl, token, organizationId, source, sdkVersion, MAX_SUBSCRIPTIONS_PER_CONNECTION);
+    }
+
+    /** @param maxSubscriptions most ids this connection subscribes to; tests lower it */
+    public EventDispatcher(String apiUrl, String token, String organizationId, String source, String sdkVersion,
+                           int maxSubscriptions) {
+        this.maxSubscriptions = maxSubscriptions;
         this.apiUrl = apiUrl;
         this.token = token;
         this.organizationId = organizationId;
@@ -198,8 +214,8 @@ public class EventDispatcher {
                     failed = false;
                     failError = "";
                     connectionGeneration++;
-                    // The server drops subscriptions on disconnect: send the whole set again.
-                    emitIdsLocked(sock, SUBSCRIBE_EVENT, new ArrayList<>(listeners.keySet()));
+                    // The server drops subscriptions on disconnect: send the whole served set again.
+                    emitIdsLocked(sock, SUBSCRIBE_EVENT, new ArrayList<>(served));
                 }
             });
 
@@ -270,7 +286,9 @@ public class EventDispatcher {
             // Register and bind events before subscribing to prevent first-event drops
             registerEvents(events);
 
-            if (firstListener) {
+            // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
+            if (firstListener && served.size() < maxSubscriptions) {
+                served.add(resourceId);
                 emitIdsLocked(socket, SUBSCRIBE_EVENT, Collections.singletonList(resourceId));
             }
         }
@@ -295,6 +313,13 @@ public class EventDispatcher {
 
     public boolean isConnected() {
         return connected;
+    }
+
+    /** Whether the server holds (or will hold after the next connect) a subscription for this id. */
+    public boolean isServed(String resourceId) {
+        synchronized (lock) {
+            return served.contains(resourceId);
+        }
     }
 
     /** Incremented on every successful connect: the initial one and every reconnect. */
@@ -330,6 +355,7 @@ public class EventDispatcher {
             connected = false;
             connecting = false;
             socketBoundEvents.clear();
+            served.clear();
         }
         listeners.clear();
         registeredEvents.clear();
@@ -407,7 +433,9 @@ public class EventDispatcher {
 
     private void unsubscribeResourceLocked(String resourceId) {
         listeners.remove(resourceId);
-        emitIdsLocked(socket, UNSUBSCRIBE_EVENT, Collections.singletonList(resourceId));
+        if (served.remove(resourceId)) {
+            emitIdsLocked(socket, UNSUBSCRIBE_EVENT, Collections.singletonList(resourceId));
+        }
     }
 
     /**

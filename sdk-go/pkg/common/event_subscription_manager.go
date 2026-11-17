@@ -122,6 +122,13 @@ func (m *EventSubscriptionManager) IsConnected() bool {
 	return m.dispatcher.IsConnected()
 }
 
+// IsEventBacked reports whether state events for resourceID can arrive now: the
+// manager is open, the connection is up and the server serves resourceID (it
+// does not beyond the per-connection subscription cap).
+func (m *EventSubscriptionManager) IsEventBacked(resourceID string) bool {
+	return m.IsConnected() && m.dispatcher.IsServed(resourceID)
+}
+
 // ConnectionEpoch returns the dispatcher's count of successful connects; it
 // changes on every reconnect, so callers can tell whether events may have been
 // missed between two points in time.

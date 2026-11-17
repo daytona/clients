@@ -29,6 +29,7 @@ RSpec.describe Daytona::Sandbox do
       refresh: true,
       unsubscribe: nil,
       connected?: true,
+      event_backed?: true,
       connection_epoch: 0
     )
   end
@@ -1297,7 +1298,7 @@ RSpec.describe Daytona::Sandbox do
     end
 
     it 'polls every second until the event connection is up, sparsely while it is, and every second once it drops' do
-      allow(subscription_manager).to receive(:connected?).and_return(false, true, false)
+      allow(subscription_manager).to receive(:event_backed?).and_return(false, true, false)
       allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
       stub_polls('pending', 'pending', 'pending', 'started')
       waits = []
@@ -1320,7 +1321,7 @@ RSpec.describe Daytona::Sandbox do
       end
 
       it 'is 1 s with up to 20 % jitter while subscribed but disconnected' do
-        allow(subscription_manager).to receive(:connected?).and_return(false)
+        allow(subscription_manager).to receive(:event_backed?).and_return(false)
 
         expect([0.0, 0.5, 1.0].map { |r| interval(subscription_id: 'sub-123', random: r) })
           .to eq([0.8, 1.0, 1.2])
@@ -1356,7 +1357,7 @@ RSpec.describe Daytona::Sandbox do
 
     it 'polls about every second, not every 100 ms, while subscribed but disconnected' do
       allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
-      allow(subscription_manager).to receive(:connected?).and_return(false)
+      allow(subscription_manager).to receive(:event_backed?).and_return(false)
       allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
 
       expect(poll_times_until_started(3)).to eq([0.0, 1.0, 2.0, 3.0])
@@ -1371,7 +1372,7 @@ RSpec.describe Daytona::Sandbox do
       pending_sandbox.wait_for_sandbox_start
 
       expect(waits).to eq([0.1])
-      expect(subscription_manager).not_to have_received(:connected?)
+      expect(subscription_manager).not_to have_received(:event_backed?)
       expect(subscription_manager).not_to have_received(:unsubscribe)
     end
 
@@ -1449,7 +1450,7 @@ RSpec.describe Daytona::Sandbox do
     end
 
     it 'stop: reads once at once when the event connection was down at the request' do
-      allow(subscription_manager).to receive(:connected?).and_return(false)
+      allow(subscription_manager).to receive(:event_backed?).and_return(false)
       allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
       allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'stopped'))
       waits = []
@@ -1525,6 +1526,25 @@ RSpec.describe Daytona::Sandbox do
 
       expect(sandbox_api).to have_received(:get_sandbox).once
       expect(started_sandbox.state).to eq('destroyed')
+    end
+
+    it 'stop: reads once at once when a state event arrives while the subscription is taken' do
+      allow(subscription_manager).to receive(:subscribe) do |**kwargs|
+        handler << kwargs[:handler]
+        # Delivered as soon as the subscription exists, before the (older) stop response is applied.
+        state_event('stopped')
+        'sub-123'
+      end
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'stopped'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      started_sandbox.stop(5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+      expect(started_sandbox.state).to eq('stopped')
     end
 
     it 'stop: releases the subscription and raises the original error when the request fails' do
@@ -1619,7 +1639,7 @@ RSpec.describe Daytona::Sandbox do
     end
 
     it 'fork: reads once at once when the event connection is down' do
-      allow(subscription_manager).to receive(:connected?).and_return(false)
+      allow(subscription_manager).to receive(:event_backed?).and_return(false)
       stub_fork('starting')
       allow(sandbox_api).to receive(:get_sandbox).with('fork-1')
                                                  .and_return(build_sandbox_dto(id: 'fork-1', state: 'started'))
@@ -1649,6 +1669,113 @@ RSpec.describe Daytona::Sandbox do
       started_sandbox.delete
 
       expect(subscription_manager).not_to have_received(:subscribe)
+    end
+  end
+
+  describe 'the per-connection subscription cap' do
+    let(:dispatcher) { Daytona::EventDispatcher.new(api_url: 'https://api.example.com/api', token: 'token') }
+    let(:manager) { Daytona::EventSubscriptionManager.new(dispatcher) }
+    let(:emit_lock) { Mutex.new }
+    let(:emitted) { [] }
+    let(:states) { Hash.new('pending').merge('sandbox-c' => 'stopped') }
+    let(:cancelled) { Class.new(StandardError) }
+    let(:waits) { [] }
+
+    before do
+      stub_const('Daytona::EventDispatcher::MAX_SUBSCRIPTIONS_PER_CONNECTION', 2)
+      allow(Daytona::SocketIOClient).to receive(:new) do
+        double('SocketIOClient', connect: nil, close: nil).tap do |client|
+          allow(client).to receive(:emit) { |name, data|
+            emit_lock.synchronize {
+              emitted << [name, data[:sandboxIds]]
+            }
+          }
+        end
+      end
+      allow(sandbox_api).to receive(:get_sandbox) { |sandbox_id|
+        build_sandbox_dto(id: sandbox_id, state: states[sandbox_id])
+      }
+    end
+
+    after do
+      waits.each do |thread|
+        thread.raise(cancelled)
+        thread.join
+      end
+      manager.shutdown
+      dispatcher.disconnect
+    end
+
+    def sandbox_for(sandbox_id, state = 'pending')
+      described_class.new(sandbox_dto: build_sandbox_dto(id: sandbox_id, state:), config:, sandbox_api:,
+                          subscription_manager: manager)
+    end
+
+    # A stand-alone start wait on +sandbox_id+, running until the example ends or #cancel_wait.
+    def start_wait(sandbox_id)
+      sandbox = sandbox_for(sandbox_id)
+      thread = Thread.new do
+        sandbox.wait_for_sandbox_start(60)
+      rescue cancelled
+        nil
+      end
+      waits << thread
+      thread
+    end
+
+    def cancel_wait(thread)
+      waits.delete(thread)
+      thread.raise(cancelled)
+      thread.join
+    end
+
+    def emitted_events = emit_lock.synchronize { emitted.dup }
+
+    def subscribed?(sandbox_id) = emitted_events.any? { |name, ids| name == 'subscribe' && ids.include?(sandbox_id) }
+
+    def eventually(timeout: 5)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+      sleep(0.01) until yield || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      expect(yield).to be(true)
+    end
+
+    def interval_for(sandbox)
+      allow(sandbox).to receive(:poll_jitter_random).and_return(0.5)
+      sandbox.send(:next_poll_interval, subscription: { id: 'held' }, fast_poll_interval: 0.1)
+    end
+
+    it 'makes the wait beyond the cap read first and poll every second; the served ones stay event-backed' do
+      start_wait('sandbox-a')
+      start_wait('sandbox-b')
+      eventually { subscribed?('sandbox-a') && subscribed?('sandbox-b') && manager.connected? }
+      sandbox_c = sandbox_for('sandbox-c', 'started')
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(id: 'sandbox-c', state: 'stopping'))
+
+      elapsed = Benchmark.realtime { sandbox_c.stop(5) }
+
+      expect(sandbox_c.state).to eq('stopped')
+      expect(sandbox_api).to have_received(:get_sandbox).with('sandbox-c').once
+      expect(elapsed).to be < 2.5
+      expect(subscribed?('sandbox-c')).to be(false)
+      expect(interval_for(sandbox_c)).to eq(1.0)
+      expect(interval_for(sandbox_for('sandbox-a'))).to eq(5.0)
+    end
+
+    it 'gives a freed slot to the next new id, not to the unserved one' do
+      wait_a = start_wait('sandbox-a')
+      start_wait('sandbox-b')
+      eventually { subscribed?('sandbox-a') && subscribed?('sandbox-b') && manager.connected? }
+      start_wait('sandbox-c')
+      eventually { dispatcher.instance_variable_get(:@listeners).key?('sandbox-c') }
+
+      cancel_wait(wait_a)
+      eventually { emitted_events.include?(['unsubscribe', ['sandbox-a']]) }
+      expect(dispatcher.served?('sandbox-c')).to be(false)
+
+      start_wait('sandbox-d')
+      eventually { subscribed?('sandbox-d') }
+      expect(manager.event_backed?('sandbox-d')).to be(true)
+      expect(subscribed?('sandbox-c')).to be(false)
     end
   end
 

@@ -185,6 +185,12 @@ const (
 // waitForStatePollRandom is the jitter source, uniform in [0, 1). Stubbed in tests.
 var waitForStatePollRandom = rand.Float64
 
+// subscribeStateEvents takes a state-event subscription. Tests stub it to
+// deliver an event from inside the subscribe.
+var subscribeStateEvents = func(manager *common.EventSubscriptionManager, sandboxID string, handler common.SandboxEventHandler) string {
+	return manager.Subscribe(sandboxID, handler, []string{"sandbox.state.updated"})
+}
+
 // waitForStateNextPoll schedules a wait's polls after the first. Tests stub it
 // to tell the immediate read apart from scheduled polls without timing.
 var waitForStateNextPoll = waitForStatePollInterval
@@ -550,12 +556,15 @@ func (s *Sandbox) subscribeForWait() *waitSubscription {
 // Every later state change arrives as an event, so the wait can skip its first
 // read. Hand it to waitForStateWith; close it if the wait never starts.
 func (s *Sandbox) subscribeForOperation() *waitSubscription {
+	// Snapshot before subscribing: an event delivered once the subscription
+	// exists may apply its state after the operation's response, so it must
+	// change the count. Likewise a reconnect from then on must change the epoch.
+	stateEvents := s.stateEvents.Load()
+	connectionEpoch := s.subscriptionManager.ConnectionEpoch()
 	w := s.subscribeForWait()
-	// Epoch before the connection check: a reconnect in between then fails the
-	// epoch comparison instead of passing unnoticed.
-	w.connectionEpochBeforeRequest = s.subscriptionManager.ConnectionEpoch()
-	w.liveBeforeRequest = w.subID != "" && s.subscriptionManager.IsConnected()
-	w.stateEventsBeforeRequest = s.stateEvents.Load()
+	w.stateEventsBeforeRequest = stateEvents
+	w.connectionEpochBeforeRequest = connectionEpoch
+	w.liveBeforeRequest = w.subID != "" && s.subscriptionManager.IsEventBacked(s.ID)
 	return w
 }
 
@@ -586,7 +595,7 @@ func (w *waitSubscription) ensure() bool {
 	if w.subID != "" && manager.Refresh(w.subID) {
 		return true
 	}
-	w.subID = manager.Subscribe(w.sandbox.ID, w.sandbox.handleEvent, []string{"sandbox.state.updated"})
+	w.subID = subscribeStateEvents(manager, w.sandbox.ID, w.sandbox.handleEvent)
 	return w.subID != ""
 }
 
@@ -606,7 +615,7 @@ func (w *waitSubscription) pollMode() waitPollMode {
 	if !w.ensure() {
 		return waitPollUnsubscribed
 	}
-	if w.sandbox.subscriptionManager.IsConnected() {
+	if w.sandbox.subscriptionManager.IsEventBacked(w.sandbox.ID) {
 		return waitPollEventBacked
 	}
 	return waitPollSubscribed
@@ -2081,14 +2090,14 @@ func (s *Sandbox) doForkWithTimeout(ctx context.Context, name *string, timeout t
 
 	language := types.CodeLanguage(sandboxResp.GetLabels()[types.CodeToolboxLanguageLabel])
 	forked := NewSandbox(s.client, toolboxClient, sandboxResp, language, s.subscriptionManager)
-	if forked.currentState() == apiclient.SANDBOXSTATE_STARTED {
-		return forked, nil
-	}
-
 	// The fork endpoint returns before the fork starts, so a subscription taken
-	// now sees the transition and the wait can skip its first read.
-	sub := forked.subscribeForOperation()
-	defer sub.close()
+	// now sees the transition and the wait can skip its first read. A fork that
+	// already started needs none, but still records the wait.
+	var sub *waitSubscription
+	if forked.currentState() != apiclient.SANDBOXSTATE_STARTED {
+		sub = forked.subscribeForOperation()
+		defer sub.close()
+	}
 	err = withInstrumentationVoid(ctx, forked.otel, "Sandbox", "WaitForStart", func(ctx context.Context) error {
 		return forked.doWaitForStartWith(ctx, timeout, sub)
 	})

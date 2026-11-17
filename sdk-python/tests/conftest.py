@@ -175,6 +175,9 @@ class FakeEventDispatcher:
 
         return unsubscribe
 
+    def is_served(self, resource_id: str) -> bool:
+        return resource_id in self.listeners
+
 
 class OtelRecorder:
     """Records the spans and duration metrics that the instrumentation decorators emit."""

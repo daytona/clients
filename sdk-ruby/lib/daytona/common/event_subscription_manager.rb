@@ -92,6 +92,13 @@ module Daytona
       @dispatcher.nil? ? 0 : @dispatcher.connection_epoch
     end
 
+    # @param resource_id [String]
+    # @return [Boolean] Whether state events for +resource_id+ can arrive now: the manager is open, the
+    #   connection is up and the server serves +resource_id+ (it does not beyond the per-connection cap)
+    def event_backed?(resource_id)
+      connected? && @dispatcher.served?(resource_id)
+    end
+
     def unsubscribe(sub_id)
       subscription = @mutex.synchronize do
         removed = @subscriptions.delete(sub_id)

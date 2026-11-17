@@ -1389,12 +1389,15 @@ export class Sandbox {
    * sandbox id is known, so every state change after the request arrives as an event.
    */
   private prepareStateWait(): PreparedStateWait {
+    // Baseline first: any event or reconnect from the subscribe on then changes it, so the wait reads first.
+    const stateEventCount = this.stateEventCount
+    const connectionEpoch = this.subscriptionManager.connectionEpoch
     const subId = this.subscribeToStateEvents()
     return {
       subId,
-      live: subId !== '' && this.subscriptionManager.isConnected,
-      stateEventCount: this.stateEventCount,
-      connectionEpoch: this.subscriptionManager.connectionEpoch,
+      live: subId !== '' && this.subscriptionManager.isEventBacked(this.id),
+      stateEventCount,
+      connectionEpoch,
       hasFreshState: false,
     }
   }
@@ -1545,7 +1548,11 @@ export class Sandbox {
       }
       const nextPollDelay = (): number => {
         const subscribed = holdsSubscription()
-        return waitPollIntervalMs(subscribed, subscribed && this.subscriptionManager.isConnected, fastPollInterval)
+        return waitPollIntervalMs(
+          subscribed,
+          subscribed && this.subscriptionManager.isEventBacked(this.id),
+          fastPollInterval,
+        )
       }
       const doPoll = async () => {
         if (settled) return
@@ -1596,7 +1603,7 @@ export class Sandbox {
         prepared.live &&
         prepared.hasFreshState &&
         subId !== '' &&
-        this.subscriptionManager.isConnected &&
+        this.subscriptionManager.isEventBacked(this.id) &&
         this.subscriptionManager.connectionEpoch === prepared.connectionEpoch &&
         this.stateEventCount === prepared.stateEventCount &&
         !responseStateIsFailure

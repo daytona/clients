@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from types import SimpleNamespace
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
@@ -162,6 +163,7 @@ class FakeAsyncClient:
         self.connected = False
         self.emitted: list[tuple[str, Any]] = []
         self.fail_emit = False
+        self.disconnect_calls = 0
         FakeAsyncClient.instances.append(self)
 
     def event(self, handler: Any) -> Any:
@@ -192,6 +194,7 @@ class FakeAsyncClient:
         await asyncio.sleep(0)  # like a real send, give other tasks a turn
 
     async def disconnect(self) -> None:
+        self.disconnect_calls += 1
         if self.connected:
             await self.simulate_disconnect()
 
@@ -200,6 +203,8 @@ class FakeSyncClient:
     """socketio.Client stand-in that records the handshake URL and emitted messages."""
 
     instances: list[FakeSyncClient] = []
+    # When set, connect() blocks until it is set, so a test can act while a connect is in flight.
+    connect_gate: threading.Event | None = None
 
     def __init__(self, **_kwargs: object) -> None:
         self.handlers: dict[str, Any] = {}
@@ -207,6 +212,7 @@ class FakeSyncClient:
         self.connected = False
         self.emitted: list[tuple[str, Any]] = []
         self.fail_emit = False
+        self.disconnect_calls = 0
         FakeSyncClient.instances.append(self)
 
     def event(self, handler: Any) -> Any:
@@ -218,6 +224,8 @@ class FakeSyncClient:
 
     def connect(self, url: str, **_kwargs: object) -> None:
         self.connect_url = url
+        if self.connect_gate is not None:
+            assert self.connect_gate.wait(timeout=5), "connect gate never opened"
         self.simulate_connect()
 
     def simulate_connect(self) -> None:
@@ -234,12 +242,22 @@ class FakeSyncClient:
         self.emitted.append((event, data))
 
     def disconnect(self) -> None:
+        self.disconnect_calls += 1
         if self.connected:
             self.simulate_disconnect()
 
 
 def _noop(_event: str, _data: Any) -> None:
     pass
+
+
+def _wait_until(condition: Callable[[], bool], timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.01)
+    return condition()
 
 
 async def _settle() -> None:
@@ -257,6 +275,7 @@ def fake_async_sio(monkeypatch: pytest.MonkeyPatch) -> type[FakeAsyncClient]:
 @pytest.fixture
 def fake_sync_sio(monkeypatch: pytest.MonkeyPatch) -> type[FakeSyncClient]:
     FakeSyncClient.instances = []
+    monkeypatch.setattr(FakeSyncClient, "connect_gate", None)
     monkeypatch.setattr(event_dispatcher_module.socketio, "Client", FakeSyncClient)
     return FakeSyncClient
 
@@ -373,17 +392,24 @@ class TestAsyncEventDispatcherExplicitSubscriptions:
     async def test_nothing_is_sent_while_disconnected(self, fake_async_sio):
         dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
         await dispatcher.connect()
-        sio = fake_async_sio.instances[0]
-        await sio.simulate_disconnect()
+        stale = fake_async_sio.instances[0]
+        await stale.simulate_disconnect()
 
+        # Subscribing while disconnected starts a new connection on a new client. Its connect task
+        # only runs at the next await, after these calls.
         unsub = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
         unsub()
         unsub_2 = dispatcher.subscribe("sb-2", _noop, ["sandbox.state.updated"])
+        assert stale.emitted == []
         await _settle()
-        assert sio.emitted == []
 
-        await sio.simulate_connect()
-        assert sio.emitted == [("subscribe", {"sandboxIds": ["sb-2"]})]
+        assert len(fake_async_sio.instances) == 2
+        fresh = fake_async_sio.instances[-1]
+        assert fresh.connected and dispatcher.is_connected
+        # The new socket sends only the ids still listened to; sb-1 came and went unsent.
+        assert fresh.emitted == [("subscribe", {"sandboxIds": ["sb-2"]})]
+        assert stale.emitted == []
+        assert stale.disconnect_calls == 1  # released, so its own reconnect loop stops
         unsub_2()
         await dispatcher.disconnect()
 
@@ -485,19 +511,29 @@ class TestSyncEventDispatcherExplicitSubscriptions:
         assert sio.emitted[1:] == [("unsubscribe", {"sandboxIds": ["sb-1"]})]
         dispatcher.disconnect()
 
-    def test_nothing_is_sent_while_disconnected(self, fake_sync_sio):
+    def test_nothing_is_sent_while_disconnected(self, fake_sync_sio, monkeypatch):
         dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
         dispatcher.connect()
-        sio = fake_sync_sio.instances[0]
-        sio.simulate_disconnect()
+        stale = fake_sync_sio.instances[0]
+        stale.simulate_disconnect()
 
+        # Subscribing while disconnected starts a new connection on a new client, in a background
+        # thread; hold its handshake until the listeners below have changed.
+        gate = threading.Event()
+        monkeypatch.setattr(fake_sync_sio, "connect_gate", gate)
         unsub = dispatcher.subscribe("sb-1", _noop, ["sandbox.state.updated"])
         unsub()
         unsub_2 = dispatcher.subscribe("sb-2", _noop, ["sandbox.state.updated"])
-        assert sio.emitted == []
+        assert stale.emitted == []
 
-        sio.simulate_connect()
-        assert sio.emitted == [("subscribe", {"sandboxIds": ["sb-2"]})]
+        gate.set()
+        assert _wait_until(lambda: dispatcher.is_connected)
+        assert len(fake_sync_sio.instances) == 2
+        fresh = fake_sync_sio.instances[-1]
+        # The new socket sends only the ids still listened to; sb-1 came and went unsent.
+        assert fresh.emitted == [("subscribe", {"sandboxIds": ["sb-2"]})]
+        assert stale.emitted == []
+        assert stale.disconnect_calls == 1  # released, so its own reconnect loop stops
         unsub_2()
         dispatcher.disconnect()
 

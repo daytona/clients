@@ -3,7 +3,9 @@
 
 import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
 import { createApiResponse } from './helpers'
-import type { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
+import { io } from 'socket.io-client'
+import { EventDispatcher } from '../utils/EventDispatcher'
+import { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
 import { DaytonaQueueTimeoutError, DaytonaSpotEvictedError, DaytonaTimeoutError } from '../errors/DaytonaError'
 import { waitPollIntervalMs } from '../utils/WaitPolling'
 
@@ -27,6 +29,8 @@ jest.mock(
   }),
   { virtual: true },
 )
+
+jest.mock('socket.io-client', () => ({ io: jest.fn() }))
 
 jest.mock(
   '@daytona/toolbox-api-client',
@@ -68,12 +72,14 @@ type SubscriptionManagerMock = {
   refresh: jest.Mock
   unsubscribe: jest.Mock
   isConnected: boolean
+  isEventBacked: jest.Mock
   connectionEpoch: number
 }
 
 const makeSandbox = (
   overrides: Partial<SandboxDto> = {},
   subscribeReturns = 'sub-1',
+  realSubscriptionManager?: EventSubscriptionManager,
 ): {
   sandbox: import('../Sandbox').Sandbox
   sandboxApi: Record<string, jest.Mock>
@@ -110,6 +116,8 @@ const makeSandbox = (
     refresh: jest.fn(() => true),
     unsubscribe: jest.fn(),
     isConnected: subscribeReturns !== '',
+    // The mock serves every id it subscribes, so event-backed simply follows the connection.
+    isEventBacked: jest.fn((): boolean => subscriptionManager.isConnected),
     connectionEpoch: 1,
   }
 
@@ -130,7 +138,7 @@ const makeSandbox = (
     axiosInstance as unknown as never,
     sandboxApi as unknown as never,
     getAnalyticsApiUrl as unknown as never,
-    subscriptionManager as unknown as EventSubscriptionManager,
+    realSubscriptionManager ?? (subscriptionManager as unknown as EventSubscriptionManager),
   )
 
   return { sandbox, sandboxApi, subscriptionManager }
@@ -879,6 +887,31 @@ describe('Sandbox event subscriptions', () => {
       expect(sandbox.state).toBe('destroyed')
     })
 
+    it('stop() reads immediately when a state event is delivered from inside subscribe()', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      subscriptionManager.subscribe.mockImplementation((id: string, handler: StateEventHandler) => {
+        handler('sandbox.state.updated', { sandbox: { id, state: 'started' }, newState: 'started' })
+        return 'sub-1'
+      })
+      sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopping' }))
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
+      expect(sandbox.state).toBe('stopped')
+    })
+
+    it('stop() reads immediately when the connection reconnects inside subscribe()', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      subscriptionManager.subscribe.mockImplementation(() => {
+        subscriptionManager.connectionEpoch++
+        return 'sub-1'
+      })
+      sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopping' }))
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
+    })
+
     it('stop() releases the subscription and propagates the error when the request fails', async () => {
       const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
       const error = new Error('stop failed')
@@ -1255,5 +1288,153 @@ describe('Sandbox wait telemetry', () => {
       'Sandbox.waitForResizeComplete',
       'Sandbox.waitUntilStopped',
     ])
+  })
+})
+
+// Socket.IO client stand-in (the same shape as in EventDispatcher.test.ts).
+type Listener = (...args: unknown[]) => void
+
+class FakeEmitter {
+  private readonly handlers = new Map<string, Listener[]>()
+
+  on(event: string, handler: Listener): this {
+    const list = this.handlers.get(event) ?? []
+    list.push(handler)
+    this.handlers.set(event, list)
+    return this
+  }
+
+  fire(event: string, ...args: unknown[]): void {
+    for (const handler of this.handlers.get(event) ?? []) {
+      handler(...args)
+    }
+  }
+
+  removeAllListeners(): this {
+    this.handlers.clear()
+    return this
+  }
+}
+
+class FakeSocket extends FakeEmitter {
+  connected = false
+  auth: unknown
+  readonly io = new FakeEmitter()
+  readonly emit = jest.fn()
+  readonly connect = jest.fn(() => this)
+  readonly disconnect = jest.fn(() => {
+    this.connected = false
+    return this
+  })
+
+  serverAccepts(): void {
+    this.connected = true
+    this.fire('connect')
+  }
+
+  drop(): void {
+    this.connected = false
+    this.fire('disconnect', 'transport close')
+  }
+}
+
+describe('Sandbox waits over the per-connection subscription cap', () => {
+  const ioMock = io as unknown as jest.Mock
+  let socket: FakeSocket
+  let dispatcher: EventDispatcher
+  let manager: EventSubscriptionManager
+
+  const subscribedIds = (event: 'subscribe' | 'unsubscribe'): string[] =>
+    socket.emit.mock.calls
+      .filter(([name]) => name === event)
+      .flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
+
+  const stateEvent = (id: string, state: string) => ({ sandbox: { id, state }, newState: state })
+
+  // A sandbox whose stop request returns 'stopping' and whose reads keep saying 'stopping'.
+  const stoppingSandbox = (id: string) => {
+    const made = makeSandbox({ id, state: 'started' }, 'unused', manager)
+    made.sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, id, state: 'stopping' }))
+    made.sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, id, state: 'stopping' }))
+    return made
+  }
+
+  beforeEach(async () => {
+    jest.useFakeTimers()
+    ioMock.mockReset()
+    ioMock.mockImplementation(() => {
+      socket = new FakeSocket()
+      return socket
+    })
+    dispatcher = new EventDispatcher('https://api.example.test/api', 'token', undefined, undefined, undefined, 2)
+    manager = new EventSubscriptionManager(dispatcher)
+    const connecting = dispatcher.connect()
+    socket.serverAccepts()
+    await connecting
+  })
+
+  afterEach(() => {
+    manager.shutdown()
+    dispatcher.disconnect()
+    jest.useRealTimers()
+  })
+
+  it('an overflow wait reads first and polls every ~1s; the served waits stay event-backed', async () => {
+    const a = stoppingSandbox('sb-a')
+    const b = stoppingSandbox('sb-b')
+    const c = stoppingSandbox('sb-c')
+
+    const stops = [a.sandbox.stop(60), b.sandbox.stop(60), c.sandbox.stop(60)]
+    await jest.advanceTimersByTimeAsync(0)
+
+    expect(subscribedIds('subscribe')).toEqual(['sb-a', 'sb-b'])
+    expect(manager.isEventBacked('sb-a')).toBe(true)
+    expect(manager.isEventBacked('sb-c')).toBe(false)
+    expect(a.sandboxApi.getSandbox).not.toHaveBeenCalled()
+    expect(b.sandboxApi.getSandbox).not.toHaveBeenCalled()
+    expect(c.sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+
+    // 1 s x jitter is at most 1.2 s; the event-backed waits poll no earlier than 4 s.
+    await jest.advanceTimersByTimeAsync(2500)
+    expect(c.sandboxApi.getSandbox.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(c.sandboxApi.getSandbox.mock.calls.length).toBeLessThanOrEqual(4)
+    expect(a.sandboxApi.getSandbox).not.toHaveBeenCalled()
+    expect(b.sandboxApi.getSandbox).not.toHaveBeenCalled()
+
+    socket.fire('sandbox.state.updated', stateEvent('sb-a', 'stopped'))
+    socket.fire('sandbox.state.updated', stateEvent('sb-b', 'stopped'))
+    c.sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-c', state: 'stopped' }))
+    await jest.advanceTimersByTimeAsync(1500)
+    await Promise.all(stops)
+    expect(subscribedIds('subscribe')).toEqual(['sb-a', 'sb-b'])
+  })
+
+  it('a freed slot goes to the next new wait, not to the overflow wait', async () => {
+    const a = stoppingSandbox('sb-a')
+    const b = stoppingSandbox('sb-b')
+    const c = stoppingSandbox('sb-c')
+    const stopA = a.sandbox.stop(60)
+    const stopB = b.sandbox.stop(60)
+    const stopC = c.sandbox.stop(60)
+    await jest.advanceTimersByTimeAsync(0)
+
+    socket.fire('sandbox.state.updated', stateEvent('sb-a', 'stopped'))
+    await stopA
+    expect(subscribedIds('unsubscribe')).toEqual(['sb-a'])
+    expect(manager.isEventBacked('sb-c')).toBe(false)
+
+    const d = stoppingSandbox('sb-d')
+    const stopD = d.sandbox.stop(60)
+    await jest.advanceTimersByTimeAsync(0)
+    expect(subscribedIds('subscribe')).toEqual(['sb-a', 'sb-b', 'sb-d'])
+    expect(d.sandboxApi.getSandbox).not.toHaveBeenCalled()
+    expect(manager.isEventBacked('sb-c')).toBe(false)
+
+    socket.fire('sandbox.state.updated', stateEvent('sb-b', 'stopped'))
+    socket.fire('sandbox.state.updated', stateEvent('sb-c', 'stopped'))
+    socket.fire('sandbox.state.updated', stateEvent('sb-d', 'stopped'))
+    await Promise.all([stopB, stopC, stopD])
+    // sb-c was never served, so its last listener sends no unsubscribe.
+    expect(subscribedIds('unsubscribe')).toEqual(['sb-a', 'sb-b', 'sb-d'])
   })
 })

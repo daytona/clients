@@ -19,6 +19,10 @@ module Daytona
     # Most resource ids per subscribe / unsubscribe message.
     SUBSCRIBE_BATCH_SIZE = 100
 
+    # Most resource ids one connection may subscribe to; the gateway's wire contract rejects a subscribe
+    # beyond it whole. Specs lower it with stub_const.
+    MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000
+
     # @param api_url [String]
     # @param token [String]
     # @param organization_id [String, nil]
@@ -36,6 +40,9 @@ module Daytona
       @failed = false
       @fail_error = nil
       @listeners = {}
+      # The ids the server serves, or will after the next connect: at most MAX_SUBSCRIPTIONS_PER_CONNECTION of
+      # the ids with listeners. An id that found no room stays unserved until its last listener goes.
+      @served = Set.new
       @registered_events = Set.new
       @mutex = Mutex.new
       @disconnect_timer = nil
@@ -105,7 +112,7 @@ module Daytona
         @failed = false
         @fail_error = nil
         # Subscriptions belong to the socket: send the whole set after every (re)connect.
-        emit_ids_locked('subscribe', @listeners.keys)
+        emit_ids_locked('subscribe', @served.to_a)
         schedule_delayed_disconnect_locked if @listeners.empty?
       end
     rescue StandardError => e
@@ -136,8 +143,7 @@ module Daytona
         @listeners[resource_id] << handler
         # Mark events in filter under lock to avoid dropping first event
         events.each { |evt| @registered_events.add(evt) }
-        # While disconnected only the set changes; the next connect sends it.
-        emit_ids_locked('subscribe', [resource_id]) if first_listener && @connected
+        serve_locked(resource_id) if first_listener
       end
 
       ensure_connected
@@ -157,6 +163,13 @@ module Daytona
     # @return [Boolean]
     def connected?
       @connected
+    end
+
+    # @param resource_id [String]
+    # @return [Boolean] Whether the server is asked to send events for +resource_id+: it has listeners and
+    #   was within the per-connection cap when it got its first
+    def served?(resource_id)
+      @mutex.synchronize { @served.include?(resource_id) }
     end
 
     # @return [Integer] The number of successful connects so far
@@ -194,7 +207,17 @@ module Daytona
       return unless handlers.empty?
 
       @listeners.delete(resource_id)
-      emit_ids_locked('unsubscribe', [resource_id]) if @connected
+      emit_ids_locked('unsubscribe', [resource_id]) if @served.delete?(resource_id) && @connected
+    end
+
+    # Serves an id that gained its first listener, if the cap has room. While disconnected only the set
+    # changes; the next connect sends it. Beyond the cap nothing is sent: the server would reject it, and
+    # the id's waits poll instead.
+    def serve_locked(resource_id)
+      return if @served.size >= MAX_SUBSCRIPTIONS_PER_CONNECTION
+
+      @served.add(resource_id)
+      emit_ids_locked('subscribe', [resource_id]) if @connected
     end
 
     # Fire-and-forget; sent under the lock so subscribe / unsubscribe messages keep their order.
@@ -334,6 +357,7 @@ module Daytona
       @connected = false
       @connecting = false
       @listeners.clear
+      @served.clear
       @registered_events.clear
 
       thread_state

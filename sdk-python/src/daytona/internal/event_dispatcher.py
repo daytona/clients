@@ -20,6 +20,9 @@ AsyncEventHandler = Callable[[str, Any], Awaitable[None] | None]
 
 # The server accepts at most this many ids per subscribe/unsubscribe message.
 _SUBSCRIBE_CHUNK_SIZE = 100
+# The gateway's wire contract lets one connection hold at most this many subscribed ids; a subscribe
+# past it is rejected whole, without the client being told. Module-level so tests can lower it.
+MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000
 
 
 class AsyncEventDispatcher:
@@ -67,6 +70,9 @@ class AsyncEventDispatcher:
         self._fail_error = None
         self._closed = False
         self._listeners = {}
+        # Ids the server holds, or will hold after the next connect: at most
+        # MAX_SUBSCRIPTIONS_PER_CONNECTION. Insertion-ordered, so connects re-send them in order.
+        self._served: dict[str, None] = {}
         self._registered_events = set()
         self._disconnect_task = None
         self._connect_task: asyncio.Task[None] | None = None
@@ -136,7 +142,7 @@ class AsyncEventDispatcher:
             # Ids added from here on are sent by subscribe() because the dispatcher is now connected;
             # those sends wait for the emit lock, so they always go out after the full set.
             async with dispatcher._emit_lock:
-                resource_ids = list(dispatcher._listeners)
+                resource_ids = list(dispatcher._served)
                 dispatcher._connected = True
                 dispatcher._failed = False
                 dispatcher._fail_error = None
@@ -226,7 +232,11 @@ class AsyncEventDispatcher:
 
         if resource_id not in self._listeners:
             self._listeners[resource_id] = []
-            self._emit("subscribe", resource_id)
+            # Past the cap the server would reject the id, so it is not sent and stays unserved
+            # until its last listener goes: its waits fall back to polling.
+            if len(self._served) < MAX_SUBSCRIPTIONS_PER_CONNECTION:
+                self._served[resource_id] = None
+                self._emit("subscribe", resource_id)
         self._listeners[resource_id].append(handler)
 
         def unsubscribe() -> None:
@@ -284,6 +294,10 @@ class AsyncEventDispatcher:
         """Counts successful connects (the first one and every reconnect)."""
         return self._connection_epoch
 
+    def is_served(self, resource_id: str) -> bool:
+        """Whether the server holds, or will hold after the next connect, a subscription for the id."""
+        return resource_id in self._served
+
     @property
     def is_failed(self) -> bool:
         return self._failed
@@ -319,6 +333,7 @@ class AsyncEventDispatcher:
             sio = self._sio
             self._sio = None
             self._listeners.clear()
+            self._served.clear()
             self._registered_events.clear()
             self._connected = False
 
@@ -374,7 +389,9 @@ class AsyncEventDispatcher:
     def _unsubscribe_resource(self, resource_id: str) -> None:
         if resource_id in self._listeners:
             del self._listeners[resource_id]
-            self._emit("unsubscribe", resource_id)
+            if resource_id in self._served:
+                del self._served[resource_id]
+                self._emit("unsubscribe", resource_id)
 
         if not self._listeners:
             self._schedule_delayed_disconnect()
@@ -421,6 +438,8 @@ class SyncEventDispatcher:
         self._failed = False
         self._fail_error = None
         self._listeners = {}
+        # See AsyncEventDispatcher._served; guarded by self._lock.
+        self._served: dict[str, None] = {}
         self._registered_events = set()
         self._lock = threading.Lock()
         # Bumped by the connect handler on the socket's thread; read by waiting threads.
@@ -491,7 +510,7 @@ class SyncEventDispatcher:
                 dispatcher._connected = True
                 dispatcher._failed = False
                 dispatcher._fail_error = None
-                for chunk in _chunks(list(dispatcher._listeners)):
+                for chunk in _chunks(list(dispatcher._served)):
                     _emit_sync(sio, "subscribe", chunk)
 
         @sio.event  # type: ignore[misc]
@@ -585,7 +604,11 @@ class SyncEventDispatcher:
             self._disconnect_generation += 1
             if resource_id not in self._listeners:
                 self._listeners[resource_id] = []
-                self._emit_locked("subscribe", resource_id)
+                # Past the cap the server would reject the id, so it is not sent and stays unserved
+                # until its last listener goes: its waits fall back to polling.
+                if len(self._served) < MAX_SUBSCRIPTIONS_PER_CONNECTION:
+                    self._served[resource_id] = None
+                    self._emit_locked("subscribe", resource_id)
             self._listeners[resource_id].append(handler)
 
         self.ensure_connected()
@@ -647,6 +670,11 @@ class SyncEventDispatcher:
         with self._epoch_lock:
             return self._connection_epoch
 
+    def is_served(self, resource_id: str) -> bool:
+        """Whether the server holds, or will hold after the next connect, a subscription for the id."""
+        with self._lock:
+            return resource_id in self._served
+
     @property
     def is_failed(self) -> bool:
         return self._failed
@@ -675,6 +703,7 @@ class SyncEventDispatcher:
             self._sio = None
             self._connected = False
             self._listeners.clear()
+            self._served.clear()
             self._registered_events.clear()
 
         if sio:
@@ -690,7 +719,8 @@ class SyncEventDispatcher:
                 logger.debug("Handler error for %s/%s", resource_id, event_name, exc_info=True)
 
     def _unsubscribe_resource_locked(self, resource_id: str) -> None:
-        if self._listeners.pop(resource_id, None) is not None:
+        if self._listeners.pop(resource_id, None) is not None and resource_id in self._served:
+            del self._served[resource_id]
             self._emit_locked("unsubscribe", resource_id)
 
     def _emit_locked(self, event: str, resource_id: str) -> None:

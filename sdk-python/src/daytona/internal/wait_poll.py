@@ -11,8 +11,9 @@ from typing import Callable
 
 # Events are flowing, so the poll only guards against a missed event.
 EVENT_BACKED_POLL_INTERVAL = 5.0
-# Subscribed but the event connection is not up (connecting, reconnecting or failed): poll at the
-# subscribed rate instead of the fast one, so a gateway outage does not multiply the poll load.
+# Subscribed but not event-backed (the connection is connecting, reconnecting or failed, or the id is
+# past the connection's subscription cap): poll at the subscribed rate instead of the fast one, so a
+# gateway outage does not multiply the poll load.
 SUBSCRIBED_POLL_INTERVAL = 1.0
 # Spreads the polls of many concurrent waits.
 POLL_JITTER = 0.2
@@ -27,17 +28,17 @@ FAST_POLL_MAX_INTERVAL = 1.0
 random_unit: Callable[[], float] = random.random
 
 
-def poll_interval(subscribed: bool, connected: bool, fast_poll_interval: float) -> float:
+def poll_interval(subscribed: bool, event_backed: bool, fast_poll_interval: float) -> float:
     """Returns the delay before the next safety-net poll of a wait.
 
     Args:
         subscribed: Whether the wait holds a state event subscription.
-        connected: Whether the event connection is up.
+        event_backed: Whether events for the id arrive: connected, and the server holds the id.
         fast_poll_interval: The current fast interval, used as is when not subscribed.
     """
     if not subscribed:
         return fast_poll_interval
-    base = EVENT_BACKED_POLL_INTERVAL if connected else SUBSCRIBED_POLL_INTERVAL
+    base = EVENT_BACKED_POLL_INTERVAL if event_backed else SUBSCRIBED_POLL_INTERVAL
     return base * (1 - POLL_JITTER + 2 * POLL_JITTER * random_unit())
 
 
@@ -52,7 +53,7 @@ class WaitSubscription:
 
     Attributes:
         sub_id: Subscription id; empty when events are unavailable.
-        live: Whether the event connection was up right after subscribing.
+        live: Whether events for the id arrived right after subscribing (connected and served).
         state_event_count: The sandbox's state event count when the subscription was taken.
         connection_epoch: The event connection's epoch when the subscription was taken.
         state_fresh: Whether the cached state was set after subscribing, from the operation's

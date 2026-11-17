@@ -187,6 +187,88 @@ describe('EventDispatcher', () => {
     expect(new EventSubscriptionManager(null).connectionEpoch).toBe(0)
   })
 
+  describe('per-connection subscription cap', () => {
+    const makeCapped = (): EventDispatcher => {
+      const dispatcher = new EventDispatcher(
+        'https://api.example.test/api',
+        'token',
+        undefined,
+        undefined,
+        undefined,
+        2,
+      )
+      dispatchers.push(dispatcher)
+      return dispatcher
+    }
+
+    it('serves ids up to the cap and sends nothing for the rest', () => {
+      const dispatcher = makeCapped()
+      const manager = new EventSubscriptionManager(dispatcher)
+      manager.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      lastSocket().serverAccepts()
+      manager.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      manager.subscribe(uuid(3), noop, SANDBOX_EVENTS)
+
+      expect(lastSocket().emit.mock.calls).toEqual([
+        ['subscribe', { sandboxIds: [uuid(1)] }],
+        ['subscribe', { sandboxIds: [uuid(2)] }],
+      ])
+      expect(dispatcher.isServed(uuid(3))).toBe(false)
+      expect(manager.isEventBacked(uuid(1))).toBe(true)
+      expect(manager.isEventBacked(uuid(3))).toBe(false)
+    })
+
+    it('frees a slot on the last listener, does not promote an unserved id, and serves the next new one', () => {
+      const dispatcher = makeCapped()
+      const releaseFirst = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      const releaseThird = dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      socket.emit.mockClear()
+
+      releaseFirst()
+      expect(socket.emit.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(1)] }]])
+      expect(dispatcher.isServed(uuid(3))).toBe(false)
+
+      dispatcher.subscribe(uuid(4), noop, SANDBOX_EVENTS)
+      expect(socket.emit.mock.calls[1]).toEqual(['subscribe', { sandboxIds: [uuid(4)] }])
+
+      releaseThird()
+      expect(socket.emit).toHaveBeenCalledTimes(2)
+    })
+
+    it('re-sends exactly the served ids on reconnect', () => {
+      const dispatcher = makeCapped()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2)] }]])
+      socket.emit.mockClear()
+
+      socket.drop()
+      socket.serverAccepts()
+
+      expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2)] }]])
+    })
+
+    it('is not event-backed while disconnected or after the manager shuts down', () => {
+      const dispatcher = makeCapped()
+      const manager = new EventSubscriptionManager(dispatcher)
+      manager.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      expect(manager.isEventBacked(uuid(1))).toBe(false)
+
+      lastSocket().serverAccepts()
+      expect(manager.isEventBacked(uuid(1))).toBe(true)
+
+      manager.shutdown()
+      expect(manager.isEventBacked(uuid(1))).toBe(false)
+      expect(new EventSubscriptionManager(null).isEventBacked(uuid(1))).toBe(false)
+    })
+  })
+
   it('subscribes on the first listener and unsubscribes on the last while connected', () => {
     const dispatcher = makeDispatcher()
     const unsubscribeFirst = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)

@@ -28,6 +28,7 @@ def _polling_only_manager() -> MagicMock:
     manager = MagicMock()
     manager.subscribe.return_value = ""
     manager.dispatcher = None
+    manager.is_event_backed.return_value = False
     return manager
 
 
@@ -451,6 +452,8 @@ def _subscription_manager(connected: bool = True) -> MagicMock:
     manager.refresh.return_value = True
     manager.dispatcher.is_connected = connected
     manager.connection_epoch = 1
+    # Every id is served: event-backed exactly while connected.
+    manager.is_event_backed.side_effect = lambda _resource_id: manager.dispatcher.is_connected
     return manager
 
 
@@ -1215,3 +1218,55 @@ class TestSandboxReviewRound2:
         attributes = {"component": "Sandbox", "method": method}
         assert (f"Sandbox.{method}", attributes) in otel_recorder.spans
         assert (f"sandbox_{method}_duration", {**attributes, "status": "success"}) in otel_recorder.metrics
+
+
+class _Interrupt(BaseException):
+    """Stands in for a timeout or KeyboardInterrupt landing between an operation's request and its wait."""
+
+
+class TestSandboxOperationSubscriptionRelease:
+    @pytest.mark.parametrize(
+        ("operation", "interrupted_method", "response_state"),
+        [
+            ("stop", "_wait_for_sandbox_stop_after_request", SandboxState.STOPPING),
+            ("delete", "_wait_for_state", SandboxState.DESTROYING),
+            ("pause", "_wait_for_state", SandboxState.PAUSING),
+            ("resize", "_wait_for_resize_after_request", SandboxState.RESIZING),
+            ("fork", "_wait_for_state", SandboxState.FORKING),
+        ],
+    )
+    def test_interrupt_after_the_request_releases_the_subscription(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, operation, interrupted_method, response_state
+    ):
+        from daytona._sync.sandbox import Sandbox
+        from daytona.common.sandbox import Resources
+        from daytona.internal.event_subscription_manager import SyncEventSubscriptionManager
+
+        dispatcher = FakeEventDispatcher(connected=True)
+        manager = SyncEventSubscriptionManager(dispatcher)  # pyright: ignore[reportArgumentType]
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        resource_id = "forked-id" if operation == "fork" else "test-sandbox-id"
+        response = make_sandbox_dto(state=response_state, sandbox_id=resource_id)
+        for api_method in ("stop_sandbox", "delete_sandbox", "pause_sandbox", "resize_sandbox", "fork_sandbox"):
+            getattr(mock_sandbox_api, api_method).return_value = response
+        mock_sandbox_api.get_sandbox.return_value = response
+
+        def interrupt(*_args, **_kwargs):
+            raise _Interrupt()
+
+        monkeypatch.setattr(Sandbox, interrupted_method, interrupt)
+        calls = {
+            "stop": lambda: sandbox.stop(timeout=0),
+            "delete": lambda: sandbox.delete(timeout=0, wait=True),
+            "pause": lambda: sandbox.pause(timeout=0),
+            "resize": lambda: sandbox.resize(Resources(cpu=2), timeout=0),
+            "fork": lambda: sandbox.fork(timeout=0),
+        }
+
+        try:
+            with pytest.raises(_Interrupt):
+                calls[operation]()
+            assert dispatcher.listeners == {}
+            assert dispatcher.sent == [("subscribe", resource_id), ("unsubscribe", resource_id)]
+        finally:
+            manager.shutdown()

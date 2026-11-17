@@ -47,6 +47,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -976,7 +977,7 @@ class SandboxTest {
         EventSubscriptionManager manager = mockSubscriptionManager();
         // One entry per poll tick (nanoTime); the manager mock reports the connection as down.
         List<Long> ticks = new CopyOnWriteArrayList<>();
-        when(manager.isConnected()).thenAnswer(inv -> {
+        when(manager.isEventBacked(any())).thenAnswer(inv -> {
             ticks.add(System.nanoTime());
             return false;
         });
@@ -1004,7 +1005,7 @@ class SandboxTest {
     void pollCadenceIsReevaluatedEachTickAndFollowsTheConnectionMidWait() throws Exception {
         EventSubscriptionManager manager = mockSubscriptionManager();
         AtomicBoolean connected = new AtomicBoolean(false);
-        when(manager.isConnected()).thenAnswer(inv -> connected.get());
+        when(manager.isEventBacked(any())).thenAnswer(inv -> connected.get());
         Sandbox sb = startingSandbox("sb-c", manager);
         lenient().when(sandboxApi.getSandbox("sb-c", null, null)).thenReturn(TestSupport.mainSandbox("sb-c", SandboxState.STARTING));
         // One entry per scheduled poll: whether that tick saw a live connection. A connected tick
@@ -1054,7 +1055,7 @@ class SandboxTest {
     void stopWithTheConnectionDownWhenTheRequestIsSentReadsOnceImmediately() {
         EventSubscriptionManager manager = mockSubscriptionManager();
         // Down while subscribing, up by the time the wait starts.
-        when(manager.isConnected()).thenReturn(false, true);
+        when(manager.isEventBacked(any())).thenReturn(false, true);
         Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
         when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
         when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
@@ -1136,6 +1137,174 @@ class SandboxTest {
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
         verify(sandboxApi, times(2)).getSandbox("sb-d", null, null);
         assertThat(sb.getState()).isEqualTo("destroyed");
+    }
+
+    @Test
+    void stopReadsImmediatelyWhenAStateEventIsDeliveredFromInsideSubscribe() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        // The dispatcher thread can deliver an event as soon as the subscribe is in place.
+        when(manager.subscribe(eq("sb-s"), any(), any())).thenAnswer(inv -> {
+            BiConsumer<String, JsonNode> handler = inv.getArgument(1);
+            handler.accept("sandbox.state.updated", new ObjectMapper().readTree(
+                    "{\"sandbox\":{\"id\":\"sb-s\",\"state\":\"started\"},\"newState\":\"started\"}"));
+            return "mock-sub-id";
+        });
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        long start = System.nanoTime();
+        sb.stop(30);
+
+        // Skipping the read would leave the wait until the first 4-6 s safety-net poll.
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+    }
+
+    @Test
+    void stopReadsImmediatelyWhenTheConnectionReconnectsInsideSubscribe() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        java.util.concurrent.atomic.AtomicLong epoch = new java.util.concurrent.atomic.AtomicLong(1);
+        when(manager.connectionEpoch()).thenAnswer(inv -> epoch.get());
+        when(manager.subscribe(eq("sb-s"), any(), any())).thenAnswer(inv -> {
+            epoch.incrementAndGet();
+            return "mock-sub-id";
+        });
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        long start = System.nanoTime();
+        sb.stop(30);
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+    }
+
+    @Test
+    void anOverflowWaitReadsFirstAndPollsAtTheSubscribedCadence() throws Exception {
+        withCappedGateway((gateway, manager) -> {
+            // Every scheduled poll is an hour away: any GET seen here is a wait's immediate first read.
+            List<String> eventBacked = new CopyOnWriteArrayList<>();
+            List<String> notEventBacked = new CopyOnWriteArrayList<>();
+            Thread a = startStop(manager, "sb-a", eventBacked, notEventBacked);
+            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-a");
+            Thread b = startStop(manager, "sb-b", eventBacked, notEventBacked);
+            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-b");
+            Thread c = startStop(manager, "sb-c", eventBacked, notEventBacked);
+
+            verify(sandboxApi, timeout(5000)).getSandbox("sb-c", null, null);
+            awaitCondition(() -> eventBacked.size() >= 2 && notEventBacked.contains("sb-c"));
+            assertThat(gateway.takeEmitted(400)).isNull();
+            assertThat(manager.isEventBacked("sb-c")).isFalse();
+            assertThat(eventBacked).containsExactlyInAnyOrder("sb-a", "sb-b");
+            assertThat(notEventBacked).containsOnly("sb-c");
+            // pollIntervalMillis(true, false, ...) is the 1 s x jitter cadence.
+            assertThat(Sandbox.pollIntervalMillis(true, false, () -> 1.0)).isEqualTo(1200);
+            verify(sandboxApi, never()).getSandbox("sb-a", null, null);
+            verify(sandboxApi, never()).getSandbox("sb-b", null, null);
+
+            for (String id : List.of("sb-a", "sb-b", "sb-c")) {
+                gateway.sendEvent("sandbox.state.updated", stoppedEvent(id));
+            }
+            for (Thread t : List.of(a, b, c)) {
+                t.join(5000);
+                assertThat(t.isAlive()).isFalse();
+            }
+            assertThat(stopError.get()).isNull();
+        });
+    }
+
+    @Test
+    void aFreedSlotGoesToTheNextNewWaitNotToTheOverflowWait() throws Exception {
+        withCappedGateway((gateway, manager) -> {
+            List<String> eventBacked = new CopyOnWriteArrayList<>();
+            List<String> notEventBacked = new CopyOnWriteArrayList<>();
+            Thread a = startStop(manager, "sb-a", eventBacked, notEventBacked);
+            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-a");
+            Thread b = startStop(manager, "sb-b", eventBacked, notEventBacked);
+            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-b");
+            Thread c = startStop(manager, "sb-c", eventBacked, notEventBacked);
+            verify(sandboxApi, timeout(5000)).getSandbox("sb-c", null, null);
+
+            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-a"));
+            a.join(5000);
+            assertThat(a.isAlive()).isFalse();
+            assertSubscribed(gateway.takeEmitted(5000), "unsubscribe", "sb-a");
+            assertThat(manager.isEventBacked("sb-c")).isFalse();
+
+            Thread d = startStop(manager, "sb-d", eventBacked, notEventBacked);
+            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-d");
+            awaitCondition(() -> eventBacked.contains("sb-d"));
+            verify(sandboxApi, never()).getSandbox("sb-d", null, null);
+            assertThat(manager.isEventBacked("sb-c")).isFalse();
+
+            for (String id : List.of("sb-b", "sb-c", "sb-d")) {
+                gateway.sendEvent("sandbox.state.updated", stoppedEvent(id));
+            }
+            for (Thread t : List.of(b, c, d)) {
+                t.join(5000);
+                assertThat(t.isAlive()).isFalse();
+            }
+            // sb-c was never served, so its release sends no unsubscribe.
+            List<String> unsubscribed = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                FakeEventGateway.Emitted message = gateway.takeEmitted(5000);
+                assertThat(message).isNotNull();
+                assertThat(message.event).isEqualTo("unsubscribe");
+                unsubscribed.add(message.payload.path("sandboxIds").get(0).asText());
+            }
+            assertThat(unsubscribed).containsExactlyInAnyOrder("sb-b", "sb-d");
+            assertThat(gateway.takeEmitted(400)).isNull();
+            assertThat(stopError.get()).isNull();
+        });
+    }
+
+    private interface CappedGatewayTest {
+        void run(FakeEventGateway gateway, EventSubscriptionManager manager) throws Exception;
+    }
+
+    private static void withCappedGateway(CappedGatewayTest test) throws Exception {
+        try (FakeEventGateway gateway = new FakeEventGateway()) {
+            EventDispatcher dispatcher = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "test", 2);
+            EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+            try {
+                dispatcher.ensureConnected();
+                awaitCondition(dispatcher::isConnected);
+                test.run(gateway, manager);
+            } finally {
+                manager.shutdown();
+                dispatcher.shutdown();
+            }
+        }
+    }
+
+    // First failure of a stop started by startStop; JUnit creates a fresh instance per test.
+    private final AtomicReference<Throwable> stopError = new AtomicReference<>();
+
+    /** Stops {@code id} on a new thread; its stop request answers {@code stopping} and its reads too. */
+    private Thread startStop(EventSubscriptionManager manager, String id,
+                             List<String> eventBacked, List<String> notEventBacked) {
+        lenient().when(sandboxApi.stopSandbox(id, null, null)).thenReturn(TestSupport.mainSandbox(id, SandboxState.STOPPING));
+        lenient().when(sandboxApi.getSandbox(id, null, null)).thenReturn(TestSupport.mainSandbox(id, SandboxState.STOPPING));
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox(id, SandboxState.STARTED), () -> null, manager);
+        sb.pollDelay = (subscribed, isEventBacked) -> {
+            (isEventBacked ? eventBacked : notEventBacked).add(id);
+            return TimeUnit.HOURS.toMillis(1);
+        };
+        Thread worker = new Thread(() -> runCapturing(() -> sb.stop(60), stopError));
+        worker.start();
+        return worker;
+    }
+
+    private static String stoppedEvent(String id) {
+        return "{\"sandbox\":{\"id\":\"" + id + "\",\"state\":\"stopped\"},\"newState\":\"stopped\"}";
+    }
+
+    private static void assertSubscribed(FakeEventGateway.Emitted message, String event, String id) {
+        assertThat(message).as("expected %s %s", event, id).isNotNull();
+        assertThat(message.event).isEqualTo(event);
+        assertThat(message.payload.toString()).isEqualTo("{\"sandboxIds\":[\"" + id + "\"]}");
     }
 
     @Test
@@ -1245,7 +1414,7 @@ class SandboxTest {
     void forkWithoutALiveConnectionReadsOnceImmediately() {
         EventSubscriptionManager manager = mockSubscriptionManager();
         // Down while subscribing, up by the time the wait starts.
-        when(manager.isConnected()).thenReturn(false, true);
+        when(manager.isEventBacked(any())).thenReturn(false, true);
         Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-1", SandboxState.STARTED), () -> null, manager);
         when(sandboxApi.forkSandbox(eq("sb-1"), any(ForkSandbox.class), isNull()))
                 .thenReturn(TestSupport.mainSandbox("sb-fork", SandboxState.STARTING));
@@ -1309,7 +1478,7 @@ class SandboxTest {
 
     private EventSubscriptionManager connectedSubscriptionManager() {
         EventSubscriptionManager manager = mockSubscriptionManager();
-        lenient().when(manager.isConnected()).thenReturn(true);
+        lenient().when(manager.isEventBacked(any())).thenReturn(true);
         return manager;
     }
 

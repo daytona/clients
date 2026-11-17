@@ -190,6 +190,35 @@ RSpec.describe Daytona::EventSubscriptionManager do
     end
   end
 
+  describe '#event_backed?' do
+    let(:served_dispatcher) { instance_double(Daytona::EventDispatcher, connected?: true, served?: true) }
+
+    it 'is true while connected and the id is served' do
+      expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(true)
+      expect(served_dispatcher).to have_received(:served?).with('sandbox-1')
+    end
+
+    it 'is false while the id is not served' do
+      allow(served_dispatcher).to receive(:served?).and_return(false)
+
+      expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(false)
+    end
+
+    it 'is false while disconnected' do
+      allow(served_dispatcher).to receive(:connected?).and_return(false)
+
+      expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(false)
+    end
+
+    it 'is false after shutdown and without a dispatcher' do
+      manager = described_class.new(served_dispatcher)
+      manager.shutdown
+
+      expect(manager.event_backed?('sandbox-1')).to be(false)
+      expect(described_class.new(nil).event_backed?('sandbox-1')).to be(false)
+    end
+  end
+
   describe '#shutdown' do
     it 'unsubscribes everything and rejects new subscriptions' do
       manager = described_class.new(dispatcher)

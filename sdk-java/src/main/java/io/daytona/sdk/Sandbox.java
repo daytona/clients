@@ -79,7 +79,8 @@ public class Sandbox {
     private static final long POLL_ONLY_INTERVAL_MILLIS = 250;
     // State events drive waits; polling is only a safety net, so keep it sparse while events flow.
     private static final long EVENT_BACKED_POLL_INTERVAL_MILLIS = 5000;
-    // Subscribed but the connection is down: stay at 1 s so a gateway outage does not multiply GET load.
+    // Subscribed but no events arrive (connection down, or the id is over the connection's subscription
+    // cap): stay at 1 s so a gateway outage does not multiply GET load.
     private static final long SUBSCRIBED_POLL_INTERVAL_MILLIS = 1000;
     // Spreads the polls of concurrent waits apart.
     private static final double POLL_JITTER = 0.2;
@@ -139,8 +140,8 @@ public class Sandbox {
     // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
     private final AtomicLong stateEventCount = new AtomicLong();
     // Package-private so tests can drive the poll cadence without real-time sleeps.
-    PollDelay pollDelay = (subscribed, connected) ->
-            pollIntervalMillis(subscribed, connected, () -> ThreadLocalRandom.current().nextDouble());
+    PollDelay pollDelay = (subscribed, eventBacked) ->
+            pollIntervalMillis(subscribed, eventBacked, () -> ThreadLocalRandom.current().nextDouble());
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
     private String id;
@@ -1049,10 +1050,14 @@ public class Sandbox {
      * sandbox id is known, so every state change after the request arrives as an event.
      */
     private PreparedStateWait prepareStateWait() {
+        // Baseline first: the handler runs on the dispatcher thread, so an event can arrive as soon as
+        // the subscribe is in place. Any event or reconnect from then on changes it, and the wait reads first.
+        long stateEventCountBefore = stateEventCount.get();
+        long connectionEpochBefore = subscriptionManager.connectionEpoch();
         String subId = subscriptionManager.subscribe(id, this::handleEvent,
                 Collections.singletonList(SANDBOX_STATE_UPDATED_EVENT));
-        boolean live = subId != null && subscriptionManager.isConnected();
-        return new PreparedStateWait(subId, live, stateEventCount.get(), subscriptionManager.connectionEpoch());
+        boolean live = subId != null && subscriptionManager.isEventBacked(id);
+        return new PreparedStateWait(subId, live, stateEventCountBefore, connectionEpochBefore);
     }
 
     /**
@@ -1094,7 +1099,7 @@ public class Sandbox {
             boolean responseStateIsFailure = responseState != null
                     && (errorStates.contains(responseState)
                     || (DESTROYED_STATES.contains(responseState) && !targetStates.contains(responseState)));
-            return live && freshState && subscriptionManager.isConnected()
+            return live && freshState && subscriptionManager.isEventBacked(id)
                     && subscriptionManager.connectionEpoch() == connectionEpochAtSubscribe
                     && stateEventCount.get() == stateEventCountAtSubscribe
                     && !responseStateIsFailure;
@@ -1192,18 +1197,18 @@ public class Sandbox {
     /** Picks the delay before a wait's next poll. */
     @FunctionalInterface
     interface PollDelay {
-        long millis(boolean subscribed, boolean connected);
+        long millis(boolean subscribed, boolean eventBacked);
     }
 
     /**
      * Delay before a wait's next poll. Without a subscription the fast interval applies unchanged;
      * with one, the interval is jittered by {@code random}, a uniform source in [0, 1].
      */
-    static long pollIntervalMillis(boolean subscribed, boolean connected, DoubleSupplier random) {
+    static long pollIntervalMillis(boolean subscribed, boolean eventBacked, DoubleSupplier random) {
         if (!subscribed) {
             return POLL_ONLY_INTERVAL_MILLIS;
         }
-        long base = connected ? EVENT_BACKED_POLL_INTERVAL_MILLIS : SUBSCRIBED_POLL_INTERVAL_MILLIS;
+        long base = eventBacked ? EVENT_BACKED_POLL_INTERVAL_MILLIS : SUBSCRIBED_POLL_INTERVAL_MILLIS;
         return Math.round(base * (1 + POLL_JITTER * (2 * random.getAsDouble() - 1)));
     }
 
@@ -1295,7 +1300,7 @@ public class Sandbox {
                     subId = subscribe();
                 }
                 boolean subscribed = subId != null;
-                return pollDelay.millis(subscribed, subscribed && subscriptionManager.isConnected());
+                return pollDelay.millis(subscribed, subscribed && subscriptionManager.isEventBacked(id));
             }
         }
     }

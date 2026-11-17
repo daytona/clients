@@ -47,6 +47,12 @@ type SandboxEventHandler func(event SandboxEvent)
 // subscribe or unsubscribe message.
 const maxSubscriptionIDsPerMessage = 100
 
+// MaxSubscriptionsPerConnection is the most resource ids one event connection
+// may subscribe to; the gateway's wire contract rejects a subscribe beyond it
+// whole. A variable so tests can lower it; each dispatcher reads it once, when
+// created.
+var MaxSubscriptionsPerConnection = 1000
+
 // subscriptionMessage is the payload of the subscribe and unsubscribe client
 // events.
 type subscriptionMessage struct {
@@ -77,6 +83,11 @@ type EventDispatcher struct {
 
 	listeners map[string]map[int]SandboxEventHandler
 	nextSubID int
+	// served holds the ids the server serves, or will after the next connect:
+	// at most maxSubscriptions of the ids with listeners. An id that found no
+	// room stays unserved until its last listener goes.
+	served           map[string]struct{}
+	maxSubscriptions int
 
 	registeredEvents map[string]bool
 
@@ -98,6 +109,8 @@ func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string
 		source:           source,
 		sdkVersion:       sdkVersion,
 		listeners:        make(map[string]map[int]SandboxEventHandler),
+		served:           make(map[string]struct{}),
+		maxSubscriptions: MaxSubscriptionsPerConnection,
 		registeredEvents: make(map[string]bool),
 		maxReconnects:    100,
 		closeCh:          make(chan struct{}),
@@ -191,7 +204,7 @@ func (es *EventDispatcher) Connect(ctx context.Context) error {
 	es.reconnectAttempt = 0
 	// Subscriptions belong to the socket: send the whole current set on every
 	// connect and reconnect.
-	es.emitSubscriptionLocked("subscribe", es.subscribedIDsLocked())
+	es.emitSubscriptionLocked("subscribe", es.servedIDsLocked())
 	if len(es.listeners) == 0 {
 		es.scheduleDelayedDisconnectLocked()
 	}
@@ -229,8 +242,12 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 	if es.listeners[resourceID] == nil {
 		es.listeners[resourceID] = make(map[int]SandboxEventHandler)
 		// First listener for this id. While disconnected the next connect
-		// sends the whole set instead.
-		es.emitSubscriptionLocked("subscribe", []string{resourceID})
+		// sends the whole set instead. Beyond the cap nothing is sent: the
+		// server would reject it, and the id's waits poll instead.
+		if len(es.served) < es.maxSubscriptions {
+			es.served[resourceID] = struct{}{}
+			es.emitSubscriptionLocked("subscribe", []string{resourceID})
+		}
 	}
 	es.listeners[resourceID][subID] = handler
 	// Mark events as registered under lock to prevent drops
@@ -249,7 +266,10 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 				delete(handlers, subID)
 				if len(handlers) == 0 {
 					delete(es.listeners, resourceID)
-					es.emitSubscriptionLocked("unsubscribe", []string{resourceID})
+					if _, served := es.served[resourceID]; served {
+						delete(es.served, resourceID)
+						es.emitSubscriptionLocked("unsubscribe", []string{resourceID})
+					}
 				}
 			}
 		}
@@ -261,14 +281,23 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 	}
 }
 
-// subscribedIDsLocked returns the resource ids that have at least one listener.
-func (es *EventDispatcher) subscribedIDsLocked() []string {
-	ids := make([]string, 0, len(es.listeners))
-	for id := range es.listeners {
+// servedIDsLocked returns the served resource ids, sorted.
+func (es *EventDispatcher) servedIDsLocked() []string {
+	ids := make([]string, 0, len(es.served))
+	for id := range es.served {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+// IsServed reports whether the server is asked to send events for resourceID:
+// it has listeners and was within the per-connection cap when it got its first.
+func (es *EventDispatcher) IsServed(resourceID string) bool {
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	_, served := es.served[resourceID]
+	return served
 }
 
 // emitSubscriptionLocked sends a subscribe or unsubscribe message for ids on the
@@ -342,6 +371,7 @@ func (es *EventDispatcher) disconnectLocked(permanent bool) {
 	}
 	es.connected = false
 	es.listeners = make(map[string]map[int]SandboxEventHandler)
+	es.served = make(map[string]struct{})
 	es.registeredEvents = make(map[string]bool)
 }
 

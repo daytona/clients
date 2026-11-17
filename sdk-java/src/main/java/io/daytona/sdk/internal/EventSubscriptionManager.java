@@ -103,6 +103,14 @@ public class EventSubscriptionManager {
     }
 
     /**
+     * Whether events for this id arrive now: the manager is open, the connection is up and it
+     * serves the id (within its subscription cap).
+     */
+    public boolean isEventBacked(String resourceId) {
+        return isConnected() && dispatcher.isServed(resourceId);
+    }
+
+    /**
      * Changes on every successful (re)connect of the event connection; events sent while it was
      * down are lost. Always {@code 0} in polling mode.
      */

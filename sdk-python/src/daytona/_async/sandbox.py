@@ -596,8 +596,11 @@ class AsyncSandbox(SandboxDto):
             print("Sandbox stopped successfully")
             ```
         """
-        subscription = self._take_wait_subscription()
+        subscription: wait_poll.WaitSubscription | None = None
+        # One finally for the request and the wait: a timeout or interrupt between them must not leak
+        # the subscription.
         try:
+            subscription = self._take_wait_subscription()
             sandbox_dto = await self._sandbox_api.stop_sandbox(
                 self.id,
                 force=force,
@@ -609,11 +612,10 @@ class AsyncSandbox(SandboxDto):
                 subscription = subscription.with_state_fresh(True)
             else:
                 subscription = subscription.with_state_fresh(await self.__refresh_data_safe())
-        except BaseException:
+            # This method already handles a timeout, so we don't need to pass one to internal methods
+            await self._wait_for_sandbox_stop_after_request(subscription)
+        finally:
             self._release_subscription(subscription)
-            raise
-        # This method already handles a timeout, so we don't need to pass one to internal methods
-        await self._wait_for_sandbox_stop_after_request(subscription)
 
     @intercept_errors(message_prefix="Failed to remove sandbox: ")
     @with_timeout()
@@ -633,24 +635,25 @@ class AsyncSandbox(SandboxDto):
                 is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
             wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
         """
-        subscription = self._take_wait_subscription() if wait else None
+        subscription: wait_poll.WaitSubscription | None = None
         try:
+            if wait:
+                subscription = self._take_wait_subscription()
             sandbox = await self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
             if sandbox:
                 self.__process_sandbox_dto(sandbox)
                 if subscription is not None:
                     subscription = subscription.with_state_fresh(True)
-        except BaseException:
-            self._release_subscription(subscription)
-            raise
 
-        if wait:
-            await self._wait_for_state(
-                [SandboxState.DESTROYED],
-                [SandboxState.ERROR, SandboxState.BUILD_FAILED],
-                safe_refresh=True,
-                subscription=subscription,
-            )
+            if wait:
+                await self._wait_for_state(
+                    [SandboxState.DESTROYED],
+                    [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+                    safe_refresh=True,
+                    subscription=subscription,
+                )
+        finally:
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
     @with_timeout()
@@ -1142,15 +1145,15 @@ class AsyncSandbox(SandboxDto):
             memory=resources.memory,
             disk=resources.disk,
         )
-        subscription = self._take_wait_subscription()
+        subscription: wait_poll.WaitSubscription | None = None
         try:
+            subscription = self._take_wait_subscription()
             sandbox = await self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
             self.__process_sandbox_dto(sandbox)
             subscription = subscription.with_state_fresh(True)
-        except BaseException:
+            await self._wait_for_resize_after_request(subscription)
+        finally:
             self._release_subscription(subscription)
-            raise
-        await self._wait_for_resize_after_request(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
     @with_timeout()
@@ -1359,8 +1362,12 @@ class AsyncSandbox(SandboxDto):
         if timeout < 0:
             raise DaytonaError("Timeout must be a non-negative number")
 
-        subscription = self._take_wait_subscription()
+        error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+        exclude = {SandboxState.PAUSING} | set(error_states)
+        target_states = [s for s in SandboxState if s not in exclude]
+        subscription: wait_poll.WaitSubscription | None = None
         try:
+            subscription = self._take_wait_subscription()
             sandbox_dto = await self._sandbox_api.pause_sandbox(
                 self.id, _request_timeout=timeout if timeout > 0 else None
             )
@@ -1369,18 +1376,14 @@ class AsyncSandbox(SandboxDto):
             else:
                 await self.refresh_data()
             subscription = subscription.with_state_fresh(True)
-        except BaseException:
+            await self._wait_for_state(target_states, error_states, subscription=subscription)
+        finally:
             self._release_subscription(subscription)
-            raise
-        error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
-        exclude = {SandboxState.PAUSING} | set(error_states)
-        target_states = [s for s in SandboxState if s not in exclude]
-        await self._wait_for_state(target_states, error_states, subscription=subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to stop: ")
     @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_stop", labels={"method": "wait_for_sandbox_stop"})
     async def _wait_for_sandbox_stop_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
-        """``wait_for_sandbox_stop`` for ``stop()``, owning the subscription taken before the request."""
+        """``wait_for_sandbox_stop`` for ``stop()``, with the subscription taken before the request."""
         await self._wait_for_state(
             [SandboxState.STOPPED, SandboxState.DESTROYED],
             [SandboxState.ERROR, SandboxState.BUILD_FAILED],
@@ -1396,20 +1399,23 @@ class AsyncSandbox(SandboxDto):
         if self.state == SandboxState.STARTED:
             return
 
-        # The id is only known now; the fork completes well after this subscription is live.
-        subscription = self._take_wait_subscription().with_state_fresh(True)
-        await self._wait_for_state(
-            [SandboxState.STARTED],
-            [SandboxState.ERROR, SandboxState.BUILD_FAILED],
-            subscription=subscription,
-        )
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            # The id is only known now; the fork completes well after this subscription is live.
+            subscription = self._take_wait_subscription().with_state_fresh(True)
+            await self._wait_for_state(
+                [SandboxState.STARTED],
+                [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+                subscription=subscription,
+            )
+        finally:
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
     @with_instrumentation(name="AsyncSandbox.wait_for_resize_complete", labels={"method": "wait_for_resize_complete"})
     async def _wait_for_resize_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
-        """``wait_for_resize_complete`` for ``resize()``, owning the subscription taken before the request."""
+        """``wait_for_resize_complete`` for ``resize()``, with the subscription taken before the request."""
         if self.state != SandboxState.RESIZING:
-            self._release_subscription(subscription)
             return
 
         error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
@@ -1432,9 +1438,9 @@ class AsyncSandbox(SandboxDto):
             except ValueError:
                 pass
 
-    def _events_connected(self) -> bool:
-        dispatcher = self._subscription_manager.dispatcher
-        return dispatcher is not None and dispatcher.is_connected
+    def _event_backed(self) -> bool:
+        # Connected is not enough: an id past the connection's subscription cap gets no events.
+        return self._subscription_manager.is_event_backed(self.id)
 
     def _subscribe_state_events(self) -> str:
         return self._subscription_manager.subscribe(self.id, self._handle_event, events=["sandbox.state.updated"])
@@ -1450,7 +1456,7 @@ class AsyncSandbox(SandboxDto):
         sub_id = self._subscribe_state_events()
         return wait_poll.WaitSubscription(
             sub_id=sub_id,
-            live=bool(sub_id) and self._events_connected(),
+            live=bool(sub_id) and self._event_backed(),
             state_event_count=state_event_count,
             connection_epoch=connection_epoch,
         )
@@ -1502,14 +1508,13 @@ class AsyncSandbox(SandboxDto):
             error_states: States that indicate failure.
             safe_refresh: If True, use safe refresh that treats 404 as destroyed (for delete operations).
             subscription: A subscription taken before the operation's request (after it, for a fork);
-                the wait owns and releases it. Without one, the wait subscribes itself and always
-                reads first, since the cached state can be arbitrarily stale.
+                the caller releases it. Without one, the wait subscribes itself and always reads
+                first, since the cached state can be arbitrarily stale.
         """
         # Fast-path only on cached *target* states (parity with main's pre-check).
         # Cached error states are deliberately NOT evaluated here — main always
         # refreshed before failing, so a stale ERROR must survive one refresh.
         if self.state in target_states:
-            self._release_subscription(subscription)
             return
 
         fast_poll_interval = wait_poll.FAST_POLL_INTERVAL
@@ -1543,7 +1548,7 @@ class AsyncSandbox(SandboxDto):
                 skip_first_read = (
                     subscription.state_fresh
                     and subscription.live
-                    and self._events_connected()
+                    and self._event_backed()
                     and self._subscription_manager.connection_epoch == subscription.connection_epoch
                     and self._state_event_count == subscription.state_event_count
                     and self.state not in error_states
@@ -1567,8 +1572,8 @@ class AsyncSandbox(SandboxDto):
                     sub_id = self._subscribe_state_events()
                 # Re-evaluated every iteration: the connection may come up (or drop) mid-wait.
                 subscribed = bool(sub_id)
-                connected = subscribed and self._events_connected()
-                poll_interval = wait_poll.poll_interval(subscribed, connected, fast_poll_interval)
+                event_backed = subscribed and self._event_backed()
+                poll_interval = wait_poll.poll_interval(subscribed, event_backed, fast_poll_interval)
                 try:
                     _ = await asyncio.wait_for(state_resolved.wait(), timeout=poll_interval)
                     break
@@ -1612,7 +1617,8 @@ class AsyncSandbox(SandboxDto):
                     return
             raise
         finally:
-            if sub_id:
+            # The caller's subscription is the caller's to release; a renewal taken here is ours.
+            if sub_id and (subscription is None or sub_id != subscription.sub_id):
                 self._subscription_manager.unsubscribe(sub_id)
             if _waiter in self._state_waiters:
                 self._state_waiters.remove(_waiter)

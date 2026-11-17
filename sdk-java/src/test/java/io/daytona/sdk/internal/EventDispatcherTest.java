@@ -169,6 +169,94 @@ class EventDispatcherTest {
     }
 
     @Test
+    void servesIdsUpToTheCapAndSendsNothingForTheRest() throws Exception {
+        EventDispatcher capped = cappedDispatcher();
+        EventSubscriptionManager manager = new EventSubscriptionManager(capped);
+        try {
+            manager.subscribe("sb-1", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+            manager.subscribe("sb-2", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
+            manager.subscribe("sb-3", NOOP, STATE_EVENTS);
+
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+            assertThat(capped.isServed("sb-3")).isFalse();
+            assertThat(manager.isEventBacked("sb-1")).isTrue();
+            assertThat(manager.isEventBacked("sb-3")).isFalse();
+        } finally {
+            manager.shutdown();
+            capped.shutdown();
+        }
+    }
+
+    @Test
+    void freesASlotOnTheLastListenerWithoutPromotingAnUnservedId() throws Exception {
+        EventDispatcher capped = cappedDispatcher();
+        try {
+            Runnable releaseFirst = capped.subscribe("sb-1", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+            capped.subscribe("sb-2", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
+            Runnable releaseThird = capped.subscribe("sb-3", NOOP, STATE_EVENTS);
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+
+            releaseFirst.run();
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "unsubscribe", Set.of("sb-1"));
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+            assertThat(capped.isServed("sb-3")).isFalse();
+
+            capped.subscribe("sb-4", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-4"));
+
+            // sb-3 was never served, so its last listener sends nothing.
+            releaseThird.run();
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+        } finally {
+            capped.shutdown();
+        }
+    }
+
+    @Test
+    void resendsExactlyTheServedIdsOnReconnect() throws Exception {
+        EventDispatcher capped = cappedDispatcher();
+        try {
+            capped.subscribe("sb-1", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+            capped.subscribe("sb-2", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
+            capped.subscribe("sb-3", NOOP, STATE_EVENTS);
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+
+            gateway.dropConnection();
+
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1", "sb-2"));
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+        } finally {
+            capped.shutdown();
+        }
+    }
+
+    @Test
+    void isNotEventBackedWhileDisconnectedOrAfterShutdown() throws Exception {
+        EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+        gateway.holdConnects();
+        manager.subscribe("sb-1", NOOP, STATE_EVENTS);
+        assertThat(manager.isEventBacked("sb-1")).isFalse();
+
+        gateway.resumeAccepting();
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+        assertThat(manager.isEventBacked("sb-1")).isTrue();
+
+        manager.shutdown();
+        assertThat(manager.isEventBacked("sb-1")).isFalse();
+        assertThat(new EventSubscriptionManager(null).isEventBacked("sb-1")).isFalse();
+    }
+
+    private EventDispatcher cappedDispatcher() {
+        return new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", 2);
+    }
+
+    @Test
     void dispatchesSlimStatePayloadOnlyToMatchingId() throws Exception {
         BlockingQueue<JsonNode> received = new LinkedBlockingQueue<>();
         dispatcher.subscribe("sb-1", (event, data) -> received.add(data), STATE_EVENTS);

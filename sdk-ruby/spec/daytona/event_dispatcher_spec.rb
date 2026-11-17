@@ -150,6 +150,40 @@ RSpec.describe Daytona::EventDispatcher do
     expect(Daytona::EventSubscriptionManager.new(dispatcher).connection_epoch).to eq(2)
   end
 
+  context 'with the per-connection subscription cap lowered to 2' do
+    before { stub_const('Daytona::EventDispatcher::MAX_SUBSCRIPTIONS_PER_CONNECTION', 2) }
+
+    it 'serves at most the cap, gives a freed slot to the next new id and stays silent for unserved ids' do
+      unsubscribe_a = subscribe_and_connect('sandbox-a')
+      dispatcher.subscribe('sandbox-b', events:, &noop)
+      unsubscribe_c = dispatcher.subscribe('sandbox-c', events:, &noop)
+      expect(emitted).to eq([['subscribe', { sandboxIds: ['sandbox-a'] }],
+                             ['subscribe', { sandboxIds: ['sandbox-b'] }]])
+      expect(dispatcher.served?('sandbox-c')).to be(false)
+
+      unsubscribe_a.call
+      dispatcher.subscribe('sandbox-d', events:, &noop)
+      expect(emitted.drop(2)).to eq([['unsubscribe', { sandboxIds: ['sandbox-a'] }],
+                                     ['subscribe', { sandboxIds: ['sandbox-d'] }]])
+      expect(dispatcher.served?('sandbox-c')).to be(false)
+      expect(dispatcher.served?('sandbox-d')).to be(true)
+
+      unsubscribe_c.call
+      expect(emitted.size).to eq(4)
+    end
+
+    it 'sends only the served ids again after reconnecting' do
+      subscribe_and_connect('sandbox-a')
+      dispatcher.subscribe('sandbox-b', events:, &noop)
+      dispatcher.subscribe('sandbox-c', events:, &noop)
+
+      clients.first.options[:on_disconnect].call
+
+      expect(wait_until { clients.size == 2 && dispatcher.connected? }).to be(true)
+      expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: %w[sandbox-a sandbox-b] }]])
+    end
+  end
+
   it 'removes only the released subscription when the same handler is subscribed twice' do
     received = []
     handler = proc { |_event_name, data| received << data }
