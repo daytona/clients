@@ -81,6 +81,10 @@ from daytona.v2._gen.api.models.create_top_up_session_request import CreateTopUp
 from daytona.v2._gen.api.models.create_v0_sandbox_import_request import CreateV0SandboxImportRequest as CreateV0SandboxImportRequest
 from daytona.v2._gen.api.models.create_volume_request import CreateVolumeRequest as CreateVolumeRequest
 from daytona.v2._gen.api.models.decline_invitation_request import DeclineInvitationRequest as DeclineInvitationRequest
+from daytona.v2._gen.api.models.desktop_config import DesktopConfig as DesktopConfig
+from daytona.v2._gen.api.models.desktop_environment import DesktopEnvironment as DesktopEnvironment
+from daytona.v2._gen.api.models.desktop_resolution import DesktopResolution as DesktopResolution
+from daytona.v2._gen.api.models.desktop_settings import DesktopSettings as DesktopSettings
 from daytona.v2._gen.api.models.effective_lifecycle_policies import EffectiveLifecyclePolicies as EffectiveLifecyclePolicies
 from daytona.v2._gen.api.models.effective_lifecycle_policy import EffectiveLifecyclePolicy as EffectiveLifecyclePolicy
 from daytona.v2._gen.api.models.effective_linux_lifecycle_policies import EffectiveLinuxLifecyclePolicies as EffectiveLinuxLifecyclePolicies

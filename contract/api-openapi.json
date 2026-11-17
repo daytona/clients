@@ -2928,6 +2928,10 @@
               "null"
             ]
           },
+          "desktop": {
+            "$ref": "#/components/schemas/DesktopConfig",
+            "description": "Provision a Linux desktop. An empty object selects XFCE at 1280\u00d7720.\nRequires desktop creates to be enabled. Boot limits must be at least\n1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME."
+          },
           "disk_max_mib": {
             "description": "Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when\nrestoring a snapshot, it must equal the captured disk size or be absent.",
             "format": "int32",
@@ -3221,6 +3225,84 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "DesktopConfig": {
+        "additionalProperties": false,
+        "description": "Resolved settings for an enabled Linux desktop; an older `{}` selects XFCE 1280\u00d7720.",
+        "properties": {
+          "environment": {
+            "default": "xfce",
+            "description": "Desktop session: xfce or gnome. Omitted = xfce.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DesktopEnvironment"
+              }
+            ]
+          },
+          "resolution": {
+            "default": {
+              "height": 720,
+              "width": 1280
+            },
+            "description": "Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DesktopResolution"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "DesktopEnvironment": {
+        "description": "Linux desktop session selected at create time.",
+        "enum": [
+          "xfce",
+          "gnome"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "DesktopResolution": {
+        "additionalProperties": false,
+        "description": "Supported display geometry: 1024\u00d7768, 1280\u00d7720, or 1920\u00d71080.",
+        "properties": {
+          "height": {
+            "description": "Height in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "DesktopSettings": {
+        "description": "Concrete create-time desktop settings. This records the request, not the\nlive guest state exposed by GET /computeruse/status.",
+        "properties": {
+          "environment": {
+            "$ref": "#/components/schemas/DesktopEnvironment",
+            "description": "Desktop session the sandbox was created with."
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/DesktopResolution",
+            "description": "Exactly 1024\u00d7768, 1280\u00d7720, or 1920\u00d71080."
+          }
+        },
+        "required": [
+          "environment",
+          "resolution"
         ],
         "type": "object"
       },
@@ -8277,6 +8359,10 @@
               "string",
               "null"
             ]
+          },
+          "desktop": {
+            "$ref": "#/components/schemas/DesktopSettings",
+            "description": "Resolved create-time desktop request, not live state. A guest restart\ncan change its settings; read GET /computeruse/status for live settings.\nOmitted when no desktop was requested, and from batch-wait\n(`GET /sandboxes/batch-wait`) snapshots."
           },
           "disk_max_mib": {
             "description": "Maximum writable disk size in MiB.",

@@ -107,6 +107,7 @@ class Daytona:
         env: Optional[Mapping[str, str]] = None,
         labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
+        desktop: DesktopConfig | None = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
@@ -131,6 +132,12 @@ class Daytona:
         whitespace-only ``image`` is still an error, raised before any request.
         Snapshots and image builds have their own methods:
         :meth:`create_from_snapshot`, :meth:`create_from_build`.
+
+        ``desktop`` overrides desktop settings on image/default creates only;
+        ``{}`` is sent unchanged to select XFCE at 1280x720. See
+        :class:`DesktopConfig` for supported resolutions, boot LIMITS floors
+        and server 400 cases. The returned ``sandbox.desktop`` reports resolved
+        create-time settings, not live desktop status. Batch-wait omits them.
 
         **Waiting.** The server holds this create briefly, so a sandbox that
         reaches ``started`` within that hold returns in one round trip; the SDK
@@ -186,6 +193,7 @@ class Daytona:
                     env=env,
                     labels=labels,
                     resources=resources,
+                    desktop=desktop,
                     ports=ports,
                     volumes=volumes,
                     secrets=secrets,
@@ -213,6 +221,7 @@ class Daytona:
         env: Optional[Mapping[str, str]] = None,
         labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
+        desktop: DesktopConfig | None = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
@@ -262,6 +271,7 @@ class Daytona:
                     env=env,
                     labels=labels,
                     resources=resources,
+                    desktop=desktop,
                     ports=ports,
                     volumes=volumes,
                     secrets=secrets,

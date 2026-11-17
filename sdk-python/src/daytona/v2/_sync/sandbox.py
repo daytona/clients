@@ -563,6 +563,16 @@ class Sandbox:
         return self._impl.cpu_max
 
     @property
+    def desktop(self) -> DesktopSettings | None:
+        """Resolved create-time settings, not live status or current settings.
+
+        Guest restarts may change settings; ``computer_use.status()`` reports
+        live settings. ``None`` means no desktop was requested, except when
+        metadata is unknown or omitted (including batch-wait snapshots).
+        """
+        return self._impl.desktop
+
+    @property
     def disk(self) -> Optional[float]:
         """Disk in GiB, exactly the API's MiB / 1024."""
         return self._impl.disk

@@ -4,6 +4,8 @@
  */
 
 import { isBlank } from './pyText.js'
+import { assertDesktopOptions } from './desktop.js'
+import type { DesktopConfig } from './desktop.js'
 import { assertKnownOptions, assertLabels, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys } from './options.js'
 import type {
   CreateRequestBaseOptions, CreateSandboxOptions, CreateSandboxFromSnapshotOptions,
@@ -18,7 +20,7 @@ const BASE_KEYS = optionKeys<CreateRequestBaseOptions>()({
 })
 export const CREATE_KEYS = optionKeys<CreateSandboxOptions>()({
   ...BASE_KEYS, volumes: true, env: true, resources: true, secrets: true, spot: true,
-  user: true, networkPolicy: true, cpuArch: true, cpuType: true,
+  user: true, networkPolicy: true, cpuArch: true, cpuType: true, desktop: true,
 })
 export const SNAPSHOT_CREATE_KEYS = optionKeys<CreateSandboxFromSnapshotOptions>()(BASE_KEYS)
 export const MACOS_CREATE_KEYS = optionKeys<CreateMacosSandboxOptions>()({
@@ -111,6 +113,7 @@ function enumerableEntries(options: Readonly<Record<string, unknown>>): [string,
 
 /** The create options whose values are checked before any request (shared by every create route). */
 interface CreateValueOptions extends CreateRequestBaseOptions {
+  readonly desktop?: DesktopConfig
   readonly volumes?: readonly VolumeMount[]
   readonly env?: Readonly<Record<string, string>>
   readonly secrets?: readonly string[]
@@ -140,6 +143,7 @@ function arrayOf(value: unknown, message: string): readonly unknown[] | undefine
  * forwarded. Nested entries must be options objects with known keys.
  */
 export function assertCreateNestedOptions(options: CreateValueOptions): void {
+  assertDesktopOptions(options.desktop)
   // `null` means no policy, and a non-object value gets the lifecycle
   // validator's own message; only an options object has keys to check.
   const policy = options.lifecyclePolicy

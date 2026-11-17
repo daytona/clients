@@ -4,6 +4,8 @@
  */
 
 import type { OtelApiLike } from './http.js'
+import type { DesktopConfig, DesktopSettings } from './desktop.js'
+export type { DesktopConfig, DesktopEnvironment, DesktopSettings, DesktopResolution } from './desktop.js'
 import { optionKeys } from './options.js'
 /** Public V2 SDK types. */
 
@@ -157,6 +159,8 @@ export interface SandboxHandleJSON {
   readonly labels?: Readonly<Record<string, string>>
   readonly region?: string
   readonly persistent?: boolean
+  /** Resolved create-time desktop configuration, not live status; batch-wait omits it. */
+  readonly desktop?: DesktopSettings
   readonly spot?: boolean
   readonly spotEvictedAt?: string
   readonly lifecyclePolicy?: SandboxLifecycle
@@ -490,6 +494,8 @@ export interface CreateRequestBaseOptions {
  * ceiling.
  */
 export interface CreateSandboxOptions extends CreateRequestBaseOptions {
+  /** Desktop opt-in; see DesktopConfig for server validation and boot-limit floors. */
+  readonly desktop?: DesktopConfig
   readonly volumes?: readonly VolumeMount[]
   readonly env?: Readonly<Record<string, string>>
   readonly resources?: Resources
@@ -651,6 +657,8 @@ export interface SandboxDto {
   reservation_id?: string | null
   /** macOS only; absent on `GET /sandboxes/batch-wait` items. */
   persistent?: boolean | null
+  /** Resolved create-time configuration; omitted by batch-wait. */
+  desktop?: { readonly environment: string; readonly resolution: { readonly width: number; readonly height: number } } | null
   lifecycle_policy?: SandboxLifecycleDto | null
   /**
    * Present on `GET /sandboxes/search` items; absent
