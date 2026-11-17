@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -34,7 +35,10 @@ type fakeSocketIOServer struct {
 	holdOpenOnReadError atomic.Bool
 	// rejectConnections makes the server refuse new socket handshakes.
 	rejectConnections atomic.Bool
-	done              chan struct{}
+	// stopReading makes the server stop reading new sockets after the
+	// handshake, so the client's writes back up.
+	stopReading atomic.Bool
+	done        chan struct{}
 
 	mu       sync.Mutex
 	queries  []url.Values
@@ -83,6 +87,10 @@ func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 		f.conns = append(f.conns, conn)
 		f.mu.Unlock()
 
+		if f.stopReading.Load() {
+			<-f.done
+			return
+		}
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
@@ -254,11 +262,19 @@ func TestEventDispatcherResendsWholeSetInChunksAfterReconnect(t *testing.T) {
 		}
 		return n
 	}
-	require.Eventually(t, func() bool { return countIDs(f.events()) == total }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return countIDs(f.events()) >= total }, 5*time.Second, 10*time.Millisecond)
+	var initialIDs []string
 	for _, event := range f.events() {
 		assert.Equal(t, "subscribe", event.Name)
 		assert.LessOrEqual(t, len(event.SandboxIDs), maxSubscriptionIDsPerMessage)
+		initialIDs = append(initialIDs, event.SandboxIDs...)
 	}
+	subscribed := make([]string, 0, total)
+	for i := 0; i < total; i++ {
+		subscribed = append(subscribed, testSandboxID(i))
+	}
+	sort.Strings(initialIDs)
+	assert.Equal(t, subscribed, initialIDs, "each subscribed id is sent exactly once")
 	before := len(f.events())
 
 	// Keep the client disconnected until the listener changes below are made.
@@ -361,6 +377,64 @@ func TestSocketIOClientWriterExitsWhenServerDropsConnection(t *testing.T) {
 	// The writer must not outlive the connection waiting for the owner's Close.
 	require.Eventually(t, func() bool { return countWriteLoops() == 0 }, 5*time.Second, 10*time.Millisecond)
 	assert.Error(t, client.emit("subscribe", json.RawMessage(`{"sandboxIds":[]}`)))
+}
+
+func TestSocketIOClientCloseInterruptsStalledWrite(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	f.stopReading.Store(true)
+	client, err := newSocketIOClient(socketIOClientConfig{APIURL: f.server.URL, Token: "test-token"})
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+
+	// Far more than the socket buffers hold: the writer stalls mid-write.
+	payload := json.RawMessage(`"` + strings.Repeat("x", 1<<20) + `"`)
+	for i := 0; i < 64; i++ {
+		require.NoError(t, client.emit("subscribe", payload))
+	}
+	writerHoldsLock := func() bool {
+		if client.writemu.TryLock() {
+			client.writemu.Unlock()
+			return false
+		}
+		return true
+	}
+	require.Eventually(t, func() bool {
+		if !writerHoldsLock() {
+			return false
+		}
+		time.Sleep(200 * time.Millisecond)
+		return writerHoldsLock()
+	}, 10*time.Second, 10*time.Millisecond, "the writer never stalled")
+
+	closed := make(chan struct{})
+	start := time.Now()
+	go func() {
+		client.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close blocked on the stalled write")
+	}
+	assert.Less(t, time.Since(start), time.Second)
+}
+
+func TestEventDispatcherCountsConnectionEpochs(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	assert.Equal(t, uint64(0), es.ConnectionEpoch())
+
+	unsubscribe := es.Subscribe(testSandboxID(1), noopHandler, stateEvents)
+	defer unsubscribe()
+	require.Eventually(t, es.IsConnected, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, uint64(1), es.ConnectionEpoch())
+
+	f.dropConnections()
+	require.Eventually(t, func() bool { return es.ConnectionEpoch() == 2 && es.IsConnected() }, 10*time.Second, 10*time.Millisecond)
+	manager := NewEventSubscriptionManager(es)
+	assert.Equal(t, uint64(2), manager.ConnectionEpoch())
+	assert.Equal(t, uint64(0), NewEventSubscriptionManager(nil).ConnectionEpoch())
 }
 
 func TestEventSubscriptionManagerIsNotConnectedAfterShutdown(t *testing.T) {

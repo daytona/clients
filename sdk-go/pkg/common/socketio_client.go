@@ -613,7 +613,12 @@ func (c *socketIOClient) stopBackgroundLoops() {
 	})
 }
 
-// Close gracefully closes the Socket.IO and WebSocket connection.
+// closeWriteTimeout bounds each write of the graceful close, so Close never
+// waits long on a peer that stopped reading.
+const closeWriteTimeout = 250 * time.Millisecond
+
+// Close gracefully closes the Socket.IO and WebSocket connection. It is
+// bounded: a write stalled on a peer that stopped reading is interrupted.
 func (c *socketIOClient) Close() {
 	c.mu.Lock()
 	if !c.connected && c.conn == nil {
@@ -626,17 +631,31 @@ func (c *socketIOClient) Close() {
 	// Signal goroutines to stop
 	c.stopBackgroundLoops()
 
-	// Send Engine.IO CLOSE
-	_ = c.writeMessage(string([]byte{byte(eioClose)}))
+	if c.conn == nil {
+		return
+	}
+	c.lockWritesInterrupting()
+	defer c.writemu.Unlock()
 
-	// Close WebSocket with proper close frame
-	if c.conn != nil {
-		c.writemu.Lock()
-		_ = c.conn.WriteMessage(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-		)
-		c.writemu.Unlock()
-		c.conn.Close()
+	// Send Engine.IO CLOSE, then a WebSocket close frame.
+	_ = c.conn.SetWriteDeadline(time.Now().Add(closeWriteTimeout))
+	_ = c.conn.WriteMessage(websocket.TextMessage, []byte{byte(eioClose)})
+	_ = c.conn.SetWriteDeadline(time.Now().Add(closeWriteTimeout))
+	_ = c.conn.WriteMessage(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+	)
+	_ = c.conn.Close()
+}
+
+// lockWritesInterrupting acquires writemu. While a write holds it, the write is
+// interrupted through the net.Conn deadline (safe to set concurrently, unlike
+// gorilla's write methods). Repeated because a write that starts after the
+// deadline was set installs its own; writeLoop exits after the interrupted
+// write since closeCh is closed.
+func (c *socketIOClient) lockWritesInterrupting() {
+	for !c.writemu.TryLock() {
+		_ = c.conn.UnderlyingConn().SetWriteDeadline(time.Now())
+		time.Sleep(5 * time.Millisecond)
 	}
 }

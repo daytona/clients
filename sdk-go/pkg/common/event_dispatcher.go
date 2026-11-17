@@ -68,9 +68,12 @@ type EventDispatcher struct {
 	client         *socketIOClient
 	clientGen      uint64
 	connected      bool
-	closed         bool
-	failed         bool
-	failError      string
+	// connectEpoch counts successful connects, reconnects included. Events
+	// emitted while disconnected are lost, so a changed epoch means a gap.
+	connectEpoch uint64
+	closed       bool
+	failed       bool
+	failError    string
 
 	listeners map[string]map[int]SandboxEventHandler
 	nextSubID int
@@ -181,6 +184,7 @@ func (es *EventDispatcher) Connect(ctx context.Context) error {
 	}
 	es.client = client
 	es.connected = true
+	es.connectEpoch++
 	es.connecting = false
 	es.failed = false
 	es.failError = ""
@@ -290,6 +294,13 @@ func (es *EventDispatcher) IsConnected() bool {
 	es.mu.RLock()
 	defer es.mu.RUnlock()
 	return es.connected
+}
+
+// ConnectionEpoch returns the number of successful connects so far.
+func (es *EventDispatcher) ConnectionEpoch() uint64 {
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	return es.connectEpoch
 }
 
 func (es *EventDispatcher) IsFailed() bool {

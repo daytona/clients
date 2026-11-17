@@ -297,6 +297,13 @@ public class EventDispatcher {
         return connected;
     }
 
+    /** Incremented on every successful connect: the initial one and every reconnect. */
+    public long connectionEpoch() {
+        synchronized (lock) {
+            return connectionGeneration;
+        }
+    }
+
     public boolean isFailed() {
         return failed;
     }

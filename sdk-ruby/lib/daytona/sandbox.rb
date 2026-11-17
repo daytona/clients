@@ -1233,11 +1233,13 @@ module Daytona
     # event, so the wait can skip its first read. Released when the block exits, if the wait has not released
     # it already.
     #
-    # @yieldparam subscription [Hash] { id:, live:, state_events: } for #wait_for_state
+    # @yieldparam subscription [Hash] { id:, live:, connection_epoch:, state_events: } for #wait_for_state
     def with_operation_subscription
-      subscription = { id: nil, live: false, state_events: nil }
+      subscription = { id: nil, live: false, connection_epoch: nil, state_events: nil }
       Thread.handle_interrupt(Object => :never) do
         subscription[:id] = subscribe_to_state_events
+        # Epoch before the connection check: a reconnect in between then fails the epoch comparison.
+        subscription[:connection_epoch] = @subscription_manager&.connection_epoch
         subscription[:live] = !subscription[:id].nil? && @subscription_manager.connected?
         subscription[:state_events] = @waiter_mutex.synchronize { @state_event_count }
         Thread.handle_interrupt(Object => :immediate) { yield subscription }
@@ -1358,6 +1360,21 @@ module Daytona
       end
     end
 
+    # #refresh_data_safe, telling whether the cached state is now current.
+    #
+    # @return [Boolean] true when the refresh succeeded or found the Sandbox gone (destroyed)
+    def refresh_after_subscribing
+      refresh
+      true
+    rescue DaytonaApiClient::ApiError => e
+      return false unless e.code == 404
+
+      apply_state(DaytonaApiClient::SandboxState::DESTROYED)
+      true
+    rescue StandardError
+      false
+    end
+
     # @param api [DaytonaApiClient::SandboxApi] sandbox_api, or a copy of it with an HTTP timeout
     def refresh_data_safe(api = sandbox_api)
       refresh_through(api)
@@ -1475,11 +1492,13 @@ module Daytona
     def poll_jitter_random = rand
 
     # Whether the operation's response (or the refresh standing in for it) can replace a wait's first read:
-    # the subscription was live when taken, the connection is still up, no state event arrived since (it may
-    # be newer than the response that overwrote it), and the response does not fail the wait (read again at
+    # the subscription was live when taken, the connection is still up and was not re-established since (a
+    # reconnect loses the events emitted while the socket was down), no state event arrived since (it may be
+    # newer than the response that overwrote it), and the response does not fail the wait (read again at
     # once, so it fails as fast as before).
     #
-    # @param subscription [Hash] { id:, live:, state_events: }; a wait's own subscription has no :live
+    # @param subscription [Hash] { id:, live:, connection_epoch:, state_events: }; a wait's own subscription
+    #   has no :live
     # @param state_event_count [Integer] The Sandbox's state-event count when the wait started
     # @param target_strings [Array<String>]
     # @param error_strings [Array<String>]
@@ -1489,8 +1508,16 @@ module Daytona
       return false if error_strings.include?(current)
       return false if current == DaytonaApiClient::SandboxState::DESTROYED.to_s && !target_strings.include?(current)
 
-      subscription[:live] == true && !subscription[:id].nil? && @subscription_manager.connected? &&
+      subscription[:live] == true && events_reached_wait?(subscription) &&
         subscription[:state_events] == state_event_count
+    end
+
+    # @param subscription [Hash] { id:, connection_epoch: }
+    # @return [Boolean] Whether every state event since +subscription+ was taken has reached this Sandbox:
+    #   it is held, the connection is up and has not been re-established meanwhile
+    def events_reached_wait?(subscription)
+      !subscription[:id].nil? && @subscription_manager.connected? &&
+        @subscription_manager.connection_epoch == subscription[:connection_epoch]
     end
 
     # Older servers return no sandbox from an operation; only then is a refresh needed.
@@ -1595,8 +1622,12 @@ module Daytona
       with_operation_subscription do |subscription|
         begin
           sandbox_dto = sandbox_api.delete_sandbox(id)
-          # Older servers return no sandbox; the refresh taken after the subscription stands in for it.
-          sandbox_dto.nil? ? refresh_data_safe : process_response(sandbox_dto)
+          if sandbox_dto
+            process_response(sandbox_dto)
+          elsif !refresh_after_subscribing
+            # Older servers return no sandbox; without a successful refresh the cached state is stale.
+            subscription[:live] = false
+          end
         rescue DaytonaApiClient::ApiError => e
           raise unless e.code == 404
 

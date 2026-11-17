@@ -68,6 +68,7 @@ type SubscriptionManagerMock = {
   refresh: jest.Mock
   unsubscribe: jest.Mock
   isConnected: boolean
+  connectionEpoch: number
 }
 
 const makeSandbox = (
@@ -109,6 +110,7 @@ const makeSandbox = (
     refresh: jest.fn(() => true),
     unsubscribe: jest.fn(),
     isConnected: subscribeReturns !== '',
+    connectionEpoch: 1,
   }
 
   const cfg: Configuration = {
@@ -834,6 +836,49 @@ describe('Sandbox event subscriptions', () => {
       expect(sandbox.state).toBe('stopped')
     })
 
+    it('stop() reads immediately when the connection dropped and reconnected during the request', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockImplementation(async () => {
+        // Down and up again while the request ran: the stopped event sent meanwhile is lost.
+        subscriptionManager.connectionEpoch++
+        return createApiResponse({ ...baseDto, state: 'stopping' })
+      })
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
+      expect(sandbox.state).toBe('stopped')
+    })
+
+    it('stop() with an empty response whose fallback read fails reads again immediately', async () => {
+      const { sandbox, sandboxApi } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockResolvedValue(createApiResponse(undefined))
+      sandboxApi.getSandbox
+        .mockRejectedValueOnce(new Error('Bad Gateway (502)'))
+        .mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      jest.useFakeTimers()
+      try {
+        const stop = sandbox.stop(60)
+        await jest.advanceTimersByTimeAsync(0)
+        // The swallowed fallback read, then the wait's immediate read.
+        expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(2)
+        await stop
+      } finally {
+        jest.useRealTimers()
+      }
+      expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(2)
+      expect(sandbox.state).toBe('stopped')
+    })
+
+    it('delete(wait=true) with an empty response reads immediately', async () => {
+      const { sandbox, sandboxApi } = makeSandbox({ state: 'started' })
+      sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse(undefined))
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroyed' }))
+
+      await expectImmediateSingleRead(() => sandbox.delete(60, true), sandboxApi.getSandbox)
+      expect(sandbox.state).toBe('destroyed')
+    })
+
     it('stop() releases the subscription and propagates the error when the request fails', async () => {
       const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
       const error = new Error('stop failed')
@@ -1120,5 +1165,95 @@ describe('waitPollIntervalMs', () => {
     expect(waitPollIntervalMs(true, false, 100, () => 0)).toBe(800)
     expect(waitPollIntervalMs(true, false, 100, () => 0.5)).toBe(1000)
     expect(waitPollIntervalMs(true, false, 100, () => 1)).toBe(1200)
+  })
+})
+
+describe('Sandbox wait telemetry', () => {
+  type Recorded = {
+    spans: string[]
+    spanAttributes: Record<string, unknown>[]
+    histograms: string[]
+    labels: unknown[]
+  }
+
+  // Loads a fresh Sandbox and instrumentation module (empty histogram cache) with a recording tracer and meter.
+  const instrumentedSandbox = (
+    overrides: Partial<SandboxDto>,
+  ): ReturnType<typeof makeSandbox> & { recorded: Recorded } => {
+    const recorded: Recorded = { spans: [], spanAttributes: [], histograms: [], labels: [] }
+    let made: ReturnType<typeof makeSandbox> | undefined
+    jest.isolateModules(() => {
+      const otel = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
+      const span = { setStatus: jest.fn(), recordException: jest.fn(), end: jest.fn() }
+      jest.spyOn(otel.trace, 'getTracer').mockReturnValue({
+        startSpan: (name: string, options?: { attributes?: Record<string, unknown> }) => {
+          recorded.spans.push(name)
+          recorded.spanAttributes.push(options?.attributes ?? {})
+          return span
+        },
+      } as unknown as ReturnType<typeof otel.trace.getTracer>)
+      jest.spyOn(otel.metrics, 'getMeter').mockReturnValue({
+        createHistogram: (name: string) => {
+          recorded.histograms.push(name)
+          return { record: (_value: number, labels: unknown) => recorded.labels.push(labels) }
+        },
+      } as unknown as ReturnType<typeof otel.metrics.getMeter>)
+      made = makeSandbox(overrides, '')
+    })
+    if (!made) throw new Error('sandbox was not created')
+    return { ...made, recorded }
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('stop() records the Sandbox.waitUntilStopped span and histogram', async () => {
+    const { sandbox, sandboxApi, recorded } = instrumentedSandbox({ state: 'started' })
+    sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+    await sandbox.stop(5)
+
+    expect(recorded.spans).toEqual(['Sandbox.stop', 'Sandbox.waitUntilStopped'])
+    expect(recorded.spanAttributes[1]).toEqual({ component: 'Sandbox', method: 'waitUntilStopped' })
+    expect(recorded.histograms).toEqual(['sandbox_stop_duration', 'sandbox_wait_until_stopped_duration'])
+    expect(recorded.labels[0]).toEqual({ component: 'Sandbox', method: 'waitUntilStopped', status: 'success' })
+  })
+
+  it('fork() records the Sandbox.waitUntilStarted span', async () => {
+    const { sandbox, sandboxApi, recorded } = instrumentedSandbox({ state: 'started' })
+    sandboxApi.forkSandbox = jest
+      .fn()
+      .mockResolvedValue(createApiResponse({ ...baseDto, id: 'sb-fork', state: 'started' }))
+
+    await sandbox.fork(undefined, 5)
+
+    expect(recorded.spans).toEqual(['Sandbox.fork', 'Sandbox.waitUntilStarted'])
+    expect(recorded.histograms).toContain('sandbox_wait_until_started_duration')
+  })
+
+  it('resize() records the Sandbox.waitForResizeComplete span', async () => {
+    const { sandbox, sandboxApi, recorded } = instrumentedSandbox({ state: 'started' })
+    sandboxApi.resizeSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'started' }))
+
+    await sandbox.resize({ cpu: 4 }, 5)
+
+    expect(recorded.spans).toEqual(['Sandbox.resize', 'Sandbox.waitForResizeComplete'])
+    expect(recorded.histograms).toContain('sandbox_wait_for_resize_complete_duration')
+  })
+
+  it('the public waits record their span once', async () => {
+    const { sandbox, recorded } = instrumentedSandbox({ state: 'started' })
+
+    await sandbox.waitUntilStarted(5)
+    await sandbox.waitForResizeComplete(5)
+    sandbox.state = 'stopped' as SandboxDto['state']
+    await sandbox.waitUntilStopped(5)
+
+    expect(recorded.spans).toEqual([
+      'Sandbox.waitUntilStarted',
+      'Sandbox.waitForResizeComplete',
+      'Sandbox.waitUntilStopped',
+    ])
   })
 })

@@ -85,6 +85,13 @@ module Daytona
       @dispatcher.connected?
     end
 
+    # @return [Integer] The dispatcher's count of successful connects; it changes on every reconnect, so
+    #   callers can tell whether events may have been missed between two points in time. 0 without a
+    #   dispatcher.
+    def connection_epoch
+      @dispatcher.nil? ? 0 : @dispatcher.connection_epoch
+    end
+
     def unsubscribe(sub_id)
       subscription = @mutex.synchronize do
         removed = @subscriptions.delete(sub_id)

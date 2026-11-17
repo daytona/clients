@@ -138,6 +138,9 @@ public class Sandbox {
     private final CopyOnWriteArrayList<StateWaiter> stateWaiters = new CopyOnWriteArrayList<>();
     // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
     private final AtomicLong stateEventCount = new AtomicLong();
+    // Package-private so tests can drive the poll cadence without real-time sleeps.
+    PollDelay pollDelay = (subscribed, connected) ->
+            pollIntervalMillis(subscribed, connected, () -> ThreadLocalRandom.current().nextDouble());
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
     private String id;
@@ -337,7 +340,7 @@ public class Sandbox {
         PreparedStateWait prepared = prepareStateWait();
         try {
             io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.stopSandbox(id, null, null));
-            applyOperationResponse(response);
+            prepared.setFreshState(applyOperationResponse(response));
             long elapsed = (System.currentTimeMillis() - startTime) / 1000;
             long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
             if (!STOPPED_STATES.contains(state)) {
@@ -414,8 +417,9 @@ public class Sandbox {
             io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.deleteSandbox(id, null));
             if (response != null && response.getState() != null) {
                 populateFromDTO(response);
+                prepared.setFreshState(true);
             } else {
-                refreshDataSafe();
+                prepared.setFreshState(refreshDataSafe());
             }
             if (!"destroyed".equalsIgnoreCase(state)) {
                 long elapsed = (System.currentTimeMillis() - startTime) / 1000;
@@ -869,19 +873,29 @@ public class Sandbox {
      * @throws DaytonaException if refresh fails
      */
     public void refreshData() {
-        io.daytona.api.client.model.Sandbox data = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(id, null, null));
-        if (data != null) {
-            populateFromDTO(data);
-        }
+        fetchData();
     }
 
-    // Lifecycle operations return the sandbox; older servers may return an empty body.
-    private void applyOperationResponse(io.daytona.api.client.model.Sandbox response) {
+    /** Refreshes like {@link #refreshData()}; returns whether the API returned the sandbox. */
+    private boolean fetchData() {
+        io.daytona.api.client.model.Sandbox data = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(id, null, null));
+        if (data == null) {
+            return false;
+        }
+        populateFromDTO(data);
+        return true;
+    }
+
+    /**
+     * Applies a lifecycle operation's response; older servers may return an empty body, then the
+     * sandbox is read instead. Returns whether the cached state now comes from the response or that read.
+     */
+    private boolean applyOperationResponse(io.daytona.api.client.model.Sandbox response) {
         if (response != null && response.getState() != null) {
             populateFromDTO(response);
-        } else {
-            refreshData();
+            return true;
         }
+        return fetchData();
     }
 
     /**
@@ -1038,7 +1052,7 @@ public class Sandbox {
         String subId = subscriptionManager.subscribe(id, this::handleEvent,
                 Collections.singletonList(SANDBOX_STATE_UPDATED_EVENT));
         boolean live = subId != null && subscriptionManager.isConnected();
-        return new PreparedStateWait(subId, live, stateEventCount.get());
+        return new PreparedStateWait(subId, live, stateEventCount.get(), subscriptionManager.connectionEpoch());
     }
 
     /**
@@ -1049,11 +1063,20 @@ public class Sandbox {
         private String subId;
         private final boolean live;
         private final long stateEventCountAtSubscribe;
+        private final long connectionEpochAtSubscribe;
+        // Whether the cached state comes from the operation's response or a successful read taken after
+        // subscribing; without it the wait must read first.
+        private boolean freshState;
 
-        PreparedStateWait(String subId, boolean live, long stateEventCountAtSubscribe) {
+        PreparedStateWait(String subId, boolean live, long stateEventCountAtSubscribe, long connectionEpochAtSubscribe) {
             this.subId = subId;
             this.live = live;
             this.stateEventCountAtSubscribe = stateEventCountAtSubscribe;
+            this.connectionEpochAtSubscribe = connectionEpochAtSubscribe;
+        }
+
+        void setFreshState(boolean freshState) {
+            this.freshState = freshState;
         }
 
         String takeSubscription() {
@@ -1062,15 +1085,17 @@ public class Sandbox {
             return taken;
         }
 
-        // Every later change arrives as an event when the subscription was live before the request
-        // and no state event raced the response, so the wait's first read is redundant. An error or
-        // unexpected destroyed state from the response still gets the read, so it fails as fast as before.
+        // Every later change arrives as an event when the subscription was live before the request, the
+        // connection did not drop since (events sent while it was down are lost) and no state event raced
+        // the response, so the wait's first read is redundant. An error or unexpected destroyed state from
+        // the response, or a state not read after subscribing, still gets the read.
         boolean canSkipFirstRead(Set<String> targetStates, Set<String> errorStates) {
             String responseState = state;
             boolean responseStateIsFailure = responseState != null
                     && (errorStates.contains(responseState)
                     || (DESTROYED_STATES.contains(responseState) && !targetStates.contains(responseState)));
-            return live && subscriptionManager.isConnected()
+            return live && freshState && subscriptionManager.isConnected()
+                    && subscriptionManager.connectionEpoch() == connectionEpochAtSubscribe
                     && stateEventCount.get() == stateEventCountAtSubscribe
                     && !responseStateIsFailure;
         }
@@ -1162,6 +1187,12 @@ public class Sandbox {
         } finally {
             stateWaiters.remove(waiter);
         }
+    }
+
+    /** Picks the delay before a wait's next poll. */
+    @FunctionalInterface
+    interface PollDelay {
+        long millis(boolean subscribed, boolean connected);
     }
 
     /**
@@ -1264,17 +1295,18 @@ public class Sandbox {
                     subId = subscribe();
                 }
                 boolean subscribed = subId != null;
-                return pollIntervalMillis(subscribed, subscribed && subscriptionManager.isConnected(),
-                        () -> ThreadLocalRandom.current().nextDouble());
+                return pollDelay.millis(subscribed, subscribed && subscriptionManager.isConnected());
             }
         }
     }
 
-    private void refreshDataSafe() {
+    /** Like {@link #fetchData()}, but a 404 means the sandbox is destroyed. */
+    private boolean refreshDataSafe() {
         try {
-            refreshData();
+            return fetchData();
         } catch (DaytonaNotFoundException e) {
             applyState("destroyed");
+            return true;
         }
     }
 
@@ -1438,6 +1470,7 @@ public class Sandbox {
         // The fork's id is only known from the response, so subscribe right after it. The fork endpoint
         // returns before the new sandbox starts, so the transition still arrives as an event.
         PreparedStateWait prepared = forked.prepareStateWait();
+        prepared.setFreshState(response != null && response.getState() != null);
         try {
             forked.waitForState(STARTED_STATES, ERROR_STATES, timeoutSeconds, false, prepared);
         } finally {
@@ -1581,7 +1614,7 @@ public class Sandbox {
         PreparedStateWait prepared = prepareStateWait();
         try {
             io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.pauseSandbox(id, null));
-            applyOperationResponse(response);
+            prepared.setFreshState(applyOperationResponse(response));
             if (PAUSE_TARGET_STATES.contains(state)) {
                 return;
             }

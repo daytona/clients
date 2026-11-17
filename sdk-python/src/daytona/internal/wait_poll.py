@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 # Events are flowing, so the poll only guards against a missed event.
@@ -54,8 +54,16 @@ class WaitSubscription:
         sub_id: Subscription id; empty when events are unavailable.
         live: Whether the event connection was up right after subscribing.
         state_event_count: The sandbox's state event count when the subscription was taken.
+        connection_epoch: The event connection's epoch when the subscription was taken.
+        state_fresh: Whether the cached state was set after subscribing, from the operation's
+            response or a successful read.
     """
 
     sub_id: str
     live: bool
     state_event_count: int
+    connection_epoch: int
+    state_fresh: bool = False
+
+    def with_state_fresh(self, state_fresh: bool) -> WaitSubscription:
+        return replace(self, state_fresh=state_fresh)

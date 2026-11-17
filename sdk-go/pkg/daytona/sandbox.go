@@ -185,6 +185,10 @@ const (
 // waitForStatePollRandom is the jitter source, uniform in [0, 1). Stubbed in tests.
 var waitForStatePollRandom = rand.Float64
 
+// waitForStateNextPoll schedules a wait's polls after the first. Tests stub it
+// to tell the immediate read apart from scheduled polls without timing.
+var waitForStateNextPoll = waitForStatePollInterval
+
 // sandboxDTO is the common subset of fields exposed by both [apiclient.Sandbox]
 // (returned by single-sandbox endpoints) and [apiclient.SandboxListItem]
 // (returned by the list endpoint). It lets [NewSandbox] and
@@ -531,6 +535,8 @@ type waitSubscription struct {
 	// subscription was taken, and the state-event count at that point.
 	liveBeforeRequest        bool
 	stateEventsBeforeRequest uint64
+	// A reconnect since loses the events emitted while the socket was down.
+	connectionEpochBeforeRequest uint64
 }
 
 func (s *Sandbox) subscribeForWait() *waitSubscription {
@@ -545,6 +551,9 @@ func (s *Sandbox) subscribeForWait() *waitSubscription {
 // read. Hand it to waitForStateWith; close it if the wait never starts.
 func (s *Sandbox) subscribeForOperation() *waitSubscription {
 	w := s.subscribeForWait()
+	// Epoch before the connection check: a reconnect in between then fails the
+	// epoch comparison instead of passing unnoticed.
+	w.connectionEpochBeforeRequest = s.subscriptionManager.ConnectionEpoch()
 	w.liveBeforeRequest = w.subID != "" && s.subscriptionManager.IsConnected()
 	w.stateEventsBeforeRequest = s.stateEvents.Load()
 	return w
@@ -558,10 +567,12 @@ func (w *waitSubscription) requireFirstRead() {
 
 // canSkipFirstRead: the cached state is the operation's response and every
 // later change arrives as an event. An event that arrived meanwhile may be newer
-// than the response that overwrote it, so it forces the read.
+// than the response that overwrote it, and a reconnect meanwhile may have lost
+// events, so either forces the read.
 func (w *waitSubscription) canSkipFirstRead() bool {
 	return w.liveBeforeRequest &&
 		w.pollMode() == waitPollEventBacked &&
+		w.sandbox.subscriptionManager.ConnectionEpoch() == w.connectionEpochBeforeRequest &&
 		w.sandbox.stateEvents.Load() == w.stateEventsBeforeRequest
 }
 
@@ -822,7 +833,7 @@ func (s *Sandbox) waitForStateWith(
 	}
 
 	pollingInterval := waitForStatePollingInitialInterval
-	pollTimer := time.NewTimer(waitForStatePollInterval(pollingInterval, sub.pollMode()))
+	pollTimer := time.NewTimer(waitForStateNextPoll(pollingInterval, sub.pollMode()))
 	defer pollTimer.Stop()
 	startTime := time.Now()
 
@@ -857,7 +868,7 @@ func (s *Sandbox) waitForStateWith(
 			}
 
 			pollingInterval = nextWaitForStatePollInterval(pollingInterval, time.Since(startTime))
-			pollTimer.Reset(waitForStatePollInterval(pollingInterval, sub.pollMode()))
+			pollTimer.Reset(waitForStateNextPoll(pollingInterval, sub.pollMode()))
 		}
 	}
 }

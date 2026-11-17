@@ -45,6 +45,7 @@ const SUBSCRIPTION_CHUNK_SIZE = 100
 export class EventDispatcher {
   private socket: Socket | undefined
   private _connected = false
+  private _connectionEpoch = 0
   private _closed = false
   private _failed = false
   private _failError: string | null = null
@@ -185,6 +186,7 @@ export class EventDispatcher {
       this.socket.on('connect', () => {
         this.clearConnectTimer()
         this._connected = true
+        this._connectionEpoch++
         this._failed = false
         this._failError = null
         this.reconnectAttempts = 0
@@ -213,6 +215,7 @@ export class EventDispatcher {
 
       this.socket.io.on('reconnect', () => {
         this._connected = true
+        this._connectionEpoch++
         this._failed = false
         this._failError = null
         this.reconnectAttempts = 0
@@ -315,6 +318,11 @@ export class EventDispatcher {
   /** Whether the WebSocket is currently connected */
   get isConnected(): boolean {
     return this._connected
+  }
+
+  /** Incremented on every successful connect: the initial one and every reconnect. */
+  get connectionEpoch(): number {
+    return this._connectionEpoch
   }
 
   /** Whether the WebSocket has permanently failed (exhausted reconnection attempts) */

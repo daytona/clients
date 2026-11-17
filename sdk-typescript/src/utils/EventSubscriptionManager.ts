@@ -35,6 +35,11 @@ export class EventSubscriptionManager {
     return !this._closed && !!this.dispatcher?.isConnected
   }
 
+  /** Changes on every successful (re)connect; events sent while disconnected are lost. */
+  get connectionEpoch(): number {
+    return this.dispatcher?.connectionEpoch ?? 0
+  }
+
   subscribe(resourceId: string, handler: EventHandler, events: string[]): string {
     // No-op when shut down or when streaming is disabled (no dispatcher) — callers poll.
     if (this._closed || !this.dispatcher) {

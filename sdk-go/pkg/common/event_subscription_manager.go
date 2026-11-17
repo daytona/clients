@@ -122,6 +122,16 @@ func (m *EventSubscriptionManager) IsConnected() bool {
 	return m.dispatcher.IsConnected()
 }
 
+// ConnectionEpoch returns the dispatcher's count of successful connects; it
+// changes on every reconnect, so callers can tell whether events may have been
+// missed between two points in time.
+func (m *EventSubscriptionManager) ConnectionEpoch() uint64 {
+	if m == nil || m.dispatcher == nil {
+		return 0
+	}
+	return m.dispatcher.ConnectionEpoch()
+}
+
 func (m *EventSubscriptionManager) Shutdown() {
 	if m == nil {
 		return

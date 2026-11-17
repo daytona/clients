@@ -280,6 +280,11 @@ class AsyncEventDispatcher:
         return self._connected
 
     @property
+    def connection_epoch(self) -> int:
+        """Counts successful connects (the first one and every reconnect)."""
+        return self._connection_epoch
+
+    @property
     def is_failed(self) -> bool:
         return self._failed
 
@@ -418,6 +423,9 @@ class SyncEventDispatcher:
         self._listeners = {}
         self._registered_events = set()
         self._lock = threading.Lock()
+        # Bumped by the connect handler on the socket's thread; read by waiting threads.
+        self._connection_epoch: int = 0
+        self._epoch_lock: threading.Lock = threading.Lock()
         self._bg_thread = None
         self._disconnect_timer = None
         self._disconnect_generation = 0
@@ -478,6 +486,8 @@ class SyncEventDispatcher:
             # Subscriptions belong to the socket: send the whole set on every connect and reconnect.
             # Emitting under the lock keeps these messages ordered with subscribe()/unsubscribe().
             with dispatcher._lock:
+                with dispatcher._epoch_lock:
+                    dispatcher._connection_epoch += 1
                 dispatcher._connected = True
                 dispatcher._failed = False
                 dispatcher._fail_error = None
@@ -630,6 +640,12 @@ class SyncEventDispatcher:
     @property
     def is_connected(self) -> bool:
         return self._connected
+
+    @property
+    def connection_epoch(self) -> int:
+        """Counts successful connects (the first one and every reconnect)."""
+        with self._epoch_lock:
+            return self._connection_epoch
 
     @property
     def is_failed(self) -> bool:

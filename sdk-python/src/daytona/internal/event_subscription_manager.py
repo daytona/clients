@@ -72,6 +72,11 @@ class AsyncEventSubscriptionManager:
     def dispatcher(self) -> AsyncEventDispatcher | None:
         return self._dispatcher
 
+    @property
+    def connection_epoch(self) -> int:
+        """The dispatcher's connect count; a change means events may have been missed in between."""
+        return self._dispatcher.connection_epoch if self._dispatcher is not None else 0
+
     def subscribe(
         self,
         resource_id: str,
@@ -173,6 +178,11 @@ class SyncEventSubscriptionManager:
     @property
     def dispatcher(self) -> SyncEventDispatcher | None:
         return self._dispatcher
+
+    @property
+    def connection_epoch(self) -> int:
+        """The dispatcher's connect count; a change means events may have been missed in between."""
+        return self._dispatcher.connection_epoch if self._dispatcher is not None else 0
 
     def subscribe(
         self,

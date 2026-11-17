@@ -167,6 +167,26 @@ describe('EventDispatcher', () => {
     expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2), uuid(3)] }]])
   })
 
+  it('advances the connection epoch on the initial connect and on every reconnect', () => {
+    const dispatcher = makeDispatcher()
+    const manager = new EventSubscriptionManager(dispatcher)
+    manager.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+    const socket = lastSocket()
+    expect(manager.connectionEpoch).toBe(0)
+
+    socket.serverAccepts()
+    const afterConnect = manager.connectionEpoch
+    expect(afterConnect).toBeGreaterThan(0)
+
+    socket.drop()
+    expect(manager.connectionEpoch).toBe(afterConnect)
+    socket.io.fire('reconnect')
+    socket.serverAccepts()
+
+    expect(manager.connectionEpoch).toBeGreaterThan(afterConnect)
+    expect(new EventSubscriptionManager(null).connectionEpoch).toBe(0)
+  })
+
   it('subscribes on the first listener and unsubscribes on the last while connected', () => {
     const dispatcher = makeDispatcher()
     const unsubscribeFirst = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)

@@ -30,6 +30,9 @@ module Daytona
       @sdk_version = sdk_version
       @client = nil
       @connected = false
+      # Successful connects so far, reconnects included. Events emitted while disconnected are lost, so a
+      # changed epoch means a gap. Guarded by @mutex.
+      @connection_epoch = 0
       @failed = false
       @fail_error = nil
       @listeners = {}
@@ -98,6 +101,7 @@ module Daytona
 
       @mutex.synchronize do
         @connected = true
+        @connection_epoch += 1
         @failed = false
         @fail_error = nil
         # Subscriptions belong to the socket: send the whole set after every (re)connect.
@@ -153,6 +157,11 @@ module Daytona
     # @return [Boolean]
     def connected?
       @connected
+    end
+
+    # @return [Integer] The number of successful connects so far
+    def connection_epoch
+      @mutex.synchronize { @connection_epoch }
     end
 
     # @return [Boolean]

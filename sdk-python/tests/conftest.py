@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
@@ -152,6 +154,7 @@ class FakeEventDispatcher:
 
     def __init__(self, connected: bool = True) -> None:
         self.is_connected: bool = connected
+        self.connection_epoch: int = 1
         self.listeners: dict[str, list[Any]] = {}
         self.sent: list[tuple[str, str]] = []
 
@@ -171,3 +174,32 @@ class FakeEventDispatcher:
                     self.sent.append(("unsubscribe", resource_id))
 
         return unsubscribe
+
+
+class OtelRecorder:
+    """Records the spans and duration metrics that the instrumentation decorators emit."""
+
+    def __init__(self) -> None:
+        self.spans: list[tuple[str, dict[str, Any]]] = []
+        self.metrics: list[tuple[str, dict[str, Any]]] = []
+
+    @contextlib.contextmanager
+    def start_as_current_span(self, name: str, attributes: dict[str, Any] | None = None) -> Iterator[MagicMock]:
+        self.spans.append((name, dict(attributes or {})))
+        yield MagicMock()
+
+    def create_histogram(self, name: str, **_kwargs: object) -> MagicMock:
+        histogram = MagicMock()
+        histogram.record.side_effect = lambda _value, labels: self.metrics.append((name, dict(labels)))
+        return histogram
+
+
+@pytest.fixture
+def otel_recorder(monkeypatch: pytest.MonkeyPatch) -> OtelRecorder:
+    from daytona._utils import otel_decorator
+
+    recorder = OtelRecorder()
+    monkeypatch.setattr(otel_decorator, "get_tracer", lambda: recorder)
+    monkeypatch.setattr(otel_decorator, "get_meter", lambda: recorder)
+    monkeypatch.setattr(otel_decorator, "_execution_histograms", {})
+    return recorder

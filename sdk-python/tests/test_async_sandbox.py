@@ -517,6 +517,7 @@ def _subscription_manager(connected: bool = True) -> MagicMock:
     manager.subscribe.side_effect = [f"sub-{i}" for i in range(1, 10)]
     manager.refresh.return_value = True
     manager.dispatcher.is_connected = connected
+    manager.connection_epoch = 1
     return manager
 
 
@@ -1246,3 +1247,126 @@ class TestAsyncSandboxSubscribeBeforeRequest:
         await asyncio.wait_for(sandbox.wait_for_sandbox_stop(timeout=0), timeout=2)
 
         mock_async_sandbox_api.get_sandbox.assert_awaited_once()
+
+
+class TestAsyncSandboxReviewRound2:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @staticmethod
+    def _sandbox(toolbox_api, sandbox_api, manager, state=SandboxState.STARTED):
+        sandbox = _make_with_manager(make_sandbox_dto(state=state), toolbox_api, sandbox_api, manager)
+        sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=state))
+        return sandbox
+
+    @pytest.mark.asyncio
+    async def test_reconnect_during_the_request_forces_the_first_read(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+
+        async def stop_sandbox(*_args, **_kwargs):
+            # The socket drops and reconnects while the request is in flight; the `stopped` event is lost.
+            manager.connection_epoch += 1
+            return _async_dto(state=SandboxState.STOPPING)
+
+        mock_async_sandbox_api.stop_sandbox = AsyncMock(side_effect=stop_sandbox)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.STOPPED))
+
+        await asyncio.wait_for(sandbox.stop(timeout=0), timeout=2)
+
+        mock_async_sandbox_api.get_sandbox.assert_awaited_once()
+        assert sandbox.state == SandboxState.STOPPED
+
+    @pytest.mark.asyncio
+    async def test_delete_and_wait_with_an_empty_response_reads_first(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.delete_sandbox = AsyncMock(return_value=None)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.DESTROYED))
+
+        await asyncio.wait_for(sandbox.delete(timeout=0, wait=True), timeout=2)
+
+        mock_async_sandbox_api.get_sandbox.assert_awaited_once()
+        assert sandbox.state == SandboxState.DESTROYED
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    @pytest.mark.asyncio
+    async def test_stop_with_a_swallowed_fallback_read_reads_first(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.stop_sandbox = AsyncMock(return_value=None)
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[make_pydantic_validation_error(), _async_dto(state=SandboxState.STOPPED)]
+        )
+
+        await asyncio.wait_for(sandbox.stop(timeout=0), timeout=2)
+
+        # The swallowed fallback read, then the wait's immediate read.
+        assert mock_async_sandbox_api.get_sandbox.await_count == 2
+        assert sandbox.state == SandboxState.STOPPED
+
+    @pytest.mark.asyncio
+    async def test_destroyed_fork_keeps_the_wait_error_prefix(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.fork_sandbox = AsyncMock(
+            return_value=_async_dto(
+                sandbox_id="forked-id",
+                state=SandboxState.DESTROYED,
+                toolbox_proxy_url="http://forked:2280",
+                queue_timed_out_at="2026-01-01T00:00:00Z",
+            )
+        )
+
+        with pytest.raises(DaytonaQueueTimeoutError) as exc_info:
+            await sandbox.fork(timeout=0)
+
+        assert str(exc_info.value) == (
+            "Failed to fork sandbox: Failure during waiting for sandbox to start: Sandbox forked-id was destroyed"
+            + " after waiting for a runner (queue timed out at 2026-01-01T00:00:00Z)"
+        )
+        manager.subscribe.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("operation", ["stop", "fork", "resize"])
+    async def test_operation_waits_keep_their_span_and_metric_labels(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, otel_recorder, operation
+    ):
+        from daytona.common.sandbox import Resources
+
+        sandbox = self._sandbox(
+            mock_async_toolbox_api_client, mock_async_sandbox_api, _subscription_manager(connected=False)
+        )
+        if operation == "stop":
+            mock_async_sandbox_api.stop_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.STOPPING))
+            mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.STOPPED))
+            await asyncio.wait_for(sandbox.stop(timeout=0), timeout=2)
+            method = "wait_for_sandbox_stop"
+        elif operation == "fork":
+            forked = {"sandbox_id": "forked-id", "toolbox_proxy_url": "http://forked:2280"}
+            mock_async_sandbox_api.fork_sandbox = AsyncMock(
+                return_value=_async_dto(state=SandboxState.FORKING, **forked)
+            )
+            mock_async_sandbox_api.get_sandbox = AsyncMock(
+                return_value=_async_dto(state=SandboxState.STARTED, **forked)
+            )
+            _ = await asyncio.wait_for(sandbox.fork(timeout=0), timeout=2)
+            method = "wait_for_sandbox_start"
+        else:
+            mock_async_sandbox_api.resize_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.RESIZING))
+            mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.STARTED))
+            await asyncio.wait_for(sandbox.resize(Resources(cpu=2), timeout=0), timeout=2)
+            method = "wait_for_resize_complete"
+
+        attributes = {"component": "AsyncSandbox", "method": method}
+        assert (f"AsyncSandbox.{method}", attributes) in otel_recorder.spans
+        assert (f"async_sandbox_{method}_duration", {**attributes, "status": "success"}) in otel_recorder.metrics

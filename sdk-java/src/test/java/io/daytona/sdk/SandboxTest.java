@@ -1001,34 +1001,36 @@ class SandboxTest {
     }
 
     @Test
-    void pollCadenceSwitchesToTheEventBackedIntervalWhenTheConnectionComesUpMidWait() throws Exception {
+    void pollCadenceIsReevaluatedEachTickAndFollowsTheConnectionMidWait() throws Exception {
         EventSubscriptionManager manager = mockSubscriptionManager();
         AtomicBoolean connected = new AtomicBoolean(false);
-        // One entry per poll tick: {nanoTime, 1 if connected else 0}.
-        List<long[]> decisions = new CopyOnWriteArrayList<>();
-        when(manager.isConnected()).thenAnswer(inv -> {
-            boolean value = connected.get();
-            decisions.add(new long[]{System.nanoTime(), value ? 1 : 0});
-            return value;
-        });
+        when(manager.isConnected()).thenAnswer(inv -> connected.get());
         Sandbox sb = startingSandbox("sb-c", manager);
         lenient().when(sandboxApi.getSandbox("sb-c", null, null)).thenReturn(TestSupport.mainSandbox("sb-c", SandboxState.STARTING));
+        // One entry per scheduled poll: whether that tick saw a live connection. A connected tick
+        // schedules the next poll an hour away, so no later tick can happen however slow the machine is.
+        List<Boolean> ticks = new CopyOnWriteArrayList<>();
+        sb.pollDelay = (subscribed, isConnected) -> {
+            assertThat(subscribed).isTrue();
+            ticks.add(isConnected);
+            return isConnected ? TimeUnit.HOURS.toMillis(1) : 10;
+        };
         AtomicReference<Throwable> error = new AtomicReference<>();
-        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(60), error));
+        Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(0), error));
 
         waiter.start();
-        awaitCondition(() -> countDecisions(decisions, false) >= 1);
+        awaitCondition(() -> ticks.size() >= 3);
         connected.set(true);
-        awaitCondition(() -> countDecisions(decisions, true) >= 1);
-        // The next poll is at least 4 s away; the old 1 s cadence would have ticked by now.
-        Thread.sleep(1500);
-        long eventBackedTicks = countDecisions(decisions, true);
+        awaitCondition(() -> ticks.contains(true));
         deliverStarted(manager, "sb-c");
         waiter.join(5000);
 
         assertThat(error.get()).isNull();
         assertThat(waiter.isAlive()).isFalse();
-        assertThat(eventBackedTicks).isEqualTo(1);
+        List<Boolean> snapshot = List.copyOf(ticks);
+        assertThat(snapshot.subList(0, 3)).containsOnly(false);
+        assertThat(snapshot.get(snapshot.size() - 1)).isTrue();
+        assertThat(snapshot.stream().filter(Boolean::booleanValue).count()).isEqualTo(1);
     }
 
     @Test
@@ -1081,6 +1083,59 @@ class SandboxTest {
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2000);
         verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
         assertThat(sb.getState()).isEqualTo("stopped");
+    }
+
+    @Test
+    void stopReadsImmediatelyWhenTheConnectionDroppedAndReconnectedDuringTheRequest() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        java.util.concurrent.atomic.AtomicLong epoch = new java.util.concurrent.atomic.AtomicLong(1);
+        when(manager.connectionEpoch()).thenAnswer(inv -> epoch.get());
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenAnswer(inv -> {
+            // Down and up again while the request ran: the stopped event sent meanwhile is lost.
+            epoch.incrementAndGet();
+            return TestSupport.mainSandbox("sb-s", SandboxState.STOPPING);
+        });
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        long start = System.nanoTime();
+        sb.stop(30);
+
+        // Skipping the read would leave the wait until the first 4-6 s safety-net poll.
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+        assertThat(sb.getState()).isEqualTo("stopped");
+    }
+
+    @Test
+    void stopWhoseEmptyResponseIsFollowedByAnEmptyReadReadsAgainImmediately() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.getSandbox("sb-s", null, null))
+                .thenReturn(null, TestSupport.mainSandbox("sb-s", SandboxState.STOPPED));
+
+        long start = System.nanoTime();
+        sb.stop(30);
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
+        // The fallback read that returned nothing, then the wait's immediate read.
+        verify(sandboxApi, times(2)).getSandbox("sb-s", null, null);
+        assertThat(sb.getState()).isEqualTo("stopped");
+    }
+
+    @Test
+    void deleteWithWaitAndAnEmptyResponseIsFollowedByAnEmptyReadReadsAgainImmediately() {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-d", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.getSandbox("sb-d", null, null))
+                .thenReturn(null, TestSupport.mainSandbox("sb-d", SandboxState.DESTROYED));
+
+        long start = System.nanoTime();
+        sb.delete(30, true);
+
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
+        verify(sandboxApi, times(2)).getSandbox("sb-d", null, null);
+        assertThat(sb.getState()).isEqualTo("destroyed");
     }
 
     @Test
@@ -1327,11 +1382,6 @@ class SandboxTest {
                 dispatcher.shutdown();
             }
         }
-    }
-
-    private static long countDecisions(List<long[]> decisions, boolean eventBacked) {
-        long wanted = eventBacked ? 1 : 0;
-        return decisions.stream().filter(d -> d[1] == wanted).count();
     }
 
     private static void awaitCondition(java.util.function.BooleanSupplier condition) throws InterruptedException {

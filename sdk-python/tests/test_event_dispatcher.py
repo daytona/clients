@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from types import SimpleNamespace
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
@@ -524,3 +525,54 @@ class TestSyncEventDispatcherExplicitSubscriptions:
         assert received == [("sandbox.state.updated", SLIM_STATE_EVENT)]
         assert other == []
         dispatcher.disconnect()
+
+
+class TestConnectionEpoch:
+    async def test_async_connect_and_reconnect_bump_the_epoch(self, fake_async_sio, monkeypatch):
+        from daytona.internal.event_subscription_manager import AsyncEventSubscriptionManager
+
+        dispatcher = AsyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        manager = AsyncEventSubscriptionManager(dispatcher)
+        monkeypatch.setattr(dispatcher, "ensure_connected", lambda: None)
+        assert manager.connection_epoch == 0
+
+        await dispatcher.connect()
+        assert manager.connection_epoch == 1
+
+        sio = fake_async_sio.instances[0]
+        await sio.simulate_disconnect()
+        assert manager.connection_epoch == 1
+        await sio.simulate_connect()
+        assert manager.connection_epoch == 2
+        await dispatcher.disconnect()
+
+    def test_sync_reconnects_on_the_socket_thread_bump_the_epoch(self, fake_sync_sio, monkeypatch):
+        from daytona.internal.event_subscription_manager import SyncEventSubscriptionManager
+
+        dispatcher = SyncEventDispatcher("https://test.daytona.io/api", "test-token")
+        manager = SyncEventSubscriptionManager(dispatcher)
+        monkeypatch.setattr(dispatcher, "ensure_connected", lambda: None)
+        assert manager.connection_epoch == 0
+
+        dispatcher.connect()
+        sio = fake_sync_sio.instances[0]
+
+        def reconnect_repeatedly() -> None:
+            for _ in range(200):
+                sio.simulate_disconnect()
+                sio.simulate_connect()
+
+        threads = [threading.Thread(target=reconnect_repeatedly) for _ in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert manager.connection_epoch == 801
+        manager.shutdown()
+        dispatcher.disconnect()
+
+    def test_manager_without_a_dispatcher_reports_epoch_zero(self):
+        from daytona.internal.event_subscription_manager import SyncEventSubscriptionManager
+
+        assert SyncEventSubscriptionManager(None).connection_epoch == 0

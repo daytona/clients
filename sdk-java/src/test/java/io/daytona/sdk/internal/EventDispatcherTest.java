@@ -148,6 +148,27 @@ class EventDispatcherTest {
     }
 
     @Test
+    void connectionEpochAdvancesOnConnectAndOnEveryReconnect() throws Exception {
+        EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+        assertThat(manager.connectionEpoch()).isZero();
+        manager.subscribe("sb-1", NOOP, STATE_EVENTS);
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+        long afterConnect = manager.connectionEpoch();
+        assertThat(afterConnect).isPositive();
+
+        gateway.holdConnects();
+        gateway.dropConnection();
+        waitUntil(() -> !dispatcher.isConnected());
+        assertThat(manager.connectionEpoch()).isEqualTo(afterConnect);
+        gateway.resumeAccepting();
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+
+        assertThat(manager.connectionEpoch()).isGreaterThan(afterConnect);
+        assertThat(new EventSubscriptionManager(null).connectionEpoch()).isZero();
+        manager.shutdown();
+    }
+
+    @Test
     void dispatchesSlimStatePayloadOnlyToMatchingId() throws Exception {
         BlockingQueue<JsonNode> received = new LinkedBlockingQueue<>();
         dispatcher.subscribe("sb-1", (event, data) -> received.add(data), STATE_EVENTS);

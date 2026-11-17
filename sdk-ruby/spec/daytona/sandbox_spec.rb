@@ -28,7 +28,8 @@ RSpec.describe Daytona::Sandbox do
       subscribe: 'sub-123',
       refresh: true,
       unsubscribe: nil,
-      connected?: true
+      connected?: true,
+      connection_epoch: 0
     )
   end
 
@@ -1475,6 +1476,55 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:get_sandbox).once
       expect(waits).to be_empty
       expect(started_sandbox.state).to eq('stopped')
+    end
+
+    it 'stop: reads once at once when the event connection reconnected during the request' do
+      epoch = 0
+      allow(subscription_manager).to receive(:connection_epoch) { epoch }
+      allow(sandbox_api).to receive(:stop_sandbox) do
+        # The socket dropped and came back while the request ran; the stopped event was lost.
+        epoch += 1
+        build_sandbox_dto(state: 'stopping')
+      end
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'stopped'))
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      started_sandbox.stop(5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+      expect(started_sandbox.state).to eq('stopped')
+    end
+
+    it 'delete(wait: true): reads at once when the response is empty and the fallback refresh fails' do
+      allow(sandbox_api).to receive(:delete_sandbox)
+      gets = 0
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        gets += 1
+        raise DaytonaApiClient::ApiError.new(code: 502, message: 'Bad Gateway') if gets == 1
+
+        build_sandbox_dto(state: 'destroyed')
+      end
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      started_sandbox.delete(5, wait: true)
+
+      expect(gets).to eq(2)
+      expect(waits).to be_empty
+      expect(started_sandbox.state).to eq('destroyed')
+    end
+
+    it 'delete(wait: true): skips the first read when the fallback refresh of an empty response succeeds' do
+      allow(sandbox_api).to receive(:delete_sandbox)
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'destroying'))
+      emit_when_waiting('destroyed')
+
+      started_sandbox.delete(5, wait: true)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(started_sandbox.state).to eq('destroyed')
     end
 
     it 'stop: releases the subscription and raises the original error when the request fails' do

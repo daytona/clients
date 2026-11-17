@@ -450,6 +450,7 @@ def _subscription_manager(connected: bool = True) -> MagicMock:
     manager.subscribe.side_effect = [f"sub-{i}" for i in range(1, 10)]
     manager.refresh.return_value = True
     manager.dispatcher.is_connected = connected
+    manager.connection_epoch = 1
     return manager
 
 
@@ -1099,3 +1100,118 @@ class TestSandboxSubscribeBeforeRequest:
             sender.join()
 
         assert sandbox._read_state_event_count() == 4000
+
+
+class TestSandboxReviewRound2:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @staticmethod
+    def _sandbox(toolbox_api, sandbox_api, manager, state=SandboxState.STARTED):
+        sandbox = _make_with_manager(make_sandbox_dto(state=state), toolbox_api, sandbox_api, manager)
+        sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=state)
+        return sandbox
+
+    def test_reconnect_during_the_request_forces_the_first_read(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+
+        def stop_sandbox(*_args, **_kwargs):
+            # The socket drops and reconnects while the request is in flight; the `stopped` event is lost.
+            manager.connection_epoch += 1
+            return make_sandbox_dto(state=SandboxState.STOPPING)
+
+        mock_sandbox_api.stop_sandbox.side_effect = stop_sandbox
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.stop(timeout=2)
+
+        assert poll_intervals == []  # resolved by the immediate read, not a later poll
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_delete_and_wait_with_an_empty_response_reads_first(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.delete_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.DESTROYED)
+
+        sandbox.delete(timeout=2, wait=True)
+
+        assert poll_intervals == []  # resolved by the immediate read, not a later poll
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert sandbox.state == SandboxState.DESTROYED
+        manager.unsubscribe.assert_called_once_with("sub-1")
+
+    def test_stop_with_a_swallowed_fallback_read_reads_first(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.return_value = None
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_pydantic_validation_error(),
+            make_sandbox_dto(state=SandboxState.STOPPED),
+        ]
+
+        sandbox.stop(timeout=2)
+
+        # The swallowed fallback read, then the wait's immediate read.
+        assert poll_intervals == []
+        assert mock_sandbox_api.get_sandbox.call_count == 2
+        assert sandbox.state == SandboxState.STOPPED
+
+    def test_destroyed_fork_keeps_the_wait_error_prefix(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.fork_sandbox.return_value = make_sandbox_dto(
+            sandbox_id="forked-id",
+            state=SandboxState.DESTROYED,
+            toolbox_proxy_url="http://forked:2280",
+            queue_timed_out_at="2026-01-01T00:00:00Z",
+        )
+
+        with pytest.raises(DaytonaQueueTimeoutError) as exc_info:
+            sandbox.fork(timeout=2)
+
+        assert str(exc_info.value) == (
+            "Failed to fork sandbox: Failure during waiting for sandbox to start: Sandbox forked-id was destroyed"
+            + " after waiting for a runner (queue timed out at 2026-01-01T00:00:00Z)"
+        )
+        manager.subscribe.assert_not_called()
+
+    @pytest.mark.parametrize("operation", ["stop", "fork", "resize"])
+    def test_operation_waits_keep_their_span_and_metric_labels(
+        self, mock_toolbox_api_client, mock_sandbox_api, otel_recorder, operation
+    ):
+        from daytona.common.sandbox import Resources
+
+        sandbox = self._sandbox(mock_toolbox_api_client, mock_sandbox_api, _subscription_manager(connected=False))
+        if operation == "stop":
+            mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPING)
+            mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+            sandbox.stop(timeout=2)
+            method = "wait_for_sandbox_stop"
+        elif operation == "fork":
+            forked = {"sandbox_id": "forked-id", "toolbox_proxy_url": "http://forked:2280"}
+            mock_sandbox_api.fork_sandbox.return_value = make_sandbox_dto(state=SandboxState.FORKING, **forked)
+            mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STARTED, **forked)
+            _ = sandbox.fork(timeout=2)
+            method = "wait_for_sandbox_start"
+        else:
+            mock_sandbox_api.resize_sandbox.return_value = make_sandbox_dto(state=SandboxState.RESIZING)
+            mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STARTED)
+            sandbox.resize(Resources(cpu=2), timeout=2)
+            method = "wait_for_resize_complete"
+
+        attributes = {"component": "Sandbox", "method": method}
+        assert (f"Sandbox.{method}", attributes) in otel_recorder.spans
+        assert (f"sandbox_{method}_duration", {**attributes, "status": "success"}) in otel_recorder.metrics

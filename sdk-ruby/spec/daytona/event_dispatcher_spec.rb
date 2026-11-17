@@ -138,6 +138,18 @@ RSpec.describe Daytona::EventDispatcher do
     expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: ['sandbox-2'] }]])
   end
 
+  it 'counts every successful connect, reconnects included, in the connection epoch' do
+    expect(dispatcher.connection_epoch).to eq(0)
+    subscribe_and_connect('sandbox-1')
+    expect(dispatcher.connection_epoch).to eq(1)
+
+    clients.first.options[:on_disconnect].call
+
+    expect(wait_until { clients.size == 2 && dispatcher.connected? }).to be(true)
+    expect(dispatcher.connection_epoch).to eq(2)
+    expect(Daytona::EventSubscriptionManager.new(dispatcher).connection_epoch).to eq(2)
+  end
+
   it 'removes only the released subscription when the same handler is subscribed twice' do
     received = []
     handler = proc { |_event_name, data| received << data }

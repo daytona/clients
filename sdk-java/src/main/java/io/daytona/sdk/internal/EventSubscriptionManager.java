@@ -102,6 +102,14 @@ public class EventSubscriptionManager {
         return !closed && dispatcher != null && dispatcher.isConnected();
     }
 
+    /**
+     * Changes on every successful (re)connect of the event connection; events sent while it was
+     * down are lost. Always {@code 0} in polling mode.
+     */
+    public long connectionEpoch() {
+        return dispatcher == null ? 0 : dispatcher.connectionEpoch();
+    }
+
     public void unsubscribe(String subId) {
         Subscription subscription;
         synchronized (lock) {

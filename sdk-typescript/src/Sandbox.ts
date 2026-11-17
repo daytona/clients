@@ -71,6 +71,10 @@ type PreparedStateWait = {
   subId: string
   live: boolean
   stateEventCount: number
+  connectionEpoch: number
+  // Set once the cached state comes from the operation's response or a successful read taken after
+  // subscribing; without it the wait must read first.
+  hasFreshState: boolean
 }
 
 // Older servers may return an empty body from lifecycle operations.
@@ -486,8 +490,9 @@ export class Sandbox {
       const response = await this.sandboxApi.stopSandbox(this.id, undefined, force, { timeout: timeout * 1000 })
       if (isSandboxDto(response.data)) {
         this.processSandboxDto(response.data)
+        prepared.hasFreshState = true
       } else {
-        await this.refreshDataSafe()
+        prepared.hasFreshState = await this.refreshDataSafe()
       }
       const timeElapsed = Date.now() - startTime
       await this.waitForStopped(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
@@ -544,13 +549,13 @@ export class Sandbox {
       this.requestTimeoutMs,
     )
 
-    if (forkedSandbox.state === SandboxState.STARTED) {
-      return forkedSandbox
-    }
-
     // The fork's id is only known from the response, so subscribe right after it. The fork endpoint
     // returns before the new sandbox starts, so the transition still arrives as an event.
-    const prepared = forkedSandbox.prepareStateWait()
+    let prepared: PreparedStateWait | undefined
+    if (forkedSandbox.state !== SandboxState.STARTED) {
+      prepared = forkedSandbox.prepareStateWait()
+      prepared.hasFreshState = isSandboxDto(sandboxDto)
+    }
     try {
       const timeElapsed = Date.now() - startTime
       const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
@@ -668,6 +673,7 @@ export class Sandbox {
       } else {
         await this.refreshData()
       }
+      prepared.hasFreshState = true
 
       const timeElapsed = Date.now() - startTime
       const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
@@ -716,6 +722,9 @@ export class Sandbox {
       if (response.data) {
         this.processSandboxDto(response.data)
       }
+      if (prepared) {
+        prepared.hasFreshState = isSandboxDto(response.data)
+      }
 
       if (wait && this.state !== SandboxState.DESTROYED) {
         const timeElapsed = Date.now() - startTime
@@ -745,16 +754,17 @@ export class Sandbox {
    * @returns {Promise<void>}
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox ends up in an error state or fails to start within the timeout period.
    */
-  @WithInstrumentation()
   public async waitUntilStarted(timeout = 60) {
+    return this.waitForStarted(timeout)
+  }
+
+  // Records under the public wait's span and metric names, so operations that wait keep the same telemetry.
+  @WithInstrumentation({ name: 'Sandbox.waitUntilStarted', labels: { method: 'waitUntilStarted' } })
+  private async waitForStarted(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
-    return this.waitForStarted(timeout)
-  }
-
-  private async waitForStarted(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (this.state === SandboxState.STARTED) {
       return
     }
@@ -786,16 +796,17 @@ export class Sandbox {
    * @returns {Promise<void>}
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox fails to stop within the timeout period.
    */
-  @WithInstrumentation()
   public async waitUntilStopped(timeout = 60) {
+    return this.waitForStopped(timeout)
+  }
+
+  // Records under the public wait's span and metric names, so operations that wait keep the same telemetry.
+  @WithInstrumentation({ name: 'Sandbox.waitUntilStopped', labels: { method: 'waitUntilStopped' } })
+  private async waitForStopped(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
-    return this.waitForStopped(timeout)
-  }
-
-  private async waitForStopped(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     // Treat destroyed as stopped to cover ephemeral sandboxes that are automatically deleted after stopping
     if (this.state === SandboxState.STOPPED || this.state === SandboxState.DESTROYED) {
       return
@@ -1281,6 +1292,7 @@ export class Sandbox {
         timeout: timeout * 1000,
       })
       this.processSandboxDto(response.data)
+      prepared.hasFreshState = isSandboxDto(response.data)
       const timeElapsed = Date.now() - startTime
       await this.waitForResize(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
     } finally {
@@ -1297,16 +1309,17 @@ export class Sandbox {
    * @returns {Promise<void>}
    * @throws {DaytonaError} - If the sandbox ends up in an error state or resize times out.
    */
-  @WithInstrumentation()
   public async waitForResizeComplete(timeout = 60): Promise<void> {
+    return this.waitForResize(timeout)
+  }
+
+  // Records under the public wait's span and metric names, so operations that wait keep the same telemetry.
+  @WithInstrumentation({ name: 'Sandbox.waitForResizeComplete', labels: { method: 'waitForResizeComplete' } })
+  private async waitForResize(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
-    return this.waitForResize(timeout)
-  }
-
-  private async waitForResize(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (this.state !== SandboxState.RESIZING) {
       return
     }
@@ -1381,6 +1394,8 @@ export class Sandbox {
       subId,
       live: subId !== '' && this.subscriptionManager.isConnected,
       stateEventCount: this.stateEventCount,
+      connectionEpoch: this.subscriptionManager.connectionEpoch,
+      hasFreshState: false,
     }
   }
 
@@ -1567,9 +1582,10 @@ export class Sandbox {
       }
 
       // The first poll runs immediately (main refreshed before any state evaluation), unless the
-      // subscription was live before the operation's request and no state event raced its response:
-      // then every later change arrives as an event and the read is redundant. An error or unexpected
-      // destroyed state from the response still gets the read, so it fails as fast as before.
+      // subscription was live before the operation's request, the connection did not drop since (events
+      // sent while it was down are lost), and no state event raced the response: then every later change
+      // arrives as an event and the read is redundant. An error or unexpected destroyed state from the
+      // response, or a state not read after subscribing, still gets the read.
       const responseState = this.state
       const responseStateIsFailure =
         responseState !== undefined &&
@@ -1578,8 +1594,10 @@ export class Sandbox {
       const skipFirstRead =
         prepared !== undefined &&
         prepared.live &&
+        prepared.hasFreshState &&
         subId !== '' &&
         this.subscriptionManager.isConnected &&
+        this.subscriptionManager.connectionEpoch === prepared.connectionEpoch &&
         this.stateEventCount === prepared.stateEventCount &&
         !responseStateIsFailure
       if (skipFirstRead) {

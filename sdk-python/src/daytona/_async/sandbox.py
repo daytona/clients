@@ -606,8 +606,9 @@ class AsyncSandbox(SandboxDto):
             # The stop response carries the sandbox; refresh only if it came back empty.
             if sandbox_dto:
                 self.__process_sandbox_dto(sandbox_dto)
+                subscription = subscription.with_state_fresh(True)
             else:
-                await self.__refresh_data_safe()
+                subscription = subscription.with_state_fresh(await self.__refresh_data_safe())
         except BaseException:
             self._release_subscription(subscription)
             raise
@@ -637,6 +638,8 @@ class AsyncSandbox(SandboxDto):
             sandbox = await self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
             if sandbox:
                 self.__process_sandbox_dto(sandbox)
+                if subscription is not None:
+                    subscription = subscription.with_state_fresh(True)
         except BaseException:
             self._release_subscription(subscription)
             raise
@@ -1143,6 +1146,7 @@ class AsyncSandbox(SandboxDto):
         try:
             sandbox = await self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
             self.__process_sandbox_dto(sandbox)
+            subscription = subscription.with_state_fresh(True)
         except BaseException:
             self._release_subscription(subscription)
             raise
@@ -1285,10 +1289,7 @@ class AsyncSandbox(SandboxDto):
             self._subscription_manager,
             analytics_api_url_provider=self._analytics_api_url_provider,
         )
-        forked._raise_destroyed_wait_error([SandboxState.STARTED])
-        if forked.state != SandboxState.STARTED:
-            # The id is only known now; the fork completes well after this subscription is live.
-            await forked._wait_for_fork_start(forked._take_wait_subscription())
+        await forked._wait_for_fork_start()
         return forked
 
     @deprecated(reason="Method is deprecated. Use `fork` instead. This method will be removed in a future version.")
@@ -1367,6 +1368,7 @@ class AsyncSandbox(SandboxDto):
                 self.__process_sandbox_dto(sandbox_dto)
             else:
                 await self.refresh_data()
+            subscription = subscription.with_state_fresh(True)
         except BaseException:
             self._release_subscription(subscription)
             raise
@@ -1376,7 +1378,7 @@ class AsyncSandbox(SandboxDto):
         await self._wait_for_state(target_states, error_states, subscription=subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to stop: ")
-    @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_stop")
+    @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_stop", labels={"method": "wait_for_sandbox_stop"})
     async def _wait_for_sandbox_stop_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
         """``wait_for_sandbox_stop`` for ``stop()``, owning the subscription taken before the request."""
         await self._wait_for_state(
@@ -1387,9 +1389,15 @@ class AsyncSandbox(SandboxDto):
         )
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
-    @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_start")
-    async def _wait_for_fork_start(self, subscription: wait_poll.WaitSubscription) -> None:
-        """``wait_for_sandbox_start`` for a new fork, owning the subscription taken after its response."""
+    @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_start", labels={"method": "wait_for_sandbox_start"})
+    async def _wait_for_fork_start(self) -> None:
+        """``wait_for_sandbox_start`` for a new fork, which can skip the first read of a live wait."""
+        self._raise_destroyed_wait_error([SandboxState.STARTED])
+        if self.state == SandboxState.STARTED:
+            return
+
+        # The id is only known now; the fork completes well after this subscription is live.
+        subscription = self._take_wait_subscription().with_state_fresh(True)
         await self._wait_for_state(
             [SandboxState.STARTED],
             [SandboxState.ERROR, SandboxState.BUILD_FAILED],
@@ -1397,7 +1405,7 @@ class AsyncSandbox(SandboxDto):
         )
 
     @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
-    @with_instrumentation(name="AsyncSandbox.wait_for_resize_complete")
+    @with_instrumentation(name="AsyncSandbox.wait_for_resize_complete", labels={"method": "wait_for_resize_complete"})
     async def _wait_for_resize_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
         """``wait_for_resize_complete`` for ``resize()``, owning the subscription taken before the request."""
         if self.state != SandboxState.RESIZING:
@@ -1438,11 +1446,13 @@ class AsyncSandbox(SandboxDto):
         (see ``_wait_for_state``).
         """
         state_event_count = self._state_event_count
+        connection_epoch = self._subscription_manager.connection_epoch
         sub_id = self._subscribe_state_events()
         return wait_poll.WaitSubscription(
             sub_id=sub_id,
             live=bool(sub_id) and self._events_connected(),
             state_event_count=state_event_count,
+            connection_epoch=connection_epoch,
         )
 
     def _release_subscription(self, subscription: wait_poll.WaitSubscription | None) -> None:
@@ -1525,12 +1535,16 @@ class AsyncSandbox(SandboxDto):
                 skip_first_read = False
             else:
                 sub_id = subscription.sub_id
-                # Safe only if every change since the subscription was taken arrives as an event:
-                # an event that came before the response may have been overwritten by it. An error or
-                # destroyed response is read again first, so that it fails as fast as it always has.
+                # Safe only if the cached state came from the response (or a read after subscribing)
+                # and every change since then arrives as an event: an event that came before the
+                # response may have been overwritten by it, and events sent while the connection was
+                # down (a reconnect bumps the epoch) are lost. An error or destroyed response is read
+                # again first, so that it fails as fast as it always has.
                 skip_first_read = (
-                    subscription.live
+                    subscription.state_fresh
+                    and subscription.live
                     and self._events_connected()
+                    and self._subscription_manager.connection_epoch == subscription.connection_epoch
                     and self._state_event_count == subscription.state_event_count
                     and self.state not in error_states
                     and (self.state != SandboxState.DESTROYED or SandboxState.DESTROYED in target_states)
@@ -1540,7 +1554,7 @@ class AsyncSandbox(SandboxDto):
             # and the state change.
             if not skip_first_read:
                 if safe_refresh:
-                    await self.__refresh_data_safe()
+                    _ = await self.__refresh_data_safe()
                 else:
                     await self.refresh_data()
 
@@ -1562,7 +1576,7 @@ class AsyncSandbox(SandboxDto):
                     pass
 
                 if safe_refresh:
-                    await self.__refresh_data_safe()
+                    _ = await self.__refresh_data_safe()
                 else:
                     await self.refresh_data()
 
@@ -1581,7 +1595,7 @@ class AsyncSandbox(SandboxDto):
             if not state_resolved.is_set():
                 try:
                     if safe_refresh:
-                        await self.__refresh_data_safe()
+                        _ = await self.__refresh_data_safe()
                     else:
                         await self.refresh_data()
                     self._raise_destroyed_wait_error(target_states)
@@ -1663,12 +1677,19 @@ class AsyncSandbox(SandboxDto):
 
         self._apply_state(sandbox_dto.state)
 
-    async def __refresh_data_safe(self) -> None:
-        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""
+    async def __refresh_data_safe(self) -> bool:
+        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors.
+
+        Returns:
+            bool: Whether the sandbox data was read.
+        """
         try:
             await self.refresh_data()
         except DaytonaNotFoundError:
             self._apply_state(SandboxState.DESTROYED)
+            return False
         except Exception as e:
             if not is_validation_error(e):
                 raise
+            return False
+        return True

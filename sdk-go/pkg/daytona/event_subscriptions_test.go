@@ -30,8 +30,8 @@ type eventTestServer struct {
 	t      *testing.T
 	server *httptest.Server
 
-	// handshakeDelay delays accepting socket connections.
-	handshakeDelay time.Duration
+	// handshakeGate, when set, holds socket handshakes until it is closed.
+	handshakeGate chan struct{}
 	// rejectSockets fails every socket connection attempt.
 	rejectSockets bool
 	// operation, if set, answers every request other than a GET.
@@ -49,21 +49,28 @@ type eventTestServer struct {
 	received       []string
 }
 
-func newEventTestServer(t *testing.T, state apiclient.SandboxState, handshakeDelay time.Duration) *eventTestServer {
+func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestServer {
 	t.Helper()
-	s := &eventTestServer{t: t, state: state, handshakeDelay: handshakeDelay}
+	s := &eventTestServer{t: t, state: state}
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	s.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/socket.io") {
 			s.mu.Lock()
 			s.socketAttempts++
 			reject := s.rejectSockets
+			gate := s.handshakeGate
 			s.mu.Unlock()
 			if reject {
 				http.Error(w, "unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			time.Sleep(s.handshakeDelay)
+			if gate != nil {
+				select {
+				case <-gate:
+				case <-r.Context().Done():
+					return
+				}
+			}
 			s.serveSocket(upgrader, w, r)
 			return
 		}
@@ -169,6 +176,35 @@ func (s *eventTestServer) emitState(oldState, newState apiclient.SandboxState) {
 	assert.NoError(s.t, s.conn.WriteMessage(websocket.TextMessage, []byte(`42["sandbox.state.updated",`+string(payload)+`]`)))
 }
 
+// holdHandshakes makes socket handshakes wait until the returned release is
+// called.
+func (s *eventTestServer) holdHandshakes() (release func()) {
+	gate := make(chan struct{})
+	s.mu.Lock()
+	s.handshakeGate = gate
+	s.mu.Unlock()
+	var once sync.Once
+	release = func() { once.Do(func() { close(gate) }) }
+	s.t.Cleanup(release)
+	return release
+}
+
+// dropSocket closes the current socket connection from the server side.
+func (s *eventTestServer) dropSocket() {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if s.conn != nil {
+		_ = s.conn.Close()
+		s.conn = nil
+	}
+}
+
+func (s *eventTestServer) getTimesCopy() []time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]time.Time(nil), s.getTimes...)
+}
+
 func (s *eventTestServer) gets() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -202,19 +238,6 @@ func (s *eventTestServer) hasEvent(event string) bool {
 	return false
 }
 
-// getsBetween counts sandbox GETs in [from, to).
-func (s *eventTestServer) getsBetween(from, to time.Time) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	n := 0
-	for _, at := range s.getTimes {
-		if !at.Before(from) && at.Before(to) {
-			n++
-		}
-	}
-	return n
-}
-
 // newEventTestClient returns a client wired to srv with an event dispatcher,
 // the way NewClient sets it up.
 func newEventTestClient(t *testing.T, srv *eventTestServer) *Client {
@@ -236,7 +259,7 @@ var (
 )
 
 func TestNewClientDoesNotOpenEventConnection(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 	t.Setenv("DAYTONA_USE_DEPRECATED_POLLING", "")
 
 	client, err := NewClientWithConfig(&types.DaytonaConfig{APIKey: "test-api-key", APIUrl: srv.server.URL})
@@ -262,7 +285,7 @@ func TestNewClientDoesNotOpenEventConnection(t *testing.T) {
 }
 
 func TestWaitForStateWithCachedTargetStateDoesNotConnect(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
 
@@ -316,7 +339,7 @@ func TestWaitForStateSubscribesOnlyForTheDurationOfTheWait(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
 			client := newEventTestClient(t, srv)
 			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
 
@@ -342,7 +365,7 @@ func TestWaitForStateSubscribesOnlyForTheDurationOfTheWait(t *testing.T) {
 }
 
 func TestConcurrentWaitsShareOneServerSubscription(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
 
@@ -369,64 +392,63 @@ func TestConcurrentWaitsShareOneServerSubscription(t *testing.T) {
 	assert.Equal(t, []string{subscribeEvent, unsubscribeEvent}, srv.events())
 }
 
+// minPollGap is the smallest gap accepted between polls scheduled 1 s apart;
+// the fast cadence polls every 100 ms.
+const minPollGap = 500 * time.Millisecond
+
 func TestWaitForStatePollsAtSubscribedCadenceUntilEventConnectionIsUp(t *testing.T) {
 	stubWaitForStatePollRandom(t, 0.5)
-	const handshakeDelay = 800 * time.Millisecond
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, handshakeDelay)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
+	release := srv.holdHandshakes()
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	start := time.Now()
 	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
 
-	require.Eventually(t, func() bool { return srv.hasEvent(subscribeEvent) }, 5*time.Second, 10*time.Millisecond)
-	time.Sleep(2500 * time.Millisecond)
-	end := time.Now()
+	// Subscribed while the handshake is held: the immediate poll, then 1 s.
+	require.Eventually(t, func() bool { return srv.gets() >= 2 }, 10*time.Second, 10*time.Millisecond)
+	times := srv.getTimesCopy()
+	assert.GreaterOrEqual(t, times[1].Sub(times[0]), minPollGap, "subscribed waits poll every second, not at the fast cadence")
+
+	release()
+	require.Eventually(t, client.subscriptionManager.IsConnected, 10*time.Second, 10*time.Millisecond)
+	// At most the poll already scheduled at the subscribed cadence; the next
+	// one is 5 s out.
+	connectedGets := srv.gets()
+	time.Sleep(3500 * time.Millisecond)
+	assert.LessOrEqual(t, srv.gets(), connectedGets+1)
+
 	cancel()
 	require.ErrorIs(t, <-done, context.Canceled)
-
-	// While the connection is still being set up only the immediate poll runs
-	// (the fast cadence would poll several times here)...
-	assert.Equal(t, 1, srv.getsBetween(start, start.Add(600*time.Millisecond)))
-	// ...then one poll about a second in, and none once events can arrive.
-	assert.Equal(t, 2, srv.getsBetween(start, end))
 }
 
 func TestEventBackedWaitPollsOnlyAsSafetyNet(t *testing.T) {
 	// The low jitter bound puts the second poll at 4 s, the earliest it may run.
 	stubWaitForStatePollRandom(t, 0)
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
-
-	// Bring the event connection up before the wait starts.
-	holder := client.subscriptionManager.Subscribe(eventTestSandboxID, func(common.SandboxEvent) {}, []string{"sandbox.state.updated"})
-	require.NotEmpty(t, holder)
-	defer client.subscriptionManager.Unsubscribe(holder)
-	require.Eventually(t, client.subscriptionManager.IsConnected, 5*time.Second, 10*time.Millisecond)
+	connectEvents(t, client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	start := time.Now()
 	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
 
-	time.Sleep(1500 * time.Millisecond)
-	end := time.Now()
+	require.Eventually(t, func() bool { return srv.gets() >= 2 }, 10*time.Second, 10*time.Millisecond)
+	times := srv.getTimesCopy()
+	assert.GreaterOrEqual(t, times[1].Sub(times[0]), 4*time.Second-minPollGap, "no poll between the immediate one and 4 s")
+
 	cancel()
 	require.ErrorIs(t, <-done, context.Canceled)
-
-	// Only the immediate first poll; the next one is 4-6 s out
-	// (TestWaitForStatePollInterval covers the bounds).
-	assert.Equal(t, 1, srv.getsBetween(start, end))
 }
 
 func TestSubscribedWaitPollsAboutEverySecondWhileDisconnected(t *testing.T) {
 	stubWaitForStatePollRandom(t, 0.5)
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
 	srv.mu.Lock()
 	srv.rejectSockets = true
 	srv.mu.Unlock()
@@ -436,22 +458,22 @@ func TestSubscribedWaitPollsAboutEverySecondWhileDisconnected(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	start := time.Now()
 	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
 
-	time.Sleep(2500 * time.Millisecond)
-	end := time.Now()
-	cancel()
-	require.ErrorIs(t, <-done, context.Canceled)
-
+	require.Eventually(t, func() bool { return srv.gets() >= 3 }, 10*time.Second, 10*time.Millisecond)
 	require.Positive(t, srv.socketAttemptCount())
 	assert.False(t, client.subscriptionManager.IsConnected())
-	// Polls at 0, 1 and 2 s; the fast cadence would have polled about 25 times.
-	assert.Equal(t, 3, srv.getsBetween(start, end))
+	times := srv.getTimesCopy()
+	for i := 1; i < 3; i++ {
+		assert.GreaterOrEqual(t, times[i].Sub(times[i-1]), minPollGap, "poll %d came at the fast cadence", i)
+	}
+
+	cancel()
+	require.ErrorIs(t, <-done, context.Canceled)
 }
 
 func TestSandboxHandleEventAppliesStateFromSlimPayload(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
 
@@ -483,7 +505,7 @@ func TestSandboxHandleEventAppliesStateFromSlimPayload(t *testing.T) {
 }
 
 func TestWaitSubscriptionResubscribesAfterExpiry(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
 
@@ -508,6 +530,27 @@ func TestWaitSubscriptionResubscribesAfterExpiry(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return assert.ObjectsAreEqual([]string{subscribeEvent, unsubscribeEvent, subscribeEvent, unsubscribeEvent}, srv.events())
 	}, 5*time.Second, 10*time.Millisecond)
+}
+
+// stubNoScheduledPolls leaves a wait only its immediate first read (and the
+// final refresh at its deadline), so GET counts show whether that read ran.
+func stubNoScheduledPolls(t *testing.T) {
+	t.Helper()
+	original := waitForStateNextPoll
+	waitForStateNextPoll = func(time.Duration, waitPollMode) time.Duration { return time.Hour }
+	t.Cleanup(func() { waitForStateNextPoll = original })
+}
+
+// readsFirstTimeout bounds waits that must end on their immediate read; a wait
+// that skipped it ends only at this deadline, through its final refresh.
+const readsFirstTimeout = 5 * time.Second
+
+// assertEndedOnImmediateRead checks that a wait that started at start ended
+// well before readsFirstTimeout, with exactly one GET.
+func assertEndedOnImmediateRead(t *testing.T, srv *eventTestServer, start time.Time) {
+	t.Helper()
+	assert.Less(t, time.Since(start), readsFirstTimeout/2, "the wait ended at its deadline, not on its immediate read")
+	assert.Equal(t, 1, srv.gets())
 }
 
 // connectEvents brings the event connection up through a subscription to
@@ -553,7 +596,8 @@ func TestOperationWaitsSkipFirstReadWhenSubscribedBeforeRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+			stubNoScheduledPolls(t)
+			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 			client := newEventTestClient(t, srv)
 			connectEvents(t, client)
 			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
@@ -568,7 +612,8 @@ func TestOperationWaitsSkipFirstReadWhenSubscribedBeforeRequest(t *testing.T) {
 }
 
 func TestStopReadsFirstWhenEventConnectionIsDown(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED, 0)
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
 	srv.mu.Lock()
 	srv.rejectSockets = true
 	srv.mu.Unlock()
@@ -579,14 +624,14 @@ func TestStopReadsFirstWhenEventConnectionIsDown(t *testing.T) {
 	})
 
 	start := time.Now()
-	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false))
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false))
 	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
-	assert.Equal(t, 1, srv.getsBetween(start, start.Add(500*time.Millisecond)), "the read is immediate")
-	assert.Equal(t, 1, srv.gets())
+	assertEndedOnImmediateRead(t, srv, start)
 }
 
 func TestStopReadsFirstWhenStateEventArrivesDuringRequest(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED, 0)
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
 	client := newEventTestClient(t, srv)
 	connectEvents(t, client)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
@@ -598,14 +643,14 @@ func TestStopReadsFirstWhenStateEventArrivesDuringRequest(t *testing.T) {
 	})
 
 	start := time.Now()
-	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false))
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false))
 	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
-	assert.Equal(t, 1, srv.getsBetween(start, start.Add(500*time.Millisecond)), "the event may be newer than the response, so the wait reads at once")
-	assert.Equal(t, 1, srv.gets())
+	// The event may be newer than the response, so the wait reads at once.
+	assertEndedOnImmediateRead(t, srv, start)
 }
 
 func TestStopRequestFailureReleasesSubscription(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 	client := newEventTestClient(t, srv)
 	connectEvents(t, client)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
@@ -622,7 +667,7 @@ func TestStopRequestFailureReleasesSubscription(t *testing.T) {
 }
 
 func TestStopResponseInTargetStateReleasesSubscription(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
 	client := newEventTestClient(t, srv)
 	connectEvents(t, client)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
@@ -637,7 +682,7 @@ func TestStopResponseInTargetStateReleasesSubscription(t *testing.T) {
 }
 
 func TestDeleteWithoutWaitTakesNoSubscription(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_DESTROYING, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_DESTROYING)
 	client := newEventTestClient(t, srv)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
 
@@ -649,7 +694,8 @@ func TestDeleteWithoutWaitTakesNoSubscription(t *testing.T) {
 }
 
 func TestStopReadsFirstWhenResponseIsErrorState(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_ERROR, 0)
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_ERROR)
 	client := newEventTestClient(t, srv)
 	connectEvents(t, client)
 	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
@@ -658,11 +704,10 @@ func TestStopReadsFirstWhenResponseIsErrorState(t *testing.T) {
 	})
 
 	start := time.Now()
-	err := sandbox.doStopWithTimeout(context.Background(), 30*time.Second, false)
+	err := sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error state")
-	assert.Less(t, time.Since(start), 2*time.Second, "an error response fails at once, not at the first poll")
-	assert.Equal(t, 1, srv.gets())
+	assertEndedOnImmediateRead(t, srv, start)
 }
 
 func newForkSourceSandbox(client *Client) *Sandbox {
@@ -671,7 +716,8 @@ func newForkSourceSandbox(client *Client) *Sandbox {
 }
 
 func TestForkSkipsFirstReadWhenLive(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 	client := newEventTestClient(t, srv)
 	connectEvents(t, client)
 	srv.setOperation(respondThenEmit(t, srv, apiclient.SANDBOXSTATE_STARTING, apiclient.SANDBOXSTATE_STARTED))
@@ -685,7 +731,8 @@ func TestForkSkipsFirstReadWhenLive(t *testing.T) {
 }
 
 func TestForkReadsFirstWhenNotLive(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 	srv.mu.Lock()
 	srv.rejectSockets = true
 	srv.mu.Unlock()
@@ -695,15 +742,14 @@ func TestForkReadsFirstWhenNotLive(t *testing.T) {
 	})
 
 	start := time.Now()
-	forked, err := newForkSourceSandbox(client).doForkWithTimeout(context.Background(), nil, 10*time.Second)
+	forked, err := newForkSourceSandbox(client).doForkWithTimeout(context.Background(), nil, readsFirstTimeout)
 	require.NoError(t, err)
 	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
-	assert.Equal(t, 1, srv.getsBetween(start, start.Add(500*time.Millisecond)), "the read is immediate")
-	assert.Equal(t, 1, srv.gets())
+	assertEndedOnImmediateRead(t, srv, start)
 }
 
 func TestForkWithStartedResponseTakesNoSubscription(t *testing.T) {
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED, 0)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
 	client := newEventTestClient(t, srv)
 	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STARTED))
@@ -716,4 +762,43 @@ func TestForkWithStartedResponseTakesNoSubscription(t *testing.T) {
 	assert.Equal(t, 0, srv.gets())
 	assert.Equal(t, 0, srv.socketAttemptCount())
 	assert.Empty(t, srv.events())
+}
+
+func TestStopReadsFirstWhenEventConnectionReconnectsDuringRequest(t *testing.T) {
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		epoch := client.subscriptionManager.ConnectionEpoch()
+		srv.dropSocket()
+		// The sandbox stops while the socket is down: its event is lost.
+		srv.setState(apiclient.SANDBOXSTATE_STOPPED)
+		assert.Eventually(t, func() bool {
+			return client.subscriptionManager.ConnectionEpoch() > epoch && client.subscriptionManager.IsConnected()
+		}, 10*time.Second, 10*time.Millisecond)
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
+	})
+
+	start := time.Now()
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 15*time.Second, false))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+	assert.Equal(t, 1, srv.gets(), "the reconnect may have lost events, so the wait reads at once")
+	// The reconnect takes about 1 s; a skipped read would end only at the deadline.
+	assert.Less(t, time.Since(start), 10*time.Second)
+}
+
+func TestStopReadsFirstWhenLiveResponseIsEmpty(t *testing.T) {
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	start := time.Now()
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+	assertEndedOnImmediateRead(t, srv, start)
 }
