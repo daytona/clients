@@ -1,0 +1,19 @@
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_3a78f9367300e1::t_bd8a16b3a97dad 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "340475cbce4d9375ac726be9ff39473dcda54a1f",
+  "prompts": {},
+  "sessions": {
+    "s_3a78f9367300e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39ebaad0ffeVnwNETxVFiRbJd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

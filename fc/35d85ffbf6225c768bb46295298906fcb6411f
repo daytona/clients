@@ -1,0 +1,23 @@
+cli/install.sh
+  s_4d9fba4bce0dac::t_6143fb4e92ce91 8,121-126
+cli/install.ps1
+  s_4d9fba4bce0dac::t_6143fb4e92ce91 7,43,48-50
+cli/install_select_test.go
+  s_4d9fba4bce0dac::t_6143fb4e92ce91 342-376
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc35d85ffbf6225c768bb46295298906fcb6411f",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

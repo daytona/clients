@@ -1,0 +1,26 @@
+sdk-python/tests/test_core.py
+  s_f23bcae77f0e63::t_b00a986a1de3b8 11366-11418
+sdk-python/src/daytona/v2/_auth.py
+  s_f23bcae77f0e63::t_92e2b8880cd960 6,14,17,155,163-191
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_eb7f966b7fea4a 7248-7265
+  s_f23bcae77f0e63::t_02ec26ed556812 7272
+sdk-typescript/src/v2/http.ts
+  s_f23bcae77f0e63::t_eb7f966b7fea4a 806-812,814,816,818-822,939-942,944
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3dfc5f19cadcb95a5f9cdf620b7ad43f998c624c",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

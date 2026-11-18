@@ -1,0 +1,156 @@
+upgrade/typescript/tests/qualified-package-constraints.test.ts
+  s_6d5a32d861f1c6::t_a5fd37959c084d 39-52
+upgrade/typescript/tests/deployment-and-manifest-edge-cases.test.ts
+  s_6d5a32d861f1c6::t_27f59270a36f06 77
+upgrade/python/README.md
+  s_6d5a32d861f1c6::t_5ffa9ca7d0250d 65-67
+  s_6d5a32d861f1c6::t_80f0a77d2a9aa4 17,72-73
+upgrade/mapping/mapping.schema.json
+  s_6d5a32d861f1c6::t_63f551442b8550 63,77-79
+  s_6d5a32d861f1c6::t_3723fed96713e3 80
+upgrade/typescript/src/optional-arguments.ts
+  s_6d5a32d861f1c6::t_21e28b393aff58 16-18,24,39-40
+  s_6d5a32d861f1c6::t_da0df02af8fee1 32-33,50
+  s_6d5a32d861f1c6::t_eb8bff4ab25bd0 14-15,19-20,29-31,42-46,48-49
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  s_6d5a32d861f1c6::t_d9443168f6b2f3 23-27,133-140,145-150,154-161,253-260
+upgrade/typescript/tests/config-observation-and-escape.test.ts
+  s_6d5a32d861f1c6::t_799b370b61d928 11,122
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_6d5a32d861f1c6::t_6723dd311c0b6e 120-125,128
+changelog.d/upgrade-docs-links.fixed.md
+  s_6d5a32d861f1c6::t_685e245ef2122b 1-5
+changelog.d/upgrade-typescript-messages.fixed.md
+  s_6d5a32d861f1c6::t_8e9ff5a056f5ab 1-8
+upgrade/python/src/daytona_upgrade/partial_analysis.py
+  s_6d5a32d861f1c6::t_c876f1a263bfb2 17,72
+upgrade/scripts/optional-arguments.mjs
+  s_6d5a32d861f1c6::t_eb8bff4ab25bd0 6,32-33,35-40
+  s_6d5a32d861f1c6::t_21e28b393aff58 7-8,10,16,25,34,41-43,45,50-51
+  s_6d5a32d861f1c6::t_da0df02af8fee1 11-12
+upgrade/python/tests/test_dependency_fixes.py
+  s_6d5a32d861f1c6::t_f708be50f7ec24 110-117,119,121-152
+  s_6d5a32d861f1c6::t_a67a9632b6aa79 118,120
+upgrade/typescript/tests/optional-arguments.test.ts
+  s_6d5a32d861f1c6::t_2cb3ddf35c529b 32-38
+upgrade/scripts/optional-arguments.test.mjs
+  s_6d5a32d861f1c6::t_1b487274fcce23 41-49,61
+  s_6d5a32d861f1c6::t_264eaf1b200426 6
+  s_6d5a32d861f1c6::t_bd4bf00014860e 56-60
+upgrade/typescript/src/mapping.json
+  s_6d5a32d861f1c6::t_264eaf1b200426 2888,2912,2984,3008,3032,3353,3378,3405,3433,3459,3483,3555,3828,3957,3982,4609,4686,4713,5254,5279,5458,5483
+  s_6d5a32d861f1c6::t_e98e932ad40535 19-22
+  s_6d5a32d861f1c6::t_eec3c7a4c094b5 7
+  s_6d5a32d861f1c6::t_bd4bf00014860e 3228-3229,3252-3253,3277-3278
+  s_6d5a32d861f1c6::t_5ffa9ca7d0250d 4
+changelog.d/upgrade-suggest-forms.fixed.md
+  s_6d5a32d861f1c6::t_8e9ff5a056f5ab 1-7
+docs/RELEASING.md
+  s_6d5a32d861f1c6::t_80f0a77d2a9aa4 409
+  s_6d5a32d861f1c6::t_e2dbb27c9d673b 293-314
+upgrade/typescript/tests/client-service-proofs.test.ts
+  s_6d5a32d861f1c6::t_e0c63916949791 111,118
+  s_6d5a32d861f1c6::t_69bdf15be4766e 82-92,117,120
+upgrade/MIGRATION.md
+  s_6d5a32d861f1c6::t_80f0a77d2a9aa4 31-32,49-50
+  s_6d5a32d861f1c6::t_264eaf1b200426 510-511,514-516,605-608,630-631,655
+upgrade/python/src/daytona_upgrade/project_discovery.py
+  s_6d5a32d861f1c6::t_c876f1a263bfb2 20-25,93-94,118
+upgrade/typescript/src/config.ts
+  s_6d5a32d861f1c6::t_2fddd33f964a6b 139-141,143
+  s_6d5a32d861f1c6::t_cd6cb8edd3653e 21,41-42
+upgrade/typescript/tests/indirect-config-url-sources.test.ts
+  s_6d5a32d861f1c6::t_27f59270a36f06 53
+upgrade/typescript/tests/config-safety.test.ts
+  s_6d5a32d861f1c6::t_533c8d5c0dbc3d 99
+  s_6d5a32d861f1c6::t_72b41807037fb1 72-87
+upgrade/python/src/daytona_upgrade/optional_arguments.py
+  s_6d5a32d861f1c6::t_eb8bff4ab25bd0 12-14,18-19,35-37,51-53,58
+  s_6d5a32d861f1c6::t_21e28b393aff58 15-17,30,46-49
+upgrade/typescript/README.md
+  s_6d5a32d861f1c6::t_80f0a77d2a9aa4 16,129-130
+  s_6d5a32d861f1c6::t_5ffa9ca7d0250d 5-6
+upgrade/typescript/src/sdk-methods.ts
+  s_6d5a32d861f1c6::t_9636c1b8d26346 42-74,80-85
+upgrade/mapping/mapping.json
+  s_6d5a32d861f1c6::t_769180ecad2158 3828,3957,3982,4609,4686,4713,5254,5279,5458,5483
+  s_6d5a32d861f1c6::t_b71379d936a0d0 2888,2912,2984,3008,3032,3353,3378,3405,3433,3459,3483,3555
+  s_6d5a32d861f1c6::t_21e28b393aff58 3228-3229,3252-3253,3277-3278
+  s_6d5a32d861f1c6::t_eec3c7a4c094b5 7
+  s_6d5a32d861f1c6::t_5ffa9ca7d0250d 4
+  s_6d5a32d861f1c6::t_63f551442b8550 19-22
+upgrade/typescript/src/manifests.ts
+  s_6d5a32d861f1c6::t_f4ea4d5fa3bceb 75-77,79-81,143
+  s_6d5a32d861f1c6::t_3205f18e16fd52 73-74,78
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_6d5a32d861f1c6::t_e98e932ad40535 19-22
+  s_6d5a32d861f1c6::t_eec3c7a4c094b5 7
+  s_6d5a32d861f1c6::t_264eaf1b200426 2888,2912,2984,3008,3032,3353,3378,3405,3433,3459,3483,3555,3828,3957,3982,4609,4686,4713,5254,5279,5458,5483
+  s_6d5a32d861f1c6::t_bd4bf00014860e 3228-3229,3252-3253,3277-3278
+  s_6d5a32d861f1c6::t_5ffa9ca7d0250d 4
+upgrade/python/src/daytona_upgrade/project_paths.py
+  s_6d5a32d861f1c6::t_4745031b97fdb2 161-164
+  s_6d5a32d861f1c6::t_c876f1a263bfb2 23-26,123-125,132-135,149-153
+upgrade/typescript/tests/property-client-service-proofs.test.ts
+  s_6d5a32d861f1c6::t_27f59270a36f06 39,48-49,51
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  s_6d5a32d861f1c6::t_d9443168f6b2f3 16-33,47-54
+upgrade/typescript/src/source-safety.ts
+  s_6d5a32d861f1c6::t_cd6cb8edd3653e 13,40-41
+changelog.d/upgrade-python-sources.fixed.md
+  s_6d5a32d861f1c6::t_8e9ff5a056f5ab 1-5
+upgrade/typescript/src/sandbox-owner.ts
+  s_6d5a32d861f1c6::t_36a488232a7a6c 33-34,39
+  s_6d5a32d861f1c6::t_2a64ccb5df0885 31-32,35-38
+upgrade/python/tests/test_cli.py
+  s_6d5a32d861f1c6::t_e68ca7fb67d19c 314
+upgrade/typescript/src/suggestions.ts
+  s_6d5a32d861f1c6::t_27f59270a36f06 89,106
+  s_6d5a32d861f1c6::t_d83154cac2c483 86-88,104
+  s_6d5a32d861f1c6::t_e7b47e9117b255 8,85,100-103,107-118,122
+  s_6d5a32d861f1c6::t_36a488232a7a6c 145-147,158-159
+  s_6d5a32d861f1c6::t_0db91251281f0d 105
+  s_6d5a32d861f1c6::t_b0345cf17d2f81 92-94,99
+  s_6d5a32d861f1c6::t_4a6b791a121de1 90-91,95-98
+upgrade/typescript/src/run.ts
+  s_6d5a32d861f1c6::t_f6bee6bff87d8b 46-50
+upgrade/scripts/docs-links.test.mjs
+  s_6d5a32d861f1c6::t_442c9dcea4fd73 1-20,22-31
+  s_6d5a32d861f1c6::t_685e245ef2122b 21
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_6d5a32d861f1c6::t_56c29de01a09d6 1-58
+upgrade/scripts/gen-guide.mjs
+  s_6d5a32d861f1c6::t_80f0a77d2a9aa4 63-64,81-82
+upgrade/typescript/tests/config-alias-escape-boundaries.test.ts
+  s_6d5a32d861f1c6::t_799b370b61d928 21,45
+upgrade/typescript/tests/root-import-and-package-constraints.test.ts
+  s_6d5a32d861f1c6::t_df5063f85bcf2b 86-96
+upgrade/python/src/daytona_upgrade/models.py
+  s_6d5a32d861f1c6::t_63f551442b8550 98-99,181
+upgrade/python/src/daytona_upgrade/project.py
+  s_6d5a32d861f1c6::t_4745031b97fdb2 101-102,132-133
+  s_6d5a32d861f1c6::t_c876f1a263bfb2 71,95,103-105,131
+  s_6d5a32d861f1c6::t_7402f43cb3b832 24
+upgrade/python/tests/test_suggestions.py
+  s_6d5a32d861f1c6::t_dd14efbb24463c 344-393
+upgrade/scripts/check-v2-surface.mjs
+  s_6d5a32d861f1c6::t_eb8bff4ab25bd0 12,72-74,79
+changelog.d/upgrade-suggest-coverage.fixed.md
+  s_6d5a32d861f1c6::t_8e9ff5a056f5ab 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab9a9d78904f282590813290b29e2c0da23ce75b",
+  "prompts": {},
+  "sessions": {
+    "s_6d5a32d861f1c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e0ef6ffe4ThnB0HvntgsFq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

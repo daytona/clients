@@ -1,0 +1,20 @@
+sdk-python/tests/test_transfer_timeouts.py
+  s_f23bcae77f0e63::t_dab53688975ca1 49-51,70,88-91
+  s_f23bcae77f0e63::t_db79be13259ce8 1-48,52-69,71-87,92-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "163c5bd64880fe9ee4f7c43b7cb12d4762916c9a",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

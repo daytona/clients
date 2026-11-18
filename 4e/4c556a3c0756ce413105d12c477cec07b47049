@@ -1,0 +1,21 @@
+cli/internal/toolbox/websocket.go
+  s_dda305198a66db::t_70983e0be1601b 96-101
+cli/internal/toolbox/websocket_cancel_test.go
+  s_dda305198a66db::t_70983e0be1601b 164-185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e4c556a3c0756ce413105d12c477cec07b47049",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_ca009e77d17705::t_ddbcaa9640575b 71-72,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f2be9a1a97eee9927684fb7606bbe3527f937e4",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

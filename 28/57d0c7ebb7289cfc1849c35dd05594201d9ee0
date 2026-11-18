@@ -1,0 +1,14 @@
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  h_e7759ddd73fa65 291-292,294-296,300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2857d0c7ebb7289cfc1849c35dd05594201d9ee0",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

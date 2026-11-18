@@ -1,0 +1,141 @@
+cli/cmd/command_more_test.go
+  s_0df31975f3464b::t_dff6c1c1777f14 146
+cli/cmd/sandbox_search.go
+  s_0df31975f3464b::t_f04f922bb9ed82 93
+cli/internal/mgmt/client_service_accounts.go
+  s_0df31975f3464b::t_c6bd3c8a61899f 23,30,58
+cli/internal/config/credentials.go
+  s_0df31975f3464b::t_1f63a08d3e668f 26-28,57-61,63-70
+  s_0df31975f3464b::t_9ba37913deb069 62
+  s_0df31975f3464b::t_0456df038a5a9d 71
+cli/internal/toolbox/client.go
+  s_0df31975f3464b::t_ee4d31f43374a0 174-176,189-194
+cli/cmd/reservation.go
+  s_0df31975f3464b::t_2864ef1d40ac74 88-90
+cli/cmd/auth_test.go
+  s_0df31975f3464b::t_ffacb1806e7fac 478-481
+cli/internal/output/output.go
+  s_0df31975f3464b::t_cdd68c86de97b3 308-309,504,523-539
+  s_0df31975f3464b::t_a0965c05731618 540
+cli/cmd/auth_login.go
+  s_0df31975f3464b::t_1f63a08d3e668f 106
+cli/cmd/sandbox_actions.go
+  s_0df31975f3464b::t_28549eee4498e3 316-318,320-323
+  s_0df31975f3464b::t_f14034c7a16893 174-175
+cli/cmd/image_test.go
+  s_0df31975f3464b::t_dff6c1c1777f14 140
+cli/cmd/usage_errors.go
+  s_0df31975f3464b::t_de682c180e1398 8,71-103
+  s_0df31975f3464b::t_d579abaef78348 104
+cli/README.md
+  s_0df31975f3464b::t_0ef1e9861a9bcf 124-133,220-226,300,339-341,350,353,382-383,437,446-451
+  s_0df31975f3464b::t_11983ac5d93ce4 257-260
+cli/internal/workload/body.go
+  s_0df31975f3464b::t_28549eee4498e3 20-31
+cli/cmd/secret.go
+  s_0df31975f3464b::t_425b4b98ca1658 57-62
+  s_0df31975f3464b::t_761bdca2372c0d 63-66
+cli/cmd/docs.go
+  s_0df31975f3464b::t_df6fe10972e682 26-28
+cli/internal/config/config.go
+  s_0df31975f3464b::t_1f63a08d3e668f 170-175
+cli/cmd/reservation_create.go
+  s_0df31975f3464b::t_f04f922bb9ed82 127
+cli/cmd/sandbox_process_test.go
+  s_0df31975f3464b::t_dff6c1c1777f14 251
+cli/cmd/sandbox_cp_more_test.go
+  s_0df31975f3464b::t_3d5cf214c7472d 131-135
+cli/internal/mgmt/client_keys.go
+  s_0df31975f3464b::t_c6bd3c8a61899f 23,42
+cli/cmd/image_list.go
+  s_0df31975f3464b::t_f04f922bb9ed82 74
+cli/cmd/config.go
+  s_0df31975f3464b::t_df6fe10972e682 17
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_dd9873c1f49c9b 9,11-12,19,287-433,435-481
+  s_0df31975f3464b::t_2984b3f48ec370 434
+cli/cmd/root.go
+  s_0df31975f3464b::t_de682c180e1398 134
+  s_0df31975f3464b::t_f04f922bb9ed82 103-108
+cli/internal/dockerignore/dockerignore_test.go
+  s_0df31975f3464b::t_5e3c6f4f047971 106-130
+cli/cmd/sandbox.go
+  s_0df31975f3464b::t_f04f922bb9ed82 60
+cli/cmd/sandbox_create_helpers.go
+  s_0df31975f3464b::t_f14034c7a16893 7-8,75-77,179-202
+  s_0df31975f3464b::t_2fab551b6349e9 203-204
+cli/cmd/sandbox_create.go
+  s_0df31975f3464b::t_f14034c7a16893 158-159
+  s_0df31975f3464b::t_f04f922bb9ed82 209
+cli/internal/config/config_test.go
+  s_0df31975f3464b::t_2e8b04649378a6 178-208
+cli/cmd/image_more_test.go
+  s_0df31975f3464b::t_dff6c1c1777f14 679
+  s_0df31975f3464b::t_ffacb1806e7fac 137-140
+cli/cmd/billing_settings.go
+  s_0df31975f3464b::t_2864ef1d40ac74 99
+cli/cmd/security_regressions_test.go
+  s_0df31975f3464b::t_c5b45255dbce04 36-37,69
+cli/cmd/testutil_test.go
+  s_0df31975f3464b::t_ffacb1806e7fac 175
+cli/internal/app/app.go
+  s_0df31975f3464b::t_df6fe10972e682 50-52,54-57,162-166,172-177
+cli/cmd/catalog_test.go
+  s_0df31975f3464b::t_ffacb1806e7fac 106
+  s_0df31975f3464b::t_dff6c1c1777f14 362
+cli/internal/mgmt/client.go
+  s_0df31975f3464b::t_c6bd3c8a61899f 28,35,51,56
+cli/cmd/billing_test.go
+  s_0df31975f3464b::t_ffacb1806e7fac 137
+cli/internal/mgmt/client_members.go
+  s_0df31975f3464b::t_c6bd3c8a61899f 16,23,60
+cli/internal/cerr/cerr.go
+  s_0df31975f3464b::t_ee4d31f43374a0 96-98,100-108
+cli/cmd/command_flags.go
+  s_0df31975f3464b::t_7c0bfe7326927e 143
+  s_0df31975f3464b::t_f04f922bb9ed82 8,94-96,105-142,144-146
+  s_0df31975f3464b::t_df6fe10972e682 20-39,101-102
+cli/internal/mgmt/client_invites.go
+  s_0df31975f3464b::t_c6bd3c8a61899f 23
+cli/internal/auth/workload_mint.go
+  s_0df31975f3464b::t_1f63a08d3e668f 122
+cli/internal/output/snake_test.go
+  s_0df31975f3464b::t_88ca8125219996 24-27
+cli/internal/auth/session_race_test.go
+  s_0df31975f3464b::t_c0fe5e30f2a5c9 10-11,148-165
+  s_0df31975f3464b::t_35bc14d009695f 166
+cli/cmd/auth.go
+  s_0df31975f3464b::t_af78dd0bcf3a9a 172-173,175,203
+cli/cmd/profile.go
+  s_0df31975f3464b::t_df6fe10972e682 22-24
+cli/cmd/invite.go
+  s_0df31975f3464b::t_ffacb1806e7fac 62
+cli/cmd/image_create.go
+  s_0df31975f3464b::t_f04f922bb9ed82 64,104
+  s_0df31975f3464b::t_ea9d488c15b19b 10,33-36,134-140,143-146,151
+cli/cmd/durations.go
+  s_0df31975f3464b::t_761bdca2372c0d 70
+  s_0df31975f3464b::t_f14034c7a16893 19-22,32-33,69
+cli/cmd/sandbox_process.go
+  s_0df31975f3464b::t_cdd68c86de97b3 237
+cli/cmd/sandbox_cp.go
+  s_0df31975f3464b::t_d2a0665b43eb64 11,238-244
+cli/internal/output/snake.go
+  s_0df31975f3464b::t_88ca8125219996 51-54,57-63,66-74,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d129f3ce7aa3555c8c86afd8c661598dea22453f",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

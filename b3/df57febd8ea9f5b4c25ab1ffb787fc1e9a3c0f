@@ -1,0 +1,244 @@
+cli/internal/mgmt/client_budgets.go
+  s_0df31975f3464b::t_dfbdedfb2b0df0 22-23,32-33
+cli/cmd/reservation.go
+  s_0df31975f3464b::t_9fbcc7b766b9d6 12,68,72,101,106,133,138
+cli/cmd/member.go
+  s_0df31975f3464b::t_12c3adc54456b5 93,99,139,160
+  s_0df31975f3464b::t_b6d03850084787 49
+cli/cmd/service_account_project.go
+  s_0df31975f3464b::t_00e6f18d420765 8
+  s_0df31975f3464b::t_b6d03850084787 39
+  s_0df31975f3464b::t_12c3adc54456b5 75
+cli/cmd/sandbox_actions.go
+  s_0df31975f3464b::t_18c5869766b906 13-14,57,68,263
+  s_0df31975f3464b::t_1be1a28cf84ec1 241,247
+cli/cmd/sandbox_ssh.go
+  s_0df31975f3464b::t_a5fe7793144095 253
+cli/internal/toolbox/process_client_test.go
+  s_0df31975f3464b::t_c36e3b214f37ce 88-89
+  s_0df31975f3464b::t_efa470c68d42c8 110,129-130,132-133,178-179,377
+cli/internal/input/input.go
+  s_0df31975f3464b::t_a650da728bf15a 57-59,63-89
+  s_0df31975f3464b::t_f186a75e8c3c30 90-91
+cli/internal/regions/regions_test.go
+  s_0df31975f3464b::t_3e68778fcdb060 163-180
+cli/cmd/sandbox_lifecycle.go
+  s_0df31975f3464b::t_ddd170c608a958 61,64
+cli/cmd/orgkey.go
+  s_0df31975f3464b::t_3f89b0c1179281 11,31
+cli/cmd/root.go
+  s_0df31975f3464b::t_e54a469a8b8467 86
+  s_0df31975f3464b::t_b65f5affec49ff 81-83
+cli/cmd/cli_contract_test.go
+  s_0df31975f3464b::t_98005b8cf909f0 11,483-530,532-557,559-571
+  s_0df31975f3464b::t_3f96b0c14e9bde 572,601-612
+  s_0df31975f3464b::t_ab89d3d74d83f3 531,558
+  s_0df31975f3464b::t_1c61dc12669e9f 589-600
+  s_0df31975f3464b::t_a7c45e01bf8f92 573-588
+cli/cmd/image_multipart.go
+  s_0df31975f3464b::t_c7289df8e1cc00 37,40,116,119,125,130,153,182-183
+cli/cmd/toolbox_output.go
+  s_0df31975f3464b::t_bbb35d51ce80ea 7-9,14-17,23,30,32,35,37,43-58,60-70
+  s_0df31975f3464b::t_efa470c68d42c8 59
+cli/cmd/project_budget_test.go
+  s_0df31975f3464b::t_557dbda16406c6 84,86-87
+cli/cmd/sandbox_search_helpers.go
+  s_0df31975f3464b::t_00e6f18d420765 22-26
+  s_0df31975f3464b::t_551a4996a84064 78
+  s_0df31975f3464b::t_dcafb87fe21ca3 8,21,74-75,79-84,86-87,89,137
+cli/cmd/catalog.go
+  s_0df31975f3464b::t_cf985d2246e5f1 147,149-153,160-163,165-166,169,222-223,226
+  s_0df31975f3464b::t_551a4996a84064 159
+cli/internal/workload/workload_more_test.go
+  s_0df31975f3464b::t_5ed0cbe26c0d01 245
+  s_0df31975f3464b::t_c8165653fa0409 90,101,275
+cli/cmd/image_list.go
+  s_0df31975f3464b::t_41e89777b7e76e 47,61
+cli/cmd/registry.go
+  s_0df31975f3464b::t_66e5d6aa094131 13,97-98,100,109,129-130,133,135
+cli/cmd/volume.go
+  s_0df31975f3464b::t_fce0230dcdd850 14,84,88,115-116,118,127,155,159,176,180,183
+cli/internal/mgmt/client_invites.go
+  s_0df31975f3464b::t_3d98bf2b063d6d 25
+  s_0df31975f3464b::t_dfbdedfb2b0df0 15-16,35-36,43-44
+cli/internal/config/config.go
+  s_0df31975f3464b::t_e54a469a8b8467 173
+cli/cmd/sandbox_test.go
+  s_0df31975f3464b::t_485a73a2aa9ac7 277,279
+cli/internal/config/config_test.go
+  s_0df31975f3464b::t_e54a469a8b8467 209-222
+cli/cmd/image.go
+  s_0df31975f3464b::t_8b85ed847fe317 58,62,115-116,120,126,152,156,259-260,262
+  s_0df31975f3464b::t_1be1a28cf84ec1 130,272
+cli/internal/mgmt/client_keys.go
+  s_0df31975f3464b::t_3d98bf2b063d6d 25,42
+  s_0df31975f3464b::t_dfbdedfb2b0df0 15-16,32-33
+cli/cmd/project.go
+  s_0df31975f3464b::t_2ce6ea895ae3b8 91,95,165,169,185,189
+  s_0df31975f3464b::t_b6d03850084787 61
+cli/cmd/sandbox_logs.go
+  s_0df31975f3464b::t_2ce6ea895ae3b8 88-91,94-96,98,130,134,136,140
+cli/cmd/command_flags.go
+  s_0df31975f3464b::t_e54a469a8b8467 117,179-193
+  s_0df31975f3464b::t_3f96b0c14e9bde 145-149
+  s_0df31975f3464b::t_b65f5affec49ff 8,11-12,155-178
+cli/internal/mgmt/client_members.go
+  s_0df31975f3464b::t_d73af56f9226fd 25
+  s_0df31975f3464b::t_dfbdedfb2b0df0 29-30,37-38,46-47,63-64,71,76
+  s_0df31975f3464b::t_3d98bf2b063d6d 18,60
+cli/cmd/raw_output.go
+  s_0df31975f3464b::t_fa1d182a66a2de 1-6,8,12-60,74
+  s_0df31975f3464b::t_cf985d2246e5f1 75-96
+  s_0df31975f3464b::t_e4747aff1a11b1 7,9-11,61-68,70-73
+  s_0df31975f3464b::t_551a4996a84064 69
+cli/cmd/reservation_create.go
+  s_0df31975f3464b::t_9fbcc7b766b9d6 109,113
+cli/cmd/org.go
+  s_0df31975f3464b::t_2ce6ea895ae3b8 17,287,291,310,314
+  s_0df31975f3464b::t_12c3adc54456b5 180,393
+  s_0df31975f3464b::t_b6d03850084787 152
+cli/cmd/audit.go
+  s_0df31975f3464b::t_a7772da6d620f8 11,34,66,68,77
+cli/internal/regions/fanout.go
+  s_0df31975f3464b::t_16647149d693c1 21-26,48,70,72,100-113
+cli/internal/auth/workload_mint.go
+  s_0df31975f3464b::t_12c3adc54456b5 78-79,81
+cli/cmd/project_member.go
+  s_0df31975f3464b::t_b6d03850084787 59
+  s_0df31975f3464b::t_00e6f18d420765 8
+  s_0df31975f3464b::t_12c3adc54456b5 106,119
+cli/cmd/sandbox_response_test.go
+  s_0df31975f3464b::t_98005b8cf909f0 40-45
+cli/internal/api/raw.go
+  s_0df31975f3464b::t_e44eb145a20108 1-49
+  s_0df31975f3464b::t_551a4996a84064 50-80
+cli/cmd/sandbox_create.go
+  s_0df31975f3464b::t_4f9528a79f516c 105,215-216,218
+  s_0df31975f3464b::t_1be1a28cf84ec1 237
+cli/cmd/key_scaffold.go
+  s_0df31975f3464b::t_3f89b0c1179281 12,33,76,79
+  s_0df31975f3464b::t_b6d03850084787 111
+cli/cmd/billing.go
+  s_0df31975f3464b::t_f3d76c8bdc4b40 14,67,101-102,117-118,133-134,150,155,170,174-175,190-191,224,229,242,247,251
+cli/internal/config/credentials.go
+  s_0df31975f3464b::t_e54a469a8b8467 28,58-62,64,71,73
+cli/internal/toolbox/process_logs_follow.go
+  s_0df31975f3464b::t_2dee7db564dd99 16,27,62,79-80,110,114-115
+cli/internal/workload/sandbox.go
+  s_0df31975f3464b::t_539b0df0c73123 31-32,141,145
+cli/internal/mgmt/client_service_accounts.go
+  s_0df31975f3464b::t_dfbdedfb2b0df0 15-16,36-37,44-45,61-62
+  s_0df31975f3464b::t_3d98bf2b063d6d 25,58
+  s_0df31975f3464b::t_d73af56f9226fd 32
+cli/cmd/service_account.go
+  s_0df31975f3464b::t_12c3adc54456b5 48,94,132
+  s_0df31975f3464b::t_b6d03850084787 73
+cli/cmd/auth.go
+  s_0df31975f3464b::t_12c3adc54456b5 115-116,118
+  s_0df31975f3464b::t_19911070f02f3b 11,119,124,129-134
+cli/cmd/billing_settings_test.go
+  s_0df31975f3464b::t_dd9347417e5fd1 137
+  s_0df31975f3464b::t_a3851ff743071f 135-136,138-148
+cli/cmd/key.go
+  s_0df31975f3464b::t_3f89b0c1179281 12,37
+cli/cmd/sandbox.go
+  s_0df31975f3464b::t_41e89777b7e76e 8,25-26,42,56,132-135,137-146,149,151
+  s_0df31975f3464b::t_551a4996a84064 136
+  s_0df31975f3464b::t_09edfd8a5f4215 259
+  s_0df31975f3464b::t_1be1a28cf84ec1 110
+cli/cmd/reservation_list.go
+  s_0df31975f3464b::t_9fbcc7b766b9d6 10,28-29,31,40
+cli/internal/api/raw_test.go
+  s_0df31975f3464b::t_c77da03604d49e 4,7-8,10,13-42,44-45
+cli/internal/dockerignore/dockerignore_test.go
+  s_0df31975f3464b::t_c77da03604d49e 107-108
+cli/internal/mgmt/client.go
+  s_0df31975f3464b::t_d73af56f9226fd 50,71
+  s_0df31975f3464b::t_3d98bf2b063d6d 32,64
+  s_0df31975f3464b::t_551a4996a84064 8-9,96-98,100-102,110-111,114-116
+  s_0df31975f3464b::t_dfbdedfb2b0df0 22-23,54-55,122
+  s_0df31975f3464b::t_19911070f02f3b 35-41,43
+  s_0df31975f3464b::t_ede4d18e88993d 33-34
+cli/cmd/image_cursor.go
+  s_0df31975f3464b::t_41e89777b7e76e 8,43-45,48-57,60,62
+  s_0df31975f3464b::t_551a4996a84064 47
+cli/cmd/sandbox_process_logs.go
+  s_0df31975f3464b::t_c36e3b214f37ce 119,123-124,129
+  s_0df31975f3464b::t_2dee7db564dd99 18,90
+cli/internal/workload/wait.go
+  s_0df31975f3464b::t_539b0df0c73123 45,59-60,68-69,104,106-107,115-116,119,128,130-131,139-140,143
+cli/internal/output/output.go
+  s_0df31975f3464b::t_16647149d693c1 51-52,56-57,59-60
+cli/cmd/billing_settings.go
+  s_0df31975f3464b::t_f3d76c8bdc4b40 11,40,72,114,138,173
+cli/internal/toolbox/process_client.go
+  s_0df31975f3464b::t_cb37fad0207d3b 8,16,28-30,32,34-35,38-41,44-49,51,54-55,60,62-63,71,79,81-82,99-102,104,143,146,148,150-151
+cli/cmd/auth_login.go
+  s_0df31975f3464b::t_12c3adc54456b5 140,213
+cli/cmd/invite.go
+  s_0df31975f3464b::t_12c3adc54456b5 137,142-143,149,153,225-226,228,247
+  s_0df31975f3464b::t_b6d03850084787 178
+cli/cmd/snapshot.go
+  s_0df31975f3464b::t_1be1a28cf84ec1 179
+  s_0df31975f3464b::t_5e4f053d926dce 69,97-98,100,109,134,138,166-167,169
+cli/internal/app/app.go
+  s_0df31975f3464b::t_e54a469a8b8467 51-53
+cli/cmd/sandbox_search_test.go
+  s_0df31975f3464b::t_7e8254e0982170 134
+cli/cmd/billing_invoice.go
+  s_0df31975f3464b::t_f3d76c8bdc4b40 12,51,55
+cli/internal/regions/regions.go
+  s_0df31975f3464b::t_16647149d693c1 13,157,161-165,185-194,208-210
+cli/internal/toolbox/process_stream.go
+  s_0df31975f3464b::t_c36e3b214f37ce 160,172,175,178
+cli/cmd/image_more_test.go
+  s_0df31975f3464b::t_706f61d6850df3 450
+cli/cmd/list_collect.go
+  s_0df31975f3464b::t_88f5063c49ecb4 9,59-60,63,65
+cli/cmd/image_create.go
+  s_0df31975f3464b::t_c7289df8e1cc00 13
+  s_0df31975f3464b::t_8b85ed847fe317 55
+  s_0df31975f3464b::t_e54a469a8b8467 141
+cli/cmd/secret.go
+  s_0df31975f3464b::t_66e5d6aa094131 16,112-113,115,124,144-145,148,150
+cli/cmd/billing_helpers.go
+  s_0df31975f3464b::t_f3d76c8bdc4b40 82-85
+cli/cmd/sandbox_docker.go
+  s_0df31975f3464b::t_d45c430087887f 15,46,75,83,95,97,102,108,116,119,121,123,125,128-129,142
+cli/cmd/version_test.go
+  s_0df31975f3464b::t_557dbda16406c6 97-101
+cli/cmd/role.go
+  s_0df31975f3464b::t_a7772da6d620f8 24,28
+cli/internal/workload/body.go
+  s_0df31975f3464b::t_0bbec4ce5e3e91 22-23
+cli/internal/input/input_test.go
+  s_0df31975f3464b::t_a650da728bf15a 12,126-139
+  s_0df31975f3464b::t_1cc8dee2247b4a 140-141
+cli/cmd/version.go
+  s_0df31975f3464b::t_19911070f02f3b 23-24,30-34
+cli/cmd/sandbox_process.go
+  s_0df31975f3464b::t_bbb35d51ce80ea 16,65
+  s_0df31975f3464b::t_a5fe7793144095 101,132,135
+cli/cmd/sandbox_create_helpers.go
+  s_0df31975f3464b::t_ddd170c608a958 201
+cli/cmd/region.go
+  s_0df31975f3464b::t_cf985d2246e5f1 8,24-26,30-35,51-52,56-58
+cli/cmd/project_budget.go
+  s_0df31975f3464b::t_3f89b0c1179281 52,82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3df57febd8ea9f5b4c25ab1ffb787fc1e9a3c0f",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

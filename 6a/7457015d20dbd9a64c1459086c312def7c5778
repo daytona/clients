@@ -1,0 +1,19 @@
+sdk-typescript/tests/artifact-waits-contract.test.ts
+  s_ca009e77d17705::t_4c28c4d3a0aae5 18,20-25,27,32,36,43,58-59,65-67,72,79,85,91,108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a7457015d20dbd9a64c1459086c312def7c5778",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

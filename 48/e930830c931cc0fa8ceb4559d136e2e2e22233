@@ -1,0 +1,21 @@
+.github/workflows/prepare-release.yaml
+  s_99f7d0d06ad207::t_ec7c1bba7e15ae 44-48,54,58,64
+.github/workflows/sdk_publish.yaml
+  s_99f7d0d06ad207::t_38f92d3c84f68d 578-579,584,597,608
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48e930830c931cc0fa8ceb4559d136e2e2e22233",
+  "prompts": {},
+  "sessions": {
+    "s_99f7d0d06ad207": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5397d916ffexzBaDLNSmvvX0N",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

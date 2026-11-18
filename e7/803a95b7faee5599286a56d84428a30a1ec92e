@@ -1,0 +1,48 @@
+changelog.d/538-stream-drops.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 1-5
+changelog.d/538-sdk-refusals.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 1-4
+changelog.d/538-process-results.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 2-12
+changelog.d/538-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 25-45
+changelog.d/538-list-contexts-shell.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 1-2
+changelog.d/538-pty-attach-early-close.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 1-2
+  s_9a337fd66d5341::t_bf76eee0fb777f 3-4
+sdk-python/README.md
+  s_9a337fd66d5341::t_ba7d1cfba620bd 631-632,787
+changelog.d/538-toolbox-declarations.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 1-2,5
+  s_9a337fd66d5341::t_23ac75b5312b70 3-4
+changelog.d/538-lsp-context-checks.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 1-3
+changelog.d/538-interpreter-identity.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 4
+  s_9a337fd66d5341::t_23ac75b5312b70 1-3
+sdk-typescript/DEVELOPMENT.md
+  s_9a337fd66d5341::t_ba7d1cfba620bd 116-118,237-241
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_ba7d1cfba620bd 577-578,729
+changelog.d/538-process-streams.breaking.md
+  s_9a337fd66d5341::t_0b97e1f48fd774 6-17
+AGENTS.md
+  s_9a337fd66d5341::t_ba7d1cfba620bd 593-598
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e7803a95b7faee5599286a56d84428a30a1ec92e",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

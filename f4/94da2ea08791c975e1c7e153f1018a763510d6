@@ -1,0 +1,21 @@
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_35c1b93d4ebbc5::t_960b97710ddc90 212-230
+sdk-typescript/src/v2/contextEntries.ts
+  s_35c1b93d4ebbc5::t_5e6f57dd2efaa5 31-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f494da2ea08791c975e1c7e153f1018a763510d6",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

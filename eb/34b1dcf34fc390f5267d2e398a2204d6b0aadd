@@ -1,0 +1,35 @@
+sdk-python/tests/test_async_daytona.py
+  s_59fee36c94ddd0::t_00588f1d93423b 788
+.github/workflows/pr_checks.yaml
+  s_59fee36c94ddd0::t_324b2d682a6de3 202-203
+sdk-python/tests/test_sandbox.py
+  s_59fee36c94ddd0::t_00588f1d93423b 646
+sdk-typescript/typedoc.json
+  s_59fee36c94ddd0::t_324b2d682a6de3 14
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_59fee36c94ddd0::t_324b2d682a6de3 941
+sdk-typescript/src/Process.ts
+  s_59fee36c94ddd0::t_cfd99f7c2680fe 475-482
+sdk-python/tests/test_daytona.py
+  s_59fee36c94ddd0::t_00588f1d93423b 459
+sdk-typescript/src/__tests__/Process.test.ts
+  s_59fee36c94ddd0::t_2bf511557d4225 398-415,417-434
+sdk-python/tests/test_async_sandbox.py
+  s_59fee36c94ddd0::t_00588f1d93423b 685
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "eb34b1dcf34fc390f5267d2e398a2204d6b0aadd",
+  "prompts": {},
+  "sessions": {
+    "s_59fee36c94ddd0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bc08-0cf7-79d2-b385-2eafd991a878",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

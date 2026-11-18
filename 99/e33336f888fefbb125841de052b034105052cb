@@ -1,0 +1,19 @@
+sdk-typescript/tests/create-lifecycle-policy.test.ts
+  s_9c6ec3a102c4f5::t_3540dae850f92e 1-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99e33336f888fefbb125841de052b034105052cb",
+  "prompts": {},
+  "sessions": {
+    "s_9c6ec3a102c4f5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e166321ceffeKiCSrrGTawdhwk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

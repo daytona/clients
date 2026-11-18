@@ -1,0 +1,89 @@
+changelog.d/594-macos-default-size.changed.md
+  s_99f7d0d06ad207::t_ef2600b172e8eb 1-4
+changelog.d/594-macos-persistent.changed.md
+  s_99f7d0d06ad207::t_701bba390b18e1 1-6
+changelog.d/mac-reservation-limit.added.md
+  s_99f7d0d06ad207::t_83d30d32389242 1-13
+changelog.d/region-error-codes.added.md
+  s_99f7d0d06ad207::t_442702ee35e602 1-2,6
+cli/README.md
+  s_99f7d0d06ad207::t_74f6185b6c9a3f 241-243
+cli/cmd/org.go
+  s_99f7d0d06ad207::t_8afd5f9e8b6579 186-193,575-577
+cli/cmd/org_limits_test.go
+  s_99f7d0d06ad207::t_68d211478262c9 19,28,31,70,127-143
+cli/cmd/reservation_create.go
+  s_99f7d0d06ad207::t_e55e7131c75372 119
+cli/cmd/reservation_create_test.go
+  s_99f7d0d06ad207::t_e855fc6441fac3 178
+cli/internal/api/error_hints.go
+  s_99f7d0d06ad207::t_01a00be18e210a 70-89
+cli/internal/api/error_hints_test.go
+  s_99f7d0d06ad207::t_c4477fe79f0680 85-106
+contract/toolbox-openapi.json
+  s_99f7d0d06ad207::t_151d847fe7cb2d 10189
+sdk-python/README.md
+  s_99f7d0d06ad207::t_6a816a16a187b2 690-697,718-723,727-731
+sdk-python/src/daytona/v2/_api_core.py
+  s_99f7d0d06ad207::t_da95a8a748fc2b 153
+sdk-python/src/daytona/v2/_codes.py
+  s_99f7d0d06ad207::t_ccd38ca7551435 85-92,94-96,234-241,243-245,409-416,418-420
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_99f7d0d06ad207::t_c2732f88425dde 374-376
+sdk-python/src/daytona/v2/_sync/services.py
+  s_99f7d0d06ad207::t_8a46d81b7a5a53 451-452,472,502
+sdk-python/src/daytona/v2/daytona.py
+  s_99f7d0d06ad207::t_32510cd4c47f08 514-516
+sdk-python/src/daytona/v2/errors.py
+  s_99f7d0d06ad207::t_c15b97b7189ce1 824-831,833-835
+sdk-python/src/daytona/v2/services.py
+  s_99f7d0d06ad207::t_57902541ce9f75 698-699,725,789
+sdk-python/src/daytona/v2/types.py
+  s_99f7d0d06ad207::t_f565a730287c39 820-821
+sdk-python/tests/test_core.py
+  s_99f7d0d06ad207::t_5e583c2b93a462 56,5446-5447,5474
+sdk-python/tests/test_malformed_responses.py
+  s_99f7d0d06ad207::t_f8431c0938e847 168,1265
+sdk-python/tests/test_model_serialization.py
+  s_99f7d0d06ad207::t_79a9dba6b96140 141
+sdk-typescript/README.md
+  s_99f7d0d06ad207::t_ee6c137c048bb6 614-621,640-645,649-653
+sdk-typescript/src/v2/Daytona.ts
+  s_99f7d0d06ad207::t_d1caa70832c1e1 224
+sdk-typescript/src/v2/Reservations.ts
+  s_99f7d0d06ad207::t_025ba009dd418a 97,111,161
+sdk-typescript/src/v2/accountMappers.ts
+  s_99f7d0d06ad207::t_25fd5777cf7c7d 34,110
+sdk-typescript/src/v2/accountTypes.ts
+  s_99f7d0d06ad207::t_fdef93e1a21b6b 86-87
+sdk-typescript/src/v2/codes.ts
+  s_99f7d0d06ad207::t_4aea1f4c6add6d 77-84,86-88,257-264,266-268
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_99f7d0d06ad207::t_6a84c867dd8ab7 644-651,653-655
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_99f7d0d06ad207::t_128320103a2bac 8253
+sdk-typescript/tests/account-models.test.ts
+  s_99f7d0d06ad207::t_4b3695059bfc02 63,67,80
+sdk-typescript/tests/frozen-results.test.ts
+  s_99f7d0d06ad207::t_effbb67e45c665 48
+sdk-typescript/tests/malformed-responses.test.ts
+  s_99f7d0d06ad207::t_35dfa596c6a401 112,832,837
+sdk-typescript/tests/unit.test.ts
+  s_99f7d0d06ad207::t_3bda238dbcdd94 8492-8493,8508
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a508ed0ab0dd4acad3d20942910018348ec7992",
+  "prompts": {},
+  "sessions": {
+    "s_99f7d0d06ad207": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5397d916ffexzBaDLNSmvvX0N",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

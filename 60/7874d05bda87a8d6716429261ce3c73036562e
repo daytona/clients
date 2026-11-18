@@ -1,0 +1,27 @@
+api-client-java/src/main/java/io/daytona/api/client/model/CreateSandboxDisk.java
+  ai_agent 87
+api-client-java/src/main/java/io/daytona/api/client/model/CreateSandboxCpu.java
+  ai_agent 87
+api-client-java/src/main/java/io/daytona/api/client/model/CreateSandboxMemory.java
+  ai_agent 87
+hack/java-client/postprocess.sh
+  s_59fee36c94ddd0::t_629d770f4e1d6a 24-32
+sdk-java/src/test/java/io/daytona/sdk/CreateSandboxResourceSerializationTest.java
+  s_59fee36c94ddd0::t_629d770f4e1d6a 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "607874d05bda87a8d6716429261ce3c73036562e",
+  "prompts": {},
+  "sessions": {
+    "s_59fee36c94ddd0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bc08-0cf7-79d2-b385-2eafd991a878",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

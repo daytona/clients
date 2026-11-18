@@ -1,0 +1,27 @@
+changelog.d/desktop-resolution.added.md
+  s_e72da7b238b0d5::t_c68d54e0076ab7 7-8
+contract/toolbox-openapi.json
+  s_e72da7b238b0d5::t_b7b9ac74b14447 1415,5401-5420,6040,6089-6098
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_e72da7b238b0d5::t_82853361a02dc5 59,105,109-112
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_e72da7b238b0d5::t_099da2ac6cfc10 622,4616-4633,4998-5006
+sdk-typescript/tests/unit.test.ts
+  s_e72da7b238b0d5::t_8974ef58d32a7d 12119-12122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bba43b2a112cc8e91ab7fa41d26becbbd877eb6d",
+  "prompts": {},
+  "sessions": {
+    "s_e72da7b238b0d5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e354a1459ffeJNEQO6wfxMs3zb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

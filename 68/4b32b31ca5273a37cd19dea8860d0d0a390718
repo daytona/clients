@@ -1,0 +1,19 @@
+docs/adr/0006-image-builder-local-context.md
+  s_9d2460a3a992dc::t_5ce3dfdd70d4c9 44-45,48-49,141-143,178-179,182-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "684b32b31ca5273a37cd19dea8860d0d0a390718",
+  "prompts": {},
+  "sessions": {
+    "s_9d2460a3a992dc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37760cffffefqPD4DBGkpGP79",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

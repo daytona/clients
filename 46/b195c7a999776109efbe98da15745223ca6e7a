@@ -1,0 +1,18 @@
+cli/gen/api/types.gen.go
+  h_e7759ddd73fa65 5869-5872
+contract/api-openapi.json
+  h_e7759ddd73fa65 8619
+sdk-typescript/src/v2/gen/api.ts
+  h_e7759ddd73fa65 6787-6790
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46b195c7a999776109efbe98da15745223ca6e7a",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

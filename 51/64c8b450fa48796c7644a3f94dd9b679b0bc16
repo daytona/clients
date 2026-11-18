@@ -1,0 +1,19 @@
+cli/internal/input/request_fields_gen.go
+  s_ad074a7dcce098::t_c86af3af719579 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5164c8b450fa48796c7644a3f94dd9b679b0bc16",
+  "prompts": {},
+  "sessions": {
+    "s_ad074a7dcce098": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b116abdffeFh8oykjJiSODXP",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

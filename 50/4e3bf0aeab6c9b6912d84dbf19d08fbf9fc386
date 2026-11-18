@@ -1,0 +1,88 @@
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_57042ee98efda7 15
+  s_ca009e77d17705::t_fec684c2250b05 11,156-160
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_ca009e77d17705::t_fec684c2250b05 197-201,203,205-208
+  s_ca009e77d17705::t_68ce478f0c2d92 202,204
+changelog.d/537-ts-config-keys.breaking.md
+  s_ca009e77d17705::t_fec684c2250b05 2-4
+sdk-typescript/src/v2/http.ts
+  s_ca009e77d17705::t_fec684c2250b05 483,703-705,772,790,797-802,1118-1135
+upgrade/python/src/daytona_upgrade/shared_error_guidance.py
+  s_ca009e77d17705::t_fec684c2250b05 17-22,24-27,53-55,93-95,97
+sdk-typescript/README.md
+  s_ca009e77d17705::t_fec684c2250b05 99
+upgrade/typescript/src/mapping.json
+  s_ca009e77d17705::t_fec684c2250b05 106-109
+upgrade/typescript/src/mapping.ts
+  s_ca009e77d17705::t_fec684c2250b05 72-73
+sdk-typescript/src/v2/options.ts
+  s_ca009e77d17705::t_fec684c2250b05 112-115,118-119,123-130,140
+  s_ca009e77d17705::t_441f0abfcc2c24 117
+upgrade/typescript/src/model.ts
+  s_ca009e77d17705::t_fec684c2250b05 30-31
+upgrade/typescript/tests/shared-errors.test.ts
+  s_ca009e77d17705::t_fec684c2250b05 89-98
+changelog.d/537-request-timeout.breaking.md
+  s_ca009e77d17705::t_fec684c2250b05 2,4-21
+upgrade/typescript/src/error-import-suggestions.ts
+  s_ca009e77d17705::t_fec684c2250b05 64-88
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_fec684c2250b05 8,1305-1312,1314-1334
+sdk-python/README.md
+  s_ca009e77d17705::t_fec684c2250b05 131-132
+sdk-typescript/src/root-config.ts
+  s_ca009e77d17705::t_fec684c2250b05 7,115
+changelog.d/537-error-names.breaking.md
+  s_ca009e77d17705::t_fec684c2250b05 17-18
+upgrade/python/src/daytona_upgrade/models.py
+  s_ca009e77d17705::t_fec684c2250b05 9,96-97,175-178
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_ca009e77d17705::t_fec684c2250b05 39,41-48
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_fec684c2250b05 186-187,190-197
+sdk-typescript/DEVELOPMENT.md
+  s_ca009e77d17705::t_fec684c2250b05 230-234,253-257
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_ca009e77d17705::t_fec684c2250b05 106-109
+upgrade/mapping/mapping.schema.json
+  s_ca009e77d17705::t_fec684c2250b05 125-135
+changelog.d/537-error-constructors.breaking.md
+  s_ca009e77d17705::t_fec684c2250b05 11-12,14-15
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_ca009e77d17705::t_68ce478f0c2d92 49-52
+upgrade/scripts/check-v0-surface.mjs
+  s_ca009e77d17705::t_fec684c2250b05 273-281
+sdk-python/tests/test_error_contract.py
+  s_ca009e77d17705::t_fec684c2250b05 13,158-183
+AGENTS.md
+  s_ca009e77d17705::t_fec684c2250b05 476-477,499-501,522-524
+sdk-python/src/daytona/v2/errors.py
+  s_ca009e77d17705::t_fec684c2250b05 52-54,231,235-241,280,283-289,305-307,310-316,330-332,335-341
+sdk-typescript/tests/client-config.test.ts
+  s_ca009e77d17705::t_fec684c2250b05 102,114-128,426-432
+sdk-python/tests/test_client_config.py
+  s_ca009e77d17705::t_fec684c2250b05 331-343
+upgrade/mapping/mapping.json
+  s_ca009e77d17705::t_fec684c2250b05 106-109
+upgrade/python/tests/test_shared_errors.py
+  s_ca009e77d17705::t_fec684c2250b05 117,170-191
+sdk-python/tests/test_public_surface_generated.py
+  s_ca009e77d17705::t_fec684c2250b05 26,175-181,186,190,194-204,206-212,236-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "504e3bf0aeab6c9b6912d84dbf19d08fbf9fc386",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

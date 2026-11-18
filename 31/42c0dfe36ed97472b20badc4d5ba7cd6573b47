@@ -1,0 +1,56 @@
+upgrade/typescript/src/sdk-methods.ts
+  s_3a78f9367300e1::t_ec242923b1ffd0 90-91,93-106
+  s_3a78f9367300e1::t_e836fb809fd4e7 81,83-84,87-89,92
+changelog.d/upgrade-suggest-lsp-owner.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 3-4
+changelog.d/upgrade-pyw-sources.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 2-3
+upgrade/scripts/optional-arguments.test.mjs
+  s_3a78f9367300e1::t_a4dd6c055d25c7 59-61,63-65
+changelog.d/upgrade-suggest-root-services.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 2-4
+changelog.d/upgrade-suggest-workflow-docs.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 1-4
+upgrade/python/src/daytona_upgrade/_dependencies.py
+  s_3a78f9367300e1::t_b0465db454c009 49-50,162-164,276-278,280
+upgrade/python/src/daytona_upgrade/manifests.py
+  s_3a78f9367300e1::t_b0465db454c009 130-132
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_3a78f9367300e1::t_b0465db454c009 207-212
+changelog.d/upgrade-unknown-extras.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 3-5
+changelog.d/upgrade-suggest-none-timeout.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 1-4
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_3a78f9367300e1::t_63c4301403f26d 64-65,67-68,81-98
+upgrade/typescript/src/manifests.ts
+  s_3a78f9367300e1::t_75483d7e84458b 81-85,147
+  s_3a78f9367300e1::t_6a2cb8da409e02 78-80
+upgrade/typescript/tests/qualified-package-constraints.test.ts
+  s_3a78f9367300e1::t_75483d7e84458b 64-74
+upgrade/scripts/optional-arguments.mjs
+  s_3a78f9367300e1::t_7fa69ac7791217 14-17,20,31-32,43,58
+  s_3a78f9367300e1::t_f031d72dd0bb34 61
+changelog.d/upgrade-suggest-keyboard.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 1-4
+upgrade/python/tests/test_dependency_fixes.py
+  s_3a78f9367300e1::t_cf3ac17ac9b548 177-203
+changelog.d/v0-pin-run-commands-quoting.fixed.md
+  s_3a78f9367300e1::t_9d7dd486f99974 2-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3142c0dfe36ed97472b20badc4d5ba7cd6573b47",
+  "prompts": {},
+  "sessions": {
+    "s_3a78f9367300e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39ebaad0ffeVnwNETxVFiRbJd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

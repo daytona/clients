@@ -1,0 +1,157 @@
+cli/cmd/image_precheck.go
+  s_4a0db3271b690d::t_fbdbd74a62e1ee 30-46,68
+changelog.d/587-cli-attach-interrupt.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-3
+changelog.d/587-cli-server-wait.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 4
+changelog.d/587-cli-server-wait-no-wait.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-3
+changelog.d/587-cli-whoami-static-key.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 4-6
+changelog.d/536-duration-flags.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 3
+changelog.d/587-cli-api-url-validation.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 2-5
+cli/internal/toolbox/terminal_resize_unix_review2_test.go
+  s_4a0db3271b690d::t_f14479f106cea8 9,12,16,20-26,35-38,40,43
+  s_4a0db3271b690d::t_ad2b6437ffc4d7 1-8,10-11,13-15,17-19,27-34,39,41-42,44
+changelog.d/587-cli-no-wait-action-fallback.fixed.md
+  s_aadd141013e7c9::t_cfc207c2dfe852 1-4
+changelog.d/587-cli-create-idempotency-key.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 2-6
+cli/internal/toolbox/terminal_resize_unix_review_test.go
+  s_3a4d3609385922::t_127600541da81c 4,10,19,40-54,61
+cli/internal/app/app_test.go
+  s_aadd141013e7c9::t_06ce01f6e213ee 7,249-256
+  s_aadd141013e7c9::t_5a40cd478f9eb4 257
+cli/cmd/sandbox_search.go
+  s_4a0db3271b690d::t_fbdbd74a62e1ee 63,65,154
+cli/cmd/sandbox_create_result.go
+  s_aadd141013e7c9::t_ba803a5bd92497 15,34-36
+cli/cmd/sandbox_exec_tty_linux_test.go
+  s_3a4d3609385922::t_1a5d0c28107629 190-231
+cli/README.md
+  s_aadd141013e7c9::t_cfc207c2dfe852 371-372,634-635
+  s_3a4d3609385922::t_32efb6e90f266b 543,558
+cli/internal/toolbox/terminal_resize_unix.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 14-15,19-21
+cli/internal/app/presentation.go
+  s_aadd141013e7c9::t_06ce01f6e213ee 29-39
+cli/cmd/sandbox_create.go
+  s_4a0db3271b690d::t_fbdbd74a62e1ee 88
+changelog.d/587-cli-image-platform-validation.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-3
+changelog.d/587-cli-key-lifetime-validation.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-3
+cli/internal/ui/prompt_linux_review2_test.go
+  s_4a0db3271b690d::t_d72a825d833b53 4-5
+  s_4a0db3271b690d::t_ad2b6437ffc4d7 1-3,6-36
+cli/internal/toolbox/transfer_url.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 1-19
+cli/cmd/sandbox_action_output.go
+  s_4a0db3271b690d::t_44a97875d4654c 1-38
+changelog.d/587-cli-cp-missing-source.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-4
+cli/internal/config/config.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 224-225,238-239
+cli/internal/ui/terminal.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 15,84-90
+changelog.d/587-cli-ssh-exit-codes.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-2
+cli/internal/toolbox/process_create_review2_test.go
+  s_4a0db3271b690d::t_1b86b51e89a029 1-46
+cli/internal/api/error_hints.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 57
+cli/internal/toolbox/transfer.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 11,29,111,134-137
+changelog.d/587-cli-create-blank-name.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-2
+changelog.d/587-cli-create-name-validation.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 2
+changelog.d/587-cli-signal-exit-codes.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-7
+cli/internal/toolbox/transfer_review2_test.go
+  s_4a0db3271b690d::t_1b86b51e89a029 1-64
+cli/internal/toolbox/process_create.go
+  s_4a0db3271b690d::t_d72a825d833b53 18-19
+  s_4a0db3271b690d::t_752c3f3911fc6c 12,21,24-28,30-36
+cli/cmd/sandbox_display.go
+  s_4a0db3271b690d::t_d72a825d833b53 78,91-92
+  s_4a0db3271b690d::t_fbdbd74a62e1ee 18,33,45
+  s_1d65fa05b6bddd::t_2a84ee50141933 93
+changelog.d/587-cli-attach-dropped.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-3
+changelog.d/587-cli-create-invalid-id.fixed.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-2
+changelog.d/587-cli-sigterm-exit-code.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-2
+cli/cmd/sandbox_search_filters_test.go
+  s_aadd141013e7c9::t_6ba0665e998483 36
+changelog.d/587-cli-dockerfile-context.fixed.md
+  s_aadd141013e7c9::t_cfc207c2dfe852 1-3
+changelog.d/587-cli-search-label-commas.fixed.md
+  s_aadd141013e7c9::t_cfc207c2dfe852 1-3
+cli/internal/workload/wait.go
+  s_4a0db3271b690d::t_752c3f3911fc6c 148-149,172-174,182-183
+changelog.d/587-cli-create-wait-seconds-no-wait.breaking.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-3
+cli/cmd/sandbox_review2_test.go
+  s_4a0db3271b690d::t_ae5f7ccc17c016 71-72
+  s_4a0db3271b690d::t_fbdbd74a62e1ee 86,89,94
+  s_4a0db3271b690d::t_ad2b6437ffc4d7 1-70,73-85,87-88,90-93,95-103
+cli/internal/api/error_hints_review2_test.go
+  s_4a0db3271b690d::t_1b86b51e89a029 1-14,16-34
+  s_4a0db3271b690d::t_f90ebcce3816c2 15
+cli/internal/workload/wait_review2_test.go
+  s_4a0db3271b690d::t_1b86b51e89a029 1-47
+changelog.d/587-cli-attach-size.fixed.md
+  s_3a4d3609385922::t_a2a548f9e91cb9 1-2
+cli/cmd/sandbox_search_helpers.go
+  s_4a0db3271b690d::t_fbdbd74a62e1ee 130
+cli/cmd/image_precheck_review2_test.go
+  s_4a0db3271b690d::t_ad2b6437ffc4d7 1-75
+changelog.d/587-cli-exec-create-deadline.fixed.md
+  s_aadd141013e7c9::t_cfc207c2dfe852 1-3
+cli/cmd/sandbox_toolbox_harness_test.go
+  s_3a4d3609385922::t_127600541da81c 105-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33ace9997c010feefcb65fa683fe7183fdd8100a",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_3a4d3609385922": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39df8e22ffefmiNURvBy0lEWx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_4a0db3271b690d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39df9802ffeNhBJs6EFTGVUNr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_aadd141013e7c9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e1e9fffeY2WEQ1wxOLIV7H",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

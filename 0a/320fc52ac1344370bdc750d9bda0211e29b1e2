@@ -1,0 +1,86 @@
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 54,966-969,1011,1096,1098,1121,1127,1129,2306-2309
+  s_ca009e77d17705::t_5df9cd25063d94 853-855,860,1069-1071,1097,1128
+  s_ca009e77d17705::t_307e82383bf865 1036-1037,1053-1055,2282-2303
+  s_ca009e77d17705::t_fec2274b090b78 846
+  s_ca009e77d17705::t_c78277725970e7 2304-2305
+contract/toolbox-openapi.json
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 9459-9463,9466
+sdk-typescript/src/v2/events.ts
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 414-432,1159,1193-1196
+changelog.d/destroyed-wait-long-poll.fixed.md
+  s_ca009e77d17705::t_bd63bfb49ee662 1-5
+sdk-typescript/README.md
+  s_ca009e77d17705::t_d166144d6fe4ec 783-785,806-816,820-821
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 817-819,822
+cli/internal/workload/workload_more_test.go
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 10,279-304
+  s_ca009e77d17705::t_c33d4b66ddb163 305
+changelog.d/terminal-state-reason.added.md
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 1-6
+sdk-python/tests/test_readme_quickstart.py
+  s_ca009e77d17705::t_36660b0fdd3f5b 112-114
+sdk-typescript/tests/events.test.ts
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 1450-1484
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_4f2f17d57a955a 2664-2670,2673-2674,2676-2678,2682,2684,2688-2689,2695,2698-2700,2706,2712,2714,2716-2717,2720,2724-2727,2735,2740-2742,2748,2754-2757,2760,2762,2776-2778,2782
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 2671-2672,2675,2679-2681,2683,2685-2687,2690-2694,2696-2697,2701-2705,2707-2711,2713,2715,2718-2719,2721-2723,2728-2734,2736-2739,2743-2747,2749-2753,2758-2759,2761,2763-2775,2779-2781,2783-2799
+changelog.d/537-error-constructors.breaking.md
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 24-26
+sdk-typescript/tests/terminal-report.test.ts
+  s_ca009e77d17705::t_edb706767733ad 7-8,109-159
+sdk-typescript/tests/readme-quickstart.test.ts
+  s_ca009e77d17705::t_36660b0fdd3f5b 41,49,70,79-80
+sdk-typescript/tests/errors-contract.test.ts
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 190-195
+sdk-python/README.md
+  s_ca009e77d17705::t_d166144d6fe4ec 852-854,873-883,886-887
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 884-885,888
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 7676,7682
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 7811,7813,7815-7818,7822-7826,7833-7834,7837-7840,7842-7844,7846-7848,7850-7864,7866-7873,7875-7876,7878-7885,7894-7903,7906-7910,7914-7916,7918-7922,7924,7927-7934,7936,7939-7945,7951-7952,7955-7957,7959,7961-7968
+  s_ca009e77d17705::t_0c6f871d8274c9 7801-7810,7812,7814,7819-7821,7827-7832,7835-7836,7841,7845,7849,7865,7874,7877,7886-7893,7904-7905,7911-7913,7917,7923,7925-7926,7935,7937-7938,7946-7950,7953-7954,7958,7960,9118-9120
+  s_ca009e77d17705::t_e75101a0985b86 7969-7970
+sdk-python/tests/test_events.py
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 25,994-1053
+  s_ca009e77d17705::t_5d073d9a8f751e 1054
+changelog.d/539-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_603af1d66996d1 22-31
+sdk-python/tests/test_terminal_report.py
+  s_ca009e77d17705::t_b115a3bfecfaba 227-307
+sdk-typescript/src/v2/sandboxWait.ts
+  s_ca009e77d17705::t_edb706767733ad 98-100
+  s_ca009e77d17705::t_f51c49a3d4e085 8,21-26,31-34,78-80,82,84,95-97,101,104-105,159,168,180
+  s_ca009e77d17705::t_307e82383bf865 102-103,149-150,158
+  s_ca009e77d17705::t_09f53955b70737 106-107
+AGENTS.md
+  s_ca009e77d17705::t_bd63bfb49ee662 697-706
+sdk-python/src/daytona/v2/_events.py
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 28,219-237,807,827-830,1613
+  s_ca009e77d17705::t_38fad5fc8fd1cf 708-709,713,717-720
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_f51c49a3d4e085 543,553,678-680,682
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 267-268,278-282,285-286,289
+cli/internal/workload/wait.go
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 76-81
+sdk-python/src/daytona/v2/errors.py
+  s_ca009e77d17705::t_ac2ab0d3cfbce0 172-173,176-186,188,195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a320fc52ac1344370bdc750d9bda0211e29b1e2",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

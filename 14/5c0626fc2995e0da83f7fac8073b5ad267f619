@@ -1,0 +1,60 @@
+changelog.d/sdk-process-streams.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-8
+changelog.d/sdk-toolbox-durations.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-11
+changelog.d/sdk-watches.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-11
+changelog.d/sdk-toolbox-identities.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-14
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_9a337fd66d5341::t_04a3caee30d478 658,694,1789,1901,1913,1954,1961,2036,2046,2063,2076,2173,2198,2225,2321,2487,2497
+changelog.d/sdk-process-results.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-15
+upgrade/MIGRATION.md
+  s_9a337fd66d5341::t_04a3caee30d478 382,418,428,451,456-457,460-462,465,477,495
+changelog.d/sdk-toolbox-models.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-20
+docs/adr/0001-sdk-parity.md
+  s_9a337fd66d5341::t_50deee301a632a 38-42
+sdk-python/DEVELOPMENT.md
+  s_9a337fd66d5341::t_97c5a4843eb98c 144-151
+sdk-python/README.md
+  s_9a337fd66d5341::t_c26dd6b4e53d20 617-625,628-640,642-649,675-676,686,692-703,723-729,748-750,764-767
+examples/python/test_examples.py
+  s_9a337fd66d5341::t_7b6abc76325366 213,220
+upgrade/mapping/mapping.json
+  s_9a337fd66d5341::t_0bd3f69ba698a5 658,694,1789,1901,1913,1954,1961,2036,2046,2063,2076,2173,2198,2225,2321,2487,2497
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_712160ae35822d 558-589,602,610-613,626,637-648,672-678,680,688-689,698-700,714-716
+changelog.d/sdk-interpreter-contexts.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-10
+AGENTS.md
+  s_9a337fd66d5341::t_44933ba8327384 458-464,489-494,516-554,568-569
+upgrade/typescript/src/mapping.json
+  s_9a337fd66d5341::t_04a3caee30d478 658,694,1789,1901,1913,1954,1961,2036,2046,2063,2076,2173,2198,2225,2321,2487,2497
+changelog.d/sdk-toolbox-option-keys.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-8
+sdk-typescript/DEVELOPMENT.md
+  s_9a337fd66d5341::t_4044ea33b2b37f 115-116,120-121,175-177,201-209
+  s_9a337fd66d5341::t_680a9b95b15667 210
+changelog.d/sdk-toolbox-fixes.fixed.md
+  s_9a337fd66d5341::t_e513798ec90703 1-7
+changelog.d/sdk-pty-options.breaking.md
+  s_9a337fd66d5341::t_e513798ec90703 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "145c0626fc2995e0da83f7fac8073b5ad267f619",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  s_38ebc15778ccce::t_0cc982aea50352 37
+  s_38ebc15778ccce::t_a4240cd707897d 36
+  s_38ebc15778ccce::t_2dba02d05e5d73 38-40,52-54
+  s_38ebc15778ccce::t_19db88509ab7bb 140-145
+docs/adr/0003-cli.md
+  s_38ebc15778ccce::t_831386fb2d8067 98-102
+changelog.d/ga-versioning-policy.changed.md
+  s_38ebc15778ccce::t_9df5e292a0d27f 1-13
+docs/VERSIONING.md
+  s_38ebc15778ccce::t_3bc975ddac87b1 171-196,199-202,205
+  s_38ebc15778ccce::t_6f3cce707e3262 86
+  s_38ebc15778ccce::t_055f0897d8297a 167-170,197-198
+  s_38ebc15778ccce::t_30c8f55a3e962f 203-204
+  s_38ebc15778ccce::t_d6193a8ae1dcc6 80-85,87-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "985fef6cec2c5c4c4e3dd716a138ce2349a0054e",
+  "prompts": {},
+  "sessions": {
+    "s_38ebc15778ccce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d72dcffeAkVTofnSAe9VO0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

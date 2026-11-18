@@ -1,0 +1,21 @@
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_fba442c849892a 8,852-856
+sdk-python/tests/test_services_contract.py
+  s_ca009e77d17705::t_fba442c849892a 239
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15baaf70e087cddbd83de5f8d54199cf6ed2c4f8",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

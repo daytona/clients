@@ -1,0 +1,120 @@
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_69587140850c31 785-806
+sdk-typescript/src/v2/Ports.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 6,166
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_5325615c3cb999 971
+  s_ca009e77d17705::t_131246d617ffdb 56
+  s_ca009e77d17705::t_e4a2f48ad4c9c7 812-815
+sdk-python/src/daytona/v2/sandbox_secrets.py
+  s_ca009e77d17705::t_1ad5a5e0cb2a2b 10
+  s_ca009e77d17705::t_6dc1899f4dd329 67-68
+sdk-typescript/tests/argument-checks.test.ts
+  s_ca009e77d17705::t_78f0847f57fd5f 84-110
+  s_ca009e77d17705::t_50e2b732d7c5b7 382,385
+  s_ca009e77d17705::t_7ade7d8d100872 399-421
+  s_ca009e77d17705::t_ab5e0276487f03 377-381,383-384,386-398
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_6dc1899f4dd329 2264
+sdk-python/src/daytona/v2/network_policy.py
+  s_ca009e77d17705::t_6dc1899f4dd329 156-157
+  s_ca009e77d17705::t_1ad5a5e0cb2a2b 11
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_4789b8a70aa6fa 6901-6903,6905
+sdk-typescript/src/v2/Snapshots.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 6,45
+changelog.d/539-argument-checks.breaking.md
+  s_ca009e77d17705::t_5f8822068e7944 8-55
+sdk-typescript/tests/build-logs.test.ts
+  s_ca009e77d17705::t_69587140850c31 312-321
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 6,79
+sdk-typescript/src/v2/responseFields.ts
+  s_ca009e77d17705::t_06f51679b16531 73-75
+sdk-typescript/src/v2/Images.ts
+  s_ca009e77d17705::t_c770dee2d9e123 142-143
+  s_ca009e77d17705::t_7c322ecac90bf2 6,53-65,108-112
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_44661bc929c7b4 224-282
+sdk-typescript/src/v2/Secret.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 17,85
+  s_ca009e77d17705::t_c770dee2d9e123 119-124,126-127
+sdk-typescript/src/v2/BuildLogs.ts
+  s_ca009e77d17705::t_9cbb8d51c51def 507-510
+  s_ca009e77d17705::t_0025b67e62d110 381-390,410,413
+sdk-typescript/src/v2/pageParams.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 1-32
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_0025b67e62d110 657-660
+  s_ca009e77d17705::t_9cbb8d51c51def 730,732-734
+sdk-typescript/src/v2/Volume.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 6,108
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_5325615c3cb999 513,662,891
+  s_ca009e77d17705::t_33dc70983de40f 217-218,927-932
+  s_ca009e77d17705::t_131246d617ffdb 48-49,290-292,295-297,299,301,440-441,443
+sdk-typescript/tests/image-builder-parity.test.ts
+  s_ca009e77d17705::t_4e399316f9fd0b 1-74
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_55ba7906630974 13,383,403
+  s_ca009e77d17705::t_516f892f5d83ec 410-466,468-505
+  s_ca009e77d17705::t_500a4a41c3aa55 467
+  s_ca009e77d17705::t_bc021458cc5e66 376-382,384-402,404-409
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_131246d617ffdb 1397
+  s_ca009e77d17705::t_6dc1899f4dd329 1477
+  s_ca009e77d17705::t_6cc827bbe95405 206-208,224-226,232-234,236,238-241
+  s_ca009e77d17705::t_8a47eb222321a8 84,86,1441-1443
+  s_ca009e77d17705::t_4251690bc43ee0 229-231,235,1430-1431
+  s_ca009e77d17705::t_8a808d136a484d 1295-1301,1421-1423,1425-1429,1432-1438,1440,1444-1445
+  s_ca009e77d17705::t_5325615c3cb999 1376-1396,1398
+sdk-python/src/daytona/v2/image.py
+  s_ca009e77d17705::t_dee5568c5b224e 34-39,42,46,56-59,73-76,93,97,100,105-111,127-128,154-159
+changelog.d/539-images.breaking.md
+  s_ca009e77d17705::t_5f8822068e7944 7-25
+sdk-python/tests/test_argument_checks.py
+  s_ca009e77d17705::t_5f8822068e7944 669-684
+  s_ca009e77d17705::t_df473812b8142e 614-637
+  s_ca009e77d17705::t_37ba1f7e5c7854 638-668
+  s_ca009e77d17705::t_a51757513412e3 113-151
+sdk-typescript/src/v2/Reservations.ts
+  s_ca009e77d17705::t_7c322ecac90bf2 6,137
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_5f8822068e7944 26-33
+sdk-python/tests/test_image_builder_parity.py
+  s_ca009e77d17705::t_1dc33e558992de 94
+  s_ca009e77d17705::t_faecc6d5d17e16 1-93,95-119
+changelog.d/539-build-log-media-type.fixed.md
+  s_ca009e77d17705::t_dd71abeb5e332e 1-7
+sdk-typescript/src/v2/clientSearch.ts
+  s_ca009e77d17705::t_25207912489c08 64-87,103-105,109-110,112-119,126-128
+  s_ca009e77d17705::t_c770dee2d9e123 9-10
+  s_ca009e77d17705::t_06f51679b16531 182
+changelog.d/539-create-hold.breaking.md
+  s_ca009e77d17705::t_dd71abeb5e332e 9-11
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_ca009e77d17705::t_98e2d89167acea 1-138
+sdk-python/src/daytona/v2/ports.py
+  s_ca009e77d17705::t_131246d617ffdb 21
+  s_ca009e77d17705::t_5325615c3cb999 133
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_927d9cf246ba4b 325-326,329,331-336
+  s_ca009e77d17705::t_130218e71a68b6 153-154,156
+  s_ca009e77d17705::t_9795e2ad9ab3c9 11,45-52,56-59,61,88,105,109,126-129,131-132,137,141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "88db02f34c7ab5caefb839ed9dd54270e1fa4889",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

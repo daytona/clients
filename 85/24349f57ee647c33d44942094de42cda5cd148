@@ -1,0 +1,42 @@
+sdk-python/src/daytona/common/image.py
+  s_0993d02ebd0e68::t_256dbb13d7e210 300-301
+  s_0993d02ebd0e68::t_c0d06ce36a5b56 763-769,771-772,777
+  s_0993d02ebd0e68::t_ff21a50e0b125b 770,773-776
+sdk-go/pkg/daytona/image.go
+  s_0993d02ebd0e68::t_7a3a57a901cbc8 238-241,244-249,252-254,256-258
+  s_0993d02ebd0e68::t_1a2f9e5d90ab7b 7
+sdk-ruby/spec/daytona/image_spec.rb
+  s_0993d02ebd0e68::t_4831c12b4fa907 190-191,194-195
+  s_0993d02ebd0e68::t_f9ffbb2f30bd25 275-282,284
+  s_0993d02ebd0e68::t_3ccd357038f483 283
+sdk-python/tests/test_image.py
+  s_0993d02ebd0e68::t_eb1a06265be926 138,141-142,146-151
+  s_0993d02ebd0e68::t_84aad9041e7d9b 205-210
+sdk-ruby/lib/daytona/common/image.rb
+  s_0993d02ebd0e68::t_8876dff5473b90 177
+  s_0993d02ebd0e68::t_41df7315cd6cd7 600-608
+sdk-typescript/src/__tests__/Image.test.ts
+  s_0993d02ebd0e68::t_4e6487233fc397 55,61-67,82-99
+sdk-go/pkg/daytona/image_test.go
+  s_0993d02ebd0e68::t_dafedafe9fe09a 345-346
+  s_0993d02ebd0e68::t_269ae088f97fa8 220-229
+sdk-typescript/src/Image.ts
+  s_0993d02ebd0e68::t_cf03d3f212869f 16-24
+  s_0993d02ebd0e68::t_fc3e9b703b9d60 294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8524349f57ee647c33d44942094de42cda5cd148",
+  "prompts": {},
+  "sessions": {
+    "s_0993d02ebd0e68": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0070727e-23b0-45be-804a-bac40b2ab615",
+        "model": "grok-4.7"
+      },
+      "human_author": "Nikola Radisic <radisicc@yahoo.com>"
+    }
+  }
+}

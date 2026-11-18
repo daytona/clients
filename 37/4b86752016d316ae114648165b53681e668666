@@ -1,0 +1,30 @@
+.github/workflows/sdk_publish.yaml
+  s_a4e9e64863538f::t_761f5c636d62e7 534-611
+  s_ca009e77d17705::t_39c822917dc91c 612-613
+.github/workflows/prepare-release.yaml
+  s_a4e9e64863538f::t_d9d290e2086266 27-61,63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "374b86752016d316ae114648165b53681e668666",
+  "prompts": {},
+  "sessions": {
+    "s_a4e9e64863538f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3f7ced3effeO0ZC8vtaS6r2VL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+sdk-typescript/src/v2/BuildLogs.ts
+  s_f23bcae77f0e63::t_81af33ffff698f 410
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_e228c3a0acc0aa 1047,1050
+  s_f23bcae77f0e63::t_5615d5d1434922 897,960,990,1005,1023,1037,1058,7965,8938,8950,8991,9009,9067,9090,9118,9138,9143,9517,9532
+  s_f23bcae77f0e63::t_f13fe007864a27 973-985
+  s_f23bcae77f0e63::t_1baa531196a9b4 8971,9026,9081,10101
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_f23bcae77f0e63::t_81af33ffff698f 800-830,861-863,869,881,887-893,919
+sdk-typescript/src/v2/boundedAdapter.ts
+  s_f23bcae77f0e63::t_81af33ffff698f 15,297-302
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_76b6be65da6e25 358-371,374-404
+  s_f23bcae77f0e63::t_49bb7aa46443ae 19,372-373
+  s_f23bcae77f0e63::t_074d63d0d60e1c 405
+sdk-typescript/src/v2/FileSystem.ts
+  s_f23bcae77f0e63::t_f5283cb53ac823 320
+sdk-typescript/tests/errors-contract.test.ts
+  s_f23bcae77f0e63::t_e228c3a0acc0aa 24-25,84,90
+sdk-typescript/src/v2/filesystemWire.ts
+  s_f23bcae77f0e63::t_f5283cb53ac823 183,186-193
+  s_f23bcae77f0e63::t_c797fcf3a87ba4 6
+sdk-typescript/tests/process-tags.test.ts
+  s_f23bcae77f0e63::t_e228c3a0acc0aa 123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f7591617e24d7de1e489c41d89e0e302cd954d3",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+changelog.d/create-handle-lifecycle.fixed.md
+  s_c28e8155a9c155::t_0786ae7bfd8632 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "897905d05ff7cf98509ed17586edc1928347c260",
+  "prompts": {},
+  "sessions": {
+    "s_c28e8155a9c155": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15e9c2caffeKehmeqg0j47Y37",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

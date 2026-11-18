@@ -1,0 +1,30 @@
+sdk-python/src/daytona/v2/filesystem.py
+  s_f23bcae77f0e63::t_e5af7c122f555d 46
+  s_f23bcae77f0e63::t_402667f14179e1 813-814
+sdk-python/tests/test_fs_transfer.py
+  s_f23bcae77f0e63::t_414ecd5e16cb11 612-616
+  s_f23bcae77f0e63::t_a00fdbe58d76e7 15,609,871-873,875
+sdk-typescript/tests/unit.test.ts
+  s_f23bcae77f0e63::t_414ecd5e16cb11 4430-4431
+  s_f23bcae77f0e63::t_a00fdbe58d76e7 4066,4068-4069,4408
+sdk-typescript/src/v2/filesystemTransfers.ts
+  s_f23bcae77f0e63::t_402667f14179e1 6-7,306,389,429-430
+changelog.d/537-error-constructors.breaking.md
+  s_f23bcae77f0e63::t_064826ea494bfd 39-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "001b34d5fd9927bd1bdae30827f104275bdeecf6",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

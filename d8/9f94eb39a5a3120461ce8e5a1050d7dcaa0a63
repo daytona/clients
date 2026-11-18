@@ -1,0 +1,37 @@
+changelog.d/538-process-tags.breaking.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 6-18
+changelog.d/538-process-records.breaking.md
+  s_9a337fd66d5341::t_de8ff3ce933221 3-10
+changelog.d/538-watches.breaking.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 43-55
+AGENTS.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 556-558,664-667,736-738,743-745
+changelog.d/538-json-bodies.breaking.md
+  s_9a337fd66d5341::t_de8ff3ce933221 9-24
+changelog.d/538-stream-release.fixed.md
+  s_9a337fd66d5341::t_97a77d93ed5a2f 1-5
+changelog.d/538-stream-decoding.fixed.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 3-10
+changelog.d/538-process-streams.breaking.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 20-25
+sdk-python/README.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 788-790
+sdk-typescript/README.md
+  s_9a337fd66d5341::t_2807c251fd6c4a 735-737
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d89f94eb39a5a3120461ce8e5a1050d7dcaa0a63",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+AGENTS.md
+  s_ca009e77d17705::t_4a856d0108f702 652-653
+sdk-python/README.md
+  s_ca009e77d17705::t_9a9649184f78bb 105-112
+sdk-typescript/tests/unbounded-waits.test.ts
+  s_ca009e77d17705::t_cb519e3a09c4dd 59
+  s_ca009e77d17705::t_3567115e729732 9,57-58,60-64,66-69,73,93-99,101-102,106-111
+  s_ca009e77d17705::t_27bda0b971f39b 65,70,103-105
+sdk-python/tests/test_unbounded_waits.py
+  s_ca009e77d17705::t_27bda0b971f39b 117-118,238-239
+  s_ca009e77d17705::t_70126d4295263d 7-12,25,32,72-78,81,86-89,99-100,111-112,122-123,135-136,146-147,159-160,175-176,181-184,189-191,193,195,203,208-210,213,216,219,221-225,243-244,251-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24d09bdd859c81b8c1f8de42ad943a09b52040fa",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

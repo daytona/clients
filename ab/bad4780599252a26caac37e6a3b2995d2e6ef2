@@ -1,0 +1,123 @@
+sdk-typescript/src/v2/archiveWalk.ts
+  s_7273c37cef50a4::t_4728b393f40825 39,45-46,52
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 11,53-54
+sdk-typescript/tests/image-builder-upload.test.ts
+  s_7273c37cef50a4::t_1d1b0314bdcc7e 43,69
+sdk-python/tests/test_image_builder_parity.py
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 263-265,274
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 184,186,190,192,253
+  s_a8bfe3ca9ec8be::t_626e72809949e9 275-284
+  s_a8bfe3ca9ec8be::t_4c12850b824dbf 256-262,266-273
+sdk-python/tests/test_image_builder_context.py
+  s_a8bfe3ca9ec8be::t_e46f535db1a168 244-270
+  s_a8bfe3ca9ec8be::t_c45dfee42449d2 159,183,203,238
+sdk-typescript/src/v2/builderLocalSource.ts
+  s_7273c37cef50a4::t_4728b393f40825 10,21,36,61-62,64
+  s_7273c37cef50a4::t_1d1b0314bdcc7e 63
+sdk-python/src/daytona/v2/_image_context.py
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 80-82,153-154
+  s_a8bfe3ca9ec8be::t_5f04410771e4df 28
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 44,83,92-93,107,110-111,140
+  s_a8bfe3ca9ec8be::t_d790225f1df910 13,27,94,96,100-106
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 95,97-98
+  s_a8bfe3ca9ec8be::t_11c82e8748837d 99
+sdk-python/src/daytona/v2/image.py
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 85-86,191
+sdk-python/tests/test_image_context_archive.py
+  s_a8bfe3ca9ec8be::t_5badb25bf841f2 27-28,50-55,87
+  s_a8bfe3ca9ec8be::t_4c12850b824dbf 303-315
+sdk-typescript/src/v2/contextArchive.ts
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 14,84
+  s_7273c37cef50a4::t_4728b393f40825 32,60-63,65-70,72
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 64
+sdk-typescript/tests/image-builder-escape.test.ts
+  s_a8bfe3ca9ec8be::t_e46f535db1a168 38
+  s_7273c37cef50a4::t_26d13fcfb0c50b 1-37,39-66
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_7273c37cef50a4::t_4728b393f40825 124,160,164,172
+sdk-typescript/tests/image-builder-directory-parity.test.ts
+  s_7273c37cef50a4::t_53cd05d2bf329a 23-24,50,56
+sdk-typescript/tests/image-builder-utf8.test.ts
+  s_7273c37cef50a4::t_26d13fcfb0c50b 1-11,13-24,26-35,37-40,43-50,52-68
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 25,36,41-42
+  s_a8bfe3ca9ec8be::t_39ad842f2caf7f 12,51,87
+  s_7273c37cef50a4::t_1d1b0314bdcc7e 69-86,88-105
+sdk-typescript/tests/image-builder-context.test.ts
+  s_7273c37cef50a4::t_53cd05d2bf329a 79,113-114,136,154
+docs/adr/0006-image-builder-local-context.md
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 37,56-57,59-69,78-84,141-145
+  s_a8bfe3ca9ec8be::t_626e72809949e9 58
+sdk-python/src/daytona/v2/_image_archive.py
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 100-103,143-146
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 21,37
+sdk-python/tests/fixtures/image-builder-context.json
+  s_a8bfe3ca9ec8be::t_5d1f4166e0ebd2 6,65,173,183
+  s_a8bfe3ca9ec8be::t_c45dfee42449d2 45,49,55,60,84,88,90,94,165-172,174-182,184,332,352-359
+sdk-python/src/daytona/v2/_dockerignore.py
+  s_a8bfe3ca9ec8be::t_d0e25e33f13535 18-19
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 8,15,20-21,33,184-185,194-196
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 69-74,80-83,170-172
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 91-93
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 272-273
+  s_a8bfe3ca9ec8be::t_d0e25e33f13535 18
+sdk-python/src/daytona/v2/_image_source.py
+  s_a8bfe3ca9ec8be::t_626e72809949e9 67-69
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 37-39,43-45
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 8,33-36,40-42,46-48,60,70
+sdk-typescript/tests/image-builder-source-safety.test.ts
+  s_7273c37cef50a4::t_1d1b0314bdcc7e 69
+  s_7273c37cef50a4::t_06cec6f88193c4 85-109
+sdk-typescript/tests/imageBuilderContextFixture.ts
+  s_7273c37cef50a4::t_53cd05d2bf329a 7,30-37,53-59
+sdk-typescript/src/v2/dockerignore.ts
+  s_7273c37cef50a4::t_4728b393f40825 64,67
+sdk-typescript/tests/image-builder-ignore-errors.test.ts
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 1-16
+sdk-typescript/tests/dockerignore-errors.test.ts
+  s_7273c37cef50a4::t_53cd05d2bf329a 9,11,13
+  s_7273c37cef50a4::t_26d13fcfb0c50b 1-8,10,12,14-26
+sdk-python/src/daytona/v2/_dockerignore_error.py
+  s_a8bfe3ca9ec8be::t_5f04410771e4df 1-15
+sdk-python/tests/test_image_context_upload.py
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 91
+sdk-typescript/src/v2/contextPath.ts
+  s_7273c37cef50a4::t_4728b393f40825 1-10,15-16
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 11-14
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 17-27
+sdk-python/tests/test_image_context_races.py
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 183
+  s_a8bfe3ca9ec8be::t_5badb25bf841f2 216-231,235-272
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 18-25,232-234
+sdk-python/tests/test_dockerignore.py
+  s_a8bfe3ca9ec8be::t_d0e25e33f13535 18-19
+  s_a8bfe3ca9ec8be::t_4c12850b824dbf 284-293
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_a8bfe3ca9ec8be::t_5badb25bf841f2 16-24
+sdk-typescript/src/v2/contextEntries.ts
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 9,17,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "abbad4780599252a26caac37e6a3b2995d2e6ef2",
+  "prompts": {},
+  "sessions": {
+    "s_7273c37cef50a4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3857b9a2ffepKOrR01o4rA3cT",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a8bfe3ca9ec8be": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3858573cffefwbBvmMn2USQYE",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

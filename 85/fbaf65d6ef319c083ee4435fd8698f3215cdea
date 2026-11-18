@@ -1,0 +1,99 @@
+sdk-go/pkg/daytona/event_subscriptions_test.go
+  s_9f36fd33712820::t_4e0076a2b4c7cf 9
+  s_bb33829f46707b::t_dfc429042db467 12,51,81-85,91,107,217-228,253-262,836-960
+sdk-python/tests/test_subscription_cap.py
+  s_098f276a7fe1a7::t_bf3a3443bb01e5 1-388
+  s_098f276a7fe1a7::t_5ba02f774d3a3b 389
+sdk-go/pkg/common/event_dispatcher.go
+  s_bb33829f46707b::t_cf1f545cceb8f7 50-55,86-90,112-113,207,245-250,269-272,284-287,294-302,374
+sdk-go/pkg/common/event_dispatcher_test.go
+  s_bb33829f46707b::t_5c105027ce7dfb 311-369
+sdk-go/pkg/daytona/sandbox.go
+  s_bb33829f46707b::t_913cd238d63997 188-193,559-563,565-567,598,618,2094-2100
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  s_f6f7d98fd6ba9d::t_097f99790e458d 82-83,143-144,1053-1056,1059-1060,1102,1200,1207,1211,1303
+sdk-java/src/main/java/io/daytona/sdk/internal/EventDispatcher.java
+  s_bb33829f46707b::t_fd61150c75b77a 20,57-61,70,78-79,101-107,217-218,289-291,318-324,358,436-438
+sdk-java/src/main/java/io/daytona/sdk/internal/EventSubscriptionManager.java
+  s_bb33829f46707b::t_e409e46856ee1f 105-112
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  s_bb33829f46707b::t_6e61e6a0b6c59f 50,980,1008,1058,1142-1309,1417,1481
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  s_bb33829f46707b::t_f6ae80bd8d2262 172-259
+sdk-python/src/daytona/internal/event_dispatcher.py
+  s_47a8b402f94188::t_171179095a1b23 23-25,73-75,145,235-239,297-300,336,392-394,441-442,513,607-611,673-677,706,722-723
+sdk-python/src/daytona/internal/wait_poll.py
+  s_bb33829f46707b::t_0e9e492de1a0c8 14-16,31,36,41,56
+sdk-python/tests/conftest.py
+  s_bb33829f46707b::t_989d5456f11d3c 178-180
+sdk-ruby/lib/daytona/common/event_dispatcher.rb
+  s_f6f7d98fd6ba9d::t_dbcf6af2b911c3 22-25,43-45,115,146,168-174,210-220,360
+sdk-ruby/lib/daytona/common/event_subscription_manager.rb
+  s_bb33829f46707b::t_bce099ca9d3e75 95-101
+sdk-ruby/lib/daytona/sandbox.rb
+  s_f6f7d98fd6ba9d::t_d37adf3b19d1dc 1240-1242,1244-1246,1489,1497-1500,1519-1520,1522
+sdk-ruby/spec/daytona/event_dispatcher_spec.rb
+  s_bb33829f46707b::t_8b8b761a6c742c 153-186
+sdk-ruby/spec/daytona/event_subscription_manager_spec.rb
+  s_bb33829f46707b::t_d31cb81dceb7ae 193-221
+sdk-typescript/src/Sandbox.ts
+  s_bb33829f46707b::t_354b0fed944911 1392-1394,1398-1400,1551-1555,1606
+sdk-typescript/src/__tests__/EventDispatcher.test.ts
+  s_bb33829f46707b::t_aa5c24ec105f26 190-271
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_bb33829f46707b::t_c301cf47c7394c 6-8,33-34,75,82,119-120,141,890-914,1293-1440
+sdk-typescript/src/utils/EventDispatcher.ts
+  s_bb33829f46707b::t_6d547c1963d06c 35-40,59-60,81,203-204,306-310,321-323,333-337,376
+sdk-typescript/src/utils/EventSubscriptionManager.ts
+  s_bb33829f46707b::t_26553868e0d829 38-42
+sdk-typescript/src/utils/WaitPolling.ts
+  s_bb33829f46707b::t_08fcce857134bf 8-9,17,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85fbaf65d6ef319c083ee4435fd8698f3215cdea",
+  "prompts": {},
+  "sessions": {
+    "s_098f276a7fe1a7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e16186adfffeApv0FBZ83rV8Wm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_47a8b402f94188": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e16389808ffe1zHIpJ9t4982Ip",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_9f36fd33712820": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e17660a9effeDXZNSeRd4a6o8B",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_bb33829f46707b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29fb2f6fffeE373ZzXHM8jc1e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f6f7d98fd6ba9d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15da7e16ffeotiImw2pvbqMnM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,123 @@
+sdk-typescript/tests/create-values.test.ts
+  s_ca009e77d17705::t_d41e3ef726f416 9-10,69-72
+  s_ca009e77d17705::t_7d89ba824f38ba 1-8,11-68,73-79
+sdk-python/tests/test_handle_json_fixture.py
+  s_ca009e77d17705::t_2fb8d78f9e7b2b 1-39,46-72
+  s_ca009e77d17705::t_2bd7209d3975e8 40-45
+sdk-python/README.md
+  s_ca009e77d17705::t_bdeb5fb2ff6249 421-423
+  s_ca009e77d17705::t_6bfff400f92dc8 460
+sdk-typescript/README.md
+  s_ca009e77d17705::t_604774466989d0 362-364
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_ca009e77d17705::t_b6348d2468ee1c 17,56
+  s_ca009e77d17705::t_8bc45b99c84055 67
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_b6348d2468ee1c 43,537,785
+  s_ca009e77d17705::t_f47f840fd0c621 274-276,360
+  s_ca009e77d17705::t_afbb2af3a4269e 739-746
+sdk-typescript/tests/acquisition-reads.test.ts
+  s_ca009e77d17705::t_157e127dde9966 21,37,52,72,88
+sdk-typescript/tests/sandbox-fork.test.ts
+  s_ca009e77d17705::t_157e127dde9966 54,76,96,121,142,144,161,175
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_ca009e77d17705::t_b6348d2468ee1c 11,38-48,66-69,131-132,135-136,161
+sdk-python/tests/test_readme_types.py
+  s_ca009e77d17705::t_6bfff400f92dc8 99
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_8927d68560a0d9 40,814,935-936,941-944
+  s_ca009e77d17705::t_cc7898560f011f 1579-1590,1806-1807,1817-1818,1825-1827,1830-1831,1833,1835-1836,1842-1846,1869-1874
+  s_ca009e77d17705::t_704e9e867d3f4c 323-370,374,393,599-622,652
+  s_ca009e77d17705::t_fc24b4228a217b 1620-1635
+  s_ca009e77d17705::t_bbdd4fa2099b5e 1810-1816,1820-1822,1824,1828-1829,1832,1834,1837-1841,1847-1854,1858-1861,1865-1868
+  s_ca009e77d17705::t_ccaec469db7aee 659-665,1451-1452
+  s_ca009e77d17705::t_08680d55fdc18e 1808-1809
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_0ba9c9a439caf2 477-479
+  s_ca009e77d17705::t_236bd49b389ce4 1218-1221
+sdk-typescript/tests/handle-json-fixture.test.ts
+  s_ca009e77d17705::t_b6d33b22596349 1-61
+sdk-typescript/tests/sandbox-metadata.test.ts
+  s_ca009e77d17705::t_d27d1a0423b1ba 67-69,73,83,87,91-100
+  s_ca009e77d17705::t_e8045724760f80 101-102
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  s_ca009e77d17705::t_157e127dde9966 33,48
+sdk-python/tests/test_services_contract.py
+  s_ca009e77d17705::t_fc24b4228a217b 28,356
+  s_ca009e77d17705::t_842515fd833eb8 38
+  s_ca009e77d17705::t_3ba3ac57499482 340-355,357-396
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_ca009e77d17705::t_58a0a8b8762b60 46-51
+sdk-typescript/tests/sandbox-waits.test.ts
+  s_ca009e77d17705::t_157e127dde9966 53,102,115,128,158,191
+sdk-typescript/tests/client-lifecycle-options.test.ts
+  s_ca009e77d17705::t_157e127dde9966 52,67,90
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_eca524c74d7069 309-318,325
+  s_ca009e77d17705::t_8927d68560a0d9 9,32,308
+sdk-python/tests/test_build_logs.py
+  s_ca009e77d17705::t_b943a59cc74e45 45,1206,1208
+sdk-typescript/src/v2/artifactOptions.ts
+  s_ca009e77d17705::t_afbb2af3a4269e 6,27
+sdk-python/src/daytona/v2/services.py
+  s_ca009e77d17705::t_c5ea9d986440b2 335-336
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_a660d6d88dc49c 17,94-96
+sdk-typescript/DEVELOPMENT.md
+  s_ca009e77d17705::t_dde6e0590155a9 194-203
+sdk-typescript/tests/sandbox-region.test.ts
+  s_ca009e77d17705::t_e4c647205b06d9 51
+  s_ca009e77d17705::t_157e127dde9966 29
+sdk-typescript/src/v2/clientSearch.ts
+  s_ca009e77d17705::t_b6348d2468ee1c 162-163
+sdk-python/src/daytona/v2/sandbox.py
+  s_ca009e77d17705::t_0ba9c9a439caf2 286-290,293-297,1304,1342,1827,1837-1840,1849-1857,1958,1965,1971,1973
+  s_ca009e77d17705::t_236bd49b389ce4 1824-1826
+  s_ca009e77d17705::t_8cc54a82ae5d8d 711-712
+  s_ca009e77d17705::t_8927d68560a0d9 27,722-724,726-728,810,1193,1197,1844-1848
+  s_ca009e77d17705::t_c5ea9d986440b2 1144-1147
+sdk-typescript/tests/unit.test.ts
+  s_ca009e77d17705::t_157e127dde9966 847-848,875,890,909,929,964-965,973-974,983-984,1112-1113,1124-1125,1133,1135,1155,1157-1158,1180-1183,1185-1187,1279-1281,1283-1285,1298-1299,1306-1307,1330,1351-1352,1374-1375,1383-1384,1495-1496,1512,1543-1545,1577-1578,1591-1592,1601,1603,1804,2214,2224,2236,2252,2333,2382-2383,2394,2405,2419,2438,2451-2452,2467,2611-2612,2645-2646,2653,2688,2710,2750,2826,2871-2873,2918,3026,3041,3065,3353,3363,3373,3393-3394,3412,3456,3480,3521,3528,3544,3556,3581,3609,3649,6753,6756,6775-6776,6792-6793,6795-6796,6811,6815-6816,6822-6823,6835,6837-6838,6843-6844,6854-6855,6876,6878,6915-6916,7829,8423-8424,8445-8446,8504,8539-8540,8555-8556,8593-8594,8731,9770,9782,9849,9861,9880,10594,10678,11047,11052
+  s_ca009e77d17705::t_f3f308082fb8a2 1156,1236,1620,1650,1784,1847,2066,2160-2161,2251,2338,2393,2515,2643,2652,2806,2897,2917,2934,2953,2965,2982,2998,3013,3025,3040,3051,3063,3081,3092,3102,3113,3127,3158-3159,3195-3197,3241,3248,3396,3415,3444,3460,3483,3635,3652,3671,3746-3747,8197-8198,8471,8524,9532,9552,9561,9682,9711-9713,10107,11131,11133,11656,11659
+  s_ca009e77d17705::t_63d7f02268cc3d 2087,3185,9501,9604
+sdk-typescript/tests/create-wait-failures.test.ts
+  s_ca009e77d17705::t_157e127dde9966 14,62-63
+sdk-python/src/daytona/v2/build_logs.py
+  s_ca009e77d17705::t_c5ea9d986440b2 725,730
+  s_ca009e77d17705::t_2bd7209d3975e8 726-729,731-733
+sdk-python/tests/fixtures/sandbox-handle-json.json
+  s_ca009e77d17705::t_2fb8d78f9e7b2b 1-63
+sdk-typescript/src/v2/Image.ts
+  s_ca009e77d17705::t_f47f840fd0c621 252
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_ca009e77d17705::t_ff90efe0aa4bdc 62
+  s_ca009e77d17705::t_7abc340ab88056 6,48-61,63-78,83-106
+sdk-typescript/tests/sandbox-lifecycle.test.ts
+  s_ca009e77d17705::t_157e127dde9966 33,39,57
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_c5ea9d986440b2 443,449
+  s_ca009e77d17705::t_0ba9c9a439caf2 530-534
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_bd5ffbeb83b5a1 9713,9760,9797-9800,11570-11571,11600-11602
+  s_ca009e77d17705::t_585c029a057e3f 12625
+  s_ca009e77d17705::t_2bd7209d3975e8 6181-6182,7051,12138,12624,12626
+  s_ca009e77d17705::t_b0a7ecde114c32 9833
+sdk-typescript/tests/options-objects.test.ts
+  s_ca009e77d17705::t_ec9fd1fd2f0c22 19,55-56,58-79,88-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a896a00edb7936a69bf8e6157e40c807697e73e4",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+sdk-python/tests/test_client_config.py
+  s_f23bcae77f0e63::t_e6b25072ab381c 230-236
+  s_f23bcae77f0e63::t_f208b6db25302c 226-229
+sdk-python/src/daytona/v2/_transport.py
+  s_f23bcae77f0e63::t_e6b25072ab381c 902-904,907-911,913,916,1084-1086
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74992f67587b1d9e795ba91cbe84c7d58c0062d8",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

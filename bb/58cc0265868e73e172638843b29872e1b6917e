@@ -1,0 +1,50 @@
+changelog.d/sdk-ts-option-keys.breaking.md
+  s_ca009e77d17705::t_08a32848a9429d 1-5
+AGENTS.md
+  s_ca009e77d17705::t_4f99530455971b 173,487-491,539-542,557-581
+docs/adr/0001-sdk-parity.md
+  s_ca009e77d17705::t_caf4e1ef213fc1 83-92
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_ca009e77d17705::t_b246d90edcdf46 228
+sdk-python/README.md
+  s_ca009e77d17705::t_ecf6082a7eb9ff 574-575,577-578
+  s_ca009e77d17705::t_c7be9f40c4d7af 759-760,806-829
+  s_ca009e77d17705::t_1ceb23ec911323 99
+  s_ca009e77d17705::t_40305eed27d6c2 240-242,246-247,251-252,258-260,272,353-365,372-374,392-393,398-399,403,405,408-422,436-440,445,473,501-506,509,512-514,517-535,543-546,645,652-653
+changelog.d/sdk-list-search.breaking.md
+  s_ca009e77d17705::t_08a32848a9429d 1-8
+changelog.d/sdk-create-resources.breaking.md
+  s_ca009e77d17705::t_08a32848a9429d 1-12
+changelog.d/sdk-models.breaking.md
+  s_ca009e77d17705::t_08a32848a9429d 1-19
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_3c86462376329e 34,131-179
+sdk-typescript/README.md
+  s_ca009e77d17705::t_f3ac7b4965bc6f 66-75,160-161,177-179,310,327,331-332,346-347,351,488,506,547,581
+README.md
+  s_ca009e77d17705::t_caf4e1ef213fc1 30-36,38
+changelog.d/sdk-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_08a32848a9429d 1-21
+changelog.d/sdk-platform-services.breaking.md
+  s_ca009e77d17705::t_08a32848a9429d 1-15
+changelog.d/initial-2x.added.md
+  s_ca009e77d17705::t_caf4e1ef213fc1 3,9,11
+sdk-python/src/daytona/v2/errors.py
+  s_ca009e77d17705::t_b246d90edcdf46 167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bb58cc0265868e73e172638843b29872e1b6917e",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

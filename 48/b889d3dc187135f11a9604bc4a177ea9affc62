@@ -1,0 +1,23 @@
+upgrade/python/tests/test_dependency_namespace_endpoint_boundaries.py
+  s_3a78f9367300e1::t_11e349088ac6e5 122-124
+upgrade/python/tests/test_multiline_workflow_guidance.py
+  s_3a78f9367300e1::t_feaaae0eca415d 139-143,203
+upgrade/python/tests/test_suggestions.py
+  s_3a78f9367300e1::t_220bfe47c3209c 84-88,108-112,129-133,270-272,296-298,438,469-486
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48b889d3dc187135f11a9604bc4a177ea9affc62",
+  "prompts": {},
+  "sessions": {
+    "s_3a78f9367300e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39ebaad0ffeVnwNETxVFiRbJd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
