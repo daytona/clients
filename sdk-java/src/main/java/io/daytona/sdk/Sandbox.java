@@ -1027,6 +1027,14 @@ public class Sandbox {
             return;
         }
 
+        JsonNode eventSandbox = data.get("sandbox");
+        if (eventSandbox != null && eventSandbox.isObject()) {
+            // Set before the state: a wait that ends on an error state reports this reason. The event omits the
+            // field when the sandbox has none.
+            JsonNode reason = eventSandbox.path("errorReason");
+            this.errorReason = reason.isTextual() ? reason.asText() : null;
+        }
+
         JsonNode stateNode = data.path("newState");
         if (!stateNode.isTextual()) {
             JsonNode sandboxNode = data.has("sandbox") ? data.get("sandbox") : data;
@@ -1236,7 +1244,8 @@ public class Sandbox {
                 }
             }
             if (resolved != null && errorStates.contains(resolved)) {
-                throw new DaytonaException("Sandbox entered error state: " + resolved);
+                throw new DaytonaException("Sandbox " + sandbox.id + " entered error state: " + resolved
+                        + ", error reason: " + sandbox.errorReason);
             }
         }
     }

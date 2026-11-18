@@ -370,6 +370,37 @@ describe('Sandbox', () => {
     )
   })
 
+  it('waitUntilStarted reports the error reason carried by the state event', async () => {
+    const { sandbox } = makeSandbox({ state: 'starting' })
+    const handleEvent = (sandbox as unknown as { handleEvent: (name: string, data: unknown) => void }).handleEvent.bind(
+      sandbox,
+    )
+
+    jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
+      handleEvent('sandbox.state.updated', {
+        sandbox: { id: 'sb-1', state: 'error', desiredState: 'started', errorReason: 'disk full' },
+        oldState: 'starting',
+        newState: 'error',
+      })
+    })
+
+    await expect(sandbox.waitUntilStarted(5)).rejects.toThrow(
+      'Sandbox sb-1 failed to start with status: error, error reason: disk full',
+    )
+  })
+
+  it('a state event without an error reason clears the previous one', () => {
+    const { sandbox } = makeSandbox({ state: 'error', errorReason: 'transient' })
+
+    ;(sandbox as unknown as { handleEvent: (name: string, data: unknown) => void }).handleEvent(
+      'sandbox.state.updated',
+      { sandbox: { id: 'sb-1', state: 'started' }, oldState: 'error', newState: 'started' },
+    )
+
+    expect(sandbox.state).toBe('started')
+    expect(sandbox.errorReason).toBeUndefined()
+  })
+
   it('waitUntilStopped treats deleted sandboxes as destroyed', async () => {
     const { sandbox } = makeSandbox({ state: 'stopping' })
 

@@ -1399,6 +1399,10 @@ class AsyncSandbox(SandboxDto):
             if sandbox_dto is not None:
                 self.__process_sandbox_dto(sandbox_dto)
         else:
+            if isinstance(raw, dict) and "sandbox" in data:
+                # Set before the state: a wait that ends on an error state reports this reason. The event omits
+                # the field when the sandbox has none.
+                self.error_reason = raw.get("errorReason")
             new_state = (  # pyright: ignore[reportUnknownVariableType]
                 raw.get("state") if isinstance(raw, dict) else None
             ) or data.get("newState")

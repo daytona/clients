@@ -710,7 +710,7 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
 		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "sandbox entered error state")
+		assert.Contains(t, err.Error(), "sandbox entered error state: error, error reason: failed")
 		var daytonaErr *errors.DaytonaError
 		assert.False(t, stderrors.As(err, &daytonaErr), "error-state failures must not be wrapped in DaytonaError")
 	})
@@ -1026,6 +1026,37 @@ func TestSandboxUpdateEnv(t *testing.T) {
 	assert.Equal(t, []any{"OLD_VAR"}, body["unset"])
 	// UnsetValuePrefix is an internal reconciliation knob and must never be sent.
 	assert.NotContains(t, body, "unsetValuePrefix")
+}
+
+func TestStateEventCarriesTheErrorReason(t *testing.T) {
+	sandbox := newSandboxForTest(nil, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+	stateCh := make(chan apiclient.SandboxState, 1)
+	sandbox.mu.Lock()
+	sandbox.stateWaiters = append(sandbox.stateWaiters, stateCh)
+	sandbox.mu.Unlock()
+
+	reason := "disk full"
+	sandbox.handleEvent(common.SandboxEvent{
+		Type: common.SandboxEventStateUpdated,
+		StateEvent: &common.SandboxStateEvent{
+			Sandbox:  apiclient.Sandbox{Id: "sb", ErrorReason: &reason},
+			NewState: apiclient.SANDBOXSTATE_ERROR,
+		},
+	})
+
+	require.Equal(t, apiclient.SANDBOXSTATE_ERROR, <-stateCh)
+	assert.EqualError(t, sandbox.errorStateError(apiclient.SANDBOXSTATE_ERROR),
+		"sandbox entered error state: error, error reason: disk full")
+
+	sandbox.handleEvent(common.SandboxEvent{
+		Type: common.SandboxEventStateUpdated,
+		StateEvent: &common.SandboxStateEvent{
+			Sandbox:  apiclient.Sandbox{Id: "sb"},
+			NewState: apiclient.SANDBOXSTATE_STARTED,
+		},
+	})
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.currentState())
+	assert.Nil(t, sandbox.ErrorReason)
 }
 
 func TestWaitForStateCachedErrorRecoversAfterRefresh(t *testing.T) {

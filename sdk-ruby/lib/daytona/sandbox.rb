@@ -1455,6 +1455,9 @@ module Daytona
       if event_name == 'sandbox.created'
         process_response(DaytonaApiClient::Sandbox.build_from_hash(raw))
       else
+        # Set before the state: a wait that ends on an error state reports this reason. The event omits the field
+        # when the sandbox has none.
+        @error_reason = raw['errorReason'] if data.key?('sandbox')
         new_state = raw['state'] || data['newState']
         apply_state(new_state) if new_state
       end

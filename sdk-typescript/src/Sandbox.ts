@@ -1364,6 +1364,11 @@ export class Sandbox {
       return
     }
 
+    if (data.sandbox) {
+      // Set before the state: a wait that ends on an error state reports this reason. The event omits the field
+      // when the sandbox has none.
+      this.errorReason = raw.errorReason ?? undefined
+    }
     const newState = raw.state ?? data.newState
     if (newState) {
       this.applyState(newState)

@@ -566,7 +566,11 @@ func (s *Sandbox) handleEvent(event common.SandboxEvent) {
 	switch event.Type {
 	case common.SandboxEventStateUpdated:
 		if event.StateEvent != nil {
-			s.applyState(event.StateEvent.NewState)
+			s.mu.Lock()
+			// Set before the state: a wait that ends on an error state reports this reason.
+			s.ErrorReason = event.StateEvent.Sandbox.ErrorReason
+			s.applyStateLocked(event.StateEvent.NewState)
+			s.mu.Unlock()
 		}
 	case common.SandboxEventCreated:
 		if event.CreatedEvent != nil {
@@ -585,6 +589,17 @@ func (s *Sandbox) unsubscribe() {
 	if subID != "" && manager != nil {
 		manager.Unsubscribe(subID)
 	}
+}
+
+// errorStateError reports a wait that ended in an error state, with the sandbox's error reason.
+func (s *Sandbox) errorStateError(state apiclient.SandboxState) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	reason := ""
+	if s.ErrorReason != nil {
+		reason = *s.ErrorReason
+	}
+	return fmt.Errorf("sandbox entered error state: %s, error reason: %s", state, reason)
 }
 
 // currentState returns the current sandbox state under a read lock.
@@ -710,7 +725,7 @@ func (s *Sandbox) waitForState(
 			return true, err
 		}
 		if containsSandboxState(errorStates, st) {
-			return true, fmt.Errorf("sandbox entered error state: %s", st)
+			return true, s.errorStateError(st)
 		}
 		return false, nil
 	}
@@ -748,7 +763,7 @@ func (s *Sandbox) waitForState(
 				}
 			}
 			if containsSandboxState(errorStates, newState) {
-				return fmt.Errorf("sandbox entered error state: %s", newState)
+				return s.errorStateError(newState)
 			}
 			if containsSandboxState(targetStates, newState) {
 				return nil

@@ -598,6 +598,40 @@ RSpec.describe Daytona::Sandbox do
                          /entered error state: error, error reason: boom/i)
     end
 
+    it 'reports the error reason carried by the state event' do
+      starting = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'starting'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      allow(starting).to receive(:poll_refresh) do
+        starting.send(:handle_event, 'sandbox.state.updated',
+                      { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'error', 'desiredState' => 'started',
+                                       'errorReason' => 'disk full' },
+                        'oldState' => 'starting', 'newState' => 'error' })
+      end
+
+      expect do
+        starting.wait_for_sandbox_start
+      end.to raise_error(Daytona::Sdk::Error, /entered error state: error, error reason: disk full/)
+    end
+
+    it 'clears the error reason on a state event without one' do
+      errored = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'transient'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      errored.send(:handle_event, 'sandbox.state.updated',
+                   { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'started' },
+                     'oldState' => 'error', 'newState' => 'started' })
+
+      expect(errored.state).to eq('started')
+      expect(errored.error_reason).to be_nil
+    end
+
     it 'raises QueueTimeoutError when the sandbox is destroyed after queue timeout' do
       pending_sandbox = described_class.new(
         sandbox_dto: build_sandbox_dto(state: 'pending'),

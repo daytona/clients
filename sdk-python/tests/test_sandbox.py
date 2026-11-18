@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import threading
 import warnings
 from unittest.mock import MagicMock
 
@@ -31,6 +32,15 @@ def make_sandbox(sandbox_dto, mock_toolbox_api_client, mock_sandbox_api):
         subscription_manager=MagicMock(),
         http_client=MagicMock(),
     )
+
+
+def error_event(reason):
+    """A `sandbox.state.updated` event as the API sends it to SDK sockets (fields without a value are omitted)."""
+    return {
+        "sandbox": {"id": "test-sandbox-id", "state": "error", "desiredState": "started", "errorReason": reason},
+        "oldState": "starting",
+        "newState": "error",
+    }
 
 
 class TestSandboxInit:
@@ -240,6 +250,29 @@ class TestSandboxWaitForStart:
         mock_sandbox_api.get_sandbox.return_value = error_dto
         with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             sandbox.wait_for_sandbox_start(timeout=0)
+
+    def test_error_event_reports_its_reason(self, mock_toolbox_api_client, mock_sandbox_api):
+        starting = make_sandbox_dto(state=SandboxState.STARTING)
+        sandbox = make_sandbox(starting, mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.return_value = starting
+        timer = threading.Timer(0.05, sandbox._handle_event, ("sandbox.state.updated", error_event("disk full")))
+        timer.start()
+        with pytest.raises(DaytonaError, match="error reason: disk full"):
+            sandbox.wait_for_sandbox_start(timeout=10)
+        timer.join()
+
+    def test_state_event_without_reason_clears_it(self, mock_toolbox_api_client, mock_sandbox_api):
+        sandbox = make_sandbox(
+            make_sandbox_dto(state=SandboxState.ERROR, error_reason="transient"),
+            mock_toolbox_api_client,
+            mock_sandbox_api,
+        )
+        sandbox._handle_event(
+            "sandbox.state.updated",
+            {"sandbox": {"id": "test-sandbox-id", "state": "started"}, "oldState": "error", "newState": "started"},
+        )
+        assert sandbox.state == SandboxState.STARTED
+        assert sandbox.error_reason is None
 
 
 class TestSandboxQueueTimeout:
