@@ -605,11 +605,13 @@ RSpec.describe Daytona::Sandbox do
         sandbox_api: sandbox_api,
         subscription_manager: subscription_manager
       )
-      allow(starting).to receive(:poll_refresh) do
+      # The event arrives while a poll is in flight; the poll then returns the earlier state.
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
         starting.send(:handle_event, 'sandbox.state.updated',
                       { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'error', 'desiredState' => 'started',
                                        'errorReason' => 'disk full' },
                         'oldState' => 'starting', 'newState' => 'error' })
+        build_sandbox_dto(state: 'starting')
       end
 
       expect do

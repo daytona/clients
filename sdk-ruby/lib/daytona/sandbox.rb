@@ -1257,6 +1257,8 @@ module Daytona
       mutex = Mutex.new
       state_changed = ConditionVariable.new
       result_state = nil
+      # The error reason that came with result_state; a refresh still in flight may replace error_reason after.
+      result_reason = nil
 
       waiter = {
         matches: lambda do |new_state|
@@ -1267,6 +1269,7 @@ module Daytona
             next if result_state
 
             result_state = new_state
+            result_reason = error_reason
             state_changed.signal
           end
         end
@@ -1302,7 +1305,10 @@ module Daytona
             next if result_state
 
             current = state.to_s
-            result_state = current if target_strings.include?(current) || error_strings.include?(current)
+            if target_strings.include?(current) || error_strings.include?(current)
+              result_state = current
+              result_reason = error_reason
+            end
           end
 
           poll_interval = next_wait_for_state_poll_interval(
@@ -1314,7 +1320,7 @@ module Daytona
 
         if result_state && error_strings.include?(result_state)
           raise Sdk::Error,
-                "Sandbox #{id} entered error state: #{result_state}, error reason: #{error_reason}"
+                "Sandbox #{id} entered error state: #{result_state}, error reason: #{result_reason}"
         end
       rescue Sdk::TimeoutError => e
         begin

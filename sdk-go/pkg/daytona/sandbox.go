@@ -60,7 +60,7 @@ type Sandbox struct {
 	signingKeyFetchedAt time.Time
 
 	mu                  sync.RWMutex
-	stateWaiters        []chan apiclient.SandboxState
+	stateWaiters        []chan stateUpdate
 	subscriptionManager *common.EventSubscriptionManager
 	subID               string
 
@@ -591,13 +591,17 @@ func (s *Sandbox) unsubscribe() {
 	}
 }
 
-// errorStateError reports a wait that ended in an error state, with the sandbox's error reason.
-func (s *Sandbox) errorStateError(state apiclient.SandboxState) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+// stateUpdate is a state change as seen by a waiting call, with the error reason that came with it.
+type stateUpdate struct {
+	state       apiclient.SandboxState
+	errorReason *string
+}
+
+// errorStateError reports a wait that ended in an error state.
+func errorStateError(state apiclient.SandboxState, errorReason *string) error {
 	reason := ""
-	if s.ErrorReason != nil {
-		reason = *s.ErrorReason
+	if errorReason != nil {
+		reason = *errorReason
 	}
 	return fmt.Errorf("sandbox entered error state: %s, error reason: %s", state, reason)
 }
@@ -624,17 +628,18 @@ func (s *Sandbox) applyStateLocked(newState apiclient.SandboxState) {
 	}
 
 	s.State = newState
+	update := stateUpdate{state: newState, errorReason: s.ErrorReason}
 
 	for _, waiter := range s.stateWaiters {
 		select {
-		case waiter <- newState:
+		case waiter <- update:
 		default:
 			select {
 			case <-waiter:
 			default:
 			}
 			select {
-			case waiter <- newState:
+			case waiter <- update:
 			default:
 			}
 		}
@@ -675,7 +680,7 @@ func (s *Sandbox) waitForState(
 	s.ensureSubscribed()
 	subscribed := s.hasActiveSubscription()
 
-	stateCh := make(chan apiclient.SandboxState, 1)
+	stateCh := make(chan stateUpdate, 1)
 	s.mu.Lock()
 	s.stateWaiters = append(s.stateWaiters, stateCh)
 	s.mu.Unlock()
@@ -716,7 +721,7 @@ func (s *Sandbox) waitForState(
 			}
 		}
 		s.mu.RLock()
-		st := s.State
+		st, reason := s.State, s.ErrorReason
 		s.mu.RUnlock()
 		if containsSandboxState(targetStates, st) {
 			return true, nil
@@ -725,7 +730,7 @@ func (s *Sandbox) waitForState(
 			return true, err
 		}
 		if containsSandboxState(errorStates, st) {
-			return true, s.errorStateError(st)
+			return true, errorStateError(st, reason)
 		}
 		return false, nil
 	}
@@ -756,14 +761,15 @@ func (s *Sandbox) waitForState(
 				return err
 			}
 			return ctx.Err()
-		case newState := <-stateCh:
+		case update := <-stateCh:
+			newState := update.state
 			if newState == apiclient.SANDBOXSTATE_DESTROYED {
 				if err := s.destroyedLifecycleError(targetStates); err != nil {
 					return err
 				}
 			}
 			if containsSandboxState(errorStates, newState) {
-				return s.errorStateError(newState)
+				return errorStateError(newState, update.errorReason)
 			}
 			if containsSandboxState(targetStates, newState) {
 				return nil

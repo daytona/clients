@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import threading
 import warnings
 from unittest.mock import MagicMock
 
@@ -254,12 +253,14 @@ class TestSandboxWaitForStart:
     def test_error_event_reports_its_reason(self, mock_toolbox_api_client, mock_sandbox_api):
         starting = make_sandbox_dto(state=SandboxState.STARTING)
         sandbox = make_sandbox(starting, mock_toolbox_api_client, mock_sandbox_api)
-        mock_sandbox_api.get_sandbox.return_value = starting
-        timer = threading.Timer(0.05, sandbox._handle_event, ("sandbox.state.updated", error_event("disk full")))
-        timer.start()
+
+        def poll_overtaken_by_the_event(*_args, **_kwargs):
+            sandbox._handle_event("sandbox.state.updated", error_event("disk full"))
+            return starting
+
+        mock_sandbox_api.get_sandbox.side_effect = poll_overtaken_by_the_event
         with pytest.raises(DaytonaError, match="error reason: disk full"):
             sandbox.wait_for_sandbox_start(timeout=10)
-        timer.join()
 
     def test_state_event_without_reason_clears_it(self, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = make_sandbox(

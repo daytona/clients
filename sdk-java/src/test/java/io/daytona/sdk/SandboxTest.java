@@ -719,26 +719,21 @@ class SandboxTest {
 
     @Test
     void waitUntilStartedReportsTheErrorReasonCarriedByTheStateEvent() throws Exception {
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTING));
-        TestSupport.setField(sandbox, "state", "starting");
         JsonNode event = new ObjectMapper().readTree("{\"sandbox\": {\"id\": \"sb-1\", \"state\": \"error\", "
                 + "\"desiredState\": \"started\", \"errorReason\": \"disk full\"}, "
                 + "\"oldState\": \"starting\", \"newState\": \"error\"}");
         Method handleEvent = Sandbox.class.getDeclaredMethod("handleEvent", String.class, JsonNode.class);
         handleEvent.setAccessible(true);
-        Thread sender = new Thread(() -> {
-            try {
-                Thread.sleep(100);
-                handleEvent.invoke(sandbox, "sandbox.state.updated", event);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        // The event arrives while a poll is in flight; the poll then returns the earlier state.
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenAnswer(invocation -> {
+            handleEvent.invoke(sandbox, "sandbox.state.updated", event);
+            TestSupport.setField(sandbox, "errorReason", null);
+            return TestSupport.mainSandbox("sb-1", SandboxState.STARTING);
         });
-        sender.start();
+        TestSupport.setField(sandbox, "state", "starting");
 
         assertThatThrownBy(() -> sandbox.waitUntilStarted(10))
                 .hasMessage("Sandbox sb-1 entered error state: error, error reason: disk full");
-        sender.join();
     }
 
     @Test

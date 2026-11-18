@@ -1028,9 +1028,9 @@ func TestSandboxUpdateEnv(t *testing.T) {
 	assert.NotContains(t, body, "unsetValuePrefix")
 }
 
-func TestStateEventCarriesTheErrorReason(t *testing.T) {
+func TestStateUpdateKeepsTheErrorReasonOfItsEvent(t *testing.T) {
 	sandbox := newSandboxForTest(nil, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
-	stateCh := make(chan apiclient.SandboxState, 1)
+	stateCh := make(chan stateUpdate, 1)
 	sandbox.mu.Lock()
 	sandbox.stateWaiters = append(sandbox.stateWaiters, stateCh)
 	sandbox.mu.Unlock()
@@ -1043,10 +1043,20 @@ func TestStateEventCarriesTheErrorReason(t *testing.T) {
 			NewState: apiclient.SANDBOXSTATE_ERROR,
 		},
 	})
+	// A refresh that lands before the waiting call reads the update replaces the sandbox's reason.
+	sandbox.mu.Lock()
+	sandbox.ErrorReason = nil
+	sandbox.mu.Unlock()
 
-	require.Equal(t, apiclient.SANDBOXSTATE_ERROR, <-stateCh)
-	assert.EqualError(t, sandbox.errorStateError(apiclient.SANDBOXSTATE_ERROR),
+	update := <-stateCh
+	assert.EqualError(t, errorStateError(update.state, update.errorReason),
 		"sandbox entered error state: error, error reason: disk full")
+}
+
+func TestStateEventWithoutAnErrorReasonClearsIt(t *testing.T) {
+	reason := "transient"
+	sandbox := newSandboxForTest(nil, "sb", "sandbox", apiclient.SANDBOXSTATE_ERROR, "us", 0, -1, false, nil)
+	sandbox.ErrorReason = &reason
 
 	sandbox.handleEvent(common.SandboxEvent{
 		Type: common.SandboxEventStateUpdated,
@@ -1055,6 +1065,7 @@ func TestStateEventCarriesTheErrorReason(t *testing.T) {
 			NewState: apiclient.SANDBOXSTATE_STARTED,
 		},
 	})
+
 	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.currentState())
 	assert.Nil(t, sandbox.ErrorReason)
 }

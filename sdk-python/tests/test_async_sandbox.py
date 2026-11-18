@@ -275,10 +275,12 @@ class TestAsyncSandboxWaitForStart:
     async def test_error_event_reports_its_reason(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
         starting = make_sandbox_dto(state=SandboxState.STARTING)
         sandbox = make_async_sandbox(starting, mock_async_toolbox_api_client, mock_async_sandbox_api)
-        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=starting)
-        asyncio.get_running_loop().call_later(
-            0.02, sandbox._handle_event, "sandbox.state.updated", error_event("disk full")
-        )
+
+        async def poll_overtaken_by_the_event(*_args, **_kwargs):
+            sandbox._handle_event("sandbox.state.updated", error_event("disk full"))
+            return starting
+
+        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=poll_overtaken_by_the_event)
         with pytest.raises(DaytonaError, match="error reason: disk full"):
             await sandbox.wait_for_sandbox_start(timeout=10)
 

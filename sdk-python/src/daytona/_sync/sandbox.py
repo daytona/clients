@@ -1445,9 +1445,11 @@ class Sandbox(SandboxDto):
         state_resolved = threading.Event()
         resolve_lock = threading.Lock()
         result_state: SandboxState | None = None
+        # The reason that came with result_state; a refresh still in flight may replace self.error_reason after.
+        result_reason: str | None = None
 
         def _waiter(state: SandboxState | None) -> None:
-            nonlocal result_state
+            nonlocal result_state, result_reason
             if state is None or (state not in target_states and state not in error_states):
                 return
 
@@ -1456,6 +1458,7 @@ class Sandbox(SandboxDto):
                     return
 
                 result_state = state
+                result_reason = self.error_reason
                 state_resolved.set()
 
         with self._state_waiters_lock:
@@ -1488,7 +1491,7 @@ class Sandbox(SandboxDto):
 
             if result_state in error_states:
                 raise DaytonaError(
-                    f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
+                    f"Sandbox {self.id} entered error state: {result_state}, error reason: {result_reason}"
                 )
         except Exception as exc:
             # Parity with main: complete one final refresh-then-evaluate before
@@ -1507,7 +1510,7 @@ class Sandbox(SandboxDto):
                 if state_resolved.is_set():
                     if result_state in error_states:
                         message = (
-                            f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
+                            f"Sandbox {self.id} entered error state: {result_state}, error reason: {result_reason}"
                         )
                         raise DaytonaError(message) from exc
                     return  # Target state reached — suppress the timeout
