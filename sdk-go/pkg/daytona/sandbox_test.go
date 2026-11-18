@@ -1028,29 +1028,27 @@ func TestSandboxUpdateEnv(t *testing.T) {
 	assert.NotContains(t, body, "unsetValuePrefix")
 }
 
-func TestStateUpdateKeepsTheErrorReasonOfItsEvent(t *testing.T) {
-	sandbox := newSandboxForTest(nil, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
-	stateCh := make(chan stateUpdate, 1)
-	sandbox.mu.Lock()
-	sandbox.stateWaiters = append(sandbox.stateWaiters, stateCh)
-	sandbox.mu.Unlock()
-
+// The error event arrives while a poll is in flight; the poll then returns the earlier state and no reason.
+func TestWaitForStateReportsTheErrorReasonCarriedByTheStateEvent(t *testing.T) {
+	var sandbox *Sandbox
 	reason := "disk full"
-	sandbox.handleEvent(common.SandboxEvent{
-		Type: common.SandboxEventStateUpdated,
-		StateEvent: &common.SandboxStateEvent{
-			Sandbox:  apiclient.Sandbox{Id: "sb", ErrorReason: &reason},
-			NewState: apiclient.SANDBOXSTATE_ERROR,
-		},
-	})
-	// A refresh that lands before the waiting call reads the update replaces the sandbox's reason.
-	sandbox.mu.Lock()
-	sandbox.ErrorReason = nil
-	sandbox.mu.Unlock()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sandbox.handleEvent(common.SandboxEvent{
+			Type: common.SandboxEventStateUpdated,
+			StateEvent: &common.SandboxStateEvent{
+				Sandbox:  apiclient.Sandbox{Id: "sb", ErrorReason: &reason},
+				NewState: apiclient.SANDBOXSTATE_ERROR,
+			},
+		})
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTING))
+	}))
+	defer server.Close()
 
-	update := <-stateCh
-	assert.EqualError(t, errorStateError(update.state, update.errorReason),
-		"sandbox entered error state: error, error reason: disk full")
+	client := createTestClientWithServer(t, server)
+	sandbox = newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+
+	err := sandbox.doWaitForStart(context.Background(), 5*time.Second)
+	require.EqualError(t, err, "sandbox entered error state: error, error reason: disk full")
 }
 
 func TestStateEventWithoutAnErrorReasonClearsIt(t *testing.T) {

@@ -60,7 +60,7 @@ type Sandbox struct {
 	signingKeyFetchedAt time.Time
 
 	mu                  sync.RWMutex
-	stateWaiters        []chan stateUpdate
+	stateWaiters        []*stateWaiter
 	subscriptionManager *common.EventSubscriptionManager
 	subID               string
 
@@ -597,6 +597,14 @@ type stateUpdate struct {
 	errorReason *string
 }
 
+// stateWaiter delivers state updates to a waiting call. After an update that ends the wait is queued, later updates
+// are not sent: a refresh still in flight may apply an older state after it and must not replace it.
+type stateWaiter struct {
+	ch    chan stateUpdate
+	ends  func(apiclient.SandboxState) bool
+	ended bool
+}
+
 // errorStateError reports a wait that ended in an error state.
 func errorStateError(state apiclient.SandboxState, errorReason *string) error {
 	reason := ""
@@ -631,15 +639,19 @@ func (s *Sandbox) applyStateLocked(newState apiclient.SandboxState) {
 	update := stateUpdate{state: newState, errorReason: s.ErrorReason}
 
 	for _, waiter := range s.stateWaiters {
+		if waiter.ended {
+			continue
+		}
+		waiter.ended = waiter.ends(newState)
 		select {
-		case waiter <- update:
+		case waiter.ch <- update:
 		default:
 			select {
-			case <-waiter:
+			case <-waiter.ch:
 			default:
 			}
 			select {
-			case waiter <- update:
+			case waiter.ch <- update:
 			default:
 			}
 		}
@@ -680,16 +692,22 @@ func (s *Sandbox) waitForState(
 	s.ensureSubscribed()
 	subscribed := s.hasActiveSubscription()
 
-	stateCh := make(chan stateUpdate, 1)
+	waiter := &stateWaiter{
+		ch: make(chan stateUpdate, 1),
+		ends: func(st apiclient.SandboxState) bool {
+			return containsSandboxState(targetStates, st) || containsSandboxState(errorStates, st)
+		},
+	}
+	stateCh := waiter.ch
 	s.mu.Lock()
-	s.stateWaiters = append(s.stateWaiters, stateCh)
+	s.stateWaiters = append(s.stateWaiters, waiter)
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
-		for i, waiter := range s.stateWaiters {
-			if waiter == stateCh {
+		for i, w := range s.stateWaiters {
+			if w == waiter {
 				s.stateWaiters = append(s.stateWaiters[:i], s.stateWaiters[i+1:]...)
 				break
 			}
