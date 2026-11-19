@@ -463,6 +463,19 @@ environment inherited by processes, PTYs and sessions started afterwards.
 Running processes are unchanged; `unset` removes only values previously set
 through `updateEnv()`, not image-defined environment variables.
 
+### Secret search
+
+`daytona.v2.secrets.search(options)` searches secret metadata (never values).
+Filter with `q`, `name`, `namePrefix`, or `allowedDomain`; bound `createdAt`
+and `updatedAt` with `*StartAt` (inclusive) and `*EndAt` (exclusive). Use
+`sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
+for ordering and paging. The returned `SearchResult` includes `total` and
+`totalRelation` (`'eq'` for an exact count, `'gte'` for a lower bound).
+
+Search is eventually consistent. Use `daytona.v2.secrets.get(name)` when a
+secret must be visible immediately after a write. `secrets.list()` now reads
+search first and falls back to the list route only where search is not served.
+
 ### Attach and pull volumes
 
 ```ts
@@ -493,6 +506,18 @@ chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
 `type: 'bucket'`. Delete one by name with `await daytona.v2.volumes.delete('data')`, or by ID with
 `await daytona.v2.volumes.delete(volume.id, { idOnly: true })`. `{ idOnly: true }`
 accepts an ID only and turns off the name lookup.
+
+`daytona.v2.volumes.search(options)` filters with `q`, `name`, and
+`namePrefix`; `types` accepts `'disk'`, `'bucket'`, or an array (sent as a
+comma list), and `statuses` accepts `'ready'`, `'deleting'`, `'error'`, or an
+array. `imported` filters imported volumes. Created, updated, and last-used
+bounds use `*StartAt` (inclusive) and `*EndAt` (exclusive). Use `sort`
+(`created_at`, `updated_at`, `name`, `used_bytes`, or `last_used_at`), `order`,
+`limit`, and `cursor` for ordering and paging. The `SearchResult` carries
+`total` and `totalRelation` (`'eq'` for an exact count, `'gte'` for a lower
+bound). Search is eventually consistent, so use
+`volumes.get(nameOrId)` for read-your-writes. `volumes.list()` now reads search
+first and falls back to the list route only where search is not served.
 
 Pulling an attachment is separate from the `daytona.v2.volumes` management
 service. The volume ID is the attached volume's `vol_` ID or its UUID. IDs

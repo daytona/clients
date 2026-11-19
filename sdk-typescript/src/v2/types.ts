@@ -193,7 +193,7 @@ export interface FileSearchResult<T> extends ListResult<T> {
 }
 
 /**
- * One page of `GET /sandboxes/search` (`Daytona.search()`).
+ * One page returned by a resource `search()` method.
  *
  * `total` is exact when `totalRelation === 'eq'` and a lower bound when it is
  * `'gte'`.
