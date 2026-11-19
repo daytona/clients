@@ -11,7 +11,9 @@ from __future__ import annotations
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from network_policy_test_server import FakeApi, PlannedResponse
@@ -64,6 +66,23 @@ _SNAPSHOT = {
     "region_id": "r1",
     "region_ids": ["r1"],
 }
+_SECRET = {
+    "name": "TOKEN",
+    "allowed_domains": ["example.com"],
+    "description": "service token",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-02T00:00:00Z",
+    "cursor": "secret-cursor",
+}
+_VOLUME = {
+    "id": "vol_1",
+    "name": "data",
+    "type": "disk",
+    "status": "ready",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-02T00:00:00Z",
+    "cursor": "volume-cursor",
+}
 
 Call = Callable[[Any], Awaitable[Any]]
 
@@ -76,6 +95,7 @@ class _Case:
     item: dict[str, object]
     call: Call
     query: str
+    identity: str
 
 
 _CASES = {
@@ -86,6 +106,7 @@ _CASES = {
         _SANDBOX,
         lambda v2: v2.list(cursor="c1", limit=5),
         "?cursor=c1&limit=5",
+        "sbx",
     ),
     "images": _Case(
         "/images/search",
@@ -94,6 +115,7 @@ _CASES = {
         _IMAGE,
         lambda v2: v2.images.list(name="base", limit=5),
         "?limit=5&anonymous=false&name=base",
+        "img_1",
     ),
     "snapshots": _Case(
         "/snapshots/search",
@@ -102,8 +124,31 @@ _CASES = {
         _SNAPSHOT,
         lambda v2: v2.snapshots.list(sandbox_id="sbx", limit=5),
         "?limit=5&sandbox_id=sbx",
+        "snap_1",
+    ),
+    "secrets": _Case(
+        "/secrets/search",
+        "/secrets",
+        "secrets",
+        _SECRET,
+        lambda v2: v2.secrets.list(cursor="c1", limit=5),
+        "?cursor=c1&limit=5",
+        "TOKEN",
+    ),
+    "volumes": _Case(
+        "/volumes/search",
+        "/volumes",
+        "volumes",
+        _VOLUME,
+        lambda v2: v2.volumes.list(cursor="c1", limit=5),
+        "?cursor=c1&limit=5",
+        "vol_1",
     ),
 }
+
+
+def _identity(item: object) -> str:
+    return item.name if not hasattr(item, "id") else item.id
 
 
 def _error(code: str) -> dict[str, object]:
@@ -130,7 +175,7 @@ async def test_a_list_reads_the_search_route_where_search_is_served(case: _Case)
     body = {case.field: [case.item], "next_cursor": "n1", "total": 1, "total_relation": "eq"}
     page, paths = await _run([PlannedResponse(200, body)], case.call)
     assert paths == [case.search_path + case.query]
-    assert [item.id for item in page.items] == [case.item["id"]]
+    assert [_identity(item) for item in page.items] == [case.identity]
     assert page.next_cursor == "n1"
 
 
@@ -144,7 +189,7 @@ async def test_a_list_falls_back_to_the_list_route_where_search_is_not_served(
     ]
     page, paths = await _run(responses, case.call)
     assert paths == [case.search_path + case.query, case.list_path + case.query]
-    assert [item.id for item in page.items] == [case.item["id"]]
+    assert [_identity(item) for item in page.items] == [case.identity]
     assert page.next_cursor is None
 
 
@@ -179,7 +224,7 @@ async def test_a_client_remembers_a_deployment_without_search(case: _Case, statu
 
     page, paths = await _run(responses, twice)
     assert paths == [case.search_path + case.query, case.list_path + case.query, case.list_path + case.query]
-    assert [item.id for item in page.items] == [case.item["id"]]
+    assert [_identity(item) for item in page.items] == [case.identity]
 
 
 async def test_an_iter_walk_probes_search_once_without_search() -> None:
@@ -212,7 +257,113 @@ async def test_a_503_is_not_remembered(case: _Case) -> None:
 
     page, paths = await _run(responses, twice)
     assert paths == [case.search_path + case.query, case.search_path + case.query]
-    assert [item.id for item in page.items] == [case.item["id"]]
+    assert [_identity(item) for item in page.items] == [case.identity]
+
+
+async def test_secret_search_sends_every_filter_and_returns_totals() -> None:
+    body = {"secrets": [_SECRET], "next_cursor": "next", "total": 1, "total_relation": "eq"}
+    page, paths = await _run(
+        [PlannedResponse(200, body)],
+        lambda v2: v2.secrets.search(
+            q="token",
+            name="TOKEN",
+            name_prefix="TOK",
+            allowed_domain="example.com",
+            created_start_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_end_at="2026-02-01T00:00:00Z",
+            updated_start_at="2026-01-02T00:00:00Z",
+            updated_end_at="2026-02-02T00:00:00Z",
+            sort="updated_at",
+            order="desc",
+            limit=5,
+            cursor="cursor",
+        ),
+    )
+    request = urlsplit(paths[0])
+    assert request.path == "/secrets/search"
+    assert parse_qs(request.query) == {
+        "q": ["token"],
+        "name": ["TOKEN"],
+        "name_prefix": ["TOK"],
+        "allowed_domain": ["example.com"],
+        "created_start_at": ["2026-01-01T00:00:00Z"],
+        "created_end_at": ["2026-02-01T00:00:00Z"],
+        "updated_start_at": ["2026-01-02T00:00:00Z"],
+        "updated_end_at": ["2026-02-02T00:00:00Z"],
+        "sort": ["updated_at"],
+        "order": ["desc"],
+        "cursor": ["cursor"],
+        "limit": ["5"],
+    }
+    assert (page.items[0].name, page.next_cursor, page.total, page.total_relation) == (
+        "TOKEN",
+        "next",
+        1,
+        "eq",
+    )
+
+
+async def test_volume_search_sends_every_filter_and_returns_totals() -> None:
+    body = {"volumes": [_VOLUME], "next_cursor": None, "total": 1, "total_relation": "gte"}
+    page, paths = await _run(
+        [PlannedResponse(200, body)],
+        lambda v2: v2.volumes.search(
+            q="data",
+            name="data",
+            name_prefix="da",
+            types=["disk", "bucket"],
+            statuses=["ready", "error"],
+            imported=False,
+            created_start_at="2026-01-01T00:00:00Z",
+            created_end_at="2026-02-01T00:00:00Z",
+            updated_start_at="2026-01-02T00:00:00Z",
+            updated_end_at="2026-02-02T00:00:00Z",
+            last_used_start_at="2026-01-03T00:00:00Z",
+            last_used_end_at="2026-02-03T00:00:00Z",
+            sort="used_bytes",
+            order="asc",
+            limit=5,
+            cursor="cursor",
+        ),
+    )
+    request = urlsplit(paths[0])
+    assert request.path == "/volumes/search"
+    assert parse_qs(request.query) == {
+        "q": ["data"],
+        "name": ["data"],
+        "name_prefix": ["da"],
+        "type": ["disk,bucket"],
+        "status": ["ready,error"],
+        "imported": ["false"],
+        "created_start_at": ["2026-01-01T00:00:00Z"],
+        "created_end_at": ["2026-02-01T00:00:00Z"],
+        "updated_start_at": ["2026-01-02T00:00:00Z"],
+        "updated_end_at": ["2026-02-02T00:00:00Z"],
+        "last_used_start_at": ["2026-01-03T00:00:00Z"],
+        "last_used_end_at": ["2026-02-03T00:00:00Z"],
+        "sort": ["used_bytes"],
+        "order": ["asc"],
+        "cursor": ["cursor"],
+        "limit": ["5"],
+    }
+    assert (page.items[0].id, page.next_cursor, page.total, page.total_relation) == (
+        "vol_1",
+        None,
+        1,
+        "gte",
+    )
+
+
+@pytest.mark.parametrize("name", ["secrets", "volumes"])
+async def test_a_200_non_page_from_an_older_item_route_falls_back(name: str) -> None:
+    case = _CASES[name]
+    responses = [
+        PlannedResponse(200, case.item),
+        PlannedResponse(200, {case.field: [case.item], "next_cursor": None}),
+    ]
+    page, paths = await _run(responses, case.call)
+    assert paths == [case.search_path + case.query, case.list_path + case.query]
+    assert [_identity(item) for item in page.items] == [case.identity]
 
 
 def test_the_sync_client_remembers_a_deployment_without_search() -> None:
@@ -240,6 +391,23 @@ async def test_search_cannot_be_looked_up_by_name(service: str, kind: str) -> No
     assert str(error) == (
         f"'search' cannot be looked up by name; it is reserved for the search route — use the {kind} ID"
     )
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda v2: v2.secrets.get("search"),
+        lambda v2: v2.secrets.set("search", "value", allowed_domains=["example.com"]),
+        lambda v2: v2.volumes.get("search"),
+        lambda v2: v2.volumes.create(name="search"),
+    ],
+)
+async def test_search_is_refused_as_a_secret_or_volume_name(call: Call) -> None:
+    error, paths = await _run([], call)
+    assert paths == []
+    assert isinstance(error, BadRequestError)
+    assert (error.status_code, error.code, error.source) == (400, "BAD_REQUEST", "SDK")
+    assert "reserved for the search route" in str(error)
 
 
 @pytest.mark.parametrize("service", ["images", "snapshots"])

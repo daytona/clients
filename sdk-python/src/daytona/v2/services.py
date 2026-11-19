@@ -17,6 +17,7 @@ from typing import (
     Sequence,
     Tuple,
     TypeVar,
+    Union,
 )
 
 import anyio
@@ -42,6 +43,7 @@ from ._core import (
     INT32_MAX,
     RequestSpec,
     TransportPayload,
+    _comma_list,
     _expect_model_from_dict,
     checked_seconds,
     enum_str,
@@ -50,14 +52,17 @@ from ._core import (
     json_object_from_mapping,
     optional_query_text,
     page_params,
+    parse_search_page,
     parse_snapshot,
     path_segment,
     region_selector,
+    search_timestamp,
     wait_budget_seconds,
 )
 from ._gen.api import MacReservation as MacReservationWire
 from ._gen.api import MacReservationBatch as MacReservationBatchWire
-from ._gen.api import ReservationPage
+from ._gen.api import ReservationPage, SecretSearchListItem, VolumeSearchListItem
+from ._gen.api import Secret as SecretWire
 from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
 from ._image_context import prepared_context
@@ -81,10 +86,16 @@ from .types import (
     MacReservationEndReason,
     MacReservationOrigin,
     MacReservationStatus,
+    SearchOrder,
+    SearchResult,
+    SearchTimestamp,
     Secret,
+    SecretSearchSort,
     Snapshot,
     UpdateReservationRequest,
     Volume,
+    VolumeSearchSort,
+    VolumeSearchStatus,
     VolumeState,
     VolumeType,
 )
@@ -470,7 +481,11 @@ class _SearchProbe:
 
 
 async def _search_or_list(
-    transport: AsyncTransport, search: RequestSpec, fallback: RequestSpec, probe: _SearchProbe
+    transport: AsyncTransport,
+    search: RequestSpec,
+    fallback: RequestSpec,
+    probe: _SearchProbe,
+    page_field: Optional[str] = None,
 ) -> TransportPayload:
     """One page from the ``search`` route, or from ``fallback`` (the plain list
     route, same query) where search is not served.
@@ -489,7 +504,12 @@ async def _search_or_list(
     remembered = probe.not_served
     if not remembered:
         try:
-            return await transport.send(search)
+            response = await transport.send(search)
+            if page_field is None or (
+                isinstance(response, dict) and isinstance(response.get(page_field), list)
+            ):
+                return response
+            probe.not_served = True
         except DaytonaError as error:
             if not _search_not_served(error):
                 raise
@@ -529,6 +549,56 @@ def _search_not_served(error: DaytonaError) -> bool:
     if error.status_code == 404:
         return True
     return error.status_code == 501 and error.code == "SEARCH_NOT_CONFIGURED"
+
+
+def _refuse_resource_search_name(ref: str, kind: str) -> None:
+    if ref == "search":
+        raise create_error(
+            f"'search' cannot be used as a {kind} name; it is reserved for the search route",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+
+
+def _resource_search_params(
+    *,
+    q: Optional[str],
+    name: Optional[str],
+    name_prefix: Optional[str],
+    created_start_at: Optional[SearchTimestamp],
+    created_end_at: Optional[SearchTimestamp],
+    updated_start_at: Optional[SearchTimestamp],
+    updated_end_at: Optional[SearchTimestamp],
+    sort: Optional[str],
+    order: Optional[SearchOrder],
+    cursor: Optional[str],
+    limit: Optional[int],
+    sort_choices: Tuple[str, ...],
+) -> Dict[str, JsonValue]:
+    params: Dict[str, JsonValue] = {}
+    for wire_name, value in (("q", q), ("name", name), ("name_prefix", name_prefix)):
+        selected = optional_query_text(value, wire_name)
+        if selected is not None:
+            params[wire_name] = selected
+    for wire_name, value in (
+        ("created_start_at", created_start_at),
+        ("created_end_at", created_end_at),
+        ("updated_start_at", updated_start_at),
+        ("updated_end_at", updated_end_at),
+    ):
+        if value is not None:
+            params[wire_name] = search_timestamp(value)
+    if sort is not None:
+        if sort not in sort_choices:
+            raise create_error(f"sort must be one of {', '.join(sort_choices)}", 400, "BAD_REQUEST", "SDK")
+        params["sort"] = sort
+    if order is not None:
+        if order not in ("asc", "desc"):
+            raise create_error("order must be one of asc, desc", 400, "BAD_REQUEST", "SDK")
+        params["order"] = order
+    params.update(page_params(cursor, limit))
+    return params
 
 
 _ARTIFACT_LONGPOLL_MAX_MS = 60_000
@@ -717,6 +787,7 @@ class AsyncVolumesService:
 
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
+        self._search_probe = _SearchProbe()
 
     async def list(
         self,
@@ -724,7 +795,7 @@ class AsyncVolumesService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> ListResult[Volume]:
-        """List volumes."""
+        """List volumes through search, falling back where search is not served."""
         return await self._list_page(cursor=cursor, limit=limit)
 
     async def _list_page(
@@ -734,9 +805,84 @@ class AsyncVolumesService:
         limit: Optional[int] = None,
     ) -> ListResult[Volume]:
         params: Dict[str, JsonValue] = page_params(cursor, limit)
-        response = await self._transport.send(RequestSpec("GET", "/volumes", params=params))
+        response = await _search_or_list(
+            self._transport,
+            RequestSpec("GET", "/volumes/search", params=params),
+            RequestSpec("GET", "/volumes", params=params),
+            self._search_probe,
+            "volumes",
+        )
         page = expect_list_volumes_resp(response)
         return ListResult(items=[_volume(volume) for volume in page.volumes], next_cursor=page.next_cursor)
+
+    async def search(
+        self,
+        *,
+        q: Optional[str] = None,
+        name: Optional[str] = None,
+        name_prefix: Optional[str] = None,
+        types: Optional[Union[Literal["disk", "bucket"], Sequence[Literal["disk", "bucket"]]]] = None,
+        statuses: Optional[Union[VolumeSearchStatus, Sequence[VolumeSearchStatus]]] = None,
+        imported: Optional[bool] = None,
+        created_start_at: Optional[SearchTimestamp] = None,
+        created_end_at: Optional[SearchTimestamp] = None,
+        updated_start_at: Optional[SearchTimestamp] = None,
+        updated_end_at: Optional[SearchTimestamp] = None,
+        last_used_start_at: Optional[SearchTimestamp] = None,
+        last_used_end_at: Optional[SearchTimestamp] = None,
+        sort: Optional[VolumeSearchSort] = None,
+        order: Optional[SearchOrder] = None,
+        cursor: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> SearchResult[Volume]:
+        """Search volumes with server-side filters and cursor pagination."""
+        params = _resource_search_params(
+            q=q,
+            name=name,
+            name_prefix=name_prefix,
+            created_start_at=created_start_at,
+            created_end_at=created_end_at,
+            updated_start_at=updated_start_at,
+            updated_end_at=updated_end_at,
+            sort=sort,
+            order=order,
+            cursor=cursor,
+            limit=limit,
+            sort_choices=("created_at", "updated_at", "name", "used_bytes", "last_used_at"),
+        )
+        if types is not None:
+            selected_types = _comma_list("types", types)
+            if any(item not in ("disk", "bucket") for item in selected_types.split(",")):
+                raise create_error("types entries must be disk or bucket", 400, "BAD_REQUEST", "SDK")
+            params["type"] = selected_types
+        if statuses is not None:
+            selected_statuses = _comma_list("statuses", statuses)
+            if any(item not in ("ready", "deleting", "error") for item in selected_statuses.split(",")):
+                raise create_error(
+                    "statuses entries must be ready, deleting or error", 400, "BAD_REQUEST", "SDK"
+                )
+            params["status"] = selected_statuses
+        if imported is not None:
+            if not isinstance(imported, bool):
+                raise create_error("imported must be a boolean", 400, "BAD_REQUEST", "SDK")
+            params["imported"] = "true" if imported else "false"
+        for wire_name, value in (
+            ("last_used_start_at", last_used_start_at),
+            ("last_used_end_at", last_used_end_at),
+        ):
+            if value is not None:
+                params[wire_name] = search_timestamp(value)
+        response = await self._transport.send(RequestSpec("GET", "/volumes/search", params=params))
+        items, next_cursor, total, relation, raw_relation = parse_search_page(
+            response, VolumeSearchListItem.model_validate, "volumes"
+        )
+        return SearchResult(
+            items=[_volume(VolumeWire.model_validate(item)) for item in items],
+            next_cursor=next_cursor,
+            total=total,
+            total_relation=relation,
+            raw_total_relation=raw_relation,
+        )
 
     async def iter(
         self,
@@ -755,6 +901,7 @@ class AsyncVolumesService:
 
     async def get(self, name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume:
         """Fetch by id or name; ``id_only`` disables name fallback."""
+        _refuse_resource_search_name(name_or_id, "volume")
         path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         # A truthy string must never act as True (it would create a volume).
         for flag, value in (("create", create), ("id_only", id_only)):
@@ -782,6 +929,7 @@ class AsyncVolumesService:
         """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        _refuse_resource_search_name(name, "volume")
         if type is not None and type not in _VOLUME_CREATE_TYPES:
             raise create_error(
                 f"type must be one of {', '.join(_VOLUME_CREATE_TYPES)}", 400, "BAD_REQUEST", "SDK"
@@ -1144,11 +1292,18 @@ class AsyncSecretsService:
 
     def __init__(self, _transport: AsyncTransport) -> None:
         self._transport = _transport
+        self._search_probe = _SearchProbe()
 
     async def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Secret]:
-        """List secret metadata."""
+        """List secret metadata through search, falling back where search is not served."""
         params: Dict[str, JsonValue] = page_params(cursor, limit)
-        response = await self._transport.send(RequestSpec("GET", "/secrets", params=params))
+        response = await _search_or_list(
+            self._transport,
+            RequestSpec("GET", "/secrets/search", params=params),
+            RequestSpec("GET", "/secrets", params=params),
+            self._search_probe,
+            "secrets",
+        )
         payload = expect_list_secrets_resp(response)
         return ListResult(
             items=[secret_from_wire(item) for item in payload.secrets], next_cursor=payload.next_cursor
@@ -1160,8 +1315,54 @@ class AsyncSecretsService:
         async for item in _iter_pages(lambda next_cursor: self.list(cursor=next_cursor, limit=limit), cursor):
             yield item
 
+    async def search(
+        self,
+        *,
+        q: Optional[str] = None,
+        name: Optional[str] = None,
+        name_prefix: Optional[str] = None,
+        allowed_domain: Optional[str] = None,
+        created_start_at: Optional[SearchTimestamp] = None,
+        created_end_at: Optional[SearchTimestamp] = None,
+        updated_start_at: Optional[SearchTimestamp] = None,
+        updated_end_at: Optional[SearchTimestamp] = None,
+        sort: Optional[SecretSearchSort] = None,
+        order: Optional[SearchOrder] = None,
+        cursor: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> SearchResult[Secret]:
+        """Search secret metadata (never values) with server-side filters."""
+        params = _resource_search_params(
+            q=q,
+            name=name,
+            name_prefix=name_prefix,
+            created_start_at=created_start_at,
+            created_end_at=created_end_at,
+            updated_start_at=updated_start_at,
+            updated_end_at=updated_end_at,
+            sort=sort,
+            order=order,
+            cursor=cursor,
+            limit=limit,
+            sort_choices=("name", "created_at", "updated_at"),
+        )
+        if allowed_domain is not None:
+            params["allowed_domain"] = optional_query_text(allowed_domain, "allowed_domain")
+        response = await self._transport.send(RequestSpec("GET", "/secrets/search", params=params))
+        items, next_cursor, total, relation, raw_relation = parse_search_page(
+            response, SecretSearchListItem.model_validate, "secrets"
+        )
+        return SearchResult(
+            items=[secret_from_wire(SecretWire.model_validate(item)) for item in items],
+            next_cursor=next_cursor,
+            total=total,
+            total_relation=relation,
+            raw_total_relation=raw_relation,
+        )
+
     async def get(self, name: str, /) -> Secret:
         """Fetch one secret's metadata (never its value)."""
+        _refuse_resource_search_name(name, "secret")
         return expect_secret(
             await self._transport.send(RequestSpec("GET", f"/secrets/{_path(name, 'name')}"))
         )
@@ -1187,6 +1388,7 @@ class AsyncSecretsService:
         error from it other than not-found fails the call; no read with
         ``if_not_exists=True``); ``""`` clears it.
         """
+        _refuse_resource_search_name(name, "secret")
         path = f"/secrets/{_path(name, 'name')}"
         if not isinstance(value, str):
             raise create_error("value must be a string", 400, "BAD_REQUEST", "SDK")
