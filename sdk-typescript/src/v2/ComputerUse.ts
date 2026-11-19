@@ -71,13 +71,14 @@ export class ComputerUseService {
    * `BadRequestError`. Starting a running desktop with different settings
    * throws `ConflictError`; use restart instead. Windows and macOS refuse
    * either setting with `UnsupportedOperationError`, as does a system layer
-   * without GNOME when it is requested. Environment alone adds no read-back
-   * request. With a `resolution`, the
-   * SDK reads back the size the desktop runs at and throws
-   * `UnsupportedOperationError` when it differs: a guest that predates
-   * resolution selection ignores it, and the desktop keeps running at its own.
-   * If that read itself fails, its error is thrown although the start took
-   * effect; starting again at the same resolution is a no-op.
+   * without GNOME when it is requested. With either setting, the SDK reads
+   * status once and throws `UnsupportedOperationError` if the environment is
+   * absent or differs, or the resolution differs (falling back to display info
+   * when status has no resolution). A guest with resolution selection but
+   * without environment selection refuses `environment` with 422
+   * `UnprocessableEntityError`; older guests ignore the body and start XFCE.
+   * If a read fails, its error is thrown although the start took effect;
+   * starting again with the same settings is a no-op.
    */
   public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
     return this.lifecycle.start(options)
@@ -96,8 +97,8 @@ export class ComputerUseService {
    * unsupported settings throw `BadRequestError`. Windows and macOS refuse
    * either setting with `UnsupportedOperationError`, as does a system layer
    * without GNOME when it is requested. A concurrent restart with different
-   * settings throws `ConflictError`. With a `resolution`, the SDK reads it
-   * back as `start()` does; environment alone adds no read-back request.
+   * settings throws `ConflictError`. With either setting, the SDK confirms it
+   * as `start()` does, sharing one status read.
    */
   public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
     return this.lifecycle.restart(options)
