@@ -34,7 +34,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class DesktopSettings(BaseModel):
     """
-    Concrete create-time desktop settings. This records the request, not the live guest state exposed by GET /computeruse/status.
+    Concrete create-time desktop settings. This records the request, not the live guest state; GET /computeruse/display/info reports the live display size.
     """ # noqa: E501
     environment: DesktopEnvironment
     resolution: DesktopResolution

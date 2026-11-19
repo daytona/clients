@@ -34,7 +34,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class DesktopConfig(BaseModel):
     """
-    Resolved settings for an enabled Linux desktop; an older `{}` selects XFCE 1280×720.
+    Desktop settings. Omit a member for its default: xfce, 1280×720.
     """ # noqa: E501
     environment: Optional[DesktopEnvironment] = None
     resolution: Optional[DesktopResolution] = None
