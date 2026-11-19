@@ -7684,6 +7684,14 @@ def test_source_and_code_dispatch_precedes_generic_and_status_fallback():
         parse_error_payload(503, {"code": "SERVICE_UNAVAILABLE", "message": "down", "source": "DAYTONA_API"}),
         ServiceUnavailableError,
     )
+    for status, code, cls in (
+        (403, "SANDBOX_ABUSE_HOLD", ForbiddenError),
+        (403, "GPU_ACCESS_UNDER_REVIEW", ForbiddenError),
+        (409, "MEMBERSHIP_EDITS_FROZEN", ConflictError),
+    ):
+        err = parse_error_payload(status, {"code": code, "message": "refused", "source": "DAYTONA_API"})
+        assert type(err) is cls
+        assert err.code == code
 
 
 def test_error_field_is_read_as_message_but_never_promoted_to_a_code():
