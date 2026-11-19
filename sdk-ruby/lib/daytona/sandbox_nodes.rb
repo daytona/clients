@@ -197,7 +197,7 @@ module Daytona
 
         warning = yield
         @warning_mutex.synchronize do
-          next unless incarnation == current
+          return '' unless incarnation == current
 
           @rdma_warning = warning
           @rdma_incarnation = current

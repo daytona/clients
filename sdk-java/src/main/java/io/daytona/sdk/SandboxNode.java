@@ -75,6 +75,7 @@ public final class SandboxNode {
                         io.daytona.toolbox.client.model.ExecuteResponse.class);
                 warning = probe.getExitCode() == 0 ? null : RDMA_WARNING;
             } catch (RuntimeException e) {
+                if (Thread.currentThread().isInterrupted()) return;
                 warning = "WARNING: Could not check RDMA userspace; continuing without verification.";
             }
             synchronized (this) {

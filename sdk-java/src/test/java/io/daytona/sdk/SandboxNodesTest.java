@@ -207,6 +207,23 @@ class SandboxNodesTest {
         }
     }
 
+    @Test void interruptedRdmaProbeIsRetriedForTheSameIncarnation() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            SandboxNode worker = sandbox(mock(SandboxApi.class), dto(server.url("/toolbox").toString(), 2, 1)).getNodes().get(1);
+            try {
+                Thread.currentThread().interrupt();
+                worker.checkRdma();
+            } finally {
+                Thread.interrupted();
+            }
+            assertThat(worker.getWarnings()).isEmpty();
+            server.enqueue(json("{\"exitCode\":0,\"result\":\"\"}"));
+            worker.checkRdma();
+            assertThat(server.getRequestCount()).isEqualTo(1);
+            assertThat(worker.getWarnings()).isEmpty();
+        }
+    }
+
     @Test void cleanupFailurePreservesSuccessfulCommandsAndAddsWarnings() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             AtomicInteger probes = new AtomicInteger();

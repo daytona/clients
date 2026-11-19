@@ -159,6 +159,22 @@ RSpec.describe Daytona::SandboxNodes do
     expect(results.values.map(&:result)).to all(include('WARNING:', 'ok'))
   end
 
+  it 'discards a probe warning when the worker is replaced during the request' do
+    sessions
+    worker = sandbox.nodes[1]
+    updated = gang
+    updated.nodes[1].incarnation = 2
+    probe = stub_request(:post, "#{base}/worker-1/process/execute").to_return do
+      sandbox.nodes.send(:update, updated)
+      { body: '{"exitCode":1,"result":""}', headers: { 'Content-Type' => 'application/json' } }
+    end
+
+    expect(sandbox.nodes.process.exec(command: 'echo ok')[1].result).to eq('ok')
+    expect(worker.warnings).to be_empty
+    expect(sandbox.nodes.process.exec(command: 'echo ok')[1].result).to include('WARNING:')
+    expect(probe).to have_been_requested.twice
+  end
+
   it 'reuses the probe until a replacement and preserves the successful rank on partial failure' do
     sessions
     sandbox.nodes.process.exec(command: 'first')
