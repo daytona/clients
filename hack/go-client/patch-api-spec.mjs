@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Go's released SandboxAPI interface and exported struct layouts are part of its source API.
-// Exclude the deferred multi-node feature until Go has a compatible representation.
+// Generate membership operations separately and keep their metadata outside legacy structs.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -16,31 +16,36 @@ for (const route of [
   '/sandbox/{sandboxIdOrName}/nodes/remove',
   '/sandbox/{sandboxIdOrName}/nodes/{rank}/replace',
 ]) {
-  delete spec.paths[route]
+  for (const operation of Object.values(spec.paths[route])) {
+    operation.tags = ['Sandbox Membership']
+  }
+}
+
+const membershipFields = [
+  'degraded',
+  'headSandboxId',
+  'incarnation',
+  'nodeCount',
+  'nodeRank',
+  'nodes',
+  'topologyGeneration',
+]
+schemas.SandboxMembershipDetails = {
+  type: 'object',
+  properties: Object.fromEntries(membershipFields.map((field) => [field, schemas.Sandbox.properties[field]])),
 }
 
 for (const [model, fields] of Object.entries({
   CreateSandbox: ['cpuPerNode', 'memoryPerNode', 'diskPerNode'],
   RegionQuota: ['maxNodesPerSandbox'],
   RunnerHealthcheck: ['fabric'],
-  Sandbox: ['degraded', 'headSandboxId', 'incarnation', 'nodeCount', 'nodeRank', 'nodes', 'topologyGeneration'],
+  Sandbox: membershipFields,
   UpdateSandboxStateDto: ['fabricFenced', 'incarnation'],
 })) {
   for (const field of fields) delete schemas[model].properties[field]
 }
 
-for (const model of [
-  'AddGangNodes',
-  'GangMembershipOperation',
-  'GangNodeFailure',
-  'GangNodeResources',
-  'RemoveGangNodes',
-  'ReplaceGangNode',
-  'RunnerFabricHealth',
-  'RunnerFabricRail',
-  'SandboxGangMemberFailedWebhook',
-  'SandboxNode',
-]) {
+for (const model of ['RunnerFabricHealth', 'RunnerFabricRail', 'SandboxGangMemberFailedWebhook']) {
   delete schemas[model]
 }
 

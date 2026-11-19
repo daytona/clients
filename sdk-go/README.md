@@ -352,6 +352,47 @@ for sandbox, err := range client.ListSeq(ctx, nil) {
 }
 ```
 
+## Multi-node GPU sandboxes
+
+For an enabled organization and region, a request for 16 GPUs spans two 8-GPU
+nodes. Scalar CPU, memory and disk values apply to every node. Use
+`types.MultiNodeImageParams` to set a different value per rank.
+
+```go
+sandbox, err := client.Create(ctx, types.MultiNodeImageParams{
+    ImageParams: types.ImageParams{
+        Image: "ubuntu:24.04",
+        Resources: &types.Resources{
+            GPU: 16, GpuType: []types.GpuType{types.GpuTypeH100}, Memory: 192,
+        },
+    },
+    CPUPerNode: []int32{16, 32},
+})
+if err != nil {
+    return err
+}
+nodes, err := sandbox.Nodes(ctx)
+if err != nil {
+    return err
+}
+results, err := nodes.ExecuteCommand(ctx, "hostname")
+for rank, result := range results {
+    fmt.Println(rank, result.Result)
+}
+return err
+```
+
+`sandbox.Nodes(ctx)` fetches the current membership in one request. Use
+`nodes.Get(rank)` for a member's process, files, preview URL or SSH access.
+`nodes.UploadFile` streams a file to all ranks. All-node command output is
+buffered. Per-node sessions support live logs.
+
+`nodes.Add`, `nodes.Release`, and `nodes.Replace` use the topology generation
+in this snapshot. Fetch nodes again after a change or a generation conflict.
+Membership calls wait up to ten minutes by default. An optional duration of zero
+uses the caller's context. If polling fails after the server accepts a change,
+use the returned operation ID with `nodes.Operation(ctx, id)` to check its status.
+
 ## License
 
 Apache-2.0

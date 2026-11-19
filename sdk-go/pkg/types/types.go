@@ -166,6 +166,17 @@ type ImageParams struct {
 	Resources *Resources
 }
 
+// MultiNodeImageParams creates a multi-node GPU sandbox from an image.
+// Set GPU and GpuType on ImageParams.Resources. Each scalar CPU, Memory or
+// Disk applies to every node. Alternatively, supply one value per rank for
+// that resource. Rank zero is the head.
+type MultiNodeImageParams struct {
+	ImageParams
+	CPUPerNode    []int32
+	MemoryPerNode []int32
+	DiskPerNode   []int32
+}
+
 // CreateSnapshotParams represents parameters for creating a snapshot
 type CreateSnapshotParams struct {
 	Name           string

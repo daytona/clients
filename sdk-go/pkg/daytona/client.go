@@ -404,8 +404,8 @@ func (c *Client) createToolboxClient(proxyURL string, sandboxID string) (*toolbo
 
 // Create creates a new sandbox with the specified parameters.
 //
-// The params argument accepts either [types.SnapshotParams] to create from a snapshot,
-// or [types.ImageParams] to create from a Docker image (a pointer to either is also accepted):
+// The params argument accepts [types.SnapshotParams], [types.ImageParams], or
+// [types.MultiNodeImageParams] for per-node resources. Pointers to each are also accepted.
 //
 //	// Create from a snapshot
 //	sandbox, err := client.Create(ctx, types.SnapshotParams{
@@ -463,6 +463,7 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 	var snapshot string
 	var image any
 	var resources *types.Resources
+	var multiNode *types.MultiNodeImageParams
 
 	switch p := params.(type) {
 	case *types.SnapshotParams:
@@ -473,6 +474,17 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 		if p != nil {
 			params = *p
 		}
+	case *types.MultiNodeImageParams:
+		if p != nil {
+			params = *p
+		} else {
+			return nil, errors.NewDaytonaError("Multi-node image parameters are required", 0, nil)
+		}
+	}
+
+	if p, ok := params.(types.MultiNodeImageParams); ok {
+		multiNode = &p
+		params = p.ImageParams
 	}
 
 	switch p := params.(type) {
@@ -540,6 +552,11 @@ func (c *Client) doCreate(ctx context.Context, params any, opts ...func(*options
 
 	// Build CreateSandbox request using api-client-go
 	createReq := apiclient.NewCreateSandbox()
+	if multiNode != nil {
+		if err := setMultiNodeResources(createReq, multiNode); err != nil {
+			return nil, err
+		}
+	}
 
 	// Set base parameters
 	if baseParams.Name != "" {
