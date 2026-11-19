@@ -148,6 +148,55 @@ describe('secret and volume search', () => {
     expect(Object.fromEntries(request.searchParams)).toEqual({ q: 'data', name: 'data', name_prefix: 'da', type: 'disk,bucket', status: 'ready,error', imported: 'false', created_start_at: '2026-01-01T00:00:00Z', created_end_at: '2026-02-01T00:00:00Z', updated_start_at: '2026-01-02T00:00:00Z', updated_end_at: '2026-02-02T00:00:00Z', last_used_start_at: '2026-01-03T00:00:00Z', last_used_end_at: '2026-02-03T00:00:00Z', sort: 'used_bytes', order: 'asc', cursor: 'cursor', limit: '5' })
     expect(result.page).toMatchObject({ total: 1, totalRelation: 'gte' })
   })
+
+  const nullSearchOptions = [
+    ['secret q', (client: Daytona) => client.v2.secrets.search({ q: null })],
+    ['secret name', (client: Daytona) => client.v2.secrets.search({ name: null })],
+    ['secret namePrefix', (client: Daytona) => client.v2.secrets.search({ namePrefix: null })],
+    ['secret allowedDomain', (client: Daytona) => client.v2.secrets.search({ allowedDomain: null })],
+    ['secret createdStartAt', (client: Daytona) => client.v2.secrets.search({ createdStartAt: null })],
+    ['secret createdEndAt', (client: Daytona) => client.v2.secrets.search({ createdEndAt: null })],
+    ['secret updatedStartAt', (client: Daytona) => client.v2.secrets.search({ updatedStartAt: null })],
+    ['secret updatedEndAt', (client: Daytona) => client.v2.secrets.search({ updatedEndAt: null })],
+    ['secret sort', (client: Daytona) => client.v2.secrets.search({ sort: null })],
+    ['secret order', (client: Daytona) => client.v2.secrets.search({ order: null })],
+    ['secret cursor', (client: Daytona) => client.v2.secrets.search({ cursor: null })],
+    ['secret limit', (client: Daytona) => client.v2.secrets.search({ limit: null })],
+    ['volume q', (client: Daytona) => client.v2.volumes.search({ q: null })],
+    ['volume name', (client: Daytona) => client.v2.volumes.search({ name: null })],
+    ['volume namePrefix', (client: Daytona) => client.v2.volumes.search({ namePrefix: null })],
+    ['volume types', (client: Daytona) => client.v2.volumes.search({ types: null })],
+    ['volume statuses', (client: Daytona) => client.v2.volumes.search({ statuses: null })],
+    ['volume imported', (client: Daytona) => client.v2.volumes.search({ imported: null })],
+    ['volume createdStartAt', (client: Daytona) => client.v2.volumes.search({ createdStartAt: null })],
+    ['volume createdEndAt', (client: Daytona) => client.v2.volumes.search({ createdEndAt: null })],
+    ['volume updatedStartAt', (client: Daytona) => client.v2.volumes.search({ updatedStartAt: null })],
+    ['volume updatedEndAt', (client: Daytona) => client.v2.volumes.search({ updatedEndAt: null })],
+    ['volume lastUsedStartAt', (client: Daytona) => client.v2.volumes.search({ lastUsedStartAt: null })],
+    ['volume lastUsedEndAt', (client: Daytona) => client.v2.volumes.search({ lastUsedEndAt: null })],
+    ['volume sort', (client: Daytona) => client.v2.volumes.search({ sort: null })],
+    ['volume order', (client: Daytona) => client.v2.volumes.search({ order: null })],
+    ['volume cursor', (client: Daytona) => client.v2.volumes.search({ cursor: null })],
+    ['volume limit', (client: Daytona) => client.v2.volumes.search({ limit: null })],
+  ] as const
+
+  it.each(nullSearchOptions)('%s is omitted', async (_name, call) => {
+    const result = await run([{ status: 200, body: { secrets: [], volumes: [], next_cursor: null, total: 0, total_relation: 'eq' } }], async (client) => {
+      await call(client)
+      return { items: [] }
+    })
+    expect(result.paths).toHaveLength(1)
+    expect(new URL(result.paths[0] ?? '', 'https://api.example').search).toBe('')
+  })
+
+  it('uses the shared SDK wording for an invalid volume type', async () => {
+    const result = await run([], async (client) => {
+      await client.v2.volumes.search({ types: ['disk', 'other' as never] })
+      return { items: [] }
+    })
+    expect(result.paths).toEqual([])
+    expect(result.error).toMatchObject({ message: 'types entries must be one of disk, bucket' })
+  })
 })
 
 it.each([
@@ -190,10 +239,15 @@ describe("'search' is not a name", () => {
   it.each([
     (client: Daytona) => client.v2.secrets.get('search'),
     (client: Daytona) => client.v2.secrets.set('search', 'value', { allowedDomains: ['example.com'] }),
+    (client: Daytona) => client.v2.secrets.delete('search'),
     (client: Daytona) => client.v2.volumes.get('search'),
     (client: Daytona) => client.v2.volumes.create({ name: 'search' }),
+    (client: Daytona) => client.v2.volumes.delete('search'),
   ])('refuses a secret or volume named search before any request', async (call) => {
-    const result = await run([], async (client) => ({ items: [await call(client)] }))
+    const result = await run([], async (client) => {
+      await call(client)
+      return { items: [] }
+    })
     expect(result.paths).toEqual([])
     expect(result.error).toBeInstanceOf(BadRequestError)
     expect(result.error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })

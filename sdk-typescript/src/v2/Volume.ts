@@ -21,7 +21,7 @@ import { MAX_INT32, assertKnownOptions, assertOptionsObject, badRequest, optionK
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 import { searchTimestamp } from './clientSearch.js'
-import { commaList, resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
+import { commaList, omitNullSearchOptions, resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
 import type { CommonResourceSearchOptions } from './resourceSearch.js'
 import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFirst.js'
 
@@ -66,13 +66,13 @@ export interface ListVolumesOptions {
 }
 
 export interface SearchVolumesOptions extends CommonResourceSearchOptions {
-  readonly types?: Exclude<VolumeType, 'unknown'> | readonly Exclude<VolumeType, 'unknown'>[]
-  readonly statuses?: 'ready' | 'deleting' | 'error' | readonly ('ready' | 'deleting' | 'error')[]
-  readonly imported?: boolean
-  readonly lastUsedStartAt?: SearchTimestamp
-  readonly lastUsedEndAt?: SearchTimestamp
-  readonly sort?: 'created_at' | 'updated_at' | 'name' | 'used_bytes' | 'last_used_at'
-  readonly order?: SearchOrder
+  readonly types?: Exclude<VolumeType, 'unknown'> | readonly Exclude<VolumeType, 'unknown'>[] | null
+  readonly statuses?: 'ready' | 'deleting' | 'error' | readonly ('ready' | 'deleting' | 'error')[] | null
+  readonly imported?: boolean | null
+  readonly lastUsedStartAt?: SearchTimestamp | null
+  readonly lastUsedEndAt?: SearchTimestamp | null
+  readonly sort?: 'created_at' | 'updated_at' | 'name' | 'used_bytes' | 'last_used_at' | null
+  readonly order?: SearchOrder | null
 }
 
 const GET_VOLUME_KEYS = optionKeys<GetVolumeOptions>()({ create: true, idOnly: true })
@@ -138,15 +138,16 @@ export class VolumesService {
 
   public async search(options: SearchVolumesOptions = {}): Promise<SearchResult<Volume>> {
     options = snapshotOptions('SearchVolumesOptions', options, SEARCH_VOLUMES_KEYS) ?? {}
-    const params = resourceSearchParams(options, ['created_at', 'updated_at', 'name', 'used_bytes', 'last_used_at'])
-    if (options.types !== undefined) params.type = commaList('types', options.types, VOLUME_TYPES)
-    if (options.statuses !== undefined) params.status = commaList('statuses', options.statuses, ['ready', 'deleting', 'error'])
-    if (options.imported !== undefined) {
-      if (typeof options.imported !== 'boolean') throw badRequest('imported must be a boolean')
-      params.imported = options.imported ? 'true' : 'false'
+    const normalized = omitNullSearchOptions(options)
+    const params = resourceSearchParams(normalized, ['created_at', 'updated_at', 'name', 'used_bytes', 'last_used_at'])
+    if (normalized.types !== undefined) params.type = commaList('types', normalized.types, VOLUME_TYPES)
+    if (normalized.statuses !== undefined) params.status = commaList('statuses', normalized.statuses, ['ready', 'deleting', 'error'])
+    if (normalized.imported !== undefined) {
+      if (typeof normalized.imported !== 'boolean') throw badRequest('imported must be a boolean')
+      params.imported = normalized.imported ? 'true' : 'false'
     }
-    if (options.lastUsedStartAt !== undefined) params.last_used_start_at = searchTimestamp(options.lastUsedStartAt)
-    if (options.lastUsedEndAt !== undefined) params.last_used_end_at = searchTimestamp(options.lastUsedEndAt)
+    if (normalized.lastUsedStartAt !== undefined) params.last_used_start_at = searchTimestamp(normalized.lastUsedStartAt)
+    if (normalized.lastUsedEndAt !== undefined) params.last_used_end_at = searchTimestamp(normalized.lastUsedEndAt)
     const { data } = await this.api.get<api.ListVolumesResponse>('/volumes/search', { params })
     return resourceSearchResult(data, 'volumes', mapVolume)
   }
@@ -221,6 +222,7 @@ export class VolumesService {
 
   /** Requests deletion and returns once the API accepts it. */
   public async delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> {
+    refuseResourceSearchName(nameOrId, 'volume')
     // The id first, then the options, as Python checks them.
     const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
     assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
