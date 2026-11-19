@@ -1,0 +1,45 @@
+sdk-ruby/spec/daytona/sandbox_nodes_spec.rb
+  s_7750b317905afd::t_944388c069b0c3 240-245
+  s_7750b317905afd::t_76aefe54f89d2e 13
+  s_7750b317905afd::t_0f2af997cf39d7 49-65
+sdk-ruby/lib/daytona/sandbox_nodes.rb
+  s_7750b317905afd::t_2897b4df08dd88 235-236,238-239,300-303
+sdk-java/src/test/java/io/daytona/sdk/SandboxNodesTest.java
+  s_7750b317905afd::t_0f2af997cf39d7 48-65
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_7750b317905afd::t_944388c069b0c3 194,199-200,203
+  s_7750b317905afd::t_0f2af997cf39d7 367-381,383-387
+sdk-go/pkg/daytona/sandbox_nodes_test.go
+  s_7750b317905afd::t_0f2af997cf39d7 58-80
+  s_7750b317905afd::t_944388c069b0c3 434-439
+sdk-go/pkg/daytona/sandbox_nodes.go
+  s_7750b317905afd::t_2897b4df08dd88 133-144,205-209,211,438-439,610-611,635
+sdk-python/tests/test_async_sandbox.py
+  s_7750b317905afd::t_0f2af997cf39d7 142-162
+sdk-python/src/daytona/_async/sandbox.py
+  s_7750b317905afd::t_2897b4df08dd88 239,277,298-303,1979,1985-1987,1999-2002
+sdk-python/src/daytona/_sync/sandbox.py
+  s_7750b317905afd::t_2897b4df08dd88 235,282-284,304-309,1962,1968-1970,1982-1985
+sdk-typescript/src/Sandbox.ts
+  s_7750b317905afd::t_2897b4df08dd88 112-116,125,178,1884,1890-1891,1898-1901
+sdk-java/src/main/java/io/daytona/sdk/SandboxNodes.java
+  s_7750b317905afd::t_2897b4df08dd88 66,69,75-76,198
+sdk-python/tests/test_sandbox.py
+  s_7750b317905afd::t_0f2af997cf39d7 137-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "70068ffcd8580711198233c1389cec99cd085e15",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

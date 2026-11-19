@@ -1,0 +1,40 @@
+sdk-python/src/daytona/_sync/sandbox.py
+  s_7750b317905afd::t_cb06076de75187 75,223-226,240-242,1936-1937,1939
+  s_7750b317905afd::t_12467a2aec1f17 1935,1938
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_7750b317905afd::t_9cd27bac54d2b1 341,365,368-373
+  s_7750b317905afd::t_cb06076de75187 312,324,346,348-352
+  s_7750b317905afd::t_54545e547c907b 366-367
+sdk-python/tests/test_sandbox.py
+  s_7750b317905afd::t_9cd27bac54d2b1 82-96
+sdk-python/src/daytona/_async/sandbox.py
+  s_7750b317905afd::t_cb06076de75187 74,227-230,243-245,1954-1955,1957
+  s_7750b317905afd::t_12467a2aec1f17 1953,1956
+sdk-typescript/src/Sandbox.ts
+  s_7750b317905afd::t_ab37900244bfe3 1869-1870
+  s_7750b317905afd::t_cb06076de75187 71,74,86,131,133-134,136-138,1866-1868
+sdk-typescript/src/Process.ts
+  s_7750b317905afd::t_cb06076de75187 268-271,439-441,536-537
+sdk-python/tests/test_async_sandbox.py
+  s_7750b317905afd::t_9cd27bac54d2b1 84-101
+sdk-python/tests/test_node_exec_timeout.py
+  s_7750b317905afd::t_cb06076de75187 70,72-73,75-76,78,97,100
+sdk-typescript/src/SandboxNode.ts
+  s_7750b317905afd::t_cb06076de75187 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "69421303c9a4dda0a2e3a9273442f6747bd00b4c",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}
