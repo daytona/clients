@@ -859,7 +859,7 @@ class AsyncVolumesService:
             selected_statuses = _comma_list("statuses", statuses)
             if any(item not in ("ready", "deleting", "error") for item in selected_statuses.split(",")):
                 raise create_error(
-                    "statuses entries must be ready, deleting or error", 400, "BAD_REQUEST", "SDK"
+                    "statuses entries must be one of ready, deleting, error", 400, "BAD_REQUEST", "SDK"
                 )
             params["status"] = selected_statuses
         if imported is not None:
