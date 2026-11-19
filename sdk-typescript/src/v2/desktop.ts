@@ -21,9 +21,10 @@ export interface DesktopResolution {
 /**
  * Opt into a desktop on image/default Linux creates, including createFromBuild.
  * An empty object is sent unchanged; the server defaults to XFCE at 1280x720.
- * The server returns 400 BAD_REQUEST when desktop is disabled, an environment
- * or resolution is invalid, an object has unknown members, or a supplied
- * desktop/environment/resolution/dimension is explicitly null.
+ * The server returns 403 FEATURE_NOT_ENABLED when desktop is disabled.
+ * It returns 400 BAD_REQUEST when an environment or resolution is invalid,
+ * an object has unknown members, or a supplied desktop/environment/resolution/dimension
+ * is explicitly null.
  * Boot LIMITS (`resources.cpuMax` / `resources.memoryMax`, or server defaults),
  * not resource guarantees, must be at least 1 CPU / 2048 MiB
  * for XFCE, or 2 CPUs / 8192 MiB for GNOME; lower limits also return 400.
@@ -37,8 +38,8 @@ export interface DesktopConfig {
 /**
  * Resolved create-time configuration, not live desktop status. Restarting
  * desktop services inside the guest may change the live settings; read
- * `sandbox.computerUse.status()` for those. Absent when no desktop was
- * requested; batch-wait snapshots omit it even for enabled desktops.
+ * `sandbox.computerUse.display.info()` for the live display size. Absent when no
+ * desktop was requested; batch-wait snapshots omit it even for enabled desktops.
  */
 export interface DesktopSettings {
   readonly environment: DesktopEnvironment | 'unknown'
