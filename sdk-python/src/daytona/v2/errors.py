@@ -866,6 +866,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.IMPORTED_KEY_ALWAYS_SYNCED: ConflictError,
     codes.KEY_SYNC_NOT_APPLICABLE: ConflictError,
     codes.ORG_SUSPENDED: OrgSuspendedError,
+    codes.SANDBOX_ABUSE_HOLD: ForbiddenError,
     codes.ORIGIN_IMPORT_ONLY: OriginImportOnlyError,
     codes.PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
     codes.OVERLOADED: OverloadedError,

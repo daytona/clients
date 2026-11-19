@@ -7684,6 +7684,9 @@ def test_source_and_code_dispatch_precedes_generic_and_status_fallback():
         parse_error_payload(503, {"code": "SERVICE_UNAVAILABLE", "message": "down", "source": "DAYTONA_API"}),
         ServiceUnavailableError,
     )
+    held = parse_error_payload(403, {"code": "SANDBOX_ABUSE_HOLD", "message": "held", "source": "DAYTONA_API"})
+    assert type(held) is ForbiddenError
+    assert held.code == "SANDBOX_ABUSE_HOLD"
 
 
 def test_error_field_is_read_as_message_but_never_promoted_to_a_code():
