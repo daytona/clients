@@ -12,17 +12,26 @@ import { badRequest } from './options.js'
 import type { SearchOrder, SearchResult, SearchTimestamp } from './types.js'
 
 export interface CommonResourceSearchOptions {
-  readonly q?: string
-  readonly name?: string
-  readonly namePrefix?: string
-  readonly createdStartAt?: SearchTimestamp
-  readonly createdEndAt?: SearchTimestamp
-  readonly updatedStartAt?: SearchTimestamp
-  readonly updatedEndAt?: SearchTimestamp
-  readonly sort?: string
-  readonly order?: SearchOrder
-  readonly cursor?: string
-  readonly limit?: number
+  readonly q?: string | null
+  readonly name?: string | null
+  readonly namePrefix?: string | null
+  readonly createdStartAt?: SearchTimestamp | null
+  readonly createdEndAt?: SearchTimestamp | null
+  readonly updatedStartAt?: SearchTimestamp | null
+  readonly updatedEndAt?: SearchTimestamp | null
+  readonly sort?: string | null
+  readonly order?: SearchOrder | null
+  readonly cursor?: string | null
+  readonly limit?: number | null
+}
+
+export type NormalizedResourceSearchOptions<T> = {
+  readonly [K in keyof T]: Exclude<T[K], null>
+}
+
+export function omitNullSearchOptions<T extends object>(input: T): NormalizedResourceSearchOptions<T> {
+  // SAFETY: the filter removes every null value while preserving all keys and non-null values.
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value != null)) as NormalizedResourceSearchOptions<T>
 }
 
 export function commaList(name: string, values: string | readonly string[], choices: readonly string[]): string {
@@ -37,7 +46,7 @@ export function commaList(name: string, values: string | readonly string[], choi
   return items.join(',')
 }
 
-export function resourceSearchParams(options: CommonResourceSearchOptions, sortChoices: readonly string[]): Record<string, string | number> {
+export function resourceSearchParams(options: NormalizedResourceSearchOptions<CommonResourceSearchOptions>, sortChoices: readonly string[]): Record<string, string | number> {
   const params: Record<string, string | number> = {}
   const values = {
     q: optionalQueryText(options.q, 'q'),

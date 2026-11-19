@@ -29,7 +29,7 @@ import type { SearchOrder, SearchResult, SearchTimestamp } from './types.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
-import { resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
+import { omitNullSearchOptions, resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
 import type { CommonResourceSearchOptions } from './resourceSearch.js'
 import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFirst.js'
 
@@ -64,13 +64,13 @@ export interface ListSecretsOptions {
 }
 
 export interface SearchSecretsOptions extends CommonResourceSearchOptions {
-  readonly allowedDomain?: string
-  readonly sort?: 'name' | 'created_at' | 'updated_at'
-  readonly order?: SearchOrder
-  readonly createdStartAt?: SearchTimestamp
-  readonly createdEndAt?: SearchTimestamp
-  readonly updatedStartAt?: SearchTimestamp
-  readonly updatedEndAt?: SearchTimestamp
+  readonly allowedDomain?: string | null
+  readonly sort?: 'name' | 'created_at' | 'updated_at' | null
+  readonly order?: SearchOrder | null
+  readonly createdStartAt?: SearchTimestamp | null
+  readonly createdEndAt?: SearchTimestamp | null
+  readonly updatedStartAt?: SearchTimestamp | null
+  readonly updatedEndAt?: SearchTimestamp | null
 }
 
 const SET_SECRET_KEYS = optionKeys<SetSecretOptions>()({ allowedDomains: true, description: true, ifNotExists: true })
@@ -118,8 +118,9 @@ export class SecretsService {
 
   public async search(options: SearchSecretsOptions = {}): Promise<SearchResult<Secret>> {
     options = snapshotOptions('SearchSecretsOptions', options, SEARCH_SECRETS_KEYS) ?? {}
-    const params = resourceSearchParams(options, ['name', 'created_at', 'updated_at'])
-    const allowedDomain = optionalQueryText(options.allowedDomain, 'allowedDomain')
+    const normalized = omitNullSearchOptions(options)
+    const params = resourceSearchParams(normalized, ['name', 'created_at', 'updated_at'])
+    const allowedDomain = optionalQueryText(normalized.allowedDomain, 'allowedDomain')
     if (allowedDomain !== undefined) params.allowed_domain = allowedDomain
     const { data } = await this.api.get<api.ListSecretsResponse>('/secrets/search', { params })
     return resourceSearchResult(data, 'secrets', mapSecret)
@@ -187,6 +188,7 @@ export class SecretsService {
   }
 
   public async delete(name: string): Promise<void> {
+    refuseResourceSearchName(name, 'secret')
     await this.api.delete(`/secrets/${pathSegment(name, 'name')}`)
   }
 }
