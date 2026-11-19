@@ -345,7 +345,7 @@ class FileSearchResult(ListResult[T]):
 
 @dataclass(frozen=True, init=False)
 class SearchResult(Generic[T]):
-    """One page of ``GET /sandboxes/search`` (``Daytona.search()``).
+    """One page returned by a resource ``search()`` method.
 
     ``total`` is exact when ``total_relation == "eq"`` and a lower bound when it
     is ``"gte"`` (exact counting is capped at 10 000). Immutable, like
