@@ -21,9 +21,10 @@ class DesktopResolutionConfig(TypedDict):
 class DesktopConfig(TypedDict, total=False):
     """Desktop overrides for image/default creates only; ``{}`` selects XFCE 1280x720.
 
-    Omitted fields use XFCE and 1280x720. The server returns 400 ``BAD_REQUEST`` when desktop
-    support is disabled, a value or resolution is invalid, an unknown member or
-    explicit JSON null is supplied, or boot resource LIMITS are too low. XFCE
+    Omitted fields use XFCE and 1280x720. The server returns 403 ``FEATURE_NOT_ENABLED``
+    when desktop support is disabled. It returns 400 ``BAD_REQUEST`` when a value
+    or resolution is invalid, an unknown member or explicit JSON null is
+    supplied, or boot resource LIMITS are too low. XFCE
     requires at least 1 CPU and 2048 MiB; GNOME requires 2 CPUs and 8192 MiB.
     These are boot limits, not guaranteed resource requests. Resolutions are
     1024x768, 1280x720 or 1920x1080. Snapshot creates and forks do not accept
@@ -47,8 +48,8 @@ class DesktopSettings:
     """Resolved CREATE-TIME settings, not the live desktop or readiness status.
 
     A future environment is ``"unknown"`` with its value in ``raw_environment``.
-    Guest restarts may change settings. Read live settings through
-    ``sandbox.computer_use.status()`` instead.
+    Desktop restarts may change settings. Read the live display size through
+    ``sandbox.computer_use.display.info()`` instead.
     """
 
     environment: DesktopEnvironment

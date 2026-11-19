@@ -594,15 +594,15 @@ omitting it (or passing `None`) sends no desktop override.
 sandbox = d.v2.create(desktop={"environment": "gnome", "resolution": {"width": 1920, "height": 1080}})
 ```
 
-The server returns 400 `BAD_REQUEST` if desktop support is disabled on the deployment,
-values or resolutions are invalid, unknown members or explicit JSON nulls
-are supplied, or the boot **resource limits** are below the desktop floor:
+The server returns 403 `FEATURE_NOT_ENABLED` if desktop support is disabled on the deployment.
+It returns 400 `BAD_REQUEST` if values or resolutions are invalid, unknown members
+or explicit JSON nulls are supplied, or the boot **resource limits** are below the desktop floor:
 XFCE needs 1 CPU and 2048 MiB, GNOME 2 CPUs and 8192 MiB. These floors apply
 to boot limits, not the guaranteed resource requests.
 
 `sandbox.desktop` is immutable, resolved **create-time metadata**, not live
-desktop status or current settings. Guest restarts may change settings; use
-`sandbox.computer_use.status()` for live settings. An unrecognized
+desktop status or current settings. Desktop restarts may change settings; use
+`sandbox.computer_use.display.info()` for the live display size. An unrecognized
 environment becomes `"unknown"`, with the original in `raw_environment`.
 Absent metadata is `None` when no desktop was requested (or the API omitted
 metadata, including batch-wait snapshots). Snapshot creates, forks and macOS
