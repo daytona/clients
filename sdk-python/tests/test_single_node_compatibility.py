@@ -10,6 +10,8 @@ import daytona_api_client
 import daytona_api_client_async
 from daytona import AsyncSandbox, Sandbox
 
+from .conftest import make_sandbox_dto
+
 
 @pytest.mark.parametrize("api", [daytona_api_client, daytona_api_client_async])
 def test_scalar_create_and_legacy_region_quota(api):
@@ -70,3 +72,35 @@ def test_single_node_handle_schema_and_wire_data(cls, api):
     assert sandbox.nodes[0].id == dto.id
     assert "nodes" not in sandbox.to_dict()
     assert "nodes" not in json.loads(sandbox.model_dump_json(by_alias=True))
+
+
+@pytest.mark.parametrize("cls,api", [(Sandbox, daytona_api_client), (AsyncSandbox, daytona_api_client_async)])
+def test_empty_reported_nodes_round_trip_without_exposing_the_local_head(cls, api):
+    full = make_sandbox_dto().to_dict()
+    empty = {**full, "nodes": []}
+    kwargs = {"http_client": MagicMock()} if cls is Sandbox else {}
+    sandbox = cls(api.Sandbox.from_dict(empty), MagicMock(), MagicMock(), "python", MagicMock(), **kwargs)
+
+    def assert_empty_membership():
+        assert sandbox.nodes[0].id == sandbox.id
+        assert sandbox.to_dict()["nodes"] == []
+        assert json.loads(sandbox.to_json())["nodes"] == []
+        assert json.loads(sandbox.model_dump_json(by_alias=True))["nodes"] == []
+        assert "nodes" not in sandbox.model_dump(exclude={"nodes"})
+
+    assert_empty_membership()
+    sandbox._handle_event("sandbox.created", {"sandbox": full})
+    assert [node["id"] for node in sandbox.to_dict()["nodes"]] == [sandbox.id]
+    assert [node["id"] for node in sandbox.model_dump()["nodes"]] == [sandbox.id]
+    sparse = full.copy()
+    sparse.pop("nodes")
+    sandbox._handle_event("sandbox.created", {"sandbox": sparse})
+    assert [node["id"] for node in sandbox.to_dict()["nodes"]] == [sandbox.id]
+
+    sandbox._handle_event("sandbox.created", {"sandbox": {**sparse, "incarnation": 2}})
+    assert sandbox.nodes[0].incarnation == 2
+    assert "nodes" not in sandbox.to_dict()
+
+    sandbox._handle_event("sandbox.created", {"sandbox": full})
+    sandbox._handle_event("sandbox.created", {"sandbox": empty})
+    assert_empty_membership()

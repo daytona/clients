@@ -91,6 +91,7 @@ from ..common.sandbox import (
     pivot_sandbox_metrics,
     raise_node_execution_error,
     sandbox_metrics_from_system_metrics,
+    serialize_sandbox_membership,
     validate_node_exec_timeout,
     validate_scalar_resources,
 )
@@ -551,7 +552,7 @@ class AsyncSandbox(SandboxDto):
     kvm: bool | None = None  # pyright: ignore[reportRedeclaration]
     nodes: AsyncSandboxNodeCollection  # pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 
-    _has_reported_nodes: bool = PrivateAttr(default=False)
+    _reported_node_count: int | None = PrivateAttr(default=None)
     _fs: AsyncFileSystem = PrivateAttr()
     _git: AsyncGit = PrivateAttr()
     _process: AsyncProcess = PrivateAttr()
@@ -568,18 +569,12 @@ class AsyncSandbox(SandboxDto):
 
     @model_serializer(mode="wrap")
     def _serialize_sandbox(self, handler: SerializerFunctionWrapHandler):
-        data: dict[str, Any] = handler(self)
-        if not self._has_reported_nodes:
-            data.pop("nodes", None)
-        return data
+        return serialize_sandbox_membership(handler(self), self._reported_node_count)
 
     @override
     def to_dict(self) -> dict[str, Any]:
         """Return the API representation, omitting node membership synthesized by the SDK."""
-        data = super().to_dict()
-        if not self._has_reported_nodes:
-            data.pop("nodes", None)
-        return data
+        return serialize_sandbox_membership(super().to_dict(), self._reported_node_count)
 
     @field_serializer("nodes")
     def _serialize_nodes(self, nodes: AsyncSandboxNodeCollection) -> list[SandboxNodeDto]:
@@ -2012,9 +2007,10 @@ class AsyncSandbox(SandboxDto):
         # A direct worker lookup returns only that worker, with its physical rank.
         worker_rank = getattr(sandbox_dto, "node_rank", None) if getattr(sandbox_dto, "head_sandbox_id", None) else None
         raw_nodes = getattr(sandbox_dto, "nodes", None)
-        if raw_nodes is not None:
-            self._has_reported_nodes = True
+        reported_node_count = len(raw_nodes) if raw_nodes is not None else None
         if not raw_nodes:
+            if reported_node_count == 0:
+                self._reported_node_count = 0
             previous = self.nodes[0] if self.nodes else None
             incarnation = getattr(sandbox_dto, "incarnation", None)
             if previous is not None:
@@ -2027,6 +2023,8 @@ class AsyncSandbox(SandboxDto):
             # A gang head reports totals that cannot be assigned to individual ranks.
             if worker_rank is None and self.node_count > 1:
                 return
+            if previous is None and reported_node_count is None:
+                self._reported_node_count = None
             raw_nodes = [
                 SandboxNodeDto(
                     rank=worker_rank or 0,
@@ -2067,6 +2065,8 @@ class AsyncSandbox(SandboxDto):
                 )
             updated.append(node)
         self.nodes._replace(updated)  # pylint: disable=no-member
+        if reported_node_count:
+            self._reported_node_count = reported_node_count
 
     async def __refresh_data_safe(self) -> None:
         """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""

@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, NoReturn, Protocol
+from typing import TYPE_CHECKING, Any, NoReturn, Protocol
 
 from daytona_api_client import SandboxListSortDirection, SandboxListSortField, SandboxState
 from daytona_api_client_async import GpuType
@@ -17,6 +17,14 @@ if TYPE_CHECKING:
     from .process import ExecuteResponse
 
 TOOLBOX_PORT: int = 2280
+
+
+def serialize_sandbox_membership(data: dict[str, Any], reported_node_count: int | None) -> dict[str, Any]:
+    if reported_node_count is None:
+        data.pop("nodes", None)
+    elif reported_node_count == 0 and "nodes" in data:
+        data["nodes"] = []
+    return data
 
 
 def raise_node_execution_error(failures: dict[int, Exception], results: dict[int, ExecuteResponse]) -> NoReturn:
