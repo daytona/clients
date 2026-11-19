@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.imported_from import ImportedFrom
 from daytona.v2._gen.api.models.volume_status import VolumeStatus
 from daytona.v2._gen.api.models.volume_type import VolumeType
 from typing import Optional, Set
@@ -40,6 +41,7 @@ class Volume(BaseModel):
     created_at: datetime = Field(description="When the volume was created.")
     error: Optional[StrictStr] = Field(default=None, description="The failure detail, or null when the volume has not failed.")
     id: StrictStr = Field(description="The volume ID.")
+    imported_from: Optional[ImportedFrom] = None
     last_used_at: Optional[datetime] = Field(default=None, description="When the volume was last attached, or null when it has not been used.")
     name: StrictStr = Field(description="The project-unique volume name.")
     options: Optional[Dict[str, Any]] = Field(default=None, description="Type-specific options. Disk volumes use an empty object; bucket volumes include their bucket settings and credential secret names.")
@@ -50,7 +52,7 @@ class Volume(BaseModel):
     used_bytes: Optional[StrictInt] = Field(default=None, description="Logical file usage in bytes, or null before the first usage report.")
     used_bytes_at: Optional[datetime] = Field(default=None, description="When `used_bytes` was observed, or null when usage is unknown.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "error", "id", "last_used_at", "name", "options", "size_gib", "status", "type", "updated_at", "used_bytes", "used_bytes_at"]
+    __properties: ClassVar[List[str]] = ["created_at", "error", "id", "imported_from", "last_used_at", "name", "options", "size_gib", "status", "type", "updated_at", "used_bytes", "used_bytes_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,6 +97,9 @@ class Volume(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of imported_from
+        if self.imported_from:
+            _dict['imported_from'] = self.imported_from.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -140,6 +145,7 @@ class Volume(BaseModel):
             "created_at": obj.get("created_at"),
             **({"error": obj["error"]} if "error" in obj else {}),
             "id": obj.get("id"),
+            **({"imported_from": ImportedFrom.from_dict(obj["imported_from"]) if obj["imported_from"] is not None else None} if "imported_from" in obj else {}),
             **({"last_used_at": obj["last_used_at"]} if "last_used_at" in obj else {}),
             "name": obj.get("name"),
             **({"options": obj["options"]} if "options" in obj else {}),

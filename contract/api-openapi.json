@@ -411,10 +411,12 @@
         "description": "Stable machine-readable error codes, returned as `ErrorBody.code`\nwhen `source` is `DAYTONA_API`.",
         "enum": [
           "ORG_SUSPENDED",
+          "SANDBOX_ABUSE_HOLD",
           "PROJECT_BUDGET_EXCEEDED",
           "FEATURE_NOT_ENABLED",
           "ENTITLEMENT_REQUIRED",
           "EMAIL_ACCESS_DENIED",
+          "GPU_ACCESS_UNDER_REVIEW",
           "SIGNUP_NOT_INVITED",
           "USER_SUSPENDED",
           "OVERLOADED",
@@ -463,6 +465,7 @@
           "NOT_SUPPORTED_FOR_CLASS",
           "INVALID_FOR_SOURCE",
           "ROLE_IN_USE",
+          "MEMBERSHIP_EDITS_FROZEN",
           "USAGE_UNAVAILABLE",
           "BAD_RANGE",
           "BAD_RESOLUTION",
@@ -652,6 +655,13 @@
           "actor_kind": {
             "description": "The actor type.",
             "type": "string"
+          },
+          "actor_partner": {
+            "description": "The partner application that authenticated the actor, or `null`.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "actor_service_account_id": {
             "description": "The actor's service account ID, or `null`.",
@@ -1973,7 +1983,7 @@
             "type": "integer"
           },
           "credit_expires_at": {
-            "description": "When the granted credit expires, or `null` when it does not expire.",
+            "description": "When the granted credit expires, or `null` when the expiry is not known.",
             "format": "date-time",
             "type": [
               "string",
@@ -5179,7 +5189,7 @@
         "description": "`POST \u2026/access-token` request. All fields optional; an absent (or empty)\nbody is the full default mint.",
         "properties": {
           "operations": {
-            "description": "Requested operation subset (the sandbox-operation vocabulary:\n`toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`,\n`desktop`, `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`).\nOmitted = the minter's full grantable set. An empty list is a valid\nports-only grant. Unknown strings, and operations outside the\nminter's grantable set, are a 400 \u2014 never a silent narrowing.",
+            "description": "Requested operation subset (the sandbox-operation vocabulary:\n`toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `desktop`,\n`ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`).\nOmitted = the minter's full grantable set. An empty list is a valid\nports-only grant. Unknown strings, and operations outside the\nminter's grantable set, are a 400 \u2014 never a silent narrowing.",
             "example": [
               "toolbox:fs",
               "ssh"
@@ -10885,6 +10895,10 @@
             "example": "vol_7fJk2mQpXv9dLc3RtY",
             "type": "string"
           },
+          "imported_from": {
+            "$ref": "#/components/schemas/ImportedFrom",
+            "description": "The source platform and resource ID when this volume was imported."
+          },
           "last_used_at": {
             "description": "When the volume was last attached, or null when it has not been used.",
             "format": "date-time",
@@ -10953,7 +10967,7 @@
         "description": "A volume attachment as requested on `POST /sandboxes`.",
         "properties": {
           "mount_path": {
-            "description": "The absolute path inside the sandbox, with no `..`. It is normalized\n(repeated slashes, `.` components and a trailing slash removed) and\nmay not be `/` or be on or beneath a system directory: `/bin`,\n`/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,\n`/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.",
+            "description": "The absolute path inside the sandbox, with no `..`. It is normalized\n(repeated slashes, `.` components and a trailing slash removed) and\nmay not be `/` or be on or beneath a system directory: `/bin`,\n`/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,\n`/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to\nor beneath another mount's `mount_path`.",
             "example": "/mnt/data",
             "type": "string"
           },
@@ -10965,7 +10979,7 @@
             ]
           },
           "subpath": {
-            "description": "Mount only this subtree: a subdirectory for a disk volume, a key prefix\nunder the volume's own prefix for a bucket volume.",
+            "description": "Mount only this subtree: a subdirectory for a disk volume, a key prefix\nunder the volume's own prefix for a bucket volume. A relative path with\nno empty or `..` segments and no control characters.",
             "type": [
               "string",
               "null"
@@ -12894,7 +12908,7 @@
                 }
               }
             },
-            "description": "The roles the invitation grants no longer exist (`CONFLICT`)",
+            "description": "The roles the invitation grants no longer exist (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -13845,7 +13859,7 @@
                 }
               }
             },
-            "description": "The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`)",
+            "description": "The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -14423,6 +14437,15 @@
             "required": false,
             "schema": {
               "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The partner application filter",
+            "in": "query",
+            "name": "actor_partner",
+            "required": false,
+            "schema": {
               "type": "string"
             }
           }
@@ -19027,7 +19050,7 @@
                 }
               }
             },
-            "description": "Removal would leave the organization without an administrator (`CONFLICT`)",
+            "description": "Removal would leave the organization without an administrator (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -19133,7 +19156,7 @@
                 }
               }
             },
-            "description": "The update would leave the organization without an administrator (`CONFLICT`)",
+            "description": "The update would leave the organization without an administrator (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -31906,6 +31929,11 @@
       "source": "DAYTONA_API",
       "status": 403
     },
+    "GPU_ACCESS_UNDER_REVIEW": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 403
+    },
     "IDEMPOTENCY_KEY_REUSED": {
       "extras": [],
       "source": "DAYTONA_API",
@@ -32040,6 +32068,11 @@
       "source": "DAYTONA_API",
       "status": 501
     },
+    "MEMBERSHIP_EDITS_FROZEN": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
     "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL": {
       "extras": [],
       "source": "DAYTONA_API",
@@ -32173,6 +32206,11 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 409
+    },
+    "SANDBOX_ABUSE_HOLD": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 403
     },
     "SEARCH_NOT_CONFIGURED": {
       "extras": [],

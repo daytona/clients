@@ -9262,6 +9262,15 @@ describe('typed error mapping', () => {
     expect(wrongSource).toBeInstanceOf(NotFoundError)
     expect(wrongSource).not.toBeInstanceOf(publicSdk.ProcessNotFoundError)
     expect(createDaytonaError('down', 503, 'SERVICE_UNAVAILABLE', 'DAYTONA_API')).toBeInstanceOf(ServiceUnavailableError)
+    for (const [status, code, cls] of [
+      [403, 'SANDBOX_ABUSE_HOLD', publicSdk.ForbiddenError],
+      [403, 'GPU_ACCESS_UNDER_REVIEW', publicSdk.ForbiddenError],
+      [409, 'MEMBERSHIP_EDITS_FROZEN', publicSdk.ConflictError],
+    ] as const) {
+      const err = createDaytonaError('refused', status, code, 'DAYTONA_API')
+      expect(err.constructor).toBe(cls)
+      expect(err.code).toBe(code)
+    }
     const errorOnly = createAxiosDaytonaError({ message: 'Request failed', response: { status: 400, data: { error: 'Search is unavailable' }, headers: { 'content-type': 'application/json' } }, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)
     expect(errorOnly).toMatchObject({ message: 'Search is unavailable', code: undefined })
   })
