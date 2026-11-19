@@ -1,0 +1,14 @@
+contract/api-openapi.json
+  h_5fc330b445be98 414,419,468,659-665,1986,3243,3302,5274,8375,10984-10987,11056,11068,12997,13948,14528-14536,19139,19245,32018-32022,32157-32161,32296-32300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65d6d0b86ad6afcbd20ff55dc7cf3d4b7264f8c9",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
