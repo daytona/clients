@@ -20349,7 +20349,7 @@ export interface operations {
                     "application/json": components["schemas"]["VolumeSearchPage"];
                 };
             };
-            /** @description A filter, timestamp, ID, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
+            /** @description A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
