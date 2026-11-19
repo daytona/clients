@@ -1,0 +1,16 @@
+changelog.d/desktop-environment.added.md
+  h_5fc330b445be98 8-12
+sdk-typescript/src/v2/ComputerUse.ts
+  h_5fc330b445be98 74-81,100-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a25224628c2477a63a7e0632a101467e47a613b5",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
