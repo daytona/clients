@@ -1670,6 +1670,27 @@ func (e SearchTotalRelation) Valid() bool {
 	}
 }
 
+// Defines values for SecretSearchSort.
+const (
+	SecretSearchSortCreatedAt SecretSearchSort = "created_at"
+	SecretSearchSortName      SecretSearchSort = "name"
+	SecretSearchSortUpdatedAt SecretSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the SecretSearchSort enum.
+func (e SecretSearchSort) Valid() bool {
+	switch e {
+	case SecretSearchSortCreatedAt:
+		return true
+	case SecretSearchSortName:
+		return true
+	case SecretSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetRegistryRequestKind.
 const (
 	SetRegistryRequestKindBasic   SetRegistryRequestKind = "basic"
@@ -1883,6 +1904,54 @@ func (e UsageReportResolution) Valid() bool {
 	case UsageReportResolutionDay:
 		return true
 	case UsageReportResolutionHour:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VolumeSearchSort.
+const (
+	VolumeSearchSortCreatedAt  VolumeSearchSort = "created_at"
+	VolumeSearchSortLastUsedAt VolumeSearchSort = "last_used_at"
+	VolumeSearchSortName       VolumeSearchSort = "name"
+	VolumeSearchSortUpdatedAt  VolumeSearchSort = "updated_at"
+	VolumeSearchSortUsedBytes  VolumeSearchSort = "used_bytes"
+)
+
+// Valid indicates whether the value is a known member of the VolumeSearchSort enum.
+func (e VolumeSearchSort) Valid() bool {
+	switch e {
+	case VolumeSearchSortCreatedAt:
+		return true
+	case VolumeSearchSortLastUsedAt:
+		return true
+	case VolumeSearchSortName:
+		return true
+	case VolumeSearchSortUpdatedAt:
+		return true
+	case VolumeSearchSortUsedBytes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VolumeSearchStatus.
+const (
+	VolumeSearchStatusDeleting VolumeSearchStatus = "deleting"
+	VolumeSearchStatusError    VolumeSearchStatus = "error"
+	VolumeSearchStatusReady    VolumeSearchStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the VolumeSearchStatus enum.
+func (e VolumeSearchStatus) Valid() bool {
+	switch e {
+	case VolumeSearchStatusDeleting:
+		return true
+	case VolumeSearchStatusError:
+		return true
+	case VolumeSearchStatusReady:
 		return true
 	default:
 		return false
@@ -6273,6 +6342,45 @@ type SecretPage struct {
 	Secrets []Secret `json:"secrets"`
 }
 
+// SecretSearchListItem defines model for SecretSearchListItem.
+type SecretSearchListItem struct {
+	// AllowedDomains Hosts to which the secret may be sent.
+	AllowedDomains []string `json:"allowed_domains"`
+
+	// CreatedAt Creation time.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Cursor Opaque cursor for this item.
+	Cursor string `json:"cursor"`
+
+	// Description User-facing description.
+	Description *string `json:"description,omitempty"`
+
+	// Name Secret name.
+	Name string `json:"name"`
+
+	// UpdatedAt Last-modified time.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// SecretSearchPage A page of matching secrets.
+type SecretSearchPage struct {
+	// NextCursor Continuation token; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Secrets Matching secrets in this page.
+	Secrets []SecretSearchListItem `json:"secrets"`
+
+	// Total Number of matching secrets, exact when `total_relation` is `eq`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether total is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+}
+
+// SecretSearchSort defines model for SecretSearchSort.
+type SecretSearchSort string
+
 // SetAutomaticTopUpRequest defines model for SetAutomaticTopUpRequest.
 type SetAutomaticTopUpRequest struct {
 	// TargetCents The balance targeted by a top-up, in cents.
@@ -7165,6 +7273,74 @@ type VolumePage struct {
 	Volumes []Volume `json:"volumes"`
 }
 
+// VolumeSearchListItem defines model for VolumeSearchListItem.
+type VolumeSearchListItem struct {
+	// CreatedAt When the volume was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Cursor Opaque cursor for this item.
+	Cursor string `json:"cursor"`
+
+	// Error The failure detail, or null when the volume has not failed.
+	Error *string `json:"error,omitempty"`
+
+	// Id The volume ID.
+	Id string `json:"id"`
+
+	// ImportedFrom The source platform and resource ID when this volume was imported.
+	ImportedFrom *ImportedFrom `json:"imported_from,omitempty"`
+
+	// LastUsedAt When the volume was last attached, or null when it has not been used.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+
+	// Name The project-unique volume name.
+	Name string `json:"name"`
+
+	// Options Type-specific options. Disk volumes use an empty object; bucket volumes
+	// include their bucket settings and credential secret names.
+	Options *map[string]interface{} `json:"options,omitempty"`
+
+	// SizeGib Scratch capacity in GiB. Disk volumes only — a bucket volume has no
+	// capacity of its own and reports `null`.
+	SizeGib *int32 `json:"size_gib,omitempty"`
+
+	// Status The volume status.
+	Status VolumeStatus `json:"status"`
+
+	// Type The volume type.
+	Type VolumeType `json:"type"`
+
+	// UpdatedAt When the volume metadata last changed.
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// UsedBytes Logical file usage in bytes, or null before the first usage report.
+	UsedBytes *int64 `json:"used_bytes,omitempty"`
+
+	// UsedBytesAt When `used_bytes` was observed, or null when usage is unknown.
+	UsedBytesAt *time.Time `json:"used_bytes_at,omitempty"`
+}
+
+// VolumeSearchPage A page of matching volumes.
+type VolumeSearchPage struct {
+	// NextCursor Continuation token; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Total Number of matching volumes, exact when `total_relation` is `eq`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether total is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+
+	// Volumes Matching volumes in this page.
+	Volumes []VolumeSearchListItem `json:"volumes"`
+}
+
+// VolumeSearchSort defines model for VolumeSearchSort.
+type VolumeSearchSort string
+
+// VolumeSearchStatus defines model for VolumeSearchStatus.
+type VolumeSearchStatus string
+
 // VolumeStatus defines model for VolumeStatus.
 type VolumeStatus string
 
@@ -7867,6 +8043,45 @@ type ListSecretsParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// SearchSecretsParams defines parameters for SearchSecrets.
+type SearchSecretsParams struct {
+	// Q Free text over the secret name and description.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact secret name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix Match names starting with this case-sensitive prefix.
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// AllowedDomain Match an allowed domain exactly.
+	AllowedDomain *string `form:"allowed_domain,omitempty" json:"allowed_domain,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `name`.
+	Sort *SecretSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `asc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // SetSecretParams defines parameters for SetSecret.
 type SetSecretParams struct {
 	// IfNoneMatch Set to `*` to create only when the secret is absent
@@ -7977,6 +8192,57 @@ type GetUsageReportParamsResolution string
 
 // ListVolumesParams defines parameters for ListVolumes.
 type ListVolumesParams struct {
+	// Limit Maximum number of items to return, 1–200 (default 100)
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// SearchVolumesParams defines parameters for SearchVolumes.
+type SearchVolumesParams struct {
+	// Q Free text over the volume name; a volume ID matches exactly.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact volume name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix Match names starting with this case-sensitive prefix.
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// Type Comma-separated volume types.
+	Type *[]VolumeType `form:"type,omitempty" json:"type,omitempty"`
+
+	// Status Comma-separated non-deleted volume statuses.
+	Status *[]VolumeSearchStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Imported True returns imported volumes, false returns native volumes, absent returns both.
+	Imported *bool `form:"imported,omitempty" json:"imported,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// LastUsedStartAt Inclusive lower bound on last-used time.
+	LastUsedStartAt *time.Time `form:"last_used_start_at,omitempty" json:"last_used_start_at,omitempty"`
+
+	// LastUsedEndAt Exclusive upper bound on last-used time.
+	LastUsedEndAt *time.Time `form:"last_used_end_at,omitempty" json:"last_used_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `created_at`.
+	Sort *VolumeSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `desc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
 	// Limit Maximum number of items to return, 1–200 (default 100)
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 

@@ -2717,6 +2717,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/secrets/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search secrets
+         * @description Searches the project's secrets using the supplied filters. Results may be briefly stale after a change.
+         */
+        get: operations["search_secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/secrets/{name}": {
         parameters: {
             query?: never;
@@ -2849,6 +2869,26 @@ export interface paths {
         put?: never;
         /** Create a volume */
         post: operations["create_volume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/volumes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search volumes
+         * @description Searches the project's volumes using the supplied filters. Results may be briefly stale after a change.
+         */
+        get: operations["search_volumes"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7095,6 +7135,41 @@ export interface components {
             /** @description The secrets in this page. */
             secrets: components["schemas"]["Secret"][];
         };
+        SecretSearchListItem: {
+            /** @description Hosts to which the secret may be sent. */
+            allowed_domains: string[];
+            /**
+             * Format: date-time
+             * @description Creation time.
+             */
+            created_at: string;
+            /** @description Opaque cursor for this item. */
+            cursor: string;
+            /** @description User-facing description. */
+            description?: string | null;
+            /** @description Secret name. */
+            name: string;
+            /**
+             * Format: date-time
+             * @description Last-modified time.
+             */
+            updated_at: string;
+        };
+        /** @description A page of matching secrets. */
+        SecretSearchPage: {
+            /** @description Continuation token; null on the last page. */
+            next_cursor?: string | null;
+            /** @description Matching secrets in this page. */
+            secrets: components["schemas"]["SecretSearchListItem"][];
+            /**
+             * Format: int64
+             * @description Number of matching secrets, exact when `total_relation` is `eq`.
+             */
+            total: number;
+            /** @description Whether total is exact (`eq`) or a lower bound (`gte`). */
+            total_relation: components["schemas"]["SearchTotalRelation"];
+        };
+        SecretSearchSort: ("name" | "created_at" | "updated_at") | (string & {});
         SetAutomaticTopUpRequest: {
             /**
              * Format: int64
@@ -8028,6 +8103,26 @@ export interface components {
             /** @description The volumes in this page. */
             volumes: components["schemas"]["Volume"][];
         };
+        VolumeSearchListItem: components["schemas"]["Volume"] & {
+            /** @description Opaque cursor for this item. */
+            cursor: string;
+        };
+        /** @description A page of matching volumes. */
+        VolumeSearchPage: {
+            /** @description Continuation token; null on the last page. */
+            next_cursor?: string | null;
+            /**
+             * Format: int64
+             * @description Number of matching volumes, exact when `total_relation` is `eq`.
+             */
+            total: number;
+            /** @description Whether total is exact (`eq`) or a lower bound (`gte`). */
+            total_relation: components["schemas"]["SearchTotalRelation"];
+            /** @description Matching volumes in this page. */
+            volumes: components["schemas"]["VolumeSearchListItem"][];
+        };
+        VolumeSearchSort: ("created_at" | "updated_at" | "name" | "used_bytes" | "last_used_at") | (string & {});
+        VolumeSearchStatus: ("ready" | "deleting" | "error") | (string & {});
         VolumeStatus: ("ready" | "deleting" | "deleted" | "error") | (string & {});
         VolumeType: ("disk" | "bucket") | (string & {});
         Wallet: {
@@ -19529,6 +19624,85 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    search_secrets: {
+        parameters: {
+            query?: {
+                /** @description Free text over the secret name and description. */
+                q?: string;
+                /** @description Match this exact secret name. */
+                name?: string;
+                /** @description Match names starting with this case-sensitive prefix. */
+                name_prefix?: string;
+                /** @description Match an allowed domain exactly. */
+                allowed_domain?: string;
+                /** @description Inclusive lower bound on creation time. */
+                created_start_at?: string;
+                /** @description Exclusive upper bound on creation time. */
+                created_end_at?: string;
+                /** @description Inclusive lower bound on last-modified time. */
+                updated_start_at?: string;
+                /** @description Exclusive upper bound on last-modified time. */
+                updated_end_at?: string;
+                /** @description Sort field. Defaults to `name`. */
+                sort?: components["schemas"]["SecretSearchSort"];
+                /** @description Sort order. Defaults to `asc`. */
+                order?: components["schemas"]["SortOrder"];
+                /** @description Maximum number of items to return, 1–200 (default 100) */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque continuation token returned as `next_cursor` by a previous request */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of matching secrets */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretSearchPage"];
+                };
+            };
+            /** @description A filter, timestamp, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Search is not enabled (`SEARCH_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     get_secret: {
         parameters: {
             query?: never;
@@ -20127,6 +20301,93 @@ export interface operations {
                 };
             };
             /** @description Bucket volumes are temporarily unavailable (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_volumes: {
+        parameters: {
+            query?: {
+                /** @description Free text over the volume name; a volume ID matches exactly. */
+                q?: string;
+                /** @description Match this exact volume name. */
+                name?: string;
+                /** @description Match names starting with this case-sensitive prefix. */
+                name_prefix?: string;
+                /** @description Comma-separated volume types. */
+                type?: components["schemas"]["VolumeType"][];
+                /** @description Comma-separated non-deleted volume statuses. */
+                status?: components["schemas"]["VolumeSearchStatus"][];
+                /** @description True returns imported volumes, false returns native volumes, absent returns both. */
+                imported?: boolean;
+                /** @description Inclusive lower bound on creation time. */
+                created_start_at?: string;
+                /** @description Exclusive upper bound on creation time. */
+                created_end_at?: string;
+                /** @description Inclusive lower bound on last-modified time. */
+                updated_start_at?: string;
+                /** @description Exclusive upper bound on last-modified time. */
+                updated_end_at?: string;
+                /** @description Inclusive lower bound on last-used time. */
+                last_used_start_at?: string;
+                /** @description Exclusive upper bound on last-used time. */
+                last_used_end_at?: string;
+                /** @description Sort field. Defaults to `created_at`. */
+                sort?: components["schemas"]["VolumeSearchSort"];
+                /** @description Sort order. Defaults to `desc`. */
+                order?: components["schemas"]["SortOrder"];
+                /** @description Maximum number of items to return, 1–200 (default 100) */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque continuation token returned as `next_cursor` by a previous request */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of matching volumes */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VolumeSearchPage"];
+                };
+            };
+            /** @description A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Search is not enabled (`SEARCH_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
             503: {
                 headers: {
                     "Retry-After": components["headers"]["Retry-After"];
