@@ -34,10 +34,11 @@ class UpdateProjectLimitsRequest(BaseModel):
     """
     The limits to change. Each one is optional: a missing limit keeps the stored value, `null` removes it, and an integer sets it. Unknown fields are refused.
     """ # noqa: E501
+    max_concurrent_builds: Optional[StrictInt] = Field(default=None, description="The most image builds the project may run at once, or null for no project limit.")
     max_concurrent_vms: Optional[StrictInt] = Field(default=None, description="The most sandboxes the project may run at once, or null for no project limit.")
-    max_persistent_vms: Optional[StrictInt] = Field(default=None, description="The most persistent sandboxes the project may have, or null for no project limit.")
-    max_total_vms: Optional[StrictInt] = Field(default=None, description="The most sandboxes the project may have, resting ones included, or null for no project limit.")
-    __properties: ClassVar[List[str]] = ["max_concurrent_vms", "max_persistent_vms", "max_total_vms"]
+    max_persistent_vms: Optional[StrictInt] = Field(default=None, description="Projects can no longer limit their persistent sandbox count. Send null or omit it; an integer is refused.")
+    max_total_vms: Optional[StrictInt] = Field(default=None, description="Projects can no longer limit their total sandbox count. Send null or omit it; an integer is refused.")
+    __properties: ClassVar[List[str]] = ["max_concurrent_builds", "max_concurrent_vms", "max_persistent_vms", "max_total_vms"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -80,6 +81,11 @@ class UpdateProjectLimitsRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # set to None if max_concurrent_builds (nullable) is None
+        # and model_fields_set contains the field
+        if self.max_concurrent_builds is None and "max_concurrent_builds" in self.model_fields_set:
+            _dict['max_concurrent_builds'] = None
+
         # set to None if max_concurrent_vms (nullable) is None
         # and model_fields_set contains the field
         if self.max_concurrent_vms is None and "max_concurrent_vms" in self.model_fields_set:
@@ -107,6 +113,7 @@ class UpdateProjectLimitsRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            **({"max_concurrent_builds": obj["max_concurrent_builds"]} if "max_concurrent_builds" in obj else {}),
             **({"max_concurrent_vms": obj["max_concurrent_vms"]} if "max_concurrent_vms" in obj else {}),
             **({"max_persistent_vms": obj["max_persistent_vms"]} if "max_persistent_vms" in obj else {}),
             **({"max_total_vms": obj["max_total_vms"]} if "max_total_vms" in obj else {})

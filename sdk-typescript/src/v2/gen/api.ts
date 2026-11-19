@@ -1863,7 +1863,7 @@ export interface paths {
         head?: never;
         /**
          * Update the project limits
-         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox that limit counts; the sandboxes it already has keep running, and lowering a limit never stops one.
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` can no longer be set: send null or omit them.
          */
         patch: operations["update_project_limits"];
         trace?: never;
@@ -5483,6 +5483,7 @@ export interface components {
                 [key: string]: boolean;
             };
         };
+        /** @description An organization's limits and current usage. Some organization limits are not returned. Daytona determines them for each organization to keep the platform available for everyone. A create that reaches one is refused with `LIMIT_EXCEEDED`; contact support to request a higher limit. */
         OrganizationLimits: {
             /** @description The organization's live API-key limit and current usage. */
             api_keys_per_organization: components["schemas"]["UsageLimit"];
@@ -5502,7 +5503,7 @@ export interface components {
             sandboxes: components["schemas"]["SandboxLimits"];
             /** @description The maximum number of secrets in any one project and the highest current usage. */
             secrets_per_project: components["schemas"]["UsageLimit"];
-            /** @description Volume, image, and snapshot count limits. */
+            /** @description Volume, image, and snapshot counts. Their organization limits are not returned. */
             storage: components["schemas"]["StorageLimits"];
         };
         /** @description An organization together with the signed-in user's membership. */
@@ -6187,6 +6188,11 @@ export interface components {
              */
             updated_at: string | null;
         };
+        /** @description The project's concurrent image-build limit and current usage. */
+        ProjectImageBuildLimits: {
+            /** @description The project's concurrent image-build limit and current usage. */
+            concurrent: components["schemas"]["UsageLimit"];
+        };
         ProjectLifecycleDefaults: {
             /** @description Defaults for ephemeral sandboxes. */
             ephemeral: components["schemas"]["EphemeralLifecycleDefaults"];
@@ -6202,6 +6208,8 @@ export interface components {
          *     against it.
          */
         ProjectLimits: {
+            /** @description The project's image-build limits. */
+            image_builds: components["schemas"]["ProjectImageBuildLimits"];
             /**
              * @description The project's sandbox count limits. A stored limit is always returned,
              *     and takes effect only while limit enforcement is turned on.
@@ -6251,11 +6259,17 @@ export interface components {
             /** @description The project's concurrent sandbox limit and current usage. */
             concurrent: components["schemas"]["UsageLimit"];
             /**
-             * @description The project's persistent sandbox limit and current usage. Stopped and
-             *     paused persistent sandboxes count.
+             * @deprecated
+             * @description The project's persistent sandbox count. Stopped and paused persistent
+             *     sandboxes count. Projects have no persistent sandbox limit of their
+             *     own, so `limit` is always `null`.
              */
             persistent: components["schemas"]["UsageLimit"];
-            /** @description The project's total sandbox limit and current usage. */
+            /**
+             * @deprecated
+             * @description The project's total sandbox count. Projects have no total sandbox
+             *     limit of their own, so `limit` is always `null`.
+             */
             total: components["schemas"]["UsageLimit"];
         };
         ProjectServiceAccount: {
@@ -6838,7 +6852,10 @@ export interface components {
         SandboxLimits: {
             /** @description The concurrent sandbox limit and current usage. */
             concurrent: components["schemas"]["UsageLimit"];
-            /** @description The total sandbox limit and current usage. */
+            /**
+             * @deprecated
+             * @description The total sandbox count. Its organization limit is not returned, so `limit` is always `null`.
+             */
             total: components["schemas"]["UsageLimit"];
         };
         /** @description The requested sandboxes, after the optional wait. */
@@ -7407,11 +7424,20 @@ export interface components {
             url: string;
         };
         StorageLimits: {
-            /** @description The image limit and current usage. Captured, built, and imported images count; failed images do not. */
+            /**
+             * @deprecated
+             * @description The image count. Captured, built, and imported images count; failed images do not. Its organization limit is not returned, so `limit` is always `null`.
+             */
             images: components["schemas"]["UsageLimit"];
-            /** @description The snapshot limit and current usage. Failed snapshots do not count. */
+            /**
+             * @deprecated
+             * @description The snapshot count. Failed snapshots do not count. Its organization limit is not returned, so `limit` is always `null`.
+             */
             snapshots: components["schemas"]["UsageLimit"];
-            /** @description The volume limit and current usage. Deleted volumes do not count. */
+            /**
+             * @deprecated
+             * @description The volume count. Deleted volumes do not count. Its organization limit is not returned, so `limit` is always `null`.
+             */
             volumes: components["schemas"]["UsageLimit"];
         };
         TimeoutSource: ("project" | "platform" | "none") | (string & {});
@@ -7551,20 +7577,28 @@ export interface components {
         UpdateProjectLimitsRequest: {
             /**
              * Format: int64
+             * @description The most image builds the project may run at once, or null for no
+             *     project limit.
+             */
+            max_concurrent_builds?: number | null;
+            /**
+             * Format: int64
              * @description The most sandboxes the project may run at once, or null for no project
              *     limit.
              */
             max_concurrent_vms?: number | null;
             /**
              * Format: int64
-             * @description The most persistent sandboxes the project may have, or null for no
-             *     project limit.
+             * @deprecated
+             * @description Projects can no longer limit their persistent sandbox count. Send null
+             *     or omit it; an integer is refused.
              */
             max_persistent_vms?: number | null;
             /**
              * Format: int64
-             * @description The most sandboxes the project may have, resting ones included, or null
-             *     for no project limit.
+             * @deprecated
+             * @description Projects can no longer limit their total sandbox count. Send null or
+             *     omit it; an integer is refused.
              */
             max_total_vms?: number | null;
         };
@@ -7645,8 +7679,9 @@ export interface components {
         UsageLimit: {
             /**
              * Format: int64
-             * @description The effective cap; `null` means no limit. A ceiling, not a
-             *     reservation: reaching it refuses new work, but nothing is set aside.
+             * @description The effective cap; `null` means no limit, except on a count whose
+             *     limit is not returned. A ceiling, not a reservation: reaching it
+             *     refuses new work, but nothing is set aside.
              */
             limit: number | null;
             /**
@@ -16048,7 +16083,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectLimits"];
                 };
             };
-            /** @description A limit is outside the accepted range, or the body carries an unknown field (`BAD_REQUEST`) */
+            /** @description A limit is outside the accepted range, a limit projects can no longer set is given a value, or the body carries an unknown field (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

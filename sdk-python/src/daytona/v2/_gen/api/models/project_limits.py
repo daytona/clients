@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List
+from daytona.v2._gen.api.models.project_image_build_limits import ProjectImageBuildLimits
 from daytona.v2._gen.api.models.project_sandbox_limits import ProjectSandboxLimits
 from typing import Optional, Set
 from typing_extensions import Self
@@ -35,9 +36,10 @@ class ProjectLimits(BaseModel):
     """
     The project's own sandbox limits, each with the project's current usage against it.
     """ # noqa: E501
+    image_builds: ProjectImageBuildLimits
     sandboxes: ProjectSandboxLimits
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["sandboxes"]
+    __properties: ClassVar[List[str]] = ["image_builds", "sandboxes"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,6 +84,9 @@ class ProjectLimits(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of image_builds
+        if self.image_builds:
+            _dict['image_builds'] = self.image_builds.to_dict()
         # override the default output from pydantic by calling `to_dict()` of sandboxes
         if self.sandboxes:
             _dict['sandboxes'] = self.sandboxes.to_dict()
@@ -102,6 +107,7 @@ class ProjectLimits(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "image_builds": ProjectImageBuildLimits.from_dict(obj["image_builds"]) if obj.get("image_builds") is not None else None,
             "sandboxes": ProjectSandboxLimits.from_dict(obj["sandboxes"]) if obj.get("sandboxes") is not None else None
         })
         # store additional fields in additional_properties
