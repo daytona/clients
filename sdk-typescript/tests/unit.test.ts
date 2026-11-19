@@ -355,13 +355,6 @@ const SDK_TOOLBOX_ROUTE_ALLOWLIST = {
   'GET /info': 'No public SDK method exposes this metadata endpoint.',
   'GET /sessions/{id}': 'Session handles expose operations without a separate metadata lookup.',
   'GET /version': 'No public SDK method exposes this version endpoint.',
-  'POST /lsp/completions': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/did-close': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/did-open': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'GET /lsp/document-symbols': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/start': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/stop': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'GET /lsp/workspacesymbols': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
 } as const satisfies Record<string, string>
 
 const CONTRACT_ROUTE_PREFIXES = [
@@ -372,7 +365,6 @@ const CONTRACT_ROUTE_PREFIXES = [
   '/git',
   '/images',
   '/info',
-  '/lsp',
   '/mac-catalog',
   '/mac-models',
   '/port',

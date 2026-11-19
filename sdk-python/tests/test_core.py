@@ -226,7 +226,6 @@ _TS_STAR_EXPORT_RE = re.compile(
 )
 
 _HTTP_METHOD_NAMES: Final = frozenset({"DELETE", "GET", "PATCH", "POST", "PUT"})
-_LSP_REMOVED: Final = "LSP was removed from the SDK; the daemon still serves it until its own removal."
 _TOOLBOX_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
     ("GET", "/info"): "Not exposed by the SDK.",
     (
@@ -238,13 +237,6 @@ _TOOLBOX_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
         "/sessions/{id}",
     ): "Not exposed by the SDK.",
     ("GET", "/version"): "Not exposed by the SDK.",
-    ("POST", "/lsp/completions"): _LSP_REMOVED,
-    ("POST", "/lsp/did-close"): _LSP_REMOVED,
-    ("POST", "/lsp/did-open"): _LSP_REMOVED,
-    ("GET", "/lsp/document-symbols"): _LSP_REMOVED,
-    ("POST", "/lsp/start"): _LSP_REMOVED,
-    ("POST", "/lsp/stop"): _LSP_REMOVED,
-    ("GET", "/lsp/workspacesymbols"): _LSP_REMOVED,
 }
 _CONTRACT_ROUTE_PREFIXES: Final = (
     "/computeruse",
@@ -253,7 +245,6 @@ _CONTRACT_ROUTE_PREFIXES: Final = (
     "/git",
     "/images",
     "/info",
-    "/lsp",
     "/mac-catalog",
     "/mac-models",
     "/port",
