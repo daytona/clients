@@ -48,7 +48,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^10.0.1",
-    "@nx-go/nx-go": "^24.0.0",
+    "@nx-go/nx-go": "^4.1.1",
     "@nx/eslint-plugin": "23.3.1",
     "@nx/jest": "23.3.1",
     "@nx/js": "23.3.1",
