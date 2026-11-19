@@ -582,12 +582,21 @@ class Daytona:
                 )
 
             if params.resources:
-                if params.resources.cpu is not None:
-                    sandbox_data.cpu = CreateSandboxCpu(params.resources.cpu)
-                if params.resources.memory is not None:
-                    sandbox_data.memory = CreateSandboxMemory(params.resources.memory)
-                if params.resources.disk is not None:
-                    sandbox_data.disk = CreateSandboxDisk(params.resources.disk)
+                sandbox_data.cpu = (
+                    CreateSandboxCpu(params.resources.cpu)
+                    if isinstance(params.resources.cpu, list)
+                    else params.resources.cpu
+                )
+                sandbox_data.memory = (
+                    CreateSandboxMemory(params.resources.memory)
+                    if isinstance(params.resources.memory, list)
+                    else params.resources.memory
+                )
+                sandbox_data.disk = (
+                    CreateSandboxDisk(params.resources.disk)
+                    if isinstance(params.resources.disk, list)
+                    else params.resources.disk
+                )
                 sandbox_data.gpu = params.resources.gpu
                 if params.resources.gpu_type is not None:
                     gpu_types = (

@@ -130,6 +130,14 @@ module Daytona
       @data = dto
     end
 
+    def update_singleton(dto)
+      @data.cpu = dto.cpu
+      @data.gpu = dto.gpu
+      @data.memory = dto.memory
+      @data.disk = dto.disk
+      @data.state = dto.state if dto.state
+    end
+
     def update_proxy
       encoded = URI.encode_www_form_component(id).gsub('+', '%20')
       url = URI.parse("#{@parent.toolbox_proxy_url.sub(%r{/+$}, '')}/#{encoded}")
@@ -178,7 +186,7 @@ module Daytona
       @warning_mutex.synchronize { @warnings << message unless @warnings.include?(message) }
     end
 
-    private :update, :update_proxy, :warn, :process_api
+    private :update, :update_proxy, :update_singleton, :warn, :process_api
 
     # @return [DaytonaApiClient::PortPreviewUrl] Preview for this member
     def preview_url(port) = api_call(:get_port_preview_url, id, port)
@@ -230,6 +238,10 @@ module Daytona
       if raw.nil? || raw.empty?
         unless @members.empty?
           @members.each { |node| node.send(:update_proxy) }
+          head = @members.first
+          if @parent.node_count == 1 && @members.one? && head.rank.zero? && head.id == sandbox_dto.id
+            head.send(:update_singleton, sandbox_dto)
+          end
           return
         end
         return if worker_rank.nil? && @parent.node_count > 1

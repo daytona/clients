@@ -55,6 +55,31 @@ func writeNodesJSON(w http.ResponseWriter, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
+func TestOrdinarySandboxRefreshesRankZeroWithoutMemberRows(t *testing.T) {
+	dto := nodesTestDTO("http://localhost/toolbox")
+	dto.Nodes, dto.NodeCount, dto.TopologyGeneration = nil, nil, nil
+	dto.Gpu, dto.Cpu = 0, 2
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeNodesJSON(w, dto)
+	}))
+	defer server.Close()
+
+	sandbox := nodesTestSandbox(t, server, dto)
+	head, err := sandbox.Nodes.Get(0)
+	require.NoError(t, err)
+	dto.Cpu, dto.Memory, dto.Disk = 6, 12, 40
+	stopped := apiclient.SANDBOXSTATE_STOPPED
+	dto.State = &stopped
+	require.NoError(t, sandbox.RefreshData(context.Background()))
+	current, err := sandbox.Nodes.Get(0)
+	require.NoError(t, err)
+	require.Same(t, head, current)
+	require.Equal(t, dto.Cpu, head.Cpu)
+	require.Equal(t, dto.Memory, head.Memory)
+	require.Equal(t, dto.Disk, head.Disk)
+	require.Equal(t, stopped, head.State)
+}
+
 func TestSparseGangWaitsForMemberDetails(t *testing.T) {
 	full := nodesTestDTO("http://localhost/toolbox")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

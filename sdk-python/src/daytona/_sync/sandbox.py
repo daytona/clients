@@ -12,7 +12,18 @@ from typing import Any, Callable, TypeVar
 
 import httpx
 from deprecated import deprecated
-from pydantic import ConfigDict, PrivateAttr, field_serializer
+from pydantic import (
+    ConfigDict,
+    GetJsonSchemaHandler,
+    PrivateAttr,
+    SerializerFunctionWrapHandler,
+    TypeAdapter,
+    field_serializer,
+    model_serializer,
+)
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
+from typing_extensions import override
 
 from daytona_analytics_api_client import ApiClient as AnalyticsApiClient
 from daytona_analytics_api_client import Configuration as AnalyticsConfiguration
@@ -295,6 +306,10 @@ class SandboxNodeFileSystem:
 class SandboxNodeCollection(list[SandboxNode]):
     """Live, rank-ordered node collection with aggregate and topology operations."""
 
+    @classmethod
+    def __get_pydantic_json_schema__(cls, _schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
+        return handler(TypeAdapter(list[SandboxNodeDto]).core_schema)
+
     def __init__(self, sandbox: Sandbox | None) -> None:
         super().__init__()
         self._sandbox: Sandbox | None = sandbox
@@ -530,6 +545,7 @@ class Sandbox(SandboxDto):
     kvm: bool | None = None  # pyright: ignore[reportRedeclaration]
     nodes: SandboxNodeCollection  # pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 
+    _has_reported_nodes: bool = PrivateAttr(default=False)
     _fs: FileSystem = PrivateAttr()
     _git: Git = PrivateAttr()
     _process: Process = PrivateAttr()
@@ -543,6 +559,21 @@ class Sandbox(SandboxDto):
 
     # TODO: Remove model_config once everything is migrated to pydantic # pylint: disable=fixme
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+
+    @model_serializer(mode="wrap")
+    def _serialize_sandbox(self, handler: SerializerFunctionWrapHandler):
+        data: dict[str, Any] = handler(self)
+        if not self._has_reported_nodes:
+            data.pop("nodes", None)
+        return data
+
+    @override
+    def to_dict(self) -> dict[str, Any]:
+        """Return the API representation, omitting node membership synthesized by the SDK."""
+        data = super().to_dict()
+        if not self._has_reported_nodes:
+            data.pop("nodes", None)
+        return data
 
     @field_serializer("nodes")
     def _serialize_nodes(self, nodes: SandboxNodeCollection) -> list[SandboxNodeDto]:
@@ -1962,6 +1993,8 @@ class Sandbox(SandboxDto):
         # A direct worker lookup returns only that worker, with its physical rank.
         worker_rank = getattr(sandbox_dto, "node_rank", None) if getattr(sandbox_dto, "head_sandbox_id", None) else None
         raw_nodes = getattr(sandbox_dto, "nodes", None)
+        if raw_nodes is not None:
+            self._has_reported_nodes = True
         if not raw_nodes:
             previous = self.nodes[0] if self.nodes else None
             incarnation = getattr(sandbox_dto, "incarnation", None)

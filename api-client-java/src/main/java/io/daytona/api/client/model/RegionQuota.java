@@ -137,7 +137,7 @@ public class RegionQuota {
 
   public static final String SERIALIZED_NAME_MAX_NODES_PER_SANDBOX = "maxNodesPerSandbox";
   @SerializedName(SERIALIZED_NAME_MAX_NODES_PER_SANDBOX)
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   private BigDecimal maxNodesPerSandbox;
 
   public RegionQuota() {
@@ -455,7 +455,7 @@ public class RegionQuota {
   }
 
 
-  public RegionQuota maxNodesPerSandbox(@javax.annotation.Nonnull BigDecimal maxNodesPerSandbox) {
+  public RegionQuota maxNodesPerSandbox(@javax.annotation.Nullable BigDecimal maxNodesPerSandbox) {
     this.maxNodesPerSandbox = maxNodesPerSandbox;
     return this;
   }
@@ -464,12 +464,12 @@ public class RegionQuota {
    * Maximum derived GPU node count; zero disables multi-node sandboxes.
    * @return maxNodesPerSandbox
    */
-  @javax.annotation.Nonnull
+  @javax.annotation.Nullable
   public BigDecimal getMaxNodesPerSandbox() {
     return maxNodesPerSandbox;
   }
 
-  public void setMaxNodesPerSandbox(@javax.annotation.Nonnull BigDecimal maxNodesPerSandbox) {
+  public void setMaxNodesPerSandbox(@javax.annotation.Nullable BigDecimal maxNodesPerSandbox) {
     this.maxNodesPerSandbox = maxNodesPerSandbox;
   }
 
@@ -596,7 +596,7 @@ public class RegionQuota {
     openapiFields = new HashSet<String>(Arrays.asList("organizationId", "regionId", "sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "allowedGpuTypes", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu", "maxSandboxLifespan", "maxNodesPerSandbox"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("organizationId", "regionId", "sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu", "maxSandboxLifespan", "maxNodesPerSandbox"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("organizationId", "regionId", "sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu", "maxSandboxLifespan"));
   }
 
   /**

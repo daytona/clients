@@ -1,6 +1,7 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { CreateSandboxFromImageParams, CreateSandboxResources } from '../Daytona'
 import { createApiResponse } from './helpers'
 
 const mockAxiosCreate = jest.fn()
@@ -168,6 +169,13 @@ jest.mock('../Sandbox', () => ({
 }))
 
 describe('Daytona', () => {
+  it('preserves scalar image parameter annotations and accepts per-node resources at create', () => {
+    const cpuBudget = (params: CreateSandboxFromImageParams): number => params.resources?.cpu ?? 1
+    expect(cpuBudget({ image: 'alpine', resources: { cpu: 2 } })).toBe(2)
+    const gang: CreateSandboxFromImageParams<CreateSandboxResources> = { image: 'alpine', resources: { cpu: [2, 4] } }
+    expect(gang.resources?.cpu).toEqual([2, 4])
+  })
+
   beforeEach(() => {
     jest.resetModules()
     jest.clearAllMocks()

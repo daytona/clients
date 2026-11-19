@@ -48,7 +48,7 @@ class RegionQuota(BaseModel):
     max_memory_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(description="Memory maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxMemoryPerGpu")
     max_disk_per_gpu: Optional[Union[StrictFloat, StrictInt]] = Field(description="Disk maximum per requested GPU unit for GPU sandboxes.", serialization_alias="maxDiskPerGpu")
     max_sandbox_lifespan: Optional[Union[StrictFloat, StrictInt]] = Field(description="Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.", serialization_alias="maxSandboxLifespan")
-    max_nodes_per_sandbox: Union[StrictFloat, StrictInt] = Field(description="Maximum derived GPU node count; zero disables multi-node sandboxes.", serialization_alias="maxNodesPerSandbox")
+    max_nodes_per_sandbox: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="Maximum derived GPU node count; zero disables multi-node sandboxes.", serialization_alias="maxNodesPerSandbox")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["organizationId", "regionId", "sandboxClass", "totalCpuQuota", "totalMemoryQuota", "totalDiskQuota", "totalGpuQuota", "allowedGpuTypes", "maxCpuPerSandbox", "maxMemoryPerSandbox", "maxDiskPerSandbox", "maxDiskPerNonEphemeralSandbox", "maxCpuPerGpu", "maxMemoryPerGpu", "maxDiskPerGpu", "maxSandboxLifespan", "maxNodesPerSandbox"]
 

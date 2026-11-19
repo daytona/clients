@@ -42,7 +42,7 @@ type RegionQuota struct {
 	// Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
 	MaxSandboxLifespan NullableFloat32 `json:"maxSandboxLifespan"`
 	// Maximum derived GPU node count; zero disables multi-node sandboxes.
-	MaxNodesPerSandbox   float32 `json:"maxNodesPerSandbox"`
+	MaxNodesPerSandbox   *float32 `json:"maxNodesPerSandbox,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -52,7 +52,7 @@ type _RegionQuota RegionQuota
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewRegionQuota(organizationId string, regionId string, sandboxClass SandboxClass, totalCpuQuota float32, totalMemoryQuota float32, totalDiskQuota float32, totalGpuQuota float32, maxCpuPerSandbox NullableFloat32, maxMemoryPerSandbox NullableFloat32, maxDiskPerSandbox NullableFloat32, maxDiskPerNonEphemeralSandbox NullableFloat32, maxCpuPerGpu NullableFloat32, maxMemoryPerGpu NullableFloat32, maxDiskPerGpu NullableFloat32, maxSandboxLifespan NullableFloat32, maxNodesPerSandbox float32) *RegionQuota {
+func NewRegionQuota(organizationId string, regionId string, sandboxClass SandboxClass, totalCpuQuota float32, totalMemoryQuota float32, totalDiskQuota float32, totalGpuQuota float32, maxCpuPerSandbox NullableFloat32, maxMemoryPerSandbox NullableFloat32, maxDiskPerSandbox NullableFloat32, maxDiskPerNonEphemeralSandbox NullableFloat32, maxCpuPerGpu NullableFloat32, maxMemoryPerGpu NullableFloat32, maxDiskPerGpu NullableFloat32, maxSandboxLifespan NullableFloat32) *RegionQuota {
 	this := RegionQuota{}
 	this.OrganizationId = organizationId
 	this.RegionId = regionId
@@ -69,7 +69,6 @@ func NewRegionQuota(organizationId string, regionId string, sandboxClass Sandbox
 	this.MaxMemoryPerGpu = maxMemoryPerGpu
 	this.MaxDiskPerGpu = maxDiskPerGpu
 	this.MaxSandboxLifespan = maxSandboxLifespan
-	this.MaxNodesPerSandbox = maxNodesPerSandbox
 	return &this
 }
 
@@ -489,28 +488,36 @@ func (o *RegionQuota) SetMaxSandboxLifespan(v float32) {
 	o.MaxSandboxLifespan.Set(&v)
 }
 
-// GetMaxNodesPerSandbox returns the MaxNodesPerSandbox field value
+// GetMaxNodesPerSandbox returns the MaxNodesPerSandbox field value if set, zero value otherwise.
 func (o *RegionQuota) GetMaxNodesPerSandbox() float32 {
-	if o == nil {
+	if o == nil || IsNil(o.MaxNodesPerSandbox) {
 		var ret float32
 		return ret
 	}
-
-	return o.MaxNodesPerSandbox
+	return *o.MaxNodesPerSandbox
 }
 
-// GetMaxNodesPerSandboxOk returns a tuple with the MaxNodesPerSandbox field value
+// GetMaxNodesPerSandboxOk returns a tuple with the MaxNodesPerSandbox field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 func (o *RegionQuota) GetMaxNodesPerSandboxOk() (*float32, bool) {
-	if o == nil {
+	if o == nil || IsNil(o.MaxNodesPerSandbox) {
 		return nil, false
 	}
-	return &o.MaxNodesPerSandbox, true
+	return o.MaxNodesPerSandbox, true
 }
 
-// SetMaxNodesPerSandbox sets field value
+// HasMaxNodesPerSandbox returns a boolean if a field has been set.
+func (o *RegionQuota) HasMaxNodesPerSandbox() bool {
+	if o != nil && !IsNil(o.MaxNodesPerSandbox) {
+		return true
+	}
+
+	return false
+}
+
+// SetMaxNodesPerSandbox gets a reference to the given float32 and assigns it to the MaxNodesPerSandbox field.
 func (o *RegionQuota) SetMaxNodesPerSandbox(v float32) {
-	o.MaxNodesPerSandbox = v
+	o.MaxNodesPerSandbox = &v
 }
 
 func (o RegionQuota) MarshalJSON() ([]byte, error) {
@@ -541,7 +548,9 @@ func (o RegionQuota) ToMap() (map[string]interface{}, error) {
 	toSerialize["maxMemoryPerGpu"] = o.MaxMemoryPerGpu.Get()
 	toSerialize["maxDiskPerGpu"] = o.MaxDiskPerGpu.Get()
 	toSerialize["maxSandboxLifespan"] = o.MaxSandboxLifespan.Get()
-	toSerialize["maxNodesPerSandbox"] = o.MaxNodesPerSandbox
+	if !IsNil(o.MaxNodesPerSandbox) {
+		toSerialize["maxNodesPerSandbox"] = o.MaxNodesPerSandbox
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -570,7 +579,6 @@ func (o *RegionQuota) UnmarshalJSON(data []byte) (err error) {
 		"maxMemoryPerGpu",
 		"maxDiskPerGpu",
 		"maxSandboxLifespan",
-		"maxNodesPerSandbox",
 	}
 
 	allProperties := make(map[string]interface{})

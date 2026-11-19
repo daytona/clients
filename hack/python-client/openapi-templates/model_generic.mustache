@@ -12,6 +12,11 @@ import json
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
+{{#vendorExtensions.x-daytona-scalar-resources}}
+from typing_extensions import Annotated
+
+_ResourceScalar = Annotated[int, Field(strict=True, ge=0)]
+{{/vendorExtensions.x-daytona-scalar-resources}}
 
 {{#hasChildren}}
 {{#discriminator}}
@@ -31,7 +36,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
     """ # noqa: E501
 {{#vars}}
+    {{#vendorExtensions.x-daytona-scalar-resource}}
+    {{name}}: Optional[_ResourceScalar | {{{dataType}}}] = None
+    {{/vendorExtensions.x-daytona-scalar-resource}}
+    {{^vendorExtensions.x-daytona-scalar-resource}}
     {{name}}: {{{vendorExtensions.x-py-typing}}}
+    {{/vendorExtensions.x-daytona-scalar-resource}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
     additional_properties: Dict[str, Any] = {}
@@ -232,7 +242,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         {{^isPrimitiveType}}
         {{^isEnumOrRef}}
         # override the default output from pydantic by calling `to_dict()` of {{{name}}}
+        {{#vendorExtensions.x-daytona-scalar-resource}}
+        if isinstance(self.{{{name}}}, {{{dataType}}}):
+        {{/vendorExtensions.x-daytona-scalar-resource}}
+        {{^vendorExtensions.x-daytona-scalar-resource}}
         if self.{{{name}}}:
+        {{/vendorExtensions.x-daytona-scalar-resource}}
             _dict['{{{baseName}}}'] = self.{{{name}}}.to_dict()
         {{/isEnumOrRef}}
         {{/isPrimitiveType}}
@@ -371,7 +386,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
             {{^isContainer}}
             {{^isPrimitiveType}}
             {{^isEnumOrRef}}
+            {{#vendorExtensions.x-daytona-scalar-resource}}
+            "{{{name}}}": {{{dataType}}}.from_dict(obj["{{{baseName}}}"]) if obj.get("{{{baseName}}}") is not None and not isinstance(obj["{{{baseName}}}"], int) else obj.get("{{{baseName}}}"){{^-last}},{{/-last}}
+            {{/vendorExtensions.x-daytona-scalar-resource}}
+            {{^vendorExtensions.x-daytona-scalar-resource}}
             "{{{name}}}": {{{dataType}}}.from_dict(obj["{{{baseName}}}"]) if obj.get("{{{baseName}}}") is not None else None{{^-last}},{{/-last}}
+            {{/vendorExtensions.x-daytona-scalar-resource}}
             {{/isEnumOrRef}}
             {{#isEnumOrRef}}
             "{{{name}}}": obj.get("{{{baseName}}}"){{#defaultValue}} if obj.get("{{baseName}}") is not None else {{defaultValue}}{{/defaultValue}}{{^-last}},{{/-last}}

@@ -52,7 +52,7 @@ export interface RegionQuota {
     /**
      * Maximum derived GPU node count; zero disables multi-node sandboxes.
      */
-    'maxNodesPerSandbox': number;
+    'maxNodesPerSandbox'?: number;
 }
 
 

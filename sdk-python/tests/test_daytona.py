@@ -211,9 +211,9 @@ class TestDaytonaCreateValidation:
         params = CreateSandboxFromImageParams(image="python:3.12", resources=Resources(cpu=2, memory=4, disk=8, gpu=1))
         daytona.create(params)
         create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
-        assert create_request.cpu.actual_instance == 2
-        assert create_request.memory.actual_instance == 4
-        assert create_request.disk.actual_instance == 8
+        assert create_request.to_dict()["cpu"] == 2
+        assert create_request.to_dict()["memory"] == 4
+        assert create_request.to_dict()["disk"] == 8
         assert create_request.gpu == 1
 
     def test_create_raises_queue_timeout_when_build_log_stream_fails_on_timed_out_sandbox(self, env_with_api_key):
@@ -267,9 +267,9 @@ class TestDaytonaCreateValidation:
         daytona.create(params)
 
         create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
-        assert create_request.cpu.actual_instance == [16, 16, 32, 32]
-        assert create_request.memory.actual_instance == 256
-        assert create_request.disk.actual_instance == [180, 180, 300, 300]
+        assert create_request.to_dict()["cpu"] == [16, 16, 32, 32]
+        assert create_request.to_dict()["memory"] == 256
+        assert create_request.to_dict()["disk"] == [180, 180, 300, 300]
 
     def test_create_from_snapshot_sets_snapshot_and_volume_mounts(self, env_with_api_key, sandbox_dto):
         from daytona.common.volume import VolumeMount

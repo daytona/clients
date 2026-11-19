@@ -170,7 +170,7 @@ const sandbox = await daytona.create(params, { timeout: 100 });
 ##### Call Signature
 
 ```ts
-create(params?: CreateSandboxFromImageParams, options?: {
+create(params?: CreateSandboxFromImageParams<CreateSandboxResources>, options?: {
   onSnapshotCreateLogs?: (chunk: string) => void;
   timeout?: number;
 }): Promise<Sandbox>;
@@ -182,7 +182,7 @@ provided image and uses it to create Sandbox.
 
 **Parameters**:
 
-- `params?` _CreateSandboxFromImageParams_ - Parameters for Sandbox creation from image
+- `params?` _CreateSandboxFromImageParams\<CreateSandboxResources\>_ - Parameters for Sandbox creation from image
 - `options?` _Options for the create operation_
 - `onSnapshotCreateLogs?` _\(chunk: string\) =\> void_ - Callback function to handle snapshot creation logs.
 - `timeout?` _number_ - Timeout in seconds (0 means no timeout, default is 60)
@@ -447,7 +447,7 @@ Parameters for creating a new Sandbox.
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
 - `queueTimeout?` _number_
-- `resources?` _CreateSandboxResources_ - Resource allocation for the Sandbox. If not provided, sandbox will
+- `resources?` _R_ - Resource allocation for the Sandbox. If not provided, sandbox will
     have default resources.
 - `secrets?` _Record\<string, string\>_
 - `spot?` _boolean_
@@ -455,6 +455,15 @@ Parameters for creating a new Sandbox.
 - `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
+
+
+
+
+### Type Parameters
+
+#### R
+
+`R` *extends* `CreateSandboxResources` = `Resources`
 ## CreateSandboxFromSnapshotParams
 
 Parameters for creating a new Sandbox from a snapshot.

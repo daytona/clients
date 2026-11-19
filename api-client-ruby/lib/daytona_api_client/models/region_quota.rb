@@ -260,8 +260,6 @@ module DaytonaApiClient
 
       if attributes.key?(:'max_nodes_per_sandbox')
         self.max_nodes_per_sandbox = attributes[:'max_nodes_per_sandbox']
-      else
-        self.max_nodes_per_sandbox = nil
       end
     end
 
@@ -298,10 +296,6 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "total_gpu_quota", total_gpu_quota cannot be nil.')
       end
 
-      if @max_nodes_per_sandbox.nil?
-        invalid_properties.push('invalid value for "max_nodes_per_sandbox", max_nodes_per_sandbox cannot be nil.')
-      end
-
       invalid_properties
     end
 
@@ -316,7 +310,6 @@ module DaytonaApiClient
       return false if @total_memory_quota.nil?
       return false if @total_disk_quota.nil?
       return false if @total_gpu_quota.nil?
-      return false if @max_nodes_per_sandbox.nil?
       true
     end
 
@@ -388,16 +381,6 @@ module DaytonaApiClient
       end
 
       @total_gpu_quota = total_gpu_quota
-    end
-
-    # Custom attribute writer method with validation
-    # @param [Object] max_nodes_per_sandbox Value to be assigned
-    def max_nodes_per_sandbox=(max_nodes_per_sandbox)
-      if max_nodes_per_sandbox.nil?
-        fail ArgumentError, 'max_nodes_per_sandbox cannot be nil'
-      end
-
-      @max_nodes_per_sandbox = max_nodes_per_sandbox
     end
 
     # Checks equality by comparing each attribute.

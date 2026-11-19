@@ -46,6 +46,18 @@ RSpec.describe Daytona::SandboxNodes do
     stub_request(:delete, %r{#{base}/[^/]+/process/session/[^/]+$}).to_return(status: cleanup_status, body: '{}')
   end
 
+  it 'refreshes the existing rank-zero handle when an ordinary sandbox omits nodes' do
+    dto = build_sandbox_dto(cpu: 2, state: 'started')
+    ordinary = Daytona::Sandbox.new(sandbox_dto: dto, config: build_config, sandbox_api: api,
+                                    subscription_manager: manager)
+    head = ordinary.nodes.first
+    allow(api).to receive(:get_sandbox).with(dto.id).and_return(build_sandbox_dto(cpu: 6, memory: 12, disk: 40,
+                                                                                  state: 'stopped'))
+    ordinary.refresh
+    expect(ordinary.nodes.first).to equal(head)
+    expect(head).to have_attributes(cpu: 6, memory: 12, disk: 40, state: 'stopped')
+  end
+
   it 'waits for member details before exposing ranks on a fresh gang' do
     sparse = gang
     sparse.nodes = nil

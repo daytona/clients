@@ -9431,6 +9431,7 @@ components:
             type: object
           type: array
       type: object
+      x-daytona-scalar-resources: true
     BuildInfo:
       properties:
         dockerfileContent:
@@ -10228,7 +10229,6 @@ components:
       - maxDiskPerSandbox
       - maxMemoryPerGpu
       - maxMemoryPerSandbox
-      - maxNodesPerSandbox
       - maxSandboxLifespan
       - organizationId
       - regionId
@@ -13533,6 +13533,7 @@ components:
           type: integer
         minItems: 1
         type: array
+      x-daytona-scalar-resource: true
     CreateSandbox_memory:
       description: "Memory allocated per node in GB. A scalar applies to every node;\
         \ for a multi-node GPU sandbox, an array specifies one value per rank."
@@ -13545,6 +13546,7 @@ components:
           type: integer
         minItems: 1
         type: array
+      x-daytona-scalar-resource: true
     CreateSandbox_disk:
       description: "Disk space allocated per node in GB. A scalar applies to every\
         \ node; for a multi-node GPU sandbox, an array specifies one value per rank."
@@ -13561,6 +13563,7 @@ components:
           type: integer
         minItems: 1
         type: array
+      x-daytona-scalar-resource: true
   securitySchemes:
     bearer:
       bearerFormat: JWT

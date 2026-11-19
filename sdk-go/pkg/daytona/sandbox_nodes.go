@@ -165,12 +165,6 @@ func (s *Sandbox) syncNodes(dto sandboxDTO) {
 		s.Nodes.FileSystem = &NodeFileSystemService{nodes: s.Nodes}
 	}
 	full, authoritative := dto.(*apiclient.Sandbox)
-	if !authoritative && len(s.Nodes.nodes) > 0 {
-		for _, node := range s.Nodes.nodes {
-			node.updateProxy(s.ToolboxProxyUrl)
-		}
-		return
-	}
 	var raw []apiclient.SandboxNode
 	if authoritative {
 		if full.NodeCount != nil {
@@ -199,6 +193,12 @@ func (s *Sandbox) syncNodes(dto sandboxDTO) {
 		if len(s.Nodes.nodes) > 0 {
 			for _, node := range s.Nodes.nodes {
 				node.updateProxy(s.ToolboxProxyUrl)
+				if s.NodeCount == 1 && len(s.Nodes.nodes) == 1 && node.Rank == 0 && node.ID == s.ID {
+					node.Cpu, node.Gpu, node.Memory, node.Disk = s.Cpu, s.Gpu, s.Memory, s.Disk
+					if state := dto.GetState(); state != "" {
+						node.State = state
+					}
+				}
 			}
 			return
 		}

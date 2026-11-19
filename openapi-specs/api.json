@@ -12324,6 +12324,7 @@
         ]
       },
       "CreateSandbox": {
+        "x-daytona-scalar-resources": true,
         "type": "object",
         "properties": {
           "name": {
@@ -12403,6 +12404,7 @@
             "example": "us"
           },
           "cpu": {
+            "x-daytona-scalar-resource": true,
             "description": "CPU cores allocated per node. A scalar applies to every node; for a multi-node GPU sandbox, an array specifies one value per rank.",
             "example": [
               16,
@@ -12447,6 +12449,7 @@
             "default": false
           },
           "memory": {
+            "x-daytona-scalar-resource": true,
             "description": "Memory allocated per node in GB. A scalar applies to every node; for a multi-node GPU sandbox, an array specifies one value per rank.",
             "example": 256,
             "oneOf": [
@@ -12465,6 +12468,7 @@
             ]
           },
           "disk": {
+            "x-daytona-scalar-resource": true,
             "description": "Disk space allocated per node in GB. A scalar applies to every node; for a multi-node GPU sandbox, an array specifies one value per rank.",
             "example": [
               180,
@@ -13356,8 +13360,7 @@
           "maxCpuPerGpu",
           "maxMemoryPerGpu",
           "maxDiskPerGpu",
-          "maxSandboxLifespan",
-          "maxNodesPerSandbox"
+          "maxSandboxLifespan"
         ]
       },
       "CreateRunnerSandboxClass": {

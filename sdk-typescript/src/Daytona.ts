@@ -253,9 +253,9 @@ export type CreateSandboxBaseParams = {
  * @property {Resources} [resources] - Resource allocation for the Sandbox. If not provided, sandbox will
  * have default resources.
  */
-export type CreateSandboxFromImageParams = CreateSandboxBaseParams & {
+export type CreateSandboxFromImageParams<R extends CreateSandboxResources = Resources> = CreateSandboxBaseParams & {
   image: string | Image
-  resources?: CreateSandboxResources
+  resources?: R
 }
 
 /**
@@ -616,12 +616,12 @@ export class Daytona implements AsyncDisposable {
    * const sandbox = await daytona.create(params, { timeout: 100, onSnapshotCreateLogs: console.log });
    */
   public async create(
-    params?: CreateSandboxFromImageParams,
+    params?: CreateSandboxFromImageParams<CreateSandboxResources>,
     options?: { onSnapshotCreateLogs?: (chunk: string) => void; timeout?: number },
   ): Promise<Sandbox>
   @WithInstrumentation()
   public async create(
-    params?: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams,
+    params?: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams<CreateSandboxResources>,
     options: { onSnapshotCreateLogs?: (chunk: string) => void; timeout?: number } = { timeout: 60 },
   ): Promise<Sandbox> {
     const startTime = Date.now()
