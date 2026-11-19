@@ -1,0 +1,1 @@
+Recognize `SANDBOX_ABUSE_HOLD`, `GPU_ACCESS_UNDER_REVIEW` and `MEMBERSHIP_EDITS_FROZEN` in both SDKs' API error catalogs.
