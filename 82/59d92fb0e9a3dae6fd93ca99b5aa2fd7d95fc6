@@ -1,0 +1,18 @@
+changelog.d/gpu-access-under-review.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/membership-edits-frozen.added.md
+  h_e7759ddd73fa65 1-3
+changelog.d/sandbox-abuse-hold.added.md
+  h_e7759ddd73fa65 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8259d92fb0e9a3dae6fd93ca99b5aa2fd7d95fc6",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
