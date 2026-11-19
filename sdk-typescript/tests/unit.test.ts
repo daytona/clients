@@ -12133,7 +12133,7 @@ describe('computer-use namespace', () => {
       { environment: 'xfce', resolution: { width: 1920, height: 1080 } },
       { environment: 'gnome', resolution: { width: 1920, height: 1080 } },
     ] as const)('forwards only the given settings when options are %p', async (options) => {
-      // Given a lifecycle response and a resolution-only status read-back.
+      // Given a lifecycle response and a status confirming the requested settings.
       const transport = transportStub()
       const computerUse = new ComputerUseService(INTERNAL, transport.computerUseObject)
       transport.post.mockResolvedValue(
@@ -12141,14 +12141,14 @@ describe('computer-use namespace', () => {
           ? { message: 'computer use started', status: {} }
           : { message: 'computer use restarted', status: 'active', desktop: 'ready' },
       )
-      transport.get.mockResolvedValue({ status: 'active', desktop: 'ready', resolution: { width: 1920, height: 1080 } })
+      transport.get.mockResolvedValue({ status: 'active', desktop: 'ready', ...options })
 
       // When starting or restarting with the selected options.
       await computerUse[verb](options)
 
-      // Then only resolution adds a request; an empty options object sends no body.
+      // Then either setting adds one shared read; an empty options object sends no body.
       expect(transport.post.mock.calls).toEqual([[`/computeruse/${verb}`, Object.keys(options).length === 0 ? undefined : options]])
-      expect(transport.get.mock.calls).toEqual('resolution' in options ? [['/computeruse/status']] : [])
+      expect(transport.get.mock.calls).toEqual(Object.keys(options).length > 0 ? [['/computeruse/status']] : [])
     })
   })
 

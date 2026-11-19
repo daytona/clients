@@ -110,15 +110,22 @@ function formatResolution(resolution: ComputerUseResolution): string {
 }
 
 /**
- * After a start or restart that asked for `requested`, reads back the size the
- * desktop runs at: the status `resolution`, or, from a guest that predates it,
- * the first display. A guest that predates resolution selection answers 2xx
- * and ignores the request, so a mismatch throws instead of reporting success.
- * A read that fails throws too: success is never reported for a resolution
- * that was not confirmed.
+ * Confirm requested settings with one status read. When status has no
+ * resolution, use the first display. Older guests can ignore the request,
+ * so an absent or different environment or a different resolution throws
+ * instead of reporting success. A failed read throws too.
  */
-async function readBackResolution(transport: ComputerUseTransport, requested: ComputerUseResolution): Promise<void> {
+async function readBackSettings(transport: ComputerUseTransport, settings: toolbox.ComputerUseStartRequest): Promise<void> {
   const status = mapComputerUseStatusResponse(await transport.get<toolbox.ComputerUseStatusResponse>('/computeruse/status'))
+  if (settings.environment !== undefined && status.environment !== settings.environment) {
+    throw new UnsupportedOperationError(
+      `desktop runs ${status.rawEnvironment || 'an unknown environment'}, not the requested ${settings.environment}; ` +
+        'the guest did not confirm environment selection',
+      { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
+    )
+  }
+  const requested = settings.resolution
+  if (requested === undefined) return
   let actual = status.resolution
   if (actual === undefined) {
     const display = mapComputerUseDisplayInfo(
@@ -461,15 +468,15 @@ export class ComputerUseLifecycleService {
    * with GNOME, a successful preflight, at least 4 vCPUs and 8192 MiB.
    * Unsupported settings or insufficient resources throw `BadRequestError`.
    * Windows and macOS refuse either setting with `UnsupportedOperationError`,
-   * as does a system layer without GNOME when it is requested. Only resolution
-   * adds a read-back request (see `ComputerUseService.start()`).
+   * as does a system layer without GNOME when it is requested. Either setting
+   * adds one shared status read (see `ComputerUseService.start()`).
    */
   public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
     const body = desktopStartBody(options)
     const started = mapComputerUseLifecycleResponse(
       await this.transport.post<toolbox.ComputerUseLifecycleResponse>('/computeruse/start', body),
     )
-    if (body?.resolution !== undefined) await readBackResolution(this.transport, body.resolution)
+    if (body !== undefined) await readBackSettings(this.transport, body)
     return started
   }
 
@@ -488,14 +495,14 @@ export class ComputerUseLifecycleService {
    * resources throw `BadRequestError`. Windows and macOS refuse either
    * setting with `UnsupportedOperationError`, as does a system layer without
    * GNOME when it is requested. A concurrent restart with different settings
-   * throws `ConflictError`. Only resolution adds a read-back request.
+   * throws `ConflictError`. Either setting adds one shared status read.
    */
   public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
     const body = desktopStartBody(options)
     const restarted = mapComputerUseRestartResponse(
       await this.transport.post<toolbox.ComputerUseRestartResponse>('/computeruse/restart', body),
     )
-    if (body?.resolution !== undefined) await readBackResolution(this.transport, body.resolution)
+    if (body !== undefined) await readBackSettings(this.transport, body)
     return restarted
   }
 }
