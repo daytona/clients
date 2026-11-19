@@ -1566,6 +1566,9 @@ SearchSort = Literal[
     "created_at", "updated_at", "last_activity_at", "name", "cores", "memory_mib", "disk_mib"
 ]
 SearchOrder = Literal["asc", "desc"]
+SecretSearchSort = Literal["name", "created_at", "updated_at"]
+VolumeSearchSort = Literal["created_at", "updated_at", "name", "used_bytes", "last_used_at"]
+VolumeSearchStatus = Literal["ready", "deleting", "error"]
 SearchTimestamp = Union[str, datetime]
 """A search bound: an RFC 3339 timestamp without a leap second (year 0001-9999,
 a real calendar date), checked and sent exactly as written; or a ``datetime``,

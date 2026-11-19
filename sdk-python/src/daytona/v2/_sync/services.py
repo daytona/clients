@@ -370,8 +370,50 @@ class VolumesService:
         return self._bridge.iterate(self._impl.iter(cursor=cursor, limit=limit))
 
     def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Volume]:
-        """List volumes."""
+        """List volumes through search, falling back where search is not served."""
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
+
+    def search(
+        self,
+        *,
+        q: Optional[str] = None,
+        name: Optional[str] = None,
+        name_prefix: Optional[str] = None,
+        types: Optional[Union[Literal["disk", "bucket"], Sequence[Literal["disk", "bucket"]]]] = None,
+        statuses: Optional[Union[VolumeSearchStatus, Sequence[VolumeSearchStatus]]] = None,
+        imported: Optional[bool] = None,
+        created_start_at: Optional[SearchTimestamp] = None,
+        created_end_at: Optional[SearchTimestamp] = None,
+        updated_start_at: Optional[SearchTimestamp] = None,
+        updated_end_at: Optional[SearchTimestamp] = None,
+        last_used_start_at: Optional[SearchTimestamp] = None,
+        last_used_end_at: Optional[SearchTimestamp] = None,
+        sort: Optional[VolumeSearchSort] = None,
+        order: Optional[SearchOrder] = None,
+        cursor: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> SearchResult[Volume]:
+        """Search volumes with server-side filters and cursor pagination."""
+        return self._bridge.call(
+            lambda: self._impl.search(
+                q=q,
+                name=name,
+                name_prefix=name_prefix,
+                types=types,
+                statuses=statuses,
+                imported=imported,
+                created_start_at=created_start_at,
+                created_end_at=created_end_at,
+                updated_start_at=updated_start_at,
+                updated_end_at=updated_end_at,
+                last_used_start_at=last_used_start_at,
+                last_used_end_at=last_used_end_at,
+                sort=sort,
+                order=order,
+                cursor=cursor,
+                limit=limit,
+            )
+        )
 
 
 class SecretsService:
@@ -412,8 +454,42 @@ class SecretsService:
         return self._bridge.iterate(self._impl.iter(cursor=cursor, limit=limit))
 
     def list(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> ListResult[Secret]:
-        """List secret metadata."""
+        """List secret metadata through search, falling back where search is not served."""
         return self._bridge.call(lambda: self._impl.list(cursor=cursor, limit=limit))
+
+    def search(
+        self,
+        *,
+        q: Optional[str] = None,
+        name: Optional[str] = None,
+        name_prefix: Optional[str] = None,
+        allowed_domain: Optional[str] = None,
+        created_start_at: Optional[SearchTimestamp] = None,
+        created_end_at: Optional[SearchTimestamp] = None,
+        updated_start_at: Optional[SearchTimestamp] = None,
+        updated_end_at: Optional[SearchTimestamp] = None,
+        sort: Optional[SecretSearchSort] = None,
+        order: Optional[SearchOrder] = None,
+        cursor: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> SearchResult[Secret]:
+        """Search secret metadata (never values) with server-side filters."""
+        return self._bridge.call(
+            lambda: self._impl.search(
+                q=q,
+                name=name,
+                name_prefix=name_prefix,
+                allowed_domain=allowed_domain,
+                created_start_at=created_start_at,
+                created_end_at=created_end_at,
+                updated_start_at=updated_start_at,
+                updated_end_at=updated_end_at,
+                sort=sort,
+                order=order,
+                cursor=cursor,
+                limit=limit,
+            )
+        )
 
     def set(
         self,
