@@ -1269,7 +1269,11 @@ Lightweight async data-plane handle for one node in a multi-node Sandbox.
 def update(node: SandboxNodeDto) -> None
 ```
 
-Refresh health and address metadata without replacing data-plane clients.
+Refresh resources, state, incarnation, failure details and fabric metadata.
+
+**Raises**:
+
+- `DaytonaError` - If the node rank or ID differs from this handle.
 
 #### AsyncSandboxNode.to\_dict
 

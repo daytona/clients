@@ -1637,7 +1637,7 @@ export class Sandbox {
     if (!raw || typeof raw !== 'object') return
 
     if (eventName === 'sandbox.created') {
-      this.processSandboxDto(raw as SandboxDto)
+      this.processSandboxDto(raw as SandboxDto, true)
       return
     }
 
@@ -1795,7 +1795,7 @@ export class Sandbox {
    * @param {SandboxDto} sandboxDto - The API sandbox instance to assign data from
    * @returns {void}
    */
-  private processSandboxDto(sandboxDto: SandboxDto | SandboxListItemDto) {
+  private processSandboxDto(sandboxDto: SandboxDto | SandboxListItemDto, fromEvent = false) {
     const newState = sandboxDto.state
 
     this.id = sandboxDto.id
@@ -1870,7 +1870,7 @@ export class Sandbox {
 
     // A lightweight event may omit every member of an existing gang.
     const singleHead = this.nodeCount === 1 && this.nodes.length === 1 && this.nodes[0].rank === 0
-    if (this.process && (('nodes' in sandboxDto && sandboxDto.nodes) || singleHead)) {
+    if (this.process && (('nodes' in sandboxDto && sandboxDto.nodes) || (singleHead && !fromEvent))) {
       this.processNodes(sandboxDto)
     }
   }

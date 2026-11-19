@@ -634,8 +634,6 @@ func (p *ProcessService) GetSessionCommandLogsStream(ctx context.Context, sessio
 		defer conn.Close()
 
 		// Process the WebSocket stream and demux stdout/stderr
-		stopClosing := context.AfterFunc(ctx, func() { _ = conn.Close() })
-		defer stopClosing()
 		return processWebsocketStream(ctx, conn, stdout, stderr)
 	})
 }
@@ -735,12 +733,14 @@ func (p *ProcessService) GetEntrypointLogsStream(ctx context.Context, stdout, st
 
 // processWebsocketStream demultiplexes a WebSocket stream into separate stdout and stderr channels.
 func processWebsocketStream(ctx context.Context, conn *websocket.Conn, stdout, stderr chan<- string) error {
+	stopClosing := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopClosing()
 	var buf []byte
 	var currentType string // "", "stdout", or "stderr"
 
 	flush := func() {
 		if len(buf) > 0 && currentType != "" {
-			flushToChannel(buf, currentType, stdout, stderr)
+			flushToChannel(ctx, buf, currentType, stdout, stderr)
 			buf = nil
 		}
 	}
@@ -757,6 +757,9 @@ func processWebsocketStream(ctx context.Context, conn *websocket.Conn, stdout, s
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			flush()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			// Handle normal closure
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				return nil
@@ -793,7 +796,7 @@ func processWebsocketStream(ctx context.Context, conn *websocket.Conn, stdout, s
 				if len(buf) > maxPrefixLen-1 {
 					emitLen := len(buf) - (maxPrefixLen - 1)
 					if currentType != "" {
-						flushToChannel(buf[:emitLen], currentType, stdout, stderr)
+						flushToChannel(ctx, buf[:emitLen], currentType, stdout, stderr)
 					}
 					buf = buf[emitLen:]
 				}
@@ -802,7 +805,7 @@ func processWebsocketStream(ctx context.Context, conn *websocket.Conn, stdout, s
 
 			// Emit bytes before marker
 			if nextIdx > 0 && currentType != "" {
-				flushToChannel(buf[:nextIdx], currentType, stdout, stderr)
+				flushToChannel(ctx, buf[:nextIdx], currentType, stdout, stderr)
 			}
 
 			// Skip marker and switch type
@@ -813,18 +816,22 @@ func processWebsocketStream(ctx context.Context, conn *websocket.Conn, stdout, s
 }
 
 // flushToChannel sends data to the appropriate channel based on the data type
-func flushToChannel(data []byte, dataType string, stdout, stderr chan<- string) {
+func flushToChannel(ctx context.Context, data []byte, dataType string, stdout, stderr chan<- string) {
 	if len(data) == 0 {
 		return
 	}
-	text := string(data)
+	var output chan<- string
 	switch dataType {
 	case "stdout":
-		stdout <- text
+		output = stdout
 	case "stderr":
-		stderr <- text
+		output = stderr
 	default:
-		// Drop unknown data type
+		return
+	}
+	select {
+	case output <- string(data):
+	case <-ctx.Done():
 	}
 }
 

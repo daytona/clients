@@ -116,6 +116,8 @@ class SandboxNode:
         language: str,
         http_client: httpx.Client,
     ) -> None:
+        if not node.id or node.id in {".", ".."} or any(char in node.id for char in "/\\?#%"):
+            raise DaytonaValidationError("Sandbox node id must be a valid path segment")
         self.rank: int = node.rank
         self.id: str = node.id
         self.cpu: int = node.cpu
@@ -139,7 +141,11 @@ class SandboxNode:
         self.update(node)
 
     def update(self, node: SandboxNodeDto) -> None:
-        """Refresh health and address metadata without replacing data-plane clients."""
+        """Refresh resources, state, incarnation, failure details and fabric metadata.
+
+        Raises:
+            DaytonaError: If the node rank or ID differs from this handle.
+        """
         if node.rank != self.rank or node.id != self.id:
             raise DaytonaError(
                 f"Sandbox node identity changed from rank {self.rank}/{self.id} to {node.rank}/{node.id}"
@@ -1721,7 +1727,7 @@ class Sandbox(SandboxDto):
         if event_name == "sandbox.created":
             sandbox_dto = SandboxDto.from_dict(raw)  # pyright: ignore[reportArgumentType]
             if sandbox_dto is not None:
-                self.__process_sandbox_dto(sandbox_dto)
+                self.__process_sandbox_dto(sandbox_dto, from_event=True)
         else:
             if isinstance(raw, dict) and "sandbox" in data:
                 # Set before the state: a wait that ends on an error state reports this reason. The event omits
@@ -1870,7 +1876,7 @@ class Sandbox(SandboxDto):
                 if _waiter in self._state_waiters:
                     self._state_waiters.remove(_waiter)
 
-    def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
+    def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem, *, from_event: bool = False) -> None:
         self.id: str = sandbox_dto.id
         self.name: str = sandbox_dto.name
         self.organization_id: str = sandbox_dto.organization_id
@@ -1942,7 +1948,9 @@ class Sandbox(SandboxDto):
         if hasattr(self, "_toolbox_api_client"):
             # A lightweight event may omit every member of an existing gang.
             single_head = self.node_count == 1 and len(self.nodes) == 1 and self.nodes[0].rank == 0
-            if getattr(sandbox_dto, "nodes", None) is not None or single_head:
+            if getattr(sandbox_dto, "nodes", None) is not None or (
+                single_head and not from_event and isinstance(sandbox_dto, SandboxDto)
+            ):
                 self.__process_nodes(sandbox_dto)
 
     def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:

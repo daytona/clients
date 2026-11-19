@@ -61,11 +61,14 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         List<io.daytona.api.client.model.SandboxNode> raw = dto == null ? null : dto.getNodes();
         Integer workerRank = dto == null || dto.getHeadSandboxId() == null ? null : dto.getNodeRank();
         if (raw == null || raw.isEmpty()) {
-            if (!members.isEmpty()) { updateProxy(parent.getToolboxProxyUrl()); return; }
             int count = Math.max(1, parent.getNodeCount());
+            if (!members.isEmpty() && (count > 1 || members.size() > 1 || members.get(0).getRank() != 0)) {
+                return;
+            }
             raw = Collections.singletonList(new io.daytona.api.client.model.SandboxNode()
                     .id(parent.getId()).rank(workerRank == null ? 0 : workerRank).incarnation(1)
-                    .state(io.daytona.api.client.model.SandboxState.fromValue(parent.getState()))
+                    .state(dto != null && dto.getState() != null ? dto.getState() :
+                            io.daytona.api.client.model.SandboxState.fromValue(parent.getState()))
                     .cpu(parent.getCpu() / count).gpu(parent.getGpu() / count)
                     .memory(parent.getMemory() / count).disk(parent.getDisk() / count));
         }
@@ -138,8 +141,9 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         return operation;
     }
 
-    /** Append rank-ordered nodes; a timeout ends the wait, not the server-side operation. */
+    /** Append rank-ordered nodes and wait up to 600 seconds. */
     public GangMembershipOperation add(List<NodeResources> nodes) { return add(nodes, 600); }
+    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. */
     public GangMembershipOperation add(List<NodeResources> nodes, long timeoutSeconds) {
         if (nodes == null || nodes.isEmpty()) throw new DaytonaException("At least one node resource specification is required");
         List<GangNodeResources> resources = new ArrayList<>();
@@ -154,8 +158,9 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 () -> api.addSandboxNodesCall(parent.getId(), request, null, null), GangMembershipOperation.class), deadline);
     }
 
-    /** Release the highest count ranks. Zero timeout disables the overall wait limit. */
+    /** Release the highest ranks and wait up to 600 seconds. */
     public GangMembershipOperation release(int count) { return release(count, 600); }
+    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. */
     public GangMembershipOperation release(int count, long timeoutSeconds) {
         if (count < 1) throw new DaytonaException("Node release count must be positive");
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);
@@ -165,8 +170,9 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 () -> api.removeSandboxNodesCall(parent.getId(), request, null, null), GangMembershipOperation.class), deadline);
     }
 
-    /** Replace a degraded logical rank and refresh retained node handles after completion. */
+    /** Replace a degraded rank and wait up to 600 seconds. */
     public GangMembershipOperation replace(int rank) { return replace(rank, 600); }
+    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. */
     public GangMembershipOperation replace(int rank, long timeoutSeconds) {
         if (rank < 0) throw new DaytonaException("Node rank must be non-negative");
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);
@@ -220,10 +226,18 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
 
     /** Parallel process execution over a membership snapshot. */
     public final class NodeProcess {
+        /**
+         * Run the command on every rank.
+         * @throws DaytonaNodeOperationException if any rank fails. Inspect getFailures() for errors and getResults() for successful commands.
+         */
         public Map<Integer, ExecuteResponse> executeCommand(String command) {
             return executeCommand(command, new NodeExecuteOptions());
         }
 
+        /**
+         * Run the command on every rank.
+         * @throws DaytonaNodeOperationException if any rank fails. Inspect getFailures() for errors and getResults() for successful commands.
+         */
         public Map<Integer, ExecuteResponse> executeCommand(String command, NodeExecuteOptions options) {
             if (options == null) throw new DaytonaException("Node execution options must not be null");
             long timeout = options.getTimeoutSeconds();
@@ -243,14 +257,14 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 return parallel(snapshot, node -> execute(node, command, timeout,
                         stdout == null ? null : emitOut, stderr == null ? null : emitErr, snapshot.size() > 1), new TreeMap<>());
             } finally {
-                synchronized (callbackLock) { active.set(false); }
+                active.set(false);
             }
         }
 
         private ExecuteResponse execute(SandboxNode node, String command, long timeout,
                 BiConsumer<Integer, String> stdout, BiConsumer<Integer, String> stderr, boolean checkRdma) {
-            String warning = "";
             if (checkRdma) {
+                String warning = "";
                 try {
                     io.daytona.toolbox.client.model.ExecuteResponse probe = new NodeDeadline(5).toolbox(node.toolboxClient(),
                             () -> node.processApi().executeCommandCall(new io.daytona.toolbox.client.model.ExecuteRequest().command(RDMA_CHECK).timeout(5), null),
@@ -259,10 +273,7 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 } catch (RuntimeException e) {
                     warning = "WARNING: Could not check RDMA userspace; continuing without verification.";
                 }
-                if (!warning.isEmpty()) {
-                    node.warn(warning);
-                    if (stderr != null) stderr.accept(node.getRank(), warning + "\n");
-                }
+                if (!warning.isEmpty()) node.warn(warning);
             }
             io.daytona.toolbox.client.api.ProcessApi api = node.processApi();
             io.daytona.toolbox.client.ApiClient client = node.toolboxClient();
@@ -297,7 +308,6 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                         io.daytona.toolbox.client.model.SessionCommandLogsResponse.class);
                 String out = logs.getStdout() == null ? "" : logs.getStdout();
                 String resultText = logs.getOutput() == null ? out + (logs.getStderr() == null ? "" : logs.getStderr()) : logs.getOutput();
-                if (!warning.isEmpty()) { out = warning + "\n" + out; resultText = warning + "\n" + resultText; }
                 ExecuteResponse result = new ExecuteResponse();
                 result.setExitCode(completed.getExitCode());
                 result.setResult(resultText);
@@ -322,6 +332,10 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
 
     /** Upload the same bytes to each node; successful uploads are not rolled back. */
     public final class NodeFileSystem {
+        /**
+         * Upload the file to every rank.
+         * @throws DaytonaNodeOperationException if any rank fails. Inspect getFailures() for failed ranks. Successful uploads are retained.
+         */
         public void uploadFile(byte[] content, String destination) {
             if (content == null) throw new DaytonaException("Upload content must not be null");
             parallel(members, node -> {
@@ -329,6 +343,10 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 return null;
             }, new TreeMap<>());
         }
+        /**
+         * Upload the file to every rank.
+         * @throws DaytonaNodeOperationException if any rank fails. Inspect getFailures() for failed ranks. Successful uploads are retained.
+         */
         public void uploadFile(Path source, String destination) {
             parallel(members, node -> {
                 try (java.io.InputStream input = Files.newInputStream(source)) {

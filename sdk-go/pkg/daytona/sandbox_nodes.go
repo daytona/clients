@@ -104,7 +104,7 @@ func (n *SandboxNode) RevokeSSHAccess(ctx context.Context, token string) error {
 	return nil
 }
 
-// NodeResources specifies the resources for one appended node.
+// NodeResources specifies the resources for one appended node. CPU, Memory and Disk must each be positive.
 type NodeResources struct{ CPU, Memory, Disk int32 }
 
 // SandboxNodes is a live, rank-ordered collection. Its aggregate helpers snapshot membership per call.
@@ -290,7 +290,7 @@ func (c *SandboxNodes) wait(ctx context.Context, operation *apiclient.GangMember
 	return operation, nil
 }
 
-// Add appends one node per resource specification and waits for the operation.
+// Add appends one node per resource specification and waits for the operation. Supply at least one node.
 // If polling fails after acceptance, the returned operation identifies the request.
 // Timeout defaults to ten minutes; zero disables that limit. Cancelling a wait does not roll back the operation.
 func (c *SandboxNodes) Add(ctx context.Context, nodes []NodeResources, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error) {
@@ -634,6 +634,10 @@ func (f *NodeFileSystemService) UploadFile(ctx context.Context, source any, dest
 		return &NodeErrors{Failures: failures}
 	}
 	return nil
+}
+
+func hasPerNodeResources(r *types.Resources) bool {
+	return r != nil && (r.CPUPerNode != nil || r.MemoryPerNode != nil || r.DiskPerNode != nil)
 }
 
 func applyPerNodeResources(request *apiclient.CreateSandbox, resources *types.Resources) error {

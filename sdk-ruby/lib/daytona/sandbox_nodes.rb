@@ -144,10 +144,10 @@ module Daytona
     # @return [Integer]
     def gpu = @data.gpu
 
-    # @return [Integer]
+    # @return [Integer] Memory in GB
     def memory = @data.memory
 
-    # @return [Integer]
+    # @return [Integer] Disk in GB
     def disk = @data.disk
 
     # @return [String]
@@ -272,7 +272,7 @@ module Daytona
     end
 
     # @param count [Integer] Number of highest ranks to release
-    # @param timeout [Numeric] Overall wait budget in seconds
+    # @param timeout [Numeric] Overall wait budget in seconds. Zero disables the limit.
     # @return [DaytonaApiClient::GangMembershipOperation]
     def release(count: 1, timeout: 600)
       raise Sdk::Error, 'Node release count must be a positive integer' unless count.is_a?(Integer) && count.positive?
@@ -283,7 +283,7 @@ module Daytona
     end
 
     # @param rank [Integer] Failed logical rank to replace
-    # @param timeout [Numeric] Overall wait budget in seconds
+    # @param timeout [Numeric] Overall wait budget in seconds. Zero disables the limit.
     # @return [DaytonaApiClient::GangMembershipOperation]
     def replace(rank:, timeout: 600)
       raise Sdk::Error, 'Node rank must be a non-negative integer' unless rank.is_a?(Integer) && rank >= 0
@@ -339,11 +339,11 @@ module Daytona
           deadline.pause(1)
           op = deadline.call(@parent.sandbox_api, :get_gang_membership_operation, @parent.id, op.id)
         end
+        raise Sdk::Error, op.error_reason || 'Node membership operation failed' if op.status == 'FAILED'
       rescue Sdk::Error => e
         e.operation_id = op.id
         raise
       end
-      raise Sdk::Error, op.error_reason || 'Node membership operation failed' if op.status == 'FAILED'
 
       begin
         refresh(deadline)
@@ -363,11 +363,11 @@ module Daytona
     # Callbacks receive (rank, chunk). A positive timeout bounds each command;
     # private session cleanup has its own ten-second budget after expiration.
     # @param command [String] Shell command to execute on each current member
-    # @param timeout [Numeric] Execution limit in seconds per rank
+    # @param timeout [Numeric] Execution limit in seconds per rank. The default of zero disables the limit.
     # @param on_stdout [Proc, nil] Callback receiving (rank, chunk)
     # @param on_stderr [Proc, nil] Callback receiving (rank, chunk)
     # @return [Hash<Integer, Daytona::ExecuteResponse>] Results keyed by rank
-    # @raise [Daytona::Sdk::NodeOperationError] Every failed rank and successful result
+    # @raise [Daytona::Sdk::NodeOperationError] After all ranks finish, failures contains errors by rank and results contains successful responses.
     def exec(command:, timeout: 0, on_stdout: nil, on_stderr: nil)
       NodeDeadline.new(timeout)
       lock = Mutex.new
@@ -545,8 +545,12 @@ module Daytona
   class NodeFileSystem
     def initialize(nodes) = @nodes = nodes
 
-    # A shared IO must be read once before parallel uploads. Individual uploads
-    # own their file descriptors; successful uploads are not rolled back.
+    # Copies an IO once to a temporary file so every rank receives the same bytes.
+    # @param source [String, IO] File contents, a local file path, or a readable IO.
+    # @param remote_path [String] Destination path on each node.
+    # @return [void]
+    # @raise [Daytona::Sdk::NodeOperationError] After all uploads finish, failures contains errors by rank
+    #   and results contains the ranks whose uploads succeeded.
     def upload_file(source, remote_path)
       upload = lambda { |path_or_content|
         @nodes.send(:parallel) do |node|

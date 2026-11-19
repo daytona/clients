@@ -45,6 +45,27 @@ class SandboxNodesTest {
         return new Sandbox(api, TestSupport.config(), data, () -> null, mock(EventSubscriptionManager.class));
     }
 
+    @Test void refreshUpdatesSingleHeadAndKeepsItsResolvedProxy() {
+        SandboxApi api = mock(SandboxApi.class);
+        io.daytona.api.client.model.Sandbox first = dto("http://localhost:1/toolbox", 1, 1);
+        first.setNodes(null);
+        first.setCpu(2);
+        first.setState(SandboxState.STOPPED);
+        Sandbox sandbox = sandbox(api, first);
+        SandboxNode head = sandbox.getNodes().get(0);
+        io.daytona.api.client.model.Sandbox next = dto("", 1, 1);
+        next.setNodes(null);
+        next.setCpu(4);
+        when(api.getSandbox("head", null, null)).thenReturn(next);
+
+        sandbox.refreshData();
+
+        assertThat(sandbox.getNodes().get(0)).isSameAs(head);
+        assertThat(head.getCpu()).isEqualTo(4);
+        assertThat(head.getState()).isEqualTo("started");
+        assertThat(head.toolboxClient().getBasePath()).isEqualTo("http://localhost:1/toolbox/head");
+    }
+
     @Test void retainsNodeAndServiceIdentityWhenProxyChangesWithoutNodes() {
         Sandbox sandbox = sandbox(mock(SandboxApi.class), dto("http://localhost:1/toolbox", 2, 4));
         SandboxNode worker = sandbox.getNodes().get(1);
@@ -299,7 +320,8 @@ class SandboxNodesTest {
                     sandbox.getNodes().getProcess().executeCommand("echo ok", options);
             assertThat(chunks).containsExactlyInAnyOrder("0:ok", "1:ok");
             assertThat(deletes).hasValue(2);
-            assertThat(results.values()).allSatisfy(result -> assertThat(result.getResult()).contains("WARNING:", "ok"));
+            assertThat(results.values()).allSatisfy(result -> assertThat(result.getResult()).isEqualTo("ok"));
+            for (SandboxNode node : sandbox.getNodes()) assertThat(node.getWarnings()).anyMatch(w -> w.contains("WARNING:"));
         }
     }
 

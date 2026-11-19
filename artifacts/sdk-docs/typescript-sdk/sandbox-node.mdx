@@ -46,7 +46,7 @@ new SandboxNode(
 
 **Parameters**:
 
-- `node` _API SandboxNode DTO_ - Node data from the API response (rank, id, state and resources), not an SDK node handle.
+- `node` _API SandboxNode DTO_ - Rank, ID, state and resources returned by the API.
 - `toolboxProxyUrl` _string_
 - `clientConfig` _Configuration_
 - `sandboxApi` _SandboxApi_
@@ -57,6 +57,10 @@ new SandboxNode(
 **Returns**:
 
 - `SandboxNode`
+
+**Throws**:
+
+If the node ID is empty, "." or "..".
 
 ### Methods
 
@@ -117,7 +121,7 @@ Revoke an SSH access token for this node.
 update(node: import("@daytona/api-client").SandboxNode): void;
 ```
 
-Refresh health and address metadata without replacing the data-plane clients.
+Refresh resources, state, incarnation, failure details and fabric metadata.
 
 **Parameters**:
 

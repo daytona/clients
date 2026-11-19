@@ -514,6 +514,12 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#resize' do
+    it 'rejects per-node allocations' do
+      expect do
+        sandbox.resize(Daytona::Resources.new(memory: [8, 16]))
+      end.to raise_error(Daytona::Sdk::Error, /[Pp]er-node/)
+    end
+
     it 'raises error when resources is nil' do
       expect { sandbox.resize(nil) }.to raise_error(Daytona::Sdk::Error, /Resources must not be nil/)
     end

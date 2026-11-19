@@ -21,19 +21,21 @@ final class NodeDeadline {
     }
 
     long remainingMillis() {
-        check();
-        return limit == 0 ? 0 : Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNanos()));
+        long nanos = remainingNanos();
+        return limit == 0 ? 0 : Math.max(1, TimeUnit.NANOSECONDS.toMillis(nanos));
     }
 
-    private long remainingNanos() { return limit - (System.nanoTime() - started); }
+    void check() { remainingNanos(); }
 
-    void check() {
+    private long remainingNanos() {
         if (Thread.currentThread().isInterrupted()) {
             throw new DaytonaTimeoutException("Sandbox node operation interrupted");
         }
-        if (limit > 0 && remainingNanos() <= 0) {
+        long remaining = limit - (System.nanoTime() - started);
+        if (limit > 0 && remaining <= 0) {
             throw new DaytonaTimeoutException("Sandbox node operation exceeded its timeout");
         }
+        return remaining;
     }
 
     void pause(long millis) {
@@ -49,8 +51,8 @@ final class NodeDeadline {
     }
 
     private void bound(Call call) {
-        check();
-        if (limit > 0) call.timeout().timeout(remainingNanos(), TimeUnit.NANOSECONDS);
+        long nanos = remainingNanos();
+        if (limit > 0) call.timeout().timeout(nanos, TimeUnit.NANOSECONDS);
     }
 
     private <T> T await(Call call, java.util.concurrent.CompletableFuture<T> result) {
@@ -90,7 +92,10 @@ final class NodeDeadline {
             public void onUploadProgress(long written, long length, boolean done) {}
             public void onDownloadProgress(long read, long length, boolean done) {}
         });
-        return await(call, result);
+        T value = await(call, result);
+        // An accepted mutation carries the operation ID even at the deadline.
+        if (!(value instanceof io.daytona.api.client.model.GangMembershipOperation)) check();
+        return value;
     }
 
     <T> T toolbox(io.daytona.toolbox.client.ApiClient client,

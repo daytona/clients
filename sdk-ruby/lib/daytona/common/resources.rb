@@ -39,6 +39,11 @@ module Daytona
       @gpu_type = gpu_type
     end
 
+    # @api private
+    def validate_scalar!
+      raise Sdk::Error, 'Per-node resources are only supported for sandbox creation' if [cpu, memory, disk].any?(Array)
+    end
+
     # @return [Hash] Hash representation of the resources
     def to_h = { cpu:, memory:, disk:, gpu:, gpu_type: }.compact
   end

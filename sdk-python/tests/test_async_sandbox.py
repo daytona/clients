@@ -90,6 +90,36 @@ class TestAsyncSandboxNodeSsh:
 
 
 class TestAsyncSandboxInit:
+    def test_sparse_event_preserves_node_details(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(
+            nodes=[
+                {
+                    "id": "test-sandbox-id",
+                    "rank": 0,
+                    "incarnation": 3,
+                    "fabricHealthy": True,
+                }
+            ]
+        )
+        sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        head = sandbox.nodes[0]
+        event = dto.to_dict()
+        event.pop("nodes")
+        sandbox._handle_event("sandbox.created", {"sandbox": event})
+
+        assert sandbox.nodes[0] is head
+        assert head.incarnation == 3
+        assert head.fabric_healthy is True
+
+    @pytest.mark.parametrize("invalid_id", ["", ".", "..", "two/segments"])
+    def test_rejects_invalid_worker_id(self, invalid_id, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        dto = make_sandbox_dto(
+            node_count=2,
+            nodes=[{"rank": 0, "id": "test-sandbox-id"}, {"rank": 1, "id": invalid_id}],
+        )
+        with pytest.raises(DaytonaError, match="path segment"):
+            make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
     @pytest.mark.asyncio
     async def test_refresh_updates_single_node_without_member_array(
         self, mock_async_toolbox_api_client, mock_async_sandbox_api

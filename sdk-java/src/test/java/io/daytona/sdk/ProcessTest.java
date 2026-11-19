@@ -42,6 +42,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -197,6 +201,38 @@ class ProcessTest {
         assertThat(mappedCommand.getCommand()).isEqualTo("ls");
         assertThat(mappedLogs.getStdout()).isEqualTo("stdout");
         assertThat(entrypointLogs.getStderr()).isEqualTo("stderr");
+    }
+
+    @Test
+    void logTimeoutReturnsWhileCallbackIsStillRunning() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try (MockWebServer server = new MockWebServer()) {
+            server.enqueue(new MockResponse().withWebSocketUpgrade(new WebSocketListener() {
+                @Override
+                public void onOpen(WebSocket socket, okhttp3.Response response) {
+                    socket.send(ByteString.of(new byte[] {1, 1, 1, 'a', 2, 2, 2, 'b'}));
+                    socket.close(1000, "done");
+                }
+            }));
+            Process stream = new Process(processApi, TestSupport.mockSandbox(server.url("/sandbox").toString()));
+            CompletableFuture<Void> read = CompletableFuture.runAsync(() -> stream.getSessionCommandLogs(
+                    "session", "command", chunk -> {
+                        entered.countDown();
+                        try {
+                            release.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }, null, 1000));
+            try {
+                assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> read.get(3, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(io.daytona.sdk.exception.DaytonaTimeoutException.class);
+            } finally {
+                release.countDown();
+            }
+        }
     }
 
     @Test

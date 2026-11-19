@@ -54,7 +54,7 @@ public NodeFileSystem getFs()
 public GangMembershipOperation add(List<NodeResources> nodes)
 ```
 
-Append rank-ordered nodes; a timeout ends the wait, not the server-side operation.
+Append rank-ordered nodes and wait up to 600 seconds.
 
 **Parameters**:
 
@@ -68,6 +68,8 @@ Append rank-ordered nodes; a timeout ends the wait, not the server-side operatio
 ```java
 public GangMembershipOperation add(List<NodeResources> nodes, long timeoutSeconds)
 ```
+
+Wait up to timeoutSeconds for the membership change. Zero disables the wait limit.
 
 **Parameters**:
 
@@ -83,7 +85,7 @@ public GangMembershipOperation add(List<NodeResources> nodes, long timeoutSecond
 public GangMembershipOperation release(int count)
 ```
 
-Release the highest count ranks. Zero timeout disables the overall wait limit.
+Release the highest ranks and wait up to 600 seconds.
 
 **Parameters**:
 
@@ -97,6 +99,8 @@ Release the highest count ranks. Zero timeout disables the overall wait limit.
 ```java
 public GangMembershipOperation release(int count, long timeoutSeconds)
 ```
+
+Wait up to timeoutSeconds for the membership change. Zero disables the wait limit.
 
 **Parameters**:
 
@@ -112,7 +116,7 @@ public GangMembershipOperation release(int count, long timeoutSeconds)
 public GangMembershipOperation replace(int rank)
 ```
 
-Replace a degraded logical rank and refresh retained node handles after completion.
+Replace a degraded rank and wait up to 600 seconds.
 
 **Parameters**:
 
@@ -126,6 +130,8 @@ Replace a degraded logical rank and refresh retained node handles after completi
 ```java
 public GangMembershipOperation replace(int rank, long timeoutSeconds)
 ```
+
+Wait up to timeoutSeconds for the membership change. Zero disables the wait limit.
 
 **Parameters**:
 
@@ -147,6 +153,8 @@ Parallel process execution over a membership snapshot.
 public Map<Integer, ExecuteResponse> executeCommand(String command)
 ```
 
+Run the command on every rank.
+
 **Parameters**:
 
 - `command` _String_ -
@@ -155,10 +163,16 @@ public Map<Integer, ExecuteResponse> executeCommand(String command)
 
 - `Map\<Integer, ExecuteResponse\>` -
 
+**Throws**:
+
+- `DaytonaNodeOperationException` - if any rank fails. Inspect getFailures() for errors and getResults() for successful commands.
+
 #### executeCommand()
 ```java
 public Map<Integer, ExecuteResponse> executeCommand(String command, NodeExecuteOptions options)
 ```
+
+Run the command on every rank.
 
 **Parameters**:
 
@@ -168,6 +182,10 @@ public Map<Integer, ExecuteResponse> executeCommand(String command, NodeExecuteO
 **Returns**:
 
 - `Map\<Integer, ExecuteResponse\>` -
+
+**Throws**:
+
+- `DaytonaNodeOperationException` - if any rank fails. Inspect getFailures() for errors and getResults() for successful commands.
 
 ## SandboxNodes.NodeFileSystem
 
@@ -180,17 +198,29 @@ Upload the same bytes to each node; successful uploads are not rolled back.
 public void uploadFile(byte[] content, String destination)
 ```
 
+Upload the file to every rank.
+
 **Parameters**:
 
 - `content` _byte[]_ -
 - `destination` _String_ -
+
+**Throws**:
+
+- `DaytonaNodeOperationException` - if any rank fails. Inspect getFailures() for failed ranks. Successful uploads are retained.
 
 #### uploadFile()
 ```java
 public void uploadFile(Path source, String destination)
 ```
 
+Upload the file to every rank.
+
 **Parameters**:
 
 - `source` _Path_ -
 - `destination` _String_ -
+
+**Throws**:
+
+- `DaytonaNodeOperationException` - if any rank fails. Inspect getFailures() for failed ranks. Successful uploads are retained.

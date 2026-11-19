@@ -494,14 +494,61 @@ func TestProcessExecuteTimeoutExceedsHTTPClientTimeout(t *testing.T) {
 func TestFlushToChannelAndChartConversion(t *testing.T) {
 	stdout := make(chan string, 1)
 	stderr := make(chan string, 1)
-	flushToChannel([]byte("out"), "stdout", stdout, stderr)
-	flushToChannel([]byte("err"), "stderr", stdout, stderr)
+	flushToChannel(context.Background(), []byte("out"), "stdout", stdout, stderr)
+	flushToChannel(context.Background(), []byte("err"), "stderr", stdout, stderr)
 	assert.Equal(t, "out", <-stdout)
 	assert.Equal(t, "err", <-stderr)
-	flushToChannel(nil, "stdout", stdout, stderr)
+	flushToChannel(context.Background(), nil, "stdout", stdout, stderr)
 	assert.Empty(t, convertCodeRunCharts(nil))
 	converted := convertCodeRunCharts([]toolbox.Chart{{Type: strPtr("line")}})
 	require.Len(t, converted, 1)
 	require.NotNil(t, converted[0].Type)
 	assert.Equal(t, "line", *converted[0].Type)
+}
+
+func TestCancelIdleSessionLogs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// Flush one stdout chunk, then wait for the client to close the idle socket.
+		if err := conn.WriteMessage(websocket.BinaryMessage, []byte{1, 1, 1, 'a', 2, 2, 2}); err == nil {
+			_, _, _ = conn.ReadMessage()
+		}
+	}))
+	defer server.Close()
+	sandbox := nodesTestSandbox(t, server, nodesTestDTO(server.URL))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stdout := make(chan string)
+	result := make(chan error, 1)
+	go func() {
+		result <- sandbox.Process.GetSessionCommandLogsStream(ctx, "s", "c", stdout, make(chan string, 1))
+	}()
+	select {
+	case <-stdout:
+		cancel()
+	case <-ctx.Done():
+		t.Fatal("stream never delivered stdout")
+	}
+	require.ErrorIs(t, <-result, context.Canceled)
+}
+
+func TestCanceledLogDeliveryDoesNotWaitForConsumer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	done := make(chan struct{})
+	output := make(chan string)
+	go func() {
+		flushToChannel(ctx, []byte("unread"), "stdout", output, nil)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		<-output
+		t.Fatal("cancelled delivery remained blocked on its consumer")
+	}
 }

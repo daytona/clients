@@ -856,7 +856,7 @@ class AsyncDaytona:
     ) -> AsyncIterator[AsyncSandbox]:
         """Iterates over Sandboxes matching the given query.
 
-        Multi-node GPU sandboxes currently use whole 8-GPU nodes.
+        The iterator fetches each multi-node GPU sandbox’s node details in one additional request as it is yielded.
         A gang deleted between listing and fetching its node details is skipped.
 
         Args:

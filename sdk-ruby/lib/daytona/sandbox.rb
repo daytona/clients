@@ -206,7 +206,7 @@ module Daytona
     # @return [Daytona::Process]
     attr_reader :process
 
-    # @return [Daytona::SandboxNodes] Rank-ordered node handles including the head
+    # @return [Daytona::SandboxNodes] Rank-ordered node handles. A gang head includes all ranks. A direct worker lookup includes only that worker.
     attr_reader :nodes
     # @return [Integer] Number of nodes reported by the last refresh
     attr_reader :node_count
@@ -805,6 +805,7 @@ module Daytona
     def resize(resources, timeout = DEFAULT_TIMEOUT)
       raise Sdk::Error, 'Resources must not be nil' if resources.nil?
 
+      resources.validate_scalar!
       if resources.gpu || resources.gpu_type
         raise Sdk::Error,
               'Resize does not support changes to gpu or gpu_type — to change GPU, create a new sandbox'

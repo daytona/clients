@@ -3423,7 +3423,7 @@ ExecuteCommand executes concurrently on a membership snapshot. Each rank gets a 
 <a name="NodeResources"></a>
 ## type NodeResources
 
-NodeResources specifies the resources for one appended node.
+NodeResources specifies the resources for one appended node. CPU, Memory and Disk must each be positive.
 
 ```go
 type NodeResources struct{ CPU, Memory, Disk int32 }
@@ -5679,7 +5679,7 @@ type SandboxNodes struct {
 func (c *SandboxNodes) Add(ctx context.Context, nodes []NodeResources, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
 ```
 
-Add appends one node per resource specification and waits for the operation. If polling fails after acceptance, the returned operation identifies the request. Timeout defaults to ten minutes; zero disables that limit. Cancelling a wait does not roll back the operation.
+Add appends one node per resource specification and waits for the operation. Supply at least one node. If polling fails after acceptance, the returned operation identifies the request. Timeout defaults to ten minutes; zero disables that limit. Cancelling a wait does not roll back the operation.
 
 <a name="SandboxNodes.All"></a>
 ### func \(\*SandboxNodes\) All

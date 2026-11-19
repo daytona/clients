@@ -891,7 +891,7 @@ export class Daytona implements AsyncDisposable {
 
   /**
    * Iterates over Sandboxes matching the given query.
-   * Multi-node GPU sandboxes currently use whole 8-GPU nodes. A gang deleted
+   * Each multi-node GPU sandbox requires one additional request when the iterator reaches it. A gang deleted
    * between listing and fetching its node details is skipped.
    *
    * @param {ListSandboxesQuery} [query] - Optional filters, sorting, and per-page size.

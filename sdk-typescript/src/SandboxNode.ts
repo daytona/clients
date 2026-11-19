@@ -39,7 +39,8 @@ export class SandboxNode {
   public fabricUnhealthySince?: string
 
   /**
-   * @param node - Node data from the API response (rank, id, state and resources), not an SDK node handle.
+   * @param node - Rank, ID, state and resources returned by the API.
+   * @throws {DaytonaInvalidArgumentError} If the node ID is empty, "." or "..".
    */
   constructor(
     node: SandboxNodeDto,
@@ -74,7 +75,7 @@ export class SandboxNode {
   }
 
   /**
-   * Refresh health and address metadata without replacing the data-plane clients.
+   * Refresh resources, state, incarnation, failure details and fabric metadata.
    * @param node - Node data from the API response, not an SDK node handle.
    * @throws {DaytonaError} If the node rank or id differs from this handle.
    */

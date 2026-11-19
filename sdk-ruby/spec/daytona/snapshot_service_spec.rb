@@ -167,6 +167,12 @@ RSpec.describe Daytona::SnapshotService do
   end
 
   describe '#create' do
+    it 'rejects per-node snapshot resources' do
+      params = Daytona::CreateSnapshotParams.new(name: 'my-snap', image: 'ubuntu',
+                                                 resources: Daytona::Resources.new(cpu: [2]))
+      expect { service.create(params) }.to raise_error(Daytona::Sdk::Error, /[Pp]er-node/)
+    end
+
     it 'creates a snapshot from a string image and uses the default region' do
       created_dto = build_snapshot_dto(state: DaytonaApiClient::SnapshotState::ACTIVE)
       allow(snapshots_api).to receive(:create_snapshot).and_return(created_dto)

@@ -440,7 +440,7 @@ describe('Sandbox', () => {
     ).toBe(true)
   })
 
-  it('uploads to every node and reports all failed ranks without rollback', async () => {
+  it('uploads to every node and identifies the rank whose upload failed', async () => {
     const { sandbox } = makeSandbox({
       nodeCount: 2,
       nodes: [
@@ -1121,6 +1121,19 @@ describe('Sandbox', () => {
 })
 
 describe('lightweight gang events', () => {
+  it('preserves node details when a sandbox event omits members', () => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 1,
+      nodes: [{ ...baseDto.nodes![0], incarnation: 3, fabricHealthy: true }],
+    })
+    const head = sandbox.nodes[0]
+    const event = { ...baseDto, nodes: undefined }
+    const listener = sandbox as unknown as { handleEvent(name: string, data: unknown): void }
+    listener.handleEvent('sandbox.created', { sandbox: event })
+    expect(sandbox.nodes[0]).toBe(head)
+    expect(head).toMatchObject({ incarnation: 3, fabricHealthy: true })
+  })
+
   it('preserves topology metadata omitted from list-item events', () => {
     const { sandbox } = makeSandbox({
       nodeCount: 2,

@@ -559,7 +559,7 @@ type PtySize struct {
 <a name="Resources"></a>
 ## type Resources
 
-Resources represents resource allocation for a sandbox.
+Resources represents resource allocation for a sandbox. During sandbox creation, per\-node arrays must be non\-empty and contain positive 32\-bit integers ordered by rank. Resize and snapshot creation accept scalars.
 
 ```go
 type Resources struct {

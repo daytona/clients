@@ -528,22 +528,7 @@ public class Process {
         final CountDownLatch doneLatch = new CountDownLatch(1);
         final AtomicReference<RuntimeException> failure = new AtomicReference<>(null);
 
-        final Object callbackLock = new Object();
         final java.util.concurrent.atomic.AtomicBoolean active = new java.util.concurrent.atomic.AtomicBoolean(true);
-        Consumer<String> safeStdout = chunk -> {
-            synchronized (callbackLock) {
-                if (!active.get() || onStdout == null) return;
-                try { onStdout.accept(chunk); }
-                catch (RuntimeException e) { failure.compareAndSet(null, e); doneLatch.countDown(); }
-            }
-        };
-        Consumer<String> safeStderr = chunk -> {
-            synchronized (callbackLock) {
-                if (!active.get() || onStderr == null) return;
-                try { onStderr.accept(chunk); }
-                catch (RuntimeException e) { failure.compareAndSet(null, e); doneLatch.countDown(); }
-            }
-        };
         WebSocket socket = toolboxClient.get().getHttpClient().newWebSocket(wsRequest, new WebSocketListener() {
             final ByteArrayOutputStream stdoutBuf = new ByteArrayOutputStream();
             final ByteArrayOutputStream stderrBuf = new ByteArrayOutputStream();
@@ -601,8 +586,8 @@ public class Process {
                             markerCount = 1;
                         }
                         if (markerCount >= PREFIX_REPEAT_COUNT) {
-                            emitBuffer(stdoutBuf, safeStdout);
-                            emitBuffer(stderrBuf, safeStderr);
+                            emitBuffer(stdoutBuf, onStdout);
+                            emitBuffer(stderrBuf, onStderr);
                             markerBuf.reset();
                             markerCount = 0;
                             streamState = markerByte == STDOUT_PREFIX_BYTE ? LOG_STREAM_STDOUT : LOG_STREAM_STDERR;
@@ -630,14 +615,23 @@ public class Process {
 
             private void flush() {
                 drainMarker();
-                emitBuffer(stdoutBuf, safeStdout);
-                emitBuffer(stderrBuf, safeStderr);
+                emitBuffer(stdoutBuf, onStdout);
+                emitBuffer(stderrBuf, onStderr);
             }
 
             private void emitBuffer(ByteArrayOutputStream buf, Consumer<String> consumer) {
-                if (consumer == null || buf.size() == 0) { buf.reset(); return; }
-                consumer.accept(new String(buf.toByteArray(), StandardCharsets.UTF_8));
-                buf.reset();
+                if (buf.size() == 0) return;
+                try {
+                    if (active.get() && consumer != null) {
+                        consumer.accept(new String(buf.toByteArray(), StandardCharsets.UTF_8));
+                    }
+                } catch (RuntimeException e) {
+                    active.set(false);
+                    failure.compareAndSet(null, e);
+                    doneLatch.countDown();
+                } finally {
+                    buf.reset();
+                }
             }
         });
 
@@ -649,9 +643,10 @@ public class Process {
             } else doneLatch.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new io.daytona.sdk.exception.DaytonaTimeoutException("Interrupted while streaming logs");
+            if (timeoutMillis == 0) throw new DaytonaException("Interrupted while streaming logs", e);
+            throw new io.daytona.sdk.exception.DaytonaTimeoutException("Interrupted while streaming logs", e);
         } finally {
-            synchronized (callbackLock) { active.set(false); }
+            active.set(false);
             socket.cancel();
         }
         RuntimeException ex = failure.get();

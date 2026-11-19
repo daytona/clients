@@ -998,11 +998,13 @@ public class Sandbox {
         this.updatedAt = updatedAt;
         this.lastActivityAt = lastActivityAt;
         String newProxyUrl = asString(toolboxProxyUrl);
-        if (!newProxyUrl.isEmpty() && !newProxyUrl.equals(this.toolboxProxyUrl) && this.toolboxApiClient != null) {
-            this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
-            nodes.updateProxy(newProxyUrl);
+        if (!newProxyUrl.isBlank() && !newProxyUrl.equals(this.toolboxProxyUrl)) {
+            this.toolboxProxyUrl = newProxyUrl;
+            if (this.toolboxApiClient != null) {
+                this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
+                nodes.updateProxy(newProxyUrl);
+            }
         }
-        this.toolboxProxyUrl = newProxyUrl;
         this.autoDestroyAt = autoDestroyAt;
         this.queueTimeout = queueTimeout;
         this.sandboxClass = sandboxClass;

@@ -783,6 +783,17 @@ RSpec.describe Daytona::Daytona do
       expect(result).to be_a(Enumerator)
     end
 
+    it 'skips a deleted gang before creating a subscribed sandbox handle' do
+      allow(sandbox_dto).to receive(:gpu).and_return(16)
+      allow(sandbox_api).to receive(:list_sandboxes).and_return(single_page_response)
+      allow(sandbox_api).to receive(:get_sandbox).with(sandbox_dto.id)
+                                                 .and_raise(DaytonaApiClient::ApiError.new(code: 404,
+                                                                                           message: 'Not found'))
+
+      expect(described_class.new(config).list.to_a).to be_empty
+      expect(Daytona::Sandbox).not_to have_received(:new)
+    end
+
     it 'yields sandboxes from a single page' do
       allow(sandbox_api).to receive(:list_sandboxes).and_return(single_page_response)
 

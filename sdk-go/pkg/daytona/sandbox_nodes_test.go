@@ -427,3 +427,20 @@ func TestSandboxNodesAcceptedOperationSurvivesReadError(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	require.Equal(t, "release-1", got.Id)
 }
+
+func TestScalarOperationsRejectPerNodeResources(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+	sandbox := nodesTestSandbox(t, server, nodesTestDTO(server.URL))
+	client := createTestClientWithServer(t, server)
+	for _, resources := range []*types.Resources{
+		{CPUPerNode: []int{2, 4}}, {MemoryPerNode: []int{}}, {DiskPerNode: []int{100}},
+	} {
+		err := sandbox.ResizeWithTimeout(context.Background(), resources, time.Second)
+		require.ErrorContains(t, err, "per-node")
+		_, _, err = client.Snapshot.Create(context.Background(), &types.CreateSnapshotParams{
+			Name: "snap", Image: "ubuntu", Resources: resources,
+		})
+		require.ErrorContains(t, err, "per-node")
+	}
+}

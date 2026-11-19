@@ -2246,6 +2246,10 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 		return errors.NewDaytonaError("Resources must not be nil", 0, nil)
 	}
 
+	if hasPerNodeResources(resources) {
+		return errors.NewDaytonaError("Resize does not support per-node resources", 0, nil)
+	}
+
 	if resources.GPU > 0 || len(resources.GpuType) > 0 {
 		return errors.NewDaytonaError(
 			"Resize does not support changes to gpu or gpuType — to change GPU, create a new sandbox", 0, nil)

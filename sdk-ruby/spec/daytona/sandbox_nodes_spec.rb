@@ -222,6 +222,19 @@ RSpec.describe Daytona::SandboxNodes do
     expect(worker.nodes.first.id).to eq(dto.id)
   end
 
+  it 'identifies the accepted operation when polling fails' do
+    url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
+    headers = { 'Content-Type' => 'application/json' }
+    stub_request(:get, url).to_return(body: gang.to_hash.to_json, headers:)
+    operation = { id: 'op', sandboxId: sandbox.id, type: 'REMOVE', status: 'RUNNING', phase: 'FENCE',
+                  expectedGeneration: 4, targetGeneration: 5, policyRevision: 1, createdAt: '2026-01-01', updatedAt: '2026-01-01' }
+    stub_request(:post, "#{url}/nodes/remove").to_return(body: operation.to_json, headers:)
+    stub_request(:get, "#{url}/membership-operations/op").to_return(status: 503)
+    expect { sandbox.nodes.release }.to raise_error(Daytona::Sdk::Error) do |error|
+      expect(error.operation_id).to eq('op')
+    end
+  end
+
   it 'surfaces failed membership operations without a final refresh' do
     url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
     stub_request(:get, url).to_return(body: gang.to_hash.to_json, headers: { 'Content-Type' => 'application/json' })
@@ -232,7 +245,9 @@ RSpec.describe Daytona::SandboxNodes do
     }
     stub_request(:post, "#{url}/nodes/remove").with(body: hash_including('expectedGeneration' => 4, 'count' => 1))
                                               .to_return(body: operation.to_json, headers: { 'Content-Type' => 'application/json' })
-    expect { sandbox.nodes.release }.to raise_error(Daytona::Sdk::Error, 'replacement capacity unavailable')
+    expect { sandbox.nodes.release }.to raise_error(Daytona::Sdk::Error, 'replacement capacity unavailable') do |error|
+      expect(error.operation_id).to eq('op')
+    end
     expect(a_request(:get, url)).to have_been_made.once
   end
 end

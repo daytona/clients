@@ -170,18 +170,14 @@ module Daytona
           first_page = false
           response = fetch_sandbox_page(q, cursor)
           response.items.each do |sandbox_dto|
-            sandbox = to_sandbox(sandbox_dto: sandbox_dto)
             if sandbox_dto.gpu.to_i > SandboxNodes::GPUS_PER_NODE
               begin
-                sandbox.refresh
+                sandbox = get(sandbox_dto.id)
               rescue Sdk::NotFoundError
                 next
-              rescue *Sdk::API_ERROR_CLASSES => e
-                translated = Sdk.wrap_error(e, 'Failed to refresh gang')
-                raise translated unless translated.is_a?(Sdk::NotFoundError)
-
-                next
               end
+            else
+              sandbox = to_sandbox(sandbox_dto:)
             end
             yielder << sandbox
           end

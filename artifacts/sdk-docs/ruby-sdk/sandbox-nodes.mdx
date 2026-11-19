@@ -126,7 +126,7 @@ def release(count: 1, timeout: 600)
 **Parameters**:
 
 - `count` _Integer_ - Number of highest ranks to release
-- `timeout` _Numeric_ - Overall wait budget in seconds
+- `timeout` _Numeric_ - Overall wait budget in seconds. Zero disables the limit.
 
 **Returns**:
 
@@ -146,7 +146,7 @@ def replace(rank:, timeout: 600)
 **Parameters**:
 
 - `rank` _Integer_ - Failed logical rank to replace
-- `timeout` _Numeric_ - Overall wait budget in seconds
+- `timeout` _Numeric_ - Overall wait budget in seconds. Zero disables the limit.
 
 **Returns**:
 

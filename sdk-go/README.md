@@ -377,7 +377,7 @@ params := &types.ImageParams{
         MemoryPerNode: []int{64, 64}, DiskPerNode: []int{100, 100},
     },
 }
-sandbox, _, err := client.Create(ctx, params)
+sandbox, err := client.Create(ctx, params)
 if err != nil { return err }
 worker, err := sandbox.Nodes.Get(1) // Rank zero is the head.
 if err != nil { return err }
