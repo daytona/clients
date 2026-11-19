@@ -853,7 +853,7 @@ class AsyncVolumesService:
         if types is not None:
             selected_types = _comma_list("types", types)
             if any(item not in ("disk", "bucket") for item in selected_types.split(",")):
-                raise create_error("types entries must be disk or bucket", 400, "BAD_REQUEST", "SDK")
+                raise create_error("types entries must be one of disk, bucket", 400, "BAD_REQUEST", "SDK")
             params["type"] = selected_types
         if statuses is not None:
             selected_statuses = _comma_list("statuses", statuses)
@@ -962,6 +962,7 @@ class AsyncVolumesService:
 
     async def delete(self, name_or_id: str, /, *, id_only: bool = False) -> None:
         """Request deletion by id or name and return once the API accepts it; ``id_only`` disables name lookup."""
+        _refuse_resource_search_name(name_or_id, "volume")
         path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         if not isinstance(id_only, bool):
             raise create_error("id_only must be a boolean", 400, "BAD_REQUEST", "SDK")
@@ -1423,4 +1424,5 @@ class AsyncSecretsService:
 
     async def delete(self, name: str, /) -> None:
         """Delete a secret."""
+        _refuse_resource_search_name(name, "secret")
         await self._transport.send(RequestSpec("DELETE", f"/secrets/{_path(name, 'name')}"))
