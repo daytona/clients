@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"os"
@@ -404,29 +405,39 @@ func (c *SandboxNodes) UploadFile(ctx context.Context, source any, destination s
 	var upload func(*SandboxNode) error
 	switch value := source.(type) {
 	case string:
-		first, err := os.Open(value)
+		file, err := os.Open(value)
 		if err != nil {
 			return err
 		}
-		defer first.Close()
-		info, err := first.Stat()
+		defer file.Close()
+		info, err := file.Stat()
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
 			return errors.NewDaytonaError("Upload source is a directory", 0, nil)
 		}
+		size := info.Size()
+		if size == 0 || !info.Mode().IsRegular() {
+			// Some virtual files report zero even when they have readable contents.
+			var probe [1]byte
+			n, err := file.ReadAt(probe[:], 0)
+			if err != nil && err != io.EOF {
+				if len(c.members) == 1 {
+					upload = func(n *SandboxNode) error {
+						return n.FileSystem.UploadFileStream(ctx, file, destination)
+					}
+					break
+				}
+				return fmt.Errorf("multi-node uploads require a seekable file or byte slice: %w", err)
+			}
+			if n > 0 && size == 0 {
+				size = math.MaxInt64
+			}
+		}
 		upload = func(n *SandboxNode) error {
-			// Use the validated stream for the first member. Each peer needs its own offset.
-			if n == c.members[0] {
-				return n.FileSystem.UploadFileStream(ctx, first, destination)
-			}
-			file, err := os.Open(value)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-			return n.FileSystem.UploadFileStream(ctx, file, destination)
+			// Each rank reads the validated file with its own offset.
+			return n.FileSystem.UploadFileStream(ctx, io.NewSectionReader(file, 0, size), destination)
 		}
 	case []byte:
 		upload = func(n *SandboxNode) error {

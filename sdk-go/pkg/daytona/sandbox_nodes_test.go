@@ -270,6 +270,48 @@ func TestNodeUploadRejectsInvalidSourceBeforeUpload(t *testing.T) {
 	require.False(t, errors.As(err, &rankErrors))
 }
 
+func TestNodeUploadUsesValidatedFileLength(t *testing.T) {
+	source, err := os.Create(filepath.Join(t.TempDir(), "shared.txt"))
+	require.NoError(t, err)
+	defer source.Close()
+	_, err = source.WriteString("original")
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, _, err := r.FormFile("files[0].file")
+		if !assert.NoError(t, err) {
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		assert.NoError(t, err)
+		want := "original"
+		if r.FormValue("files[0].path") == "/empty" {
+			want = ""
+		}
+		assert.Equal(t, want, string(data))
+	}))
+	defer server.Close()
+	client := createTestToolboxClient(server)
+	client.GetConfig().HTTPClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		// The source has been validated, but this request's body has not been read.
+		if _, err := source.WriteString(" appended"); err != nil {
+			return nil, err
+		}
+		return server.Client().Transport.RoundTrip(req)
+	})}
+	fs := NewFileSystemService(client, nil)
+	nodes := &SandboxNodes{members: []*SandboxNode{
+		{SandboxNode: api.SandboxNode{Rank: 0}, FileSystem: fs},
+		{SandboxNode: api.SandboxNode{Rank: 1}, FileSystem: fs},
+	}}
+	require.NoError(t, nodes.UploadFile(t.Context(), source.Name(), "/shared"))
+	require.NoError(t, source.Truncate(0))
+	_, err = source.Seek(0, io.SeekStart)
+	require.NoError(t, err)
+	require.NoError(t, nodes.UploadFile(t.Context(), source.Name(), "/empty"))
+}
+
 func TestNodePreviewAndSSHUseWorker(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
