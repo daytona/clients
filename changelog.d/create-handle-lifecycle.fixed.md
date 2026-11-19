@@ -4,6 +4,6 @@
 `lifecycle_policy` / `lifecyclePolicy`, including the `timeout_at` /
 `timeoutAt` deadline, from the create response. Before, the field stayed empty
 until `refresh_data()` / `refreshData()` or `get()`, so a sandbox with a
-timeout looked like it had none. Starting the sandbox restarts the deadline,
-which can happen just after `create()` returns; `refresh_data()` /
-`refreshData()` reads the new one.
+timeout looked like it had none. The deadline is the one the create set:
+starting the sandbox restarts it, and `refresh_data()` / `refreshData()` reads
+the new one.

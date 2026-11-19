@@ -8616,7 +8616,7 @@
             ]
           },
           "lifecycle_policy": {
-            "description": "Automatic timeout and idle-expiry behavior: the object\n`GET /sandboxes/{id}` returns, as recorded when this response was\nwritten. Starting the sandbox restarts `timeout_at` and\n`idle_timeout_at`, and the start can be recorded just after this\nresponse, even when `status` is already `running`;\n`GET /sandboxes/{id}` returns the deadlines after the start. Null when\nthe policy could not be read.",
+            "description": "Automatic timeout and idle-expiry behavior: the object\n`GET /sandboxes/{id}` returns, as the create set it (on an idempotent\nreplay, as the sandbox has it now). Starting the sandbox restarts\n`timeout_at` and `idle_timeout_at`, so after a start, even one `status`\nalready reports as `running`, `GET /sandboxes/{id}` returns the new\ndeadlines. Null when the policy could not be read.",
             "oneOf": [
               {
                 "type": "null"

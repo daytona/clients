@@ -5867,12 +5867,11 @@ type SandboxCreateOperation struct {
 	Image *ImageReference `json:"image,omitempty"`
 
 	// LifecyclePolicy Automatic timeout and idle-expiry behavior: the object
-	// `GET /sandboxes/{id}` returns, as recorded when this response was
-	// written. Starting the sandbox restarts `timeout_at` and
-	// `idle_timeout_at`, and the start can be recorded just after this
-	// response, even when `status` is already `running`;
-	// `GET /sandboxes/{id}` returns the deadlines after the start. Null when
-	// the policy could not be read.
+	// `GET /sandboxes/{id}` returns, as the create set it (on an idempotent
+	// replay, as the sandbox has it now). Starting the sandbox restarts
+	// `timeout_at` and `idle_timeout_at`, so after a start, even one `status`
+	// already reports as `running`, `GET /sandboxes/{id}` returns the new
+	// deadlines. Null when the policy could not be read.
 	LifecyclePolicy *LifecyclePolicy `json:"lifecycle_policy,omitempty"`
 
 	// Name Sandbox name (caller-provided or the generated `sandbox-<short-id>`).

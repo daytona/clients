@@ -402,10 +402,11 @@ export interface SandboxLifecycle {
   readonly timeoutSeconds?: number
   readonly onTimeout?: string
   /**
-   * The current absolute timeout deadline. Starting the sandbox restarts the
-   * countdown and the idle clock, so on a handle `create*()` returned (even
-   * one whose `state` is already `started`), it, `idleTimeoutAt` and
-   * `lastActivityAt` can move after it: `refreshData()` reads the new values.
+   * The current absolute timeout deadline. On a handle `create*()` returned,
+   * it is the value as the create set it; starting the sandbox restarts the
+   * countdown and the idle clock, so it, `idleTimeoutAt` and `lastActivityAt`
+   * move when it starts (even on a handle whose `state` is already
+   * `started`): `refreshData()` reads the new values.
    */
   readonly timeoutAt?: string
   readonly idleExpirySeconds?: number
