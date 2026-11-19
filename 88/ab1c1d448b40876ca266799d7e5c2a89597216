@@ -1,0 +1,24 @@
+sdk-python/src/daytona/v2/services.py
+  s_57322031358fb0::t_19d1c53f0e3f0f 965,1427
+  s_57322031358fb0::t_2730de39b94bfc 856
+sdk-python/tests/test_search_first_lists.py
+  s_57322031358fb0::t_98e7c5022a3a10 357-412
+  s_57322031358fb0::t_0e784f161c20e7 413-419
+  s_57322031358fb0::t_81b77e79d2a889 464,467
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "88ab1c1d448b40876ca266799d7e5c2a89597216",
+  "prompts": {},
+  "sessions": {
+    "s_57322031358fb0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0ad0d113ffet9qo3KTg2BjFMb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
