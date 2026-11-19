@@ -1,0 +1,19 @@
+artifacts/sdk-docs/ruby-sdk/sandbox-nodes.mdx
+  s_7750b317905afd::t_e25a0d652dd3ea 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1d94171da6d04ba76d23271eb09d0b8ea67dc0d7",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

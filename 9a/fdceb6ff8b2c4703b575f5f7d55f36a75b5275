@@ -1,0 +1,26 @@
+api-client-python-async/daytona_api_client_async/models/create_sandbox.py
+  ai_agent 168,173,175
+hack/python-client/openapi-templates/model_generic.mustache
+  s_7750b317905afd::t_b6bcac4d2e91ce 321,323-324,326
+  s_7750b317905afd::t_572cd1073cc88b 320,322,327-330
+sdk-python/tests/test_single_node_compatibility.py
+  s_7750b317905afd::t_572cd1073cc88b 19-22
+api-client-python/daytona_api_client/models/create_sandbox.py
+  ai_agent 168,173,175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9afdceb6ff8b2c4703b575f5f7d55f36a75b5275",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}
