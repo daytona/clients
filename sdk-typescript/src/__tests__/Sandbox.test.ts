@@ -5,7 +5,12 @@ import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
 import { ProcessApi } from '@daytona/toolbox-api-client'
 import { createApiResponse } from './helpers'
 import type { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
-import { DaytonaQueueTimeoutError, DaytonaSpotEvictedError, DaytonaTimeoutError } from '../errors/DaytonaError'
+import {
+  DaytonaConflictError,
+  DaytonaQueueTimeoutError,
+  DaytonaSpotEvictedError,
+  DaytonaTimeoutError,
+} from '../errors/DaytonaError'
 
 jest.mock(
   '@daytona/api-client',
@@ -223,8 +228,8 @@ describe('membership operation deadlines', () => {
     await jest.advanceTimersByTimeAsync(1000)
     await waiting
     expect(sandboxApi.getGangMembershipOperation.mock.calls[0][3]).toEqual({ timeout: 1500 })
-    expect(sandboxApi.getSandbox.mock.calls[0][3]).toEqual({ timeout: 2500 })
-    expect(sandboxApi.getSandbox.mock.calls[1][3]).toEqual({ timeout: 1500 })
+    expect(sandboxApi.addSandboxNodes.mock.calls[0][3]).toEqual({ timeout: 2500 })
+    expect(sandboxApi.getSandbox.mock.calls[0][3]).toEqual({ timeout: 1500 })
   })
 
   it('returns a confirmed operation even when the deadline prevents refreshing handles', async () => {
@@ -238,7 +243,7 @@ describe('membership operation deadlines', () => {
     const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
     await jest.advanceTimersByTimeAsync(3000)
     expect(await result).toMatchObject({ id: 'op-1', status: 'COMPLETED' })
-    expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+    expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
   })
 
   it('does not start a poll after the budget expires during sleep', async () => {
@@ -256,26 +261,29 @@ describe('membership operation deadlines', () => {
   it('returns a confirmed operation when the final refresh arrives late', async () => {
     const { sandbox, sandboxApi } = prepare()
     sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }))
-    sandboxApi.getSandbox
-      .mockReset()
-      .mockResolvedValueOnce(createApiResponse(baseDto))
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => resolve(createApiResponse(baseDto)), 3000)
-          }),
-      )
+    sandboxApi.getSandbox.mockReset().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(createApiResponse(baseDto)), 3000)
+        }),
+    )
     const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
     await jest.advanceTimersByTimeAsync(3000)
     expect(await result).toMatchObject({ id: 'op-1', status: 'COMPLETED' })
   })
 
+  it('attaches the operation ID when the server reports terminal failure', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.removeSandboxNodes.mockResolvedValue(
+      createApiResponse({ id: 'op-1', type: 'REMOVE', status: 'FAILED', errorReason: 'capacity lost' }),
+    )
+    await expect(sandbox.nodes.release()).rejects.toMatchObject({ message: 'capacity lost', operationId: 'op-1' })
+    expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+  })
+
   it('retains a completed release if refreshing its handles fails', async () => {
     const { sandbox, sandboxApi } = prepare()
-    sandboxApi.getSandbox
-      .mockReset()
-      .mockResolvedValueOnce(createApiResponse(baseDto))
-      .mockRejectedValueOnce(new Error('503'))
+    sandboxApi.getSandbox.mockReset().mockRejectedValueOnce(new Error('503'))
     const op = { id: 'release-1', status: 'COMPLETED', type: 'REMOVE' }
     sandboxApi.removeSandboxNodes.mockResolvedValue(createApiResponse(op))
     await expect(sandbox.nodes.release(1)).resolves.toBe(op)
@@ -334,6 +342,14 @@ describe('all-node execution deadlines', () => {
     await sandbox.nodes.process.executeCommand('workload', { timeout: 1 })
     for (const process of processes)
       expect(process.executeCommand.mock.calls[0].slice(1)).toEqual([undefined, undefined, 5])
+  })
+
+  it('reuses the RDMA probe until the node incarnation changes', async () => {
+    const { sandbox, processes } = makeNodes(2)
+    await Promise.all([sandbox.nodes.process.executeCommand('a'), sandbox.nodes.process.executeCommand('b')])
+    sandbox.nodes[1].update({ ...sandbox.nodes[1], incarnation: 2 })
+    await sandbox.nodes.process.executeCommand('c')
+    expect(processes.map((p) => p.executeCommand.mock.calls.filter((call) => call[3] === 5).length)).toEqual([1, 2])
   })
 
   it('still executes when the advisory RDMA probe fails', async () => {
@@ -508,9 +524,7 @@ describe('Sandbox', () => {
       createdAt: '2026-10-06T00:00:00Z',
       updatedAt: '2026-10-06T00:00:01Z',
     }
-    sandboxApi.getSandbox
-      .mockResolvedValueOnce(createApiResponse(baseDto))
-      .mockResolvedValueOnce(createApiResponse(updated))
+    sandboxApi.getSandbox.mockResolvedValueOnce(createApiResponse(updated))
     sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse(operation))
 
     const result = await nodes.add([{ cpu: 32, memory: 256, disk: 300 }], 0)
@@ -528,6 +542,28 @@ describe('Sandbox', () => {
       undefined,
       undefined,
     )
+  })
+
+  it('releases against the membership the caller saw even after a sparse refresh', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({
+      nodeCount: 2,
+      nodes: [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker' }],
+    })
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({ ...baseDto, nodeCount: 3, topologyGeneration: 2, nodes: undefined }),
+    )
+    await sandbox.refreshData()
+    const conflict = new DaytonaConflictError('Topology changed')
+    sandboxApi.removeSandboxNodes.mockRejectedValue(conflict)
+
+    await expect(sandbox.nodes.release(1, 0)).rejects.toBe(conflict)
+    expect(sandboxApi.removeSandboxNodes).toHaveBeenCalledWith(
+      'sb-1',
+      { expectedGeneration: 1, count: 1 },
+      undefined,
+      undefined,
+    )
+    expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
   })
 
   it('sends generation-checked release and replacement requests', async () => {

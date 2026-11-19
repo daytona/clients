@@ -60,6 +60,7 @@ type Sandbox struct {
 	signingKeyFetchedAt time.Time
 
 	mu                  sync.RWMutex
+	nodeProbes          map[string]*nodeRdmaProbe
 	stateWaiters        []*stateWaiter
 	subscriptionManager *common.EventSubscriptionManager
 	subID               string

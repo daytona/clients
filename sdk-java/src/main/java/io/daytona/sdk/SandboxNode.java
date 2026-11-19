@@ -14,6 +14,8 @@ import java.util.List;
 
 /** A physical member with stable identity and independent process/filesystem routing. */
 public final class SandboxNode {
+    private static final String RDMA_CHECK = "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && find /usr/lib /lib -name \"libmlx5-rdmav*.so\" -print -quit 2>/dev/null | grep -q .'";
+    private static final String RDMA_WARNING = "WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; NCCL may fall back to sockets.";
     private final int rank;
     private final String id;
     private final SandboxApi sandboxApi;
@@ -23,6 +25,9 @@ public final class SandboxNode {
     private final FileSystem fs;
     private final List<String> warnings = new ArrayList<>();
     private volatile io.daytona.api.client.model.SandboxNode data;
+    private final Object rdmaLock = new Object();
+    private int rdmaIncarnation = -1;
+    private String rdmaWarning;
 
     SandboxNode(Sandbox parent, io.daytona.api.client.model.SandboxNode data) {
         if (data.getId() == null || data.getId().isEmpty() || ".".equals(data.getId()) || "..".equals(data.getId())) {
@@ -45,17 +50,40 @@ public final class SandboxNode {
         update(data, parent.getToolboxProxyUrl());
     }
 
-    void update(io.daytona.api.client.model.SandboxNode value, String proxy) {
+    synchronized void update(io.daytona.api.client.model.SandboxNode value, String proxy) {
         if (value.getRank() != rank || !id.equals(value.getId())) {
             throw new DaytonaException("Sandbox node identity changed during refresh");
         }
         updateProxy(proxy);
+        if (data != null && getIncarnation() != value.getIncarnation()) warnings.remove(rdmaWarning);
         data = value;
     }
 
     void updateProxy(String proxy) {
         String encoded = java.net.URLEncoder.encode(id, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
         toolboxClient.setBasePath(proxy.replaceAll("/+$", "") + "/" + encoded);
+    }
+
+    void checkRdma() {
+        synchronized (rdmaLock) {
+            int incarnation = getIncarnation();
+            if (rdmaIncarnation == incarnation) return;
+            String warning;
+            try {
+                io.daytona.toolbox.client.model.ExecuteResponse probe = new NodeDeadline(5).toolbox(toolboxClient,
+                        () -> processApi.executeCommandCall(new io.daytona.toolbox.client.model.ExecuteRequest().command(RDMA_CHECK).timeout(5), null),
+                        io.daytona.toolbox.client.model.ExecuteResponse.class);
+                warning = probe.getExitCode() == 0 ? null : RDMA_WARNING;
+            } catch (RuntimeException e) {
+                warning = "WARNING: Could not check RDMA userspace; continuing without verification.";
+            }
+            synchronized (this) {
+                if (getIncarnation() != incarnation) return;
+                rdmaIncarnation = incarnation;
+                rdmaWarning = warning;
+                if (warning != null) warn(warning);
+            }
+        }
     }
 
     synchronized void warn(String warning) { if (!warnings.contains(warning)) warnings.add(warning); }

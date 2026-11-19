@@ -145,6 +145,9 @@ class SandboxNode:
         self.fabric_healthy: bool | None = None
         self.fabric_unhealthy_since: str | None = None
         self.warnings: list[str] = []
+        self._rdma_lock: threading.Lock = threading.Lock()
+        self._rdma_incarnation: int | None = None
+        self._rdma_warning: str = ""
         self._sandbox_api: SandboxApi = sandbox_api
         self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
             toolbox_api, self.id, toolbox_proxy_url
@@ -168,12 +171,30 @@ class SandboxNode:
         self.memory = node.memory
         self.disk = node.disk
         self.state = node.state
+        if self.incarnation != node.incarnation and self._rdma_warning in self.warnings:
+            self.warnings.remove(self._rdma_warning)
         self.incarnation = node.incarnation
         self.failure = node.failure
         self.fabric_address = node.fabric_address
         self.fabric_prefix_length = node.fabric_prefix_length
         self.fabric_healthy = node.fabric_healthy
         self.fabric_unhealthy_since = node.fabric_unhealthy_since
+
+    def _check_rdma(self) -> None:
+        with self._rdma_lock:
+            incarnation = self.incarnation
+            if self._rdma_incarnation == incarnation:
+                return
+            try:
+                check = self.process.exec(_RDMA_USERSPACE_CHECK, timeout=5)
+                warning = "" if check.exit_code == 0 else _RDMA_USERSPACE_WARNING
+            except Exception:  # The advisory probe must not prevent the user's command.
+                warning = "WARNING: Could not check RDMA userspace; continuing without verification."
+            if self.incarnation == incarnation:
+                self._rdma_incarnation = incarnation
+                self._rdma_warning = warning
+                if warning and warning not in self.warnings:
+                    self.warnings.append(warning)
 
     def _to_dto(self) -> SandboxNodeDto:
         return SandboxNodeDto(
@@ -248,14 +269,8 @@ class SandboxNodeProcess:
         nodes = self._nodes._snapshot()
 
         def execute_node(node: SandboxNode) -> ExecuteResponse:
-            try:
-                check = node.process.exec(_RDMA_USERSPACE_CHECK, timeout=5) if len(nodes) > 1 else None
-                warning = "" if check is None or check.exit_code == 0 else _RDMA_USERSPACE_WARNING
-            except Exception:  # An advisory diagnostic must not prevent the user's command.
-                warning = "WARNING: Could not check RDMA userspace; continuing without verification."
-            if warning and warning not in node.warnings:
-                node.warnings.append(warning)
-
+            if len(nodes) > 1:
+                node._check_rdma()
             if timeout is None:
                 return node.process.exec(command)
             return node.process.exec(command, timeout=timeout)
@@ -314,6 +329,7 @@ class SandboxNodeCollection(list[SandboxNode]):
 
     def __init__(self, sandbox: Sandbox | None) -> None:
         super().__init__()
+        self._view_generation: int | None = None
         self._sandbox: Sandbox | None = sandbox
         self.process: SandboxNodeProcess = SandboxNodeProcess(self)
         self.fs: SandboxNodeFileSystem = SandboxNodeFileSystem(self)
@@ -324,7 +340,8 @@ class SandboxNodeCollection(list[SandboxNode]):
             raise DaytonaError("Node membership is unavailable. Call refresh_data() and retry.")
         return nodes
 
-    def _replace(self, nodes: list[SandboxNode]) -> None:
+    def _replace(self, nodes: list[SandboxNode], generation: int | None = None) -> None:
+        self._view_generation = generation
         list.__setitem__(self, slice(None), nodes)
 
     def _require_sandbox(self) -> Sandbox:
@@ -340,11 +357,8 @@ class SandboxNodeCollection(list[SandboxNode]):
             raise DaytonaTimeoutError("Node membership operation exceeded its timeout")
         return remaining
 
-    def _generation(self, deadline: float | None = None) -> int:
-        sandbox = self._require_sandbox()
-        sandbox.refresh_data(request_timeout=self._remaining(deadline))
-        _ = self._remaining(deadline)
-        generation = sandbox.topology_generation
+    def _generation(self) -> int:
+        generation = self._view_generation
         if generation is None:
             raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
         return generation
@@ -361,7 +375,7 @@ class SandboxNodeCollection(list[SandboxNode]):
         @with_timeout()
         def start(timeout: float | None) -> GangMembershipOperation:
             deadline = time.monotonic() + timeout if timeout else None
-            generation = self._generation(deadline)
+            generation = self._generation()
             return submit(generation, http_timeout(self._remaining(deadline)))
 
         operation = start(timeout=timeout)
@@ -2047,7 +2061,8 @@ class Sandbox(SandboxDto):
                     self._http_client,
                 )
             updated.append(node)
-        self.nodes._replace(updated)  # pylint: disable=no-member
+        generation = getattr(sandbox_dto, "topology_generation", None) if worker_rank is None else None
+        self.nodes._replace(updated, generation)  # pylint: disable=no-member
         if reported_node_count:
             self._reported_node_count = reported_node_count
 

@@ -188,7 +188,7 @@ func TestNodesApplyMembershipAtObservedGeneration(t *testing.T) {
 }
 
 func TestNodeDataPlaneUsesAddressedMember(t *testing.T) {
-	var uploaded atomic.Int32
+	var probes, uploaded atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
 		if r.URL.Path == "/sandbox/head" {
@@ -201,6 +201,7 @@ func TestNodeDataPlaneUsesAddressedMember(t *testing.T) {
 				return
 			}
 			if body["command"] == rdmaUserspaceCheck {
+				probes.Add(1)
 				writeJSONResponse(t, w, 200, map[string]any{"exitCode": 1, "result": ""})
 				return
 			}
@@ -239,6 +240,12 @@ func TestNodeDataPlaneUsesAddressedMember(t *testing.T) {
 	require.Contains(t, failure.Failures, int32(1))
 	require.Equal(t, "head output", results[0].Result)
 	require.NotEmpty(t, ns.All()[0].Warnings())
+	refreshed, err := s.Nodes(t.Context())
+	require.NoError(t, err)
+	_, err = refreshed.ExecuteCommand(t.Context(), "echo hello")
+	require.Equal(t, ns.All()[0].Warnings(), refreshed.All()[0].Warnings())
+	require.ErrorAs(t, err, &failure)
+	require.EqualValues(t, 2, probes.Load())
 	require.NoError(t, ns.UploadFile(t.Context(), []byte("shared contents"), "/tmp/shared"))
 	path := filepath.Join(t.TempDir(), "shared.txt")
 	require.NoError(t, os.WriteFile(path, []byte("shared contents"), 0600))

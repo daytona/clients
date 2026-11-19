@@ -38,9 +38,8 @@ import java.util.function.BiConsumer;
 /** Read-only, live rank-ordered members, including the head at index zero. */
 public final class SandboxNodes extends AbstractList<SandboxNode> {
     static final int GPUS_PER_GANG_NODE = 8;
-    private static final String RDMA_CHECK = "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && find /usr/lib /lib -name \"libmlx5-rdmav*.so\" -print -quit 2>/dev/null | grep -q .'";
-    private static final String RDMA_WARNING = "WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; NCCL may fall back to sockets.";
     private final Sandbox parent;
+    private Integer membershipGeneration;
     private volatile List<SandboxNode> members = Collections.emptyList();
     private final NodeProcess process = new NodeProcess();
     private final NodeFileSystem fs = new NodeFileSystem();
@@ -107,19 +106,14 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
             updated.add(node);
         }
         members = Collections.unmodifiableList(updated);
+        membershipGeneration = dto != null && workerRank == null ? dto.getTopologyGeneration() : null;
     }
 
-    private int generation(NodeDeadline deadline) {
-        SandboxApi api = parent.nodeSandboxApi();
-        io.daytona.api.client.model.Sandbox response = deadline.main(api.getApiClient(),
-                () -> api.getSandboxCall(parent.getId(), null, null, null),
-                io.daytona.api.client.model.Sandbox.class);
-        parent.applyNodeResponse(response);
-        if (parent.getTopologyGeneration() == null) {
+    private synchronized int generation() {
+        if (membershipGeneration == null) {
             throw new DaytonaException("Sandbox does not expose a topology generation; elastic node operations are unavailable");
         }
-        deadline.check();
-        return parent.getTopologyGeneration();
+        return membershipGeneration;
     }
 
     private GangMembershipOperation waitForOperation(GangMembershipOperation operation, NodeDeadline deadline) {
@@ -133,12 +127,12 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                         () -> api.getGangMembershipOperationCall(parent.getId(), id, null, null),
                         GangMembershipOperation.class);
             }
+            if (operation.getStatus() == GangMembershipOperation.StatusEnum.FAILED) {
+                throw new DaytonaException(operation.getErrorReason() == null ? "Node membership operation failed" : operation.getErrorReason());
+            }
         } catch (DaytonaException e) {
             e.setOperationId(operation.getId());
             throw e;
-        }
-        if (operation.getStatus() == GangMembershipOperation.StatusEnum.FAILED) {
-            throw new DaytonaException(operation.getErrorReason() == null ? "Node membership operation failed" : operation.getErrorReason());
         }
         try {
             parent.applyNodeResponse(deadline.main(api.getApiClient(),
@@ -162,7 +156,7 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
             resources.add(new GangNodeResources().cpu(node.getCpu()).memory(node.getMemory()).disk(node.getDisk()));
         }
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);
-        AddGangNodes request = new AddGangNodes().expectedGeneration(generation(deadline)).nodes(resources);
+        AddGangNodes request = new AddGangNodes().expectedGeneration(generation()).nodes(resources);
         SandboxApi api = parent.nodeSandboxApi();
         return waitForOperation(deadline.main(api.getApiClient(),
                 () -> api.addSandboxNodesCall(parent.getId(), request, null, null), GangMembershipOperation.class), deadline);
@@ -174,7 +168,7 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
     public GangMembershipOperation release(int count, long timeoutSeconds) {
         if (count < 1) throw new DaytonaException("Node release count must be positive");
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);
-        RemoveGangNodes request = new RemoveGangNodes().expectedGeneration(generation(deadline)).count(count);
+        RemoveGangNodes request = new RemoveGangNodes().expectedGeneration(generation()).count(count);
         SandboxApi api = parent.nodeSandboxApi();
         return waitForOperation(deadline.main(api.getApiClient(),
                 () -> api.removeSandboxNodesCall(parent.getId(), request, null, null), GangMembershipOperation.class), deadline);
@@ -186,7 +180,7 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
     public GangMembershipOperation replace(int rank, long timeoutSeconds) {
         if (rank < 0) throw new DaytonaException("Node rank must be non-negative");
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);
-        ReplaceGangNode request = new ReplaceGangNode().expectedGeneration(generation(deadline));
+        ReplaceGangNode request = new ReplaceGangNode().expectedGeneration(generation());
         SandboxApi api = parent.nodeSandboxApi();
         return waitForOperation(deadline.main(api.getApiClient(),
                 () -> api.replaceSandboxNodeCall(parent.getId(), Integer.toString(rank), request, null, null),
@@ -273,18 +267,7 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
 
         private ExecuteResponse execute(SandboxNode node, String command, long timeout,
                 BiConsumer<Integer, String> stdout, BiConsumer<Integer, String> stderr, boolean checkRdma) {
-            if (checkRdma) {
-                String warning = "";
-                try {
-                    io.daytona.toolbox.client.model.ExecuteResponse probe = new NodeDeadline(5).toolbox(node.toolboxClient(),
-                            () -> node.processApi().executeCommandCall(new io.daytona.toolbox.client.model.ExecuteRequest().command(RDMA_CHECK).timeout(5), null),
-                            io.daytona.toolbox.client.model.ExecuteResponse.class);
-                    if (probe.getExitCode() != 0) warning = RDMA_WARNING;
-                } catch (RuntimeException e) {
-                    warning = "WARNING: Could not check RDMA userspace; continuing without verification.";
-                }
-                if (!warning.isEmpty()) node.warn(warning);
-            }
+            if (checkRdma) node.checkRdma();
             io.daytona.toolbox.client.api.ProcessApi api = node.processApi();
             io.daytona.toolbox.client.ApiClient client = node.toolboxClient();
             String session = "daytona-nodes-exec-" + UUID.randomUUID();

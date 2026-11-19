@@ -40,6 +40,7 @@ async def test_membership_poll_and_refresh_deadlines(monkeypatch, kind, case):
     )
     sandbox = SimpleNamespace(id="head-1", _sandbox_api=api, refresh_data=mock(), topology_generation=4)
     nodes = SandboxNodeCollection(sandbox) if kind == "sync" else AsyncSandboxNodeCollection(sandbox)
+    nodes._replace([SimpleNamespace(rank=rank) for rank in range(3)], generation=4)
     timeout = 0 if case == "unlimited" else 10
     result = nodes.release(timeout=timeout)
     if kind == "async":
@@ -48,7 +49,7 @@ async def test_membership_poll_and_refresh_deadlines(monkeypatch, kind, case):
     remaining = None if case == "unlimited" else 9.0
     api.get_gang_membership_operation.assert_called_once_with("head-1", "operation-1", _request_timeout=remaining)
     if case == "late":
-        sandbox.refresh_data.assert_called_once_with(request_timeout=10.0)
+        sandbox.refresh_data.assert_not_called()
     else:
         assert sandbox.refresh_data.call_args.kwargs == {"request_timeout": remaining}
 
@@ -67,9 +68,10 @@ async def test_release_preserves_accepted_operation_when_a_read_fails(kind, stat
         id="head",
         _sandbox_api=api,
         topology_generation=4,
-        refresh_data=mock(side_effect=[None, DaytonaError("unavailable")]),
+        refresh_data=mock(side_effect=DaytonaError("unavailable")),
     )
     nodes = SandboxNodeCollection(sandbox) if kind == "sync" else AsyncSandboxNodeCollection(sandbox)
+    nodes._replace([SimpleNamespace(rank=rank) for rank in range(3)], generation=4)
     monkeypatch.setattr("daytona._sync.sandbox.time.sleep", MagicMock())
     monkeypatch.setattr("daytona._async.sandbox.asyncio.sleep", AsyncMock())
 

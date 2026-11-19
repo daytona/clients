@@ -4,15 +4,16 @@
 """Execution deadlines for the synchronous and asynchronous all-node helpers."""
 
 import asyncio
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from daytona._async.sandbox import AsyncSandboxNodeCollection
-from daytona._sync.sandbox import SandboxNodeCollection
+from daytona._async.sandbox import AsyncSandboxNode, AsyncSandboxNodeCollection
+from daytona._sync.sandbox import SandboxNode, SandboxNodeCollection
 from daytona.common.errors import DaytonaError, DaytonaTimeoutError, DaytonaValidationError
 from daytona.common.process import ExecuteResponse, ExecutionArtifacts
+
+from .conftest import make_sandbox_dto
 
 
 def make_nodes(kind, count=1):
@@ -23,10 +24,11 @@ def make_nodes(kind, count=1):
     )
     nodes = []
     for rank in range(count):
-        process = SimpleNamespace(
-            exec=mock(return_value=response),
-        )
-        nodes.append(SimpleNamespace(rank=rank, warnings=[], process=process))
+        dto = make_sandbox_dto(node_count=count).nodes[rank]
+        node_type = SandboxNode if kind == "sync" else AsyncSandboxNode
+        node = node_type(dto, MagicMock(), "https://toolbox.example.com", MagicMock(), "python", MagicMock())
+        node.process.exec = mock(return_value=response)
+        nodes.append(node)
     collection._replace(nodes)
     return collection, nodes
 
@@ -84,8 +86,14 @@ async def test_rank_failure_preserves_successful_results(kind):
 async def test_rdma_probe_has_a_bounded_execution_timeout(kind):
     collection, nodes = make_nodes(kind, count=2)
     await invoke(kind, collection, timeout=1)
-    for node in nodes:
-        assert node.process.exec.call_args_list[0].kwargs == {"timeout": 5}
+    await invoke(kind, collection, timeout=1)
+    replacement = nodes[1]._to_dto()
+    replacement.incarnation += 1
+    nodes[1].update(replacement)
+    await invoke(kind, collection, timeout=1)
+    for node, expected in zip(nodes, (1, 2), strict=True):
+        probes = [call for call in node.process.exec.call_args_list if call.kwargs == {"timeout": 5}]
+        assert len(probes) == expected
 
 
 @pytest.mark.asyncio

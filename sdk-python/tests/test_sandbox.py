@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from daytona.common.errors import (
+    DaytonaConflictError,
     DaytonaError,
     DaytonaQueueTimeoutError,
     DaytonaSpotEvictedError,
@@ -348,6 +349,19 @@ class TestSandboxOperations:
         assert sandbox.nodes[0].fs.upload_file.call_count == 1
         assert sandbox.nodes[1].fs.upload_file.call_count == 1
 
+    def test_stale_release_uses_the_observed_generation(self, mock_toolbox_api_client, mock_sandbox_api):
+        from daytona_api_client.exceptions import ApiException
+
+        sandbox = make_sandbox(
+            make_sandbox_dto(node_count=3, topology_generation=4), mock_toolbox_api_client, mock_sandbox_api
+        )
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(node_count=4, topology_generation=5)
+        mock_sandbox_api.remove_sandbox_nodes.side_effect = ApiException(status=409, reason="Topology changed")
+        with pytest.raises(DaytonaConflictError):
+            sandbox.nodes.release(timeout=0)
+        assert mock_sandbox_api.remove_sandbox_nodes.call_args.args[1].expected_generation == 4
+        mock_sandbox_api.get_sandbox.assert_not_called()
+
     def test_nodes_collection_stays_live_after_add(self, mock_toolbox_api_client, mock_sandbox_api):
         dto = make_sandbox_dto(topology_generation=1)
         updated = make_sandbox_dto(
@@ -362,7 +376,7 @@ class TestSandboxOperations:
             ],
         )
         operation = MagicMock(id="op-1", status="COMPLETED", type="ADD", error_reason=None)
-        mock_sandbox_api.get_sandbox.side_effect = [dto, updated]
+        mock_sandbox_api.get_sandbox.return_value = updated
         mock_sandbox_api.add_sandbox_nodes.return_value = operation
         sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
         nodes = sandbox.nodes

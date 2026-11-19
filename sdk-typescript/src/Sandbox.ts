@@ -62,13 +62,8 @@ import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 import { buildSignedFileUrl } from './utils/fileUrlSigning'
-import { SandboxNode } from './SandboxNode'
+import { checkNodeRdma, SandboxNode } from './SandboxNode'
 import type { ExecuteResponse } from './types/ExecuteResponse'
-
-const RDMA_USERSPACE_CHECK =
-  'sh -lc \'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
-const RDMA_USERSPACE_WARNING =
-  'WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; NCCL may fall back to sockets.'
 
 export interface NodeExecuteOptions {
   /** Execution limit per rank in seconds. Omitted or 0 disables it. */
@@ -125,19 +120,7 @@ async function executeOnNodes(
   const snapshot = snapshotNodes(nodes)
   const outcomes = await Promise.allSettled(
     snapshot.map(async (node): Promise<ExecuteResponse> => {
-      let warning = ''
-      try {
-        const check =
-          snapshot.length > 1
-            ? await node.process.executeCommand(RDMA_USERSPACE_CHECK, undefined, undefined, 5)
-            : undefined
-        if (check !== undefined && check.exitCode !== 0) warning = RDMA_USERSPACE_WARNING
-      } catch {
-        warning = 'WARNING: Could not check RDMA userspace; continuing without verification.'
-      }
-      if (warning && !node.warnings.includes(warning)) {
-        node.warnings.push(warning)
-      }
+      if (snapshot.length > 1) await checkNodeRdma(node)
       return options.timeout === undefined
         ? node.process.executeCommand(command)
         : node.process.executeCommand(command, undefined, undefined, options.timeout)
@@ -178,6 +161,7 @@ async function uploadToNodes(
   const snapshot = snapshotNodes(nodes)
   const results = await Promise.allSettled(
     snapshot.map((node) =>
+      // Narrow the union for FileSystem's path and buffer overloads.
       typeof src === 'string' ? node.fs.uploadFile(src, dst, timeout) : node.fs.uploadFile(src, dst, timeout),
     ),
   )
@@ -302,6 +286,8 @@ export class Sandbox {
   /** Derived physical node count. */
   public nodeCount = 1
   public topologyGeneration?: number
+  // A sparse refresh can update metadata while retaining the previous members.
+  private membershipGeneration?: number
   public degraded?: boolean
 
   public id!: string
@@ -441,19 +427,11 @@ export class Sandbox {
       : { timeout: requestTimeout === 0 ? 0 : Math.max(1, Math.floor(requestTimeout)) }
   }
 
-  private async currentTopologyGeneration(timeout: number, deadline?: number): Promise<number> {
-    const response = await this.sandboxApi.getSandbox(
-      this.id,
-      undefined,
-      undefined,
-      this.nodeOperationRequestOptions(timeout, deadline),
-    )
-    this.nodeOperationRequestOptions(timeout, deadline)
-    this.processSandboxDto(response.data)
-    if (this.topologyGeneration === undefined) {
+  private currentTopologyGeneration(): number {
+    if (this.membershipGeneration === undefined) {
       throw new DaytonaError('Sandbox does not expose a topology generation; elastic node operations are unavailable')
     }
-    return this.topologyGeneration
+    return this.membershipGeneration
   }
 
   private async waitForNodeOperation(
@@ -479,7 +457,9 @@ export class Sandbox {
       throw Object.assign(error, { operationId: operation.id })
     }
     if (operation.status === 'FAILED') {
-      throw new DaytonaError(operation.errorReason ?? `Node ${operation.type.toLowerCase()} operation failed`)
+      const error = new DaytonaError(operation.errorReason ?? `Node ${operation.type.toLowerCase()} operation failed`)
+      error.operationId = operation.id
+      throw error
     }
     // A local refresh failure cannot change the terminal server outcome.
     try {
@@ -502,7 +482,7 @@ export class Sandbox {
     const response = await this.sandboxApi.addSandboxNodes(
       this.id,
       {
-        expectedGeneration: await this.currentTopologyGeneration(timeout, deadline),
+        expectedGeneration: this.currentTopologyGeneration(),
         nodes: nodes.map((node) => ({ ...node })),
       },
       undefined,
@@ -516,7 +496,7 @@ export class Sandbox {
     const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
     const response = await this.sandboxApi.removeSandboxNodes(
       this.id,
-      { expectedGeneration: await this.currentTopologyGeneration(timeout, deadline), count },
+      { expectedGeneration: this.currentTopologyGeneration(), count },
       undefined,
       this.nodeOperationRequestOptions(timeout, deadline),
     )
@@ -529,7 +509,7 @@ export class Sandbox {
     const response = await this.sandboxApi.replaceSandboxNode(
       this.id,
       String(rank),
-      { expectedGeneration: await this.currentTopologyGeneration(timeout, deadline) },
+      { expectedGeneration: this.currentTopologyGeneration() },
       undefined,
       this.nodeOperationRequestOptions(timeout, deadline),
     )
@@ -1937,6 +1917,8 @@ export class Sandbox {
       )
     })
     Array.prototype.splice.call(this.nodes, 0, this.nodes.length, ...updated)
+    this.membershipGeneration =
+      workerRank == null && 'topologyGeneration' in sandboxDto ? sandboxDto.topologyGeneration : undefined
   }
 
   /**

@@ -322,8 +322,8 @@ and fabric health; the sandbox also exposes node count, topology generation and 
 Retained handles remain stable across refreshes. Enumerate the collection again after
 membership changes to find replacement members. Existing sandbox services address the head.
 
-Membership helpers share a deadline across generation refresh, submission, polling and final
-refresh. The default is 600 seconds; passing zero disables the overall wait limit. Timing
+Membership helpers submit the generation of the displayed nodes. After a topology conflict, refresh
+and inspect the nodes before retrying. Submission, polling and final refresh share one deadline. The default is 600 seconds; passing zero disables the overall wait limit. Timing
 out or interrupting the wait does not cancel a submitted server operation. API admission
 errors propagate directly. Existing transport timeouts still apply.
 

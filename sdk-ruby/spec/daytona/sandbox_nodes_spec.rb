@@ -97,20 +97,19 @@ RSpec.describe Daytona::SandboxNodes do
     expect(sandbox.nodes[1]).to equal(worker)
   end
 
-  it 'refreshes the generation before adding and refreshes membership afterwards' do
+  it 'submits the cached generation and refreshes membership after completion' do
     url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
     worker = sandbox.nodes[1]
     stub_request(:get, url).to_return(
-      { body: gang(2, 5).to_hash.to_json, headers: { 'Content-Type' => 'application/json' } },
-      { body: gang(3, 6).to_hash.to_json, headers: { 'Content-Type' => 'application/json' } }
+      { body: gang(3, 5).to_hash.to_json, headers: { 'Content-Type' => 'application/json' } }
     )
-    stub_request(:post, "#{url}/nodes").with(body: hash_including('expectedGeneration' => 5)).to_return(
-      body: '{"id":"op","sandboxId":"sandbox-123","type":"ADD","status":"COMPLETED","phase":"COMPLETED","expectedGeneration":5,"targetGeneration":6,"policyRevision":1,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}',
+    stub_request(:post, "#{url}/nodes").with(body: hash_including('expectedGeneration' => 4)).to_return(
+      body: '{"id":"op","sandboxId":"sandbox-123","type":"ADD","status":"COMPLETED","phase":"COMPLETED","expectedGeneration":4,"targetGeneration":5,"policyRevision":1,"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}',
       headers: { 'Content-Type' => 'application/json' }
     )
     sandbox.nodes.add(nodes: [Daytona::NodeResources.new(cpu: 8, memory: 64, disk: 100)])
     expect(sandbox.nodes.size).to eq(3)
-    expect(sandbox.topology_generation).to eq(6)
+    expect(sandbox.topology_generation).to eq(5)
     expect(sandbox.nodes[1]).to equal(worker)
   end
 
@@ -158,6 +157,22 @@ RSpec.describe Daytona::SandboxNodes do
     results = sandbox.nodes.process.exec(command: 'echo ok')
     expect(results.keys).to eq([0, 1])
     expect(results.values.map(&:result)).to all(include('WARNING:', 'ok'))
+  end
+
+  it 'reuses the probe until a replacement and preserves the successful rank on partial failure' do
+    sessions
+    sandbox.nodes.process.exec(command: 'first')
+    sandbox.nodes.process.exec(command: 'second')
+    updated = gang
+    updated.nodes[1].incarnation = 2
+    sandbox.nodes.send(:update, updated)
+    stub_request(:post, %r{#{base}/worker-1/process/session/[^/]+/exec$}).to_return(status: 503)
+    expect { sandbox.nodes.process.exec(command: 'third') }.to raise_error(Daytona::Sdk::NodeOperationError) do |error|
+      expect(error.results.keys).to eq([0])
+      expect(error.failures.keys).to eq([1])
+    end
+    expect(a_request(:post, "#{base}/worker-1/process/execute")).to have_been_made.twice
+    expect(a_request(:post, "#{base}/sandbox-123/process/execute")).to have_been_made.once
   end
 
   it 'tags streamed chunks by rank and closes streams after successful commands' do
@@ -219,20 +234,30 @@ RSpec.describe Daytona::SandboxNodes do
     expect { Daytona::Resources.new(memory_per_node: [1, -2]) }.to raise_error(Daytona::Sdk::Error)
   end
 
-  it 'includes generation refresh in the membership deadline and does not submit after expiry' do
+  it 'surfaces a conflict for a stale release without refreshing or retrying' do
     url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
-    stub_request(:get, url).to_return do
-      sleep 0.02
-      { body: gang.to_hash.to_json, headers: { 'Content-Type' => 'application/json' } }
+    stub_request(:post, "#{url}/nodes/remove").with(body: hash_including('expectedGeneration' => 4))
+                                              .to_return(status: 409, body: '{"message":"Topology changed"}')
+    expect { sandbox.nodes.release }.to raise_error(Daytona::Sdk::ConflictError)
+    expect(a_request(:get, url)).not_to have_been_made
+    expect(a_request(:post, "#{url}/nodes/remove")).to have_been_made.once
+  end
+
+  it 'retains the accepted operation ID on a membership timeout' do
+    url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
+    operation = { id: 'op', sandboxId: sandbox.id, type: 'REMOVE', status: 'RUNNING', phase: 'FENCE',
+                  expectedGeneration: 4, targetGeneration: 5, policyRevision: 1, createdAt: '2026-01-01', updatedAt: '2026-01-01' }
+    stub_request(:post, "#{url}/nodes/remove").to_return(body: operation.to_json,
+                                                         headers: { 'Content-Type' => 'application/json' })
+    expect { sandbox.nodes.release(timeout: 0.25) }.to raise_error(Daytona::Sdk::TimeoutError) do |error|
+      expect(error.operation_id).to eq('op')
     end
-    expect { sandbox.nodes.release(timeout: 0.001) }.to raise_error(Daytona::Sdk::TimeoutError)
-    expect(a_request(:post, "#{url}/nodes/remove")).not_to have_been_made
   end
 
   it 'returns a completed release even when updating the cached nodes fails' do
     url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
     headers = { 'Content-Type' => 'application/json' }
-    stub_request(:get, url).to_return({ body: gang(4).to_hash.to_json, headers: }, { status: 503 })
+    stub_request(:get, url).to_return(status: 503)
     operation = { id: 'op', sandboxId: sandbox.id, type: 'REMOVE', status: 'COMPLETED', phase: 'COMPLETED',
                   expectedGeneration: 4, targetGeneration: 5, policyRevision: 1,
                   createdAt: '2026-01-01', updatedAt: '2026-01-01' }
@@ -285,6 +310,6 @@ RSpec.describe Daytona::SandboxNodes do
     expect { sandbox.nodes.release }.to raise_error(Daytona::Sdk::Error, 'replacement capacity unavailable') do |error|
       expect(error.operation_id).to eq('op')
     end
-    expect(a_request(:get, url)).to have_been_made.once
+    expect(a_request(:get, url)).not_to have_been_made
   end
 end

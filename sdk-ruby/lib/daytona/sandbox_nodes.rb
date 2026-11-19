@@ -40,7 +40,7 @@ module Daytona
     end
   end
 
-  # One budget for refresh, submission, polling and final refresh. A copied
+  # One budget for submission, polling and final refresh. A copied
   # generated client avoids changing timeouts on clients shared by other calls.
   class NodeDeadline
     def initialize(seconds)
@@ -106,6 +106,7 @@ module Daytona
       @rank = dto.rank
       @warnings = []
       @warning_mutex = Mutex.new
+      @rdma_mutex = Mutex.new
       @toolbox_config = parent.send(:build_toolbox_api_config).dup
       client = DaytonaToolboxApiClient::ApiClient.new(@toolbox_config)
       client.default_headers['Authorization'] = "Bearer #{parent.config.api_key || parent.config.jwt_token}"
@@ -127,7 +128,10 @@ module Daytona
       raise Sdk::Error, 'Sandbox node identity changed during refresh' unless dto.id == id && dto.rank == rank
 
       update_proxy
-      @data = dto
+      @warning_mutex.synchronize do
+        @warnings.delete(@rdma_warning) if @data && incarnation != dto.incarnation
+        @data = dto
+      end
     end
 
     def update_singleton(dto)
@@ -186,7 +190,24 @@ module Daytona
       @warning_mutex.synchronize { @warnings << message unless @warnings.include?(message) }
     end
 
-    private :update, :update_proxy, :update_singleton, :warn, :process_api
+    def cached_rdma_warning
+      @rdma_mutex.synchronize do
+        current = incarnation
+        return @rdma_warning if @rdma_incarnation == current
+
+        warning = yield
+        @warning_mutex.synchronize do
+          next unless incarnation == current
+
+          @rdma_warning = warning
+          @rdma_incarnation = current
+          @warnings << warning unless warning.empty? || @warnings.include?(warning)
+        end
+        warning
+      end
+    end
+
+    private :update, :update_proxy, :update_singleton, :warn, :process_api, :cached_rdma_warning
 
     # @return [DaytonaApiClient::PortPreviewUrl] Preview for this member
     def preview_url(port) = api_call(:get_port_preview_url, id, port)
@@ -267,6 +288,9 @@ module Daytona
       @members = raw.map do |dto|
         existing[dto.id]&.tap { |node| node.send(:update, dto) } || SandboxNode.new(@parent, dto)
       end.freeze
+      @membership_generation = if worker_rank.nil? && sandbox_dto.respond_to?(:topology_generation)
+                                 sandbox_dto.topology_generation
+                               end
     end
 
     # @param nodes [Array<Daytona::NodeResources>] Resources in appended rank order
@@ -278,7 +302,7 @@ module Daytona
       end
 
       deadline = NodeDeadline.new(timeout)
-      body = DaytonaApiClient::AddGangNodes.new(expected_generation: generation(deadline), nodes: nodes.map do |node|
+      body = DaytonaApiClient::AddGangNodes.new(expected_generation: generation, nodes: nodes.map do |node|
         DaytonaApiClient::GangNodeResources.new(node.to_h)
       end)
       submit(:add_sandbox_nodes, body, deadline)
@@ -291,7 +315,7 @@ module Daytona
       raise Sdk::Error, 'Node release count must be a positive integer' unless count.is_a?(Integer) && count.positive?
 
       deadline = NodeDeadline.new(timeout)
-      body = DaytonaApiClient::RemoveGangNodes.new(count:, expected_generation: generation(deadline))
+      body = DaytonaApiClient::RemoveGangNodes.new(count:, expected_generation: generation)
       submit(:remove_sandbox_nodes, body, deadline)
     end
 
@@ -302,7 +326,7 @@ module Daytona
       raise Sdk::Error, 'Node rank must be a non-negative integer' unless rank.is_a?(Integer) && rank >= 0
 
       deadline = NodeDeadline.new(timeout)
-      body = DaytonaApiClient::ReplaceGangNode.new(expected_generation: generation(deadline))
+      body = DaytonaApiClient::ReplaceGangNode.new(expected_generation: generation)
       submit(:replace_sandbox_node, body, deadline, rank.to_s)
     end
 
@@ -337,9 +361,8 @@ module Daytona
 
     private
 
-    def generation(deadline)
-      refresh(deadline)
-      @parent.topology_generation || (raise Sdk::Error, 'Sandbox does not expose a topology generation')
+    def generation
+      @membership_generation || (raise Sdk::Error, 'Sandbox does not expose a topology generation')
     end
 
     def refresh(deadline)
@@ -421,7 +444,7 @@ module Daytona
     end
 
     def run
-      @warning = @check_rdma ? rdma_warning : ''
+      @warning = @check_rdma ? @node.send(:cached_rdma_warning) { rdma_warning } : ''
       emit_warning
       begin
         NodeDeadline.new(10).call(@api, :create_session,
@@ -448,7 +471,6 @@ module Daytona
     def emit_warning
       return if @warning.empty?
 
-      @node.send(:warn, @warning)
       @callbacks[:stderr]&.call(@node.rank, "#{@warning}\n")
     end
 

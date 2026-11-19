@@ -328,8 +328,8 @@ exposes `node_count`, `topology_generation` and `degraded`. Call `sandbox.refres
 metadata. Retained node handles survive refreshes; enumerate the collection again after
 membership changes to find replacements. Existing sandbox services address the head.
 
-Membership helpers refresh the generation, submit, wait and refresh membership. They default
-to `timeout: 600`; zero disables the overall wait limit. A timeout ends the SDK wait without
+Membership helpers submit the generation of the displayed nodes and refresh membership after completion.
+After a topology conflict, refresh and inspect the nodes before retrying. The helpers default to `timeout: 600`; zero disables the overall wait limit. A timeout ends the SDK wait without
 canceling the submitted operation. Admission errors propagate directly; the SDK adds no queue.
 Configured transport timeouts still apply.
 

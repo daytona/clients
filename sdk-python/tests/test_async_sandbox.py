@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from daytona.common.errors import (
+    DaytonaConflictError,
     DaytonaError,
     DaytonaQueueTimeoutError,
     DaytonaSpotEvictedError,
@@ -339,6 +340,22 @@ class TestAsyncSandboxOperations:
         assert sandbox.nodes[1].fs.upload_file.await_count == 1
 
     @pytest.mark.asyncio
+    async def test_stale_release_uses_the_observed_generation(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        from daytona_api_client_async.exceptions import ApiException
+
+        sandbox = make_async_sandbox(
+            make_sandbox_dto(node_count=3, topology_generation=4), mock_async_toolbox_api_client, mock_async_sandbox_api
+        )
+        mock_async_sandbox_api.get_sandbox.return_value = make_sandbox_dto(node_count=4, topology_generation=5)
+        mock_async_sandbox_api.remove_sandbox_nodes.side_effect = ApiException(status=409, reason="Topology changed")
+        with pytest.raises(DaytonaConflictError):
+            await sandbox.nodes.release(timeout=0)
+        assert mock_async_sandbox_api.remove_sandbox_nodes.call_args.args[1].expected_generation == 4
+        mock_async_sandbox_api.get_sandbox.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_nodes_collection_stays_live_after_add(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
         dto = make_sandbox_dto(topology_generation=1)
         updated = make_sandbox_dto(
@@ -353,7 +370,7 @@ class TestAsyncSandboxOperations:
             ],
         )
         operation = MagicMock(id="op-1", status="COMPLETED", type="ADD", error_reason=None)
-        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=[dto, updated])
+        mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=updated)
         mock_async_sandbox_api.add_sandbox_nodes = AsyncMock(return_value=operation)
         sandbox = make_async_sandbox(dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
         nodes = sandbox.nodes

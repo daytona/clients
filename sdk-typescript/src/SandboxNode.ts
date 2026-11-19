@@ -16,6 +16,33 @@ import { FileSystem } from './FileSystem'
 import { Process } from './Process'
 import { DaytonaError, DaytonaInvalidArgumentError } from './errors/DaytonaError'
 
+const RDMA_USERSPACE_CHECK =
+  'sh -lc \'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
+const RDMA_USERSPACE_WARNING =
+  'WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; NCCL may fall back to sockets.'
+
+const probes = new WeakMap<SandboxNode, Promise<void>>()
+const probeFailedWarning = 'WARNING: Could not check RDMA userspace; continuing without verification.'
+
+/** @internal */
+export function checkNodeRdma(node: SandboxNode): Promise<void> {
+  const cached = probes.get(node)
+  if (cached) return cached
+  const incarnation = node.incarnation
+  const probe = (async () => {
+    let warning: string
+    try {
+      const check = await node.process.executeCommand(RDMA_USERSPACE_CHECK, undefined, undefined, 5)
+      warning = check.exitCode === 0 ? '' : RDMA_USERSPACE_WARNING
+    } catch {
+      warning = probeFailedWarning
+    }
+    if (node.incarnation === incarnation && warning && !node.warnings.includes(warning)) node.warnings.push(warning)
+  })()
+  probes.set(node, probe)
+  return probe
+}
+
 /** Lightweight data-plane handle for one node in a multi-node Sandbox. */
 export class SandboxNode {
   private readonly clientConfig: Configuration
@@ -90,6 +117,12 @@ export class SandboxNode {
     this.memory = node.memory
     this.disk = node.disk
     this.state = node.state
+    if (this.incarnation !== node.incarnation && probes.delete(this)) {
+      for (const warning of [RDMA_USERSPACE_WARNING, probeFailedWarning]) {
+        const index = this.warnings.indexOf(warning)
+        if (index >= 0) this.warnings.splice(index, 1)
+      }
+    }
     this.incarnation = node.incarnation
     this.failure = node.failure
     this.fabricAddress = node.fabricAddress

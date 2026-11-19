@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	apiclient "github.com/daytona/clients/api-client-go"
@@ -34,23 +35,23 @@ type SandboxNode struct {
 	Process    *ProcessService
 	FileSystem *FileSystemService
 	client     *Client
-	warningsMu sync.Mutex
-	warnings   []string
+	rdma       *nodeRdmaProbe
+}
+
+type nodeRdmaProbe struct {
+	incarnation int32
+	started     atomic.Bool
+	warning     atomic.Pointer[string]
 }
 
 // Warnings returns advisory messages from all-node execution.
 func (n *SandboxNode) Warnings() []string {
-	n.warningsMu.Lock()
-	defer n.warningsMu.Unlock()
-	return slices.Clone(n.warnings)
-}
-
-func (n *SandboxNode) warn(message string) {
-	n.warningsMu.Lock()
-	defer n.warningsMu.Unlock()
-	if !slices.Contains(n.warnings, message) {
-		n.warnings = append(n.warnings, message)
+	if n.rdma != nil {
+		if warning := n.rdma.warning.Load(); warning != nil {
+			return []string{*warning}
+		}
 	}
+	return nil
 }
 
 // SandboxNodes is a point-in-time membership view. Fetch it again with
@@ -134,6 +135,21 @@ func (s *Sandbox) nodesFromDTO(dto *apiclient.Sandbox) (*SandboxNodes, error) {
 			Process:    NewProcessService(tb, s.otel, types.CodeLanguage(dto.Labels[types.CodeToolboxLanguageLabel])),
 			FileSystem: NewFileSystemService(tb, s.otel)}
 		nodes.members = append(nodes.members, node)
+	}
+	// Nodes returns new handles on every fetch. Retain diagnostics for surviving incarnations.
+	if len(nodes.members) > 1 {
+		s.mu.Lock()
+		probes := make(map[string]*nodeRdmaProbe, len(nodes.members))
+		for _, node := range nodes.members {
+			probe := s.nodeProbes[node.Id]
+			if probe == nil || probe.incarnation != node.Incarnation {
+				probe = &nodeRdmaProbe{incarnation: node.Incarnation}
+			}
+			node.rdma = probe
+			probes[node.Id] = probe
+		}
+		s.nodeProbes = probes
+		s.mu.Unlock()
 	}
 	return nodes, nil
 }
@@ -382,17 +398,22 @@ func (c *SandboxNodes) ExecuteCommand(ctx context.Context, command string, timeo
 		opts = append(opts, options.WithExecuteTimeout(timeout[0]))
 	}
 	return runOnNodes(c.members, func(n *SandboxNode) (*types.ExecuteResponse, error) {
-		if len(c.members) > 1 {
+		if n.rdma != nil && n.rdma.started.CompareAndSwap(false, true) {
 			probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			probe, err := n.Process.ExecuteCommand(probeCtx, rdmaUserspaceCheck, options.WithExecuteTimeout(5*time.Second))
 			cancel()
 			if ctx.Err() != nil {
+				n.rdma.started.Store(false)
 				return nil, ctx.Err()
 			}
+			var warning string
 			if err != nil {
-				n.warn("Could not check RDMA userspace; continuing without verification.")
+				warning = "Could not check RDMA userspace; continuing without verification."
 			} else if probe.ExitCode != 0 {
-				n.warn(rdmaUserspaceWarning)
+				warning = rdmaUserspaceWarning
+			}
+			if warning != "" {
+				n.rdma.warning.Store(&warning)
 			}
 		}
 		return n.Process.ExecuteCommand(ctx, command, opts...)
@@ -405,7 +426,11 @@ func (c *SandboxNodes) UploadFile(ctx context.Context, source any, destination s
 	var upload func(*SandboxNode) error
 	switch value := source.(type) {
 	case string:
-		file, err := os.Open(value)
+		flags := os.O_RDONLY
+		if len(c.members) > 1 {
+			flags |= nodeUploadNonblock
+		}
+		file, err := os.OpenFile(value, flags, 0)
 		if err != nil {
 			return err
 		}
@@ -416,6 +441,9 @@ func (c *SandboxNodes) UploadFile(ctx context.Context, source any, destination s
 		}
 		if info.IsDir() {
 			return errors.NewDaytonaError("Upload source is a directory", 0, nil)
+		}
+		if len(c.members) > 1 && info.Mode()&os.ModeNamedPipe != 0 {
+			return errors.NewDaytonaError("multi-node uploads require a seekable file or byte slice", 0, nil)
 		}
 		size := info.Size()
 		if size == 0 || !info.Mode().IsRegular() {

@@ -105,7 +105,7 @@ class SandboxNodesTest {
         assertThat(sandbox.getNodes().get(1)).isSameAs(worker);
     }
 
-    @Test void membershipRefreshesGenerationAndUpdatesRetainedHandles() throws Exception {
+    @Test void membershipUsesCachedGenerationAndUpdatesRetainedHandles() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.start();
             String proxy = server.url("/toolbox").toString();
@@ -113,16 +113,14 @@ class SandboxNodesTest {
             SandboxApi api = new SandboxApi(client);
             Sandbox sandbox = sandbox(api, dto(proxy, 2, 1));
             SandboxNode worker = sandbox.getNodes().get(1);
-            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody(dto(proxy, 2, 4).toJson()));
-            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"id\":\"op\",\"sandboxId\":\"head\",\"type\":\"ADD\",\"status\":\"COMPLETED\",\"phase\":\"COMPLETED\",\"expectedGeneration\":4,\"targetGeneration\":5,\"policyRevision\":1,\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}"));
-            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody(dto(proxy, 3, 5).toJson()));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"id\":\"op\",\"sandboxId\":\"head\",\"type\":\"ADD\",\"status\":\"COMPLETED\",\"phase\":\"COMPLETED\",\"expectedGeneration\":1,\"targetGeneration\":2,\"policyRevision\":1,\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}"));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody(dto(proxy, 3, 2).toJson()));
             sandbox.getNodes().add(Collections.singletonList(new NodeResources(8, 64, 100)), 3);
-            server.takeRequest();
             RecordedRequest post = server.takeRequest();
             assertThat(post.getMethod()).isEqualTo("POST");
-            assertThat(post.getBody().readUtf8()).contains("\"expectedGeneration\":4");
+            assertThat(post.getBody().readUtf8()).contains("\"expectedGeneration\":1");
             assertThat(sandbox.getNodes()).hasSize(3);
-            assertThat(sandbox.getTopologyGeneration()).isEqualTo(5);
+            assertThat(sandbox.getTopologyGeneration()).isEqualTo(2);
             assertThat(sandbox.getNodes().get(1)).isSameAs(worker);
         }
     }
@@ -132,7 +130,6 @@ class SandboxNodesTest {
             try (MockWebServer server = new MockWebServer()) {
                 String proxy = server.url("/toolbox").toString();
                 Sandbox sandbox = sandbox(new SandboxApi(mainClient(server.url("/").toString())), dto(proxy, 4, 4));
-                server.enqueue(json(dto(proxy, 4, 4).toJson()));
                 server.enqueue(json("{\"id\":\"op-1\",\"sandboxId\":\"head\",\"type\":\"REMOVE\",\"status\":\"" + status
                         + "\",\"phase\":\"FENCE\",\"expectedGeneration\":4,\"targetGeneration\":5,\"policyRevision\":1,"
                         + "\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}"));
@@ -147,7 +144,7 @@ class SandboxNodesTest {
         }
     }
 
-    @Test void membershipTimeoutIncludesInitialRefresh() throws Exception {
+    @Test void membershipTimeoutIncludesSubmission() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.start();
             server.enqueue(new MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE));
@@ -155,6 +152,30 @@ class SandboxNodesTest {
                     dto(server.url("/toolbox").toString(), 2, 1));
             assertThatThrownBy(() -> sandbox.getNodes().release(1, 1)).isInstanceOf(DaytonaTimeoutException.class);
             assertThat(server.getRequestCount()).isEqualTo(1);
+        }
+    }
+
+    @Test void staleReleaseReturnsConflictWithoutRefreshing() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            Sandbox sandbox = sandbox(new SandboxApi(mainClient(server.url("/").toString())),
+                    dto(server.url("/toolbox").toString(), 3, 1));
+            server.enqueue(json("{\"message\":\"Topology changed\"}").setResponseCode(409));
+            assertThatThrownBy(() -> sandbox.getNodes().release(1, 5))
+                    .isInstanceOf(io.daytona.sdk.exception.DaytonaConflictException.class);
+            RecordedRequest request = server.takeRequest();
+            assertThat(request.getMethod()).isEqualTo("POST");
+            assertThat(request.getBody().readUtf8()).contains("\"expectedGeneration\":1");
+            assertThat(server.getRequestCount()).isEqualTo(1);
+        }
+    }
+
+    @Test void acceptedReleaseTimeoutRetainsOperationId() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            Sandbox sandbox = sandbox(new SandboxApi(mainClient(server.url("/").toString())),
+                    dto(server.url("/toolbox").toString(), 3, 1));
+            server.enqueue(json("{\"id\":\"op-1\",\"sandboxId\":\"head\",\"type\":\"REMOVE\",\"status\":\"RUNNING\",\"phase\":\"FENCE\",\"expectedGeneration\":1,\"targetGeneration\":2,\"policyRevision\":1,\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}"));
+            assertThatThrownBy(() -> sandbox.getNodes().release(1, 1))
+                    .isInstanceOfSatisfying(DaytonaTimeoutException.class, e -> assertThat(e.getOperationId()).isEqualTo("op-1"));
         }
     }
 
@@ -188,11 +209,14 @@ class SandboxNodesTest {
 
     @Test void cleanupFailurePreservesSuccessfulCommandsAndAddsWarnings() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
+            AtomicInteger probes = new AtomicInteger();
+            java.util.concurrent.atomic.AtomicBoolean failWorker = new java.util.concurrent.atomic.AtomicBoolean();
             server.setDispatcher(new Dispatcher() {
                 @Override public MockResponse dispatch(RecordedRequest request) {
                     String path = request.getPath();
                     if ("DELETE".equals(request.getMethod())) return json("{}").setResponseCode(500);
-                    if (path.endsWith("/execute")) return json("{\"exitCode\":0,\"result\":\"\"}");
+                    if (path.endsWith("/execute")) { probes.incrementAndGet(); return json("{\"exitCode\":0,\"result\":\"\"}"); }
+                    if (failWorker.get() && path.contains("/worker-1/") && path.endsWith("/exec")) return json("{}").setResponseCode(500);
                     if (path.contains("/exec")) return json("{\"cmdId\":\"cmd\"}");
                     if (path.endsWith("/logs")) return json("{\"output\":\"ok\",\"stdout\":\"ok\",\"stderr\":\"\"}");
                     if (path.contains("/command/")) return json("{\"id\":\"cmd\",\"command\":\"echo ok\",\"exitCode\":0}");
@@ -202,6 +226,13 @@ class SandboxNodesTest {
             server.start();
             Sandbox sandbox = sandbox(mock(SandboxApi.class), dto(server.url("/toolbox").toString(), 2, 1));
             assertThat(sandbox.getNodes().getProcess().executeCommand("echo ok")).hasSize(2);
+            failWorker.set(true);
+            assertThatThrownBy(() -> sandbox.getNodes().getProcess().executeCommand("echo ok"))
+                    .isInstanceOfSatisfying(DaytonaNodeOperationException.class, error -> {
+                        assertThat(error.getFailures()).containsOnlyKeys(1);
+                        assertThat(error.getResults()).containsOnlyKeys(0);
+                    });
+            assertThat(probes).hasValue(2);
             for (SandboxNode node : sandbox.getNodes()) assertThat(node.getWarnings()).anyMatch(w -> w.contains("cleanup failed"));
         }
     }
