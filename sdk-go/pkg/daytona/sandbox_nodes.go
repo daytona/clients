@@ -429,7 +429,7 @@ func (c *SandboxNodes) UploadFile(ctx context.Context, source any, destination s
 					}
 					break
 				}
-				return fmt.Errorf("multi-node uploads require a seekable file or byte slice: %w", err)
+				return errors.WrapDaytonaError(err, fmt.Sprintf("multi-node uploads require a seekable file or byte slice: %v", err), 0, nil)
 			}
 			if n > 0 && size == 0 {
 				size = math.MaxInt64
