@@ -470,9 +470,9 @@ class AsyncSandbox:
     def desktop(self) -> DesktopSettings | None:
         """Resolved create-time settings, not live status or current settings.
 
-        Guest restarts may change settings; ``computer_use.status()`` reports
-        live settings. ``None`` means no desktop was requested, except when
-        metadata is unknown or omitted (including batch-wait snapshots).
+        Desktop restarts may change settings; ``computer_use.display.info()``
+        reports the live display size. ``None`` means no desktop was requested,
+        except when metadata is unknown or omitted (including batch-wait snapshots).
         """
         return self._info.desktop
 
