@@ -21,17 +21,17 @@ var _ MappedNullable = &RegionQuota{}
 
 // RegionQuota struct for RegionQuota
 type RegionQuota struct {
-	OrganizationId                string          `json:"organizationId"`
-	RegionId                      string          `json:"regionId"`
-	SandboxClass                  SandboxClass    `json:"sandboxClass"`
-	TotalCpuQuota                 float32         `json:"totalCpuQuota"`
-	TotalMemoryQuota              float32         `json:"totalMemoryQuota"`
-	TotalDiskQuota                float32         `json:"totalDiskQuota"`
-	TotalGpuQuota                 float32         `json:"totalGpuQuota"`
-	AllowedGpuTypes               []GpuType       `json:"allowedGpuTypes,omitempty"`
-	MaxCpuPerSandbox              NullableFloat32 `json:"maxCpuPerSandbox"`
-	MaxMemoryPerSandbox           NullableFloat32 `json:"maxMemoryPerSandbox"`
-	MaxDiskPerSandbox             NullableFloat32 `json:"maxDiskPerSandbox"`
+	OrganizationId string `json:"organizationId"`
+	RegionId string `json:"regionId"`
+	SandboxClass SandboxClass `json:"sandboxClass"`
+	TotalCpuQuota float32 `json:"totalCpuQuota"`
+	TotalMemoryQuota float32 `json:"totalMemoryQuota"`
+	TotalDiskQuota float32 `json:"totalDiskQuota"`
+	TotalGpuQuota float32 `json:"totalGpuQuota"`
+	AllowedGpuTypes []GpuType `json:"allowedGpuTypes,omitempty"`
+	MaxCpuPerSandbox NullableFloat32 `json:"maxCpuPerSandbox"`
+	MaxMemoryPerSandbox NullableFloat32 `json:"maxMemoryPerSandbox"`
+	MaxDiskPerSandbox NullableFloat32 `json:"maxDiskPerSandbox"`
 	MaxDiskPerNonEphemeralSandbox NullableFloat32 `json:"maxDiskPerNonEphemeralSandbox"`
 	// CPU maximum per requested GPU unit for GPU sandboxes.
 	MaxCpuPerGpu NullableFloat32 `json:"maxCpuPerGpu"`
@@ -41,8 +41,6 @@ type RegionQuota struct {
 	MaxDiskPerGpu NullableFloat32 `json:"maxDiskPerGpu"`
 	// Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
 	MaxSandboxLifespan NullableFloat32 `json:"maxSandboxLifespan"`
-	// Maximum derived GPU node count; zero disables multi-node sandboxes.
-	MaxNodesPerSandbox   *float32 `json:"maxNodesPerSandbox,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -488,40 +486,8 @@ func (o *RegionQuota) SetMaxSandboxLifespan(v float32) {
 	o.MaxSandboxLifespan.Set(&v)
 }
 
-// GetMaxNodesPerSandbox returns the MaxNodesPerSandbox field value if set, zero value otherwise.
-func (o *RegionQuota) GetMaxNodesPerSandbox() float32 {
-	if o == nil || IsNil(o.MaxNodesPerSandbox) {
-		var ret float32
-		return ret
-	}
-	return *o.MaxNodesPerSandbox
-}
-
-// GetMaxNodesPerSandboxOk returns a tuple with the MaxNodesPerSandbox field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *RegionQuota) GetMaxNodesPerSandboxOk() (*float32, bool) {
-	if o == nil || IsNil(o.MaxNodesPerSandbox) {
-		return nil, false
-	}
-	return o.MaxNodesPerSandbox, true
-}
-
-// HasMaxNodesPerSandbox returns a boolean if a field has been set.
-func (o *RegionQuota) HasMaxNodesPerSandbox() bool {
-	if o != nil && !IsNil(o.MaxNodesPerSandbox) {
-		return true
-	}
-
-	return false
-}
-
-// SetMaxNodesPerSandbox gets a reference to the given float32 and assigns it to the MaxNodesPerSandbox field.
-func (o *RegionQuota) SetMaxNodesPerSandbox(v float32) {
-	o.MaxNodesPerSandbox = &v
-}
-
 func (o RegionQuota) MarshalJSON() ([]byte, error) {
-	toSerialize, err := o.ToMap()
+	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -548,9 +514,6 @@ func (o RegionQuota) ToMap() (map[string]interface{}, error) {
 	toSerialize["maxMemoryPerGpu"] = o.MaxMemoryPerGpu.Get()
 	toSerialize["maxDiskPerGpu"] = o.MaxDiskPerGpu.Get()
 	toSerialize["maxSandboxLifespan"] = o.MaxSandboxLifespan.Get()
-	if !IsNil(o.MaxNodesPerSandbox) {
-		toSerialize["maxNodesPerSandbox"] = o.MaxNodesPerSandbox
-	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -586,10 +549,10 @@ func (o *RegionQuota) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &allProperties)
 
 	if err != nil {
-		return err
+		return err;
 	}
 
-	for _, requiredProperty := range requiredProperties {
+	for _, requiredProperty := range(requiredProperties) {
 		if _, exists := allProperties[requiredProperty]; !exists {
 			return fmt.Errorf("no value given for required property %v", requiredProperty)
 		}
@@ -624,7 +587,6 @@ func (o *RegionQuota) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "maxMemoryPerGpu")
 		delete(additionalProperties, "maxDiskPerGpu")
 		delete(additionalProperties, "maxSandboxLifespan")
-		delete(additionalProperties, "maxNodesPerSandbox")
 		o.AdditionalProperties = additionalProperties
 	}
 
@@ -666,3 +628,5 @@ func (v *NullableRegionQuota) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+
+

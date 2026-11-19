@@ -74,16 +74,16 @@ var CreateCmd = &cobra.Command{
 			createSandbox.SetTarget(targetFlag)
 		}
 		if cpuFlag > 0 {
-			createSandbox.SetCpu(apiclient.Int32AsCreateSandboxCpu(apiclient.PtrInt32(cpuFlag)))
+			createSandbox.SetCpu(cpuFlag)
 		}
 		if gpuFlag > 0 {
 			createSandbox.SetGpu(gpuFlag)
 		}
 		if memoryFlag > 0 {
-			createSandbox.SetMemory(apiclient.Int32AsCreateSandboxMemory(apiclient.PtrInt32(memoryFlag)))
+			createSandbox.SetMemory(memoryFlag)
 		}
 		if diskFlag > 0 {
-			createSandbox.SetDisk(apiclient.Int32AsCreateSandboxDisk(apiclient.PtrInt32(diskFlag)))
+			createSandbox.SetDisk(diskFlag)
 		}
 		if cmd.Flags().Changed("auto-pause") {
 			if autoPauseFlag < 0 {

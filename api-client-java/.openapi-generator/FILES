@@ -65,9 +65,6 @@ src/main/java/io/daytona/api/client/model/CreateRunner.java
 src/main/java/io/daytona/api/client/model/CreateRunnerResponse.java
 src/main/java/io/daytona/api/client/model/CreateRunnerSandboxClass.java
 src/main/java/io/daytona/api/client/model/CreateSandbox.java
-src/main/java/io/daytona/api/client/model/CreateSandboxCpu.java
-src/main/java/io/daytona/api/client/model/CreateSandboxDisk.java
-src/main/java/io/daytona/api/client/model/CreateSandboxMemory.java
 src/main/java/io/daytona/api/client/model/CreateSandboxSnapshot.java
 src/main/java/io/daytona/api/client/model/CreateSecret.java
 src/main/java/io/daytona/api/client/model/CreateSnapshot.java
@@ -244,9 +241,6 @@ src/test/java/io/daytona/api/client/model/CreateRegionTest.java
 src/test/java/io/daytona/api/client/model/CreateRunnerResponseTest.java
 src/test/java/io/daytona/api/client/model/CreateRunnerSandboxClassTest.java
 src/test/java/io/daytona/api/client/model/CreateRunnerTest.java
-src/test/java/io/daytona/api/client/model/CreateSandboxCpuTest.java
-src/test/java/io/daytona/api/client/model/CreateSandboxDiskTest.java
-src/test/java/io/daytona/api/client/model/CreateSandboxMemoryTest.java
 src/test/java/io/daytona/api/client/model/CreateSandboxSnapshotTest.java
 src/test/java/io/daytona/api/client/model/CreateSandboxTest.java
 src/test/java/io/daytona/api/client/model/CreateSecretTest.java

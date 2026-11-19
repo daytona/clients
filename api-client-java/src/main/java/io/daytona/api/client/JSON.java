@@ -120,9 +120,6 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateRunner.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateRunnerResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSandbox.CustomTypeAdapterFactory());
-        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSandboxCpu.CustomTypeAdapterFactory());
-        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSandboxDisk.CustomTypeAdapterFactory());
-        gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSandboxMemory.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSandboxSnapshot.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSecret.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.daytona.api.client.model.CreateSnapshot.CustomTypeAdapterFactory());

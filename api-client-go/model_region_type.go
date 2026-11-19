@@ -20,9 +20,9 @@ type RegionType string
 
 // List of RegionType
 const (
-	REGIONTYPE_SHARED                   RegionType = "shared"
-	REGIONTYPE_DEDICATED                RegionType = "dedicated"
-	REGIONTYPE_CUSTOM                   RegionType = "custom"
+	REGIONTYPE_SHARED RegionType = "shared"
+	REGIONTYPE_DEDICATED RegionType = "dedicated"
+	REGIONTYPE_CUSTOM RegionType = "custom"
 	REGIONTYPE_UNKNOWN_DEFAULT_OPEN_API RegionType = "11184809"
 )
 
@@ -114,3 +114,4 @@ func (v *NullableRegionType) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
+

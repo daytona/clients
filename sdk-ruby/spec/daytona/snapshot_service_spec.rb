@@ -169,7 +169,7 @@ RSpec.describe Daytona::SnapshotService do
   describe '#create' do
     it 'rejects per-node snapshot resources' do
       params = Daytona::CreateSnapshotParams.new(name: 'my-snap', image: 'ubuntu',
-                                                 resources: Daytona::Resources.new(cpu: [2]))
+                                                 resources: Daytona::Resources.new(cpu_per_node: [2]))
       expect { service.create(params) }.to raise_error(Daytona::Sdk::Error, /[Pp]er-node/)
     end
 

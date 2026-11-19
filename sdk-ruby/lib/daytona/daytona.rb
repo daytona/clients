@@ -342,6 +342,11 @@ module Daytona
         create_sandbox.cpu = params.resources&.cpu
         create_sandbox.memory = params.resources&.memory
         create_sandbox.disk = params.resources&.disk
+        if params.resources.is_a?(Resources)
+          create_sandbox.cpu_per_node = params.resources.cpu_per_node unless params.resources.cpu_per_node.nil?
+          create_sandbox.memory_per_node = params.resources.memory_per_node unless params.resources.memory_per_node.nil?
+          create_sandbox.disk_per_node = params.resources.disk_per_node unless params.resources.disk_per_node.nil?
+        end
         create_sandbox.gpu = params.resources&.gpu
         if params.resources&.gpu_type
           create_sandbox.gpu_type =

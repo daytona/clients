@@ -8,9 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.CreateBuildInfo;
 import io.daytona.api.client.model.CreateSandbox;
-import io.daytona.api.client.model.CreateSandboxCpu;
-import io.daytona.api.client.model.CreateSandboxMemory;
-import io.daytona.api.client.model.CreateSandboxDisk;
 import io.daytona.api.client.model.SandboxVolume;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.internal.EventDispatcher;
@@ -211,14 +208,14 @@ public class Daytona implements AutoCloseable {
             }
 
             if (params.getResources() != null) {
-                if (perNode(params.getResources().getCpu(), params.getResources().getCpuPerNode(), "cpu")) body.setCpu(new CreateSandboxCpu(params.getResources().getCpuPerNode()));
-                else if (params.getResources().getCpu() != null) body.setCpu(new CreateSandboxCpu(params.getResources().getCpu()));
+                if (perNode(params.getResources().getCpu(), params.getResources().getCpuPerNode(), "cpu")) body.setCpuPerNode(params.getResources().getCpuPerNode());
+                else if (params.getResources().getCpu() != null) body.setCpu(params.getResources().getCpu());
                 if (params.getResources().getGpu() != null) body.setGpu(params.getResources().getGpu());
                 if (params.getResources().getGpuType() != null) body.setGpuType(params.getResources().getGpuType());
-                if (perNode(params.getResources().getMemory(), params.getResources().getMemoryPerNode(), "memory")) body.setMemory(new CreateSandboxMemory(params.getResources().getMemoryPerNode()));
-                else if (params.getResources().getMemory() != null) body.setMemory(new CreateSandboxMemory(params.getResources().getMemory()));
-                if (perNode(params.getResources().getDisk(), params.getResources().getDiskPerNode(), "disk")) body.setDisk(new CreateSandboxDisk(params.getResources().getDiskPerNode()));
-                else if (params.getResources().getDisk() != null) body.setDisk(new CreateSandboxDisk(params.getResources().getDisk()));
+                if (perNode(params.getResources().getMemory(), params.getResources().getMemoryPerNode(), "memory")) body.setMemoryPerNode(params.getResources().getMemoryPerNode());
+                else if (params.getResources().getMemory() != null) body.setMemory(params.getResources().getMemory());
+                if (perNode(params.getResources().getDisk(), params.getResources().getDiskPerNode(), "disk")) body.setDiskPerNode(params.getResources().getDiskPerNode());
+                else if (params.getResources().getDisk() != null) body.setDisk(params.getResources().getDisk());
             }
         }
 

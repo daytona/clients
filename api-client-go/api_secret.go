@@ -20,13 +20,14 @@ import (
 	"strings"
 )
 
+
 type SecretAPI interface {
 
 	/*
-		CreateSecret Create secret
+	CreateSecret Create secret
 
-		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-		@return SecretAPICreateSecretRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return SecretAPICreateSecretRequest
 	*/
 	CreateSecret(ctx context.Context) SecretAPICreateSecretRequest
 
@@ -35,11 +36,11 @@ type SecretAPI interface {
 	CreateSecretExecute(r SecretAPICreateSecretRequest) (*Secret, *http.Response, error)
 
 	/*
-		DeleteSecret Delete secret
+	DeleteSecret Delete secret
 
-		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-		@param secretId ID of the secret
-		@return SecretAPIDeleteSecretRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param secretId ID of the secret
+	@return SecretAPIDeleteSecretRequest
 	*/
 	DeleteSecret(ctx context.Context, secretId string) SecretAPIDeleteSecretRequest
 
@@ -47,11 +48,11 @@ type SecretAPI interface {
 	DeleteSecretExecute(r SecretAPIDeleteSecretRequest) (*http.Response, error)
 
 	/*
-		GetSecret Get secret
+	GetSecret Get secret
 
-		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-		@param secretId ID of the secret
-		@return SecretAPIGetSecretRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param secretId ID of the secret
+	@return SecretAPIGetSecretRequest
 	*/
 	GetSecret(ctx context.Context, secretId string) SecretAPIGetSecretRequest
 
@@ -60,14 +61,14 @@ type SecretAPI interface {
 	GetSecretExecute(r SecretAPIGetSecretRequest) (*Secret, *http.Response, error)
 
 	/*
-		ListSecrets List secrets
+	ListSecrets List secrets
 
-		This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
+	This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
 
-		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-		@return SecretAPIListSecretsRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return SecretAPIListSecretsRequest
 
-		Deprecated
+	Deprecated
 	*/
 	ListSecrets(ctx context.Context) SecretAPIListSecretsRequest
 
@@ -77,10 +78,10 @@ type SecretAPI interface {
 	ListSecretsExecute(r SecretAPIListSecretsRequest) ([]Secret, *http.Response, error)
 
 	/*
-		ListSecretsPaginated List secrets with pagination
+	ListSecretsPaginated List secrets with pagination
 
-		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-		@return SecretAPIListSecretsPaginatedRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return SecretAPIListSecretsPaginatedRequest
 	*/
 	ListSecretsPaginated(ctx context.Context) SecretAPIListSecretsPaginatedRequest
 
@@ -89,11 +90,11 @@ type SecretAPI interface {
 	ListSecretsPaginatedExecute(r SecretAPIListSecretsPaginatedRequest) (*ListSecretsResponse, *http.Response, error)
 
 	/*
-		UpdateSecret Update secret
+	UpdateSecret Update secret
 
-		@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-		@param secretId ID of the secret
-		@return SecretAPIUpdateSecretRequest
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@param secretId ID of the secret
+	@return SecretAPIUpdateSecretRequest
 	*/
 	UpdateSecret(ctx context.Context, secretId string) SecretAPIUpdateSecretRequest
 
@@ -106,9 +107,9 @@ type SecretAPI interface {
 type SecretAPIService service
 
 type SecretAPICreateSecretRequest struct {
-	ctx                    context.Context
-	ApiService             SecretAPI
-	createSecret           *CreateSecret
+	ctx context.Context
+	ApiService SecretAPI
+	createSecret *CreateSecret
 	xDaytonaOrganizationID *string
 }
 
@@ -130,25 +131,24 @@ func (r SecretAPICreateSecretRequest) Execute() (*Secret, *http.Response, error)
 /*
 CreateSecret Create secret
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return SecretAPICreateSecretRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return SecretAPICreateSecretRequest
 */
 func (a *SecretAPIService) CreateSecret(ctx context.Context) SecretAPICreateSecretRequest {
 	return SecretAPICreateSecretRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//
-//	@return Secret
+//  @return Secret
 func (a *SecretAPIService) CreateSecretExecute(r SecretAPICreateSecretRequest) (*Secret, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *Secret
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Secret
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.CreateSecret")
@@ -225,9 +225,9 @@ func (a *SecretAPIService) CreateSecretExecute(r SecretAPICreateSecretRequest) (
 }
 
 type SecretAPIDeleteSecretRequest struct {
-	ctx                    context.Context
-	ApiService             SecretAPI
-	secretId               string
+	ctx context.Context
+	ApiService SecretAPI
+	secretId string
 	xDaytonaOrganizationID *string
 }
 
@@ -244,24 +244,24 @@ func (r SecretAPIDeleteSecretRequest) Execute() (*http.Response, error) {
 /*
 DeleteSecret Delete secret
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param secretId ID of the secret
-	@return SecretAPIDeleteSecretRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param secretId ID of the secret
+ @return SecretAPIDeleteSecretRequest
 */
 func (a *SecretAPIService) DeleteSecret(ctx context.Context, secretId string) SecretAPIDeleteSecretRequest {
 	return SecretAPIDeleteSecretRequest{
 		ApiService: a,
-		ctx:        ctx,
-		secretId:   secretId,
+		ctx: ctx,
+		secretId: secretId,
 	}
 }
 
 // Execute executes the request
 func (a *SecretAPIService) DeleteSecretExecute(r SecretAPIDeleteSecretRequest) (*http.Response, error) {
 	var (
-		localVarHTTPMethod = http.MethodDelete
-		localVarPostBody   interface{}
-		formFiles          []formFile
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.DeleteSecret")
@@ -325,9 +325,9 @@ func (a *SecretAPIService) DeleteSecretExecute(r SecretAPIDeleteSecretRequest) (
 }
 
 type SecretAPIGetSecretRequest struct {
-	ctx                    context.Context
-	ApiService             SecretAPI
-	secretId               string
+	ctx context.Context
+	ApiService SecretAPI
+	secretId string
 	xDaytonaOrganizationID *string
 }
 
@@ -344,27 +344,26 @@ func (r SecretAPIGetSecretRequest) Execute() (*Secret, *http.Response, error) {
 /*
 GetSecret Get secret
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param secretId ID of the secret
-	@return SecretAPIGetSecretRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param secretId ID of the secret
+ @return SecretAPIGetSecretRequest
 */
 func (a *SecretAPIService) GetSecret(ctx context.Context, secretId string) SecretAPIGetSecretRequest {
 	return SecretAPIGetSecretRequest{
 		ApiService: a,
-		ctx:        ctx,
-		secretId:   secretId,
+		ctx: ctx,
+		secretId: secretId,
 	}
 }
 
 // Execute executes the request
-//
-//	@return Secret
+//  @return Secret
 func (a *SecretAPIService) GetSecretExecute(r SecretAPIGetSecretRequest) (*Secret, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *Secret
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Secret
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.GetSecret")
@@ -437,8 +436,8 @@ func (a *SecretAPIService) GetSecretExecute(r SecretAPIGetSecretRequest) (*Secre
 }
 
 type SecretAPIListSecretsRequest struct {
-	ctx                    context.Context
-	ApiService             SecretAPI
+	ctx context.Context
+	ApiService SecretAPI
 	xDaytonaOrganizationID *string
 }
 
@@ -457,29 +456,27 @@ ListSecrets List secrets
 
 This endpoint is deprecated and fails for organizations with more than 1500 secrets. Use `listSecretsPaginated` instead.
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return SecretAPIListSecretsRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return SecretAPIListSecretsRequest
 
 Deprecated
 */
 func (a *SecretAPIService) ListSecrets(ctx context.Context) SecretAPIListSecretsRequest {
 	return SecretAPIListSecretsRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//
-//	@return []Secret
-//
+//  @return []Secret
 // Deprecated
 func (a *SecretAPIService) ListSecretsExecute(r SecretAPIListSecretsRequest) ([]Secret, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []Secret
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []Secret
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.ListSecrets")
@@ -551,14 +548,14 @@ func (a *SecretAPIService) ListSecretsExecute(r SecretAPIListSecretsRequest) ([]
 }
 
 type SecretAPIListSecretsPaginatedRequest struct {
-	ctx                    context.Context
-	ApiService             SecretAPI
+	ctx context.Context
+	ApiService SecretAPI
 	xDaytonaOrganizationID *string
-	cursor                 *string
-	limit                  *int32
-	name                   *string
-	sort                   *string
-	order                  *string
+	cursor *string
+	limit *int32
+	name *string
+	sort *string
+	order *string
 }
 
 // Use with JWT to specify the organization ID
@@ -604,25 +601,24 @@ func (r SecretAPIListSecretsPaginatedRequest) Execute() (*ListSecretsResponse, *
 /*
 ListSecretsPaginated List secrets with pagination
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@return SecretAPIListSecretsPaginatedRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return SecretAPIListSecretsPaginatedRequest
 */
 func (a *SecretAPIService) ListSecretsPaginated(ctx context.Context) SecretAPIListSecretsPaginatedRequest {
 	return SecretAPIListSecretsPaginatedRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//
-//	@return ListSecretsResponse
+//  @return ListSecretsResponse
 func (a *SecretAPIService) ListSecretsPaginatedExecute(r SecretAPIListSecretsPaginatedRequest) (*ListSecretsResponse, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *ListSecretsResponse
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ListSecretsResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.ListSecretsPaginated")
@@ -721,10 +717,10 @@ func (a *SecretAPIService) ListSecretsPaginatedExecute(r SecretAPIListSecretsPag
 }
 
 type SecretAPIUpdateSecretRequest struct {
-	ctx                    context.Context
-	ApiService             SecretAPI
-	secretId               string
-	updateSecret           *UpdateSecret
+	ctx context.Context
+	ApiService SecretAPI
+	secretId string
+	updateSecret *UpdateSecret
 	xDaytonaOrganizationID *string
 }
 
@@ -746,27 +742,26 @@ func (r SecretAPIUpdateSecretRequest) Execute() (*Secret, *http.Response, error)
 /*
 UpdateSecret Update secret
 
-	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
-	@param secretId ID of the secret
-	@return SecretAPIUpdateSecretRequest
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param secretId ID of the secret
+ @return SecretAPIUpdateSecretRequest
 */
 func (a *SecretAPIService) UpdateSecret(ctx context.Context, secretId string) SecretAPIUpdateSecretRequest {
 	return SecretAPIUpdateSecretRequest{
 		ApiService: a,
-		ctx:        ctx,
-		secretId:   secretId,
+		ctx: ctx,
+		secretId: secretId,
 	}
 }
 
 // Execute executes the request
-//
-//	@return Secret
+//  @return Secret
 func (a *SecretAPIService) UpdateSecretExecute(r SecretAPIUpdateSecretRequest) (*Secret, *http.Response, error) {
 	var (
-		localVarHTTPMethod  = http.MethodPatch
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *Secret
+		localVarHTTPMethod   = http.MethodPatch
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *Secret
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "SecretAPIService.UpdateSecret")

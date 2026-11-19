@@ -167,9 +167,9 @@ class DaytonaTest {
         daytona.create(params);
         ArgumentCaptor<CreateSandbox> body = ArgumentCaptor.forClass(CreateSandbox.class);
         org.mockito.Mockito.verify(sandboxApi).createSandbox(body.capture(), isNull());
-        assertThat(body.getValue().getCpu().getActualInstance()).isEqualTo(java.util.Arrays.asList(8, 16));
-        assertThat(body.getValue().getMemory().getActualInstance()).isEqualTo(java.util.Arrays.asList(32, 64));
-        assertThat(body.getValue().getDisk().getActualInstance()).isEqualTo(java.util.Arrays.asList(100, 200));
+        assertThat(body.getValue().getCpuPerNode()).isEqualTo(java.util.Arrays.asList(8, 16));
+        assertThat(body.getValue().getMemoryPerNode()).isEqualTo(java.util.Arrays.asList(32, 64));
+        assertThat(body.getValue().getDiskPerNode()).isEqualTo(java.util.Arrays.asList(100, 200));
         resources.setCpu(4);
         assertThatThrownBy(() -> daytona.create(params)).isInstanceOf(DaytonaException.class)
                 .hasMessageContaining("either a scalar");
@@ -260,10 +260,10 @@ class DaytonaTest {
         ArgumentCaptor<CreateSandbox> captor = ArgumentCaptor.forClass(CreateSandbox.class);
         org.mockito.Mockito.verify(sandboxApi, org.mockito.Mockito.times(1)).createSandbox(captor.capture(), isNull());
         assertThat(captor.getValue().getBuildInfo().getDockerfileContent()).contains("RUN echo hi\n");
-        assertThat(captor.getValue().getCpu().getActualInstance()).isEqualTo(2);
+        assertThat(captor.getValue().getCpu()).isEqualTo(2);
         assertThat(captor.getValue().getGpu()).isEqualTo(1);
-        assertThat(captor.getValue().getMemory().getActualInstance()).isEqualTo(4);
-        assertThat(captor.getValue().getDisk().getActualInstance()).isEqualTo(8);
+        assertThat(captor.getValue().getMemory()).isEqualTo(4);
+        assertThat(captor.getValue().getDisk()).isEqualTo(8);
     }
 
     @Test

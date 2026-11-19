@@ -51,9 +51,6 @@ lib/daytona_api_client/models/create_runner.rb
 lib/daytona_api_client/models/create_runner_response.rb
 lib/daytona_api_client/models/create_runner_sandbox_class.rb
 lib/daytona_api_client/models/create_sandbox.rb
-lib/daytona_api_client/models/create_sandbox_cpu.rb
-lib/daytona_api_client/models/create_sandbox_disk.rb
-lib/daytona_api_client/models/create_sandbox_memory.rb
 lib/daytona_api_client/models/create_sandbox_snapshot.rb
 lib/daytona_api_client/models/create_secret.rb
 lib/daytona_api_client/models/create_snapshot.rb

@@ -47,9 +47,6 @@ models/create-region.ts
 models/create-runner-response.ts
 models/create-runner-sandbox-class.ts
 models/create-runner.ts
-models/create-sandbox-cpu.ts
-models/create-sandbox-disk.ts
-models/create-sandbox-memory.ts
 models/create-sandbox-snapshot.ts
 models/create-sandbox.ts
 models/create-secret.ts

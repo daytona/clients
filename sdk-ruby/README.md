@@ -295,7 +295,7 @@ your framework and RDMA userspace (`libibverbs.so.1` and an mlx5 provider).
 ```ruby
 params = Daytona::CreateSandboxFromImageParams.new(
   image: 'your-registry/rdma-workload:tag',
-  resources: Daytona::Resources.new(gpu: 16, cpu: [16, 16], memory: [64, 64], disk: [100, 100])
+  resources: Daytona::Resources.new(gpu: 16, cpu_per_node: [16, 16], memory_per_node: [64, 64], disk_per_node: [100, 100])
 )
 sandbox = daytona.create(params)
 worker = sandbox.nodes[1] # Rank zero is the head.

@@ -121,6 +121,7 @@ pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 #### Sandbox.to\_dict
 
 ```python
+@override
 def to_dict() -> dict[str, Any]
 ```
 
@@ -1438,14 +1439,27 @@ params = CreateSandboxFromImageParams(
 
 ```python
 @dataclass
-class CreateSandboxResources()
+class CreateSandboxResources(Resources)
 ```
 
 Resources used when creating a Sandbox from an image.
 
-``cpu``, ``memory``, and ``disk`` are per-node values. A scalar applies to
-every node; a list is ordered by node rank and must match the derived node
-count. ``Resources`` remains the scalar-only type for snapshots and resize.
+Scalar resources apply to every node. Per-node lists follow node rank and
+must match the node count. Specify one form for each resource.
+
+**Attributes**:
+
+- `cpu_per_node` _list[int] | None_ - CPU cores for each node in rank order.
+- `memory_per_node` _list[int] | None_ - Memory in GiB for each node in rank order.
+- `disk_per_node` _list[int] | None_ - Disk space in GiB for each node in rank order.
+  
+
+**Example**:
+
+```python
+# Two 8-GPU nodes with 2 and 4 CPU cores, each with 64 GiB of memory.
+resources = CreateSandboxResources(gpu=16, cpu_per_node=[2, 4], memory=64)
+```
 
 ## NodeResources
 

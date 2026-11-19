@@ -180,13 +180,13 @@ export interface Resources {
 }
 
 /** Resource allocation used when creating a Sandbox from an image. */
-export type CreateSandboxResources = Omit<Resources, 'cpu' | 'memory' | 'disk'> & {
-  /** CPU cores per node. A scalar applies to every node; an array is ordered by rank. */
-  cpu?: number | number[]
-  /** Memory in GiB per node. A scalar applies to every node; an array is ordered by rank. */
-  memory?: number | number[]
-  /** Disk in GiB per node. A scalar applies to every node; an array is ordered by rank. */
-  disk?: number | number[]
+export type CreateSandboxResources = Resources & {
+  /** CPU cores for each node, ordered by rank. */
+  cpuPerNode?: number[]
+  /** Memory in GiB for each node, ordered by rank. */
+  memoryPerNode?: number[]
+  /** Disk in GiB for each node, ordered by rank. */
+  diskPerNode?: number[]
 }
 
 /**
@@ -250,12 +250,11 @@ export type CreateSandboxBaseParams = {
  * @interface
  * @property {string | Image} [image] - Custom Docker image to use for the Sandbox. If an Image object is provided,
  * the image will be dynamically built.
- * @property {Resources} [resources] - Resource allocation for the Sandbox. If not provided, sandbox will
- * have default resources.
+ * @property {CreateSandboxResources} [resources] - Scalar allocations apply to every node. Use per-node arrays for rank-specific values.
  */
-export type CreateSandboxFromImageParams<R extends CreateSandboxResources = Resources> = CreateSandboxBaseParams & {
+export type CreateSandboxFromImageParams = CreateSandboxBaseParams & {
   image: string | Image
-  resources?: R
+  resources?: CreateSandboxResources
 }
 
 /**
@@ -616,12 +615,12 @@ export class Daytona implements AsyncDisposable {
    * const sandbox = await daytona.create(params, { timeout: 100, onSnapshotCreateLogs: console.log });
    */
   public async create(
-    params?: CreateSandboxFromImageParams<CreateSandboxResources>,
+    params?: CreateSandboxFromImageParams,
     options?: { onSnapshotCreateLogs?: (chunk: string) => void; timeout?: number },
   ): Promise<Sandbox>
   @WithInstrumentation()
   public async create(
-    params?: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams<CreateSandboxResources>,
+    params?: CreateSandboxFromSnapshotParams | CreateSandboxFromImageParams,
     options: { onSnapshotCreateLogs?: (chunk: string) => void; timeout?: number } = { timeout: 60 },
   ): Promise<Sandbox> {
     const startTime = Date.now()
@@ -745,6 +744,7 @@ export class Daytona implements AsyncDisposable {
           public: params.public,
           target: params.target || this.target,
           cpu: resources?.cpu,
+          cpuPerNode: resources?.cpuPerNode,
           gpu: resources?.gpu,
           gpuType:
             resources?.gpuType === undefined
@@ -754,7 +754,9 @@ export class Daytona implements AsyncDisposable {
                 : [resources.gpuType],
           spot: params.spot,
           memory: resources?.memory,
+          memoryPerNode: resources?.memoryPerNode,
           disk: resources?.disk,
+          diskPerNode: resources?.diskPerNode,
           autoStopInterval: params.autoStopInterval,
           autoPauseInterval: params.autoPauseInterval,
           autoArchiveInterval: params.autoArchiveInterval,

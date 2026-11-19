@@ -212,9 +212,11 @@ RSpec.describe Daytona::SandboxNodes do
 
   it 'preserves scalar resource inputs and accepts positive per-node arrays' do
     expect(Daytona::Resources.new(cpu: 4).to_h).to eq(cpu: 4)
-    expect(Daytona::Resources.new(cpu: [4, 8], memory: [16, 32]).to_h).to eq(cpu: [4, 8], memory: [16, 32])
-    expect { Daytona::Resources.new(cpu: []) }.to raise_error(Daytona::Sdk::Error)
-    expect { Daytona::Resources.new(memory: [1, -2]) }.to raise_error(Daytona::Sdk::Error)
+    expect(Daytona::Resources.new(cpu_per_node: [4, 8],
+                                  memory_per_node: [16,
+                                                    32]).to_h).to eq(cpu_per_node: [4, 8], memory_per_node: [16, 32])
+    expect { Daytona::Resources.new(cpu_per_node: []) }.to raise_error(Daytona::Sdk::Error)
+    expect { Daytona::Resources.new(memory_per_node: [1, -2]) }.to raise_error(Daytona::Sdk::Error)
   end
 
   it 'includes generation refresh in the membership deadline and does not submit after expiry' do

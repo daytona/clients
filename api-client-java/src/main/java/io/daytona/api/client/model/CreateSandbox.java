@@ -20,9 +20,6 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import io.daytona.api.client.model.CreateBuildInfo;
-import io.daytona.api.client.model.CreateSandboxCpu;
-import io.daytona.api.client.model.CreateSandboxDisk;
-import io.daytona.api.client.model.CreateSandboxMemory;
 import io.daytona.api.client.model.GpuType;
 import io.daytona.api.client.model.SandboxVolume;
 import java.io.IOException;
@@ -31,6 +28,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -128,7 +126,12 @@ public class CreateSandbox {
   public static final String SERIALIZED_NAME_CPU = "cpu";
   @SerializedName(SERIALIZED_NAME_CPU)
   @javax.annotation.Nullable
-  private CreateSandboxCpu cpu;
+  private Integer cpu;
+
+  public static final String SERIALIZED_NAME_CPU_PER_NODE = "cpuPerNode";
+  @SerializedName(SERIALIZED_NAME_CPU_PER_NODE)
+  @javax.annotation.Nullable
+  private List<Integer> cpuPerNode;
 
   public static final String SERIALIZED_NAME_GPU = "gpu";
   @SerializedName(SERIALIZED_NAME_GPU)
@@ -148,12 +151,22 @@ public class CreateSandbox {
   public static final String SERIALIZED_NAME_MEMORY = "memory";
   @SerializedName(SERIALIZED_NAME_MEMORY)
   @javax.annotation.Nullable
-  private CreateSandboxMemory memory;
+  private Integer memory;
+
+  public static final String SERIALIZED_NAME_MEMORY_PER_NODE = "memoryPerNode";
+  @SerializedName(SERIALIZED_NAME_MEMORY_PER_NODE)
+  @javax.annotation.Nullable
+  private List<Integer> memoryPerNode;
 
   public static final String SERIALIZED_NAME_DISK = "disk";
   @SerializedName(SERIALIZED_NAME_DISK)
   @javax.annotation.Nullable
-  private CreateSandboxDisk disk;
+  private Integer disk;
+
+  public static final String SERIALIZED_NAME_DISK_PER_NODE = "diskPerNode";
+  @SerializedName(SERIALIZED_NAME_DISK_PER_NODE)
+  @javax.annotation.Nullable
+  private List<Integer> diskPerNode;
 
   public static final String SERIALIZED_NAME_AUTO_STOP_INTERVAL = "autoStopInterval";
   @SerializedName(SERIALIZED_NAME_AUTO_STOP_INTERVAL)
@@ -471,22 +484,49 @@ public class CreateSandbox {
   }
 
 
-  public CreateSandbox cpu(@javax.annotation.Nullable CreateSandboxCpu cpu) {
+  public CreateSandbox cpu(@javax.annotation.Nullable Integer cpu) {
     this.cpu = cpu;
     return this;
   }
 
   /**
-   * Get cpu
+   * CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
    * @return cpu
    */
   @javax.annotation.Nullable
-  public CreateSandboxCpu getCpu() {
+  public Integer getCpu() {
     return cpu;
   }
 
-  public void setCpu(@javax.annotation.Nullable CreateSandboxCpu cpu) {
+  public void setCpu(@javax.annotation.Nullable Integer cpu) {
     this.cpu = cpu;
+  }
+
+
+  public CreateSandbox cpuPerNode(@javax.annotation.Nullable List<Integer> cpuPerNode) {
+    this.cpuPerNode = cpuPerNode;
+    return this;
+  }
+
+  public CreateSandbox addCpuPerNodeItem(Integer cpuPerNodeItem) {
+    if (this.cpuPerNode == null) {
+      this.cpuPerNode = new ArrayList<>();
+    }
+    this.cpuPerNode.add(cpuPerNodeItem);
+    return this;
+  }
+
+  /**
+   * CPU cores for each node in rank order. Specify either cpu or cpuPerNode.
+   * @return cpuPerNode
+   */
+  @javax.annotation.Nullable
+  public List<Integer> getCpuPerNode() {
+    return cpuPerNode;
+  }
+
+  public void setCpuPerNode(@javax.annotation.Nullable List<Integer> cpuPerNode) {
+    this.cpuPerNode = cpuPerNode;
   }
 
 
@@ -555,41 +595,95 @@ public class CreateSandbox {
   }
 
 
-  public CreateSandbox memory(@javax.annotation.Nullable CreateSandboxMemory memory) {
+  public CreateSandbox memory(@javax.annotation.Nullable Integer memory) {
     this.memory = memory;
     return this;
   }
 
   /**
-   * Get memory
+   * Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
    * @return memory
    */
   @javax.annotation.Nullable
-  public CreateSandboxMemory getMemory() {
+  public Integer getMemory() {
     return memory;
   }
 
-  public void setMemory(@javax.annotation.Nullable CreateSandboxMemory memory) {
+  public void setMemory(@javax.annotation.Nullable Integer memory) {
     this.memory = memory;
   }
 
 
-  public CreateSandbox disk(@javax.annotation.Nullable CreateSandboxDisk disk) {
+  public CreateSandbox memoryPerNode(@javax.annotation.Nullable List<Integer> memoryPerNode) {
+    this.memoryPerNode = memoryPerNode;
+    return this;
+  }
+
+  public CreateSandbox addMemoryPerNodeItem(Integer memoryPerNodeItem) {
+    if (this.memoryPerNode == null) {
+      this.memoryPerNode = new ArrayList<>();
+    }
+    this.memoryPerNode.add(memoryPerNodeItem);
+    return this;
+  }
+
+  /**
+   * Memory in GB for each node in rank order. Specify either memory or memoryPerNode.
+   * @return memoryPerNode
+   */
+  @javax.annotation.Nullable
+  public List<Integer> getMemoryPerNode() {
+    return memoryPerNode;
+  }
+
+  public void setMemoryPerNode(@javax.annotation.Nullable List<Integer> memoryPerNode) {
+    this.memoryPerNode = memoryPerNode;
+  }
+
+
+  public CreateSandbox disk(@javax.annotation.Nullable Integer disk) {
     this.disk = disk;
     return this;
   }
 
   /**
-   * Get disk
+   * Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
    * @return disk
    */
   @javax.annotation.Nullable
-  public CreateSandboxDisk getDisk() {
+  public Integer getDisk() {
     return disk;
   }
 
-  public void setDisk(@javax.annotation.Nullable CreateSandboxDisk disk) {
+  public void setDisk(@javax.annotation.Nullable Integer disk) {
     this.disk = disk;
+  }
+
+
+  public CreateSandbox diskPerNode(@javax.annotation.Nullable List<Integer> diskPerNode) {
+    this.diskPerNode = diskPerNode;
+    return this;
+  }
+
+  public CreateSandbox addDiskPerNodeItem(Integer diskPerNodeItem) {
+    if (this.diskPerNode == null) {
+      this.diskPerNode = new ArrayList<>();
+    }
+    this.diskPerNode.add(diskPerNodeItem);
+    return this;
+  }
+
+  /**
+   * Disk space in GB for each node in rank order. Specify either disk or diskPerNode.
+   * @return diskPerNode
+   */
+  @javax.annotation.Nullable
+  public List<Integer> getDiskPerNode() {
+    return diskPerNode;
+  }
+
+  public void setDiskPerNode(@javax.annotation.Nullable List<Integer> diskPerNode) {
+    this.diskPerNode = diskPerNode;
   }
 
 
@@ -867,11 +961,14 @@ public class CreateSandbox {
         Objects.equals(this.otelEndpointOverride, createSandbox.otelEndpointOverride) &&
         Objects.equals(this.target, createSandbox.target) &&
         Objects.equals(this.cpu, createSandbox.cpu) &&
+        Objects.equals(this.cpuPerNode, createSandbox.cpuPerNode) &&
         Objects.equals(this.gpu, createSandbox.gpu) &&
         Objects.equals(this.gpuType, createSandbox.gpuType) &&
         Objects.equals(this.spot, createSandbox.spot) &&
         Objects.equals(this.memory, createSandbox.memory) &&
+        Objects.equals(this.memoryPerNode, createSandbox.memoryPerNode) &&
         Objects.equals(this.disk, createSandbox.disk) &&
+        Objects.equals(this.diskPerNode, createSandbox.diskPerNode) &&
         Objects.equals(this.autoStopInterval, createSandbox.autoStopInterval) &&
         Objects.equals(this.autoPauseInterval, createSandbox.autoPauseInterval) &&
         Objects.equals(this.autoArchiveInterval, createSandbox.autoArchiveInterval) &&
@@ -885,9 +982,20 @@ public class CreateSandbox {
         Objects.equals(this.additionalProperties, createSandbox.additionalProperties);
   }
 
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
+  }
+
   @Override
   public int hashCode() {
-    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, gpuType, spot, memory, disk, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, queueTimeout, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+    return Objects.hash(name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, cpuPerNode, gpu, gpuType, spot, memory, memoryPerNode, disk, diskPerNode, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, ttlMinutes, queueTimeout, volumes, buildInfo, linkedSandbox, secrets, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -908,11 +1016,14 @@ public class CreateSandbox {
     sb.append("    otelEndpointOverride: ").append(toIndentedString(otelEndpointOverride)).append("\n");
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    cpu: ").append(toIndentedString(cpu)).append("\n");
+    sb.append("    cpuPerNode: ").append(toIndentedString(cpuPerNode)).append("\n");
     sb.append("    gpu: ").append(toIndentedString(gpu)).append("\n");
     sb.append("    gpuType: ").append(toIndentedString(gpuType)).append("\n");
     sb.append("    spot: ").append(toIndentedString(spot)).append("\n");
     sb.append("    memory: ").append(toIndentedString(memory)).append("\n");
+    sb.append("    memoryPerNode: ").append(toIndentedString(memoryPerNode)).append("\n");
     sb.append("    disk: ").append(toIndentedString(disk)).append("\n");
+    sb.append("    diskPerNode: ").append(toIndentedString(diskPerNode)).append("\n");
     sb.append("    autoStopInterval: ").append(toIndentedString(autoStopInterval)).append("\n");
     sb.append("    autoPauseInterval: ").append(toIndentedString(autoPauseInterval)).append("\n");
     sb.append("    autoArchiveInterval: ").append(toIndentedString(autoArchiveInterval)).append("\n");
@@ -942,7 +1053,7 @@ public class CreateSandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"));
+    openapiFields = new HashSet<String>(Arrays.asList("name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "cpuPerNode", "gpu", "gpuType", "spot", "memory", "memoryPerNode", "disk", "diskPerNode", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(0);
@@ -985,21 +1096,21 @@ public class CreateSandbox {
       if ((jsonObj.get("target") != null && !jsonObj.get("target").isJsonNull()) && !jsonObj.get("target").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `target` to be a primitive type in the JSON string but got `%s`", jsonObj.get("target").toString()));
       }
-      // validate the optional field `cpu`
-      if (jsonObj.get("cpu") != null && !jsonObj.get("cpu").isJsonNull()) {
-        CreateSandboxCpu.validateJsonElement(jsonObj.get("cpu"));
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("cpuPerNode") != null && !jsonObj.get("cpuPerNode").isJsonNull() && !jsonObj.get("cpuPerNode").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `cpuPerNode` to be an array in the JSON string but got `%s`", jsonObj.get("cpuPerNode").toString()));
       }
       // ensure the optional json data is an array if present
       if (jsonObj.get("gpuType") != null && !jsonObj.get("gpuType").isJsonNull() && !jsonObj.get("gpuType").isJsonArray()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `gpuType` to be an array in the JSON string but got `%s`", jsonObj.get("gpuType").toString()));
       }
-      // validate the optional field `memory`
-      if (jsonObj.get("memory") != null && !jsonObj.get("memory").isJsonNull()) {
-        CreateSandboxMemory.validateJsonElement(jsonObj.get("memory"));
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("memoryPerNode") != null && !jsonObj.get("memoryPerNode").isJsonNull() && !jsonObj.get("memoryPerNode").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `memoryPerNode` to be an array in the JSON string but got `%s`", jsonObj.get("memoryPerNode").toString()));
       }
-      // validate the optional field `disk`
-      if (jsonObj.get("disk") != null && !jsonObj.get("disk").isJsonNull()) {
-        CreateSandboxDisk.validateJsonElement(jsonObj.get("disk"));
+      // ensure the optional json data is an array if present
+      if (jsonObj.get("diskPerNode") != null && !jsonObj.get("diskPerNode").isJsonNull() && !jsonObj.get("diskPerNode").isJsonArray()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `diskPerNode` to be an array in the JSON string but got `%s`", jsonObj.get("diskPerNode").toString()));
       }
       if (jsonObj.get("volumes") != null && !jsonObj.get("volumes").isJsonNull()) {
         JsonArray jsonArrayvolumes = jsonObj.getAsJsonArray("volumes");

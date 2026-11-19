@@ -26,7 +26,8 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
-        "goApiClient"
+        "goApiClient",
+        "{workspaceRoot}/hack/go-client/patch-api-spec.mjs"
       ],
       "outputs": [
         "{projectRoot}/*.go",
@@ -36,10 +37,10 @@
       ],
       "options": {
         "commands": [
+          "node hack/go-client/patch-api-spec.mjs openapi-specs/api.json dist/openapi-specs/api-go.json",
           "rm -f {projectRoot}/*.go",
-          "yarn run openapi-generator-cli generate --git-repo-id=clients/api-client-go --git-user-id=daytona -i openapi-specs/api.json -g go -t hack/go-client/openapi-templates --additional-properties=disallowAdditionalPropertiesIfNotPresent=false,packageName=apiclient,moduleVersion=$DEFAULT_PACKAGE_VERSION,generateInterfaces=true,enumClassPrefix=true,structPrefix=true,enumUnknownDefaultCase=true -o api-client-go",
+          "yarn run openapi-generator-cli generate --git-repo-id=clients/api-client-go --git-user-id=daytona -i dist/openapi-specs/api-go.json -g go -t hack/go-client/openapi-templates --additional-properties=disallowAdditionalPropertiesIfNotPresent=false,packageName=apiclient,moduleVersion=$DEFAULT_PACKAGE_VERSION,generateInterfaces=true,enumClassPrefix=true,structPrefix=true,enumUnknownDefaultCase=true -o api-client-go",
           "bash hack/go-client/postprocess.sh api-client-go apiclient api-client-go",
-          "gofmt -w {projectRoot}/*.go",
           "go mod edit -module github.com/daytona/clients/api-client-go api-client-go/go.mod"
         ],
         "parallel": false

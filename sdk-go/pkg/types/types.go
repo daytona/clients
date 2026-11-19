@@ -83,18 +83,13 @@ type DaytonaConfig struct {
 	Experimental *ExperimentalConfig
 }
 
-// Resources represents resource allocation for a sandbox. During sandbox creation, per-node arrays
-// must be non-empty and contain positive 32-bit integers ordered by rank. Resize and snapshot creation accept scalars.
+// Resources represents resource allocation for a sandbox.
 type Resources struct {
-	// Per-node arrays are ordered by rank. Set either the scalar or its array, not both.
-	CPUPerNode    []int
-	MemoryPerNode []int
-	DiskPerNode   []int
-	CPU           int
-	GPU           int
-	GpuType       []GpuType
-	Memory        int
-	Disk          int
+	CPU     int
+	GPU     int
+	GpuType []GpuType
+	Memory  int
+	Disk    int
 }
 
 // VolumeMount represents a volume mount configuration

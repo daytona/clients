@@ -805,7 +805,7 @@ module Daytona
     def resize(resources, timeout = DEFAULT_TIMEOUT)
       raise Sdk::Error, 'Resources must not be nil' if resources.nil?
 
-      resources.validate_scalar!
+      resources.validate_scalar! if resources.is_a?(Resources)
       if resources.gpu || resources.gpu_type
         raise Sdk::Error,
               'Resize does not support changes to gpu or gpu_type — to change GPU, create a new sandbox'

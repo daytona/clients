@@ -170,7 +170,7 @@ const sandbox = await daytona.create(params, { timeout: 100 });
 ##### Call Signature
 
 ```ts
-create(params?: CreateSandboxFromImageParams<CreateSandboxResources>, options?: {
+create(params?: CreateSandboxFromImageParams, options?: {
   onSnapshotCreateLogs?: (chunk: string) => void;
   timeout?: number;
 }): Promise<Sandbox>;
@@ -182,7 +182,7 @@ provided image and uses it to create Sandbox.
 
 **Parameters**:
 
-- `params?` _CreateSandboxFromImageParams\<CreateSandboxResources\>_ - Parameters for Sandbox creation from image
+- `params?` _CreateSandboxFromImageParams_ - Parameters for Sandbox creation from image
 - `options?` _Options for the create operation_
 - `onSnapshotCreateLogs?` _\(chunk: string\) =\> void_ - Callback function to handle snapshot creation logs.
 - `timeout?` _number_ - Timeout in seconds (0 means no timeout, default is 60)
@@ -447,23 +447,13 @@ Parameters for creating a new Sandbox.
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
 - `queueTimeout?` _number_
-- `resources?` _R_ - Resource allocation for the Sandbox. If not provided, sandbox will
-    have default resources.
+- `resources?` _CreateSandboxResources_ - Scalar allocations apply to every node. Use per-node arrays for rank-specific values.
 - `secrets?` _Record\<string, string\>_
 - `spot?` _boolean_
 - `target?` _string_
 - `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
-
-
-
-
-### Type Parameters
-
-#### R
-
-`R` *extends* `CreateSandboxResources` = `Resources`
 ## CreateSandboxFromSnapshotParams
 
 Parameters for creating a new Sandbox from a snapshot.
@@ -592,10 +582,10 @@ Represents a volume mount for a Sandbox.
 ## CreateSandboxResources
 
 ```ts
-type CreateSandboxResources = Omit<Resources, "cpu" | "memory" | "disk"> & {
-  cpu?: number | number[];
-  disk?: number | number[];
-  memory?: number | number[];
+type CreateSandboxResources = Resources & {
+  cpuPerNode?: number[];
+  diskPerNode?: number[];
+  memoryPerNode?: number[];
 };
 ```
 
@@ -603,29 +593,29 @@ Resource allocation used when creating a Sandbox from an image.
 
 ### Type Declaration
 
-#### cpu?
+#### cpuPerNode?
 
 ```ts
-cpu?: number | number[];
+cpuPerNode?: number[];
 ```
 
-CPU cores per node. A scalar applies to every node; an array is ordered by rank.
+CPU cores for each node, ordered by rank.
 
-#### disk?
+#### diskPerNode?
 
 ```ts
-disk?: number | number[];
+diskPerNode?: number[];
 ```
 
-Disk in GiB per node. A scalar applies to every node; an array is ordered by rank.
+Disk in GiB for each node, ordered by rank.
 
-#### memory?
+#### memoryPerNode?
 
 ```ts
-memory?: number | number[];
+memoryPerNode?: number[];
 ```
 
-Memory in GiB per node. A scalar applies to every node; an array is ordered by rank.
+Memory in GiB for each node, ordered by rank.
 
 ***
 

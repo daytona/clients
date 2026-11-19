@@ -76,19 +76,34 @@ class Resources:
 
 
 @dataclass
-class CreateSandboxResources:
+class CreateSandboxResources(Resources):
     """Resources used when creating a Sandbox from an image.
 
-    ``cpu``, ``memory``, and ``disk`` are per-node values. A scalar applies to
-    every node; a list is ordered by node rank and must match the derived node
-    count. ``Resources`` remains the scalar-only type for snapshots and resize.
+    Scalar resources apply to every node. Per-node lists follow node rank and
+    must match the node count. Specify one form for each resource.
+
+    Attributes:
+        cpu_per_node (list[int] | None): CPU cores for each node in rank order.
+        memory_per_node (list[int] | None): Memory in GiB for each node in rank order.
+        disk_per_node (list[int] | None): Disk space in GiB for each node in rank order.
+
+    Example:
+        ```python
+        # Two 8-GPU nodes with 2 and 4 CPU cores, each with 64 GiB of memory.
+        resources = CreateSandboxResources(gpu=16, cpu_per_node=[2, 4], memory=64)
+        ```
     """
 
-    cpu: int | list[int] | None = None
-    memory: int | list[int] | None = None
-    disk: int | list[int] | None = None
-    gpu: int | None = None
-    gpu_type: GpuType | list[GpuType] | None = None
+    cpu_per_node: list[int] | None = None
+    memory_per_node: list[int] | None = None
+    disk_per_node: list[int] | None = None
+
+
+def validate_scalar_resources(resources: Resources) -> None:
+    if isinstance(resources, CreateSandboxResources) and any(
+        value is not None for value in (resources.cpu_per_node, resources.memory_per_node, resources.disk_per_node)
+    ):
+        raise DaytonaValidationError("Per-node resources can only be supplied when creating a sandbox from an image")
 
 
 @dataclass(frozen=True)

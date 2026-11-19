@@ -26,9 +26,6 @@ from daytona_api_client_async import (
     Configuration,
     CreateBuildInfo,
     CreateSandbox,
-    CreateSandboxCpu,
-    CreateSandboxDisk,
-    CreateSandboxMemory,
     ObjectStorageApi,
 )
 from daytona_api_client_async import Sandbox as SandboxDto
@@ -69,7 +66,7 @@ from ..common.errors import (
     DaytonaValidationError,
 )
 from ..common.image import Image
-from ..common.sandbox import ListSandboxesQuery
+from ..common.sandbox import CreateSandboxResources, ListSandboxesQuery
 from ..internal.event_dispatcher import AsyncEventDispatcher
 from ..internal.event_subscription_manager import AsyncEventSubscriptionManager
 from ..internal.pool_tracker import AsyncPoolSaturationTracker
@@ -707,21 +704,16 @@ class AsyncDaytona:
                 )
 
             if params.resources:
-                sandbox_data.cpu = (
-                    CreateSandboxCpu(params.resources.cpu)
-                    if isinstance(params.resources.cpu, list)
-                    else params.resources.cpu
-                )
-                sandbox_data.memory = (
-                    CreateSandboxMemory(params.resources.memory)
-                    if isinstance(params.resources.memory, list)
-                    else params.resources.memory
-                )
-                sandbox_data.disk = (
-                    CreateSandboxDisk(params.resources.disk)
-                    if isinstance(params.resources.disk, list)
-                    else params.resources.disk
-                )
+                sandbox_data.cpu = params.resources.cpu
+                sandbox_data.memory = params.resources.memory
+                sandbox_data.disk = params.resources.disk
+                if isinstance(params.resources, CreateSandboxResources):
+                    if params.resources.cpu_per_node is not None:
+                        sandbox_data.cpu_per_node = params.resources.cpu_per_node
+                    if params.resources.memory_per_node is not None:
+                        sandbox_data.memory_per_node = params.resources.memory_per_node
+                    if params.resources.disk_per_node is not None:
+                        sandbox_data.disk_per_node = params.resources.disk_per_node
                 sandbox_data.gpu = params.resources.gpu
                 if params.resources.gpu_type is not None:
                     sandbox_data.gpu_type = (

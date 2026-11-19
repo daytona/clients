@@ -580,9 +580,9 @@ class TestAsyncDaytonaCreateValidation:
         params = CreateSandboxFromImageParams(
             image="python:3.12",
             resources=CreateSandboxResources(
-                cpu=[16, 16, 32, 32],
+                cpu_per_node=[16, 16, 32, 32],
                 memory=256,
-                disk=[180, 180, 300, 300],
+                disk_per_node=[180, 180, 300, 300],
                 gpu=32,
             ),
         )
@@ -590,9 +590,9 @@ class TestAsyncDaytonaCreateValidation:
         await daytona.create(params)
 
         create_request = daytona._sandbox_api.create_sandbox.call_args.args[0]
-        assert create_request.to_dict()["cpu"] == [16, 16, 32, 32]
+        assert create_request.to_dict()["cpuPerNode"] == [16, 16, 32, 32]
         assert create_request.to_dict()["memory"] == 256
-        assert create_request.to_dict()["disk"] == [180, 180, 300, 300]
+        assert create_request.to_dict()["diskPerNode"] == [180, 180, 300, 300]
 
     @pytest.mark.asyncio
     async def test_create_from_snapshot_sets_snapshot_and_volume_mounts(self, env_with_api_key, sandbox_dto):

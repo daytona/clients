@@ -54,7 +54,11 @@ module DaytonaApiClient
     # The target (region) where the sandbox will be created
     attr_accessor :target
 
+    # CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
     attr_accessor :cpu
+
+    # CPU cores for each node in rank order. Specify either cpu or cpuPerNode.
+    attr_accessor :cpu_per_node
 
     # GPU units allocated to the sandbox
     attr_accessor :gpu
@@ -65,9 +69,17 @@ module DaytonaApiClient
     # GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
     attr_accessor :spot
 
+    # Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
     attr_accessor :memory
 
+    # Memory in GB for each node in rank order. Specify either memory or memoryPerNode.
+    attr_accessor :memory_per_node
+
+    # Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
     attr_accessor :disk
+
+    # Disk space in GB for each node in rank order. Specify either disk or diskPerNode.
+    attr_accessor :disk_per_node
 
     # Auto-stop interval in minutes (0 means disabled)
     attr_accessor :auto_stop_interval
@@ -116,11 +128,14 @@ module DaytonaApiClient
         :'otel_endpoint_override' => :'otelEndpointOverride',
         :'target' => :'target',
         :'cpu' => :'cpu',
+        :'cpu_per_node' => :'cpuPerNode',
         :'gpu' => :'gpu',
         :'gpu_type' => :'gpuType',
         :'spot' => :'spot',
         :'memory' => :'memory',
+        :'memory_per_node' => :'memoryPerNode',
         :'disk' => :'disk',
+        :'disk_per_node' => :'diskPerNode',
         :'auto_stop_interval' => :'autoStopInterval',
         :'auto_pause_interval' => :'autoPauseInterval',
         :'auto_archive_interval' => :'autoArchiveInterval',
@@ -160,12 +175,15 @@ module DaytonaApiClient
         :'outbound_proxy_url' => :'String',
         :'otel_endpoint_override' => :'String',
         :'target' => :'String',
-        :'cpu' => :'CreateSandboxCpu',
+        :'cpu' => :'Integer',
+        :'cpu_per_node' => :'Array<Integer>',
         :'gpu' => :'Integer',
         :'gpu_type' => :'Array<GpuType>',
         :'spot' => :'Boolean',
-        :'memory' => :'CreateSandboxMemory',
-        :'disk' => :'CreateSandboxDisk',
+        :'memory' => :'Integer',
+        :'memory_per_node' => :'Array<Integer>',
+        :'disk' => :'Integer',
+        :'disk_per_node' => :'Array<Integer>',
         :'auto_stop_interval' => :'Integer',
         :'auto_pause_interval' => :'Integer',
         :'auto_archive_interval' => :'Integer',
@@ -182,6 +200,9 @@ module DaytonaApiClient
     # List of attributes with nullable: true
     def self.openapi_nullable
       Set.new([
+        :'cpu_per_node',
+        :'memory_per_node',
+        :'disk_per_node',
       ])
     end
 
@@ -263,6 +284,12 @@ module DaytonaApiClient
         self.cpu = attributes[:'cpu']
       end
 
+      if attributes.key?(:'cpu_per_node')
+        if (value = attributes[:'cpu_per_node']).is_a?(Array)
+          self.cpu_per_node = value
+        end
+      end
+
       if attributes.key?(:'gpu')
         self.gpu = attributes[:'gpu']
       end
@@ -283,8 +310,20 @@ module DaytonaApiClient
         self.memory = attributes[:'memory']
       end
 
+      if attributes.key?(:'memory_per_node')
+        if (value = attributes[:'memory_per_node']).is_a?(Array)
+          self.memory_per_node = value
+        end
+      end
+
       if attributes.key?(:'disk')
         self.disk = attributes[:'disk']
+      end
+
+      if attributes.key?(:'disk_per_node')
+        if (value = attributes[:'disk_per_node']).is_a?(Array)
+          self.disk_per_node = value
+        end
       end
 
       if attributes.key?(:'auto_stop_interval')
@@ -337,6 +376,18 @@ module DaytonaApiClient
     def list_invalid_properties
       warn '[DEPRECATED] the `list_invalid_properties` method is obsolete'
       invalid_properties = Array.new
+      if !@cpu_per_node.nil? && @cpu_per_node.length < 1
+        invalid_properties.push('invalid value for "cpu_per_node", number of items must be greater than or equal to 1.')
+      end
+
+      if !@memory_per_node.nil? && @memory_per_node.length < 1
+        invalid_properties.push('invalid value for "memory_per_node", number of items must be greater than or equal to 1.')
+      end
+
+      if !@disk_per_node.nil? && @disk_per_node.length < 1
+        invalid_properties.push('invalid value for "disk_per_node", number of items must be greater than or equal to 1.')
+      end
+
       invalid_properties
     end
 
@@ -344,7 +395,40 @@ module DaytonaApiClient
     # @return true if the model is valid
     def valid?
       warn '[DEPRECATED] the `valid?` method is obsolete'
+      return false if !@cpu_per_node.nil? && @cpu_per_node.length < 1
+      return false if !@memory_per_node.nil? && @memory_per_node.length < 1
+      return false if !@disk_per_node.nil? && @disk_per_node.length < 1
       true
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] cpu_per_node Value to be assigned
+    def cpu_per_node=(cpu_per_node)
+      if !cpu_per_node.nil? && cpu_per_node.length < 1
+        fail ArgumentError, 'invalid value for "cpu_per_node", number of items must be greater than or equal to 1.'
+      end
+
+      @cpu_per_node = cpu_per_node
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] memory_per_node Value to be assigned
+    def memory_per_node=(memory_per_node)
+      if !memory_per_node.nil? && memory_per_node.length < 1
+        fail ArgumentError, 'invalid value for "memory_per_node", number of items must be greater than or equal to 1.'
+      end
+
+      @memory_per_node = memory_per_node
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] disk_per_node Value to be assigned
+    def disk_per_node=(disk_per_node)
+      if !disk_per_node.nil? && disk_per_node.length < 1
+        fail ArgumentError, 'invalid value for "disk_per_node", number of items must be greater than or equal to 1.'
+      end
+
+      @disk_per_node = disk_per_node
     end
 
     # Checks equality by comparing each attribute.
@@ -366,11 +450,14 @@ module DaytonaApiClient
           otel_endpoint_override == o.otel_endpoint_override &&
           target == o.target &&
           cpu == o.cpu &&
+          cpu_per_node == o.cpu_per_node &&
           gpu == o.gpu &&
           gpu_type == o.gpu_type &&
           spot == o.spot &&
           memory == o.memory &&
+          memory_per_node == o.memory_per_node &&
           disk == o.disk &&
+          disk_per_node == o.disk_per_node &&
           auto_stop_interval == o.auto_stop_interval &&
           auto_pause_interval == o.auto_pause_interval &&
           auto_archive_interval == o.auto_archive_interval &&
@@ -392,7 +479,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, gpu_type, spot, memory, disk, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, queue_timeout, volumes, build_info, linked_sandbox, secrets].hash
+      [name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, cpu_per_node, gpu, gpu_type, spot, memory, memory_per_node, disk, disk_per_node, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, ttl_minutes, queue_timeout, volumes, build_info, linked_sandbox, secrets].hash
     end
 
     # Builds the object from hash

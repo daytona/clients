@@ -1,7 +1,7 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { CreateSandboxFromImageParams, CreateSandboxResources } from '../Daytona'
+import type { CreateSandboxFromImageParams } from '../Daytona'
 import { createApiResponse } from './helpers'
 
 const mockAxiosCreate = jest.fn()
@@ -172,8 +172,8 @@ describe('Daytona', () => {
   it('preserves scalar image parameter annotations and accepts per-node resources at create', () => {
     const cpuBudget = (params: CreateSandboxFromImageParams): number => params.resources?.cpu ?? 1
     expect(cpuBudget({ image: 'alpine', resources: { cpu: 2 } })).toBe(2)
-    const gang: CreateSandboxFromImageParams<CreateSandboxResources> = { image: 'alpine', resources: { cpu: [2, 4] } }
-    expect(gang.resources?.cpu).toEqual([2, 4])
+    const gang: CreateSandboxFromImageParams = { image: 'alpine', resources: { cpuPerNode: [2, 4] } }
+    expect(gang.resources?.cpuPerNode).toEqual([2, 4])
   })
 
   beforeEach(() => {
@@ -616,17 +616,17 @@ describe('Daytona', () => {
       resources: {
         gpu: 32,
         gpuType: 'H100',
-        cpu: [16, 16, 32, 32],
+        cpuPerNode: [16, 16, 32, 32],
         memory: 256,
-        disk: [180, 180, 300, 300],
+        diskPerNode: [180, 180, 300, 300],
       },
     })
 
     expect(mockSandboxApi.createSandbox).toHaveBeenCalledWith(
       expect.objectContaining({
-        cpu: [16, 16, 32, 32],
+        cpuPerNode: [16, 16, 32, 32],
         memory: 256,
-        disk: [180, 180, 300, 300],
+        diskPerNode: [180, 180, 300, 300],
       }),
       undefined,
       { timeout: 60000 },

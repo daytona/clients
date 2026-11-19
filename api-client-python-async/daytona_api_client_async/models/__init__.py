@@ -45,9 +45,6 @@ if TYPE_CHECKING:
     from daytona_api_client_async.models.create_runner_response import CreateRunnerResponse
     from daytona_api_client_async.models.create_runner_sandbox_class import CreateRunnerSandboxClass
     from daytona_api_client_async.models.create_sandbox import CreateSandbox
-    from daytona_api_client_async.models.create_sandbox_cpu import CreateSandboxCpu
-    from daytona_api_client_async.models.create_sandbox_disk import CreateSandboxDisk
-    from daytona_api_client_async.models.create_sandbox_memory import CreateSandboxMemory
     from daytona_api_client_async.models.create_sandbox_snapshot import CreateSandboxSnapshot
     from daytona_api_client_async.models.create_secret import CreateSecret
     from daytona_api_client_async.models.create_snapshot import CreateSnapshot
@@ -209,9 +206,6 @@ _DYNAMIC_IMPORTS: dict[str, str] = {
     "CreateRunnerResponse": "daytona_api_client_async.models.create_runner_response",
     "CreateRunnerSandboxClass": "daytona_api_client_async.models.create_runner_sandbox_class",
     "CreateSandbox": "daytona_api_client_async.models.create_sandbox",
-    "CreateSandboxCpu": "daytona_api_client_async.models.create_sandbox_cpu",
-    "CreateSandboxDisk": "daytona_api_client_async.models.create_sandbox_disk",
-    "CreateSandboxMemory": "daytona_api_client_async.models.create_sandbox_memory",
     "CreateSandboxSnapshot": "daytona_api_client_async.models.create_sandbox_snapshot",
     "CreateSecret": "daytona_api_client_async.models.create_secret",
     "CreateSnapshot": "daytona_api_client_async.models.create_snapshot",

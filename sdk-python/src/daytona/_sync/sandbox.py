@@ -93,6 +93,7 @@ from ..common.sandbox import (
     raise_node_execution_error,
     sandbox_metrics_from_system_metrics,
     validate_node_exec_timeout,
+    validate_scalar_resources,
 )
 from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
@@ -1518,6 +1519,7 @@ class Sandbox(SandboxDto):
             sandbox.resize(Resources(cpu=2, memory=4, disk=30))
             ```
         """
+        validate_scalar_resources(resources)
         if resources.gpu is not None or resources.gpu_type is not None:
             raise DaytonaValidationError(
                 "Resize does not support changes to gpu or gpu_type — to change GPU, create a new Sandbox"

@@ -18,15 +18,6 @@
 import type { CreateBuildInfo } from './create-build-info';
 // May contain unused imports in some cases
 // @ts-ignore
-import type { CreateSandboxCpu } from './create-sandbox-cpu';
-// May contain unused imports in some cases
-// @ts-ignore
-import type { CreateSandboxDisk } from './create-sandbox-disk';
-// May contain unused imports in some cases
-// @ts-ignore
-import type { CreateSandboxMemory } from './create-sandbox-memory';
-// May contain unused imports in some cases
-// @ts-ignore
 import type { GpuType } from './gpu-type';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -85,7 +76,14 @@ export interface CreateSandbox {
      * The target (region) where the sandbox will be created
      */
     'target'?: string;
-    'cpu'?: CreateSandboxCpu;
+    /**
+     * CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
+     */
+    'cpu'?: number;
+    /**
+     * CPU cores for each node in rank order. Specify either cpu or cpuPerNode.
+     */
+    'cpuPerNode'?: Array<number> | null;
     /**
      * GPU units allocated to the sandbox
      */
@@ -98,8 +96,22 @@ export interface CreateSandbox {
      * GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
      */
     'spot'?: boolean;
-    'memory'?: CreateSandboxMemory;
-    'disk'?: CreateSandboxDisk;
+    /**
+     * Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
+     */
+    'memory'?: number;
+    /**
+     * Memory in GB for each node in rank order. Specify either memory or memoryPerNode.
+     */
+    'memoryPerNode'?: Array<number> | null;
+    /**
+     * Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
+     */
+    'disk'?: number;
+    /**
+     * Disk space in GB for each node in rank order. Specify either disk or diskPerNode.
+     */
+    'diskPerNode'?: Array<number> | null;
     /**
      * Auto-stop interval in minutes (0 means disabled)
      */

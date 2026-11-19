@@ -20,18 +20,13 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from daytona_api_client_async.models.create_build_info import CreateBuildInfo
-from daytona_api_client_async.models.create_sandbox_cpu import CreateSandboxCpu
-from daytona_api_client_async.models.create_sandbox_disk import CreateSandboxDisk
-from daytona_api_client_async.models.create_sandbox_memory import CreateSandboxMemory
 from daytona_api_client_async.models.gpu_type import GpuType
 from daytona_api_client_async.models.sandbox_volume import SandboxVolume
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
-from typing_extensions import Annotated
-
-_ResourceScalar = Annotated[int, Field(strict=True, ge=0)]
 
 _JSON_ADAPTER = TypeAdapter(Dict[str, Any])
 
@@ -52,12 +47,15 @@ class CreateSandbox(BaseModel):
     outbound_proxy_url: Optional[StrictStr] = Field(default=None, description="Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox.", serialization_alias="outboundProxyUrl")
     otel_endpoint_override: Optional[StrictStr] = Field(default=None, description="OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard.", serialization_alias="otelEndpointOverride")
     target: Optional[StrictStr] = Field(default=None, description="The target (region) where the sandbox will be created")
-    cpu: Optional[_ResourceScalar | CreateSandboxCpu] = None
+    cpu: Optional[StrictInt] = Field(default=None, description="CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.")
+    cpu_per_node: Optional[Annotated[List[Annotated[int, Field(strict=True, ge=1)]], Field(min_length=1)]] = Field(default=None, description="CPU cores for each node in rank order. Specify either cpu or cpuPerNode.", serialization_alias="cpuPerNode")
     gpu: Optional[StrictInt] = Field(default=None, description="GPU units allocated to the sandbox")
     gpu_type: Optional[List[GpuType]] = Field(default=None, description="Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.", serialization_alias="gpuType")
     spot: Optional[StrictBool] = Field(default=False, description="GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.")
-    memory: Optional[_ResourceScalar | CreateSandboxMemory] = None
-    disk: Optional[_ResourceScalar | CreateSandboxDisk] = None
+    memory: Optional[StrictInt] = Field(default=None, description="Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.")
+    memory_per_node: Optional[Annotated[List[Annotated[int, Field(strict=True, ge=1)]], Field(min_length=1)]] = Field(default=None, description="Memory in GB for each node in rank order. Specify either memory or memoryPerNode.", serialization_alias="memoryPerNode")
+    disk: Optional[StrictInt] = Field(default=None, description="Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.")
+    disk_per_node: Optional[Annotated[List[Annotated[int, Field(strict=True, ge=1)]], Field(min_length=1)]] = Field(default=None, description="Disk space in GB for each node in rank order. Specify either disk or diskPerNode.", serialization_alias="diskPerNode")
     auto_stop_interval: Optional[StrictInt] = Field(default=None, description="Auto-stop interval in minutes (0 means disabled)", serialization_alias="autoStopInterval")
     auto_pause_interval: Optional[StrictInt] = Field(default=None, description="Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided.", serialization_alias="autoPauseInterval")
     auto_archive_interval: Optional[StrictInt] = Field(default=None, description="Auto-archive interval in minutes (0 means the maximum interval will be used)", serialization_alias="autoArchiveInterval")
@@ -69,7 +67,7 @@ class CreateSandbox(BaseModel):
     linked_sandbox: Optional[StrictStr] = Field(default=None, description="ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox.", serialization_alias="linkedSandbox")
     secrets: Optional[List[Dict[str, StrictStr]]] = Field(default=None, description="Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "gpuType", "spot", "memory", "disk", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"]
+    __properties: ClassVar[List[str]] = ["name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "cpuPerNode", "gpu", "gpuType", "spot", "memory", "memoryPerNode", "disk", "diskPerNode", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "ttlMinutes", "queueTimeout", "volumes", "buildInfo", "linkedSandbox", "secrets"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -111,15 +109,6 @@ class CreateSandbox(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of cpu
-        if isinstance(self.cpu, CreateSandboxCpu):
-            _dict['cpu'] = self.cpu.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of memory
-        if isinstance(self.memory, CreateSandboxMemory):
-            _dict['memory'] = self.memory.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of disk
-        if isinstance(self.disk, CreateSandboxDisk):
-            _dict['disk'] = self.disk.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in volumes (list)
         _items = []
         if self.volumes:
@@ -134,6 +123,21 @@ class CreateSandbox(BaseModel):
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
+
+        # set to None if cpu_per_node (nullable) is None
+        # and model_fields_set contains the field
+        if self.cpu_per_node is None and "cpu_per_node" in self.model_fields_set:
+            _dict['cpuPerNode'] = None
+
+        # set to None if memory_per_node (nullable) is None
+        # and model_fields_set contains the field
+        if self.memory_per_node is None and "memory_per_node" in self.model_fields_set:
+            _dict['memoryPerNode'] = None
+
+        # set to None if disk_per_node (nullable) is None
+        # and model_fields_set contains the field
+        if self.disk_per_node is None and "disk_per_node" in self.model_fields_set:
+            _dict['diskPerNode'] = None
 
         return _dict
 
@@ -160,12 +164,15 @@ class CreateSandbox(BaseModel):
             "outbound_proxy_url": obj.get("outboundProxyUrl"),
             "otel_endpoint_override": obj.get("otelEndpointOverride"),
             "target": obj.get("target"),
-            "cpu": CreateSandboxCpu.from_dict(obj["cpu"]) if obj.get("cpu") is not None and not isinstance(obj["cpu"], int) else obj.get("cpu"),
+            "cpu": obj.get("cpu"),
+            "cpu_per_node": obj.get("cpuPerNode"),
             "gpu": obj.get("gpu"),
             "gpu_type": obj.get("gpuType"),
             "spot": obj.get("spot") if obj.get("spot") is not None else False,
-            "memory": CreateSandboxMemory.from_dict(obj["memory"]) if obj.get("memory") is not None and not isinstance(obj["memory"], int) else obj.get("memory"),
-            "disk": CreateSandboxDisk.from_dict(obj["disk"]) if obj.get("disk") is not None and not isinstance(obj["disk"], int) else obj.get("disk"),
+            "memory": obj.get("memory"),
+            "memory_per_node": obj.get("memoryPerNode"),
+            "disk": obj.get("disk"),
+            "disk_per_node": obj.get("diskPerNode"),
             "auto_stop_interval": obj.get("autoStopInterval"),
             "auto_pause_interval": obj.get("autoPauseInterval"),
             "auto_archive_interval": obj.get("autoArchiveInterval"),

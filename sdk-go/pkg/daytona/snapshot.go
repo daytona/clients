@@ -263,9 +263,6 @@ func (s *SnapshotService) Create(ctx context.Context, params *types.CreateSnapsh
 }
 
 func (s *SnapshotService) doCreate(ctx context.Context, params *types.CreateSnapshotParams) (*types.Snapshot, <-chan string, error) {
-	if hasPerNodeResources(params.Resources) {
-		return nil, nil, sdkerrors.NewDaytonaError("Snapshot creation does not support per-node resources", 0, nil)
-	}
 	// Build create snapshot request
 	req := s.client.apiClient.SnapshotsAPI.CreateSnapshot(s.client.getAuthContext(ctx))
 

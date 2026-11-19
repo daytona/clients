@@ -19,7 +19,8 @@ def test_scalar_create_and_legacy_region_quota(api):
     assert api.CreateSandbox.from_json(request.to_json()).cpu == 2
     request.cpu = 0
     assert request.to_dict()["cpu"] == 0
-    assert api.CreateSandbox.from_dict({"cpu": [2, 4]}).to_dict()["cpu"] == [2, 4]
+    assert not {"cpuPerNode", "memoryPerNode", "diskPerNode"}.intersection(request.to_dict())
+    assert api.CreateSandbox.from_dict({"cpuPerNode": [2, 4]}).to_dict()["cpuPerNode"] == [2, 4]
 
     quota = api.RegionQuota.from_dict(
         {

@@ -12324,7 +12324,6 @@
         ]
       },
       "CreateSandbox": {
-        "x-daytona-scalar-resources": true,
         "type": "object",
         "properties": {
           "name": {
@@ -12404,27 +12403,22 @@
             "example": "us"
           },
           "cpu": {
-            "x-daytona-scalar-resource": true,
-            "description": "CPU cores allocated per node. A scalar applies to every node; for a multi-node GPU sandbox, an array specifies one value per rank.",
+            "type": "integer",
+            "description": "CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.",
+            "example": 2
+          },
+          "cpuPerNode": {
+            "type": "array",
+            "description": "CPU cores for each node in rank order. Specify either cpu or cpuPerNode.",
+            "nullable": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
             "example": [
               16,
-              16,
-              32,
               32
-            ],
-            "oneOf": [
-              {
-                "type": "integer",
-                "minimum": 0
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "minItems": 1
-              }
             ]
           },
           "gpu": {
@@ -12434,7 +12428,7 @@
           },
           "gpuType": {
             "type": "array",
-            "description": "Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list \u2014 the scheduler tries each in order and pins the sandbox to the first that has capacity.",
+            "description": "Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity.",
             "example": [
               "H100"
             ],
@@ -12449,46 +12443,41 @@
             "default": false
           },
           "memory": {
-            "x-daytona-scalar-resource": true,
-            "description": "Memory allocated per node in GB. A scalar applies to every node; for a multi-node GPU sandbox, an array specifies one value per rank.",
-            "example": 256,
-            "oneOf": [
-              {
-                "type": "integer",
-                "minimum": 0
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "minItems": 1
-              }
+            "type": "integer",
+            "description": "Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.",
+            "example": 1
+          },
+          "memoryPerNode": {
+            "type": "array",
+            "description": "Memory in GB for each node in rank order. Specify either memory or memoryPerNode.",
+            "nullable": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "example": [
+              64,
+              128
             ]
           },
           "disk": {
-            "x-daytona-scalar-resource": true,
-            "description": "Disk space allocated per node in GB. A scalar applies to every node; for a multi-node GPU sandbox, an array specifies one value per rank.",
+            "type": "integer",
+            "description": "Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.",
+            "example": 3
+          },
+          "diskPerNode": {
+            "type": "array",
+            "description": "Disk space in GB for each node in rank order. Specify either disk or diskPerNode.",
+            "nullable": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
             "example": [
-              180,
-              180,
-              300,
-              300
-            ],
-            "oneOf": [
-              {
-                "type": "integer",
-                "minimum": 0
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "minItems": 1
-              }
+              100,
+              200
             ]
           },
           "autoStopInterval": {
