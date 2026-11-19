@@ -1,0 +1,27 @@
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_551db5931e985a 37-39,49-53,208-211
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_a377cfe665812e 375-426
+sdk-typescript/src/v2/contextArchive.ts
+  s_35c1b93d4ebbc5::t_ad984f305870a4 36-37,40-41
+sdk-typescript/src/v2/contextEntries.ts
+  s_35c1b93d4ebbc5::t_d46bbb49131ae3 17-28,32-37
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  s_35c1b93d4ebbc5::t_06cf97a0e7b41a 126-176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4b1f31478a5018307589b91311213964a8d6d76",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_c13a7dc4e82300 264-265
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_566a0fff685b64 124,1974-1991
+  s_9a337fd66d5341::t_c385ad1587ec11 1883-1952,1954-1962
+  s_9a337fd66d5341::t_4c64fa05a73e15 125-135,137-144
+  s_9a337fd66d5341::t_f51028ece50c7c 1965-1969,1971-1973
+  s_9a337fd66d5341::t_97961048ce267a 1953,1963-1964,1970
+  s_9a337fd66d5341::t_a4732b4c6be63e 136
+sdk-python/src/daytona/v2/_auth.py
+  s_9a337fd66d5341::t_465080a319aece 13,183-185
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_561ef9b1bcbeab 5691,5760-5769,11809-11830
+  s_9a337fd66d5341::t_986e97168c0c04 5103-5104
+  s_9a337fd66d5341::t_c13a7dc4e82300 11831
+  s_9a337fd66d5341::t_71f803e1da7f2c 5098-5102,5105-5111,5692,11832
+  s_9a337fd66d5341::t_7b6e39d061b659 5678-5688
+  s_9a337fd66d5341::t_f558f2647f8989 5689-5690,5693,11833
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_01036d23734560 333-338,340,342-343,345-346,353,355,360,364-367,371,378-381,385,390
+  s_9a337fd66d5341::t_541101a2b691e1 339,341,344
+  s_9a337fd66d5341::t_359f959804fc68 8,12-13,35,285,300-332,347-352,354,356-359,361-363,368-370,372-377,382-384,386-389
+  s_9a337fd66d5341::t_2b3514ee97c95f 391-392
+sdk-python/tests/test_core.py
+  s_9a337fd66d5341::t_465080a319aece 11623-11647
+  s_9a337fd66d5341::t_e265fd57b9c00b 11622
+sdk-typescript/src/v2/Process.ts
+  s_9a337fd66d5341::t_1165f650a7ffee 221,224
+sdk-typescript/src/v2/Interpreter.ts
+  s_9a337fd66d5341::t_2a9bb808741b2c 212-214
+sdk-python/src/daytona/v2/computer_use_core.py
+  s_9a337fd66d5341::t_2d1111cff4904a 6,551,556-558,560
+  s_9a337fd66d5341::t_0d15b29da1b435 559
+  s_9a337fd66d5341::t_b1f33bfbf8cfa4 561-562
+sdk-python/src/daytona/v2/process.py
+  s_9a337fd66d5341::t_5790a265b800ca 306-308
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad73d9c669652f4a775134864dcdb58ed8e6a36f",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

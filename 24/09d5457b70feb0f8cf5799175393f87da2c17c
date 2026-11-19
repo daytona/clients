@@ -1,0 +1,56 @@
+sdk-typescript/tests/watch-transport.test.ts
+  s_9a337fd66d5341::t_b693ba79ecc796 104
+  s_9a337fd66d5341::t_b772a2b3b6be5f 14-15,28-44,80-103,105
+sdk-typescript/src/v2/Interpreter.ts
+  s_9a337fd66d5341::t_09f74a5aa5de3e 480-483
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_9a337fd66d5341::t_17083852490973 98-100
+sdk-python/src/daytona/v2/filesystem.py
+  s_9a337fd66d5341::t_193f866078f204 575-576
+  s_9a337fd66d5341::t_88d3fe37c47d5e 178,185,615-618,622-625,641-643
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_193f866078f204 93-96,391-392
+  s_9a337fd66d5341::t_d68b64e2902011 431-433
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_5ebdc82ffe3e87 1326-1353
+  s_9a337fd66d5341::t_09f74a5aa5de3e 1354-1356,1360-1375
+  s_9a337fd66d5341::t_4471bf8e6bee1e 1357-1359
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_09f74a5aa5de3e 12721-12731
+  s_9a337fd66d5341::t_5ebdc82ffe3e87 12705-12720
+sdk-typescript/src/v2/ComputerUseMappers.ts
+  s_9a337fd66d5341::t_5ebdc82ffe3e87 187
+sdk-python/src/daytona/v2/computer_use_core.py
+  s_9a337fd66d5341::t_5ebdc82ffe3e87 373-388,402
+sdk-python/src/daytona/v2/interpreter.py
+  s_9a337fd66d5341::t_4471bf8e6bee1e 367-369
+  s_9a337fd66d5341::t_09f74a5aa5de3e 364-366,370-373
+sdk-typescript/src/v2/filesystemWire.ts
+  s_9a337fd66d5341::t_2e434adc62dd4b 118-119
+sdk-python/tests/test_watch_transport.py
+  s_9a337fd66d5341::t_51397557b083fc 111-118,122-149,153-199
+  s_9a337fd66d5341::t_5ebdc82ffe3e87 119-121,150-152
+sdk-python/src/daytona/v2/process.py
+  s_9a337fd66d5341::t_17083852490973 325-327
+sdk-typescript/src/v2/http.ts
+  s_9a337fd66d5341::t_ad506e1ee1f4c6 1675-1677
+  s_9a337fd66d5341::t_d68b64e2902011 1631-1646,1656
+sdk-python/tests/test_core.py
+  s_9a337fd66d5341::t_51397557b083fc 2217-2219,2241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2409d5457b70feb0f8cf5799175393f87da2c17c",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

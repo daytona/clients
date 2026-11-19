@@ -1,0 +1,82 @@
+AGENTS.md
+  h_e7759ddd73fa65 413-420
+changelog.d/532.changed.md
+  h_e7759ddd73fa65 1-8
+changelog.d/533.changed.md
+  h_e7759ddd73fa65 1-14
+changelog.d/destroyed-wait-long-poll.fixed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/terminal-state-reason.added.md
+  h_e7759ddd73fa65 1-6
+cli/internal/workload/wait.go
+  h_e7759ddd73fa65 76-81
+cli/internal/workload/workload_more_test.go
+  h_e7759ddd73fa65 10,279-305
+contract/toolbox-openapi.json
+  h_e7759ddd73fa65 9459-9463,9466
+docs/VERSIONING.md
+  h_e7759ddd73fa65 83-119,125-143,213-263
+docs/adr/0003-cli.md
+  h_e7759ddd73fa65 117-121
+docs/adr/0004-version-namespaces-and-v0-migration.md
+  h_e7759ddd73fa65 36-40,52-54,140-148
+sdk-python/README.md
+  h_e7759ddd73fa65 768-769,782-795
+sdk-python/src/daytona/v2/_events.py
+  h_e7759ddd73fa65 28,218-236,804,824-827,1604
+sdk-python/src/daytona/v2/errors.py
+  h_e7759ddd73fa65 159-160,163-173,175,182
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 43,707-716,720,835-838,875,879,916,924-940,957,966-968,986,990,996-998,1934-1937
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 7411,7471,7533,7644-7810
+sdk-python/tests/test_events.py
+  h_e7759ddd73fa65 25,990-1050
+sdk-typescript/README.md
+  h_e7759ddd73fa65 713-715,723-738
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 40,731,734,736-737,1091-1092,1118,1154,1159,1165-1173,1184,1193,1197
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  h_e7759ddd73fa65 188-192,194-195,198
+sdk-typescript/src/v2/events.ts
+  h_e7759ddd73fa65 389-407,1144,1178-1181
+sdk-typescript/src/v2/gen/toolbox.ts
+  h_e7759ddd73fa65 7676,7682
+sdk-typescript/tests/events.test.ts
+  h_e7759ddd73fa65 1449-1483
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 2610-2741
+upgrade/mapping/report.schema.json
+  h_e7759ddd73fa65 5,11-12,20-23,50-51,66
+upgrade/python/README.md
+  h_e7759ddd73fa65 99,112-118
+upgrade/python/tests/report_schema.py
+  h_e7759ddd73fa65 1-50
+upgrade/python/tests/test_cli.py
+  h_e7759ddd73fa65 14,58
+upgrade/python/tests/test_dependency_records.py
+  h_e7759ddd73fa65 12,56
+upgrade/python/tests/test_import_boundaries.py
+  h_e7759ddd73fa65 12,59
+upgrade/python/tests/test_independent_project_safety.py
+  h_e7759ddd73fa65 12,54
+upgrade/python/tests/test_report_schema.py
+  h_e7759ddd73fa65 1-128
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 14,41
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 310-316
+upgrade/typescript/tests/report.test.ts
+  h_e7759ddd73fa65 16-19,21-42,47-65,136-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33c772d4f55f6a66bed4b58cab6ff1cc1b32515b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

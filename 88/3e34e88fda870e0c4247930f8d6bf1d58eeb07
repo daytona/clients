@@ -1,0 +1,22 @@
+sdk-typescript/src/v2/http.ts
+  s_f23bcae77f0e63::t_62d51c6fcfa203 1295-1296,1449-1453,1459,1464,1555-1558,1566-1570,1572,1634-1639
+sdk-typescript/tests/transfer-bounds.test.ts
+  s_f23bcae77f0e63::t_879aae12e6148b 268
+  s_f23bcae77f0e63::t_ac4137f0943c6d 242-267,269-272
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "883e34e88fda870e0c4247930f8d6bf1d58eeb07",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

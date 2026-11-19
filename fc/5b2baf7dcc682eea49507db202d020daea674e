@@ -1,0 +1,21 @@
+hack/ax-evals/comment.js
+  s_e3ef6bcc7297ef::t_1b0672dbb1da09 25-26
+hack/ax-evals/report.js
+  s_e3ef6bcc7297ef::t_ba853986801242 40-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc5b2baf7dcc682eea49507db202d020daea674e",
+  "prompts": {},
+  "sessions": {
+    "s_e3ef6bcc7297ef": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ecf59862fffeXL2g4Eg0PTsqYZ",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

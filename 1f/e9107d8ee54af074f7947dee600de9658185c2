@@ -1,0 +1,14 @@
+cli/cmd/project.go
+  h_e7759ddd73fa65 181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1fe9107d8ee54af074f7947dee600de9658185c2",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

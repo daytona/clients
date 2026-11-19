@@ -1,0 +1,24 @@
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 79,96-102
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 1273-1274,1310
+upgrade/python/src/daytona_upgrade/v0_version.py
+  h_e7759ddd73fa65 104-130,217-221,223-227
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 217-218,481-527
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 64-65,175-177
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 152,169,248-274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7442b3480b870ce1001d063a194122b5cf340fb9",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

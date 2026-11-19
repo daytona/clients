@@ -1,0 +1,28 @@
+docs/VERSIONING.md
+  s_4d9fba4bce0dac::t_b23563dc7bea8e 7-10,53-54,87,89,91-98,148-149
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_7f134cdfe12709 316-319,321-322
+  s_4d9fba4bce0dac::t_967361714a6b78 247-271
+changelog.d/535-release-channels.changed.md
+  s_4d9fba4bce0dac::t_df35942671c7dd 3-6
+changelog.d/535-cli-installer-channels.changed.md
+  s_4d9fba4bce0dac::t_df35942671c7dd 5-8
+docs/adr/0002-versioning-and-release-lines.md
+  s_4d9fba4bce0dac::t_df35942671c7dd 51,57-59,103-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0fc2101f63cc8de813217bb9b4b630bf46ac827",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

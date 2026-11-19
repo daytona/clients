@@ -1,0 +1,29 @@
+cli/gen/api/types.gen.go
+  s_849b0e03a3bbe4::t_ca7c6bf4774dec 4897-4904,4947-4960,6364-6380,7597-7599
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_849b0e03a3bbe4::t_beac51bc20184a 198,203,297
+sdk-python/src/daytona/v2/_gen/api/models/project_limits.py
+  s_849b0e03a3bbe4::t_a6c4d44ebf54cb 1-114
+sdk-python/src/daytona/v2/_gen/api/models/project_sandbox_limits.py
+  s_849b0e03a3bbe4::t_5004cf40a8f681 1-124
+sdk-python/src/daytona/v2/_gen/api/models/update_project_limits_request.py
+  s_849b0e03a3bbe4::t_34520ef2bb8136 1-116
+sdk-typescript/src/v2/gen/api.ts
+  s_849b0e03a3bbe4::t_5425c6f8730ea9 1810-1833,5969-5979,6015-6029,7283-7307,15503-15598
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0c1e1ce9b5d1e5cb08fb4437a59c50946b07155",
+  "prompts": {},
+  "sessions": {
+    "s_849b0e03a3bbe4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3b049e24ffeJDnJzJT2LQeUDg",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vučina <fabjanvucina@users.noreply.github.com>"
+    }
+  }
+}

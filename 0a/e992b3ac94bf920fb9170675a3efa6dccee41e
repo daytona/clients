@@ -1,0 +1,43 @@
+sdk-go/pkg/daytona/client.go
+  s_39e82b39715bf2::t_2b8f7d2f0a1175 539
+sdk-go/pkg/daytona/client_test.go
+  s_39e82b39715bf2::t_7a1aa48f4828f3 1067-1103
+sdk-go/pkg/types/types.go
+  s_39e82b39715bf2::t_ee30f9a6c5384c 116-118
+  s_d1156b086934d2::t_5c08e89953f5b7 114-115
+sdk-go/pkg/daytona/sandbox_test.go
+  s_39e82b39715bf2::t_428e3dd90a2aa9 91-92
+  s_39e82b39715bf2::t_a05cd5d9f5a270 118-136
+  s_d1156b086934d2::t_6a1d1199571ee2 137-138
+sdk-go/pkg/daytona/test_helpers_test.go
+  s_39e82b39715bf2::t_5a5485fe098a17 35
+sdk-go/pkg/daytona/sandbox.go
+  s_39e82b39715bf2::t_1e2fd62026b9ac 135-138
+  s_39e82b39715bf2::t_60190e40280a4b 472
+sdk-go/go.sum
+  s_d1156b086934d2::t_ecf8ad146c866e 45-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ae992b3ac94bf920fb9170675a3efa6dccee41e",
+  "prompts": {},
+  "sessions": {
+    "s_39e82b39715bf2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_f305ea2dcffefrIyxKfHGHvsCN",
+        "model": "unknown"
+      },
+      "human_author": null
+    },
+    "s_d1156b086934d2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f302b633dffeAxk5otdcSNu60N",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

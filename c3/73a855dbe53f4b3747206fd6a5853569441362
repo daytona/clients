@@ -1,0 +1,14 @@
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 113,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c373a855dbe53f4b3747206fd6a5853569441362",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

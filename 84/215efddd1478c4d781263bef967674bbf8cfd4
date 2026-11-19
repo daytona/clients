@@ -1,0 +1,19 @@
+sdk-python/tests/test_v1.py
+  s_dafe0e4181bcc4::t_f9db379ac0f593 49-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "84215efddd1478c4d781263bef967674bbf8cfd4",
+  "prompts": {},
+  "sessions": {
+    "s_dafe0e4181bcc4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ebb6810b9ffeEFjS0c930Pg7HW",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

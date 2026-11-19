@@ -1,0 +1,32 @@
+.github/workflows/release.yaml
+  h_e7759ddd73fa65 21-24
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 112,114
+PUBLISHING.md
+  h_e7759ddd73fa65 130,143-145
+cli/apiclient/latest_release.go
+  h_e7759ddd73fa65 32-33,88-90,95-129,131,138,143,146,148,150-151,153-157,160,162
+cli/apiclient/version_check_test.go
+  h_e7759ddd73fa65 395-441
+cli/hack/homebrew/README.md
+  h_e7759ddd73fa65 18-22
+cli/hack/stage-release-assets.test.sh
+  h_e7759ddd73fa65 37,41-46,89-92,107-108
+cli/install-v0.sh
+  h_e7759ddd73fa65 46-48,50-56
+cli/mcp/README.md
+  h_e7759ddd73fa65 18-22
+hack/npm-latest-guard.test.sh
+  h_e7759ddd73fa65 47-51,63-67,69-71,73-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "04e73c77aeaaf7d159b7af8cfa2a748b943ac75f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,90 @@
+changelog.d/sandbox-desktop.added.md
+  h_5fc330b445be98 1-5
+cli/gen/api/types.gen.go
+  h_5fc330b445be98 833-850,3026-3030,3159-3199,5792-5797,6025-6030,8262-8333
+cli/internal/input/desktop_test.go
+  h_5fc330b445be98 1-67
+cli/internal/input/request_fields_gen.go
+  h_5fc330b445be98 108-120
+cli/internal/input/request_fields_inline_test.go
+  h_5fc330b445be98 1-39
+cli/internal/input/request_fields_test.go
+  h_5fc330b445be98 96-98
+contract/api-openapi.json
+  h_5fc330b445be98 2931-2934,3231-3308,8363-8366
+sdk-python/README.md
+  h_5fc330b445be98 587-611
+sdk-python/src/daytona/v2/__init__.py
+  h_5fc330b445be98 11-19,397-403
+sdk-python/src/daytona/v2/_desktop_core.py
+  h_5fc330b445be98 1-30
+sdk-python/src/daytona/v2/_exports.py
+  h_5fc330b445be98 5-11
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  h_5fc330b445be98 84-87
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  h_5fc330b445be98 22,47,66,109-111,234
+sdk-python/src/daytona/v2/_gen/api/models/desktop_config.py
+  h_5fc330b445be98 1-104
+sdk-python/src/daytona/v2/_gen/api/models/desktop_environment.py
+  h_5fc330b445be98 1-55
+sdk-python/src/daytona/v2/_gen/api/models/desktop_resolution.py
+  h_5fc330b445be98 1-100
+sdk-python/src/daytona/v2/_gen/api/models/desktop_settings.py
+  h_5fc330b445be98 1-117
+sdk-python/src/daytona/v2/_gen/api/models/sandbox.py
+  h_5fc330b445be98 24,51,84,129-131,298
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  h_5fc330b445be98 24,51,85,130-132,284
+sdk-python/src/daytona/v2/_sync/daytona.py
+  h_5fc330b445be98 110,136-141,196,224,274
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_5fc330b445be98 565-574
+sdk-python/src/daytona/v2/daytona.py
+  h_5fc330b445be98 72,78,146,282,308-313,378-379,607,734,833,841,1772-1776
+sdk-python/src/daytona/v2/desktop.py
+  h_5fc330b445be98 1-71
+sdk-python/src/daytona/v2/sandbox.py
+  h_5fc330b445be98 70,90,222,469-478,806-814,2203
+sdk-python/src/daytona/v2/types.py
+  h_5fc330b445be98 34,554,617
+sdk-python/tests/test_desktop_settings.py
+  h_5fc330b445be98 1-285
+sdk-typescript/src/v2/Sandbox.ts
+  h_5fc330b445be98 351-354
+sdk-typescript/src/v2/clientCreate.ts
+  h_5fc330b445be98 25,65-66,90,105
+sdk-typescript/src/v2/clientCreateRequests.ts
+  h_5fc330b445be98 14,17,19-20,70
+sdk-typescript/src/v2/clientOptionKeys.ts
+  h_5fc330b445be98 7-8,23,116,146
+sdk-typescript/src/v2/desktop.ts
+  h_5fc330b445be98 1-80
+sdk-typescript/src/v2/gen/api-enums.ts
+  h_5fc330b445be98 12
+sdk-typescript/src/v2/gen/api-types.ts
+  h_5fc330b445be98 86-87
+sdk-typescript/src/v2/gen/api.ts
+  h_5fc330b445be98 4019-4024,4154-4194,6670-6676
+sdk-typescript/src/v2/index.ts
+  h_5fc330b445be98 82
+sdk-typescript/src/v2/sandboxMetadata.ts
+  h_5fc330b445be98 7,88,114,146,205
+sdk-typescript/src/v2/types.ts
+  h_5fc330b445be98 7-8,162-163,497-498,660-661
+sdk-typescript/tests/desktop-create.test.ts
+  h_5fc330b445be98 1-138
+sdk-typescript/tests/desktop-metadata.test.ts
+  h_5fc330b445be98 1-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d461cbf9134755c96b269dda1716482901bce75e",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

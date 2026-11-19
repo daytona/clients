@@ -1,0 +1,33 @@
+.github/workflows/sdk-ci.yaml
+  s_3a78f9367300e1::t_6fc3bae11e9d16 97-98,367-373
+.github/workflows/sdk_publish.yaml
+  s_3a78f9367300e1::t_4635dd60f88c1f 812-813
+AGENTS.md
+  s_3a78f9367300e1::t_6fe8cf353aa1e0 999
+sdk-python/pyproject.toml
+  s_3a78f9367300e1::t_8fefae82d17ee6 54,149-151
+sdk-python/tests/test_bridge.py
+  s_3a78f9367300e1::t_e209b3681f29b8 37-38
+sdk-python/tests/test_build_logs.py
+  s_3a78f9367300e1::t_ecb4d624db0a9d 52
+sdk-python/tests/test_image_pull_deadline_http.py
+  s_3a78f9367300e1::t_edc6cb45e594d0 22-23
+sdk-python/uv.lock
+  s_3a78f9367300e1::t_525046598da545 268,286,306-314,849-861
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e13b415145c0e6135ae355900da7474fad21ac5",
+  "prompts": {},
+  "sessions": {
+    "s_3a78f9367300e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e39ebaad0ffeVnwNETxVFiRbJd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

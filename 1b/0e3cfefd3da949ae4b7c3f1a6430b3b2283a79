@@ -1,0 +1,16 @@
+sdk-python/tests/test_client_lifecycle_contract.py
+  h_e7759ddd73fa65 650-651,657
+sdk-typescript/tests/create-lifecycle-policy.test.ts
+  h_e7759ddd73fa65 70,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1b0e3cfefd3da949ae4b7c3f1a6430b3b2283a79",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

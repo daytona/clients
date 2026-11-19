@@ -1,0 +1,23 @@
+sdk-python/src/daytona/v2/_context_upload.py
+  s_dda305198a66db::t_0671a045de7baf 187-190,193-195,200-205
+sdk-python/tests/test_build_context_upload.py
+  s_dda305198a66db::t_0671a045de7baf 352,354-359,361-391
+AGENTS.md
+  s_dda305198a66db::t_6fbf9394f0f2bb 548-549
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ff5c2e52a80cab153a9851d0b71665f15baf9df",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+changelog.d/538-toolbox-timestamps.breaking.md
+  s_ca009e77d17705::t_ceaf11affe122b 1-4
+  s_ca009e77d17705::t_50777acc6e1aad 5
+changelog.d/538-toolbox-unknown-events.breaking.md
+  s_ca009e77d17705::t_ceaf11affe122b 1-4
+changelog.d/538-filesystem-surface.breaking.md
+  s_ca009e77d17705::t_ceaf11affe122b 1-5
+changelog.d/538-toolbox-models.breaking.md
+  s_ca009e77d17705::t_ceaf11affe122b 23-26
+changelog.d/538-toolbox-response-checks.breaking.md
+  s_ca009e77d17705::t_ceaf11affe122b 1-30
+changelog.d/538-toolbox-number-ranges.breaking.md
+  s_ca009e77d17705::t_ceaf11affe122b 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0bfedde06a4c3e12a2dc2ff82cabbef089d73c8d",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

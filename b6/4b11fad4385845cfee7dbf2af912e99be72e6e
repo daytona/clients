@@ -1,0 +1,23 @@
+AGENTS.md
+  s_f23bcae77f0e63::t_95a5e0a0d76ad1 532-541
+changelog.d/537-transfer-bounds.breaking.md
+  s_f23bcae77f0e63::t_95a5e0a0d76ad1 37-44
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_95a5e0a0d76ad1 190-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b64b11fad4385845cfee7dbf2af912e99be72e6e",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

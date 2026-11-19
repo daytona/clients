@@ -1,0 +1,82 @@
+sdk-python/tests/test_build_logs.py
+  s_9a337fd66d5341::t_aab8e859e7b34a 28,1203,1205-1209
+sdk-typescript/src/v2/Daytona.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 282,290,302,311,329,374,427,730,939
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_9a337fd66d5341::t_7d640ef9b0b4ef 12
+sdk-typescript/src/v2/internal.ts
+  s_9a337fd66d5341::t_fefb7649543843 7,10-12,22
+sdk-typescript/src/v2/FileSystem.ts
+  s_9a337fd66d5341::t_a18da21d2a237f 475,482,485-487,492,496
+  s_9a337fd66d5341::t_e097e8cdf06f67 21
+sdk-python/tests/test_transfer_timeouts.py
+  s_9a337fd66d5341::t_aab8e859e7b34a 17,37-39,41-43,45-59,72-80,98-100,122-123
+sdk-typescript/src/v2/Image.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 10,25,30
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 101-130,162,165,322-323,339-340,351-352,362-363,472-473
+AGENTS.md
+  s_9a337fd66d5341::t_aab8e859e7b34a 531-538
+changelog.d/537-config-env.breaking.md
+  s_9a337fd66d5341::t_aab8e859e7b34a 7-8
+sdk-typescript/src/v2/BuildLogs.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 6,8,56-57,476,485
+sdk-typescript/src/v2/Interpreter.ts
+  s_9a337fd66d5341::t_7eaaef0a901de9 27
+  s_9a337fd66d5341::t_7d640ef9b0b4ef 21
+sdk-python/tests/test_client_config.py
+  s_9a337fd66d5341::t_aab8e859e7b34a 78-93
+changelog.d/537-error-constructors.breaking.md
+  s_9a337fd66d5341::t_aab8e859e7b34a 23-36
+sdk-typescript/src/v2/filesystemTransfers.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 6,114,171,305,388,411,428
+sdk-python/src/daytona/v2/build_logs.py
+  s_9a337fd66d5341::t_aab8e859e7b34a 714
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9a337fd66d5341::t_7d640ef9b0b4ef 13
+  s_9a337fd66d5341::t_7eaaef0a901de9 18
+  s_9a337fd66d5341::t_fefb7649543843 298
+changelog.d/537-ts-config-keys.breaking.md
+  s_9a337fd66d5341::t_aab8e859e7b34a 4-7
+sdk-python/src/daytona/v2/daytona.py
+  s_9a337fd66d5341::t_aab8e859e7b34a 1310-1311
+sdk-typescript/src/v2/http.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 10,803-813,930-931,933,935,1499-1500,1504,1512
+sdk-typescript/src/v2/Docker.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 6,13,97
+sdk-typescript/src/v2/Sandbox.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 45,239,371,842,926,931,1083
+sdk-typescript/tests/sdk-raised-errors.test.ts
+  s_9a337fd66d5341::t_fefb7649543843 46
+  s_9a337fd66d5341::t_aab8e859e7b34a 1-45,47-63,66-79,82-84
+  s_9a337fd66d5341::t_a18da21d2a237f 64-65,80-81
+sdk-typescript/src/v2/options.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 6,110-111
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 7328-7329
+  s_9a337fd66d5341::t_6666517703a6e5 11902
+sdk-typescript/src/v2/Snapshots.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 12,47
+sdk-typescript/tests/errors-contract.test.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 147-176
+sdk-typescript/src/v2/Reservations.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 13,136
+sdk-typescript/src/v2/Images.ts
+  s_9a337fd66d5341::t_aab8e859e7b34a 16,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7bd5d2d10e4936c95943e6d1a12c689e806d3959",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

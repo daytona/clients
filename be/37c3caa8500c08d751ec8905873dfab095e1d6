@@ -1,0 +1,21 @@
+changelog.d/drop-lsp-error-codes.breaking.md
+  s_bb33829f46707b::t_8504e81e479c46 4
+changelog.d/drop-toolbox-lsp-operation.breaking.md
+  s_bb33829f46707b::t_5c151603d1bd88 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be37c3caa8500c08d751ec8905873dfab095e1d6",
+  "prompts": {},
+  "sessions": {
+    "s_bb33829f46707b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29fb2f6fffeE373ZzXHM8jc1e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

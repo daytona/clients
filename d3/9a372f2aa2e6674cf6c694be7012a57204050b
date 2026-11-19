@@ -1,0 +1,41 @@
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  s_d1156b086934d2::t_800c88acff6995 460-461
+artifacts/sdk-docs/java-sdk/sandbox.mdx
+  s_d1156b086934d2::t_706a6b1c14c193 1065-1077
+artifacts/sdk-docs/typescript-sdk/sandbox.mdx
+  s_d1156b086934d2::t_8fde43d732b2d8 41
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_d1156b086934d2::t_333609d5a356af 4403-4406
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  s_d1156b086934d2::t_2cdfc14af401a2 119-129
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_d1156b086934d2::t_49e2f96f15b6dd 65
+  s_d1156b086934d2::t_a409cf995bc581 100-107
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_d1156b086934d2::t_e4d5e604d9e507 587-591
+artifacts/sdk-docs/java-sdk/daytona.mdx
+  s_d1156b086934d2::t_f11ab7ce3eadad 207
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  s_d1156b086934d2::t_d6189ef5a8b72f 65
+  s_d1156b086934d2::t_568d6e60d2eafc 100-107
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_d1156b086934d2::t_658e099d4472ee 514-515
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  s_d1156b086934d2::t_bb55aad809acb5 407,437,467
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d39a372f2aa2e6674cf6c694be7012a57204050b",
+  "prompts": {},
+  "sessions": {
+    "s_d1156b086934d2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f302b633dffeAxk5otdcSNu60N",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

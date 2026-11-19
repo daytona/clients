@@ -1,0 +1,48 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 776-777,1274,1311-1312,1365
+AGENTS.md
+  h_e7759ddd73fa65 421-423
+docs/RELEASING.md
+  h_e7759ddd73fa65 206-210
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 68-70
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 528-543
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 45-48
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 97-101,114-116,118-119
+upgrade/typescript/tests/bounded-environment-scan-inputs.test.ts
+  h_e7759ddd73fa65 14,29-30,42-43,53
+upgrade/typescript/tests/budget.ts
+  h_e7759ddd73fa65 1-22
+upgrade/typescript/tests/callback-budget-regression.test.ts
+  h_e7759ddd73fa65 10,37-38
+upgrade/typescript/tests/es5-callback-performance.test.ts
+  h_e7759ddd73fa65 11,41-42
+upgrade/typescript/tests/holder-helper-performance.test.ts
+  h_e7759ddd73fa65 9,40-41
+upgrade/typescript/tests/holder-performance.test.ts
+  h_e7759ddd73fa65 9,35-36
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 75-84
+upgrade/typescript/tests/output-bounded.test.ts
+  h_e7759ddd73fa65 11,23
+upgrade/typescript/tests/receiver-write-and-extraction-proofs.test.ts
+  h_e7759ddd73fa65 11,93
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 154,275-287
+upgrade/typescript/vitest.config.ts
+  h_e7759ddd73fa65 6,8-12,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d4170c7ae2f5a147cc5b0d46270e4fda6d24191",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

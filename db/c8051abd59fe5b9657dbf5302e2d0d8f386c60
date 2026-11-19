@@ -1,0 +1,19 @@
+upgrade/mapping/v0-version-messages.json
+  s_7c5ba108c50c01::t_1b74dbf1667af2 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbc8051abd59fe5b9657dbf5302e2d0d8f386c60",
+  "prompts": {},
+  "sessions": {
+    "s_7c5ba108c50c01": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e542a0af0ffe6ZDh51IF2VSSft",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

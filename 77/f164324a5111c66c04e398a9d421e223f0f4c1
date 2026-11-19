@@ -1,0 +1,14 @@
+changelog.d/538-stream-encodings.breaking.md
+  h_e7759ddd73fa65 2-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77f164324a5111c66c04e398a9d421e223f0f4c1",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

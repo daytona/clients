@@ -1,0 +1,18 @@
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 411-412
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 836-837
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 1133-1134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46192e0d839999b161514aabba7c87d13d793986",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

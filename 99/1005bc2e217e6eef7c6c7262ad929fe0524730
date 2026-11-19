@@ -1,0 +1,44 @@
+sdk-python/DEVELOPMENT.md
+  s_ca009e77d17705::t_31db7d04fcd5a0 249-256,279-287
+  s_ca009e77d17705::t_37201a76e9dfeb 288
+sdk-python/tests/test_v0_bundle.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 21,125
+AGENTS.md
+  s_ca009e77d17705::t_31db7d04fcd5a0 494-499,514-520
+  s_ca009e77d17705::t_6077ae75089e6e 521-524
+sdk-python/tests/test_events.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 22,69,1615-1616,1619
+sdk-python/tests/test_root_client.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 25,90-101,403
+sdk-python/tests/test_client_config.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 12-16,354-428
+  s_ca009e77d17705::t_9a975fef24a8f6 429-430
+sdk-python/tests/test_repo_files.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 1-48
+sdk-python/tests/test_generated_model_redaction.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 15,108,210
+sdk-python/tests/test_desktop.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 11,460
+sdk-python/tests/_repo.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 1-44
+sdk-python/tests/test_core.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 30,323,1458,4782,4807,4832,4849,4882,4898
+sdk-python/tests/test_sandbox_secrets_parity.py
+  s_ca009e77d17705::t_31db7d04fcd5a0 18,117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "991005bc2e217e6eef7c6c7262ad929fe0524730",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

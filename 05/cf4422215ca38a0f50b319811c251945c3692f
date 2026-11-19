@@ -1,0 +1,21 @@
+sdk-typescript/src/v2/filesystemInputs.ts
+  s_1d65fa05b6bddd::t_11575bbb65e9d9 32-38,40-46
+sdk-typescript/tests/fs-git-inputs.test.ts
+  s_1d65fa05b6bddd::t_c4e33401e9b905 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05cf4422215ca38a0f50b319811c251945c3692f",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

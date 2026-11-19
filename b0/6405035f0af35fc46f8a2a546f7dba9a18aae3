@@ -1,0 +1,25 @@
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9a337fd66d5341::t_fb63aff687da8d 285-288,291
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_fb63aff687da8d 1145,1304-1311
+sdk-python/src/daytona/v2/process.py
+  s_9a337fd66d5341::t_fb63aff687da8d 153-154,156
+sdk-typescript/tests/unit.test.ts
+  s_9a337fd66d5341::t_fb63aff687da8d 12604,12607,12610,12615
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b06405035f0af35fc46f8a2a546f7dba9a18aae3",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

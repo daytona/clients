@@ -1,0 +1,33 @@
+cli/hack/homebrew/README.md
+  s_4d9fba4bce0dac::t_54f88d8380ed02 26-28
+upgrade/scripts/publish-channels.test.mjs
+  s_4d9fba4bce0dac::t_de31d30b4d4319 449
+docs/RELEASING.md
+  s_4d9fba4bce0dac::t_f4b1023a615252 106-116,127-135
+docs/adr/0003-cli.md
+  s_4d9fba4bce0dac::t_f4b1023a615252 67-70
+.github/workflows/sdk_publish.yaml
+  s_4d9fba4bce0dac::t_54f88d8380ed02 578-582,1314-1318,1413-1415
+docs/adr/0002-versioning-and-release-lines.md
+  s_4d9fba4bce0dac::t_f4b1023a615252 57-59,105-107
+docs/VERSIONING.md
+  s_4d9fba4bce0dac::t_f4b1023a615252 92-98,101-102,192-197
+changelog.d/535-release-channels.changed.md
+  s_4d9fba4bce0dac::t_329be8ce2d8332 9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bed8575bede5202f1023bc7003713736f79578fd",
+  "prompts": {},
+  "sessions": {
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

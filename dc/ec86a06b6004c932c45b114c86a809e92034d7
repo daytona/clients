@@ -1,0 +1,28 @@
+examples/python/test_examples.py
+  s_ca009e77d17705::t_43360f697a875a 44,197-200,231-233,785-788
+  s_ca009e77d17705::t_90d1519f222495 23,803
+examples/typescript/test-support/fake-sdk.ts
+  s_ca009e77d17705::t_43360f697a875a 15,324-326
+examples/typescript/examples.test.ts
+  s_ca009e77d17705::t_43360f697a875a 321
+examples/typescript/test-support/volume-lifecycle.ts
+  s_ca009e77d17705::t_43360f697a875a 12,21,23,30-33,37-38
+changelog.d/539-create-handle-fields.breaking.md
+  s_ca009e77d17705::t_b06800ae6034d2 3-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dcec86a06b6004c932c45b114c86a809e92034d7",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

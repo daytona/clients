@@ -1,0 +1,19 @@
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_03db1f9437b107::t_ea47ef3c182ba0 732
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c91f2f5938257ad0212e76ef8c4fa031f663df9c",
+  "prompts": {},
+  "sessions": {
+    "s_03db1f9437b107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

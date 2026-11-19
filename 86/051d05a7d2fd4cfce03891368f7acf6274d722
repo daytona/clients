@@ -1,0 +1,37 @@
+changelog.d/526.changed.md
+  s_7c5ba108c50c01::t_4ca3b3ad702c58 4-12
+.github/workflows/sdk_publish.yaml
+  s_68ed9543e726d9::t_b0f958291c6d82 38,41-42,96-97,300-304
+docs/RELEASING.md
+  s_68ed9543e726d9::t_0093843c5db597 179-181
+docs/adr/0005-migration-tool-versions.md
+  s_68ed9543e726d9::t_2709a772a56632 21
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  s_68ed9543e726d9::t_81c405b5c55ba8 176-179,183
+upgrade/typescript/src/sdk-target.ts
+  s_68ed9543e726d9::t_7d09ccb1476ab3 29-30,91-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86051d05a7d2fd4cfce03891368f7acf6274d722",
+  "prompts": {},
+  "sessions": {
+    "s_68ed9543e726d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e542a0af0ffe6ZDh51IF2VSSft",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7c5ba108c50c01": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e542a0af0ffe6ZDh51IF2VSSft",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

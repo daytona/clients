@@ -1,0 +1,39 @@
+changelog.d/volume-create-routes.changed.md
+  s_e1e9ca1c8cb3a0::t_1ff41574b74595 1-5
+cli/cmd/volume.go
+  s_e1e9ca1c8cb3a0::t_a66c842478d82c 84-88,90
+cli/cmd/volume_helpers.go
+  s_e1e9ca1c8cb3a0::t_43d1da4cbe2876 60-62
+cli/cmd/volume_more_test.go
+  s_e1e9ca1c8cb3a0::t_40f2ac978c66dd 25,44,52,64
+cli/cmd/volume_test.go
+  s_e1e9ca1c8cb3a0::t_3e8b71e7d1e096 30
+sdk-python/src/daytona/v2/_sync/services.py
+  s_e1e9ca1c8cb3a0::t_934fdb0aa379f5 220
+sdk-python/src/daytona/v2/services.py
+  s_e1e9ca1c8cb3a0::t_87cb2f90348822 450,455
+sdk-python/tests/test_core.py
+  s_e1e9ca1c8cb3a0::t_f8ee586f4bff85 258-261,13396
+sdk-typescript/src/v2/Volume.ts
+  s_e1e9ca1c8cb3a0::t_e120f9a3fd47eb 115-116
+sdk-typescript/src/v2/gen/api-types.ts
+  s_e1e9ca1c8cb3a0::t_058de851db5287 85-86
+sdk-typescript/tests/unit.test.ts
+  s_e1e9ca1c8cb3a0::t_819968f57a2b29 8553,8598
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "445979206e184c6f3973eb27edf405c44d089727",
+  "prompts": {},
+  "sessions": {
+    "s_e1e9ca1c8cb3a0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8675ac92ffeJtfCeFM4WGMY6B",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Bruno Grbavac <bruno.grbavac@outlook.com>"
+    }
+  }
+}

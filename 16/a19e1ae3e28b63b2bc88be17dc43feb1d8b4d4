@@ -1,0 +1,29 @@
+sdk-typescript/src/v2/contextUpload.ts
+  s_1d65fa05b6bddd::t_c79474dceab183 15,130
+sdk-typescript/src/v2/filesystemInputs.ts
+  s_1d65fa05b6bddd::t_c79474dceab183 28,31-34
+  s_1d65fa05b6bddd::t_f035bc8058d306 35
+sdk-typescript/tests/build-context-upload.test.ts
+  s_1d65fa05b6bddd::t_c79474dceab183 6,261-266
+  s_1d65fa05b6bddd::t_8842f6ec4e6b15 267-269
+sdk-python/src/daytona/v2/_context_upload.py
+  s_1d65fa05b6bddd::t_c79474dceab183 108
+sdk-python/tests/test_build_context_upload.py
+  s_1d65fa05b6bddd::t_c79474dceab183 632-638
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "16a19e1ae3e28b63b2bc88be17dc43feb1d8b4d4",
+  "prompts": {},
+  "sessions": {
+    "s_1d65fa05b6bddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e2e2affeHnGlZvI0wuqJHF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

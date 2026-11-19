@@ -1,0 +1,19 @@
+hack/ax-evals/report.js
+  s_aaffc58b6b5f1a::t_367b7cf2c1d682 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ab4033b942a7d82f02514a8e9da32162d0df163",
+  "prompts": {},
+  "sessions": {
+    "s_aaffc58b6b5f1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_ed0eeedb9ffeT3ElCabF0QHD41",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

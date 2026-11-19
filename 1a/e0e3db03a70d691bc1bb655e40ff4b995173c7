@@ -1,0 +1,31 @@
+changelog.d/builder-trailing-backslash.fixed.md
+  s_35c1b93d4ebbc5::t_69f33af76c5db0 6-7
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_067a1d36332eb1 164
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_35c1b93d4ebbc5::t_62bd90dab2ef03 237-238
+sdk-python/src/daytona/v2/_sync/services.py
+  s_35c1b93d4ebbc5::t_756bb3748f8771 69-70
+sdk-python/src/daytona/v2/daytona.py
+  s_35c1b93d4ebbc5::t_a4a2efa9a7be3d 611-612
+sdk-python/src/daytona/v2/services.py
+  s_35c1b93d4ebbc5::t_79be304b9843f1 198-199
+sdk-typescript/src/v2/Daytona.ts
+  s_35c1b93d4ebbc5::t_804a270d6b5e1a 258-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ae0e3db03a70d691bc1bb655e40ff4b995173c7",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

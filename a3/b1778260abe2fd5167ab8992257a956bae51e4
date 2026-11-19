@@ -1,0 +1,65 @@
+sdk-go/pkg/common/event_dispatcher.go
+  s_ff175ff013cf03::t_b84cba5930521d 71-76,187,299-305
+sdk-go/pkg/common/event_dispatcher_test.go
+  s_ff175ff013cf03::t_bb8f9a056b04b6 14,38-41,90-93,265-266,270-274,276-277,382-439
+sdk-go/pkg/common/event_subscription_manager.go
+  s_ff175ff013cf03::t_845aed1be98286 125-134
+sdk-go/pkg/common/socketio_client.go
+  s_ff175ff013cf03::t_efa8ea7b088a7d 616-621,634-649,651-659
+sdk-go/pkg/daytona/event_subscriptions_test.go
+  s_ff175ff013cf03::t_f207ea0224df04 33-34,52,54,61,67-73,179-207,262,288,342,368,395-398,401-402,411-423,431,434,441-444,451,463,466-472,476,508,535-555,599-600,615-616,627,629,633-634,646,648-649,653,670,685,697-698,707,710,719-720,734-735,745,748,752,766-804
+sdk-go/pkg/daytona/sandbox.go
+  s_ff175ff013cf03::t_ff10a5bc28a3ae 188-191,538-539,554-556,570-571,575,836,871
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  s_ff175ff013cf03::t_a8100698f0d66f 141-143,343,420,422,876-880,882-883,885-886,889-893,896,898,1055,1066-1069,1071,1075-1079,1088-1091,1097-1098,1192-1197,1298,1303-1304,1306,1309,1473,1617
+sdk-java/src/main/java/io/daytona/sdk/internal/EventDispatcher.java
+  s_ff175ff013cf03::t_ba28a942c0681d 300-306
+sdk-java/src/main/java/io/daytona/sdk/internal/EventSubscriptionManager.java
+  s_ff175ff013cf03::t_fa323b1606631c 105-112
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  s_ff175ff013cf03::t_ac782e9c16686b 1004,1007,1010-1017,1019,1022,1024,1030-1033,1088-1140
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  s_ff175ff013cf03::t_5de87bbf45d50f 151-171
+sdk-python/src/daytona/internal/event_dispatcher.py
+  s_ff175ff013cf03::t_e6b2209296a8ce 282-286,426-428,489-490,644-649
+sdk-python/src/daytona/internal/wait_poll.py
+  s_ff175ff013cf03::t_ef820c5ed740bd 9,57-59,65-69
+sdk-python/tests/conftest.py
+  s_ff175ff013cf03::t_e909116fdb311c 8,10,157,177-205
+sdk-ruby/lib/daytona/common/event_dispatcher.rb
+  s_ff175ff013cf03::t_a00429b2e3e3ae 33-35,104,162-166
+sdk-ruby/lib/daytona/common/event_subscription_manager.rb
+  s_ff175ff013cf03::t_453c6ebd4e6425 88-94
+sdk-ruby/lib/daytona/sandbox.rb
+  s_ff175ff013cf03::t_3055d79f581843 1236,1238,1241-1242,1363-1377,1495-1497,1500-1501,1511,1515-1522,1625-1630
+sdk-ruby/spec/daytona/event_dispatcher_spec.rb
+  s_ff175ff013cf03::t_1c6efd4b3d7a10 141-152
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_ff175ff013cf03::t_9fe7ce305b8937 31-32,1481-1529
+sdk-typescript/src/Sandbox.ts
+  s_ff175ff013cf03::t_8904a0bf27ef7b 74-77,493,495,554-558,676,725-727,761-762,764-767,803-804,806-809,1295,1316-1317,1319-1322,1397-1398,1585-1588,1597,1600
+sdk-typescript/src/__tests__/EventDispatcher.test.ts
+  s_ff175ff013cf03::t_91a455f9a83754 170-189
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_ff175ff013cf03::t_40e6c60f384f0c 71,113,839-881,1170-1259
+sdk-typescript/src/utils/EventDispatcher.ts
+  s_ff175ff013cf03::t_6d917df65a1be0 48,189,218,323-327
+sdk-typescript/src/utils/EventSubscriptionManager.ts
+  s_ff175ff013cf03::t_eb307d15155a18 38-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a3b1778260abe2fd5167ab8992257a956bae51e4",
+  "prompts": {},
+  "sessions": {
+    "s_ff175ff013cf03": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e16389801ffeRyXRbPC165k3N0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+sdk-typescript/src/v2/contextUpload.ts
+  s_dda305198a66db::t_10f02b3305760f 43,58,62-63
+  s_dda305198a66db::t_216465c447dec7 52-56,59
+  s_dda305198a66db::t_73bf56572c338c 64
+sdk-python/src/daytona/v2/_context_upload.py
+  s_dda305198a66db::t_82c48a93ec0b71 286-289
+  s_dda305198a66db::t_3899d334259fe8 252-270,303,309,311
+sdk-python/tests/test_build_context_upload.py
+  s_dda305198a66db::t_82c48a93ec0b71 351-370
+  s_dda305198a66db::t_d6589dda84eb7c 350
+cli/internal/toolbox/websocket.go
+  s_dda305198a66db::t_00003f297ee436 17,43-45,50,63
+upgrade/scripts/migration-notes.test.mjs
+  s_dda305198a66db::t_9c6d6a17a638ca 119-123
+cli/cmd/sandbox_ssh_exit_unix_test.go
+  s_dda305198a66db::t_00003f297ee436 46,51
+sdk-typescript/tests/build-context-upload.test.ts
+  s_dda305198a66db::t_10f02b3305760f 619
+  s_dda305198a66db::t_2bed40d19f123b 17,612-618
+  s_dda305198a66db::t_27e337ae12e9cc 620-621
+upgrade/mapping/mapping.schema.json
+  s_dda305198a66db::t_9c6d6a17a638ca 18
+AGENTS.md
+  s_dda305198a66db::t_ceac2bce421251 546-548
+cli/README.md
+  s_dda305198a66db::t_00003f297ee436 207-209
+cli/cmd/sandbox_ssh_test.go
+  s_dda305198a66db::t_00003f297ee436 76,138,146
+cli/internal/toolbox/websocket_cancel_test.go
+  s_dda305198a66db::t_00003f297ee436 130
+upgrade/typescript/tests/dockerfile-image-suggestions.test.ts
+  s_dda305198a66db::t_9c6d6a17a638ca 10,12,18-19,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "648a7941f11c34a70e464085441582d0e3b5da43",
+  "prompts": {},
+  "sessions": {
+    "s_dda305198a66db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e35ee078bffeVCQPlBYRzPTLnI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

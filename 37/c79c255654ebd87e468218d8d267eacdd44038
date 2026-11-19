@@ -1,0 +1,16 @@
+examples/go/go.mod
+  h_e7759ddd73fa65 11-23
+examples/go/go.sum
+  h_e7759ddd73fa65 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "37c79c255654ebd87e468218d8d267eacdd44038",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

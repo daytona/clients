@@ -1,0 +1,57 @@
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_fdce70cf6f1986::t_35f6772b5c5453 41
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  s_e07509f36188f5::t_08c4eb42a28eb4 40
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  s_fdce70cf6f1986::t_089fd63d09c0ab 286,299
+sdk-go/README.md
+  s_6471b643aa312f::t_fd0a32b1134c1f 316
+sdk-python/src/daytona/_async/daytona.py
+  s_fdce70cf6f1986::t_54a6e1078f0543 140
+sdk-python/src/daytona/_sync/daytona.py
+  s_fdce70cf6f1986::t_1ce63f9a9c357c 94
+sdk-python/tests/test_v1.py
+  s_1c1fa0bb9b90f5::t_58e833d8b84c3d 175-187
+sdk-ruby/scripts/generate-docs.rb
+  s_6471b643aa312f::t_6fd95654b3d692 136-141,145-146,190,223-226,228
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09c2e8129de579fabe5d205228175164fa1f84a5",
+  "prompts": {},
+  "sessions": {
+    "s_1c1fa0bb9b90f5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec0ddd074ffetONOdznUHOOf6D",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6471b643aa312f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec0de0f72ffearBb2Fp21Qig0i",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e07509f36188f5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec0dde495ffeG3zKPP2OSbfgXB",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_fdce70cf6f1986": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ec0de2098ffekpKgpInKh12gss",
+        "model": "gpt-5.4"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

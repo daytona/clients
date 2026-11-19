@@ -1,0 +1,685 @@
+sdk-python/tests/test_image_builder_context.py
+  s_35c1b93d4ebbc5::t_3aaa18abbfe895 9,23,302-312
+  s_080aea6899134f::t_be673d53ecc341 8,50,73-76,127-128
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 222-249
+  s_a8bfe3ca9ec8be::t_e46f535db1a168 273-277,280-301
+  s_4929c45be34f88::t_23d773f8c0336f 29,104-105
+  s_8478c3ca1d7f79::t_5eb0f76401d003 278-279
+  s_38231c7006792d::t_ca1eea4cdfa166 14,20
+  s_38231c7006792d::t_5bfd1b15ece928 67-68,70,72
+  s_38231c7006792d::t_1ba37f70d69edd 12,17,33-34,39-40,43,48,53-54,57,60,85-86,88,90,92-103,152
+  s_38231c7006792d::t_a5e8661874c092 1-7,10-11,13,15-16,18-19,21-22,24-28,30-32,35-38,41-42,44-47,49,51-52,55-56,58-59,61-66,69,71,77-84,106-126,129-151,153-159,161-183,185-203,208-219
+  s_38231c7006792d::t_3c7c6074b3d590 205-207
+  s_35c1b93d4ebbc5::t_a8b920ca88ca6a 220-221,250-266,268-272
+  s_f96982b855e516::t_17da0f7fbc1ba4 87,89,91
+  s_a8bfe3ca9ec8be::t_c45dfee42449d2 160,184,204,267
+changelog.d/builder-debian-slim.added.md
+  s_35c1b93d4ebbc5::t_a90ca7fd978434 1-3
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_cbbc375c9cec8b 316-330
+  s_4929c45be34f88::t_efb0da6c44d2f4 11,152-153
+  s_f96982b855e516::t_608dc11e404f0e 246-302
+  s_080aea6899134f::t_be673d53ecc341 129-131,133,213,222,224,230
+  s_f96982b855e516::t_64b0e34d1e53f6 6-7,10,14-16,19-26,29-49,56-86,88-98,197-198,201,205,207-212,214-221,223,225-229,231-245
+  s_a8bfe3ca9ec8be::t_5badb25bf841f2 27-28,50-55,87
+  s_a8bfe3ca9ec8be::t_4c12850b824dbf 303-315
+  s_35c1b93d4ebbc5::t_bb2e1dfc0eee79 13,17-18,168-181
+  s_4929c45be34f88::t_2a343bebddd70c 1-5,9,12,99-128,132,134-151,154-166
+  s_35c1b93d4ebbc5::t_32d0eef0782e3e 167
+  s_35c1b93d4ebbc5::t_f3945e3777d202 8,182-196,199-200,202-204,206
+  s_35c1b93d4ebbc5::t_a91bcd5f8f31e4 331-374
+sdk-python/src/daytona/v2/daytona.py
+  s_86295fe57ce14d::t_e3a432a71e04fa 604-608
+sdk-typescript/src/v2/builderLocalSource.ts
+  s_8a7ddf2071703b::t_2888a124f9cfb8 50
+  s_8a7ddf2071703b::t_1e16f911cd29d8 38,48-49
+  s_18096c3b8922e8::t_01eccea2e8479c 40-43,47,51-52
+  s_6d711aa4eb3d6d::t_dde95c9152320e 20,22-28,39
+  s_3723dfe076088f::t_ad0cf36cf7f517 19
+  s_63edd908f1f461::t_73d2b1ee16b022 46,53,56,59
+  s_18096c3b8922e8::t_efede7175ae3b7 1-8,11-18,30-35,37,54-55,57-58,60,63-64,70
+  s_a4eacf3154ecb3::t_3367aac5967c4a 44-45
+  s_18096c3b8922e8::t_b8053c70f7d4dd 29
+  s_35c1b93d4ebbc5::t_3ed63d00a6fbda 66-68
+  s_7273c37cef50a4::t_4728b393f40825 10,21,36,65,69
+  s_18096c3b8922e8::t_b96dfbe5fa9c9c 9,61-62
+.github/workflows/sdk-ci.yaml
+  s_86295fe57ce14d::t_e3a432a71e04fa 11,22
+sdk-python/src/daytona/v2/image.py
+  s_35c1b93d4ebbc5::t_102eb7345e26f7 77,81
+  s_6d711aa4eb3d6d::t_dde95c9152320e 54-58
+  s_35c1b93d4ebbc5::t_64f7121baa8132 8,78-80
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 87-88,193
+  s_8cd8469721668a::t_db02b397c1c572 63-65,96-97,194-196,209-211
+  s_8cd8469721668a::t_9ec7f277ce19f1 7,11,16,27,52-53,59-62,66-76,82-86,89-95,98-100,124-125,177-178,188-189,197-208
+  s_04c7bd7d8afdfd::t_c13c61fed6d449 212
+sdk-python/tests/fixtures/image-builder-directories.json
+  s_f96982b855e516::t_64b0e34d1e53f6 1-2,36-37,241-242
+  s_35c1b93d4ebbc5::t_960b97710ddc90 221-239
+  s_86295fe57ce14d::t_d0b94e24272d63 91-98
+  s_35c1b93d4ebbc5::t_7146b49a98d8cf 3-35,38-89,99-220,240
+  s_86295fe57ce14d::t_8ec1bc6284cc55 90
+docs/adr/0001-sdk-parity.md
+  s_35c1b93d4ebbc5::t_0cef0032c8b6e8 26-29
+sdk-python/tests/fixtures/dockerignore-refused.json
+  s_35c1b93d4ebbc5::t_7152565fefaed8 1-10
+sdk-typescript/tests/imageBuilderContextFixture.ts
+  s_f96982b855e516::t_17da0f7fbc1ba4 68-70
+  s_63edd908f1f461::t_6c2b2a47b5fa9f 64
+  s_63edd908f1f461::t_ff021350b5aead 1-5,8-25,27-29,38-39,47-52,60-63,65-67,71-82
+  s_080aea6899134f::t_e586804d3c75ee 6,40-46
+  s_7273c37cef50a4::t_53cd05d2bf329a 7,30-37,53-59
+  s_a4eacf3154ecb3::t_ce605940fde0b3 26
+changelog.d/builder-python-user-cmd.added.md
+  s_35c1b93d4ebbc5::t_fbb049839e0f97 1-3
+sdk-typescript/tests/image-builder-source-errors.test.ts
+  s_86295fe57ce14d::t_d0b94e24272d63 11,48-74,106-124
+  s_8a7ddf2071703b::t_7b501d1354d008 1-10,12-47,75-105
+  s_86295fe57ce14d::t_2cdc443460af9c 125
+sdk-typescript/tests/contextTar.ts
+  s_a7c1aaccc26af3::t_79a590ac0695d1 1-7,9-18,21-24,26-51,53-61
+  s_a7c1aaccc26af3::t_82a1d10acf6f77 19-20,25
+  s_a7c1aaccc26af3::t_bdc685c2487de1 8,52
+sdk-typescript/tests/image-builder-directory-parity.test.ts
+  s_7273c37cef50a4::t_53cd05d2bf329a 23-24,50,56
+  s_f96982b855e516::t_43b7fc0eb65796 9,37,94-96,131
+  s_f96982b855e516::t_bf53f4684c4abe 1-8,10-22,25-36,38-49,51-55,57-93,97-130,132-141
+sdk-typescript/src/v2/Image.ts
+  s_18096c3b8922e8::t_ed716e7dee3b12 11-14
+sdk-typescript/tests/image-builder-ignore-errors.test.ts
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 1-16
+sdk-typescript/README.md
+  s_35c1b93d4ebbc5::t_bb84c1f6b19ae3 494-519
+sdk-typescript/src/v2/contextEntries.ts
+  s_35c1b93d4ebbc5::t_b2087ed79a3b9e 60-61,77
+  s_35c1b93d4ebbc5::t_5e6f57dd2efaa5 31-34
+  s_308d02be00f3f8::t_e7f9e655c408f7 1-8,10-16,27-30,35-37,45-48,50-52,54,56,58-59,62,64-65,73-76,78-79
+  s_86295fe57ce14d::t_e3a432a71e04fa 40
+  s_f96982b855e516::t_926cbb93c937f3 18,38-39,41-44,63
+  s_308d02be00f3f8::t_7cf6630f0eeb46 19-20,22-26,53
+  s_35c1b93d4ebbc5::t_066b8ad3eab972 66-72
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 9,17,21
+  s_308d02be00f3f8::t_ea9df617dbbb09 49,55
+  s_63edd908f1f461::t_04ef29a60a279e 57
+sdk-typescript/src/v2/dockerignorePattern.ts
+  s_9d2460a3a992dc::t_d8c07f2c81b284 8,177-182,184-186,192,216-217,219-221,223
+  s_7e133f6b5c879b::t_f19fda9dfce92c 1-6,9,11-21,23-26,28-31,33,43,50,59,61-63,108,110-115,118-127,130-136,138-139,141-147,157-159,163-164,166,189,225,227
+  s_7273c37cef50a4::t_4728b393f40825 117,165,173
+  s_35c1b93d4ebbc5::t_c5b145287fab32 34-42,44-49,51-58,60,64-107,109
+  s_35c1b93d4ebbc5::t_a654cbabae7bb4 211-212
+  s_e01047f4ff573b::t_6b685567ea0e77 7,160-162
+  s_8478c3ca1d7f79::t_131875d425eee4 148-156
+  s_7e133f6b5c879b::t_f126da48c8abda 10,22,27,32,116,128-129,137,140,167-172,174-176,183,187-188,190-191,193-209,214-215,218,222,224,226
+  s_35c1b93d4ebbc5::t_69564c48dda113 210,213
+sdk-python/README.md
+  s_35c1b93d4ebbc5::t_43bd1de367dc73 560-586
+sdk-python/tests/test_dockerignore.py
+  s_8478c3ca1d7f79::t_5eb0f76401d003 11,40-57,59-60,62-63
+  s_a8bfe3ca9ec8be::t_d0e25e33f13535 22-23
+  s_86295fe57ce14d::t_9ced5727e491c1 229,235,238-239
+  s_e01db5294d1d1b::t_78d9bb7c8a5436 212-228,230,232-233,236,241-253
+  s_35c1b93d4ebbc5::t_73b06e79620474 346-358
+  s_35c1b93d4ebbc5::t_038b20765223e3 8,366-377
+  s_080aea6899134f::t_e586804d3c75ee 74-82
+  s_35c1b93d4ebbc5::t_36ba541dac5401 359-365
+  s_e01db5294d1d1b::t_24ab5095c7f626 280-296,299-319
+  s_86295fe57ce14d::t_63ad6fd07323dc 231
+  s_8478c3ca1d7f79::t_6f7a3aaf688d72 340-344
+  s_8478c3ca1d7f79::t_131875d425eee4 10,330-339,345
+  s_e01db5294d1d1b::t_48c31f6cc7ecae 102-106,126-128
+  s_86295fe57ce14d::t_c9da6585adccb8 237
+  s_e01db5294d1d1b::t_6fb4e01e90bc60 1-7,9,15,17-18,20-21,24-26,29-39,67-73,83-101,107-122,129-186,188-211,254-260,262-279
+  s_e01db5294d1d1b::t_f6282352c1a2fe 12-14,19,27-28,187,261
+  s_e01047f4ff573b::t_6b685567ea0e77 16,58,61,64
+  s_a8bfe3ca9ec8be::t_4c12850b824dbf 320-329
+  s_86295fe57ce14d::t_d0b94e24272d63 234
+  s_86295fe57ce14d::t_7a90e6fc8d486a 240
+  s_8478c3ca1d7f79::t_04e226565d378b 65-66
+  s_3723dfe076088f::t_05fedc2066ca94 123-125,297-298
+sdk-python/src/daytona/v2/_dockerignore.py
+  s_35c1b93d4ebbc5::t_dbcae56d0675f5 188-190
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 69-74,80-83,170-172
+  s_e01db5294d1d1b::t_f73a8a14c061f0 1-7,9-10,12-14,17,22,24,26-32,34-38,40-43,45-62,64,66-68,75-78,85-88,90-109,111-124,126-135,137-169,173-176,178,181-182,186-187,192,213-226,229-230
+  s_e01db5294d1d1b::t_f6282352c1a2fe 11,16,23,25,39,44,63,65,179-180
+  s_e01db5294d1d1b::t_48c31f6cc7ecae 79,84,89,110,125,136
+  s_a8bfe3ca9ec8be::t_d0e25e33f13535 18-19
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 183,199-209,227-228
+  s_86295fe57ce14d::t_e3a432a71e04fa 177,191,193-198
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 8,15,20-21,33,184-185,210-212
+sdk-python/tests/test_image_context_create.py
+  s_38231c7006792d::t_ca1eea4cdfa166 1-13,15-29,31-52,59-61,91-96,102-103,108-131
+  s_38231c7006792d::t_1ba37f70d69edd 14,53
+  s_38231c7006792d::t_3c7c6074b3d590 30,54-58,62-90,97-101,104-107
+examples/README.md
+  s_35c1b93d4ebbc5::t_20930063cc8aa5 30,48,72,126
+docs/adr/0006-image-builder-local-context.md
+  s_9d2460a3a992dc::t_5ce3dfdd70d4c9 51-52,144,190-191,194-197
+  s_86295fe57ce14d::t_e3a432a71e04fa 145-149,155-158,181-184
+  s_35c1b93d4ebbc5::t_1020a33564785c 251-253
+  s_080aea6899134f::t_5c1028d6248a67 107-109,123,136-139,141-143,150-154
+  s_35c1b93d4ebbc5::t_dcf62f2eec8354 53-56
+  s_35c1b93d4ebbc5::t_e7c300fb649cb7 57-59,63,67-68,130-135
+  s_a8bfe3ca9ec8be::t_626e72809949e9 64
+  s_35c1b93d4ebbc5::t_3211203f7549c3 193
+  s_f96982b855e516::t_e1c2d681290b09 187
+  s_35c1b93d4ebbc5::t_3c7383a356625d 159-160
+  s_e01047f4ff573b::t_af5daa9dee799b 192
+  s_9d2460a3a992dc::t_61acbb2e828f92 198-199
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 37,62,65-66,69-75,84-90,161-163
+  s_35c1b93d4ebbc5::t_104595d827b8ac 1-36,38-40,49-50,60-61,76-83,91-106,110-111,120-122,124-127,165-168,172-177,188-189,200-250
+  s_f96982b855e516::t_6ec2787462ec9d 41-43,112-119,128-129,140,164,169-171,178-180,185-186
+  s_86295fe57ce14d::t_63ad6fd07323dc 44-48
+sdk-python/src/daytona/v2/_image_source.py
+  s_8cd8469721668a::t_9ec7f277ce19f1 1-7,10,12-27,51-52,80-81,88,91-95,97-101
+  s_6d711aa4eb3d6d::t_dde95c9152320e 28-34,53-59,65
+  s_a8bfe3ca9ec8be::t_626e72809949e9 84,86
+  s_4929c45be34f88::t_a3a9053da6d3f7 83,90,96
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 9,35-38,42-44,48-50,66,87
+  s_6d711aa4eb3d6d::t_3e53a89b9a6719 60
+  s_8a7ddf2071703b::t_1e16f911cd29d8 8,11,61-64,67-79,82,89
+  s_35c1b93d4ebbc5::t_24f60a9a46363a 85
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 39-41,45-47
+sdk-typescript/tests/dockerignore-errors.test.ts
+  s_7273c37cef50a4::t_53cd05d2bf329a 9,11,13
+  s_7273c37cef50a4::t_26d13fcfb0c50b 1-8,10,12,14-26
+upgrade/MIGRATION.md
+  s_86295fe57ce14d::t_543023e68621a1 87,98,118,129
+sdk-typescript/src/v2/archiveWalk.ts
+  s_7e133f6b5c879b::t_f126da48c8abda 13,20,27,32
+  s_35c1b93d4ebbc5::t_f913c9c7cce91e 33,56-59,67-71,74-76
+  s_7e133f6b5c879b::t_f19fda9dfce92c 1-10,12,14-19,21-26,28-31,34-38,40-44,47,52-54,60-66,72-73,77-87
+  s_7273c37cef50a4::t_4728b393f40825 39,45-46,55
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 11
+  s_86295fe57ce14d::t_e3a432a71e04fa 48-51
+sdk-typescript/src/v2/dockerignoreNfa.ts
+  s_e01047f4ff573b::t_ac7d6ea0d3bef0 6
+  s_e01047f4ff573b::t_6b685567ea0e77 1-5,7-89
+sdk-python/src/daytona/v2/_dockerignore_regexp.py
+  s_9d2460a3a992dc::t_f81c9eb8116051 8,14,17-19,24,43,52,54,58
+  s_35c1b93d4ebbc5::t_1ece9cc6d4c71c 11,42,44-49
+  s_9d2460a3a992dc::t_61acbb2e828f92 29-30
+  s_8478c3ca1d7f79::t_131875d425eee4 1-7,9-10,12-13,15-16,20-23,25-28,31-41,50-51,53,55-57,59-60
+sdk-typescript/src/v2/contextPath.ts
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 17-27
+  s_7273c37cef50a4::t_4728b393f40825 1-10,15-16
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 11-14
+AGENTS.md
+  s_35c1b93d4ebbc5::t_4030b24028a957 92-95
+sdk-python/tests/fixtures/dockerignore-edge-cases.json
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 54-55,68-70,85-87,102-104,123-125,140-142,157-159,174
+  s_35c1b93d4ebbc5::t_df9759c59ca3bc 4-13,17-26,30-39,43-52,56-67,71-84,88-101,105-122,126-139,143-156,160-173,502-562
+  s_8478c3ca1d7f79::t_5eb0f76401d003 1,564
+  s_35c1b93d4ebbc5::t_207b6a9e76a2d6 175-481,563
+  s_9d2460a3a992dc::t_61acbb2e828f92 2-3,14-16,27-29,40-42,53
+  s_35c1b93d4ebbc5::t_fef3ada0100ddc 482-489,491-500
+  s_35c1b93d4ebbc5::t_0d7e74684e5068 490,501
+sdk-python/tests/fixtures/dockerfile-escape.json
+  s_35c1b93d4ebbc5::t_ec429431d4fc67 1-61
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_6d711aa4eb3d6d::t_dde95c9152320e 516-521
+  s_080aea6899134f::t_be673d53ecc341 222-227
+  s_3723dfe076088f::t_5a61f5621e1e41 515
+  s_35c1b93d4ebbc5::t_2d33390cb6667e 2,136-217,505-514,522-575
+  s_080aea6899134f::t_3c5167992656fa 221
+examples/python/local_files.py
+  s_35c1b93d4ebbc5::t_fc4503667dc430 1-3,6-92
+  s_9d2460a3a992dc::t_5ce3dfdd70d4c9 4-5
+cli/internal/dockerignore/edge_cases_test.go
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 1-41
+sdk-typescript/tests/image-builder-utf8.test.ts
+  s_7273c37cef50a4::t_1d1b0314bdcc7e 70-87,89-106
+  s_7273c37cef50a4::t_26d13fcfb0c50b 1-11,13-23,27-36,38-41,44-51,53-69
+  s_a8bfe3ca9ec8be::t_0627370cf203a4 26,37,42-43
+  s_35c1b93d4ebbc5::t_345d3026bf9775 107-121
+  s_35c1b93d4ebbc5::t_1f0fa6b089c38d 24-25,122-148
+  s_a8bfe3ca9ec8be::t_39ad842f2caf7f 12,52,88
+examples/typescript/examples.test.ts
+  s_35c1b93d4ebbc5::t_003a3978605160 63,116
+sdk-typescript/tests/image-builder-upload.test.ts
+  s_a7c1aaccc26af3::t_32304c636d9845 1-42,44-68,70-123
+  s_7273c37cef50a4::t_1d1b0314bdcc7e 43,69
+examples/python/test_examples.py
+  s_35c1b93d4ebbc5::t_602ed294fe426b 478-482,494,987
+sdk-typescript/tests/image-builder-parity.test.ts
+  s_63edd908f1f461::t_78ac69289f8723 90-96
+  s_63edd908f1f461::t_e6cb4e5fc8bce7 74-89
+  s_63edd908f1f461::t_fad086dda97e5b 152-154
+  s_f96982b855e516::t_bf53f4684c4abe 136
+  s_63edd908f1f461::t_3c26804c056aec 19-20,24-29,40,42,44-56,144
+  s_63edd908f1f461::t_6c2b2a47b5fa9f 41
+  s_6d711aa4eb3d6d::t_dde95c9152320e 130-135,137-143
+examples/typescript/local-files/index.ts
+  s_35c1b93d4ebbc5::t_4de30f2b377fc2 1-78,80-81,85
+  s_35c1b93d4ebbc5::t_aa667f20d83e00 79,82-84
+sdk-typescript/src/v2/builderText.ts
+  s_63edd908f1f461::t_73d2b1ee16b022 10,15,26,33,38,49,71,76,83,90
+  s_18096c3b8922e8::t_b96dfbe5fa9c9c 72
+  s_18096c3b8922e8::t_efede7175ae3b7 1-9,11-14,16-25,27-32,34-37,39-48,50-70,73-75,77-82,84-89,91-97
+examples/package.json
+  s_35c1b93d4ebbc5::t_4bbeca0550f281 13
+sdk-python/src/daytona/v2/_dockerignore_pattern.py
+  s_35c1b93d4ebbc5::t_c7ce085179f78d 10,188-193
+  s_e01db5294d1d1b::t_283f0be3cadf54 19-20
+  s_8478c3ca1d7f79::t_131875d425eee4 18,131-134
+  s_e01047f4ff573b::t_6b685567ea0e77 17,136,187,196
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 194-195
+  s_a8bfe3ca9ec8be::t_d0e25e33f13535 16
+  s_e01db5294d1d1b::t_f6282352c1a2fe 29
+  s_e01db5294d1d1b::t_f73a8a14c061f0 1-9,12-15,21-28,30-130,135,137-186
+  s_35c1b93d4ebbc5::t_6d1a44cf6a583c 11
+sdk-typescript/tests/image-builder-escape.test.ts
+  s_7273c37cef50a4::t_26d13fcfb0c50b 1-36,39,41-68
+  s_8478c3ca1d7f79::t_5eb0f76401d003 37-38
+  s_a8bfe3ca9ec8be::t_e46f535db1a168 40
+sdk-python/tests/test_image_builder_parity.py
+  s_a8bfe3ca9ec8be::t_4c12850b824dbf 256-262,266-273
+  s_a8bfe3ca9ec8be::t_626e72809949e9 275-284
+  s_8cd8469721668a::t_db02b397c1c572 169-178,238-240
+  s_6d711aa4eb3d6d::t_60e13c8d72b700 197
+  s_8cd8469721668a::t_e2098de2451bef 16,156-168,179-183,185,187-189,191,193-196,212-237,241-252,254
+  s_8cd8469721668a::t_7310486ba4a909 255
+  s_8cd8469721668a::t_9ec7f277ce19f1 34-42,58-63
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 184,186,190,192,253
+  s_6d711aa4eb3d6d::t_941d0a761866a1 199-201
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 263-265,274
+  s_6d711aa4eb3d6d::t_dde95c9152320e 198,202-211
+sdk-typescript/tests/image-builder-archive.test.ts
+  s_a4eacf3154ecb3::t_77d27aa0654165 13,40,50,54-80,83,86-89,93-97,99-106,108-132
+  s_f96982b855e516::t_dc25d5f68f8612 1-5,7-12,14-39,41-49,51-53
+  s_a4eacf3154ecb3::t_d245ac4612d0e6 81-82,84-85,90-92,98,107
+  s_f96982b855e516::t_17da0f7fbc1ba4 6
+sdk-typescript/src/v2/contextArchive.ts
+  s_308d02be00f3f8::t_e7f9e655c408f7 9,126-127
+  s_7273c37cef50a4::t_6b6eb3bb0d9863 14
+  s_8a7ddf2071703b::t_1e16f911cd29d8 102-107,109-112
+  s_35c1b93d4ebbc5::t_5b22d3136e5f05 58-81,86-87
+  s_f96982b855e516::t_926cbb93c937f3 116
+  s_308d02be00f3f8::t_ea9df617dbbb09 37,91,93-97
+  s_7273c37cef50a4::t_4728b393f40825 32,84-85,88,90
+  s_308d02be00f3f8::t_9b8cc25acf6158 89,99-101,113-115,117
+  s_35c1b93d4ebbc5::t_3e4a928c2b21cc 12-13,83,92
+  s_308d02be00f3f8::t_95ad1d7c244b7f 1-8,10-11,15-31,33-36,38-57,82,98,118-125,128-137
+  s_86295fe57ce14d::t_e3a432a71e04fa 108
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_35c1b93d4ebbc5::t_b2a7629878b8e3 3779,3790,4040,4047
+  s_86295fe57ce14d::t_8c1244cb3b036f 3780,3791,4041,4048
+cli/internal/dockerignore/refused_cases_test.go
+  s_35c1b93d4ebbc5::t_4c59687604cd95 1-34
+sdk-python/src/daytona/v2/services.py
+  s_4929c45be34f88::t_9ac15d49bf2d8f 68
+  s_4929c45be34f88::t_a0857182a35726 64,193-194,208-218,241,243-247,255,261-264
+  s_04c7bd7d8afdfd::t_efc5fcec76387d 138-139
+  s_4929c45be34f88::t_7f7965bf046c9f 130-137
+sdk-typescript/tests/image-builder-source-safety.test.ts
+  s_a4eacf3154ecb3::t_3367aac5967c4a 80
+  s_35c1b93d4ebbc5::t_064c45ec45bce4 69,81
+  s_35c1b93d4ebbc5::t_dc0f5e8d77a57e 77-79
+  s_a4eacf3154ecb3::t_6e4fe25d7d5f13 1-68,70-76,82-84
+  s_7273c37cef50a4::t_06cec6f88193c4 85-109
+sdk-typescript/src/v2/dockerignoreClass.ts
+  s_9d2460a3a992dc::t_d8c07f2c81b284 1-51,53-70,73-120
+  s_9d2460a3a992dc::t_8e0cdea3b9ef70 52
+  s_9d2460a3a992dc::t_61acbb2e828f92 71-72
+sdk-python/tests/test_image_context_upload.py
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 91
+  s_38231c7006792d::t_5bfd1b15ece928 10,240
+  s_080aea6899134f::t_5b9fb8b8326fd5 114
+  s_080aea6899134f::t_5c1028d6248a67 113,121,123,125-127,129
+  s_38231c7006792d::t_dfb92622d689ef 1-9,11-39,41-83,87-90,92-98,102-107,111-112,115-118,120,122,130-131,133-134,136-137,145-147,149,151-165,175-213,215-239,241-244
+  s_38231c7006792d::t_ca1eea4cdfa166 166-168,173-174
+  s_38231c7006792d::t_3c7c6074b3d590 40,84-86,99-101,108-110,119,124,128,132,135,138-144,148,150,169-172,214
+changelog.d/build-from-context-directory.added.md
+  s_35c1b93d4ebbc5::t_20982d99c43158 1-4
+examples/typescript/test-support/fake-sdk.ts
+  s_35c1b93d4ebbc5::t_b0fe9cbd1d5caa 140,157-161,190
+upgrade/mapping/mapping.json
+  s_86295fe57ce14d::t_1f78cfc22ba9d3 3780,3791,4041,4048
+  s_35c1b93d4ebbc5::t_213359e31139ea 3779,3790,4040,4047
+sdk-python/src/daytona/v2/_dockerignore_error.py
+  s_a8bfe3ca9ec8be::t_5f04410771e4df 1-15
+sdk-python/src/daytona/v2/_image_context.py
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 85-87,193-194
+  s_8a7ddf2071703b::t_1e16f911cd29d8 15,144-146,151-156,159,170
+  s_f96982b855e516::t_f7d257d7494cc4 191
+  s_35c1b93d4ebbc5::t_65475675413500 95-126,130-134
+  s_86295fe57ce14d::t_e3a432a71e04fa 9,63-66,147-150
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 46,88,129,135,138-139,180
+  s_f96982b855e516::t_6ec2787462ec9d 52-55,57
+  s_a8bfe3ca9ec8be::t_d790225f1df910 14,29
+  s_35c1b93d4ebbc5::t_44501f4aaf1a74 240-242
+  s_4929c45be34f88::t_7292eafbcdefa0 186,190,210-211
+  s_f96982b855e516::t_886a51ad1cf97d 51,56
+  s_4929c45be34f88::t_16ad15ecc718d5 166-169,177
+  s_f96982b855e516::t_926cbb93c937f3 10-11,34-42,50,58-62,67-74,78
+  s_080aea6899134f::t_5b9fb8b8326fd5 162-164,173-175,224-226
+  s_080aea6899134f::t_223f432c386595 8,16,18,21,28,127,160-161,165,171-172,176,184,187-189,196-209,223,234-237
+  s_4929c45be34f88::t_928d214470d261 1-7,12-13,17,19-20,22-27,31-33,43-45,47-49,75-77,79-84,89-94,128,136-137,140-143,157-158,178-179,181-183,185,192,195,212-218,221-222,227-230,232-233,238-239
+  s_a8bfe3ca9ec8be::t_5f04410771e4df 30
+  s_f96982b855e516::t_7e9df415beb7c9 219-220,231,243
+sdk-python/src/daytona/v2/_image_archive.py
+  s_080aea6899134f::t_f47939dedce582 1-20,22-32,34-37,62-120,122-154
+  s_a8bfe3ca9ec8be::t_a8f92fd69d36df 21,38
+  s_8478c3ca1d7f79::t_27ee826c6f31d5 33,39-42,46-61,121
+  s_35c1b93d4ebbc5::t_d010964abe99a3 43-45
+examples/run-examples.sh
+  s_35c1b93d4ebbc5::t_c3cd8ae7b8b0f2 12,26-27
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_86295fe57ce14d::t_16511a44909833 234-238
+sdk-python/tests/test_image_source_errors.py
+  s_8a7ddf2071703b::t_d679682e6b7e4a 8,36-39,41-42
+  s_8a7ddf2071703b::t_7b501d1354d008 1-7,9-35,40,43-81
+upgrade/typescript/src/mapping.json
+  s_35c1b93d4ebbc5::t_c99e8a493e0904 3779,3790,4040,4047
+  s_86295fe57ce14d::t_a19cb560ac3192 3780,3791,4041,4048
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_f8c16c61ac5858 15-23,28,32,69,80,88,93,97
+  s_8a7ddf2071703b::t_1e16f911cd29d8 67-68,78-79,84,87
+  s_35c1b93d4ebbc5::t_666bf3e02e0aa1 72-74
+  s_35c1b93d4ebbc5::t_7baf2831c99f8a 85-86
+  s_18096c3b8922e8::t_efede7175ae3b7 1-11,13-14,24-27,29-31,33-44,47-66,70,76-77,81-83,89-92,94-96,98-153
+  s_18096c3b8922e8::t_b96dfbe5fa9c9c 12,75
+  s_35c1b93d4ebbc5::t_e2521acdc6a766 71
+  s_63edd908f1f461::t_73d2b1ee16b022 45-46
+sdk-typescript/src/v2/Images.ts
+  s_35c1b93d4ebbc5::t_50882160f757c9 18,111
+  s_308d02be00f3f8::t_e1f7c57f7d46ce 17,109-110,112-118,125-126,141,146-147
+  s_f96982b855e516::t_7e9df415beb7c9 16
+  s_a4eacf3154ecb3::t_ce605940fde0b3 142
+  s_f96982b855e516::t_f7d257d7494cc4 19,143-145,148
+  s_308d02be00f3f8::t_89c70970c5d1bf 135-136,138
+sdk-python/tests/test_image_context_races.py
+  s_080aea6899134f::t_223f432c386595 134,141,157
+  s_080aea6899134f::t_4d7bad6c94d990 161-165
+  s_080aea6899134f::t_5b9fb8b8326fd5 71-73,94-98
+  s_a8bfe3ca9ec8be::t_65d7ac569f1ab6 203
+  s_a8bfe3ca9ec8be::t_5badb25bf841f2 236-251,255-292
+  s_a8bfe3ca9ec8be::t_eec1d36ece56cd 18-25,252-254
+  s_080aea6899134f::t_6556cc0065a639 1-9,13-17,26-50,74-93,99-120,122-133,136-140,145,152,154-156,159-160,166-168
+  s_080aea6899134f::t_b372a1c1b0ff17 11-12,135,142-144,146-151,153,158,169-202,204-235
+  s_86295fe57ce14d::t_d0b94e24272d63 51-70
+  s_080aea6899134f::t_7546c93629c8b5 10,121
+sdk-python/src/daytona/v2/_dockerignore_nfa.py
+  s_e01047f4ff573b::t_6b685567ea0e77 1-91
+sdk-typescript/tests/image-builder-directory.test.ts
+  s_a7c1aaccc26af3::t_32304c636d9845 1-9,11-24,40-50,52-60,62-78,80-83
+  s_a7c1aaccc26af3::t_208ae050f986f3 10,25-28,30-39
+  s_63edd908f1f461::t_40f84ed3047f26 51,61
+  s_a7c1aaccc26af3::t_82a1d10acf6f77 79
+  s_a4eacf3154ecb3::t_6e4fe25d7d5f13 29
+sdk-typescript/src/v2/contextTar.ts
+  s_308d02be00f3f8::t_3a27b35e2ff067 102
+  s_a4eacf3154ecb3::t_2e63873bfdcf26 98-99,122,137-138,149
+  s_f96982b855e516::t_926cbb93c937f3 15,38-41,49,97,103-104,113-115,152-153
+  s_308d02be00f3f8::t_6af891f89f286f 1-14,16-23,25-37,42-48,50-57,59-87,90-96,136,139-142,147,150-151,154
+  s_a4eacf3154ecb3::t_0f1037022e4946 100-101,105-112,116-121,123-134,143-146,148
+  s_080aea6899134f::t_4ca95e904172fa 135
+  s_308d02be00f3f8::t_0ca565e9e1eeb6 24,58
+  s_308d02be00f3f8::t_ea9df617dbbb09 88-89
+sdk-typescript/tests/contextUploadServer.ts
+  s_a7c1aaccc26af3::t_7ae269270cd2e0 26-27,53-54,60
+  s_a7c1aaccc26af3::t_79a590ac0695d1 1-11,14-24,35-36,38-45,47-52,55-57,59,61-81,83-88,91-102
+  s_a7c1aaccc26af3::t_82a1d10acf6f77 12-13,25,28-34,37,58,82,89-90
+  s_a7c1aaccc26af3::t_812d80f89b4a2a 46
+changelog.d/builder-local-files.added.md
+  s_35c1b93d4ebbc5::t_f4ed4adcaae079 1-6
+sdk-typescript/tests/image-builder-context.test.ts
+  s_a4eacf3154ecb3::t_ce605940fde0b3 7,48-50
+  s_63edd908f1f461::t_1e1865bde6ffc0 20,38-43
+  s_63edd908f1f461::t_6c2b2a47b5fa9f 67-70
+  s_63edd908f1f461::t_ff021350b5aead 1-6,10-11,13,17-19,21-36,44-47,51-66,71-79,81-112,116-125,127-136,138-154,156-178,191
+  s_63edd908f1f461::t_e6cb4e5fc8bce7 8,12,179-190
+  s_63edd908f1f461::t_723f425dfb1170 192,218-244
+  s_7273c37cef50a4::t_53cd05d2bf329a 80,114-115,137,155
+  s_8478c3ca1d7f79::t_919cf82d217b04 9,193-216
+  s_8478c3ca1d7f79::t_06fcc1b32776fa 217
+  s_35c1b93d4ebbc5::t_69ad937a1aea9e 14-15,260-264
+  s_35c1b93d4ebbc5::t_0aad7843b8d703 16,37,113,126
+  s_63edd908f1f461::t_40f84ed3047f26 245-259
+sdk-python/src/daytona/v2/_dockerignore_class.py
+  s_9d2460a3a992dc::t_f81c9eb8116051 1-114,116,118-154
+  s_9d2460a3a992dc::t_61acbb2e828f92 115,117
+sdk-typescript/tests/dockerignore.test.ts
+  s_7e133f6b5c879b::t_35ac3dd6bd9205 51
+  s_35c1b93d4ebbc5::t_32a3b1b0644346 112-114
+  s_8478c3ca1d7f79::t_5eb0f76401d003 10,22-23,25-27,29-30,32
+  s_080aea6899134f::t_e586804d3c75ee 78-86
+  s_7e133f6b5c879b::t_6348d2c598eba6 1-9,12-15,34-50,52-77,176-196,203-244
+  s_9d2460a3a992dc::t_61acbb2e828f92 199-202
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 133
+  s_9d2460a3a992dc::t_ef79ebc9d082f3 197-198
+  s_7e133f6b5c879b::t_1499bf0d9c6a68 131-132,140-173
+  s_35c1b93d4ebbc5::t_c60b497ae3c113 126
+  s_3723dfe076088f::t_ace87f6bea3665 138-139
+  s_7e133f6b5c879b::t_1c3ca6ae3cc46e 87-96,117-123,174-175
+  s_e01047f4ff573b::t_6b685567ea0e77 24,28,31
+  s_35c1b93d4ebbc5::t_ae880e9ce2fb7d 11,16-21
+  s_7e133f6b5c879b::t_5a096c2b9bfba8 97-111,124-125,127-130
+  s_3723dfe076088f::t_05fedc2066ca94 115-116,134-137
+  s_8478c3ca1d7f79::t_b6cc5f61211f33 33
+sdk-python/src/daytona/v2/_context_upload.py
+  s_4929c45be34f88::t_a0857182a35726 38
+sdk-typescript/src/v2/dockerignore.ts
+  s_7273c37cef50a4::t_4728b393f40825 64,67
+  s_7e133f6b5c879b::t_f19fda9dfce92c 1-13,15-42,44-47,49-53,55-63,65-66,68-120,122-142
+  s_7e133f6b5c879b::t_f126da48c8abda 14,43,48,54,121
+sdk-typescript/tests/image-builder-cleanup.test.ts
+  s_a4eacf3154ecb3::t_1db9797376fa61 6,30-35
+  s_a7c1aaccc26af3::t_a8c101c55fa087 1-5,7-9,11-22,51-93
+  s_a4eacf3154ecb3::t_e9b83bd9caf622 49-50
+  s_a4eacf3154ecb3::t_6e4fe25d7d5f13 10,23-29,36-48
+sdk-python/src/daytona/v2/_sync/services.py
+  s_4929c45be34f88::t_08403e598bda81 65-66,86,88-92
+sdk-python/tests/fixtures/image-builder-context.json
+  s_6d711aa4eb3d6d::t_dde95c9152320e 284-286,297-301,312-313
+  s_35c1b93d4ebbc5::t_01f4d201e128d4 167-185,187-195,200-212,214-222,239-280,438-450
+  s_080aea6899134f::t_be673d53ecc341 131
+  s_080aea6899134f::t_7e503173fabd37 99
+  s_35c1b93d4ebbc5::t_1c06b09f9ae4b2 132-163,287-296,302-311
+  s_a8bfe3ca9ec8be::t_5d1f4166e0ebd2 6,65,196,223
+  s_35c1b93d4ebbc5::t_e8502efa5301bc 1-5,7-44,46-48,50-54,56-59,61-64,66-83,85-87,89,91-93,95-98,100-130,225-238,281-283,314-413,415-433,469-471
+  s_a8bfe3ca9ec8be::t_c45dfee42449d2 45,49,55,60,84,88,90,94,165-166,186,197-199,213,224,414,434-437
+  s_35c1b93d4ebbc5::t_a8f28eb2719d8b 164,451-468
+sdk-python/tests/fixtures/image-builder-archives.json
+  s_f96982b855e516::t_64b0e34d1e53f6 1-5,7-16,18-20
+  s_f96982b855e516::t_17e8b2a37d5207 6,17
+sdk-typescript/src/v2/contextUpload.ts
+  s_308d02be00f3f8::t_e1f7c57f7d46ce 19
+sdk-python/tests/test_dockerignore_class_errors.py
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 1-9,11-17,19
+  s_9d2460a3a992dc::t_8e0cdea3b9ef70 18
+  s_9d2460a3a992dc::t_61acbb2e828f92 10,20-27
+.github/workflows/cli-ci.yaml
+  s_86295fe57ce14d::t_e3a432a71e04fa 9,15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca282bc2b2af71557dbdec4b78a0ddbe1828867d",
+  "prompts": {},
+  "sessions": {
+    "s_04c7bd7d8afdfd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4dff5cffewRXMr6YUWGR5at",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_080aea6899134f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3881fa7affeZqDAEbC3zZLg74",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_18096c3b8922e8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f58a54ffe8wio80zNq7v9OD",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_308d02be00f3f8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f69518ffez1iPXoC9eguckD",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_3723dfe076088f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38a1d34cffeDsBvcdFWIO3373",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_38231c7006792d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f6149effekHVvSH0CEs5xUk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_4929c45be34f88": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f74fc8ffeudH6W2SyBdsF2e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_63edd908f1f461": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f72e74ffe1uhou9b7qzJ3yl",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6d711aa4eb3d6d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38a1b8d5ffeVKtTYyb9OwIkaZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7273c37cef50a4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3857b9a2ffepKOrR01o4rA3cT",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7e133f6b5c879b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f6cb54ffePCi4HQUvJ2xUiv",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_8478c3ca1d7f79": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3829c79effe1He4uAkyL5DO6M",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_86295fe57ce14d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3713b0e2ffe7JIZIF8XxxkUwB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_8a7ddf2071703b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3775b1bbffez7tKuLPkiq3gJj",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_8cd8469721668a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f6568effe37fkPaaj6rOTPo",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_9d2460a3a992dc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37760cffffefqPD4DBGkpGP79",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a4eacf3154ecb3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38816489ffeIDpMFxhCXI2H6k",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a7c1aaccc26af3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f67743ffeFV83xJhk2UutDv",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a8bfe3ca9ec8be": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3858573cffefwbBvmMn2USQYE",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e01047f4ff573b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37d09c89ffenwRKWOLt7QOKce",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e01db5294d1d1b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38f6b19cffe5UF06ZIuTomRmF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f96982b855e516": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e38a25d02ffeO9dSEUD37uIl2U",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+changelog.d/539-lifecycle-waits.breaking.md
+  s_ca009e77d17705::t_fd339b84777cea 20-24
+  s_ca009e77d17705::t_45d422d0f95e1c 9-13
+changelog.d/539-platform-services.breaking.md
+  s_ca009e77d17705::t_28206d7a1d9462 15-16
+changelog.d/539-ts-option-keys.breaking.md
+  s_ca009e77d17705::t_2985cd4a77f856 7-14
+AGENTS.md
+  s_ca009e77d17705::t_fd339b84777cea 607-611
+  s_ca009e77d17705::t_d5e61394355619 468-475
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a67031561b04c78bf187c2999df9cd8a9cddea53",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

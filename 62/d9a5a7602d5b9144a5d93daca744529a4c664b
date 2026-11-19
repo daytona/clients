@@ -1,0 +1,30 @@
+sdk-python/src/daytona/v2/_bridge.py
+  s_9a337fd66d5341::t_9c691ed8a05e08 86-87,219-220,225-227,231-232,411-418,429,436-440,451
+sdk-python/tests/test_toolbox_surface.py
+  s_9a337fd66d5341::t_18bdb50f0c538b 1992-2019
+sdk-python/tests/test_core.py
+  s_9a337fd66d5341::t_5c3dc18fbba2fb 6693-6732
+sdk-python/src/daytona/v2/_core.py
+  s_9a337fd66d5341::t_a2159157325698 322-324,339,345,350-357,373-379,416-425
+  s_9a337fd66d5341::t_6d1dfcec35714c 230-235,237-240,243-251,254,256-259
+sdk-python/tests/test_bridge.py
+  s_9a337fd66d5341::t_5e6947b4294232 981,1027
+  s_9a337fd66d5341::t_5398730e11469d 963-980,982-1026,1028-1035
+  s_9a337fd66d5341::t_3f5058ca7b7bda 1036-1097
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62d9a5a7602d5b9144a5d93daca744529a4c664b",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

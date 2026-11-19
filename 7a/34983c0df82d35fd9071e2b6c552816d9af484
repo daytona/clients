@@ -1,0 +1,27 @@
+sdk-python/tests/test_watch_transport.py
+  s_9a337fd66d5341::t_c7766d736b00bf 12,67-70,72-85,729-788
+changelog.d/538-stream-decoding.fixed.md
+  s_9a337fd66d5341::t_8225819460e755 1-8
+sdk-python/src/daytona/v2/_body_limit.py
+  s_9a337fd66d5341::t_c7766d736b00bf 205-226
+sdk-python/src/daytona/v2/_transport.py
+  s_9a337fd66d5341::t_c7766d736b00bf 36,407-410,412
+AGENTS.md
+  s_9a337fd66d5341::t_8225819460e755 718-721
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a34983c0df82d35fd9071e2b6c552816d9af484",
+  "prompts": {},
+  "sessions": {
+    "s_9a337fd66d5341": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e47196c2affeDNWG95ae58mcF0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+PUBLISHING.md
+  s_893dbc5d83f0ea::t_6da422c25df71c 138
+README.md
+  s_893dbc5d83f0ea::t_6da422c25df71c 53
+.github/CODEOWNERS
+  s_893dbc5d83f0ea::t_6da422c25df71c 5-7
+.github/workflows/ax_evals_config.yaml
+  s_893dbc5d83f0ea::t_6da422c25df71c 24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85ac3e3c078e7cac045addd233d06696aaa10064",
+  "prompts": {},
+  "sessions": {
+    "s_893dbc5d83f0ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abe4ffcJ4ZClJuutSnISc",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

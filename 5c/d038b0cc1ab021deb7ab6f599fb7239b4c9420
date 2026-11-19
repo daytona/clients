@@ -1,0 +1,74 @@
+sdk-python/src/daytona/v2/_api_core.py
+  s_ca009e77d17705::t_a3dc2e75fb3abf 235-238
+sdk-python/tests/test_credential_inspection.py
+  s_ca009e77d17705::t_363c5c8a0a2f6e 19-20,32-34,101-104
+  s_ca009e77d17705::t_578b1307cedca9 31,35
+changelog.d/539-models.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 44-47
+sdk-python/src/daytona/v2/ports.py
+  s_ca009e77d17705::t_ead373695a525f 282
+  s_ca009e77d17705::t_578b1307cedca9 277-281
+sdk-python/tests/test_namespace_credential_inspection.py
+  s_ca009e77d17705::t_363c5c8a0a2f6e 38-39
+  s_ca009e77d17705::t_578b1307cedca9 157
+sdk-python/src/daytona/v2/daytona.py
+  s_ca009e77d17705::t_a3dc2e75fb3abf 786-789
+changelog.d/539-path-ids.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 2-12
+sdk-python/src/daytona/v2/types.py
+  s_ca009e77d17705::t_ead373695a525f 1306-1307,1313
+changelog.d/539-response-timestamps.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 1-6
+sdk-typescript/src/v2/Sandbox.ts
+  s_ca009e77d17705::t_a3dc2e75fb3abf 114-116,801-802,812-813
+sdk-python/src/daytona/v2/_core.py
+  s_ca009e77d17705::t_1ea14348ed759a 420-428,437,443,446,450-456,458,464-467,498-500
+changelog.d/539-create-fork-return.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 10-13
+sdk-typescript/src/v2/clientCreate.ts
+  s_ca009e77d17705::t_a3dc2e75fb3abf 59-62,78-79
+changelog.d/539-response-json-limits.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 1-13
+AGENTS.md
+  s_ca009e77d17705::t_55e06d6de47189 93
+  s_ca009e77d17705::t_e32aa0ddae17d2 91-92,94-95,569-571
+docs/adr/0001-sdk-parity.md
+  s_ca009e77d17705::t_55e06d6de47189 27-28
+  s_ca009e77d17705::t_48a66b5eb66c9d 26
+  s_ca009e77d17705::t_339bcbfdc1a2db 29-30
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_b7f7ae36bd5496 800-811
+  s_ca009e77d17705::t_e212f00d91c846 690-708,711-716
+  s_ca009e77d17705::t_f950ceb68d243a 18,787-799
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_b7f7ae36bd5496 467-478
+  s_ca009e77d17705::t_e212f00d91c846 399-408,411-414
+changelog.d/539-list-pages.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 1-9
+sdk-python/tests/test_credential_repr.py
+  s_ca009e77d17705::t_578b1307cedca9 41
+  s_ca009e77d17705::t_ad47684e8c7c45 12-13,23
+  s_ca009e77d17705::t_7425b77387861b 24
+changelog.d/539-malformed-responses.breaking.md
+  s_ca009e77d17705::t_91c11ba25ee0cc 17-33
+sdk-typescript/src/v2/types.ts
+  s_ca009e77d17705::t_ead373695a525f 810,812
+changelog.d/539-image-builder.breaking.md
+  s_ca009e77d17705::t_e32aa0ddae17d2 7-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5cd038b0cc1ab021deb7ab6f599fb7239b4c9420",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

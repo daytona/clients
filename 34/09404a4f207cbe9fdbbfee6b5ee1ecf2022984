@@ -1,0 +1,34 @@
+.github/workflows/release.yaml
+  h_e7759ddd73fa65 23
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 46,73,75,254,274,276,301,305
+PUBLISHING.md
+  h_e7759ddd73fa65 134,140,144,151-152,156,164,167,169,173
+README.md
+  h_e7759ddd73fa65 50
+cli/apiclient/version_check_test.go
+  h_e7759ddd73fa65 387,391
+cli/hack/build.sh
+  h_e7759ddd73fa65 64,69
+cli/internal/buildinfo_test.go
+  h_e7759ddd73fa65 19-21,32
+cli/main_test.go
+  h_e7759ddd73fa65 204
+cli/mcp/README.md
+  h_e7759ddd73fa65 33
+hack/homebrew-tap-dispatch.test.sh
+  h_e7759ddd73fa65 8
+hack/stable-v2-release.sh
+  h_e7759ddd73fa65 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3409404a4f207cbe9fdbbfee6b5ee1ecf2022984",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

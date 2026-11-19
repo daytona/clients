@@ -1,0 +1,14 @@
+sdk-typescript/src/__tests__/Import.test.ts
+  h_e7759ddd73fa65 10-12,20-22,43,115-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91ca6d1b8d921fcdc83b7271c76985e4d1adda68",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

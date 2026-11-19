@@ -1,0 +1,26 @@
+changelog.d/v2-method-names.breaking.md
+  h_e7759ddd73fa65 1-18
+typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 215-216
+typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 3990-3991
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 424,604-605,613-614
+upgrade/mapping/mapping.json
+  h_e7759ddd73fa65 1938,3397,3403,3425,3431
+upgrade/python/src/daytona_upgrade/mapping.json
+  h_e7759ddd73fa65 1938,3397,3403,3425,3431
+upgrade/typescript/src/mapping.json
+  h_e7759ddd73fa65 1938,3397,3403,3425,3431
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1263ea832372ffe5a29bb8b7416b069a456cb34d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

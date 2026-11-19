@@ -1,0 +1,31 @@
+sdk-python/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_8bcd7ced96529a 179-187
+sdk-typescript/README.md
+  s_f23bcae77f0e63::t_2fd578731690b0 103-107,616-621
+sdk-python/README.md
+  s_f23bcae77f0e63::t_2fd578731690b0 133-138,674-679
+AGENTS.md
+  s_f23bcae77f0e63::t_2fd578731690b0 486-518
+changelog.d/537-request-timeout.breaking.md
+  s_f23bcae77f0e63::t_c5cab30b293bf4 14-15
+sdk-typescript/DEVELOPMENT.md
+  s_f23bcae77f0e63::t_8bcd7ced96529a 198-214
+changelog.d/537-transfer-bounds.breaking.md
+  s_f23bcae77f0e63::t_c5cab30b293bf4 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50cec02649e037410329b083c90a76a3691b5c3f",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

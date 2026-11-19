@@ -1,0 +1,19 @@
+cli/config/config_test.go
+  s_7927d7aeddcf0f::t_2c2f2bc612592b 105-109,112-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3313edeac940dda2e39ea76c7b4ec66f1930d54",
+  "prompts": {},
+  "sessions": {
+    "s_7927d7aeddcf0f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "95ff542d-924e-4b57-97e7-dec87bbb8ce2",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    }
+  }
+}

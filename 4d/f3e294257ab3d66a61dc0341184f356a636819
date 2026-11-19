@@ -1,0 +1,31 @@
+examples/typescript/test-support/fake-sdk.ts
+  s_35c1b93d4ebbc5::t_b0fe9cbd1d5caa 12,140,157-161,190,263-264
+sdk-python/src/daytona/v2/_image_context.py
+  s_35c1b93d4ebbc5::t_5bd4d401daba41 22,99-121,123-128
+sdk-python/tests/test_image_context_archive.py
+  s_35c1b93d4ebbc5::t_bb2e1dfc0eee79 9-11,80-93
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_f8c16c61ac5858 15-23,28,32,68,75,80,85,89
+sdk-typescript/src/v2/Images.ts
+  s_35c1b93d4ebbc5::t_50882160f757c9 18,110
+sdk-typescript/src/v2/contextArchive.ts
+  s_35c1b93d4ebbc5::t_3e4a928c2b21cc 12-13,57,61
+sdk-typescript/tests/image-builder-context.test.ts
+  s_35c1b93d4ebbc5::t_0aad7843b8d703 14,35,109-110,122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4df3e294257ab3d66a61dc0341184f356a636819",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

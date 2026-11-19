@@ -1,0 +1,19 @@
+.github/dependabot.yml
+  s_48d00ccf109e0c::t_4a53abc59e3ff2 181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8109f4fe6c1c59d1a2343ee5efbf778cb682f20e",
+  "prompts": {},
+  "sessions": {
+    "s_48d00ccf109e0c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e58f7abddffehH0JtbfJqSbwR2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

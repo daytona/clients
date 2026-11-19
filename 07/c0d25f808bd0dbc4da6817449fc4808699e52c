@@ -1,0 +1,38 @@
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_6d5a32d861f1c6::t_38af9d82182056 122
+changelog.d/v0-pin-0-231-1.changed.md
+  s_6d5a32d861f1c6::t_f04c584d9cad42 5-7
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_6d5a32d861f1c6::t_f04c584d9cad42 59-67
+upgrade/typescript/src/suggestions.ts
+  s_6d5a32d861f1c6::t_38af9d82182056 92-107
+upgrade/python/src/daytona_upgrade/suggestion_owners.py
+  s_6d5a32d861f1c6::t_995bf7539cddf7 57-64,76-85,178-179,184-185
+upgrade/python/tests/test_dependency_fixes.py
+  s_6d5a32d861f1c6::t_38af9d82182056 138-140
+upgrade/python/tests/test_suggestions.py
+  s_6d5a32d861f1c6::t_d6fdb42308456f 410-442
+  s_6d5a32d861f1c6::t_79227844a38de5 443-452
+upgrade/python/src/daytona_upgrade/requirement_rendering.py
+  s_6d5a32d861f1c6::t_38af9d82182056 29-30
+changelog.d/upgrade-suggest-coverage.fixed.md
+  s_6d5a32d861f1c6::t_f04c584d9cad42 8-9
+upgrade/typescript/src/sdk-methods.ts
+  s_6d5a32d861f1c6::t_38af9d82182056 85-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "07c0d25f808bd0dbc4da6817449fc4808699e52c",
+  "prompts": {},
+  "sessions": {
+    "s_6d5a32d861f1c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e0ef6ffe4ThnB0HvntgsFq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

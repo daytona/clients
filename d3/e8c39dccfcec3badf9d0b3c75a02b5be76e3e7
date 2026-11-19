@@ -1,0 +1,24 @@
+sdk-python/src/daytona/v2/_dockerignore_class.py
+  s_9d2460a3a992dc::t_f81c9eb8116051 1-154
+sdk-python/src/daytona/v2/_dockerignore_regexp.py
+  s_9d2460a3a992dc::t_f81c9eb8116051 8,14,17-19,24,30,43,52,54,58
+sdk-python/tests/test_dockerignore_class_errors.py
+  s_9d2460a3a992dc::t_8e0cdea3b9ef70 17
+  s_9d2460a3a992dc::t_e2f033c3bd15c0 1-16,18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d3e8c39dccfcec3badf9d0b3c75a02b5be76e3e7",
+  "prompts": {},
+  "sessions": {
+    "s_9d2460a3a992dc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e37760cffffefqPD4DBGkpGP79",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

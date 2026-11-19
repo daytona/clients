@@ -1,0 +1,14 @@
+sdk-typescript/runtime-tests/webpack-cjs/run.sh
+  h_e7759ddd73fa65 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ccae69460c4822eadc77769070d6f91a23708787",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

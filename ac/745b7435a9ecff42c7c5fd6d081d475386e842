@@ -1,0 +1,30 @@
+sdk-python/src/daytona/v2/_context_upload.py
+  s_e8864ccceb0d86::t_94def8313c3175 229-238,240
+sdk-typescript/src/v2/contextUpload.ts
+  s_e8864ccceb0d86::t_58f03e33818236 241,244,247,256-283,304-306,310-311
+sdk-python/tests/test_build_context_upload.py
+  s_e8864ccceb0d86::t_dd2bffeb9f8358 369-372,386
+  s_e8864ccceb0d86::t_2e274e30304d56 72-73,106-107,116-117,365-368,373-385,387-400
+  s_e8864ccceb0d86::t_1b2cb4111db885 401-403
+sdk-typescript/tests/build-context-upload.test.ts
+  s_e8864ccceb0d86::t_2e274e30304d56 35,80,109,114-115,142-156
+  s_e8864ccceb0d86::t_eac0a13953721b 157-158
+changelog.d/build-context-response-checks.fixed.md
+  s_e8864ccceb0d86::t_4714a9e0b2a9f9 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac745b7435a9ecff42c7c5fd6d081d475386e842",
+  "prompts": {},
+  "sessions": {
+    "s_e8864ccceb0d86": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3a4e3dcfffeiMacsS74Cjbqod",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+PUBLISHING.md
+  s_ccb67f64e4fd09::t_b69b882a9ee2c2 148
+  s_ccb67f64e4fd09::t_5cac5bb1ce7021 120-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53e9a08fe3146890c63e953f13c9782480e9de28",
+  "prompts": {},
+  "sessions": {
+    "s_ccb67f64e4fd09": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e72908bfeffeS3iwVcpygt9LyM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

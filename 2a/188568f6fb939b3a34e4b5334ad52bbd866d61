@@ -1,0 +1,73 @@
+changelog.d/536-create-checks.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-secret-empty.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-region-env.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-2
+changelog.d/536-lifecycle-flags.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-empty-api-key.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-2
+changelog.d/536-api-url-env.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-repeat-flags.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-2
+changelog.d/536-limit.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-list-pages.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-lifecycle-actions.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-flag-renames.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-static-credentials.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-unknown-profile.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-5
+changelog.d/536-whoami.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536.security.md
+  s_0df31975f3464b::t_d3c39b0af65130 2-8
+changelog.d/536-legacy-keys.security.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-error-object.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-5
+changelog.d/536-duration-flags.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-5
+changelog.d/536-json-default.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-list-envelope.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-billing-consent.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-update-file.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-usage-exit.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-confirm-setting.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-command-renames.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-4
+changelog.d/536-toolbox-snake-case.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-image-logs-follow.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-3
+changelog.d/536-scoped-flags.breaking.md
+  s_0df31975f3464b::t_d3c39b0af65130 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a188568f6fb939b3a34e4b5334ad52bbd866d61",
+  "prompts": {},
+  "sessions": {
+    "s_0df31975f3464b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b9affeKdyGreFOSLBiLw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

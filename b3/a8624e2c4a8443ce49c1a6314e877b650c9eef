@@ -1,0 +1,37 @@
+hack/stable-v2-release.test.sh
+  s_2e6041b22161fe::t_dc3f6e4467c45a 43,46-48,51,54,57-62
+  s_2e6041b22161fe::t_7fc9e6a9df9052 6-7
+cli/internal/buildinfo.go
+  s_2e6041b22161fe::t_6b51be955e1510 6-11,26-47
+PUBLISHING.md
+  s_2e6041b22161fe::t_37aa867f0283bf 161,163,166
+.github/workflows/release.yaml
+  s_2e6041b22161fe::t_a44dd416e1c609 79
+cli/main_test.go
+  s_2e6041b22161fe::t_e4686ea78ac6bb 194-227
+.github/workflows/sdk_publish.yaml
+  s_2e6041b22161fe::t_a44dd416e1c609 173
+  s_2e6041b22161fe::t_1a66952e66596a 252-253,261-262,271-272
+hack/stable-v2-release.sh
+  s_2e6041b22161fe::t_dc0873c684e10f 5-9,17,19-21,23-24,33-34
+cli/internal/buildinfo_test.go
+  s_2e6041b22161fe::t_d69d0a2c7caca8 1-12,15-35,38-41
+  s_2e6041b22161fe::t_6376f5b165b747 13
+  s_2e6041b22161fe::t_e4686ea78ac6bb 14,36-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3a8624e2c4a8443ce49c1a6314e877b650c9eef",
+  "prompts": {},
+  "sessions": {
+    "s_2e6041b22161fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e553a139affeVhy9pfmd6KKsqk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

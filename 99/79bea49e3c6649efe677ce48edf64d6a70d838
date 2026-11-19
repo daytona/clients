@@ -1,0 +1,115 @@
+cli/install.ps1
+  s_99e5c120850106::t_064b63fe2a6bc6 7-10,37,49-59,67-68
+cli/internal/workload/body.go
+  s_99e5c120850106::t_f5b2b21656ee9d 72
+cli/internal/workload/workload_more_test.go
+  s_99e5c120850106::t_55155a4a73ca91 213-220
+changelog.d/cli-input-checks.fixed.md
+  s_99e5c120850106::t_4a5e1bbc189610 1-11
+changelog.d/cli-installers.fixed.md
+  s_99e5c120850106::t_389d0ee4696dc3 1-4
+changelog.d/cli-interrupts.fixed.md
+  s_99e5c120850106::t_8687cce3f1b426 1-5
+changelog.d/cli-output.fixed.md
+  s_99e5c120850106::t_15a3d7fc73a949 1-6
+changelog.d/cli-version-flags.fixed.md
+  s_99e5c120850106::t_fff35bb9ba2cd7 1-3
+cli/cmd/auth_test.go
+  s_99e5c120850106::t_1e81a20a72c394 336-399
+cli/cmd/command_more_test.go
+  s_99e5c120850106::t_36092a6138d7cb 87-99
+cli/cmd/image_create.go
+  s_99e5c120850106::t_b099dda3af9e13 100,103-105
+cli/cmd/image_cursor.go
+  s_99e5c120850106::t_8559af8357c6a6 23,64-66
+cli/cmd/image_input_test.go
+  s_99e5c120850106::t_fd98b9f80946d3 57-76
+cli/cmd/image_list.go
+  s_99e5c120850106::t_759c58bd1e2e34 12,38-42,75,84-96
+cli/cmd/image_more_test.go
+  s_99e5c120850106::t_d612c3685a023b 677-725
+cli/cmd/invite_test.go
+  s_99e5c120850106::t_424fdbbd200e44 189
+cli/cmd/list_cancel_test.go
+  s_99e5c120850106::t_74d31543737087 1-50
+cli/cmd/org_limits_test.go
+  s_99e5c120850106::t_928dd2a523add5 83-105
+cli/cmd/project_budget.go
+  s_99e5c120850106::t_7fe343237f8c92 50,144-145
+cli/cmd/project_budget_test.go
+  s_99e5c120850106::t_6ab122c9fbb7db 137-138,140-153,159-171
+cli/cmd/root.go
+  s_99e5c120850106::t_72c22f0afd1875 15,34-46,76,80-83,93-95
+cli/cmd/sandbox.go
+  s_99e5c120850106::t_6d4cac8644e83d 120,152-154
+cli/cmd/sandbox_actions_more_test.go
+  s_99e5c120850106::t_a2da6f7407ce22 237-247
+cli/cmd/sandbox_exec_test.go
+  s_99e5c120850106::t_240567b647def2 24,159-170
+cli/cmd/sandbox_port.go
+  s_99e5c120850106::t_2b72f565d15eb9 109,133-140,143
+cli/cmd/service_account_project.go
+  s_99e5c120850106::t_bc2dbbbf0dea25 59-61
+cli/cmd/signal.go
+  s_99e5c120850106::t_ea491ebbc516d4 13-15,17-19
+cli/cmd/signal_unix_test.go
+  s_99e5c120850106::t_8aa215e0b0c7c0 1-85
+cli/cmd/version.go
+  s_99e5c120850106::t_5236fc3a92ef2c 20,47-51,54-56,83-96
+cli/cmd/version_test.go
+  s_99e5c120850106::t_3882e745eec184 10-12,235-270
+cli/install.sh
+  s_99e5c120850106::t_6f4bc9bda271da 55-56,73-83
+cli/install_test.go
+  s_99e5c120850106::t_ad80e610d2e8b0 114-264
+cli/internal/app/app.go
+  s_99e5c120850106::t_bd706cd9534e29 149
+cli/internal/auth/session_race_test.go
+  s_99e5c120850106::t_3e077eff381cb8 151-183
+cli/internal/auth/session_refresh.go
+  s_99e5c120850106::t_c6efc15716d32f 68-98,100-103,105,107-114
+cli/internal/cerr/cerr.go
+  s_99e5c120850106::t_e5f3f0b8189f88 10,78-91
+cli/internal/input/input.go
+  s_99e5c120850106::t_c71cefeadf74c8 15,79-81,84-87
+cli/internal/input/input_test.go
+  s_99e5c120850106::t_8b746fd6196c1a 90-103
+cli/internal/mgmt/client_budgets.go
+  s_99e5c120850106::t_4cdec80fc7d2da 19-21
+cli/internal/mgmt/client_limits.go
+  s_99e5c120850106::t_98bda4d910e989 7,35-38
+cli/internal/regions/fanout.go
+  s_99e5c120850106::t_be8056d75aa106 13,21-23,26,42,60-62,71,91-93,113
+cli/internal/regions/list_targets_test.go
+  s_99e5c120850106::t_baf831dbfd33d0 10,14,27,46,64-102
+cli/internal/regions/regions_test.go
+  s_99e5c120850106::t_8e768a71920712 141,164
+cli/internal/toolbox/sse.go
+  s_99e5c120850106::t_de21441d6e5ee6 46-50
+cli/internal/toolbox/sse_test.go
+  s_99e5c120850106::t_ec71aeb7b35aef 209-220
+cli/internal/ui/mode.go
+  s_99e5c120850106::t_e0ea23f21ff036 41-43,70
+cli/internal/ui/mode_test.go
+  s_99e5c120850106::t_671d4840eb4c04 20-27
+cli/internal/workload/resolve_sandbox_test.go
+  s_99e5c120850106::t_5e766c2802a08c 150-208
+cli/internal/workload/sandbox.go
+  s_99e5c120850106::t_d4709806eaac88 51-57,112-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9979bea49e3c6649efe677ce48edf64d6a70d838",
+  "prompts": {},
+  "sessions": {
+    "s_99e5c120850106": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5517996bffel0i7jbnk4QE4Xt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

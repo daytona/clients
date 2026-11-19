@@ -1,0 +1,23 @@
+sdk-python/src/daytona/v2/image.py
+  s_35c1b93d4ebbc5::t_017c2cc79dc824 42-52,139,206,210,249-264
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_35c1b93d4ebbc5::t_8e4dce1e4fceba 325-343,863,873-918,921-950,953-954
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_a7ce537d53deb6 66,99-113,147,151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e85e62afcb73830ae18265e4c1e9a0e88bb8361b",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

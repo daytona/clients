@@ -1,0 +1,105 @@
+examples/typescript/secrets-env/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 30,84
+examples/typescript/test-support/fake-build-environment.test.ts
+  s_0a575b54ac9c20::t_a8726781cddb8b 1-32
+examples/python/git_ops.py
+  s_ca009e77d17705::t_025e2fe99d889f 16,29
+  s_ca009e77d17705::t_8c6ee80b7afb43 30
+examples/python/_common.py
+  s_ca009e77d17705::t_8c6ee80b7afb43 19,44-49
+  s_ca009e77d17705::t_025e2fe99d889f 43
+  s_ca009e77d17705::t_a910b2ac9cdb38 50-51
+examples/typescript/snapshots/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 4,39
+examples/python/dockerfile_sandbox.py
+  s_ca009e77d17705::t_025e2fe99d889f 29,64,116
+  s_ca009e77d17705::t_8c6ee80b7afb43 65-66,117
+examples/python/volumes.py
+  s_ca009e77d17705::t_025e2fe99d889f 18,36-37,46-47,56-57
+examples/python/test_examples.py
+  s_ca009e77d17705::t_a2245666035649 113-115,124,136-137,291-298
+  s_ca009e77d17705::t_4ad95bbe8805e6 299-300
+e2e/e2e.py
+  s_ca009e77d17705::t_b757c40d6e5ebb 136,156,175
+examples/python/dynamic_build.py
+  s_ca009e77d17705::t_025e2fe99d889f 21,48-49,80-81,102
+e2e/e2e.ts
+  s_0a575b54ac9c20::t_7e48735dee53c2 97-98,106
+examples/typescript/examples.test.ts
+  s_0a575b54ac9c20::t_a8726781cddb8b 61-73,75-77,79-80,82-83,96-97
+  s_0a575b54ac9c20::t_08267d60ebd368 74,78,81,84-95
+examples/typescript/lifecycle/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 9,21
+examples/run-examples.sh
+  s_ca009e77d17705::t_49a78525b84235 46-47
+examples/typescript/dockerfile-sandbox/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 21,52-53,102,116
+examples/python/snapshots.py
+  s_ca009e77d17705::t_025e2fe99d889f 23,74
+  s_ca009e77d17705::t_8c6ee80b7afb43 75
+examples/volumes_share.py
+  s_ca009e77d17705::t_2373e7b65beaac 52-54
+examples/typescript/git/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 12,24
+examples/typescript/dynamic-build/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 13,32,61,87
+examples/typescript/volumes/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 16,31,40,53
+examples/README.md
+  s_ca009e77d17705::t_f37eb137660eb9 67,69,72-73
+examples/python/exec_command.py
+  s_ca009e77d17705::t_025e2fe99d889f 13,47
+examples/typescript/file-operations/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 13,22
+examples/volumes_share.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 20,48,88
+examples/typescript/test-support/fake-sdk.ts
+  s_0a575b54ac9c20::t_417e677aa37421 134
+  s_0a575b54ac9c20::t_a4091ca1bef173 29,51,63,112,115-118,183-188
+examples/python/file_operations.py
+  s_ca009e77d17705::t_025e2fe99d889f 17,27
+  s_ca009e77d17705::t_8c6ee80b7afb43 28
+examples/typescript/exec-command/index.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 10,42
+examples/python/secrets_env.py
+  s_ca009e77d17705::t_025e2fe99d889f 33,80
+  s_ca009e77d17705::t_8c6ee80b7afb43 81
+examples/typescript/_common.ts
+  s_0a575b54ac9c20::t_a4091ca1bef173 16,34-36
+  s_4d9fba4bce0dac::t_94321be3fa2eee 37
+examples/python/lifecycle.py
+  s_ca009e77d17705::t_8c6ee80b7afb43 26
+  s_ca009e77d17705::t_025e2fe99d889f 13,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ca04062e4cd0d55ed600dab7e35641a66b48121",
+  "prompts": {},
+  "sessions": {
+    "s_0a575b54ac9c20": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e46ca5402ffex5gG420w1cmxlt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_4d9fba4bce0dac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3bddffe29xDGMi4zMCKt4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

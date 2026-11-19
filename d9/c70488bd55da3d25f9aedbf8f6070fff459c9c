@@ -1,0 +1,20 @@
+sdk-python/tests/test_public_surface_generated.py
+  s_f23bcae77f0e63::t_619d01d4afd379 308-331
+  s_f23bcae77f0e63::t_9f4c6e81801d3a 237-240,242-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9c70488bd55da3d25f9aedbf8f6070fff459c9c",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

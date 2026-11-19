@@ -1,0 +1,38 @@
+.github/workflows/changelog.yaml
+  h_e7759ddd73fa65 5
+.github/workflows/cli-ci.yaml
+  h_e7759ddd73fa65 5
+.github/workflows/contracts.yaml
+  h_e7759ddd73fa65 8
+.github/workflows/license-headers.yaml
+  h_e7759ddd73fa65 8
+.github/workflows/sdk-ci.yaml
+  h_e7759ddd73fa65 6
+.github/workflows/secret-scan.yaml
+  h_e7759ddd73fa65 11
+.github/workflows/upgrade-tool-ci.yaml
+  h_e7759ddd73fa65 7
+.github/workflows/upgrade-tool-publish.yaml
+  h_e7759ddd73fa65 5,56,60-61
+AGENTS.md
+  h_e7759ddd73fa65 45
+RELEASING.md
+  h_e7759ddd73fa65 62,76-78,83-85
+docs/design/0002-versioning-and-release-lines.md
+  h_e7759ddd73fa65 66
+scripts/patch_coverage.py
+  h_e7759ddd73fa65 201,208
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 66-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "893a597ebbfff0d42e2935b372c39090fc370166",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

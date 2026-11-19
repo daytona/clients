@@ -1,0 +1,16 @@
+sdk-go/pkg/daytona/client_test.go
+  h_e7759ddd73fa65 11,1434-1459
+sdk-go/pkg/daytona/deprecation.go
+  h_e7759ddd73fa65 17-19,42-43,45-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "301c3ca9208eb927ed81884a3d33c0b0bb2529fa",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

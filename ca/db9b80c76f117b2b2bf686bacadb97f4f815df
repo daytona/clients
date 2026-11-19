@@ -1,0 +1,37 @@
+scripts/ax-evals/setup/cli.sh
+  s_ef561ed5f0ed65::t_f6c2655bd80acd 4-7,12-21
+.github/workflows/ax_evals.yaml
+  s_73d91427fb63e1::t_a14279a437ca8c 108-109,113-120
+scripts/ax-evals/ax-evals.test.js
+  s_73d91427fb63e1::t_d6b7b24adb7511 263-268,324,329-346
+scripts/ax-evals/evals.json
+  s_73d91427fb63e1::t_cc202a83d1d7d2 45-46
+scripts/ax-evals/report.js
+  s_73d91427fb63e1::t_d84303a1290777 84
+scripts/ax-evals/setup/_common.sh
+  s_73d91427fb63e1::t_17a63b373fb68e 65-73,75-79,81-82,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cadb9b80c76f117b2b2bf686bacadb97f4f815df",
+  "prompts": {},
+  "sessions": {
+    "s_73d91427fb63e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bcdb14bffeqtclLQnQJp2Qdp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ef561ed5f0ed65": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2bebe1e8ffeYnSEWlHMdr5yu6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

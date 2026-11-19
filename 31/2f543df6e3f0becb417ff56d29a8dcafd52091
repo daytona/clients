@@ -1,0 +1,20 @@
+sdk-python/tests/test_transfer_bounds.py
+  s_f23bcae77f0e63::t_314896624bac8b 31,227-246
+  s_f23bcae77f0e63::t_4cbddc90e2ed8c 247-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "312f543df6e3f0becb417ff56d29a8dcafd52091",
+  "prompts": {},
+  "sessions": {
+    "s_f23bcae77f0e63": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e475d3b99ffeU5Rz3fYGuUegpe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

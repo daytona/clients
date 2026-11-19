@@ -1,0 +1,25 @@
+.github/workflows/breaking-changes.yaml
+  s_a3ea68093feda0::t_76663e53cd514c 42-44,48-49,52,54
+scripts/breaking/test_breaking_changes.py
+  s_a3ea68093feda0::t_3b3b2ac48f0adb 178-184,193,199,202-216,314-344
+scripts/breaking/breaking_changes.py
+  s_a3ea68093feda0::t_76663e53cd514c 115-117
+  s_a3ea68093feda0::t_af7795b0ff2916 7-8,11-13,19-21
+  s_a3ea68093feda0::t_83a1dfb32b12a6 51-52,113-114,118-138,147,406-407,409-411,426-428,446-465,467,476,597-601,608-609
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31b9f3bb6cc30bda562257fd6a29735ee800f21d",
+  "prompts": {},
+  "sessions": {
+    "s_a3ea68093feda0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e474eda82ffegfNFYolMz5Iwyq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

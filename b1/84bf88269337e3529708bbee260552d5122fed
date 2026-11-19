@@ -1,0 +1,40 @@
+changelog.d/526.changed.md
+  h_e7759ddd73fa65 5-6
+docs/RELEASING.md
+  h_e7759ddd73fa65 125-127
+upgrade/python/README.md
+  h_e7759ddd73fa65 194
+upgrade/python/src/daytona_upgrade/cli.py
+  h_e7759ddd73fa65 222
+upgrade/python/src/daytona_upgrade/project.py
+  h_e7759ddd73fa65 12,34,224
+upgrade/python/src/daytona_upgrade/sdk_target.py
+  h_e7759ddd73fa65 11-24
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 19,728-759
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 205
+upgrade/typescript/src/run.ts
+  h_e7759ddd73fa65 201
+upgrade/typescript/src/scans.ts
+  h_e7759ddd73fa65 19,121
+upgrade/typescript/src/sdk-target.ts
+  h_e7759ddd73fa65 17-25,59
+upgrade/typescript/src/v0-version.ts
+  h_e7759ddd73fa65 101
+upgrade/typescript/tests/lockstep-target.test.ts
+  h_e7759ddd73fa65 11,133-138
+upgrade/typescript/tests/v0-version.test.ts
+  h_e7759ddd73fa65 347-367
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b184bf88269337e3529708bbee260552d5122fed",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

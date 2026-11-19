@@ -1,0 +1,217 @@
+sdk-typescript/runtime-tests/nextjs/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_98836ce159cb83 1-4,6-15
+sdk-typescript/runtime-tests/deno/package.json
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1
+sdk-typescript/runtime-tests/nextjs-webpack/run.sh
+  s_152ef0468dbe7e::t_999927ed46eecf 1-4,6-15
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+.github/workflows/ci-passed-rerun.yaml
+  s_152ef0468dbe7e::t_e31a13de02b077 23
+sdk-typescript/runtime-tests/azure-functions/tsconfig.json
+  s_152ef0468dbe7e::t_8c726ed64e5933 1-12
+sdk-typescript/runtime-tests/nextjs-webpack/package.json
+  s_152ef0468dbe7e::t_999927ed46eecf 1-18
+sdk-typescript/runtime-tests/azure-functions/package.json
+  s_152ef0468dbe7e::t_8c726ed64e5933 1-15
+sdk-typescript/runtime-tests/nextjs-webpack/tsconfig.json
+  s_152ef0468dbe7e::t_999927ed46eecf 1-20
+sdk-typescript/runtime-tests/node-cjs/run.sh
+  s_152ef0468dbe7e::t_8a0cbd5b5f4e09 1-4,6-8
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+sdk-typescript/runtime-tests/remix/tsconfig.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-15
+sdk-typescript/runtime-tests/remix/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_98836ce159cb83 1-4,6-14
+sdk-typescript/runtime-tests/nextjs-external/app/layout.tsx
+  s_152ef0468dbe7e::t_98836ce159cb83 1-12
+sdk-typescript/runtime-tests/esbuild-cjs/run.sh
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-12
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+sdk-typescript/runtime-tests/deno/test.ts
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-11
+sdk-typescript/runtime-tests/mock-api.mjs
+  s_152ef0468dbe7e::t_baf01724158aa8 1-165
+sdk-typescript/runtime-tests/README.md
+  s_152ef0468dbe7e::t_b73947cd87c365 46,91-93,103-106
+  s_152ef0468dbe7e::t_21ba921a92543b 85
+  s_152ef0468dbe7e::t_a86e91fed9cec8 1-45,47-84,86-90,94-102,107-156
+sdk-typescript/runtime-tests/azure-functions/host.json
+  s_152ef0468dbe7e::t_8c726ed64e5933 1-3
+sdk-typescript/runtime-tests/nextjs-external/app/api/sandboxes/route.ts
+  s_152ef0468dbe7e::t_98836ce159cb83 1-13
+AGENTS.md
+  s_152ef0468dbe7e::t_d5796f52fbd063 515,518-521
+  s_152ef0468dbe7e::t_b73947cd87c365 516-517
+sdk-typescript/runtime-tests/nextjs-webpack/app/page.tsx
+  s_152ef0468dbe7e::t_999927ed46eecf 1-8
+sdk-typescript/runtime-tests/nextjs-external/package.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-18
+sdk-typescript/runtime-tests/node-cjs/test.cjs
+  s_152ef0468dbe7e::t_8a0cbd5b5f4e09 1-19
+sdk-typescript/package.json
+  s_152ef0468dbe7e::t_65d6b01590c42f 114
+sdk-typescript/runtime-tests/stamp-tarball.mjs
+  s_152ef0468dbe7e::t_5cde1f521976f4 1-28,31-33,36-37,39
+  s_152ef0468dbe7e::t_d8f5587daa630b 29-30,34-35,38
+sdk-typescript/runtime-tests/aws-lambda/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-10
+sdk-typescript/runtime-tests/nuxt/nuxt.config.ts
+  s_152ef0468dbe7e::t_98836ce159cb83 1-9
+sdk-typescript/runtime-tests/azure-functions/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_8c726ed64e5933 1-4,6-27
+sdk-typescript/runtime-tests/node-cjs/package.json
+  s_152ef0468dbe7e::t_8a0cbd5b5f4e09 1
+sdk-typescript/runtime-tests/nextjs/package.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-18
+sdk-typescript/runtime-tests/aws-lambda/invoke.cjs
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-23
+sdk-typescript/runtime-tests/remix/vite.config.js
+  s_152ef0468dbe7e::t_98836ce159cb83 1-11
+sdk-typescript/runtime-tests/vite-browser/package.json
+  s_152ef0468dbe7e::t_c31ed839356c70 1-10
+sdk-typescript/runtime-tests/workerd/src/index.ts
+  s_152ef0468dbe7e::t_bb7608716ab41a 1-16
+sdk-typescript/runtime-tests/vite-ssr/run.sh
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-10
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+sdk-typescript/runtime-tests/node-esm/run.sh
+  s_152ef0468dbe7e::t_8a0cbd5b5f4e09 1-4,6-8
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+sdk-typescript/runtime-tests/node-esm/package.json
+  s_152ef0468dbe7e::t_8a0cbd5b5f4e09 1
+sdk-typescript/runtime-tests/vite-browser/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_c31ed839356c70 1-4,6-18
+sdk-typescript/runtime-tests/bun/package.json
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1
+sdk-typescript/runtime-tests/nextjs/next.config.mjs
+  s_152ef0468dbe7e::t_98836ce159cb83 1-5,7
+  s_152ef0468dbe7e::t_999927ed46eecf 6
+sdk-typescript/runtime-tests/workerd/package.json
+  s_152ef0468dbe7e::t_bb7608716ab41a 1-12
+sdk-typescript/runtime-tests/workerd/run.sh
+  s_152ef0468dbe7e::t_bb7608716ab41a 1-39,41-50
+  s_152ef0468dbe7e::t_a2771fd1b8fc0c 40
+sdk-typescript/runtime-tests/nextjs/tsconfig.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-20
+sdk-typescript/runtime-tests/nextjs-external/next.config.mjs
+  s_152ef0468dbe7e::t_98836ce159cb83 1-10
+sdk-typescript/runtime-tests/node-esm/test.mjs
+  s_152ef0468dbe7e::t_8a0cbd5b5f4e09 1-12
+sdk-typescript/runtime-tests/assert-result.mjs
+  s_152ef0468dbe7e::t_59432bc592c8c0 1-37
+sdk-typescript/runtime-tests/nextjs-external/run.sh
+  s_152ef0468dbe7e::t_98836ce159cb83 1-4,6-15
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+sdk-typescript/runtime-tests/nuxt/app/app.vue
+  s_152ef0468dbe7e::t_98836ce159cb83 1
+sdk-typescript/runtime-tests/.gitignore
+  s_152ef0468dbe7e::t_c31ed839356c70 1-16,18-20
+  s_152ef0468dbe7e::t_bb7608716ab41a 17
+sdk-typescript/runtime-tests/remix/package.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-20
+sdk-typescript/runtime-tests/vite-browser/test-browser.mjs
+  s_152ef0468dbe7e::t_e5660a33e5dced 30-34
+  s_152ef0468dbe7e::t_c31ed839356c70 1-29,35-63
+sdk-typescript/runtime-tests/remix/app/root.tsx
+  s_152ef0468dbe7e::t_98836ce159cb83 1-21
+sdk-typescript/runtime-tests/vite-ssr/src/ssr.ts
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-11
+sdk-typescript/runtime-tests/nuxt/server/api/sandboxes.get.ts
+  s_152ef0468dbe7e::t_98836ce159cb83 1-9
+sdk-typescript/runtime-tests/aws-lambda/handler.ts
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-14
+sdk-typescript/runtime-tests/nuxt/package.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-12
+sdk-typescript/runtime-tests/nextjs-webpack/app/api/sandboxes/route.ts
+  s_152ef0468dbe7e::t_999927ed46eecf 1-13
+sdk-typescript/runtime-tests/remix/app/routes/_index.tsx
+  s_152ef0468dbe7e::t_98836ce159cb83 1-8
+sdk-typescript/runtime-tests/nextjs/app/layout.tsx
+  s_152ef0468dbe7e::t_98836ce159cb83 1-12
+sdk-typescript/runtime-tests/nextjs-external/tsconfig.json
+  s_152ef0468dbe7e::t_98836ce159cb83 1-20
+sdk-typescript/runtime-tests/esbuild-cjs/test.ts
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-18
+sdk-typescript/runtime-tests/vite-ssr/package.json
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-5,7-8
+  s_152ef0468dbe7e::t_2081fd688c680f 6
+sdk-typescript/runtime-tests/deno/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-9
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_152ef0468dbe7e::t_359ce1fa28bcd2 1-87
+sdk-typescript/DEVELOPMENT.md
+  s_152ef0468dbe7e::t_b73947cd87c365 159
+  s_152ef0468dbe7e::t_760b2b5296eb08 153-158,160-172
+sdk-typescript/runtime-tests/vite-browser/tsconfig.json
+  s_152ef0468dbe7e::t_c31ed839356c70 1-12
+sdk-typescript/runtime-tests/remix/app/routes/api.sandboxes.ts
+  s_152ef0468dbe7e::t_98836ce159cb83 1-7,9-11,14
+  s_152ef0468dbe7e::t_38afac49e1f968 8,12-13
+sdk-typescript/runtime-tests/vite-browser/src/main.ts
+  s_152ef0468dbe7e::t_9b0f6c4a7e434d 17-22
+  s_152ef0468dbe7e::t_c31ed839356c70 1-16
+sdk-typescript/runtime-tests/nextjs-external/app/page.tsx
+  s_152ef0468dbe7e::t_98836ce159cb83 1-8
+sdk-typescript/runtime-tests/lib.sh
+  s_152ef0468dbe7e::t_f9525de277c916 1-29,31-123
+  s_152ef0468dbe7e::t_baa52ceb6af5da 30
+sdk-typescript/runtime-tests/bun/run.sh
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-10
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+sdk-typescript/runtime-tests/azure-functions/index.ts
+  s_152ef0468dbe7e::t_8c726ed64e5933 1-18
+sdk-typescript/runtime-tests/nextjs/app/page.tsx
+  s_152ef0468dbe7e::t_98836ce159cb83 1-8
+sdk-typescript/runtime-tests/nextjs-webpack/next.config.mjs
+  s_152ef0468dbe7e::t_999927ed46eecf 1-8
+sdk-typescript/runtime-tests/nextjs/app/api/sandboxes/route.ts
+  s_152ef0468dbe7e::t_98836ce159cb83 1-13
+sdk-typescript/runtime-tests/vite-browser/index.html
+  s_152ef0468dbe7e::t_c31ed839356c70 1-10
+.github/workflows/sdk-typescript-runtimes.yaml
+  s_152ef0468dbe7e::t_38bd8074cc287a 1-122
+sdk-typescript/runtime-tests/vite-browser/vite.config.js
+  s_152ef0468dbe7e::t_c31ed839356c70 1-8
+sdk-typescript/runtime-tests/esbuild-cjs/package.json
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-7,9-10
+  s_152ef0468dbe7e::t_2081fd688c680f 5,8
+sdk-typescript/runtime-tests/nuxt/run.sh
+  s_152ef0468dbe7e::t_c3fb8b0b645b32 5
+  s_152ef0468dbe7e::t_98836ce159cb83 1-4,6-15
+sdk-typescript/runtime-tests/run-all.sh
+  s_152ef0468dbe7e::t_9c3b55eef3ff4e 20-21,28-35,87-90
+  s_152ef0468dbe7e::t_61f77cfe29b01c 1-12,14,16-19,22-27,37-57,68-70,92,94-210
+  s_152ef0468dbe7e::t_1d51ac01d74f7e 13,15,36,58-67,71-86,91,93
+sdk-typescript/runtime-tests/runtime-checks.d.mts
+  s_152ef0468dbe7e::t_dc60fd9eb18b02 16-25
+  s_152ef0468dbe7e::t_741d256ed44cd6 1-15
+sdk-typescript/runtime-tests/nextjs-webpack/app/layout.tsx
+  s_152ef0468dbe7e::t_999927ed46eecf 1-12
+sdk-typescript/runtime-tests/bun/test.ts
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-9
+sdk-typescript/runtime-tests/aws-lambda/package.json
+  s_152ef0468dbe7e::t_2081fd688c680f 5,8
+  s_152ef0468dbe7e::t_65479b1c0fa8f3 1-4,6-7,9-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa469f06cdf354f868424cdaff1e8122ea9e0f54",
+  "prompts": {},
+  "sessions": {
+    "s_152ef0468dbe7e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e5472b35affenJphhBC356bJDR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

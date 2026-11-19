@@ -1,0 +1,23 @@
+sdk-python/tests/test_malformed_responses.py
+  s_ca009e77d17705::t_dd269995af6895 1281
+sdk-typescript/src/v2/accountMappers.ts
+  s_ca009e77d17705::t_dd269995af6895 66-67
+sdk-typescript/tests/malformed-responses.test.ts
+  s_ca009e77d17705::t_dd269995af6895 820
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "117a0deecd1589b64a23a1641973c215012108f6",
+  "prompts": {},
+  "sessions": {
+    "s_ca009e77d17705": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e4719a8a1ffeelaTXcEp6ljWTJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

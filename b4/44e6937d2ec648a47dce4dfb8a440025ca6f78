@@ -1,0 +1,16 @@
+upgrade/python/src/daytona_upgrade/dependency_versions.py
+  h_e7759ddd73fa65 63-67
+upgrade/python/tests/test_v0_version.py
+  h_e7759ddd73fa65 18,1040-1047
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b444e6937d2ec648a47dce4dfb8a440025ca6f78",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+sdk-go/pkg/daytona/client_test.go
+  s_03db1f9437b107::t_a31c77bddffaa4 1296-1301
+sdk-java/README.md
+  s_03db1f9437b107::t_a31c77bddffaa4 90-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b030e2ea28ad563e433c592686df6d21193f490f",
+  "prompts": {},
+  "sessions": {
+    "s_03db1f9437b107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_edeb55037ffejPtLbtPpEZG2n7",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
