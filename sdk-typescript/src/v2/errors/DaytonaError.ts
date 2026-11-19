@@ -481,8 +481,6 @@ export class UnsupportedOperationError extends BadRequestError {}
 export class SessionNotFoundError extends NotFoundError {}
 export class SessionEndedError extends GoneError {}
 export class KernelUnavailableError extends ServiceUnavailableError {}
-export class LspServerUnavailableError extends ServiceUnavailableError {}
-export class LspNotStartedError extends ConflictError {}
 export class AddonUnavailableError extends ServiceUnavailableError {}
 export class FileNotFoundError extends NotFoundError {}
 export class InvalidFilePathError extends BadRequestError {}
@@ -603,8 +601,6 @@ export const DAEMON_ERROR_CLASS: Record<DaemonErrorCode, typeof DaytonaError> = 
   SESSION_NOT_FOUND: SessionNotFoundError,
   SESSION_ENDED: SessionEndedError,
   KERNEL_UNAVAILABLE: KernelUnavailableError,
-  LSP_SERVER_UNAVAILABLE: LspServerUnavailableError,
-  LSP_NOT_STARTED: LspNotStartedError,
   ADDON_UNAVAILABLE: AddonUnavailableError,
   FILE_NOT_FOUND: FileNotFoundError,
   INVALID_FILE_PATH: InvalidFilePathError,
@@ -1130,8 +1126,6 @@ for (const [key, errorClass] of [
   ['SessionNotFoundError', SessionNotFoundError],
   ['SessionEndedError', SessionEndedError],
   ['KernelUnavailableError', KernelUnavailableError],
-  ['LspServerUnavailableError', LspServerUnavailableError],
-  ['LspNotStartedError', LspNotStartedError],
   ['AddonUnavailableError', AddonUnavailableError],
   ['FileNotFoundError', FileNotFoundError],
   ['InvalidFilePathError', InvalidFilePathError],

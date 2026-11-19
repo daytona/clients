@@ -224,8 +224,6 @@ ROOT_EXPORTS = [
     "WatchEventCallback",
     "WatchOverflowCallback",
     "WatchExitCallback",
-    "LspNotStartedError",
-    "LspServerUnavailableError",
     "MacBootMode",
     "MacCatalog",
     "MacModel",
