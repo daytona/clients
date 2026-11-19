@@ -1,0 +1,18 @@
+changelog.d/api-error-catalog.changed.md
+  h_5fc330b445be98 1
+sdk-typescript/src/v2/codes.ts
+  h_5fc330b445be98 89,96-97,272,279-280
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  h_5fc330b445be98 662,669-670
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1108ee7df4fbae275b7d27e82114102b74e95628",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
