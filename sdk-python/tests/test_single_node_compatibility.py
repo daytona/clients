@@ -16,7 +16,10 @@ def test_scalar_create_and_legacy_region_quota(api):
     resources = {"cpu": 2, "memory": 4, "disk": 20}
     request = api.CreateSandbox(**resources)
     assert (request.cpu, request.memory, request.disk) == (2, 4, 20)
-    assert api.CreateSandbox.from_json(request.to_json()).cpu == 2
+    assert api.CreateSandbox.from_json(request.to_json()).to_dict() == request.to_dict()
+    for name in ("cpuPerNode", "memoryPerNode", "diskPerNode"):
+        assert name not in api.CreateSandbox.from_dict(resources).to_dict()
+        assert api.CreateSandbox.from_dict({**resources, name: None}).to_dict()[name] is None
     request.cpu = 0
     assert request.to_dict()["cpu"] == 0
     assert not {"cpuPerNode", "memoryPerNode", "diskPerNode"}.intersection(request.to_dict())
