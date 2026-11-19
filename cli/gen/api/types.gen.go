@@ -50,6 +50,7 @@ const (
 	FORBIDDEN                           ApiErrorCode = "FORBIDDEN"
 	GATEWAYTIMEOUT                      ApiErrorCode = "GATEWAY_TIMEOUT"
 	GONE                                ApiErrorCode = "GONE"
+	GPUACCESSUNDERREVIEW                ApiErrorCode = "GPU_ACCESS_UNDER_REVIEW"
 	IDEMPOTENCYKEYREUSED                ApiErrorCode = "IDEMPOTENCY_KEY_REUSED"
 	IDLEOUTOFRANGE                      ApiErrorCode = "IDLE_OUT_OF_RANGE"
 	IFMATCHREQUIRED                     ApiErrorCode = "IF_MATCH_REQUIRED"
@@ -76,6 +77,7 @@ const (
 	LIMITEXCEEDED                       ApiErrorCode = "LIMIT_EXCEEDED"
 	MACDISKFULL                         ApiErrorCode = "MAC_DISK_FULL"
 	MANAGEMENTPLANEELSEWHERE            ApiErrorCode = "MANAGEMENT_PLANE_ELSEWHERE"
+	MEMBERSHIPEDITSFROZEN               ApiErrorCode = "MEMBERSHIP_EDITS_FROZEN"
 	METHODNOTALLOWED                    ApiErrorCode = "METHOD_NOT_ALLOWED"
 	NETWORKPOLICYDOMAINSREQUIREBLOCKALL ApiErrorCode = "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL"
 	NETWORKPOLICYTRANSITIONINPROGRESS   ApiErrorCode = "NETWORK_POLICY_TRANSITION_IN_PROGRESS"
@@ -108,6 +110,7 @@ const (
 	RESERVATIONNOTFOUND                 ApiErrorCode = "RESERVATION_NOT_FOUND"
 	ROLEINUSE                           ApiErrorCode = "ROLE_IN_USE"
 	RUNNERHASSANDBOXES                  ApiErrorCode = "RUNNER_HAS_SANDBOXES"
+	SANDBOXABUSEHOLD                    ApiErrorCode = "SANDBOX_ABUSE_HOLD"
 	SEARCHNOTCONFIGURED                 ApiErrorCode = "SEARCH_NOT_CONFIGURED"
 	SEARCHUNAVAILABLE                   ApiErrorCode = "SEARCH_UNAVAILABLE"
 	SECRETALREADYEXISTS                 ApiErrorCode = "SECRET_ALREADY_EXISTS"
@@ -215,6 +218,8 @@ func (e ApiErrorCode) Valid() bool {
 		return true
 	case GONE:
 		return true
+	case GPUACCESSUNDERREVIEW:
+		return true
 	case IDEMPOTENCYKEYREUSED:
 		return true
 	case IDLEOUTOFRANGE:
@@ -266,6 +271,8 @@ func (e ApiErrorCode) Valid() bool {
 	case MACDISKFULL:
 		return true
 	case MANAGEMENTPLANEELSEWHERE:
+		return true
+	case MEMBERSHIPEDITSFROZEN:
 		return true
 	case METHODNOTALLOWED:
 		return true
@@ -330,6 +337,8 @@ func (e ApiErrorCode) Valid() bool {
 	case ROLEINUSE:
 		return true
 	case RUNNERHASSANDBOXES:
+		return true
+	case SANDBOXABUSEHOLD:
 		return true
 	case SEARCHNOTCONFIGURED:
 		return true
@@ -2088,6 +2097,9 @@ type AuditLogEntry struct {
 	// ActorKind The actor type.
 	ActorKind string `json:"actor_kind"`
 
+	// ActorPartner The partner application that authenticated the actor, or `null`.
+	ActorPartner *string `json:"actor_partner,omitempty"`
+
 	// ActorServiceAccountId The actor's service account ID, or `null`.
 	ActorServiceAccountId *openapi_types.UUID `json:"actor_service_account_id,omitempty"`
 
@@ -2561,7 +2573,7 @@ type CouponRedemption struct {
 	// CreditCents The granted credit in cents.
 	CreditCents int64 `json:"credit_cents"`
 
-	// CreditExpiresAt When the granted credit expires, or `null` when it does not expire.
+	// CreditExpiresAt When the granted credit expires, or `null` when the expiry is not known.
 	CreditExpiresAt *time.Time `json:"credit_expires_at,omitempty"`
 
 	// Currency The lowercase ISO 4217 currency code.
@@ -3156,7 +3168,7 @@ type DeclineInvitationRequest struct {
 	Token string `json:"token"`
 }
 
-// DesktopConfig Resolved settings for an enabled Linux desktop; an older `{}` selects XFCE 1280×720.
+// DesktopConfig Desktop settings. Omit a member for its default: xfce, 1280×720.
 type DesktopConfig struct {
 	// Environment Desktop session: xfce or gnome. Omitted = xfce.
 	Environment *DesktopConfig_Environment `json:"environment,omitempty"`
@@ -3188,7 +3200,7 @@ type DesktopResolution struct {
 }
 
 // DesktopSettings Concrete create-time desktop settings. This records the request, not the
-// live guest state exposed by GET /computeruse/status.
+// live guest state; GET /computeruse/display/info reports the live display size.
 type DesktopSettings struct {
 	// Environment Desktop session the sandbox was created with.
 	Environment DesktopEnvironment `json:"environment"`
@@ -4133,8 +4145,8 @@ type MemberRemovalPreview struct {
 // body is the full default mint.
 type MintSandboxAccessTokenRequest struct {
 	// Operations Requested operation subset (the sandbox-operation vocabulary:
-	// `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`,
-	// `desktop`, `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`).
+	// `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `desktop`,
+	// `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`).
 	// Omitted = the minter's full grantable set. An empty list is a valid
 	// ports-only grant. Unknown strings, and operations outside the
 	// minter's grantable set, are a 400 — never a silent narrowing.
@@ -5789,9 +5801,9 @@ type Sandbox struct {
 	// CreatedAt When the sandbox was created.
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 
-	// Desktop Resolved create-time desktop request, not live state. A guest restart
-	// can change its settings; read GET /computeruse/status for live settings.
-	// Omitted when no desktop was requested, and from batch-wait
+	// Desktop Resolved create-time desktop request, not live state: a desktop restart
+	// can change its settings. GET /computeruse/display/info reports the live
+	// display size. Omitted when no desktop was requested, and from batch-wait
 	// (`GET /sandboxes/batch-wait`) snapshots.
 	Desktop *DesktopSettings `json:"desktop,omitempty"`
 
@@ -6022,9 +6034,9 @@ type SandboxListItem struct {
 	// Cursor Opaque token that resumes immediately after this sandbox.
 	Cursor string `json:"cursor"`
 
-	// Desktop Resolved create-time desktop request, not live state. A guest restart
-	// can change its settings; read GET /computeruse/status for live settings.
-	// Omitted when no desktop was requested, and from batch-wait
+	// Desktop Resolved create-time desktop request, not live state: a desktop restart
+	// can change its settings. GET /computeruse/display/info reports the live
+	// display size. Omitted when no desktop was requested, and from batch-wait
 	// (`GET /sandboxes/batch-wait`) snapshots.
 	Desktop *DesktopSettings `json:"desktop,omitempty"`
 
@@ -7165,6 +7177,9 @@ type Volume struct {
 	// Id The volume ID.
 	Id string `json:"id"`
 
+	// ImportedFrom The source platform and resource ID when this volume was imported.
+	ImportedFrom *ImportedFrom `json:"imported_from,omitempty"`
+
 	// LastUsedAt When the volume was last attached, or null when it has not been used.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 
@@ -7201,14 +7216,16 @@ type VolumeMount struct {
 	// (repeated slashes, `.` components and a trailing slash removed) and
 	// may not be `/` or be on or beneath a system directory: `/bin`,
 	// `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
-	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
+	// `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to
+	// or beneath another mount's `mount_path`.
 	MountPath string `json:"mount_path"`
 
 	// ReadOnly Mount without write access. Supported only for bucket volumes.
 	ReadOnly *bool `json:"read_only,omitempty"`
 
 	// Subpath Mount only this subtree: a subdirectory for a disk volume, a key prefix
-	// under the volume's own prefix for a bucket volume.
+	// under the volume's own prefix for a bucket volume. A relative path with
+	// no empty or `..` segments and no control characters.
 	Subpath *string `json:"subpath,omitempty"`
 
 	// Volume The volume name or a `vol_` id.
@@ -7531,6 +7548,9 @@ type ListAuditLogsParams struct {
 
 	// EndAt The exclusive end of the time range
 	EndAt *time.Time `form:"end_at,omitempty" json:"end_at,omitempty"`
+
+	// ActorPartner The partner application filter
+	ActorPartner *string `form:"actor_partner,omitempty" json:"actor_partner,omitempty"`
 }
 
 // ListBalancesParams defines parameters for ListBalances.
