@@ -60,10 +60,10 @@ module DaytonaApiClient
     # The target environment for the sandbox
     attr_accessor :target
 
-    # The CPU quota for the sandbox
+    # The CPU quota for the sandbox; for a multi-node sandbox, this is the job total.
     attr_accessor :cpu
 
-    # The GPU quota for the sandbox
+    # The GPU quota for the sandbox; for a multi-node sandbox, this is the job total.
     attr_accessor :gpu
 
     # Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
@@ -78,10 +78,10 @@ module DaytonaApiClient
     # The GPU type assigned to the sandbox
     attr_accessor :gpu_type
 
-    # The memory quota for the sandbox
+    # The memory quota for the sandbox; for a multi-node sandbox, this is the job total.
     attr_accessor :memory
 
-    # The disk quota for the sandbox
+    # The disk quota for the sandbox; for a multi-node sandbox, this is the job total.
     attr_accessor :disk
 
     # The state of the sandbox
@@ -153,6 +153,27 @@ module DaytonaApiClient
     # The toolbox proxy URL for the sandbox
     attr_accessor :toolbox_proxy_url
 
+    # Gang members in rank order. Rank 0 is this sandbox.
+    attr_accessor :nodes
+
+    # Committed logical topology generation.
+    attr_accessor :topology_generation
+
+    # Physical incarnation for an internal gang row.
+    attr_accessor :incarnation
+
+    # Derived number of physical nodes in this sandbox.
+    attr_accessor :node_count
+
+    # Rank within the gang; present only on internal member rows.
+    attr_accessor :node_rank
+
+    # Gang head ID; present only on internal member rows.
+    attr_accessor :head_sandbox_id
+
+    # The gang remains usable but one or more fabric checks are degraded.
+    attr_accessor :degraded
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -223,7 +244,14 @@ module DaytonaApiClient
         :'daemon_version' => :'daemonVersion',
         :'runner_id' => :'runnerId',
         :'linked_sandbox_id' => :'linkedSandboxId',
-        :'toolbox_proxy_url' => :'toolboxProxyUrl'
+        :'toolbox_proxy_url' => :'toolboxProxyUrl',
+        :'nodes' => :'nodes',
+        :'topology_generation' => :'topologyGeneration',
+        :'incarnation' => :'incarnation',
+        :'node_count' => :'nodeCount',
+        :'node_rank' => :'nodeRank',
+        :'head_sandbox_id' => :'headSandboxId',
+        :'degraded' => :'degraded'
       }
     end
 
@@ -285,7 +313,14 @@ module DaytonaApiClient
         :'daemon_version' => :'String',
         :'runner_id' => :'String',
         :'linked_sandbox_id' => :'String',
-        :'toolbox_proxy_url' => :'String'
+        :'toolbox_proxy_url' => :'String',
+        :'nodes' => :'Array<SandboxNode>',
+        :'topology_generation' => :'Integer',
+        :'incarnation' => :'Integer',
+        :'node_count' => :'Integer',
+        :'node_rank' => :'Integer',
+        :'head_sandbox_id' => :'String',
+        :'degraded' => :'Boolean'
       }
     end
 
@@ -533,6 +568,36 @@ module DaytonaApiClient
       else
         self.toolbox_proxy_url = nil
       end
+
+      if attributes.key?(:'nodes')
+        if (value = attributes[:'nodes']).is_a?(Array)
+          self.nodes = value
+        end
+      end
+
+      if attributes.key?(:'topology_generation')
+        self.topology_generation = attributes[:'topology_generation']
+      end
+
+      if attributes.key?(:'incarnation')
+        self.incarnation = attributes[:'incarnation']
+      end
+
+      if attributes.key?(:'node_count')
+        self.node_count = attributes[:'node_count']
+      end
+
+      if attributes.key?(:'node_rank')
+        self.node_rank = attributes[:'node_rank']
+      end
+
+      if attributes.key?(:'head_sandbox_id')
+        self.head_sandbox_id = attributes[:'head_sandbox_id']
+      end
+
+      if attributes.key?(:'degraded')
+        self.degraded = attributes[:'degraded']
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -600,6 +665,22 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "toolbox_proxy_url", toolbox_proxy_url cannot be nil.')
       end
 
+      if !@topology_generation.nil? && @topology_generation < 1
+        invalid_properties.push('invalid value for "topology_generation", must be greater than or equal to 1.')
+      end
+
+      if !@incarnation.nil? && @incarnation < 1
+        invalid_properties.push('invalid value for "incarnation", must be greater than or equal to 1.')
+      end
+
+      if !@node_count.nil? && @node_count < 1
+        invalid_properties.push('invalid value for "node_count", must be greater than or equal to 1.')
+      end
+
+      if !@node_rank.nil? && @node_rank < 1
+        invalid_properties.push('invalid value for "node_rank", must be greater than or equal to 1.')
+      end
+
       invalid_properties
     end
 
@@ -626,6 +707,10 @@ module DaytonaApiClient
       sandbox_class_validator = EnumAttributeValidator.new('String', ["linux-vm", "container", "windows", "unknown_default_open_api"])
       return false unless sandbox_class_validator.valid?(@sandbox_class)
       return false if @toolbox_proxy_url.nil?
+      return false if !@topology_generation.nil? && @topology_generation < 1
+      return false if !@incarnation.nil? && @incarnation < 1
+      return false if !@node_count.nil? && @node_count < 1
+      return false if !@node_rank.nil? && @node_rank < 1
       true
     end
 
@@ -799,6 +884,62 @@ module DaytonaApiClient
       @toolbox_proxy_url = toolbox_proxy_url
     end
 
+    # Custom attribute writer method with validation
+    # @param [Object] topology_generation Value to be assigned
+    def topology_generation=(topology_generation)
+      if topology_generation.nil?
+        fail ArgumentError, 'topology_generation cannot be nil'
+      end
+
+      if topology_generation < 1
+        fail ArgumentError, 'invalid value for "topology_generation", must be greater than or equal to 1.'
+      end
+
+      @topology_generation = topology_generation
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] incarnation Value to be assigned
+    def incarnation=(incarnation)
+      if incarnation.nil?
+        fail ArgumentError, 'incarnation cannot be nil'
+      end
+
+      if incarnation < 1
+        fail ArgumentError, 'invalid value for "incarnation", must be greater than or equal to 1.'
+      end
+
+      @incarnation = incarnation
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] node_count Value to be assigned
+    def node_count=(node_count)
+      if node_count.nil?
+        fail ArgumentError, 'node_count cannot be nil'
+      end
+
+      if node_count < 1
+        fail ArgumentError, 'invalid value for "node_count", must be greater than or equal to 1.'
+      end
+
+      @node_count = node_count
+    end
+
+    # Custom attribute writer method with validation
+    # @param [Object] node_rank Value to be assigned
+    def node_rank=(node_rank)
+      if node_rank.nil?
+        fail ArgumentError, 'node_rank cannot be nil'
+      end
+
+      if node_rank < 1
+        fail ArgumentError, 'invalid value for "node_rank", must be greater than or equal to 1.'
+      end
+
+      @node_rank = node_rank
+    end
+
     # Checks equality by comparing each attribute.
     # @param [Object] Object to be compared
     def ==(o)
@@ -849,7 +990,14 @@ module DaytonaApiClient
           daemon_version == o.daemon_version &&
           runner_id == o.runner_id &&
           linked_sandbox_id == o.linked_sandbox_id &&
-          toolbox_proxy_url == o.toolbox_proxy_url
+          toolbox_proxy_url == o.toolbox_proxy_url &&
+          nodes == o.nodes &&
+          topology_generation == o.topology_generation &&
+          incarnation == o.incarnation &&
+          node_count == o.node_count &&
+          node_rank == o.node_rank &&
+          head_sandbox_id == o.head_sandbox_id &&
+          degraded == o.degraded
     end
 
     # @see the `==` method
@@ -861,7 +1009,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, spot, spot_evicted_at, queue_timed_out_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, queue_timeout, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url].hash
+      [id, organization_id, name, snapshot, user, env, labels, public, network_block_all, kvm, network_allow_list, domain_allow_list, outbound_proxy_url, otel_endpoint_override, target, cpu, gpu, spot, spot_evicted_at, queue_timed_out_at, gpu_type, memory, disk, state, desired_state, error_reason, recoverable, warm_pool_id, backup_state, backup_created_at, auto_stop_interval, auto_pause_interval, auto_archive_interval, auto_delete_interval, auto_destroy_at, queue_timeout, volumes, build_info, created_at, updated_at, last_activity_at, sandbox_class, daemon_version, runner_id, linked_sandbox_id, toolbox_proxy_url, nodes, topology_generation, incarnation, node_count, node_rank, head_sandbox_id, degraded].hash
     end
 
     # Builds the object from hash

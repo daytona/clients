@@ -21,6 +21,7 @@
 export const WebhookEvent = {
     SANDBOX_CREATED: 'sandbox.created',
     SANDBOX_STATE_UPDATED: 'sandbox.state.updated',
+    SANDBOX_GANG_MEMBER_FAILED: 'sandbox.gang-member-failed',
     SNAPSHOT_CREATED: 'snapshot.created',
     SNAPSHOT_STATE_UPDATED: 'snapshot.state.updated',
     SNAPSHOT_REMOVED: 'snapshot.removed',

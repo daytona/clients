@@ -22,6 +22,7 @@ import com.google.gson.stream.JsonWriter;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.GpuType;
 import io.daytona.api.client.model.SandboxDesiredState;
+import io.daytona.api.client.model.SandboxNode;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.SandboxVolume;
 import java.io.IOException;
@@ -409,6 +410,41 @@ public class Sandbox {
   @javax.annotation.Nonnull
   private String toolboxProxyUrl;
 
+  public static final String SERIALIZED_NAME_NODES = "nodes";
+  @SerializedName(SERIALIZED_NAME_NODES)
+  @javax.annotation.Nullable
+  private List<SandboxNode> nodes = new ArrayList<>();
+
+  public static final String SERIALIZED_NAME_TOPOLOGY_GENERATION = "topologyGeneration";
+  @SerializedName(SERIALIZED_NAME_TOPOLOGY_GENERATION)
+  @javax.annotation.Nullable
+  private Integer topologyGeneration;
+
+  public static final String SERIALIZED_NAME_INCARNATION = "incarnation";
+  @SerializedName(SERIALIZED_NAME_INCARNATION)
+  @javax.annotation.Nullable
+  private Integer incarnation;
+
+  public static final String SERIALIZED_NAME_NODE_COUNT = "nodeCount";
+  @SerializedName(SERIALIZED_NAME_NODE_COUNT)
+  @javax.annotation.Nullable
+  private Integer nodeCount;
+
+  public static final String SERIALIZED_NAME_NODE_RANK = "nodeRank";
+  @SerializedName(SERIALIZED_NAME_NODE_RANK)
+  @javax.annotation.Nullable
+  private Integer nodeRank;
+
+  public static final String SERIALIZED_NAME_HEAD_SANDBOX_ID = "headSandboxId";
+  @SerializedName(SERIALIZED_NAME_HEAD_SANDBOX_ID)
+  @javax.annotation.Nullable
+  private String headSandboxId;
+
+  public static final String SERIALIZED_NAME_DEGRADED = "degraded";
+  @SerializedName(SERIALIZED_NAME_DEGRADED)
+  @javax.annotation.Nullable
+  private Boolean degraded;
+
   public Sandbox() {
   }
 
@@ -719,7 +755,7 @@ public class Sandbox {
   }
 
   /**
-   * The CPU quota for the sandbox
+   * The CPU quota for the sandbox; for a multi-node sandbox, this is the job total.
    * @return cpu
    */
   @javax.annotation.Nonnull
@@ -738,7 +774,7 @@ public class Sandbox {
   }
 
   /**
-   * The GPU quota for the sandbox
+   * The GPU quota for the sandbox; for a multi-node sandbox, this is the job total.
    * @return gpu
    */
   @javax.annotation.Nonnull
@@ -833,7 +869,7 @@ public class Sandbox {
   }
 
   /**
-   * The memory quota for the sandbox
+   * The memory quota for the sandbox; for a multi-node sandbox, this is the job total.
    * @return memory
    */
   @javax.annotation.Nonnull
@@ -852,7 +888,7 @@ public class Sandbox {
   }
 
   /**
-   * The disk quota for the sandbox
+   * The disk quota for the sandbox; for a multi-node sandbox, this is the job total.
    * @return disk
    */
   @javax.annotation.Nonnull
@@ -1317,6 +1353,151 @@ public class Sandbox {
     this.toolboxProxyUrl = toolboxProxyUrl;
   }
 
+
+  public Sandbox nodes(@javax.annotation.Nullable List<SandboxNode> nodes) {
+    this.nodes = nodes;
+    return this;
+  }
+
+  public Sandbox addNodesItem(SandboxNode nodesItem) {
+    if (this.nodes == null) {
+      this.nodes = new ArrayList<>();
+    }
+    this.nodes.add(nodesItem);
+    return this;
+  }
+
+  /**
+   * Gang members in rank order. Rank 0 is this sandbox.
+   * @return nodes
+   */
+  @javax.annotation.Nullable
+  public List<SandboxNode> getNodes() {
+    return nodes;
+  }
+
+  public void setNodes(@javax.annotation.Nullable List<SandboxNode> nodes) {
+    this.nodes = nodes;
+  }
+
+
+  public Sandbox topologyGeneration(@javax.annotation.Nullable Integer topologyGeneration) {
+    this.topologyGeneration = topologyGeneration;
+    return this;
+  }
+
+  /**
+   * Committed logical topology generation.
+   * minimum: 1
+   * @return topologyGeneration
+   */
+  @javax.annotation.Nullable
+  public Integer getTopologyGeneration() {
+    return topologyGeneration;
+  }
+
+  public void setTopologyGeneration(@javax.annotation.Nullable Integer topologyGeneration) {
+    this.topologyGeneration = topologyGeneration;
+  }
+
+
+  public Sandbox incarnation(@javax.annotation.Nullable Integer incarnation) {
+    this.incarnation = incarnation;
+    return this;
+  }
+
+  /**
+   * Physical incarnation for an internal gang row.
+   * minimum: 1
+   * @return incarnation
+   */
+  @javax.annotation.Nullable
+  public Integer getIncarnation() {
+    return incarnation;
+  }
+
+  public void setIncarnation(@javax.annotation.Nullable Integer incarnation) {
+    this.incarnation = incarnation;
+  }
+
+
+  public Sandbox nodeCount(@javax.annotation.Nullable Integer nodeCount) {
+    this.nodeCount = nodeCount;
+    return this;
+  }
+
+  /**
+   * Derived number of physical nodes in this sandbox.
+   * minimum: 1
+   * @return nodeCount
+   */
+  @javax.annotation.Nullable
+  public Integer getNodeCount() {
+    return nodeCount;
+  }
+
+  public void setNodeCount(@javax.annotation.Nullable Integer nodeCount) {
+    this.nodeCount = nodeCount;
+  }
+
+
+  public Sandbox nodeRank(@javax.annotation.Nullable Integer nodeRank) {
+    this.nodeRank = nodeRank;
+    return this;
+  }
+
+  /**
+   * Rank within the gang; present only on internal member rows.
+   * minimum: 1
+   * @return nodeRank
+   */
+  @javax.annotation.Nullable
+  public Integer getNodeRank() {
+    return nodeRank;
+  }
+
+  public void setNodeRank(@javax.annotation.Nullable Integer nodeRank) {
+    this.nodeRank = nodeRank;
+  }
+
+
+  public Sandbox headSandboxId(@javax.annotation.Nullable String headSandboxId) {
+    this.headSandboxId = headSandboxId;
+    return this;
+  }
+
+  /**
+   * Gang head ID; present only on internal member rows.
+   * @return headSandboxId
+   */
+  @javax.annotation.Nullable
+  public String getHeadSandboxId() {
+    return headSandboxId;
+  }
+
+  public void setHeadSandboxId(@javax.annotation.Nullable String headSandboxId) {
+    this.headSandboxId = headSandboxId;
+  }
+
+
+  public Sandbox degraded(@javax.annotation.Nullable Boolean degraded) {
+    this.degraded = degraded;
+    return this;
+  }
+
+  /**
+   * The gang remains usable but one or more fabric checks are degraded.
+   * @return degraded
+   */
+  @javax.annotation.Nullable
+  public Boolean getDegraded() {
+    return degraded;
+  }
+
+  public void setDegraded(@javax.annotation.Nullable Boolean degraded) {
+    this.degraded = degraded;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -1417,7 +1598,14 @@ public class Sandbox {
         Objects.equals(this.daemonVersion, sandbox.daemonVersion) &&
         Objects.equals(this.runnerId, sandbox.runnerId) &&
         Objects.equals(this.linkedSandboxId, sandbox.linkedSandboxId) &&
-        Objects.equals(this.toolboxProxyUrl, sandbox.toolboxProxyUrl)&&
+        Objects.equals(this.toolboxProxyUrl, sandbox.toolboxProxyUrl) &&
+        Objects.equals(this.nodes, sandbox.nodes) &&
+        Objects.equals(this.topologyGeneration, sandbox.topologyGeneration) &&
+        Objects.equals(this.incarnation, sandbox.incarnation) &&
+        Objects.equals(this.nodeCount, sandbox.nodeCount) &&
+        Objects.equals(this.nodeRank, sandbox.nodeRank) &&
+        Objects.equals(this.headSandboxId, sandbox.headSandboxId) &&
+        Objects.equals(this.degraded, sandbox.degraded)&&
         Objects.equals(this.additionalProperties, sandbox.additionalProperties);
   }
 
@@ -1427,7 +1615,7 @@ public class Sandbox {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, spot, spotEvictedAt, queueTimedOutAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, queueTimeout, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, additionalProperties);
+    return Objects.hash(id, organizationId, name, snapshot, user, env, labels, _public, networkBlockAll, kvm, networkAllowList, domainAllowList, outboundProxyUrl, otelEndpointOverride, target, cpu, gpu, spot, spotEvictedAt, queueTimedOutAt, gpuType, memory, disk, state, desiredState, errorReason, recoverable, warmPoolId, backupState, backupCreatedAt, autoStopInterval, autoPauseInterval, autoArchiveInterval, autoDeleteInterval, autoDestroyAt, queueTimeout, volumes, buildInfo, createdAt, updatedAt, lastActivityAt, sandboxClass, daemonVersion, runnerId, linkedSandboxId, toolboxProxyUrl, nodes, topologyGeneration, incarnation, nodeCount, nodeRank, headSandboxId, degraded, additionalProperties);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -1487,6 +1675,13 @@ public class Sandbox {
     sb.append("    runnerId: ").append(toIndentedString(runnerId)).append("\n");
     sb.append("    linkedSandboxId: ").append(toIndentedString(linkedSandboxId)).append("\n");
     sb.append("    toolboxProxyUrl: ").append(toIndentedString(toolboxProxyUrl)).append("\n");
+    sb.append("    nodes: ").append(toIndentedString(nodes)).append("\n");
+    sb.append("    topologyGeneration: ").append(toIndentedString(topologyGeneration)).append("\n");
+    sb.append("    incarnation: ").append(toIndentedString(incarnation)).append("\n");
+    sb.append("    nodeCount: ").append(toIndentedString(nodeCount)).append("\n");
+    sb.append("    nodeRank: ").append(toIndentedString(nodeRank)).append("\n");
+    sb.append("    headSandboxId: ").append(toIndentedString(headSandboxId)).append("\n");
+    sb.append("    degraded: ").append(toIndentedString(degraded)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -1506,7 +1701,7 @@ public class Sandbox {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl", "nodes", "topologyGeneration", "incarnation", "nodeCount", "nodeRank", "headSandboxId", "degraded"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "organizationId", "name", "user", "env", "labels", "public", "networkBlockAll", "kvm", "target", "cpu", "gpu", "memory", "disk", "toolboxProxyUrl"));
@@ -1644,6 +1839,23 @@ public class Sandbox {
       }
       if (!jsonObj.get("toolboxProxyUrl").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `toolboxProxyUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("toolboxProxyUrl").toString()));
+      }
+      if (jsonObj.get("nodes") != null && !jsonObj.get("nodes").isJsonNull()) {
+        JsonArray jsonArraynodes = jsonObj.getAsJsonArray("nodes");
+        if (jsonArraynodes != null) {
+          // ensure the json data is an array
+          if (!jsonObj.get("nodes").isJsonArray()) {
+            throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `nodes` to be an array in the JSON string but got `%s`", jsonObj.get("nodes").toString()));
+          }
+
+          // validate the optional field `nodes` (array)
+          for (int i = 0; i < jsonArraynodes.size(); i++) {
+            SandboxNode.validateJsonElement(jsonArraynodes.get(i));
+          };
+        }
+      }
+      if ((jsonObj.get("headSandboxId") != null && !jsonObj.get("headSandboxId").isJsonNull()) && !jsonObj.get("headSandboxId").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `headSandboxId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("headSandboxId").toString()));
       }
   }
 

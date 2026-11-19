@@ -317,7 +317,17 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
             {{/items.isEnumOrRef}}
             {{/items.isPrimitiveType}}
             {{#items.isPrimitiveType}}
+            {{#isNullable}}
+            {{^required}}
+            **({"{{{name}}}": obj["{{{baseName}}}"]} if "{{{baseName}}}" in obj else {}){{^-last}},{{/-last}}
+            {{/required}}
+            {{#required}}
             "{{{name}}}": obj.get("{{{baseName}}}"){{^-last}},{{/-last}}
+            {{/required}}
+            {{/isNullable}}
+            {{^isNullable}}
+            "{{{name}}}": obj.get("{{{baseName}}}"){{^-last}},{{/-last}}
+            {{/isNullable}}
             {{/items.isPrimitiveType}}
             {{/items.isArray}}
             {{/isArray}}

@@ -46,7 +46,7 @@ type CreateSandbox struct {
 	OtelEndpointOverride *string `json:"otelEndpointOverride,omitempty"`
 	// The target (region) where the sandbox will be created
 	Target *string `json:"target,omitempty"`
-	// CPU cores allocated to the sandbox
+	// CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
 	Cpu *int32 `json:"cpu,omitempty"`
 	// GPU units allocated to the sandbox
 	Gpu *int32 `json:"gpu,omitempty"`
@@ -54,9 +54,9 @@ type CreateSandbox struct {
 	GpuType []GpuType `json:"gpuType,omitempty"`
 	// GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs.
 	Spot *bool `json:"spot,omitempty"`
-	// Memory allocated to the sandbox in GB
+	// Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
 	Memory *int32 `json:"memory,omitempty"`
-	// Disk space allocated to the sandbox in GB
+	// Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
 	Disk *int32 `json:"disk,omitempty"`
 	// Auto-stop interval in minutes (0 means disabled)
 	AutoStopInterval *int32 `json:"autoStopInterval,omitempty"`

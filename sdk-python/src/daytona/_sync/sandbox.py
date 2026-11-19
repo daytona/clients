@@ -6,32 +6,47 @@ from __future__ import annotations
 import functools
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Callable, TypeVar
 
 import httpx
 from deprecated import deprecated
-from pydantic import ConfigDict, PrivateAttr
+from pydantic import (
+    ConfigDict,
+    GetJsonSchemaHandler,
+    PrivateAttr,
+    SerializerFunctionWrapHandler,
+    TypeAdapter,
+    field_serializer,
+    model_serializer,
+)
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
+from typing_extensions import override
 
 from daytona_analytics_api_client import ApiClient as AnalyticsApiClient
 from daytona_analytics_api_client import Configuration as AnalyticsConfiguration
 from daytona_analytics_api_client import TelemetryApi
 from daytona_api_client import (
+    AddGangNodes,
     BuildInfo,
     ConfigApi,
     CreateSandboxSnapshot,
     ForkSandbox,
+    GangMembershipOperation,
+    GangNodeFailure,
+    GangNodeResources,
     GpuType,
     PortPreviewUrl,
+    RemoveGangNodes,
+    ReplaceGangNode,
     ResizeSandbox,
 )
 from daytona_api_client import Sandbox as SandboxDto
+from daytona_api_client import SandboxApi, SandboxClass, SandboxDesiredState, SandboxLabels, SandboxListItem
+from daytona_api_client import SandboxNode as SandboxNodeDto
 from daytona_api_client import (
-    SandboxApi,
-    SandboxClass,
-    SandboxDesiredState,
-    SandboxLabels,
-    SandboxListItem,
     SandboxState,
     SandboxVolume,
     SignedPortPreviewUrl,
@@ -64,15 +79,22 @@ from ..common.errors import (
     DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
     DaytonaSpotEvictedError,
+    DaytonaTimeoutError,
     DaytonaValidationError,
 )
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
+from ..common.process import ExecuteResponse
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
+    NodeResources,
     Resources,
     SandboxMetrics,
     pivot_sandbox_metrics,
+    raise_node_execution_error,
     sandbox_metrics_from_system_metrics,
+    serialize_sandbox_membership,
+    validate_node_exec_timeout,
+    validate_scalar_resources,
 )
 from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
@@ -84,6 +106,358 @@ from .lsp_server import LspServer
 from .process import Process
 
 _T = TypeVar("_T")
+
+_RDMA_USERSPACE_CHECK = (
+    "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && "
+    'find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
+)
+_RDMA_USERSPACE_WARNING = (
+    "WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; "
+    + "NCCL may fall back to sockets."
+)
+
+
+class SandboxNode:
+    """Lightweight data-plane handle for one node in a multi-node Sandbox."""
+
+    def __init__(
+        self,
+        node: SandboxNodeDto,
+        toolbox_api: ApiClient,
+        toolbox_proxy_url: str,
+        sandbox_api: SandboxApi,
+        language: str,
+        http_client: httpx.Client,
+    ) -> None:
+        if not node.id or node.id in {".", ".."} or any(char in node.id for char in "/\\?#%"):
+            raise DaytonaValidationError("Sandbox node id must be a valid path segment")
+        self.rank: int = node.rank
+        self.id: str = node.id
+        self.cpu: int = node.cpu
+        self.gpu: int = node.gpu
+        self.memory: int = node.memory
+        self.disk: int = node.disk
+        self.state: SandboxState = node.state
+        self.incarnation: int = node.incarnation
+        self.failure: GangNodeFailure | None = node.failure
+        self.fabric_address: str | None = None
+        self.fabric_prefix_length: int | None = None
+        self.fabric_healthy: bool | None = None
+        self.fabric_unhealthy_since: str | None = None
+        self.warnings: list[str] = []
+        self._rdma_lock: threading.Lock = threading.Lock()
+        self._rdma_incarnation: int | None = None
+        self._rdma_warning: str = ""
+        self._sandbox_api: SandboxApi = sandbox_api
+        self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
+            toolbox_api, self.id, toolbox_proxy_url
+        )
+        self.fs: FileSystem = FileSystem(FileSystemApi(self._toolbox_api), http_client=http_client)
+        self.process: Process = Process(language, ProcessApi(self._toolbox_api), http_client=http_client)
+        self.update(node)
+
+    def update(self, node: SandboxNodeDto) -> None:
+        """Refresh resources, state, incarnation, failure details and fabric metadata.
+
+        Raises:
+            DaytonaError: If the node rank or ID differs from this handle.
+        """
+        if node.rank != self.rank or node.id != self.id:
+            raise DaytonaError(
+                f"Sandbox node identity changed from rank {self.rank}/{self.id} to {node.rank}/{node.id}"
+            )
+        self.cpu = node.cpu
+        self.gpu = node.gpu
+        self.memory = node.memory
+        self.disk = node.disk
+        self.state = node.state
+        if self.incarnation != node.incarnation and self._rdma_warning in self.warnings:
+            self.warnings.remove(self._rdma_warning)
+        self.incarnation = node.incarnation
+        self.failure = node.failure
+        self.fabric_address = node.fabric_address
+        self.fabric_prefix_length = node.fabric_prefix_length
+        self.fabric_healthy = node.fabric_healthy
+        self.fabric_unhealthy_since = node.fabric_unhealthy_since
+
+    def _check_rdma(self) -> None:
+        with self._rdma_lock:
+            incarnation = self.incarnation
+            if self._rdma_incarnation == incarnation:
+                return
+            try:
+                check = self.process.exec(_RDMA_USERSPACE_CHECK, timeout=5)
+                warning = "" if check.exit_code == 0 else _RDMA_USERSPACE_WARNING
+            except Exception:  # The advisory probe must not prevent the user's command.
+                warning = "WARNING: Could not check RDMA userspace; continuing without verification."
+            if self.incarnation == incarnation:
+                self._rdma_incarnation = incarnation
+                self._rdma_warning = warning
+                if warning and warning not in self.warnings:
+                    self.warnings.append(warning)
+
+    def _to_dto(self) -> SandboxNodeDto:
+        return SandboxNodeDto(
+            rank=self.rank,
+            id=self.id,
+            state=self.state,
+            incarnation=self.incarnation,
+            failure=self.failure,
+            cpu=self.cpu,
+            gpu=self.gpu,
+            memory=self.memory,
+            disk=self.disk,
+            fabric_address=self.fabric_address,
+            fabric_prefix_length=self.fabric_prefix_length,
+            fabric_healthy=self.fabric_healthy,
+            fabric_unhealthy_since=self.fabric_unhealthy_since,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this live handle in the generated node DTO wire shape."""
+        return self._to_dto().to_dict()
+
+    @intercept_errors(message_prefix="Failed to get node preview link: ")
+    @with_instrumentation()
+    def get_preview_link(self, port: int, request_timeout: float | None = None) -> PortPreviewUrl:
+        """Get a preview URL for a port on this node."""
+        return self._sandbox_api.get_port_preview_url(self.id, port, _request_timeout=http_timeout(request_timeout))
+
+    @intercept_errors(message_prefix="Failed to create node SSH access: ")
+    @with_instrumentation()
+    def create_ssh_access(
+        self,
+        expires_in_minutes: int | None = None,
+        request_timeout: float | None = None,
+    ) -> SshAccessDto:
+        """Create an SSH access token for this node."""
+        return self._sandbox_api.create_ssh_access(
+            self.id,
+            expires_in_minutes=expires_in_minutes,
+            _request_timeout=http_timeout(request_timeout),
+        )
+
+    @intercept_errors(message_prefix="Failed to revoke node SSH access: ")
+    @with_instrumentation()
+    def revoke_ssh_access(self, token: str, request_timeout: float | None = None) -> None:
+        """Revoke an SSH access token for this node."""
+        _ = self._sandbox_api.revoke_ssh_access(self.id, token=token, _request_timeout=http_timeout(request_timeout))
+
+
+class SandboxNodeProcess:
+    """Process operations applied to every node in a Sandbox."""
+
+    def __init__(self, nodes: SandboxNodeCollection) -> None:
+        self._nodes: SandboxNodeCollection = nodes
+
+    @with_instrumentation()
+    def exec(
+        self,
+        command: str,
+        *,
+        timeout: int | None = None,
+    ) -> dict[int, ExecuteResponse]:
+        """Execute a command on every node, keyed by rank.
+
+        ``timeout`` limits execution on each rank in seconds; None or 0 disables
+        the limit. Results contain buffered command output. For live output, use a
+        session on the individual node's process handle. On a partial failure, the
+        error exposes node_failures and node_results keyed by rank. RDMA diagnostics
+        are recorded in each node's warnings.
+        """
+        validate_node_exec_timeout(timeout)
+        nodes = self._nodes._snapshot()
+
+        def execute_node(node: SandboxNode) -> ExecuteResponse:
+            if len(nodes) > 1:
+                node._check_rdma()
+            if timeout is None:
+                return node.process.exec(command)
+            return node.process.exec(command, timeout=timeout)
+
+        results: dict[int, ExecuteResponse] = {}
+        failures: dict[int, Exception] = {}
+        with ThreadPoolExecutor(max_workers=len(nodes)) as executor:
+            futures = {executor.submit(execute_node, node): node.rank for node in nodes}
+            for future in as_completed(futures):
+                rank = futures[future]
+                try:
+                    results[rank] = future.result()
+                except Exception as error:
+                    failures[rank] = error
+        if failures:
+            raise_node_execution_error(failures, results)
+        return {rank: results[rank] for rank in sorted(results)}
+
+
+class SandboxNodeFileSystem:
+    """File-system operations applied to every node in a Sandbox."""
+
+    def __init__(self, nodes: SandboxNodeCollection) -> None:
+        self._nodes: SandboxNodeCollection = nodes
+
+    @with_instrumentation()
+    def upload_file(self, src: str | bytes, dst: str, timeout: int = 30 * 60) -> None:
+        """Upload the same file to every node in parallel without rollback."""
+
+        def upload(node: SandboxNode) -> None:
+            if isinstance(src, str):
+                node.fs.upload_file(src, dst, timeout)
+            else:
+                node.fs.upload_file(src, dst, timeout)
+
+        failures: dict[int, Exception] = {}
+        nodes = self._nodes._snapshot()
+        with ThreadPoolExecutor(max_workers=len(nodes)) as executor:
+            futures = {executor.submit(upload, node): node.rank for node in nodes}
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as error:  # noqa: BLE001 - aggregate every failed rank
+                    failures[futures[future]] = error
+        if failures:
+            details = "; ".join(f"rank {rank}: {failures[rank]}" for rank in sorted(failures))
+            raise DaytonaError(f"Failed to upload file to node ranks {sorted(failures)}: {details}")
+
+
+class SandboxNodeCollection(list[SandboxNode]):
+    """Live, rank-ordered node collection with aggregate and topology operations."""
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, _schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
+        return handler(TypeAdapter(list[SandboxNodeDto]).core_schema)
+
+    def __init__(self, sandbox: Sandbox | None) -> None:
+        super().__init__()
+        self._view_generation: int | None = None
+        self._sandbox: Sandbox | None = sandbox
+        self.process: SandboxNodeProcess = SandboxNodeProcess(self)
+        self.fs: SandboxNodeFileSystem = SandboxNodeFileSystem(self)
+
+    def _snapshot(self) -> tuple[SandboxNode, ...]:
+        nodes = tuple(self)
+        if not nodes:
+            raise DaytonaError("Node membership is unavailable. Call refresh_data() and retry.")
+        return nodes
+
+    def _replace(self, nodes: list[SandboxNode], generation: int | None = None) -> None:
+        self._view_generation = generation
+        list.__setitem__(self, slice(None), nodes)
+
+    def _require_sandbox(self) -> Sandbox:
+        if self._sandbox is None:
+            raise DaytonaError("Sandbox node collection is not initialized")
+        return self._sandbox
+
+    def _remaining(self, deadline: float | None) -> float | None:
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DaytonaTimeoutError("Node membership operation exceeded its timeout")
+        return remaining
+
+    def _generation(self) -> int:
+        generation = self._view_generation
+        if generation is None:
+            raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
+        return generation
+
+    def _change(
+        self,
+        submit: Callable[[int, float | None], GangMembershipOperation],
+        timeout: float | None,
+    ) -> GangMembershipOperation:
+        sandbox = self._require_sandbox()
+        wait_until = time.monotonic() + timeout if timeout else None
+
+        @intercept_errors(message_prefix="Failed to submit Sandbox membership change: ")
+        @with_timeout()
+        def start(timeout: float | None) -> GangMembershipOperation:
+            deadline = time.monotonic() + timeout if timeout else None
+            generation = self._generation()
+            return submit(generation, http_timeout(self._remaining(deadline)))
+
+        operation = start(timeout=timeout)
+
+        @intercept_errors(message_prefix="Failed to wait for Sandbox membership change: ")
+        @with_timeout()
+        def finish(timeout: float | None) -> GangMembershipOperation:
+            nonlocal operation
+            deadline = time.monotonic() + timeout if timeout else None
+            while operation.status not in {"COMPLETED", "FAILED"}:
+                time.sleep(min(1.0, self._remaining(deadline) or 1.0))
+                operation = sandbox._sandbox_api.get_gang_membership_operation(
+                    sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
+                )
+            if operation.status == "FAILED":
+                raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
+            sandbox.refresh_data(request_timeout=self._remaining(deadline))
+            return operation
+
+        try:
+            return finish(timeout=self._remaining(wait_until))
+        except DaytonaError as error:
+            # Refreshing cached handles cannot undo a confirmed membership change.
+            if operation.status == "COMPLETED":
+                return operation
+            error.operation_id = operation.id
+            raise
+
+    @with_instrumentation()
+    def add(self, nodes: list[NodeResources], timeout: float | None = 600) -> GangMembershipOperation:
+        """Append rank-ordered nodes and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
+        sandbox = self._require_sandbox()
+        return self._change(
+            lambda generation, remaining: sandbox._sandbox_api.add_sandbox_nodes(
+                sandbox.id,
+                AddGangNodes(
+                    expected_generation=generation,
+                    nodes=[GangNodeResources(cpu=n.cpu, memory=n.memory, disk=n.disk) for n in nodes],
+                ),
+                _request_timeout=remaining,
+            ),
+            timeout,
+        )
+
+    @with_instrumentation()
+    def release(self, count: int = 1, timeout: float | None = 600) -> GangMembershipOperation:
+        """Release the highest ranks and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
+        sandbox = self._require_sandbox()
+        return self._change(
+            lambda generation, remaining: sandbox._sandbox_api.remove_sandbox_nodes(
+                sandbox.id,
+                RemoveGangNodes(expected_generation=generation, count=count),
+                _request_timeout=remaining,
+            ),
+            timeout,
+        )
+
+    @with_instrumentation()
+    def replace(self, rank: int, timeout: float | None = 600) -> GangMembershipOperation:
+        """Replace a degraded rank and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
+        sandbox = self._require_sandbox()
+        return self._change(
+            lambda generation, remaining: sandbox._sandbox_api.replace_sandbox_node(
+                sandbox.id,
+                str(rank),
+                ReplaceGangNode(expected_generation=generation),
+                _request_timeout=remaining,
+            ),
+            timeout,
+        )
 
 
 def with_events(cls: _T) -> _T:
@@ -185,7 +559,9 @@ class Sandbox(SandboxDto):
     env: dict[str, str] | None = None  # pyright: ignore[reportRedeclaration]
     network_block_all: bool | None = None  # pyright: ignore[reportRedeclaration]
     kvm: bool | None = None  # pyright: ignore[reportRedeclaration]
+    nodes: SandboxNodeCollection  # pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 
+    _reported_node_count: int | None = PrivateAttr(default=None)
     _fs: FileSystem = PrivateAttr()
     _git: Git = PrivateAttr()
     _process: Process = PrivateAttr()
@@ -194,9 +570,24 @@ class Sandbox(SandboxDto):
     _state_waiters: list[Callable[[SandboxState | None], None]] = PrivateAttr(default_factory=list)
     _state_waiters_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     _sub_id: str | None = PrivateAttr(default=None)
+    _toolbox_api_client: ApiClient = PrivateAttr()
+    _language: str = PrivateAttr()
 
     # TODO: Remove model_config once everything is migrated to pydantic # pylint: disable=fixme
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+
+    @model_serializer(mode="wrap")
+    def _serialize_sandbox(self, handler: SerializerFunctionWrapHandler):
+        return serialize_sandbox_membership(handler(self), self._reported_node_count)
+
+    @override
+    def to_dict(self) -> dict[str, Any]:
+        """Return the API representation, omitting node membership synthesized by the SDK."""
+        return serialize_sandbox_membership(super().to_dict(), self._reported_node_count)
+
+    @field_serializer("nodes")
+    def _serialize_nodes(self, nodes: SandboxNodeCollection) -> list[SandboxNodeDto]:
+        return [node._to_dto() for node in nodes]
 
     def __init__(
         self,
@@ -217,11 +608,18 @@ class Sandbox(SandboxDto):
             subscription_manager: SyncEventSubscriptionManager for real-time updates.
             http_client (httpx.Client): Shared pooled client for file transfers.
         """
-        super().__init__(**sandbox_dto.model_dump())
+        node_collection = SandboxNodeCollection(None)
+        model_data = sandbox_dto.model_dump()
+        model_data["nodes"] = node_collection
+        model_data.setdefault("node_count", 1)
+        super().__init__(**model_data)
+        node_collection._sandbox = self
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
         self._analytics_api_url_provider: Callable[[], str | None] | None = analytics_api_url_provider
         self._http_client: httpx.Client = http_client
+        self._toolbox_api_client = toolbox_api
+        self._language = language
         self._subscription_manager: SyncEventSubscriptionManager = subscription_manager
         if not self.toolbox_proxy_url:
             proxy_url = self._sandbox_api.get_toolbox_proxy_url(self.id)
@@ -248,6 +646,8 @@ class Sandbox(SandboxDto):
         self._info_api: InfoApi = InfoApi(self._toolbox_api)
         self._server_api: ServerApi = ServerApi(self._toolbox_api)
         self._system_api: SystemApi = SystemApi(self._toolbox_api)
+
+        self.__process_nodes(sandbox_dto)
 
         self._ensure_subscribed()
 
@@ -598,6 +998,9 @@ class Sandbox(SandboxDto):
     def stop(self, timeout: float | None = 60, force: bool = False):
         """Stops the Sandbox and waits for it to be fully stopped.
 
+        For a multi-node GPU Sandbox this irreversibly destroys the complete
+        gang and all ephemeral local data; it cannot be started again.
+
         Args:
             timeout (float | None): Maximum time to wait in seconds. 0 means no timeout. Default is 60 seconds.
             force (bool): If True, uses SIGKILL instead of SIGTERM to stop the sandbox. Default is False.
@@ -798,7 +1201,8 @@ class Sandbox(SandboxDto):
 
         The Sandbox will be destroyed after the specified number of minutes, counted as
         wall-clock time from the current moment, regardless of its state (started, stopped,
-        paused, or archived). Setting to 0 disables the TTL.
+        paused, or archived). Setting to 0 disables the TTL. For a multi-node
+        head, expiry destroys every member and all ephemeral local data.
 
         Args:
             ttl_minutes (int): Number of minutes until the Sandbox is destroyed.
@@ -1124,6 +1528,7 @@ class Sandbox(SandboxDto):
             sandbox.resize(Resources(cpu=2, memory=4, disk=30))
             ```
         """
+        validate_scalar_resources(resources)
         if resources.gpu is not None or resources.gpu_type is not None:
             raise DaytonaValidationError(
                 "Resize does not support changes to gpu or gpu_type — to change GPU, create a new Sandbox"
@@ -1195,7 +1600,7 @@ class Sandbox(SandboxDto):
                 the operation on the server. Positive values under 1 second are rounded up to 1
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = self._sandbox_api.revoke_ssh_access(self.id, token, _request_timeout=http_timeout(request_timeout))
+        _ = self._sandbox_api.revoke_ssh_access(self.id, token=token, _request_timeout=http_timeout(request_timeout))
 
     @intercept_errors(message_prefix="Failed to validate SSH access: ")
     @with_instrumentation()
@@ -1382,7 +1787,10 @@ class Sandbox(SandboxDto):
             ) or data.get("newState")
             if new_state is not None:
                 try:
-                    self._apply_state(SandboxState(new_state))
+                    state = SandboxState(new_state)
+                    if len(self.nodes) == 1 and (self.node_count == 1 or self.nodes[0].rank > 0):
+                        self.nodes[0].state = state
+                    self._apply_state(state)
                 except ValueError:
                     pass
 
@@ -1552,6 +1960,8 @@ class Sandbox(SandboxDto):
         if new_proxy_url:
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
+                for node in self.nodes:
+                    node._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
         self.sandbox_class: str | None = (
             sandbox_dto.sandbox_class.value
@@ -1562,6 +1972,13 @@ class Sandbox(SandboxDto):
         self.daemon_version: str | None = sandbox_dto.daemon_version
         self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
         self.queue_timeout: int | None = sandbox_dto.queue_timeout
+        self.node_count: int = int(  # pyright: ignore[reportIncompatibleVariableOverride]
+            getattr(sandbox_dto, "node_count", None) or getattr(self, "node_count", None) or 1
+        )
+        topology_generation = getattr(sandbox_dto, "topology_generation", None)
+        if topology_generation is not None:
+            self.topology_generation = topology_generation  # pyright: ignore[reportUnannotatedClassAttribute]
+        self.degraded: bool | None = getattr(sandbox_dto, "degraded", getattr(self, "degraded", None))
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):
@@ -1579,6 +1996,75 @@ class Sandbox(SandboxDto):
             self.otel_endpoint_override: str | None = sandbox_dto.otel_endpoint_override
 
         self._apply_state(sandbox_dto.state)
+
+        if hasattr(self, "_toolbox_api_client"):
+            self.__process_nodes(sandbox_dto)
+
+    def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
+        # A direct worker lookup returns only that worker, with its physical rank.
+        worker_rank = getattr(sandbox_dto, "node_rank", None) if getattr(sandbox_dto, "head_sandbox_id", None) else None
+        raw_nodes = getattr(sandbox_dto, "nodes", None)
+        reported_node_count = len(raw_nodes) if raw_nodes is not None else None
+        if not raw_nodes:
+            if reported_node_count == 0:
+                self._reported_node_count = 0
+            previous = self.nodes[0] if self.nodes else None
+            incarnation = getattr(sandbox_dto, "incarnation", None)
+            if previous is not None:
+                if len(self.nodes) != 1:
+                    return
+                if previous.rank > 0 and worker_rank is None:
+                    worker_rank = previous.rank
+                if previous.id != sandbox_dto.id or (incarnation is not None and previous.incarnation != incarnation):
+                    previous = None
+            # A gang head reports totals that cannot be assigned to individual ranks.
+            if worker_rank is None and self.node_count > 1:
+                return
+            if previous is None and reported_node_count is None:
+                self._reported_node_count = None
+            raw_nodes = [
+                SandboxNodeDto(
+                    rank=worker_rank or 0,
+                    id=sandbox_dto.id,
+                    state=sandbox_dto.state or (previous.state if previous else SandboxState.UNKNOWN),
+                    incarnation=incarnation or (previous.incarnation if previous else 1),
+                    failure=previous.failure if previous else None,
+                    fabric_address=previous.fabric_address if previous else None,
+                    fabric_prefix_length=previous.fabric_prefix_length if previous else None,
+                    fabric_healthy=previous.fabric_healthy if previous else None,
+                    fabric_unhealthy_since=previous.fabric_unhealthy_since if previous else None,
+                    cpu=sandbox_dto.cpu,
+                    gpu=sandbox_dto.gpu,
+                    memory=sandbox_dto.memory,
+                    disk=sandbox_dto.disk,
+                )
+            ]
+        if (
+            (worker_rank is not None and (worker_rank < 1 or len(raw_nodes) != 1))
+            or any(node.rank != rank for rank, node in enumerate(raw_nodes, start=worker_rank or 0))
+            or raw_nodes[0].id != sandbox_dto.id
+        ):
+            raise DaytonaError("Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head")
+        existing = {node.id: node for node in self.nodes}
+        updated: list[SandboxNode] = []
+        for node_dto in raw_nodes:
+            node = existing.get(node_dto.id)
+            if node is not None:
+                node.update(node_dto)
+            else:
+                node = SandboxNode(
+                    node_dto,
+                    self._toolbox_api_client,
+                    self.toolbox_proxy_url,
+                    self._sandbox_api,
+                    self._language,
+                    self._http_client,
+                )
+            updated.append(node)
+        generation = getattr(sandbox_dto, "topology_generation", None) if worker_rank is None else None
+        self.nodes._replace(updated, generation)  # pylint: disable=no-member
+        if reported_node_count:
+            self._reported_node_count = reported_node_count
 
     def __refresh_data_safe(self) -> None:
         """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""

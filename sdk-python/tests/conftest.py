@@ -14,6 +14,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from daytona_api_client import Sandbox as SyncSandboxDto
+from daytona_api_client import SandboxNode as SyncSandboxNodeDto
 from daytona_api_client import SandboxState
 
 SDK_SRC = Path(__file__).resolve().parents[1] / "src"
@@ -43,7 +44,37 @@ def make_sandbox_dto(
     **kwargs: Any,
 ) -> SyncSandboxDto:
     """Create a mock SandboxDto with sensible defaults."""
+    node_count = cast(int, kwargs.get("node_count", 1))
+    node_defaults = {
+        "state": cast(SandboxState, kwargs.get("state", state)),
+        "incarnation": 1,
+        "cpu": cast(int, kwargs.get("cpu", cpu)) // node_count,
+        "gpu": cast(int, kwargs.get("gpu", gpu)) // node_count,
+        "memory": cast(int, kwargs.get("memory", memory)) // node_count,
+        "disk": cast(int, kwargs.get("disk", disk)) // node_count,
+    }
     return SyncSandboxDto(
+        nodes=[
+            SyncSandboxNodeDto.from_dict({**node_defaults, **node})
+            for node in cast(
+                list[dict[str, Any]],
+                kwargs.get(
+                    "nodes",
+                    [
+                        {
+                            "rank": rank,
+                            "id": (
+                                cast(str, kwargs.get("id", sandbox_id)) if rank == 0 else f"{sandbox_id}-worker-{rank}"
+                            ),
+                        }
+                        for rank in range(node_count)
+                    ],
+                ),
+            )
+        ],
+        node_count=node_count,
+        topology_generation=cast(int, kwargs.get("topology_generation", 1)),
+        degraded=cast(bool | None, kwargs.get("degraded", None)),
         id=cast(str, kwargs.get("id", sandbox_id)),
         name=cast(str, kwargs.get("name", name)),
         organization_id=cast(str, kwargs.get("organization_id", organization_id)),

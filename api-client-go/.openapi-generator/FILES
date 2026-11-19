@@ -12,6 +12,7 @@ api_preview.go
 api_regions.go
 api_runners.go
 api_sandbox.go
+api_sandbox_membership.go
 api_secret.go
 api_snapshots.go
 api_users.go
@@ -23,6 +24,7 @@ configuration.go
 go.mod
 go.sum
 model_account_provider.go
+model_add_gang_nodes.go
 model_announcement.go
 model_api_key_list.go
 model_api_key_response.go
@@ -56,6 +58,9 @@ model_daytona_configuration.go
 model_directory_sync_status.go
 model_docker_registry.go
 model_fork_sandbox.go
+model_gang_membership_operation.go
+model_gang_node_failure.go
+model_gang_node_resources.go
 model_generate_workos_admin_portal_link.go
 model_gpu_capacity.go
 model_gpu_capacity_response.go
@@ -101,6 +106,8 @@ model_region_quota.go
 model_region_type.go
 model_region_usage_overview.go
 model_registry_push_access_dto.go
+model_remove_gang_nodes.go
+model_replace_gang_node.go
 model_resize_sandbox.go
 model_resolve_sandbox_secrets_200_response_inner.go
 model_runner.go
@@ -120,6 +127,8 @@ model_sandbox_labels.go
 model_sandbox_list_item.go
 model_sandbox_list_sort_direction.go
 model_sandbox_list_sort_field.go
+model_sandbox_membership_details.go
+model_sandbox_node.go
 model_sandbox_state.go
 model_sandbox_state_updated_webhook.go
 model_sandbox_volume.go

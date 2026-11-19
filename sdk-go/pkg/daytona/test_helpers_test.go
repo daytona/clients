@@ -12,14 +12,14 @@ import (
 
 	apiclient "github.com/daytona/clients/api-client-go"
 	"github.com/daytona/clients/sdk-go/pkg/types"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func writeJSONResponse(t *testing.T, w http.ResponseWriter, status int, payload any) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	require.NoError(t, json.NewEncoder(w).Encode(payload))
+	assert.NoError(t, json.NewEncoder(w).Encode(payload))
 }
 
 func testSandboxPayload(id, name string, state apiclient.SandboxState) map[string]any {

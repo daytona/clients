@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Configuration, Sandbox as SandboxDto } from '@daytona/api-client'
+import { ProcessApi } from '@daytona/toolbox-api-client'
 import { createApiResponse } from './helpers'
 import type { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
-import { DaytonaQueueTimeoutError, DaytonaSpotEvictedError, DaytonaTimeoutError } from '../errors/DaytonaError'
+import {
+  DaytonaConflictError,
+  DaytonaQueueTimeoutError,
+  DaytonaSpotEvictedError,
+  DaytonaTimeoutError,
+} from '../errors/DaytonaError'
 
 jest.mock(
   '@daytona/api-client',
@@ -44,6 +50,9 @@ jest.mock(
 )
 
 const baseDto: SandboxDto = {
+  nodes: [{ rank: 0, id: 'sb-1', state: 'stopped', incarnation: 1, cpu: 2, gpu: 0, memory: 4, disk: 10 }],
+  topologyGeneration: 1,
+  nodeCount: 1,
   id: 'sb-1',
   name: 'sandbox-one',
   organizationId: 'org-1',
@@ -91,6 +100,10 @@ const makeSandbox = (
     revokeSshAccess: jest.fn(),
     validateSshAccess: jest.fn(),
     updateSandboxSecrets: jest.fn(),
+    addSandboxNodes: jest.fn(),
+    removeSandboxNodes: jest.fn(),
+    replaceSandboxNode: jest.fn(),
+    getGangMembershipOperation: jest.fn(),
   }
   const subscriptionManager = {
     subscribe: jest.fn(() => subscribeReturns),
@@ -121,7 +134,478 @@ const makeSandbox = (
   return { sandbox, sandboxApi }
 }
 
+describe('node SSH access', () => {
+  it.each(['', '.', '..'])('rejects an invalid node path id %j before constructing a handle', (id) => {
+    const { SandboxNode } = require('../SandboxNode') as typeof import('../SandboxNode')
+    const { DaytonaInvalidArgumentError } = require('../errors/DaytonaError') as typeof import('../errors/DaytonaError')
+    expect(
+      () =>
+        new SandboxNode(
+          { ...baseDto.nodes![0], id },
+          'http://proxy',
+          { basePath: 'http://proxy' } as Configuration,
+          {} as never,
+        ),
+    ).toThrow(DaytonaInvalidArgumentError)
+  })
+
+  it.each([true, false])('refreshes existing node proxy URLs (full response=%s)', (full) => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 2,
+      nodes: [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker-1' }],
+    })
+    const handles = [...sandbox.nodes]
+    const configs = (ProcessApi as jest.Mock).mock.calls.slice(-2).map((args: unknown[]) => args[0] as Configuration)
+    const update: Partial<SandboxDto> = { ...baseDto, nodeCount: 2, toolboxProxyUrl: 'https://new.example/toolbox' }
+    delete update.nodes
+    if (full) update.nodes = [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker-1' }]
+    ;(sandbox as unknown as { processSandboxDto(dto: Partial<SandboxDto>): void }).processSandboxDto(update)
+    expect(sandbox.nodes[0]).toBe(handles[0])
+    expect(sandbox.nodes[1]).toBe(handles[1])
+    expect(configs.map((config) => config.basePath)).toEqual([
+      'https://new.example/toolbox/sb-1',
+      'https://new.example/toolbox/worker-1',
+    ])
+  })
+
+  it.each([
+    [0, undefined],
+    [1, undefined],
+    [0, 30],
+    [1, 30],
+  ] as const)('targets rank %s with expiry %s', async (rank, expiresInMinutes) => {
+    const { sandbox, sandboxApi } = makeSandbox({
+      nodeCount: 2,
+      nodes: [
+        { ...baseDto.nodes![0], rank: 0, id: 'sb-1' },
+        { ...baseDto.nodes![0], rank: 1, id: 'worker-1' },
+      ],
+    })
+    const access = { token: 'ssh-token', sshCommand: 'ssh ssh-token@gateway.example.com' }
+    sandboxApi.createSshAccess.mockResolvedValue(createApiResponse(access))
+    sandboxApi.revokeSshAccess.mockResolvedValue(createApiResponse({}))
+    const node = sandbox.nodes[rank]
+
+    expect(await node.createSshAccess(expiresInMinutes)).toBe(access)
+    await expect(node.revokeSshAccess(access.token)).resolves.toBeUndefined()
+
+    expect(sandboxApi.createSshAccess).toHaveBeenCalledTimes(1)
+    expect(sandboxApi.createSshAccess).toHaveBeenCalledWith(node.id, undefined, expiresInMinutes)
+    expect(sandboxApi.revokeSshAccess).toHaveBeenCalledTimes(1)
+    expect(sandboxApi.revokeSshAccess).toHaveBeenCalledWith(node.id, undefined, access.token)
+  })
+})
+
+it.each([true, false])('opens a directly fetched worker at its physical rank (member array=%s)', (full) => {
+  const { sandbox } = makeSandbox({
+    id: 'worker',
+    headSandboxId: 'head',
+    nodeRank: 2,
+    nodeCount: 3,
+    nodes: full ? [{ ...baseDto.nodes![0], id: 'worker', rank: 2 }] : undefined,
+  })
+  expect(sandbox.nodes.map((node) => [node.id, node.rank])).toEqual([['worker', 2]])
+  expect(sandbox.nodes[0].cpu).toBe(baseDto.cpu)
+})
+
+describe('membership operation deadlines', () => {
+  beforeEach(() => jest.useFakeTimers({ now: 0 }))
+  afterEach(() => jest.useRealTimers())
+
+  const prepare = () => {
+    const ctx = makeSandbox({ state: 'started' })
+    ctx.sandboxApi.getSandbox.mockResolvedValue(createApiResponse(baseDto))
+    ctx.sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse({ id: 'op-1', type: 'ADD', status: 'RUNNING' }))
+    return ctx
+  }
+
+  it('bounds polling and final refresh by the remaining budget', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getGangMembershipOperation.mockResolvedValue(
+      createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }),
+    )
+    const waiting = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2.5)
+    await jest.advanceTimersByTimeAsync(1000)
+    await waiting
+    expect(sandboxApi.getGangMembershipOperation.mock.calls[0][3]).toEqual({ timeout: 1500 })
+    expect(sandboxApi.addSandboxNodes.mock.calls[0][3]).toEqual({ timeout: 2500 })
+    expect(sandboxApi.getSandbox.mock.calls[0][3]).toEqual({ timeout: 1500 })
+  })
+
+  it('returns a confirmed operation even when the deadline prevents refreshing handles', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getGangMembershipOperation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' })), 2000)
+        }),
+    )
+    const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
+    await jest.advanceTimersByTimeAsync(3000)
+    expect(await result).toMatchObject({ id: 'op-1', status: 'COMPLETED' })
+    expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+  })
+
+  it('does not start a poll after the budget expires during sleep', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getGangMembershipOperation.mockResolvedValue(
+      createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }),
+    )
+    const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 1).catch((error) => error)
+    await jest.advanceTimersByTimeAsync(1000)
+    expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+    expect(await result).toMatchObject({ operationId: 'op-1' })
+    expect(sandboxApi.getGangMembershipOperation).not.toHaveBeenCalled()
+  })
+
+  it('returns a confirmed operation when the final refresh arrives late', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }))
+    sandboxApi.getSandbox.mockReset().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(createApiResponse(baseDto)), 3000)
+        }),
+    )
+    const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
+    await jest.advanceTimersByTimeAsync(3000)
+    expect(await result).toMatchObject({ id: 'op-1', status: 'COMPLETED' })
+  })
+
+  it('attaches the operation ID when the server reports terminal failure', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.removeSandboxNodes.mockResolvedValue(
+      createApiResponse({ id: 'op-1', type: 'REMOVE', status: 'FAILED', errorReason: 'capacity lost' }),
+    )
+    await expect(sandbox.nodes.release()).rejects.toMatchObject({ message: 'capacity lost', operationId: 'op-1' })
+    expect(sandboxApi.getSandbox).not.toHaveBeenCalled()
+  })
+
+  it('retains a completed release if refreshing its handles fails', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getSandbox.mockReset().mockRejectedValueOnce(new Error('503'))
+    const op = { id: 'release-1', status: 'COMPLETED', type: 'REMOVE' }
+    sandboxApi.removeSandboxNodes.mockResolvedValue(createApiResponse(op))
+    await expect(sandbox.nodes.release(1)).resolves.toBe(op)
+    expect(sandboxApi.removeSandboxNodes).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('all-node execution deadlines', () => {
+  const makeNodes = (count = 1) => {
+    const { sandbox } = makeSandbox({
+      nodeCount: count,
+      state: 'started',
+      nodes: Array.from({ length: count }, (_, rank) => ({
+        rank,
+        id: rank === 0 ? 'sb-1' : `node-${rank}`,
+        state: 'started' as const,
+        incarnation: 1,
+        cpu: 16,
+        gpu: 8,
+        memory: 192,
+        disk: 512,
+      })),
+    })
+    const processes = sandbox.nodes.map((node) => {
+      const methods = {
+        executeCommand: jest.fn().mockResolvedValue({ exitCode: 0, result: 'done', artifacts: { stdout: 'done' } }),
+      }
+      Object.assign(node.process, methods)
+      return methods
+    })
+    return { sandbox, processes }
+  }
+
+  it.each([0, 15])('forwards the buffered execution timeout %s to each rank', async (timeout) => {
+    const { sandbox, processes } = makeNodes(2)
+    const options = { timeout }
+
+    const results = await sandbox.nodes.process.executeCommand('workload', options)
+
+    expect(Object.keys(results)).toEqual(['0', '1'])
+    processes.forEach((process) =>
+      expect(process.executeCommand).toHaveBeenCalledWith('workload', undefined, undefined, timeout),
+    )
+  })
+
+  it.each([-1, 1.5, NaN, Infinity])('rejects invalid timeout %s before dispatch', async (timeout) => {
+    const { sandbox, processes } = makeNodes()
+    const options = { timeout }
+
+    await expect(sandbox.nodes.process.executeCommand('workload', options)).rejects.toThrow(/timeout/i)
+    expect(processes[0].executeCommand).not.toHaveBeenCalled()
+  })
+
+  it('bounds the RDMA prerequisite check', async () => {
+    const { sandbox, processes } = makeNodes(2)
+    await sandbox.nodes.process.executeCommand('workload', { timeout: 1 })
+    for (const process of processes)
+      expect(process.executeCommand.mock.calls[0].slice(1)).toEqual([undefined, undefined, 5])
+  })
+
+  it('reuses the RDMA probe until the node incarnation changes', async () => {
+    const { sandbox, processes } = makeNodes(2)
+    await Promise.all([sandbox.nodes.process.executeCommand('a'), sandbox.nodes.process.executeCommand('b')])
+    sandbox.nodes[1].update({ ...sandbox.nodes[1], incarnation: 2 })
+    await sandbox.nodes.process.executeCommand('c')
+    expect(processes.map((p) => p.executeCommand.mock.calls.filter((call) => call[3] === 5).length)).toEqual([1, 2])
+  })
+
+  it('still executes when the advisory RDMA probe fails', async () => {
+    const { sandbox, processes } = makeNodes(2)
+    processes[0].executeCommand.mockRejectedValueOnce(new Error('probe timed out'))
+    const results = await sandbox.nodes.process.executeCommand('workload')
+    expect(results[0]).toMatchObject({ exitCode: 0, result: 'done', artifacts: { stdout: 'done' } })
+    expect(processes[0].executeCommand).toHaveBeenCalledWith('workload')
+    expect(sandbox.nodes[0].warnings.join(' ')).toMatch(/unable|could not|failed/i)
+  })
+
+  it('keeps completed ranks when another rank fails', async () => {
+    const { sandbox, processes } = makeNodes(2)
+    const error = new DaytonaTimeoutError('rank 0 exceeded its timeout')
+    processes[0].executeCommand.mockResolvedValueOnce({ exitCode: 0 }).mockRejectedValueOnce(error)
+    await expect(sandbox.nodes.process.executeCommand('workload', { timeout: 1 })).rejects.toMatchObject({
+      nodeFailures: { 0: error },
+      nodeResults: { 1: { result: 'done' } },
+    })
+  })
+})
+
 describe('Sandbox', () => {
+  it('normalizes an older API response to one head node', () => {
+    const { sandbox } = makeSandbox({ nodes: undefined, nodeCount: undefined })
+
+    expect(sandbox.nodeCount).toBe(1)
+    expect(sandbox.nodes.map(({ rank, id }) => ({ rank, id }))).toEqual([{ rank: 0, id: sandbox.id }])
+  })
+
+  it('waits for member details before exposing ranks on a fresh gang', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ nodeCount: 2, nodes: undefined })
+    const nodes = sandbox.nodes
+
+    expect(sandbox.nodeCount).toBe(2)
+    expect(nodes).toHaveLength(0)
+    await expect(nodes.process.executeCommand('hostname')).rejects.toThrow(/membership is unavailable/i)
+    await expect(nodes.fs.uploadFile(Buffer.from('data'), '/file')).rejects.toThrow(/membership is unavailable/i)
+
+    const head = baseDto.nodes![0]
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        nodeCount: 2,
+        nodes: [head, { ...head, rank: 1, id: 'worker' }],
+      }),
+    )
+    await sandbox.refreshData()
+    expect(nodes.map((node) => node.id)).toEqual([sandbox.id, 'worker'])
+  })
+
+  it('refreshes an existing single-node handle when the API omits the member array', async () => {
+    const single = { ...baseDto }
+    delete single.nodes
+    const { sandbox, sandboxApi } = makeSandbox({ ...single, nodes: undefined })
+    const head = sandbox.nodes[0]
+    sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...single, cpu: 4, state: 'started' }))
+    await sandbox.refreshData()
+    expect(sandbox.nodes[0]).toBe(head)
+    expect(head).toMatchObject({ cpu: 4, state: 'started' })
+  })
+
+  it('builds all node handles in rank order with the head at index zero', () => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 2,
+      nodes: [
+        {
+          rank: 0,
+          id: 'sb-1',
+          state: 'started',
+          incarnation: 1,
+          cpu: 16,
+          gpu: 8,
+          memory: 256,
+          disk: 180,
+          fabricHealthy: true,
+        },
+        {
+          rank: 1,
+          id: 'sb-2',
+          state: 'started',
+          incarnation: 1,
+          cpu: 32,
+          gpu: 8,
+          memory: 256,
+          disk: 300,
+          fabricHealthy: false,
+        },
+      ],
+    })
+
+    expect(sandbox.nodes.map(({ rank, id }) => ({ rank, id }))).toEqual([
+      { rank: 0, id: 'sb-1' },
+      { rank: 1, id: 'sb-2' },
+    ])
+    expect(sandbox.nodes.map(({ cpu, memory, disk }) => ({ cpu, memory, disk }))).toEqual([
+      { cpu: 16, memory: 256, disk: 180 },
+      { cpu: 32, memory: 256, disk: 300 },
+    ])
+    expect(sandbox.nodes[1].fabricHealthy).toBe(false)
+    expect(sandbox.nodes[1].state).toBe('started')
+    expect(sandbox.nodes[1].incarnation).toBe(1)
+  })
+
+  it('executes one command on every node in parallel and keys results by rank', async () => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 2,
+      nodes: [
+        { rank: 0, id: 'sb-1', state: 'started', incarnation: 1, cpu: 16, gpu: 8, memory: 192, disk: 512 },
+        { rank: 1, id: 'sb-2', state: 'started', incarnation: 1, cpu: 16, gpu: 8, memory: 192, disk: 512 },
+      ],
+    })
+    for (const node of sandbox.nodes) {
+      jest
+        .spyOn(node.process, 'executeCommand')
+        .mockResolvedValueOnce({ exitCode: 0, result: '', artifacts: { stdout: '' } })
+        .mockResolvedValueOnce({ exitCode: node.rank, result: `node-${node.rank}`, artifacts: { stdout: '' } })
+    }
+
+    const result = await sandbox.nodes.process.executeCommand('hostname')
+
+    expect(Object.keys(result)).toEqual(['0', '1'])
+    expect(result[0].result).toBe('node-0')
+    expect(result[1].exitCode).toBe(1)
+    expect(
+      sandbox.nodes.every((node) => (node.process.executeCommand as jest.Mock).mock.calls[1][0] === 'hostname'),
+    ).toBe(true)
+  })
+
+  it('uploads to every node and identifies the rank whose upload failed', async () => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 2,
+      nodes: [
+        { rank: 0, id: 'sb-1', state: 'started', incarnation: 1, cpu: 16, gpu: 8, memory: 192, disk: 512 },
+        { rank: 1, id: 'sb-2', state: 'started', incarnation: 1, cpu: 16, gpu: 8, memory: 192, disk: 512 },
+      ],
+    })
+    jest.spyOn(sandbox.nodes[0].fs, 'uploadFile').mockResolvedValue(undefined)
+    jest.spyOn(sandbox.nodes[1].fs, 'uploadFile').mockRejectedValue(new Error('disk full'))
+
+    await expect(sandbox.nodes.fs.uploadFile(Buffer.from('data'), '/workspace/data.bin')).rejects.toThrow(
+      'node ranks [1]',
+    )
+    expect(sandbox.nodes[0].fs.uploadFile).toHaveBeenCalledTimes(1)
+    expect(sandbox.nodes[1].fs.uploadFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the native nodes array live across an add operation', async () => {
+    const { sandbox, sandboxApi } = makeSandbox()
+    const nodes = sandbox.nodes
+    const updated = {
+      ...baseDto,
+      topologyGeneration: 2,
+      nodeCount: 2,
+      cpu: 34,
+      memory: 260,
+      disk: 310,
+      nodes: [
+        { rank: 0, id: 'sb-1', state: 'started', incarnation: 1, cpu: 2, gpu: 0, memory: 4, disk: 10 },
+        { rank: 1, id: 'sb-2', state: 'started', incarnation: 1, cpu: 32, gpu: 0, memory: 256, disk: 300 },
+      ],
+    } satisfies SandboxDto
+    const operation = {
+      id: 'op-1',
+      sandboxId: 'sb-1',
+      type: 'ADD',
+      status: 'COMPLETED',
+      phase: 'COMMITTED',
+      expectedGeneration: 1,
+      targetGeneration: 2,
+      policyRevision: 1,
+      createdAt: '2026-10-06T00:00:00Z',
+      updatedAt: '2026-10-06T00:00:01Z',
+    }
+    sandboxApi.getSandbox.mockResolvedValueOnce(createApiResponse(updated))
+    sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse(operation))
+
+    const result = await nodes.add([{ cpu: 32, memory: 256, disk: 300 }], 0)
+
+    expect(Array.isArray(nodes)).toBe(true)
+    expect(sandbox.nodes).toBe(nodes)
+    expect(nodes.map(({ rank, id }) => ({ rank, id }))).toEqual([
+      { rank: 0, id: 'sb-1' },
+      { rank: 1, id: 'sb-2' },
+    ])
+    expect(result).toBe(operation)
+    expect(sandboxApi.addSandboxNodes).toHaveBeenCalledWith(
+      'sb-1',
+      { expectedGeneration: 1, nodes: [{ cpu: 32, memory: 256, disk: 300 }] },
+      undefined,
+      undefined,
+    )
+  })
+
+  it('releases against the membership the caller saw even after a sparse refresh', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({
+      nodeCount: 2,
+      nodes: [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker' }],
+    })
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({ ...baseDto, nodeCount: 3, topologyGeneration: 2, nodes: undefined }),
+    )
+    await sandbox.refreshData()
+    const conflict = new DaytonaConflictError('Topology changed')
+    sandboxApi.removeSandboxNodes.mockRejectedValue(conflict)
+
+    await expect(sandbox.nodes.release(1, 0)).rejects.toBe(conflict)
+    expect(sandboxApi.removeSandboxNodes).toHaveBeenCalledWith(
+      'sb-1',
+      { expectedGeneration: 1, count: 1 },
+      undefined,
+      undefined,
+    )
+    expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends generation-checked release and replacement requests', async () => {
+    const { sandbox, sandboxApi } = makeSandbox()
+    sandboxApi.getSandbox.mockResolvedValue(createApiResponse(baseDto))
+    sandboxApi.removeSandboxNodes.mockResolvedValue(
+      createApiResponse({ id: 'remove-1', type: 'REMOVE', status: 'COMPLETED' }),
+    )
+    sandboxApi.replaceSandboxNode.mockResolvedValue(
+      createApiResponse({ id: 'replace-1', type: 'REPLACE', status: 'COMPLETED' }),
+    )
+
+    await sandbox.nodes.release(1, 0)
+    await sandbox.nodes.replace(2, 0)
+
+    expect(sandboxApi.removeSandboxNodes).toHaveBeenCalledWith(
+      'sb-1',
+      { expectedGeneration: 1, count: 1 },
+      undefined,
+      undefined,
+    )
+    expect(sandboxApi.replaceSandboxNode).toHaveBeenCalledWith(
+      'sb-1',
+      '2',
+      { expectedGeneration: 1 },
+      undefined,
+      undefined,
+    )
+  })
+
+  it('rejects node arrays that violate the rank invariant', () => {
+    expect(() =>
+      makeSandbox({
+        nodeCount: 2,
+        nodes: [
+          { rank: 0, id: 'sb-1', state: 'started', incarnation: 1, cpu: 16, gpu: 8, memory: 192, disk: 512 },
+          { rank: 2, id: 'sb-2', state: 'started', incarnation: 1, cpu: 16, gpu: 8, memory: 192, disk: 512 },
+        ],
+      }),
+    ).toThrow('nodes[i].rank must equal i')
+  })
+
   it('maps dto fields in constructor', () => {
     const { sandbox } = makeSandbox({ labels: { team: 'sdk' }, autoStopInterval: 10 })
     expect(sandbox.id).toBe('sb-1')
@@ -692,5 +1176,49 @@ describe('Sandbox', () => {
 
     const lsp = await sandbox.createLspServer('typescript', '/workspace/project')
     expect(lsp).toBeTruthy()
+  })
+})
+
+describe('lightweight gang events', () => {
+  it('preserves node details when a sandbox event omits members', () => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 1,
+      nodes: [{ ...baseDto.nodes![0], incarnation: 3, fabricHealthy: true }],
+    })
+    const head = sandbox.nodes[0]
+    const event = { ...baseDto, nodes: undefined, cpu: 6, gpu: 1, memory: 12, disk: 40, state: 'started' }
+    const listener = sandbox as unknown as { handleEvent(name: string, data: unknown): void }
+    listener.handleEvent('sandbox.created', { sandbox: event })
+    expect(sandbox.nodes[0]).toBe(head)
+    expect(head).toMatchObject({
+      cpu: 6,
+      gpu: 1,
+      memory: 12,
+      disk: 40,
+      state: 'started',
+      incarnation: 3,
+      fabricHealthy: true,
+    })
+
+    listener.handleEvent('sandbox.created', { sandbox: { ...event, incarnation: 4 } })
+    expect(head).toMatchObject({ incarnation: 4, fabricHealthy: undefined })
+    listener.handleEvent('sandbox.state.updated', { newState: 'stopped' })
+    expect(head.state).toBe('stopped')
+  })
+
+  it('preserves topology metadata omitted from list-item events', () => {
+    const { sandbox } = makeSandbox({
+      nodeCount: 2,
+      degraded: true,
+      topologyGeneration: 7,
+      nodes: [baseDto.nodes![0], { ...baseDto.nodes![0], rank: 1, id: 'worker-1' }],
+    })
+    const { nodeCount, degraded, topologyGeneration, nodes, ...event } = baseDto
+    void [nodeCount, degraded, topologyGeneration, nodes]
+    ;(sandbox as unknown as { processSandboxDto: (dto: typeof event) => void }).processSandboxDto(event)
+    expect(sandbox.nodeCount).toBe(2)
+    expect(sandbox.degraded).toBe(true)
+    expect(sandbox.topologyGeneration).toBe(7)
+    expect(sandbox.nodes).toHaveLength(2)
   })
 })

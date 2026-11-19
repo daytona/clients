@@ -2318,6 +2318,9 @@ paths:
       - sandbox
   /sandbox/{sandboxIdOrName}/stop:
     post:
+      description: "Stops a single-node sandbox. For a multi-node GPU sandbox head,\
+        \ stop is irreversible and destroys the entire gang, including all ephemeral\
+        \ local data."
       operationId: stopSandbox
       parameters:
       - description: Use with JWT to specify the organization ID
@@ -2350,7 +2353,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Sandbox"
-          description: Sandbox has been stopped
+          description: "Sandbox has been stopped, or the complete multi-node gang\
+            \ has been marked for destruction"
       security:
       - bearer: []
       - oauth2:
@@ -3019,7 +3023,8 @@ paths:
         style: simple
       - description: "Maximum time to live in minutes, re-anchored from the current\
           \ time (0 to disable). When it elapses the sandbox is destroyed, even if\
-          \ it is stopped, paused, or archived"
+          \ it is stopped, paused, or archived. On a multi-node head, expiry destroys\
+          \ every member and all ephemeral local data"
         explode: false
         in: path
         name: ttlMinutes
@@ -6351,6 +6356,178 @@ paths:
       summary: Get sandbox metrics
       tags:
       - sandbox
+  /sandbox/{sandboxIdOrName}/nodes:
+    post:
+      operationId: addSandboxNodes
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddGangNodes"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: Membership operation accepted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Append nodes to a multi-node sandbox
+      tags:
+      - Sandbox Membership
+  /sandbox/{sandboxIdOrName}/nodes/remove:
+    post:
+      operationId: removeSandboxNodes
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveGangNodes"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: Membership operation accepted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Remove the highest ranks from a multi-node sandbox
+      tags:
+      - Sandbox Membership
+  /sandbox/{sandboxIdOrName}/nodes/{rank}/replace:
+    post:
+      operationId: replaceSandboxNode
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: rank
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceGangNode"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: Membership operation accepted
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Replace a failed multi-node sandbox rank
+      tags:
+      - Sandbox Membership
+  /sandbox/{sandboxIdOrName}/membership-operations/{operationId}:
+    get:
+      operationId: getGangMembershipOperation
+      parameters:
+      - description: Use with JWT to specify the organization ID
+        explode: false
+        in: header
+        name: X-Daytona-Organization-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: sandboxIdOrName
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: operationId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GangMembershipOperation"
+          description: ""
+      security:
+      - bearer: []
+      - oauth2:
+        - openid
+        - profile
+        - email
+      summary: Get a gang membership operation
+      tags:
+      - Sandbox Membership
 components:
   schemas:
     Announcement:
@@ -9149,7 +9326,8 @@ components:
           example: us
           type: string
         cpu:
-          description: CPU cores allocated to the sandbox
+          description: CPU cores allocated to the sandbox. On a multi-node sandbox
+            this scalar applies to every node.
           example: 2
           type: integer
         gpu:
@@ -9173,11 +9351,13 @@ components:
           example: false
           type: boolean
         memory:
-          description: Memory allocated to the sandbox in GB
+          description: Memory in GB allocated to the sandbox. On a multi-node sandbox
+            this scalar applies to every node.
           example: 1
           type: integer
         disk:
-          description: Disk space allocated to the sandbox in GB
+          description: Disk space in GB allocated to the sandbox. On a multi-node
+            sandbox this scalar applies to every node.
           example: 3
           type: integer
         autoStopInterval:
@@ -9419,11 +9599,13 @@ components:
           example: local
           type: string
         cpu:
-          description: The CPU quota for the sandbox
+          description: "The CPU quota for the sandbox; for a multi-node sandbox, this\
+            \ is the job total."
           example: 2
           type: integer
         gpu:
-          description: The GPU quota for the sandbox
+          description: "The GPU quota for the sandbox; for a multi-node sandbox, this\
+            \ is the job total."
           example: 0
           type: integer
         spot:
@@ -9451,11 +9633,13 @@ components:
           description: The GPU type assigned to the sandbox
           example: H100
         memory:
-          description: The memory quota for the sandbox
+          description: "The memory quota for the sandbox; for a multi-node sandbox,\
+            \ this is the job total."
           example: 4
           type: integer
         disk:
-          description: The disk quota for the sandbox
+          description: "The disk quota for the sandbox; for a multi-node sandbox,\
+            \ this is the job total."
           example: 10
           type: integer
         state:
@@ -12709,6 +12893,262 @@ components:
       - organizationId
       - timestamp
       - updatedAt
+      type: object
+    GangNodeFailure:
+      properties:
+        rank:
+          minimum: 0
+          type: integer
+        memberId:
+          type: string
+        incarnation:
+          minimum: 1
+          type: integer
+        reason:
+          type: string
+        reportedState:
+          allOf:
+          - $ref: "#/components/schemas/SandboxState"
+        failedAt:
+          format: date-time
+          type: string
+        fencingStatus:
+          enum:
+          - PENDING
+          - FENCED
+          - FAILED
+          type: string
+        fencingError:
+          type: string
+      required:
+      - failedAt
+      - fencingStatus
+      - incarnation
+      - memberId
+      - rank
+      - reason
+      - reportedState
+      type: object
+    SandboxNode:
+      properties:
+        rank:
+          minimum: 0
+          type: integer
+        id:
+          type: string
+        state:
+          allOf:
+          - $ref: "#/components/schemas/SandboxState"
+          description: Current state of this logical rank.
+        incarnation:
+          description: Physical incarnation of this logical rank.
+          minimum: 1
+          type: integer
+        failure:
+          allOf:
+          - $ref: "#/components/schemas/GangNodeFailure"
+          description: Failure details for this rank while the gang is degraded.
+        cpu:
+          description: CPU cores allocated to this node.
+          type: integer
+        gpu:
+          description: GPU units allocated to this node.
+          type: integer
+        memory:
+          description: Memory allocated to this node in GB.
+          type: integer
+        disk:
+          description: Disk allocated to this node in GB.
+          type: integer
+        fabricAddress:
+          description: Rail-0 address assigned to this member.
+          type: string
+        fabricPrefixLength:
+          description: Prefix length of the member rail-0 address.
+          type: integer
+        fabricHealthy:
+          description: Latest fabric health reported by the assigned runner.
+          type: boolean
+        fabricUnhealthySince:
+          description: Start of the current sustained unhealthy interval.
+          type: string
+      required:
+      - cpu
+      - disk
+      - gpu
+      - id
+      - incarnation
+      - memory
+      - rank
+      - state
+      type: object
+    GangNodeResources:
+      example:
+        disk: 1
+        memory: 1
+        cpu: 1
+      properties:
+        cpu:
+          description: CPU cores for the appended node.
+          minimum: 1
+          type: integer
+        memory:
+          description: Memory in GB for the appended node.
+          minimum: 1
+          type: integer
+        disk:
+          description: Disk in GB for the appended node.
+          minimum: 1
+          type: integer
+      required:
+      - cpu
+      - disk
+      - memory
+      type: object
+    AddGangNodes:
+      example:
+        nodes:
+        - disk: 1
+          memory: 1
+          cpu: 1
+        - disk: 1
+          memory: 1
+          cpu: 1
+        expectedGeneration: 1
+      properties:
+        expectedGeneration:
+          description: Current sandbox topology generation.
+          minimum: 1
+          type: integer
+        nodes:
+          description: One resource specification per appended rank.
+          items:
+            $ref: "#/components/schemas/GangNodeResources"
+          type: array
+      required:
+      - expectedGeneration
+      - nodes
+      type: object
+    GangMembershipOperation:
+      example:
+        phase: phase
+        targetGeneration: 2
+        createdAt: createdAt
+        completedAt: completedAt
+        errorReason: errorReason
+        policyRevision: 1
+        sandboxId: sandboxId
+        expectedGeneration: 1
+        id: id
+        type: ADD
+        status: PENDING
+        updatedAt: updatedAt
+      properties:
+        id:
+          type: string
+        sandboxId:
+          type: string
+        type:
+          enum:
+          - ADD
+          - REMOVE
+          - REPLACE
+          type: string
+        status:
+          enum:
+          - PENDING
+          - RUNNING
+          - COMPLETED
+          - FAILED
+          type: string
+        phase:
+          type: string
+        expectedGeneration:
+          minimum: 1
+          type: integer
+        targetGeneration:
+          minimum: 2
+          type: integer
+        policyRevision:
+          minimum: 1
+          type: integer
+        errorReason:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        completedAt:
+          type: string
+      required:
+      - createdAt
+      - expectedGeneration
+      - id
+      - phase
+      - policyRevision
+      - sandboxId
+      - status
+      - targetGeneration
+      - type
+      - updatedAt
+      type: object
+    RemoveGangNodes:
+      example:
+        count: 1
+        expectedGeneration: 1
+      properties:
+        expectedGeneration:
+          description: Current sandbox topology generation.
+          minimum: 1
+          type: integer
+        count:
+          description: Number of highest ranks to remove.
+          minimum: 1
+          type: integer
+      required:
+      - count
+      - expectedGeneration
+      type: object
+    ReplaceGangNode:
+      example:
+        expectedGeneration: 1
+      properties:
+        expectedGeneration:
+          description: Current sandbox topology generation.
+          minimum: 1
+          type: integer
+      required:
+      - expectedGeneration
+      type: object
+    SandboxMembershipDetails:
+      properties:
+        degraded:
+          description: The gang remains usable but one or more fabric checks are degraded.
+          type: boolean
+        headSandboxId:
+          description: Gang head ID; present only on internal member rows.
+          type: string
+        incarnation:
+          description: Physical incarnation for an internal gang row.
+          minimum: 1
+          type: integer
+        nodeCount:
+          description: Derived number of physical nodes in this sandbox.
+          minimum: 1
+          type: integer
+        nodeRank:
+          description: Rank within the gang; present only on internal member rows.
+          minimum: 1
+          type: integer
+        nodes:
+          description: Gang members in rank order. Rank 0 is this sandbox.
+          items:
+            $ref: "#/components/schemas/SandboxNode"
+          type: array
+        topologyGeneration:
+          description: Committed logical topology generation.
+          minimum: 1
+          type: integer
       type: object
     resolveSandboxSecrets_200_response_inner:
       example:

@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -157,6 +158,14 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'cpuPerNode'
+     */
+    @Test
+    public void cpuPerNodeTest() {
+        // TODO: test cpuPerNode
+    }
+
+    /**
      * Test the property 'gpu'
      */
     @Test
@@ -189,11 +198,27 @@ public class CreateSandboxTest {
     }
 
     /**
+     * Test the property 'memoryPerNode'
+     */
+    @Test
+    public void memoryPerNodeTest() {
+        // TODO: test memoryPerNode
+    }
+
+    /**
      * Test the property 'disk'
      */
     @Test
     public void diskTest() {
         // TODO: test disk
+    }
+
+    /**
+     * Test the property 'diskPerNode'
+     */
+    @Test
+    public void diskPerNodeTest() {
+        // TODO: test diskPerNode
     }
 
     /**

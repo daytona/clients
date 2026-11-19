@@ -56,6 +56,17 @@ class SnapshotServiceTest {
     private SnapshotService snapshotService;
     private List<String> uploadedContexts = Collections.emptyList();
 
+    @Test
+    void rejectsPerNodeResourcesBeforeUploadingContext() {
+        SnapshotService service = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> {
+            throw new AssertionError("Unexpected context upload");
+        });
+        Resources resources = new Resources();
+        resources.setDiskPerNode(Arrays.asList(10, 20));
+        assertThatThrownBy(() -> service.create("snapshot", Image.base("python:3.12"), resources, null))
+                .isInstanceOf(DaytonaException.class).hasMessageContaining("per-node");
+    }
+
     @BeforeEach
     void setUp() {
         snapshotService = new SnapshotService(snapshotsApi, new OkHttpClient(), "test-key", image -> uploadedContexts);
