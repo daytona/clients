@@ -162,6 +162,9 @@ func newSecretGetCmd() *cobra.Command {
 
 func newSecretDeleteCmd() *cobra.Command {
 	return &cobra.Command{Use: "delete <name>", Short: "Delete a project secret", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := refuseResourceSearchName("secret", args[0]); err != nil {
+			return err
+		}
 		a := FromContext(cmd.Context())
 		if err := a.Confirm("delete", "secret "+args[0]); err != nil {
 			return err

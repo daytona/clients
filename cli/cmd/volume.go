@@ -172,6 +172,9 @@ func newVolumeDeleteCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "delete <id-or-name>", Short: "Delete a volume", Long: "Delete a volume by id or name. It prints the accepted deletion, or an acknowledgement repeating the reference as given when the API answers with no operation.\nExample:\n  daytona volume delete <id-or-name> --yes", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := refuseResourceSearchName("volume", args[0]); err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			if err := a.Confirm("delete", args[0]); err != nil {
 				return err

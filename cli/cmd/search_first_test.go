@@ -111,6 +111,19 @@ func TestArtifactGet_searchIsRefusedAsAName(t *testing.T) {
 	}
 }
 
+func TestSecretAndVolumeDelete_searchIsRefusedBeforeConfirmation(t *testing.T) {
+	for _, kind := range []string{"secret", "volume"} {
+		t.Run(kind, func(t *testing.T) {
+			// Given / When: no --yes and no request are provided.
+			_, _, err := runCLI(t, []string{kind, "delete", "search"}, nil)
+			// Then: the reserved name wins before confirmation can run.
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+			require.Contains(t, err.Error(), "'search' cannot be used as a "+kind+" name")
+		})
+	}
+}
+
 func TestSecretAndVolumeLists_searchFirstFallbacks(t *testing.T) {
 	secret := `{"name":"TOKEN","allowed_domains":["example.com"],"created_at":"2026-09-01T00:00:00Z","updated_at":"2026-09-01T00:00:00Z","cursor":"sc"}`
 	volume := diskVolumeSearchFixture("vol_1")
