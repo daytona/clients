@@ -8694,7 +8694,7 @@ describe('toolbox service request shaping', () => {
       items: [{ id: 'vol 1', name: 'listed', type: 'disk', rawType: 'disk', sizeGib: 4, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' }],
       nextCursor: undefined,
     })
-    expect(get.mock.calls[0]).toEqual(['/volumes', { params: { cursor: undefined, limit: undefined } }])
+    expect(get.mock.calls[0]).toEqual(['/volumes/search', { params: {} }])
     await expect(volumes.get('vol/name')).resolves.toEqual({ id: 'vol 1', name: 'fetched', type: 'disk', rawType: 'disk', sizeGib: 8, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
     expect(get.mock.calls[1]?.[0]).toBe('/volumes/vol%2Fname')
     expect(post).not.toHaveBeenCalled()
@@ -8735,7 +8735,7 @@ describe('toolbox service request shaping', () => {
     const secretsPage = await client.secrets.list()
     expect(secretsPage).toEqual({ items: [{ name: 'TOKEN', allowedDomains: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }] })
     expect(Object.keys(secretsPage)).toEqual(['items', 'nextCursor'])
-    expect(get.mock.calls[0]?.[0]).toBe('/secrets')
+    expect(get.mock.calls[0]?.[0]).toBe('/secrets/search')
     await client.secrets.set('API/TOKEN', 'secret', { allowedDomains: ['*.example.com'], description: 'desc', ifNotExists: true })
     expect(put).toHaveBeenCalledWith(
       '/secrets/API%2FTOKEN',

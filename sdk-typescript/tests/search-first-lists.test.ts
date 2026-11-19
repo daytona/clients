@@ -16,6 +16,8 @@ import type { PlannedResponse } from './networkPolicyTestServer'
 // deployment does not serve search. Python's twin is tests/test_search_first_lists.py.
 
 const sandboxItem = { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', toolbox_proxy_url: 'https://proxy.example/sandbox-api', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: 'r1', port_map: [] }
+const secretItem = { name: 'TOKEN', allowed_domains: ['example.com'], description: 'service token', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', cursor: 'secret-cursor' }
+const volumeItem = { id: 'vol_1', name: 'data', type: 'disk', status: 'ready', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', cursor: 'volume-cursor' }
 
 type Case = {
   readonly name: string
@@ -23,14 +25,17 @@ type Case = {
   readonly listPath: string
   readonly field: string
   readonly item: unknown
-  readonly call: (client: Daytona) => Promise<{ readonly items: readonly { readonly id: string }[]; readonly nextCursor?: string }>
+  readonly call: (client: Daytona) => Promise<{ readonly items: readonly { readonly id?: string; readonly name?: string }[]; readonly nextCursor?: string }>
   readonly query: string
+  readonly identity: string
 }
 
 const CASES: readonly Case[] = [
-  { name: 'sandboxes', searchPath: '/sandboxes/search', listPath: '/sandboxes', field: 'sandboxes', item: sandboxItem, call: (client) => client.v2.list({ limit: 5, cursor: 'c1' }), query: '?cursor=c1&limit=5' },
-  { name: 'images', searchPath: '/images/search', listPath: '/images', field: 'images', item: imageWire({ id: 'img_1' }), call: (client) => client.v2.images.list({ name: 'base', limit: 5 }), query: '?limit=5&name=base' },
-  { name: 'snapshots', searchPath: '/snapshots/search', listPath: '/snapshots', field: 'snapshots', item: snapshotWire({ id: 'snap_1' }), call: (client) => client.v2.snapshots.list({ sandboxId: 'sbx', limit: 5 }), query: '?limit=5&sandbox_id=sbx' },
+  { name: 'sandboxes', searchPath: '/sandboxes/search', listPath: '/sandboxes', field: 'sandboxes', item: sandboxItem, call: (client) => client.v2.list({ limit: 5, cursor: 'c1' }), query: '?cursor=c1&limit=5', identity: 'sbx' },
+  { name: 'images', searchPath: '/images/search', listPath: '/images', field: 'images', item: imageWire({ id: 'img_1' }), call: (client) => client.v2.images.list({ name: 'base', limit: 5 }), query: '?limit=5&name=base', identity: 'img_1' },
+  { name: 'snapshots', searchPath: '/snapshots/search', listPath: '/snapshots', field: 'snapshots', item: snapshotWire({ id: 'snap_1' }), call: (client) => client.v2.snapshots.list({ sandboxId: 'sbx', limit: 5 }), query: '?limit=5&sandbox_id=sbx', identity: 'snap_1' },
+  { name: 'secrets', searchPath: '/secrets/search', listPath: '/secrets', field: 'secrets', item: secretItem, call: (client) => client.v2.secrets.list({ limit: 5, cursor: 'c1' }), query: '?cursor=c1&limit=5', identity: 'TOKEN' },
+  { name: 'volumes', searchPath: '/volumes/search', listPath: '/volumes', field: 'volumes', item: volumeItem, call: (client) => client.v2.volumes.list({ limit: 5, cursor: 'c1' }), query: '?cursor=c1&limit=5', identity: 'vol_1' },
 ]
 
 const errorBody = (code: string) => ({ code, message: code.toLowerCase(), source: 'DAYTONA_API' })
@@ -54,13 +59,14 @@ async function run(responses: PlannedResponse[], call: Case['call']) {
   }
 }
 
-describe.each(CASES)('$name list', ({ searchPath, listPath, field, item, call, query }) => {
+describe.each(CASES)('$name list', ({ searchPath, listPath, field, item, call, query, identity }) => {
   const page = (cursor: string | null) => ({ [field]: [item], next_cursor: cursor })
 
   it('reads the search route on a deployment with search', async () => {
     const result = await run([{ status: 200, body: { ...page('n1'), total: 1, total_relation: 'eq' } }], call)
     expect(result.paths).toEqual([`${searchPath}${query}`])
     expect(result.page?.items).toHaveLength(1)
+    expect(result.page?.items.map((value) => value.id ?? value.name)).toEqual([identity])
     expect(result.page?.nextCursor).toBe('n1')
   })
 
@@ -115,6 +121,44 @@ describe.each(CASES)('$name list', ({ searchPath, listPath, field, item, call, q
   })
 })
 
+describe('secret and volume search', () => {
+  it('sends every secret filter and returns search totals', async () => {
+    const result = await run([{ status: 200, body: { secrets: [secretItem], next_cursor: 'next', total: 1, total_relation: 'eq' } }], (client) => client.v2.secrets.search({
+      q: 'token', name: 'TOKEN', namePrefix: 'TOK', allowedDomain: 'example.com',
+      createdStartAt: new Date('2026-01-01T00:00:00Z'), createdEndAt: '2026-02-01T00:00:00Z',
+      updatedStartAt: '2026-01-02T00:00:00Z', updatedEndAt: '2026-02-02T00:00:00Z',
+      sort: 'updated_at', order: 'desc', cursor: 'cursor', limit: 5,
+    }))
+    const request = new URL(result.paths[0] ?? '', 'https://api.example')
+    expect(request.pathname).toBe('/secrets/search')
+    expect(Object.fromEntries(request.searchParams)).toEqual({ q: 'token', name: 'TOKEN', name_prefix: 'TOK', allowed_domain: 'example.com', created_start_at: '2026-01-01T00:00:00.000Z', created_end_at: '2026-02-01T00:00:00Z', updated_start_at: '2026-01-02T00:00:00Z', updated_end_at: '2026-02-02T00:00:00Z', sort: 'updated_at', order: 'desc', cursor: 'cursor', limit: '5' })
+    expect(result.page).toMatchObject({ nextCursor: 'next', total: 1, totalRelation: 'eq' })
+  })
+
+  it('sends every volume filter and returns search totals', async () => {
+    const result = await run([{ status: 200, body: { volumes: [volumeItem], next_cursor: null, total: 1, total_relation: 'gte' } }], (client) => client.v2.volumes.search({
+      q: 'data', name: 'data', namePrefix: 'da', types: ['disk', 'bucket'], statuses: ['ready', 'error'], imported: false,
+      createdStartAt: '2026-01-01T00:00:00Z', createdEndAt: '2026-02-01T00:00:00Z',
+      updatedStartAt: '2026-01-02T00:00:00Z', updatedEndAt: '2026-02-02T00:00:00Z',
+      lastUsedStartAt: '2026-01-03T00:00:00Z', lastUsedEndAt: '2026-02-03T00:00:00Z',
+      sort: 'used_bytes', order: 'asc', cursor: 'cursor', limit: 5,
+    }))
+    const request = new URL(result.paths[0] ?? '', 'https://api.example')
+    expect(request.pathname).toBe('/volumes/search')
+    expect(Object.fromEntries(request.searchParams)).toEqual({ q: 'data', name: 'data', name_prefix: 'da', type: 'disk,bucket', status: 'ready,error', imported: 'false', created_start_at: '2026-01-01T00:00:00Z', created_end_at: '2026-02-01T00:00:00Z', updated_start_at: '2026-01-02T00:00:00Z', updated_end_at: '2026-02-02T00:00:00Z', last_used_start_at: '2026-01-03T00:00:00Z', last_used_end_at: '2026-02-03T00:00:00Z', sort: 'used_bytes', order: 'asc', cursor: 'cursor', limit: '5' })
+    expect(result.page).toMatchObject({ total: 1, totalRelation: 'gte' })
+  })
+})
+
+it.each([
+  { field: 'secrets', item: secretItem, call: (client: Daytona) => client.v2.secrets.list({ cursor: 'c1', limit: 5 }) },
+  { field: 'volumes', item: volumeItem, call: (client: Daytona) => client.v2.volumes.list({ cursor: 'c1', limit: 5 }) },
+])('falls back when an older $field item route returns 200 instead of a page', async ({ field, item, call }) => {
+  const result = await run([{ status: 200, body: item }, { status: 200, body: { [field]: [item], next_cursor: null } }], call)
+  expect(result.paths).toEqual([`/${field}/search?cursor=c1&limit=5`, `/${field}?cursor=c1&limit=5`])
+  expect(result.page?.items).toHaveLength(1)
+})
+
 describe('an iter() walk on a deployment without search', () => {
   it('probes search once, then reads every page from the list route', async () => {
     const result = await run(
@@ -141,6 +185,19 @@ describe("'search' is not a name", () => {
     expect(result.error).toBeInstanceOf(BadRequestError)
     expect(result.error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     expect((result.error as Error).message).toBe(`'search' cannot be looked up by name; it is reserved for the search route — use the ${kind} ID`)
+  })
+
+  it.each([
+    (client: Daytona) => client.v2.secrets.get('search'),
+    (client: Daytona) => client.v2.secrets.set('search', 'value', { allowedDomains: ['example.com'] }),
+    (client: Daytona) => client.v2.volumes.get('search'),
+    (client: Daytona) => client.v2.volumes.create({ name: 'search' }),
+  ])('refuses a secret or volume named search before any request', async (call) => {
+    const result = await run([], async (client) => ({ items: [await call(client)] }))
+    expect(result.paths).toEqual([])
+    expect(result.error).toBeInstanceOf(BadRequestError)
+    expect(result.error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    expect((result.error as Error).message).toContain('reserved for the search route')
   })
 })
 
