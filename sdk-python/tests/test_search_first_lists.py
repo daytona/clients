@@ -354,6 +354,69 @@ async def test_volume_search_sends_every_filter_and_returns_totals() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "q",
+        "name",
+        "name_prefix",
+        "allowed_domain",
+        "created_start_at",
+        "created_end_at",
+        "updated_start_at",
+        "updated_end_at",
+        "sort",
+        "order",
+        "cursor",
+        "limit",
+    ],
+)
+async def test_secret_search_omits_each_none_option(field: str) -> None:
+    body = {"secrets": [], "next_cursor": None, "total": 0, "total_relation": "eq"}
+    _, paths = await _run(
+        [PlannedResponse(200, body)],
+        lambda v2: v2.secrets.search(**{field: None}),  # type: ignore[arg-type]
+    )
+    assert paths == ["/secrets/search"]
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "q",
+        "name",
+        "name_prefix",
+        "types",
+        "statuses",
+        "imported",
+        "created_start_at",
+        "created_end_at",
+        "updated_start_at",
+        "updated_end_at",
+        "last_used_start_at",
+        "last_used_end_at",
+        "sort",
+        "order",
+        "cursor",
+        "limit",
+    ],
+)
+async def test_volume_search_omits_each_none_option(field: str) -> None:
+    body = {"volumes": [], "next_cursor": None, "total": 0, "total_relation": "eq"}
+    _, paths = await _run(
+        [PlannedResponse(200, body)],
+        lambda v2: v2.volumes.search(**{field: None}),  # type: ignore[arg-type]
+    )
+    assert paths == ["/volumes/search"]
+
+
+async def test_volume_search_invalid_type_uses_the_shared_sdk_wording() -> None:
+    error, paths = await _run([], lambda v2: v2.volumes.search(types=["disk", "other"]))  # type: ignore[list-item]
+    assert paths == []
+    assert isinstance(error, BadRequestError)
+    assert str(error) == "types entries must be one of disk, bucket"
+
+
 @pytest.mark.parametrize("name", ["secrets", "volumes"])
 async def test_a_200_non_page_from_an_older_item_route_falls_back(name: str) -> None:
     case = _CASES[name]
@@ -398,8 +461,10 @@ async def test_search_cannot_be_looked_up_by_name(service: str, kind: str) -> No
     [
         lambda v2: v2.secrets.get("search"),
         lambda v2: v2.secrets.set("search", "value", allowed_domains=["example.com"]),
+        lambda v2: v2.secrets.delete("search"),
         lambda v2: v2.volumes.get("search"),
         lambda v2: v2.volumes.create(name="search"),
+        lambda v2: v2.volumes.delete("search"),
     ],
 )
 async def test_search_is_refused_as_a_secret_or_volume_name(call: Call) -> None:
