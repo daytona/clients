@@ -152,9 +152,11 @@ async def test_one_rank_timeout_does_not_discard_another_ranks_completed_work(ki
     collection, nodes = make_nodes(kind, count=2)
     nodes[0].process.get_session_command_logs_async.side_effect = never_finishes
 
-    with pytest.raises(DaytonaTimeoutError, match="rank 0"):
+    with pytest.raises(DaytonaTimeoutError, match="rank 0") as caught:
         await invoke(kind, collection, timeout=1, on_stdout=lambda _chunk: None)
 
+    assert list(caught.value.node_failures) == [0]
+    assert caught.value.node_results[1].result == "done"
     nodes[1].process.get_session_command.assert_called_once()
     for node in nodes:
         own_session = node.process.create_session.call_args.args[0]

@@ -55,9 +55,7 @@ final class NodeDeadline {
 
     private <T> T await(Call call, java.util.concurrent.CompletableFuture<T> result) {
         try {
-            T value = limit == 0 ? result.get() : result.get(remainingNanos(), TimeUnit.NANOSECONDS);
-            check();
-            return value;
+            return limit == 0 ? result.get() : result.get(remainingNanos(), TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new DaytonaTimeoutException("Sandbox node operation interrupted", e);
@@ -106,6 +104,8 @@ final class NodeDeadline {
             public void onUploadProgress(long written, long length, boolean done) {}
             public void onDownloadProgress(long read, long length, boolean done) {}
         });
-        return await(call, result);
+        T value = await(call, result);
+        check();
+        return value;
     }
 }

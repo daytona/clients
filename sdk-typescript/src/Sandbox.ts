@@ -121,12 +121,13 @@ async function executeOnNodes(
   if (options.timeout !== undefined && (!Number.isSafeInteger(options.timeout) || options.timeout < 0)) {
     throw new DaytonaInvalidArgumentError('timeout must be a non-negative integer')
   }
-  const entries = await Promise.all(
-    nodes.map(async (node): Promise<[number, ExecuteResponse]> => {
+  const snapshot = [...nodes]
+  const outcomes = await Promise.allSettled(
+    snapshot.map(async (node): Promise<ExecuteResponse> => {
       let warning = ''
       try {
         const check =
-          nodes.length > 1
+          snapshot.length > 1
             ? await node.process.executeCommand(RDMA_USERSPACE_CHECK, undefined, undefined, 5)
             : undefined
         if (check !== undefined && check.exitCode !== 0) warning = RDMA_USERSPACE_WARNING
@@ -231,10 +232,33 @@ async function executeOnNodes(
           artifacts: { ...result.artifacts, stdout: warning + (result.artifacts?.stdout ?? '') },
         }
       }
-      return [node.rank, result]
+      return result
     }),
   )
-  return Object.fromEntries(entries)
+  const results: Record<number, ExecuteResponse> = {}
+  const failures: Record<number, unknown> = {}
+  outcomes.forEach((outcome, index) => {
+    const rank = snapshot[index].rank
+    if (outcome.status === 'fulfilled') results[rank] = outcome.value
+    else failures[rank] = outcome.reason
+  })
+  const failed = Object.entries(failures)
+  if (failed.length) {
+    const first = failed[0][1]
+    if (snapshot.length === 1 && first instanceof Error) {
+      throw Object.assign(first, { nodeFailures: failures, nodeResults: results })
+    }
+    const details = failed.map(([rank, reason]) => `rank ${rank}: ${String(reason)}`).join('; ')
+    const ErrorType = failed.every(([, reason]) => reason instanceof DaytonaTimeoutError)
+      ? DaytonaTimeoutError
+      : DaytonaError
+    const error = new ErrorType(`Command failed on ${details}`)
+    error.nodeResults = results
+    error.nodeFailures = failures
+    error.cause = first
+    throw error
+  }
+  return results
 }
 
 async function uploadToNodes(
@@ -529,35 +553,38 @@ export class Sandbox {
     timeout: number,
     deadline?: number,
   ): Promise<GangMembershipOperation> {
-    this.nodeOperationRequestOptions(timeout, deadline)
-    while (operation.status !== 'COMPLETED' && operation.status !== 'FAILED') {
-      if (deadline !== undefined && Date.now() >= deadline) {
-        throw new DaytonaTimeoutError(
-          `Node ${operation.type.toLowerCase()} operation exceeded timeout of ${timeout} seconds`,
+    try {
+      while (operation.status !== 'COMPLETED' && operation.status !== 'FAILED') {
+        this.nodeOperationRequestOptions(timeout, deadline)
+        const delay = deadline === undefined ? 1000 : Math.min(1000, Math.max(1, deadline - Date.now()))
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        const response = await this.sandboxApi.getGangMembershipOperation(
+          this.id,
+          operation.id,
+          undefined,
+          this.nodeOperationRequestOptions(timeout, deadline),
         )
+        operation = response.data
       }
-      const delay = deadline === undefined ? 1000 : Math.min(1000, Math.max(1, deadline - Date.now()))
-      await new Promise((resolve) => setTimeout(resolve, delay))
-      const response = await this.sandboxApi.getGangMembershipOperation(
-        this.id,
-        operation.id,
-        undefined,
-        this.nodeOperationRequestOptions(timeout, deadline),
-      )
-      this.nodeOperationRequestOptions(timeout, deadline)
-      operation = response.data
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new DaytonaError(String(cause))
+      throw Object.assign(error, { operationId: operation.id })
     }
     if (operation.status === 'FAILED') {
       throw new DaytonaError(operation.errorReason ?? `Node ${operation.type.toLowerCase()} operation failed`)
     }
-    const response = await this.sandboxApi.getSandbox(
-      this.id,
-      undefined,
-      undefined,
-      this.nodeOperationRequestOptions(timeout, deadline),
-    )
-    this.nodeOperationRequestOptions(timeout, deadline)
-    this.processSandboxDto(response.data)
+    // A local refresh failure cannot change the terminal server outcome.
+    try {
+      const response = await this.sandboxApi.getSandbox(
+        this.id,
+        undefined,
+        undefined,
+        this.nodeOperationRequestOptions(timeout, deadline),
+      )
+      this.processSandboxDto(response.data)
+    } catch {
+      // The next refresh can recover the cached handles.
+    }
     return operation
   }
 
@@ -1946,12 +1973,13 @@ export class Sandbox {
 
   private processNodes(sandboxDto: SandboxDto | SandboxListItemDto): void {
     const nodeCount = ('nodeCount' in sandboxDto ? sandboxDto.nodeCount : undefined) || 1
+    const workerRank = 'headSandboxId' in sandboxDto && sandboxDto.headSandboxId ? sandboxDto.nodeRank : undefined
     const rawNodes =
       'nodes' in sandboxDto && sandboxDto.nodes?.length
         ? sandboxDto.nodes
         : [
             {
-              rank: 0,
+              rank: workerRank ?? 0,
               id: sandboxDto.id,
               state: sandboxDto.state ?? SandboxState.UNKNOWN,
               incarnation: ('incarnation' in sandboxDto ? sandboxDto.incarnation : undefined) ?? 1,
@@ -1961,7 +1989,11 @@ export class Sandbox {
               disk: sandboxDto.disk / nodeCount,
             },
           ]
-    if (rawNodes.some((node, index) => node.rank !== index) || rawNodes[0]?.id !== sandboxDto.id) {
+    if (
+      (workerRank !== undefined && (workerRank < 1 || rawNodes.length !== 1)) ||
+      rawNodes.some((node, index) => node.rank !== index + (workerRank ?? 0)) ||
+      rawNodes[0]?.id !== sandboxDto.id
+    ) {
       throw new DaytonaError('Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head')
     }
     const language = sandboxDto.labels?.[CODE_TOOLBOX_LANGUAGE_LABEL]

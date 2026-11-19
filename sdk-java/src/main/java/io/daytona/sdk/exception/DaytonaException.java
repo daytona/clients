@@ -38,6 +38,12 @@ public class DaytonaException extends RuntimeException {
 
     private static final ThreadLocal<Map<String, String>> PENDING_HEADERS = new ThreadLocal<>();
 
+    private String operationId;
+
+    /** Accepted membership operation to inspect when polling fails. */
+    public String getOperationId() { return operationId; }
+    public void setOperationId(String id) { operationId = id; }
+
     private final int statusCode;
     private final Map<String, String> headers;
     private final String code;

@@ -88,6 +88,26 @@ class SandboxNodesTest {
         }
     }
 
+    @Test void acceptedReleaseSurvivesAReadFailure() throws Exception {
+        for (String status : Arrays.asList("COMPLETED", "RUNNING")) {
+            try (MockWebServer server = new MockWebServer()) {
+                String proxy = server.url("/toolbox").toString();
+                Sandbox sandbox = sandbox(new SandboxApi(mainClient(server.url("/").toString())), dto(proxy, 4, 4));
+                server.enqueue(json(dto(proxy, 4, 4).toJson()));
+                server.enqueue(json("{\"id\":\"op-1\",\"sandboxId\":\"head\",\"type\":\"REMOVE\",\"status\":\"" + status
+                        + "\",\"phase\":\"FENCE\",\"expectedGeneration\":4,\"targetGeneration\":5,\"policyRevision\":1,"
+                        + "\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:00Z\"}"));
+                server.enqueue(json("{}").setResponseCode(503));
+                if ("COMPLETED".equals(status)) {
+                    assertThat(sandbox.getNodes().release(1, 5).getId()).isEqualTo("op-1");
+                } else {
+                    assertThatThrownBy(() -> sandbox.getNodes().release(1, 5))
+                            .isInstanceOfSatisfying(DaytonaException.class, e -> assertThat(e.getOperationId()).isEqualTo("op-1"));
+                }
+            }
+        }
+    }
+
     @Test void membershipTimeoutIncludesInitialRefresh() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.start();
@@ -205,6 +225,33 @@ class SandboxNodesTest {
         verify(api).getPortPreviewUrl("worker-1", java.math.BigDecimal.valueOf(8080), null);
         verify(api).createSshAccess("worker-1", null, java.math.BigDecimal.valueOf(60));
         verify(api).revokeSshAccess("worker-1", null, "token");
+    }
+
+    @Test void directWorkerRetainsPhysicalRank() {
+        io.daytona.api.client.model.Sandbox data = dto("http://localhost:1/toolbox", 2, 4);
+        data.setId("worker-1");
+        data.setHeadSandboxId("head");
+        data.setNodeRank(1);
+        data.setNodes(Collections.singletonList(data.getNodes().get(1)));
+        SandboxNode worker = sandbox(mock(SandboxApi.class), data).getNodes().get(0);
+        assertThat(worker.getRank()).isEqualTo(1);
+        assertThat(worker.getId()).isEqualTo("worker-1");
+    }
+
+    @Test void pathUploadStreamsToEachRank(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+        java.nio.file.Path source = java.nio.file.Files.writeString(temp.resolve("sample"), "same input");
+        try (MockWebServer server = new MockWebServer()) {
+            server.enqueue(json("{}"));
+            server.enqueue(json("{}"));
+            Sandbox sandbox = sandbox(mock(SandboxApi.class), dto(server.url("/toolbox").toString(), 2, 1));
+            sandbox.getNodes().getFs().uploadFile(source, "/sample");
+            for (int i = 0; i < 2; i++) {
+                RecordedRequest request = server.takeRequest();
+                assertThat(request.getPath()).endsWith("/files/bulk-upload");
+                assertThat(request.getHeader("Transfer-Encoding")).isEqualTo("chunked");
+                assertThat(request.getBody().readUtf8()).contains("same input", "/sample");
+            }
+        }
     }
 
     @Test void uploadCollectsEveryFailedRank() throws Exception {

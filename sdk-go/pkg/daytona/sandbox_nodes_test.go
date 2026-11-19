@@ -112,8 +112,8 @@ func TestSandboxNodesRefreshGenerationAndMembership(t *testing.T) {
 	var gets int
 	var request apiclient.AddGangNodes
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet:
+		switch r.Method {
+		case http.MethodGet:
 			gets++
 			dto := nodesTestDTO(server.URL + "/toolbox")
 			if gets == 2 {
@@ -122,7 +122,7 @@ func TestSandboxNodesRefreshGenerationAndMembership(t *testing.T) {
 				dto.Nodes = append(dto.Nodes, apiclient.SandboxNode{Rank: 2, Id: "third", State: apiclient.SANDBOXSTATE_STARTED, Incarnation: 1, Gpu: 8})
 			}
 			writeNodesJSON(w, dto)
-		case r.Method == http.MethodPost:
+		case http.MethodPost:
 			require.Equal(t, "/api/sandbox/head/nodes", r.URL.Path)
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
 			writeNodesJSON(w, &apiclient.GangMembershipOperation{Id: "op", SandboxId: "head", Status: "COMPLETED", Type: "ADD"})
@@ -377,13 +377,14 @@ func TestSandboxNodesPreviewAndSSHRouteToMember(t *testing.T) {
 func TestSandboxNodesUploadsLocalFileToEveryMember(t *testing.T) {
 	var uploaded atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		file, _, err := r.FormFile("file")
+		require.Equal(t, []string{"chunked"}, r.TransferEncoding)
+		file, _, err := r.FormFile("files[0].file")
 		require.NoError(t, err)
 		defer file.Close()
 		content, err := io.ReadAll(file)
 		require.NoError(t, err)
 		require.Equal(t, "shared contents", string(content))
-		require.Equal(t, "/tmp/shared.txt", r.URL.Query().Get("path"))
+		require.Equal(t, "/tmp/shared.txt", r.FormValue("files[0].path"))
 		uploaded.Add(1)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -393,4 +394,36 @@ func TestSandboxNodesUploadsLocalFileToEveryMember(t *testing.T) {
 	sandbox := nodesTestSandbox(t, server, nodesTestDTO(server.URL))
 	require.NoError(t, sandbox.Nodes.FileSystem.UploadFile(context.Background(), path, "/tmp/shared.txt"))
 	require.Equal(t, int32(2), uploaded.Load())
+}
+
+func TestSandboxNodesDirectWorkerLookup(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+	dto := nodesTestDTO(server.URL)
+	dto.Id, dto.HeadSandboxId, dto.NodeRank = "worker", apiclient.PtrString("head"), apiclient.PtrInt32(1)
+	dto.Nodes = dto.Nodes[1:]
+	nodes := nodesTestSandbox(t, server, dto).Nodes
+	worker, err := nodes.Get(1)
+	require.NoError(t, err)
+	require.Equal(t, "worker", worker.ID)
+	_, err = nodes.Get(0)
+	require.Error(t, err)
+}
+
+func TestSandboxNodesAcceptedOperationSurvivesReadError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	nodes := nodesTestSandbox(t, server, nodesTestDTO(server.URL)).Nodes
+	op := &apiclient.GangMembershipOperation{Id: "release-1", Status: "COMPLETED"}
+	got, err := nodes.wait(context.Background(), op)
+	require.NoError(t, err)
+	require.Same(t, op, got)
+	op.Status = "RUNNING"
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got, err = nodes.wait(ctx, op)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, "release-1", got.Id)
 }

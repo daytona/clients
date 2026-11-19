@@ -73,7 +73,7 @@ module Daytona
                                 budget
                               end
       result = api.class.new(client).public_send(method, *)
-      remaining
+      remaining unless result.is_a?(DaytonaApiClient::GangMembershipOperation)
       result
     rescue *Sdk::API_ERROR_CLASSES => e
       remaining
@@ -215,7 +215,7 @@ module Daytona
     # @yieldparam node [Daytona::SandboxNode]
     # @return [Enumerator, Array<Daytona::SandboxNode>]
     def each(&) = @members.each(&)
-    # @param rank [Integer] Logical rank; zero addresses the head
+    # @param rank [Integer] Index within this Sandbox response; a direct worker lookup has one member
     # @return [Daytona::SandboxNode, nil]
     def [](rank) = @members[rank]
     # @return [Integer] Current membership size
@@ -224,14 +224,16 @@ module Daytona
     # @return [Array<Daytona::SandboxNode>] Snapshot of current membership
     def to_a = @members.dup
 
-    def update(raw)
+    def update(sandbox_dto)
+      raw = sandbox_dto.nodes if sandbox_dto.respond_to?(:nodes)
+      worker_rank = sandbox_dto.node_rank if sandbox_dto.respond_to?(:head_sandbox_id) && sandbox_dto.head_sandbox_id
       if raw.nil? || raw.empty?
         unless @members.empty?
           @members.each { |node| node.send(:update_proxy) }
           return
         end
         count = [@parent.node_count, 1].max
-        raw = [DaytonaApiClient::SandboxNode.new(id: @parent.id, rank: 0, incarnation: 1, state: @parent.state,
+        raw = [DaytonaApiClient::SandboxNode.new(id: @parent.id, rank: worker_rank || 0, incarnation: 1, state: @parent.state,
                                                  cpu: @parent.cpu.to_i / count, gpu: @parent.gpu.to_i / count,
                                                  memory: @parent.memory.to_i / count, disk: @parent.disk.to_i / count)]
       end
@@ -241,10 +243,12 @@ module Daytona
       end
 
       ids = raw.map(&:id)
-      valid = ids.uniq.size == ids.size && raw.each_with_index.all? do |dto, rank|
-        dto.rank == rank && dto.id.is_a?(String) && !['', '.', '..'].include?(dto.id) &&
-          (rank != 0 || dto.id == @parent.id) && (!existing[dto.id] || existing[dto.id].rank == rank)
-      end
+      valid = (!worker_rank || (worker_rank.positive? && raw.one?)) && ids.uniq.size == ids.size &&
+              raw.each_with_index.all? do |dto, index|
+                rank = index + (worker_rank || 0)
+                dto.rank == rank && dto.id.is_a?(String) && !['', '.', '..'].include?(dto.id) &&
+                  (index != 0 || dto.id == @parent.id) && (!existing[dto.id] || existing[dto.id].rank == rank)
+              end
       raise Sdk::Error, 'Invalid sandbox node ordering or identity' unless valid
 
       @members = raw.map do |dto|
@@ -330,13 +334,22 @@ module Daytona
     def submit(method, body, deadline, rank = nil)
       args = [@parent.id, rank, body].compact
       op = deadline.call(@parent.sandbox_api, method, *args)
-      until %w[COMPLETED FAILED].include?(op.status)
-        deadline.pause(1)
-        op = deadline.call(@parent.sandbox_api, :get_gang_membership_operation, @parent.id, op.id)
+      begin
+        until %w[COMPLETED FAILED].include?(op.status)
+          deadline.pause(1)
+          op = deadline.call(@parent.sandbox_api, :get_gang_membership_operation, @parent.id, op.id)
+        end
+      rescue Sdk::Error => e
+        e.operation_id = op.id
+        raise
       end
       raise Sdk::Error, op.error_reason || 'Node membership operation failed' if op.status == 'FAILED'
 
-      refresh(deadline)
+      begin
+        refresh(deadline)
+      rescue StandardError => e
+        Sdk.logger.debug("Membership operation #{op.id} completed; cached nodes could not be refreshed: #{e.message}")
+      end
       op
     end
   end
@@ -535,8 +548,20 @@ module Daytona
     # A shared IO must be read once before parallel uploads. Individual uploads
     # own their file descriptors; successful uploads are not rolled back.
     def upload_file(source, remote_path)
-      source = source.read if source.respond_to?(:read)
-      @nodes.send(:parallel) { |node| node.fs.upload_file(source, remote_path) }
+      upload = lambda { |path_or_content|
+        @nodes.send(:parallel) do |node|
+          node.fs.upload_file(path_or_content, remote_path)
+        end
+      }
+      if source.respond_to?(:read)
+        Tempfile.create('daytona-node-upload', binmode: true) do |file|
+          IO.copy_stream(source, file)
+          file.flush
+          upload.call(file.path)
+        end
+      else
+        upload.call(source)
+      end
       nil
     end
   end

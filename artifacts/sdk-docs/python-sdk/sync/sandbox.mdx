@@ -1325,7 +1325,7 @@ the limit. Streaming deadlines are enforced by the SDK, which deletes its
 temporary session to stop the command. Cleanup requires API connectivity.
 Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
 and, with a positive timeout, a 10-second session-creation request.
-A timeout raises DaytonaTimeoutError; completed peer work is not undone.
+On a partial failure, the error exposes node_failures and node_results keyed by rank.
 Cleanup errors after command completion are recorded in each node's warnings.
 
 ## SandboxNodeFileSystem
@@ -1356,37 +1356,40 @@ Live, rank-ordered node collection with aggregate and topology operations.
 #### SandboxNodeCollection.add
 
 ```python
-@intercept_errors(message_prefix="Failed to add Sandbox nodes: ")
-@with_timeout()
 @with_instrumentation()
 def add(nodes: list[NodeResources],
         timeout: float | None = 600) -> GangMembershipOperation
 ```
 
-Append rank-ordered nodes and wait for the topology change to complete.
+Append rank-ordered nodes and wait for completion.
+
+A wait error after acceptance carries the operation_id. If the final refresh fails,
+the completed operation is returned; refresh the sandbox to update cached handles.
 
 #### SandboxNodeCollection.release
 
 ```python
-@intercept_errors(message_prefix="Failed to release Sandbox nodes: ")
-@with_timeout()
 @with_instrumentation()
 def release(count: int = 1,
             timeout: float | None = 600) -> GangMembershipOperation
 ```
 
-Release the highest ranks and wait for the topology change to complete.
+Release the highest ranks and wait for completion.
+
+A wait error after acceptance carries the operation_id. If the final refresh fails,
+the completed operation is returned; refresh the sandbox to update cached handles.
 
 #### SandboxNodeCollection.replace
 
 ```python
-@intercept_errors(message_prefix="Failed to replace Sandbox node: ")
-@with_timeout()
 @with_instrumentation()
 def replace(rank: int, timeout: float | None = 600) -> GangMembershipOperation
 ```
 
-Replace a degraded rank and wait for the topology change to complete.
+Replace a degraded rank and wait for completion.
+
+A wait error after acceptance carries the operation_id. If the final refresh fails,
+the completed operation is returned; refresh the sandbox to update cached handles.
 
 ## Resources
 

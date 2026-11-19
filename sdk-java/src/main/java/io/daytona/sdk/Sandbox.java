@@ -227,7 +227,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
-        nodes.update(data.getNodes());
+        nodes.update(data);
         ensureSubscribed();
     }
 
@@ -928,7 +928,7 @@ public class Sandbox {
         if (d.getNodeCount() != null) this.nodeCount = d.getNodeCount();
         if (d.getTopologyGeneration() != null) this.topologyGeneration = d.getTopologyGeneration();
         if (d.getDegraded() != null) this.degraded = d.getDegraded();
-        if (toolboxApiClient != null) nodes.update(d.getNodes());
+        if (toolboxApiClient != null) nodes.update(d);
 
         applyState(d.getState() == null ? "" : d.getState().getValue());
     }

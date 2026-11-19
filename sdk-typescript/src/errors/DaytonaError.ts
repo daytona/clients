@@ -9,6 +9,7 @@
 
 import { AxiosHeaders } from 'axios'
 import type { AxiosError } from 'axios'
+import type { ExecuteResponse } from '../types/ExecuteResponse'
 
 export type ResponseHeaders = InstanceType<typeof AxiosHeaders>
 
@@ -27,6 +28,11 @@ export const SOURCE_PROXY = 'DAYTONA_PROXY'
  * unless the caller (or the translation layer) sets it.
  */
 export class DaytonaError extends Error {
+  /** Accepted membership operation to inspect if polling fails. */
+  public operationId?: string
+  /** Outcomes of an all-node command when one or more ranks failed. */
+  public nodeFailures?: Record<number, unknown>
+  public nodeResults?: Record<number, ExecuteResponse>
   public statusCode?: number
   public code?: string
   public readonly source?: string

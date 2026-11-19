@@ -152,6 +152,17 @@ RSpec.describe Daytona::SandboxNodes do
     expect(a_request(:delete, %r{/process/session/})).to have_been_made.twice
   end
 
+  it 'uploads the exact bytes of an IO on every rank' do
+    bytes = [1, 0, 2].pack('C*')
+    sandbox.nodes.each do |node|
+      expect(node.fs.toolbox_api).to receive(:upload_file) do |dest, file:|
+        expect(dest).to eq('/sample')
+        expect(file.read).to eq(bytes)
+      end
+    end
+    sandbox.nodes.fs.upload_file(StringIO.new(bytes), '/sample')
+  end
+
   it 'reports every failed upload without rolling back successful uploads' do
     sandbox.nodes.each { |node| allow(node.fs).to receive(:upload_file).and_raise(Daytona::Sdk::Error, 'upload failed') }
     expect do
@@ -185,6 +196,30 @@ RSpec.describe Daytona::SandboxNodes do
     end
     expect { sandbox.nodes.release(timeout: 0.001) }.to raise_error(Daytona::Sdk::TimeoutError)
     expect(a_request(:post, "#{url}/nodes/remove")).not_to have_been_made
+  end
+
+  it 'returns a completed release even when updating the cached nodes fails' do
+    url = "#{api.api_client.config.base_url}/sandbox/sandbox-123"
+    headers = { 'Content-Type' => 'application/json' }
+    stub_request(:get, url).to_return({ body: gang(4).to_hash.to_json, headers: }, { status: 503 })
+    operation = { id: 'op', sandboxId: sandbox.id, type: 'REMOVE', status: 'COMPLETED', phase: 'COMPLETED',
+                  expectedGeneration: 4, targetGeneration: 5, policyRevision: 1,
+                  createdAt: '2026-01-01', updatedAt: '2026-01-01' }
+    stub_request(:post, "#{url}/nodes/remove").to_return(body: operation.to_json, headers:)
+    expect(sandbox.nodes.release.id).to eq('op')
+    expect(a_request(:post, "#{url}/nodes/remove")).to have_been_made.once
+  end
+
+  it 'opens a worker by its own id' do
+    dto = gang
+    dto.head_sandbox_id = dto.id
+    dto.id = dto.nodes.last.id
+    dto.node_rank = 1
+    dto.nodes = [dto.nodes.last]
+    worker = Daytona::Sandbox.new(sandbox_dto: dto, config: build_config, sandbox_api: api,
+                                  subscription_manager: manager)
+    expect(worker.nodes.first.rank).to eq(1)
+    expect(worker.nodes.first.id).to eq(dto.id)
   end
 
   it 'surfaces failed membership operations without a final refresh' do

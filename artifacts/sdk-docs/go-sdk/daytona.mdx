@@ -5679,7 +5679,7 @@ type SandboxNodes struct {
 func (c *SandboxNodes) Add(ctx context.Context, nodes []NodeResources, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
 ```
 
-Add appends one node per resource specification and waits for the operation. Timeout defaults to ten minutes; zero disables that limit. Cancelling a wait does not roll back the operation.
+Add appends one node per resource specification and waits for the operation. If polling fails after acceptance, the returned operation identifies the request. Timeout defaults to ten minutes; zero disables that limit. Cancelling a wait does not roll back the operation.
 
 <a name="SandboxNodes.All"></a>
 ### func \(\*SandboxNodes\) All
@@ -5715,7 +5715,7 @@ Get returns the handle for a logical rank.
 func (c *SandboxNodes) Release(ctx context.Context, count int, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
 ```
 
-Release removes count highest ranks and waits for the operation.
+Release removes count highest ranks and waits for the operation. If polling fails after acceptance, the returned operation identifies the request.
 
 <a name="SandboxNodes.Replace"></a>
 ### func \(\*SandboxNodes\) Replace
@@ -5724,7 +5724,7 @@ Release removes count highest ranks and waits for the operation.
 func (c *SandboxNodes) Replace(ctx context.Context, rank int, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
 ```
 
-Replace replaces a degraded rank and waits for the operation.
+Replace replaces a degraded rank and waits for the operation. If polling fails after acceptance, the returned operation identifies the request.
 
 <a name="SandboxState"></a>
 ## type SandboxState

@@ -191,6 +191,16 @@ describe('node SSH access', () => {
   })
 })
 
+it('opens a directly fetched worker at its physical rank', () => {
+  const { sandbox } = makeSandbox({
+    id: 'worker',
+    headSandboxId: 'head',
+    nodeRank: 2,
+    nodes: [{ ...baseDto.nodes![0], id: 'worker', rank: 2 }],
+  })
+  expect(sandbox.nodes.map((node) => [node.id, node.rank])).toEqual([['worker', 2]])
+})
+
 describe('membership operation deadlines', () => {
   beforeEach(() => jest.useFakeTimers({ now: 0 }))
   afterEach(() => jest.useRealTimers())
@@ -215,7 +225,7 @@ describe('membership operation deadlines', () => {
     expect(sandboxApi.getSandbox.mock.calls[1][3]).toEqual({ timeout: 1500 })
   })
 
-  it('rejects a terminal poll response that arrives after the deadline', async () => {
+  it('returns a confirmed operation even when the deadline prevents refreshing handles', async () => {
     const { sandbox, sandboxApi } = prepare()
     sandboxApi.getGangMembershipOperation.mockImplementation(
       () =>
@@ -225,7 +235,8 @@ describe('membership operation deadlines', () => {
     )
     const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
     await jest.advanceTimersByTimeAsync(3000)
-    expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+    expect(await result).toMatchObject({ id: 'op-1', status: 'COMPLETED' })
+    expect(sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
   })
 
   it('does not start a poll after the budget expires during sleep', async () => {
@@ -236,10 +247,11 @@ describe('membership operation deadlines', () => {
     const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 1).catch((error) => error)
     await jest.advanceTimersByTimeAsync(1000)
     expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+    expect(await result).toMatchObject({ operationId: 'op-1' })
     expect(sandboxApi.getGangMembershipOperation).not.toHaveBeenCalled()
   })
 
-  it('rejects a final refresh that arrives after the deadline', async () => {
+  it('returns a confirmed operation when the final refresh arrives late', async () => {
     const { sandbox, sandboxApi } = prepare()
     sandboxApi.addSandboxNodes.mockResolvedValue(createApiResponse({ id: 'op-1', type: 'ADD', status: 'COMPLETED' }))
     sandboxApi.getSandbox
@@ -253,7 +265,19 @@ describe('membership operation deadlines', () => {
       )
     const result = sandbox.nodes.add([{ cpu: 16, memory: 192, disk: 512 }], 2).catch((error) => error)
     await jest.advanceTimersByTimeAsync(3000)
-    expect(await result).toBeInstanceOf(DaytonaTimeoutError)
+    expect(await result).toMatchObject({ id: 'op-1', status: 'COMPLETED' })
+  })
+
+  it('retains a completed release if refreshing its handles fails', async () => {
+    const { sandbox, sandboxApi } = prepare()
+    sandboxApi.getSandbox
+      .mockReset()
+      .mockResolvedValueOnce(createApiResponse(baseDto))
+      .mockRejectedValueOnce(new Error('503'))
+    const op = { id: 'release-1', status: 'COMPLETED', type: 'REMOVE' }
+    sandboxApi.removeSandboxNodes.mockResolvedValue(createApiResponse(op))
+    await expect(sandbox.nodes.release(1)).resolves.toBe(op)
+    expect(sandboxApi.removeSandboxNodes).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -370,6 +394,7 @@ describe('all-node execution deadlines', () => {
 
     expect(outcome).toBeInstanceOf(DaytonaTimeoutError)
     expect((outcome as Error).message).toContain('rank 0')
+    expect(outcome).toMatchObject({ nodeResults: { 1: { result: 'done' } }, nodeFailures: { 0: expect.any(Error) } })
     expect(processes[0].getSessionCommand).not.toHaveBeenCalled()
     expect(processes[1].getSessionCommand).toHaveBeenCalledTimes(1)
     processes.forEach((process) => {

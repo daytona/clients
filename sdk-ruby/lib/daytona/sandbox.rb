@@ -293,7 +293,7 @@ module Daytona
       @server_api = server_api
       @system_api = system_api
       @nodes = SandboxNodes.new(self)
-      @nodes.send(:update, sandbox_dto.respond_to?(:nodes) ? sandbox_dto.nodes : nil)
+      @nodes.send(:update, sandbox_dto)
 
       ensure_subscribed
     end
@@ -1197,7 +1197,7 @@ module Daytona
         @node_count = sandbox_dto.node_count unless sandbox_dto.node_count.nil?
         @topology_generation = sandbox_dto.topology_generation unless sandbox_dto.topology_generation.nil?
         @degraded = sandbox_dto.degraded unless sandbox_dto.degraded.nil?
-        @nodes&.send(:update, sandbox_dto.nodes)
+        @nodes&.send(:update, sandbox_dto)
       end
 
       apply_state(new_state)

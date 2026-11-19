@@ -6,14 +6,33 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import TYPE_CHECKING, NoReturn, Protocol
 
 from daytona_api_client import SandboxListSortDirection, SandboxListSortField, SandboxState
 from daytona_api_client_async import GpuType
 
-from .errors import DaytonaValidationError
+from .errors import DaytonaError, DaytonaTimeoutError, DaytonaValidationError
+
+if TYPE_CHECKING:
+    from .process import ExecuteResponse
 
 TOOLBOX_PORT: int = 2280
+
+
+def raise_node_execution_error(failures: dict[int, Exception], results: dict[int, ExecuteResponse]) -> NoReturn:
+    first = failures[min(failures)]
+    if len(failures) == 1 and not results and isinstance(first, DaytonaError):
+        first.node_failures = failures
+        first.node_results = results
+        raise first
+    details = "; ".join(f"rank {rank}: {failures[rank]}" for rank in sorted(failures))
+    error_type = (
+        DaytonaTimeoutError if all(isinstance(e, DaytonaTimeoutError) for e in failures.values()) else DaytonaError
+    )
+    error = error_type(f"Command failed on {details}")
+    error.node_failures = failures
+    error.node_results = results
+    raise error from first
 
 
 def validate_node_exec_timeout(timeout: object) -> None:

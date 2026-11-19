@@ -82,6 +82,7 @@ from ..common.sandbox import (
     Resources,
     SandboxMetrics,
     pivot_sandbox_metrics,
+    raise_node_execution_error,
     sandbox_metrics_from_system_metrics,
     validate_node_exec_timeout,
 )
@@ -228,14 +229,15 @@ class SandboxNodeProcess:
         temporary session to stop the command. Cleanup requires API connectivity.
         Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
         and, with a positive timeout, a 10-second session-creation request.
-        A timeout raises DaytonaTimeoutError; completed peer work is not undone.
+        On a partial failure, the error exposes node_failures and node_results keyed by rank.
         Cleanup errors after command completion are recorded in each node's warnings.
         """
         validate_node_exec_timeout(timeout)
+        nodes = tuple(self._nodes)
 
         def execute_node(node: SandboxNode) -> ExecuteResponse:
             try:
-                check = node.process.exec(_RDMA_USERSPACE_CHECK, timeout=5) if len(self._nodes) > 1 else None
+                check = node.process.exec(_RDMA_USERSPACE_CHECK, timeout=5) if len(nodes) > 1 else None
                 warning = "" if check is None or check.exit_code == 0 else _RDMA_USERSPACE_WARNING
             except Exception:  # An advisory diagnostic must not prevent the user's command.
                 warning = "WARNING: Could not check RDMA userspace; continuing without verification."
@@ -325,10 +327,17 @@ class SandboxNodeProcess:
             return result
 
         results: dict[int, ExecuteResponse] = {}
-        with ThreadPoolExecutor(max_workers=len(self._nodes)) as executor:
-            futures = {executor.submit(execute_node, node): node.rank for node in self._nodes}
+        failures: dict[int, Exception] = {}
+        with ThreadPoolExecutor(max_workers=len(nodes)) as executor:
+            futures = {executor.submit(execute_node, node): node.rank for node in nodes}
             for future in as_completed(futures):
-                results[futures[future]] = future.result()
+                rank = futures[future]
+                try:
+                    results[rank] = future.result()
+                except Exception as error:
+                    failures[rank] = error
+        if failures:
+            raise_node_execution_error(failures, results)
         return {rank: results[rank] for rank in sorted(results)}
 
 
@@ -395,67 +404,100 @@ class SandboxNodeCollection(list[SandboxNode]):
             raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
         return generation
 
-    def _wait(self, operation: GangMembershipOperation, deadline: float | None) -> GangMembershipOperation:
+    def _change(
+        self,
+        submit: Callable[[int, float | None], GangMembershipOperation],
+        timeout: float | None,
+    ) -> GangMembershipOperation:
         sandbox = self._require_sandbox()
-        _ = self._remaining(deadline)
-        while operation.status not in {"COMPLETED", "FAILED"}:
-            time.sleep(min(1.0, self._remaining(deadline) or 1.0))
-            operation = sandbox._sandbox_api.get_gang_membership_operation(
-                sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
-            )
-            _ = self._remaining(deadline)
-        if operation.status == "FAILED":
-            raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
-        sandbox.refresh_data(request_timeout=self._remaining(deadline))
-        _ = self._remaining(deadline)
-        return operation
+        wait_until = time.monotonic() + timeout if timeout else None
 
-    @intercept_errors(message_prefix="Failed to add Sandbox nodes: ")
-    @with_timeout()
+        @intercept_errors(message_prefix="Failed to submit Sandbox membership change: ")
+        @with_timeout()
+        def start(timeout: float | None) -> GangMembershipOperation:
+            deadline = time.monotonic() + timeout if timeout else None
+            generation = self._generation(deadline)
+            return submit(generation, http_timeout(self._remaining(deadline)))
+
+        operation = start(timeout=timeout)
+
+        @intercept_errors(message_prefix="Failed to wait for Sandbox membership change: ")
+        @with_timeout()
+        def finish(timeout: float | None) -> GangMembershipOperation:
+            nonlocal operation
+            deadline = time.monotonic() + timeout if timeout else None
+            while operation.status not in {"COMPLETED", "FAILED"}:
+                time.sleep(min(1.0, self._remaining(deadline) or 1.0))
+                operation = sandbox._sandbox_api.get_gang_membership_operation(
+                    sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
+                )
+            if operation.status == "FAILED":
+                raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
+            sandbox.refresh_data(request_timeout=self._remaining(deadline))
+            return operation
+
+        try:
+            return finish(timeout=self._remaining(wait_until))
+        except DaytonaError as error:
+            # Refreshing cached handles cannot undo a confirmed membership change.
+            if operation.status == "COMPLETED":
+                return operation
+            error.operation_id = operation.id
+            raise
+
     @with_instrumentation()
     def add(self, nodes: list[NodeResources], timeout: float | None = 600) -> GangMembershipOperation:
-        """Append rank-ordered nodes and wait for the topology change to complete."""
-        deadline = time.monotonic() + timeout if timeout else None
+        """Append rank-ordered nodes and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
         sandbox = self._require_sandbox()
-        request = AddGangNodes(
-            expected_generation=self._generation(deadline),
-            nodes=[GangNodeResources(cpu=node.cpu, memory=node.memory, disk=node.disk) for node in nodes],
-        )
-        return self._wait(
-            sandbox._sandbox_api.add_sandbox_nodes(
-                sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
+        return self._change(
+            lambda generation, remaining: sandbox._sandbox_api.add_sandbox_nodes(
+                sandbox.id,
+                AddGangNodes(
+                    expected_generation=generation,
+                    nodes=[GangNodeResources(cpu=n.cpu, memory=n.memory, disk=n.disk) for n in nodes],
+                ),
+                _request_timeout=remaining,
             ),
-            deadline,
+            timeout,
         )
 
-    @intercept_errors(message_prefix="Failed to release Sandbox nodes: ")
-    @with_timeout()
     @with_instrumentation()
     def release(self, count: int = 1, timeout: float | None = 600) -> GangMembershipOperation:
-        """Release the highest ranks and wait for the topology change to complete."""
-        deadline = time.monotonic() + timeout if timeout else None
+        """Release the highest ranks and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
         sandbox = self._require_sandbox()
-        request = RemoveGangNodes(expected_generation=self._generation(deadline), count=count)
-        return self._wait(
-            sandbox._sandbox_api.remove_sandbox_nodes(
-                sandbox.id, request, _request_timeout=http_timeout(self._remaining(deadline))
+        return self._change(
+            lambda generation, remaining: sandbox._sandbox_api.remove_sandbox_nodes(
+                sandbox.id,
+                RemoveGangNodes(expected_generation=generation, count=count),
+                _request_timeout=remaining,
             ),
-            deadline,
+            timeout,
         )
 
-    @intercept_errors(message_prefix="Failed to replace Sandbox node: ")
-    @with_timeout()
     @with_instrumentation()
     def replace(self, rank: int, timeout: float | None = 600) -> GangMembershipOperation:
-        """Replace a degraded rank and wait for the topology change to complete."""
-        deadline = time.monotonic() + timeout if timeout else None
+        """Replace a degraded rank and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
         sandbox = self._require_sandbox()
-        request = ReplaceGangNode(expected_generation=self._generation(deadline))
-        return self._wait(
-            sandbox._sandbox_api.replace_sandbox_node(
-                sandbox.id, str(rank), request, _request_timeout=http_timeout(self._remaining(deadline))
+        return self._change(
+            lambda generation, remaining: sandbox._sandbox_api.replace_sandbox_node(
+                sandbox.id,
+                str(rank),
+                ReplaceGangNode(expected_generation=generation),
+                _request_timeout=remaining,
             ),
-            deadline,
+            timeout,
         )
 
 
@@ -1988,12 +2030,15 @@ class Sandbox(SandboxDto):
             self.__process_nodes(sandbox_dto)
 
     def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
+        # A direct worker lookup returns only that worker, with its physical rank.
+        worker_rank = getattr(sandbox_dto, "node_rank", None) if getattr(sandbox_dto, "head_sandbox_id", None) else None
+        first_rank = worker_rank or 0
         raw_nodes = getattr(sandbox_dto, "nodes", None)
         if not raw_nodes:
             node_count = getattr(sandbox_dto, "node_count", None) or 1
             raw_nodes = [
                 SandboxNodeDto(
-                    rank=0,
+                    rank=first_rank,
                     id=sandbox_dto.id,
                     state=sandbox_dto.state or SandboxState.UNKNOWN,
                     incarnation=getattr(sandbox_dto, "incarnation", None) or 1,
@@ -2003,7 +2048,11 @@ class Sandbox(SandboxDto):
                     disk=sandbox_dto.disk // node_count,
                 )
             ]
-        if any(node.rank != index for index, node in enumerate(raw_nodes)) or raw_nodes[0].id != sandbox_dto.id:
+        if (
+            (worker_rank is not None and (worker_rank < 1 or len(raw_nodes) != 1))
+            or any(node.rank != rank for rank, node in enumerate(raw_nodes, start=first_rank))
+            or raw_nodes[0].id != sandbox_dto.id
+        ):
             raise DaytonaError("Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head")
         existing = {node.id: node for node in self.nodes}
         updated: list[SandboxNode] = []

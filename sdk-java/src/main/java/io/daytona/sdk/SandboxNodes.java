@@ -57,12 +57,14 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         for (SandboxNode node : members) node.updateProxy(proxy);
     }
 
-    synchronized void update(List<io.daytona.api.client.model.SandboxNode> raw) {
+    synchronized void update(io.daytona.api.client.model.Sandbox dto) {
+        List<io.daytona.api.client.model.SandboxNode> raw = dto == null ? null : dto.getNodes();
+        Integer workerRank = dto == null || dto.getHeadSandboxId() == null ? null : dto.getNodeRank();
         if (raw == null || raw.isEmpty()) {
             if (!members.isEmpty()) { updateProxy(parent.getToolboxProxyUrl()); return; }
             int count = Math.max(1, parent.getNodeCount());
             raw = Collections.singletonList(new io.daytona.api.client.model.SandboxNode()
-                    .id(parent.getId()).rank(0).incarnation(1)
+                    .id(parent.getId()).rank(workerRank == null ? 0 : workerRank).incarnation(1)
                     .state(io.daytona.api.client.model.SandboxState.fromValue(parent.getState()))
                     .cpu(parent.getCpu() / count).gpu(parent.getGpu() / count)
                     .memory(parent.getMemory() / count).disk(parent.getDisk() / count));
@@ -70,12 +72,16 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         Map<String, SandboxNode> existing = new HashMap<>();
         for (SandboxNode node : members) existing.put(node.getId(), node);
         Set<String> seen = new HashSet<>();
-        for (int rank = 0; rank < raw.size(); rank++) {
-            io.daytona.api.client.model.SandboxNode node = raw.get(rank);
+        if (workerRank != null && (workerRank < 1 || raw.size() != 1)) {
+            throw new DaytonaException("Invalid sandbox worker metadata");
+        }
+        for (int index = 0; index < raw.size(); index++) {
+            int rank = workerRank == null ? index : workerRank;
+            io.daytona.api.client.model.SandboxNode node = raw.get(index);
             if (node == null || node.getRank() == null || node.getRank() != rank ||
                     node.getId() == null || node.getId().isEmpty() || ".".equals(node.getId()) ||
                     "..".equals(node.getId()) || !seen.add(node.getId()) ||
-                    (rank == 0 && !parent.getId().equals(node.getId())) ||
+                    (index == 0 && !parent.getId().equals(node.getId())) ||
                     (existing.containsKey(node.getId()) && existing.get(node.getId()).getRank() != rank)) {
                 throw new DaytonaException("Invalid sandbox node ordering or identity");
             }
@@ -105,22 +111,30 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
 
     private GangMembershipOperation waitForOperation(GangMembershipOperation operation, NodeDeadline deadline) {
         SandboxApi api = parent.nodeSandboxApi();
-        deadline.check();
-        while (operation.getStatus() != GangMembershipOperation.StatusEnum.COMPLETED &&
-                operation.getStatus() != GangMembershipOperation.StatusEnum.FAILED) {
-            deadline.pause(1000);
-            String id = operation.getId();
-            operation = deadline.main(api.getApiClient(),
-                    () -> api.getGangMembershipOperationCall(parent.getId(), id, null, null),
-                    GangMembershipOperation.class);
+        try {
+            while (operation.getStatus() != GangMembershipOperation.StatusEnum.COMPLETED &&
+                    operation.getStatus() != GangMembershipOperation.StatusEnum.FAILED) {
+                deadline.pause(1000);
+                String id = operation.getId();
+                operation = deadline.main(api.getApiClient(),
+                        () -> api.getGangMembershipOperationCall(parent.getId(), id, null, null),
+                        GangMembershipOperation.class);
+            }
+        } catch (DaytonaException e) {
+            e.setOperationId(operation.getId());
+            throw e;
         }
         if (operation.getStatus() == GangMembershipOperation.StatusEnum.FAILED) {
             throw new DaytonaException(operation.getErrorReason() == null ? "Node membership operation failed" : operation.getErrorReason());
         }
-        parent.applyNodeResponse(deadline.main(api.getApiClient(),
-                () -> api.getSandboxCall(parent.getId(), null, null, null),
-                io.daytona.api.client.model.Sandbox.class));
-        deadline.check();
+        try {
+            parent.applyNodeResponse(deadline.main(api.getApiClient(),
+                    () -> api.getSandboxCall(parent.getId(), null, null, null),
+                    io.daytona.api.client.model.Sandbox.class));
+        } catch (RuntimeException e) {
+            // This GET only updates cached handles. The membership change is already committed.
+            java.util.logging.Logger.getLogger(SandboxNodes.class.getName()).fine(e::getMessage);
+        }
         return operation;
     }
 
@@ -310,11 +324,20 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
     public final class NodeFileSystem {
         public void uploadFile(byte[] content, String destination) {
             if (content == null) throw new DaytonaException("Upload content must not be null");
-            parallel(members, node -> { node.getFs().uploadFile(content, destination); return null; }, new TreeMap<>());
+            parallel(members, node -> {
+                node.getFs().uploadFileStream(new java.io.ByteArrayInputStream(content), destination);
+                return null;
+            }, new TreeMap<>());
         }
         public void uploadFile(Path source, String destination) {
-            try { uploadFile(Files.readAllBytes(source), destination); }
-            catch (java.io.IOException e) { throw new DaytonaException("Failed to read upload file", e); }
+            parallel(members, node -> {
+                try (java.io.InputStream input = Files.newInputStream(source)) {
+                    node.getFs().uploadFileStream(input, destination);
+                } catch (java.io.IOException e) {
+                    throw new DaytonaException("Failed to read upload file", e);
+                }
+                return null;
+            }, new TreeMap<>());
         }
     }
 }

@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"bytes"
 	"context"
 	stderrors "errors"
 	"fmt"
@@ -136,10 +137,12 @@ func (c *SandboxNodes) Get(rank int) (*SandboxNode, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	if rank < 0 || rank >= len(c.nodes) {
-		return nil, errors.NewDaytonaError(fmt.Sprintf("Sandbox node rank %d is unavailable", rank), 404, nil)
+	for _, node := range c.nodes {
+		if int(node.Rank) == rank {
+			return node, nil
+		}
 	}
-	return c.nodes[rank], nil
+	return nil, errors.NewDaytonaError(fmt.Sprintf("Sandbox node rank %d is unavailable", rank), 404, nil)
 }
 
 // syncNodes is called with the parent lock held, except during construction.
@@ -172,6 +175,14 @@ func (s *Sandbox) syncNodes(dto sandboxDTO) {
 		}
 		raw = full.Nodes
 	}
+	var firstRank int32
+	if authoritative && full.GetHeadSandboxId() != "" && full.NodeRank != nil {
+		firstRank = full.GetNodeRank()
+		if firstRank < 1 || len(raw) > 1 {
+			s.Nodes.err = errors.NewDaytonaError("Invalid sandbox worker metadata", 0, nil)
+			return
+		}
+	}
 	if len(raw) == 0 {
 		if len(s.Nodes.nodes) > 0 {
 			for _, node := range s.Nodes.nodes {
@@ -184,11 +195,11 @@ func (s *Sandbox) syncNodes(dto sandboxDTO) {
 			count = 1
 			s.NodeCount = count
 		}
-		raw = []apiclient.SandboxNode{{Rank: 0, Id: s.ID, State: dto.GetState(), Incarnation: 1, Cpu: s.Cpu / int32(count), Gpu: s.Gpu / int32(count), Memory: s.Memory / int32(count), Disk: s.Disk / int32(count)}}
+		raw = []apiclient.SandboxNode{{Rank: firstRank, Id: s.ID, State: dto.GetState(), Incarnation: 1, Cpu: s.Cpu / int32(count), Gpu: s.Gpu / int32(count), Memory: s.Memory / int32(count), Disk: s.Disk / int32(count)}}
 	}
 	seen := make(map[string]bool, len(raw))
 	for rank, node := range raw {
-		if node.Rank != int32(rank) || node.Id == "" || node.Id == "." || node.Id == ".." || seen[node.Id] || (rank == 0 && node.Id != s.ID) {
+		if node.Rank != firstRank+int32(rank) || node.Id == "" || node.Id == "." || node.Id == ".." || seen[node.Id] || (rank == 0 && node.Id != s.ID) {
 			s.Nodes.err = errors.NewDaytonaError("Invalid sandbox node ordering or identity", 0, nil)
 			return
 		}
@@ -260,30 +271,27 @@ func (c *SandboxNodes) generation(ctx context.Context) (int32, error) {
 func (c *SandboxNodes) wait(ctx context.Context, operation *apiclient.GangMembershipOperation) (*apiclient.GangMembershipOperation, error) {
 	for operation.Status != "COMPLETED" && operation.Status != "FAILED" {
 		if err := waitNodePoll(ctx, time.Second); err != nil {
-			return nil, err
+			return operation, err
 		}
 		updated, response, err := c.parent.client.apiClient.SandboxAPI.GetGangMembershipOperation(c.parent.client.getAuthContext(ctx), c.parent.ID, operation.Id).Execute()
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, ctx.Err()
+				return operation, ctx.Err()
 			}
-			return nil, errors.ConvertAPIError(err, response)
+			return operation, errors.ConvertAPIError(err, response)
 		}
 		operation = updated
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
 	if operation.Status == "FAILED" {
-		return nil, errors.NewDaytonaError(operation.GetErrorReason(), 0, nil)
+		return operation, errors.NewDaytonaError(operation.GetErrorReason(), 0, nil)
 	}
-	if err := c.parent.doRefreshData(ctx); err != nil {
-		return nil, err
-	}
-	return operation, ctx.Err()
+	// The operation is already committed. A stale local cache can be refreshed separately.
+	_ = c.parent.doRefreshData(ctx)
+	return operation, nil
 }
 
 // Add appends one node per resource specification and waits for the operation.
+// If polling fails after acceptance, the returned operation identifies the request.
 // Timeout defaults to ten minutes; zero disables that limit. Cancelling a wait does not roll back the operation.
 func (c *SandboxNodes) Add(ctx context.Context, nodes []NodeResources, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error) {
 	if len(nodes) == 0 {
@@ -316,6 +324,7 @@ func (c *SandboxNodes) Add(ctx context.Context, nodes []NodeResources, timeout .
 }
 
 // Release removes count highest ranks and waits for the operation.
+// If polling fails after acceptance, the returned operation identifies the request.
 func (c *SandboxNodes) Release(ctx context.Context, count int, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error) {
 	if count < 1 || count > math.MaxInt32 {
 		return nil, errors.NewDaytonaError("Node release count must be positive", 0, nil)
@@ -340,6 +349,7 @@ func (c *SandboxNodes) Release(ctx context.Context, count int, timeout ...time.D
 }
 
 // Replace replaces a degraded rank and waits for the operation.
+// If polling fails after acceptance, the returned operation identifies the request.
 func (c *SandboxNodes) Replace(ctx context.Context, rank int, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error) {
 	if rank < 0 {
 		return nil, errors.NewDaytonaError("Node rank must be non-negative", 0, nil)
@@ -590,13 +600,20 @@ func (f *NodeFileSystemService) UploadFile(ctx context.Context, source any, dest
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if path, ok := source.(string); ok {
-		// Share the bytes rather than reading a large local file once per rank.
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return errors.WrapDaytonaError(err, "Failed to read upload file", 0, nil)
+	upload := func(node *SandboxNode) error {
+		switch value := source.(type) {
+		case string:
+			file, err := os.Open(value)
+			if err != nil {
+				return errors.WrapDaytonaError(err, "Failed to open upload file", 0, nil)
+			}
+			defer file.Close()
+			return node.FileSystem.UploadFileStream(ctx, file, destination)
+		case []byte:
+			return node.FileSystem.UploadFileStream(ctx, bytes.NewReader(value), destination)
+		default:
+			return errors.NewDaytonaError("Invalid source type", 0, nil)
 		}
-		source = data
 	}
 	failures := make(map[int32]error)
 	var mu sync.Mutex
@@ -605,7 +622,7 @@ func (f *NodeFileSystemService) UploadFile(ctx context.Context, source any, dest
 		group.Add(1)
 		go func(node *SandboxNode) {
 			defer group.Done()
-			if err := node.FileSystem.UploadFile(ctx, source, destination); err != nil {
+			if err := upload(node); err != nil {
 				mu.Lock()
 				failures[node.Rank] = err
 				mu.Unlock()

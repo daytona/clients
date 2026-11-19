@@ -112,6 +112,12 @@ class TestSandboxInit:
         assert [(node.rank, node.id) for node in sandbox.nodes] == [(0, "test-sandbox-id"), (1, "worker-1")]
         assert sandbox.nodes[1].fabric_healthy is False
 
+    def test_worker_lookup_keeps_its_physical_rank(self, mock_toolbox_api_client, mock_sandbox_api):
+        dto = make_sandbox_dto(sandbox_id="worker-2", nodes=[{"rank": 2, "id": "worker-2"}])
+        dto.head_sandbox_id, dto.node_rank = "head", 2
+        sandbox = make_sandbox(dto, mock_toolbox_api_client, mock_sandbox_api)
+        assert [(node.rank, node.id) for node in sandbox.nodes] == [(2, "worker-2")]
+
     def test_sandbox_rejects_invalid_node_rank_order(self, mock_toolbox_api_client, mock_sandbox_api):
         dto = make_sandbox_dto(
             node_count=2,
