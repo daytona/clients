@@ -1,0 +1,31 @@
+sdk-typescript/src/v2/types.ts
+  s_57322031358fb0::t_55bbce8152c97b 196
+sdk-typescript/README.md
+  s_57322031358fb0::t_55bbce8152c97b 466-478,510-513,519-520
+  s_57322031358fb0::t_fdafc549f2398a 514-518
+  s_67b025aa04a837::t_83ea0f1b04436a 521
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "37ac1e64eea2561bc1ad6e2a0af54d1986fc9051",
+  "prompts": {},
+  "sessions": {
+    "s_57322031358fb0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0ad0d113ffet9qo3KTg2BjFMb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    },
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
