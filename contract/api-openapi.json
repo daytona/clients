@@ -11026,6 +11026,15 @@
         ],
         "type": "object"
       },
+      "VolumeBucketOrigin": {
+        "enum": [
+          "platform",
+          "external",
+          "claimed"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "VolumeMount": {
         "description": "A volume attachment as requested on `POST /sandboxes`.",
         "properties": {
@@ -31856,6 +31865,20 @@
             "schema": {
               "items": {
                 "$ref": "#/components/schemas/VolumeSearchStatus"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated bucket origins. Only bucket volumes match.",
+            "explode": false,
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeBucketOrigin"
               },
               "type": "array"
             },

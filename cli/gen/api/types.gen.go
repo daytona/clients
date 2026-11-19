@@ -841,13 +841,13 @@ func (e CpuArchitecture) Valid() bool {
 
 // Defines values for ExternalBucketOrigin.
 const (
-	External ExternalBucketOrigin = "external"
+	ExternalBucketOriginExternal ExternalBucketOrigin = "external"
 )
 
 // Valid indicates whether the value is a known member of the ExternalBucketOrigin enum.
 func (e ExternalBucketOrigin) Valid() bool {
 	switch e {
-	case External:
+	case ExternalBucketOriginExternal:
 		return true
 	default:
 		return false
@@ -1904,6 +1904,27 @@ func (e UsageReportResolution) Valid() bool {
 	case UsageReportResolutionDay:
 		return true
 	case UsageReportResolutionHour:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VolumeBucketOrigin.
+const (
+	VolumeBucketOriginClaimed  VolumeBucketOrigin = "claimed"
+	VolumeBucketOriginExternal VolumeBucketOrigin = "external"
+	VolumeBucketOriginPlatform VolumeBucketOrigin = "platform"
+)
+
+// Valid indicates whether the value is a known member of the VolumeBucketOrigin enum.
+func (e VolumeBucketOrigin) Valid() bool {
+	switch e {
+	case VolumeBucketOriginClaimed:
+		return true
+	case VolumeBucketOriginExternal:
+		return true
+	case VolumeBucketOriginPlatform:
 		return true
 	default:
 		return false
@@ -7244,6 +7265,9 @@ type Volume struct {
 	UsedBytesAt *time.Time `json:"used_bytes_at,omitempty"`
 }
 
+// VolumeBucketOrigin defines model for VolumeBucketOrigin.
+type VolumeBucketOrigin string
+
 // VolumeMount A volume attachment as requested on `POST /sandboxes`.
 type VolumeMount struct {
 	// MountPath The absolute path inside the sandbox, with no `..`. It is normalized
@@ -8217,6 +8241,9 @@ type SearchVolumesParams struct {
 
 	// Status Comma-separated non-deleted volume statuses.
 	Status *[]VolumeSearchStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Origin Comma-separated bucket origins. Only bucket volumes match.
+	Origin *[]VolumeBucketOrigin `form:"origin,omitempty" json:"origin,omitempty"`
 
 	// Imported True returns imported volumes, false returns native volumes, absent returns both.
 	Imported *bool `form:"imported,omitempty" json:"imported,omitempty"`

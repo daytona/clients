@@ -332,6 +332,7 @@ from daytona.v2._gen.api.models.v0_sandbox import V0Sandbox as V0Sandbox
 from daytona.v2._gen.api.models.v0_sandbox_import import V0SandboxImport as V0SandboxImport
 from daytona.v2._gen.api.models.v0_sandbox_page import V0SandboxPage as V0SandboxPage
 from daytona.v2._gen.api.models.volume import Volume as Volume
+from daytona.v2._gen.api.models.volume_bucket_origin import VolumeBucketOrigin as VolumeBucketOrigin
 from daytona.v2._gen.api.models.volume_mount import VolumeMount as VolumeMount
 from daytona.v2._gen.api.models.volume_page import VolumePage as VolumePage
 from daytona.v2._gen.api.models.volume_search_list_item import VolumeSearchListItem as VolumeSearchListItem

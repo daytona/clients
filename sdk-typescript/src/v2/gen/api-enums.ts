@@ -52,6 +52,7 @@ export const TimeoutSource = ["project","platform","none"] as const
 export const UsageHistoryResolution = ["minute","hour"] as const
 export const UsagePeriodStatus = ["open","closed"] as const
 export const UsageReportResolution = ["hour","day"] as const
+export const VolumeBucketOrigin = ["platform","external","claimed"] as const
 export const VolumeSearchSort = ["created_at","updated_at","name","used_bytes","last_used_at"] as const
 export const VolumeSearchStatus = ["ready","deleting","error"] as const
 export const VolumeStatus = ["ready","deleting","deleted","error"] as const

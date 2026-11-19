@@ -8057,6 +8057,7 @@ export interface components {
              */
             used_bytes_at?: string | null;
         };
+        VolumeBucketOrigin: ("platform" | "external" | "claimed") | (string & {});
         /** @description A volume attachment as requested on `POST /sandboxes`. */
         VolumeMount: {
             /**
@@ -20310,6 +20311,8 @@ export interface operations {
                 type?: components["schemas"]["VolumeType"][];
                 /** @description Comma-separated non-deleted volume statuses. */
                 status?: components["schemas"]["VolumeSearchStatus"][];
+                /** @description Comma-separated bucket origins. Only bucket volumes match. */
+                origin?: components["schemas"]["VolumeBucketOrigin"][];
                 /** @description True returns imported volumes, false returns native volumes, absent returns both. */
                 imported?: boolean;
                 /** @description Inclusive lower bound on creation time. */
