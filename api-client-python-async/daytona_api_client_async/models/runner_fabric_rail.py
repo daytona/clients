@@ -18,8 +18,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from pydantic import TypeAdapter
 from typing import Optional, Set
@@ -31,7 +31,7 @@ class RunnerFabricRail(BaseModel):
     """
     RunnerFabricRail
     """ # noqa: E501
-    index: Union[StrictFloat, StrictInt]
+    index: Annotated[int, Field(strict=True, ge=0)]
     pci_address: StrictStr = Field(serialization_alias="pciAddress")
     netdev: StrictStr
     rdma_device: StrictStr = Field(serialization_alias="rdmaDevice")

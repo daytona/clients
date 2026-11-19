@@ -58,7 +58,7 @@ module DaytonaApiClient
     # Attribute type mapping.
     def self.openapi_types
       {
-        :'index' => :'Float',
+        :'index' => :'Integer',
         :'pci_address' => :'String',
         :'netdev' => :'String',
         :'rdma_device' => :'String',
@@ -147,6 +147,10 @@ module DaytonaApiClient
         invalid_properties.push('invalid value for "index", index cannot be nil.')
       end
 
+      if @index < 0
+        invalid_properties.push('invalid value for "index", must be greater than or equal to 0.')
+      end
+
       if @pci_address.nil?
         invalid_properties.push('invalid value for "pci_address", pci_address cannot be nil.')
       end
@@ -187,6 +191,7 @@ module DaytonaApiClient
     def valid?
       warn '[DEPRECATED] the `valid?` method is obsolete'
       return false if @index.nil?
+      return false if @index < 0
       return false if @pci_address.nil?
       return false if @netdev.nil?
       return false if @rdma_device.nil?
@@ -203,6 +208,10 @@ module DaytonaApiClient
     def index=(index)
       if index.nil?
         fail ArgumentError, 'index cannot be nil'
+      end
+
+      if index < 0
+        fail ArgumentError, 'invalid value for "index", must be greater than or equal to 0.'
       end
 
       @index = index

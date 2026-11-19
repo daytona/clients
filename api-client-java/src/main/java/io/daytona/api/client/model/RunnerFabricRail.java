@@ -20,7 +20,6 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.Arrays;
 
 import com.google.gson.Gson;
@@ -54,7 +53,7 @@ public class RunnerFabricRail {
   public static final String SERIALIZED_NAME_INDEX = "index";
   @SerializedName(SERIALIZED_NAME_INDEX)
   @javax.annotation.Nonnull
-  private BigDecimal index;
+  private Integer index;
 
   public static final String SERIALIZED_NAME_PCI_ADDRESS = "pciAddress";
   @SerializedName(SERIALIZED_NAME_PCI_ADDRESS)
@@ -94,21 +93,22 @@ public class RunnerFabricRail {
   public RunnerFabricRail() {
   }
 
-  public RunnerFabricRail index(@javax.annotation.Nonnull BigDecimal index) {
+  public RunnerFabricRail index(@javax.annotation.Nonnull Integer index) {
     this.index = index;
     return this;
   }
 
   /**
    * Get index
+   * minimum: 0
    * @return index
    */
   @javax.annotation.Nonnull
-  public BigDecimal getIndex() {
+  public Integer getIndex() {
     return index;
   }
 
-  public void setIndex(@javax.annotation.Nonnull BigDecimal index) {
+  public void setIndex(@javax.annotation.Nonnull Integer index) {
     this.index = index;
   }
 

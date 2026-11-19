@@ -16468,7 +16468,8 @@
         "type": "object",
         "properties": {
           "index": {
-            "type": "number"
+            "type": "integer",
+            "minimum": 0
           },
           "pciAddress": {
             "type": "string"
