@@ -103,9 +103,8 @@ class ComputerUseService:
         resources or unsupported settings raise ``BadRequestError``.
         Windows and macOS refuse either setting with ``UnsupportedOperationError``,
         as does a system layer without GNOME when it is requested. A concurrent
-        restart with different settings raises ``ConflictError``. With a
-        ``resolution``, the SDK reads it back as ``start`` does; environment
-        alone adds no read-back request.
+        restart with different settings raises ``ConflictError``. With either
+        setting, the SDK confirms it as ``start`` does, sharing one status read.
         """
         return self._bridge.call(lambda: self._impl.restart(resolution=resolution, environment=environment))
 
@@ -126,13 +125,15 @@ class ComputerUseService:
         resources raise ``BadRequestError``. Starting a running desktop with
         different settings raises ``ConflictError``; use ``restart`` instead.
         Windows and macOS refuse either setting with ``UnsupportedOperationError``,
-        as does a system layer without GNOME when it is requested. Environment
-        alone adds no read-back request. With a
-        ``resolution``, the SDK reads back the size the desktop runs at and
-        raises ``UnsupportedOperationError`` when it differs: a guest that
-        predates resolution selection ignores it, and the desktop keeps running
-        at its own. If that read itself fails, its error is raised although the
-        start took effect; starting again at the same resolution is a no-op.
+        as does a system layer without GNOME when it is requested. With either
+        setting, the SDK reads status once and raises ``UnsupportedOperationError``
+        if the environment is absent or differs, or the resolution differs
+        (falling back to display info when status has no resolution). A guest
+        with resolution selection but without environment selection refuses
+        ``environment`` with 422 ``UnprocessableEntityError``; older guests
+        ignore the body and start XFCE. If a read fails, its error is raised
+        although the start took effect; starting again with the same settings
+        is a no-op.
         """
         return self._bridge.call(lambda: self._impl.start(resolution=resolution, environment=environment))
 

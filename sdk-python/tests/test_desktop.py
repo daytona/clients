@@ -245,19 +245,20 @@ _RESTARTED = {"message": "computer use restarted", "status": "active", "desktop"
 @pytest.mark.parametrize("environment", [None, "xfce", "gnome"])
 @pytest.mark.parametrize("with_resolution", [False, True])
 @pytest.mark.anyio
-async def test_environment_is_sent_only_when_given_without_its_own_read_back(
+async def test_environment_is_sent_only_when_given_with_one_shared_read_back(
     verb: str, environment: Literal["xfce", "gnome"] | None, with_resolution: bool
 ) -> None:
     from daytona.v2 import ComputerUseResolution
 
-    # Given a lifecycle response and, only for resolution, a status read-back.
+    # Given a lifecycle response and a status confirming the requested settings.
     body: dict[str, JsonValue] = {}
     reads: list[dict[str, JsonValue]] = []
     if environment is not None:
         body["environment"] = environment
     if with_resolution:
         body["resolution"] = {"width": 1920, "height": 1080}
-        reads = [{"status": "active", "desktop": "ready", "resolution": body["resolution"]}]
+    if body:
+        reads = [{"status": "active", "desktop": "ready", **body}]
     transport = _Script(_STARTED if verb == "start" else _RESTARTED, *reads)
     service = AsyncComputerUseService(transport)  # type: ignore[arg-type]
 
@@ -267,10 +268,10 @@ async def test_environment_is_sent_only_when_given_without_its_own_read_back(
         resolution=ComputerUseResolution(width=1920, height=1080) if with_resolution else None,
     )
 
-    # Then the body is unchanged without environment; only resolution adds a read.
+    # Then either setting adds exactly one shared status read.
     assert [(spec.path, spec.json_body) for spec in transport.specs] == [
         (f"/computeruse/{verb}", body or None),
-        *([("/computeruse/status", None)] if with_resolution else []),
+        *([("/computeruse/status", None)] if body else []),
     ]
 
 
