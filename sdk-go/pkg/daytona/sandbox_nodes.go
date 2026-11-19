@@ -398,23 +398,45 @@ func (c *SandboxNodes) ExecuteCommand(ctx context.Context, command string, timeo
 	})
 }
 
-// UploadFile streams a local path or byte slice to every member. A NodeErrors
-// result identifies failed ranks. Successful uploads remain available.
+// UploadFile streams a local file or byte slice to every member. Invalid sources
+// return a single error. A [NodeErrors] result identifies failed uploads by rank.
 func (c *SandboxNodes) UploadFile(ctx context.Context, source any, destination string) error {
-	_, err := runOnNodes(c.members, func(n *SandboxNode) (struct{}, error) {
-		switch value := source.(type) {
-		case string:
+	var upload func(*SandboxNode) error
+	switch value := source.(type) {
+	case string:
+		first, err := os.Open(value)
+		if err != nil {
+			return err
+		}
+		defer first.Close()
+		info, err := first.Stat()
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return errors.NewDaytonaError("Upload source is a directory", 0, nil)
+		}
+		upload = func(n *SandboxNode) error {
+			// Use the validated stream for the first member. Each peer needs its own offset.
+			if n == c.members[0] {
+				return n.FileSystem.UploadFileStream(ctx, first, destination)
+			}
 			file, err := os.Open(value)
 			if err != nil {
-				return struct{}{}, err
+				return err
 			}
 			defer file.Close()
-			return struct{}{}, n.FileSystem.UploadFileStream(ctx, file, destination)
-		case []byte:
-			return struct{}{}, n.FileSystem.UploadFileStream(ctx, bytes.NewReader(value), destination)
-		default:
-			return struct{}{}, errors.NewDaytonaError("Upload source must be a local path or byte slice", 0, nil)
+			return n.FileSystem.UploadFileStream(ctx, file, destination)
 		}
+	case []byte:
+		upload = func(n *SandboxNode) error {
+			return n.FileSystem.UploadFileStream(ctx, bytes.NewReader(value), destination)
+		}
+	default:
+		return errors.NewDaytonaError("Upload source must be a local path or byte slice", 0, nil)
+	}
+	_, err := runOnNodes(c.members, func(n *SandboxNode) (struct{}, error) {
+		return struct{}{}, upload(n)
 	})
 	return err
 }

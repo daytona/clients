@@ -376,6 +376,7 @@ if err != nil {
     return err
 }
 results, err := nodes.ExecuteCommand(ctx, "hostname")
+// If some ranks fail, results still contains successful ranks and err is a *daytona.NodeErrors.
 for rank, result := range results {
     fmt.Println(rank, result.Result)
 }

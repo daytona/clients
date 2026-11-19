@@ -404,8 +404,10 @@ func (c *Client) createToolboxClient(proxyURL string, sandboxID string) (*toolbo
 
 // Create creates a new sandbox with the specified parameters.
 //
-// The params argument accepts [types.SnapshotParams], [types.ImageParams], or
-// [types.MultiNodeImageParams] for per-node resources. Pointers to each are also accepted.
+// The params argument accepts [types.SnapshotParams], [types.ImageParams], and
+// [types.MultiNodeImageParams] as values or pointers. To create a multi-node GPU
+// sandbox, set GPU on ImageParams.Resources to request at least two whole 8-GPU
+// nodes and specify at least one GpuType.
 //
 //	// Create from a snapshot
 //	sandbox, err := client.Create(ctx, types.SnapshotParams{

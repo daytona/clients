@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -37,7 +39,9 @@ func TestMultiNodeCreateAndMembership(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var body map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+				return
+			}
 			assert.Equal(t, []any{float64(16), float64(32)}, body["cpuPerNode"])
 			assert.Equal(t, float64(192), body["memory"])
 			assert.NotContains(t, body, "cpu")
@@ -119,7 +123,9 @@ func TestNodesApplyMembershipAtObservedGeneration(t *testing.T) {
 				if r.Method == http.MethodPost {
 					posts.Add(1)
 					var body map[string]any
-					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+						return
+					}
 					assert.Equal(t, float64(7), body["expectedGeneration"])
 					switch action {
 					case "release":
@@ -191,7 +197,9 @@ func TestNodeDataPlaneUsesAddressedMember(t *testing.T) {
 		}
 		if strings.HasSuffix(r.URL.Path, "/process/execute") {
 			var body map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+				return
+			}
 			if body["command"] == rdmaUserspaceCheck {
 				writeJSONResponse(t, w, 200, map[string]any{"exitCode": 1, "result": ""})
 				return
@@ -206,11 +214,19 @@ func TestNodeDataPlaneUsesAddressedMember(t *testing.T) {
 		}
 		assert.True(t, strings.HasPrefix(r.URL.Path, "/toolbox/head/") || strings.HasPrefix(r.URL.Path, "/toolbox/worker/"))
 		f, _, err := r.FormFile("files[0].file")
-		require.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
 		defer f.Close()
 		content, err := io.ReadAll(f)
-		require.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
 		assert.Equal(t, "shared contents", string(content))
+		if r.FormValue("files[0].path") == "/tmp/partial" && strings.HasPrefix(r.URL.Path, "/toolbox/worker/") {
+			http.Error(w, "worker offline", http.StatusServiceUnavailable)
+			return
+		}
 		uploaded.Add(1)
 	}))
 	defer server.Close()
@@ -224,7 +240,34 @@ func TestNodeDataPlaneUsesAddressedMember(t *testing.T) {
 	require.Equal(t, "head output", results[0].Result)
 	require.NotEmpty(t, ns.All()[0].Warnings())
 	require.NoError(t, ns.UploadFile(t.Context(), []byte("shared contents"), "/tmp/shared"))
-	require.EqualValues(t, 2, uploaded.Load())
+	path := filepath.Join(t.TempDir(), "shared.txt")
+	require.NoError(t, os.WriteFile(path, []byte("shared contents"), 0600))
+	require.NoError(t, ns.UploadFile(t.Context(), path, "/tmp/shared"))
+	require.EqualValues(t, 4, uploaded.Load())
+	err = ns.UploadFile(t.Context(), path, "/tmp/partial")
+	require.ErrorAs(t, err, &failure)
+	require.Len(t, failure.Failures, 1)
+	require.Contains(t, failure.Failures, int32(1))
+	require.EqualValues(t, 5, uploaded.Load())
+}
+
+func TestNodeUploadRejectsInvalidSourceBeforeUpload(t *testing.T) {
+	nodes := &SandboxNodes{members: []*SandboxNode{
+		{SandboxNode: api.SandboxNode{Rank: 0}},
+		{SandboxNode: api.SandboxNode{Rank: 1}},
+	}}
+	var rankErrors *NodeErrors
+	err := nodes.UploadFile(t.Context(), 42, "/tmp/shared")
+	require.ErrorContains(t, err, "local path or byte slice")
+	require.False(t, errors.As(err, &rankErrors))
+
+	err = nodes.UploadFile(t.Context(), filepath.Join(t.TempDir(), "missing"), "/tmp/shared")
+	require.ErrorIs(t, err, os.ErrNotExist)
+	require.False(t, errors.As(err, &rankErrors))
+
+	err = nodes.UploadFile(t.Context(), t.TempDir(), "/tmp/shared")
+	require.ErrorContains(t, err, "directory")
+	require.False(t, errors.As(err, &rankErrors))
 }
 
 func TestNodePreviewAndSSHUseWorker(t *testing.T) {
