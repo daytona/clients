@@ -996,7 +996,7 @@ public class Sandbox {
         }
         this.state = newState;
         for (StateWaiter waiter : stateWaiters) {
-            waiter.onStateChanged(newState, queueTimedOutAt != null, spotEvictedAt != null);
+            waiter.onStateChanged(newState, queueTimedOutAt != null, spotEvictedAt != null, errorReason);
         }
     }
 
@@ -1025,6 +1025,14 @@ public class Sandbox {
                 updateFromJsonEvent(sandboxNode);
             }
             return;
+        }
+
+        JsonNode eventSandbox = data.get("sandbox");
+        if (eventSandbox != null && eventSandbox.isObject()) {
+            // Set before the state: a wait that ends on an error state reports this reason. The event omits the
+            // field when the sandbox has none.
+            JsonNode reason = eventSandbox.path("errorReason");
+            this.errorReason = reason.isTextual() ? reason.asText() : null;
         }
 
         JsonNode stateNode = data.path("newState");
@@ -1154,7 +1162,7 @@ public class Sandbox {
     private void notifyWaiterOfCurrentState(StateWaiter waiter) {
         String current = this.state;
         if (current != null) {
-            waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null);
+            waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null, errorReason);
         }
     }
 
@@ -1184,18 +1192,21 @@ public class Sandbox {
         final AtomicReference<String> resolvedState = new AtomicReference<>();
         final AtomicReference<RuntimeException> pollError = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
+        // The error reason that came with resolvedState; a refresh still in flight may replace the sandbox's after.
+        volatile String resolvedReason;
 
         StateWaiter(Set<String> targetStates, Set<String> errorStates) {
             this.targetStates = targetStates;
             this.errorStates = errorStates;
         }
 
-        void onStateChanged(String newState, boolean queueTimedOut, boolean spotEvicted) {
+        void onStateChanged(String newState, boolean queueTimedOut, boolean spotEvicted, String errorReason) {
             boolean terminalDestroyed = DESTROYED_STATES.contains(newState)
                     && !targetStates.contains(newState)
                     && (queueTimedOut || spotEvicted);
             if (targetStates.contains(newState) || errorStates.contains(newState) || terminalDestroyed) {
                 if (resolvedState.compareAndSet(null, newState)) {
+                    resolvedReason = errorReason;
                     latch.countDown();
                 }
             }
@@ -1236,7 +1247,8 @@ public class Sandbox {
                 }
             }
             if (resolved != null && errorStates.contains(resolved)) {
-                throw new DaytonaException("Sandbox entered error state: " + resolved);
+                throw new DaytonaException("Sandbox " + sandbox.id + " entered error state: " + resolved
+                        + ", error reason: " + resolvedReason);
             }
         }
     }

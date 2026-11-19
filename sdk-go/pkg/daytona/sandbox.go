@@ -60,7 +60,7 @@ type Sandbox struct {
 	signingKeyFetchedAt time.Time
 
 	mu                  sync.RWMutex
-	stateWaiters        []chan apiclient.SandboxState
+	stateWaiters        []*stateWaiter
 	subscriptionManager *common.EventSubscriptionManager
 	subID               string
 
@@ -566,7 +566,11 @@ func (s *Sandbox) handleEvent(event common.SandboxEvent) {
 	switch event.Type {
 	case common.SandboxEventStateUpdated:
 		if event.StateEvent != nil {
-			s.applyState(event.StateEvent.NewState)
+			s.mu.Lock()
+			// Set before the state: a wait that ends on an error state reports this reason.
+			s.ErrorReason = event.StateEvent.Sandbox.ErrorReason
+			s.applyStateLocked(event.StateEvent.NewState)
+			s.mu.Unlock()
 		}
 	case common.SandboxEventCreated:
 		if event.CreatedEvent != nil {
@@ -585,6 +589,29 @@ func (s *Sandbox) unsubscribe() {
 	if subID != "" && manager != nil {
 		manager.Unsubscribe(subID)
 	}
+}
+
+// stateUpdate is a state change as seen by a waiting call, with the error reason that came with it.
+type stateUpdate struct {
+	state       apiclient.SandboxState
+	errorReason *string
+}
+
+// stateWaiter delivers state updates to a waiting call. After an update that ends the wait is queued, later updates
+// are not sent: a refresh still in flight may apply an older state after it and must not replace it.
+type stateWaiter struct {
+	ch    chan stateUpdate
+	ends  func(apiclient.SandboxState) bool
+	ended bool
+}
+
+// errorStateError reports a wait that ended in an error state.
+func errorStateError(state apiclient.SandboxState, errorReason *string) error {
+	reason := ""
+	if errorReason != nil {
+		reason = *errorReason
+	}
+	return fmt.Errorf("sandbox entered error state: %s, error reason: %s", state, reason)
 }
 
 // currentState returns the current sandbox state under a read lock.
@@ -609,17 +636,22 @@ func (s *Sandbox) applyStateLocked(newState apiclient.SandboxState) {
 	}
 
 	s.State = newState
+	update := stateUpdate{state: newState, errorReason: s.ErrorReason}
 
 	for _, waiter := range s.stateWaiters {
+		if waiter.ended {
+			continue
+		}
+		waiter.ended = waiter.ends(newState)
 		select {
-		case waiter <- newState:
+		case waiter.ch <- update:
 		default:
 			select {
-			case <-waiter:
+			case <-waiter.ch:
 			default:
 			}
 			select {
-			case waiter <- newState:
+			case waiter.ch <- update:
 			default:
 			}
 		}
@@ -660,16 +692,22 @@ func (s *Sandbox) waitForState(
 	s.ensureSubscribed()
 	subscribed := s.hasActiveSubscription()
 
-	stateCh := make(chan apiclient.SandboxState, 1)
+	waiter := &stateWaiter{
+		ch: make(chan stateUpdate, 1),
+		ends: func(st apiclient.SandboxState) bool {
+			return containsSandboxState(targetStates, st) || containsSandboxState(errorStates, st)
+		},
+	}
+	stateCh := waiter.ch
 	s.mu.Lock()
-	s.stateWaiters = append(s.stateWaiters, stateCh)
+	s.stateWaiters = append(s.stateWaiters, waiter)
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
-		for i, waiter := range s.stateWaiters {
-			if waiter == stateCh {
+		for i, w := range s.stateWaiters {
+			if w == waiter {
 				s.stateWaiters = append(s.stateWaiters[:i], s.stateWaiters[i+1:]...)
 				break
 			}
@@ -701,7 +739,7 @@ func (s *Sandbox) waitForState(
 			}
 		}
 		s.mu.RLock()
-		st := s.State
+		st, reason := s.State, s.ErrorReason
 		s.mu.RUnlock()
 		if containsSandboxState(targetStates, st) {
 			return true, nil
@@ -710,7 +748,7 @@ func (s *Sandbox) waitForState(
 			return true, err
 		}
 		if containsSandboxState(errorStates, st) {
-			return true, fmt.Errorf("sandbox entered error state: %s", st)
+			return true, errorStateError(st, reason)
 		}
 		return false, nil
 	}
@@ -741,14 +779,15 @@ func (s *Sandbox) waitForState(
 				return err
 			}
 			return ctx.Err()
-		case newState := <-stateCh:
+		case update := <-stateCh:
+			newState := update.state
 			if newState == apiclient.SANDBOXSTATE_DESTROYED {
 				if err := s.destroyedLifecycleError(targetStates); err != nil {
 					return err
 				}
 			}
 			if containsSandboxState(errorStates, newState) {
-				return fmt.Errorf("sandbox entered error state: %s", newState)
+				return errorStateError(newState, update.errorReason)
 			}
 			if containsSandboxState(targetStates, newState) {
 				return nil

@@ -35,6 +35,15 @@ def make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sa
     )
 
 
+def error_event(reason):
+    """A `sandbox.state.updated` event as the API sends it to SDK sockets (fields without a value are omitted)."""
+    return {
+        "sandbox": {"id": "test-sandbox-id", "state": "error", "desiredState": "started", "errorReason": reason},
+        "oldState": "starting",
+        "newState": "error",
+    }
+
+
 class TestAsyncSandboxInit:
     def test_sandbox_properties(self, sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api):
         sandbox = make_async_sandbox(sandbox_dto, mock_async_toolbox_api_client, mock_async_sandbox_api)
@@ -261,6 +270,19 @@ class TestAsyncSandboxWaitForStart:
         mock_async_sandbox_api.get_sandbox = AsyncMock(return_value=error_dto)
         with pytest.raises(DaytonaError, match="Failure during waiting for sandbox to start"):
             await sandbox.wait_for_sandbox_start(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_error_event_reports_its_reason(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        starting = make_sandbox_dto(state=SandboxState.STARTING)
+        sandbox = make_async_sandbox(starting, mock_async_toolbox_api_client, mock_async_sandbox_api)
+
+        async def poll_overtaken_by_the_event(*_args, **_kwargs):
+            sandbox._handle_event("sandbox.state.updated", error_event("disk full"))
+            return starting
+
+        mock_async_sandbox_api.get_sandbox = AsyncMock(side_effect=poll_overtaken_by_the_event)
+        with pytest.raises(DaytonaError, match="error reason: disk full"):
+            await sandbox.wait_for_sandbox_start(timeout=10)
 
 
 class TestAsyncSandboxQueueTimeout:

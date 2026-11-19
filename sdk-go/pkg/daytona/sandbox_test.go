@@ -710,7 +710,7 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 		sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
 		err := sandbox.doWaitForStart(context.Background(), 1500*time.Millisecond)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "sandbox entered error state")
+		assert.Contains(t, err.Error(), "sandbox entered error state: error, error reason: failed")
 		var daytonaErr *errors.DaytonaError
 		assert.False(t, stderrors.As(err, &daytonaErr), "error-state failures must not be wrapped in DaytonaError")
 	})
@@ -1026,6 +1026,46 @@ func TestSandboxUpdateEnv(t *testing.T) {
 	assert.Equal(t, []any{"OLD_VAR"}, body["unset"])
 	// UnsetValuePrefix is an internal reconciliation knob and must never be sent.
 	assert.NotContains(t, body, "unsetValuePrefix")
+}
+
+// The error event arrives while a poll is in flight; the poll then returns the earlier state and no reason.
+func TestWaitForStateReportsTheErrorReasonCarriedByTheStateEvent(t *testing.T) {
+	var sandbox *Sandbox
+	reason := "disk full"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sandbox.handleEvent(common.SandboxEvent{
+			Type: common.SandboxEventStateUpdated,
+			StateEvent: &common.SandboxStateEvent{
+				Sandbox:  apiclient.Sandbox{Id: "sb", ErrorReason: &reason},
+				NewState: apiclient.SANDBOXSTATE_ERROR,
+			},
+		})
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTING))
+	}))
+	defer server.Close()
+
+	client := createTestClientWithServer(t, server)
+	sandbox = newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+
+	err := sandbox.doWaitForStart(context.Background(), 5*time.Second)
+	require.EqualError(t, err, "sandbox entered error state: error, error reason: disk full")
+}
+
+func TestStateEventWithoutAnErrorReasonClearsIt(t *testing.T) {
+	reason := "transient"
+	sandbox := newSandboxForTest(nil, "sb", "sandbox", apiclient.SANDBOXSTATE_ERROR, "us", 0, -1, false, nil)
+	sandbox.ErrorReason = &reason
+
+	sandbox.handleEvent(common.SandboxEvent{
+		Type: common.SandboxEventStateUpdated,
+		StateEvent: &common.SandboxStateEvent{
+			Sandbox:  apiclient.Sandbox{Id: "sb"},
+			NewState: apiclient.SANDBOXSTATE_STARTED,
+		},
+	})
+
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.currentState())
+	assert.Nil(t, sandbox.ErrorReason)
 }
 
 func TestWaitForStateCachedErrorRecoversAfterRefresh(t *testing.T) {
