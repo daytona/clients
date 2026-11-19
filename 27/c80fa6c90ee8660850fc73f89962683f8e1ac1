@@ -1,0 +1,28 @@
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  h_5fc330b445be98 30,35,84
+sdk-python/src/daytona/v2/_gen/api/models/audit_log_entry.py
+  h_5fc330b445be98 44,59,129-133,192
+sdk-python/src/daytona/v2/_gen/api/models/coupon_redemption.py
+  h_5fc330b445be98 40
+sdk-python/src/daytona/v2/_gen/api/models/desktop_config.py
+  h_5fc330b445be98 37
+sdk-python/src/daytona/v2/_gen/api/models/desktop_settings.py
+  h_5fc330b445be98 37
+sdk-python/src/daytona/v2/_gen/api/models/mint_sandbox_access_token_request.py
+  h_5fc330b445be98 38
+sdk-python/src/daytona/v2/_gen/api/models/volume.py
+  h_5fc330b445be98 23,44,55,100-102,148
+sdk-python/src/daytona/v2/_gen/api/models/volume_mount.py
+  h_5fc330b445be98 37,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "27c80fa6c90ee8660850fc73f89962683f8e1ac1",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
