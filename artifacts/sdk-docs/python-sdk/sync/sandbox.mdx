@@ -1312,8 +1312,6 @@ Process operations applied to every node in a Sandbox.
 ```python
 @with_instrumentation()
 def exec(command: str,
-         on_stdout: OutputHandler[str] | None = None,
-         on_stderr: OutputHandler[str] | None = None,
          *,
          timeout: int | None = None) -> dict[int, ExecuteResponse]
 ```
@@ -1321,12 +1319,10 @@ def exec(command: str,
 Execute a command on every node, keyed by rank.
 
 ``timeout`` limits execution on each rank in seconds; None or 0 disables
-the limit. Streaming deadlines are enforced by the SDK, which deletes its
-temporary session to stop the command. Cleanup requires API connectivity.
-Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
-and, with a positive timeout, a 10-second session-creation request.
-On a partial failure, the error exposes node_failures and node_results keyed by rank.
-Cleanup errors after command completion are recorded in each node's warnings.
+the limit. Results contain buffered command output. For live output, use a
+session on the individual node's process handle. On a partial failure, the
+error exposes node_failures and node_results keyed by rank. RDMA diagnostics
+are recorded in each node's warnings.
 
 ## SandboxNodeFileSystem
 

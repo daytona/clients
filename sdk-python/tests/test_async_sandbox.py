@@ -90,6 +90,24 @@ class TestAsyncSandboxNodeSsh:
 
 
 class TestAsyncSandboxInit:
+    @pytest.mark.asyncio
+    async def test_refresh_updates_single_node_without_member_array(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api
+    ):
+        payload = make_sandbox_dto().to_dict()
+        payload.pop("nodes")
+        initial = AsyncSandboxDto.from_dict(dict(payload, state="stopped", cpu=2))
+        updated = AsyncSandboxDto.from_dict(dict(payload, state="started", cpu=4))
+        sandbox = make_async_sandbox(initial, mock_async_toolbox_api_client, mock_async_sandbox_api)
+        head = sandbox.nodes[0]
+        mock_async_sandbox_api.get_sandbox.return_value = updated
+
+        await sandbox.refresh_data()
+
+        assert sandbox.nodes[0] is head
+        assert head.cpu == 4
+        assert head.state.value == "started"
+
     def test_old_api_response_defaults_to_one_head_node(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
         payload = make_sandbox_dto().to_dict()
         payload.pop("nodes")

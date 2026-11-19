@@ -31,7 +31,7 @@ export class SandboxNode {
   public failure?: SandboxNodeDto['failure']
   public readonly fs: FileSystem
   public readonly process: Process
-  /** Advisory RDMA and session-cleanup warnings for this node. */
+  /** Advisory RDMA warnings for this node. */
   public readonly warnings: string[] = []
   public fabricAddress?: string
   public fabricPrefixLength?: number

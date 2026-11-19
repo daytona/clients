@@ -6,7 +6,6 @@ import asyncio
 import functools
 import inspect
 import time
-import uuid
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any, TypeVar
@@ -72,7 +71,7 @@ from ..common.errors import (
     DaytonaValidationError,
 )
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
-from ..common.process import ExecuteResponse, ExecutionArtifacts, OutputHandler, SessionExecuteRequest
+from ..common.process import ExecuteResponse
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
     NodeResources,
@@ -219,30 +218,19 @@ class AsyncSandboxNodeProcess:
     async def exec(
         self,
         command: str,
-        on_stdout: OutputHandler[str] | None = None,
-        on_stderr: OutputHandler[str] | None = None,
         *,
         timeout: int | None = None,
     ) -> dict[int, ExecuteResponse]:
         """Execute a command on every node, keyed by rank.
 
         ``timeout`` limits execution on each rank in seconds; None or 0 disables
-        the limit. Streaming deadlines are enforced by the SDK, which deletes its
-        temporary session to stop the command. Cleanup requires API connectivity.
-        Bounded setup precedes the execution deadline: on multi-node collections, a 5-second RDMA probe
-        and, with a positive timeout, a 10-second session-creation request.
-        On a partial failure, the error exposes node_failures and node_results keyed by rank.
-        Cleanup errors after command completion are recorded in each node's warnings.
+        the limit. Results contain buffered command output. For live output, use a
+        session on the individual node's process handle. On a partial failure, the
+        error exposes node_failures and node_results keyed by rank. RDMA diagnostics
+        are recorded in each node's warnings.
         """
         validate_node_exec_timeout(timeout)
         nodes = tuple(self._nodes)
-
-        async def emit(handler: OutputHandler[str] | None, rank: int, chunk: str) -> None:
-            if handler is None:
-                return
-            result = handler(f"[rank {rank}] {chunk}")
-            if inspect.isawaitable(result):
-                await result
 
         async def execute_node(node: AsyncSandboxNode) -> ExecuteResponse:
             try:
@@ -252,70 +240,9 @@ class AsyncSandboxNodeProcess:
                 warning = "WARNING: Could not check RDMA userspace; continuing without verification."
             if warning and warning not in node.warnings:
                 node.warnings.append(warning)
-            if warning:
-                await emit(on_stderr, node.rank, warning + "\n")
-
-            if on_stdout is None and on_stderr is None:
-                result = (
-                    await node.process.exec(command, timeout=timeout)
-                    if timeout is not None
-                    else await node.process.exec(command)
-                )
-            else:
-                session_id = f"daytona-nodes-exec-{uuid.uuid4()}"
-
-                async def execute_session() -> ExecuteResponse:
-                    started = await node.process.execute_session_command(
-                        session_id, SessionExecuteRequest(command=command, run_async=True), timeout=timeout
-                    )
-                    await node.process.get_session_command_logs_async(
-                        session_id,
-                        started.cmd_id,
-                        lambda chunk: emit(on_stdout, node.rank, chunk),
-                        lambda chunk: emit(on_stderr, node.rank, chunk),
-                    )
-                    completed, logs = await asyncio.gather(
-                        node.process.get_session_command(session_id, started.cmd_id),
-                        node.process.get_session_command_logs(session_id, started.cmd_id),
-                    )
-                    stdout = logs.stdout or ""
-                    return ExecuteResponse.model_construct(
-                        exit_code=completed.exit_code if completed.exit_code is not None else -1,
-                        result=logs.output or f"{stdout}{logs.stderr or ''}",
-                        artifacts=ExecutionArtifacts(stdout=stdout, charts=[]),
-                        additional_properties={},
-                    )
-
-                failure: BaseException | None = None
-                try:
-                    if timeout:
-                        await node.process.create_session(session_id, request_timeout=10)
-                    else:
-                        await node.process.create_session(session_id)
-                    try:
-                        result = await asyncio.wait_for(execute_session(), timeout=timeout or None)
-                    except asyncio.TimeoutError as error:
-                        raise DaytonaTimeoutError(
-                            f"Command on rank {node.rank} exceeded timeout of {timeout} seconds"
-                        ) from error
-                except BaseException as error:
-                    failure = error
-                    raise
-                finally:
-                    try:
-                        if timeout:
-                            await node.process.delete_session(session_id, request_timeout=10)
-                        else:
-                            await node.process.delete_session(session_id)
-                    except Exception as cleanup_error:
-                        if failure is not None:
-                            raise failure from cleanup_error
-                        node.warnings.append(f"Session {session_id} cleanup failed: {cleanup_error}")
-            if warning:
-                result.result = warning + "\n" + result.result
-                if result.artifacts:
-                    result.artifacts.stdout = warning + "\n" + result.artifacts.stdout
-            return result
+            if timeout is None:
+                return await node.process.exec(command)
+            return await node.process.exec(command, timeout=timeout)
 
         outcomes = await asyncio.gather(*(execute_node(node) for node in nodes), return_exceptions=True)
         results: dict[int, ExecuteResponse] = {}
@@ -2030,10 +1957,11 @@ class AsyncSandbox(SandboxDto):
 
         self._apply_state(sandbox_dto.state)
 
-        # Realtime list-item events omit nodes; do not collapse a gang back to
-        # a synthetic head-only array until a full response is fetched.
-        if hasattr(self, "_toolbox_api_client") and getattr(sandbox_dto, "nodes", None) is not None:
-            self.__process_nodes(sandbox_dto)
+        if hasattr(self, "_toolbox_api_client"):
+            # A lightweight event may omit every member of an existing gang.
+            single_head = self.node_count == 1 and len(self.nodes) == 1 and self.nodes[0].rank == 0
+            if getattr(sandbox_dto, "nodes", None) is not None or single_head:
+                self.__process_nodes(sandbox_dto)
 
     def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
         # A direct worker lookup returns only that worker, with its physical rank.

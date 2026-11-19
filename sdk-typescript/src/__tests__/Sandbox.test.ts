@@ -282,9 +282,6 @@ describe('membership operation deadlines', () => {
 })
 
 describe('all-node execution deadlines', () => {
-  beforeEach(() => jest.useFakeTimers())
-  afterEach(() => jest.useRealTimers())
-
   const makeNodes = (count = 1) => {
     const { sandbox } = makeSandbox({
       nodeCount: count,
@@ -303,13 +300,6 @@ describe('all-node execution deadlines', () => {
     const processes = sandbox.nodes.map((node) => {
       const methods = {
         executeCommand: jest.fn().mockResolvedValue({ exitCode: 0, result: 'done', artifacts: { stdout: 'done' } }),
-        createSession: jest.fn().mockResolvedValue(undefined),
-        executeSessionCommand: jest.fn().mockResolvedValue({ cmdId: `command-${node.rank}` }),
-        getSessionCommand: jest.fn().mockResolvedValue({ exitCode: 0 }),
-        getSessionCommandLogs: jest.fn(async (...args: unknown[]) =>
-          args.length > 2 ? undefined : { output: 'done', stdout: 'done', stderr: '' },
-        ),
-        deleteSession: jest.fn().mockResolvedValue(undefined),
       }
       Object.assign(node.process, methods)
       return methods
@@ -319,7 +309,7 @@ describe('all-node execution deadlines', () => {
 
   it.each([0, 15])('forwards the buffered execution timeout %s to each rank', async (timeout) => {
     const { sandbox, processes } = makeNodes(2)
-    const options = { timeout, onStdout: undefined }
+    const options = { timeout }
 
     const results = await sandbox.nodes.process.executeCommand('workload', options)
 
@@ -331,11 +321,10 @@ describe('all-node execution deadlines', () => {
 
   it.each([-1, 1.5, NaN, Infinity])('rejects invalid timeout %s before dispatch', async (timeout) => {
     const { sandbox, processes } = makeNodes()
-    const options = { timeout, onStdout: undefined }
+    const options = { timeout }
 
     await expect(sandbox.nodes.process.executeCommand('workload', options)).rejects.toThrow(/timeout/i)
     expect(processes[0].executeCommand).not.toHaveBeenCalled()
-    expect(processes[0].createSession).not.toHaveBeenCalled()
   })
 
   it('bounds the RDMA prerequisite check', async () => {
@@ -349,94 +338,19 @@ describe('all-node execution deadlines', () => {
     const { sandbox, processes } = makeNodes(2)
     processes[0].executeCommand.mockRejectedValueOnce(new Error('probe timed out'))
     const results = await sandbox.nodes.process.executeCommand('workload')
-    expect(results[0].exitCode).toBe(0)
+    expect(results[0]).toMatchObject({ exitCode: 0, result: 'done', artifacts: { stdout: 'done' } })
     expect(processes[0].executeCommand).toHaveBeenCalledWith('workload')
     expect(sandbox.nodes[0].warnings.join(' ')).toMatch(/unable|could not|failed/i)
   })
 
-  it('returns completed command results when session cleanup fails', async () => {
-    const { sandbox, processes } = makeNodes()
-    processes[0].deleteSession.mockRejectedValueOnce(new Error('cleanup unavailable'))
-    const results = await sandbox.nodes.process.executeCommand('workload', { onStdout: jest.fn() })
-    expect(results[0].result).toBe('done')
-    expect(sandbox.nodes[0].warnings.join(' ')).toMatch(/cleanup|session/i)
-  })
-
-  it.each([undefined, 0, 10])('cleans up a completed stream and its timer (timeout=%s)', async (timeout) => {
-    const { sandbox, processes } = makeNodes()
-    const options = { timeout, onStdout: jest.fn() }
-
-    const results = await sandbox.nodes.process.executeCommand('workload', options)
-
-    expect(results[0].result).toBe('done')
-    const sessionId = processes[0].createSession.mock.calls[0][0]
-    expect(processes[0].deleteSession).toHaveBeenCalledTimes(1)
-    if (timeout) {
-      expect(processes[0].createSession).toHaveBeenCalledWith(sessionId, 10)
-      expect(processes[0].deleteSession).toHaveBeenCalledWith(sessionId, 10)
-    } else {
-      expect(processes[0].createSession).toHaveBeenCalledWith(sessionId)
-      expect(processes[0].deleteSession).toHaveBeenCalledWith(sessionId)
-    }
-    expect(jest.getTimerCount()).toBe(0)
-  })
-
-  it('times out a stream and cleans up only its owned session', async () => {
+  it('keeps completed ranks when another rank fails', async () => {
     const { sandbox, processes } = makeNodes(2)
-    processes[0].getSessionCommandLogs.mockImplementationOnce(() => new Promise<never>(jest.fn()))
-    const options = { timeout: 1, onStdout: jest.fn() }
-    let outcome: unknown
-    const completed = sandbox.nodes.process.executeCommand('workload', options).catch((error) => {
-      outcome = error
+    const error = new DaytonaTimeoutError('rank 0 exceeded its timeout')
+    processes[0].executeCommand.mockResolvedValueOnce({ exitCode: 0 }).mockRejectedValueOnce(error)
+    await expect(sandbox.nodes.process.executeCommand('workload', { timeout: 1 })).rejects.toMatchObject({
+      nodeFailures: { 0: error },
+      nodeResults: { 1: { result: 'done' } },
     })
-
-    await jest.advanceTimersByTimeAsync(1000)
-
-    expect(outcome).toBeInstanceOf(DaytonaTimeoutError)
-    expect((outcome as Error).message).toContain('rank 0')
-    expect(outcome).toMatchObject({ nodeResults: { 1: { result: 'done' } }, nodeFailures: { 0: expect.any(Error) } })
-    expect(processes[0].getSessionCommand).not.toHaveBeenCalled()
-    expect(processes[1].getSessionCommand).toHaveBeenCalledTimes(1)
-    processes.forEach((process) => {
-      const sessionId = process.createSession.mock.calls[0][0]
-      expect(process.deleteSession).toHaveBeenCalledTimes(1)
-      expect(process.deleteSession).toHaveBeenCalledWith(sessionId, 10)
-    })
-    expect(jest.getTimerCount()).toBe(0)
-    await completed
-  })
-
-  it('preserves the timeout error if session cleanup also fails', async () => {
-    const { sandbox, processes } = makeNodes()
-    const cleanupError = new Error('session cleanup failed')
-    processes[0].getSessionCommandLogs.mockImplementationOnce(() => new Promise<never>(jest.fn()))
-    processes[0].deleteSession.mockRejectedValueOnce(cleanupError)
-    const options = { timeout: 1, onStderr: jest.fn() }
-    let outcome: unknown
-    const completed = sandbox.nodes.process.executeCommand('workload', options).catch((error) => {
-      outcome = error
-    })
-
-    await jest.advanceTimersByTimeAsync(1000)
-
-    expect(outcome).toBeInstanceOf(DaytonaTimeoutError)
-    expect((outcome as Error).cause).toBe(cleanupError)
-    await completed
-  })
-
-  it('preserves a session-start failure and clears its deadline if cleanup also fails', async () => {
-    const { sandbox, processes } = makeNodes()
-    const original = new Error('command start failed')
-    const cleanupError = new Error('cleanup failed')
-    processes[0].executeSessionCommand.mockRejectedValueOnce(original)
-    processes[0].deleteSession.mockRejectedValueOnce(cleanupError)
-
-    await expect(sandbox.nodes.process.executeCommand('workload', { timeout: 1, onStdout: jest.fn() })).rejects.toBe(
-      original,
-    )
-
-    expect(original.cause).toBe(cleanupError)
-    expect(jest.getTimerCount()).toBe(0)
   })
 })
 
@@ -446,6 +360,17 @@ describe('Sandbox', () => {
 
     expect(sandbox.nodeCount).toBe(1)
     expect(sandbox.nodes.map(({ rank, id }) => ({ rank, id }))).toEqual([{ rank: 0, id: sandbox.id }])
+  })
+
+  it('refreshes an existing single-node handle when the API omits the member array', async () => {
+    const single = { ...baseDto }
+    delete single.nodes
+    const { sandbox, sandboxApi } = makeSandbox({ ...single, nodes: undefined })
+    const head = sandbox.nodes[0]
+    sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...single, cpu: 4, state: 'started' }))
+    await sandbox.refreshData()
+    expect(sandbox.nodes[0]).toBe(head)
+    expect(head).toMatchObject({ cpu: 4, state: 'started' })
   })
 
   it('builds all node handles in rank order with the head at index zero', () => {

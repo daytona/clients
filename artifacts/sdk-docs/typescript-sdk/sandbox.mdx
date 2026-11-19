@@ -1269,27 +1269,7 @@ or encounters an error.
 
 **Properties**:
 
-- `onStderr?` _\(chunk: string\) =\> void_ - Called as stderr arrives; every chunk is prefixed with its node rank.
-    
-    **Parameters**:
-    
-    - `chunk` _string_
-    
-    
-    **Returns**:
-    
-    - `void`
-- `onStdout?` _\(chunk: string\) =\> void_ - Called as stdout arrives; every chunk is prefixed with its node rank.
-    
-    **Parameters**:
-    
-    - `chunk` _string_
-    
-    
-    **Returns**:
-    
-    - `void`
-- `timeout?` _number_ - Execution limit per rank in seconds. Omitted or 0 disables it. Streaming cleanup requires API connectivity.
+- `timeout?` _number_ - Execution limit per rank in seconds. Omitted or 0 disables it.
 ## NodeResources
 
 CPU, memory, and disk allocated to one appended Sandbox node.
@@ -1428,7 +1408,7 @@ Upload the same file to every current node in parallel. Successful uploads are n
 executeCommand(command: string, options?: NodeExecuteOptions): Promise<Record<number, ExecuteResponse>>;
 ```
 
-Execute the same command on every current node in parallel, keyed by rank.
+Execute on every node in parallel and return buffered output by rank. Use per-node sessions for live output.
 
 **Parameters**:
 

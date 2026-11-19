@@ -68,15 +68,11 @@ import type { ExecuteResponse } from './types/ExecuteResponse'
 const RDMA_USERSPACE_CHECK =
   'sh -lc \'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
 const RDMA_USERSPACE_WARNING =
-  'WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; NCCL may fall back to sockets.\n'
+  'WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; NCCL may fall back to sockets.'
 
 export interface NodeExecuteOptions {
-  /** Execution limit per rank in seconds. Omitted or 0 disables it. Streaming cleanup requires API connectivity. */
+  /** Execution limit per rank in seconds. Omitted or 0 disables it. */
   timeout?: number
-  /** Called as stdout arrives; every chunk is prefixed with its node rank. */
-  onStdout?: (chunk: string) => void
-  /** Called as stderr arrives; every chunk is prefixed with its node rank. */
-  onStderr?: (chunk: string) => void
 }
 
 /** CPU, memory, and disk allocated to one appended Sandbox node. */
@@ -87,7 +83,7 @@ export interface NodeResources {
 }
 
 export interface SandboxNodeProcess {
-  /** Execute the same command on every current node in parallel, keyed by rank. */
+  /** Execute on every node in parallel and return buffered output by rank. Use per-node sessions for live output. */
   executeCommand(command: string, options?: NodeExecuteOptions): Promise<Record<number, ExecuteResponse>>
 }
 
@@ -132,107 +128,14 @@ async function executeOnNodes(
             : undefined
         if (check !== undefined && check.exitCode !== 0) warning = RDMA_USERSPACE_WARNING
       } catch {
-        warning = 'WARNING: Could not check RDMA userspace; continuing without verification.\n'
+        warning = 'WARNING: Could not check RDMA userspace; continuing without verification.'
       }
-      if (warning && !node.warnings.includes(warning.trim())) {
-        node.warnings.push(warning.trim())
+      if (warning && !node.warnings.includes(warning)) {
+        node.warnings.push(warning)
       }
-      if (warning) options.onStderr?.(`[rank ${node.rank}] ${warning}`)
-
-      let result: ExecuteResponse
-      if (!options.onStdout && !options.onStderr) {
-        result =
-          options.timeout === undefined
-            ? await node.process.executeCommand(command)
-            : await node.process.executeCommand(command, undefined, undefined, options.timeout)
-      } else {
-        const sessionId = `daytona-nodes-exec-${Date.now()}-${node.rank}-${Math.random().toString(36).slice(2)}`
-        const streamAbort = new AbortController()
-        let timeoutTimer: ReturnType<typeof setTimeout> | undefined
-        let expired = false
-        let failed = false
-        let failure: unknown
-        const timeoutError = new DaytonaTimeoutError(
-          `Command on rank ${node.rank} exceeded timeout of ${options.timeout} seconds`,
-        )
-        const executeSession = async (): Promise<ExecuteResponse> => {
-          const started = await node.process.executeSessionCommand(
-            sessionId,
-            { command, runAsync: true },
-            options.timeout,
-          )
-          if (expired) throw timeoutError
-          await node.process.getSessionCommandLogs(
-            sessionId,
-            started.cmdId,
-            (chunk) => {
-              if (!expired) options.onStdout?.(`[rank ${node.rank}] ${chunk}`)
-            },
-            (chunk) => {
-              if (!expired) options.onStderr?.(`[rank ${node.rank}] ${chunk}`)
-            },
-            streamAbort.signal,
-          )
-          if (expired) throw timeoutError
-          const [completed, logs] = await Promise.all([
-            node.process.getSessionCommand(sessionId, started.cmdId),
-            node.process.getSessionCommandLogs(sessionId, started.cmdId),
-          ])
-          const stdout = logs.stdout ?? ''
-          return {
-            exitCode: completed.exitCode ?? -1,
-            result: logs.output ?? `${stdout}${logs.stderr ?? ''}`,
-            artifacts: { stdout },
-          }
-        }
-        try {
-          if (options.timeout) await node.process.createSession(sessionId, 10)
-          else await node.process.createSession(sessionId)
-          const execution = executeSession()
-          if (!options.timeout) {
-            result = await execution
-          } else {
-            const deadline = Date.now() + options.timeout * 1000
-            const timeout = new Promise<never>((_resolve, reject) => {
-              const checkDeadline = () => {
-                const remaining = deadline - Date.now()
-                // Node timers cannot represent delays longer than about 24 days.
-                if (remaining > 0) {
-                  timeoutTimer = setTimeout(checkDeadline, Math.min(remaining, 2_147_483_647))
-                  return
-                }
-                expired = true
-                reject(timeoutError)
-                streamAbort.abort()
-              }
-              checkDeadline()
-            })
-            result = await Promise.race([execution, timeout])
-          }
-        } catch (error) {
-          failed = true
-          failure = error
-          throw error
-        } finally {
-          if (timeoutTimer !== undefined) clearTimeout(timeoutTimer)
-          streamAbort.abort()
-          const cleanup = options.timeout
-            ? node.process.deleteSession(sessionId, 10)
-            : node.process.deleteSession(sessionId)
-          await cleanup.catch((cleanupError) => {
-            if (!failed) node.warnings.push(`Session ${sessionId} cleanup failed: ${String(cleanupError)}`)
-            if (failure instanceof Error && failure.cause === undefined) failure.cause = cleanupError
-          })
-        }
-      }
-      if (warning) {
-        result = {
-          ...result,
-          result: warning + result.result,
-          artifacts: { ...result.artifacts, stdout: warning + (result.artifacts?.stdout ?? '') },
-        }
-      }
-      return result
+      return options.timeout === undefined
+        ? node.process.executeCommand(command)
+        : node.process.executeCommand(command, undefined, undefined, options.timeout)
     }),
   )
   const results: Record<number, ExecuteResponse> = {}
@@ -1965,10 +1868,11 @@ export class Sandbox {
       this.applyState(newState)
     }
 
-    // Realtime events use SandboxListItem and deliberately omit the member
-    // array. Keep the existing node handles until a full Sandbox response
-    // supplies an authoritative replacement.
-    if (this.process && 'nodes' in sandboxDto) this.processNodes(sandboxDto)
+    // A lightweight event may omit every member of an existing gang.
+    const singleHead = this.nodeCount === 1 && this.nodes.length === 1 && this.nodes[0].rank === 0
+    if (this.process && (('nodes' in sandboxDto && sandboxDto.nodes) || singleHead)) {
+      this.processNodes(sandboxDto)
+    }
   }
 
   private processNodes(sandboxDto: SandboxDto | SandboxListItemDto): void {
