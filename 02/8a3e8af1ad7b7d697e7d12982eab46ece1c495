@@ -1,0 +1,33 @@
+sdk-go/pkg/daytona/client.go
+  s_7750b317905afd::t_7e7a69217900cd 407-410
+sdk-go/pkg/daytona/sandbox_nodes.go
+  s_7750b317905afd::t_7e7a69217900cd 401-402,404-423,426,429-433,435-439
+sdk-go/pkg/daytona/sandbox_nodes_test.go
+  s_7750b317905afd::t_7e7a69217900cd 13-14,42-44,126-128,200-202,217-219,222-224,226-229,243-270
+sdk-go/pkg/daytona/test_helpers_test.go
+  s_7750b317905afd::t_7e7a69217900cd 15,22
+artifacts/sdk-docs/go-sdk/types.mdx
+  s_7750b317905afd::t_7e7a69217900cd 469
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_7750b317905afd::t_7e7a69217900cd 638,5701
+sdk-go/pkg/types/types.go
+  s_7750b317905afd::t_7e7a69217900cd 170-173
+sdk-go/README.md
+  s_7750b317905afd::t_7e7a69217900cd 379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "028a3e8af1ad7b7d697e7d12982eab46ece1c495",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}
