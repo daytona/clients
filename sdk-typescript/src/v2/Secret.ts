@@ -15,7 +15,7 @@
  */
 
 import { NotFoundError } from './errors/DaytonaError.js'
-import { pageParams } from './pageParams.js'
+import { optionalQueryText, pageParams } from './pageParams.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -25,9 +25,13 @@ import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
 import type { ListResult } from './types.js'
+import type { SearchOrder, SearchResult, SearchTimestamp } from './types.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
+import { resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
+import type { CommonResourceSearchOptions } from './resourceSearch.js'
+import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFirst.js'
 
 /** Secret metadata (never the value). */
 export interface Secret {
@@ -59,12 +63,23 @@ export interface ListSecretsOptions {
   readonly limit?: number
 }
 
+export interface SearchSecretsOptions extends CommonResourceSearchOptions {
+  readonly allowedDomain?: string
+  readonly sort?: 'name' | 'created_at' | 'updated_at'
+  readonly order?: SearchOrder
+  readonly createdStartAt?: SearchTimestamp
+  readonly createdEndAt?: SearchTimestamp
+  readonly updatedStartAt?: SearchTimestamp
+  readonly updatedEndAt?: SearchTimestamp
+}
+
 const SET_SECRET_KEYS = optionKeys<SetSecretOptions>()({ allowedDomains: true, description: true, ifNotExists: true })
 const LIST_SECRETS_KEYS = optionKeys<ListSecretsOptions>()({ cursor: true, limit: true })
+const SEARCH_SECRETS_KEYS = optionKeys<SearchSecretsOptions>()({ q: true, name: true, namePrefix: true, allowedDomain: true, createdStartAt: true, createdEndAt: true, updatedStartAt: true, updatedEndAt: true, sort: true, order: true, cursor: true, limit: true })
 
 const SECRET: ResponseFields = { name: 'string', allowed_domains: arrayOf('string'), created_at: 'timestamp', updated_at: 'timestamp', description: 'string?' }
 
-function mapSecret(value: api.Secret): Secret {
+function mapSecret(value: unknown): Secret {
   const secret = checkResponse<api.Secret>(value, SECRET, 'secret')
   return deepFrozen({
     name: secret.name,
@@ -77,6 +92,7 @@ function mapSecret(value: api.Secret): Secret {
 
 /** Service for managing project-scoped secrets. */
 export class SecretsService {
+  private readonly searchProbe = new SearchProbe()
   /** @internal */
   constructor(token: Internal, api: AxiosInstance)
   /** Built by the SDK: get it from the client or a sandbox. */
@@ -89,9 +105,24 @@ export class SecretsService {
   /** Lists secret metadata for the project (never values). */
   public async list(options: ListSecretsOptions = {}): Promise<ListResult<Secret>> {
     options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
-    const { data } = await this.api.get<api.ListSecretsResponse>('/secrets', { params: pageParams(options.cursor, options.limit) })
+    const params = pageParams(options.cursor, options.limit)
+    const data = await searchOrList(
+      async () => (await this.api.get<api.ListSecretsResponse>('/secrets/search', { params })).data,
+      async () => (await this.api.get<api.ListSecretsResponse>('/secrets', { params })).data,
+      this.searchProbe,
+      'secrets',
+    )
     const page = listPage<api.Secret>(data, 'secrets', 'secret list')
     return frozenPage({ items: page.items.map(mapSecret), nextCursor: page.nextCursor })
+  }
+
+  public async search(options: SearchSecretsOptions = {}): Promise<SearchResult<Secret>> {
+    options = snapshotOptions('SearchSecretsOptions', options, SEARCH_SECRETS_KEYS) ?? {}
+    const params = resourceSearchParams(options, ['name', 'created_at', 'updated_at'])
+    const allowedDomain = optionalQueryText(options.allowedDomain, 'allowedDomain')
+    if (allowedDomain !== undefined) params.allowed_domain = allowedDomain
+    const { data } = await this.api.get<api.ListSecretsResponse>('/secrets/search', { params })
+    return resourceSearchResult(data, 'secrets', mapSecret)
   }
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {
@@ -110,12 +141,14 @@ export class SecretsService {
 
   /** Gets one secret's metadata (never its value). */
   public async get(name: string): Promise<Secret> {
+    refuseResourceSearchName(name, 'secret')
     const { data } = await this.api.get<api.Secret>(`/secrets/${pathSegment(name, 'name')}`)
     return mapSecret(data)
   }
 
   /** Creates or updates a secret's value + metadata. The value must not be empty. */
   public async set(name: string, value: string, options: SetSecretOptions): Promise<Secret> {
+    refuseResourceSearchName(name, 'secret')
     const path = `/secrets/${pathSegment(name, 'name')}`
     // The options are required: an omitted value is refused like any non-object.
     assertOptionsObject('SetSecretOptions', options)
