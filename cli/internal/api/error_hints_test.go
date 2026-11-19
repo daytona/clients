@@ -41,6 +41,24 @@ func TestHintFor404OnInvitationTokenRoutes(t *testing.T) {
 	}
 }
 
+func TestHintFor_pendingFinalCommitPointsAtTheVolume(t *testing.T) {
+	// The create is refused until the volume's list is empty; the hint says where to look.
+	h := hintFor(&APIError{Status: http.StatusConflict, Code: CodeVolumeFinalCommitPending, Method: "POST", Path: "/sandboxes"})
+	require.Contains(t, h, "daytona volume get")
+	require.Contains(t, h, "retry")
+	// Any other 409 keeps the server message alone.
+	require.Empty(t, hintFor(&APIError{Status: http.StatusConflict, Code: "CONFLICT", Method: "POST", Path: "/sandboxes"}))
+}
+
+func TestHintFor_volumesUnavailableIsRetryable(t *testing.T) {
+	for _, failure := range []*APIError{
+		{Status: http.StatusServiceUnavailable, Code: CodeVolumesUnavailable, Method: "POST", Path: "/sandboxes/sbx_1/stop"},
+		{Status: http.StatusServiceUnavailable, Code: CodeVolumesUnavailable, Method: "DELETE", Path: "/sandboxes/sbx_1"},
+	} {
+		require.Contains(t, hintFor(failure), "retry shortly")
+	}
+}
+
 func TestHintFor_suspendedAccountHasNoCredentialHint(t *testing.T) {
 	// USER_SUSPENDED's message says the account was deprovisioned; the
 	// generic 403 hint would send the person to rotate a credential.

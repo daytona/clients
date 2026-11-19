@@ -5,17 +5,18 @@ package cmd
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func diskVolumeFixture(id string) string {
-	return `{"created_at":"2026-09-13T00:00:00Z","updated_at":"2026-09-13T00:00:00Z","id":"` + id + `","name":"data","size_gib":100,"status":"ready","type":"disk"}`
+	return `{"created_at":"2026-09-13T00:00:00Z","updated_at":"2026-09-13T00:00:00Z","id":"` + id + `","name":"data","pending_final_commits":[],"size_gib":100,"status":"ready","type":"disk"}`
 }
 
 func bucketVolumeFixture(id string) string {
-	return `{"created_at":"2026-09-13T00:00:00Z","updated_at":"2026-09-13T00:00:00Z","id":"` + id + `","name":"data","options":{"bucket":{"name":"corp-data","origin":"external","endpoint":"https://s3.example.com","region":"region-a","prefix":"team-a/","credentials":{"access_key_secret":"BUCKET_KEY","secret_key_secret":"BUCKET_SECRET"}}},"size_gib":null,"status":"ready","type":"bucket"}`
+	return `{"created_at":"2026-09-13T00:00:00Z","updated_at":"2026-09-13T00:00:00Z","id":"` + id + `","name":"data","options":{"bucket":{"name":"corp-data","origin":"external","endpoint":"https://s3.example.com","region":"region-a","prefix":"team-a/","credentials":{"access_key_secret":"BUCKET_KEY","secret_key_secret":"BUCKET_SECRET"}}},"pending_final_commits":[],"size_gib":null,"status":"ready","type":"bucket"}`
 }
 
 func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
@@ -73,6 +74,29 @@ func TestVolumeList_tableNamesTheCapacityColumnInGiB(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, stdout, "SIZE_GIB")
 	require.NotContains(t, stdout, "SIZE_GB")
+}
+
+func TestVolumeGet_tableListsPendingFinalCommitsOnlyWhilePending(t *testing.T) {
+	id := "55555555-5555-5555-5555-555555555555"
+	path := "/volumes/" + id
+	// Given a volume with two ended sandboxes whose last writes are not saved yet.
+	pending := strings.Replace(diskVolumeFixture(id), `"pending_final_commits":[]`, `"pending_final_commits":[`+
+		`{"sandbox_id":"sbx_1","status":"saving","ending_at":"2026-09-13T00:00:00Z","last_failure_at":null},`+
+		`{"sandbox_id":"sbx_2","status":"future_status","ending_at":"2026-09-13T00:00:00Z","last_failure_at":"2026-09-13T00:05:00Z"}]`, 1)
+	stdout, _, err := runCLIWithOutput(t, "table", []string{"volume", "get", id}, []expectedRequest{
+		{method: http.MethodGet, path: path, status: 200, response: pending},
+	})
+	require.NoError(t, err)
+	// Then each is named with its status, an unknown status as the API sent it.
+	require.Contains(t, stdout, "pending_final_commits")
+	require.Contains(t, stdout, "sbx_1 (saving), sbx_2 (future_status)")
+
+	// A volume with nothing pending has no such row.
+	stdout, _, err = runCLIWithOutput(t, "table", []string{"volume", "get", id}, []expectedRequest{
+		{method: http.MethodGet, path: path, status: 200, response: diskVolumeFixture(id)},
+	})
+	require.NoError(t, err)
+	require.NotContains(t, stdout, "pending_final_commits")
 }
 
 // A volume delete the API answers without an operation acknowledges the

@@ -180,6 +180,8 @@ from daytona.v2._gen.api.models.parent_region_list import ParentRegionList as Pa
 from daytona.v2._gen.api.models.payment_method import PaymentMethod as PaymentMethod
 from daytona.v2._gen.api.models.payment_method_brand import PaymentMethodBrand as PaymentMethodBrand
 from daytona.v2._gen.api.models.payment_method_page import PaymentMethodPage as PaymentMethodPage
+from daytona.v2._gen.api.models.pending_final_commit import PendingFinalCommit as PendingFinalCommit
+from daytona.v2._gen.api.models.pending_final_commit_status import PendingFinalCommitStatus as PendingFinalCommitStatus
 from daytona.v2._gen.api.models.pending_plan_change import PendingPlanChange as PendingPlanChange
 from daytona.v2._gen.api.models.permission import Permission as Permission
 from daytona.v2._gen.api.models.permission_list import PermissionList as PermissionList

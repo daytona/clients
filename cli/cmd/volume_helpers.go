@@ -40,6 +40,10 @@ func formatSizeGib(value *int32) string {
 
 func volumeKV(volume gen.Volume) [][2]string {
 	rows := [][2]string{{"id", volume.Id}, {"name", volume.Name}, {"type", string(volume.Type)}, {"status", string(volume.Status)}, {"size_gib", formatSizeGib(volume.SizeGib)}, {"updated_at", volume.UpdatedAt.Format(time.RFC3339)}}
+	// Listed only while an ended sandbox's last writes are not saved yet.
+	if len(volume.PendingFinalCommits) > 0 {
+		rows = append(rows, [2]string{"pending_final_commits", formatPendingFinalCommits(volume.PendingFinalCommits)})
+	}
 	bucket := volumeBucketOptions(volume)
 	if bucket == nil {
 		return rows
@@ -53,6 +57,16 @@ func volumeKV(volume gen.Volume) [][2]string {
 		[2]string{"bucket_access_key_secret", volumeBucketAccessKeySecret(bucket)},
 		[2]string{"bucket_secret_key_secret", volumeBucketSecretKeySecret(bucket)},
 	)
+}
+
+// formatPendingFinalCommits renders each entry as "SANDBOX_ID (STATUS)"; a
+// status this release does not know is shown as the API sent it.
+func formatPendingFinalCommits(pending []gen.PendingFinalCommit) string {
+	parts := make([]string, 0, len(pending))
+	for _, item := range pending {
+		parts = append(parts, item.SandboxId+" ("+string(item.Status)+")")
+	}
+	return strings.Join(parts, ", ")
 }
 
 // validateVolumeCreateRequest reports invalid bucket options before sending a request.

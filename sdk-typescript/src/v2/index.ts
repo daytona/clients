@@ -76,7 +76,7 @@ export { SecretsService } from './Secret.js'
 export { VolumesService } from './Volume.js'
 export { SandboxVolumesService } from './SandboxVolumes.js'
 export type { PullVolumeOptions, PullVolumeResult } from './SandboxVolumes.js'
-export type { ListVolumesOptions, Volume, GetVolumeOptions, CreateVolumeOptions, DeleteVolumeOptions } from './Volume.js'
+export type { ListVolumesOptions, Volume, PendingFinalCommit, GetVolumeOptions, CreateVolumeOptions, DeleteVolumeOptions } from './Volume.js'
 export type { ListSecretsOptions, Secret, SetSecretOptions } from './Secret.js'
 export type { BuildContext } from './contextUpload.js'
 export { DISABLED } from './types.js'
@@ -257,6 +257,7 @@ export type {
   VolumeMount,
   VolumeState,
   VolumeType,
+  PendingFinalCommitStatus,
   PullVolumeStatus,
   ProcessKind,
   ProcessReportedKind,

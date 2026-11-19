@@ -458,6 +458,7 @@
           "BUCKET_NOT_EMPTY",
           "ORIGIN_IMPORT_ONLY",
           "READ_ONLY_UNSUPPORTED",
+          "VOLUME_FINAL_COMMIT_PENDING",
           "WORKLOAD_PLANE_ELSEWHERE",
           "MANAGEMENT_PLANE_ELSEWHERE",
           "NOT_SUPPORTED_FOR_CLASS",
@@ -469,6 +470,7 @@
           "BILLING_FORBIDDEN",
           "BILLING_ERROR",
           "PLACEMENT_UNAVAILABLE",
+          "VOLUMES_UNAVAILABLE",
           "REGION_UNAVAILABLE",
           "SOURCE_AMBIGUOUS",
           "CREATE_BODY_TOO_LARGE",
@@ -6624,6 +6626,49 @@
         ],
         "type": "object"
       },
+      "PendingFinalCommit": {
+        "description": "An ended sandbox whose last writes to a volume are not saved yet.",
+        "properties": {
+          "ending_at": {
+            "description": "When the sandbox ended.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_failure_at": {
+            "description": "When saving the sandbox's last writes last failed, or null when it has\nnot failed.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sandbox_id": {
+            "description": "The ended sandbox's ID.",
+            "example": "sbx_7fJk2mQpXv9dLc3RtY-use1",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PendingFinalCommitStatus",
+            "description": "`pending` until saving the sandbox's last writes starts, `saving`\nwhile they are saved, and `failing` while a failed save is retried."
+          }
+        },
+        "required": [
+          "sandbox_id",
+          "status",
+          "ending_at",
+          "last_failure_at"
+        ],
+        "type": "object"
+      },
+      "PendingFinalCommitStatus": {
+        "enum": [
+          "pending",
+          "saving",
+          "failing"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "PendingPlanChange": {
         "properties": {
           "effective_at": {
@@ -10901,6 +10946,13 @@
             "description": "Type-specific options. Disk volumes use an empty object; bucket volumes\ninclude their bucket settings and credential secret names.",
             "type": "object"
           },
+          "pending_final_commits": {
+            "description": "Ended sandboxes whose last writes to this volume are not saved yet.\nA create that mounts the volume is refused until the list is empty.\nEmpty when nothing is pending.",
+            "items": {
+              "$ref": "#/components/schemas/PendingFinalCommit"
+            },
+            "type": "array"
+          },
           "size_gib": {
             "description": "Scratch capacity in GiB. Disk volumes only \u2014 a bucket volume has no\ncapacity of its own and reports `null`.",
             "format": "int32",
@@ -10945,7 +10997,8 @@
           "type",
           "status",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "pending_final_commits"
         ],
         "type": "object"
       },
@@ -26123,7 +26176,7 @@
                 }
               }
             },
-            "description": "The image or requested sandbox configuration conflicts with the request (`CONFLICT`)",
+            "description": "The image or requested sandbox configuration conflicts with the request (`CONFLICT`). A volume's last writes from an ended sandbox are not saved yet; retry when the volume's pending_final_commits list is empty (`VOLUME_FINAL_COMMIT_PENDING`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -26534,7 +26587,7 @@
                 }
               }
             },
-            "description": "The image or the reservation cannot serve this create (`CONFLICT`). The Macs of the organization have no space for this size (`NO_FREE_SLOT`), or the Mac with space is low on free disk space (`MAC_DISK_FULL`). The organization has no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`), or found no Mac to reserve (`NO_MAC_AVAILABLE`). The idempotency key was used for a create of another size (`IDEMPOTENCY_KEY_REUSED`).",
+            "description": "The image or the reservation cannot serve this create (`CONFLICT`). The Macs of the organization have no space for this size (`NO_FREE_SLOT`), or the Mac with space is low on free disk space (`MAC_DISK_FULL`). The organization has no Mac reservation in the region and auto-reserve is off (`NO_ACTIVE_RESERVATION`). Auto-reserve reached the organization's limit of auto-reserved Macs (`AUTO_RESERVE_LIMIT_REACHED`), or found no Mac to reserve (`NO_MAC_AVAILABLE`). The idempotency key was used for a create of another size (`IDEMPOTENCY_KEY_REUSED`). A volume's last writes from an ended sandbox are not saved yet; retry when the volume's pending_final_commits list is empty (`VOLUME_FINAL_COMMIT_PENDING`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -27033,6 +27086,24 @@
             },
             "description": "A fork of this macOS sandbox is in progress; retry the delete later (`CONFLICT`).",
             "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A sandbox with volumes cannot be deleted right now; retry shortly (`VOLUMES_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
@@ -29998,6 +30069,24 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A sandbox with volumes cannot be stopped right now; retry shortly (`VOLUMES_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -32283,6 +32372,16 @@
       "status": 404
     },
     "V0_SANDBOX_NOT_IMPORTABLE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 409
+    },
+    "VOLUMES_UNAVAILABLE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 503
+    },
+    "VOLUME_FINAL_COMMIT_PENDING": {
       "extras": [],
       "source": "DAYTONA_API",
       "status": 409

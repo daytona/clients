@@ -543,6 +543,15 @@ supported for bucket volumes; disk volumes reject it.
 sandbox with volumes cannot use `persistent=True`; bucket volumes and
 read-only mounts raise `BadRequestError`.
 
+A volume's `pending_final_commits` lists the ended sandboxes whose last writes
+to it are not saved yet; it is empty when nothing is pending. Each entry has
+the `sandbox_id`, a `status` (`pending`, `saving` or `failing`; any other
+value reads `unknown`, with the original in `raw_status`), `ending_at` and
+`last_failure_at` (`None` when saving has not failed). While the list is not
+empty, a create that mounts the volume raises `ConflictError` with
+`code == "VOLUME_FINAL_COMMIT_PENDING"`: read the volume again with
+`d.v2.volumes.get()` and retry the create once the list is empty.
+
 ### Pull an attached volume
 
 ```python
@@ -1155,6 +1164,10 @@ finish, that is its `reason`. Such a sandbox can still reach `destroyed`
 later. To keep waiting for it, catch the error, pause for a few seconds and
 call `sandbox.wait(until="destroyed", timeout=600)`: while the sandbox still
 reports `error`, the call raises again at once.
+
+`stop()` and `delete()` of a sandbox with volumes raise
+`ServiceUnavailableError` with `code == "VOLUMES_UNAVAILABLE"` when the
+sandbox cannot be stopped or deleted right now; retry after a few seconds.
 
 Deleting the image or snapshot immediately afterwards can still raise
 `ConflictError` (409) while references are being released. A missing sandbox

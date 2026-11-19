@@ -431,12 +431,38 @@ def expect_list_snapshots_resp(value: TransportPayload) -> SnapshotPage:
     )
 
 
+def _with_pending_final_commits(value: TransportPayload, items: Optional[str] = None) -> TransportPayload:
+    """A volume (or, with ``items``, a page of them) from an API that does not
+    report ``pending_final_commits``: the absent list reads as empty (nothing
+    pending), as in TypeScript. A present one keeps every contract check."""
+    if not isinstance(value, dict):
+        return value
+    if items is None:
+        return {**value, "pending_final_commits": []} if "pending_final_commits" not in value else value
+    if not isinstance(value.get(items), list):
+        return value
+    entries = [
+        {**entry, "pending_final_commits": []}
+        if isinstance(entry, dict) and "pending_final_commits" not in entry
+        else entry
+        for entry in value[items]
+    ]
+    return {**value, items: entries}
+
+
 def expect_volume(value: TransportPayload) -> Volume:
-    return _expect_model_from_dict(value, Volume, "volume detail response", Volume.from_dict)
+    return _expect_model_from_dict(
+        _with_pending_final_commits(value), Volume, "volume detail response", Volume.from_dict
+    )
 
 
 def expect_list_volumes_resp(value: TransportPayload) -> VolumePage:
-    return _expect_model_from_dict(value, VolumePage, "volume list response", VolumePage.from_dict)
+    return _expect_model_from_dict(
+        _with_pending_final_commits(value, "volumes"),
+        VolumePage,
+        "volume list response",
+        VolumePage.from_dict,
+    )
 
 
 def expect_preview_endpoint(value: TransportPayload) -> SandboxPort:

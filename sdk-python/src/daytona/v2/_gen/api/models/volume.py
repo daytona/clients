@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.pending_final_commit import PendingFinalCommit
 from daytona.v2._gen.api.models.volume_status import VolumeStatus
 from daytona.v2._gen.api.models.volume_type import VolumeType
 from typing import Optional, Set
@@ -43,6 +44,7 @@ class Volume(BaseModel):
     last_used_at: Optional[datetime] = Field(default=None, description="When the volume was last attached, or null when it has not been used.")
     name: StrictStr = Field(description="The project-unique volume name.")
     options: Optional[Dict[str, Any]] = Field(default=None, description="Type-specific options. Disk volumes use an empty object; bucket volumes include their bucket settings and credential secret names.")
+    pending_final_commits: List[PendingFinalCommit] = Field(description="Ended sandboxes whose last writes to this volume are not saved yet. A create that mounts the volume is refused until the list is empty. Empty when nothing is pending.")
     size_gib: Optional[StrictInt] = Field(default=None, description="Scratch capacity in GiB. Disk volumes only — a bucket volume has no capacity of its own and reports `null`.")
     status: VolumeStatus
     type: VolumeType
@@ -50,7 +52,7 @@ class Volume(BaseModel):
     used_bytes: Optional[StrictInt] = Field(default=None, description="Logical file usage in bytes, or null before the first usage report.")
     used_bytes_at: Optional[datetime] = Field(default=None, description="When `used_bytes` was observed, or null when usage is unknown.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "error", "id", "last_used_at", "name", "options", "size_gib", "status", "type", "updated_at", "used_bytes", "used_bytes_at"]
+    __properties: ClassVar[List[str]] = ["created_at", "error", "id", "last_used_at", "name", "options", "pending_final_commits", "size_gib", "status", "type", "updated_at", "used_bytes", "used_bytes_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,6 +97,13 @@ class Volume(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in pending_final_commits (list)
+        _items = []
+        if self.pending_final_commits:
+            for _item_pending_final_commits in self.pending_final_commits:
+                if _item_pending_final_commits:
+                    _items.append(_item_pending_final_commits.to_dict())
+            _dict['pending_final_commits'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -143,6 +152,7 @@ class Volume(BaseModel):
             **({"last_used_at": obj["last_used_at"]} if "last_used_at" in obj else {}),
             "name": obj.get("name"),
             **({"options": obj["options"]} if "options" in obj else {}),
+            "pending_final_commits": [PendingFinalCommit.from_dict(_item) for _item in obj["pending_final_commits"]] if obj.get("pending_final_commits") is not None else None,
             **({"size_gib": obj["size_gib"]} if "size_gib" in obj else {}),
             "status": obj.get("status"),
             "type": obj.get("type"),

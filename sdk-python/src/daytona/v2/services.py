@@ -57,6 +57,7 @@ from ._core import (
 )
 from ._gen.api import MacReservation as MacReservationWire
 from ._gen.api import MacReservationBatch as MacReservationBatchWire
+from ._gen.api import PendingFinalCommit as PendingFinalCommitWire
 from ._gen.api import ReservationPage
 from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
@@ -81,6 +82,8 @@ from .types import (
     MacReservationEndReason,
     MacReservationOrigin,
     MacReservationStatus,
+    PendingFinalCommit,
+    PendingFinalCommitStatus,
     Secret,
     Snapshot,
     UpdateReservationRequest,
@@ -1062,7 +1065,25 @@ def _volume(value: VolumeWire) -> Volume:
         options=json_object_from_mapping(value.options) if value.options is not None else None,
         used_bytes=value.used_bytes,
         used_bytes_at=value.used_bytes_at,
+        pending_final_commits=tuple(_pending_final_commit(item) for item in value.pending_final_commits),
     )
+
+
+def _pending_final_commit(value: PendingFinalCommitWire) -> PendingFinalCommit:
+    raw_status = enum_str(value.status)
+    return PendingFinalCommit(
+        sandbox_id=value.sandbox_id,
+        status=_pending_final_commit_status(raw_status),
+        raw_status=raw_status,
+        ending_at=value.ending_at,
+        last_failure_at=value.last_failure_at,
+    )
+
+
+def _pending_final_commit_status(value: str) -> PendingFinalCommitStatus:
+    if value in {"pending", "saving", "failing"}:
+        return value
+    return "unknown"
 
 
 def _volume_state(value: str) -> VolumeState:

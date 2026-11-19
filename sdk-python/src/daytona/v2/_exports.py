@@ -11,6 +11,8 @@ ROOT_EXPORTS = [
     "Volume",
     "VolumeState",
     "VolumeType",
+    "PendingFinalCommit",
+    "PendingFinalCommitStatus",
     "VolumeMount",
     "AuditActionGroup",
     "AuditActionList",
