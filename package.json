@@ -55,7 +55,7 @@
     "@nx/react": "23.3.1",
     "@nx/webpack": "23.3.1",
     "@nx/workspace": "23.3.1",
-    "@openapitools/openapi-generator-cli": "^2.42.0",
+    "@openapitools/openapi-generator-cli": "^2.42.1",
     "@swc-node/register": "~1.12.1",
     "@swc/core": "~1.16.22",
     "@swc/helpers": "~0.5.24",
