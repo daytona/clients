@@ -1,0 +1,23 @@
+cli/cmd/volume.go
+  s_57322031358fb0::t_19d1c53f0e3f0f 175-177
+cli/cmd/search_first_test.go
+  s_57322031358fb0::t_81b77e79d2a889 114-126
+cli/cmd/secret.go
+  s_57322031358fb0::t_19d1c53f0e3f0f 165-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f6135176dc7556e3ef2782ad956fa44fc254cb1d",
+  "prompts": {},
+  "sessions": {
+    "s_57322031358fb0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0ad0d113ffet9qo3KTg2BjFMb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
