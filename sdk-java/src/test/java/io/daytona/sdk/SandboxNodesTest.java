@@ -45,6 +45,24 @@ class SandboxNodesTest {
         return new Sandbox(api, TestSupport.config(), data, () -> null, mock(EventSubscriptionManager.class));
     }
 
+    @Test void sparseGangWaitsForMemberDetails() {
+        SandboxApi api = mock(SandboxApi.class);
+        io.daytona.api.client.model.Sandbox sparse = dto("http://localhost:1/toolbox", 2, 1);
+        sparse.setNodes(null);
+        Sandbox sandbox = sandbox(api, sparse);
+        SandboxNodes nodes = sandbox.getNodes();
+        assertThat(sandbox.getNodeCount()).isEqualTo(2);
+        assertThat(nodes).isEmpty();
+        assertThatThrownBy(() -> nodes.getProcess().executeCommand("hostname")).isInstanceOf(DaytonaException.class)
+                .hasMessageContaining("membership is unavailable");
+        assertThatThrownBy(() -> nodes.getFs().uploadFile(new byte[]{1}, "/file")).isInstanceOf(DaytonaException.class)
+                .hasMessageContaining("membership is unavailable");
+
+        when(api.getSandbox("head", null, null)).thenReturn(dto("http://localhost:1/toolbox", 2, 1));
+        sandbox.refreshData();
+        assertThat(nodes).extracting(SandboxNode::getId).containsExactly("head", "worker-1");
+    }
+
     @Test void refreshUpdatesSingleHeadAndKeepsItsResolvedProxy() {
         SandboxApi api = mock(SandboxApi.class);
         io.daytona.api.client.model.Sandbox first = dto("http://localhost:1/toolbox", 1, 1);

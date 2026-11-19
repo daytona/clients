@@ -232,10 +232,11 @@ module Daytona
           @members.each { |node| node.send(:update_proxy) }
           return
         end
-        count = [@parent.node_count, 1].max
+        return if worker_rank.nil? && @parent.node_count > 1
+
         raw = [DaytonaApiClient::SandboxNode.new(id: @parent.id, rank: worker_rank || 0, incarnation: 1, state: @parent.state,
-                                                 cpu: @parent.cpu.to_i / count, gpu: @parent.gpu.to_i / count,
-                                                 memory: @parent.memory.to_i / count, disk: @parent.disk.to_i / count)]
+                                                 cpu: @parent.cpu.to_i, gpu: @parent.gpu.to_i,
+                                                 memory: @parent.memory.to_i, disk: @parent.disk.to_i)]
       end
       existing = @members.to_h { |node| [node.id, node] }
       unless raw.all? { |dto| dto.is_a?(DaytonaApiClient::SandboxNode) }
@@ -296,7 +297,10 @@ module Daytona
     # Capture membership before starting threads. On interruption, allow each
     # task's ensure block to remove its private session before returning.
     def parallel
-      threads = @members.map do |node|
+      members = @members
+      raise Sdk::Error, 'Node membership is unavailable. Call refresh and retry.' if members.empty?
+
+      threads = members.map do |node|
         [node.rank, Thread.new do
           [yield(node), nil]
         rescue StandardError => e

@@ -10,7 +10,7 @@ RSpec.describe Daytona::SandboxNodes do
     cfg.host = 'api.example.com'
     DaytonaApiClient::SandboxApi.new(DaytonaApiClient::ApiClient.new(cfg))
   end
-  let(:manager) { instance_double(Daytona::EventSubscriptionManager, subscribe: 'sub') }
+  let(:manager) { instance_double(Daytona::EventSubscriptionManager, subscribe: 'sub', refresh: true) }
   let(:sandbox) do
     Daytona::Sandbox.new(sandbox_dto: gang, config: build_config, sandbox_api: api, subscription_manager: manager)
   end
@@ -44,6 +44,23 @@ RSpec.describe Daytona::SandboxNodes do
       body: '{"output":"ok","stdout":"ok","stderr":""}', headers: { 'Content-Type' => 'application/json' }
     )
     stub_request(:delete, %r{#{base}/[^/]+/process/session/[^/]+$}).to_return(status: cleanup_status, body: '{}')
+  end
+
+  it 'waits for member details before exposing ranks on a fresh gang' do
+    sparse = gang
+    sparse.nodes = nil
+    head = Daytona::Sandbox.new(sandbox_dto: sparse, config: build_config, sandbox_api: api,
+                                subscription_manager: manager)
+    nodes = head.nodes
+
+    expect(head.node_count).to eq(2)
+    expect(nodes.to_a).to be_empty
+    expect { nodes.process.exec(command: 'hostname') }.to raise_error(Daytona::Sdk::Error, /membership is unavailable/)
+    expect { nodes.fs.upload_file('data', '/file') }.to raise_error(Daytona::Sdk::Error, /membership is unavailable/)
+
+    allow(api).to receive(:get_sandbox).and_return(gang)
+    head.refresh
+    expect(nodes.map(&:id)).to eq([head.id, 'worker-1'])
   end
 
   it 'retains node and process identity and reroutes partial refreshes' do
@@ -220,6 +237,12 @@ RSpec.describe Daytona::SandboxNodes do
                                   subscription_manager: manager)
     expect(worker.nodes.first.rank).to eq(1)
     expect(worker.nodes.first.id).to eq(dto.id)
+
+    dto.nodes = nil
+    dto.cpu = 12
+    sparse = Daytona::Sandbox.new(sandbox_dto: dto, config: build_config, sandbox_api: api,
+                                  subscription_manager: manager)
+    expect(sparse.nodes.first).to have_attributes(rank: 1, id: dto.id, cpu: 12)
   end
 
   it 'identifies the accepted operation when polling fails' do

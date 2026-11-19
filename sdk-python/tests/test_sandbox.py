@@ -143,6 +143,24 @@ class TestSandboxInit:
         assert head.cpu == 4
         assert head.state.value == "started"
 
+    def test_sparse_gang_waits_for_member_details(self, mock_toolbox_api_client, mock_sandbox_api):
+        full = make_sandbox_dto(node_count=2).to_dict()
+        sparse = dict(full)
+        sparse.pop("nodes")
+        sandbox = make_sandbox(SandboxDto.from_dict(sparse), mock_toolbox_api_client, mock_sandbox_api)
+        nodes = sandbox.nodes
+
+        assert sandbox.node_count == 2
+        assert len(nodes) == 0
+        with pytest.raises(DaytonaError, match="membership is unavailable"):
+            nodes.process.exec("hostname")
+        with pytest.raises(DaytonaError, match="membership is unavailable"):
+            nodes.fs.upload_file(b"data", "/file")
+
+        mock_sandbox_api.get_sandbox.return_value = SandboxDto.from_dict(full)
+        sandbox.refresh_data()
+        assert [node.id for node in nodes] == [sandbox.id, f"{sandbox.id}-worker-1"]
+
     def test_old_api_response_defaults_to_one_head_node(self, mock_toolbox_api_client, mock_sandbox_api):
         payload = make_sandbox_dto().to_dict()
         payload.pop("nodes")

@@ -63,17 +63,17 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         if (raw == null || raw.isEmpty()) {
             SandboxNode previous = members.isEmpty() ? null : members.get(0);
             if (previous != null) {
-                if (members.size() != 1 || (previous.getRank() == 0 && parent.getNodeCount() > 1)) return;
+                if (members.size() != 1) return;
                 if (workerRank == null && previous.getRank() > 0) workerRank = previous.getRank();
             }
-            int count = workerRank == null ? Math.max(1, parent.getNodeCount()) : 1;
+            if (workerRank == null && parent.getNodeCount() > 1) return;
             io.daytona.api.client.model.SandboxNode node = new io.daytona.api.client.model.SandboxNode()
                     .id(parent.getId()).rank(workerRank == null ? 0 : workerRank)
                     .incarnation(previous == null ? 1 : previous.getIncarnation())
                     .state(dto != null && dto.getState() != null ? dto.getState() :
                             io.daytona.api.client.model.SandboxState.fromValue(parent.getState()))
-                    .cpu(parent.getCpu() / count).gpu(parent.getGpu() / count)
-                    .memory(parent.getMemory() / count).disk(parent.getDisk() / count);
+                    .cpu(parent.getCpu()).gpu(parent.getGpu())
+                    .memory(parent.getMemory()).disk(parent.getDisk());
             if (dto != null && dto.getIncarnation() != null) node.setIncarnation(dto.getIncarnation());
             if (previous != null && previous.getId().equals(node.getId()) && previous.getIncarnation() == node.getIncarnation()) {
                 node.failure(previous.getFailure()).fabricAddress(previous.getFabricAddress())
@@ -195,7 +195,7 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
 
     private <T> Map<Integer, T> parallel(List<SandboxNode> snapshot, java.util.function.Function<SandboxNode, T> action,
                                         Map<Integer, ExecuteResponse> partialResults) {
-        if (snapshot.isEmpty()) return Collections.emptyMap();
+        if (snapshot.isEmpty()) throw new DaytonaException("Node membership is unavailable. Call refreshData() and retry.");
         ExecutorService pool = Executors.newFixedThreadPool(snapshot.size(), task -> {
             Thread thread = new Thread(task, "daytona-node-operation");
             thread.setDaemon(true);

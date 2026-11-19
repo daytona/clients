@@ -232,7 +232,7 @@ class SandboxNodeProcess:
         are recorded in each node's warnings.
         """
         validate_node_exec_timeout(timeout)
-        nodes = tuple(self._nodes)
+        nodes = self._nodes._snapshot()
 
         def execute_node(node: SandboxNode) -> ExecuteResponse:
             try:
@@ -279,8 +279,9 @@ class SandboxNodeFileSystem:
                 node.fs.upload_file(src, dst, timeout)
 
         failures: dict[int, Exception] = {}
-        with ThreadPoolExecutor(max_workers=len(self._nodes)) as executor:
-            futures = {executor.submit(upload, node): node.rank for node in self._nodes}
+        nodes = self._nodes._snapshot()
+        with ThreadPoolExecutor(max_workers=len(nodes)) as executor:
+            futures = {executor.submit(upload, node): node.rank for node in nodes}
             for future in as_completed(futures):
                 try:
                     future.result()
@@ -299,6 +300,12 @@ class SandboxNodeCollection(list[SandboxNode]):
         self._sandbox: Sandbox | None = sandbox
         self.process: SandboxNodeProcess = SandboxNodeProcess(self)
         self.fs: SandboxNodeFileSystem = SandboxNodeFileSystem(self)
+
+    def _snapshot(self) -> tuple[SandboxNode, ...]:
+        nodes = tuple(self)
+        if not nodes:
+            raise DaytonaError("Node membership is unavailable. Call refresh_data() and retry.")
+        return nodes
 
     def _replace(self, nodes: list[SandboxNode]) -> None:
         list.__setitem__(self, slice(None), nodes)
@@ -1959,14 +1966,15 @@ class Sandbox(SandboxDto):
             previous = self.nodes[0] if self.nodes else None
             incarnation = getattr(sandbox_dto, "incarnation", None)
             if previous is not None:
-                # A gang head reports totals that cannot be assigned to individual ranks.
-                if len(self.nodes) != 1 or (previous.rank == 0 and self.node_count > 1):
+                if len(self.nodes) != 1:
                     return
                 if previous.rank > 0 and worker_rank is None:
                     worker_rank = previous.rank
                 if previous.id != sandbox_dto.id or (incarnation is not None and previous.incarnation != incarnation):
                     previous = None
-            node_count = 1 if worker_rank is not None else self.node_count
+            # A gang head reports totals that cannot be assigned to individual ranks.
+            if worker_rank is None and self.node_count > 1:
+                return
             raw_nodes = [
                 SandboxNodeDto(
                     rank=worker_rank or 0,
@@ -1978,10 +1986,10 @@ class Sandbox(SandboxDto):
                     fabric_prefix_length=previous.fabric_prefix_length if previous else None,
                     fabric_healthy=previous.fabric_healthy if previous else None,
                     fabric_unhealthy_since=previous.fabric_unhealthy_since if previous else None,
-                    cpu=sandbox_dto.cpu // node_count,
-                    gpu=sandbox_dto.gpu // node_count,
-                    memory=sandbox_dto.memory // node_count,
-                    disk=sandbox_dto.disk // node_count,
+                    cpu=sandbox_dto.cpu,
+                    gpu=sandbox_dto.gpu,
+                    memory=sandbox_dto.memory,
+                    disk=sandbox_dto.disk,
                 )
             ]
         if (

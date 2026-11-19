@@ -130,6 +130,18 @@ func (c *SandboxNodes) Err() error {
 	return c.err
 }
 
+func (c *SandboxNodes) snapshotForOperation() ([]*SandboxNode, error) {
+	c.parent.mu.RLock()
+	defer c.parent.mu.RUnlock()
+	if c.err != nil {
+		return nil, c.err
+	}
+	if len(c.nodes) == 0 {
+		return nil, errors.NewDaytonaError("Node membership is unavailable. Call RefreshData and retry.", 0, nil)
+	}
+	return append([]*SandboxNode(nil), c.nodes...), nil
+}
+
 // Get returns the handle for a logical rank.
 func (c *SandboxNodes) Get(rank int) (*SandboxNode, error) {
 	c.parent.mu.RLock()
@@ -190,12 +202,13 @@ func (s *Sandbox) syncNodes(dto sandboxDTO) {
 			}
 			return
 		}
-		count := s.NodeCount
-		if count < 1 {
-			count = 1
-			s.NodeCount = count
+		if s.NodeCount < 1 {
+			s.NodeCount = 1
 		}
-		raw = []apiclient.SandboxNode{{Rank: firstRank, Id: s.ID, State: dto.GetState(), Incarnation: 1, Cpu: s.Cpu / int32(count), Gpu: s.Gpu / int32(count), Memory: s.Memory / int32(count), Disk: s.Disk / int32(count)}}
+		if firstRank == 0 && s.NodeCount > 1 {
+			return
+		}
+		raw = []apiclient.SandboxNode{{Rank: firstRank, Id: s.ID, State: dto.GetState(), Incarnation: 1, Cpu: s.Cpu, Gpu: s.Gpu, Memory: s.Memory, Disk: s.Disk}}
 	}
 	seen := make(map[string]bool, len(raw))
 	for rank, node := range raw {
@@ -422,14 +435,14 @@ func (p *NodeProcessService) ExecuteCommand(ctx context.Context, command string,
 	if len(options) > 1 || (len(options) == 1 && options[0].Timeout < 0) {
 		return nil, errors.NewDaytonaError("Execution timeout must be non-negative", 0, nil)
 	}
-	if err := p.nodes.Err(); err != nil {
+	nodes, err := p.nodes.snapshotForOperation()
+	if err != nil {
 		return nil, err
 	}
 	var opts NodeExecuteOptions
 	if len(options) > 0 {
 		opts = options[0]
 	}
-	nodes := p.nodes.All()
 	results := make(map[int32]*types.ExecuteResponse, len(nodes))
 	failures := make(map[int32]error)
 	var mu, callbacks sync.Mutex
@@ -594,7 +607,8 @@ func executeNode(ctx context.Context, node *SandboxNode, command string, opts No
 
 // UploadFile uploads a path or byte slice to every current node concurrently, without rollback.
 func (f *NodeFileSystemService) UploadFile(ctx context.Context, source any, destination string) error {
-	if err := f.nodes.Err(); err != nil {
+	nodes, err := f.nodes.snapshotForOperation()
+	if err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -618,7 +632,7 @@ func (f *NodeFileSystemService) UploadFile(ctx context.Context, source any, dest
 	failures := make(map[int32]error)
 	var mu sync.Mutex
 	var group sync.WaitGroup
-	for _, node := range f.nodes.All() {
+	for _, node := range nodes {
 		group.Add(1)
 		go func(node *SandboxNode) {
 			defer group.Done()

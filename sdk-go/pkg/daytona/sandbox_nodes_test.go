@@ -55,6 +55,29 @@ func writeNodesJSON(w http.ResponseWriter, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
+func TestSparseGangWaitsForMemberDetails(t *testing.T) {
+	full := nodesTestDTO("http://localhost/toolbox")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeNodesJSON(w, full)
+	}))
+	defer server.Close()
+	sparse := *full
+	sparse.Nodes = nil
+	sandbox := nodesTestSandbox(t, server, &sparse)
+	nodes := sandbox.Nodes
+	require.Equal(t, 2, sandbox.NodeCount)
+	require.Empty(t, nodes.All())
+	_, err := nodes.Process.ExecuteCommand(context.Background(), "hostname")
+	require.ErrorContains(t, err, "membership is unavailable")
+	require.ErrorContains(t, nodes.FileSystem.UploadFile(context.Background(), []byte("data"), "/file"), "membership is unavailable")
+
+	require.NoError(t, sandbox.RefreshData(context.Background()))
+	members := nodes.All()
+	require.Len(t, members, 2)
+	require.Equal(t, "head", members[0].ID)
+	require.Equal(t, "worker", members[1].ID)
+}
+
 func TestSandboxNodesPreserveHandlesAndRefreshRouting(t *testing.T) {
 	for _, full := range []bool{false, true} {
 		t.Run(map[bool]string{false: "partial", true: "full"}[full], func(t *testing.T) {
@@ -408,6 +431,12 @@ func TestSandboxNodesDirectWorkerLookup(t *testing.T) {
 	require.Equal(t, "worker", worker.ID)
 	_, err = nodes.Get(0)
 	require.Error(t, err)
+
+	dto.Nodes = nil
+	dto.Cpu = 12
+	worker, err = nodesTestSandbox(t, server, dto).Nodes.Get(1)
+	require.NoError(t, err)
+	require.Equal(t, int32(12), worker.Cpu)
 }
 
 func TestSandboxNodesAcceptedOperationSurvivesReadError(t *testing.T) {

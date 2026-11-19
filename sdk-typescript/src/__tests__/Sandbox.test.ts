@@ -191,14 +191,16 @@ describe('node SSH access', () => {
   })
 })
 
-it('opens a directly fetched worker at its physical rank', () => {
+it.each([true, false])('opens a directly fetched worker at its physical rank (member array=%s)', (full) => {
   const { sandbox } = makeSandbox({
     id: 'worker',
     headSandboxId: 'head',
     nodeRank: 2,
-    nodes: [{ ...baseDto.nodes![0], id: 'worker', rank: 2 }],
+    nodeCount: 3,
+    nodes: full ? [{ ...baseDto.nodes![0], id: 'worker', rank: 2 }] : undefined,
   })
   expect(sandbox.nodes.map((node) => [node.id, node.rank])).toEqual([['worker', 2]])
+  expect(sandbox.nodes[0].cpu).toBe(baseDto.cpu)
 })
 
 describe('membership operation deadlines', () => {
@@ -360,6 +362,27 @@ describe('Sandbox', () => {
 
     expect(sandbox.nodeCount).toBe(1)
     expect(sandbox.nodes.map(({ rank, id }) => ({ rank, id }))).toEqual([{ rank: 0, id: sandbox.id }])
+  })
+
+  it('waits for member details before exposing ranks on a fresh gang', async () => {
+    const { sandbox, sandboxApi } = makeSandbox({ nodeCount: 2, nodes: undefined })
+    const nodes = sandbox.nodes
+
+    expect(sandbox.nodeCount).toBe(2)
+    expect(nodes).toHaveLength(0)
+    await expect(nodes.process.executeCommand('hostname')).rejects.toThrow(/membership is unavailable/i)
+    await expect(nodes.fs.uploadFile(Buffer.from('data'), '/file')).rejects.toThrow(/membership is unavailable/i)
+
+    const head = baseDto.nodes![0]
+    sandboxApi.getSandbox.mockResolvedValue(
+      createApiResponse({
+        ...baseDto,
+        nodeCount: 2,
+        nodes: [head, { ...head, rank: 1, id: 'worker' }],
+      }),
+    )
+    await sandbox.refreshData()
+    expect(nodes.map((node) => node.id)).toEqual([sandbox.id, 'worker'])
   })
 
   it('refreshes an existing single-node handle when the API omits the member array', async () => {

@@ -148,6 +148,27 @@ class TestAsyncSandboxInit:
         assert head.cpu == 4
         assert head.state.value == "started"
 
+    @pytest.mark.asyncio
+    async def test_sparse_gang_waits_for_member_details(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
+        full = make_sandbox_dto(node_count=2).to_dict()
+        sparse = dict(full)
+        sparse.pop("nodes")
+        sandbox = make_async_sandbox(
+            AsyncSandboxDto.from_dict(sparse), mock_async_toolbox_api_client, mock_async_sandbox_api
+        )
+        nodes = sandbox.nodes
+
+        assert sandbox.node_count == 2
+        assert len(nodes) == 0
+        with pytest.raises(DaytonaError, match="membership is unavailable"):
+            await nodes.process.exec("hostname")
+        with pytest.raises(DaytonaError, match="membership is unavailable"):
+            await nodes.fs.upload_file(b"data", "/file")
+
+        mock_async_sandbox_api.get_sandbox.return_value = AsyncSandboxDto.from_dict(full)
+        await sandbox.refresh_data()
+        assert [node.id for node in nodes] == [sandbox.id, f"{sandbox.id}-worker-1"]
+
     def test_old_api_response_defaults_to_one_head_node(self, mock_async_toolbox_api_client, mock_async_sandbox_api):
         payload = make_sandbox_dto().to_dict()
         payload.pop("nodes")

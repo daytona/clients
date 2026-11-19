@@ -109,6 +109,11 @@ interface SandboxNodeCollectionCallbacks {
   replace(rank: number, timeout?: number): Promise<GangMembershipOperation>
 }
 
+function snapshotNodes(nodes: ReadonlyArray<SandboxNode>): SandboxNode[] {
+  if (nodes.length === 0) throw new DaytonaError('Node membership is unavailable. Call refreshData() and retry.')
+  return [...nodes]
+}
+
 async function executeOnNodes(
   nodes: ReadonlyArray<SandboxNode>,
   command: string,
@@ -117,7 +122,7 @@ async function executeOnNodes(
   if (options.timeout !== undefined && (!Number.isSafeInteger(options.timeout) || options.timeout < 0)) {
     throw new DaytonaInvalidArgumentError('timeout must be a non-negative integer')
   }
-  const snapshot = [...nodes]
+  const snapshot = snapshotNodes(nodes)
   const outcomes = await Promise.allSettled(
     snapshot.map(async (node): Promise<ExecuteResponse> => {
       let warning = ''
@@ -170,7 +175,7 @@ async function uploadToNodes(
   dst: string,
   timeout = 30 * 60,
 ): Promise<void> {
-  const snapshot = [...nodes]
+  const snapshot = snapshotNodes(nodes)
   const results = await Promise.allSettled(
     snapshot.map((node) =>
       typeof src === 'string' ? node.fs.uploadFile(src, dst, timeout) : node.fs.uploadFile(src, dst, timeout),
@@ -1881,24 +1886,24 @@ export class Sandbox {
       let previous: SandboxNode | undefined = this.nodes[0]
       const incarnation = 'incarnation' in sandboxDto ? sandboxDto.incarnation : undefined
       if (previous) {
-        // A gang head reports totals that cannot be assigned to individual ranks.
-        if (this.nodes.length !== 1 || (previous.rank === 0 && this.nodeCount > 1)) return
+        if (this.nodes.length !== 1) return
         if (previous.rank > 0) workerRank ??= previous.rank
         if (previous.id !== sandboxDto.id || (incarnation != null && incarnation !== previous.incarnation)) {
           previous = undefined
         }
       }
-      const count = workerRank == null ? this.nodeCount : 1
+      // A gang head reports totals that cannot be assigned to individual ranks.
+      if (workerRank == null && this.nodeCount > 1) return
       rawNodes = [
         {
           rank: workerRank ?? 0,
           id: sandboxDto.id,
           state: sandboxDto.state ?? previous?.state ?? SandboxState.UNKNOWN,
           incarnation: incarnation ?? previous?.incarnation ?? 1,
-          cpu: sandboxDto.cpu / count,
-          gpu: sandboxDto.gpu / count,
-          memory: sandboxDto.memory / count,
-          disk: sandboxDto.disk / count,
+          cpu: sandboxDto.cpu,
+          gpu: sandboxDto.gpu,
+          memory: sandboxDto.memory,
+          disk: sandboxDto.disk,
           failure: previous?.failure,
           fabricAddress: previous?.fabricAddress,
           fabricPrefixLength: previous?.fabricPrefixLength,
