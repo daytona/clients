@@ -6344,22 +6344,24 @@ type SecretPage struct {
 
 // SecretSearchListItem defines model for SecretSearchListItem.
 type SecretSearchListItem struct {
-	// AllowedDomains Hosts to which the secret may be sent.
+	// AllowedDomains The hosts the secret's value may be sent to. `["*"]` means any host
+	// the platform has verified; an empty list means the secret is sent
+	// nowhere.
 	AllowedDomains []string `json:"allowed_domains"`
 
-	// CreatedAt Creation time.
+	// CreatedAt When the secret was created.
 	CreatedAt time.Time `json:"created_at"`
 
 	// Cursor Opaque cursor for this item.
 	Cursor string `json:"cursor"`
 
-	// Description User-facing description.
+	// Description The user-facing description, or null when absent.
 	Description *string `json:"description,omitempty"`
 
-	// Name Secret name.
+	// Name The secret name.
 	Name string `json:"name"`
 
-	// UpdatedAt Last-modified time.
+	// UpdatedAt When the secret was last updated.
 	UpdatedAt time.Time `json:"updated_at"`
 }
 

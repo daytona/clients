@@ -7135,25 +7135,9 @@ export interface components {
             /** @description The secrets in this page. */
             secrets: components["schemas"]["Secret"][];
         };
-        SecretSearchListItem: {
-            /** @description Hosts to which the secret may be sent. */
-            allowed_domains: string[];
-            /**
-             * Format: date-time
-             * @description Creation time.
-             */
-            created_at: string;
+        SecretSearchListItem: components["schemas"]["Secret"] & {
             /** @description Opaque cursor for this item. */
             cursor: string;
-            /** @description User-facing description. */
-            description?: string | null;
-            /** @description Secret name. */
-            name: string;
-            /**
-             * Format: date-time
-             * @description Last-modified time.
-             */
-            updated_at: string;
         };
         /** @description A page of matching secrets. */
         SecretSearchPage: {
@@ -19668,7 +19652,7 @@ export interface operations {
                     "application/json": components["schemas"]["SecretSearchPage"];
                 };
             };
-            /** @description A filter, timestamp, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            /** @description A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -20365,7 +20349,7 @@ export interface operations {
                     "application/json": components["schemas"]["VolumeSearchPage"];
                 };
             };
-            /** @description A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`) */
+            /** @description A filter, timestamp, ID, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

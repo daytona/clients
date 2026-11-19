@@ -9257,48 +9257,23 @@
         "type": "object"
       },
       "SecretSearchListItem": {
-        "properties": {
-          "allowed_domains": {
-            "description": "Hosts to which the secret may be sent.",
-            "items": {
-              "type": "string"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Secret"
+          },
+          {
+            "properties": {
+              "cursor": {
+                "description": "Opaque cursor for this item.",
+                "type": "string"
+              }
             },
-            "type": "array"
-          },
-          "created_at": {
-            "description": "Creation time.",
-            "format": "date-time",
-            "type": "string"
-          },
-          "cursor": {
-            "description": "Opaque cursor for this item.",
-            "type": "string"
-          },
-          "description": {
-            "description": "User-facing description.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "name": {
-            "description": "Secret name.",
-            "type": "string"
-          },
-          "updated_at": {
-            "description": "Last-modified time.",
-            "format": "date-time",
-            "type": "string"
+            "required": [
+              "cursor"
+            ],
+            "type": "object"
           }
-        },
-        "required": [
-          "allowed_domains",
-          "name",
-          "created_at",
-          "updated_at",
-          "cursor"
-        ],
-        "type": "object"
+        ]
       },
       "SecretSearchPage": {
         "description": "A page of matching secrets.",
@@ -30600,7 +30575,7 @@
                 }
               }
             },
-            "description": "A filter, timestamp, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "description": "A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -32004,7 +31979,7 @@
                 }
               }
             },
-            "description": "A filter, timestamp, ID, or cursor is invalid (`BAD_REQUEST`). The limit or cursor is invalid (`BAD_REQUEST`)",
+            "description": "A filter, timestamp, ID, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"

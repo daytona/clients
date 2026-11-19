@@ -35,14 +35,14 @@ class SecretSearchListItem(BaseModel):
     """
     SecretSearchListItem
     """ # noqa: E501
-    allowed_domains: List[StrictStr] = Field(description="Hosts to which the secret may be sent.")
-    created_at: datetime = Field(description="Creation time.")
+    allowed_domains: List[StrictStr] = Field(description="The hosts the secret's value may be sent to. `[\"*\"]` means any host the platform has verified; an empty list means the secret is sent nowhere.")
+    created_at: datetime = Field(description="When the secret was created.")
+    description: Optional[StrictStr] = Field(default=None, description="The user-facing description, or null when absent.")
+    name: StrictStr = Field(description="The secret name.")
+    updated_at: datetime = Field(description="When the secret was last updated.")
     cursor: StrictStr = Field(description="Opaque cursor for this item.")
-    description: Optional[StrictStr] = Field(default=None, description="User-facing description.")
-    name: StrictStr = Field(description="Secret name.")
-    updated_at: datetime = Field(description="Last-modified time.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["allowed_domains", "created_at", "cursor", "description", "name", "updated_at"]
+    __properties: ClassVar[List[str]] = ["allowed_domains", "created_at", "description", "name", "updated_at", "cursor"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -111,10 +111,10 @@ class SecretSearchListItem(BaseModel):
         _obj = cls.model_validate({
             "allowed_domains": obj.get("allowed_domains"),
             "created_at": obj.get("created_at"),
-            "cursor": obj.get("cursor"),
             **({"description": obj["description"]} if "description" in obj else {}),
             "name": obj.get("name"),
-            "updated_at": obj.get("updated_at")
+            "updated_at": obj.get("updated_at"),
+            "cursor": obj.get("cursor")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
