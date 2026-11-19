@@ -47,6 +47,9 @@ func newVolumeCreateCommand() *cobra.Command {
 		Long: "Create a volume. Without --type the server chooses the volume's type.\nExamples:\n  daytona volume create data\n  daytona volume create data --type disk --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := refuseResourceSearchName("volume", args[0]); err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			body, err := input.Load(a.Globals.File, os.Stdin, false)
 			if err != nil {
@@ -103,6 +106,7 @@ func newVolumeCreateCommand() *cobra.Command {
 
 func newVolumeListCommand() *cobra.Command {
 	var flags pageFlags
+	probe := &searchProbe{}
 	cmd := &cobra.Command{
 		Use: "list", Short: "List volumes", Long: "List volumes.\nExample:\n  daytona volume list --limit 50",
 		Args: cobra.NoArgs,
@@ -113,7 +117,7 @@ func newVolumeListCommand() *cobra.Command {
 				return err
 			}
 			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Volume]], error) {
-				return getRawList[gen.Volume](ctx, client, "/volumes", listQuery(flags, cursor), "volumes")
+				return getRawSearchOrListPage[gen.Volume](ctx, probe, client, "/volumes/search", "/volumes", listQuery(flags, cursor), "volumes")
 			}
 			var list output.List[api.Raw[gen.Volume]]
 			if flags.all {
@@ -147,6 +151,9 @@ func newVolumeGetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "get <id>", Short: "Get one volume", Long: "Get one volume.\nExample:\n  daytona volume get <id>", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := refuseResourceSearchName("volume", args[0]); err != nil {
+				return err
+			}
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {

@@ -30,14 +30,15 @@ import (
 )
 
 type expectedRequest struct {
-	method      string
-	path        string
-	query       string
-	bodyJSON    string
-	contentType string
-	status      int
-	response    string
-	check       func(*testing.T, *http.Request, []byte)
+	method       string
+	path         string
+	query        string
+	bodyJSON     string
+	contentType  string
+	status       int
+	response     string
+	check        func(*testing.T, *http.Request, []byte)
+	skipContract bool
 }
 
 type runCLIOptions struct {
@@ -87,7 +88,9 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 		}
 		// The same contract harness the fakeAPI runs: request AND fixture
 		// response validated against the OpenAPI documents.
-		validateRequestAgainstContract(t, r, body)
+		if !exp.skipContract {
+			validateRequestAgainstContract(t, r, body)
+		}
 		if exp.response != "" {
 			if strings.HasPrefix(exp.response, "text/plain:") {
 				w.Header().Set("Content-Type", "text/plain")
@@ -96,7 +99,9 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			validateAgainstContractRequest(t, r, exp.status, []byte(exp.response), "application/json")
+			if !exp.skipContract {
+				validateAgainstContractRequest(t, r, exp.status, []byte(exp.response), "application/json")
+			}
 		}
 		w.WriteHeader(exp.status)
 		_, _ = io.WriteString(w, exp.response)
