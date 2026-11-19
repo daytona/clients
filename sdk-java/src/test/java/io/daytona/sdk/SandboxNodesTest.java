@@ -254,9 +254,29 @@ class SandboxNodesTest {
         data.setHeadSandboxId("head");
         data.setNodeRank(1);
         data.setNodes(Collections.singletonList(data.getNodes().get(1)));
-        SandboxNode worker = sandbox(mock(SandboxApi.class), data).getNodes().get(0);
+        data.getNodes().get(0).incarnation(3).fabricHealthy(true);
+        SandboxApi api = mock(SandboxApi.class);
+        Sandbox sandbox = sandbox(api, data);
+        SandboxNode worker = sandbox.getNodes().get(0);
+
+        data.setNodes(null);
+        data.setCpu(12);
+        data.setState(SandboxState.STOPPED);
+        when(api.getSandbox("worker-1", null, null)).thenReturn(data);
+        sandbox.refreshData();
+
+        assertThat(sandbox.getNodes().get(0)).isSameAs(worker);
         assertThat(worker.getRank()).isEqualTo(1);
         assertThat(worker.getId()).isEqualTo("worker-1");
+        assertThat(worker.getCpu()).isEqualTo(12);
+        assertThat(worker.getState()).isEqualTo("stopped");
+        assertThat(worker.getIncarnation()).isEqualTo(3);
+        assertThat(worker.getFabricHealthy()).isTrue();
+
+        data.setIncarnation(4);
+        sandbox.refreshData();
+        assertThat(worker.getIncarnation()).isEqualTo(4);
+        assertThat(worker.getFabricHealthy()).isNull();
     }
 
     @Test void pathUploadStreamsToEachRank(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {

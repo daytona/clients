@@ -1127,11 +1127,24 @@ describe('lightweight gang events', () => {
       nodes: [{ ...baseDto.nodes![0], incarnation: 3, fabricHealthy: true }],
     })
     const head = sandbox.nodes[0]
-    const event = { ...baseDto, nodes: undefined }
+    const event = { ...baseDto, nodes: undefined, cpu: 6, gpu: 1, memory: 12, disk: 40, state: 'started' }
     const listener = sandbox as unknown as { handleEvent(name: string, data: unknown): void }
     listener.handleEvent('sandbox.created', { sandbox: event })
     expect(sandbox.nodes[0]).toBe(head)
-    expect(head).toMatchObject({ incarnation: 3, fabricHealthy: true })
+    expect(head).toMatchObject({
+      cpu: 6,
+      gpu: 1,
+      memory: 12,
+      disk: 40,
+      state: 'started',
+      incarnation: 3,
+      fabricHealthy: true,
+    })
+
+    listener.handleEvent('sandbox.created', { sandbox: { ...event, incarnation: 4 } })
+    expect(head).toMatchObject({ incarnation: 4, fabricHealthy: undefined })
+    listener.handleEvent('sandbox.state.updated', { newState: 'stopped' })
+    expect(head.state).toBe('stopped')
   })
 
   it('preserves topology metadata omitted from list-item events', () => {

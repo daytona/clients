@@ -61,16 +61,26 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         List<io.daytona.api.client.model.SandboxNode> raw = dto == null ? null : dto.getNodes();
         Integer workerRank = dto == null || dto.getHeadSandboxId() == null ? null : dto.getNodeRank();
         if (raw == null || raw.isEmpty()) {
-            int count = Math.max(1, parent.getNodeCount());
-            if (!members.isEmpty() && (count > 1 || members.size() > 1 || members.get(0).getRank() != 0)) {
-                return;
+            SandboxNode previous = members.isEmpty() ? null : members.get(0);
+            if (previous != null) {
+                if (members.size() != 1 || (previous.getRank() == 0 && parent.getNodeCount() > 1)) return;
+                if (workerRank == null && previous.getRank() > 0) workerRank = previous.getRank();
             }
-            raw = Collections.singletonList(new io.daytona.api.client.model.SandboxNode()
-                    .id(parent.getId()).rank(workerRank == null ? 0 : workerRank).incarnation(1)
+            int count = workerRank == null ? Math.max(1, parent.getNodeCount()) : 1;
+            io.daytona.api.client.model.SandboxNode node = new io.daytona.api.client.model.SandboxNode()
+                    .id(parent.getId()).rank(workerRank == null ? 0 : workerRank)
+                    .incarnation(previous == null ? 1 : previous.getIncarnation())
                     .state(dto != null && dto.getState() != null ? dto.getState() :
                             io.daytona.api.client.model.SandboxState.fromValue(parent.getState()))
                     .cpu(parent.getCpu() / count).gpu(parent.getGpu() / count)
-                    .memory(parent.getMemory() / count).disk(parent.getDisk() / count));
+                    .memory(parent.getMemory() / count).disk(parent.getDisk() / count);
+            if (dto != null && dto.getIncarnation() != null) node.setIncarnation(dto.getIncarnation());
+            if (previous != null && previous.getId().equals(node.getId()) && previous.getIncarnation() == node.getIncarnation()) {
+                node.failure(previous.getFailure()).fabricAddress(previous.getFabricAddress())
+                        .fabricPrefixLength(previous.getFabricPrefixLength()).fabricHealthy(previous.getFabricHealthy())
+                        .fabricUnhealthySince(previous.getFabricUnhealthySince());
+            }
+            raw = Collections.singletonList(node);
         }
         Map<String, SandboxNode> existing = new HashMap<>();
         for (SandboxNode node : members) existing.put(node.getId(), node);
@@ -141,9 +151,9 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
         return operation;
     }
 
-    /** Append rank-ordered nodes and wait up to 600 seconds. */
+    /** Append rank-ordered nodes and wait up to 600 seconds. An accepted operation continues after a timeout. */
     public GangMembershipOperation add(List<NodeResources> nodes) { return add(nodes, 600); }
-    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. */
+    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. An accepted operation continues after a timeout. */
     public GangMembershipOperation add(List<NodeResources> nodes, long timeoutSeconds) {
         if (nodes == null || nodes.isEmpty()) throw new DaytonaException("At least one node resource specification is required");
         List<GangNodeResources> resources = new ArrayList<>();
@@ -158,9 +168,9 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 () -> api.addSandboxNodesCall(parent.getId(), request, null, null), GangMembershipOperation.class), deadline);
     }
 
-    /** Release the highest ranks and wait up to 600 seconds. */
+    /** Release the highest ranks and wait up to 600 seconds. An accepted operation continues after a timeout. */
     public GangMembershipOperation release(int count) { return release(count, 600); }
-    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. */
+    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. An accepted operation continues after a timeout. */
     public GangMembershipOperation release(int count, long timeoutSeconds) {
         if (count < 1) throw new DaytonaException("Node release count must be positive");
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);
@@ -170,9 +180,9 @@ public final class SandboxNodes extends AbstractList<SandboxNode> {
                 () -> api.removeSandboxNodesCall(parent.getId(), request, null, null), GangMembershipOperation.class), deadline);
     }
 
-    /** Replace a degraded rank and wait up to 600 seconds. */
+    /** Replace a degraded rank and wait up to 600 seconds. An accepted operation continues after a timeout. */
     public GangMembershipOperation replace(int rank) { return replace(rank, 600); }
-    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. */
+    /** Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. An accepted operation continues after a timeout. */
     public GangMembershipOperation replace(int rank, long timeoutSeconds) {
         if (rank < 0) throw new DaytonaException("Node rank must be non-negative");
         NodeDeadline deadline = new NodeDeadline(timeoutSeconds);

@@ -1751,7 +1751,7 @@ class AsyncSandbox(SandboxDto):
         if event_name == "sandbox.created":
             sandbox_dto = SandboxDto.from_dict(raw)  # pyright: ignore[reportArgumentType]
             if sandbox_dto is not None:
-                self.__process_sandbox_dto(sandbox_dto, from_event=True)
+                self.__process_sandbox_dto(sandbox_dto)
         else:
             if isinstance(raw, dict) and "sandbox" in data:
                 # Set before the state: a wait that ends on an error state reports this reason. The event omits
@@ -1762,7 +1762,10 @@ class AsyncSandbox(SandboxDto):
             ) or data.get("newState")
             if new_state is not None:
                 try:
-                    self._apply_state(SandboxState(new_state))
+                    state = SandboxState(new_state)
+                    if len(self.nodes) == 1 and (self.node_count == 1 or self.nodes[0].rank > 0):
+                        self.nodes[0].state = state
+                    self._apply_state(state)
                 except ValueError:
                     pass
 
@@ -1894,7 +1897,7 @@ class AsyncSandbox(SandboxDto):
             if _waiter in self._state_waiters:
                 self._state_waiters.remove(_waiter)
 
-    def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem, *, from_event: bool = False) -> None:
+    def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
         self.id: str = sandbox_dto.id
         self.name: str = sandbox_dto.name
         self.organization_id: str = sandbox_dto.organization_id
@@ -1964,26 +1967,35 @@ class AsyncSandbox(SandboxDto):
         self._apply_state(sandbox_dto.state)
 
         if hasattr(self, "_toolbox_api_client"):
-            # A lightweight event may omit every member of an existing gang.
-            single_head = self.node_count == 1 and len(self.nodes) == 1 and self.nodes[0].rank == 0
-            if getattr(sandbox_dto, "nodes", None) is not None or (
-                single_head and not from_event and isinstance(sandbox_dto, SandboxDto)
-            ):
-                self.__process_nodes(sandbox_dto)
+            self.__process_nodes(sandbox_dto)
 
     def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
         # A direct worker lookup returns only that worker, with its physical rank.
         worker_rank = getattr(sandbox_dto, "node_rank", None) if getattr(sandbox_dto, "head_sandbox_id", None) else None
-        first_rank = worker_rank or 0
         raw_nodes = getattr(sandbox_dto, "nodes", None)
         if not raw_nodes:
-            node_count = getattr(sandbox_dto, "node_count", None) or 1
+            previous = self.nodes[0] if self.nodes else None
+            incarnation = getattr(sandbox_dto, "incarnation", None)
+            if previous is not None:
+                # A gang head reports totals that cannot be assigned to individual ranks.
+                if len(self.nodes) != 1 or (previous.rank == 0 and self.node_count > 1):
+                    return
+                if previous.rank > 0 and worker_rank is None:
+                    worker_rank = previous.rank
+                if previous.id != sandbox_dto.id or (incarnation is not None and previous.incarnation != incarnation):
+                    previous = None
+            node_count = 1 if worker_rank is not None else self.node_count
             raw_nodes = [
                 SandboxNodeDto(
-                    rank=first_rank,
+                    rank=worker_rank or 0,
                     id=sandbox_dto.id,
-                    state=sandbox_dto.state or SandboxState.UNKNOWN,
-                    incarnation=getattr(sandbox_dto, "incarnation", None) or 1,
+                    state=sandbox_dto.state or (previous.state if previous else SandboxState.UNKNOWN),
+                    incarnation=incarnation or (previous.incarnation if previous else 1),
+                    failure=previous.failure if previous else None,
+                    fabric_address=previous.fabric_address if previous else None,
+                    fabric_prefix_length=previous.fabric_prefix_length if previous else None,
+                    fabric_healthy=previous.fabric_healthy if previous else None,
+                    fabric_unhealthy_since=previous.fabric_unhealthy_since if previous else None,
                     cpu=sandbox_dto.cpu // node_count,
                     gpu=sandbox_dto.gpu // node_count,
                     memory=sandbox_dto.memory // node_count,
@@ -1992,7 +2004,7 @@ class AsyncSandbox(SandboxDto):
             ]
         if (
             (worker_rank is not None and (worker_rank < 1 or len(raw_nodes) != 1))
-            or any(node.rank != rank for rank, node in enumerate(raw_nodes, start=first_rank))
+            or any(node.rank != rank for rank, node in enumerate(raw_nodes, start=worker_rank or 0))
             or raw_nodes[0].id != sandbox_dto.id
         ):
             raise DaytonaError("Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head")

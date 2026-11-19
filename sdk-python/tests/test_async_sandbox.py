@@ -105,11 +105,21 @@ class TestAsyncSandboxInit:
         head = sandbox.nodes[0]
         event = dto.to_dict()
         event.pop("nodes")
+        event.update(cpu=6, gpu=1, memory=12, disk=40, state="stopped")
         sandbox._handle_event("sandbox.created", {"sandbox": event})
 
         assert sandbox.nodes[0] is head
+        assert (head.cpu, head.gpu, head.memory, head.disk, head.state.value) == (6, 1, 12, 40, "stopped")
         assert head.incarnation == 3
         assert head.fabric_healthy is True
+
+        event["incarnation"] = 4
+        sandbox._handle_event("sandbox.created", {"sandbox": event})
+        assert head.incarnation == 4
+        assert head.fabric_healthy is None
+
+        sandbox._handle_event("sandbox.state.updated", {"newState": "started"})
+        assert head.state.value == "started"
 
     @pytest.mark.parametrize("invalid_id", ["", ".", "..", "two/segments"])
     def test_rejects_invalid_worker_id(self, invalid_id, mock_async_toolbox_api_client, mock_async_sandbox_api):

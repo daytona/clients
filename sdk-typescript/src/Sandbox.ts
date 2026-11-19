@@ -1637,7 +1637,7 @@ export class Sandbox {
     if (!raw || typeof raw !== 'object') return
 
     if (eventName === 'sandbox.created') {
-      this.processSandboxDto(raw as SandboxDto, true)
+      this.processSandboxDto(raw as SandboxDto)
       return
     }
 
@@ -1648,6 +1648,9 @@ export class Sandbox {
     }
     const newState = raw.state ?? data.newState
     if (newState) {
+      if (this.nodes.length === 1 && (this.nodeCount === 1 || this.nodes[0].rank > 0)) {
+        this.nodes[0].state = newState
+      }
       this.applyState(newState)
     }
   }
@@ -1795,7 +1798,7 @@ export class Sandbox {
    * @param {SandboxDto} sandboxDto - The API sandbox instance to assign data from
    * @returns {void}
    */
-  private processSandboxDto(sandboxDto: SandboxDto | SandboxListItemDto, fromEvent = false) {
+  private processSandboxDto(sandboxDto: SandboxDto | SandboxListItemDto) {
     const newState = sandboxDto.state
 
     this.id = sandboxDto.id
@@ -1868,31 +1871,42 @@ export class Sandbox {
       this.applyState(newState)
     }
 
-    // A lightweight event may omit every member of an existing gang.
-    const singleHead = this.nodeCount === 1 && this.nodes.length === 1 && this.nodes[0].rank === 0
-    if (this.process && (('nodes' in sandboxDto && sandboxDto.nodes) || (singleHead && !fromEvent))) {
-      this.processNodes(sandboxDto)
-    }
+    if (this.process) this.processNodes(sandboxDto)
   }
 
   private processNodes(sandboxDto: SandboxDto | SandboxListItemDto): void {
-    const nodeCount = ('nodeCount' in sandboxDto ? sandboxDto.nodeCount : undefined) || 1
-    const workerRank = 'headSandboxId' in sandboxDto && sandboxDto.headSandboxId ? sandboxDto.nodeRank : undefined
-    const rawNodes =
-      'nodes' in sandboxDto && sandboxDto.nodes?.length
-        ? sandboxDto.nodes
-        : [
-            {
-              rank: workerRank ?? 0,
-              id: sandboxDto.id,
-              state: sandboxDto.state ?? SandboxState.UNKNOWN,
-              incarnation: ('incarnation' in sandboxDto ? sandboxDto.incarnation : undefined) ?? 1,
-              cpu: sandboxDto.cpu / nodeCount,
-              gpu: sandboxDto.gpu / nodeCount,
-              memory: sandboxDto.memory / nodeCount,
-              disk: sandboxDto.disk / nodeCount,
-            },
-          ]
+    let workerRank = 'headSandboxId' in sandboxDto && sandboxDto.headSandboxId ? sandboxDto.nodeRank : undefined
+    let rawNodes = 'nodes' in sandboxDto ? sandboxDto.nodes : undefined
+    if (!rawNodes?.length) {
+      let previous: SandboxNode | undefined = this.nodes[0]
+      const incarnation = 'incarnation' in sandboxDto ? sandboxDto.incarnation : undefined
+      if (previous) {
+        // A gang head reports totals that cannot be assigned to individual ranks.
+        if (this.nodes.length !== 1 || (previous.rank === 0 && this.nodeCount > 1)) return
+        if (previous.rank > 0) workerRank ??= previous.rank
+        if (previous.id !== sandboxDto.id || (incarnation != null && incarnation !== previous.incarnation)) {
+          previous = undefined
+        }
+      }
+      const count = workerRank == null ? this.nodeCount : 1
+      rawNodes = [
+        {
+          rank: workerRank ?? 0,
+          id: sandboxDto.id,
+          state: sandboxDto.state ?? previous?.state ?? SandboxState.UNKNOWN,
+          incarnation: incarnation ?? previous?.incarnation ?? 1,
+          cpu: sandboxDto.cpu / count,
+          gpu: sandboxDto.gpu / count,
+          memory: sandboxDto.memory / count,
+          disk: sandboxDto.disk / count,
+          failure: previous?.failure,
+          fabricAddress: previous?.fabricAddress,
+          fabricPrefixLength: previous?.fabricPrefixLength,
+          fabricHealthy: previous?.fabricHealthy,
+          fabricUnhealthySince: previous?.fabricUnhealthySince,
+        },
+      ]
+    }
     if (
       (workerRank !== undefined && (workerRank < 1 || rawNodes.length !== 1)) ||
       rawNodes.some((node, index) => node.rank !== index + (workerRank ?? 0)) ||

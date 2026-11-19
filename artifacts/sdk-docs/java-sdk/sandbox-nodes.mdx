@@ -54,7 +54,7 @@ public NodeFileSystem getFs()
 public GangMembershipOperation add(List<NodeResources> nodes)
 ```
 
-Append rank-ordered nodes and wait up to 600 seconds.
+Append rank-ordered nodes and wait up to 600 seconds. An accepted operation continues after a timeout.
 
 **Parameters**:
 
@@ -69,7 +69,7 @@ Append rank-ordered nodes and wait up to 600 seconds.
 public GangMembershipOperation add(List<NodeResources> nodes, long timeoutSeconds)
 ```
 
-Wait up to timeoutSeconds for the membership change. Zero disables the wait limit.
+Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. An accepted operation continues after a timeout.
 
 **Parameters**:
 
@@ -85,7 +85,7 @@ Wait up to timeoutSeconds for the membership change. Zero disables the wait limi
 public GangMembershipOperation release(int count)
 ```
 
-Release the highest ranks and wait up to 600 seconds.
+Release the highest ranks and wait up to 600 seconds. An accepted operation continues after a timeout.
 
 **Parameters**:
 
@@ -100,7 +100,7 @@ Release the highest ranks and wait up to 600 seconds.
 public GangMembershipOperation release(int count, long timeoutSeconds)
 ```
 
-Wait up to timeoutSeconds for the membership change. Zero disables the wait limit.
+Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. An accepted operation continues after a timeout.
 
 **Parameters**:
 
@@ -116,7 +116,7 @@ Wait up to timeoutSeconds for the membership change. Zero disables the wait limi
 public GangMembershipOperation replace(int rank)
 ```
 
-Replace a degraded rank and wait up to 600 seconds.
+Replace a degraded rank and wait up to 600 seconds. An accepted operation continues after a timeout.
 
 **Parameters**:
 
@@ -131,7 +131,7 @@ Replace a degraded rank and wait up to 600 seconds.
 public GangMembershipOperation replace(int rank, long timeoutSeconds)
 ```
 
-Wait up to timeoutSeconds for the membership change. Zero disables the wait limit.
+Wait up to timeoutSeconds for the membership change. Zero disables the wait limit. An accepted operation continues after a timeout.
 
 **Parameters**:
 

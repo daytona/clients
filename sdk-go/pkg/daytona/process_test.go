@@ -507,18 +507,20 @@ func TestFlushToChannelAndChartConversion(t *testing.T) {
 }
 
 func TestCancelIdleSessionLogs(t *testing.T) {
+	releasePeer := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
 		}
 		defer conn.Close()
-		// Flush one stdout chunk, then wait for the client to close the idle socket.
+		// Flush one stdout chunk, then keep the socket idle until the test exits.
 		if err := conn.WriteMessage(websocket.BinaryMessage, []byte{1, 1, 1, 'a', 2, 2, 2}); err == nil {
-			_, _, _ = conn.ReadMessage()
+			<-releasePeer
 		}
 	}))
 	defer server.Close()
+	defer close(releasePeer)
 	sandbox := nodesTestSandbox(t, server, nodesTestDTO(server.URL))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -533,7 +535,12 @@ func TestCancelIdleSessionLogs(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("stream never delivered stdout")
 	}
-	require.ErrorIs(t, <-result, context.Canceled)
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("idle log stream did not return after cancellation")
+	}
 }
 
 func TestCanceledLogDeliveryDoesNotWaitForConsumer(t *testing.T) {
@@ -548,7 +555,6 @@ func TestCanceledLogDeliveryDoesNotWaitForConsumer(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(time.Second):
-		<-output
 		t.Fatal("cancelled delivery remained blocked on its consumer")
 	}
 }
