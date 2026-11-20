@@ -393,7 +393,10 @@ export class LimitExceededError extends RateLimitError {
  * when the refusal reports them; both are `undefined` when it does not.
  */
 export class ImageTooLargeError extends ConflictError {}
-/** `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the snapshot's size. */
+/**
+ * `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit and `bytes` the snapshot's
+ * size when the refusal reports them; both are `undefined` when it does not.
+ */
 export class SnapshotTooLargeError extends ConflictError {}
 
 export class PreconditionRequiredError extends DaytonaError {}
