@@ -659,6 +659,8 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   ECR_ACCOUNT_MISMATCH: BadRequestError,
   ECR_CREDENTIALS_INVALID: BadRequestError,
   ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
+  BUCKET_ROLE_INVALID: BadRequestError,
+  BUCKET_ROLE_UNVERIFIABLE: InternalServerError,
   EMAIL_ACCESS_DENIED: ForbiddenError,
   GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
   ENTITLEMENT_REQUIRED: ForbiddenError,

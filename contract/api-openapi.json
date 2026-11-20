@@ -488,6 +488,8 @@
           "ECR_CREDENTIALS_INVALID",
           "ECR_ACCOUNT_MISMATCH",
           "ECR_OWNERSHIP_UNVERIFIABLE",
+          "BUCKET_ROLE_INVALID",
+          "BUCKET_ROLE_UNVERIFIABLE",
           "IMAGE_NOT_FOUND",
           "IMAGE_NOT_READY",
           "IMAGE_BUILD_FAILED",
@@ -1360,30 +1362,40 @@
         "type": "object"
       },
       "BucketCredentials": {
-        "description": "Secret names used to access an external bucket.",
+        "description": "How the platform accesses an external bucket: either both secret names, or\n`role_arn` alone.",
         "properties": {
           "access_key_secret": {
             "description": "The project secret containing the access key.",
             "example": "AWS_KEY",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_arn": {
+            "description": "An IAM role in your AWS account that the platform assumes, with your\norganization ID as its `ExternalId`. Replaces the secret names; AWS\nbuckets only.",
+            "example": "arn:aws:iam::123456789012:role/daytona-bucket",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "secret_key_secret": {
             "description": "The project secret containing the secret key.",
             "example": "AWS_SECRET",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": [
-          "access_key_secret",
-          "secret_key_secret"
-        ],
         "type": "object"
       },
       "BucketOptions": {
         "description": "The customer's own bucket, for a bucket volume with origin `external`.",
         "properties": {
           "credentials": {
-            "description": "The secret names used to access the bucket.",
+            "description": "How the platform accesses the bucket: two project secret names, or an\nIAM role to assume.",
             "oneOf": [
               {
                 "type": "null"
@@ -31837,6 +31849,16 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 409
+    },
+    "BUCKET_ROLE_INVALID": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "BUCKET_ROLE_UNVERIFIABLE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 502
     },
     "CHARGE_FAILED": {
       "extras": [],

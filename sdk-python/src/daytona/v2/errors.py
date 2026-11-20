@@ -830,6 +830,8 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.ECR_ACCOUNT_MISMATCH: BadRequestError,
     codes.ECR_CREDENTIALS_INVALID: BadRequestError,
     codes.ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
+    codes.BUCKET_ROLE_INVALID: BadRequestError,
+    codes.BUCKET_ROLE_UNVERIFIABLE: InternalServerError,
     codes.EMAIL_ACCESS_DENIED: ForbiddenError,
     codes.GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
     codes.ENTITLEMENT_REQUIRED: ForbiddenError,
