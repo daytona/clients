@@ -7395,7 +7395,7 @@
         "type": "object"
       },
       "ProjectLimits": {
-        "description": "The project's own sandbox limits, each with the project's current usage\nagainst it.",
+        "description": "The project's own limits on sandboxes and image builds, each with the\nproject's current usage against it.",
         "properties": {
           "image_builds": {
             "$ref": "#/components/schemas/ProjectImageBuildLimits",
@@ -7403,7 +7403,7 @@
           },
           "sandboxes": {
             "$ref": "#/components/schemas/ProjectSandboxLimits",
-            "description": "The project's sandbox count limits. A stored limit is always returned,\nand takes effect only while limit enforcement is turned on."
+            "description": "The project's sandbox counts. Only the concurrent count can carry a\nproject limit."
           }
         },
         "required": [
@@ -7512,7 +7512,7 @@
         "type": "object"
       },
       "ProjectSandboxLimits": {
-        "description": "The three sandbox counts a project can be limited on, each with its\nlimit and current usage.",
+        "description": "The project's sandbox counts, each with its current usage. Only the\nconcurrent count can carry a project limit.",
         "properties": {
           "concurrent": {
             "$ref": "#/components/schemas/UsageLimit",
@@ -10240,7 +10240,7 @@
           },
           "max_persistent_vms": {
             "deprecated": true,
-            "description": "Can not be set on a project: projects do not limit their persistent sandbox count. Send null\nor omit it; an integer is refused.",
+            "description": "Cannot be set on a project: projects do not limit their persistent sandbox count. Send null\nor omit it; an integer is refused.",
             "format": "int64",
             "type": [
               "integer",
@@ -10249,7 +10249,7 @@
           },
           "max_total_vms": {
             "deprecated": true,
-            "description": "Can not be set on a project: projects do not limit their total sandbox count. Send null or\nomit it; an integer is refused.",
+            "description": "Cannot be set on a project: projects do not limit their total sandbox count. Send null or\nomit it; an integer is refused.",
             "format": "int64",
             "type": [
               "integer",
@@ -24165,7 +24165,7 @@
         ]
       },
       "patch": {
-        "description": "A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` can not be set on a project: send null or omit them.",
+        "description": "A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` cannot be set on a project: send null or omit them.",
         "operationId": "update_project_limits",
         "parameters": [
           {
@@ -24206,7 +24206,7 @@
                 }
               }
             },
-            "description": "A limit is outside the accepted range, a limit that can not be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`)",
+            "description": "A limit is outside the accepted range, a limit that cannot be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"

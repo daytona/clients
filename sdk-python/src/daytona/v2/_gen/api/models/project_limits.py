@@ -34,7 +34,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class ProjectLimits(BaseModel):
     """
-    The project's own sandbox limits, each with the project's current usage against it.
+    The project's own limits on sandboxes and image builds, each with the project's current usage against it.
     """ # noqa: E501
     image_builds: ProjectImageBuildLimits
     sandboxes: ProjectSandboxLimits

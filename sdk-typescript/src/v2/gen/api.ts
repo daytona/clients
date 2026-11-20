@@ -1863,7 +1863,7 @@ export interface paths {
         head?: never;
         /**
          * Update the project limits
-         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` can not be set on a project: send null or omit them.
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` cannot be set on a project: send null or omit them.
          */
         patch: operations["update_project_limits"];
         trace?: never;
@@ -6204,15 +6204,15 @@ export interface components {
             policy: components["schemas"]["ProjectLifecycleDefaults"];
         };
         /**
-         * @description The project's own sandbox limits, each with the project's current usage
-         *     against it.
+         * @description The project's own limits on sandboxes and image builds, each with the
+         *     project's current usage against it.
          */
         ProjectLimits: {
             /** @description The project's image-build limits. */
             image_builds: components["schemas"]["ProjectImageBuildLimits"];
             /**
-             * @description The project's sandbox count limits. A stored limit is always returned,
-             *     and takes effect only while limit enforcement is turned on.
+             * @description The project's sandbox counts. Only the concurrent count can carry a
+             *     project limit.
              */
             sandboxes: components["schemas"]["ProjectSandboxLimits"];
         };
@@ -6252,8 +6252,8 @@ export interface components {
             projects: components["schemas"]["Project"][];
         };
         /**
-         * @description The three sandbox counts a project can be limited on, each with its
-         *     limit and current usage.
+         * @description The project's sandbox counts, each with its current usage. Only the
+         *     concurrent count can carry a project limit.
          */
         ProjectSandboxLimits: {
             /** @description The project's concurrent sandbox limit and current usage. */
@@ -7590,14 +7590,14 @@ export interface components {
             /**
              * Format: int64
              * @deprecated
-             * @description Can not be set on a project: projects do not limit their persistent sandbox count. Send null
+             * @description Cannot be set on a project: projects do not limit their persistent sandbox count. Send null
              *     or omit it; an integer is refused.
              */
             max_persistent_vms?: number | null;
             /**
              * Format: int64
              * @deprecated
-             * @description Can not be set on a project: projects do not limit their total sandbox count. Send null or
+             * @description Cannot be set on a project: projects do not limit their total sandbox count. Send null or
              *     omit it; an integer is refused.
              */
             max_total_vms?: number | null;
@@ -16083,7 +16083,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectLimits"];
                 };
             };
-            /** @description A limit is outside the accepted range, a limit that can not be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`) */
+            /** @description A limit is outside the accepted range, a limit that cannot be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

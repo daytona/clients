@@ -5277,14 +5277,14 @@ type ProjectLifecyclePolicy struct {
 	Policy ProjectLifecycleDefaults `json:"policy"`
 }
 
-// ProjectLimits The project's own sandbox limits, each with the project's current usage
-// against it.
+// ProjectLimits The project's own limits on sandboxes and image builds, each with the
+// project's current usage against it.
 type ProjectLimits struct {
 	// ImageBuilds The project's image-build limits.
 	ImageBuilds ProjectImageBuildLimits `json:"image_builds"`
 
-	// Sandboxes The project's sandbox count limits. A stored limit is always returned,
-	// and takes effect only while limit enforcement is turned on.
+	// Sandboxes The project's sandbox counts. Only the concurrent count can carry a
+	// project limit.
 	Sandboxes ProjectSandboxLimits `json:"sandboxes"`
 }
 
@@ -5330,8 +5330,8 @@ type ProjectPage struct {
 	Projects []Project `json:"projects"`
 }
 
-// ProjectSandboxLimits The three sandbox counts a project can be limited on, each with its
-// limit and current usage.
+// ProjectSandboxLimits The project's sandbox counts, each with its current usage. Only the
+// concurrent count can carry a project limit.
 type ProjectSandboxLimits struct {
 	// Concurrent The project's concurrent sandbox limit and current usage.
 	Concurrent UsageLimit `json:"concurrent"`
@@ -6797,12 +6797,12 @@ type UpdateProjectLimitsRequest struct {
 	// limit.
 	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
 
-	// MaxPersistentVms Can not be set on a project: projects do not limit their persistent sandbox count. Send null
+	// MaxPersistentVms Cannot be set on a project: projects do not limit their persistent sandbox count. Send null
 	// or omit it; an integer is refused.
 	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
 
-	// MaxTotalVms Can not be set on a project: projects do not limit their total sandbox count. Send null or
+	// MaxTotalVms Cannot be set on a project: projects do not limit their total sandbox count. Send null or
 	// omit it; an integer is refused.
 	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`

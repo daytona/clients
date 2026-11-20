@@ -36,8 +36,8 @@ class UpdateProjectLimitsRequest(BaseModel):
     """ # noqa: E501
     max_concurrent_builds: Optional[StrictInt] = Field(default=None, description="The most image builds the project may run at once, or null for no project limit.")
     max_concurrent_vms: Optional[StrictInt] = Field(default=None, description="The most sandboxes the project may run at once, or null for no project limit.")
-    max_persistent_vms: Optional[StrictInt] = Field(default=None, description="Can not be set on a project: projects do not limit their persistent sandbox count. Send null or omit it; an integer is refused.")
-    max_total_vms: Optional[StrictInt] = Field(default=None, description="Can not be set on a project: projects do not limit their total sandbox count. Send null or omit it; an integer is refused.")
+    max_persistent_vms: Optional[StrictInt] = Field(default=None, description="Cannot be set on a project: projects do not limit their persistent sandbox count. Send null or omit it; an integer is refused.")
+    max_total_vms: Optional[StrictInt] = Field(default=None, description="Cannot be set on a project: projects do not limit their total sandbox count. Send null or omit it; an integer is refused.")
     __properties: ClassVar[List[str]] = ["max_concurrent_builds", "max_concurrent_vms", "max_persistent_vms", "max_total_vms"]
 
     model_config = ConfigDict(
