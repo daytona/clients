@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-// Limits returns organization limits and usage. The credential needs read:limits.
+// Limits returns organization limits and usage. API-key and platform-token
+// credentials need read:limits; JWT authentication needs read:organization.
 // With nil options or an empty OrganizationID, API-key authentication looks up
 // and caches the key's organization; JWT authentication returns ErrBadRequest.
 // A nil UsageLimit.Limit means unlimited. Invalid organization IDs and malformed
