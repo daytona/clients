@@ -36,17 +36,23 @@ func parseFileMultipart(body []byte, contentType string) (*BulkReadResult, error
 			return result, nil
 		}
 		if err != nil {
-			return nil, wrapJSONError(err)
+			return nil, wrapFileMultipartError(err)
 		}
 		data, readErr := io.ReadAll(part)
 		closeErr := part.Close()
 		if bodyErr := errors.Join(readErr, closeErr); bodyErr != nil {
-			return nil, wrapJSONError(bodyErr)
+			return nil, wrapFileMultipartError(bodyErr)
 		}
 		if partErr := addFilePart(result, part.Header.Get("Content-Disposition"), data); partErr != nil {
 			return nil, partErr
 		}
 	}
+}
+
+func wrapFileMultipartError(err error) *Error {
+	result := badRequest("malformed multipart response: " + err.Error())
+	result.Err = err
+	return result
 }
 
 func addFilePart(result *BulkReadResult, disposition string, data []byte) error {
