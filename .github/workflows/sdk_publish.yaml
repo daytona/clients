@@ -1136,6 +1136,9 @@ jobs:
             esac ;;
           verify)
             # npm can hold a new version in "Validating" for well over 5 minutes.
+            # A `latest` mismatch (judge exit 1) is retried too: right after a
+            # publish the dist-tag can lag the version, so only a mismatch that
+            # outlasts the deadline is reported.
             deadline=$(( $(date +%s) + 1800 ))
             while :; do
               rc=1 out="" code=$(fetch)
