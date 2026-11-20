@@ -60,10 +60,14 @@ func createHoldTimeout(requestTimeout, wait time.Duration) time.Duration {
 }
 
 func uncertainCreateError(ctx context.Context, err error, key string) error {
+	var detail *Error
+	if errors.As(err, &detail) && detail.StatusCode != 0 && detail.Source != SourceSDK {
+		// A received server refusal is definitive even if the caller just cancelled.
+		return err
+	}
 	if ctx.Err() != nil {
 		err = transportError(ctx, ctx.Err())
 	}
-	var detail *Error
 	if !errors.As(err, &detail) {
 		return err
 	}
