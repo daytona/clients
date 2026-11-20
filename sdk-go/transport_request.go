@@ -22,7 +22,7 @@ func (t *transport) open(ctx context.Context, spec apiRequest, streaming bool) (
 		return nil, badRequest("invalid request timeout")
 	}
 	if spec.MaxResponseBytes < NoLimit || spec.MaxResponseBytes > maxSafeInteger {
-		return nil, badRequest("invalid maxResponseBytes")
+		return nil, badRequest("invalid MaxResponseBytes")
 	}
 	budget := t.owner.config.timeout
 	if spec.Timeout != 0 {
@@ -150,7 +150,7 @@ func (t *transport) readResponse(ctx context.Context, response *http.Response, o
 
 func responseTooLarge(limit int64) *Error {
 	return newSDKError("PAYLOAD_TOO_LARGE", 413,
-		"the response body exceeds the "+strconv.FormatInt(limit, 10)+"-byte maxResponseBytes limit")
+		"the response body exceeds the "+strconv.FormatInt(limit, 10)+"-byte WithMaxResponseBytes limit")
 }
 
 func errorsWithClose(err error, body io.Closer) error { return errors.Join(err, body.Close()) }

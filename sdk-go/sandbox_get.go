@@ -33,10 +33,10 @@ func (c *Client) Get(ctx context.Context, id string, opts *GetSandboxOptions) (*
 		options = *opts
 	}
 	if options.ToolboxURL != "" && strings.TrimSpace(options.ToolboxURL) == "" {
-		return nil, badRequest("toolboxUrl must be a non-empty string")
+		return nil, badRequest("ToolboxURL must be a non-empty string")
 	}
 	if options.AccessToken != "" {
-		if err := headerText(options.AccessToken, "accessToken"); err != nil {
+		if err := headerText(options.AccessToken, "AccessToken"); err != nil {
 			return nil, err
 		}
 	}
