@@ -25,11 +25,9 @@ type GitCloneOptions struct {
 	InsecureSkipTLS bool
 	// Username authenticates to the remote.
 	Username string
-	// Password authenticates to the remote; a personal access token can be used.
+	// Password authenticates to the remote. For a personal access token, set
+	// Username to "git" and Password to the token.
 	Password string
-	// Token is shorthand for Password, with Username defaulting to "git".
-	// Supplying both Token and Password is invalid.
-	Token string
 	// Timeout replaces the total request deadline; zero defaults to 30 minutes,
 	// NoTimeout disables it. The caller context always bounds the request.
 	Timeout time.Duration
@@ -39,11 +37,9 @@ type GitCloneOptions struct {
 type GitCredentialOptions struct {
 	// Username authenticates to the remote.
 	Username string
-	// Password authenticates to the remote; personal access tokens are accepted.
+	// Password authenticates to the remote. For a personal access token, set
+	// Username to "git" and Password to the token.
 	Password string
-	// Token is shorthand for Password, with Username defaulting to "git".
-	// Supplying both Token and Password is invalid.
-	Token string
 	// Branch selects a remote branch; empty preserves Git's default behavior.
 	Branch string
 	// Remote selects a named remote; empty preserves Git's default behavior.
@@ -71,7 +67,7 @@ func (g *Git) Clone(ctx context.Context, url, path string, opts *GitCloneOptions
 		return badRequest("depth must be a positive int32, or zero to omit")
 	}
 	credentials, err := gitCredentials(GitCredentialOptions{
-		Username: options.Username, Password: options.Password, Token: options.Token, Timeout: options.Timeout,
+		Username: options.Username, Password: options.Password, Timeout: options.Timeout,
 	})
 	if err != nil {
 		return err
@@ -131,18 +127,8 @@ func gitCredentials(options GitCredentialOptions) (wire.RepoRequest, error) {
 	if options.Timeout < 0 && options.Timeout != NoTimeout {
 		return wire.RepoRequest{}, badRequest("git timeout must be non-negative or NoTimeout")
 	}
-	username, password := options.Username, options.Password
-	if options.Token != "" {
-		if options.Password != "" {
-			return wire.RepoRequest{}, badRequest("supply either Token or Password, not both")
-		}
-		password = options.Token
-		if username == "" {
-			username = "git"
-		}
-	}
 	return wire.RepoRequest{
-		Username: gitOptional(username), Password: gitOptional(password),
+		Username: gitOptional(options.Username), Password: gitOptional(options.Password),
 		Branch: gitOptional(options.Branch), Remote: gitOptional(options.Remote),
 	}, nil
 }

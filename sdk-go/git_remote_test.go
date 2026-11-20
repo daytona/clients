@@ -44,7 +44,9 @@ func TestGitRemote_whenCredentialsAreProvided(t *testing.T) {
 			"push", "push", `{"path":"/repo","username":"git","password":"pat","branch":"dev","remote":"upstream","setUpstream":true}`,
 			func(ctx context.Context, g *Git) error {
 				return g.Push(ctx, "/repo", &GitPushOptions{
-					GitCredentialOptions: GitCredentialOptions{Token: "pat", Branch: "dev", Remote: "upstream"}, SetUpstream: true,
+					GitCredentialOptions: GitCredentialOptions{
+						Username: "git", Password: "pat", Branch: "dev", Remote: "upstream",
+					}, SetUpstream: true,
 				})
 			},
 		},

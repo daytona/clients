@@ -30,9 +30,6 @@ func TestGitInput_whenInvalid(t *testing.T) {
 		{"push timeout", func(ctx context.Context, g *Git) error {
 			return g.Push(ctx, "repo", &GitPushOptions{GitCredentialOptions: GitCredentialOptions{Timeout: WaitForever}})
 		}},
-		{"ambiguous credentials", func(ctx context.Context, g *Git) error {
-			return g.Pull(ctx, "repo", &GitCredentialOptions{Token: "token", Password: "password"})
-		}},
 		{"commit absent identity", func(ctx context.Context, g *Git) error {
 			_, err := g.Commit(ctx, "repo", "message", nil)
 			return err
