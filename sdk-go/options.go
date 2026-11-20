@@ -23,14 +23,15 @@ type clientConfig struct {
 }
 
 // SandboxEventsConfig configures sandbox state subscriptions. A nil Enabled
-// defaults to enabled. Zero durations keep hub defaults; NoTimeout disables
-// idle closing. The events hub is independent of ordinary request timeouts.
+// defaults to enabled; DAYTONA_SANDBOX_EVENTS=0 disables subscriptions.
+// The events hub is independent of ordinary request timeouts.
 type SandboxEventsConfig struct {
 	// Enabled defaults to true when nil.
 	Enabled *bool
 	// ReconcileInterval is the hub reconciliation interval; zero uses its default.
 	ReconcileInterval time.Duration
-	// IdleClose is the idle connection lifetime; NoTimeout keeps it open.
+	// IdleClose is the idle connection lifetime; zero or NoTimeout never
+	// idle-closes a connection. Client.Close still closes it.
 	IdleClose time.Duration
 }
 
