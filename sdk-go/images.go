@@ -48,9 +48,9 @@ type ListImagesOptions struct {
 	Platform ImagePlatformFilter
 }
 
-// List returns one page, preferring eventually consistent search and falling
-// back only on 404 or SEARCH_NOT_CONFIGURED. Get reads new images immediately.
-func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[*Image], error) {
+// List returns one page of image values, preferring eventually consistent search
+// and falling back only on 404 or SEARCH_NOT_CONFIGURED. Get reads new images immediately.
+func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[Image], error) {
 	options := ListImagesOptions{}
 	if opts != nil {
 		options = *opts
@@ -76,12 +76,18 @@ func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[*Imag
 	if err != nil {
 		return nil, err
 	}
-	return artifactPage(raw, "images", parseImage)
+	return artifactPage(raw, "images", func(raw JSONValue) (Image, error) {
+		image, parseErr := parseImage(raw)
+		if parseErr != nil {
+			return Image{}, parseErr
+		}
+		return *image, nil
+	})
 }
 
 // ListAll lazily visits all image pages, stopping on cancellation, a repeated
 // cursor, or when the consumer breaks. Options are copied at the call.
-func (s *Images) ListAll(ctx context.Context, opts *ListImagesOptions) iter.Seq2[*Image, error] {
+func (s *Images) ListAll(ctx context.Context, opts *ListImagesOptions) iter.Seq2[Image, error] {
 	options := ListImagesOptions{}
 	if opts != nil {
 		options = *opts
@@ -90,7 +96,7 @@ func (s *Images) ListAll(ctx context.Context, opts *ListImagesOptions) iter.Seq2
 			options.Anonymous = &value
 		}
 	}
-	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[*Image], error) {
+	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[Image], error) {
 		pageOptions := options
 		pageOptions.Cursor = cursor
 		return s.List(ctx, &pageOptions)

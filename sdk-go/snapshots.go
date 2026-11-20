@@ -28,9 +28,9 @@ type ListSnapshotsOptions struct {
 	SandboxID string
 }
 
-// List returns one page, preferring eventually consistent search and falling
-// back only on 404 or SEARCH_NOT_CONFIGURED.
-func (s *Snapshots) List(ctx context.Context, opts *ListSnapshotsOptions) (*Page[*Snapshot], error) {
+// List returns one page of snapshot values, preferring eventually consistent
+// search and falling back only on 404 or SEARCH_NOT_CONFIGURED.
+func (s *Snapshots) List(ctx context.Context, opts *ListSnapshotsOptions) (*Page[Snapshot], error) {
 	options := ListSnapshotsOptions{}
 	if opts != nil {
 		options = *opts
@@ -47,17 +47,23 @@ func (s *Snapshots) List(ctx context.Context, opts *ListSnapshotsOptions) (*Page
 	if err != nil {
 		return nil, err
 	}
-	return artifactPage(raw, "snapshots", parseSnapshot)
+	return artifactPage(raw, "snapshots", func(raw JSONValue) (Snapshot, error) {
+		snapshot, parseErr := parseSnapshot(raw)
+		if parseErr != nil {
+			return Snapshot{}, parseErr
+		}
+		return *snapshot, nil
+	})
 }
 
 // ListAll lazily visits snapshot pages until exhaustion, a repeated cursor,
 // an error, cancellation or an early consumer break.
-func (s *Snapshots) ListAll(ctx context.Context, opts *ListSnapshotsOptions) iter.Seq2[*Snapshot, error] {
+func (s *Snapshots) ListAll(ctx context.Context, opts *ListSnapshotsOptions) iter.Seq2[Snapshot, error] {
 	options := ListSnapshotsOptions{}
 	if opts != nil {
 		options = *opts
 	}
-	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[*Snapshot], error) {
+	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[Snapshot], error) {
 		pageOptions := options
 		pageOptions.Cursor = cursor
 		return s.List(ctx, &pageOptions)

@@ -115,7 +115,7 @@ func TestImagesListAll_whenCallerCancelsBeforeIteration(t *testing.T) {
 	// When beginning iteration.
 	var failures []error
 	for image, err := range images {
-		require.Nil(t, image)
+		require.Zero(t, image)
 		failures = append(failures, err)
 	}
 	// Then cancellation is yielded once without fetching a page.
