@@ -43,6 +43,11 @@ func (s *Interpreter) runQueued(
 		Env: execution.options.Env, KeepLogs: ProcessKeepLogsOnExitTTL,
 	}, execution.budget.setupTimeout(s.now()))
 	if err != nil {
+		if handle != nil {
+			return newRunCodeOutput(execution.options).finish(InterpreterProcess{
+				ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+			}), err
+		}
 		return nil, err
 	}
 	return s.collectCode(ctx, handle, execution)

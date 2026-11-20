@@ -22,6 +22,7 @@ func (s *Sandbox) Process() *Processes { return &Processes{sandbox: s} }
 // Start launches a background shell command and returns immediately. Use
 // StartArgs for untrusted arguments; use CreateSession to retain shell state.
 // ExecutionTimeout stops the process tree; context cancellation only stops the request.
+// A malformed create response with a valid ID returns a reconnectable handle alongside the error.
 func (s *Processes) Start(ctx context.Context, command string, opts *ProcessStartOptions) (*ProcessHandle, error) {
 	body, err := processStartBody(&command, nil, opts)
 	if err != nil {
@@ -55,14 +56,14 @@ func (s *Processes) start(
 	}); err != nil {
 		return nil, err
 	}
-	info, err := parseProcess(raw)
-	if err != nil {
-		return nil, err
-	}
-	return s.startedHandle(info, body), nil
+	info, err := parseCreatedProcess(raw)
+	return s.startedHandle(info, body), err
 }
 
 func (s *Processes) startedHandle(info *ProcessInfo, body processCreateRequest) *ProcessHandle {
+	if info == nil {
+		return nil
+	}
 	kind := info.Kind
 	if kind == ProcessKindUnknown {
 		kind = body.Kind
