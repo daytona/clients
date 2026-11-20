@@ -30,22 +30,29 @@
 //   - Sandboxes: [Client.Create], [Client.Get], [Client.List], [Client.FindByName],
 //     [Sandbox.Delete], [Sandbox.Start], [Sandbox.Stop], [Sandbox.Fork].
 //   - Commands and code: [Sandbox.Exec] (shell), [Sandbox.ExecArgs] (argv),
-//     [Sandbox.RunCode] (stateful Python), [Sandbox.Process] (background
-//     processes, sessions), [Sandbox.PTY] (terminals).
-//   - Files: [Sandbox.FS] — WriteFile, ReadFile, UploadFile, DownloadFile,
+//     [Sandbox.RunCode] (stateful Python), [Sandbox.Process] returns
+//     [*Processes] (background processes, sessions), [Sandbox.PTY] returns
+//     [*PTY] (terminals).
+//   - Files: [Sandbox.FS] returns [*FileSystem] — [FileSystem.WriteFile],
+//     [FileSystem.ReadFile], [FileSystem.UploadFile], [FileSystem.DownloadFile],
 //     Upload/Download for streams, List, Watch.
-//   - Git: [Sandbox.Git] — Clone, CreateBranch, CheckoutBranch, Add, Commit
-//     (author name and email are required), Push, History.
-//   - Ports and URLs: [Sandbox.Ports] — Expose with Public: true gives a URL
-//     that opens without credentials; PreviewLink and SignedPreviewLink give
-//     private ones.
-//   - Images: [Client.Images] — Pull imports a registry image, BuildAndWait
-//     builds one from an [ImageBuilder]; create sandboxes from the image's name
-//     or ID. [Client.Snapshots], [Client.Volumes], [Client.Secrets] manage the
-//     other project resources.
+//   - Git: [Sandbox.Git] returns [*Git] — Clone, CreateBranch, CheckoutBranch,
+//     Add, Commit (author name and email are required), Push, History.
+//   - Ports and URLs: [Sandbox.Ports] returns [*Ports] — [Ports.Expose] with
+//     Public: true gives a URL that opens without credentials; PreviewLink and
+//     SignedPreviewLink give private ones.
+//   - Images: [Client.Images] returns [*Images] — [Images.Pull] imports a
+//     registry image, [Images.BuildAndWait] builds one from an [ImageBuilder];
+//     create sandboxes from the image's name or ID. [Client.Snapshots],
+//     [Client.Volumes], [Client.Secrets] manage the other project resources.
 //
 // A registry reference such as "python:3.12" is not a [Client.Create] source:
 // import it once with [Images.Pull], then create from the returned image.
+//
+// Paths inside the sandbox are absolute ("/workspace/data.csv"); file
+// operations refuse relative paths, and uploads create missing parent
+// directories. Commands without [ExecOptions].Cwd run in the sandbox's working
+// directory, which `pwd` prints.
 //
 // # Calls, options and durations
 //

@@ -99,10 +99,11 @@ func (s *Sandbox) secretsRequest(ctx context.Context, request apiRequest) (*Sand
 		return nil, err
 	}
 	if count != nil {
-		if *count < math.MinInt32 || *count > math.MaxInt32 {
+		n := *count
+		if n < math.MinInt32 || n > math.MaxInt32 {
 			return nil, badRequest("response field capture_unresolved_count must be an int32")
 		}
-		value := int32(*count)
+		value := int32(n)
 		result.CaptureUnresolvedCount = &value
 	}
 	return result, nil
