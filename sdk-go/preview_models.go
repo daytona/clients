@@ -3,7 +3,10 @@
 
 package daytona
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 const (
 	// PreviewWarningSkipHeader skips the preview warning page for non-interactive clients.
@@ -18,16 +21,18 @@ type PreviewEndpoint struct {
 	Port int
 	// Public permits access without credentials.
 	Public bool
-	// URL opens the endpoint.
+	// URL opens the endpoint without an embedded credential.
 	URL string
 	// CreatedAt is when the endpoint was registered.
 	CreatedAt time.Time
 }
 
-// String returns a credential-free description.
-func (PreviewEndpoint) String() string { return "daytona.PreviewEndpoint" }
+// String returns the port, visibility and credential-free endpoint URL.
+func (p PreviewEndpoint) String() string {
+	return fmt.Sprintf("daytona.PreviewEndpoint{Port:%d Public:%t URL:%q}", p.Port, p.Public, p.URL)
+}
 
-// GoString returns a credential-free description.
+// GoString returns the same connection details as String.
 func (p PreviewEndpoint) GoString() string { return p.String() }
 
 // PreviewLink grants access to one preview endpoint.

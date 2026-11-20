@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"testing"
@@ -11,6 +12,23 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestPreviewEndpointShowsConnectionDetails_whenFormatted(t *testing.T) {
+	for _, public := range []bool{false, true} {
+		t.Run(strconv.FormatBool(public), func(t *testing.T) {
+			// Given a registered endpoint URL without a preview credential.
+			endpoint := PreviewEndpoint{Port: 8080, Public: public, URL: "https://8080-sbx.preview.invalid/"}
+			for _, format := range []string{"%v", "%+v", "%#v"} {
+				// When printing the endpoint for diagnostics.
+				shown := fmt.Sprintf(format, endpoint)
+				// Then connection details remain visible in every standard inspection form.
+				require.Contains(t, shown, "Port:8080")
+				require.Contains(t, shown, "Public:"+strconv.FormatBool(public))
+				require.Contains(t, shown, endpoint.URL)
+			}
+		})
+	}
+}
 
 func TestPortsExpose_whenVisibilitySelected(t *testing.T) {
 	for _, public := range []bool{false, true} {

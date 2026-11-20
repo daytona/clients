@@ -176,7 +176,6 @@ func TestPortsSignedPreviewLink_whenLifetimeInvalid(t *testing.T) {
 
 func TestPreviewModels_whenFormattedHideCredentials(t *testing.T) {
 	for _, value := range []any{
-		PreviewEndpoint{URL: "sensitive-url"},
 		PreviewLink{URL: "sensitive-url", Token: "sensitive-token"},
 		SignedPreviewLink{URL: "sensitive-url", Token: "sensitive-token"},
 	} {
