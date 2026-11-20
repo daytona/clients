@@ -106,14 +106,17 @@ func processInfoFields(object jsonObject, info *ProcessInfo) error {
 	if !present(object["createdAt"]) {
 		return badRequest("response field createdAt is required")
 	}
-	for name, target := range map[string]*time.Time{
-		"createdAt": &info.CreatedAt, "startedAt": &info.StartedAt, "exitedAt": &info.ExitedAt,
+	for _, entry := range []struct {
+		name   string
+		target *time.Time
+	}{
+		{"createdAt", &info.CreatedAt}, {"startedAt", &info.StartedAt}, {"exitedAt", &info.ExitedAt},
 	} {
-		value, parseErr := timestampField(object, name)
+		value, parseErr := timestampField(object, entry.name)
 		if parseErr != nil {
 			return parseErr
 		}
-		*target = value
+		*entry.target = value
 	}
 	return nil
 }
