@@ -28,6 +28,7 @@ func ExampleGit_Clone() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// For token authentication, also set Username: "git", Password: token.
 	err = sandbox.Git().Clone(ctx, "https://github.com/octocat/Hello-World", "/home/daytona/repo",
 		&daytona.GitCloneOptions{Depth: 1})
 	if err != nil {
