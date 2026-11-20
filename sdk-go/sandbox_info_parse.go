@@ -100,33 +100,43 @@ func sandboxResources(object jsonObject, resources *Resources) error {
 		return err
 	}
 	resources.MemoryGiB, resources.DiskGiB = float64(memory)/1024, float64(disk)/1024
-	for name, target := range map[string]**float64{
-		"memory_max_mib": &resources.MemoryMaxGiB, "disk_max_mib": &resources.DiskMaxGiB,
+	for _, entry := range []struct {
+		name   string
+		target **float64
+	}{
+		{"memory_max_mib", &resources.MemoryMaxGiB}, {"disk_max_mib", &resources.DiskMaxGiB},
 	} {
-		if !present(object[name]) {
+		if !present(object[entry.name]) {
 			continue
 		}
-		value, parseErr := integerField(object, name, false)
+		value, parseErr := integerField(object, entry.name, false)
 		if parseErr != nil {
 			return parseErr
 		}
 		gib := float64(value) / 1024
-		*target = &gib
+		*entry.target = &gib
 	}
 	return nil
 }
 
 func sandboxTimestamps(object jsonObject, info *SandboxInfo) error {
-	for name, target := range map[string]*time.Time{
-		"created_at": &info.CreatedAt, "updated_at": &info.UpdatedAt, "started_at": &info.StartedAt,
-		"stopped_at": &info.StoppedAt, "last_activity_at": &info.LastActivityAt,
-		"create_timeout_at": &info.CreateTimeoutAt, "spot_evicted_at": &info.SpotEvictedAt,
+	for _, entry := range []struct {
+		name   string
+		target *time.Time
+	}{
+		{"created_at", &info.CreatedAt},
+		{"updated_at", &info.UpdatedAt},
+		{"started_at", &info.StartedAt},
+		{"stopped_at", &info.StoppedAt},
+		{"last_activity_at", &info.LastActivityAt},
+		{"create_timeout_at", &info.CreateTimeoutAt},
+		{"spot_evicted_at", &info.SpotEvictedAt},
 	} {
-		value, err := timestampField(object, name)
+		value, err := timestampField(object, entry.name)
 		if err != nil {
 			return err
 		}
-		*target = value
+		*entry.target = value
 	}
 	return nil
 }

@@ -5,7 +5,9 @@ package daytona
 
 import (
 	"encoding/json"
+	"maps"
 	"math"
+	"slices"
 	"time"
 )
 
@@ -15,7 +17,7 @@ func sandboxOptionalFields(object jsonObject, info *SandboxInfo) error {
 		return err
 	}
 	info.Labels = make(map[string]string, len(labels))
-	for key := range labels {
+	for _, key := range slices.Sorted(maps.Keys(labels)) {
 		value, parseErr := field[string](labels, key, true)
 		if parseErr != nil {
 			return badRequest("sandbox response has invalid labels." + key)
@@ -27,15 +29,20 @@ func sandboxOptionalFields(object jsonObject, info *SandboxInfo) error {
 		return err
 	}
 	info.MacBootMode = MacBootMode(mode)
-	for name, target := range map[string]**bool{"spot": &info.Spot, "persistent": &info.Persistent} {
-		if !present(object[name]) {
+	for _, entry := range []struct {
+		name   string
+		target **bool
+	}{
+		{"spot", &info.Spot}, {"persistent", &info.Persistent},
+	} {
+		if !present(object[entry.name]) {
 			continue
 		}
-		value, parseErr := field[bool](object, name, true)
+		value, parseErr := field[bool](object, entry.name, true)
 		if parseErr != nil {
 			return parseErr
 		}
-		*target = &value
+		*entry.target = &value
 	}
 	image, err := parseArtifact(object["image"])
 	if err != nil {
