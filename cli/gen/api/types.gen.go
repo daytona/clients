@@ -29,6 +29,8 @@ const (
 	BUCKETCREATEFAILED                  ApiErrorCode = "BUCKET_CREATE_FAILED"
 	BUCKETDELETEFAILED                  ApiErrorCode = "BUCKET_DELETE_FAILED"
 	BUCKETNOTEMPTY                      ApiErrorCode = "BUCKET_NOT_EMPTY"
+	BUCKETROLEINVALID                   ApiErrorCode = "BUCKET_ROLE_INVALID"
+	BUCKETROLEUNVERIFIABLE              ApiErrorCode = "BUCKET_ROLE_UNVERIFIABLE"
 	CHARGEFAILED                        ApiErrorCode = "CHARGE_FAILED"
 	CHARGENOTFOUND                      ApiErrorCode = "CHARGE_NOT_FOUND"
 	CHARGENOTSUCCEEDED                  ApiErrorCode = "CHARGE_NOT_SUCCEEDED"
@@ -175,6 +177,10 @@ func (e ApiErrorCode) Valid() bool {
 	case BUCKETDELETEFAILED:
 		return true
 	case BUCKETNOTEMPTY:
+		return true
+	case BUCKETROLEINVALID:
+		return true
+	case BUCKETROLEUNVERIFIABLE:
 		return true
 	case CHARGEFAILED:
 		return true
@@ -2350,18 +2356,25 @@ type BillingUsagePeriod struct {
 	TotalAmountCents int64 `json:"total_amount_cents"`
 }
 
-// BucketCredentials Secret names used to access an external bucket.
+// BucketCredentials How the platform accesses an external bucket: either both secret names, or
+// `role_arn` alone.
 type BucketCredentials struct {
 	// AccessKeySecret The project secret containing the access key.
-	AccessKeySecret string `json:"access_key_secret"`
+	AccessKeySecret *string `json:"access_key_secret,omitempty"`
+
+	// RoleArn An IAM role in your AWS account that the platform assumes, with your
+	// organization ID as its `ExternalId`. Replaces the secret names; AWS
+	// buckets only.
+	RoleArn *string `json:"role_arn,omitempty"`
 
 	// SecretKeySecret The project secret containing the secret key.
-	SecretKeySecret string `json:"secret_key_secret"`
+	SecretKeySecret *string `json:"secret_key_secret,omitempty"`
 }
 
 // BucketOptions The customer's own bucket, for a bucket volume with origin `external`.
 type BucketOptions struct {
-	// Credentials The secret names used to access the bucket.
+	// Credentials How the platform accesses the bucket: two project secret names, or an
+	// IAM role to assume.
 	Credentials *BucketCredentials `json:"credentials,omitempty"`
 
 	// Endpoint Non-AWS S3 endpoint (`http(s)://…`); absent or empty means AWS.

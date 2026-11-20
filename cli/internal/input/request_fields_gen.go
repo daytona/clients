@@ -148,6 +148,7 @@ var requestFields = map[string]*Fields{
 		"bucket": &Fields{Object: map[string]*Fields{
 			"credentials": &Fields{Object: map[string]*Fields{
 				"access_key_secret": nil,
+				"role_arn":          nil,
 				"secret_key_secret": nil,
 			}},
 			"endpoint":   nil,
