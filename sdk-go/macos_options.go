@@ -29,7 +29,8 @@ type CreateMacOSOptions struct {
 	Ports []PortMapping
 	// LifecyclePolicy selects automatic lifetime and idle actions.
 	LifecyclePolicy *LifecyclePolicyOptions
-	// Region selects this create's region; blank or "local" uses the default.
+	// Region selects this create's region. Whitespace-only values and
+	// case-insensitive "local" with surrounding whitespace use the default.
 	Region string
 	// Wait defaults to 60 seconds; NoWait skips waiting, WaitForever is unbounded.
 	// Positive durations must be whole seconds.
