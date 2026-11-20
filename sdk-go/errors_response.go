@@ -25,10 +25,14 @@ func errorFromResponse(response *http.Response, body []byte) error {
 	if len(body) == 0 {
 		return result
 	}
-	result.Message = strings.ToValidUTF8(string(body), "\uFFFD")
+	text := strings.ToValidUTF8(string(body), "\uFFFD")
 	if !isJSONMediaType(response.Header.Get("Content-Type")) {
+		if message := strings.TrimSpace(text); message != "" {
+			result.Message = message
+		}
 		return result
 	}
+	result.Message = text
 	if err := checkJSON(body); err != nil {
 		if strings.Contains(err.Error(), "nested too deeply") {
 			result.Message = "HTTP " + strconv.Itoa(response.StatusCode) +
