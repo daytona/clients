@@ -1089,7 +1089,7 @@ jobs:
       #           this one (the same version, a resume, is fine);
       #   verify  after publishing: once this version is visible, `latest`
       #           is the highest published stable version; retried for up to
-      #           5 minutes while the registry catches up, then fails with the
+      #           30 minutes while the registry catches up, then fails with the
       #           command that restores the tag.
       NPM_LATEST_GUARD: |
         set -euo pipefail
@@ -1135,7 +1135,11 @@ jobs:
               *)   echo "::error::the npm registry answered HTTP ${code:-000} for ${pkg}"; exit 1 ;;
             esac ;;
           verify)
-            deadline=$(( $(date +%s) + 300 ))
+            # npm can hold a new version in "Validating" for well over 5 minutes.
+            # A `latest` mismatch (judge exit 1) is retried too: right after a
+            # publish the dist-tag can lag the version, so only a mismatch that
+            # outlasts the deadline is reported.
+            deadline=$(( $(date +%s) + 1800 ))
             while :; do
               rc=1 out="" code=$(fetch)
               if [ "$code" = 200 ]; then out=$(judge) && rc=0 || rc=$?; fi
@@ -1302,9 +1306,9 @@ jobs:
           URL: https://pypi.org/pypi/daytona/${{ needs.gate.outputs.upgrade_pypi }}/json
         run: |
           set -euo pipefail
-          deadline=$(( $(date +%s) + 300 )) delay=1
+          deadline=$(( $(date +%s) + 1800 )) delay=1
           until [ "$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "${URL}?nocache=$(date +%s%N)" || true)" = 200 ]; do
-            [ "$(date +%s)" -lt "$deadline" ] || { echo "::error::not visible after 5 minutes: $URL"; exit 1; }
+            [ "$(date +%s)" -lt "$deadline" ] || { echo "::error::not visible after 30 minutes: $URL"; exit 1; }
             echo "not visible yet: $URL; retrying in ${delay}s"
             sleep "$delay"; delay=$(( delay < 30 ? delay * 2 : 30 ))
           done
@@ -1341,9 +1345,9 @@ jobs:
           URL: https://registry.npmjs.org/@daytona%2fsdk/${{ needs.gate.outputs.upgrade_npm }}
         run: |
           set -euo pipefail
-          deadline=$(( $(date +%s) + 300 )) delay=1
+          deadline=$(( $(date +%s) + 1800 )) delay=1
           until [ "$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "${URL}?nocache=$(date +%s%N)" || true)" = 200 ]; do
-            [ "$(date +%s)" -lt "$deadline" ] || { echo "::error::not visible after 5 minutes: $URL"; exit 1; }
+            [ "$(date +%s)" -lt "$deadline" ] || { echo "::error::not visible after 30 minutes: $URL"; exit 1; }
             echo "not visible yet: $URL; retrying in ${delay}s"
             sleep "$delay"; delay=$(( delay < 30 ? delay * 2 : 30 ))
           done

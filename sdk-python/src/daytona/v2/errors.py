@@ -478,14 +478,6 @@ class KernelUnavailableError(ServiceUnavailableError):
     """KERNEL_UNAVAILABLE."""
 
 
-class LspServerUnavailableError(ServiceUnavailableError):
-    """LSP_SERVER_UNAVAILABLE."""
-
-
-class LspNotStartedError(ConflictError):
-    """LSP_NOT_STARTED."""
-
-
 class AddonUnavailableError(ServiceUnavailableError):
     """ADDON_UNAVAILABLE."""
 
@@ -783,8 +775,6 @@ DAEMON_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.SESSION_NOT_FOUND: SessionNotFoundError,
     codes.SESSION_ENDED: SessionEndedError,
     codes.KERNEL_UNAVAILABLE: KernelUnavailableError,
-    codes.LSP_SERVER_UNAVAILABLE: LspServerUnavailableError,
-    codes.LSP_NOT_STARTED: LspNotStartedError,
     codes.ADDON_UNAVAILABLE: AddonUnavailableError,
     codes.FILE_NOT_FOUND: FileNotFoundError,
     codes.INVALID_FILE_PATH: InvalidFilePathError,
@@ -836,10 +826,12 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.RUNNER_HAS_SANDBOXES: ConflictError,
     codes.DISK_NOT_READY: ConflictError,
     codes.ROLE_IN_USE: ConflictError,
+    codes.MEMBERSHIP_EDITS_FROZEN: ConflictError,
     codes.ECR_ACCOUNT_MISMATCH: BadRequestError,
     codes.ECR_CREDENTIALS_INVALID: BadRequestError,
     codes.ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
     codes.EMAIL_ACCESS_DENIED: ForbiddenError,
+    codes.GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
     codes.ENTITLEMENT_REQUIRED: ForbiddenError,
     codes.FEATURE_NOT_ENABLED: FeatureNotEnabledError,
     codes.INVALID_FOR_SOURCE: BadRequestError,
@@ -876,6 +868,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.IMPORTED_KEY_ALWAYS_SYNCED: ConflictError,
     codes.KEY_SYNC_NOT_APPLICABLE: ConflictError,
     codes.ORG_SUSPENDED: OrgSuspendedError,
+    codes.SANDBOX_ABUSE_HOLD: ForbiddenError,
     codes.ORIGIN_IMPORT_ONLY: OriginImportOnlyError,
     codes.PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
     codes.OVERLOADED: OverloadedError,

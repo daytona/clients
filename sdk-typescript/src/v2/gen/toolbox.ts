@@ -763,7 +763,7 @@ export interface paths {
         put?: never;
         /**
          * Upload many files
-         * @description Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
+         * @description Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. A malformed or truncated multipart body is reported as an entry in `errors`, beside the files written before it. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
          */
         post: operations["bulk_upload"];
         delete?: never;
@@ -1288,146 +1288,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/lsp/completions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Request completions
-         * @description Request `textDocument/completion` and return a `CompletionList`.
-         */
-        post: operations["lsp_completions"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/lsp/did-close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Notify LSP did-close
-         * @description Send `textDocument/didClose` to the running language server.
-         */
-        post: operations["lsp_did_close"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/lsp/did-open": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Notify LSP did-open
-         * @description Read the document from disk and send `textDocument/didOpen` to the running language server.
-         */
-        post: operations["lsp_did_open"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/lsp/document-symbols": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List document symbols
-         * @description Query `textDocument/documentSymbol` for one document and normalize the result to flat `SymbolInfo` items.
-         */
-        get: operations["lsp_document_symbols"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/lsp/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start an LSP server
-         * @description Start or reuse the language server for one `(languageId, pathToProject)` workspace.
-         */
-        post: operations["lsp_start"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/lsp/stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stop an LSP server
-         * @description Stop the language server for one `(languageId, pathToProject)` workspace.
-         */
-        post: operations["lsp_stop"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/lsp/workspacesymbols": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List workspace symbols
-         * @description Query `workspace/symbol` for one workspace and normalize the result to flat `SymbolInfo` items.
-         */
-        get: operations["lsp_workspace_symbols"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/port": {
         parameters: {
             query?: never;
@@ -1892,56 +1752,6 @@ export interface components {
              *     output rather than a later read of HEAD.
              */
             hash: string;
-        };
-        /** @description Extra context for a completion request. */
-        CompletionContext: {
-            /** @description Trigger character when the completion was opened by one; omitted otherwise. */
-            triggerCharacter?: string | null;
-            /**
-             * Format: int64
-             * @description LSP trigger kind enum value.
-             */
-            triggerKind: number;
-        };
-        /** @description Completion documentation as plain text or structured markup. */
-        CompletionDocumentation: string | components["schemas"]["MarkupContent"];
-        /** @description One normalized completion item. */
-        CompletionItem: {
-            /** @description Short detail string shown beside the label; omitted when absent. */
-            detail?: string | null;
-            documentation?: null | components["schemas"]["CompletionDocumentation"];
-            /** @description Filter key from the language server; omitted when absent. */
-            filterText?: string | null;
-            /** @description Text inserted on accept; omitted when absent. */
-            insertText?: string | null;
-            /**
-             * Format: int64
-             * @description LSP completion item kind enum value; omitted when the server left it unset.
-             */
-            kind?: number | null;
-            /** @description Human-visible completion label. */
-            label: string;
-            /** @description Sort key from the language server; omitted when absent. */
-            sortText?: string | null;
-        };
-        /** @description Normalized completion response shape. */
-        CompletionList: {
-            /** @description Whether the server considers the list incomplete and expects re-querying. */
-            isIncomplete: boolean;
-            /** @description Completion items, with non-contract keys pruned. */
-            items: components["schemas"]["CompletionItem"][];
-        };
-        /** @description Completion request body forwarded to `textDocument/completion`. */
-        CompletionRequest: {
-            context?: null | components["schemas"]["CompletionContext"];
-            /** @description The LSP language key (`python`, `typescript`). */
-            languageId: string;
-            /** @description Absolute project root path used as the server's workspace root. */
-            pathToProject: string;
-            /** @description Cursor position for which completions are requested. */
-            position: components["schemas"]["SymbolPosition"];
-            /** @description Document URI, typically a `file://` URI. */
-            uri: string;
         };
         /** @description Accessibility find request. */
         ComputerUseA11yFindRequest: {
@@ -2427,7 +2237,7 @@ export interface components {
         };
         /** @description Query parameters that change the call shape of `POST /processes`. */
         CreateProcessQuery: {
-            /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
+            /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
             logs?: string | null;
             /**
              * Format: int64
@@ -2528,15 +2338,6 @@ export interface components {
              */
             waitMs?: number | null;
         };
-        /** @description Identifies one document within a language-server workspace. */
-        DocumentRequest: {
-            /** @description The LSP language key (`python`, `typescript`). */
-            languageId: string;
-            /** @description Absolute project root path used as the server's workspace root. */
-            pathToProject: string;
-            /** @description Document URI, typically a `file://` URI. */
-            uri: string;
-        };
         /** @description Update environment variables for processes, PTYs, and sessions created after this call. */
         EnvRequest: {
             /**
@@ -2550,7 +2351,7 @@ export interface components {
             unset?: string[];
         };
         /** @description Branchable domain codes. Fixed HTTP status per code — see x-daytona-error-codes. Once published, a code is contract: it can be added to, never renamed. */
-        ErrorCode: ("PROCESS_NOT_FOUND" | "PROCESS_START_FAILED" | "PROCESS_TERMINAL" | "PROCESS_EXECUTION_TIMEOUT" | "PROCESS_KILL_INCOMPLETE" | "NAME_CONFLICT" | "INVALID_CURSOR" | "CURSOR_EXPIRED" | "STDIN_CLOSED" | "STDIN_UNAVAILABLE" | "PROTECTED_PROCESS" | "UNSUPPORTED_OPERATION" | "SESSION_NOT_FOUND" | "SESSION_ENDED" | "KERNEL_UNAVAILABLE" | "FILE_NOT_FOUND" | "INVALID_FILE_PATH" | "FILE_ACCESS_DENIED" | "FILE_READ_FAILED" | "ATOMIC_UPLOAD_UNSUPPORTED" | "GIT_AUTH_FAILED" | "GIT_REPO_NOT_FOUND" | "GIT_BRANCH_NOT_FOUND" | "GIT_BRANCH_EXISTS" | "LSP_SERVER_UNAVAILABLE" | "LSP_NOT_STARTED" | "ADDON_UNAVAILABLE" | "DESKTOP_NOT_READY") | (string & {});
+        ErrorCode: ("PROCESS_NOT_FOUND" | "PROCESS_START_FAILED" | "PROCESS_TERMINAL" | "PROCESS_EXECUTION_TIMEOUT" | "PROCESS_KILL_INCOMPLETE" | "NAME_CONFLICT" | "INVALID_CURSOR" | "CURSOR_EXPIRED" | "STDIN_CLOSED" | "STDIN_UNAVAILABLE" | "PROTECTED_PROCESS" | "UNSUPPORTED_OPERATION" | "SESSION_NOT_FOUND" | "SESSION_ENDED" | "KERNEL_UNAVAILABLE" | "FILE_NOT_FOUND" | "INVALID_FILE_PATH" | "FILE_ACCESS_DENIED" | "FILE_READ_FAILED" | "ATOMIC_UPLOAD_UNSUPPORTED" | "GIT_AUTH_FAILED" | "GIT_REPO_NOT_FOUND" | "GIT_BRANCH_NOT_FOUND" | "GIT_BRANCH_EXISTS" | "ADDON_UNAVAILABLE" | "DESKTOP_NOT_READY") | (string & {});
         /** @description Error response body for every documented 4xx/5xx response. `code` is always present; `trace_id` may be omitted. */
         ErrorEnvelope: {
             /**
@@ -2734,7 +2535,7 @@ export interface components {
             channel: string;
             /** @description Cursor naming this frame. */
             cursor: string;
-            /** @description Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). */
+            /** @description Frame payload in the requested encoding. With `text`, the bytes of a character that the next frame on the same channel completes move to that frame, so `data` can be empty. `base64` is the frame's exact bytes, standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). */
             data: string;
             /**
              * Format: int64
@@ -2746,19 +2547,12 @@ export interface components {
         LogsQuery: {
             /** @description Resume after this cursor. Empty or omitted starts from the beginning. */
             cursor?: string | null;
-            /** @description Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
+            /** @description Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
             encoding?: string | null;
             /** @description When true, answer an SSE follow stream instead of a JSON page. */
             follow?: boolean | null;
             /** @description Page size for JSON reads; clamped by the API. */
             limit?: number | null;
-        };
-        /** @description Rich-text documentation attached to a completion item. */
-        MarkupContent: {
-            /** @description Markup kind, typically `markdown` or `plaintext`. */
-            kind: string;
-            /** @description Rendered documentation body. */
-            value: string;
         };
         /** @description One literal line match from `GET /files/find`. */
         Match: {
@@ -3074,13 +2868,6 @@ export interface components {
              */
             skipped: string[];
         };
-        /** @description Identifies a language-server instance for one language and one project root. */
-        ServerRequest: {
-            /** @description The LSP language key (`python`, `typescript`). */
-            languageId: string;
-            /** @description Absolute project root path used as the server's workspace root. */
-            pathToProject: string;
-        };
         /** @description Session information returned by create, list, and get operations. */
         SessionDto: {
             /** @description Whether the interpreter session is active. */
@@ -3157,56 +2944,6 @@ export interface components {
             encoding?: string | null;
             /** @description Whether this request also closes stdin after writing. */
             eof?: boolean;
-        };
-        /** @description One document or workspace symbol. */
-        SymbolInfo: {
-            /**
-             * Format: int64
-             * @description LSP symbol kind enum value.
-             */
-            kind: number;
-            /** @description Symbol location. Hierarchical symbols without an LSP `location` are normalized to an empty URI and zero range. */
-            location: components["schemas"]["SymbolLocation"];
-            /** @description Human-visible symbol name. */
-            name: string;
-        };
-        /** @description Location of a symbol in a document. */
-        SymbolLocation: {
-            /** @description Symbol range in that document. */
-            range: components["schemas"]["SymbolRange"];
-            /** @description Document URI, typically a `file://` URI. */
-            uri: string;
-        };
-        /** @description Zero-based line/character location within a document. */
-        SymbolPosition: {
-            /**
-             * Format: int32
-             * @description Zero-based UTF-16 character offset on the line.
-             */
-            character: number;
-            /**
-             * Format: int32
-             * @description Zero-based line number.
-             */
-            line: number;
-        };
-        /** @description Half-open range within a document. */
-        SymbolRange: {
-            /** @description Range end position. */
-            end: components["schemas"]["SymbolPosition"];
-            /** @description Range start position. */
-            start: components["schemas"]["SymbolPosition"];
-        };
-        /** @description Query parameters shared by the symbol routes. */
-        SymbolsQuery: {
-            /** @description The LSP language key (`python`, `typescript`); required by both symbol routes. */
-            languageId?: string | null;
-            /** @description Absolute project root path used as the server's workspace root; required by both symbol routes. */
-            pathToProject?: string | null;
-            /** @description Workspace-symbol search string; required on `/lsp/workspacesymbols`, omitted on `/lsp/document-symbols`. */
-            query?: string | null;
-            /** @description Document URI for `/lsp/document-symbols`; omitted on `/lsp/workspacesymbols`. */
-            uri?: string | null;
         };
         /** @description Terminal dimensions for PTY processes. */
         TerminalSize: {
@@ -7218,473 +6955,6 @@ export interface operations {
             };
         };
     };
-    lsp_completions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CompletionRequest"];
-            };
-        };
-        responses: {
-            /** @description Normalized completion list. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CompletionList"];
-                };
-            };
-            /** @description `BAD_REQUEST` — malformed JSON, unsupported language, invalid request data, or the language server returned a request error. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `REQUEST_TIMEOUT` — the language server did not answer in time. */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — no matching server is running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match `CompletionRequest`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    lsp_did_close: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DocumentRequest"];
-            };
-        };
-        responses: {
-            /** @description Close notification sent. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `BAD_REQUEST` — malformed JSON or invalid request data. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `REQUEST_TIMEOUT` — the language server did not accept the notification in time. */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — no matching server is running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match `DocumentRequest`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    lsp_did_open: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DocumentRequest"];
-            };
-        };
-        responses: {
-            /** @description Open notification sent. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `BAD_REQUEST` — malformed JSON, invalid request data, or the document could not be read. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `REQUEST_TIMEOUT` — the language server did not accept the notification in time. */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — no matching server is running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match `DocumentRequest`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    lsp_document_symbols: {
-        parameters: {
-            query?: {
-                /** @description Workspace-symbol search string; required on `/lsp/workspacesymbols`, omitted on `/lsp/document-symbols`. */
-                query?: string;
-                /** @description The LSP language key (`python`, `typescript`); required by both symbol routes. */
-                languageId?: string;
-                /** @description Absolute project root path used as the server's workspace root; required by both symbol routes. */
-                pathToProject?: string;
-                /** @description Document URI for `/lsp/document-symbols`; omitted on `/lsp/workspacesymbols`. */
-                uri?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Normalized document symbols. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SymbolInfo"][];
-                };
-            };
-            /** @description `BAD_REQUEST` — required query parameters are missing, unsupported language was requested, or the language server returned a request error. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `REQUEST_TIMEOUT` — the language server did not answer in time. */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — no matching server is running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    lsp_start: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ServerRequest"];
-            };
-        };
-        responses: {
-            /** @description Server started or was already running. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `BAD_REQUEST` — malformed JSON, unsupported language, or invalid request data. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `REQUEST_TIMEOUT` — the language server did not answer during initialization. */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — the start finished after being superseded by another start. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match `ServerRequest`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_SERVER_UNAVAILABLE` — the requested language server is unavailable or could not start. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    lsp_stop: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ServerRequest"];
-            };
-        };
-        responses: {
-            /** @description Server stopped. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `BAD_REQUEST` — malformed JSON or invalid request data. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — no matching server is running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `UNPROCESSABLE_ENTITY` — the JSON body does not match `ServerRequest`. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    lsp_workspace_symbols: {
-        parameters: {
-            query?: {
-                /** @description Workspace-symbol search string; required on `/lsp/workspacesymbols`, omitted on `/lsp/document-symbols`. */
-                query?: string;
-                /** @description The LSP language key (`python`, `typescript`); required by both symbol routes. */
-                languageId?: string;
-                /** @description Absolute project root path used as the server's workspace root; required by both symbol routes. */
-                pathToProject?: string;
-                /** @description Document URI for `/lsp/document-symbols`; omitted on `/lsp/workspacesymbols`. */
-                uri?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Normalized workspace symbols. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SymbolInfo"][];
-                };
-            };
-            /** @description `BAD_REQUEST` — required query parameters are missing, unsupported language was requested, or the language server returned a request error. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `REQUEST_TIMEOUT` — the language server did not answer in time. */
-            408: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description `LSP_NOT_STARTED` — no matching server is running. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
     list_ports: {
         parameters: {
             query?: never;
@@ -7781,7 +7051,7 @@ export interface operations {
             query?: {
                 /** @description Wait up to this many milliseconds before replying; timing out still returns 201 with a running record. */
                 waitMs?: number;
-                /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
+                /** @description Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. */
                 logs?: string;
             };
             header?: never;
@@ -7978,7 +7248,7 @@ export interface operations {
                 cursor?: string;
                 /** @description Page size for JSON reads; clamped by the API. */
                 limit?: number;
-                /** @description Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
+                /** @description Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. */
                 encoding?: string;
                 /** @description When true, answer an SSE follow stream instead of a JSON page. */
                 follow?: boolean;

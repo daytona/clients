@@ -355,13 +355,6 @@ const SDK_TOOLBOX_ROUTE_ALLOWLIST = {
   'GET /info': 'No public SDK method exposes this metadata endpoint.',
   'GET /sessions/{id}': 'Session handles expose operations without a separate metadata lookup.',
   'GET /version': 'No public SDK method exposes this version endpoint.',
-  'POST /lsp/completions': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/did-close': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/did-open': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'GET /lsp/document-symbols': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/start': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'POST /lsp/stop': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
-  'GET /lsp/workspacesymbols': 'LSP was removed from the SDK; the daemon still serves it until its own removal.',
 } as const satisfies Record<string, string>
 
 const CONTRACT_ROUTE_PREFIXES = [
@@ -372,7 +365,6 @@ const CONTRACT_ROUTE_PREFIXES = [
   '/git',
   '/images',
   '/info',
-  '/lsp',
   '/mac-catalog',
   '/mac-models',
   '/port',
@@ -9270,6 +9262,15 @@ describe('typed error mapping', () => {
     expect(wrongSource).toBeInstanceOf(NotFoundError)
     expect(wrongSource).not.toBeInstanceOf(publicSdk.ProcessNotFoundError)
     expect(createDaytonaError('down', 503, 'SERVICE_UNAVAILABLE', 'DAYTONA_API')).toBeInstanceOf(ServiceUnavailableError)
+    for (const [status, code, cls] of [
+      [403, 'SANDBOX_ABUSE_HOLD', publicSdk.ForbiddenError],
+      [403, 'GPU_ACCESS_UNDER_REVIEW', publicSdk.ForbiddenError],
+      [409, 'MEMBERSHIP_EDITS_FROZEN', publicSdk.ConflictError],
+    ] as const) {
+      const err = createDaytonaError('refused', status, code, 'DAYTONA_API')
+      expect(err.constructor).toBe(cls)
+      expect(err.code).toBe(code)
+    }
     const errorOnly = createAxiosDaytonaError({ message: 'Request failed', response: { status: 400, data: { error: 'Search is unavailable' }, headers: { 'content-type': 'application/json' } }, isAxiosError: true, name: 'AxiosError', toJSON: () => ({}) } as never)
     expect(errorOnly).toMatchObject({ message: 'Search is unavailable', code: undefined })
   })

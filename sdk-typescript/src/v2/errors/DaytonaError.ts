@@ -481,8 +481,6 @@ export class UnsupportedOperationError extends BadRequestError {}
 export class SessionNotFoundError extends NotFoundError {}
 export class SessionEndedError extends GoneError {}
 export class KernelUnavailableError extends ServiceUnavailableError {}
-export class LspServerUnavailableError extends ServiceUnavailableError {}
-export class LspNotStartedError extends ConflictError {}
 export class AddonUnavailableError extends ServiceUnavailableError {}
 export class FileNotFoundError extends NotFoundError {}
 export class InvalidFilePathError extends BadRequestError {}
@@ -603,8 +601,6 @@ export const DAEMON_ERROR_CLASS: Record<DaemonErrorCode, typeof DaytonaError> = 
   SESSION_NOT_FOUND: SessionNotFoundError,
   SESSION_ENDED: SessionEndedError,
   KERNEL_UNAVAILABLE: KernelUnavailableError,
-  LSP_SERVER_UNAVAILABLE: LspServerUnavailableError,
-  LSP_NOT_STARTED: LspNotStartedError,
   ADDON_UNAVAILABLE: AddonUnavailableError,
   FILE_NOT_FOUND: FileNotFoundError,
   INVALID_FILE_PATH: InvalidFilePathError,
@@ -659,10 +655,12 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   RUNNER_HAS_SANDBOXES: ConflictError,
   DISK_NOT_READY: ConflictError,
   ROLE_IN_USE: ConflictError,
+  MEMBERSHIP_EDITS_FROZEN: ConflictError,
   ECR_ACCOUNT_MISMATCH: BadRequestError,
   ECR_CREDENTIALS_INVALID: BadRequestError,
   ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
   EMAIL_ACCESS_DENIED: ForbiddenError,
+  GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
   ENTITLEMENT_REQUIRED: ForbiddenError,
   FEATURE_NOT_ENABLED: FeatureNotEnabledError,
   INVALID_FOR_SOURCE: BadRequestError,
@@ -699,6 +697,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   IMPORTED_KEY_ALWAYS_SYNCED: ConflictError,
   KEY_SYNC_NOT_APPLICABLE: ConflictError,
   ORG_SUSPENDED: OrgSuspendedError,
+  SANDBOX_ABUSE_HOLD: ForbiddenError,
   PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
   OVERLOADED: OverloadedError,
   PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
@@ -1130,8 +1129,6 @@ for (const [key, errorClass] of [
   ['SessionNotFoundError', SessionNotFoundError],
   ['SessionEndedError', SessionEndedError],
   ['KernelUnavailableError', KernelUnavailableError],
-  ['LspServerUnavailableError', LspServerUnavailableError],
-  ['LspNotStartedError', LspNotStartedError],
   ['AddonUnavailableError', AddonUnavailableError],
   ['FileNotFoundError', FileNotFoundError],
   ['InvalidFilePathError', InvalidFilePathError],

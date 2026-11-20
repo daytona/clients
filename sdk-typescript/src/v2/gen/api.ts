@@ -2918,7 +2918,7 @@ export interface components {
          * @description Stable machine-readable error codes, returned as `ErrorBody.code`
          *     when `source` is `DAYTONA_API`.
          */
-        ApiErrorCode: ("ORG_SUSPENDED" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
+        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -2978,6 +2978,8 @@ export interface components {
             actor_key_prefix?: string | null;
             /** @description The actor type. */
             actor_kind: string;
+            /** @description The partner application that authenticated the actor, or `null`. */
+            actor_partner?: string | null;
             /**
              * Format: uuid
              * @description The actor's service account ID, or `null`.
@@ -3500,7 +3502,7 @@ export interface components {
             credit_cents: number;
             /**
              * Format: date-time
-             * @description When the granted credit expires, or `null` when it does not expire.
+             * @description When the granted credit expires, or `null` when the expiry is not known.
              */
             credit_expires_at?: string | null;
             /** @description The lowercase ISO 4217 currency code. */
@@ -5145,8 +5147,8 @@ export interface components {
         MintSandboxAccessTokenRequest: {
             /**
              * @description Requested operation subset (the sandbox-operation vocabulary:
-             *     `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`,
-             *     `desktop`, `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`).
+             *     `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `desktop`,
+             *     `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`).
              *     Omitted = the minter's full grantable set. An empty list is a valid
              *     ports-only grant. Unknown strings, and operations outside the
              *     minter's grantable set, are a 400 — never a silent narrowing.
@@ -7965,6 +7967,8 @@ export interface components {
              * @example vol_7fJk2mQpXv9dLc3RtY
              */
             id: string;
+            /** @description The source platform and resource ID when this volume was imported. */
+            imported_from?: components["schemas"]["ImportedFrom"];
             /**
              * Format: date-time
              * @description When the volume was last attached, or null when it has not been used.
@@ -8010,7 +8014,8 @@ export interface components {
              *     (repeated slashes, `.` components and a trailing slash removed) and
              *     may not be `/` or be on or beneath a system directory: `/bin`,
              *     `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`,
-             *     `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`.
+             *     `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to
+             *     or beneath another mount's `mount_path`.
              * @example /mnt/data
              */
             mount_path: string;
@@ -8018,7 +8023,8 @@ export interface components {
             read_only?: boolean | null;
             /**
              * @description Mount only this subtree: a subdirectory for a disk volume, a key prefix
-             *     under the volume's own prefix for a bucket volume.
+             *     under the volume's own prefix for a bucket volume. A relative path with
+             *     no empty or `..` segments and no control characters.
              */
             subpath?: string | null;
             /** @description The volume name or a `vol_` id. */
@@ -9166,7 +9172,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The roles the invitation grants no longer exist (`CONFLICT`) */
+            /** @description The roles the invitation grants no longer exist (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -9779,7 +9785,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`) */
+            /** @description The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -10074,6 +10080,8 @@ export interface operations {
                 start_at?: string;
                 /** @description The exclusive end of the time range */
                 end_at?: string;
+                /** @description The partner application filter */
+                actor_partner?: string;
             };
             header?: never;
             path: {
@@ -12956,7 +12964,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Removal would leave the organization without an administrator (`CONFLICT`) */
+            /** @description Removal would leave the organization without an administrator (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -13018,7 +13026,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The update would leave the organization without an administrator (`CONFLICT`) */
+            /** @description The update would leave the organization without an administrator (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
