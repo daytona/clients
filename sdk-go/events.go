@@ -30,6 +30,7 @@ func (c *Client) installSandboxEvents() {
 		Observe: func(update events.Update) stateObservation {
 			return stateObservation{
 				State: sandboxState(update.Status), RawState: update.Status, Reason: update.Reason, At: update.At,
+				NotFound: update.NotFound,
 			}
 		},
 	})}

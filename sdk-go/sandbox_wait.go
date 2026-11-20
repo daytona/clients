@@ -15,6 +15,7 @@ import (
 // A spent budget returns ErrRequestTimeout with source SDK; an incompatible
 // terminal state returns *SandboxTerminalStateError, including its raw status
 // and any reason read from the server. Unknown server states keep polling.
+// An event reporting a known sandbox's disappearance returns ErrNotFound with source SDK.
 // Events can wake the wait early; a bounded wait reserves up to five seconds
 // for authoritative API reads. Once a target event was observed, failure to
 // refresh metadata does not undo success. Caller cancellation is never hidden.

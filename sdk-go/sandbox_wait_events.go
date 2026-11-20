@@ -84,7 +84,7 @@ func (w *sandboxWait) awaitEvents(
 			if !ok {
 				return nil, false, nil
 			}
-			if w.target(event.State) || slices.Contains(w.terminal, event.State) {
+			if event.NotFound || w.target(event.State) || slices.Contains(w.terminal, event.State) {
 				return &event, true, nil
 			}
 			w.sandbox.observeWait(event)
@@ -124,7 +124,7 @@ func (w *sandboxWait) raceRead(
 			if !ok {
 				return waitRaceResult{closed: true}
 			}
-			if w.target(event.State) || slices.Contains(w.terminal, event.State) {
+			if event.NotFound || w.target(event.State) || slices.Contains(w.terminal, event.State) {
 				return waitRaceResult{event: &event}
 			}
 			w.sandbox.observeWait(event)
@@ -134,7 +134,16 @@ func (w *sandboxWait) raceRead(
 
 // A terminal event can predate this operation. Only a full read decides that
 // failure; a successful target event needs just a best-effort metadata refresh.
+// A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
+	if event.NotFound {
+		if w.missingIsDestroyed {
+			w.sandbox.observeWait(stateObservation{State: SandboxStateDestroyed, RawState: "deleted"})
+			return true, nil
+		}
+		return true, newSDKError(CodeNotFound, 404,
+			"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
+	}
 	w.sandbox.observeWait(event)
 	success := w.target(event.State)
 	if event.State == SandboxStateDestroyed || waitRemaining(w.deadline) == 0 {

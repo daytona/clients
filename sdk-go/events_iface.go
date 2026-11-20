@@ -13,6 +13,8 @@ type stateObservation struct {
 	RawState string
 	Reason   string
 	At       time.Time
+	// NotFound is a terminal disappearance, not a sandbox state observation.
+	NotFound bool
 }
 
 // watch's release is idempotent. A nil channel means no event source is

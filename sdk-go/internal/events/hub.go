@@ -13,11 +13,14 @@ import (
 	"github.com/coder/websocket"
 )
 
-// Update is a state observed on the socket, not an authoritative API read.
+// Update is a state or terminal disappearance observed on the socket.
 type Update struct {
 	Status string
 	Reason string
 	At     time.Time
+	// NotFound means a previously known sandbox is gone without a final state.
+	// Status and Reason are empty; consumers must settle without an API read.
+	NotFound bool
 }
 
 // Connection includes the retry policy of a failed ticket mint or upgrade.
@@ -39,7 +42,7 @@ type Config[T any] struct {
 }
 
 // Hub multiplexes concurrent watches onto regional sockets. Construct with New.
-// A nil or closed watch channel signals polling fallback, never a sandbox state.
+// A nil channel or closure without a terminal update signals polling fallback.
 type Hub[T any] struct {
 	mu           sync.Mutex
 	ctx          context.Context
