@@ -18,7 +18,8 @@ import (
 
 // WriteMany uploads a map of absolute paths to bytes in one request.
 // Atomic requests rename each file independently, not as a batch transaction.
-// Unsupported atomic uploads return ErrAtomicUploadUnsupported without fallback.
+// Per-file failures, including unsupported atomic replacement, appear as strings
+// in BulkWriteResult.Errors without fallback; successful files remain in Files.
 func (f *FileSystem) WriteMany(ctx context.Context, files map[string][]byte, opts *WriteManyOptions) (
 	*BulkWriteResult, error,
 ) {
