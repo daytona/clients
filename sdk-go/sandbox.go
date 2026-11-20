@@ -20,6 +20,7 @@ type Sandbox struct {
 	info               SandboxInfo
 	toolboxURL         string
 	explicitToolboxURL bool
+	fileSigningScoped  bool
 	auth               *sandboxCredential
 	toolboxClient      *toolboxClient
 }
@@ -47,6 +48,7 @@ func (c *Client) newSandbox(init sandboxInit) (*Sandbox, error) {
 	sandbox := &Sandbox{
 		client: c, id: init.Info.ID, info: cloneSandboxInfo(init.Info),
 		toolboxURL: endpoint, explicitToolboxURL: init.Options.ToolboxURL != "",
+		fileSigningScoped: fileSigningOverrideScoped(init.Options.ToolboxURL, init.Info.ID),
 	}
 	token := init.Options.AccessToken
 	if token == "" {
