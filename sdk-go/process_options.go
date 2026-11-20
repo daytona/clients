@@ -26,7 +26,7 @@ type ProcessStartOptions struct {
 	Tag string
 	// Cwd is the working directory; empty uses the sandbox default.
 	Cwd string
-	// Env adds environment variables.
+	// Env adds environment variables. Nil omits env; an empty non-nil map sends {}.
 	Env map[string]string
 	// User overrides the OS user.
 	User string
@@ -62,7 +62,7 @@ type KillProcessOptions struct {
 
 // KillAllProcessesOptions bounds how long a tag-wide kill waits.
 type KillAllProcessesOptions struct {
-	// Timeout is positive and at most 60s, rounded up to milliseconds.
+	// Timeout, when non-zero, is positive and at most 60s, rounded up to milliseconds.
 	// Zero keeps the server's 10s default; no unbounded sentinel is accepted.
 	Timeout time.Duration
 }
