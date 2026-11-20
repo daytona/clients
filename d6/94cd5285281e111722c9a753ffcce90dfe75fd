@@ -1,0 +1,21 @@
+sdk-go/transfer_download.go
+  s_1977b0a940b116::t_1c30bd816a2c12 19,49-51,72,80-83
+sdk-go/transfer_download_error_test.go
+  s_1977b0a940b116::t_72f063c619ea40 1-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d694cd5285281e111722c9a753ffcce90dfe75fd",
+  "prompts": {},
+  "sessions": {
+    "s_1977b0a940b116": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06726c30ffevYDamQ3HFduaDw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
