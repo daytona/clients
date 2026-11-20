@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ComputerUseDesktopFailureCode } from './types.js'
+import type { ComputerUseDesktopEnvironment, ComputerUseDesktopFailureCode } from './types.js'
 
 export type {
   ComputerUseActivityStatus,
+  ComputerUseDesktopEnvironment,
   ComputerUseDesktopFailureCode,
   ComputerUseDesktopState,
 } from './types.js'
@@ -35,6 +36,11 @@ export interface ComputerUseNotStartedStatus {
    * platforms and from guests that predate it.
    */
   readonly resolution?: ComputerUseResolution
+  /** Running environment, otherwise the next start's: last selected, or xfce.
+   * Linux only; absent on Windows, macOS and older guests. */
+  readonly environment?: ComputerUseDesktopEnvironment
+  /** The reported environment, including values this SDK does not recognize. */
+  readonly rawEnvironment?: string
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -48,6 +54,11 @@ export interface ComputerUseStartingStatus {
    * platforms and from guests that predate it.
    */
   readonly resolution?: ComputerUseResolution
+  /** Running environment, otherwise the next start's: last selected, or xfce.
+   * Linux only; absent on Windows, macOS and older guests. */
+  readonly environment?: ComputerUseDesktopEnvironment
+  /** The reported environment, including values this SDK does not recognize. */
+  readonly rawEnvironment?: string
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -61,6 +72,11 @@ export interface ComputerUseReadyStatus {
    * platforms and from guests that predate it.
    */
   readonly resolution?: ComputerUseResolution
+  /** Running environment, otherwise the next start's: last selected, or xfce.
+   * Linux only; absent on Windows, macOS and older guests. */
+  readonly environment?: ComputerUseDesktopEnvironment
+  /** The reported environment, including values this SDK does not recognize. */
+  readonly rawEnvironment?: string
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -74,6 +90,11 @@ export interface ComputerUseFailedStatus {
    * platforms and from guests that predate it.
    */
   readonly resolution?: ComputerUseResolution
+  /** Running environment, otherwise the next start's: last selected, or xfce.
+   * Linux only; absent on Windows, macOS and older guests. */
+  readonly environment?: ComputerUseDesktopEnvironment
+  /** The reported environment, including values this SDK does not recognize. */
+  readonly rawEnvironment?: string
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -95,6 +116,11 @@ export interface ComputerUseUnknownStatus {
    * platforms and from guests that predate it.
    */
   readonly resolution?: ComputerUseResolution
+  /** Running environment, otherwise the next start's: last selected, or xfce.
+   * Linux only; absent on Windows, macOS and older guests. */
+  readonly environment?: ComputerUseDesktopEnvironment
+  /** The reported environment, including values this SDK does not recognize. */
+  readonly rawEnvironment?: string
   readonly extraFields?: Readonly<Record<string, unknown>>
 }
 
@@ -315,6 +341,13 @@ export interface ComputerUseResolution {
 
 /** Options for `computerUse.start()` and `computerUse.restart()`. */
 export interface ComputerUseStartOptions {
+  /**
+   * Linux desktop environment, kept for later starts and restarts. Omitted:
+   * the last selected, or xfce. GNOME needs a system layer with GNOME, a
+   * successful preflight, at least 4 vCPUs and 8192 MiB. Windows and macOS
+   * refuse it. Use restart to change a running desktop's settings.
+   */
+  readonly environment?: Exclude<ComputerUseDesktopEnvironment, 'unknown'>
   /**
    * The desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts
    * and restarts. Omitted: the resolution the desktop last started at, or

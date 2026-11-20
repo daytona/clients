@@ -102,7 +102,7 @@ const A11Y_FOCUS_KEYS = optionKeys<ComputerUseA11yFocusRequest>()({ id: true })
 const A11Y_INVOKE_KEYS = optionKeys<ComputerUseA11yInvokeRequest>()({ id: true, action: true })
 const A11Y_SET_VALUE_KEYS = optionKeys<ComputerUseA11ySetValueRequest>()({ id: true, value: true })
 const RECORDING_START_KEYS = optionKeys<ComputerUseRecordingStartRequest>()({ label: true })
-const DESKTOP_START_KEYS = optionKeys<ComputerUseStartOptions>()({ resolution: true })
+const DESKTOP_START_KEYS = optionKeys<ComputerUseStartOptions>()({ resolution: true, environment: true })
 const RESOLUTION_KEYS = optionKeys<ComputerUseResolution>()({ width: true, height: true })
 
 function formatResolution(resolution: ComputerUseResolution): string {
@@ -110,15 +110,22 @@ function formatResolution(resolution: ComputerUseResolution): string {
 }
 
 /**
- * After a start or restart that asked for `requested`, reads back the size the
- * desktop runs at: the status `resolution`, or, from a guest that predates it,
- * the first display. A guest that predates resolution selection answers 2xx
- * and ignores the request, so a mismatch throws instead of reporting success.
- * A read that fails throws too: success is never reported for a resolution
- * that was not confirmed.
+ * Confirm requested settings with one status read. When status has no
+ * resolution, use the first display. Older guests can ignore the request,
+ * so an absent or different environment or a different resolution throws
+ * instead of reporting success. A failed read throws too.
  */
-async function readBackResolution(transport: ComputerUseTransport, requested: ComputerUseResolution): Promise<void> {
+async function readBackSettings(transport: ComputerUseTransport, settings: toolbox.ComputerUseStartRequest): Promise<void> {
   const status = mapComputerUseStatusResponse(await transport.get<toolbox.ComputerUseStatusResponse>('/computeruse/status'))
+  if (settings.environment !== undefined && status.environment !== settings.environment) {
+    throw new UnsupportedOperationError(
+      `desktop runs ${status.rawEnvironment || 'an unknown environment'}, not the requested ${settings.environment}; ` +
+        'the guest did not confirm environment selection',
+      { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
+    )
+  }
+  const requested = settings.resolution
+  if (requested === undefined) return
   let actual = status.resolution
   if (actual === undefined) {
     const display = mapComputerUseDisplayInfo(
@@ -137,10 +144,23 @@ async function readBackResolution(transport: ComputerUseTransport, requested: Co
 function desktopStartBody(options: ComputerUseStartOptions): toolbox.ComputerUseStartRequest | undefined {
   assertKnownOptions('ComputerUseStartOptions', options, DESKTOP_START_KEYS)
   const resolution = options.resolution
-  if (resolution === undefined) return undefined
-  assertKnownOptions('ComputerUseResolution', resolution, RESOLUTION_KEYS)
-  const { width, height } = resolution
-  return { resolution: { width, height } }
+  const environment = options.environment
+  if (resolution === undefined && environment === undefined) return undefined
+  const body: toolbox.ComputerUseStartRequest = {}
+  if (environment !== undefined) {
+    // Typed callers cannot pass anything else; refuse it before a request,
+    // as a `null` or non-object resolution is refused.
+    if (typeof environment !== 'string') {
+      throw badRequest(`ComputerUseStartOptions.environment must be a string, got ${environment === null ? 'null' : typeof environment}`)
+    }
+    body.environment = environment
+  }
+  if (resolution !== undefined) {
+    assertKnownOptions('ComputerUseResolution', resolution, RESOLUTION_KEYS)
+    const { width, height } = resolution
+    body.resolution = { width, height }
+  }
+  return body
 }
 const RECORDING_STOP_KEYS = optionKeys<ComputerUseRecordingStopRequest>()({ id: true })
 
@@ -428,6 +448,12 @@ export class ComputerUseLifecycleService {
     this.transport = transport
   }
 
+  /**
+   * Read desktop state, resolution and environment. Linux reports the running
+   * environment, otherwise the next start's: last selected, or xfce. Settings
+   * are absent on Windows and macOS and may be absent on older guests.
+   * Unknown environments retain their rawEnvironment.
+   */
   public async status(): Promise<ComputerUseStatusResponse> {
     return mapComputerUseStatusResponse(
       await this.transport.get<toolbox.ComputerUseStatusResponse>('/computeruse/status'),
@@ -435,17 +461,22 @@ export class ComputerUseLifecycleService {
   }
 
   /**
-   * Start the desktop. `resolution` selects its size and is kept for later
-   * starts and restarts; starting a running desktop at a different resolution
-   * throws `ConflictError` (restart with it instead). Linux sandboxes only:
-   * other platforms throw for a `resolution`.
+   * Start with optional `resolution` and `environment` (xfce or gnome), kept
+   * for later starts. Omitted fields reuse the last selection, defaulting to
+   * 1280x720 and xfce. Starting a running desktop with different settings
+   * throws `ConflictError`; use restart instead. GNOME needs a system layer
+   * with GNOME, a successful preflight, at least 4 vCPUs and 8192 MiB.
+   * Unsupported settings or insufficient resources throw `BadRequestError`.
+   * Windows and macOS refuse either setting with `UnsupportedOperationError`,
+   * as does a system layer without GNOME when it is requested. Either setting
+   * adds one shared status read (see `ComputerUseService.start()`).
    */
   public async start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse> {
     const body = desktopStartBody(options)
     const started = mapComputerUseLifecycleResponse(
       await this.transport.post<toolbox.ComputerUseLifecycleResponse>('/computeruse/start', body),
     )
-    if (body?.resolution !== undefined) await readBackResolution(this.transport, body.resolution)
+    if (body !== undefined) await readBackSettings(this.transport, body)
     return started
   }
 
@@ -456,15 +487,22 @@ export class ComputerUseLifecycleService {
   }
 
   /**
-   * Restart the desktop, at `resolution` when given (kept for later starts);
-   * omitted, at its current resolution. Linux sandboxes only for `resolution`.
+   * Restart with optional `resolution` and `environment` (xfce or gnome), kept
+   * for later starts. Omitted fields reuse the last selection, defaulting to
+   * 1280x720 and xfce. Use this instead of start to change a running desktop's
+   * settings. GNOME needs a system layer with GNOME, a successful preflight,
+   * at least 4 vCPUs and 8192 MiB. Unsupported settings or insufficient
+   * resources throw `BadRequestError`. Windows and macOS refuse either
+   * setting with `UnsupportedOperationError`, as does a system layer without
+   * GNOME when it is requested. A concurrent restart with different settings
+   * throws `ConflictError`. Either setting adds one shared status read.
    */
   public async restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse> {
     const body = desktopStartBody(options)
     const restarted = mapComputerUseRestartResponse(
       await this.transport.post<toolbox.ComputerUseRestartResponse>('/computeruse/restart', body),
     )
-    if (body?.resolution !== undefined) await readBackResolution(this.transport, body.resolution)
+    if (body !== undefined) await readBackSettings(this.transport, body)
     return restarted
   }
 }

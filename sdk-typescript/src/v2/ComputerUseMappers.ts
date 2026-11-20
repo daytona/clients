@@ -4,7 +4,7 @@
  */
 
 import { BadRequestError } from './errors/DaytonaError.js'
-import { COMPUTER_USE_DESKTOP_FAILURE_CODES } from './types.js'
+import { COMPUTER_USE_DESKTOP_ENVIRONMENTS, COMPUTER_USE_DESKTOP_FAILURE_CODES } from './types.js'
 import type {
   ComputerUseA11yFindResponse,
   ComputerUseA11yTreeResponse,
@@ -129,14 +129,21 @@ export function mapComputerUseStatusResponse(
 ): ComputerUseStatusResponse {
   if (!isPlainObject(response)) throw invalid(INVALID_STATUS_RESPONSE, 'the body must be an object')
 
-  const { status, desktop, cause, resolution, ...extraFields } = response
+  const { status, desktop, cause, resolution, environment, ...extraFields } = response
 
   if (typeof status !== 'string') throw invalid(INVALID_STATUS_RESPONSE, 'status must be a string')
   if (typeof desktop !== 'string') throw invalid(INVALID_STATUS_RESPONSE, 'desktop must be a string')
+  if (environment !== undefined && environment !== null && typeof environment !== 'string') {
+    throw invalid(INVALID_STATUS_RESPONSE, 'environment must be null or a string')
+  }
 
   const mappedCause = mapWireCause(cause)
   const mappedResolution = mapWireResolution(resolution)
-  const extras: Mutable<Pick<ComputerUseReadyStatus, 'resolution' | 'extraFields'>> = {}
+  const extras: Mutable<Pick<ComputerUseReadyStatus, 'resolution' | 'environment' | 'rawEnvironment' | 'extraFields'>> = {}
+  if (environment !== undefined && environment !== null) {
+    extras.environment = knownOrUnknown(environment, COMPUTER_USE_DESKTOP_ENVIRONMENTS)
+    extras.rawEnvironment = environment
+  }
   if (mappedResolution !== undefined) extras.resolution = mappedResolution
   if (Object.keys(extraFields).length > 0) extras.extraFields = extraFields
 

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from . import _codes as codes
 from ._core import RequestSpec, TransportPayload
 from ._transport import AsyncTransport
@@ -33,10 +35,15 @@ from .errors import UnsupportedOperationError
 from .types import JsonValue
 
 
-def _start_body(resolution: ComputerUseResolution | None) -> JsonValue:
-    if resolution is None:
-        return None
-    return {"resolution": {"width": resolution.width, "height": resolution.height}}
+def _start_body(
+    resolution: ComputerUseResolution | None, environment: Literal["xfce", "gnome"] | None
+) -> JsonValue:
+    body: dict[str, JsonValue] = {}
+    if resolution is not None:
+        body["resolution"] = {"width": resolution.width, "height": resolution.height}
+    if environment is not None:
+        body["environment"] = environment
+    return body or None
 
 
 def _format_resolution(resolution: ComputerUseResolution) -> str:
@@ -55,30 +62,50 @@ class AsyncComputerUseService:
         self.recording = AsyncRecordingService(_transport)
 
     async def status(self) -> ComputerUseStatusResponse:
+        """Read the desktop state, resolution and environment. On Linux,
+        environment is the running desktop's, otherwise the next start's:
+        the last selected, or xfce. Settings are absent on Windows and macOS
+        and may be absent on older guests. Unknown environments retain their
+        raw_environment.
+        """
         return parse_computer_use_status(await self._send(RequestSpec("GET", "/computeruse/status")))
 
-    async def start(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseLifecycleResult:
+    async def start(
+        self,
+        *,
+        resolution: ComputerUseResolution | None = None,
+        environment: Literal["xfce", "gnome"] | None = None,
+    ) -> ComputerUseLifecycleResult:
         """Start the desktop.
 
         ``resolution`` selects its size (1024x768, 1280x720 or 1920x1080) and is
         kept for later starts and restarts. Omitted, the desktop uses the
-        resolution it last started at, or 1280x720. Starting a running desktop at
-        a different resolution raises ``ConflictError``; call ``restart`` with
-        the new resolution instead. Linux sandboxes only: other platforms raise
-        ``UnsupportedOperationError`` for a ``resolution``. With a
-        ``resolution``, the SDK reads back the size the desktop runs at and
-        raises ``UnsupportedOperationError`` when it differs: a guest that
-        predates resolution selection ignores it, and the desktop keeps running
-        at its own. If that read itself fails, its error is raised although the
-        start took effect; starting again at the same resolution is a no-op.
+        resolution it last started at, or 1280x720. ``environment`` selects
+        xfce or gnome, kept for later starts; omitted, the last selected, or
+        xfce. GNOME needs a system layer with GNOME, a successful preflight,
+        at least 4 vCPUs and 8192 MiB. Unsupported settings or insufficient
+        resources raise ``BadRequestError``. Starting a running desktop with
+        different settings raises ``ConflictError``; use ``restart`` instead.
+        Windows and macOS refuse either setting with ``UnsupportedOperationError``,
+        as does a system layer without GNOME when it is requested. With either
+        setting, the SDK reads status once and raises ``UnsupportedOperationError``
+        if the environment is absent or differs, or the resolution differs
+        (falling back to display info when status has no resolution). A guest
+        with resolution selection but without environment selection refuses
+        ``environment`` with 422 ``UnprocessableEntityError``; older guests
+        ignore the body and start XFCE. If a read fails, its error is raised
+        although the start took effect; starting again with the same settings
+        is a no-op.
         """
         started = parse_computer_use_lifecycle(
             expect_computer_use_lifecycle_response(
-                await self._send(RequestSpec("POST", "/computeruse/start", json_body=_start_body(resolution)))
+                await self._send(
+                    RequestSpec("POST", "/computeruse/start", json_body=_start_body(resolution, environment))
+                )
             )
         )
-        if resolution is not None:
-            await self._read_back_resolution(resolution)
+        if resolution is not None or environment is not None:
+            await self._read_back_settings(resolution, environment)
         return started
 
     async def stop(self) -> ComputerUseLifecycleResult:
@@ -86,28 +113,52 @@ class AsyncComputerUseService:
             expect_computer_use_lifecycle_response(await self._send(RequestSpec("POST", "/computeruse/stop")))
         )
 
-    async def restart(self, *, resolution: ComputerUseResolution | None = None) -> ComputerUseRestartResponse:
-        """Restart the desktop, at ``resolution`` when given (kept for later
-        starts). Omitted, it restarts at its current resolution. Linux sandboxes
-        only: other platforms raise ``UnsupportedOperationError`` for a
-        ``resolution``. With a ``resolution``, the SDK reads it back as
-        ``start`` does.
+    async def restart(
+        self,
+        *,
+        resolution: ComputerUseResolution | None = None,
+        environment: Literal["xfce", "gnome"] | None = None,
+    ) -> ComputerUseRestartResponse:
+        """Restart with optional ``resolution`` and ``environment`` (xfce or
+        gnome), kept for later starts. Omitted fields reuse the last selection,
+        defaulting to 1280x720 and xfce. Use this instead of ``start`` to change
+        a running desktop's settings. GNOME needs a system layer with GNOME,
+        a successful preflight, at least 4 vCPUs and 8192 MiB; insufficient
+        resources or unsupported settings raise ``BadRequestError``.
+        Windows and macOS refuse either setting with ``UnsupportedOperationError``,
+        as does a system layer without GNOME when it is requested. A concurrent
+        restart with different settings raises ``ConflictError``. With either
+        setting, the SDK confirms it as ``start`` does, sharing one status read.
         """
         restarted = parse_computer_use_restart(
-            await self._send(RequestSpec("POST", "/computeruse/restart", json_body=_start_body(resolution)))
+            await self._send(
+                RequestSpec("POST", "/computeruse/restart", json_body=_start_body(resolution, environment))
+            )
         )
-        if resolution is not None:
-            await self._read_back_resolution(resolution)
+        if resolution is not None or environment is not None:
+            await self._read_back_settings(resolution, environment)
         return restarted
 
-    async def _read_back_resolution(self, requested: ComputerUseResolution) -> None:
-        """After a start or restart that asked for ``requested``, read back the
-        size the desktop runs at: the status ``resolution``, or, from a guest
-        that predates it, the first display. A guest that predates resolution
-        selection answers 2xx and ignores the request, so a mismatch raises
-        instead of reporting success. A read that fails raises too: success is
-        never reported for a resolution that was not confirmed."""
-        actual = (await self.status()).resolution
+    async def _read_back_settings(
+        self, requested: ComputerUseResolution | None, environment: Literal["xfce", "gnome"] | None
+    ) -> None:
+        """Confirm requested settings with one status read. When status has no
+        resolution, use the first display. Older guests can ignore the request,
+        so an absent or different environment or a different resolution raises
+        instead of reporting success. A failed read raises too."""
+        status = await self.status()
+        if environment is not None and status.environment != environment:
+            runs_environment = status.raw_environment or "an unknown environment"
+            raise UnsupportedOperationError(
+                f"desktop runs {runs_environment}, not the requested {environment}; "
+                "the guest did not confirm environment selection",
+                status_code=400,
+                code=codes.UNSUPPORTED_OPERATION,
+                source="SDK",
+            )
+        if requested is None:
+            return
+        actual = status.resolution
         if actual is None:
             displays = parse_computer_use_displays(
                 expect_computer_use_display_info_response(

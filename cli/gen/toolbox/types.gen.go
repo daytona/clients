@@ -27,6 +27,24 @@ func (e ComputerUseActivityStatus) Valid() bool {
 	}
 }
 
+// Defines values for ComputerUseDesktopEnvironment.
+const (
+	Gnome ComputerUseDesktopEnvironment = "gnome"
+	Xfce  ComputerUseDesktopEnvironment = "xfce"
+)
+
+// Valid indicates whether the value is a known member of the ComputerUseDesktopEnvironment enum.
+func (e ComputerUseDesktopEnvironment) Valid() bool {
+	switch e {
+	case Gnome:
+		return true
+	case Xfce:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ComputerUseDesktopFailureCode.
 const (
 	AddonCrashed           ComputerUseDesktopFailureCode = "addon_crashed"
@@ -604,6 +622,9 @@ type ComputerUseAccessibilityNode struct {
 // ComputerUseActivityStatus Activity status: `active` when the desktop is ready, otherwise `inactive`.
 type ComputerUseActivityStatus string
 
+// ComputerUseDesktopEnvironment The Linux desktop environment.
+type ComputerUseDesktopEnvironment string
+
 // ComputerUseDesktopFailure The failure attached to a `failed` desktop state.
 type ComputerUseDesktopFailure struct {
 	// Code The stable failure code callers branch on.
@@ -892,7 +913,8 @@ type ComputerUseScrollResponse struct {
 
 // ComputerUseStartRequest The optional body of `POST /computeruse/start` and `/restart`.
 type ComputerUseStartRequest struct {
-	Resolution *ComputerUseResolution `json:"resolution,omitempty"`
+	Environment *ComputerUseDesktopEnvironment `json:"environment,omitempty"`
+	Resolution  *ComputerUseResolution         `json:"resolution,omitempty"`
 }
 
 // ComputerUseStatusResponse The public desktop status surface.
@@ -900,8 +922,9 @@ type ComputerUseStatusResponse struct {
 	Cause *ComputerUseDesktopFailure `json:"cause,omitempty"`
 
 	// Desktop The current desktop state.
-	Desktop    ComputerUseDesktopState `json:"desktop"`
-	Resolution *ComputerUseResolution  `json:"resolution,omitempty"`
+	Desktop     ComputerUseDesktopState        `json:"desktop"`
+	Environment *ComputerUseDesktopEnvironment `json:"environment,omitempty"`
+	Resolution  *ComputerUseResolution         `json:"resolution,omitempty"`
 
 	// Status Activity status corresponding to `desktop`.
 	Status ComputerUseActivityStatus `json:"status"`

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, get_args
+from typing import Any, Literal, get_args
 
 import httpx
 import pytest
@@ -16,9 +16,11 @@ from daytona.v2._transport import AsyncTransport, SyncTransport
 from daytona.v2.computer_use import AsyncComputerUseService
 from daytona.v2.computer_use_types import (
     ComputerUseActivityStatus,
+    ComputerUseDesktopEnvironment,
     ComputerUseDesktopFailureCode,
     ComputerUseDesktopState,
 )
+from daytona.v2.types import JsonValue
 
 _STATUS_CASES = (
     ({"status": "inactive", "desktop": "not_started"}, "inactive", "not_started", None),
@@ -237,6 +239,92 @@ class _Script:
 
 _STARTED = {"message": "computer use started", "status": {}}
 _RESTARTED = {"message": "computer use restarted", "status": "active", "desktop": "ready"}
+
+
+@pytest.mark.parametrize("verb", ["start", "restart"])
+@pytest.mark.parametrize("environment", [None, "xfce", "gnome"])
+@pytest.mark.parametrize("with_resolution", [False, True])
+@pytest.mark.anyio
+async def test_environment_is_sent_only_when_given_with_one_shared_read_back(
+    verb: str, environment: Literal["xfce", "gnome"] | None, with_resolution: bool
+) -> None:
+    from daytona.v2 import ComputerUseResolution
+
+    # Given a lifecycle response and a status confirming the requested settings.
+    body: dict[str, JsonValue] = {}
+    reads: list[dict[str, JsonValue]] = []
+    if environment is not None:
+        body["environment"] = environment
+    if with_resolution:
+        body["resolution"] = {"width": 1920, "height": 1080}
+    if body:
+        reads = [{"status": "active", "desktop": "ready", **body}]
+    transport = _Script(_STARTED if verb == "start" else _RESTARTED, *reads)
+    service = AsyncComputerUseService(transport)  # type: ignore[arg-type]
+
+    # When starting or restarting with the selected options.
+    await getattr(service, verb)(
+        environment=environment,
+        resolution=ComputerUseResolution(width=1920, height=1080) if with_resolution else None,
+    )
+
+    # Then either setting adds exactly one shared status read.
+    assert [(spec.path, spec.json_body) for spec in transport.specs] == [
+        (f"/computeruse/{verb}", body or None),
+        *([("/computeruse/status", None)] if body else []),
+    ]
+
+
+@pytest.mark.parametrize(
+    "payload", [case[0] for case in _STATUS_CASES] + [{"status": "paused", "desktop": "parked"}]
+)
+@pytest.mark.parametrize(
+    ("wire", "expected"), [("xfce", "xfce"), ("gnome", "gnome"), ("future-desktop", "unknown"), (None, None)]
+)
+def test_status_environment_is_normalized_when_reported(
+    payload: dict[str, JsonValue], wire: str | None, expected: str | None
+) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_status
+
+    # Given a desktop status with an explicit environment and an unrelated field.
+    response = {**payload, "environment": wire, "future": 1}
+
+    # When parsing the status.
+    status = parse_computer_use_status(response)
+
+    # Then environment is typed separately from future response fields.
+    assert (status.environment, status.raw_environment, status.extra_fields) == (
+        expected,
+        wire,
+        {"future": 1},
+    )
+
+
+@pytest.mark.parametrize(
+    "payload", [case[0] for case in _STATUS_CASES] + [{"status": "paused", "desktop": "parked"}]
+)
+def test_status_environment_is_not_reported_when_absent(payload: dict[str, JsonValue]) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_status
+
+    # Given a guest status without environment.
+    # When parsing the status.
+    status = parse_computer_use_status(payload)
+
+    # Then neither a normalized nor a raw environment is invented.
+    assert (status.environment, status.raw_environment) == (None, None)
+
+
+@pytest.mark.parametrize("environment", [42, True, [], {}])
+def test_status_names_environment_when_malformed(environment: JsonValue) -> None:
+    from daytona.v2.computer_use_core import parse_computer_use_status
+    from daytona.v2.errors import BadRequestError
+
+    # Given an environment that is not a string or null.
+    payload = {"status": "active", "desktop": "ready", "environment": environment}
+
+    # When parsing the status, then the protocol error names the field.
+    with pytest.raises(BadRequestError, match="environment must be null or a string"):
+        parse_computer_use_status(payload)
 
 
 @pytest.mark.anyio
@@ -619,11 +707,13 @@ def test_desktop_vocabulary_matches_contract() -> None:
     schemas = json.loads(contract.read_text())["components"]["schemas"]
     activity_statuses = schemas["ComputerUseActivityStatus"]["enum"]
     states = schemas["ComputerUseDesktopState"]["enum"]
+    environments = schemas["ComputerUseDesktopEnvironment"]["enum"]
     failure_codes = schemas["ComputerUseDesktopFailureCode"]["enum"]
 
     assert set(get_args(ComputerUseActivityStatus)) == set(activity_statuses) | {"unknown"}
     assert set(activity_statuses) == {"active", "inactive"}
     assert set(get_args(ComputerUseDesktopState)) == set(states) | {"unknown"}
+    assert set(get_args(ComputerUseDesktopEnvironment)) == set(environments) | {"unknown"}
     assert set(states) == {"not_started", "starting", "ready", "failed"}
     assert set(failure_codes) == {
         value for value in get_args(ComputerUseDesktopFailureCode) if value != "unknown"

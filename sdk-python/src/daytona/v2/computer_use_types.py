@@ -20,6 +20,24 @@ ComputerUseA11yNameMatch = Literal["exact", "substring", "regex"]
 # not recognize; the wire values are kept on ComputerUseUnknownStatus.
 ComputerUseActivityStatus = Literal["active", "inactive", "unknown"]
 ComputerUseDesktopState = Literal["not_started", "starting", "ready", "failed", "unknown"]
+ComputerUseDesktopEnvironment = Literal["xfce", "gnome", "unknown"]
+_COMPUTER_USE_DESKTOP_ENVIRONMENT_VALUES = tuple(
+    str(member.value)
+    for member in _gen.toolbox.ComputerUseDesktopEnvironment
+    if member.name != "UNKNOWN_DEFAULT_OPEN_API"
+)
+
+
+def _is_computer_use_desktop_environment_known(value: str) -> TypeGuard[Literal["xfce", "gnome"]]:
+    return value in _COMPUTER_USE_DESKTOP_ENVIRONMENT_VALUES
+
+
+def _computer_use_desktop_environment_or_unknown(value: str) -> ComputerUseDesktopEnvironment:
+    if _is_computer_use_desktop_environment_known(value):
+        return value
+    return "unknown"
+
+
 ComputerUseDesktopFailureCode = Literal[
     "desktop_exited",
     "addon_crashed",
@@ -78,6 +96,10 @@ class ComputerUseNotStartedStatus:
     # the next plain start or restart uses. Linux sandboxes only; None on other
     # platforms and from guests that predate it.
     resolution: Optional[ComputerUseResolution] = None
+    # Running environment, otherwise the next start's: last selected, or xfce.
+    # Linux only; None on Windows, macOS and older guests.
+    environment: Optional[ComputerUseDesktopEnvironment] = None
+    raw_environment: Optional[str] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -90,6 +112,10 @@ class ComputerUseStartingStatus:
     # the next plain start or restart uses. Linux sandboxes only; None on other
     # platforms and from guests that predate it.
     resolution: Optional[ComputerUseResolution] = None
+    # Running environment, otherwise the next start's: last selected, or xfce.
+    # Linux only; None on Windows, macOS and older guests.
+    environment: Optional[ComputerUseDesktopEnvironment] = None
+    raw_environment: Optional[str] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -102,6 +128,10 @@ class ComputerUseReadyStatus:
     # the next plain start or restart uses. Linux sandboxes only; None on other
     # platforms and from guests that predate it.
     resolution: Optional[ComputerUseResolution] = None
+    # Running environment, otherwise the next start's: last selected, or xfce.
+    # Linux only; None on Windows, macOS and older guests.
+    environment: Optional[ComputerUseDesktopEnvironment] = None
+    raw_environment: Optional[str] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -114,6 +144,10 @@ class ComputerUseFailedStatus:
     # the next plain start or restart uses. Linux sandboxes only; None on other
     # platforms and from guests that predate it.
     resolution: Optional[ComputerUseResolution] = None
+    # Running environment, otherwise the next start's: last selected, or xfce.
+    # Linux only; None on Windows, macOS and older guests.
+    environment: Optional[ComputerUseDesktopEnvironment] = None
+    raw_environment: Optional[str] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -134,6 +168,10 @@ class ComputerUseUnknownStatus:
     # the next plain start or restart uses. Linux sandboxes only; None on other
     # platforms and from guests that predate it.
     resolution: Optional[ComputerUseResolution] = None
+    # Running environment, otherwise the next start's: last selected, or xfce.
+    # Linux only; None on Windows, macOS and older guests.
+    environment: Optional[ComputerUseDesktopEnvironment] = None
+    raw_environment: Optional[str] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
