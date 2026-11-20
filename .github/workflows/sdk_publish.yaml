@@ -1089,7 +1089,7 @@ jobs:
       #           this one (the same version, a resume, is fine);
       #   verify  after publishing: once this version is visible, `latest`
       #           is the highest published stable version; retried for up to
-      #           5 minutes while the registry catches up, then fails with the
+      #           30 minutes while the registry catches up, then fails with the
       #           command that restores the tag.
       NPM_LATEST_GUARD: |
         set -euo pipefail
