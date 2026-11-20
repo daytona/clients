@@ -568,7 +568,7 @@ class TestSandboxWaitScopedSubscriptions:
         assert mock_sandbox_api.get_sandbox.call_count == refreshes[0]
         manager.unsubscribe.assert_called_once_with("sub-1")
 
-    def test_slim_state_event_only_applies_the_state(self, mock_toolbox_api_client, mock_sandbox_api):
+    def test_state_event_applies_the_state_and_its_error_reason(self, mock_toolbox_api_client, mock_sandbox_api):
         sandbox = _make_with_manager(
             make_sandbox_dto(state=SandboxState.STARTING),
             mock_toolbox_api_client,
@@ -586,8 +586,8 @@ class TestSandboxWaitScopedSubscriptions:
         )
 
         assert sandbox.state == SandboxState.ERROR
-        assert sandbox.error_reason is None
-        assert sandbox.cpu == 4
+        assert sandbox.error_reason == "boom"
+        assert sandbox.cpu == 4  # other payload fields are ignored
 
     def test_concurrent_waits_hold_independent_subscriptions(
         self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
@@ -834,12 +834,15 @@ def _state_event(state: str) -> dict[str, object]:
     return {"sandbox": {"id": "test-sandbox-id", "state": state}, "newState": state}
 
 
-def _deliver_once_waiting(manager: MagicMock, state: str) -> threading.Thread:
-    """Sends a state event from another thread, as the dispatcher does, once the wait polls."""
+def _deliver_once_waiting(manager: MagicMock, state: str, event: dict[str, object] | None = None) -> threading.Thread:
+    """Sends a state event from another thread, as the dispatcher does, once the wait is in its poll loop.
+
+    An operation's wait renews its subscription once when it starts and once per loop iteration.
+    """
 
     def deliver() -> None:
-        if _wait_until(lambda: manager.refresh.called):
-            manager.subscribe.call_args.args[1]("sandbox.state.updated", _state_event(state))
+        if _wait_until(lambda: manager.refresh.call_count >= 2):
+            manager.subscribe.call_args.args[1]("sandbox.state.updated", event or _state_event(state))
 
     sender = threading.Thread(target=deliver)
     sender.start()
@@ -1437,7 +1440,8 @@ class TestSandboxFallbackBackoffAndRateLimits:
 
         sandbox.wait_for_sandbox_start(timeout=0)
 
-        assert [i for i, _ in poll_intervals] == pytest.approx([1.0, 3.0])
+        # Retry-After decides, with upward jitter only (x1.1 at the stubbed midpoint).
+        assert [i for i, _ in poll_intervals] == pytest.approx([1.0, 3.3])
         assert sandbox.state == SandboxState.STARTED
 
     def test_rate_limited_poll_without_retry_after_waits_the_current_interval(
@@ -1465,8 +1469,8 @@ class TestSandboxFallbackBackoffAndRateLimits:
 
         sandbox.wait_for_sandbox_start(timeout=0)
 
-        # The rate limit also advanced the backoff: max(1.5 s, Retry-After 2 s).
-        assert [i for i, _ in poll_intervals] == pytest.approx([2.0])
+        # max(1 s fallback backoff, Retry-After 2 s), Retry-After with upward jitter (x1.1).
+        assert [i for i, _ in poll_intervals] == pytest.approx([2.2])
 
     def test_server_error_during_a_poll_still_fails_the_wait(
         self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
@@ -1486,3 +1490,136 @@ class TestSandboxFallbackBackoffAndRateLimits:
 
         # The poll's error, then the final read of the error path, as before.
         assert mock_sandbox_api.get_sandbox.call_count == 3
+
+
+class TestSandboxReviewRound9:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @staticmethod
+    def _record_wakes(monkeypatch) -> list[tuple[float, bool]]:
+        """Records each wait between polls as (interval, woken early) without sleeping."""
+        from daytona._sync import sandbox as sandbox_module
+
+        waits: list[tuple[float, bool]] = []
+
+        class RecordingEvent(threading.Event):
+            def wait(self, timeout: float | None = None) -> bool:
+                if timeout is None:
+                    return super().wait()
+                woken = super().wait(0)
+                waits.append((timeout, woken))
+                return woken
+
+        class RecordingThreading:
+            Event = RecordingEvent
+
+            def __getattr__(self, name: str):
+                return getattr(threading, name)
+
+        monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+        return waits
+
+    def test_rejection_during_a_read_runs_one_more_read_right_after_it(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        from daytona.internal.event_dispatcher import SUBSCRIPTION_REJECTED_EVENT
+
+        waits = self._record_wakes(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api, manager
+        )
+        reads = 0
+        in_flight = 0
+        max_in_flight = 0
+        guard = threading.Lock()
+
+        def get_sandbox(*_args, **_kwargs):
+            nonlocal reads, in_flight, max_in_flight
+            with guard:
+                reads += 1
+                in_flight += 1
+                max_in_flight = max(max_in_flight, in_flight)
+                current = reads
+            if current == 2:
+                # The server rejects the subscription on the socket's thread while this read is in flight.
+                manager.dispatcher.is_connected = False
+                rejecter = threading.Thread(
+                    target=sandbox._handle_event, args=(SUBSCRIPTION_REJECTED_EVENT, {"error": "OVERLOADED"})
+                )
+                rejecter.start()
+                rejecter.join()
+            with guard:
+                in_flight -= 1
+            return make_sandbox_dto(state=SandboxState.STARTED if current == 4 else SandboxState.STARTING)
+
+        mock_sandbox_api.get_sandbox.side_effect = get_sandbox
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        # 5 s event-backed wait; the wake recorded during read 2 runs read 3 at once; then the fallback.
+        assert waits == [(pytest.approx(5.0), False), (pytest.approx(1.0), True), (pytest.approx(1.5), False)]
+        assert reads == 4 and max_in_flight == 1
+
+    def test_repeated_rate_limits_back_off_without_a_subscription(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [_rate_limited()] * 3 + [
+            make_sandbox_dto(state=SandboxState.STARTING),
+            make_sandbox_dto(state=SandboxState.STARTED),
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        # 1, 1.5, 2.25 s after each rate limit, then the fast cadence again once a read succeeds.
+        assert [i for i, _ in poll_intervals] == pytest.approx([1.0, 1.5, 2.25, 0.1])
+
+    def test_expired_operation_subscription_is_retaken_and_the_wait_reads_first(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        manager.refresh.side_effect = lambda sub_id: sub_id != "sub-1"  # expired during the request
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPING)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPED)
+
+        sandbox.stop(timeout=0)
+
+        assert manager.subscribe.call_count == 2
+        mock_sandbox_api.get_sandbox.assert_called_once()
+        assert poll_intervals == []  # resolved by the immediate read
+        assert sorted(c.args[0] for c in manager.unsubscribe.call_args_list) == ["sub-1", "sub-2"]
+
+    def test_error_event_with_a_reason_ends_the_wait_with_it(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPING)
+        event = {
+            "sandbox": {"id": "test-sandbox-id", "state": "error", "errorReason": "disk full"},
+            "newState": "error",
+        }
+
+        sender = _deliver_once_waiting(manager, "error", event)
+        with pytest.raises(DaytonaError, match="error reason: disk full"):
+            sandbox.stop(timeout=5)
+        sender.join(timeout=5)
+
+        mock_sandbox_api.get_sandbox.assert_not_called()
+
+    def test_error_event_without_a_reason_reads_it_before_failing(self, mock_toolbox_api_client, mock_sandbox_api):
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.STOPPING)
+        mock_sandbox_api.get_sandbox.return_value = make_sandbox_dto(state=SandboxState.ERROR, error_reason="disk full")
+
+        sender = _deliver_once_waiting(manager, "error")  # a slim event: no errorReason
+        with pytest.raises(DaytonaError, match="entered error state: .*, error reason: disk full"):
+            sandbox.stop(timeout=5)
+        sender.join(timeout=5)
+
+        mock_sandbox_api.get_sandbox.assert_called_once()

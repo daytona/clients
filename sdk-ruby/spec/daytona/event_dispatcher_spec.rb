@@ -266,6 +266,19 @@ RSpec.describe Daytona::EventDispatcher do
       expect(dispatcher.event_backed?('sandbox-b')).to be(true)
     end
 
+    it 'ignores a late rejection of a subscribe made before the id was released and subscribed again' do
+      release = subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
+      release.call
+      dispatcher.subscribe('sandbox-a', events:, &recording('sandbox-a'))
+      expect(wait_until { emitted.size == 3 }).to be(true)
+      expect(emitted.map(&:first)).to eq(%w[subscribe unsubscribe subscribe])
+
+      clients.last.acknowledge(0, overloaded)
+
+      expect(notices).to be_empty
+      expect(dispatcher.event_backed?('sandbox-a')).to be(true)
+    end
+
     it 'ignores a rejection from an earlier connection' do
       subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
       first_client = clients.first

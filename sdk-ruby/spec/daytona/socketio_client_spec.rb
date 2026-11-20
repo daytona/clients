@@ -61,6 +61,22 @@ RSpec.describe Daytona::SocketIOClient do
     end
   end
 
+  describe 'server-initiated close' do
+    it 'reports the disconnect for an Engine.IO close, once' do
+      disconnects = 0
+      closing = described_class.new(api_url: 'https://api.example.com/api', token: 'token',
+                                    on_disconnect: -> { disconnects += 1 })
+      closing.instance_variable_set(:@tls_verified, true)
+      closing.instance_variable_set(:@connected, true)
+
+      closing.send(:handle_raw_message, '1', nil)
+      closing.send(:handle_raw_message, '1', nil)
+
+      expect(disconnects).to eq(1)
+      expect(closing.connected?).to be(false)
+    end
+  end
+
   describe '#emit_with_ack' do
     let(:acks) { [] }
 

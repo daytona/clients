@@ -176,6 +176,8 @@ class AsyncSandbox(SandboxDto):
     # Wake the waits on this sandbox for an immediate read (their subscription was rejected).
     _poll_now_waiters: list[Callable[[], None]] = PrivateAttr(default_factory=list)
     _state_event_count: int = PrivateAttr(default=0)
+    # The cached state came from a state event that did not carry the sandbox's error reason.
+    _state_needs_reason: bool = PrivateAttr(default=False)
 
     # TODO: Remove model_config once everything is migrated to pydantic # pylint: disable=fixme
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
@@ -1439,7 +1441,7 @@ class AsyncSandbox(SandboxDto):
         await self._wait_for_state(target_states, error_states, subscription=subscription)
 
     def _handle_event(self, event_name: str, data: Any) -> None:
-        """Applies the new state from a ``sandbox.state.updated`` event; other payload fields are ignored.
+        """Applies the new state and error reason from a ``sandbox.state.updated`` event.
 
         A rejected subscription (a local notification from the dispatcher) wakes the waits instead: no
         events will come, so they read now and fall back to polling.
@@ -1455,6 +1457,13 @@ class AsyncSandbox(SandboxDto):
             raw.get("state") if isinstance(raw, dict) else None
         ) or data.get("newState")
         if new_state is not None:
+            # Set before the state, so a wait that ends on an error state reports this reason. The event
+            # omits the field when the sandbox has none; a slim event may omit it, and then a wait ending
+            # on an error state reads the sandbox once before failing.
+            has_reason = isinstance(raw, dict) and "errorReason" in raw
+            if isinstance(raw, dict) and "sandbox" in data:
+                self.error_reason = raw.get("errorReason")
+            self._state_needs_reason = not has_reason
             self._state_event_count += 1
             try:
                 self._apply_state(SandboxState(new_state))
@@ -1526,7 +1535,7 @@ class AsyncSandbox(SandboxDto):
         net: slow while events are flowing, backing off from 1 s to 10 s while they are not (connection
         down, subscription rejected or past the connection's limit), and fast only without a
         subscription (see ``internal.wait_poll``). A rate-limited poll does not fail the wait: the next
-        one waits for ``Retry-After``, and at least the current interval.
+        one waits at least the current interval, the fallback backoff and ``Retry-After``.
 
         Args:
             target_states: States that indicate success.
@@ -1551,27 +1560,46 @@ class AsyncSandbox(SandboxDto):
         # Set when the state resolves or a read is due now; the loop waits on it between polls.
         wake = asyncio.Event()
         result_state: SandboxState | None = None
+        # The reason that came with result_state; a read still in flight may replace self.error_reason after.
+        result_reason: str | None = None
+        result_needs_reason = False
 
         def _waiter(state: SandboxState | None) -> None:
-            nonlocal result_state
-            if state is None:
+            nonlocal result_state, result_reason, result_needs_reason
+            if state is None or state_resolved.is_set():
                 return
 
             if state in target_states or state in error_states:
                 result_state = state
+                result_reason = self.error_reason
+                result_needs_reason = self._state_needs_reason
                 state_resolved.set()
                 wake.set()
 
-        async def _poll() -> float | None:
-            """Reads the sandbox; on a rate limit returns the Retry-After delay (0 without one)."""
+        async def _poll() -> wait_poll.RateLimited | None:
+            """Reads the sandbox; a rate limit does not fail the wait and is returned instead."""
             try:
                 if safe_refresh:
                     _ = await self.__refresh_data_safe()
                 else:
                     await self.refresh_data()
             except DaytonaRateLimitError as e:
-                return wait_poll.retry_after_seconds(e.headers)
+                return wait_poll.RateLimited(wait_poll.retry_after_seconds(e.headers))
             return None
+
+        async def _error_message() -> str:
+            reason = result_reason
+            if result_needs_reason:
+                # The event that ended the wait did not carry the reason: read it once (error path only).
+                try:
+                    if safe_refresh:
+                        _ = await self.__refresh_data_safe()
+                    else:
+                        await self.refresh_data()
+                    reason = self.error_reason
+                except Exception:
+                    pass
+            return f"Sandbox {self.id} entered error state: {result_state}, error reason: {reason}"
 
         self._state_waiters.append(_waiter)
         self._poll_now_waiters.append(wake.set)
@@ -1581,13 +1609,19 @@ class AsyncSandbox(SandboxDto):
                 skip_first_read = False
             else:
                 sub_id = subscription.sub_id
+                # An operation subscription that expired before the wait (its request outlived the TTL)
+                # missed the events in between: take a new one and read first.
+                still_held = bool(sub_id) and self._subscription_manager.refresh(sub_id)
+                if sub_id and not still_held:
+                    sub_id = self._subscribe_state_events()
                 # Safe only if the cached state came from the response (or a read after subscribing)
                 # and every change since then arrives as an event: an event that came before the
                 # response may have been overwritten by it, and events sent while the connection was
                 # down (a reconnect bumps the epoch) are lost. An error or destroyed response is read
                 # again first, so that it fails as fast as it always has.
                 skip_first_read = (
-                    subscription.state_fresh
+                    still_held
+                    and subscription.state_fresh
                     and subscription.live
                     and self._event_backed()
                     and self._subscription_manager.connection_epoch == subscription.connection_epoch
@@ -1598,9 +1632,7 @@ class AsyncSandbox(SandboxDto):
 
             # Unless skipped, the first poll runs immediately: it closes the race between subscribing
             # and the state change.
-            retry_after = None if skip_first_read else await _poll()
-            if retry_after is not None:
-                fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
+            rate_limited = None if skip_first_read else await _poll()
 
             self._raise_destroyed_wait_error(target_states)
             _waiter(self.state)
@@ -1612,15 +1644,18 @@ class AsyncSandbox(SandboxDto):
                 # Re-evaluated every iteration: the connection may come up (or drop) mid-wait.
                 subscribed = bool(sub_id)
                 event_backed = subscribed and self._event_backed()
-                if event_backed:
+                if event_backed and rate_limited is None:
                     # Back on events: a later fallback starts its backoff over.
                     fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
                 poll_interval = wait_poll.poll_interval(
                     subscribed, event_backed, fast_poll_interval, fallback_poll_interval
                 )
-                if retry_after is not None:
-                    # Rate limited: never sooner than the server asks, nor than the current interval.
-                    poll_interval = max(poll_interval, retry_after)
+                if rate_limited is not None:
+                    # Rate limited, in any mode: back off, and never sooner than the server asks.
+                    poll_interval = wait_poll.rate_limited_poll_interval(
+                        poll_interval, fallback_poll_interval, rate_limited.retry_after
+                    )
+                    fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
                 try:
                     _ = await asyncio.wait_for(wake.wait(), timeout=poll_interval)
                 except asyncio.TimeoutError:
@@ -1629,18 +1664,17 @@ class AsyncSandbox(SandboxDto):
                     break
                 wake.clear()
 
-                retry_after = await _poll()
+                rate_limited = await _poll()
                 self._raise_destroyed_wait_error(target_states)
 
-                if (subscribed and not event_backed) or retry_after is not None:
+                # A rate-limited poll advances the backoff once, when the next delay is chosen.
+                if subscribed and not event_backed and rate_limited is None:
                     fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
                 if loop.time() - poll_start > wait_poll.FAST_POLL_PERIOD:
                     fast_poll_interval = wait_poll.next_fast_poll_interval(fast_poll_interval)
 
             if result_state in error_states:
-                raise DaytonaError(
-                    f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
-                )
+                raise DaytonaError(await _error_message())
         except Exception as exc:
             # Parity with main: complete one final refresh-then-evaluate before
             # propagating, so a clamped/short timeout still observes the latest state.
@@ -1657,10 +1691,7 @@ class AsyncSandbox(SandboxDto):
                     pass
                 if state_resolved.is_set():
                     if result_state in error_states:
-                        message = (
-                            f"Sandbox {self.id} entered error state: {result_state}, error reason: {self.error_reason}"
-                        )
-                        raise DaytonaError(message) from exc
+                        raise DaytonaError(await _error_message()) from exc
                     return
             raise
         finally:
@@ -1691,6 +1722,7 @@ class AsyncSandbox(SandboxDto):
         self.disk: int = sandbox_dto.disk
         self.desired_state: SandboxDesiredState | None = sandbox_dto.desired_state
         self.error_reason: str | None = sandbox_dto.error_reason
+        self._state_needs_reason = False
         self.recoverable: bool | None = sandbox_dto.recoverable
         self.backup_state: str | None = sandbox_dto.backup_state
         self.auto_stop_interval: float | int | None = sandbox_dto.auto_stop_interval

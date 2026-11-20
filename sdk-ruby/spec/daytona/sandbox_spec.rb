@@ -1427,6 +1427,7 @@ RSpec.describe Daytona::Sandbox do
     end
 
     # Records the stubbed wait clock at every poll; the first poll fails with +error+.
+    # A long timeout, so the deadline never caps the interval under test.
     def poll_times_after_failure(error)
       clock = stub_wait_clock
       times = []
@@ -1436,7 +1437,7 @@ RSpec.describe Daytona::Sandbox do
 
         build_sandbox_dto(state: 'started')
       end
-      pending_sandbox.wait_for_sandbox_start(60)
+      pending_sandbox.wait_for_sandbox_start(600)
       times
     end
 
@@ -1447,15 +1448,36 @@ RSpec.describe Daytona::Sandbox do
         allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
       end
 
-      it 'polls again after Retry-After seconds and still resolves' do
-        expect(poll_times_after_failure(rate_limited('Retry-After' => '3'))).to eq([0.0, 3.0])
+      it 'polls again after Retry-After seconds, plus up to 20 %, and still resolves' do
+        expect(poll_times_after_failure(rate_limited('Retry-After' => '3'))).to match([0.0, be_within(1e-9).of(3.3)])
         expect(pending_sandbox.state).to eq('started')
+      end
+
+      it 'spreads Retry-After upwards only, by up to 20 %' do
+        allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.0)
+        expect(poll_times_after_failure(rate_limited('Retry-After' => '3'))).to eq([0.0, 3.0])
+      end
+
+      it 'spreads Retry-After by at most 20 %' do
+        allow(pending_sandbox).to receive(:poll_jitter_random).and_return(1.0)
+        expect(poll_times_after_failure(rate_limited('Retry-After' => '3'))).to match([0.0, be_within(1e-9).of(3.6)])
+      end
+
+      it 'caps Retry-After at 60 s before spreading it' do
+        allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.0)
+        expect(poll_times_after_failure(rate_limited('Retry-After' => '999999999'))).to eq([0.0, 60.0])
       end
 
       it 'honours a Retry-After HTTP date' do
         times = poll_times_after_failure(rate_limited('retry-after' => (Time.now + 4).httpdate))
 
-        expect(times.last).to be_between(2.5, 4.5)
+        expect(times.last).to be_between(2.5, 5.0)
+      end
+
+      %w[inf -inf Infinity nan -5 1.5 soon].each do |value|
+        it "treats Retry-After #{value} as absent" do
+          expect(poll_times_after_failure(rate_limited('Retry-After' => value))).to eq([0.0, 1.0])
+        end
       end
 
       it 'polls again after the current interval without Retry-After' do
@@ -1474,6 +1496,40 @@ RSpec.describe Daytona::Sandbox do
         expect(e.code).to eq(500)
       }
       expect(sandbox_api).to have_received(:get_sandbox).once
+    end
+
+    it 'backs off on repeated 429s even without a subscription' do
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      allow(subscription_manager).to receive(:subscribe).and_return(nil)
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+      clock = stub_wait_clock
+      times = []
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        times << clock.call
+        if times.size <= 3
+          raise DaytonaApiClient::ApiError.new(code: 429, response_headers: {}, message: 'Too Many Requests')
+        end
+
+        build_sandbox_dto(state: 'started')
+      end
+
+      pending_sandbox.wait_for_sandbox_start(60)
+
+      expect(times).to eq([0.0, 1.0, 2.5, 4.75])
+    end
+
+    describe 'retry_after_seconds' do
+      it 'reads whole seconds and HTTP dates, caps at 60 s, and treats the rest as absent' do
+        table = {
+          nil => 0.0, '3' => 3.0, ' 7 ' => 7.0, '60' => 60.0, '61' => 60.0, '99999999999999999999' => 60.0,
+          '0' => 0.0, '-5' => 0.0, 'inf' => 0.0, '-inf' => 0.0, 'Infinity' => 0.0, 'nan' => 0.0, '1.5' => 0.0,
+          'soon' => 0.0, (Time.now + 7200).httpdate => 60.0, (Time.now - 3600).httpdate => 0.0
+        }
+        table.each do |value, want|
+          headers = value.nil? ? {} : { 'Retry-After' => value }
+          expect(pending_sandbox.send(:retry_after_seconds, headers)).to eq(want), "Retry-After #{value.inspect}"
+        end
+      end
     end
 
     it 'polls fast when no subscription could be created' do
@@ -1764,6 +1820,20 @@ RSpec.describe Daytona::Sandbox do
       expect(waits).to be_empty
     end
 
+    it 'stop: reads first when its subscription expired during the request' do
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123').and_return(build_sandbox_dto(state: 'stopped'))
+      allow(subscription_manager).to receive(:refresh).and_return(false)
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      started_sandbox.stop(5)
+
+      expect(sandbox_api).to have_received(:get_sandbox).once
+      expect(waits).to be_empty
+      expect(started_sandbox.state).to eq('stopped')
+    end
+
     it 'stop: releases the subscription and raises the original error when the request fails' do
       error = DaytonaApiClient::ApiError.new(code: 500, message: 'boom')
       allow(sandbox_api).to receive(:stop_sandbox).and_raise(error)
@@ -2019,7 +2089,9 @@ RSpec.describe Daytona::Sandbox do
     let(:interrupt) { Class.new(StandardError) }
 
     before do
-      allow(Daytona::SocketIOClient).to receive(:new) { double('SocketIOClient', connect: nil, emit: true, close: nil) }
+      allow(Daytona::SocketIOClient).to receive(:new) do
+        double('SocketIOClient', connect: nil, emit: true, emit_with_ack: true, close: nil)
+      end
       stub_condition_variable_waits { |_seconds| nil }
     end
 

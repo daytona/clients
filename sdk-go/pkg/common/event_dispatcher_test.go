@@ -850,3 +850,37 @@ func TestEventDispatcherKeepsSubscriptionsWithoutARejection(t *testing.T) {
 		})
 	}
 }
+
+func TestEventDispatcherIgnoresAStaleRejectionAfterResubscribing(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	manager := NewEventSubscriptionManager(es)
+	id := testSandboxID(1)
+	var rejected atomic.Bool
+	handler := func(event SandboxEvent) {
+		if event.Type == SandboxEventSubscriptionRejected {
+			rejected.Store(true)
+		}
+	}
+
+	release := es.Subscribe(id, handler, stateEvents)
+	require.Eventually(t, func() bool { return es.IsConnected() && len(f.events()) == 1 }, 5*time.Second, 10*time.Millisecond)
+	es.mu.RLock()
+	client := es.client
+	es.mu.RUnlock()
+	client.ackMu.Lock()
+	firstAck := client.pendingAcks[1]
+	client.ackMu.Unlock()
+	require.NotNil(t, firstAck)
+
+	release()
+	defer es.Subscribe(id, handler, stateEvents)()
+	require.Eventually(t, func() bool { return len(f.events()) == 3 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, []receivedEvent{{"subscribe", []string{id}}, {"unsubscribe", []string{id}}, {"subscribe", []string{id}}}, f.events())
+
+	// The first subscribe's rejection arrives late: the newer subscription stays.
+	firstAck(json.RawMessage(`{"ok":false,"error":"OVERLOADED","message":"shedding"}`))
+	assert.True(t, es.IsServed(id))
+	assert.True(t, manager.IsEventBacked(id))
+	assert.False(t, rejected.Load())
+}

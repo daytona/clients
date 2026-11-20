@@ -7,6 +7,7 @@ import { io } from 'socket.io-client'
 import { EventDispatcher, SUBSCRIPTION_REJECTED_EVENT } from '../utils/EventDispatcher'
 import { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
 import {
+  DaytonaError,
   DaytonaInternalServerError,
   DaytonaQueueTimeoutError,
   DaytonaRateLimitError,
@@ -1090,6 +1091,65 @@ describe('Sandbox event subscriptions', () => {
       expect(sandbox.state).toBe('started')
     })
 
+    it('stop() reads first when its subscription expired during the request', async () => {
+      const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+      sandboxApi.stopSandbox.mockImplementation(async () => {
+        // The request outlived the subscription's TTL: the manager dropped it.
+        subscriptionManager.refresh.mockReturnValueOnce(false)
+        return createApiResponse({ ...baseDto, state: 'stopping' })
+      })
+      sandboxApi.getSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopped' }))
+
+      await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
+    })
+
+    it('a rejection during a read runs exactly one more read right after it, then the fallback cadence', async () => {
+      jest.useFakeTimers()
+      const random = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
+        sandboxApi.stopSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'stopping' }))
+        let inFlight = 0
+        let maxInFlight = 0
+        const reads: number[] = []
+        let release: (() => void) | undefined
+        sandboxApi.getSandbox.mockImplementation(async () => {
+          inFlight++
+          maxInFlight = Math.max(maxInFlight, inFlight)
+          reads.push(Date.now())
+          if (reads.length === 1) {
+            await new Promise<void>((resolve) => (release = resolve))
+          }
+          inFlight--
+          return createApiResponse({ ...baseDto, state: reads.length >= 3 ? 'stopped' : 'stopping' })
+        })
+        subscriptionManager.isConnected = false
+
+        const stop = sandbox.stop(60)
+        await jest.advanceTimersByTimeAsync(0)
+        expect(reads).toHaveLength(1)
+        subscriptionManager.isConnected = true
+        subscribedHandler(subscriptionManager)(SUBSCRIPTION_REJECTED_EVENT, { id: 'sb-1', error: 'OVERLOADED' })
+        subscriptionManager.isConnected = false
+        await jest.advanceTimersByTimeAsync(0)
+        expect(reads).toHaveLength(1)
+
+        release?.()
+        await jest.advanceTimersByTimeAsync(0)
+        expect(reads).toHaveLength(2)
+        expect(reads[1] - reads[0]).toBe(0)
+
+        await jest.advanceTimersByTimeAsync(1000)
+        await stop
+        expect(reads).toHaveLength(3)
+        expect(reads[2] - reads[1]).toBe(1000)
+        expect(maxInFlight).toBe(1)
+      } finally {
+        random.mockRestore()
+        jest.useRealTimers()
+      }
+    })
+
     it('delete() without wait takes no subscription', async () => {
       const { sandbox, sandboxApi, subscriptionManager } = makeSandbox({ state: 'started' })
       sandboxApi.deleteSandbox.mockResolvedValue(createApiResponse({ ...baseDto, state: 'destroying' }))
@@ -1233,6 +1293,26 @@ describe('Sandbox event subscriptions', () => {
 })
 
 describe('WaitPollCadence', () => {
+  test.each([
+    ['low', 0, 800, 3000],
+    ['middle', 0.5, 1000, 3300],
+    ['high', 1, 1200, 3600],
+  ])('a rate-limited poll backs off, and Retry-After gets upward jitter only (jitter %s)', (_n, r, plain, retry) => {
+    // Without a subscription the fallback backoff still applies: max(fast 100 ms, 1 s x jitter).
+    expect(new WaitPollCadence(() => r).rateLimited(false, false, 100)).toBeCloseTo(plain, 6)
+    expect(new WaitPollCadence(() => r).rateLimited(true, false, 100, 3000)).toBeCloseTo(retry, 6)
+    // A Retry-After shorter than the interval changes nothing.
+    expect(new WaitPollCadence(() => r).rateLimited(true, false, 100, 10)).toBeCloseTo(plain, 6)
+    // Event-backed: the 5 s interval wins over the 1 s fallback.
+    expect(new WaitPollCadence(() => r).rateLimited(true, true, 100)).toBeCloseTo(plain * 5, 6)
+  })
+
+  it('every rate-limited poll takes one backoff step', () => {
+    const cadence = new WaitPollCadence(() => 0.5)
+    expect([1, 2, 3].map(() => cadence.rateLimited(false, false, 100))).toEqual([1000, 1500, 2250])
+    expect(cadence.next(true, false, 100)).toBe(3375)
+  })
+
   const base = [1000, 1500, 2250, 3375, 5062.5, 7593.75, 10_000, 10_000]
 
   it('uses the fast cadence unchanged and without jitter when not subscribed', () => {
@@ -1281,8 +1361,39 @@ describe('retryAfterMs', () => {
     expect(retryAfterMs(rateLimited(), now)).toBeUndefined()
   })
 
+  test.each([
+    ['inf'],
+    ['-inf'],
+    ['nan'],
+    ['NaN'],
+    ['Infinity'],
+    ['-Infinity'],
+    ['-1'],
+    ['-0.5'],
+    ['1e400'],
+    ['1.5'],
+    [''],
+  ])('treats %j as absent', (value) => {
+    expect(retryAfterMs(rateLimited({ 'retry-after': value }))).toBeUndefined()
+  })
+
+  test.each([
+    ['120', 60_000],
+    ['99999999999999999999', 60_000],
+    ['60', 60_000],
+    ['59', 59_000],
+  ])('caps %s seconds at 60 s', (value, expected) => {
+    expect(retryAfterMs(rateLimited({ 'retry-after': value }))).toBe(expected)
+  })
+
+  it('caps an HTTP date far ahead at 60 s', () => {
+    const now = Date.parse('Wed, 21 Oct 2026 07:28:00 GMT')
+    expect(retryAfterMs(rateLimited({ 'retry-after': 'Wed, 21 Oct 2026 09:00:00 GMT' }), now)).toBe(60_000)
+  })
+
   it('treats any 429 as a rate limit', () => {
     expect(isRateLimitError(rateLimited())).toBe(true)
+    expect(isRateLimitError(new DaytonaError('Too Many Requests', 429))).toBe(true)
     expect(isRateLimitError(new DaytonaInternalServerError('boom', 500))).toBe(false)
   })
 })
@@ -1295,13 +1406,15 @@ describe('Sandbox wait polls that hit a rate limit', () => {
       retryAfter === undefined ? undefined : new AxiosHeaders({ 'retry-after': retryAfter }),
     )
 
-  // A disconnected wait (fallback cadence, jitter pinned to the middle) whose reads follow `reads`.
+  // A wait whose reads follow `reads`: subscribed but disconnected (fallback cadence) by default, or
+  // without a subscription (fast cadence).
   const run = async (
     method: 'waitUntilStarted' | 'waitUntilStopped',
     reads: Array<Error | string>,
+    subscription: 'fallback' | 'none' = 'fallback',
   ): Promise<{ times: number[]; outcome: Promise<unknown> }> => {
     const initial = method === 'waitUntilStarted' ? 'starting' : 'stopping'
-    const { sandbox, subscriptionManager } = makeSandbox({ state: initial })
+    const { sandbox, subscriptionManager } = makeSandbox({ state: initial }, subscription === 'none' ? '' : 'sub-1')
     subscriptionManager.isConnected = false
     const times: number[] = []
     jest.spyOn(sandbox, 'refreshData').mockImplementation(async () => {
@@ -1310,13 +1423,14 @@ describe('Sandbox wait polls that hit a rate limit', () => {
       if (next instanceof Error) throw next
       ;(sandbox as unknown as { applyState: (state: string) => void }).applyState(next)
     })
-    const outcome = sandbox[method](60).then(
+    const outcome = sandbox[method](120).then(
       () => 'resolved',
       (error: unknown) => error,
     )
     await jest.advanceTimersByTimeAsync(0)
     return { times, outcome }
   }
+  const gaps = (times: number[]): number[] => times.slice(1).map((t, i) => t - times[i])
 
   let random: jest.SpyInstance
   beforeEach(() => {
@@ -1328,20 +1442,46 @@ describe('Sandbox wait polls that hit a rate limit', () => {
     jest.useRealTimers()
   })
 
-  test.each([['waitUntilStarted' as const], ['waitUntilStopped' as const]])(
-    '%s: a 429 with Retry-After: 3 delays the next poll by 3s, and the wait still resolves',
-    async (method) => {
+  test.each([
+    ['waitUntilStarted' as const, 0, 3000],
+    ['waitUntilStarted' as const, 1, 3600],
+    ['waitUntilStopped' as const, 0.5, 3300],
+  ])(
+    '%s: a 429 with Retry-After: 3 (jitter %s) waits 3 s plus up to 20%%, and the wait still resolves',
+    async (method, jitter, expectedMs) => {
+      random.mockReturnValue(jitter)
       const target = method === 'waitUntilStarted' ? 'started' : 'stopped'
       const { times, outcome } = await run(method, [rateLimited('3'), target])
       expect(times).toHaveLength(1)
 
-      await jest.advanceTimersByTimeAsync(2999)
+      await jest.advanceTimersByTimeAsync(expectedMs - 1)
       expect(times).toHaveLength(1)
       await jest.advanceTimersByTimeAsync(1)
       expect(times).toHaveLength(2)
       await expect(outcome).resolves.toBe('resolved')
     },
   )
+
+  it('a 429 that is not a DaytonaRateLimitError still backs off and honours Retry-After', async () => {
+    random.mockReturnValue(0)
+    const limited = new DaytonaError('Too Many Requests', 429, new AxiosHeaders({ 'retry-after': '2' }))
+    const { times, outcome } = await run('waitUntilStarted', [limited, 'started'])
+
+    await jest.advanceTimersByTimeAsync(5000)
+    await expect(outcome).resolves.toBe('resolved')
+    expect(gaps(times)).toEqual([2000])
+  })
+
+  it('caps a huge Retry-After at 60 s before the jitter', async () => {
+    random.mockReturnValue(0)
+    const { times, outcome } = await run('waitUntilStarted', [rateLimited('3600'), 'started'])
+
+    await jest.advanceTimersByTimeAsync(59_999)
+    expect(times).toHaveLength(1)
+    await jest.advanceTimersByTimeAsync(1)
+    await expect(outcome).resolves.toBe('resolved')
+    expect(gaps(times)).toEqual([60_000])
+  })
 
   test.each([
     ['without Retry-After', undefined],
@@ -1352,7 +1492,27 @@ describe('Sandbox wait polls that hit a rate limit', () => {
     await jest.advanceTimersByTimeAsync(10_000)
     await expect(outcome).resolves.toBe('resolved')
     // 1 s (the current interval), then 1.5 s: the rate-limited poll counted as one backoff step.
-    expect(times.slice(1).map((t, i) => t - times[i])).toEqual([1000, 1500])
+    expect(gaps(times)).toEqual([1000, 1500])
+  })
+
+  it('repeated 429s back off from 1 s to 10 s even without a subscription', async () => {
+    const reads: Array<Error | string> = Array.from({ length: 9 }, () => rateLimited())
+    const { times, outcome } = await run('waitUntilStarted', [...reads, 'started'], 'none')
+
+    await jest.advanceTimersByTimeAsync(60_000)
+    await expect(outcome).resolves.toBe('resolved')
+    const expected = [1000, 1500, 2250, 3375, 5062.5, 7593.75, 10_000, 10_000, 10_000]
+    expect(gaps(times)).toHaveLength(expected.length)
+    // Fake timers run fractional delays on whole milliseconds.
+    gaps(times).forEach((gap, i) => expect(Math.abs(gap - expected[i])).toBeLessThanOrEqual(1))
+  })
+
+  it('without a subscription the fast cadence resumes after a successful poll', async () => {
+    const { times, outcome } = await run('waitUntilStarted', [rateLimited(), 'starting', 'started'], 'none')
+
+    await jest.advanceTimersByTimeAsync(5000)
+    await expect(outcome).resolves.toBe('resolved')
+    expect(gaps(times)).toEqual([1000, 100])
   })
 
   it('a 500 fails the wait exactly as before', async () => {
@@ -1483,20 +1643,15 @@ class FakeSocket extends FakeEmitter {
   connected = false
   auth: unknown
   readonly io = new FakeEmitter()
-  readonly emit = jest.fn()
-  // Acknowledgement callbacks of the messages sent through timeout(), with their timeouts.
-  readonly acks: {
-    event: string
-    payload: unknown
-    timeoutMs: number
-    ack: (err: unknown, response?: unknown) => void
-  }[] = []
-  readonly timeout = jest.fn((timeoutMs: number) => ({
-    emit: (event: string, payload: unknown, ack: (err: unknown, response?: unknown) => void) => {
-      this.emit(event, payload)
-      this.acks.push({ event, payload, timeoutMs, ack })
-    },
-  }))
+  // What the client sent, without acknowledgement callbacks.
+  readonly sent = jest.fn()
+  // Acknowledgement callbacks of the messages that asked for one.
+  readonly acks: { event: string; payload: unknown; ack: (response?: unknown) => void }[] = []
+  emit(event: string, payload: unknown, ack?: (response?: unknown) => void): this {
+    this.sent(event, payload)
+    if (ack) this.acks.push({ event, payload, ack })
+    return this
+  }
   readonly connect = jest.fn(() => this)
   readonly disconnect = jest.fn(() => {
     this.connected = false
@@ -1521,7 +1676,7 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
   let manager: EventSubscriptionManager
 
   const subscribedIds = (event: 'subscribe' | 'unsubscribe'): string[] =>
-    socket.emit.mock.calls
+    socket.sent.mock.calls
       .filter(([name]) => name === event)
       .flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
 
@@ -1599,7 +1754,7 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
       dispatcher.subscribe('sb-a', handler, ['sandbox.state.updated'])
 
       const ack = socket.acks.find(({ payload }) => (payload as { sandboxIds: string[] }).sandboxIds.includes('sb-a'))
-      ack?.ack(null, { ok: false, error: 'OVERLOADED', message: 'shedding' })
+      ack?.ack({ ok: false, error: 'OVERLOADED', message: 'shedding' })
       expect(handler).toHaveBeenCalledWith(SUBSCRIPTION_REJECTED_EVENT, expect.anything())
       expect(manager.isEventBacked('sb-a')).toBe(false)
       await jest.advanceTimersByTimeAsync(0)

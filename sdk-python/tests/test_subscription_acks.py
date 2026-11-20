@@ -207,6 +207,25 @@ class TestAsyncSubscribeAcks:
         assert dispatcher.is_served("sb-1") and not dispatcher.is_rejected("sb-1")
         await dispatcher.disconnect()
 
+    async def test_a_late_rejection_of_an_earlier_subscribe_leaves_a_resubscription_alone(self, async_sio, monkeypatch):
+        dispatcher = await _connected_async_dispatcher(monkeypatch)
+        unsub = dispatcher.subscribe("sb-1", _Recorder(), [STATE_EVENT])
+        await _settle()
+        unsub()
+        await _settle()
+        handler = _Recorder()
+        _ = dispatcher.subscribe("sb-1", handler, [STATE_EVENT])
+        await _settle()
+        sio = async_sio.instances[0]
+        assert _sent(sio) == [("subscribe", ["sb-1"]), ("unsubscribe", ["sb-1"]), ("subscribe", ["sb-1"])]
+
+        await sio.ack(0, REJECTED)  # the first subscribe's answer arrives late
+
+        assert dispatcher.is_served("sb-1") and dispatcher.is_event_backed("sb-1")
+        assert not dispatcher.is_rejected("sb-1")
+        assert handler.events == []
+        await dispatcher.disconnect()
+
 
 class TestSyncSubscribeAcks:
     def test_subscribe_asks_for_an_ack_and_unsubscribe_does_not(self, sync_sio, monkeypatch):
@@ -307,6 +326,24 @@ class TestSyncSubscribeAcks:
         stale_ack(REJECTED)
 
         assert dispatcher.is_served("sb-1") and not dispatcher.is_rejected("sb-1")
+        dispatcher.disconnect()
+
+    def test_a_late_rejection_of_an_earlier_subscribe_leaves_a_resubscription_alone(self, sync_sio, monkeypatch):
+        dispatcher = _connected_sync_dispatcher(monkeypatch)
+        unsub = dispatcher.subscribe("sb-1", _Recorder(), [STATE_EVENT])
+        unsub()
+        handler = _Recorder()
+        _ = dispatcher.subscribe("sb-1", handler, [STATE_EVENT])
+        sio = sync_sio.instances[0]
+        assert _sent(sio) == [("subscribe", ["sb-1"]), ("unsubscribe", ["sb-1"]), ("subscribe", ["sb-1"])]
+
+        acker = threading.Thread(target=sio.ack, args=(0, REJECTED))  # the first subscribe's late answer
+        acker.start()
+        acker.join()
+
+        assert dispatcher.is_served("sb-1") and dispatcher.is_event_backed("sb-1")
+        assert not dispatcher.is_rejected("sb-1")
+        assert handler.events == []
         dispatcher.disconnect()
 
 

@@ -1555,6 +1555,8 @@ export class Sandbox {
       let fastPollInterval = 100
       const cadence = new WaitPollCadence()
       let pollInFlight = false
+      // A wake that came while a read was running: one more read right after it.
+      let wakePending = false
       const holdsSubscription = (): boolean => {
         if (!subId) return false
         // Keep the subscription alive for long waits (subscriptions expire after a TTL).
@@ -1563,11 +1565,17 @@ export class Sandbox {
         }
         return subId !== ''
       }
-      const nextPollDelay = (): number => {
+      const pollMode = (): { subscribed: boolean; eventBacked: boolean } => {
         const subscribed = holdsSubscription()
-        return cadence.next(subscribed, subscribed && this.subscriptionManager.isEventBacked(this.id), fastPollInterval)
+        return { subscribed, eventBacked: subscribed && this.subscriptionManager.isEventBacked(this.id) }
+      }
+      const nextPollDelay = (): number => {
+        const { subscribed, eventBacked } = pollMode()
+        return cadence.next(subscribed, eventBacked, fastPollInterval)
       }
       const schedulePoll = (delayMs: number) => {
+        // One timer chain per wait.
+        if (pollTimer) clearTimeout(pollTimer)
         pollTimer = setTimeout(() => {
           pollTimer = null
           void doPoll()
@@ -1587,10 +1595,12 @@ export class Sandbox {
           }
         } catch (error) {
           if (isRateLimitError(error)) {
-            // Rate limited: retry no sooner than the current interval (which takes the poll's backoff
-            // step, as every fallback poll does) or Retry-After.
+            // Rate limited, in any mode: back off (see WaitPollCadence.rateLimited). The rate-limited read
+            // also answers a wake that came meanwhile.
+            wakePending = false
             if (!settled) {
-              schedulePoll(Math.max(nextPollDelay(), retryAfterMs(error) ?? 0))
+              const { subscribed, eventBacked } = pollMode()
+              schedulePoll(cadence.rateLimited(subscribed, eventBacked, fastPollInterval, retryAfterMs(error)))
             }
             return
           }
@@ -1612,12 +1622,21 @@ export class Sandbox {
           if (Date.now() - pollStart > 5000) {
             fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
           }
+          if (wakePending) {
+            wakePending = false
+            void doPoll()
+            return
+          }
           schedulePoll(nextPollDelay())
         }
       }
-      // A rejected subscription means no events: read now unless a read is already running.
+      // A rejected subscription means no events: read now, or right after a read already running.
       function wake(): void {
-        if (settled || pollInFlight) return
+        if (settled) return
+        if (pollInFlight) {
+          wakePending = true
+          return
+        }
         if (pollTimer) clearTimeout(pollTimer)
         pollTimer = null
         void doPoll()
@@ -1628,7 +1647,8 @@ export class Sandbox {
       // subscription was live before the operation's request, the connection did not drop since (events
       // sent while it was down are lost), and no state event raced the response: then every later change
       // arrives as an event and the read is redundant. An error or unexpected destroyed state from the
-      // response, or a state not read after subscribing, still gets the read.
+      // response, or a state not read after subscribing, still gets the read, and so does a subscription
+      // that expired during the request (a new one would have missed the changes in between).
       const responseState = this.state
       const responseStateIsFailure =
         responseState !== undefined &&
@@ -1639,6 +1659,7 @@ export class Sandbox {
         prepared.live &&
         prepared.hasFreshState &&
         subId !== '' &&
+        this.subscriptionManager.refresh(subId) &&
         this.subscriptionManager.isEventBacked(this.id) &&
         this.subscriptionManager.connectionEpoch === prepared.connectionEpoch &&
         this.stateEventCount === prepared.stateEventCount &&

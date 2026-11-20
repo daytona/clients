@@ -362,9 +362,29 @@ class EventDispatcherTest {
         }
     }
 
-    // Shortened acknowledgement timeout for these tests, and how long they wait past it.
-    private static final long ACK_TIMEOUT_MILLIS = 300;
-    private static final long PAST_ACK_TIMEOUT_MILLIS = 1000;
+    // Shortened acknowledgement timeout for these tests; they wait for the timer itself, not a fixed time.
+    private static final long ACK_TIMEOUT_MILLIS = 1000;
+
+    @Test
+    void aLateRejectionOfAnEarlierSubscriptionDoesNotUnserveANewerOneOfTheSameId() throws Exception {
+        EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+        Runnable releaseFirst = dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(first, "subscribe", Set.of("sb-1"));
+        releaseFirst.run();
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "unsubscribe", Set.of("sb-1"));
+        BlockingQueue<String> notified = new LinkedBlockingQueue<>();
+        dispatcher.subscribe("sb-1", (event, data) -> notified.add(event), STATE_EVENTS);
+        assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
+
+        gateway.ack(first, "{\"ok\":false,\"error\":\"OVERLOADED\"}");
+
+        assertThat(notified.poll(QUIET_MILLIS, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(dispatcher.isServed("sb-1")).isTrue();
+        assertThat(dispatcher.isRejected("sb-1")).isFalse();
+        assertThat(manager.isEventBacked("sb-1")).isTrue();
+        manager.shutdown();
+    }
 
     @Test
     void aConnectionWhoseFirstAcknowledgedSubscribeGetsNoAckSendsTheRestWithoutOneUntilItReconnects() throws Exception {
@@ -373,7 +393,8 @@ class EventDispatcherTest {
         FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
         assertEmitted(first, "subscribe", Set.of("sb-1"));
         assertThat(first.ackId).isNotNull();
-        Thread.sleep(PAST_ACK_TIMEOUT_MILLIS);
+        waitUntil(dispatcher::ackProbeDone);
+        assertThat(dispatcher.acksSilent()).isTrue();
 
         dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
         FakeEventGateway.Emitted second = gateway.takeEmitted(WAIT_MILLIS);
@@ -398,7 +419,8 @@ class EventDispatcherTest {
         dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
         FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
         gateway.ack(first, response);
-        Thread.sleep(PAST_ACK_TIMEOUT_MILLIS);
+        waitUntil(dispatcher::ackProbeDone);
+        assertThat(dispatcher.acksSilent()).isFalse();
 
         dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
         FakeEventGateway.Emitted second = gateway.takeEmitted(WAIT_MILLIS);
@@ -412,7 +434,7 @@ class EventDispatcherTest {
         BlockingQueue<String> notified = new LinkedBlockingQueue<>();
         dispatcher.subscribe("sb-1", (event, data) -> notified.add(event), STATE_EVENTS);
         FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
-        Thread.sleep(PAST_ACK_TIMEOUT_MILLIS);
+        waitUntil(dispatcher::ackProbeDone);
         dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
         assertThat(gateway.takeEmitted(WAIT_MILLIS).ackId).isNull();
 

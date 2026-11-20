@@ -18,7 +18,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -88,7 +87,10 @@ public class EventDispatcher {
     private final Set<String> registeredEvents = ConcurrentHashMap.newKeySet();
     private final Set<String> socketBoundEvents = new HashSet<>();
     // Ids the server holds, or will hold after the next connect; at most maxSubscriptions. Guarded by lock.
-    private final Set<String> served = new LinkedHashSet<>();
+    // Each served id maps to the token it was served under, so a late rejection of an earlier
+    // subscription cannot unserve a newer one of the same id.
+    private final Map<String, Long> served = new java.util.LinkedHashMap<>();
+    private long serveToken;
     // Ids whose subscribe the gateway rejected; unserved until their last listener goes. Guarded by lock.
     private final Set<String> rejected = new HashSet<>();
     private final ScheduledExecutorService scheduler;
@@ -104,6 +106,8 @@ public class EventDispatcher {
     private boolean acksSeen;
     private boolean ackProbeArmed;
     private boolean acksSilent;
+    // Whether this connection's acknowledgement timer has run; for tests.
+    private boolean ackProbeDone;
 
     private volatile boolean connected;
     private volatile boolean connecting;
@@ -252,8 +256,9 @@ public class EventDispatcher {
                     acksSeen = false;
                     ackProbeArmed = false;
                     acksSilent = false;
+                    ackProbeDone = false;
                     // The server drops subscriptions on disconnect: send the whole served set again.
-                    emitIdsLocked(sock, SUBSCRIBE_EVENT, new ArrayList<>(served));
+                    emitIdsLocked(sock, SUBSCRIBE_EVENT, new ArrayList<>(served.keySet()));
                 }
             });
 
@@ -332,7 +337,7 @@ public class EventDispatcher {
 
             // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
             if (firstListener && served.size() < maxSubscriptions) {
-                served.add(resourceId);
+                served.put(resourceId, ++serveToken);
                 emitIdsLocked(socket, SUBSCRIBE_EVENT, Collections.singletonList(resourceId));
             }
         }
@@ -362,7 +367,7 @@ public class EventDispatcher {
     /** Whether the server holds (or will hold after the next connect) a subscription for this id. */
     public boolean isServed(String resourceId) {
         synchronized (lock) {
-            return served.contains(resourceId);
+            return served.containsKey(resourceId);
         }
     }
 
@@ -376,7 +381,7 @@ public class EventDispatcher {
     /** Whether events for this id arrive now: connected and served, read together under one lock. */
     public boolean isEventBacked(String resourceId) {
         synchronized (lock) {
-            return connected && served.contains(resourceId);
+            return connected && served.containsKey(resourceId);
         }
     }
 
@@ -493,7 +498,7 @@ public class EventDispatcher {
     private void unsubscribeResourceLocked(String resourceId) {
         listeners.remove(resourceId);
         rejected.remove(resourceId);
-        if (served.remove(resourceId)) {
+        if (served.remove(resourceId) != null) {
             emitIdsLocked(socket, UNSUBSCRIBE_EVENT, Collections.singletonList(resourceId));
         }
     }
@@ -530,7 +535,11 @@ public class EventDispatcher {
                             payload.put("sandboxIds", sandboxIds);
                             if (SUBSCRIBE_EVENT.equals(event) && !acksSilent) {
                                 // The client drops pending acknowledgements on disconnect.
-                                sock.emit(event, new Object[]{payload}, new SubscribeAck(sock, generation, chunk));
+                                Map<String, Long> tokens = new java.util.HashMap<>();
+                                for (String id : chunk) {
+                                    tokens.put(id, served.get(id));
+                                }
+                                sock.emit(event, new Object[]{payload}, new SubscribeAck(sock, generation, tokens));
                                 armAckProbeLocked(generation);
                             } else {
                                 sock.emit(event, payload);
@@ -558,8 +567,9 @@ public class EventDispatcher {
         try {
             scheduler.schedule(() -> {
                 synchronized (lock) {
-                    if (generation == connectionGeneration && !acksSeen) {
-                        acksSilent = true;
+                    if (generation == connectionGeneration) {
+                        acksSilent = !acksSeen;
+                        ackProbeDone = true;
                     }
                 }
             }, subscribeAckTimeoutMillis, TimeUnit.MILLISECONDS);
@@ -568,22 +578,39 @@ public class EventDispatcher {
         }
     }
 
-    /** Acknowledgement of one subscribe message; a late one is handled like any other. */
+    /** Whether this connection's acknowledgement timer ran and found the server silent; for tests. */
+    boolean acksSilent() {
+        synchronized (lock) {
+            return acksSilent;
+        }
+    }
+
+    /** Whether this connection's acknowledgement timer has run; for tests. */
+    boolean ackProbeDone() {
+        synchronized (lock) {
+            return ackProbeDone;
+        }
+    }
+
+    /**
+     * Acknowledgement of one subscribe message, with the tokens its ids were served under; a late one
+     * is handled like any other.
+     */
     private final class SubscribeAck implements Ack {
         private final Socket sock;
         private final long generation;
-        private volatile List<String> ids;
+        private volatile Map<String, Long> tokens;
 
-        SubscribeAck(Socket sock, long generation, List<String> ids) {
+        SubscribeAck(Socket sock, long generation, Map<String, Long> tokens) {
             this.sock = sock;
             this.generation = generation;
-            this.ids = new ArrayList<>(ids);
+            this.tokens = tokens;
         }
 
         @Override
         public void call(Object... args) {
-            List<String> pending = ids;
-            ids = null;
+            Map<String, Long> pending = tokens;
+            tokens = null;
             if (pending != null) {
                 handleSubscribeAck(sock, generation, pending, args);
             }
@@ -595,7 +622,7 @@ public class EventDispatcher {
      * until their last listener goes; their handlers are told so their waits read now and poll.
      * No acknowledgement, or {@code {ok: true}}, changes nothing: servers without explicit mode never ack.
      */
-    private void handleSubscribeAck(Socket sock, long generation, List<String> ids, Object[] args) {
+    private void handleSubscribeAck(Socket sock, long generation, Map<String, Long> tokens, Object[] args) {
         synchronized (lock) {
             if (generation == connectionGeneration) {
                 acksSeen = true;
@@ -614,8 +641,11 @@ public class EventDispatcher {
             if (closed || sock != socket || generation != connectionGeneration) {
                 return;
             }
-            for (String id : ids) {
-                if (listeners.containsKey(id) && served.remove(id)) {
+            for (Map.Entry<String, Long> entry : tokens.entrySet()) {
+                String id = entry.getKey();
+                Long token = entry.getValue();
+                if (listeners.containsKey(id) && token != null && token.equals(served.get(id))) {
+                    served.remove(id);
                     rejected.add(id);
                     newlyRejected.add(id);
                 }

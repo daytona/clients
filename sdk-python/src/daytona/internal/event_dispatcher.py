@@ -81,9 +81,12 @@ class AsyncEventDispatcher:
         self._fail_error = None
         self._closed = False
         self._listeners = {}
-        # Ids the server holds, or will hold after the next connect: at most
-        # MAX_SUBSCRIPTIONS_PER_CONNECTION. Insertion-ordered, so connects re-send them in order.
-        self._served: dict[str, None] = {}
+        # Ids the server holds, or will hold after the next connect, with the token each was served
+        # under: at most MAX_SUBSCRIPTIONS_PER_CONNECTION. Insertion-ordered, so connects re-send them
+        # in order. An acknowledgement only acts on the tokens it was sent with, so a late rejection of
+        # an id's earlier subscribe leaves a newer subscription of the same id alone.
+        self._served: dict[str, int] = {}
+        self._serve_seq: int = 0
         # Ids whose subscribe the server rejected; unserved until their last listener goes.
         self._rejected: set[str] = set()
         # (deadline, callback) of subscribe acknowledgements still pending, oldest first.
@@ -157,15 +160,15 @@ class AsyncEventDispatcher:
             # Ids added from here on are sent by subscribe() because the dispatcher is now connected;
             # those sends wait for the emit lock, so they always go out after the full set.
             async with dispatcher._emit_lock:
-                resource_ids = list(dispatcher._served)
+                served = dict(dispatcher._served)
                 dispatcher._connected = True
                 dispatcher._failed = False
                 dispatcher._fail_error = None
                 dispatcher._connection_epoch += 1
                 # The previous socket's pending acknowledgements were dropped with it.
                 dispatcher._pending_acks.clear()
-                for chunk in _chunks(resource_ids):
-                    await dispatcher._send_subscribe(sio, chunk)
+                for chunk in _chunks(list(served)):
+                    await dispatcher._send_subscribe(sio, {i: served[i] for i in chunk})
 
         @sio.event  # type: ignore[misc]
         async def disconnect() -> None:  # pyright: ignore[reportUnusedFunction]
@@ -252,7 +255,8 @@ class AsyncEventDispatcher:
             # Past the cap the server would reject the id, so it is not sent and stays unserved
             # until its last listener goes: its waits fall back to polling.
             if len(self._served) < MAX_SUBSCRIPTIONS_PER_CONNECTION:
-                self._served[resource_id] = None
+                self._serve_seq += 1
+                self._served[resource_id] = self._serve_seq
                 self._emit("subscribe", resource_id)
         self._listeners[resource_id].append(handler)
 
@@ -402,36 +406,43 @@ class AsyncEventDispatcher:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
-        task = loop.create_task(self._emit_serialized(sio, self._connection_epoch, event, resource_id))
+        # The token is taken now: by the time the send runs, the id may have been released and served again.
+        token = self._served.get(resource_id, 0)
+        task = loop.create_task(self._emit_serialized(sio, self._connection_epoch, event, resource_id, token))
         self._emit_tasks.add(task)
         task.add_done_callback(self._emit_tasks.discard)
 
-    async def _emit_serialized(self, sio: socketio.AsyncClient, epoch: int, event: str, resource_id: str) -> None:
+    async def _emit_serialized(
+        self, sio: socketio.AsyncClient, epoch: int, event: str, resource_id: str, token: int
+    ) -> None:
         async with self._emit_lock:
             # A reconnect in between already sent the current set; this message would be stale.
             if epoch != self._connection_epoch:
                 return
             if event == "subscribe":
-                await self._send_subscribe(sio, [resource_id])
+                await self._send_subscribe(sio, {resource_id: token})
             else:
                 await _emit_async(sio, event, [resource_id])
 
-    async def _send_subscribe(self, sio: socketio.AsyncClient, resource_ids: list[str]) -> None:
-        """Sends a subscribe that asks for an acknowledgement. Caller holds the emit lock."""
+    async def _send_subscribe(self, sio: socketio.AsyncClient, tokens: dict[str, int]) -> None:
+        """Sends a subscribe for the ids (with their served tokens) that asks for an acknowledgement.
+
+        Caller holds the emit lock.
+        """
         epoch = self._connection_epoch
 
         async def on_ack(*args: Any) -> None:
-            await self._handle_subscribe_ack(epoch, resource_ids, args)
+            await self._handle_subscribe_ack(epoch, tokens, args)
 
         _prune_pending_acks(sio, self._pending_acks)
         self._pending_acks.append((time.monotonic() + _ACK_TIMEOUT, on_ack))
-        await _emit_async(sio, "subscribe", resource_ids, on_ack)
+        await _emit_async(sio, "subscribe", list(tokens), on_ack)
 
-    async def _handle_subscribe_ack(self, epoch: int, resource_ids: list[str], args: tuple[Any, ...]) -> None:
+    async def _handle_subscribe_ack(self, epoch: int, tokens: dict[str, int], args: tuple[Any, ...]) -> None:
         ack = _rejection(args)
         if ack is None or epoch != self._connection_epoch:
             return
-        rejected = [i for i in resource_ids if i in self._listeners and i in self._served]
+        rejected = [i for i, token in tokens.items() if i in self._listeners and self._served.get(i) == token]
         for resource_id in rejected:
             # The slot is free again; no promotion: the id stays unserved until its last listener goes.
             del self._served[resource_id]
@@ -496,8 +507,9 @@ class SyncEventDispatcher:
         self._failed = False
         self._fail_error = None
         self._listeners = {}
-        # See AsyncEventDispatcher; all three are guarded by self._lock.
-        self._served: dict[str, None] = {}
+        # See AsyncEventDispatcher; all four are guarded by self._lock.
+        self._served: dict[str, int] = {}
+        self._serve_seq: int = 0
         self._rejected: set[str] = set()
         self._pending_acks: collections.deque[tuple[float, AckCallback]] = collections.deque()
         self._registered_events = set()
@@ -573,7 +585,7 @@ class SyncEventDispatcher:
                 # The previous socket's pending acknowledgements were dropped with it.
                 dispatcher._pending_acks.clear()
                 for chunk in _chunks(list(dispatcher._served)):
-                    dispatcher._send_subscribe_locked(sio, chunk)
+                    dispatcher._send_subscribe_locked(sio, {i: dispatcher._served[i] for i in chunk})
 
         @sio.event  # type: ignore[misc]
         def disconnect() -> None:  # pyright: ignore[reportUnusedFunction]
@@ -669,7 +681,8 @@ class SyncEventDispatcher:
                 # Past the cap the server would reject the id, so it is not sent and stays unserved
                 # until its last listener goes: its waits fall back to polling.
                 if len(self._served) < MAX_SUBSCRIPTIONS_PER_CONNECTION:
-                    self._served[resource_id] = None
+                    self._serve_seq += 1
+                    self._served[resource_id] = self._serve_seq
                     self._emit_locked("subscribe", resource_id)
             self._listeners[resource_id].append(handler)
 
@@ -811,22 +824,25 @@ class SyncEventDispatcher:
         """
         if self._sio is not None and self._connected:
             if event == "subscribe":
-                self._send_subscribe_locked(self._sio, [resource_id])
+                self._send_subscribe_locked(self._sio, {resource_id: self._served[resource_id]})
             else:
                 _emit_sync(self._sio, event, [resource_id])
 
-    def _send_subscribe_locked(self, sio: socketio.Client, resource_ids: list[str]) -> None:
-        """Sends a subscribe that asks for an acknowledgement. Caller holds self._lock."""
+    def _send_subscribe_locked(self, sio: socketio.Client, tokens: dict[str, int]) -> None:
+        """Sends a subscribe for the ids (with their served tokens) that asks for an acknowledgement.
+
+        Caller holds self._lock.
+        """
         epoch = self._connection_epoch
 
         def on_ack(*args: Any) -> None:
-            self._handle_subscribe_ack(epoch, resource_ids, args)
+            self._handle_subscribe_ack(epoch, tokens, args)
 
         _prune_pending_acks(sio, self._pending_acks)
         self._pending_acks.append((time.monotonic() + _ACK_TIMEOUT, on_ack))
-        _emit_sync(sio, "subscribe", resource_ids, on_ack)
+        _emit_sync(sio, "subscribe", list(tokens), on_ack)
 
-    def _handle_subscribe_ack(self, epoch: int, resource_ids: list[str], args: tuple[Any, ...]) -> None:
+    def _handle_subscribe_ack(self, epoch: int, tokens: dict[str, int], args: tuple[Any, ...]) -> None:
         """Runs on the socket's thread."""
         ack = _rejection(args)
         if ack is None:
@@ -834,7 +850,7 @@ class SyncEventDispatcher:
         with self._lock:
             if epoch != self._connection_epoch:
                 return
-            rejected = [i for i in resource_ids if i in self._listeners and i in self._served]
+            rejected = [i for i, token in tokens.items() if i in self._listeners and self._served.get(i) == token]
             for resource_id in rejected:
                 # The slot is free again; no promotion: the id stays unserved until its last listener goes.
                 del self._served[resource_id]

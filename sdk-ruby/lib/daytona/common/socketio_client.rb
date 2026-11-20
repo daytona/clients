@@ -307,7 +307,8 @@ module Daytona
         handle_socketio_packet(raw[1..], connected_queue)
 
       when EIO_CLOSE
-        mark_disconnected
+        # Server-initiated close: reconnect (and re-subscribe) as for a Socket.IO disconnect.
+        handle_server_disconnect
       end
     end
 
@@ -339,9 +340,14 @@ module Daytona
         handle_ack(data[1..])
 
       when SIO_DISCONNECT
-        was_connected = mark_disconnected
-        @on_disconnect&.call if was_connected && !@close_requested
+        handle_server_disconnect
       end
+    end
+
+    # The server ended the connection: report it once, unless the client is closing.
+    def handle_server_disconnect
+      was_connected = mark_disconnected
+      @on_disconnect&.call if was_connected && !@close_requested
     end
 
     # Marks the connection down and drops the pending acknowledgement callbacks.

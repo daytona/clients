@@ -95,7 +95,7 @@ class TestFallbackPollInterval:
 class TestRetryAfter:
     def test_seconds(self):
         assert wait_poll.retry_after_seconds({"Retry-After": "3"}) == 3.0
-        assert wait_poll.retry_after_seconds({"retry-after": " 2.5 "}) == 2.5
+        assert wait_poll.retry_after_seconds({"retry-after": " 2 "}) == 2.0
 
     def test_http_date(self):
         from datetime import datetime, timezone
@@ -104,6 +104,59 @@ class TestRetryAfter:
         assert wait_poll.retry_after_seconds({"Retry-After": "Thu, 01 Jan 2026 12:00:07 GMT"}, now=now) == 7.0
         assert wait_poll.retry_after_seconds({"Retry-After": "Thu, 01 Jan 2026 11:59:00 GMT"}, now=now) == 0.0
 
-    @pytest.mark.parametrize("headers", [{}, {"Retry-After": "soon"}, {"Retry-After": "-4"}, {"Other": "3"}])
-    def test_missing_or_unusable(self, headers):
-        assert wait_poll.retry_after_seconds(headers) == 0.0
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            None,
+            {},
+            {"Other": "3"},
+            {"Retry-After": "soon"},
+            {"Retry-After": ""},
+            {"Retry-After": "-4"},
+            {"Retry-After": "-0.5"},
+            {"Retry-After": "inf"},
+            {"Retry-After": "-inf"},
+            {"Retry-After": "Infinity"},
+            {"Retry-After": "nan"},
+            {"Retry-After": "NaN"},
+            {"Retry-After": "1.5"},
+            {"Retry-After": "1e3"},
+            {"Retry-After": "٣"},
+        ],
+    )
+    def test_missing_or_unusable_is_absent(self, headers):
+        assert wait_poll.retry_after_seconds(headers) is None
+
+    @pytest.mark.parametrize(("value", "expected"), [("0", 0.0), ("60", 60.0), ("61", 60.0), ("1000000000", 60.0)])
+    def test_capped_at_sixty_seconds(self, value, expected):
+        assert wait_poll.retry_after_seconds({"Retry-After": value}) == expected
+
+    def test_far_http_date_is_capped(self):
+        from datetime import datetime, timezone
+
+        now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        assert wait_poll.retry_after_seconds({"Retry-After": "Fri, 01 Jan 2027 12:00:00 GMT"}, now=now) == 60.0
+
+
+class TestRateLimitedPollInterval:
+    @pytest.mark.parametrize(("value", "factor"), [(0.0, 1.0), (1.0, 1.2)])
+    def test_retry_after_gets_upward_jitter_only(self, stub_random, value, factor):
+        stub_random(value)
+        assert wait_poll.rate_limited_poll_interval(0.1, 1.0, 30.0) == pytest.approx(30.0 * factor)
+
+    def test_cap_applies_before_the_jitter(self, stub_random):
+        stub_random(1.0)
+        capped = wait_poll.retry_after_seconds({"Retry-After": "600"})
+        assert wait_poll.rate_limited_poll_interval(0.1, 1.0, capped) == pytest.approx(72.0)
+
+    @pytest.mark.parametrize(("value", "jitter"), [(0.0, 0.8), (1.0, 1.2)])
+    def test_without_retry_after_the_fallback_backoff_applies_in_any_mode(self, stub_random, value, jitter):
+        stub_random(value)
+        # Fast cadence (unsubscribed): the backoff still applies.
+        assert wait_poll.rate_limited_poll_interval(0.1, 2.25, None) == pytest.approx(2.25 * jitter)
+        # Event-backed: the 5 s interval is longer than an early backoff.
+        assert wait_poll.rate_limited_poll_interval(5.0, 1.0, None) == 5.0
+
+    def test_a_shorter_retry_after_does_not_shorten_the_interval(self, stub_random):
+        stub_random(0.5)
+        assert wait_poll.rate_limited_poll_interval(5.0, 1.0, 2.0) == 5.0

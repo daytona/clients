@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { io } from 'socket.io-client'
-import { EventDispatcher, SUBSCRIPTION_REJECTED_EVENT } from '../utils/EventDispatcher'
+import { EventDispatcher, SUBSCRIBE_ACK_TIMEOUT_MS, SUBSCRIPTION_REJECTED_EVENT } from '../utils/EventDispatcher'
 import { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
 
 jest.mock('socket.io-client', () => ({ io: jest.fn() }))
@@ -35,20 +35,15 @@ class FakeSocket extends FakeEmitter {
   connected = false
   auth: unknown
   readonly io = new FakeEmitter()
-  readonly emit = jest.fn()
-  // Acknowledgement callbacks of the messages sent through timeout(), with their timeouts.
-  readonly acks: {
-    event: string
-    payload: unknown
-    timeoutMs: number
-    ack: (err: unknown, response?: unknown) => void
-  }[] = []
-  readonly timeout = jest.fn((timeoutMs: number) => ({
-    emit: (event: string, payload: unknown, ack: (err: unknown, response?: unknown) => void) => {
-      this.emit(event, payload)
-      this.acks.push({ event, payload, timeoutMs, ack })
-    },
-  }))
+  // What the client sent, without acknowledgement callbacks.
+  readonly sent = jest.fn()
+  // Acknowledgement callbacks of the messages that asked for one.
+  readonly acks: { event: string; payload: unknown; ack: (response?: unknown) => void }[] = []
+  emit(event: string, payload: unknown, ack?: (response?: unknown) => void): this {
+    this.sent(event, payload)
+    if (ack) this.acks.push({ event, payload, ack })
+    return this
+  }
   readonly connect = jest.fn(() => this)
   readonly disconnect = jest.fn(() => {
     this.connected = false
@@ -138,12 +133,12 @@ describe('EventDispatcher', () => {
     unsubscribeA()
     dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
     const socket = lastSocket()
-    expect(socket.emit).not.toHaveBeenCalled()
+    expect(socket.sent).not.toHaveBeenCalled()
 
     socket.serverAccepts()
 
-    expect(socket.emit).toHaveBeenCalledTimes(1)
-    expect(socket.emit).toHaveBeenCalledWith('subscribe', { sandboxIds: [uuid(2), uuid(3)] })
+    expect(socket.sent).toHaveBeenCalledTimes(1)
+    expect(socket.sent).toHaveBeenCalledWith('subscribe', { sandboxIds: [uuid(2), uuid(3)] })
   })
 
   it('chunks the set sent on connect to at most 100 ids per message', () => {
@@ -154,7 +149,7 @@ describe('EventDispatcher', () => {
 
     socket.serverAccepts()
 
-    expect(socket.emit.mock.calls).toEqual([
+    expect(socket.sent.mock.calls).toEqual([
       ['subscribe', { sandboxIds: ids.slice(0, 100) }],
       ['subscribe', { sandboxIds: ids.slice(100, 200) }],
       ['subscribe', { sandboxIds: ids.slice(200) }],
@@ -167,17 +162,17 @@ describe('EventDispatcher', () => {
     dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
     const socket = lastSocket()
     socket.serverAccepts()
-    socket.emit.mockClear()
+    socket.sent.mockClear()
 
     socket.drop()
     dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
-    expect(socket.emit).not.toHaveBeenCalled()
+    expect(socket.sent).not.toHaveBeenCalled()
     expect(dispatcher.isConnected).toBe(false)
 
     socket.serverAccepts()
 
     expect(dispatcher.isConnected).toBe(true)
-    expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2), uuid(3)] }]])
+    expect(socket.sent.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2), uuid(3)] }]])
   })
 
   it('advances the connection epoch on the initial connect and on every reconnect', () => {
@@ -222,7 +217,7 @@ describe('EventDispatcher', () => {
       return entry
     }
 
-    it('sends every subscribe with a 10 s acknowledgement and every unsubscribe without one', () => {
+    it('sends every subscribe with an acknowledgement and every unsubscribe without one', () => {
       const dispatcher = makeDispatcher()
       dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
       const socket = lastSocket()
@@ -230,11 +225,28 @@ describe('EventDispatcher', () => {
       const release = dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
       release()
 
-      expect(socket.acks.map(({ payload, timeoutMs }) => [payload, timeoutMs])).toEqual([
-        [{ sandboxIds: [uuid(1)] }, 10_000],
-        [{ sandboxIds: [uuid(2)] }, 10_000],
-      ])
-      expect(socket.emit).toHaveBeenLastCalledWith('unsubscribe', { sandboxIds: [uuid(2)] })
+      expect(socket.acks.map(({ payload }) => payload)).toEqual([{ sandboxIds: [uuid(1)] }, { sandboxIds: [uuid(2)] }])
+      expect(socket.sent).toHaveBeenLastCalledWith('unsubscribe', { sandboxIds: [uuid(2)] })
+    })
+
+    it('a late rejection of an earlier subscription does not unserve a newer one of the same id', () => {
+      const dispatcher = makeDispatcher()
+      const manager = new EventSubscriptionManager(dispatcher)
+      const releaseFirst = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      const firstAck = ackFor(socket, uuid(1))
+      releaseFirst()
+      expect(socket.sent).toHaveBeenLastCalledWith('unsubscribe', { sandboxIds: [uuid(1)] })
+      const handler = jest.fn()
+      dispatcher.subscribe(uuid(1), handler, SANDBOX_EVENTS)
+
+      firstAck.ack({ ok: false, error: 'OVERLOADED' })
+
+      expect(dispatcher.isServed(uuid(1))).toBe(true)
+      expect(dispatcher.isRejected(uuid(1))).toBe(false)
+      expect(manager.isEventBacked(uuid(1))).toBe(true)
+      expect(handler).not.toHaveBeenCalled()
     })
 
     it('a rejection frees the slot, marks the id rejected, tells its handlers and keeps it out of the reconnect set', () => {
@@ -248,7 +260,7 @@ describe('EventDispatcher', () => {
       dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
       expect(manager.isEventBacked(uuid(1))).toBe(true)
 
-      ackFor(socket, uuid(1)).ack(null, { ok: false, error: 'OVERLOADED', message: 'shedding' })
+      ackFor(socket, uuid(1)).ack({ ok: false, error: 'OVERLOADED', message: 'shedding' })
 
       expect(dispatcher.isServed(uuid(1))).toBe(false)
       expect(dispatcher.isRejected(uuid(1))).toBe(true)
@@ -262,10 +274,10 @@ describe('EventDispatcher', () => {
       expect(dispatcher.isServed(uuid(4))).toBe(true)
       expect(dispatcher.isServed(uuid(3))).toBe(false)
 
-      socket.emit.mockClear()
+      socket.sent.mockClear()
       socket.drop()
       socket.serverAccepts()
-      expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(4)] }]])
+      expect(socket.sent.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(4)] }]])
     })
 
     it('a rejected id sends no unsubscribe and is forgotten when its last listener goes', () => {
@@ -273,22 +285,22 @@ describe('EventDispatcher', () => {
       const release = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
       const socket = lastSocket()
       socket.serverAccepts()
-      ackFor(socket, uuid(1)).ack(null, { ok: false, error: 'RATE_LIMITED' })
-      socket.emit.mockClear()
+      ackFor(socket, uuid(1)).ack({ ok: false, error: 'RATE_LIMITED' })
+      socket.sent.mockClear()
 
       release()
 
-      expect(socket.emit).not.toHaveBeenCalled()
+      expect(socket.sent).not.toHaveBeenCalled()
       expect(dispatcher.isRejected(uuid(1))).toBe(false)
       dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
       expect(dispatcher.isServed(uuid(1))).toBe(true)
     })
 
     test.each([
-      ['{ok: true}', null, { ok: true }],
-      ['no acknowledgement (timeout)', new Error('operation has timed out'), undefined],
-      ['a malformed acknowledgement', null, 'ok'],
-    ])('%s changes nothing', (_name, err, response) => {
+      ['{ok: true}', { ok: true }],
+      ['no acknowledgement', undefined],
+      ['a malformed acknowledgement', 'ok'],
+    ])('%s changes nothing', (_name, response) => {
       const dispatcher = makeDispatcher()
       const manager = new EventSubscriptionManager(dispatcher)
       const handler = jest.fn()
@@ -296,7 +308,8 @@ describe('EventDispatcher', () => {
       const socket = lastSocket()
       socket.serverAccepts()
 
-      ackFor(socket, uuid(1)).ack(err, response)
+      if (response !== undefined) ackFor(socket, uuid(1)).ack(response)
+      jest.advanceTimersByTime(SUBSCRIBE_ACK_TIMEOUT_MS)
 
       expect(dispatcher.isServed(uuid(1))).toBe(true)
       expect(dispatcher.isRejected(uuid(1))).toBe(false)
@@ -313,10 +326,75 @@ describe('EventDispatcher', () => {
       socket.drop()
       socket.serverAccepts()
 
-      stale.ack(null, { ok: false, error: 'OVERLOADED' })
+      stale.ack({ ok: false, error: 'OVERLOADED' })
 
       expect(dispatcher.isServed(uuid(1))).toBe(true)
       expect(dispatcher.isRejected(uuid(1))).toBe(false)
+    })
+
+    const subscribesWithAck = (socket: FakeSocket): string[][] =>
+      socket.acks.map(({ payload }) => (payload as { sandboxIds: string[] }).sandboxIds)
+
+    it('a connection whose first acknowledged subscribe gets no ack sends the rest without one, until it reconnects', () => {
+      const dispatcher = makeDispatcher()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      jest.advanceTimersByTime(SUBSCRIBE_ACK_TIMEOUT_MS - 1)
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      jest.advanceTimersByTime(1)
+
+      dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
+
+      expect(socket.sent).toHaveBeenLastCalledWith('subscribe', { sandboxIds: [uuid(3)] })
+      expect(subscribesWithAck(socket)).toEqual([[uuid(1)], [uuid(2)]])
+
+      // A reconnect asks again.
+      socket.drop()
+      socket.serverAccepts()
+      expect(subscribesWithAck(socket)).toEqual([[uuid(1)], [uuid(2)], [uuid(1), uuid(2), uuid(3)]])
+    })
+
+    test.each([
+      ['{ok: true}', { ok: true }],
+      ['a rejection', { ok: false, error: 'RATE_LIMITED' }],
+    ])('any acknowledgement (%s) keeps the connection asking for them', (_name, response) => {
+      const dispatcher = makeDispatcher()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      ackFor(socket, uuid(1)).ack(response)
+      jest.advanceTimersByTime(SUBSCRIBE_ACK_TIMEOUT_MS * 2)
+
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+
+      expect(subscribesWithAck(socket)).toEqual([[uuid(1)], [uuid(2)]])
+    })
+
+    it('a late acknowledgement after the switch is still handled', () => {
+      const dispatcher = makeDispatcher()
+      const handler = jest.fn()
+      dispatcher.subscribe(uuid(1), handler, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      jest.advanceTimersByTime(SUBSCRIBE_ACK_TIMEOUT_MS)
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      expect(subscribesWithAck(socket)).toEqual([[uuid(1)]])
+
+      ackFor(socket, uuid(1)).ack({ ok: false, error: 'OVERLOADED' })
+
+      expect(handler).toHaveBeenCalledWith(SUBSCRIPTION_REJECTED_EVENT, { id: uuid(1), error: 'OVERLOADED' })
+      expect(dispatcher.isRejected(uuid(1))).toBe(true)
+    })
+
+    it('the acknowledgement timer never keeps the process alive', () => {
+      const dispatcher = makeDispatcher()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      lastSocket().serverAccepts()
+
+      const timer = (dispatcher as unknown as { ackProbeTimer: { hasRef: () => boolean } | null }).ackProbeTimer
+      expect(timer).not.toBeNull()
+      expect(timer?.hasRef()).toBe(false)
     })
   })
 
@@ -340,7 +418,7 @@ describe('EventDispatcher', () => {
       socket.serverAccepts()
       for (let i = 1; i <= 10_000; i++) dispatcher.subscribe(uuid(i), noop, SANDBOX_EVENTS)
 
-      const sent = socket.emit.mock.calls.flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
+      const sent = socket.sent.mock.calls.flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
       expect(sent).toHaveLength(10_000)
       expect(dispatcher.isServed(uuid(9_999))).toBe(true)
       expect(dispatcher.isServed(uuid(10_000))).toBe(false)
@@ -384,7 +462,7 @@ describe('EventDispatcher', () => {
       manager.subscribe(uuid(2), noop, SANDBOX_EVENTS)
       manager.subscribe(uuid(3), noop, SANDBOX_EVENTS)
 
-      expect(lastSocket().emit.mock.calls).toEqual([
+      expect(lastSocket().sent.mock.calls).toEqual([
         ['subscribe', { sandboxIds: [uuid(1)] }],
         ['subscribe', { sandboxIds: [uuid(2)] }],
       ])
@@ -400,17 +478,17 @@ describe('EventDispatcher', () => {
       const releaseThird = dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
       const socket = lastSocket()
       socket.serverAccepts()
-      socket.emit.mockClear()
+      socket.sent.mockClear()
 
       releaseFirst()
-      expect(socket.emit.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(1)] }]])
+      expect(socket.sent.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(1)] }]])
       expect(dispatcher.isServed(uuid(3))).toBe(false)
 
       dispatcher.subscribe(uuid(4), noop, SANDBOX_EVENTS)
-      expect(socket.emit.mock.calls[1]).toEqual(['subscribe', { sandboxIds: [uuid(4)] }])
+      expect(socket.sent.mock.calls[1]).toEqual(['subscribe', { sandboxIds: [uuid(4)] }])
 
       releaseThird()
-      expect(socket.emit).toHaveBeenCalledTimes(2)
+      expect(socket.sent).toHaveBeenCalledTimes(2)
     })
 
     it('re-sends exactly the served ids on reconnect', () => {
@@ -420,13 +498,13 @@ describe('EventDispatcher', () => {
       dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
       const socket = lastSocket()
       socket.serverAccepts()
-      expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2)] }]])
-      socket.emit.mockClear()
+      expect(socket.sent.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2)] }]])
+      socket.sent.mockClear()
 
       socket.drop()
       socket.serverAccepts()
 
-      expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2)] }]])
+      expect(socket.sent.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(1), uuid(2)] }]])
     })
 
     it('is not event-backed while disconnected or after the manager shuts down', () => {
@@ -449,35 +527,35 @@ describe('EventDispatcher', () => {
     const unsubscribeFirst = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
     const socket = lastSocket()
     socket.serverAccepts()
-    socket.emit.mockClear()
+    socket.sent.mockClear()
 
     const unsubscribeSecond = dispatcher.subscribe(uuid(1), () => undefined, SANDBOX_EVENTS)
-    expect(socket.emit).not.toHaveBeenCalled()
+    expect(socket.sent).not.toHaveBeenCalled()
 
     const unsubscribeOther = dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
-    expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(2)] }]])
-    socket.emit.mockClear()
+    expect(socket.sent.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(2)] }]])
+    socket.sent.mockClear()
 
     unsubscribeFirst()
-    expect(socket.emit).not.toHaveBeenCalled()
+    expect(socket.sent).not.toHaveBeenCalled()
 
     unsubscribeSecond()
-    expect(socket.emit.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(1)] }]])
-    socket.emit.mockClear()
+    expect(socket.sent.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(1)] }]])
+    socket.sent.mockClear()
 
     // Calling an unsubscribe function again must not send anything.
     unsubscribeSecond()
-    expect(socket.emit).not.toHaveBeenCalled()
+    expect(socket.sent).not.toHaveBeenCalled()
 
     unsubscribeOther()
-    expect(socket.emit.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(2)] }]])
+    expect(socket.sent.mock.calls).toEqual([['unsubscribe', { sandboxIds: [uuid(2)] }]])
   })
 
   it('does not raise into the caller when an emit fails', () => {
     const dispatcher = makeDispatcher()
     dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
     const socket = lastSocket()
-    socket.emit.mockImplementation(() => {
+    socket.sent.mockImplementation(() => {
       throw new Error('boom')
     })
 

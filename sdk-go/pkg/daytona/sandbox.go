@@ -185,6 +185,8 @@ const (
 	waitForStateFallbackPollInterval    = 1 * time.Second
 	waitForStateFallbackPollGrowth      = 1.5
 	waitForStateFallbackPollMaxInterval = 10 * time.Second
+	// A longer Retry-After is capped: the wait's own timeout still decides.
+	waitForStateMaxRetryAfter = 60 * time.Second
 	// Spreads safety-net polls of concurrent waits apart.
 	waitForStatePollJitter = 0.2
 )
@@ -552,6 +554,9 @@ type waitSubscription struct {
 	stateEventsBeforeRequest uint64
 	// A reconnect since loses the events emitted while the socket was down.
 	connectionEpochBeforeRequest uint64
+	// retaken is set when ensure had to subscribe again because the
+	// subscription expired: events in the gap went nowhere.
+	retaken bool
 }
 
 func (s *Sandbox) subscribeForWait() *waitSubscription {
@@ -602,11 +607,12 @@ func (w *waitSubscription) requireFirstRead() {
 
 // canSkipFirstRead: the cached state is the operation's response and every
 // later change arrives as an event. An event that arrived meanwhile may be newer
-// than the response that overwrote it, and a reconnect meanwhile may have lost
-// events, so either forces the read.
+// than the response that overwrote it, and a reconnect or an expired (re-taken)
+// subscription meanwhile may have lost events, so each forces the read.
 func (w *waitSubscription) canSkipFirstRead() bool {
 	return w.liveBeforeRequest &&
 		w.pollMode() == waitPollEventBacked &&
+		!w.retaken &&
 		w.sandbox.subscriptionManager.ConnectionEpoch() == w.connectionEpochBeforeRequest &&
 		w.sandbox.stateEvents.Load() == w.stateEventsBeforeRequest
 }
@@ -618,8 +624,11 @@ func (w *waitSubscription) ensure() bool {
 	if manager == nil {
 		return false
 	}
-	if w.subID != "" && manager.Refresh(w.subID) {
-		return true
+	if w.subID != "" {
+		if manager.Refresh(w.subID) {
+			return true
+		}
+		w.retaken = true
 	}
 	w.subID = subscribeStateEvents(manager, w.sandbox.ID, w.sandbox.handleEvent)
 	return w.subID != ""
@@ -702,24 +711,52 @@ func (p *waitPollSchedule) next(mode waitPollMode) time.Duration {
 	return p.fast
 }
 
+// nextRateLimited returns the delay after a poll that got a 429, in any mode:
+// no sooner than the mode's interval, the current fallback interval or the
+// server's Retry-After, and the fallback backoff advances one step, so repeated
+// 429s back off even without a subscription. When Retry-After decides, it gets
+// up to 20 % more, so waits that got the same header do not retry together.
+func (p *waitPollSchedule) nextRateLimited(mode waitPollMode, retryAfter time.Duration) time.Duration {
+	fallback := p.fallback
+	delay := p.next(mode)
+	if mode != waitPollSubscribed {
+		delay = max(delay, jitterWaitForStatePollInterval(fallback))
+	}
+	p.fallback = min(time.Duration(float64(fallback)*waitForStateFallbackPollGrowth), waitForStateFallbackPollMaxInterval)
+	if retryAfter > delay {
+		delay = time.Duration(math.Round(float64(retryAfter) * (1 + waitForStatePollJitter*waitForStatePollRandom())))
+	}
+	return delay
+}
+
 // rateLimitRetryAfter reports whether err is a 429, and the delay its
-// Retry-After header asks for (seconds or an HTTP date; 0 if absent).
+// Retry-After header asks for: whole seconds or an HTTP date, capped at
+// waitForStateMaxRetryAfter; 0 when absent, negative or unparseable.
 func rateLimitRetryAfter(err error) (time.Duration, bool) {
 	var de *errors.DaytonaError
 	if !stderrors.As(err, &de) || de.StatusCode != http.StatusTooManyRequests {
 		return 0, false
 	}
-	value := strings.TrimSpace(de.Headers.Get("Retry-After"))
+	return parseRetryAfter(de.Headers.Get("Retry-After")), true
+}
+
+func parseRetryAfter(value string) time.Duration {
+	value = strings.TrimSpace(value)
 	if value == "" {
-		return 0, true
+		return 0
 	}
-	if seconds, convErr := strconv.Atoi(value); convErr == nil {
-		return max(time.Duration(seconds)*time.Second, 0), true
+	var delay time.Duration
+	if seconds, convErr := strconv.ParseInt(value, 10, 64); convErr == nil {
+		if seconds <= 0 {
+			return 0
+		}
+		delay = time.Duration(min(seconds, int64(waitForStateMaxRetryAfter/time.Second))) * time.Second
+	} else if stderrors.Is(convErr, strconv.ErrRange) && !strings.HasPrefix(value, "-") {
+		delay = waitForStateMaxRetryAfter
+	} else if at, parseErr := http.ParseTime(value); parseErr == nil {
+		delay = time.Until(at)
 	}
-	if at, parseErr := http.ParseTime(value); parseErr == nil {
-		return max(time.Until(at), 0), true
-	}
-	return 0, true
+	return min(max(delay, 0), waitForStateMaxRetryAfter)
 }
 
 func jitterWaitForStatePollInterval(interval time.Duration) time.Duration {
@@ -914,18 +951,21 @@ func (s *Sandbox) waitForStateWith(
 	// the server's Retry-After, nor than the regular interval.
 	schedule := newWaitPollSchedule()
 	var retryAfter time.Duration
+	rateLimited := false
 	poll := func() (done bool, err error) {
 		done, err = refresh(ctx)
 		if wait, limited := rateLimitRetryAfter(err); limited {
-			retryAfter = wait
+			retryAfter, rateLimited = wait, true
 			return false, nil
 		}
 		return done, err
 	}
 	nextPoll := func() time.Duration {
-		delay := max(waitForStateNextPoll(schedule, sub.pollMode()), retryAfter)
-		retryAfter = 0
-		return delay
+		if rateLimited {
+			rateLimited = false
+			return schedule.nextRateLimited(sub.pollMode(), retryAfter)
+		}
+		return waitForStateNextPoll(schedule, sub.pollMode())
 	}
 
 	// First poll runs immediately (main refreshed at t=0 before any wait),

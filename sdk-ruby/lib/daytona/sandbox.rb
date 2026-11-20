@@ -1345,7 +1345,7 @@ module Daytona
 
           fast_poll_interval = next_fast_poll_interval(current_interval: fast_poll_interval, started_at:)
           renew_state_subscription(subscription)
-          poll_interval = [next_poll_interval(subscription:, fast_poll_interval:, backoff:), retry_after || 0].max
+          poll_interval = next_poll_interval(subscription:, fast_poll_interval:, backoff:, retry_after:)
         end
 
         if result_state && error_strings.include?(result_state)
@@ -1501,18 +1501,52 @@ module Daytona
     # @param subscription [Hash] { id: String, nil }
     # @param fast_poll_interval [Float] The polling-only cadence, used as is when the wait holds no subscription
     # @return [Float] Seconds until the next poll
-    def next_poll_interval(subscription:, fast_poll_interval:, backoff: { interval: FALLBACK_POLL_INTERVAL })
-      return fast_poll_interval unless subscription[:id]
+    # @param retry_after [Float, nil] nil unless the poll was rate limited; then the seconds Retry-After asks
+    #   for (0 without one)
+    def next_poll_interval(subscription:, fast_poll_interval:, backoff: { interval: FALLBACK_POLL_INTERVAL },
+                           retry_after: nil)
+      fallback = backoff[:interval]
+      mode = poll_mode(subscription)
+      delay = mode_poll_interval(mode, fast_poll_interval, backoff)
+      return delay unless retry_after
 
-      if @subscription_manager.event_backed?(id)
-        backoff[:interval] = FALLBACK_POLL_INTERVAL
-        return jittered(EVENT_BACKED_POLL_INTERVAL)
-      end
-
-      interval = backoff[:interval]
-      backoff[:interval] = [interval * FALLBACK_POLL_GROWTH, FALLBACK_POLL_MAX_INTERVAL].min
-      jittered(interval)
+      rate_limited_poll_interval(mode, delay, fallback, backoff, retry_after)
     end
+
+    # @return [Symbol] :unsubscribed, :event_backed or :fallback (subscribed, but no events come)
+    def poll_mode(subscription)
+      return :unsubscribed unless subscription[:id]
+
+      @subscription_manager.event_backed?(id) ? :event_backed : :fallback
+    end
+
+    # The interval of +mode+: the fast cadence without a subscription; 5 s while event-backed, which restarts
+    # the backoff; otherwise the fallback backoff, which then grows.
+    def mode_poll_interval(mode, fast_poll_interval, backoff)
+      case mode
+      when :unsubscribed then fast_poll_interval
+      when :event_backed
+        backoff[:interval] = FALLBACK_POLL_INTERVAL
+        jittered(EVENT_BACKED_POLL_INTERVAL)
+      else
+        interval = backoff[:interval]
+        backoff[:interval] = grown_fallback(interval)
+        jittered(interval)
+      end
+    end
+
+    # After a 429, in any mode: no sooner than the mode's interval, the fallback interval or Retry-After, and the
+    # fallback backoff advances one step, so repeated 429s back off even without a subscription. When
+    # Retry-After decides, it gets up to 20 % more, so waits that got the same header do not retry together.
+    def rate_limited_poll_interval(mode, delay, fallback, backoff, retry_after)
+      delay = [delay, jittered(fallback)].max unless mode == :fallback
+      backoff[:interval] = grown_fallback(fallback)
+      return delay unless retry_after > delay
+
+      retry_after * (1 + (POLL_JITTER * poll_jitter_random))
+    end
+
+    def grown_fallback(interval) = [interval * FALLBACK_POLL_GROWTH, FALLBACK_POLL_MAX_INTERVAL].min
 
     # @param interval [Float]
     # @return [Float] +interval+ with up to POLL_JITTER either way
@@ -1532,13 +1566,15 @@ module Daytona
     end
 
     # @param headers [Hash, nil]
-    # @return [Float] The delay a Retry-After header asks for (seconds or an HTTP date), 0 when absent
+    # @return [Float] The delay a Retry-After header asks for (whole seconds or an HTTP date), at most
+    #   MAX_RETRY_AFTER; 0 when absent, negative or unparseable
     def retry_after_seconds(headers)
       text = Array(headers&.find { |name, _| name.to_s.casecmp?('retry-after') }&.last).first.to_s.strip
-      return text.to_f if text.match?(/\A\d+\z/)
-      return 0.0 if text.empty?
-
-      [Time.httpdate(text) - Time.now, 0.0].max
+      seconds = if text.match?(/\A\d+\z/) then text.to_f
+                elsif text.empty? then 0.0
+                else Time.httpdate(text) - Time.now
+                end
+      seconds.clamp(0.0, MAX_RETRY_AFTER)
     rescue ArgumentError
       0.0
     end
@@ -1573,7 +1609,9 @@ module Daytona
     #   meanwhile
     def events_reached_wait?(subscription)
       !subscription[:id].nil? && @subscription_manager.event_backed?(id) &&
-        @subscription_manager.connection_epoch == subscription[:connection_epoch]
+        @subscription_manager.connection_epoch == subscription[:connection_epoch] &&
+        # An expired subscription went nowhere in the gap; the wait renews it after its first read.
+        @subscription_manager.refresh(subscription[:id])
     end
 
     # Older servers return no sandbox from an operation, or one without a state; only then is a refresh
@@ -1659,6 +1697,10 @@ module Daytona
 
     FALLBACK_POLL_MAX_INTERVAL = 10.0
     private_constant :FALLBACK_POLL_MAX_INTERVAL
+
+    # A longer Retry-After is capped: the wait's own timeout still decides.
+    MAX_RETRY_AFTER = 60.0
+    private_constant :MAX_RETRY_AFTER
 
     # Spreads safety-net polls of concurrent waits apart.
     POLL_JITTER = 0.2

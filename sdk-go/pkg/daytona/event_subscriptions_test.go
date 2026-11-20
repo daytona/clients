@@ -1300,3 +1300,119 @@ func TestServerErrorOnPollStillFailsTheWait(t *testing.T) {
 	assert.Less(t, time.Since(start), 2*time.Second)
 	assert.Equal(t, 1, srv.gets())
 }
+
+func TestParseRetryAfter(t *testing.T) {
+	future := time.Now().Add(2 * time.Hour).UTC().Format(http.TimeFormat)
+	past := time.Now().Add(-time.Hour).UTC().Format(http.TimeFormat)
+	for value, want := range map[string]time.Duration{
+		"":                      0,
+		"3":                     3 * time.Second,
+		" 7 ":                   7 * time.Second,
+		"60":                    time.Minute,
+		"61":                    time.Minute,
+		"999999999999":          time.Minute,
+		"99999999999999999999":  time.Minute,
+		"0":                     0,
+		"-5":                    0,
+		"-99999999999999999999": 0,
+		"inf":                   0,
+		"-inf":                  0,
+		"Infinity":              0,
+		"nan":                   0,
+		"1.5":                   0,
+		"soon":                  0,
+		future:                  time.Minute,
+		past:                    0,
+	} {
+		assert.Equal(t, want, parseRetryAfter(value), "Retry-After %q", value)
+	}
+}
+
+func TestWaitPollScheduleAfterRateLimit(t *testing.T) {
+	seconds := func(v float64) time.Duration { return time.Duration(v * float64(time.Second)) }
+
+	t.Run("repeated 429s back off in every mode", func(t *testing.T) {
+		stubWaitForStatePollRandom(t, 0.5)
+		for _, mode := range []waitPollMode{waitPollUnsubscribed, waitPollSubscribed} {
+			schedule := newWaitPollSchedule()
+			var got []time.Duration
+			for range 7 {
+				got = append(got, schedule.nextRateLimited(mode, 0))
+			}
+			assert.Equal(t, []time.Duration{seconds(1), seconds(1.5), seconds(2.25), seconds(3.375), seconds(5.0625), seconds(7.59375), seconds(10)}, got, "mode %d", mode)
+		}
+		schedule := newWaitPollSchedule()
+		assert.Equal(t, seconds(5), schedule.nextRateLimited(waitPollEventBacked, 0), "event-backed keeps its longer interval")
+		assert.Equal(t, seconds(1.5), schedule.next(waitPollSubscribed), "and the backoff advanced")
+	})
+
+	t.Run("Retry-After decides with up to 20 % more", func(t *testing.T) {
+		stubWaitForStatePollRandom(t, 0)
+		assert.Equal(t, seconds(3), newWaitPollSchedule().nextRateLimited(waitPollUnsubscribed, seconds(3)))
+		assert.Equal(t, seconds(60), newWaitPollSchedule().nextRateLimited(waitPollSubscribed, time.Minute))
+		stubWaitForStatePollRandom(t, 1)
+		assert.Equal(t, seconds(3.6), newWaitPollSchedule().nextRateLimited(waitPollUnsubscribed, seconds(3)))
+		assert.Equal(t, seconds(72), newWaitPollSchedule().nextRateLimited(waitPollSubscribed, time.Minute))
+	})
+
+	t.Run("a shorter Retry-After never shortens the interval", func(t *testing.T) {
+		stubWaitForStatePollRandom(t, 0.5)
+		assert.Equal(t, seconds(1), newWaitPollSchedule().nextRateLimited(waitPollUnsubscribed, 500*time.Millisecond))
+		assert.Equal(t, seconds(5), newWaitPollSchedule().nextRateLimited(waitPollEventBacked, seconds(2)))
+	})
+}
+
+func TestRateLimitedPollSlowsAnUnsubscribedWait(t *testing.T) {
+	stubWaitForStatePollRandom(t, 0.5)
+	var gets []time.Time
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		gets = append(gets, time.Now())
+		n := len(gets)
+		mu.Unlock()
+		if n == 1 {
+			writeJSONResponse(t, w, http.StatusTooManyRequests, map[string]any{"message": "slow down", "statusCode": 429})
+			return
+		}
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
+	}))
+	defer server.Close()
+	client := createTestClientWithServer(t, server)
+	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTING, "us", 0, -1, false, nil)
+	require.Nil(t, client.subscriptionManager, "the wait polls without a subscription")
+
+	require.NoError(t, sandbox.doWaitForStart(context.Background(), 10*time.Second))
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, gets, 2)
+	assert.GreaterOrEqual(t, gets[1].Sub(gets[0]), 500*time.Millisecond, "a 429 slows the fast cadence to the fallback backoff")
+}
+
+func TestStopReadsFirstWhenItsSubscriptionExpiredDuringTheRequest(t *testing.T) {
+	stubNoScheduledPolls(t)
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	var subIDs []string
+	original := subscribeStateEvents
+	subscribeStateEvents = func(manager *common.EventSubscriptionManager, sandboxID string, handler common.SandboxEventHandler) string {
+		subID := original(manager, sandboxID, handler)
+		subIDs = append(subIDs, subID)
+		return subID
+	}
+	t.Cleanup(func() { subscribeStateEvents = original })
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		// The subscription expires while the request runs, and the sandbox stops
+		// in that gap: the event goes nowhere.
+		client.subscriptionManager.Unsubscribe(subIDs[0])
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
+	})
+
+	start := time.Now()
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false))
+	assert.Len(t, subIDs, 2, "the wait subscribed again")
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+	assertEndedOnImmediateRead(t, srv, start)
+}

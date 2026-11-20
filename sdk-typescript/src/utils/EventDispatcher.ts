@@ -38,8 +38,11 @@ const SUBSCRIPTION_CHUNK_SIZE = 100
  */
 export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
 
-/** How long a subscribe waits for its acknowledgement; silence leaves the ids as they are. */
-const SUBSCRIBE_ACK_TIMEOUT_MS = 10_000
+/**
+ * How long the first acknowledged subscribe of a connection waits before the connection counts as one
+ * whose server never acknowledges. Silence never changes an id's state.
+ */
+export const SUBSCRIBE_ACK_TIMEOUT_MS = 10_000
 
 /**
  * Local notification (never sent by the server) delivered to an id's handlers when the gateway
@@ -67,8 +70,16 @@ export class EventDispatcher {
   private _failed = false
   private _failError: string | null = null
   private listeners = new Map<string, Set<EventHandler>>()
-  // Ids the server holds, or will hold after the next connect; at most maxSubscriptions.
-  private readonly served = new Set<string>()
+  // Ids the server holds, or will hold after the next connect (at most maxSubscriptions), each with the
+  // token it was served under, so a late rejection of an earlier subscription cannot unserve a newer one.
+  private readonly served = new Map<string, number>()
+  private serveToken = 0
+  // Per connection: whether an acknowledgement arrived, the timer of the first acknowledged subscribe,
+  // and whether the server proved silent. Socket.IO keeps an unanswered acknowledgement until the
+  // disconnect, so a silent server's subscribes go out without one.
+  private acksSeen = false
+  private ackProbeTimer: ReturnType<typeof setTimeout> | null = null
+  private acksSilent = false
   // Ids whose subscribe the gateway rejected; unserved until their last listener goes.
   private readonly rejected = new Set<string>()
   private registeredEvents = new Set<string>()
@@ -219,9 +230,10 @@ export class EventDispatcher {
         this._failed = false
         this._failError = null
         this.reconnectAttempts = 0
+        this.resetAckProbe()
         // Fires on the initial connect and on every reconnect; the server drops
         // subscriptions with the socket, so send the whole served set.
-        this.emitSubscriptionChange('subscribe', [...this.served])
+        this.emitSubscriptionChange('subscribe', [...this.served.keys()])
         resolve()
       })
 
@@ -325,7 +337,7 @@ export class EventDispatcher {
       this.listeners.set(resourceId, handlers)
       // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
       if (this.served.size < this.maxSubscriptions) {
-        this.served.add(resourceId)
+        this.served.set(resourceId, ++this.serveToken)
         this.emitSubscriptionChange('subscribe', [resourceId])
       }
     }
@@ -402,6 +414,7 @@ export class EventDispatcher {
     this.served.clear()
     this.rejected.clear()
     this.registeredEvents.clear()
+    this.resetAckProbe()
   }
 
   /**
@@ -460,13 +473,16 @@ export class EventDispatcher {
     for (let i = 0; i < resourceIds.length; i += SUBSCRIPTION_CHUNK_SIZE) {
       const chunk = resourceIds.slice(i, i + SUBSCRIPTION_CHUNK_SIZE)
       try {
-        if (event === 'subscribe') {
-          // Socket.IO drops pending acknowledgements on disconnect, and the timeout frees them.
-          socket.timeout(SUBSCRIBE_ACK_TIMEOUT_MS).emit(event, { sandboxIds: chunk }, (err: unknown, ack: unknown) => {
-            if (!err && socket === this.socket && epoch === this._connectionEpoch) {
-              this.handleSubscribeAck(chunk, ack)
+        if (event === 'subscribe' && !this.acksSilent) {
+          // Socket.IO drops pending acknowledgements on disconnect. A late one is handled like any other.
+          const tokens = new Map(chunk.map((id) => [id, this.served.get(id)]))
+          socket.emit(event, { sandboxIds: chunk }, (ack: unknown) => {
+            if (socket === this.socket && epoch === this._connectionEpoch) {
+              this.acksSeen = true
+              this.handleSubscribeAck(tokens, ack)
             }
           })
+          this.armAckProbe(epoch)
         } else {
           socket.emit(event, { sandboxIds: chunk })
         }
@@ -481,14 +497,39 @@ export class EventDispatcher {
    * until their last listener goes; their handlers are told so their waits read now and poll.
    * No acknowledgement, or `{ok: true}`, changes nothing: servers without explicit mode never ack.
    */
-  private handleSubscribeAck(resourceIds: string[], ack: unknown): void {
+  private handleSubscribeAck(tokens: Map<string, number | undefined>, ack: unknown): void {
     if (!ack || typeof ack !== 'object' || (ack as SubscribeAck).ok !== false) return
     const error = (ack as SubscribeAck).error
-    for (const resourceId of resourceIds) {
-      if (!this.listeners.has(resourceId) || !this.served.delete(resourceId)) continue
+    for (const [resourceId, token] of tokens) {
+      if (!this.listeners.has(resourceId) || token === undefined || this.served.get(resourceId) !== token) continue
+      this.served.delete(resourceId)
       this.rejected.add(resourceId)
       this.dispatch(resourceId, SUBSCRIPTION_REJECTED_EVENT, { id: resourceId, error })
     }
+  }
+
+  /**
+   * Starts the connection's acknowledgement timer on its first acknowledged subscribe. If no
+   * acknowledgement at all arrives in time, the connection's later subscribes go out without one.
+   */
+  private armAckProbe(epoch: number): void {
+    if (this.ackProbeTimer) return
+    this.ackProbeTimer = setTimeout(() => {
+      if (epoch === this._connectionEpoch && !this.acksSeen) {
+        this.acksSilent = true
+      }
+    }, SUBSCRIBE_ACK_TIMEOUT_MS)
+    // Never keeps the process alive.
+    if (typeof this.ackProbeTimer.unref === 'function') {
+      this.ackProbeTimer.unref()
+    }
+  }
+
+  private resetAckProbe(): void {
+    if (this.ackProbeTimer) clearTimeout(this.ackProbeTimer)
+    this.ackProbeTimer = null
+    this.acksSeen = false
+    this.acksSilent = false
   }
 
   private dispatch(resourceId: string, eventName: string, data: any): void {
