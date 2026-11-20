@@ -40,8 +40,8 @@ func TestFileUpload_whenUnauthorized_replaysOnlyReplayableBodies(t *testing.T) {
 			})
 			client := newTestClient(t, fake.Server)
 			sb, err := client.newSandbox(sandboxInit{
-				Info: SandboxInfo{ID: "sbx", AccessToken: "initial"}, FromCreate: true,
-				Options: GetOptions{ToolboxURL: fake.Server.URL},
+				Info: SandboxInfo{ID: "sbx"}, AccessToken: "initial", FromCreate: true,
+				Options: GetSandboxOptions{ToolboxURL: fake.Server.URL},
 			})
 			require.NoError(t, err)
 			// When

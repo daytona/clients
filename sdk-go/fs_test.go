@@ -19,7 +19,7 @@ func newFileTestService(t *testing.T, server *httptest.Server, opts ...Option) *
 	client := newTestClient(t, server, opts...)
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: server.URL, AccessToken: "fixture"},
+		Options: GetSandboxOptions{ToolboxURL: server.URL, AccessToken: "fixture"},
 	})
 	require.NoError(t, err)
 	return sandbox.FS()

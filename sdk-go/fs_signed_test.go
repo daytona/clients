@@ -82,7 +82,7 @@ func TestSignedFileURL_whenPlaceholderInsidePath_preservesOverride(t *testing.T)
 	client := newTestClient(t, fake.Server)
 	sb, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: fake.Server.URL + "/proxy/{sandboxId}/custom"},
+		Options: GetSandboxOptions{ToolboxURL: fake.Server.URL + "/proxy/{sandboxId}/custom"},
 	})
 	require.NoError(t, err)
 	// When
