@@ -848,7 +848,7 @@ class AsyncVolumesService:
             order=order,
             cursor=cursor,
             limit=limit,
-            sort_choices=("created_at", "updated_at", "name", "used_bytes", "last_used_at"),
+            sort_choices=("created_at", "updated_at", "name", "used_bytes", "last_used_at", "size_gib"),
         )
         if types is not None:
             selected_types = _comma_list("types", types)

@@ -71,7 +71,7 @@ export interface SearchVolumesOptions extends CommonResourceSearchOptions {
   readonly imported?: boolean | null
   readonly lastUsedStartAt?: SearchTimestamp | null
   readonly lastUsedEndAt?: SearchTimestamp | null
-  readonly sort?: 'created_at' | 'updated_at' | 'name' | 'used_bytes' | 'last_used_at' | null
+  readonly sort?: 'created_at' | 'updated_at' | 'name' | 'used_bytes' | 'last_used_at' | 'size_gib' | null
   readonly order?: SearchOrder | null
 }
 
@@ -139,7 +139,7 @@ export class VolumesService {
   public async search(options: SearchVolumesOptions = {}): Promise<SearchResult<Volume>> {
     options = snapshotOptions('SearchVolumesOptions', options, SEARCH_VOLUMES_KEYS) ?? {}
     const normalized = omitNullSearchOptions(options)
-    const params = resourceSearchParams(normalized, ['created_at', 'updated_at', 'name', 'used_bytes', 'last_used_at'])
+    const params = resourceSearchParams(normalized, ['created_at', 'updated_at', 'name', 'used_bytes', 'last_used_at', 'size_gib'])
     if (normalized.types !== undefined) params.type = commaList('types', normalized.types, VOLUME_TYPES)
     if (normalized.statuses !== undefined) params.status = commaList('statuses', normalized.statuses, ['ready', 'deleting', 'error'])
     if (normalized.imported !== undefined) {
