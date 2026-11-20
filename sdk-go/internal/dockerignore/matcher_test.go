@@ -5,6 +5,7 @@ package dockerignore
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -15,6 +16,9 @@ import (
 func TestMatcherSharedGoSemantics(t *testing.T) {
 	// Given shared expectations generated with Go 1.26, read without copying.
 	data, err := os.ReadFile("../../../sdk-python/tests/fixtures/dockerignore-edge-cases.json")
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("shared Python fixtures are not included in the Go module")
+	}
 	require.NoError(t, err)
 	var cases []struct {
 		Ignore   string
@@ -41,6 +45,9 @@ func TestMatcherSharedGoSemantics(t *testing.T) {
 func TestMatcherSharedRefusals(t *testing.T) {
 	// Given syntax failures shared by the SDKs.
 	data, err := os.ReadFile("../../../sdk-python/tests/fixtures/dockerignore-refused.json")
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("shared Python fixtures are not included in the Go module")
+	}
 	require.NoError(t, err)
 	var cases []struct{ Ignore, Error string }
 	require.NoError(t, json.Unmarshal(data, &cases))

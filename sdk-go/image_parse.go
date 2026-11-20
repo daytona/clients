@@ -11,26 +11,40 @@ func parseImage(raw JSONValue) (*Image, error) {
 		return nil, err
 	}
 	result := &Image{}
-	for name, target := range map[string]*string{
-		"id": &result.ID, "class": &result.RawClass, "origin": &result.RawOrigin,
-		"region_id": &result.Region, "retention": &result.RawRetention, "status": &result.RawStatus,
-		"name": &result.Name, "error": &result.Error,
+	for _, entry := range []struct {
+		name   string
+		target *string
+	}{
+		{"id", &result.ID},
+		{"class", &result.RawClass},
+		{"origin", &result.RawOrigin},
+		{"region_id", &result.Region},
+		{"retention", &result.RawRetention},
+		{"status", &result.RawStatus},
+		{"name", &result.Name},
+		{"error", &result.Error},
 	} {
-		value, parseErr := field[string](object, name, name != "name" && name != "error")
+		value, parseErr := field[string](object, entry.name, entry.name != "name" && entry.name != "error")
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		*target = value
+		*entry.target = value
 	}
-	for name, target := range map[string]*bool{
-		"anonymous": &result.Anonymous, "format_outdated": &result.FormatOutdated,
-		"platform": &result.Platform, "default": &result.Default, "deprecated": &result.Deprecated,
+	for _, entry := range []struct {
+		name   string
+		target *bool
+	}{
+		{"anonymous", &result.Anonymous},
+		{"format_outdated", &result.FormatOutdated},
+		{"platform", &result.Platform},
+		{"default", &result.Default},
+		{"deprecated", &result.Deprecated},
 	} {
-		value, parseErr := field[bool](object, name, true)
+		value, parseErr := field[bool](object, entry.name, true)
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		*target = value
+		*entry.target = value
 	}
 	result.AvailableIn, err = artifactRegions(object)
 	if err != nil {
@@ -58,12 +72,18 @@ func parseImage(raw JSONValue) (*Image, error) {
 }
 
 func imageOptionalFields(object jsonObject, result *Image) error {
-	for name, target := range map[string]**int64{"bytes": &result.Bytes, "layer_count": &result.LayerCount} {
-		value, err := artifactOptionalInteger(object, name)
+	for _, entry := range []struct {
+		name   string
+		target **int64
+	}{
+		{"bytes", &result.Bytes},
+		{"layer_count", &result.LayerCount},
+	} {
+		value, err := artifactOptionalInteger(object, entry.name)
 		if err != nil {
 			return err
 		}
-		*target = value
+		*entry.target = value
 	}
 	disk, err := artifactOptionalInteger(object, "disk_mib")
 	if err != nil {
@@ -107,15 +127,21 @@ func artifactRegions(object jsonObject) ([]string, error) {
 }
 
 func artifactTimes(object jsonObject, created, updated *time.Time) error {
-	for name, target := range map[string]*time.Time{"created_at": created, "updated_at": updated} {
-		if !present(object[name]) {
-			return badRequest("response field " + name + " is required")
+	for _, entry := range []struct {
+		name   string
+		target *time.Time
+	}{
+		{"created_at", created},
+		{"updated_at", updated},
+	} {
+		if !present(object[entry.name]) {
+			return badRequest("response field " + entry.name + " is required")
 		}
-		value, err := timestampField(object, name)
+		value, err := timestampField(object, entry.name)
 		if err != nil {
 			return err
 		}
-		*target = value
+		*entry.target = value
 	}
 	return nil
 }
@@ -156,6 +182,10 @@ func imageOrigin(raw string) ImageOrigin {
 		return ImageOriginDockerfile
 	case "capture":
 		return ImageOriginCapture
+	case "windows":
+		return ImageOriginWindows
+	case "macos":
+		return ImageOriginMacOS
 	default:
 		return ImageOriginUnknown
 	}

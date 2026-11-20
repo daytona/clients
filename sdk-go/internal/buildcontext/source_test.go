@@ -66,8 +66,9 @@ func TestSourceDeclaredLinkFollowsCurrentTarget(t *testing.T) {
 	// When prepared, then the named link is followed to its current target.
 	entries, err := source.entries(t.Context())
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join(root, "second"), entries[1].local)
-	require.Equal(t, fileEntry, entries[1].kind)
+	t.Cleanup(func() { require.NoError(t, entries.root.Close()) })
+	require.Equal(t, filepath.Join(root, "second"), entries.items[1].local)
+	require.Equal(t, fileEntry, entries.items[1].kind)
 }
 
 func TestSourceHomeExpansion(t *testing.T) {

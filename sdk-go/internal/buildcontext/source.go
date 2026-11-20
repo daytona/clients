@@ -5,6 +5,7 @@ package buildcontext
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -75,7 +76,8 @@ func unsafeBasename(r rune) bool {
 }
 
 func (s Source) resolve() (string, os.FileInfo, error) {
-	if _, err := os.Stat(s.LocalPath); err != nil {
+	initial, err := os.Stat(s.LocalPath)
+	if err != nil {
 		if missing(err) {
 			return "", nil, invalid("local source does not exist: "+quote(s.LocalPath), err)
 		}
@@ -95,6 +97,9 @@ func (s Source) resolve() (string, os.FileInfo, error) {
 	if err != nil {
 		return "", nil, fileError(s.LocalPath, err)
 	}
+	if !os.SameFile(initial, info) {
+		return "", nil, invalid("local source changed while resolving: "+quote(s.LocalPath), nil)
+	}
 	declared, err := os.Lstat(s.LocalPath)
 	if err != nil {
 		return "", nil, fileError(s.LocalPath, err)
@@ -105,7 +110,7 @@ func (s Source) resolve() (string, os.FileInfo, error) {
 	return resolved, info, nil
 }
 
-func (s Source) entries(ctx context.Context) ([]entry, error) {
+func (s Source) entries(ctx context.Context) (result *entrySet, err error) {
 	resolved, info, err := s.resolve()
 	if err != nil {
 		return nil, err
@@ -114,22 +119,44 @@ func (s Source) entries(ctx context.Context) ([]entry, error) {
 		if !info.IsDir() {
 			return nil, invalid("local source is not a directory: "+quote(s.LocalPath), nil)
 		}
-		children, _, walkErr := directoryEntries(ctx, resolved, "")
+		root, rootErr := openDirectory(resolved, info)
+		if rootErr != nil {
+			return nil, rootErr
+		}
+		children, walkErr := walkDirectory(ctx, root, "")
 		if walkErr != nil {
 			return nil, walkErr
 		}
-		result := []entry{{name: s.ArchivePath + "/", kind: dirEntry, mode: permissionBits(info.Mode())}}
-		for _, child := range children {
+		items := []entry{{name: s.ArchivePath + "/", kind: dirEntry, mode: permissionBits(info.Mode())}}
+		for _, child := range children.items {
 			child.name = s.ArchivePath + "/" + child.name
-			result = append(result, child)
+			items = append(items, child)
 		}
-		return result, nil
+		children.items = items
+		return children, nil
 	}
 	if !info.Mode().IsRegular() {
 		return nil, invalid("local source is not a regular file: "+quote(s.LocalPath), nil)
 	}
-	return []entry{
+	root, err := os.OpenRoot(filepath.Dir(resolved))
+	if err != nil {
+		return nil, invalid("local source cannot be opened: "+quote(s.LocalPath), err)
+	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, root.Close())
+		}
+	}()
+	item, err := collectEntry(root, filepath.Base(resolved))
+	if err != nil {
+		return nil, err
+	}
+	if item.kind != fileEntry || !os.SameFile(info, item.info) {
+		return nil, invalid("local source changed: "+quote(s.LocalPath), nil)
+	}
+	item.name = s.ArchivePath
+	return &entrySet{root: root, items: []entry{
 		{name: path.Dir(s.ArchivePath) + "/", kind: dirEntry, mode: 0o755},
-		{name: s.ArchivePath, kind: fileEntry, local: resolved, info: info, mode: permissionBits(info.Mode())},
-	}, nil
+		item,
+	}}, nil
 }

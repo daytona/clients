@@ -33,7 +33,7 @@ type BuildImageOptions struct {
 	CPUArch ImageCPUArch
 }
 
-// BuildFromContextOptions selects a Dockerfile in a local build context.
+// BuildFromContextOptions selects a Dockerfile in a path or reader build context.
 type BuildFromContextOptions struct {
 	// BuildImageOptions controls naming, retention and placement.
 	BuildImageOptions

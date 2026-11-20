@@ -84,20 +84,20 @@ func TestVolumesList_whenPageIsMalformed(t *testing.T) {
 	}
 }
 
-func TestVolumeEnums_whenServerReturnsKnownStates(t *testing.T) {
-	for _, state := range []VolumeState{VolumeStateReady, VolumeStateDeleting, VolumeStateDeleted, VolumeStateError} {
-		t.Run(string(state), func(t *testing.T) {
+func TestVolumeEnums_whenServerReturnsKnownStatuses(t *testing.T) {
+	for _, status := range []VolumeStatus{VolumeStatusReady, VolumeStatusDeleting, VolumeStatusDeleted, VolumeStatusError} {
+		t.Run(string(status), func(t *testing.T) {
 			// Given
 			fixture := volumeFixture()
-			fixture["status"], fixture["type"] = string(state), "bucket"
+			fixture["status"], fixture["type"] = string(status), "bucket"
 			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /volumes/v": jsonHandler(t, fixture)})
 			client := newTestClient(t, fake.Server)
 			// When
 			got, err := client.Volumes().Get(t.Context(), "v", nil)
 			// Then
 			require.NoError(t, err)
-			require.Equal(t, state, got.State)
-			require.Equal(t, string(state), got.RawState)
+			require.Equal(t, status, got.Status)
+			require.Equal(t, string(status), got.RawStatus)
 			require.Equal(t, VolumeTypeBucket, got.Type)
 		})
 	}

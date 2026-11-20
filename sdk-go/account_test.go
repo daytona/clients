@@ -96,6 +96,7 @@ func TestAccountLimitsMapsAllFields(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &OrganizationLimits{
 		Sandboxes: SandboxLimits{Concurrent: usage, Total: usage}, ImageBuilds: ImageBuildLimits{Concurrent: usage},
+		SandboxTimeout:    SandboxTimeoutLimits{Max: time.Hour, Ceiling: 24 * time.Hour},
 		Storage:           StorageLimits{Volumes: usage, Images: usage, Snapshots: usage},
 		SecretsPerProject: usage, APIKeysPerProject: usage, APIKeysPerOrganization: usage,
 		SandboxResources: &SandboxResourceLimits{MaxCores: 2.5, MaxMemoryMiB: 2048},

@@ -6,6 +6,7 @@ package daytona
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,9 @@ type builderFixture struct {
 func builderFixtures(t *testing.T, name string, value any) {
 	t.Helper()
 	content, err := os.ReadFile("../sdk-python/tests/fixtures/" + name)
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("shared Python fixtures are not included in the Go module")
+	}
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(content, value))
 }

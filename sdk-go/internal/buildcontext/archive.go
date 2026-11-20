@@ -121,17 +121,40 @@ func FromDirectory(ctx context.Context, directory, dockerfilePath string) (resul
 	if err != nil {
 		return nil, err
 	}
-	entries, name, err := directoryEntries(ctx, root, dockerfilePath)
+	entries, err := directoryEntries(ctx, root, dockerfilePath)
 	if err != nil {
 		return nil, err
 	}
-	return archive(ctx, entries, name)
+	defer func() {
+		err = errors.Join(err, entries.root.Close())
+		if err != nil && result != nil {
+			err = errors.Join(err, result.Close())
+			result = nil
+		}
+	}()
+	return archive(ctx, entries.items, entries.dockerfile)
 }
 
 // FromSources archives a rendered Dockerfile and declaration-time local sources.
 // Source contents are read now; non-link sources cannot be redirected by links.
 func FromSources(ctx context.Context, dockerfile string, sources []Source) (result *Archive, err error) {
 	defer classify(&err)
+	defer func() {
+		if err != nil && result != nil {
+			err = errors.Join(err, result.Close())
+			result = nil
+		}
+	}()
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	var sourceHeader int64
+	if len(sources) != 0 {
+		sourceHeader = tarBlock
+	}
+	if err = checkEntrySize(sourceHeader, int64(len(dockerfile))); err != nil {
+		return nil, err
+	}
 	entries := []entry{{name: "Dockerfile", kind: bytesEntry, mode: 0o644, content: []byte(dockerfile)}}
 	if len(sources) != 0 {
 		entries = append(entries, entry{name: ".daytona-context/", kind: dirEntry, mode: 0o755})
@@ -144,7 +167,8 @@ func FromSources(ctx context.Context, dockerfile string, sources []Source) (resu
 		if sourceErr != nil {
 			return nil, sourceErr
 		}
-		entries = append(entries, children...)
+		defer func() { err = errors.Join(err, children.root.Close()) }()
+		entries = append(entries, children.items...)
 	}
 	return archive(ctx, entries, "Dockerfile")
 }

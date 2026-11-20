@@ -76,7 +76,7 @@ func TestSnapshotsListAll_whenCursorCycles(t *testing.T) {
 
 func TestArtifactLists_whenOptionsAreInvalid(t *testing.T) {
 	for _, options := range []ListImagesOptions{
-		{Limit: -1}, {Limit: 201}, {Cursor: "\xff"}, {Name: "\xff"}, {SandboxID: "\xff"}, {Platform: "future"},
+		{Limit: -1}, {Limit: 201}, {Cursor: "\xff"}, {Name: "\xff"}, {SandboxID: "\xff"}, {Platform: "\xff"},
 	} {
 		t.Run("images", func(t *testing.T) {
 			// Given invalid page or resource filters.
@@ -115,7 +115,7 @@ func TestImagesListAll_whenCallerCancelsBeforeIteration(t *testing.T) {
 	// When beginning iteration.
 	var failures []error
 	for image, err := range images {
-		require.Nil(t, image)
+		require.Zero(t, image)
 		failures = append(failures, err)
 	}
 	// Then cancellation is yielded once without fetching a page.

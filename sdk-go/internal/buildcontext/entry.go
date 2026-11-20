@@ -9,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 type entryKind uint8
@@ -22,21 +21,27 @@ const (
 )
 
 type entry struct {
-	name    string
-	kind    entryKind
-	mode    int64
-	local   string
-	info    os.FileInfo
-	content []byte
-	target  string
+	name     string
+	kind     entryKind
+	mode     int64
+	local    string
+	root     *os.Root
+	relative string
+	info     os.FileInfo
+	content  []byte
+	target   string
 }
 
-func collectEntry(current, relative string) (entry, error) {
-	info, err := os.Lstat(current)
+func collectEntry(root *os.Root, relative string) (entry, error) {
+	current := filepath.Join(root.Name(), filepath.FromSlash(relative))
+	info, err := root.Lstat(filepath.FromSlash(relative))
 	if err != nil {
-		return entry{}, err
+		return entry{}, invalid("build context changed: "+quote(current), err)
 	}
-	item := entry{name: relative, local: current, info: info, mode: permissionBits(info.Mode())}
+	item := entry{
+		name: relative, local: current, root: root, relative: filepath.FromSlash(relative),
+		info: info, mode: permissionBits(info.Mode()),
+	}
 	switch {
 	case info.Mode().IsRegular():
 		item.kind = fileEntry
@@ -45,7 +50,7 @@ func collectEntry(current, relative string) (entry, error) {
 		item.name += "/"
 	case info.Mode()&os.ModeSymlink != 0:
 		item.kind = symlinkEntry
-		item.target, err = os.Readlink(current)
+		item.target, err = root.Readlink(item.relative)
 		if err != nil {
 			return entry{}, err
 		}
@@ -56,6 +61,12 @@ func collectEntry(current, relative string) (entry, error) {
 		if filepath.IsAbs(item.target) || inside == ".." || strings.HasPrefix(inside, "../") {
 			return entry{}, invalid("symbolic link leaves its local source: "+quote(current), nil)
 		}
+		// Preserve internal (including dangling/cyclic or unreadable) links as
+		// links. Root.Stat refuses escapes through parents or intermediate links.
+		targetPath := filepath.Dir(item.relative) + string(filepath.Separator) + item.target
+		if _, err = root.Stat(targetPath); err != nil && !missing(err) && !denied(err) {
+			return entry{}, invalid("symbolic link leaves its local source: "+quote(current), err)
+		}
 	default:
 		return entry{}, invalid("unsupported file type in build context: "+quote(current), nil)
 	}
@@ -63,15 +74,12 @@ func collectEntry(current, relative string) (entry, error) {
 }
 
 func (e entry) open() (file *os.File, size int64, err error) {
-	file, err = openRegular(e.local)
+	file, err = openRegular(e.root, e.relative)
 	if err != nil {
 		if denied(err) {
 			return nil, 0, fileError(e.local, err)
 		}
-		if missing(err) || errors.Is(err, syscall.ENXIO) {
-			return nil, 0, invalid("build context changed: "+quote(e.local), err)
-		}
-		return nil, 0, err
+		return nil, 0, invalid("build context changed: "+quote(e.local), err)
 	}
 	defer func() {
 		if err != nil {

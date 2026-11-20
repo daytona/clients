@@ -35,8 +35,9 @@ func accountUsageFixture() map[string]any {
 
 func accountLimitsFixture() map[string]any {
 	return map[string]any{
-		"sandboxes":    map[string]any{"concurrent": accountUsageFixture(), "total": accountUsageFixture()},
-		"image_builds": map[string]any{"concurrent": accountUsageFixture()},
+		"sandboxes":       map[string]any{"concurrent": accountUsageFixture(), "total": accountUsageFixture()},
+		"image_builds":    map[string]any{"concurrent": accountUsageFixture()},
+		"sandbox_timeout": map[string]any{"max_seconds": 3600, "ceiling_seconds": 86400},
 		"storage": map[string]any{
 			"volumes": accountUsageFixture(), "images": accountUsageFixture(), "snapshots": accountUsageFixture(),
 		},

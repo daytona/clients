@@ -6,6 +6,7 @@ package daytona
 import (
 	"encoding/json"
 	"net/url"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -126,6 +127,11 @@ func contextStorageURL(raw string) error {
 	}) {
 		// Neither the URL nor a URL parse error may reach the error chain.
 		return badRequest("build context upload response has an invalid storage URL")
+	}
+	if port := endpoint.Port(); port != "" {
+		if _, portErr := strconv.ParseUint(port, 10, 16); portErr != nil {
+			return badRequest("build context upload response has an invalid storage URL")
+		}
 	}
 	return nil
 }

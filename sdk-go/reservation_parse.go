@@ -3,7 +3,10 @@
 
 package daytona
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 func parseReservations(rows []JSONValue) ([]MacReservation, error) {
 	items := make([]MacReservation, 0, len(rows))
@@ -90,6 +93,9 @@ func parseReservationScalars(object jsonObject, reservation *MacReservation) err
 		if err != nil {
 			return err
 		}
+	}
+	if reservation.PeriodN < math.MinInt32 || reservation.PeriodN > math.MaxInt32 {
+		return badRequest("response field period_n must be a 32-bit integer")
 	}
 	for _, entry := range []struct {
 		name   string

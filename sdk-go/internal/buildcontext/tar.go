@@ -47,7 +47,7 @@ func (w *tarWriter) writeEntries(entries []entry) error {
 	if err := w.write(make([]byte, 1024)); err != nil {
 		return err
 	}
-	return w.write(make([]byte, (10240-w.total%10240)%10240))
+	return w.write(make([]byte, archivePadding(w.total)))
 }
 
 func (w *tarWriter) writeEntry(item entry) (err error) {
@@ -68,9 +68,8 @@ func (w *tarWriter) writeEntry(item entry) (err error) {
 	case symlinkEntry:
 		header.kind, header.link = '2', item.target
 	}
-	if header.size < 0 || header.size > MaxBytes ||
-		w.total+tarBlock+header.size+padding(header.size)+1024 > MaxBytes {
-		return invalid("build context exceeds the 1 GiB limit", nil)
+	if err = checkEntrySize(w.total, header.size); err != nil {
+		return err
 	}
 	if err = w.writeHeader(header); err != nil {
 		return err
@@ -89,6 +88,21 @@ func (w *tarWriter) writeEntry(item entry) (err error) {
 		return err
 	}
 	return w.write(make([]byte, padding(header.size)))
+}
+
+func checkEntrySize(total, size int64) error {
+	if size < 0 || size > MaxBytes {
+		return invalid("build context exceeds the 1 GiB limit", nil)
+	}
+	minimum := total + tarBlock + size + padding(size) + 1024
+	if minimum+archivePadding(minimum) > MaxBytes {
+		return invalid("build context exceeds the 1 GiB limit", nil)
+	}
+	return nil
+}
+
+func archivePadding(size int64) int64 {
+	return (10240 - size%10240) % 10240
 }
 
 func (w *tarWriter) writeHeader(header tarHeader) error {

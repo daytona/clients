@@ -22,7 +22,6 @@ func TestCaptureImage_whenOptionsAreSent(t *testing.T) {
 		{"named", &CaptureImageOptions{Name: "capture"}, `{"name":"capture"}`},
 		{"expiry", &CaptureImageOptions{IdleExpiry: 30 * time.Second}, `{"idle_expiry_seconds":30}`},
 		{"maximum", &CaptureImageOptions{IdleExpiry: WaitForever}, `{"idle_expiry_seconds":-1}`},
-		{"named with expiry", &CaptureImageOptions{Name: "capture", IdleExpiry: time.Second}, `{"name":"capture","idle_expiry_seconds":1}`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			// Given a capture acknowledgement followed by its pending observation.

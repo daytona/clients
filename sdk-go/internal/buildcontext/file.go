@@ -5,16 +5,15 @@ package buildcontext
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 )
 
-// FromPath prepares a directory or hashes a caller-owned tar file. Directory
-// paths use FromDirectory; tar bytes are uploaded unchanged and Close never
+// FromPath prepares a directory or snapshots a caller-owned tar file. Directory
+// paths use FromDirectory; tar bytes are copied unchanged into an owned temporary
+// file while hashing, so later caller edits cannot change the upload. Close never
 // deletes the caller's file. Empty or over-1-GiB files return an invalid Error.
 // An empty dockerfilePath selects Dockerfile.
 func FromPath(ctx context.Context, filename, dockerfilePath string) (result *Archive, err error) {
@@ -39,13 +38,20 @@ func FromPath(ctx context.Context, filename, dockerfilePath string) (result *Arc
 	if dockerfilePath == "" {
 		dockerfilePath = "Dockerfile"
 	}
-	if blank(dockerfilePath) {
-		return nil, invalid("dockerfile must be a non-empty path", nil)
+	name, err := relativeDockerfilePath(dockerfilePath)
+	if err != nil {
+		return nil, err
 	}
-	return hashFile(ctx, absolute, dockerfilePath)
+	return hashFile(ctx, absolute, name)
 }
 
 func hashFile(ctx context.Context, absolute, dockerfilePath string) (result *Archive, err error) {
+	defer func() {
+		if err != nil && result != nil {
+			err = errors.Join(err, result.Close())
+			result = nil
+		}
+	}()
 	info, err := os.Stat(absolute)
 	if err != nil {
 		return nil, err
@@ -54,16 +60,16 @@ func hashFile(ctx context.Context, absolute, dockerfilePath string) (result *Arc
 	if err != nil {
 		return nil, err
 	}
-	input, err := openRegular(resolved)
+	root, err := os.OpenRoot(filepath.Dir(resolved))
 	if err != nil {
 		return nil, invalid("build context file is not readable: "+quote(absolute), err)
 	}
-	defer func() {
-		err = errors.Join(err, input.Close())
-		if err != nil {
-			result = nil
-		}
-	}()
+	defer func() { err = errors.Join(err, root.Close()) }()
+	input, err := openRegular(root, filepath.Base(resolved))
+	if err != nil {
+		return nil, invalid("build context file is not readable: "+quote(absolute), err)
+	}
+	defer func() { err = errors.Join(err, input.Close()) }()
 	opened, err := input.Stat()
 	if err != nil {
 		return nil, err
@@ -71,28 +77,30 @@ func hashFile(ctx context.Context, absolute, dockerfilePath string) (result *Arc
 	if !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
 		return nil, invalid("build context changed: "+quote(absolute), nil)
 	}
-	if opened.Size() == 0 {
-		return nil, invalid("build context is empty", nil)
+	result, err = snapshotFile(ctx, input, opened)
+	if err == nil {
+		result.Dockerfile = dockerfilePath
 	}
-	if opened.Size() > MaxBytes {
-		return nil, invalid("build context exceeds the 1 GiB limit", nil)
-	}
-	hash := sha256.New()
-	writer := tarWriter{ctx: ctx, output: hash}
-	if err = writer.copyFile(input, opened.Size()); err != nil {
-		if errors.Is(err, io.ErrUnexpectedEOF) {
-			return nil, invalid("build context changed: "+quote(absolute), err)
-		}
+	return result, err
+}
+
+// snapshotFile owns the immutable upload artifact, independently of input's path.
+func snapshotFile(ctx context.Context, input *os.File, opened os.FileInfo) (result *Archive, err error) {
+	owned, err := snapshotReader(ctx, input, opened.Size())
+	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, owned.Close())
+		}
+	}()
 	after, err := input.Stat()
 	if err != nil {
 		return nil, err
 	}
 	if after.Size() != opened.Size() || !after.ModTime().Equal(opened.ModTime()) {
-		return nil, invalid("build context changed: "+quote(absolute), io.ErrUnexpectedEOF)
+		return nil, invalid("build context changed: "+quote(input.Name()), io.ErrUnexpectedEOF)
 	}
-	return &Archive{
-		Path: absolute, Size: writer.total, Digest: hex.EncodeToString(hash.Sum(nil)), Dockerfile: dockerfilePath,
-	}, nil
+	return owned, nil
 }

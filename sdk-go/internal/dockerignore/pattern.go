@@ -8,6 +8,7 @@ package dockerignore
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -35,19 +36,33 @@ func patternError(raw, reason string) error {
 }
 
 // ReadPatterns reads Docker ignore-file text, including BOM and negation rules.
-// Lines of 64 KiB or more return *Error.
+// Lines of 64 KiB or more after UTF-8 replacement return *Error.
 func ReadPatterns(text string) ([]string, error) {
 	return ReadPatternsFrom(strings.NewReader(text))
 }
 
 // ReadPatternsFrom incrementally reads ignore-file lines, bounding each line
-// to less than 64 KiB. Reader failures, including cancellation, are preserved.
+// to less than 64 KiB after UTF-8 replacement, before BOM or whitespace removal.
+// Reader failures, including cancellation, are preserved.
 func ReadPatternsFrom(reader io.Reader) ([]string, error) {
 	var patterns []string
 	scanner := bufio.NewScanner(reader)
+	// Split only on LF: a trailing CR counts toward the decoded line limit.
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if index := bytes.IndexByte(data, '\n'); index >= 0 {
+			return index + 1, data[:index], nil
+		}
+		if atEOF && len(data) > 0 {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
 	first := true
 	for scanner.Scan() {
 		line := decodePatternText(scanner.Text())
+		if len(line) >= 64*1024 {
+			return nil, &Error{Message: "dockerignore line exceeds 64 KiB"}
+		}
 		if first {
 			line = strings.TrimPrefix(line, "\ufeff")
 			first = false
@@ -74,10 +89,11 @@ func ReadPatternsFrom(reader io.Reader) ([]string, error) {
 		}
 		patterns = append(patterns, line)
 	}
-	if err := scanner.Err(); err != nil {
-		if errors.Is(err, bufio.ErrTooLong) {
-			return nil, &Error{Message: "dockerignore line exceeds 64 KiB"}
-		}
+	err := scanner.Err()
+	if errors.Is(err, bufio.ErrTooLong) {
+		return nil, &Error{Message: "dockerignore line exceeds 64 KiB"}
+	}
+	if err != nil {
 		return nil, err
 	}
 	return patterns, nil

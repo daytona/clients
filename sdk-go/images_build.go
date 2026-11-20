@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strings"
 
@@ -14,7 +15,7 @@ import (
 // Build submits a declarative builder and returns its initial observation,
 // without waiting for readiness. Use ImageFromDockerfile for Dockerfile text.
 // Invalid options and builder inputs return ErrBadRequest before submission.
-func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildImageOptions) (image *Image, err error) {
+func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildImageOptions) (*Image, error) {
 	options := BuildImageOptions{}
 	if opts != nil {
 		options = *opts
@@ -38,11 +39,7 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 		if prepareErr != nil {
 			return nil, prepareErr
 		}
-		defer func() {
-			if closeErr := archive.Close(); closeErr != nil && err == nil {
-				err = wrapError(closeErr, "remove temporary build context")
-			}
-		}()
+		defer archive.Close() //nolint:errcheck // Best-effort local cleanup must not fail an accepted build.
 		upload, uploadErr := s.uploadContext(ctx, archive, request.Region)
 		if uploadErr != nil {
 			return nil, uploadErr
@@ -58,15 +55,44 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 	return s.submit(ctx, apiRequest{Body: request})
 }
 
-// BuildFromContext archives a local directory or uploads an existing tar file,
-// then submits a build. Caller-owned tar files are never removed.
+// BuildFromContext archives a local directory or snapshots an existing tar file,
+// then uploads it and submits a build. Caller-owned tar files are never removed;
+// edits after preparation do not change the uploaded bytes.
 // It honors Dockerfile-specific ignore rules, otherwise .dockerignore, and
 // refuses contexts over 1 GiB. All sizes upload directly to storage, using the
 // server's multipart layout for large archives, without a 64 MiB API-body cap.
 // The result is an initial observation; wait using Get or BuildAndWait.
 func (s *Images) BuildFromContext(
 	ctx context.Context, contextPath string, opts *BuildFromContextOptions,
-) (image *Image, err error) {
+) (*Image, error) {
+	return s.buildFromContext(ctx, func(ctx context.Context, dockerfile string) (*buildcontext.Archive, error) {
+		return buildcontext.FromPath(ctx, contextPath, dockerfile)
+	}, opts)
+}
+
+// BuildFromContextReader snapshots size archive bytes from r starting at offset
+// zero, then uploads them and submits a build without waiting for readiness.
+// Size must be positive and at most 1 GiB; invalid sizes, nil readers, short reads
+// and unsafe Dockerfile paths return ErrBadRequest before any network request.
+// Options and multipart upload behavior are the same as BuildFromContext.
+// The caller retains ownership of r and must keep its bytes stable during the
+// call. Reads must return promptly: context cancellation is checked between
+// reads but cannot interrupt a blocking ReaderAt. The SDK never closes r.
+func (s *Images) BuildFromContextReader(
+	ctx context.Context, r io.ReaderAt, size int64, opts *BuildFromContextOptions,
+) (*Image, error) {
+	if r == nil {
+		return nil, badRequest("build context reader must not be nil")
+	}
+	return s.buildFromContext(ctx, func(ctx context.Context, dockerfile string) (*buildcontext.Archive, error) {
+		return buildcontext.FromReader(ctx, io.NewSectionReader(r, 0, size), dockerfile)
+	}, opts)
+}
+
+func (s *Images) buildFromContext(
+	ctx context.Context, prepare func(context.Context, string) (*buildcontext.Archive, error),
+	opts *BuildFromContextOptions,
+) (*Image, error) {
 	options := BuildFromContextOptions{}
 	if opts != nil {
 		options = *opts
@@ -88,15 +114,13 @@ func (s *Images) BuildFromContext(
 	if strings.TrimSpace(dockerfile) == "" {
 		return nil, badRequest("dockerfile must be a non-empty path")
 	}
-	archive, err := buildcontext.FromPath(ctx, contextPath, dockerfile)
+	archive, err := prepare(ctx, dockerfile)
 	if err != nil {
 		return nil, imageContextError(err)
 	}
-	defer func() {
-		if closeErr := archive.Close(); closeErr != nil && err == nil {
-			err = wrapError(closeErr, "remove temporary build context")
-		}
-	}()
+	defer archive.Close() //nolint:errcheck // Best-effort local cleanup must not fail an accepted build.
+	// Keep the caller's spelling on the wire; preparation already validated it.
+	archive.Dockerfile = dockerfile
 	upload, err := s.uploadContext(ctx, archive, request.Region)
 	if err != nil {
 		return nil, err

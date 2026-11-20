@@ -6,6 +6,7 @@ package buildcontext
 import (
 	"archive/tar"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -31,6 +32,9 @@ type treeFixture struct {
 func fixtureJSON(t *testing.T, name string, destination any) {
 	t.Helper()
 	content, err := os.ReadFile("../../../sdk-python/tests/fixtures/" + name)
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("shared Python fixtures are not included in the Go module")
+	}
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(content, destination))
 }

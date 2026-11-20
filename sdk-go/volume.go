@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -114,7 +113,7 @@ func (v *Volumes) Get(ctx context.Context, nameOrID string, opts *GetVolumeOptio
 // Create creates a named volume. An omitted type uses the server default (disk).
 // Invalid names, types or sizes return ErrBadRequest before any request.
 func (v *Volumes) Create(ctx context.Context, name string, opts *CreateVolumeOptions) (*Volume, error) {
-	if strings.TrimSpace(name) == "" || !utf8.ValidString(name) {
+	if builderTrim(name) == "" || !utf8.ValidString(name) {
 		return nil, badRequest("name must be a non-empty UTF-8 string")
 	}
 	options := CreateVolumeOptions{}
@@ -146,7 +145,7 @@ func (v *Volumes) Create(ctx context.Context, name string, opts *CreateVolumeOpt
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(result.ID) == "" {
+	if builderTrim(result.ID) == "" {
 		return nil, badRequest("volume response is missing its id")
 	}
 	return &result, nil

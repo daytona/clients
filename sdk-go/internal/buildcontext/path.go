@@ -71,32 +71,19 @@ func fileError(filename string, err error) error {
 	return err
 }
 
-func regularFile(root, relative string) (string, error) {
-	filename := filepath.Join(root, relative)
-	// Stat reports a typed ELOOP; filepath.EvalSymlinks uses an untyped error
-	// when its own traversal limit is reached.
-	info, err := os.Stat(filename)
+func regularFile(root *os.Root, relative string) (os.FileInfo, error) {
+	filename := filepath.Join(root.Name(), relative)
+	info, err := root.Stat(relative)
 	if err != nil {
-		return "", fileError(filename, err)
-	}
-	resolved, err := filepath.EvalSymlinks(filename)
-	if err != nil {
-		return "", fileError(filename, err)
-	}
-	if err = checkUTF8(resolved); err != nil {
-		return "", err
-	}
-	inside, err := filepath.Rel(root, resolved)
-	if err != nil {
-		return "", err
-	}
-	if inside == ".." || strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
-		return "", invalid("build context file leaves its local source: "+quote(filename), nil)
+		if missing(err) || denied(err) {
+			return nil, fileError(filename, err)
+		}
+		return nil, invalid("build context file leaves its local source: "+quote(filename), err)
 	}
 	if !info.Mode().IsRegular() {
-		return "", invalid("build context path is not a regular file: "+quote(filename), nil)
+		return nil, invalid("build context path is not a regular file: "+quote(filename), nil)
 	}
-	return filename, nil
+	return info, nil
 }
 
 func permissionBits(mode os.FileMode) int64 {

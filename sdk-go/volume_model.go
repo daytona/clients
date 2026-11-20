@@ -5,20 +5,20 @@ package daytona
 
 import "time"
 
-// VolumeState is a volume's observed status; RawState preserves unknown values.
-type VolumeState string
+// VolumeStatus is a volume's observed status; RawStatus preserves unknown values.
+type VolumeStatus string
 
 const (
-	// VolumeStateUnknown denotes an unrecognized server state.
-	VolumeStateUnknown VolumeState = "unknown"
-	// VolumeStateReady means the volume is usable.
-	VolumeStateReady VolumeState = "ready"
-	// VolumeStateDeleting means deletion is in progress.
-	VolumeStateDeleting VolumeState = "deleting"
-	// VolumeStateDeleted means deletion has completed.
-	VolumeStateDeleted VolumeState = "deleted"
-	// VolumeStateError means the volume failed; see Volume.Error.
-	VolumeStateError VolumeState = "error"
+	// VolumeStatusUnknown denotes an unrecognized server status.
+	VolumeStatusUnknown VolumeStatus = "unknown"
+	// VolumeStatusReady means the volume is usable.
+	VolumeStatusReady VolumeStatus = "ready"
+	// VolumeStatusDeleting means deletion is in progress.
+	VolumeStatusDeleting VolumeStatus = "deleting"
+	// VolumeStatusDeleted means deletion has completed.
+	VolumeStatusDeleted VolumeStatus = "deleted"
+	// VolumeStatusError means the volume failed; see Volume.Error.
+	VolumeStatusError VolumeStatus = "error"
 )
 
 // VolumeType identifies a volume's storage implementation.
@@ -43,10 +43,10 @@ type Volume struct {
 	Type VolumeType
 	// RawType is the server storage type verbatim.
 	RawType string
-	// State is the normalized server status.
-	State VolumeState
-	// RawState is the server status verbatim.
-	RawState string
+	// Status is the normalized server status.
+	Status VolumeStatus
+	// RawStatus is the server status verbatim.
+	RawStatus string
 	// SizeGiB is disk capacity in GiB; nil means not reported or not applicable.
 	SizeGiB *int64
 	// Error is the recorded failure explanation.
@@ -79,7 +79,7 @@ func parseVolume(raw JSONValue) (Volume, error) {
 		{"id", &result.ID, true},
 		{"name", &result.Name, true},
 		{"type", &result.RawType, true},
-		{"status", &result.RawState, true},
+		{"status", &result.RawStatus, true},
 		{"error", &result.Error, false},
 	} {
 		value, parseErr := field[string](object, entry.name, entry.required)
@@ -89,7 +89,7 @@ func parseVolume(raw JSONValue) (Volume, error) {
 		*entry.target = value
 	}
 	result.Type = volumeType(result.RawType)
-	result.State = volumeState(result.RawState)
+	result.Status = volumeStatus(result.RawStatus)
 	for _, entry := range []struct {
 		name     string
 		target   *time.Time
@@ -109,13 +109,19 @@ func parseVolume(raw JSONValue) (Volume, error) {
 		}
 		*entry.target = stamp
 	}
-	for name, target := range map[string]**int64{"size_gib": &result.SizeGiB, "used_bytes": &result.UsedBytes} {
-		if present(object[name]) {
-			value, parseErr := integerField(object, name, true)
+	for _, entry := range []struct {
+		name   string
+		target **int64
+	}{
+		{"size_gib", &result.SizeGiB},
+		{"used_bytes", &result.UsedBytes},
+	} {
+		if present(object[entry.name]) {
+			value, parseErr := integerField(object, entry.name, true)
 			if parseErr != nil {
 				return result, parseErr
 			}
-			*target = &value
+			*entry.target = &value
 		}
 	}
 	result.Options, err = field[map[string]JSONValue](object, "options", false)
@@ -125,18 +131,18 @@ func parseVolume(raw JSONValue) (Volume, error) {
 	return result, nil
 }
 
-func volumeState(raw string) VolumeState {
+func volumeStatus(raw string) VolumeStatus {
 	switch raw {
 	case "ready":
-		return VolumeStateReady
+		return VolumeStatusReady
 	case "deleting":
-		return VolumeStateDeleting
+		return VolumeStatusDeleting
 	case "deleted":
-		return VolumeStateDeleted
+		return VolumeStatusDeleted
 	case "error":
-		return VolumeStateError
+		return VolumeStatusError
 	default:
-		return VolumeStateUnknown
+		return VolumeStatusUnknown
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Images manages reusable sandbox images. Obtain it with Client.Images.
@@ -18,7 +19,8 @@ type Images struct{ client *Client }
 // Images returns the client's image service.
 func (c *Client) Images() *Images { return &Images{client: c} }
 
-// ImagePlatformFilter selects platform-provided images.
+// ImagePlatformFilter selects platform-provided images. Future server values
+// are passed through; empty omits the filter.
 type ImagePlatformFilter string
 
 const (
@@ -46,9 +48,9 @@ type ListImagesOptions struct {
 	Platform ImagePlatformFilter
 }
 
-// List returns one page, preferring eventually consistent search and falling
-// back only on 404 or SEARCH_NOT_CONFIGURED. Get reads new images immediately.
-func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[*Image], error) {
+// List returns one page of image values, preferring eventually consistent search
+// and falling back only on 404 or SEARCH_NOT_CONFIGURED. Get reads new images immediately.
+func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[Image], error) {
 	options := ListImagesOptions{}
 	if opts != nil {
 		options = *opts
@@ -63,24 +65,29 @@ func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[*Imag
 	if options.Anonymous != nil {
 		query.Set("anonymous", strconv.FormatBool(*options.Anonymous))
 	}
-	switch options.Platform {
-	case "":
-	case ImagePlatformOnly, ImagePlatformExclude, ImagePlatformAny:
+	if !utf8.ValidString(string(options.Platform)) {
+		return nil, badRequest("platform must be valid UTF-8")
+	}
+	if options.Platform != "" {
 		query.Set("platform", string(options.Platform))
-	default:
-		return nil, badRequest("platform must be true, false or any")
 	}
 	reader := artifactListReader{s.client, "/images", &s.client.imageSearchFallback}
 	raw, err := reader.read(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	return artifactPage(raw, "images", parseImage)
+	return artifactPage(raw, "images", func(raw JSONValue) (Image, error) {
+		image, parseErr := parseImage(raw)
+		if parseErr != nil {
+			return Image{}, parseErr
+		}
+		return *image, nil
+	})
 }
 
 // ListAll lazily visits all image pages, stopping on cancellation, a repeated
 // cursor, or when the consumer breaks. Options are copied at the call.
-func (s *Images) ListAll(ctx context.Context, opts *ListImagesOptions) iter.Seq2[*Image, error] {
+func (s *Images) ListAll(ctx context.Context, opts *ListImagesOptions) iter.Seq2[Image, error] {
 	options := ListImagesOptions{}
 	if opts != nil {
 		options = *opts
@@ -89,7 +96,7 @@ func (s *Images) ListAll(ctx context.Context, opts *ListImagesOptions) iter.Seq2
 			options.Anonymous = &value
 		}
 	}
-	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[*Image], error) {
+	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[Image], error) {
 		pageOptions := options
 		pageOptions.Cursor = cursor
 		return s.List(ctx, &pageOptions)
@@ -122,13 +129,14 @@ func (s *Images) Delete(ctx context.Context, id string) error {
 
 // Promote names an anonymous image, making it permanent. It does not rename
 // named images. Name conflicts and reserved prefixes are reported by the API.
+// A blank or invalid UTF-8 name returns ErrBadRequest before any request.
 func (s *Images) Promote(ctx context.Context, id, name string) (*Image, error) {
 	segment, err := pathSegment(id)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(name) == "" {
-		return nil, badRequest("name must be a non-empty string")
+	if strings.TrimSpace(name) == "" || !utf8.ValidString(name) {
+		return nil, badRequest("name must be a non-empty UTF-8 string")
 	}
 	var raw JSONValue
 	err = s.client.api().do(ctx, apiRequest{

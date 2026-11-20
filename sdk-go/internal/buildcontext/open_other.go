@@ -7,8 +7,8 @@ package buildcontext
 
 import "os"
 
-func openRegular(filename string) (*os.File, error) {
-	info, err := os.Lstat(filename)
+func openRegular(root *os.Root, filename string) (*os.File, error) {
+	info, err := root.Lstat(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -16,5 +16,9 @@ func openRegular(filename string) (*os.File, error) {
 		return nil, invalid("build context changed: "+quote(filename), nil)
 	}
 	// The caller also compares the opened identity with its walk-time snapshot.
-	return os.Open(filename)
+	return root.Open(filename)
+}
+
+func openFollowed(root *os.Root, filename string) (*os.File, error) {
+	return root.Open(filename)
 }

@@ -56,6 +56,9 @@ func (u *contextUploader) putPart(ctx context.Context, part contextUploadPart) e
 		}
 		var retry bool
 		retry, failure = u.putAttempt(ctx, part)
+		if failure != nil && ctx.Err() != nil {
+			return transportError(ctx, ctx.Err())
+		}
 		if !retry || attempt+1 == contextUploadAttempts {
 			return failure
 		}
