@@ -35,7 +35,8 @@ type ExecOptions struct {
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl. none is refused because output requires logs.
 	KeepLogs ProcessKeepLogs
-	// Stdout receives live stdout. Calls are synchronous; writers must not block indefinitely.
+	// Stdout receives live stdout and newly recovered timeout snapshot output.
+	// Calls are synchronous; writers must not block indefinitely.
 	// A writer error stops delivery, attempts to stop the process with a detached
 	// five-second budget, and returns a partial result with ProcessID alongside an
 	// SDK error preserving the writer's cause through errors.Is. Cleanup failure

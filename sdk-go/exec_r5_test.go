@@ -94,7 +94,7 @@ func TestExecR5PreservesPartialResult_whenTimeoutSnapshotFails(t *testing.T) {
 		mux := http.NewServeMux()
 		mux.HandleFunc("POST /processes", jsonHandler(t, processFixture("p")))
 		mux.HandleFunc("GET /processes/p/logs", func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Query().Get("cursor") != "" {
+			if r.URL.Query().Get("cursor") == "2" {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				return
 			}

@@ -49,7 +49,17 @@ func (s *Processes) runStreaming(
 	if !errors.Is(streamCtx.Err(), context.DeadlineExceeded) || !errors.Is(err, context.DeadlineExceeded) {
 		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 	}
-	snapshot, readErr := processCollectLogs(ctx, handle, 8)
+	return handle.recoverExec(ctx, options, logs)
+}
+
+func (h *ProcessHandle) recoverExec(
+	ctx context.Context, options ExecOptions, logs []LogFrame,
+) (*ProcessResult, error) {
+	cursor := ""
+	if len(logs) > 0 {
+		cursor = logs[len(logs)-1].Cursor
+	}
+	snapshot, readErr := h.collectLogPages(ctx, cursor, 8)
 	seen := make(map[string]bool, len(logs))
 	for _, frame := range logs {
 		seen[frame.Cursor] = true
@@ -57,13 +67,24 @@ func (s *Processes) runStreaming(
 	// Preserve replay semantics; exclude only overlap with the live stream.
 	for _, frame := range snapshot {
 		if !seen[frame.Cursor] {
+			if ctx.Err() != nil {
+				result := processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs)
+				return result, transportError(ctx, ctx.Err())
+			}
 			logs = append(logs, frame)
+			if err := options.deliver(frame); err != nil {
+				h.stopAfterOutputFailure(ctx, ProcessSignalTerminate)
+				return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
+			}
 		}
 	}
-	if readErr != nil {
-		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), readErr
+	if ctx.Err() != nil {
+		return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), transportError(ctx, ctx.Err())
 	}
-	return processResult(handle.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil
+	if readErr != nil {
+		return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), readErr
+	}
+	return processResult(h.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil
 }
 
 func (o ExecOptions) consume(ctx context.Context, handle *ProcessHandle) ([]LogFrame, error) {
@@ -75,26 +96,33 @@ func (o ExecOptions) consume(ctx context.Context, handle *ProcessHandle) ([]LogF
 		if ctx.Err() != nil {
 			return logs, transportError(ctx, ctx.Err())
 		}
-		var writer io.Writer
-		switch frame.Channel {
-		case LogChannelStdout, LogChannelPTY:
-			writer = o.Stdout
-		case LogChannelStderr:
-			writer = o.Stderr
-		case LogChannelSetup, LogChannelDisplay, LogChannelExecuteResult, LogChannelError, LogChannelUnknown:
-			// Other frames remain available through the result.
-		}
 		logs = append(logs, frame)
-		if writer != nil {
-			var written int
-			written, err = io.WriteString(writer, frame.Data)
-			if err == nil && written != len(frame.Data) {
-				err = io.ErrShortWrite
-			}
-			if err != nil {
-				return logs, &outputDeliveryError{wrapError(err, "write process output")}
-			}
+		if err = o.deliver(frame); err != nil {
+			return logs, err
 		}
 	}
 	return logs, nil
+}
+
+func (o ExecOptions) deliver(frame LogFrame) error {
+	var writer io.Writer
+	switch frame.Channel {
+	case LogChannelStdout, LogChannelPTY:
+		writer = o.Stdout
+	case LogChannelStderr:
+		writer = o.Stderr
+	case LogChannelSetup, LogChannelDisplay, LogChannelExecuteResult, LogChannelError, LogChannelUnknown:
+		// Other frames remain available through the result.
+	}
+	if writer == nil {
+		return nil
+	}
+	written, err := io.WriteString(writer, frame.Data)
+	if err == nil && written != len(frame.Data) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		return &outputDeliveryError{wrapError(err, "write process output")}
+	}
+	return nil
 }
