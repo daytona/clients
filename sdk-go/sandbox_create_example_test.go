@@ -24,15 +24,13 @@ func ExampleClient_Create() {
 	}()
 	ctx := context.Background()
 	sandbox, err := client.Create(ctx, "", nil)
+	if sandbox != nil {
+		defer deleteSandbox(ctx, sandbox)
+	}
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	defer func() {
-		if deleteErr := sandbox.Delete(context.WithoutCancel(ctx), nil); deleteErr != nil {
-			log.Print(deleteErr)
-		}
-	}()
 	// An accepted create can return before the sandbox is running.
 	log.Printf("created %s in state %s", sandbox.ID(), sandbox.State())
 }
@@ -56,14 +54,12 @@ func ExampleClient_Create_resources() {
 			IdleExpiry: 5 * time.Minute, OnIdleTimeout: daytona.LifecycleActionDelete,
 		},
 	})
+	if sandbox != nil {
+		defer deleteSandbox(ctx, sandbox)
+	}
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	defer func() {
-		if deleteErr := sandbox.Delete(context.WithoutCancel(ctx), nil); deleteErr != nil {
-			log.Print(deleteErr)
-		}
-	}()
 	log.Printf("sandbox %s: %s", sandbox.ID(), sandbox.State())
 }

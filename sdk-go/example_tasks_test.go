@@ -33,6 +33,28 @@ func Example_imageToSandbox() {
 		return
 	}
 	sandbox, err := client.Create(ctx, image.ID, nil)
+	if sandbox != nil {
+		defer func() {
+			cleanup := context.WithoutCancel(ctx)
+			if deleteErr := sandbox.Delete(cleanup, nil); deleteErr != nil {
+				log.Print(deleteErr)
+				return
+			}
+			// The platform releases the image after the sandbox is destroyed.
+			for range 30 {
+				deleteErr := client.Images().Delete(cleanup, image.ID)
+				if !errors.Is(deleteErr, daytona.ErrConflict) {
+					if deleteErr != nil {
+						log.Print(deleteErr)
+					}
+					return
+				}
+				timer := time.NewTimer(2 * time.Second)
+				<-timer.C
+			}
+			log.Print("image is still in use; delete it later")
+		}()
+	}
 	if err != nil {
 		log.Print(err)
 		return
@@ -40,23 +62,6 @@ func Example_imageToSandbox() {
 	result, err := sandbox.Exec(ctx, `python3 -c "import pandas; print(pandas.__version__)"`, nil)
 	if err == nil {
 		fmt.Println(result.Stdout)
-	}
-
-	if err = sandbox.Delete(ctx, nil); err != nil {
-		log.Print(err)
-		return
-	}
-	// The platform releases the image a few seconds after the sandbox is
-	// destroyed; until then the image delete is a conflict.
-	for range 30 {
-		err = client.Images().Delete(ctx, image.ID)
-		if !errors.Is(err, daytona.ErrConflict) {
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if err != nil {
-		log.Print(err)
 	}
 }
 
@@ -72,11 +77,13 @@ func Example_publicURL() {
 	defer closeClient(client)
 
 	sandbox, err := client.Create(ctx, "", nil)
+	if sandbox != nil {
+		defer deleteSandbox(ctx, sandbox)
+	}
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	defer deleteSandbox(ctx, sandbox)
 
 	if _, err = sandbox.Process().Start(ctx, "python3 -m http.server 8080", nil); err != nil {
 		log.Print(err)
@@ -120,11 +127,13 @@ func Example_fileRoundTrip() {
 	defer closeClient(client)
 
 	sandbox, err := client.Create(ctx, "", nil)
+	if sandbox != nil {
+		defer deleteSandbox(ctx, sandbox)
+	}
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	defer deleteSandbox(ctx, sandbox)
 
 	files := sandbox.FS()
 	if err = files.UploadFile(ctx, "data.csv", "/home/daytona/data.csv", nil); err != nil {
@@ -148,7 +157,7 @@ func closeClient(client *daytona.Client) {
 }
 
 func deleteSandbox(ctx context.Context, sandbox *daytona.Sandbox) {
-	if err := sandbox.Delete(ctx, nil); err != nil {
+	if err := sandbox.Delete(context.WithoutCancel(ctx), nil); err != nil {
 		log.Print(err)
 	}
 }

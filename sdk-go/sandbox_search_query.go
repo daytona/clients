@@ -76,7 +76,7 @@ func searchSequences(query url.Values, options SearchSandboxesOptions) error {
 			case SandboxClassLinux, SandboxClassMacOS:
 				values = append(values, string(class))
 			case SandboxClassUnknown:
-				return badRequest("classes must be linux or macos")
+				fallthrough
 			default:
 				return badRequest("classes must be linux or macos")
 			}

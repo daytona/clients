@@ -27,7 +27,11 @@ type ForkOptions struct {
 // source waits for Started; a paused Linux memory fork waits for Paused; all
 // other forks wait for Stopped. Waiting forks refresh the source before POST.
 // NoWait skips every GET, including the source refresh. Accepted forks return
-// their handle despite SDK wait failures; caller cancellation remains an error.
+// their handle despite SDK wait failures. If the server accepted the request,
+// the returned *Sandbox is non-nil even when err is non-nil: delete it or keep it.
+// Caller cancellation or deadline expiry remains reachable through errors.Is.
+// If the POST itself is interrupted, the outcome is unknown. Fork has no
+// idempotency key: inspect existing forks before retrying to avoid duplicates.
 // The fork never inherits the source's toolbox override or access token.
 func (s *Sandbox) Fork(ctx context.Context, opts *ForkOptions) (*Sandbox, error) {
 	if err := s.client.ensureOpen(); err != nil {
@@ -60,8 +64,8 @@ func (s *Sandbox) Fork(ctx context.Context, opts *ForkOptions) (*Sandbox, error)
 	if err != nil {
 		return nil, err
 	}
-	if ctx.Err() != nil {
-		return nil, transportError(ctx, ctx.Err())
+	if err = acceptedWaitError(ctx, nil); err != nil {
+		return fork, err
 	}
 	if budget == NoWait {
 		return fork, nil
@@ -161,10 +165,7 @@ func (s *Sandbox) observeFork(ctx context.Context, target SandboxState, budget t
 	toolbox := s.toolboxURL
 	s.mu.RUnlock()
 	if err := s.Refresh(readCtx); err != nil {
-		if waitErr := acceptedWaitError(ctx, err); waitErr != nil {
-			return nil, waitErr
-		}
-		return s, nil
+		return s, acceptedWaitError(ctx, err)
 	}
 	if toolbox != "" {
 		s.mu.Lock()
@@ -177,12 +178,7 @@ func (s *Sandbox) observeFork(ctx context.Context, target SandboxState, budget t
 	}
 	if s.State() != target && (remaining > 0 || budget == WaitForever) {
 		err := s.Wait(ctx, &WaitOptions{Until: []SandboxState{target}, Timeout: remaining})
-		if waitErr := acceptedWaitError(ctx, err); waitErr != nil {
-			return nil, waitErr
-		}
+		return s, acceptedWaitError(ctx, err)
 	}
-	if ctx.Err() != nil {
-		return nil, transportError(ctx, ctx.Err())
-	}
-	return s, nil
+	return s, acceptedWaitError(ctx, nil)
 }

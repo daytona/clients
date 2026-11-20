@@ -31,32 +31,43 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	if err := run(context.Background()); err != nil {
+		log.Fatal(err)
+	}
+}
 
+func run(ctx context.Context) error {
 	client, err := daytona.New() // reads DAYTONA_API_KEY
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer client.Close()
 
 	// An empty image boots the platform default image (Python 3 included).
 	sandbox, err := client.Create(ctx, "", nil)
-	if err != nil {
-		log.Fatal(err)
+	if sandbox != nil {
+		defer sandbox.Delete(context.WithoutCancel(ctx), nil)
 	}
-	defer sandbox.Delete(ctx, nil)
+	if err != nil {
+		return err
+	}
 
 	result, err := sandbox.Exec(ctx, `python3 -c "print(6 * 7)"`, nil)
 	if err != nil {
-		log.Fatal(err) // the call failed; a non-zero exit code is not an error
+		return err // the call failed; a non-zero exit code is not an error
 	}
-	fmt.Println(*result.ExitCode, result.Stdout)
+	fmt.Println(result.Reason, result.Stdout)
+	return nil
 }
 ```
 
 Every call that talks to Daytona takes a `context.Context` first; cancelling it
 stops the call, including waits. Optional settings are an options struct
 pointer last; `nil` means all defaults.
+
+Once a create or fork is accepted, its handle is returned even if the caller's
+context ends the wait with an error. Delete the non-nil handle or keep it;
+cleanup needs a context that has not been cancelled.
 
 ## Common tasks
 
@@ -113,9 +124,16 @@ image, err := client.Images().BuildAndWait(ctx,
 	daytona.NewImageBuilder("python:3.12-slim").PipInstall("pandas"),
 	&daytona.BuildImageWaitOptions{BuildImageOptions: daytona.BuildImageOptions{Name: "py-pandas"}})
 sandbox, err := client.Create(ctx, image.ID, nil)
+if sandbox != nil {
+	defer sandbox.Delete(context.WithoutCancel(ctx), nil)
+}
+if err != nil {
+	return err
+}
 // ...
-err = client.Images().Delete(ctx, image.ID) // after deleting its sandboxes
 ```
+
+Delete the image only after its sandboxes have been deleted.
 
 ## Errors
 

@@ -98,8 +98,7 @@ func (c *Client) pageHandle(ctx context.Context, observation sandboxObservation)
 		switch {
 		case err == nil:
 			source = detail
-		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded),
-			errors.Is(err, ErrClientClosed):
+		case ctx.Err() != nil, errors.Is(err, ErrClientClosed):
 			return nil, err
 		}
 	}

@@ -60,7 +60,7 @@ func (s *Sandbox) CreateAccessToken(ctx context.Context, opts *CreateAccessToken
 		TTLSeconds int64     `json:"ttl_seconds,omitempty"`
 	}
 	if options.TTL < 0 || options.TTL%time.Second != 0 {
-		return nil, badRequest("TTL must be a positive whole number of seconds")
+		return nil, badRequest("TTL must be a non-negative whole number of seconds")
 	}
 	body.TTLSeconds = int64(options.TTL / time.Second)
 	if options.Operations != nil {

@@ -96,7 +96,7 @@ func TestCreateErrorsPreserveKeyAfterRequestTimeout(t *testing.T) {
 	require.Len(t, fake.requests(), 1)
 }
 
-func TestCreateErrorsCallerCancellationIsNeverUncertain(t *testing.T) {
+func TestCreateErrorsCallerCancellationRetainsRecovery(t *testing.T) {
 	for _, route := range createTestCases() {
 		for _, phase := range []string{"submission", "accepted wait"} {
 			t.Run(route.name+"/"+phase, func(t *testing.T) {
@@ -117,9 +117,11 @@ func TestCreateErrorsCallerCancellationIsNeverUncertain(t *testing.T) {
 				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
 				result := make(chan error, 1)
+				var sandbox *Sandbox
 				// When
 				go func() {
-					_, err := route.call(ctx, client, &CreateFromSnapshotOptions{Wait: time.Minute})
+					var err error
+					sandbox, err = route.call(ctx, client, &CreateFromSnapshotOptions{Wait: time.Minute})
 					result <- err
 				}()
 				<-arrived
@@ -130,13 +132,21 @@ func TestCreateErrorsCallerCancellationIsNeverUncertain(t *testing.T) {
 				var timeout *SandboxCreateRequestTimeoutError
 				var connection *SandboxCreateConnectionError
 				require.NotErrorAs(t, err, &timeout)
-				require.NotErrorAs(t, err, &connection)
+				if phase == "submission" {
+					require.Nil(t, sandbox)
+					require.ErrorAs(t, err, &connection)
+					require.Equal(t, fake.requests()[0].Header.Get("Idempotency-Key"), connection.IdempotencyKey)
+				} else {
+					require.NotErrorAs(t, err, &connection)
+					require.NotNil(t, sandbox)
+					require.Equal(t, "sbx", sandbox.ID())
+				}
 			})
 		}
 	}
 }
 
-func TestCreateErrorsCallerDeadlineIsNeverUncertain(t *testing.T) {
+func TestCreateErrorsCallerDeadlinePreservesKey(t *testing.T) {
 	// Given
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
 		"POST /sandboxes": func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() },
@@ -149,5 +159,6 @@ func TestCreateErrorsCallerDeadlineIsNeverUncertain(t *testing.T) {
 	// Then
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	var uncertain *SandboxCreateRequestTimeoutError
-	require.NotErrorAs(t, err, &uncertain)
+	require.ErrorAs(t, err, &uncertain)
+	require.Equal(t, fake.requests()[0].Header.Get("Idempotency-Key"), uncertain.IdempotencyKey)
 }

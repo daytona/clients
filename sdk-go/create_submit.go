@@ -30,8 +30,8 @@ func (c *Client) submitCreate(ctx context.Context, prepared preparedCreate) (*Sa
 	if err != nil {
 		return nil, err
 	}
-	if ctx.Err() != nil {
-		return nil, transportError(ctx, ctx.Err())
+	if err = acceptedWaitError(ctx, nil); err != nil {
+		return sandbox, err
 	}
 	if prepared.wait == NoWait || sandbox.State() == SandboxStateStarted {
 		return sandbox, nil
@@ -45,10 +45,7 @@ func (c *Client) submitCreate(ctx context.Context, prepared preparedCreate) (*Sa
 		budget -= time.Duration(capSeconds * float64(time.Second))
 	}
 	err = sandbox.Wait(ctx, &WaitOptions{Until: []SandboxState{SandboxStateStarted}, Timeout: budget})
-	if waitErr := acceptedWaitError(ctx, err); waitErr != nil {
-		return nil, waitErr
-	}
-	return sandbox, nil
+	return sandbox, acceptedWaitError(ctx, err)
 }
 
 func createHoldTimeout(requestTimeout, wait time.Duration) time.Duration {
@@ -64,7 +61,7 @@ func createHoldTimeout(requestTimeout, wait time.Duration) time.Duration {
 
 func uncertainCreateError(ctx context.Context, err error, key string) error {
 	if ctx.Err() != nil {
-		return transportError(ctx, ctx.Err())
+		err = transportError(ctx, ctx.Err())
 	}
 	var detail *Error
 	if !errors.As(err, &detail) {
@@ -73,6 +70,10 @@ func uncertainCreateError(ctx context.Context, err error, key string) error {
 	switch {
 	case errors.Is(err, ErrClientTimeout):
 		return &SandboxCreateRequestTimeoutError{SDKError: detail, IdempotencyKey: key}
+	case errors.Is(err, context.Canceled):
+		failure := *detail
+		failure.category = ErrConnection
+		return &SandboxCreateConnectionError{SDKError: &failure, IdempotencyKey: key}
 	case errors.Is(err, ErrConnection):
 		return &SandboxCreateConnectionError{SDKError: detail, IdempotencyKey: key}
 	default:
@@ -83,6 +84,11 @@ func uncertainCreateError(ctx context.Context, err error, key string) error {
 func acceptedWaitError(ctx context.Context, err error) error {
 	if ctx.Err() != nil {
 		return transportError(ctx, ctx.Err())
+	}
+	// A wait's own timer can observe the caller's deadline before the
+	// context timer fires. Do not swallow that deadline as an SDK wait error.
+	if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+		return transportError(ctx, context.DeadlineExceeded)
 	}
 	if err == nil {
 		return nil
