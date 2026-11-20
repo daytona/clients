@@ -123,44 +123,18 @@ func (s *sandboxCredential) mint(ctx context.Context) (cachedToken, error) {
 	if requestErr := s.sandbox.client.api().do(ctx, request); requestErr != nil {
 		return cachedToken{}, requestErr
 	}
-	object, err := parseObject(raw, "sandbox access token")
+	token, err := parseSandboxAccessToken(raw, false)
 	if err != nil {
 		return cachedToken{}, err
 	}
-	token, err := field[string](object, "access_token", true)
-	if err != nil || token == "" {
-		return cachedToken{}, badRequest("sandbox access token response has empty access_token")
-	}
-	if _, fieldErr := field[string](object, "token_type", true); fieldErr != nil {
-		return cachedToken{}, fieldErr
-	}
-	if _, fieldErr := field[[]string](object, "operations", true); fieldErr != nil {
-		return cachedToken{}, fieldErr
-	}
-	if _, fieldErr := field[string](object, "expires_at", true); fieldErr != nil {
-		return cachedToken{}, fieldErr
-	}
-	if portsErr := checkTokenPorts(object); portsErr != nil {
-		return cachedToken{}, portsErr
-	}
-	expiry, parseErr := timestampField(object, "expires_at")
-	result := cachedToken{token: token}
-	// A malformed expiry on an internally minted token is treated as absent.
-	if parseErr == nil && !expiry.IsZero() {
-		result.expiresAt, result.refreshAt = expiry, expiry.Add(-time.Minute)
+	result := cachedToken{token: token.AccessToken}
+	if !token.ExpiresAt.IsZero() {
+		result.expiresAt, result.refreshAt = token.ExpiresAt, token.ExpiresAt.Add(-time.Minute)
 	}
 	return result, nil
 }
 
 func checkTokenPorts(object jsonObject) error {
-	values, err := field[[]JSONValue](object, "ports", false)
-	if err != nil {
-		return err
-	}
-	for _, raw := range values {
-		if _, fieldErr := integerField(jsonObject{"port": raw}, "port", true); fieldErr != nil {
-			return fieldErr
-		}
-	}
-	return nil
+	_, err := sandboxTokenPorts(object)
+	return err
 }
