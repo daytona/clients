@@ -35,6 +35,7 @@ type CreateInterpreterContextOptions struct {
 	// Cwd sets the default working directory.
 	Cwd string
 	// Env sets the environment for every execution in the context.
+	// Nil omits it; an empty map sends an explicit empty environment override.
 	Env map[string]string
 }
 

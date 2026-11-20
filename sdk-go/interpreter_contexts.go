@@ -17,7 +17,7 @@ type interpreterContextRequest struct {
 	ID     string            `json:"id,omitempty"`
 	Kernel string            `json:"kernel"`
 	Cwd    string            `json:"cwd,omitempty"`
-	Env    map[string]string `json:"env,omitempty"`
+	Env    map[string]string `json:"env,omitzero"`
 }
 
 // CreateContext creates independent kernel state. Language is case-sensitive

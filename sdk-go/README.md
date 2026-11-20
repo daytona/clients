@@ -108,7 +108,13 @@ port publicly; the URL opens without credentials.
 
 ```go
 _, err = sandbox.Process().Start(ctx, "python3 -m http.server 8080", nil)
+if err != nil {
+	return err
+}
 endpoint, err := sandbox.Ports().Expose(ctx, 8080, &daytona.ExposePortOptions{Public: true})
+if err != nil {
+	return err
+}
 fmt.Println(endpoint.URL)
 ```
 

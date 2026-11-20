@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"math"
 )
 
 func parseFileInfo(raw json.RawMessage) (FileInfo, error) {
@@ -105,6 +106,9 @@ func parseFileMatch(raw json.RawMessage) (FileMatch, error) {
 	}
 	file, fileErr := field[string](object, "file", true)
 	line, lineErr := fileNonnegative(object, "line")
+	if lineErr == nil && line > math.MaxInt32 {
+		lineErr = badRequest("response field line must fit int32")
+	}
 	content, contentErr := field[string](object, "content", true)
 	return FileMatch{File: file, Line: line, Content: content}, errors.Join(fileErr, lineErr, contentErr)
 }

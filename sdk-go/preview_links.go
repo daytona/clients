@@ -13,7 +13,8 @@ import (
 // PreviewLink returns a preview URL and token, privately exposing port first
 // if needed. Public endpoints return an empty token. Private endpoints prefer
 // a newly minted token scoped to this port alone; caller-supplied sandbox
-// credentials and mint failures retain the preview route's token.
+// credentials and mint failures retain a usable preview route's token.
+// A mint failure is returned when the route has no URL or private token.
 // Invalid or reserved preview ports return ErrBadRequest locally.
 // Deleted or deleting sandboxes return ErrConflict.
 func (p *Ports) PreviewLink(ctx context.Context, port int) (*PreviewLink, error) {
@@ -60,6 +61,10 @@ func (p *Ports) PreviewLink(ctx context.Context, port int) (*PreviewLink, error)
 		address = endpoint.URL
 	}
 	link := &PreviewLink{URL: address, Token: token, ExpiresAt: previewTokenExpiry(token)}
+	return p.scopePreviewLink(ctx, port, link)
+}
+
+func (p *Ports) scopePreviewLink(ctx context.Context, port int, link *PreviewLink) (*PreviewLink, error) {
 	minted, mintErr := p.sandbox.auth.previewToken(ctx, port)
 	if ctx.Err() != nil {
 		return nil, transportError(ctx, ctx.Err())
@@ -67,8 +72,11 @@ func (p *Ports) PreviewLink(ctx context.Context, port int) (*PreviewLink, error)
 	if errors.Is(mintErr, ErrClientClosed) {
 		return nil, mintErr
 	}
-	// The route token is already usable. Best-effort scoped mint failures do
-	// not discard it; the scoped token never enters the toolbox auth cache.
+	if mintErr != nil && (link.URL == "" || link.Token == "") {
+		return nil, mintErr
+	}
+	// Best-effort scoped mint failures do not discard a usable route link;
+	// the scoped token never enters the toolbox auth cache.
 	if minted.token != "" {
 		link.Token, link.ExpiresAt = minted.token, minted.expiresAt
 	}

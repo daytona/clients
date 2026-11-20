@@ -56,6 +56,9 @@ func wrapFileMultipartError(err error) *Error {
 }
 
 func addFilePart(result *BulkReadResult, disposition string, data []byte) error {
+	if disposition == "" {
+		return nil
+	}
 	_, params, err := mime.ParseMediaType(disposition)
 	if err != nil {
 		return badRequest("invalid multipart content disposition")
