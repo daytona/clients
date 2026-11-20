@@ -24,6 +24,9 @@ func (t *transport) open(ctx context.Context, spec apiRequest, streaming bool) (
 	if spec.MaxResponseBytes < NoLimit || spec.MaxResponseBytes > maxSafeInteger {
 		return nil, badRequest("invalid MaxResponseBytes")
 	}
+	if err := checkRequestUTF8(spec.Body); err != nil {
+		return nil, err
+	}
 	budget := t.owner.config.timeout
 	if spec.Timeout != 0 {
 		budget = boundedTimeout(spec.Timeout)
