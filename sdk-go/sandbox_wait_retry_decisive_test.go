@@ -146,6 +146,6 @@ func TestWaitRetry_whenLaterReadsStall_retainsProbeFailure(t *testing.T) {
 		require.ErrorIs(t, err, ErrRequestTimeout)
 		require.ErrorIs(t, errors.Unwrap(err), syscall.ECONNRESET)
 		require.Equal(t, 8*time.Second, time.Since(began))
-		require.Equal(t, 3, reads)
+		require.Equal(t, 2, reads) // The next live probe is beyond the share; only the reserve reads again.
 	})
 }

@@ -62,7 +62,7 @@ func TestEventsObservationsNormalizeWireStatesWhenWatching(t *testing.T) {
 			})
 
 			// When
-			ch, release := client.stateSource.watch(t.Context(), "bare", "local")
+			ch, release, activity := client.stateSource.watch(t.Context(), "bare", "local")
 			defer release()
 			observation := eventsReceive(t, ch)
 
@@ -70,6 +70,8 @@ func TestEventsObservationsNormalizeWireStatesWhenWatching(t *testing.T) {
 			require.Equal(t, want, observation.State)
 			require.Equal(t, raw, observation.RawState)
 			require.Equal(t, "reported reason", observation.Reason)
+			require.False(t, activity.Frame().LastFrameAt.Before(activity.RegisteredAt))
+			require.False(t, activity.Frame().LastFrameAt.After(observation.At))
 		})
 	}
 }

@@ -93,7 +93,7 @@ func TestEventsCloseCancelsMintWhenRequestIsBlocked(t *testing.T) {
 		},
 	})
 	client := newEventsTestClient(t, fake.Server)
-	ch, release := client.stateSource.watch(t.Context(), "bare", "a")
+	ch, release, _ := client.stateSource.watch(t.Context(), "bare", "a")
 	defer release()
 	<-entered
 
@@ -122,7 +122,7 @@ func TestEventsWatchCancelInterruptsMintWhenLastWatchLeaves(t *testing.T) {
 	client := newEventsTestClient(t, server)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	_, release := client.stateSource.watch(ctx, "bare", "a")
+	_, release, _ := client.stateSource.watch(ctx, "bare", "a")
 	defer release()
 	<-entered
 

@@ -212,10 +212,22 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
   `func(context.Context, string) (*Page[T], error)` into `iter.Seq2[T, error]`.
   It stops on a repeated cursor and never fetches after the consumer breaks.
 - `Client.stateSource` is a `sandboxStateSource`. Its
-  `watch(ctx, sandboxID, region) (<-chan stateObservation, func())` returns an
-  idempotent release. A nil channel means unavailable: use API reads. The
-  producer owns closing the channel. The core installs `noopStateSource`;
-  the events worker owns hub installation and shutdown integration.
+  `watch(ctx, sandboxID, region)` returns the observation channel, an
+  idempotent release and per-watch `events.WatchLiveness`. A nil channel means
+  unavailable: use API reads. The producer owns closing the channel.
+  Liveness includes registration time and a lock-protected snapshot of the
+  current socket's last incoming frame, following routing changes. Ping/pong,
+  errors and frames for other IDs count even without a state transition.
+  Early probes follow `client_rules.early_probe` in the events contract:
+  first at `jittered(min(10s, hub budget / 2))`, then only after 10s of silence
+  measured from the later of registration and the last frame. The first probe
+  for a short budget instead requires no frame since registration. Jitter is
+  +/-10%, using the hub's injectable random source. A frame or socket change
+  during a successful GET discards that result; otherwise a target or terminal
+  read settles directly. A nonterminal read rearms for the remaining quiet
+  time (at least 200ms), a failed probe for a fresh jittered 10s. Reads that
+  fail with 401/403/404 stop the wait. The final reserve and events-disabled
+  polling do not depend on liveness.
 - Tests share `newFakeServer`, `writeJSON`, `jsonHandler`, `sandboxFixture` and
   `newTestClient`; see the usage comment at the top of `helpers_test.go`.
   The client helper uses `t.Setenv`, so its tests must not call `t.Parallel`.

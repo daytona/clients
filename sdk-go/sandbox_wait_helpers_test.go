@@ -10,20 +10,39 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"go.daytona.com/sdk/v2/internal/events"
 )
 
 type waitTestSource struct {
-	events   chan stateObservation
-	released atomic.Int32
-	region   string
+	events    chan stateObservation
+	released  atomic.Int32
+	region    string
+	lastFrame func() time.Time
+	jitter    func(time.Duration) time.Duration
 }
 
-func (s *waitTestSource) watch(_ context.Context, _, region string) (<-chan stateObservation, func()) {
+func (s *waitTestSource) watch(
+	_ context.Context, _, region string,
+) (<-chan stateObservation, func(), events.WatchLiveness) {
 	s.region = region
 	var once sync.Once
-	return s.events, func() { once.Do(func() { s.released.Add(1) }) }
+	activity := events.WatchLiveness{
+		RegisteredAt: time.Now(), Jitter: func(d time.Duration) time.Duration { return d },
+		Frame: func() events.FrameStamp {
+			if s.lastFrame == nil {
+				return events.FrameStamp{}
+			}
+			return events.FrameStamp{LastFrameAt: s.lastFrame()}
+		},
+	}
+	if s.jitter != nil {
+		activity.Jitter = s.jitter
+	}
+	return s.events, func() { once.Do(func() { s.released.Add(1) }) }, activity
 }
 
 // Recorder-backed HTTP keeps timers within synctest's virtual clock. Unlike

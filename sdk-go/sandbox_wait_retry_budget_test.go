@@ -43,7 +43,11 @@ func TestWaitRetry_whenRepeatedFailures_backoffGrows(t *testing.T) {
 			for i := 1; i < len(reads); i++ {
 				gap := reads[i].Sub(reads[i-1])
 				require.GreaterOrEqual(t, gap, waitMinInterval)
-				require.Greater(t, gap, previous)
+				if live {
+					require.Equal(t, 10*time.Second, gap)
+				} else {
+					require.Greater(t, gap, previous)
+				}
 				previous = gap
 			}
 		})

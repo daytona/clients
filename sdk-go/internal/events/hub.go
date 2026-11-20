@@ -92,6 +92,7 @@ type session[T any] struct {
 	failures   int
 	refusals   int
 	attempt    int
+	frame      FrameStamp
 }
 
 // New creates a lazy hub; it opens no socket until the first Watch.
@@ -110,17 +111,16 @@ func New[T any](ctx context.Context, config Config[T]) *Hub[T] {
 	}
 }
 
-// Watch subscribes until ctx ends or release is called. Release is idempotent.
-// Slow consumers receive the latest observation, not an unbounded event backlog.
-func (h *Hub[T]) Watch(ctx context.Context, id, region string) (<-chan T, func()) {
+// WatchWithLiveness is Watch with per-watch frame activity for polling gates.
+func (h *Hub[T]) WatchWithLiveness(ctx context.Context, id, region string) (<-chan T, func(), WatchLiveness) {
 	encoded, err := json.Marshal(subscription{ID: id})
 	if err != nil || len(encoded)+32 > maxClientFrame {
-		return nil, func() {}
+		return nil, func() {}, WatchLiveness{}
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed || h.ctx.Err() != nil || ctx.Err() != nil {
-		return nil, func() {}
+		return nil, func() {}, WatchLiveness{}
 	}
 	key := endpointKey{value: region}
 	if destination := h.destinations[region]; destination != "" {
@@ -128,7 +128,7 @@ func (h *Hub[T]) Watch(ctx context.Context, id, region string) (<-chan T, func()
 	}
 	s := h.session(key, region)
 	if s.permanent || h.clock.Now().Before(s.retryAt) {
-		return nil, func() {}
+		return nil, func() {}, WatchLiveness{}
 	}
 	e := s.entries[id]
 	if e == nil {
@@ -139,6 +139,14 @@ func (h *Hub[T]) Watch(ctx context.Context, id, region string) (<-chan T, func()
 		e.fresh, e.cached, e.version = true, nil, -1
 	}
 	w := &listener[T]{out: make(chan T, 1), session: s}
+	activity := WatchLiveness{
+		RegisteredAt: h.clock.Now(), Jitter: h.jitter,
+		Frame: func() FrameStamp {
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			return w.session.frame
+		},
+	}
 	e.listeners[w] = struct{}{}
 	s.idleAt = time.Time{}
 	if e.cached != nil && !e.pending {
@@ -165,7 +173,7 @@ func (h *Hub[T]) Watch(ctx context.Context, id, region string) (<-chan T, func()
 	}
 	s.start()
 	s.changed()
-	return w.out, release
+	return w.out, release, activity
 }
 
 // Close cancels connection work, closes watches and joins every socket worker.

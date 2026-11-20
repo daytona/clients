@@ -6,6 +6,8 @@ package daytona
 import (
 	"context"
 	"time"
+
+	"go.daytona.com/sdk/v2/internal/events"
 )
 
 type stateObservation struct {
@@ -20,11 +22,11 @@ type stateObservation struct {
 // watch's release is idempotent. A nil channel means no event source is
 // available: lifecycle code must use API reads. The hub owns channel closure.
 type sandboxStateSource interface {
-	watch(ctx context.Context, sandboxID, region string) (<-chan stateObservation, func())
+	watch(ctx context.Context, sandboxID, region string) (<-chan stateObservation, func(), events.WatchLiveness)
 }
 
 type noopStateSource struct{}
 
-func (noopStateSource) watch(context.Context, string, string) (<-chan stateObservation, func()) {
-	return nil, func() {}
+func (noopStateSource) watch(context.Context, string, string) (<-chan stateObservation, func(), events.WatchLiveness) {
+	return nil, func() {}, events.WatchLiveness{}
 }

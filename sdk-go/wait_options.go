@@ -34,7 +34,7 @@ const (
 	waitReadSlack    = 5 * time.Second
 	waitMinInterval  = 200 * time.Millisecond
 	waitFinalReserve = 5 * time.Second
-	waitEarlyProbe   = 3 * time.Second
+	waitEarlyProbe   = 10 * time.Second
 )
 
 func lifecycleWaitBudget(value time.Duration) (time.Duration, error) {

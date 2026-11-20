@@ -14,14 +14,17 @@ import (
 // Wait observes the server until any requested state is reached (default started).
 // A spent budget returns ErrRequestTimeout with source SDK; an incompatible
 // terminal state returns *SandboxTerminalStateError, including its raw status
-// and any reason read from the server. Unknown server states keep polling.
+// and any reason read from the server. Unknown server states keep waiting.
 // An event reporting a known sandbox's disappearance returns ErrNotFound with source SDK.
-// Events can wake the wait early; a bounded wait reserves up to five seconds
-// for authoritative API reads. Once a target event was observed, failure to
+// A healthy events socket suppresses early API probes; a quiet socket permits
+// a probe after about ten seconds (sooner for a short wait with no frames).
+// A bounded wait reserves up to five seconds for authoritative API reads
+// regardless of socket activity. Once a target event was observed, failure to
 // refresh metadata does not undo success. Caller cancellation is never hidden.
 // With events enabled, nondecisive read failures (including rate limits) retry
-// within the budget, honoring RetryAfter; the last read failure is retained
-// as a timeout cause.
+// within the budget; the last read failure is retained as a timeout cause.
+// Live probes rearm after a fresh jittered ten seconds. Fallback polling
+// honors RetryAfter.
 // Fallback polling stops on HTTP 4xx other than 429; live-event probes stop
 // only on 401, 403, or 404. Final-reserve failures remain timeout causes.
 // With events disabled, read failures are returned immediately.
@@ -85,13 +88,13 @@ func (w *sandboxWait) run(ctx context.Context) error {
 	if strings.EqualFold(strings.TrimSpace(region), "local") {
 		region = ""
 	}
-	events, release := w.sandbox.client.stateSource.watch(ctx, w.sandbox.id, region)
+	events, release, activity := w.sandbox.client.stateSource.watch(ctx, w.sandbox.id, region)
 	defer release()
 	retry := newWaitReadRetry(w.sandbox.client.stateSource)
 	if events == nil {
 		return w.poll(ctx, &retry)
 	}
-	decided, err := w.withEvents(ctx, events, &retry)
+	decided, err := w.withEvents(ctx, sandboxWatch{events: events, activity: activity}, &retry)
 	if decided {
 		return retry.finish(err)
 	}

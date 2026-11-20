@@ -51,9 +51,11 @@ func (*eventsStateSource) enabled() bool {
 	}
 }
 
-func (s *eventsStateSource) watch(ctx context.Context, id, region string) (<-chan stateObservation, func()) {
+func (s *eventsStateSource) watch(
+	ctx context.Context, id, region string,
+) (<-chan stateObservation, func(), events.WatchLiveness) {
 	if !s.enabled() {
-		return nil, func() {}
+		return nil, func() {}, events.WatchLiveness{}
 	}
 	if tag := regionOf(id); tag != "" {
 		region = tag
@@ -62,7 +64,7 @@ func (s *eventsStateSource) watch(ctx context.Context, id, region string) (<-cha
 		region = "_"
 	}
 	if _, err := pathSegment(region); err != nil {
-		return nil, func() {}
+		return nil, func() {}, events.WatchLiveness{}
 	}
-	return s.hub.Watch(ctx, id, region)
+	return s.hub.WatchWithLiveness(ctx, id, region)
 }

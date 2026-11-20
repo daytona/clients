@@ -61,7 +61,10 @@ func TestWaitRetry_whenRateLimited_honorsRetryAfter(t *testing.T) {
 						gap := reads[i].Sub(reads[i-1])
 						require.GreaterOrEqual(t, gap, max(waitMinInterval, time.Duration(hint)*time.Second))
 					}
-					if hint == 0 {
+					if mode == "live" {
+						require.Equal(t, 10*time.Second, reads[1].Sub(reads[0]))
+						require.Equal(t, 10*time.Second, reads[2].Sub(reads[1]))
+					} else if hint == 0 {
 						require.Greater(t, reads[2].Sub(reads[1]), reads[1].Sub(reads[0]))
 					}
 				})

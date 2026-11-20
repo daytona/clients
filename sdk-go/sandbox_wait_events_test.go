@@ -106,7 +106,7 @@ func TestWait_whenEventsSilent_readsWithinFinalReserve(t *testing.T) {
 			readAt, held = time.Since(began), r.URL.Query().Get("timeout_ms")
 			writeJSON(t, w, sandboxFixture("sbx"))
 		})
-		sandbox.client.stateSource = &waitTestSource{events: make(chan stateObservation)}
+		sandbox.client.stateSource = &waitTestSource{events: make(chan stateObservation), lastFrame: time.Now}
 		// When
 		err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: time.Second})
 		// Then: the stream gets 3/4 of the budget, never the whole budget.
@@ -123,7 +123,7 @@ func TestWait_whenFinalReadFails_preservesTimeoutCause(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				// Given
 				sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status) })
-				sandbox.client.stateSource = &waitTestSource{events: make(chan stateObservation)}
+				sandbox.client.stateSource = &waitTestSource{events: make(chan stateObservation), lastFrame: time.Now}
 				// When
 				err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: time.Second})
 				// Then

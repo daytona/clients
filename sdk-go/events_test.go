@@ -54,7 +54,7 @@ func TestEventsSourceMintsTicketAndDecodesStatesWhenWatching(t *testing.T) {
 	})
 
 	// When
-	observations, release := client.stateSource.watch(t.Context(), "sbx-region-a", "ignored-hint")
+	observations, release, _ := client.stateSource.watch(t.Context(), "sbx-region-a", "ignored-hint")
 	defer release()
 	observation := eventsReceive(t, observations)
 
@@ -91,7 +91,7 @@ func TestEventsDisabledReturnsNoSourceWhenConfiguredOrAmbient(t *testing.T) {
 			client := newTestClient(t, fake.Server, opts...)
 
 			// When
-			ch, release := client.stateSource.watch(t.Context(), "sbx-region-a", "")
+			ch, release, _ := client.stateSource.watch(t.Context(), "sbx-region-a", "")
 			release()
 
 			// Then
@@ -115,7 +115,7 @@ func TestEventsPermanentlyFallsBackWhenTicketEndpointUnavailable(t *testing.T) {
 			client := newEventsTestClient(t, fake.Server)
 
 			// When
-			ch, release := client.stateSource.watch(t.Context(), "sbx-region-a", "")
+			ch, release, _ := client.stateSource.watch(t.Context(), "sbx-region-a", "")
 			defer release()
 			select {
 			case _, ok := <-ch:
@@ -125,7 +125,7 @@ func TestEventsPermanentlyFallsBackWhenTicketEndpointUnavailable(t *testing.T) {
 			}
 
 			// Then
-			next, done := client.stateSource.watch(t.Context(), "another-region-a", "")
+			next, done, _ := client.stateSource.watch(t.Context(), "another-region-a", "")
 			done()
 			require.Nil(t, next)
 			require.Len(t, fake.requests(), 1)
@@ -175,11 +175,11 @@ func TestEventsLearnDestinationWhenMutationHasNoResult(t *testing.T) {
 	}
 
 	// When
-	first, release := client.stateSource.watch(t.Context(), "sbx-region-a", "")
+	first, release, _ := client.stateSource.watch(t.Context(), "sbx-region-a", "")
 	defer release()
 	for range first {
 	}
-	second, done := client.stateSource.watch(t.Context(), "sbx-region-b", "")
+	second, done, _ := client.stateSource.watch(t.Context(), "sbx-region-b", "")
 	defer done()
 
 	// Then

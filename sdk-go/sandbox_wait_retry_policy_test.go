@@ -62,7 +62,7 @@ func TestWaitRetry_whenFinalReserveReturns400_keepsTimeoutCause(t *testing.T) {
 			reads++
 			w.WriteHeader(http.StatusBadRequest)
 		})
-		sandbox.client.stateSource = &waitTestSource{events: make(chan stateObservation)}
+		sandbox.client.stateSource = &waitTestSource{events: make(chan stateObservation), lastFrame: time.Now}
 
 		// When
 		err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: time.Second})

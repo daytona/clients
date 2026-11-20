@@ -20,7 +20,6 @@ type received struct {
 type socketLoop[T any] struct {
 	session   *session[T]
 	conn      *websocket.Conn
-	lastFrame time.Time
 	pingSent  bool
 	sweepAt   time.Time
 	reconcile time.Time
@@ -46,10 +45,11 @@ func (s *session[T]) connected(conn *websocket.Conn) (failure error) {
 	}()
 	now := h.clock.Now()
 	loop := socketLoop[T]{
-		session: s, conn: conn, lastFrame: now, sweepAt: now.Add(sweepInterval),
+		session: s, conn: conn, sweepAt: now.Add(sweepInterval),
 		reconcile: now.Add(h.jitter(h.config.ReconcileInterval)),
 	}
 	h.mu.Lock()
+	s.frame = FrameStamp{LastFrameAt: now, connection: conn}
 	s.flushAt = now // Reconnect resubscribes every live ID immediately.
 	h.mu.Unlock()
 	for {
@@ -69,8 +69,8 @@ func (s *session[T]) connected(conn *websocket.Conn) (failure error) {
 			if message.err != nil {
 				return message.err
 			}
-			loop.lastFrame, loop.pingSent = h.clock.Now(), false
 			h.mu.Lock()
+			s.frame.LastFrameAt, loop.pingSent = h.clock.Now(), false
 			s.failures, s.refusals, s.attempt = 0, 0, 0
 			if message.valid {
 				s.dispatch(message.frame)
@@ -110,8 +110,8 @@ func (l *socketLoop[T]) tick(ctx context.Context) (bool, error) {
 	h.mu.Lock()
 	idle := s.retired || (!s.active() && h.config.IdleClose > 0 &&
 		!s.idleAt.IsZero() && !now.Before(s.idleAt.Add(h.config.IdleClose)))
-	expired := !now.Before(l.lastFrame.Add(liveness))
-	ping := s.active() && !l.pingSent && !now.Before(l.lastFrame.Add(pingAfter))
+	expired := !now.Before(s.frame.LastFrameAt.Add(liveness))
+	ping := s.active() && !l.pingSent && !now.Before(s.frame.LastFrameAt.Add(pingAfter))
 	l.schedule(now)
 	batches := s.pending(now)
 	h.mu.Unlock()
@@ -152,7 +152,7 @@ func (l *socketLoop[T]) nextDelay() time.Duration {
 	s, h := l.session, l.session.hub
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	next := l.lastFrame.Add(liveness)
+	next := s.frame.LastFrameAt.Add(liveness)
 	consider := func(at time.Time) {
 		if !at.IsZero() && at.Before(next) {
 			next = at
@@ -163,7 +163,7 @@ func (l *socketLoop[T]) nextDelay() time.Duration {
 		consider(l.sweepAt)
 		consider(l.reconcile)
 		if !l.pingSent {
-			consider(l.lastFrame.Add(pingAfter))
+			consider(s.frame.LastFrameAt.Add(pingAfter))
 		}
 		for _, e := range s.entries {
 			consider(e.refusedAt)

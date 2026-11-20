@@ -10,19 +10,19 @@ import (
 	"time"
 )
 
-// withEvents gives the source all but the final-read reserve. Polls are still
-// needed when a live source loses a transition; a closed source falls back
-// immediately. Every probe is joined before using the reserve.
+// withEvents gives the source all but the final-read reserve. Probes are gated
+// by socket silence; a closed source falls back immediately. Every probe is
+// joined before using the reserve.
 func (w *sandboxWait) withEvents(
-	ctx context.Context, events <-chan stateObservation, retry *waitReadRetry,
+	ctx context.Context, watch sandboxWatch, retry *waitReadRetry,
 ) (bool, error) {
 	share := w.deadline
 	if remaining := waitRemaining(share); remaining >= 0 {
 		share = share.Add(-min(waitFinalReserve, remaining/4))
 	}
-	delay := waitEarlyProbe
+	probe := newWaitProbe(watch, share, retry)
 	for {
-		event, open, err := w.awaitEvents(ctx, events, waitEventWindow{deadline: share, duration: delay})
+		event, open, err := w.awaitEvents(ctx, watch.events, waitEventWindow{deadline: share, duration: probe.delay})
 		if err != nil {
 			return true, err
 		}
@@ -35,30 +35,28 @@ func (w *sandboxWait) withEvents(
 		if waitRemaining(share) == 0 {
 			return false, waitTimeout(nil)
 		}
-		started := time.Now()
-		result := w.raceRead(ctx, events, share)
+		before, quiet := probe.ready()
+		if !quiet {
+			continue
+		}
+		result := w.raceRead(ctx, watch.events, share)
 		if result.event != nil {
 			return w.confirmEvent(ctx, *result.event)
 		}
 		if result.closed {
 			return false, nil
 		}
-		outcome, readErr := w.accept(result.read)
-		if waitRemaining(share) == 0 && waitSDKTimeout(readErr) {
-			return false, waitTimeout(nil)
-		}
-		if readErr != nil {
-			if stopped := w.retryReadError(ctx, readErr, retry); stopped != nil {
-				return true, stopped
-			}
-			delay = retry.remaining()
+		// Like the reference hub, a frame or reroute supersedes the poll.
+		if result.read.err == nil && before != watch.activity.Frame() {
+			probe.delay = watch.quietDelay(0)
 			continue
 		}
-		retry.succeeded()
-		if decided, outcomeErr := w.readOutcome(outcome); decided {
-			return true, outcomeErr
+		if waitRemaining(share) == 0 && waitSDKTimeout(result.read.err) {
+			return false, waitTimeout(nil)
 		}
-		delay = max(0, waitMinInterval-time.Since(started))
+		if decided, probeErr := probe.accept(ctx, w, result.read); decided {
+			return true, probeErr
+		}
 	}
 }
 
