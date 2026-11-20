@@ -60,16 +60,19 @@ func TestAccountLimitsLookupCacheBelongsToEachClient(t *testing.T) {
 	require.Equal(t, "/orgs/org-id/limits", requests[3].Path)
 }
 
-func TestAccountLimitsRetriesCanceledOrganizationLookup(t *testing.T) {
+func TestAccountLimitsCompletesLookupAfterFirstCallerCancels(t *testing.T) {
 	// Given
-	started := make(chan struct{})
+	started, release := make(chan struct{}), make(chan struct{})
 	var lookups atomic.Int64
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
 		"GET /api-keys/current": func(w http.ResponseWriter, r *http.Request) {
 			if lookups.Add(1) == 1 {
 				close(started)
-				<-r.Context().Done()
-				return
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
 			}
 			writeJSON(t, w, accountKeyFixture())
 		},
@@ -87,10 +90,11 @@ func TestAccountLimitsRetriesCanceledOrganizationLookup(t *testing.T) {
 	cancel()
 	require.ErrorIs(t, <-first, context.Canceled)
 	// When
+	close(release)
 	_, err := client.Limits(t.Context(), nil)
 	// Then
 	require.NoError(t, err)
-	require.EqualValues(t, 2, lookups.Load())
+	require.EqualValues(t, 1, lookups.Load())
 }
 
 func TestAccountLimitsCloseCancelsLookupAndWaiter(t *testing.T) {

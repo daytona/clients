@@ -14,6 +14,8 @@ import (
 // A nil UsageLimit.Limit means unlimited. Invalid organization IDs and malformed
 // responses return ErrBadRequest. Context cancellation remains reachable
 // through errors.Is, including while waiting for a shared organization lookup.
+// Cancelling one caller does not cancel that lookup for other callers;
+// Client.Close and the request timeout bound the shared lookup itself.
 func (c *Client) Limits(ctx context.Context, opts *GetLimitsOptions) (*OrganizationLimits, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err
