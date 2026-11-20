@@ -1108,7 +1108,7 @@ export interface paths {
         };
         /**
          * Get organization limits
-         * @description Returns effective limits and current usage. A null limit means unlimited.
+         * @description Returns effective limits and current usage. A null limit means unlimited, except on a count whose limit is not returned.
          */
         get: operations["get_org_limits"];
         put?: never;
