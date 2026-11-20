@@ -1,0 +1,24 @@
+sdk-go/events_example_test.go
+  s_3456b2013a20e2::t_94d7176477a98c 7,19,22-26
+  s_3456b2013a20e2::t_3c9ed33aa6a0f2 1-6,8-18,20-21,27-29
+sdk-go/e2e/events_test.go
+  s_3456b2013a20e2::t_69dd0a2e94d3c8 10,29-44,54-60,74-103
+  s_3456b2013a20e2::t_94d7176477a98c 122
+  s_3456b2013a20e2::t_3c9ed33aa6a0f2 1-9,11-28,45-53,61-73,104-121,123-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7f074fc84f93538c275df499f3451eb604768f9",
+  "prompts": {},
+  "sessions": {
+    "s_3456b2013a20e2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b48b98ffeB8ycU3gMzAwvzt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
