@@ -19,7 +19,7 @@ func newPTYTestSandbox(t *testing.T, server *httptest.Server, opts ...Option) *S
 	client := newTestClient(t, server, opts...)
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info: SandboxInfo{ID: "sbx"}, ToolboxURL: server.URL + "/toolbox",
-		Options: GetOptions{AccessToken: "terminal-caller"},
+		Options: GetSandboxOptions{AccessToken: "terminal-caller"},
 	})
 	require.NoError(t, err)
 	return sandbox

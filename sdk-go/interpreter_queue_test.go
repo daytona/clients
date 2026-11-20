@@ -66,7 +66,7 @@ func interpreterQueueSandbox(t *testing.T, transport *interpreterQueueTransport)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: "http://sandbox.invalid", AccessToken: "sandbox-fixture"},
+		Options: GetSandboxOptions{ToolboxURL: "http://sandbox.invalid", AccessToken: "sandbox-fixture"},
 	})
 	require.NoError(t, err)
 	return sandbox

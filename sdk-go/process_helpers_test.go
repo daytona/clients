@@ -17,7 +17,7 @@ func processTestSandbox(t *testing.T, routes map[string]http.HandlerFunc) (*Sand
 	client := newTestClient(t, fake.Server)
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: fake.Server.URL, AccessToken: strings.Join([]string{"test", "sandbox"}, "-")},
+		Options: GetSandboxOptions{ToolboxURL: fake.Server.URL, AccessToken: strings.Join([]string{"test", "sandbox"}, "-")},
 	})
 	require.NoError(t, err)
 	return sandbox, fake

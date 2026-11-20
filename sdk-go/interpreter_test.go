@@ -16,7 +16,7 @@ func interpreterTestSandbox(t *testing.T, fake *fakeServer) *Sandbox {
 	client := newTestClient(t, fake.Server)
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: fake.Server.URL, AccessToken: "sandbox-fixture"},
+		Options: GetSandboxOptions{ToolboxURL: fake.Server.URL, AccessToken: "sandbox-fixture"},
 	})
 	require.NoError(t, err)
 	return sandbox
