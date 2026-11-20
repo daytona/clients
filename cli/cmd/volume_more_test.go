@@ -35,6 +35,7 @@ func TestVolumeCreate_rejectsShapesTheServerWouldRefuse(t *testing.T) {
 		"an unknown type":                 {"volume", "create", "v", "--type", "nfs"},
 		"a type in another case":          {"volume", "create", "v", "--type", "DISK"},
 		"bucket options on a disk volume": {"volume", "create", "v", "--type", "disk", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
+		"a role next to a secret name":    {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--role-arn", "arn:aws:iam::123456789012:role/r", "--access-key-secret", "K"},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -55,6 +56,16 @@ func TestVolumeCreate_externalBucketBody(t *testing.T) {
 		"volume", "create", "data", "--type", "bucket", "--bucket", "corp-data", "--endpoint", "https://s3.example.com", "--bucket-region", "region-a", "--prefix", "team-a/", "--path-style", "--access-key-secret", "BUCKET_KEY", "--secret-key-secret", "BUCKET_SECRET",
 	}, []expectedRequest{
 		{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"bucket":{"credentials":{"access_key_secret":"BUCKET_KEY","secret_key_secret":"BUCKET_SECRET"},"endpoint":"https://s3.example.com","name":"corp-data","origin":"external","path_style":true,"prefix":"team-a/","region":"region-a"},"name":"data","type":"bucket"}`, response: bucketVolumeFixture("55555555-5555-5555-5555-555555555555")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "data", requireJSONStdout(t, stdout)["name"])
+}
+
+func TestVolumeCreate_roleBucketBody(t *testing.T) {
+	stdout, _, err := runCLI(t, []string{
+		"volume", "create", "data", "--type", "bucket", "--bucket", "corp-data", "--bucket-region", "eu-west-1", "--role-arn", "arn:aws:iam::123456789012:role/daytona-bucket",
+	}, []expectedRequest{
+		{method: http.MethodPost, path: "/volumes", status: 201, bodyJSON: `{"bucket":{"credentials":{"role_arn":"arn:aws:iam::123456789012:role/daytona-bucket"},"name":"corp-data","origin":"external","region":"eu-west-1"},"name":"data","type":"bucket"}`, response: bucketVolumeFixture("55555555-5555-5555-5555-555555555555")},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "data", requireJSONStdout(t, stdout)["name"])
