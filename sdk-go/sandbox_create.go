@@ -42,7 +42,7 @@ func prepareLinuxCreate(image string, options CreateOptions) (preparedCreate, er
 		return preparedCreate{}, badRequest("image must be a non-empty string")
 	}
 	if !utf8.ValidString(image) {
-		return nil, badRequest("image must be valid UTF-8")
+		return preparedCreate{}, badRequest("image must be valid UTF-8")
 	}
 	prepared, err := prepareCreateCommon(CreateFromSnapshotOptions{
 		Name: options.Name, Labels: options.Labels, Ports: options.Ports,
