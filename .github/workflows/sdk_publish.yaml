@@ -128,8 +128,10 @@ name: SDK Publish
 #        (requires npm CLI >= 11.5.1 in the job, installed below)
 # Tool  the same two registrations for PyPI project `daytona-upgrade` and npm
 #        package `@daytona/upgrade` (workflow sdk_publish.yaml, environment release)
-# Go    no registry account or secret: deploy scripts/go-vanity-site.sh's site
-#        at go.daytona.com; /sdk must map to this repository's sdk-go/ directory.
+# Go    no registry account or secret: requires PR #688's vanity-site deployment
+#        (scripts/go-vanity-site.sh and .github/workflows/go-vanity-pages.yaml).
+#        go.daytona.com/sdk must map to this repository's sdk-go/ directory;
+#        registry-check verifies the deployed meta tag before any tag is created.
 #        Go proxy versions are permanent; only a later release can retract one.
 #        Add refs/tags/sdk-go/v* to the repository's protected "Release tags"
 #        ruleset, allowing this workflow's token to create (never move) tags.
@@ -756,6 +758,17 @@ jobs:
           fi
           # Even force_republish may NEVER accept a Go tag at another commit.
           if [ -n "$GO_VERSION" ]; then
+            # The vanity site is a deployment dependency, not part of the
+            # source snapshot. Check it before any permanent release tag.
+            vanity_url='https://go.daytona.com/sdk/v2?go-get=1'
+            vanity_dependency='verify PR #688 is merged and its vanity site deployed (scripts/go-vanity-site.sh and .github/workflows/go-vanity-pages.yaml)'
+            if ! code=$(curl -sS --max-time 60 -o "$RUNNER_TEMP/go-vanity.html" -w '%{http_code}' "$vanity_url"); then
+              echo "::error::Go vanity site ${vanity_url}: transfer failed; ${vanity_dependency}"; exit 1
+            fi
+            # Require the complete meta element, not its content as plain text.
+            if [ "$code" != 200 ] || ! grep -qF '<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">' "$RUNNER_TEMP/go-vanity.html"; then
+              echo "::error::Go vanity site ${vanity_url}: HTTP ${code:-000} or missing required go-import meta mapping go.daytona.com/sdk to https://github.com/daytona/clients sdk-go; ${vanity_dependency}"; exit 1
+            fi
             ref=$(gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/${GO_TAG}" \
               --jq ".[] | select(.ref == \"refs/tags/${GO_TAG}\") | .ref")
             if [ -n "$ref" ]; then

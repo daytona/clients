@@ -142,7 +142,10 @@ func TestMacModelsRejectMalformedDefaultResources(t *testing.T) {
 			_, err := service.List(t.Context())
 			// Then
 			require.ErrorIs(t, err, ErrBadRequest)
-			require.ErrorContains(t, err, name)
+			var sdkError *Error
+			require.ErrorAs(t, err, &sdkError)
+			require.Same(t, sdkError, err)
+			require.ErrorContains(t, err, "default_size."+name)
 		})
 	}
 }

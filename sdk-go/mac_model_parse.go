@@ -4,24 +4,17 @@
 package daytona
 
 import (
-	"fmt"
 	"math"
 	"time"
 )
 
-func parseMacResources(raw JSONValue) (*MacResources, error) {
-	object, err := parseObject(raw, "Mac resources")
-	if err != nil {
-		return nil, err
+func parseMacResources(raw JSONValue, path string) (*MacResources, error) {
+	object := accountResponse(raw, path)
+	resources := &MacResources{
+		Cores: object.integer("cores"), MemoryMiB: object.integer("memory_mib"), DiskMiB: object.integer("disk_mib"),
 	}
-	resources := &MacResources{}
-	for name, target := range map[string]*int64{
-		"cores": &resources.Cores, "memory_mib": &resources.MemoryMiB, "disk_mib": &resources.DiskMiB,
-	} {
-		*target, err = integerField(object, name, true)
-		if err != nil {
-			return nil, err
-		}
+	if *object.err != nil {
+		return nil, *object.err
 	}
 	return resources, nil
 }
@@ -32,17 +25,26 @@ func parseMacModel(raw JSONValue) (MacModel, error) {
 	if err != nil {
 		return model, err
 	}
-	for name, target := range map[string]*string{"id": &model.ID, "name": &model.Name} {
-		*target, err = field[string](object, name, true)
+	for _, entry := range []struct {
+		name   string
+		target *string
+	}{{"id", &model.ID}, {"name", &model.Name}} {
+		*entry.target, err = field[string](object, entry.name, true)
 		if err != nil {
 			return model, err
 		}
 	}
-	for name, target := range map[string]*int64{
-		"cores": &model.Cores, "memory_mib": &model.MemoryMiB, "disk_mib": &model.DiskMiB,
-		"sandbox_disk_mib": &model.SandboxDiskMiB, "max_sandboxes": &model.MaxSandboxes,
+	for _, entry := range []struct {
+		name   string
+		target *int64
+	}{
+		{"cores", &model.Cores},
+		{"memory_mib", &model.MemoryMiB},
+		{"disk_mib", &model.DiskMiB},
+		{"sandbox_disk_mib", &model.SandboxDiskMiB},
+		{"max_sandboxes", &model.MaxSandboxes},
 	} {
-		*target, err = integerField(object, name, true)
+		*entry.target, err = integerField(object, entry.name, true)
 		if err != nil {
 			return model, err
 		}
@@ -51,9 +53,9 @@ func parseMacModel(raw JSONValue) (MacModel, error) {
 		return model, badRequest("response field default_size is required")
 	}
 	if present(object["default_size"]) {
-		model.DefaultSize, err = parseMacResources(object["default_size"])
+		model.DefaultSize, err = parseMacResources(object["default_size"], "default_size")
 		if err != nil {
-			return model, fmt.Errorf("response field default_size: %w", err)
+			return model, err
 		}
 	}
 	return model, err

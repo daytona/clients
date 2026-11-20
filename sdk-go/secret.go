@@ -57,7 +57,7 @@ func (s *Secrets) List(ctx context.Context, opts *ListSecretsOptions) (*Page[Sec
 	}); requestErr != nil {
 		return nil, requestErr
 	}
-	return volumeResourcePage(raw, "secrets", parseSecret)
+	return resourcePage(raw, "secrets", parseSecret)
 }
 
 // ListAll lazily traverses secret metadata pages, stopping on cancellation,
@@ -93,9 +93,10 @@ func (s *Secrets) Get(ctx context.Context, name string) (*Secret, error) {
 }
 
 // Set creates or replaces a write-only secret and returns only metadata.
-// A nonempty value and AllowedDomains are required; invalid input returns
-// ErrBadRequest before any request. Nil Description preserves stored metadata
-// with one extra read (not atomic), unless IfNotExists is true.
+// A nonempty value and opts with nonempty AllowedDomains are required.
+// Nil opts or invalid input returns ErrBadRequest before any request.
+// Nil Description preserves stored metadata with one extra read (not atomic),
+// unless IfNotExists is true.
 // Required name and value remain positional to distinguish them from metadata.
 func (s *Secrets) Set(ctx context.Context, name, value string, opts *SetSecretOptions) (*Secret, error) {
 	segment, err := pathSegment(name)

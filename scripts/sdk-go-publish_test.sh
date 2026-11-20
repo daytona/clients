@@ -25,6 +25,8 @@ extract 'Refuse a version the registry already has (unless force_republish)' "$t
 extract 'Release the Go SDK tag and wait for the module proxy' "$tmp/publish"
 extract 'Every requested target was built' "$tmp/built"
 extract 'Require at least one target' "$tmp/targets"
+# Model the workflow dependency: publishing runs only after registry-check.
+printf 'bash %q && bash %q\n' "$tmp/registry" "$tmp/publish" > "$tmp/checked-publish"
 
 cat > "$tmp/bin/gh" <<'SH'
 #!/usr/bin/env bash
@@ -50,13 +52,20 @@ cat > "$tmp/bin/curl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "$CALLS"
-out=""
+out="" url=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) out="$2"; shift 2 ;;
+    https://*) url="$1"; shift ;;
     *) shift ;;
   esac
 done
+if [ "$url" = 'https://go.daytona.com/sdk/v2?go-get=1' ]; then
+  printf '%s' "$VANITY_BODY" > "$out"
+  printf '%s' "$VANITY_CODE"
+  exit "$VANITY_EXIT"
+fi
+[[ "$url" = https://proxy.golang.org/* ]] || { echo "unexpected curl URL: $url" >&2; exit 1; }
 code=$PROXY_CODE
 if [ "$code" = retry ]; then
   if [ -f "$RUNNER_TEMP/retried" ]; then code=200
@@ -79,6 +88,9 @@ export PYPI_VERSION="" NPM_VERSION="" CLI_VERSION="" UPGRADE_VERSION="" UPGRADE_
 export PY_BUILD=skipped NPM_BUILD=skipped CLI_BUILD=skipped UPGRADE_BUILD=skipped
 export GITHUB_STEP_SUMMARY="$tmp/summary" CALLS="$tmp/calls"
 export PUBLISH_PYPI=false PUBLISH_NPM=false PUBLISH_CLI=false PUBLISH_UPGRADE=false
+export VANITY_CODE=200 VANITY_EXIT=0
+valid_meta='<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">'
+export VANITY_BODY="$valid_meta"
 
 run_case() { # expected-exit script
   : > "$CALLS"; : > "$GITHUB_STEP_SUMMARY"; rm -f "$tmp/retried"
@@ -102,6 +114,41 @@ for GO_BUILD in skipped failure cancelled; do
 done
 export PUBLISH_GO=false
 run_case failure "$tmp/targets"
+
+# A missing or wrong vanity mapping, HTTP error or failed transfer must block
+# tag creation, including force_republish; plain text is not a go-import meta.
+export TAG_STATE=absent PROXY_CODE=200 PROXY_BODY='{"Version":"v2.1.0"}' RESUME=false
+for FORCE in false true; do
+  export FORCE
+  for invalid in missing wrong-prefix wrong-repo wrong-subdir text wrong-name http transfer; do
+    VANITY_BODY="$valid_meta" VANITY_CODE=200 VANITY_EXIT=0
+    case "$invalid" in
+      missing) VANITY_BODY='<html><head></head></html>' ;;
+      wrong-prefix) VANITY_BODY=${valid_meta/go.daytona.com\/sdk/github.com\/daytona\/clients} ;;
+      wrong-repo) VANITY_BODY=${valid_meta/https:\/\/github.com\/daytona\/clients/https:\/\/github.com\/daytona\/wrong} ;;
+      wrong-subdir) VANITY_BODY=${valid_meta/sdk-go/sdk-other} ;;
+      text) VANITY_BODY='go.daytona.com/sdk git https://github.com/daytona/clients sdk-go' ;;
+      wrong-name) VANITY_BODY=${valid_meta/go-import/description} ;;
+      http) VANITY_CODE=503 ;;
+      transfer) VANITY_EXIT=18 ;;
+    esac
+    export VANITY_BODY VANITY_CODE VANITY_EXIT
+    run_case failure "$tmp/checked-publish"
+    ! grep -q '/git/refs ' "$CALLS" || fail "vanity $invalid created a tag"
+    ! grep -q 'proxy.golang.org' "$CALLS" || fail "vanity $invalid reached the proxy"
+    for message in '::error::' 'go.daytona.com' 'scripts/go-vanity-site.sh' 'go-vanity-pages.yaml' '#688'; do
+      grep -qF "$message" "$tmp/output" || fail "vanity $invalid: missing diagnostic $message"
+    done
+  done
+done
+export VANITY_BODY="$valid_meta" VANITY_CODE=200 VANITY_EXIT=0 FORCE=false
+run_case success "$tmp/registry"
+grep -qF 'https://go.daytona.com/sdk/v2?go-get=1' "$CALLS" || fail 'vanity preflight did not run'
+# Non-Go releases do not depend on the vanity site.
+export GO_VERSION="" VANITY_EXIT=7
+run_case success "$tmp/registry"
+[ ! -s "$CALLS" ] || fail 'non-Go registry check contacted the vanity site'
+export GO_VERSION=v2.1.0 VANITY_EXIT=0
 
 # Registry checks fail closed, and force never accepts a different source SHA.
 for FORCE in false true; do

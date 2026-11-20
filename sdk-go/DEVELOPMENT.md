@@ -8,8 +8,12 @@ out of both (see [`../AGENTS.md`](../AGENTS.md)).
 
 - The module path is `go.daytona.com/sdk/v2`; the package name is `daytona`.
   The code lives in `sdk-go/` of daytona/clients.
-- `go.daytona.com/sdk` is served by `../scripts/go-vanity-site.sh` with the
-  `go-import` subdirectory field (Go 1.25+), which maps the path to `sdk-go/`.
+- Serving `go.daytona.com/sdk` depends on the vanity-site deployment from
+  [PR #688](https://github.com/daytona/clients/pull/688), which supplies
+  `scripts/go-vanity-site.sh` and `.github/workflows/go-vanity-pages.yaml`.
+  Its `go-import` subdirectory field (Go 1.25+) maps the path to `sdk-go/`;
+  the publish preflight checks the
+  deployed meta tag before creating any release tag.
 - Versions are the platform versions of the other SDKs. A release `vX.Y.Z`
   also carries the tag `sdk-go/vX.Y.Z` on the same commit; Go reads only the
   prefixed tag.
@@ -156,6 +160,7 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
   parsing helpers. Generated wire models may be used internally, never publicly.
   Sandbox parsing deliberately checks only fields the SDK reads: generated
   int32/UUID constraints would reject values the TypeScript boundary accepts.
+  Integer response fields accept JSON `3.0` as `3`, like TypeScript; Python refuses it.
 - `c.newSandbox(sandboxInit{Info: info, ToolboxURL: proxyBase})` constructs a
   handle for create/fork workers. `ToolboxURL` is an API-trusted **unscoped base**.
   `Info` is copied; `Options.ToolboxURL` is a trusted direct override. For

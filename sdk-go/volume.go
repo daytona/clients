@@ -66,7 +66,7 @@ func (v *Volumes) List(ctx context.Context, opts *ListVolumesOptions) (*Page[Vol
 	}); requestErr != nil {
 		return nil, requestErr
 	}
-	return volumeResourcePage(raw, "volumes", parseVolume)
+	return resourcePage(raw, "volumes", parseVolume)
 }
 
 // ListAll lazily traverses volume pages, stopping on cancellation, error, or a
@@ -124,7 +124,7 @@ func (v *Volumes) Create(ctx context.Context, name string, opts *CreateVolumeOpt
 	switch options.Type {
 	case "", VolumeTypeDisk, VolumeTypeBucket:
 	case VolumeTypeUnknown:
-		return nil, badRequest("type must be disk or bucket")
+		fallthrough
 	default:
 		return nil, badRequest("type must be disk or bucket")
 	}

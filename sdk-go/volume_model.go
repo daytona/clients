@@ -151,9 +151,9 @@ func volumeType(raw string) VolumeType {
 	}
 }
 
-// volumeResourcePage parses only the resource envelope at the boundary; its
+// resourcePage parses only the resource envelope at the boundary; its
 // mapper owns item validation. The same shape is shared by secrets and volumes.
-func volumeResourcePage[T any](raw JSONValue, key string, parse func(JSONValue) (T, error)) (*Page[T], error) {
+func resourcePage[T any](raw JSONValue, key string, parse func(JSONValue) (T, error)) (*Page[T], error) {
 	object, err := parseObject(raw, key+" page")
 	if err != nil {
 		return nil, err

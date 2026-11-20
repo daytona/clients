@@ -14,6 +14,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Error is an invalid ignore-file line or pattern.
@@ -46,7 +47,7 @@ func ReadPatternsFrom(reader io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(reader)
 	first := true
 	for scanner.Scan() {
-		line := strings.ToValidUTF8(scanner.Text(), "\ufffd")
+		line := decodePatternText(scanner.Text())
 		if first {
 			line = strings.TrimPrefix(line, "\ufeff")
 			first = false
@@ -80,6 +81,27 @@ func ReadPatternsFrom(reader io.Reader) ([]string, error) {
 		return nil, err
 	}
 	return patterns, nil
+}
+
+// decodePatternText replaces each maximal malformed UTF-8 subpart separately,
+// as Python/TypeScript do, rather than collapsing adjacent malformed sequences.
+func decodePatternText(text string) string {
+	var decoded strings.Builder
+	decoded.Grow(len(text))
+	for offset := 0; offset < len(text); {
+		char, width := utf8.DecodeRuneInString(text[offset:])
+		if char == utf8.RuneError && width == 1 {
+			// FullRune reports incomplete valid prefixes as false, and invalid
+			// encodings as true. Consume only the incomplete prefix, not the
+			// following byte that makes the sequence invalid.
+			for offset+width < len(text) && !utf8.FullRuneInString(text[offset:offset+width+1]) {
+				width++
+			}
+		}
+		decoded.WriteRune(char)
+		offset += width
+	}
+	return decoded.String()
 }
 
 type patternKind uint8
