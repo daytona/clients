@@ -40,7 +40,7 @@ func (RegistryImageSource) Type() ImageSourceType { return ImageSourceTypeRegist
 
 // DockerfileImageSource describes a Dockerfile build.
 type DockerfileImageSource struct {
-	// Dockerfile is the Dockerfile source.
+	// Dockerfile is the Dockerfile path within the build context.
 	Dockerfile string
 }
 

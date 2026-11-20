@@ -165,7 +165,10 @@ One-time setup (see the header of
   (`scripts/go-vanity-site.sh` and `.github/workflows/go-vanity-pages.yaml`).
   Before publishing Go, verify that PR is merged and the site deployed:
   `https://go.daytona.com/sdk/v2?go-get=1`
-  must serve `<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">`.
+  must return HTTP 200 or 404 with the exact meta element
+  `<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">`.
+  Module paths use `404.html`; Go reads its meta even with HTTP 404.
+  Transfer failures, other HTTP statuses, and missing or incorrect meta are refused.
   The Go-only registry preflight checks this before any release tag is created.
   Add `refs/tags/sdk-go/v*` to the repository's protected **Release tags**
   ruleset, permitting the workflow's token to create tags, not move or delete them.

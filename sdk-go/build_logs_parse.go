@@ -71,6 +71,12 @@ func (f *buildLogFields) event(message buildLogMessage) BuildLogEvent {
 	switch message.name {
 	case "state":
 		event := BuildLogStateEvent{Status: f.text("status", true), Error: f.text("error", false)}
+		if _, err := field[string](f.object, "deadline_at", false); err != nil {
+			if f.err == nil {
+				f.err = buildLogProtocol("deadline_at must be a string")
+			}
+			return event
+		}
 		stamp, err := timestampField(f.object, "deadline_at")
 		if f.err == nil {
 			f.err = err

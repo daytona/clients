@@ -169,6 +169,8 @@ func imageClass(raw string) ImageClass {
 		return ImageClassLinux
 	case "macos":
 		return ImageClassMacOS
+	case "windows":
+		return ImageClassWindows
 	default:
 		return ImageClassUnknown
 	}

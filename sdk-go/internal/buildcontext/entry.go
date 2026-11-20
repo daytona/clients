@@ -50,27 +50,37 @@ func collectEntry(root *os.Root, relative string) (entry, error) {
 		item.name += "/"
 	case info.Mode()&os.ModeSymlink != 0:
 		item.kind = symlinkEntry
-		item.target, err = root.Readlink(item.relative)
+		item.target, err = symlinkTarget(root, relative)
 		if err != nil {
 			return entry{}, err
-		}
-		if err = checkUTF8(item.target); err != nil {
-			return entry{}, err
-		}
-		inside := path.Clean(path.Join(path.Dir(relative), filepath.ToSlash(item.target)))
-		if filepath.IsAbs(item.target) || inside == ".." || strings.HasPrefix(inside, "../") {
-			return entry{}, invalid("symbolic link leaves its local source: "+quote(current), nil)
-		}
-		// Preserve internal (including dangling/cyclic or unreadable) links as
-		// links. Root.Stat refuses escapes through parents or intermediate links.
-		targetPath := filepath.Dir(item.relative) + string(filepath.Separator) + item.target
-		if _, err = root.Stat(targetPath); err != nil && !missing(err) && !denied(err) {
-			return entry{}, invalid("symbolic link leaves its local source: "+quote(current), err)
 		}
 	default:
 		return entry{}, invalid("unsupported file type in build context: "+quote(current), nil)
 	}
 	return item, nil
+}
+
+// symlinkTarget reads and validates a link after its type has been collected.
+func symlinkTarget(root *os.Root, relative string) (string, error) {
+	current := filepath.Join(root.Name(), filepath.FromSlash(relative))
+	target, err := root.Readlink(filepath.FromSlash(relative))
+	if err != nil {
+		return "", invalid("build context changed: "+quote(current), err)
+	}
+	if err = checkUTF8(target); err != nil {
+		return "", err
+	}
+	inside := path.Clean(path.Join(path.Dir(relative), filepath.ToSlash(target)))
+	if filepath.IsAbs(target) || inside == ".." || strings.HasPrefix(inside, "../") {
+		return "", invalid("symbolic link leaves its local source: "+quote(current), nil)
+	}
+	// Preserve internal (including dangling/cyclic or unreadable) links as
+	// links. Root.Stat refuses escapes through parents or intermediate links.
+	targetPath := filepath.Dir(filepath.FromSlash(relative)) + string(filepath.Separator) + target
+	if _, err = root.Stat(targetPath); err != nil && !missing(err) && !denied(err) {
+		return "", invalid("symbolic link leaves its local source: "+quote(current), err)
+	}
+	return target, nil
 }
 
 func (e entry) open() (file *os.File, size int64, err error) {

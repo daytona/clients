@@ -25,6 +25,11 @@ func (w *directoryWalk) visit(relative string, kept bool, parent dockerignore.Re
 	if err := w.ctx.Err(); err != nil {
 		return err
 	}
+	if relative != "" {
+		if _, err := collectDirectory(w.root, relative); err != nil {
+			return err
+		}
+	}
 	directory := filepath.Join(w.root.Name(), filepath.FromSlash(relative))
 	names, err := fs.ReadDir(w.root.FS(), path.Join(".", relative))
 	if err != nil {
@@ -70,7 +75,7 @@ func (w *directoryWalk) visitChild(rel string, name os.DirEntry, parent dockerig
 			return err
 		}
 		if !decision.Keep && len(w.entries) > before {
-			item, collectErr := collectEntry(w.root, rel)
+			item, collectErr := collectDirectory(w.root, rel)
 			if collectErr != nil {
 				return collectErr
 			}
@@ -78,4 +83,15 @@ func (w *directoryWalk) visitChild(rel string, name os.DirEntry, parent dockerig
 		}
 	}
 	return nil
+}
+
+func collectDirectory(root *os.Root, relative string) (entry, error) {
+	item, err := collectEntry(root, relative)
+	if err != nil {
+		return entry{}, err
+	}
+	if item.kind != dirEntry {
+		return entry{}, invalid("build context directory changed: "+quote(item.local), nil)
+	}
+	return item, nil
 }

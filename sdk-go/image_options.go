@@ -25,7 +25,7 @@ type BuildImageOptions struct {
 	Name string
 	// IdleExpiry is the anonymous image's idle retention. Zero omits it,
 	// WaitForever requests the server maximum; otherwise use positive whole seconds.
-	// Local-context builds cannot combine Name and IdleExpiry.
+	// Named images cannot combine Name and IdleExpiry.
 	IdleExpiry time.Duration
 	// Region selects placement. Empty, blank or "local" uses the default.
 	Region string
@@ -82,10 +82,10 @@ type imageBuildRequest struct {
 
 func imageOptions(options BuildImageOptions) (imageBuildRequest, error) {
 	result := imageBuildRequest{Name: options.Name, Region: options.Region, CPUArch: options.CPUArch}
-	if options.Name != "" && (strings.TrimSpace(options.Name) == "" || !utf8.ValidString(options.Name)) {
+	if options.Name != "" && (createTrim(options.Name) == "" || !utf8.ValidString(options.Name)) {
 		return result, badRequest("name must be a non-empty UTF-8 string")
 	}
-	region := strings.TrimSpace(options.Region)
+	region := createTrim(options.Region)
 	if region == "" || strings.EqualFold(region, "local") {
 		result.Region = ""
 	} else if err := headerText(options.Region, "region"); err != nil {
@@ -107,12 +107,8 @@ func imageOptions(options BuildImageOptions) (imageBuildRequest, error) {
 		seconds := wireSeconds(options.IdleExpiry)
 		result.IdleExpiry = &seconds
 	}
-	return result, nil
-}
-
-func imageContextOptions(request imageBuildRequest) error {
-	if request.Name != "" && request.IdleExpiry != nil {
-		return badRequest("idle expiry applies only to anonymous images; omit name or idle expiry")
+	if result.Name != "" && result.IdleExpiry != nil {
+		return result, badRequest("idle expiry applies only to anonymous images; omit name or idle expiry")
 	}
-	return nil
+	return result, nil
 }

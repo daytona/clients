@@ -89,6 +89,8 @@ const (
 	ImageClassLinux ImageClass = "linux"
 	// ImageClassMacOS identifies macOS images.
 	ImageClassMacOS ImageClass = "macos"
+	// ImageClassWindows identifies Windows images.
+	ImageClassWindows ImageClass = "windows"
 )
 
 // ImageOrigin identifies how an image was created.

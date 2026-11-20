@@ -25,6 +25,15 @@ extract 'Refuse a version the registry already has (unless force_republish)' "$t
 extract 'Release the Go SDK tag and wait for the module proxy' "$tmp/publish"
 extract 'Every requested target was built' "$tmp/built"
 extract 'Require at least one target' "$tmp/targets"
+# The toolbox route drift test reads this sibling TypeScript fixture.
+for event in push pull_request; do
+  awk -v event="$event" '
+    $0 == "  " event ":" { active=1; next }
+    active && /^  [^ ]/ { exit }
+    active { print }
+  ' .github/workflows/sdk-go-ci.yaml | grep -qF "'sdk-typescript/tests/unit.test.ts'" \
+    || fail "Go SDK CI $event paths omit sdk-typescript/tests/unit.test.ts"
+done
 # Model the workflow dependency: publishing runs only after registry-check.
 printf 'bash %q && bash %q\n' "$tmp/registry" "$tmp/publish" > "$tmp/checked-publish"
 
@@ -88,7 +97,7 @@ export PYPI_VERSION="" NPM_VERSION="" CLI_VERSION="" UPGRADE_VERSION="" UPGRADE_
 export PY_BUILD=skipped NPM_BUILD=skipped CLI_BUILD=skipped UPGRADE_BUILD=skipped
 export GITHUB_STEP_SUMMARY="$tmp/summary" CALLS="$tmp/calls"
 export PUBLISH_PYPI=false PUBLISH_NPM=false PUBLISH_CLI=false PUBLISH_UPGRADE=false
-export VANITY_CODE=200 VANITY_EXIT=0
+export VANITY_CODE=404 VANITY_EXIT=0
 valid_meta='<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">'
 export VANITY_BODY="$valid_meta"
 
@@ -120,8 +129,8 @@ run_case failure "$tmp/targets"
 export TAG_STATE=absent PROXY_CODE=200 PROXY_BODY='{"Version":"v2.1.0"}' RESUME=false
 for FORCE in false true; do
   export FORCE
-  for invalid in missing wrong-prefix wrong-repo wrong-subdir text wrong-name http transfer; do
-    VANITY_BODY="$valid_meta" VANITY_CODE=200 VANITY_EXIT=0
+  for invalid in missing wrong-prefix wrong-repo wrong-subdir text wrong-name redirect no-content http transfer; do
+    VANITY_BODY="$valid_meta" VANITY_CODE=404 VANITY_EXIT=0
     case "$invalid" in
       missing) VANITY_BODY='<html><head></head></html>' ;;
       wrong-prefix) VANITY_BODY=${valid_meta/go.daytona.com\/sdk/github.com\/daytona\/clients} ;;
@@ -129,6 +138,8 @@ for FORCE in false true; do
       wrong-subdir) VANITY_BODY=${valid_meta/sdk-go/sdk-other} ;;
       text) VANITY_BODY='go.daytona.com/sdk git https://github.com/daytona/clients sdk-go' ;;
       wrong-name) VANITY_BODY=${valid_meta/go-import/description} ;;
+      redirect) VANITY_CODE=302 ;;
+      no-content) VANITY_CODE=204 ;;
       http) VANITY_CODE=503 ;;
       transfer) VANITY_EXIT=18 ;;
     esac
@@ -141,14 +152,29 @@ for FORCE in false true; do
     done
   done
 done
-export VANITY_BODY="$valid_meta" VANITY_CODE=200 VANITY_EXIT=0 FORCE=false
-run_case success "$tmp/registry"
-grep -qF 'https://go.daytona.com/sdk/v2?go-get=1' "$CALLS" || fail 'vanity preflight did not run'
+export VANITY_BODY="$valid_meta" VANITY_EXIT=0 FORCE=false
+for VANITY_CODE in 404 200; do
+  export VANITY_CODE
+  run_case success "$tmp/registry"
+  grep -qF 'https://go.daytona.com/sdk/v2?go-get=1' "$CALLS" || fail 'vanity preflight did not run'
+done
+export VANITY_CODE=404
 # Non-Go releases do not depend on the vanity site.
 export GO_VERSION="" VANITY_EXIT=7
 run_case success "$tmp/registry"
 [ ! -s "$CALLS" ] || fail 'non-Go registry check contacted the vanity site'
 export GO_VERSION=v2.1.0 VANITY_EXIT=0
+
+# A proxy-listed version without its original tag is immutable, even on resume.
+# Exercise both extracted workflow steps to prove no replacement tag is created.
+export TAG_STATE=absent PROXY_CODE=200 PROXY_BODY=$'v2.0.0\nv2.1.0\n'
+for FORCE in true false; do
+  export FORCE
+  run_case failure "$tmp/checked-publish"
+  ! grep -q '/git/refs ' "$CALLS" || fail 'proxy-listed version recreated an absent tag'
+  grep -qF 'refusing to recreate an immutable version' "$tmp/output" \
+    || fail 'proxy-listed absent tag: missing immutable-version diagnostic'
+done
 
 # Registry checks fail closed, and force never accepts a different source SHA.
 for FORCE in false true; do
@@ -165,7 +191,7 @@ for FORCE in false true; do
         want=failure
         if [[ "$TAG_STATE" != different && "$TAG_STATE" != error ]] \
           && { [[ "$PROXY_CODE" = 404 || "$PROXY_CODE" = 410 ]] \
-            || [[ "$PROXY_CODE" = 200 && ( "$LISTED" = false || "$FORCE" = true ) ]]; }; then want=success; fi
+            || [[ "$PROXY_CODE" = 200 && ( "$LISTED" = false || ( "$FORCE" = true && "$TAG_STATE" != absent ) ) ]]; }; then want=success; fi
         run_case "$want" "$tmp/registry"
         ! grep -q '/git/refs ' "$CALLS" || fail 'registry check wrote a ref'
         ! grep -q '/@v/v2.1.0.info' "$CALLS" || fail 'registry check requested the version before its tag exists'

@@ -104,8 +104,9 @@ if [ "$mode" = go ]; then
     exit 1
   fi
   module="go.daytona.com/sdk/v${MAJOR}"
-  # Require one declaration with exactly this path; do not run go or source code.
-  if ! declared=$(awk '$1 == "module" { if (NF != 2) exit 1; print $2 }' "$2") || [ "$declared" != "$module" ]; then
+  # Require one declaration with exactly this path, allowing a trailing comment;
+  # do not run go or source code.
+  if ! declared=$(awk '$1 == "module" { sub(/[[:space:]]+\/\/.*/, ""); if (NF != 2) exit 1; print $2 }' "$2") || [ "$declared" != "$module" ]; then
     echo "::error::source sdk-go/go.mod must declare exactly module ${module} (release major ${MAJOR} must match its /vMAJOR suffix)" >&2
     exit 1
   fi

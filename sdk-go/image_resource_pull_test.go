@@ -50,7 +50,7 @@ func TestImagePull_whenWaitDefaultsOrIsDisabled(t *testing.T) {
 				require.Empty(t, requests[1].Query)
 				for _, request := range requests[2:] {
 					require.Equal(t, "ready", request.Query.Get("wait"))
-					require.Empty(t, request.Query.Get("timeout_ms"))
+					require.Equal(t, "60000", request.Query.Get("timeout_ms"))
 				}
 				if tt.calls > 2 {
 					require.Equal(t, time.Second, time.Since(start))

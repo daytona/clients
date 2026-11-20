@@ -19,8 +19,8 @@ type Images struct{ client *Client }
 // Images returns the client's image service.
 func (c *Client) Images() *Images { return &Images{client: c} }
 
-// ImagePlatformFilter selects platform-provided images. Future server values
-// are passed through; empty omits the filter.
+// ImagePlatformFilter selects platform-provided images. Only the defined
+// constants are accepted; empty omits the filter.
 type ImagePlatformFilter string
 
 const (
@@ -44,7 +44,7 @@ type ListImagesOptions struct {
 	Anonymous *bool
 	// SandboxID filters captures of this sandbox.
 	SandboxID string
-	// Platform selects platform or project images.
+	// Platform selects platform or project images; unknown values return ErrBadRequest.
 	Platform ImagePlatformFilter
 }
 
@@ -65,11 +65,12 @@ func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[Image
 	if options.Anonymous != nil {
 		query.Set("anonymous", strconv.FormatBool(*options.Anonymous))
 	}
-	if !utf8.ValidString(string(options.Platform)) {
-		return nil, badRequest("platform must be valid UTF-8")
-	}
-	if options.Platform != "" {
+	switch options.Platform {
+	case "":
+	case ImagePlatformOnly, ImagePlatformExclude, ImagePlatformAny:
 		query.Set("platform", string(options.Platform))
+	default:
+		return nil, badRequest(`platform must be "true", "false" or "any"`)
 	}
 	reader := artifactListReader{s.client, "/images", &s.client.imageSearchFallback}
 	raw, err := reader.read(ctx, query)
