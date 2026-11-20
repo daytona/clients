@@ -40,6 +40,11 @@ func hintFor(ae *APIError) string {
 			// provider; the message says so, and no credential fixes it.
 			return ""
 		}
+		if ae.Code == CodeEmailAccessDenied {
+			// The account itself is refused; no credential or permission
+			// change fixes it.
+			return "this account's email could not be validated — contact support@daytona.io"
+		}
 		if path, _, _ := strings.Cut(ae.Path, "?"); ae.Method == http.MethodPost && strings.HasSuffix(path, "/signed-preview-urls") {
 			return "this credential is not allowed to mint signed preview links here; if it can write sandboxes, the alternatives are `daytona sandbox port preview-url` (token in the X-Daytona-Preview-Token header) and `daytona sandbox port expose <sandbox-id> <port> --public` (no credential, anyone can open it)"
 		}
