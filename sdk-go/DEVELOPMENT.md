@@ -178,7 +178,9 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
 - `*Error` keeps the identification fields; per-code server data lives in
   `Error.Details` (`ErrorDetails`). `Error()` prints
   `daytona: <message> (<code>, HTTP <status>)`; `Message` is the explanation
-  alone (server text verbatim), for parity with the other SDKs.
+  alone. JSON-envelope messages remain verbatim; non-JSON fallback text has
+  surrounding whitespace trimmed. A wrapped local failure includes its cause's
+  text and preserves the cause for `errors.Is` and `errors.As`.
 - `wireSeconds` and `wireMilliseconds` round positive durations upward;
   `boundedTimeout` treats a budget above 2,147,483.647 seconds as unbounded.
   Zero is the public option default; `NoWait`, `WaitForever`, `NoTimeout` and
@@ -196,3 +198,4 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
   The client helper uses `t.Setenv`, so its tests must not call `t.Parallel`.
 - `go run codes_generate.go` refreshes the code constants/sentinels from the
   sibling SDK's contract-checked catalog. A drift test checks every source/code.
+  Regenerate after `sdk-typescript/src/v2/codes.ts` changes.
