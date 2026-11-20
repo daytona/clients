@@ -31,7 +31,7 @@ func (s *Processes) Start(ctx context.Context, command string, opts *ProcessStar
 	return s.start(ctx, body, 0)
 }
 
-// StartArgs launches argv without a shell. argv must contain at least the executable.
+// StartArgs launches argv without a shell. argv must contain a non-empty executable.
 func (s *Processes) StartArgs(
 	ctx context.Context, argv []string, opts *ProcessStartOptions,
 ) (*ProcessHandle, error) {

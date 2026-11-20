@@ -33,6 +33,9 @@ type processCreateRequest struct {
 }
 
 func processStartBody(command *string, argv []string, opts *ProcessStartOptions) (processCreateRequest, error) {
+	if len(argv) > 0 && argv[0] == "" {
+		return processCreateRequest{}, badRequest("argv executable must not be empty")
+	}
 	options := ProcessStartOptions{}
 	if opts != nil {
 		options = *opts

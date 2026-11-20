@@ -52,7 +52,7 @@ func (s *Sandbox) Exec(ctx context.Context, command string, opts *ExecOptions) (
 }
 
 // ExecArgs runs an argument vector without shell interpolation.
-// argv must contain at least the executable. Results and timeout semantics match Exec.
+// argv must contain a non-empty executable. Results and timeout semantics match Exec.
 func (s *Sandbox) ExecArgs(ctx context.Context, argv []string, opts *ExecOptions) (*ProcessResult, error) {
 	return s.Process().RunArgs(ctx, argv, opts)
 }
