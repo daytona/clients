@@ -1,0 +1,33 @@
+sdk-go/network_policy.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 72,76
+sdk-go/create_resources.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 17-18,34-35,51-52,68,70-71,81,90-91,108
+sdk-go/create_prepare_fields.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 43,83
+sdk-go/macos_create.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 32
+sdk-go/create_option_errors_test.go
+  s_3eed283e8a7661::t_b3b3d973bc44c3 1-82
+sdk-go/sandbox_policy_options.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 38,42,54,57,68
+sdk-go/create_prepare.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 82,100
+sdk-go/sandbox_create.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7221c3325934398c7710ab7d1399dd92e8749a44",
+  "prompts": {},
+  "sessions": {
+    "s_3eed283e8a7661": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d9aefdffeztabTS1AN41gc4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
