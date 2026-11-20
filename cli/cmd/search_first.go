@@ -5,7 +5,9 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -42,14 +44,51 @@ func getRawSearchPage[T any](ctx context.Context, probe *searchProbe, c *api.Cli
 	if probe != nil && probe.notServed {
 		return output.List[api.Raw[T]]{}, false, nil
 	}
-	list, err = getRawList[T](ctx, c, searchPath, query, field)
+	var body json.RawMessage
+	err = c.Do(ctx, http.MethodGet, searchPath, query, nil, &body)
 	if err != nil && searchNotServed(err) {
 		if probe != nil {
 			probe.notServed = true
 		}
 		return output.List[api.Raw[T]]{}, false, nil
 	}
-	return list, true, err
+	if err != nil {
+		return output.List[api.Raw[T]]{}, true, err
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return output.List[api.Raw[T]]{}, true, fmt.Errorf("decode GET %s response: %w", searchPath, err)
+	}
+	if _, ok := envelope[field]; !ok {
+		if probe != nil {
+			probe.notServed = true
+		}
+		return output.List[api.Raw[T]]{}, false, nil
+	}
+	page, err := api.DecodePage[T](body, field)
+	if err != nil {
+		return output.List[api.Raw[T]]{}, true, fmt.Errorf("decode GET %s response: %w", searchPath, err)
+	}
+	return output.List[api.Raw[T]]{Items: page.Items, NextCursor: page.NextCursor}, true, nil
+}
+
+func getRawSearchOrListPage[T any](ctx context.Context, probe *searchProbe, c *api.Client, searchPath, listPath string, query url.Values, field string) (output.List[api.Raw[T]], error) {
+	remembered := probe.notServed
+	if page, served, err := getRawSearchPage[T](ctx, probe, c, searchPath, query, field); served {
+		return page, err
+	}
+	page, err := getRawList[T](ctx, c, listPath, query, field)
+	if !remembered || !listRetired(err) {
+		return page, err
+	}
+	probe.notServed = false
+	page, _, err = getRawSearchPage[T](ctx, probe, c, searchPath, query, field)
+	return page, err
+}
+
+func listRetired(err error) bool {
+	var apiErr *api.APIError
+	return errors.As(err, &apiErr) && apiErr.Status == http.StatusGone && apiErr.Code == "GONE"
 }
 
 // refuseSearchName refuses the reference "search" for an image or snapshot
@@ -61,4 +100,11 @@ func refuseSearchName(kind, ref string) error {
 		return nil
 	}
 	return cerr.Usage("'search' cannot be looked up by name; it is reserved for the search route — use the %s ID", kind)
+}
+
+func refuseResourceSearchName(kind, ref string) error {
+	if ref != "search" {
+		return nil
+	}
+	return cerr.Usage("'search' cannot be used as a %s name; it is reserved for the search route", kind)
 }

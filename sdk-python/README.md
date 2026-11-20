@@ -505,6 +505,19 @@ inherited by processes, PTYs and sessions started afterwards. Running processes
 keep their current environment, and `unset` removes only values previously set
 through `update_env()`, not image-level environment entries.
 
+### Secret search
+
+`d.v2.secrets.search(...)` searches secret metadata (never values). Filter with
+`q`, `name`, `name_prefix`, or `allowed_domain`; bound `created_at` and
+`updated_at` with `*_start_at` (inclusive) and `*_end_at` (exclusive). Use
+`sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
+for ordering and paging. The returned `SearchResult` includes `total` and
+`total_relation` (`"eq"` for an exact count, `"gte"` for a lower bound).
+
+Search is eventually consistent. Use `d.v2.secrets.get(name)` when a secret
+must be visible immediately after a write. `secrets.list()` now reads search
+first and falls back to the list route only where search is not served.
+
 ### Volumes
 
 Manage volumes with `d.v2.volumes.list()`, `iter()`, `get()`, `create()` and
@@ -514,6 +527,18 @@ choose the volume's type. Only `create()` takes `type` and `size_gib`: pass
 `id_only=True` on `get()` or `delete(name_or_id)`
 disables name fallback. Deletion returns when the API accepts the request,
 not when deletion finishes.
+
+`d.v2.volumes.search(...)` filters with `q`, `name`, and `name_prefix`;
+`types` accepts `"disk"`, `"bucket"`, or a sequence (sent as a comma list),
+and `statuses` accepts `"ready"`, `"deleting"`, `"error"`, or a sequence.
+`imported` filters imported volumes. Created, updated, and last-used bounds use
+`*_start_at` (inclusive) and `*_end_at` (exclusive). Use `sort`
+(`created_at`, `updated_at`, `name`, `used_bytes`, `last_used_at`, or `size_gib`), `order`,
+`limit`, and `cursor` for ordering and paging. The `SearchResult` carries
+`total` and `total_relation` (`"eq"` for an exact count, `"gte"` for a lower
+bound). Search is eventually consistent, so use
+`volumes.get(name_or_id)` for read-your-writes. `volumes.list()` now reads
+search first and falls back to the list route only where search is not served.
 
 ```python
 from daytona.v2 import VolumeMount

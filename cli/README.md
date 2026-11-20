@@ -362,13 +362,15 @@ never prompts:
   `charges` and `invoices` 1 to 100, default 25; `billing payment-methods` 1
   to 100, default 20; `billing usage-periods` 1 to 60, default 12),
   `--cursor <token>` and `--all` page through it. Where the deployment serves
-  search, `sandbox list`, `image list` and `snapshot list` read it: one
-  request spans every region (for `sandbox list`, `--region` becomes its
+  search, `sandbox list`, `image list`, `snapshot list`, `secret list`, and
+  `volume list` read it. Secret and volume lists use their project-wide search
+  routes; the other lists use one request spanning every region (for
+  `sandbox list`, `--region` becomes its
   region filter; `image list` filters the results itself, keeping every image
   available in the region, not only those homed there), and the results are
   eventually consistent, so an item just created may
   be missing (`get` reads it at once). Where search is not served (`501
-  SEARCH_NOT_CONFIGURED`, or `404` from an older API) all three fall back to
+  SEARCH_NOT_CONFIGURED`, or `404` from an older API) all five fall back to
   their list endpoints: `snapshot list` reads `GET /snapshots`, and
   `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
