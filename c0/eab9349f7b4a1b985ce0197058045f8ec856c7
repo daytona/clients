@@ -1,0 +1,20 @@
+sdk-go/e2e/process_output_failure_test.go
+  s_90b2fadde12756::t_531d11de34717d 1-44
+  s_90b2fadde12756::t_16a5c826da48ac 45-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0eab9349f7b4a1b985ce0197058045f8ec856c7",
+  "prompts": {},
+  "sessions": {
+    "s_90b2fadde12756": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e6998ffePOV0XWTw2PmKV6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

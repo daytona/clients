@@ -1,0 +1,20 @@
+sdk-python/src/daytona/v2/_sync/computer_use.py
+  h_5fc330b445be98 106-107,128-136
+sdk-python/src/daytona/v2/computer_use.py
+  h_5fc330b445be98 90-98,107-108,130-131,138-139,142-161
+sdk-python/tests/test_desktop.py
+  h_5fc330b445be98 248,253,260-261,271,274
+sdk-python/tests/test_desktop_environment.py
+  h_5fc330b445be98 1-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c01f31a9b5f6036442b04664d7316f39298d3ce3",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

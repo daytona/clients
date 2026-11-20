@@ -1,0 +1,23 @@
+sdk-go/internal/dockerignore/matcher_test.go
+  s_039d407f899aa9::t_d7d6df13d301b1 8,19-21,48-50
+sdk-go/builder_fixtures_test.go
+  s_039d407f899aa9::t_d7d6df13d301b1 9,38-40
+sdk-go/internal/buildcontext/fixtures_test.go
+  s_039d407f899aa9::t_d7d6df13d301b1 9,35-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2214a2f7e1dd96a974300789e3db0a2c53577f86",
+  "prompts": {},
+  "sessions": {
+    "s_039d407f899aa9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0649c269ffe3E2uz9XdL9LLkq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

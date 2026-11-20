@@ -1,0 +1,21 @@
+sdk-go/sandbox_access.go
+  s_2ef02cb3c131db::t_6de7d5a2daabd8 19,73-74
+sdk-go/sandbox_access_reserved_ports_test.go
+  s_2ef02cb3c131db::t_af74c3c10ca1d7 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc0017475a685cf8b843bf32f10fa0acab0b5ec6",
+  "prompts": {},
+  "sessions": {
+    "s_2ef02cb3c131db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065dfbf8ffe3EO1HikYgdaS6o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

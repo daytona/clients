@@ -1,0 +1,25 @@
+sdk-go/interpreter_test.go
+  s_12257b84f26bcc::t_c9c07960bc0df9 19
+sdk-go/process_helpers_test.go
+  s_12257b84f26bcc::t_c9c07960bc0df9 20
+sdk-go/pty_test.go
+  s_12257b84f26bcc::t_c9c07960bc0df9 22
+sdk-go/interpreter_queue_test.go
+  s_12257b84f26bcc::t_c9c07960bc0df9 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9d7857a012afc52a70482def9a733f50e6a406c",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

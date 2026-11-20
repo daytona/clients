@@ -1,0 +1,25 @@
+sdk-go/e2e/lifecycle_test.go
+  s_5084bb1ab0fbcf::t_a56826a12ad95a 70-71
+  s_5084bb1ab0fbcf::t_42f6c8440084a8 136,148,162,184-190
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 28,85,154,178,193,197,199
+  s_5084bb1ab0fbcf::t_7499000eb52ae3 1-15,17-27,29-69,72-84,86-92,94-95,124-135,137-147,149-150,152-153,155-161,163-177,179-183,191-192,194-196,198,200-204
+  s_5084bb1ab0fbcf::t_b79fbd99d2f702 151
+  s_5084bb1ab0fbcf::t_5f4339ab3f321f 16
+  s_5084bb1ab0fbcf::t_04517cd1338c71 93,96-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f0f897b108352d31aba8c85cf8f3209d1c2ee42",
+  "prompts": {},
+  "sessions": {
+    "s_5084bb1ab0fbcf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b499a2ffeZeIH4A2K804oE2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

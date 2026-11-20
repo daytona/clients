@@ -1,0 +1,31 @@
+sdk-go/pty_live_test.go
+  s_3073d5d86539bf::t_9b1c05c0b92061 12,50-53
+  s_3073d5d86539bf::t_cffbff0ec6f1c9 1-11,13-49,54-98
+sdk-go/e2e/process_test.go
+  s_03bbfffc72be27::t_a2c7938478da75 1-57,61-82,86-139
+  s_03bbfffc72be27::t_20ac235b8b617a 58-60,83-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e5506917cf48ea71e55e2fbf9a9f54c49b8ada5",
+  "prompts": {},
+  "sessions": {
+    "s_03bbfffc72be27": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b45ebdffeD5eM7maR04dhP3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_3073d5d86539bf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b28550ffeiSoY2yA9Dng1K0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

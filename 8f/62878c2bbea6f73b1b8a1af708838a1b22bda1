@@ -1,0 +1,40 @@
+sdk-go/fs_read.go
+  s_8ddc3f7076678c::t_9b5822f6b7a356 1-22,25-52,56-61,66-67,83,85-91
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 62-64
+  s_8ddc3f7076678c::t_cda64445490d27 53-55,65,68-82,84
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 23-24
+sdk-go/fs_bulk_test.go
+  s_8ddc3f7076678c::t_cda64445490d27 99-102,106-112
+  s_8ddc3f7076678c::t_5f78bc4019dbd4 103-105
+  s_8ddc3f7076678c::t_5c57ccf640ef7c 1-53,60-86,90-98
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 54-59,87-89
+sdk-go/fs_multipart.go
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 43-44,46-47,59-61,65-67
+  s_8ddc3f7076678c::t_72fcf2c496d68e 1-42,45,48-58,62-64,68-117
+sdk-go/fs_read_test.go
+  s_8ddc3f7076678c::t_5c57ccf640ef7c 1-17,20-24,28-43,48-52,56-74,79-92,100-121
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 18-19,25-27,44-47,53-55,75-78,93-99
+sdk-go/transfer_time_test.go
+  s_8ddc3f7076678c::t_5f78bc4019dbd4 20-21,26-28,43
+  s_8ddc3f7076678c::t_942788a0b63771 1-19,22-25,29-42,44-76
+sdk-go/fs_write_many.go
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 59
+  s_8ddc3f7076678c::t_9b5822f6b7a356 1-32,35-39,42-46,49-50,53-58,60-64,67-69
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 33-34,40-41,47-48,51-52,65-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f62878c2bbea6f73b1b8a1af708838a1b22bda1",
+  "prompts": {},
+  "sessions": {
+    "s_8ddc3f7076678c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b47cdcffebUAXlziizykrvb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

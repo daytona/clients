@@ -1,0 +1,23 @@
+sdk-go/errors_test.go
+  s_57f2539cc44d35::t_f9fc00f8372f1b 147,149-150,152
+  s_57f2539cc44d35::t_4297872f39be78 132-136,138,145-146,148,151
+sdk-go/codes_catalog_test.go
+  s_57f2539cc44d35::t_e814ac605f23b5 32-33
+  s_57f2539cc44d35::t_4297872f39be78 1-31,34-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9435cdc5d4b90f20df07725d66fba56aab389355",
+  "prompts": {},
+  "sessions": {
+    "s_57f2539cc44d35": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06726d14ffejrTs6j91BH8BnB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

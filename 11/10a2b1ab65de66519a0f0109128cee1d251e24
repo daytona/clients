@@ -1,0 +1,25 @@
+docs/RELEASING.md
+  s_6725ba302815a9::t_fd1a1ea39dfe28 166-167,229-230
+  s_6725ba302815a9::t_45813ba32f04d8 164,168-171,226-227,234-235
+  s_6725ba302815a9::t_af67b163fd7ab0 165,228,236-237
+sdk-go/DEVELOPMENT.md
+  s_6725ba302815a9::t_af67b163fd7ab0 13
+  s_6725ba302815a9::t_fd1a1ea39dfe28 14-15
+  s_6725ba302815a9::t_45813ba32f04d8 11-12,16,163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1110a2b1ab65de66519a0f0109128cee1d251e24",
+  "prompts": {},
+  "sessions": {
+    "s_6725ba302815a9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0671e614ffeU5Fos12GiBbAPL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

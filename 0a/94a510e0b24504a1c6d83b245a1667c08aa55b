@@ -1,0 +1,19 @@
+sdk-go/sandbox_access.go
+  s_57f2539cc44d35::t_de16dbe41731ac 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a94a510e0b24504a1c6d83b245a1667c08aa55b",
+  "prompts": {},
+  "sessions": {
+    "s_57f2539cc44d35": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06726d14ffejrTs6j91BH8BnB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

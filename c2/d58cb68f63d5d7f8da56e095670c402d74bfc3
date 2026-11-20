@@ -1,0 +1,109 @@
+sdk-go/create_wait_validation_test.go
+  s_5084bb1ab0fbcf::t_16e5c3c6ef53c7 1-26
+sdk-go/create_prepare_fields.go
+  s_97e4bb3f1cc114::t_ddc8a7e8fca342 1-86
+sdk-go/create_wait_test.go
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 48,65-66,69-74,79,121
+  s_97e4bb3f1cc114::t_fd65daed670ef0 94
+  s_97e4bb3f1cc114::t_acbdb8169f190b 1-7,9-47,49-64,67-68,75-78,80-93,98-105,107-110,112-120,122-131
+  s_97e4bb3f1cc114::t_d103cb3d0d5e90 8,95-97
+  s_5084bb1ab0fbcf::t_6abd614e563a97 106,111
+sdk-go/create_response_test.go
+  s_97e4bb3f1cc114::t_6fff04e38c7a11 135
+  s_97e4bb3f1cc114::t_acbdb8169f190b 1-130
+  s_97e4bb3f1cc114::t_f0729acfbcb778 131-134,136-156
+sdk-go/macos_options.go
+  s_5084bb1ab0fbcf::t_6abd614e563a97 33
+  s_453dc914254631::t_fd6a5e438786b0 1-32,34-58
+sdk-go/create_options.go
+  s_453dc914254631::t_fd6a5e438786b0 1-21,23-65,67-94
+  s_5084bb1ab0fbcf::t_6abd614e563a97 22,66
+sdk-go/create_idempotency_test.go
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 36-37
+  s_97e4bb3f1cc114::t_f0729acfbcb778 12,72-100
+  s_97e4bb3f1cc114::t_290b76436de0c2 1-11,13-35,38-71,101
+sdk-go/sandbox_lifecycle_fork_errors_test.go
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 39,95,97,111,113,117,128
+  s_97e4bb3f1cc114::t_b8a0f19bcb0c29 1-38,40-94,96,98-110,112,114-116,118-127,129-150
+sdk-go/sandbox_create_example_test.go
+  s_97e4bb3f1cc114::t_d103cb3d0d5e90 1-10,12-55,57-69
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 11,56
+sdk-go/create_errors_test.go
+  s_97e4bb3f1cc114::t_f0729acfbcb778 50,63-67,74-79
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 38,68-73,132-133,152
+  s_97e4bb3f1cc114::t_290b76436de0c2 1-37,39-49,51-62,80-131,134-151,153
+sdk-go/sandbox_lifecycle_fork_example_test.go
+  s_97e4bb3f1cc114::t_d103cb3d0d5e90 1-9,11-42
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 10
+sdk-go/create_validation_test.go
+  s_453dc914254631::t_aeb4513a40aa84 1-139
+sdk-go/macos_create.go
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 33,38,44,49-50
+  s_453dc914254631::t_a49d2f985c6d9c 1-32,34-37,39-43,45-48,51-53
+sdk-go/create_resources.go
+  s_453dc914254631::t_a49d2f985c6d9c 1-22,25-61,72-118
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 23-24,62-71
+sdk-go/sandbox_lifecycle_fork_test.go
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 18,55-57,59,75
+  s_97e4bb3f1cc114::t_b8a0f19bcb0c29 1-17,19-54,58,60-74,76-165
+sdk-go/sandbox_create.go
+  s_453dc914254631::t_a49d2f985c6d9c 1-32,34-40,42-43,45-56,60-73,75-80
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 33,41,44,57-59,74
+sdk-go/create_submit.go
+  s_453dc914254631::t_9d9471e8862ff9 1-47,50-108,110-163
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 48-49,109
+sdk-go/create_prepare.go
+  s_97e4bb3f1cc114::t_ddc8a7e8fca342 33-34,36-38,44-46
+  s_5084bb1ab0fbcf::t_6abd614e563a97 13,21-23
+  s_453dc914254631::t_a49d2f985c6d9c 1-12,14-20,24-32,35,39-43,47-116
+sdk-go/sandbox_lifecycle_fork.go
+  s_97e4bb3f1cc114::t_ddc8a7e8fca342 178
+  s_97e4bb3f1cc114::t_d103cb3d0d5e90 45-47,94-115
+  s_453dc914254631::t_9d9471e8862ff9 1-35,37-39,41-44,48-53,55-77,116-126,128-163,166-177,179,182-188
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 36,40,54,78-93,127,164-165,180-181
+sdk-go/create_wire_test.go
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 109
+  s_5084bb1ab0fbcf::t_b96e65240cfae7 141
+  s_453dc914254631::t_aeb4513a40aa84 1-108,110-140,142-164
+sdk-go/create_hold_test.go
+  s_97e4bb3f1cc114::t_290b76436de0c2 1-13,37-39,41,44-45,49-50,65,67-68,71-73
+  s_97e4bb3f1cc114::t_fd65daed670ef0 14-22,24-36,40,46-48,51-64,66,69-70
+  s_97e4bb3f1cc114::t_6fff04e38c7a11 42-43
+  s_5084bb1ab0fbcf::t_6abd614e563a97 23
+sdk-go/create_wire.go
+  s_453dc914254631::t_fd6a5e438786b0 1-10,39-58
+  s_453dc914254631::t_a49d2f985c6d9c 17
+  s_97e4bb3f1cc114::t_088fa0a20fcaf4 11-16,18-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c2d58cb68f63d5d7f8da56e095670c402d74bfc3",
+  "prompts": {},
+  "sessions": {
+    "s_453dc914254631": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b3b18effeX2gpTuPxENqHTl",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_5084bb1ab0fbcf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b499a2ffeZeIH4A2K804oE2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_97e4bb3f1cc114": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b39971ffeQiPSwMK8g6sf53",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

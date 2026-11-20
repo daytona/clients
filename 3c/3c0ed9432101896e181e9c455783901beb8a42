@@ -1,0 +1,21 @@
+sdk-go/computer_use_a11y_test.go
+  s_12257b84f26bcc::t_873e34ec4646f8 30
+sdk-go/computer_use_test.go
+  s_12257b84f26bcc::t_9aad39531a3fd6 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c3c0ed9432101896e181e9c455783901beb8a42",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,54 @@
+sdk-go/volume_model.go
+  s_19310f0c160a00::t_6e8f8f8847d8fc 1-65,70-82,87-101,106-125,130-183
+  s_19310f0c160a00::t_87499a40724ed2 66-69,126-129
+  s_19310f0c160a00::t_08872807e9c4c6 83-86,102-105
+sdk-go/volume_final_commit.go
+  s_19310f0c160a00::t_87499a40724ed2 1-91
+sdk-go/errors.go
+  s_19310f0c160a00::t_9af6a1a31804d3 84
+sdk-go/volume_test.go
+  s_19310f0c160a00::t_83296967d27997 1-120,141-142,155-195
+  s_19310f0c160a00::t_08872807e9c4c6 121-140,143-154
+sdk-go/volume_errors.go
+  s_19310f0c160a00::t_9af6a1a31804d3 27-42
+  s_19310f0c160a00::t_87499a40724ed2 1-26
+sdk-go/volume_example_test.go
+  s_19310f0c160a00::t_1a868c9c52e004 1-18,21-29,32-40,43-52
+  s_19310f0c160a00::t_4435f28c182050 19-20,30-31,41-42
+sdk-go/volume_final_commit_test.go
+  s_19310f0c160a00::t_87499a40724ed2 1-25,30-85,94-150,155-157
+  s_fb751722ce9f7a::t_18be15b7f98a99 26-29,86-93
+  s_19310f0c160a00::t_9af6a1a31804d3 151-154
+sdk-go/volume_parse_test.go
+  s_19310f0c160a00::t_08872807e9c4c6 19-37,70,72-73
+  s_19310f0c160a00::t_83296967d27997 1-6,8-18,38,40-69,71,74-104
+  s_19310f0c160a00::t_e3f3c0e2c6ee4d 7,39
+sdk-go/volume.go
+  s_19310f0c160a00::t_6e8f8f8847d8fc 1-63,68-179
+  s_19310f0c160a00::t_9af6a1a31804d3 64-66
+  s_19310f0c160a00::t_4435f28c182050 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b968d77336a0aa2fd2896bc117cdfc0252bcac6",
+  "prompts": {},
+  "sessions": {
+    "s_19310f0c160a00": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b42edbffeHOMZ5LQKqX780G",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_fb751722ce9f7a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b3a7f6ffeDVVFCTtABTRhW6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

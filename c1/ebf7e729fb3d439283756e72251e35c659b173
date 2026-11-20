@@ -1,0 +1,73 @@
+sdk-go/internal/buildcontext/archive.go
+  s_a39aeebc613996::t_1dcf655a0a0225 1-72,76-150
+  s_a39aeebc613996::t_673902853f6e93 73-75
+sdk-go/internal/buildcontext/source.go
+  s_a39aeebc613996::t_1dcf655a0a0225 1-54,56-68,70-76,85-86,88,90,93,95,97-99,101,112-116,118-132,134-135
+  s_a39aeebc613996::t_46510199e436ac 78-79,81,83
+  s_a39aeebc613996::t_857a4650c267c5 55,69,77,80,82,84,87,89,91-92,94,96,100,102-111,117,133
+sdk-go/internal/buildcontext/file_test.go
+  s_a39aeebc613996::t_5219cce8a9c7c7 1-70
+sdk-go/internal/buildcontext/open_other.go
+  s_a39aeebc613996::t_a9148af740652e 1-20
+sdk-go/internal/buildcontext/open_unix.go
+  s_a39aeebc613996::t_a9148af740652e 1-16
+sdk-go/internal/buildcontext/tar_header.go
+  s_a39aeebc613996::t_0036d8a5fc62ca 1-83
+sdk-go/internal/buildcontext/tar.go
+  s_a39aeebc613996::t_0036d8a5fc62ca 1-136
+sdk-go/internal/buildcontext/entry.go
+  s_a39aeebc613996::t_a9148af740652e 1-90
+sdk-go/internal/buildcontext/fixtures_other_test.go
+  s_a39aeebc613996::t_5408e3002a00cc 1-13
+sdk-go/internal/buildcontext/path.go
+  s_a39aeebc613996::t_1a9baa923361b6 33-36,41
+  s_a39aeebc613996::t_1dcf655a0a0225 1-32,37-40,42-75,82-114
+  s_a39aeebc613996::t_46510199e436ac 76-81
+sdk-go/internal/buildcontext/fixtures_unix_test.go
+  s_a39aeebc613996::t_5408e3002a00cc 1-18
+sdk-go/internal/buildcontext/source_test.go
+  s_a39aeebc613996::t_5219cce8a9c7c7 1-57,59-114
+  s_8c8f918ef10f1a::t_9e516a6026cef2 58
+sdk-go/internal/buildcontext/walk.go
+  s_a39aeebc613996::t_455f2a47aee6f5 1-80
+sdk-go/internal/buildcontext/file.go
+  s_a39aeebc613996::t_7fb301d047e4a0 13,53,55-58,83-86
+  s_a39aeebc613996::t_673902853f6e93 1-12,14-41,43-44,54,59-82,87-98
+  s_a39aeebc613996::t_1a9baa923361b6 42
+  s_a39aeebc613996::t_857a4650c267c5 45-52
+sdk-go/internal/buildcontext/fixtures_test.go
+  s_a39aeebc613996::t_5408e3002a00cc 1-129
+sdk-go/internal/buildcontext/races_test.go
+  s_a39aeebc613996::t_5219cce8a9c7c7 1-192
+sdk-go/internal/buildcontext/directory.go
+  s_a39aeebc613996::t_a9148af740652e 1-8,10-22,27-32,34-35,37-42,44-46,48-50,52-61,79-103,105-113,115-126,128,142-144,160
+  s_a39aeebc613996::t_7fb301d047e4a0 9,23-25,129-140,145,148-159
+  s_a39aeebc613996::t_857a4650c267c5 26,33,36,43,47,51
+  s_a39aeebc613996::t_19c53d729b5562 62-75
+  s_a39aeebc613996::t_1a9baa923361b6 76-78
+  s_a39aeebc613996::t_c753a1158adde5 104,114,127,141,146-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1ebf7e729fb3d439283756e72251e35c659b173",
+  "prompts": {},
+  "sessions": {
+    "s_8c8f918ef10f1a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b36632ffehxbWCYshihDyiG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a39aeebc613996": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b3a239ffePXGp1oq2L24AyF",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

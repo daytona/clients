@@ -1,0 +1,16 @@
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_5fc330b445be98 569-571
+sdk-python/src/daytona/v2/sandbox.py
+  h_5fc330b445be98 473-475
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0758855c4ddc9340f71393e220157bfcef4c8c4b",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
