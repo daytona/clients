@@ -103,9 +103,11 @@ func (u *contextUploader) putAttempt(ctx context.Context, part contextUploadPart
 	case status >= 200 && status < 300:
 		return false, nil
 	case status >= 300 && status < 400:
-		return false, newSDKError("", status, "HTTP redirects are not supported")
+		return false, errorFromResponse(response, nil)
 	case status < 500 && status != 408 && status != 429:
-		return false, badRequest(fmt.Sprintf("storage refused build context part %d (HTTP %d)", part.number, status))
+		return false, badRequest(fmt.Sprintf(
+			"storage refused build context part %d (HTTP %d); its upload URL may have expired, start the build again",
+			part.number, status))
 	default:
 		return true, newSDKError("SERVICE_UNAVAILABLE", 503,
 			fmt.Sprintf("storage did not accept build context part %d (HTTP %d)", part.number, status))
