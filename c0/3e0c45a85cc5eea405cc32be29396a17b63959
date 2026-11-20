@@ -1,0 +1,23 @@
+sdk-go/options_review_test.go
+  s_e2f5d5de9bfdd5::t_ca38629a0d07c3 1-51
+sdk-go/options_env.go
+  s_e2f5d5de9bfdd5::t_e4c585743e8e26 20-24,26-27,41,44,46
+sdk-go/options.go
+  s_e2f5d5de9bfdd5::t_e4c585743e8e26 85,100,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c03e0c45a85cc5eea405cc32be29396a17b63959",
+  "prompts": {},
+  "sessions": {
+    "s_e2f5d5de9bfdd5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627bea9ffe8vjVNaoeHnCPcR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
