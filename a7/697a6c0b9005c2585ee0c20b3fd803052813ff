@@ -1,0 +1,22 @@
+sdk-go/sandbox_labels.go
+  s_97e4bb3f1cc114::t_cb3edb1c9f78e3 1-63
+sdk-go/sandbox_labels_test.go
+  s_97e4bb3f1cc114::t_8249d9f4c7bdc9 18,55,82,84
+  s_97e4bb3f1cc114::t_1b9ab68d6372ed 1-17,19-54,56-81,83,85-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a7697a6c0b9005c2585ee0c20b3fd803052813ff",
+  "prompts": {},
+  "sessions": {
+    "s_97e4bb3f1cc114": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b39971ffeQiPSwMK8g6sf53",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
