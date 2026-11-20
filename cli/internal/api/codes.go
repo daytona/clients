@@ -17,6 +17,7 @@ const (
 	CodeSearchUnavailable     = "SEARCH_UNAVAILABLE"
 	CodeSignupNotInvited      = "SIGNUP_NOT_INVITED"
 	CodeUserSuspended         = "USER_SUSPENDED"
+	CodeEmailAccessDenied     = "EMAIL_ACCESS_DENIED"
 	CodeBillingDisabled       = "BILLING_DISABLED"
 	CodeBillingUnreachable    = "BILLING_UNREACHABLE"
 	CodeEntitlementRequired   = "ENTITLEMENT_REQUIRED"
@@ -57,6 +58,7 @@ var SpecialAPICodes = []string{
 	CodeSearchUnavailable,
 	CodeSignupNotInvited,
 	CodeUserSuspended,
+	CodeEmailAccessDenied,
 	CodeBillingDisabled,
 	CodeBillingUnreachable,
 	CodeEntitlementRequired,
