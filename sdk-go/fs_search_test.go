@@ -25,7 +25,7 @@ func TestFileSearch_whenNamesAndContentsDiffer(t *testing.T) {
 		require.Equal(t, "*.csv", fake.requests()[0].Query.Get("pattern"))
 	})
 	for _, legacy := range []bool{true, false} {
-		t.Run(map[bool]string{true: "grep legacy", false: "find envelope"}[legacy], func(t *testing.T) {
+		t.Run(map[bool]string{true: "grep legacy", false: "grep envelope"}[legacy], func(t *testing.T) {
 			// Given
 			var payload any = []any{map[string]any{"file": "/a", "line": 3, "content": "x.y"}}
 			if !legacy {
@@ -34,7 +34,7 @@ func TestFileSearch_whenNamesAndContentsDiffer(t *testing.T) {
 			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /files/find": jsonHandler(t, payload)})
 			fs := newFileTestService(t, fake.Server)
 			// When
-			result, err := fs.Find(t.Context(), "/", "x.y")
+			result, err := fs.Grep(t.Context(), "/", "x.y")
 			// Then
 			require.NoError(t, err)
 			require.Equal(t, []FileMatch{{File: "/a", Line: 3, Content: "x.y"}}, result.Items)

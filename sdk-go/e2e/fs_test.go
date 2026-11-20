@@ -69,7 +69,7 @@ func TestFilesystem(t *testing.T) {
 		names, globErr := fs.Glob(ctx, root, "*.csv")
 		require.NoError(t, globErr)
 		require.Equal(t, []string{root + "/two.csv"}, names.Items)
-		matches, grepErr := fs.Find(ctx, root, "needle")
+		matches, grepErr := fs.Grep(ctx, root, "needle")
 		require.NoError(t, grepErr)
 		require.Len(t, matches.Items, 1)
 		replaced, replaceErr := fs.Replace(ctx, []string{root + "/one.txt"}, "needle", "thread")

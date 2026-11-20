@@ -43,12 +43,6 @@ func (f *FileSystem) Grep(ctx context.Context, path, pattern string) (*FileSearc
 	return &FileSearchResult[FileMatch]{Items: items, Skipped: skipped}, nil
 }
 
-// Find is the content-search alias of Grep and returns matches plus skipped paths.
-// Use Glob to match file names rather than contents.
-func (f *FileSystem) Find(ctx context.Context, path, pattern string) (*FileSearchResult[FileMatch], error) {
-	return f.Grep(ctx, path, pattern)
-}
-
 // Glob finds paths whose base names match pattern. It does not search contents.
 func (f *FileSystem) Glob(ctx context.Context, path, pattern string) (*FileSearchResult[string], error) {
 	query, err := filePath(path)
