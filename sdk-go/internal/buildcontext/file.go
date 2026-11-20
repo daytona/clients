@@ -5,8 +5,6 @@ package buildcontext
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -88,32 +86,15 @@ func hashFile(ctx context.Context, absolute, dockerfilePath string) (result *Arc
 
 // snapshotFile owns the immutable upload artifact, independently of input's path.
 func snapshotFile(ctx context.Context, input *os.File, opened os.FileInfo) (result *Archive, err error) {
-	if opened.Size() == 0 {
-		return nil, invalid("build context is empty", nil)
-	}
-	if opened.Size() > MaxBytes {
-		return nil, invalid("build context exceeds the 1 GiB limit", nil)
-	}
-	output, err := os.CreateTemp("", "daytona-context-*.tar")
+	owned, err := snapshotReader(ctx, input, opened.Size())
 	if err != nil {
 		return nil, err
 	}
-	owned := &Archive{Path: output.Name(), filename: output.Name()}
 	defer func() {
-		err = errors.Join(err, output.Close())
 		if err != nil {
 			err = errors.Join(err, owned.Close())
-			result = nil
 		}
 	}()
-	hash := sha256.New()
-	writer := tarWriter{ctx: ctx, output: io.MultiWriter(output, hash)}
-	if err = writer.copyFile(input, opened.Size()); err != nil {
-		if errors.Is(err, io.ErrUnexpectedEOF) {
-			return nil, invalid("build context changed: "+quote(input.Name()), err)
-		}
-		return nil, err
-	}
 	after, err := input.Stat()
 	if err != nil {
 		return nil, err
@@ -121,7 +102,5 @@ func snapshotFile(ctx context.Context, input *os.File, opened os.FileInfo) (resu
 	if after.Size() != opened.Size() || !after.ModTime().Equal(opened.ModTime()) {
 		return nil, invalid("build context changed: "+quote(input.Name()), io.ErrUnexpectedEOF)
 	}
-	owned.Size = writer.total
-	owned.Digest = hex.EncodeToString(hash.Sum(nil))
 	return owned, nil
 }
