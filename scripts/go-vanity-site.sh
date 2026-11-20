@@ -48,6 +48,12 @@ The Go module <code>${prefix}</code> lives in <a href="${repo_url}/tree/${branch
 HTML
 }
 
+# Only replace an earlier output of this script (marked by .nojekyll), never
+# an unrelated directory passed by mistake.
+if [ -e "$out" ] && [ -n "$(ls -A "$out" 2>/dev/null)" ] && [ ! -f "$out/.nojekyll" ]; then
+  echo "go-vanity-site: $out exists and is not a generated site; refusing to overwrite it" >&2
+  exit 1
+fi
 rm -rf "$out"
 mkdir -p "$out"
 render >"$out/index.html"

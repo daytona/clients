@@ -20,9 +20,11 @@ on:
 permissions:
   contents: read
 
+# Only main pushes and dispatches share the deploy group; any other run (a PR,
+# a dispatch from another branch) gets its own and cannot supersede a deploy.
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('go-vanity-{0}', github.ref) || 'go-vanity-pages' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && 'go-vanity-pages' || format('go-vanity-{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -66,7 +68,7 @@ jobs:
         run: |
           want='<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">'
           for attempt in $(seq 1 30); do
-            if curl -sSL "https://go.daytona.com/sdk/v2?go-get=1" | grep -qxF "$want"; then
+            if curl -sSL --connect-timeout 5 --max-time 20 "https://go.daytona.com/sdk/v2?go-get=1" | grep -qxF "$want"; then
               echo "go.daytona.com serves the go-import tag"
               exit 0
             fi

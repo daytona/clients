@@ -26,4 +26,9 @@ DOMAIN=go.example.test BRANCH=dev bash "$here/go-vanity-site.sh" "$tmp/other" >/
 grep -qF 'content="go.example.test/sdk git https://github.com/daytona/clients sdk-go"' "$tmp/other/404.html" || fail "DOMAIN not applied"
 grep -qF '/tree/dev/sdk-go{/dir}' "$tmp/other/index.html" || fail "BRANCH not applied"
 
+bash "$here/go-vanity-site.sh" "$tmp/site" >/dev/null || fail "regenerating over an earlier output failed"
+mkdir -p "$tmp/unrelated" && echo keep >"$tmp/unrelated/file"
+if bash "$here/go-vanity-site.sh" "$tmp/unrelated" >/dev/null 2>&1; then fail "overwrote an unrelated directory"; fi
+[ "$(cat "$tmp/unrelated/file")" = keep ] || fail "unrelated directory was modified"
+
 echo "go-vanity-site: all tests passed"
