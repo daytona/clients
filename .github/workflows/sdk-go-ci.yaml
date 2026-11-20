@@ -7,13 +7,17 @@ on:
     paths:
       - 'sdk-go/**'
       - 'contract/**'
+      - 'sdk-typescript/src/v2/codes.ts'
       - 'sdk-python/tests/fixtures/dockerignore-*.json'
+      - 'sdk-python/tests/fixtures/image-builder-*.json'
       - '.github/workflows/sdk-go-ci.yaml'
   pull_request:
     paths:
       - 'sdk-go/**'
       - 'contract/**'
+      - 'sdk-typescript/src/v2/codes.ts'
       - 'sdk-python/tests/fixtures/dockerignore-*.json'
+      - 'sdk-python/tests/fixtures/image-builder-*.json'
       - '.github/workflows/sdk-go-ci.yaml'
 
 permissions:
