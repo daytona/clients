@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // CaptureImageOptions names a filesystem capture or configures idle retention.
@@ -15,13 +16,14 @@ type CaptureImageOptions struct {
 	// Name makes the capture permanent; empty creates an anonymous image.
 	Name string
 	// IdleExpiry is positive whole seconds, WaitForever for the server maximum,
-	// or zero to use the server default.
+	// or zero to use the server default. It cannot be combined with Name.
 	IdleExpiry time.Duration
 }
 
 // CaptureImage captures the sandbox filesystem as an image without waiting
 // for readiness. Linux sandboxes keep running. macOS requires a stopped,
 // persistent sandbox; ErrDiskNotReady means the disk is not ready yet.
+// Combining Name and IdleExpiry returns ErrBadRequest before any request.
 func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (*Image, error) {
 	options := CaptureImageOptions{}
 	if opts != nil {
@@ -29,6 +31,9 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 	}
 	body, err := imageOptions(BuildImageOptions{Name: options.Name, IdleExpiry: options.IdleExpiry})
 	if err != nil {
+		return nil, err
+	}
+	if err = imageContextOptions(body); err != nil {
 		return nil, err
 	}
 	segment, err := pathSegment(s.ID())
@@ -50,11 +55,12 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 }
 
 // CreateSnapshot captures memory and disk without waiting for readiness.
-// Name must be non-blank. Both sandbox-write and snapshot-write permissions
-// are required; use Snapshots.Get with Wait to observe completion.
+// Name must be non-blank, valid UTF-8; otherwise it returns ErrBadRequest
+// before any request. Both sandbox-write and snapshot-write permissions are
+// required; use Snapshots.Get with Wait to observe completion.
 func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) (*Snapshot, error) {
-	if strings.TrimSpace(name) == "" {
-		return nil, badRequest("name must be a non-empty string")
+	if strings.TrimSpace(name) == "" || !utf8.ValidString(name) {
+		return nil, badRequest("name must be a non-empty UTF-8 string")
 	}
 	segment, err := pathSegment(s.ID())
 	if err != nil {
