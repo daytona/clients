@@ -11,6 +11,7 @@ on:
       - '.gitignore'
       - 'scripts/gitignore_test.sh'
       - 'scripts/sdk-version*.sh'
+      - 'scripts/sdk-go-publish_test.sh'
       - 'scripts/release-channel*.sh'
       - '.github/workflows/sdk_publish.yaml'
       - '.github/workflows/tooling.yaml'
@@ -39,4 +40,5 @@ jobs:
       - name: Release helpers (registry versions, release channel)
         run: |
           bash scripts/sdk-version_test.sh
+          bash scripts/sdk-go-publish_test.sh
           bash scripts/release-channel_test.sh
