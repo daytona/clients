@@ -92,6 +92,17 @@ does it the Go way:
 - **Doc comments on every exported identifier**, written for a reader who only
   has `go doc`, plus runnable examples for common tasks.
 
+### Deliberate Go-only additions
+
+- `Images.BuildAndWait` composes image submission and readiness waiting.
+  Unbounded readiness waits in `Pull` and `BuildAndWait` still cap each server
+  hold at 60 seconds and each read at 65 seconds, matching Go's artifact waiter.
+  TypeScript's unbounded `pull` currently leaves individual holds unbounded.
+- `ExecArgs` / `StartArgs` accept argument vectors without shell quoting.
+- Transfers accept `io.Reader` / `io.Writer` for caller-owned byte streams.
+- `Images.BuildFromContextReader` builds from a caller-supplied archive stream.
+- `ListAll` iterators expose lazy traversal separately from single-page lists.
+
 ## Commands
 
 ```sh

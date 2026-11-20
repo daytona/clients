@@ -123,6 +123,9 @@ create sandboxes from its name or ID:
 image, err := client.Images().BuildAndWait(ctx,
 	daytona.NewImageBuilder("python:3.12-slim").PipInstall("pandas"),
 	&daytona.BuildImageWaitOptions{BuildImageOptions: daytona.BuildImageOptions{Name: "py-pandas"}})
+if err != nil {
+	return err
+}
 sandbox, err := client.Create(ctx, image.ID, nil)
 if sandbox != nil {
 	defer sandbox.Delete(context.WithoutCancel(ctx), nil)
