@@ -110,12 +110,19 @@ for FORCE in false true; do
     export TAG_STATE
     for PROXY_CODE in 200 404 410 403 500; do
       export PROXY_CODE
-      export PROXY_BODY='{"Version":"v2.1.0"}'
-      want=failure
-      if [[ "$TAG_STATE" != different && "$TAG_STATE" != error ]] \
-        && { [[ "$PROXY_CODE" = 404 || "$PROXY_CODE" = 410 ]] || [[ "$PROXY_CODE" = 200 && "$FORCE" = true ]]; }; then want=success; fi
-      run_case "$want" "$tmp/registry"
-      ! grep -q '/git/refs ' "$CALLS" || fail 'registry check wrote a ref'
+      for LISTED in true false; do
+        # The check reads the proxy's version list (@v/list), never the
+        # version's .info, so it cannot cache a "not found" before the tag exists.
+        if [ "$LISTED" = true ]; then PROXY_BODY=$'v2.0.0\nv2.1.0\n'; else PROXY_BODY=$'v2.0.0\nv2.1.0-alpha.1\n'; fi
+        export PROXY_BODY
+        want=failure
+        if [[ "$TAG_STATE" != different && "$TAG_STATE" != error ]] \
+          && { [[ "$PROXY_CODE" = 404 || "$PROXY_CODE" = 410 ]] \
+            || [[ "$PROXY_CODE" = 200 && ( "$LISTED" = false || "$FORCE" = true ) ]]; }; then want=success; fi
+        run_case "$want" "$tmp/registry"
+        ! grep -q '/git/refs ' "$CALLS" || fail 'registry check wrote a ref'
+        ! grep -q '/@v/v2.1.0.info' "$CALLS" || fail 'registry check requested the version before its tag exists'
+      done
     done
   done
 done
@@ -124,6 +131,7 @@ run_case failure "$tmp/registry"
 export CURL_EXIT=0
 
 # Publishing creates only an absent tag, or confirms a tag's peeled source SHA.
+export PROXY_BODY='{"Version":"v2.1.0"}'
 for RESUME in false true; do
   export RESUME
   for TAG_STATE in absent same annotated; do
@@ -162,7 +170,8 @@ for body_kind in wrong malformed missing; do
 done
 # Expire only the clock in the extracted shell, not the retry implementation.
 # shellcheck disable=SC2016 # Literal shell code, executed by the child bash.
-sed 's/deadline=$(( SECONDS + 600 ))/deadline=$(( SECONDS - 1 ))/' "$tmp/publish" > "$tmp/expired"
+sed -E 's/deadline=\$\(\( SECONDS \+ [0-9]+ \)\)/deadline=$(( SECONDS - 1 ))/' "$tmp/publish" > "$tmp/expired"
+grep -qF 'deadline=$(( SECONDS - 1 ))' "$tmp/expired" || fail 'could not expire the publish deadline'
 export PROXY_BODY='{"Version":"v2.1.0"}'
 for PROXY_CODE in 404 410 429 500 403; do
   export PROXY_CODE

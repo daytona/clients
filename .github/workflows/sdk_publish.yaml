@@ -764,17 +764,22 @@ jobs:
               [ "$existing" = "$SOURCE_SHA" ] || { echo "::error::Go tag ${GO_TAG} points at ${existing}, not source ${SOURCE_SHA}; tags are never moved"; exit 1; }
               echo "::notice::Go tag ${GO_TAG} already at source ${SOURCE_SHA}; tag creation will be skipped"
             fi
-            if ! code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://proxy.golang.org/${GO_MODULE}/@v/${GO_VERSION}.info"); then
+            # Read the module's version list, never <version>.info: the proxy
+            # caches a "not found" answer for a version requested before its tag
+            # exists for up to 30 minutes, which would stall the release below.
+            if ! code=$(curl -sS --max-time 60 -o "$RUNNER_TEMP/go-versions.txt" -w '%{http_code}' "https://proxy.golang.org/${GO_MODULE}/@v/list"); then
               echo "::error::could not check the Go module proxy (transfer failed)"; exit 1
             fi
             case "$code" in
               200)
-                if [ "$FORCE" != true ]; then
-                  echo "::error::${GO_MODULE}@${GO_VERSION} is already on the Go module proxy — publish the next version or set force_republish to resume"
-                  exit 1
-                fi
-                echo "::notice::${GO_MODULE}@${GO_VERSION} already on the proxy; its existing version will be confirmed on resume" ;;
-              404|410) ;; # Go proxy uses 410 Gone for an unavailable module too.
+                if grep -qxF "$GO_VERSION" "$RUNNER_TEMP/go-versions.txt"; then
+                  if [ "$FORCE" != true ]; then
+                    echo "::error::${GO_MODULE}@${GO_VERSION} is already on the Go module proxy — publish the next version or set force_republish to resume"
+                    exit 1
+                  fi
+                  echo "::notice::${GO_MODULE}@${GO_VERSION} already on the proxy; its existing version will be confirmed on resume"
+                fi ;;
+              404|410) ;; # the proxy answers 404/410 for a module it has never seen
               *) echo "::error::Go module proxy answered HTTP ${code:-000}; cannot tell whether it is published"; exit 1 ;;
             esac
           fi
@@ -1526,7 +1531,9 @@ jobs:
             echo "created ${GO_TAG} at ${SOURCE_SHA}"
           fi
           url="https://proxy.golang.org/${GO_MODULE}/@v/${GO_VERSION}.info"
-          deadline=$(( SECONDS + 600 ))
+          # Up to 35 minutes: a version someone requested before the tag existed
+          # stays "not found" in the proxy cache for up to 30 minutes.
+          deadline=$(( SECONDS + 2100 ))
           while :; do
             code=000
             if ! code=$(curl -sS --max-time 30 -o "$RUNNER_TEMP/go-version.info" -w '%{http_code}' "$url"); then code=000; fi
@@ -1544,7 +1551,7 @@ jobs:
               000|404|410|429|5??) ;;
               *) echo "::error::Go proxy answered HTTP ${code} for ${url}"; exit 1 ;;
             esac
-            [ "$SECONDS" -lt "$deadline" ] || { echo "::error::Go proxy did not fetch ${GO_MODULE}@${GO_VERSION} within 10 minutes (last HTTP ${code}); the tag remains — resume this run, never move it"; exit 1; }
+            [ "$SECONDS" -lt "$deadline" ] || { echo "::error::Go proxy did not fetch ${GO_MODULE}@${GO_VERSION} within 35 minutes (last HTTP ${code}); the tag remains — resume this run, never move it"; exit 1; }
             echo "Go proxy HTTP ${code}; retrying in 10s"
             sleep 10
           done
