@@ -16,19 +16,21 @@ import (
 // Client is a concurrency-safe Daytona client. Construct it with New and close
 // it when finished. Its zero value is not usable.
 type Client struct {
-	config         clientConfig
-	http           *http.Client
-	ownsTransport  bool
-	ctx            context.Context
-	cancel         context.CancelCauseFunc
-	closeOnce      sync.Once
-	workers        sync.WaitGroup
-	workerMu       sync.Mutex
-	apiClient      *apiClient
-	auth           credentialProvider
-	stateSource    sandboxStateSource
-	searchFallback atomic.Bool
-	version        string
+	config                 clientConfig
+	http                   *http.Client
+	ownsTransport          bool
+	ctx                    context.Context
+	cancel                 context.CancelCauseFunc
+	closeOnce              sync.Once
+	workers                sync.WaitGroup
+	workerMu               sync.Mutex
+	apiClient              *apiClient
+	auth                   credentialProvider
+	stateSource            sandboxStateSource
+	searchFallback         atomic.Bool
+	imageSearchFallback    atomic.Bool
+	snapshotSearchFallback atomic.Bool
+	version                string
 }
 
 // New resolves options and environment without making a network request.
