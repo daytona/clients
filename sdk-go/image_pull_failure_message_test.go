@@ -4,7 +4,6 @@
 package daytona
 
 import (
-	"errors"
 	"net/http"
 	"testing"
 
@@ -22,6 +21,6 @@ func TestImagePull_whenFailureHasNoReason_namesThePull(t *testing.T) {
 	_, err := client.Images().Pull(t.Context(), "alpine:3", nil)
 	// Then the message names the pull, as the TypeScript SDK's does
 	var failure *ImageBuildFailedError
-	require.True(t, errors.As(err, &failure))
+	require.ErrorAs(t, err, &failure)
 	require.Contains(t, err.Error(), "image pull img failed")
 }

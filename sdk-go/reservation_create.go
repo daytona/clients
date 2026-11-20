@@ -78,6 +78,29 @@ func (s *Reservations) CreateBulk(
 	}); requestErr != nil {
 		return nil, requestErr
 	}
+	return parseReservationBatch(raw)
+}
+
+func checkReservationPurchase(body reservationPurchase) error {
+	if !utf8.ValidString(body.Region) || !utf8.ValidString(body.Model) {
+		return badRequest("region and model must be valid UTF-8")
+	}
+	return nil
+}
+
+func reservationKey(key string) (string, error) {
+	if key == "" {
+		return rand.Text(), nil
+	}
+	if err := headerText(key, "IdempotencyKey"); err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
+// parseReservationBatch reads a bulk purchase response; its counts are the
+// contract's int32 values.
+func parseReservationBatch(raw JSONValue) (*MacReservationBatch, error) {
 	object, err := parseObject(raw, "reservation batch")
 	if err != nil {
 		return nil, err
@@ -105,21 +128,4 @@ func (s *Reservations) CreateBulk(
 		return nil, err
 	}
 	return batch, nil
-}
-
-func checkReservationPurchase(body reservationPurchase) error {
-	if !utf8.ValidString(body.Region) || !utf8.ValidString(body.Model) {
-		return badRequest("region and model must be valid UTF-8")
-	}
-	return nil
-}
-
-func reservationKey(key string) (string, error) {
-	if key == "" {
-		return rand.Text(), nil
-	}
-	if err := headerText(key, "IdempotencyKey"); err != nil {
-		return "", err
-	}
-	return key, nil
 }
