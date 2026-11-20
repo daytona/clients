@@ -16,6 +16,7 @@ func (o GitCloneOptions) String() string {
 }
 
 // GoString prints clone options with the same redaction as String.
+// The %#v format uses the redacted %+v form, not Go syntax.
 func (o GitCloneOptions) GoString() string { return o.String() }
 
 // String prints all credential options with a non-empty Password redacted.
@@ -29,6 +30,7 @@ func (o GitCredentialOptions) String() string {
 }
 
 // GoString prints credential options with the same redaction as String.
+// The %#v format uses the redacted %+v form, not Go syntax.
 func (o GitCredentialOptions) GoString() string { return o.String() }
 
 // String prints all push options with a non-empty Password redacted.
@@ -37,4 +39,5 @@ func (o GitPushOptions) String() string {
 }
 
 // GoString prints push options with the same redaction as String.
+// The %#v format uses the redacted %+v form, not Go syntax.
 func (o GitPushOptions) GoString() string { return o.String() }
