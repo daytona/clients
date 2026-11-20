@@ -99,6 +99,10 @@ if [ "$mode" = go ]; then
   case "$MAJOR" in
     0|1) echo "::error::Go SDK releases require major >= 2; sdk-go/v0.* or sdk-go/v1.* would break the 0.x Go module" >&2; exit 1 ;;
   esac
+  if [ ! -f "$2" ]; then
+    echo "::error::source_ref has no sdk-go/go.mod; untick publish_go when publishing a source commit from before the Go SDK" >&2
+    exit 1
+  fi
   module="go.daytona.com/sdk/v${MAJOR}"
   # Require one declaration with exactly this path; do not run go or source code.
   if ! declared=$(awk '$1 == "module" { if (NF != 2) exit 1; print $2 }' "$2") || [ "$declared" != "$module" ]; then

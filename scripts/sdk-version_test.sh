@@ -97,6 +97,8 @@ for declaration in \
 done
 rc=0; out=$(./sdk-version.sh --go v2.1.0 "$TMP_MOD.missing" 2>"$TMP_ERR") || rc=$?
 if [ "$rc" -ne 1 ] || [ -n "$out" ] || ! grep -q '::error::' "$TMP_ERR"; then fail 'Go missing module'; fi
+grep -qF 'sdk-go/go.mod' "$TMP_ERR" && grep -qF 'untick publish_go' "$TMP_ERR" \
+  || fail "Go missing module must tell the operator to untick publish_go: $(cat "$TMP_ERR")"
 
 # ── Usage errors ──────────────────────────────────────────────────────────────
 rc=0; ./sdk-version.sh >/dev/null 2>&1 || rc=$?
