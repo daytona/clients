@@ -9,9 +9,11 @@ import "time"
 type FollowBuildLogsOptions struct {
 	// Cursor resumes after a delivered checkpoint; empty starts at byte zero.
 	Cursor string
-	// Timeout bounds discovery, reconnects and observation. Zero, NoTimeout,
-	// WaitForever or a value above 2,147,483.647 seconds adds no deadline.
-	// The context still bounds every operation.
+	// Timeout bounds discovery, reconnects and observation as a whole. Zero,
+	// NoTimeout, WaitForever or a value above 2,147,483.647 seconds adds no
+	// overall deadline. Each discovery request also keeps the client request
+	// timeout (WithRequestTimeout), as in the other SDKs. The context still
+	// bounds every operation.
 	Timeout time.Duration
 }
 
