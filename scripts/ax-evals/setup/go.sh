@@ -5,6 +5,7 @@
 # (go.daytona.com/sdk/v2) from the checked-out source through a replace
 # directive, with its dependencies already downloaded.
 install_go /opt/clients/sdk-go/go.mod
+GO_MINIMUM=$(awk '/^go /{print $2; exit}' /opt/clients/sdk-go/go.mod)
 t "download sdk-go modules"
 cd /opt/clients/sdk-go
 retry go mod download
@@ -14,7 +15,7 @@ cd /app/goeval
 cat >go.mod <<EOF
 module goeval
 
-go ${GO_VERSION}
+go ${GO_MINIMUM}
 
 require go.daytona.com/sdk/v2 v2.0.0
 

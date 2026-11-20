@@ -77,9 +77,11 @@ does it the Go way:
   `Sandbox.ToJSON` returns the shared credential- and URL-free
   `SandboxHandleJSON` metadata snapshot (GiB capacity, seconds for lifecycle
   budgets, verbatim wire timestamps); resume with `client.Get(ctx, json.SandboxID, nil)`.
-- **Handles** (`*Sandbox`, `*ProcessHandle`, ...) are safe for concurrent use
-  and expose data through methods (`ID()`, `State()`, `Info()`); `Refresh(ctx)`
-  re-reads it.
+- **Handles** (`*Sandbox`, `*ProcessHandle`, `*Session`, ...) are safe for
+  concurrent use and expose data through methods. `*Sandbox` keeps its last
+  observation (`ID()`, `State()`, `Info()`) and `Refresh(ctx)` re-reads it;
+  `*ProcessHandle` keeps only its identity (`ID()`, `Kind()`) and reads the
+  process with `Get(ctx)`.
 - **Lists**: `List(ctx, opts) (*Page[T], error)` returns one page;
   `ListAll(ctx, opts) iter.Seq2[T, error]` pages through all of them.
 - **Streams**: byte output goes to `io.Writer` fields (`Stdout`, `Stderr`);
