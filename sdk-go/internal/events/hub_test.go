@@ -99,6 +99,9 @@ func TestWatchUnsubscribesWhenContextCancelled(t *testing.T) {
 	// When
 	cancel()
 	expectClosed(t, ch)
+	// Closing the listener precedes scheduling its unsubscribe. Wait for the
+	// flush timer so advancing fake time cannot race scheduling or arming it.
+	awaitTimer(t, f.clock, f.clock.Now().Add(flushDelay))
 	f.clock.advance(flushDelay)
 
 	// Then
