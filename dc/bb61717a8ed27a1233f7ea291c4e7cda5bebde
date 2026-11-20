@@ -1,0 +1,26 @@
+sdk-go/sandbox_secrets_test.go
+  s_97e4bb3f1cc114::t_8249d9f4c7bdc9 70-72
+  s_97e4bb3f1cc114::t_8c67a34830349b 1-69,73-110
+sdk-go/sandbox_secrets.go
+  s_97e4bb3f1cc114::t_90a3eca5d13380 41-43
+  s_97e4bb3f1cc114::t_ce93822cd26a9e 1-40,44-96
+sdk-go/sandbox_policy_errors_test.go
+  s_97e4bb3f1cc114::t_49ad7fb9bd27d2 27,33-34,36-38,88,90
+  s_97e4bb3f1cc114::t_12a60ead30a0fd 1-26,28-32,35,39-87,89,91-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dcbb61717a8ed27a1233f7ea291c4e7cda5bebde",
+  "prompts": {},
+  "sessions": {
+    "s_97e4bb3f1cc114": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b39971ffeQiPSwMK8g6sf53",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
