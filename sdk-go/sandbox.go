@@ -22,6 +22,7 @@ type Sandbox struct {
 	explicitToolboxURL bool
 	auth               *sandboxCredential
 	toolboxClient      *toolboxClient
+	interpreter        *InterpreterService
 }
 
 type sandboxInit struct {
