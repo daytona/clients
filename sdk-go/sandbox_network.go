@@ -32,7 +32,7 @@ func (s *Sandbox) UpdateNetworkPolicy(
 }
 
 // ResetNetworkPolicy removes the sandbox-specific policy using the last read's
-// ETag. The API applies its default policy. A stale ETag returns
+// ETag. It sends a null body to reset the sandbox to open network access. A stale ETag returns
 // ErrStaleNetworkPolicyRevision, without retrying.
 func (s *Sandbox) ResetNetworkPolicy(ctx context.Context, opts *IfMatchOptions) (*NetworkPolicyInfo, error) {
 	if err := sandboxIfMatch(opts); err != nil {
