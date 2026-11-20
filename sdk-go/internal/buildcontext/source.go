@@ -49,11 +49,7 @@ func NewSource(localPath string, directory bool, position int) (source Source, e
 	if !directory && !info.Mode().IsRegular() {
 		return Source{}, invalid(absolute+" is not a file", nil)
 	}
-	declared, err := os.Lstat(absolute)
-	if err != nil {
-		return Source{}, err
-	}
-	resolved, err := filepath.EvalSymlinks(absolute)
+	link, resolved, err := sourceIdentity(absolute)
 	if err != nil {
 		return Source{}, err
 	}
@@ -67,8 +63,28 @@ func NewSource(localPath string, directory bool, position int) (source Source, e
 	}
 	return Source{
 		LocalPath: absolute, ArchivePath: archivePath, directory: directory,
-		link: declared.Mode()&os.ModeSymlink != 0, real: resolved,
+		link: link, real: resolved,
 	}, nil
+}
+
+// sourceIdentity captures declaration metadata after the initial type check.
+func sourceIdentity(absolute string) (link bool, resolved string, err error) {
+	defer func() {
+		if missing(err) {
+			err = invalid(absolute+" does not exist", err)
+		} else if err != nil {
+			err = fileError(absolute, err)
+		}
+	}()
+	declared, err := os.Lstat(absolute)
+	if err != nil {
+		return false, "", err
+	}
+	resolved, err = filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return false, "", err
+	}
+	return declared.Mode()&os.ModeSymlink != 0, resolved, nil
 }
 
 func unsafeBasename(r rune) bool {
