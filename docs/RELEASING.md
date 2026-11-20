@@ -240,8 +240,12 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
   the tag. Verify the result with
   `go list -m go.daytona.com/sdk/v2@vX.Y.Z` (substitute the release version).
   Proxy versions are **permanent**: deleting a Git tag cannot unpublish one.
-  A bad version can only be retracted by a later release with a `retract`
-  directive in `sdk-go/go.mod`; publish that later release through CI too.
+  If the proxy already lists a version but its `sdk-go/<version>` tag is
+  missing, the workflow refuses to recreate the tag, even with
+  `force_republish=true`. Deleting a published tag therefore leaves no resume
+  path: publish the next version instead. A bad version can only be retracted
+  by a later release with a `retract` directive in `sdk-go/go.mod`; publish
+  that later release through CI too.
 - A run cancelled while it created the CLI release can leave a **draft**
   release under the tag (`gh release create` uploads the assets to a draft and
   publishes it at the end). The resume refuses a draft, because it cannot

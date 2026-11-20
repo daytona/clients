@@ -6,7 +6,6 @@ package daytona
 import (
 	"context"
 	"net/http"
-	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -56,7 +55,7 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 // before any request. Both sandbox-write and snapshot-write permissions are
 // required; use Snapshots.Get with Wait to observe completion.
 func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) (*Snapshot, error) {
-	if strings.TrimSpace(name) == "" || !utf8.ValidString(name) {
+	if createTrim(name) == "" || !utf8.ValidString(name) {
 		return nil, badRequest("name must be a non-empty UTF-8 string")
 	}
 	segment, err := pathSegment(s.ID())
