@@ -152,6 +152,9 @@ func parseMacCatalogModel(raw JSONValue) (MacCatalogModel, error) {
 	if err != nil {
 		return entry, err
 	}
+	if _, err = field[jsonObject](object, "model", true); err != nil {
+		return entry, err
+	}
 	entry.Model, err = parseMacModel(object["model"])
 	if err != nil {
 		return entry, err
