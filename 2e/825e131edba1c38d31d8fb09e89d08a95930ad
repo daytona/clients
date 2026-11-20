@@ -1,0 +1,23 @@
+sdk-go/docker_test.go
+  s_30fd999cbefaac::t_d2bed88e4b2871 52,75-78,80
+sdk-go/docker.go
+  s_30fd999cbefaac::t_0961d9e23d84f1 20,24,29,34,37,53,88
+sdk-go/docker_wait.go
+  s_30fd999cbefaac::t_0961d9e23d84f1 26,32,41,45,48,53,55,65,77,80,86,89,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2e825e131edba1c38d31d8fb09e89d08a95930ad",
+  "prompts": {},
+  "sessions": {
+    "s_30fd999cbefaac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06064bf5ffePamsvXL0slHL3S",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
