@@ -11,6 +11,12 @@ import (
 )
 
 // RunCodeOptions configures code execution. Nil selects the shared Python kernel.
+// A writer or callback error stops delivery and attempts to interrupt the cell
+// with a detached five-second budget, as on Timeout. Run returns a partial result
+// with Process.ProcessID and unknown Reason alongside an SDK error preserving the
+// local cause through errors.Is. Cleanup is best-effort: its failure does not
+// replace the local error, and a successful interrupt does not confirm cell exit.
+// Writers and callbacks run synchronously and must not block indefinitely.
 type RunCodeOptions struct {
 	// Language selects the kernel language; empty defaults to python or Context's language.
 	Language string
@@ -38,7 +44,7 @@ type RunCodeOptions struct {
 	// OnError receives kernel exceptions serially; an error ends delivery.
 	OnError func(InterpreterError) error
 	// OnLog receives every frame serially, including setup and unknown channels.
-	// Writer and callback failures are returned as SDK errors preserving their cause.
+	// Failures use the partial-result and cleanup semantics described on RunCodeOptions.
 	OnLog func(LogFrame) error
 }
 

@@ -36,14 +36,19 @@ type ExecOptions struct {
 	// KeepLogs defaults to on_exit_ttl. none is refused because output requires logs.
 	KeepLogs ProcessKeepLogs
 	// Stdout receives live stdout. Calls are synchronous; writers must not block indefinitely.
+	// A writer error stops delivery, attempts to stop the process with a detached
+	// five-second budget, and returns a partial result with ProcessID alongside an
+	// SDK error preserving the writer's cause through errors.Is. Cleanup failure
+	// does not replace that error or confirm the process stopped; Reason is unknown.
 	Stdout io.Writer
 	// Stderr receives live stderr, serialized with Stdout calls (the same writer is safe).
+	// Writer failures have the same result and best-effort cleanup semantics as Stdout.
 	Stderr io.Writer
 }
 
 // Exec runs a shell command and collects Stdout, Stderr, interleaved Output and Logs.
 // A non-zero ExitCode is NOT an error: inspect res.ExitCode (nil means unreported).
-// err means invalid input, cancellation, a transport/protocol failure or a server
+// err means invalid input, cancellation, a local writer failure, a transport/protocol failure or a server
 // error; use errors.Is with ErrProcessNotFound, ErrSessionEnded, etc.
 // Timeout limits observation without killing; ExecutionTimeout stops the tree.
 // For untrusted arguments use ExecArgs; for persistent shell state use CreateSession.

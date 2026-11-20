@@ -39,6 +39,9 @@ type CreateInterpreterContextOptions struct {
 }
 
 // InterpreterContextRunOptions configures execution in an existing context.
+// Writer and callback failures return a partial result with Process.ProcessID
+// and preserve the local error, with the same best-effort detached interrupt
+// semantics as RunCodeOptions.
 type InterpreterContextRunOptions struct {
 	// Cwd overrides the context's working directory for this execution.
 	Cwd string
