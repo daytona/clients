@@ -33,9 +33,14 @@ func newRequestScope(ctx context.Context, client *Client, budget time.Duration) 
 }
 
 func (s *requestScope) kick() {
+	s.arm(true)
+}
+
+// arm preserves an active idle deadline when a read has not made progress.
+func (s *requestScope) arm(restart bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.budget <= 0 || s.stopped || s.ctx.Err() != nil {
+	if s.budget <= 0 || s.stopped || s.ctx.Err() != nil || (!restart && !s.due.IsZero()) {
 		return
 	}
 	s.due = time.Now().Add(s.budget)
@@ -88,11 +93,14 @@ type responseBody struct {
 
 func (b *responseBody) Read(data []byte) (int, error) {
 	if b.idle {
-		b.scope.kick()
+		b.scope.arm(false)
 	}
 	n, err := b.ReadCloser.Read(data)
-	if b.idle {
+	if b.idle && (n > 0 || err != nil) {
 		b.scope.pause()
+	}
+	if n == 0 && err == nil && b.scope.ctx.Err() != nil {
+		return 0, scopeError(b.scope, b.scope.ctx.Err())
 	}
 	if err != nil && !errors.Is(err, io.EOF) {
 		return n, scopeError(b.scope, err)
