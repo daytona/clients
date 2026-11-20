@@ -129,7 +129,7 @@ func (s *Sandbox) parseFork(raw JSONValue, source SandboxInfo) (*Sandbox, error)
 	if err != nil {
 		return nil, err
 	}
-	if _, pathErr := pathSegment(id); pathErr != nil {
+	if pathErr := checkResponseID(id); pathErr != nil {
 		return nil, badRequest("sandbox fork response is missing the sandbox id")
 	}
 	status, from := createResponseText(object, "status"), createResponseText(object, "forked_from")

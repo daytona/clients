@@ -112,7 +112,7 @@ func (c *Client) parseCreated(raw JSONValue, prepared preparedCreate) (*Sandbox,
 	if err != nil {
 		return nil, 0, err
 	}
-	if _, pathErr := pathSegment(id); pathErr != nil {
+	if pathErr := checkResponseID(id); pathErr != nil {
 		return nil, 0, badRequest("sandbox create response is missing the sandbox id")
 	}
 	status := createResponseText(object, "status")

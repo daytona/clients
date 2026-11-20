@@ -23,8 +23,8 @@ func parseSandbox(data json.RawMessage) (sandboxObservation, error) {
 	if fieldErr := sandboxStrings(object, &result); fieldErr != nil {
 		return result, fieldErr
 	}
-	if strings.TrimSpace(result.info.ID) == "" {
-		return result, badRequest("sandbox response is missing its id")
+	if idErr := checkResponseID(result.info.ID); idErr != nil {
+		return result, badRequest("sandbox response has an unusable id")
 	}
 	if strings.TrimSpace(result.info.RawClass) == "" {
 		return result, badRequest("sandbox response is missing its class")
