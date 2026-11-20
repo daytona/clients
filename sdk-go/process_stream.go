@@ -171,5 +171,5 @@ func processStreamError(object jsonObject) error {
 		source = "DAYTONA_DAEMON"
 	}
 	code := optionalErrorString(object, "code")
-	return &Error{Message: message, Code: code, Source: source, StatusCode: catalogStatus(source, code)}
+	return &Error{Message: message, Code: code, Source: source}
 }
