@@ -83,18 +83,18 @@ type imageBuildRequest struct {
 func imageOptions(options BuildImageOptions) (imageBuildRequest, error) {
 	result := imageBuildRequest{Name: options.Name, Region: options.Region, CPUArch: options.CPUArch}
 	if options.Name != "" && (createTrim(options.Name) == "" || !utf8.ValidString(options.Name)) {
-		return result, badRequest("name must be a non-empty UTF-8 string")
+		return result, badRequest("Name must be a non-empty UTF-8 string")
 	}
 	region := createTrim(options.Region)
 	if region == "" || strings.EqualFold(region, "local") {
 		result.Region = ""
-	} else if err := headerText(options.Region, "region"); err != nil {
+	} else if err := headerText(options.Region, "Region"); err != nil {
 		return result, err
 	}
 	switch options.CPUArch {
 	case "", ImageCPUArchAMD64, ImageCPUArchARM64:
 	default:
-		return result, badRequest("cpu architecture must be amd64 or arm64")
+		return result, badRequest("CPUArch must be amd64 or arm64")
 	}
 	switch {
 	case options.IdleExpiry == 0:
@@ -102,13 +102,13 @@ func imageOptions(options BuildImageOptions) (imageBuildRequest, error) {
 		maximum := int64(-1)
 		result.IdleExpiry = &maximum
 	case options.IdleExpiry < 0 || options.IdleExpiry%time.Second != 0:
-		return result, badRequest("idle expiry must be positive whole seconds or WaitForever")
+		return result, badRequest("IdleExpiry must be positive whole seconds or WaitForever")
 	default:
 		seconds := wireSeconds(options.IdleExpiry)
 		result.IdleExpiry = &seconds
 	}
 	if result.Name != "" && result.IdleExpiry != nil {
-		return result, badRequest("idle expiry applies only to anonymous images; omit name or idle expiry")
+		return result, badRequest("IdleExpiry applies only to anonymous images; omit Name or IdleExpiry")
 	}
 	return result, nil
 }
