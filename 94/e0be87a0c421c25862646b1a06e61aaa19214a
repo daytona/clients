@@ -1,0 +1,21 @@
+sdk-go/fs_cubic_write_test.go
+  s_94d494b282f03a::t_e1f90c1583c3ff 1-31
+sdk-go/fs_write_many.go
+  s_94d494b282f03a::t_e08b332ea84491 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "94e0be87a0c421c25862646b1a06e61aaa19214a",
+  "prompts": {},
+  "sessions": {
+    "s_94d494b282f03a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065de899ffegMFVtjwabaVtOP",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

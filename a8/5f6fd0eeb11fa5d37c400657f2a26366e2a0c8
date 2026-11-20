@@ -1,0 +1,23 @@
+sdk-go/image_resource_lists_test.go
+  s_080078988a05c2::t_4775ee97c47eba 79
+sdk-go/images_platform_test.go
+  s_080078988a05c2::t_2e6b5419e0db4a 1-42
+sdk-go/images.go
+  s_080078988a05c2::t_236f0eb59fa924 22-23,68-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a85f6fd0eeb11fa5d37c400657f2a26366e2a0c8",
+  "prompts": {},
+  "sessions": {
+    "s_080078988a05c2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065debdeffehQzzyyRo7HSkYm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

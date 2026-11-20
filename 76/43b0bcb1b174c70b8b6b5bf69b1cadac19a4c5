@@ -1,0 +1,21 @@
+sdk-python/src/daytona/v2/errors.py
+  s_67b025aa04a837::t_0bd01bea03b5f5 283-284,288-289
+sdk-python/src/daytona/v2/types.py
+  s_67b025aa04a837::t_dda946ec95da70 796
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7643b0bcb1b174c70b8b6b5bf69b1cadac19a4c5",
+  "prompts": {},
+  "sessions": {
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

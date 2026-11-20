@@ -1,0 +1,31 @@
+sdk-go/internal/dockerignore/pattern.go
+  s_039d407f899aa9::t_d7d6df13d301b1 11,39,45-46,50-59,63-65
+  s_039d407f899aa9::t_098801cd69c48a 92-96
+sdk-go/internal/dockerignore/utf8_test.go
+  s_039d407f899aa9::t_233b43086d1ce0 7,38-70
+  s_7b102f4cbe613e::t_7f14e2418eef51 71-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c71ea654e73289e03952fecbb898c349538cbdae",
+  "prompts": {},
+  "sessions": {
+    "s_039d407f899aa9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0649c269ffe3E2uz9XdL9LLkq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7b102f4cbe613e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e064f5bf7ffeYDoMb7XllDy33X",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

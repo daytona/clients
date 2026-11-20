@@ -1,0 +1,19 @@
+sdk-go/macos_options.go
+  s_e2f5d5de9bfdd5::t_dc71a588ce8247 32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "14eb069fde29ec67547b78040540a0516dd82adb",
+  "prompts": {},
+  "sessions": {
+    "s_e2f5d5de9bfdd5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627bea9ffe8vjVNaoeHnCPcR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

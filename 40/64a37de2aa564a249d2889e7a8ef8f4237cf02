@@ -1,0 +1,33 @@
+sdk-go/transport.go
+  s_ed96adef3173d1::t_b9fa4d7e0f6e74 96-98,116-123
+  s_87c7938a71f674::t_d95aaeeb77fa23 124-125
+sdk-go/transport_base_url_test.go
+  s_ed96adef3173d1::t_315fb2251ca612 1-33,35-46
+  s_ed96adef3173d1::t_77aa749f9e29c0 34
+sdk-go/options_env.go
+  s_ed96adef3173d1::t_b9fa4d7e0f6e74 49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4064a37de2aa564a249d2889e7a8ef8f4237cf02",
+  "prompts": {},
+  "sessions": {
+    "s_87c7938a71f674": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e07a9ffe5Wd5cOndaAFNhO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ed96adef3173d1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e7900ffeUI2NEr1dxblqIw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

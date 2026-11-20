@@ -1,0 +1,21 @@
+sdk-go/transport_close_error_test.go
+  s_ed96adef3173d1::t_d29ba2a300a21e 1-52
+sdk-go/transport_scope.go
+  s_ed96adef3173d1::t_5b9e8d78c9ca26 117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ef0df0e9a6de8d52d88ed55ee7ed20053608174",
+  "prompts": {},
+  "sessions": {
+    "s_ed96adef3173d1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e7900ffeUI2NEr1dxblqIw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
