@@ -5397,13 +5397,13 @@
         "ts": null
       },
       "v2": {
-        "py": null,
+        "py": "{sandbox}.to_json()",
         "ts": null
       },
-      "category": "none",
+      "category": "differs",
       "notes": {
         "py": [
-          "No v2 equivalent: a v2 sandbox handle is not a DTO; read the fields you need from the handle"
+          "Returns a SandboxHandleJSON metadata snapshot (camelCase keys, no URL, no credential), not the full 0.x DTO; read other fields from the handle"
         ],
         "ts": []
       },
