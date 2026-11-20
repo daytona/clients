@@ -63,14 +63,14 @@ func TestComputerUseScreenshot_whenRegionOrCompressionSelected(t *testing.T) {
 	}
 }
 
-func TestComputerUseDisplay_whenInventoryRead(t *testing.T) {
+func TestComputerUseDisplays_whenInventoryRead(t *testing.T) {
 	t.Run("displays", func(t *testing.T) {
 		// Given
 		sandbox, fake := computerUseTestSandbox(t, jsonHandler(t, map[string]any{
 			"displays": []map[string]any{{"id": 0, "x": -100, "y": 0, "width": 1280, "height": 720, "isActive": true}},
 		}))
 		// When
-		got, err := sandbox.ComputerUse().Display().Info(t.Context())
+		got, err := sandbox.ComputerUse().Displays().Info(t.Context())
 		// Then
 		require.NoError(t, err)
 		require.Equal(t, []ComputerUseDisplay{{ID: 0, X: -100, Y: 0, Width: 1280, Height: 720, IsActive: true}}, got)
@@ -82,7 +82,7 @@ func TestComputerUseDisplay_whenInventoryRead(t *testing.T) {
 			"windows": []map[string]any{{"id": 42, "title": "Editor", "x": 0, "y": 10, "width": 640, "height": 480, "isActive": false}},
 		}))
 		// When
-		got, err := sandbox.ComputerUse().Display().Windows(t.Context())
+		got, err := sandbox.ComputerUse().Displays().Windows(t.Context())
 		// Then
 		require.NoError(t, err)
 		require.Equal(t, []ComputerUseWindow{{ID: 42, Title: "Editor", X: 0, Y: 10, Width: 640, Height: 480}}, got)

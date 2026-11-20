@@ -27,14 +27,14 @@ func (c *ComputerUse) Keyboard() *ComputerUseKeyboard { return &ComputerUseKeybo
 // Screen returns screenshot capture.
 func (c *ComputerUse) Screen() *ComputerUseScreen { return &ComputerUseScreen{s: c.s} }
 
-// Display returns desktop display and window information.
-func (c *ComputerUse) Display() *ComputerUseDisplays { return &ComputerUseDisplays{s: c.s} }
+// Displays returns desktop display and window information.
+func (c *ComputerUse) Displays() *ComputerUseDisplays { return &ComputerUseDisplays{s: c.s} }
 
 // A11y returns accessibility tree inspection and controls.
 func (c *ComputerUse) A11y() *ComputerUseA11y { return &ComputerUseA11y{s: c.s} }
 
-// Recording returns desktop recording operations.
-func (c *ComputerUse) Recording() *ComputerUseRecordings {
+// Recordings returns desktop recording operations.
+func (c *ComputerUse) Recordings() *ComputerUseRecordings {
 	return &ComputerUseRecordings{s: c.s}
 }
 

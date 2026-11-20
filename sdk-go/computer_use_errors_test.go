@@ -82,18 +82,18 @@ func TestComputerUse_whenInvalidInputMakesNoRequest(t *testing.T) {
 			return c.Keyboard().Type(ctx, "x", &ComputerUseTypeOptions{Delay: -time.Second})
 		}},
 		invalidCase{"negative limit", func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Recording().Download(ctx, "rec", &ComputerUseRecordingDownloadOptions{MaxResponseBytes: -2})
+			_, err := c.Recordings().Download(ctx, "rec", &ComputerUseRecordingDownloadOptions{MaxResponseBytes: -2})
 			return err
 		}},
 		invalidCase{"unsafe limit", func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Recording().Download(ctx, "rec", &ComputerUseRecordingDownloadOptions{MaxResponseBytes: maxSafeInteger + 1})
+			_, err := c.Recordings().Download(ctx, "rec", &ComputerUseRecordingDownloadOptions{MaxResponseBytes: maxSafeInteger + 1})
 			return err
 		}},
 	)
 	for _, id := range []string{"", " ", ".", "..", string([]byte{0xff})} {
 		cases = append(cases,
 			invalidCase{"path id " + id, func(ctx context.Context, c *ComputerUse) error {
-				_, err := c.Recording().Get(ctx, id)
+				_, err := c.Recordings().Get(ctx, id)
 				return err
 			}})
 	}
