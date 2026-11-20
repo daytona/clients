@@ -4,7 +4,7 @@
     "base": "https://github.com/daytona/clients/blob/main/upgrade/MIGRATION.md",
     "placeholder": false
   },
-  "v0Version": "0.232.0",
+  "v0Version": "0.233.0",
   "packages": {
     "py": {
       "old": [
@@ -416,6 +416,7 @@
           "set_ttl",
           "start",
           "stop",
+          "to_dict",
           "update_env",
           "update_network_settings",
           "update_secrets",
@@ -5389,6 +5390,27 @@
       "startsWorkflow": false
     },
     {
+      "id": "sandbox.to_dict",
+      "receiver": "sandbox",
+      "v0": {
+        "py": "to_dict",
+        "ts": null
+      },
+      "v2": {
+        "py": "{sandbox}.to_json()",
+        "ts": null
+      },
+      "category": "differs",
+      "notes": {
+        "py": [
+          "Returns a SandboxHandleJSON metadata snapshot (camelCase keys, no URL, no credential), not the full 0.x DTO; read other fields from the handle"
+        ],
+        "ts": []
+      },
+      "anchor": "sandbox",
+      "startsWorkflow": false
+    },
+    {
       "id": "sandbox.updateEnv",
       "receiver": "sandbox",
       "v0": {
@@ -5603,6 +5625,8 @@
       "AsyncKeyboard",
       "AsyncMouse",
       "AsyncSandbox",
+      "AsyncSandboxNode",
+      "AsyncSandboxNodeCollection",
       "AsyncScreenshot",
       "BarChart",
       "BoxAndWhiskerChart",
@@ -5615,6 +5639,7 @@
       "CreateSandboxBaseParams",
       "CreateSandboxFromImageParams",
       "CreateSandboxFromSnapshotParams",
+      "CreateSandboxResources",
       "CreateSecretParams",
       "CreateSnapshotParams",
       "Daytona",
@@ -5675,6 +5700,7 @@
       "ListSecretsResponse",
       "LspCompletionPosition",
       "LspLanguageId",
+      "NodeResources",
       "OutputHandler",
       "OutputMessage",
       "PieChart",
@@ -5685,6 +5711,8 @@
       "SandboxListSortDirection",
       "SandboxListSortField",
       "SandboxMetrics",
+      "SandboxNode",
+      "SandboxNodeCollection",
       "SandboxState",
       "ScatterChart",
       "ScreenshotOptions",
@@ -5716,6 +5744,7 @@
       "CreateSandboxBaseParams",
       "CreateSandboxFromImageParams",
       "CreateSandboxFromSnapshotParams",
+      "CreateSandboxResources",
       "CreateSecretParams",
       "CreateSnapshotParams",
       "CreateWarmPool",
@@ -5793,6 +5822,8 @@
       "MAX_PREFIX_LEN",
       "Match",
       "Mouse",
+      "NodeExecuteOptions",
+      "NodeResources",
       "OutputMessage",
       "PaginatedSnapshots",
       "PieChart",
@@ -5817,6 +5848,10 @@
       "SandboxListSortDirection",
       "SandboxListSortField",
       "SandboxMetrics",
+      "SandboxNode",
+      "SandboxNodeCollection",
+      "SandboxNodeFileSystem",
+      "SandboxNodeProcess",
       "SandboxState",
       "ScatterChart",
       "Screenshot",

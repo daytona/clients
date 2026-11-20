@@ -269,7 +269,7 @@ Both packages are a thin ROOT over one namespace per API major version:
   v0's runtime imports that its manifests leave undeclared
   (`@opentelemetry/resources`, `@opentelemetry/otlp-exporter-base`) are pinned
   to the single version v0's `yarn.lock` resolves — what the published v0
-  package declares (3.1.0 / 0.301.0 at `v0.232.0`) — so strict layouts
+  package declares (3.1.0 / 0.301.0 at `v0.233.0`) — so strict layouts
   (pnpm) resolve them; an ambiguous lockfile fails the bundle. The bundle also
   rewrites v0's `getPackageInfo()` to the bundled release, so its
   `X-Daytona-SDK-Version` / `User-Agent` report it (bundled one directory
