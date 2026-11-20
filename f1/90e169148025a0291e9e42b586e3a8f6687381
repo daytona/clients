@@ -1,0 +1,27 @@
+cli/gen/api/types.gen.go
+  s_9f5179767e23c5::t_ef4faea200d649 1939,1953-1954
+contract/api-openapi.json
+  s_9f5179767e23c5::t_a58028aa317b85 11154-11155
+sdk-python/src/daytona/v2/_gen/api/models/volume_search_sort.py
+  s_9f5179767e23c5::t_8a057a4bb99d1e 34
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_9f5179767e23c5::t_b78f7ce0261de6 56
+sdk-typescript/src/v2/gen/api.ts
+  s_9f5179767e23c5::t_886509ff2d341a 8109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f190e169148025a0291e9e42b586e3a8f6687381",
+  "prompts": {},
+  "sessions": {
+    "s_9f5179767e23c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0c0c34b2ffeZhmepWHNxNSdfx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
