@@ -1221,46 +1221,47 @@ class SandboxTest {
     }
 
     @Test
-    void aRejectionDuringAReadRunsExactlyOneMoreReadRightAfterIt() throws Exception {
+    void aRejectionDuringAReadAddsNoReadAndTheNextPollIsTheFallbackChosenAfterIt() throws Exception {
         EventSubscriptionManager manager = mockSubscriptionManager();
+        // Event-backed until the gateway rejects the subscription.
+        AtomicBoolean rejected = new AtomicBoolean(false);
+        when(manager.isEventBacked(any())).thenAnswer(inv -> !rejected.get());
         Sandbox sb = startingSandbox("sb-c", manager);
-        // Scheduled polls are an hour apart: only the wake can cause the second read.
-        List<Long> decisions = recordDecisions(sb, (decided, subscribed, eventBacked) -> TimeUnit.HOURS.toMillis(1));
+        // Scheduled polls are an hour apart, so any second read could only come from the rejection.
+        List<String> decisions = new CopyOnWriteArrayList<>();
+        sb.pollJitter = () -> 0.5;
+        sb.pollScheduleHook = (decided, subscribed, eventBacked) -> {
+            decisions.add(eventBacked + ":" + decided);
+            return TimeUnit.HOURS.toMillis(1);
+        };
         java.util.concurrent.CountDownLatch firstReadStarted = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.CountDownLatch releaseFirstRead = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicInteger reads = new java.util.concurrent.atomic.AtomicInteger();
-        java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger();
-        java.util.concurrent.atomic.AtomicInteger maxInFlight = new java.util.concurrent.atomic.AtomicInteger();
         when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv -> {
-            maxInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
-            try {
-                if (reads.incrementAndGet() == 1) {
-                    firstReadStarted.countDown();
-                    assertThat(releaseFirstRead.await(10, TimeUnit.SECONDS)).isTrue();
-                }
-                return TestSupport.mainSandbox("sb-c", SandboxState.STARTING);
-            } finally {
-                inFlight.decrementAndGet();
+            if (reads.incrementAndGet() == 1) {
+                firstReadStarted.countDown();
+                assertThat(releaseFirstRead.await(10, TimeUnit.SECONDS)).isTrue();
             }
+            return TestSupport.mainSandbox("sb-c", SandboxState.STARTING);
         });
         AtomicReference<Throwable> error = new AtomicReference<>();
         Thread waiter = new Thread(() -> runCapturing(() -> sb.waitUntilStarted(0), error));
         waiter.start();
 
         assertThat(firstReadStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        rejected.set(true);
         deliverRejection(manager, "sb-c");
         releaseFirstRead.countDown();
 
-        verify(sandboxApi, timeout(5000).times(2)).getSandbox("sb-c", null, null);
-        // The extra read ran first; only then did the wait go back to its cadence.
-        awaitCondition(() -> decisions.size() >= 1);
+        // The next poll was chosen after the read: the 1 s fallback, not the 5 s event-backed interval.
+        awaitCondition(() -> !decisions.isEmpty());
+        // No read follows the rejection: the one in flight covered it.
+        verify(sandboxApi, org.mockito.Mockito.after(1000).times(1)).getSandbox("sb-c", null, null);
         deliverStarted(manager, "sb-c");
         waiter.join(5000);
 
         assertThat(error.get()).isNull();
-        assertThat(reads.get()).isEqualTo(2);
-        assertThat(maxInFlight.get()).isEqualTo(1);
-        assertThat(decisions).hasSize(1);
+        assertThat(decisions).containsExactly("false:1000");
     }
 
     @Test

@@ -1646,6 +1646,48 @@ RSpec.describe Daytona::Sandbox do
       end
     end
 
+    it 'reads no extra time when the rejection arrives during a read, and then polls at the fallback cadence' do
+      pending_sandbox = described_class.new(sandbox_dto: build_sandbox_dto(state: 'pending'), config:, sandbox_api:,
+                                            subscription_manager:)
+      rejected = false
+      allow(subscription_manager).to receive(:event_backed?) { !rejected }
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+      gets = 0
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        gets += 1
+        if gets == 1
+          rejected = true
+          pending_sandbox.send(:handle_event, Daytona::EventDispatcher::SUBSCRIPTION_REJECTED_EVENT, nil)
+        end
+        build_sandbox_dto(state: gets >= 2 ? 'started' : 'pending')
+      end
+      waits = []
+      stub_condition_variable_waits { |seconds| waits << seconds }
+
+      pending_sandbox.wait_for_sandbox_start
+
+      expect(gets).to eq(2)
+      expect(waits).to eq([1.0])
+    end
+
+    it 'stop: a rate-limited first read does not fail on the cached error state of the response' do
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      stub_wait_clock
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'error'))
+      gets = 0
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        gets += 1
+        raise DaytonaApiClient::ApiError.new(code: 429, response_headers: {}, message: 'Too Many Requests') if gets == 1
+
+        build_sandbox_dto(state: 'stopped')
+      end
+
+      started_sandbox.stop(30)
+
+      expect(gets).to eq(2)
+      expect(started_sandbox.state).to eq('stopped')
+    end
+
     it 'stop: reads at once when the subscription is rejected while waiting, then polls at the fallback cadence' do
       allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
       gets = 0

@@ -106,6 +106,22 @@ from .git import Git
 from .lsp_server import LspServer
 from .process import Process
 
+# The timeout of a wait off the main thread is raised by an asynchronous exception, which cannot
+# interrupt a blocking Event.wait: wait in slices so it lands within about a second.
+_WAKE_WAIT_SLICE = 1.0
+
+
+def _wait_for_wake(wake: threading.Event, timeout: float) -> bool:
+    """Waits until the wake is set or the timeout passes; returns whether it was set."""
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return wake.is_set()
+        if wake.wait(timeout=min(remaining, _WAKE_WAIT_SLICE)):
+            return True
+
+
 _RDMA_USERSPACE_CHECK = (
     "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && "
     'find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
@@ -2038,9 +2054,13 @@ class Sandbox(SandboxDto):
             # Unless skipped, the first poll runs immediately: it closes the race between subscribing
             # and the state change.
             rate_limited = None if skip_first_read else _poll()
-
-            self._raise_destroyed_wait_error(target_states)
-            _waiter(self.state)
+            if rate_limited is None:
+                self._raise_destroyed_wait_error(target_states)
+                _waiter(self.state)
+            # else: a rate-limited read confirmed nothing; neither resolve nor fail on the cached state.
+            if not state_resolved.is_set():
+                # A wake (rejection) that came during the read is covered by it.
+                wake.clear()
 
             while not state_resolved.is_set():
                 # Keep the subscription alive past the manager's TTL; resubscribe if it already expired.
@@ -2061,13 +2081,21 @@ class Sandbox(SandboxDto):
                         poll_interval, fallback_poll_interval, rate_limited.retry_after
                     )
                     fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
-                _ = wake.wait(timeout=poll_interval)
+                _ = _wait_for_wake(wake, poll_interval)
                 if state_resolved.is_set():
                     break
                 wake.clear()
 
                 rate_limited = _poll()
-                self._raise_destroyed_wait_error(target_states)
+                if rate_limited is None:
+                    self._raise_destroyed_wait_error(target_states)
+                    # The cached state may already be a target or error state that only a rate-limited
+                    # first read left unconfirmed; this read confirms it.
+                    _waiter(self.state)
+                if not state_resolved.is_set():
+                    # A wake that came during the read is covered by it: the next delay is chosen now, for
+                    # whatever the wait's condition is after the read.
+                    wake.clear()
 
                 # A rate-limited poll advances the backoff once, when the next delay is chosen.
                 if subscribed and not event_backed and rate_limited is None:

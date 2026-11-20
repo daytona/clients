@@ -429,6 +429,24 @@ class EventDispatcherTest {
     }
 
     @Test
+    void aLateFirstAcknowledgementSwitchesAcknowledgementsBackOnForTheConnection() throws Exception {
+        dispatcher.subscribeAckTimeoutMillis = ACK_TIMEOUT_MILLIS;
+        dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
+        waitUntil(dispatcher::ackProbeDone);
+        dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
+        assertThat(gateway.takeEmitted(WAIT_MILLIS).ackId).isNull();
+
+        gateway.ack(first, "{\"ok\":true}");
+        waitUntil(() -> !dispatcher.acksSilent());
+        dispatcher.subscribe("sb-3", NOOP, STATE_EVENTS);
+
+        FakeEventGateway.Emitted third = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(third, "subscribe", Set.of("sb-3"));
+        assertThat(third.ackId).isNotNull();
+    }
+
+    @Test
     void aLateAcknowledgementAfterTheSwitchIsStillHandled() throws Exception {
         dispatcher.subscribeAckTimeoutMillis = ACK_TIMEOUT_MILLIS;
         BlockingQueue<String> notified = new LinkedBlockingQueue<>();

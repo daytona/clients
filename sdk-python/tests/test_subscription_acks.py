@@ -406,22 +406,12 @@ class TestSyncWaitOnARejectedSubscription:
 
         intervals: list[float] = []
 
-        class RecordingEvent(threading.Event):
-            def wait(self, timeout: float | None = None) -> bool:
-                if timeout is None:
-                    return super().wait()
-                intervals.append(timeout)
-                return super().wait(5 if len(intervals) == 1 else 0)
+        def wait_for_wake(wake: threading.Event, timeout: float) -> bool:
+            """The first wait blocks until woken, later ones time out at once."""
+            intervals.append(timeout)
+            return wake.wait(5 if len(intervals) == 1 else 0)
 
-        class RecordingThreading:
-            """The sandbox module's ``threading``: the first wait blocks until woken, later ones time out at once."""
-
-            Event = RecordingEvent
-
-            def __getattr__(self, name: str):
-                return getattr(threading, name)
-
-        monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+        monkeypatch.setattr(sandbox_module, "_wait_for_wake", wait_for_wake)
         dispatcher = _connected_sync_dispatcher(monkeypatch)
         manager = SyncEventSubscriptionManager(dispatcher)
         sio = sync_sio.instances[0]

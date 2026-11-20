@@ -312,21 +312,12 @@ class TestSyncSandboxWaitsPastTheCap:
 
         polls: dict[str, list[float]] = {}
 
-        class RecordingEvent(threading.Event):
-            def wait(self, timeout: float | None = None) -> bool:
-                if timeout is not None:
-                    polls.setdefault(threading.current_thread().name, []).append(timeout)
-                return super().wait(5)
+        def wait_for_wake(wake: threading.Event, timeout: float) -> bool:
+            """Records each wait's poll interval, then waits for its event."""
+            polls.setdefault(threading.current_thread().name, []).append(timeout)
+            return wake.wait(5)
 
-        class RecordingThreading:
-            """The sandbox module's ``threading``: records each wait's poll interval, then waits for its event."""
-
-            Event = RecordingEvent
-
-            def __getattr__(self, name: str):
-                return getattr(threading, name)
-
-        monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+        monkeypatch.setattr(sandbox_module, "_wait_for_wake", wait_for_wake)
         dispatcher = _connected_sync_dispatcher(monkeypatch)
         manager = SyncEventSubscriptionManager(dispatcher)
         sio = sync_sio.instances[0]

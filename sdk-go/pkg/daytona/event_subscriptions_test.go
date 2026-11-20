@@ -63,6 +63,8 @@ type eventTestServer struct {
 	getStatus func(n int) (int, http.Header)
 	// errorReason, when set, is the errorReason of the sandbox the GETs return.
 	errorReason string
+	// onGet, when set, runs for the nth sandbox GET (from 1) before it is answered.
+	onGet func(n int)
 }
 
 func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestServer {
@@ -101,15 +103,21 @@ func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestSe
 		operation := s.operation
 		status, header := http.StatusOK, http.Header(nil)
 		errorReason := s.errorReason
+		var onGet func(int)
+		getNumber := 0
 		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/sandbox/") {
 			s.getTimes = append(s.getTimes, time.Now())
 			s.getIDs = append(s.getIDs, id)
+			onGet, getNumber = s.onGet, len(s.getTimes)
 			if s.getStatus != nil {
 				status, header = s.getStatus(len(s.getTimes))
 			}
 		}
 		s.mu.Unlock()
 
+		if onGet != nil {
+			onGet(getNumber)
+		}
 		if status != http.StatusOK {
 			for name, values := range header {
 				w.Header()[name] = values
@@ -1469,4 +1477,90 @@ func TestWaitEndingOnAnErrorEventReportsTheReason(t *testing.T) {
 			assert.Equal(t, tt.wantGets, srv.gets())
 		})
 	}
+}
+
+func TestRejectionDuringAReadTriggersNoExtraRead(t *testing.T) {
+	stubWaitForStatePollRandom(t, 0.5)
+	var mu sync.Mutex
+	var delays []time.Duration
+	original := waitForStateNextPoll
+	waitForStateNextPoll = func(schedule *waitPollSchedule, mode waitPollMode) time.Duration {
+		delay := original(schedule, mode)
+		mu.Lock()
+		delays = append(delays, delay)
+		mu.Unlock()
+		return time.Hour
+	}
+	t.Cleanup(func() { waitForStateNextPoll = original })
+
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
+	release := make(chan struct{})
+	srv.mu.Lock()
+	srv.subscribeAck = func(ids []string) string {
+		if slices.Contains(ids, eventTestSandboxID) {
+			return overloadedAck
+		}
+		return `{"ok":true}`
+	}
+	srv.ackGate = release
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
+	srv.mu.Lock()
+	srv.onGet = func(n int) {
+		if n != 1 {
+			return
+		}
+		// The rejection reaches the wait while its first read is in flight.
+		close(release)
+		assert.Eventually(t, func() bool {
+			sandbox.mu.RLock()
+			defer sandbox.mu.RUnlock()
+			return !client.subscriptionManager.IsEventBacked(eventTestSandboxID) && len(sandbox.rejectionWaiters) == 1 &&
+				len(sandbox.rejectionWaiters[0]) == 1
+		}, 5*time.Second, 5*time.Millisecond)
+	}
+	srv.mu.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(delays) == 1
+	}, 10*time.Second, 5*time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
+	assert.Equal(t, 1, srv.gets(), "the read in flight covers the rejection")
+	mu.Lock()
+	assert.Equal(t, []time.Duration{time.Second}, delays, "the next poll comes at the fallback interval")
+	mu.Unlock()
+
+	cancel()
+	require.ErrorIs(t, <-done, context.Canceled)
+}
+
+func TestRateLimitedFirstReadDoesNotFailOnACachedErrorState(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
+	srv.mu.Lock()
+	srv.rejectSockets = true
+	srv.getStatus = func(n int) (int, http.Header) {
+		if n == 1 {
+			return http.StatusTooManyRequests, nil
+		}
+		return http.StatusOK, nil
+	}
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_ERROR))
+	})
+
+	require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 10*time.Second, false))
+	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+	assert.Equal(t, 2, srv.gets())
 }

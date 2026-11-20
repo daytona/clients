@@ -1835,8 +1835,6 @@ export class Sandbox {
       let fastPollInterval = 100
       const cadence = new WaitPollCadence()
       let pollInFlight = false
-      // A wake that came while a read was running: one more read right after it.
-      let wakePending = false
       const holdsSubscription = (): boolean => {
         if (!subId) return false
         // Keep the subscription alive for long waits (subscriptions expire after a TTL).
@@ -1875,9 +1873,7 @@ export class Sandbox {
           }
         } catch (error) {
           if (isRateLimitError(error)) {
-            // Rate limited, in any mode: back off (see WaitPollCadence.rateLimited). The rate-limited read
-            // also answers a wake that came meanwhile.
-            wakePending = false
+            // Rate limited, in any mode: back off (see WaitPollCadence.rateLimited).
             if (!settled) {
               const { subscribed, eventBacked } = pollMode()
               schedulePoll(cadence.rateLimited(subscribed, eventBacked, fastPollInterval, retryAfterMs(error)))
@@ -1902,21 +1898,14 @@ export class Sandbox {
           if (Date.now() - pollStart > 5000) {
             fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
           }
-          if (wakePending) {
-            wakePending = false
-            void doPoll()
-            return
-          }
+          // Chosen now, after the read: a rejection that came during it already switched the mode.
           schedulePoll(nextPollDelay())
         }
       }
-      // A rejected subscription means no events: read now, or right after a read already running.
+      // A rejected subscription means no events: read now. A read already running covers the state, and
+      // the next poll is chosen when it returns.
       function wake(): void {
-        if (settled) return
-        if (pollInFlight) {
-          wakePending = true
-          return
-        }
+        if (settled || pollInFlight) return
         if (pollTimer) clearTimeout(pollTimer)
         pollTimer = null
         void doPoll()

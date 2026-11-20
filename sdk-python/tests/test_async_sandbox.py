@@ -1997,11 +1997,13 @@ class TestAsyncSandboxReviewRound9:
         return waits
 
     @pytest.mark.asyncio
-    async def test_rejection_during_a_read_runs_one_more_read_right_after_it(
-        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch
+    @pytest.mark.parametrize(("random_value", "jitter"), [(0.0, 0.8), (1.0, 1.2)])
+    async def test_rejection_during_a_read_is_covered_by_it_and_the_next_poll_falls_back(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch, random_value, jitter
     ):
         from daytona.internal.event_dispatcher import SUBSCRIPTION_REJECTED_EVENT
 
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: random_value)
         waits = self._record_wakes(monkeypatch)
         manager = _subscription_manager(connected=True)
         sandbox = _make_with_manager(
@@ -2031,8 +2033,13 @@ class TestAsyncSandboxReviewRound9:
 
         await sandbox.wait_for_sandbox_start(timeout=0)
 
-        # 5 s event-backed wait; the wake recorded during read 2 runs read 3 at once; then the fallback.
-        assert waits == [(pytest.approx(5.0), False), (pytest.approx(1.0), True), (pytest.approx(1.5), False)]
+        # 5 s while event-backed; the rejection during read 2 is covered by that read (no extra read and
+        # no early wake): the next delay is chosen after it, at the fallback cadence, then backs off.
+        assert waits == [
+            (pytest.approx(5.0 * jitter), False),
+            (pytest.approx(1.0 * jitter), False),
+            (pytest.approx(1.5 * jitter), False),
+        ]
         assert reads == 4 and max_in_flight == 1
 
     @pytest.mark.asyncio
@@ -2146,3 +2153,45 @@ def test_proxy_refresh_updates_existing_node_clients(mock_async_toolbox_api_clie
     assert all(node is old for node, old in zip(sandbox.nodes, handles))
     assert all(node.process is old for node, old in zip(sandbox.nodes, processes))
     assert all(node._toolbox_api._toolbox_base_url == "https://new.example/toolbox" for node in handles)
+
+
+class TestAsyncSandboxReviewRound10:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    @pytest.mark.asyncio
+    async def test_rate_limited_first_read_does_not_fail_on_a_cached_error(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        # An error response forces the first read, which is rate limited; the next read is the truth.
+        mock_async_sandbox_api.stop_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.ERROR))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[_async_rate_limited(), _async_dto(state=SandboxState.STOPPED)]
+        )
+
+        await asyncio.wait_for(sandbox.stop(timeout=0), timeout=2)
+
+        assert sandbox.state == SandboxState.STOPPED
+        assert mock_async_sandbox_api.get_sandbox.await_count == 2
+        assert len(poll_intervals) == 1
+
+    @pytest.mark.asyncio
+    async def test_a_cached_error_confirmed_after_a_rate_limited_first_read_fails_the_wait(
+        self, mock_async_toolbox_api_client, mock_async_sandbox_api, monkeypatch
+    ):
+        _ = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_async_toolbox_api_client, mock_async_sandbox_api, manager)
+        mock_async_sandbox_api.stop_sandbox = AsyncMock(return_value=_async_dto(state=SandboxState.ERROR))
+        mock_async_sandbox_api.get_sandbox = AsyncMock(
+            side_effect=[_async_rate_limited(), _async_dto(state=SandboxState.ERROR, error_reason="disk full")]
+        )
+
+        with pytest.raises(DaytonaError, match="entered error state: .*, error reason: disk full"):
+            await asyncio.wait_for(sandbox.stop(timeout=0), timeout=2)
+
+        assert mock_async_sandbox_api.get_sandbox.await_count == 2

@@ -478,7 +478,9 @@ export class EventDispatcher {
           const tokens = new Map(chunk.map((id) => [id, this.served.get(id)]))
           socket.emit(event, { sandboxIds: chunk }, (ack: unknown) => {
             if (socket === this.socket && epoch === this._connectionEpoch) {
+              // Even a late one: the server acknowledges, so later subscribes ask again.
               this.acksSeen = true
+              this.acksSilent = false
               this.handleSubscribeAck(tokens, ack)
             }
           })

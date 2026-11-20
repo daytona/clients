@@ -1372,8 +1372,6 @@ public class Sandbox {
         private String subId;
         private ScheduledFuture<?> next;
         private boolean reading;
-        // A wake that came while a read was running: one more read right after it.
-        private boolean wakePending;
 
         Poller(StateWaiter waiter, boolean safeRefresh) {
             this.waiter = waiter;
@@ -1400,14 +1398,13 @@ public class Sandbox {
             }
         }
 
-        /** The subscription was rejected, so no events come: read now, or right after a read already running. */
+        /**
+         * The subscription was rejected, so no events come: read now. A read already running covers the state,
+         * and the next poll is chosen when it returns.
+         */
         void wake() {
             synchronized (pollLock) {
-                if (stopped) {
-                    return;
-                }
-                if (reading) {
-                    wakePending = true;
+                if (stopped || reading) {
                     return;
                 }
             }
@@ -1455,8 +1452,7 @@ public class Sandbox {
                     return;
                 }
                 if (reading) {
-                    // A tick that raced a running read: it becomes one more read right after it.
-                    wakePending = true;
+                    // A tick that raced a running read: the read covers it, and schedules the next poll.
                     return;
                 }
                 reading = true;
@@ -1474,16 +1470,10 @@ public class Sandbox {
         private void afterRead(Long rateLimitedRetryAfter) {
             synchronized (pollLock) {
                 reading = false;
-                boolean wake = wakePending;
-                wakePending = false;
                 if (stopped || waiter.isResolved()) {
                     return;
                 }
-                // A rate-limited read also answers a wake that came meanwhile.
-                if (wake && rateLimitedRetryAfter == null) {
-                    schedule(0);
-                    return;
-                }
+                // Chosen now, after the read: a rejection that came during it already switched the mode.
                 scheduleNext(rateLimitedRetryAfter);
             }
         }

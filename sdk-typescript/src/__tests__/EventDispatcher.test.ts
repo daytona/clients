@@ -387,6 +387,21 @@ describe('EventDispatcher', () => {
       expect(dispatcher.isRejected(uuid(1))).toBe(true)
     })
 
+    it('a late first acknowledgement switches acknowledgements back on for the connection', () => {
+      const dispatcher = makeDispatcher()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      jest.advanceTimersByTime(SUBSCRIBE_ACK_TIMEOUT_MS)
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      expect(subscribesWithAck(socket)).toEqual([[uuid(1)]])
+
+      ackFor(socket, uuid(1)).ack({ ok: true })
+      dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
+
+      expect(subscribesWithAck(socket)).toEqual([[uuid(1)], [uuid(3)]])
+    })
+
     it('the acknowledgement timer never keeps the process alive', () => {
       const dispatcher = makeDispatcher()
       dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)

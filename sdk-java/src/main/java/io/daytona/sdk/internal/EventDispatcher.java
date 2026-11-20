@@ -625,7 +625,9 @@ public class EventDispatcher {
     private void handleSubscribeAck(Socket sock, long generation, Map<String, Long> tokens, Object[] args) {
         synchronized (lock) {
             if (generation == connectionGeneration) {
+                // Even a late one: the server acknowledges, so later subscribes ask again.
                 acksSeen = true;
+                acksSilent = false;
             }
         }
         if (args == null || args.length == 0 || !(args[0] instanceof JSONObject)) {

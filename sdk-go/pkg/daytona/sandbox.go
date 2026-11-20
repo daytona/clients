@@ -1004,6 +1004,12 @@ func (s *Sandbox) waitForStateWith(
 	rateLimited := false
 	poll := func() (done bool, err error) {
 		done, err = refresh(ctx)
+		// A rejection that arrived during this read needs no read of its own:
+		// this one covers it, and the next interval, chosen now, is the fallback.
+		select {
+		case <-rejectedCh:
+		default:
+		}
 		if wait, limited := rateLimitRetryAfter(err); limited {
 			retryAfter, rateLimited = wait, true
 			return false, nil
@@ -1064,7 +1070,8 @@ func (s *Sandbox) waitForStateWith(
 				return nil
 			}
 		case <-rejectedCh:
-			// No events will come: read now, then poll at the fallback cadence.
+			// No events will come and no read is in flight: read now, then poll at
+			// the fallback cadence.
 			pollTimer.Stop()
 			if done, err := poll(); done || err != nil {
 				return err

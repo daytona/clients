@@ -1614,7 +1614,7 @@ describe('Sandbox event subscriptions', () => {
       await expectImmediateSingleRead(() => sandbox.stop(60), sandboxApi.getSandbox)
     })
 
-    it('a rejection during a read runs exactly one more read right after it, then the fallback cadence', async () => {
+    it('a rejection during a read adds no read; the next poll comes at the fallback cadence chosen after it', async () => {
       jest.useFakeTimers()
       const random = jest.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
@@ -1632,28 +1632,28 @@ describe('Sandbox event subscriptions', () => {
             await new Promise<void>((resolve) => (release = resolve))
           }
           inFlight--
-          return createApiResponse({ ...baseDto, state: reads.length >= 3 ? 'stopped' : 'stopping' })
+          return createApiResponse({ ...baseDto, state: reads.length >= 2 ? 'stopped' : 'stopping' })
         })
+        // Down at the request, so the wait reads first; up (event-backed) while that read runs.
         subscriptionManager.isConnected = false
-
         const stop = sandbox.stop(60)
         await jest.advanceTimersByTimeAsync(0)
         expect(reads).toHaveLength(1)
         subscriptionManager.isConnected = true
-        subscribedHandler(subscriptionManager)(SUBSCRIPTION_REJECTED_EVENT, { id: 'sb-1', error: 'OVERLOADED' })
+
+        // The gateway rejects the subscription while the read runs: no longer event-backed.
         subscriptionManager.isConnected = false
+        subscribedHandler(subscriptionManager)(SUBSCRIPTION_REJECTED_EVENT, { id: 'sb-1', error: 'OVERLOADED' })
+        release?.()
         await jest.advanceTimersByTimeAsync(0)
         expect(reads).toHaveLength(1)
 
-        release?.()
-        await jest.advanceTimersByTimeAsync(0)
-        expect(reads).toHaveLength(2)
-        expect(reads[1] - reads[0]).toBe(0)
-
-        await jest.advanceTimersByTimeAsync(1000)
+        // The next poll is the 1 s fallback, chosen after the read: not 0 s, not the 5 s event-backed interval.
+        await jest.advanceTimersByTimeAsync(999)
+        expect(reads).toHaveLength(1)
+        await jest.advanceTimersByTimeAsync(1)
         await stop
-        expect(reads).toHaveLength(3)
-        expect(reads[2] - reads[1]).toBe(1000)
+        expect(reads).toHaveLength(2)
         expect(maxInFlight).toBe(1)
       } finally {
         random.mockRestore()

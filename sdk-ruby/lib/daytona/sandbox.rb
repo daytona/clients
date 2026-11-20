@@ -1360,10 +1360,14 @@ module Daytona
           retry_after = poll_rate_limited do
             poll_refresh(safe: safe_refresh, http_timeout: deadline&.remaining, deadline:, raise_rate_limit: true)
           end
-          raise_destroyed_lifecycle_error_if_needed(target_strings)
+          # A rejection that arrived during this read needs no read of its own: this one covers it, and the next
+          # interval, chosen below, is the fallback.
+          mutex.synchronize { read_now = false }
+          # A rate-limited read saw nothing: the cached state (an operation's error response, say) decides nothing.
+          raise_destroyed_lifecycle_error_if_needed(target_strings) unless retry_after
 
           mutex.synchronize do
-            next if result_state
+            next if result_state || retry_after
 
             current = state.to_s
             if target_strings.include?(current) || error_strings.include?(current)

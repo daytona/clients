@@ -1033,22 +1033,12 @@ def _record_poll_intervals(monkeypatch, sandbox_api: MagicMock | None = None) ->
 
     poll_intervals: list[tuple[float, int]] = []
 
-    class RecordingEvent(threading.Event):
-        def wait(self, timeout: float | None = None) -> bool:
-            if timeout is not None:
-                refreshes = sandbox_api.get_sandbox.call_count if sandbox_api is not None else -1
-                poll_intervals.append((timeout, refreshes))
-            return super().wait(0)
+    def wait_for_wake(wake: threading.Event, timeout: float) -> bool:
+        refreshes = sandbox_api.get_sandbox.call_count if sandbox_api is not None else -1
+        poll_intervals.append((timeout, refreshes))
+        return wake.wait(0)
 
-    class RecordingThreading:
-        """Proxy for the sandbox module's ``threading`` that records poll intervals instead of sleeping."""
-
-        Event = RecordingEvent
-
-        def __getattr__(self, name: str):
-            return getattr(threading, name)
-
-    monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+    monkeypatch.setattr(sandbox_module, "_wait_for_wake", wait_for_wake)
     return poll_intervals
 
 
@@ -1807,28 +1797,21 @@ class TestSandboxReviewRound9:
 
         waits: list[tuple[float, bool]] = []
 
-        class RecordingEvent(threading.Event):
-            def wait(self, timeout: float | None = None) -> bool:
-                if timeout is None:
-                    return super().wait()
-                woken = super().wait(0)
-                waits.append((timeout, woken))
-                return woken
+        def wait_for_wake(wake: threading.Event, timeout: float) -> bool:
+            woken = wake.wait(0)
+            waits.append((timeout, woken))
+            return woken
 
-        class RecordingThreading:
-            Event = RecordingEvent
-
-            def __getattr__(self, name: str):
-                return getattr(threading, name)
-
-        monkeypatch.setattr(sandbox_module, "threading", RecordingThreading())
+        monkeypatch.setattr(sandbox_module, "_wait_for_wake", wait_for_wake)
         return waits
 
-    def test_rejection_during_a_read_runs_one_more_read_right_after_it(
-        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    @pytest.mark.parametrize(("random_value", "jitter"), [(0.0, 0.8), (1.0, 1.2)])
+    def test_rejection_during_a_read_is_covered_by_it_and_the_next_poll_falls_back(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, random_value, jitter
     ):
         from daytona.internal.event_dispatcher import SUBSCRIPTION_REJECTED_EVENT
 
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: random_value)
         waits = self._record_wakes(monkeypatch)
         manager = _subscription_manager(connected=True)
         sandbox = _make_with_manager(
@@ -1862,8 +1845,13 @@ class TestSandboxReviewRound9:
 
         sandbox.wait_for_sandbox_start(timeout=0)
 
-        # 5 s event-backed wait; the wake recorded during read 2 runs read 3 at once; then the fallback.
-        assert waits == [(pytest.approx(5.0), False), (pytest.approx(1.0), True), (pytest.approx(1.5), False)]
+        # 5 s while event-backed; the rejection during read 2 is covered by that read (no extra read and
+        # no early wake): the next delay is chosen after it, at the fallback cadence, then backs off.
+        assert waits == [
+            (pytest.approx(5.0 * jitter), False),
+            (pytest.approx(1.0 * jitter), False),
+            (pytest.approx(1.5 * jitter), False),
+        ]
         assert reads == 4 and max_in_flight == 1
 
     def test_repeated_rate_limits_back_off_without_a_subscription(
@@ -1965,3 +1953,68 @@ def test_proxy_refresh_updates_existing_node_clients(mock_toolbox_api_client, mo
     assert all(node is old for node, old in zip(sandbox.nodes, handles))
     assert all(node.process is old for node, old in zip(sandbox.nodes, processes))
     assert all(node._toolbox_api._toolbox_base_url == "https://new.example/toolbox" for node in handles)
+
+
+class TestSandboxReviewRound10:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    def test_rate_limited_first_read_does_not_fail_on_a_cached_error(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        # An error response forces the first read, which is rate limited; the next read is the truth.
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.ERROR)
+        mock_sandbox_api.get_sandbox.side_effect = [_rate_limited(), make_sandbox_dto(state=SandboxState.STOPPED)]
+
+        sandbox.stop(timeout=0)
+
+        assert sandbox.state == SandboxState.STOPPED
+        assert mock_sandbox_api.get_sandbox.call_count == 2
+        assert len(poll_intervals) == 1
+
+    def test_a_cached_error_confirmed_after_a_rate_limited_first_read_fails_the_wait(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        _ = _record_poll_intervals(monkeypatch)
+        manager = _subscription_manager(connected=True)
+        sandbox = _make_with_manager(make_sandbox_dto(), mock_toolbox_api_client, mock_sandbox_api, manager)
+        mock_sandbox_api.stop_sandbox.return_value = make_sandbox_dto(state=SandboxState.ERROR)
+        mock_sandbox_api.get_sandbox.side_effect = [
+            _rate_limited(),
+            make_sandbox_dto(state=SandboxState.ERROR, error_reason="disk full"),
+        ]
+
+        with pytest.raises(DaytonaError, match="entered error state: .*, error reason: disk full"):
+            sandbox.stop(timeout=0)
+
+        assert mock_sandbox_api.get_sandbox.call_count == 2
+
+    def test_timeout_lands_on_time_during_a_long_retry_after_off_the_main_thread(
+        self, mock_toolbox_api_client, mock_sandbox_api
+    ):
+        sandbox = make_sandbox(make_sandbox_dto(state=SandboxState.STARTING), mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = lambda *_a, **_k: (_ for _ in ()).throw(_rate_limited("6"))
+        outcome: list[BaseException | None] = []
+        elapsed: list[float] = []
+
+        def wait() -> None:
+            start = time.monotonic()
+            try:
+                sandbox.wait_for_sandbox_start(timeout=1)
+                outcome.append(None)
+            except BaseException as exc:  # pylint: disable=broad-exception-caught
+                outcome.append(exc)
+            elapsed.append(time.monotonic() - start)
+
+        waiter = threading.Thread(target=wait, daemon=True)
+        waiter.start()
+        waiter.join(timeout=10)
+
+        assert not waiter.is_alive()
+        assert isinstance(outcome[0], DaytonaTimeoutError)
+        # The next poll is 6.6 s away; the timeout still lands within the 1 s wait slice.
+        assert elapsed[0] < 2.5
