@@ -93,9 +93,15 @@ func parsePorts(object jsonObject) ([]PortAssignment, error) {
 		if hostErr != nil {
 			return nil, hostErr
 		}
+		if host < 1 || host > 65535 {
+			return nil, badRequest("response field host_port must be within 1..65535")
+		}
 		vm, vmErr := integerField(port, "vm_port", true)
 		if vmErr != nil {
 			return nil, vmErr
+		}
+		if vm < 1 || vm > 65535 {
+			return nil, badRequest("response field vm_port must be within 1..65535")
 		}
 		protocol, protocolErr := field[string](port, "proto", true)
 		if protocolErr != nil {
