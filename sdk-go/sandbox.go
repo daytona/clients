@@ -7,6 +7,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,14 +15,15 @@ import (
 // Sandbox is a concurrency-safe live handle. Obtain one from Client.Get, List,
 // Search or FindByName. Metadata getters do not perform I/O.
 type Sandbox struct {
-	client             *Client
-	id                 string
-	mu                 sync.RWMutex
-	info               SandboxInfo
-	toolboxURL         string
-	explicitToolboxURL bool
-	auth               *sandboxCredential
-	toolboxClient      *toolboxClient
+	client                 *Client
+	id                     string
+	mu                     sync.RWMutex
+	info                   SandboxInfo
+	toolboxURL             string
+	explicitToolboxURL     bool
+	toolboxURLFromTemplate bool
+	auth                   *sandboxCredential
+	toolboxClient          *toolboxClient
 }
 
 type sandboxInit struct {
@@ -42,6 +44,8 @@ func (c *Client) newSandbox(init sandboxInit) (*Sandbox, error) {
 	sandbox := &Sandbox{
 		client: c, id: init.Info.ID, info: cloneSandboxInfo(init.Info),
 		toolboxURL: endpoint, explicitToolboxURL: init.Options.ToolboxURL != "",
+		toolboxURLFromTemplate: strings.Contains(init.Options.ToolboxURL, "{sandboxId}") ||
+			strings.Contains(init.Options.ToolboxURL, "{sandbox_id}"),
 	}
 	token := init.Options.AccessToken
 	if token == "" {
