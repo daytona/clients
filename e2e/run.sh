@@ -2,12 +2,13 @@
 # Copyright Daytona Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# Live e2e for the Daytona SDKs (Python + TypeScript) against a Daytona
+# Live e2e for the Daytona SDKs (Python, TypeScript, Go) against a Daytona
 # deployment.
 #
-#   DAYTONA_API_KEY=dtn_... ./e2e/run.sh          # both
+#   DAYTONA_API_KEY=dtn_... ./e2e/run.sh          # python + typescript
 #   DAYTONA_API_KEY=dtn_... ./e2e/run.sh py       # python only
 #   DAYTONA_API_KEY=dtn_... ./e2e/run.sh ts       # typescript only
+#   DAYTONA_API_KEY=dtn_... ./e2e/run.sh go       # go only (sdk-go/e2e, build tag e2e)
 #
 # Env (see e2e/e2e.py / e2e/e2e.ts headers): DAYTONA_V2_API_URL, DAYTONA_API_KEY (required),
 # SMOKE_IMAGE, DAYTONA_SKIP_TOOLBOX, DAYTONA_SKIP_DOCKERFILE
@@ -40,11 +41,17 @@ run_ts() {
   (cd sdk-typescript && npx --yes tsx ../e2e/e2e.ts)
 }
 
+run_go() {
+  echo "== go SDK e2e =="
+  (cd sdk-go && go test -tags e2e -count=1 -timeout 25m ./e2e/...)
+}
+
 rc=0
 case "$WHICH" in
   py) run_py || rc=$? ;;
   ts) run_ts || rc=$? ;;
+  go) run_go || rc=$? ;;
   both) run_py || rc=$?; run_ts || rc=$? ;;
-  *) echo "usage: $0 [py|ts|both]" >&2; exit 2 ;;
+  *) echo "usage: $0 [py|ts|go|both]" >&2; exit 2 ;;
 esac
 exit "$rc"
