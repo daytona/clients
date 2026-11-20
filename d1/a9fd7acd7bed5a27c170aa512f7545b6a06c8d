@@ -1,0 +1,22 @@
+sdk-go/json_integer_exact_test.go
+  s_2ef02cb3c131db::t_8d175ded3fd959 42-44,46-47,49-50,52-54
+  s_2ef02cb3c131db::t_af74c3c10ca1d7 1-41,45,48,51,55-71
+sdk-go/json.go
+  s_2ef02cb3c131db::t_6de7d5a2daabd8 9,94-97,99,102-112,115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d1a9fd7acd7bed5a27c170aa512f7545b6a06c8d",
+  "prompts": {},
+  "sessions": {
+    "s_2ef02cb3c131db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065dfbf8ffe3EO1HikYgdaS6o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
