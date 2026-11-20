@@ -30,19 +30,16 @@ func TestGetSearchAndFindByName(t *testing.T) {
 	if sb.ID() != id || sb.Name() != name {
 		t.Fatalf("Get returned %s/%s, want %s/%s", sb.ID(), sb.Name(), id, name)
 	}
-	// A read right after another can still report the earlier state (seen
-	// live: running, then assigned), so wait for started through the SDK.
-	if sb.State() != daytona.SandboxStateStarted {
-		if waitErr := sb.Wait(ctx, nil); waitErr != nil {
-			t.Fatalf("Wait: %v", waitErr)
+	// The deployment's reads are not monotonic right after a create: a read
+	// after one that answered "running" can still answer "assigned" (seen
+	// live, also on the SDK's post-wait refresh), so re-read until a read
+	// reports the started state.
+	eventually(ctx, t, 30*time.Second, func() (bool, error) {
+		if sb.State() == daytona.SandboxStateStarted {
+			return true, nil
 		}
-	}
-	if state := sb.State(); state != daytona.SandboxStateStarted {
-		t.Fatalf("State() = %s (raw %q), want started", state, sb.Info().RawState)
-	}
-	if refreshErr := sb.Refresh(ctx); refreshErr != nil {
-		t.Fatalf("Refresh: %v", refreshErr)
-	}
+		return false, sb.Refresh(ctx)
+	})
 
 	// And FindByName and a label search return it once the index has it
 	eventually(ctx, t, 30*time.Second, func() (bool, error) {
