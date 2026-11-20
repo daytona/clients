@@ -108,4 +108,5 @@ func (s *Sandbox) observeWait(outcome stateObservation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.info.State, s.info.RawState = outcome.State, outcome.RawState
+	s.info.Error = outcome.Reason
 }
