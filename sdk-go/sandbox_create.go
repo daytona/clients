@@ -58,7 +58,7 @@ func prepareLinuxCreate(image string, options CreateOptions) (preparedCreate, er
 	switch options.CPUArch {
 	case "", "amd64", "arm64":
 	default:
-		return prepared, badRequest("cpuArch must be amd64 or arm64")
+		return prepared, badRequest("CPUArch must be amd64 or arm64")
 	}
 	if err = prepareCreateAttachments(&prepared.body, &options); err != nil {
 		return prepared, err

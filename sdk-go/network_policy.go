@@ -69,11 +69,11 @@ func networkPolicyBody(spec NetworkPolicySpec) (networkPolicyWire, error) {
 	domains := spec.AllowDomains != nil && *spec.AllowDomains != nil
 	if domains && spec.BlockAll != nil && !*spec.BlockAll {
 		return networkPolicyWire{}, newSDKError(CodeNetworkPolicyDomainsRequireBlockAll, 400,
-			"network policy allowDomains requires blockAll to be true or omitted")
+			"network policy AllowDomains requires BlockAll to be true or omitted")
 	}
 	if len(spec.AllowCIDRs) > 0 && (spec.BlockAll == nil || !*spec.BlockAll) && !domains {
 		return networkPolicyWire{}, badRequest(
-			"network policy allowCIDRs restricts egress only with blockAll=true or allowDomains")
+			"network policy AllowCIDRs restricts egress only with BlockAll=true or AllowDomains")
 	}
 	body := networkPolicyWire{BlockAll: clonePointer(spec.BlockAll)}
 	if spec.AllowCIDRs != nil {

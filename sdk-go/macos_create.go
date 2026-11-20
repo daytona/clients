@@ -29,7 +29,7 @@ func (c *Client) CreateMacOS(ctx context.Context, image string, opts *CreateMacO
 		options = *opts
 	}
 	if options.AutoRenew != nil && options.Reservation != "new" {
-		return nil, badRequest("autoRenew requires reservation new")
+		return nil, badRequest("AutoRenew requires Reservation new")
 	}
 	prepared, err := prepareCreateCommon(CreateFromSnapshotOptions{
 		Name: options.Name, Labels: options.Labels, Ports: options.Ports,

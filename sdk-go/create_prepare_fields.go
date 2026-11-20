@@ -40,7 +40,7 @@ func prepareCreateIdentity(body *createBody, opts CreateFromSnapshotOptions) err
 		body.Region = opts.Region
 	}
 	if opts.IdempotencyKey != "" {
-		if err := headerText(opts.IdempotencyKey, "idempotencyKey"); err != nil {
+		if err := headerText(opts.IdempotencyKey, "IdempotencyKey"); err != nil {
 			return err
 		}
 	}
@@ -80,7 +80,7 @@ func createProvisionBudget(input *time.Duration) (*int64, error) {
 	case duration == WaitForever:
 		seconds = -1
 	case duration < 0 || duration%time.Second != 0:
-		return nil, badRequest("createTimeout must be whole non-negative seconds or WaitForever")
+		return nil, badRequest("CreateTimeout must be whole non-negative seconds or WaitForever")
 	}
 	return &seconds, nil
 }

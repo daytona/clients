@@ -35,11 +35,11 @@ func lifecyclePolicyBody(opts *LifecyclePolicyOptions, creating bool) (*lifecycl
 	}
 	body := &lifecyclePolicyWire{OnTimeout: opts.OnTimeout, OnIdleTimeout: opts.OnIdleTimeout}
 	var err error
-	body.TimeoutSeconds, err = lifecyclePolicySeconds("timeout", opts.Timeout)
+	body.TimeoutSeconds, err = lifecyclePolicySeconds("Timeout", opts.Timeout)
 	if err != nil {
 		return nil, err
 	}
-	body.IdleExpirySeconds, err = lifecyclePolicySeconds("idleExpiry", opts.IdleExpiry)
+	body.IdleExpirySeconds, err = lifecyclePolicySeconds("IdleExpiry", opts.IdleExpiry)
 	if err != nil {
 		return nil, err
 	}
@@ -51,10 +51,10 @@ func lifecyclePolicyBody(opts *LifecyclePolicyOptions, creating bool) (*lifecycl
 		}
 	}
 	if opts.IdleExpiry == NoTimeout && opts.OnIdleTimeout != "" {
-		return nil, badRequest("onIdleTimeout cannot be set while clearing idleExpiry")
+		return nil, badRequest("OnIdleTimeout cannot be set while clearing IdleExpiry")
 	}
 	if creating && (opts.IdleExpiry > 0) != (opts.OnIdleTimeout != "") {
-		return nil, badRequest("idleExpiry and onIdleTimeout must be supplied together on creation")
+		return nil, badRequest("IdleExpiry and OnIdleTimeout must be supplied together on creation")
 	}
 	return body, nil
 }
@@ -65,7 +65,7 @@ func lifecyclePolicySeconds(name string, value time.Duration) (*int64, error) {
 	}
 	seconds := int64(value / time.Second)
 	switch {
-	case name == "idleExpiry" && value == NoTimeout:
+	case name == "IdleExpiry" && value == NoTimeout:
 		seconds = -1
 	case value <= 0 || value%time.Second != 0 || seconds > 2147483647:
 		return nil, badRequest("lifecycle policy " + name + " must be whole positive seconds up to 2147483647")

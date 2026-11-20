@@ -79,7 +79,7 @@ func prepareCreateAttachments(body *createBody, opts *CreateOptions) error {
 		volumes := make([]createVolume, len(opts.Volumes))
 		for index, volume := range opts.Volumes {
 			if createTrim(volume.VolumeID) == "" || createTrim(volume.MountPath) == "" {
-				return badRequest("volumes require non-blank volumeID and mountPath")
+				return badRequest("Volumes require non-blank VolumeID and MountPath")
 			}
 			volumes[index] = createVolume{volume.VolumeID, volume.MountPath, volume.Subpath, volume.ReadOnly}
 		}
@@ -97,7 +97,7 @@ func prepareCreateAttachments(body *createBody, opts *CreateOptions) error {
 	}
 	if opts.ClearNetworkPolicy {
 		if opts.NetworkPolicy != nil {
-			return badRequest("clearNetworkPolicy cannot accompany networkPolicy")
+			return badRequest("ClearNetworkPolicy cannot accompany NetworkPolicy")
 		}
 		body.Network = JSONValue("null")
 	}

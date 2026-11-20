@@ -14,8 +14,8 @@ func prepareLinuxResources(body *createBody, resources *Resources) error {
 		cpu  float64
 		set  bool
 	}{
-		{"cpu", resources.CPU, resources.CPU != 0},
-		{"cpuMax", valueOrZero(resources.CPUMax), resources.CPUMax != nil},
+		{"CPU", resources.CPU, resources.CPU != 0},
+		{"CPUMax", valueOrZero(resources.CPUMax), resources.CPUMax != nil},
 	} {
 		if !axis.set {
 			continue
@@ -31,8 +31,8 @@ func prepareLinuxResources(body *createBody, resources *Resources) error {
 		set    bool
 		target *int64
 	}{
-		{"memoryGiB", resources.MemoryGiB, resources.MemoryGiB != 0, &body.Memory},
-		{"diskGiB", resources.DiskGiB, resources.DiskGiB != 0, &body.Disk},
+		{"MemoryGiB", resources.MemoryGiB, resources.MemoryGiB != 0, &body.Memory},
+		{"DiskGiB", resources.DiskGiB, resources.DiskGiB != 0, &body.Disk},
 	} {
 		if !axis.set {
 			continue
@@ -48,8 +48,8 @@ func prepareLinuxResources(body *createBody, resources *Resources) error {
 		gib    *float64
 		target **int64
 	}{
-		{"memoryMaxGiB", resources.MemoryMaxGiB, &body.MemoryMax},
-		{"diskMaxGiB", resources.DiskMaxGiB, &body.DiskMax},
+		{"MemoryMaxGiB", resources.MemoryMaxGiB, &body.MemoryMax},
+		{"DiskMaxGiB", resources.DiskMaxGiB, &body.DiskMax},
 	} {
 		if axis.gib == nil {
 			continue
@@ -65,10 +65,10 @@ func prepareLinuxResources(body *createBody, resources *Resources) error {
 
 func createCPU(name string, cores float64) error {
 	if math.IsNaN(cores) || math.IsInf(cores, 0) || cores <= 0 {
-		return badRequest("resources." + name + " must be positive finite cores")
+		return badRequest("Resources." + name + " must be positive finite cores")
 	}
-	if name == "cpuMax" && (math.IsInf(cores*2, 0) || math.Trunc(cores*2) != cores*2) {
-		return badRequest("resources.cpuMax must be a multiple of 0.5 cores")
+	if name == "CPUMax" && (math.IsInf(cores*2, 0) || math.Trunc(cores*2) != cores*2) {
+		return badRequest("Resources.CPUMax must be a multiple of 0.5 cores")
 	}
 	return nil
 }
@@ -78,7 +78,7 @@ func prepareMacOSResources(body *createBody, resources *MacOSResources) error {
 		return nil
 	}
 	if resources.CPU != 0 && (resources.CPU < 4 || resources.CPU > math.MaxInt32) {
-		return badRequest("resources.cpu must be an integer in 4..2147483647")
+		return badRequest("Resources.CPU must be an integer in 4..2147483647")
 	}
 	body.Cores = resources.CPU
 	for _, axis := range []struct {
@@ -87,8 +87,8 @@ func prepareMacOSResources(body *createBody, resources *MacOSResources) error {
 		floor  int64
 		target *int64
 	}{
-		{"memoryGiB", resources.MemoryGiB, 4096, &body.Memory},
-		{"diskGiB", resources.DiskGiB, 81920, &body.Disk},
+		{"MemoryGiB", resources.MemoryGiB, 4096, &body.Memory},
+		{"DiskGiB", resources.DiskGiB, 81920, &body.Disk},
 	} {
 		if axis.gib == 0 {
 			continue
@@ -105,7 +105,7 @@ func prepareMacOSResources(body *createBody, resources *MacOSResources) error {
 func createMiB(gib float64, floor int64, name string) (int64, error) {
 	mib := gib * 1024
 	if math.IsNaN(mib) || math.IsInf(mib, 0) || math.Trunc(mib) != mib || mib < float64(floor) || mib > math.MaxInt32 {
-		return 0, badRequest("resources." + name + " must convert to whole MiB within its supported range")
+		return 0, badRequest("Resources." + name + " must convert to whole MiB within its supported range")
 	}
 	return int64(mib), nil
 }
