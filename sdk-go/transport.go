@@ -93,6 +93,9 @@ func (t *transport) stream(ctx context.Context, spec apiRequest) (*http.Response
 }
 
 func relativeURL(base, path string, query url.Values) (string, error) {
+	if _, err := parseHTTPBase(base); err != nil {
+		return "", err
+	}
 	parsed, err := url.Parse(path)
 	if err != nil || parsed.IsAbs() || parsed.Host != "" || strings.HasPrefix(path, "//") ||
 		strings.Contains(path, "\\") || parsed.Fragment != "" {
@@ -108,6 +111,16 @@ func relativeURL(base, path string, query url.Values) (string, error) {
 	}
 	endpoint.RawQuery = params.Encode()
 	return endpoint.String(), nil
+}
+
+func parseHTTPBase(value string) (*url.URL, error) {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || parsed.Hostname() == "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Opaque != "" ||
+		parsed.RawQuery != "" || parsed.ForceQuery || strings.Contains(value, "#") {
+		return nil, badRequest("HTTP base URL must use http or https with a host and no query or fragment")
+	}
+	return parsed, nil
 }
 
 func (t *transport) makeRequest(ctx context.Context, spec apiRequest) (*http.Request, error) {

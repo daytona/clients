@@ -74,7 +74,7 @@ func (s *session[T]) pending(now time.Time) []batch {
 			delete(s.entries, id)
 			continue
 		}
-		if e.fresh {
+		if e.fresh && e.refusedAt.IsZero() {
 			_, known := s.hub.known[id]
 			subscribe.ids = append(subscribe.ids, subscription{ID: id, Known: known})
 			e.pending, e.sent, e.fresh, e.heardAt = true, true, false, now

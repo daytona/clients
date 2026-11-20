@@ -104,8 +104,19 @@ func (w *sandboxWait) read(ctx context.Context, options waitReadOptions) (stateO
 	return w.accept(w.fetch(ctx, options))
 }
 
+func (w *sandboxWait) readOutcome(outcome stateObservation) (bool, error) {
+	if w.target(outcome.State) {
+		return true, nil
+	}
+	if slices.Contains(w.terminal, outcome.State) {
+		return true, w.terminalError(outcome)
+	}
+	return false, nil
+}
+
 func (s *Sandbox) observeWait(outcome stateObservation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.info.State, s.info.RawState = outcome.State, outcome.RawState
+	s.info.Error = outcome.Reason
 }

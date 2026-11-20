@@ -35,7 +35,7 @@ func (t *transport) open(ctx context.Context, spec apiRequest, streaming bool) (
 		scope.close()
 		return nil, err
 	}
-	if streaming {
+	if streaming || spec.Transfer {
 		scope.pause()
 	}
 	response.Body = &responseBody{ReadCloser: response.Body, scope: scope, idle: spec.Transfer}

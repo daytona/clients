@@ -15,7 +15,8 @@ import (
 // trusted direct URL; {sandboxId} and {sandbox_id} path placeholders are expanded.
 // AccessToken is caller-owned and is never automatically replaced.
 type GetSandboxOptions struct {
-	// ToolboxURL overrides the sandbox's tools destination with a trusted URL.
+	// ToolboxURL overrides the sandbox's tools destination with a trusted HTTP
+	// or HTTPS URL, without a query or fragment.
 	ToolboxURL string
 	// AccessToken is an optional caller-managed sandbox token.
 	AccessToken string

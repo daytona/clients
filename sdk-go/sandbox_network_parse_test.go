@@ -76,8 +76,8 @@ func TestSandboxNetworkRequiresObjectAndETag(t *testing.T) {
 	}
 }
 
-func TestSandboxNetworkOptionalStringCompatibility(t *testing.T) {
-	// Given: the sibling SDKs discard malformed optional strings on this route.
+func TestSandboxNetworkRejectsOptionalStringsOutsideSchema(t *testing.T) {
+	// Given: optional fields must be strings or null under the response schema.
 	body := networkPolicyFixture()
 	body["status"], body["error"], body["applied_start_id"] = 1, []string{}, true
 	body["desired_revision"] = 7.0
@@ -85,11 +85,7 @@ func TestSandboxNetworkOptionalStringCompatibility(t *testing.T) {
 	fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx/network-policy": policyResponse(t, body)})
 	sandbox := newMutatorSandbox(t, fake)
 	// When
-	policy, err := sandbox.GetNetworkPolicy(t.Context())
+	_, err := sandbox.GetNetworkPolicy(t.Context())
 	// Then
-	require.NoError(t, err)
-	require.Empty(t, policy.Status)
-	require.Empty(t, policy.Error)
-	require.Empty(t, policy.AppliedStartID)
-	require.Nil(t, policy.AppliedRevision)
+	require.ErrorIs(t, err, ErrBadRequest)
 }

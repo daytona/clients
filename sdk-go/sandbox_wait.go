@@ -15,9 +15,16 @@ import (
 // A spent budget returns ErrRequestTimeout with source SDK; an incompatible
 // terminal state returns *SandboxTerminalStateError, including its raw status
 // and any reason read from the server. Unknown server states keep polling.
+// An event reporting a known sandbox's disappearance returns ErrNotFound with source SDK.
 // Events can wake the wait early; a bounded wait reserves up to five seconds
 // for authoritative API reads. Once a target event was observed, failure to
 // refresh metadata does not undo success. Caller cancellation is never hidden.
+// With events enabled, nondecisive read failures (including rate limits) retry
+// within the budget, honoring RetryAfter; the last read failure is retained
+// as a timeout cause.
+// Fallback polling stops on HTTP 4xx other than 429; live-event probes stop
+// only on 401, 403, or 404. Final-reserve failures remain timeout causes.
+// With events disabled, read failures are returned immediately.
 func (s *Sandbox) Wait(ctx context.Context, opts *WaitOptions) error {
 	options := WaitOptions{}
 	if opts != nil {
@@ -80,21 +87,19 @@ func (w *sandboxWait) run(ctx context.Context) error {
 	}
 	events, release := w.sandbox.client.stateSource.watch(ctx, w.sandbox.id, region)
 	defer release()
+	retry := newWaitReadRetry(w.sandbox.client.stateSource)
 	if events == nil {
-		return w.poll(ctx)
+		return w.poll(ctx, &retry)
 	}
-	decided, err := w.withEvents(ctx, events)
+	decided, err := w.withEvents(ctx, events, &retry)
 	if decided {
-		return err
+		return retry.finish(err)
 	}
-	finalReserve := errors.Is(err, ErrRequestTimeout)
-	if pollErr := w.poll(ctx); pollErr != nil {
-		if finalReserve && !waitReadDecisive(pollErr) {
-			return waitTimeout(pollErr)
-		}
-		return pollErr
+	pollErr := w.poll(ctx, &retry)
+	if waitSDKTimeout(err) && pollErr != nil && !waitReadDecisive(pollErr) {
+		return waitTimeout(pollErr)
 	}
-	return nil
+	return pollErr
 }
 
 func waitReadDecisive(err error) bool {
@@ -107,24 +112,26 @@ func waitReadDecisive(err error) bool {
 		(errors.As(err, &sdkError) && sdkError.Code == CodeRequestTimeout && sdkError.Source == "SDK")
 }
 
-func (w *sandboxWait) poll(ctx context.Context) error {
+func (w *sandboxWait) poll(ctx context.Context, retry *waitReadRetry) error {
+	retry.fallback = true
 	for {
-		if err := w.check(ctx); err != nil {
-			return err
+		if err := w.pause(ctx, retry.remaining()); err != nil {
+			return retry.finish(err)
 		}
 		started := time.Now()
 		outcome, err := w.read(ctx, waitReadOptions{deadline: w.deadline, longPoll: true})
 		if err != nil {
-			return err
+			if stopped := w.retryReadError(ctx, err, retry); stopped != nil {
+				return retry.finish(stopped)
+			}
+			continue
 		}
-		if w.target(outcome.State) {
-			return nil
-		}
-		if slices.Contains(w.terminal, outcome.State) {
-			return w.terminalError(outcome)
+		retry.succeeded()
+		if decided, outcomeErr := w.readOutcome(outcome); decided {
+			return outcomeErr
 		}
 		if err = w.pause(ctx, waitMinInterval-time.Since(started)); err != nil {
-			return err
+			return retry.finish(err)
 		}
 	}
 }

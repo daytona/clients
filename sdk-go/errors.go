@@ -23,7 +23,7 @@ type Error struct {
 	Code string
 	// Source identifies the error-producing component.
 	Source string
-	// Message is the server or SDK explanation.
+	// Message is the server or SDK explanation, including a wrapped local cause.
 	Message string
 	// RequestID identifies the server request, when reported.
 	RequestID string
@@ -131,7 +131,11 @@ func badRequest(message string) *Error { return newSDKError("BAD_REQUEST", 400, 
 func closedError() *Error { return newSDKError("CLIENT_CLOSED", 0, "Daytona client is closed") }
 
 func wrapError(err error, message string) *Error {
-	return &Error{Message: message, Source: "SDK", Err: err}
+	detail := message
+	if err != nil {
+		detail += ": " + err.Error()
+	}
+	return &Error{Message: detail, Source: "SDK", Err: err}
 }
 
 func transportError(ctx context.Context, err error) error {

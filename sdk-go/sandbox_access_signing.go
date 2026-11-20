@@ -11,7 +11,11 @@ import (
 // RotateSigningKey invalidates previously signed file URLs within approximately
 // 30 seconds. The key is never returned. ErrUnsupportedOperation identifies a
 // caller-supplied direct toolbox URL that is not scoped to this sandbox.
+// A closed owning client returns ErrClientClosed before scope validation.
 func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
+	if err := s.client.ensureOpen(); err != nil {
+		return err
+	}
 	segment, err := pathSegment(s.id)
 	if err != nil {
 		return err

@@ -152,11 +152,19 @@ if errors.As(err, &apiErr) {
 
 ## Durations and waits
 
-Every duration is a `time.Duration`. Operations that wait (create, start, stop,
-image builds) wait 60 seconds by default; `daytona.NoWait` returns as soon as
-the server accepted the request and `daytona.WaitForever` removes the SDK's
-deadline (the context still applies). Requests time out after 60 seconds by
-default (`daytona.WithRequestTimeout`).
+Every duration is a `time.Duration`:
+
+- Sandbox create, fork, lifecycle operations and `Sandbox.Wait` wait up to
+  60 seconds by default. `daytona.NoWait` skips waiting where supported;
+  `daytona.WaitForever` removes the SDK's wait deadline.
+- `Images.BuildAndWait` has no readiness deadline by default. Its `Timeout`
+  starts after build submission and the initial lookup, excluding local
+  archiving and upload. `Images.Pull` also has no deadline by default; its
+  `Timeout` covers submission, lookup and readiness together.
+- Ordinary requests time out after 60 seconds by default
+  (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
+
+The caller's context always applies, including to unbounded waits.
 
 ## Configuration
 

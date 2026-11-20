@@ -65,11 +65,21 @@ type DockerWaitTimeoutError struct {
 	Status *DockerStatus
 }
 
-// Error describes the wait timeout.
-func (e *DockerWaitTimeoutError) Error() string { return e.SDKError.Error() }
+// Error describes the wait timeout, even when SDKError is nil.
+func (e *DockerWaitTimeoutError) Error() string {
+	if e.SDKError == nil {
+		return "daytona: Docker wait timed out"
+	}
+	return e.SDKError.Error()
+}
 
-// Unwrap exposes the request timeout.
-func (e *DockerWaitTimeoutError) Unwrap() error { return e.SDKError }
+// Unwrap exposes the request timeout, or nil when absent.
+func (e *DockerWaitTimeoutError) Unwrap() error {
+	if e.SDKError == nil {
+		return nil
+	}
+	return e.SDKError
+}
 
 // DockerNotReadyError carries a Docker state that cannot become ready this boot.
 type DockerNotReadyError struct {
@@ -79,8 +89,18 @@ type DockerNotReadyError struct {
 	Status DockerStatus
 }
 
-// Error describes the terminal Docker state.
-func (e *DockerNotReadyError) Error() string { return e.SDKError.Error() }
+// Error describes the terminal Docker state, even when SDKError is nil.
+func (e *DockerNotReadyError) Error() string {
+	if e.SDKError == nil {
+		return "daytona: Docker is not ready"
+	}
+	return e.SDKError.Error()
+}
 
-// Unwrap exposes the conflict.
-func (e *DockerNotReadyError) Unwrap() error { return e.SDKError }
+// Unwrap exposes the conflict, or nil when absent.
+func (e *DockerNotReadyError) Unwrap() error {
+	if e.SDKError == nil {
+		return nil
+	}
+	return e.SDKError
+}

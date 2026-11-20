@@ -5,14 +5,16 @@ package daytona
 
 import "time"
 
-// MacOSResources sizes a macOS sandbox. Zero axes use platform defaults.
+// MacOSResources sizes a macOS sandbox. Zero axes use the Mac model's defaults,
+// except disk for a captured image, which defaults to the image's disk size.
 // Memory and disk must convert exactly to whole MiB, at most 2147483647 MiB.
 type MacOSResources struct {
 	// CPU is physical cores, at least 4 and at most 2147483647 when set.
 	CPU int
 	// MemoryGiB is memory in GiB, at least 4 when set.
 	MemoryGiB float64
-	// DiskGiB is disk capacity in GiB, at least 80 when set.
+	// DiskGiB is disk capacity in GiB, at least 80 when set. For a captured
+	// image, zero uses its disk size; the API rejects a smaller explicit size.
 	DiskGiB float64
 }
 
@@ -43,7 +45,7 @@ type CreateMacOSOptions struct {
 	Env map[string]string
 	// Secrets attaches project secret names; nil omits it.
 	Secrets []string
-	// Resources sizes the sandbox; nil uses platform defaults.
+	// Resources sizes the sandbox; nil uses the defaults described by MacOSResources.
 	Resources *MacOSResources
 	// Persistent retains disk across stop/start and memory across pause/resume.
 	Persistent *bool

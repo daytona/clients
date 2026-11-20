@@ -38,6 +38,10 @@ func (s *session[T]) dispatchState(f frame) {
 	e.version, e.heardAt, e.refusedAt = f.Version, s.hub.clock.Now(), time.Time{}
 	update := Update{Status: f.Status, Reason: f.Reason, At: e.heardAt}
 	e.cached = &update
+	s.publish(e, update)
+}
+
+func (s *session[T]) publish(e *entry[T], update Update) {
 	for w := range e.listeners {
 		// Only this producer touches the buffer under the hub lock.
 		select {
@@ -71,18 +75,29 @@ func (s *session[T]) dispatchError(f frame) {
 			e.refusedAt = s.hub.clock.Now().Add(refusedDelay)
 		}
 	case "NOT_FOUND":
-		if s.retryRegion(id) {
-			return
-		}
-		fallthrough
+		s.dispatchNotFound(id, f.WasKnown)
 	case "MALFORMED":
-		// The core seam carries observations, not errors. A full API read
-		// decides missing/unauthorized/malformed IDs, never a fabricated state.
+		// An API read decides malformed IDs.
 		for w := range e.listeners {
 			s.release(id, w)
 		}
 	default:
 		// Unknown error codes are inert, just like unknown frame types.
+	}
+}
+
+func (s *session[T]) dispatchNotFound(id string, wasKnown bool) {
+	if s.retryRegion(id) {
+		return
+	}
+	e := s.entries[id]
+	if wasKnown || s.hub.known[id] != nil || e.version >= 0 {
+		s.publish(e, Update{NotFound: true, At: s.hub.clock.Now()})
+	}
+	// Without a terminal update, closing the watch requests an API read
+	// for an initially invisible ID.
+	for w := range e.listeners {
+		s.release(id, w)
 	}
 }
 

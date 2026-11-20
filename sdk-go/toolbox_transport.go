@@ -6,7 +6,6 @@ package daytona
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -78,12 +77,16 @@ func scopedToolboxURL(base, sandboxID, direct string) (string, error) {
 		return "", err
 	}
 	hasPlaceholder := strings.Contains(trimmed, "{sandboxId}") || strings.Contains(trimmed, "{sandbox_id}")
+	// Mask placeholders before validation; braces in an authority otherwise
+	// fail URL parsing before we can identify an unsupported placement.
+	masked := strings.NewReplacer("{sandboxId}", "DAYTONASANDBOXID", "{sandbox_id}", "DAYTONASANDBOXID").
+		Replace(trimmed)
+	parsed, parseErr := parseHTTPBase(masked)
+	if parseErr != nil {
+		return "", parseErr
+	}
 	if hasPlaceholder {
-		// Mask placeholders while parsing; braces in a host are rejected by url.Parse.
-		masked := strings.NewReplacer("{sandboxId}", "DAYTONASANDBOXID", "{sandbox_id}", "DAYTONASANDBOXID").
-			Replace(trimmed)
-		parsed, parseErr := url.Parse(masked)
-		if parseErr != nil || strings.Contains(parsed.Scheme+parsed.Host+parsed.RawQuery+parsed.Fragment,
+		if strings.Contains(parsed.Scheme+parsed.Host+parsed.User.String(),
 			"DAYTONASANDBOXID") {
 			return "", badRequest("the sandbox ID placeholder in a toolbox URL is only supported in the path")
 		}

@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"regexp"
@@ -119,6 +120,9 @@ func TestErrorString_namesTheCodeAndStatus(t *testing.T) {
 func TestCatalog_whenReferenceAddsCode(t *testing.T) {
 	// Given: a drift guard on the sibling's contract-checked catalog, not copied expectations.
 	source, err := os.ReadFile("../sdk-typescript/src/v2/codes.ts")
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("catalog drift requires the repository's TypeScript source")
+	}
 	require.NoError(t, err)
 	catalogs := regexp.MustCompile(`(?s)export const (\w+)_ERROR_CODES = Object.freeze\(\[(.*?)\] as const\)`)
 	codes := regexp.MustCompile(`'([A-Z][A-Z0-9_]+)'`)

@@ -130,7 +130,9 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
 - `apiRequest` and `toolboxRequest` share a description. Zero `Method` is GET;
   `Path` must be relative. Use `pathSegment(id)` for every path identifier.
   JSON `Body`/`Result` are encoding boundaries, never domain `any` values.
-  Exact `application/json` responses are checked even with no `Result`.
+  Non-empty responses declared exactly `application/json` are checked even
+  with no `Result`. With no `Result`, empty or non-JSON success bodies are
+  accepted without JSON validation; a `Result` requires a non-empty JSON body.
 - `Timeout` replaces the whole request budget, including auth, refresh and the
   sole 401 retry. Zero uses the client default; `NoTimeout` disables it.
   Waits/long polls must supply their own budget or `NoTimeout`.
@@ -176,7 +178,9 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
 - `*Error` keeps the identification fields; per-code server data lives in
   `Error.Details` (`ErrorDetails`). `Error()` prints
   `daytona: <message> (<code>, HTTP <status>)`; `Message` is the explanation
-  alone (server text verbatim), for parity with the other SDKs.
+  alone. JSON-envelope messages remain verbatim; non-JSON fallback text has
+  surrounding whitespace trimmed. A wrapped local failure includes its cause's
+  text and preserves the cause for `errors.Is` and `errors.As`.
 - `wireSeconds` and `wireMilliseconds` round positive durations upward;
   `boundedTimeout` treats a budget above 2,147,483.647 seconds as unbounded.
   Zero is the public option default; `NoWait`, `WaitForever`, `NoTimeout` and
@@ -194,3 +198,4 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
   The client helper uses `t.Setenv`, so its tests must not call `t.Parallel`.
 - `go run codes_generate.go` refreshes the code constants/sentinels from the
   sibling SDK's contract-checked catalog. A drift test checks every source/code.
+  Regenerate after `sdk-typescript/src/v2/codes.ts` changes.
