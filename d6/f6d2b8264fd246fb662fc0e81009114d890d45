@@ -1,0 +1,32 @@
+sdk-go/sandbox_input_review_test.go
+  s_e2f5d5de9bfdd5::t_ca38629a0d07c3 1-36
+sdk-go/sandbox_secrets.go
+  s_e2f5d5de9bfdd5::t_e4c585743e8e26 10,49-52
+  s_21d896b854cf75::t_4144a8eb4a52d4 53
+sdk-go/sandbox_get.go
+  s_e2f5d5de9bfdd5::t_e4c585743e8e26 66-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6f6d2b8264fd246fb662fc0e81009114d890d45",
+  "prompts": {},
+  "sessions": {
+    "s_21d896b854cf75": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0626f16bffeTAenfoWJZ0lCrH",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e2f5d5de9bfdd5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627bea9ffe8vjVNaoeHnCPcR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

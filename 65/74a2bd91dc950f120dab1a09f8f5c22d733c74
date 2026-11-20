@@ -1,0 +1,30 @@
+sdk-go/internal/buildcontext/walk_metadata_test.go
+  s_11899631f2ed4c::t_c58c50e3692ca9 1-97
+sdk-go/internal/buildcontext/walk.go
+  s_11899631f2ed4c::t_8b016142e82849 28-32,78,87-96
+  s_f406a362d306e5::t_571b300912aee7 97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6574a2bd91dc950f120dab1a09f8f5c22d733c74",
+  "prompts": {},
+  "sessions": {
+    "s_11899631f2ed4c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06275eebffeqmVM9QTpsmmoYa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f406a362d306e5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06274b4effe12o0gcRicaF3yA",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

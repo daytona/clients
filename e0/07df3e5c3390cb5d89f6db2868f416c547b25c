@@ -1,0 +1,21 @@
+sdk-go/docker_cubic_r3_test.go
+  s_da009a7661a991::t_6431b1966c2b4f 1-23
+sdk-go/docker_wait.go
+  s_da009a7661a991::t_1b2947020370a6 27-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e007df3e5c3390cb5d89f6db2868f416c547b25c",
+  "prompts": {},
+  "sessions": {
+    "s_da009a7661a991": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05f182c6ffeRj9WBST1Ppw3dS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

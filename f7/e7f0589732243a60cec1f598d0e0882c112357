@@ -1,0 +1,22 @@
+sdk-go/process_wait.go
+  s_e5793a77dcc993::t_83e4c03745f806 88-90
+sdk-go/process_wait_r3_test.go
+  s_e5793a77dcc993::t_59c6a017bccdf2 1-24,26-41
+  s_e5793a77dcc993::t_f7b6131c64b26c 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7e7f0589732243a60cec1f598d0e0882c112357",
+  "prompts": {},
+  "sessions": {
+    "s_e5793a77dcc993": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627a9b8ffechPxzfK61AgYe0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

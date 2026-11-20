@@ -1,0 +1,30 @@
+sdk-go/preview_models.go
+  s_30fd999cbefaac::t_7df53d0a84a9b4 6-9,24,30-33,35
+sdk-go/preview_endpoints_test.go
+  s_30fd999cbefaac::t_39b3f43f243629 7,16-31
+  s_822411a4cbb863::t_53b705fe49951e 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4fac563b66d7c873669df75cd89c4bbaf8320afa",
+  "prompts": {},
+  "sessions": {
+    "s_30fd999cbefaac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06064bf5ffePamsvXL0slHL3S",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_822411a4cbb863": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05fe7140ffe2bTRlyQSpoKzu2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

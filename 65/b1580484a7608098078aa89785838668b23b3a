@@ -1,0 +1,23 @@
+sdk-go/sandbox_lifecycle_start.go
+  s_e2f5d5de9bfdd5::t_e4c585743e8e26 70-72
+sdk-go/sandbox_wait.go
+  s_e2f5d5de9bfdd5::t_e4c585743e8e26 29-31
+sdk-go/sandbox_lifecycle_review_test.go
+  s_e2f5d5de9bfdd5::t_ca38629a0d07c3 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65b1580484a7608098078aa89785838668b23b3a",
+  "prompts": {},
+  "sessions": {
+    "s_e2f5d5de9bfdd5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627bea9ffe8vjVNaoeHnCPcR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
