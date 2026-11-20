@@ -80,7 +80,11 @@ func (p *Ports) ListEndpointsAll(ctx context.Context, opts *ListEndpointsOptions
 }
 
 // Expose registers port, or updates an existing endpoint's visibility.
-// Pass &ExposePortOptions{Public: true} for public, credential-free access.
+// Pass &ExposePortOptions{Public: true} for public, credential-free access:
+// the returned PreviewEndpoint.URL opens in a browser with no token. Browsers
+// may first see a preview warning page (unless the organization turned it
+// off); scripts and headless browsers skip it by sending the header
+// PreviewWarningSkipHeader with PreviewWarningSkipHeaderValue.
 // Nil options select private access. Ports outside 1..65535 and reserved
 // daemon ports 2280, 2281, 22220 return ErrBadRequest before any request.
 // Deleted or deleting sandboxes return ErrConflict.

@@ -33,9 +33,12 @@ func (s *Sandbox) Resume(ctx context.Context, opts *LifecycleWaitOptions) error 
 }
 
 // Delete requests deletion and waits for destroyed or a subsequent 404.
-// Timeout defaults to 60 seconds; NoWait returns after acceptance. Completion
-// does not guarantee its image can immediately be deleted. A failed completion
-// returns ErrRequestTimeout or *SandboxTerminalStateError.
+// Timeout defaults to 60 seconds; NoWait returns after acceptance. A failed
+// completion returns ErrRequestTimeout or *SandboxTerminalStateError.
+//
+// The platform releases the sandbox's image and volumes a few seconds after it
+// is destroyed: deleting them right away can return ErrConflict for a short
+// while, so retry such a delete after a moment.
 func (s *Sandbox) Delete(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{target: SandboxStateDestroyed}, opts)
 }

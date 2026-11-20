@@ -1,18 +1,78 @@
 // Copyright Daytona Platforms Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Package daytona provides a concurrency-safe client for Daytona Cloud.
+// Package daytona is the Go SDK for Daytona sandboxes: create sandboxes, run
+// commands and code in them, move files, use git, expose ports, and build
+// reusable images.
 //
-// New reads DAYTONA_API_KEY, or DAYTONA_JWT_TOKEN with DAYTONA_PROJECT_ID.
-// Explicit credential options take precedence over ambient credentials.
-// DAYTONA_V2_API_URL is the only endpoint override.
+//	client, err := daytona.New() // reads DAYTONA_API_KEY
+//	if err != nil {
+//		return err
+//	}
+//	defer client.Close()
 //
-// Get, List, Search and FindByName return live sandbox handles. Metadata is a
-// caller-owned snapshot obtained with Sandbox.Info and reloaded with Refresh.
-// ListAll and SearchAll are cancellable iterators. Close releases client
-// resources and invalidates future calls through all its handles.
+//	sandbox, err := client.Create(ctx, "", nil) // "" = the default image, with Python 3
+//	if err != nil {
+//		return err
+//	}
+//	defer sandbox.Delete(ctx, nil)
 //
-// Match failures using errors.Is and the category/code sentinels, or errors.As
-// to inspect Error and its structured details. Caller context cancellation
-// remains reachable through errors.Is.
+//	result, err := sandbox.Exec(ctx, `python3 -c "print(6 * 7)"`, nil)
+//	if err != nil {
+//		return err // the call failed; a non-zero exit code is not an error
+//	}
+//	fmt.Println(*result.ExitCode, result.Stdout)
+//
+// # Where things are
+//
+//   - Sandboxes: [Client.Create], [Client.Get], [Client.List], [Client.FindByName],
+//     [Sandbox.Delete], [Sandbox.Start], [Sandbox.Stop], [Sandbox.Fork].
+//   - Commands and code: [Sandbox.Exec] (shell), [Sandbox.ExecArgs] (argv),
+//     [Sandbox.RunCode] (stateful Python), [Sandbox.Process] (background
+//     processes, sessions), [Sandbox.PTY] (terminals).
+//   - Files: [Sandbox.FS] — WriteFile, ReadFile, UploadFile, DownloadFile,
+//     Upload/Download for streams, List, Watch.
+//   - Git: [Sandbox.Git] — Clone, CreateBranch, CheckoutBranch, Add, Commit
+//     (author name and email are required), Push, History.
+//   - Ports and URLs: [Sandbox.Ports] — Expose with Public: true gives a URL
+//     that opens without credentials; PreviewLink and SignedPreviewLink give
+//     private ones.
+//   - Images: [Client.Images] — Pull imports a registry image, BuildAndWait
+//     builds one from an [ImageBuilder]; create sandboxes from the image's name
+//     or ID. [Client.Snapshots], [Client.Volumes], [Client.Secrets] manage the
+//     other project resources.
+//
+// A registry reference such as "python:3.12" is not a [Client.Create] source:
+// import it once with [Images.Pull], then create from the returned image.
+//
+// # Calls, options and durations
+//
+// Every call that talks to Daytona takes a [context.Context] first; cancelling
+// it stops the call, including waits. Optional settings are an options struct
+// pointer last, and nil means all defaults. Every duration is a
+// [time.Duration]: operations that wait (create, start, stop, delete, image
+// builds) wait 60 seconds by default, [NoWait] returns once the server
+// accepted the request, and [WaitForever] removes the SDK's deadline.
+//
+// # Deleting resources
+//
+// [Sandbox.Delete] waits until the sandbox is destroyed. The platform releases
+// what the sandbox used (its image, attached volumes) a few seconds later, so
+// deleting the image or a volume right after its sandbox can return
+// [ErrConflict] for a short while; retry it after a moment. Delete sandboxes
+// before the images and volumes they use.
+//
+// # Errors
+//
+// Every error the SDK returns is, or wraps, an [*Error]. Match a category
+// with errors.Is(err, [ErrNotFound]) or a specific code with
+// errors.Is(err, [ErrSandboxNotRunning]), and read the details with errors.As.
+// Context cancellation stays reachable through errors.Is.
+//
+// # Configuration
+//
+// [New] reads DAYTONA_API_KEY, or DAYTONA_JWT_TOKEN with DAYTONA_PROJECT_ID;
+// options such as [WithAPIKey] take precedence. DAYTONA_V2_API_URL selects a
+// different API endpoint. A [Client] is safe for concurrent use; close it when
+// done.
 package daytona

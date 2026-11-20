@@ -109,6 +109,9 @@ func (s *Images) Get(ctx context.Context, id string, opts *GetArtifactOptions) (
 }
 
 // Delete deletes an image by ID or name. A missing image returns ErrNotFound.
+// While a sandbox still uses the image it returns ErrConflict; this includes
+// the few seconds after Sandbox.Delete returned, until the platform released
+// the image, so retry a conflict after a moment.
 func (s *Images) Delete(ctx context.Context, id string) error {
 	segment, err := pathSegment(id)
 	if err != nil {
