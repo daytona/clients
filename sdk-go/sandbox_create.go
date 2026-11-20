@@ -22,6 +22,9 @@ import (
 // returns SandboxCreateConnectionError or SandboxCreateRequestTimeoutError,
 // carrying the idempotency key to reuse with identical options, including when
 // the caller's context interrupted the POST.
+// SandboxCreateConnectionError can also report a failure before the POST was
+// sent, such as bearer exchange failure or client closure. Retrying with the
+// carried key and identical options is safe in either case.
 func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) (*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err

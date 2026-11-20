@@ -34,7 +34,8 @@ func (c *Client) List(ctx context.Context, opts *ListSandboxesOptions) (*Page[*S
 	}
 	var raw JSONValue
 	read := func(path string) error { return c.api().do(ctx, apiRequest{Path: path, Query: query, Result: &raw}) }
-	if c.searchFallback.Load() {
+	remembered := c.searchFallback.Load()
+	if remembered {
 		err = read("/sandboxes")
 		var detail *Error
 		if errors.As(err, &detail) && detail.StatusCode == 410 && detail.Code == CodeGone {
@@ -47,7 +48,7 @@ func (c *Client) List(ctx context.Context, opts *ListSandboxesOptions) (*Page[*S
 		}
 	}
 	err = read("/sandboxes/search")
-	if errorStatus(err) == 404 || (errorStatus(err) == 501 && errors.Is(err, ErrSearchNotConfigured)) {
+	if !remembered && (errorStatus(err) == 404 || (errorStatus(err) == 501 && errors.Is(err, ErrSearchNotConfigured))) {
 		c.searchFallback.Store(true)
 		err = read("/sandboxes")
 	}

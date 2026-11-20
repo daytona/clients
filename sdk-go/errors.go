@@ -157,7 +157,8 @@ func transportError(ctx context.Context, err error) error {
 		if reason := context.Cause(ctx); reason != nil {
 			cause = reason
 		}
-		return &Error{Source: SourceSDK, Message: "operation cancelled: " + cause.Error(), Err: err}
+		message := strings.ReplaceAll(cause.Error(), "\n", "; ")
+		return &Error{Source: SourceSDK, Message: "operation cancelled: " + message, Err: err}
 	}
 	var network net.Error
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &network) && network.Timeout()) {

@@ -54,7 +54,7 @@ func sandboxOptionalFields(object jsonObject, info *SandboxInfo) error {
 		return err
 	}
 	if snapshot != nil {
-		info.Snapshot = &SnapshotRef{ID: snapshot.ID, Name: snapshot.Name}
+		info.Snapshot = &SnapshotRef{ID: snapshot.ID, Name: snapshot.Name, nameKnown: snapshot.nameKnown}
 	}
 	info.LifecyclePolicy, err = parseLifecycle(object["lifecycle_policy"])
 	if err != nil {
@@ -83,7 +83,7 @@ func parseArtifact(raw json.RawMessage) (*ImageRef, error) {
 	if id == "" {
 		return nil, nil //nolint:nilnil // The sibling SDK drops references whose ID is empty.
 	} // artifactRefOf drops an empty reference ID.
-	return &ImageRef{ID: id, Name: name}, nil
+	return &ImageRef{ID: id, Name: name, nameKnown: present(object["name"])}, nil
 }
 
 func parsePorts(object jsonObject) ([]PortAssignment, error) {
@@ -165,17 +165,22 @@ func parseLifecycle(raw json.RawMessage) (*LifecyclePolicy, error) {
 	for _, entry := range []struct {
 		name   string
 		target *time.Time
+		wire   *string
 	}{
-		{"timeout_at", &policy.TimeoutAt},
-		{"idle_timeout_at", &policy.IdleTimeoutAt},
-		{"last_activity_at", &policy.LastActivityAt},
+		{"timeout_at", &policy.TimeoutAt, &policy.timeoutAtWire},
+		{"idle_timeout_at", &policy.IdleTimeoutAt, &policy.idleTimeoutAtWire},
+		{"last_activity_at", &policy.LastActivityAt, &policy.lastActivityAtWire},
 	} {
-		value, parseErr := timestampField(object, entry.name)
+		value, wire, parseErr := timestampWireField(object, entry.name)
 		if parseErr != nil {
 			return nil, parseErr
 		}
 		*entry.target = value
+		*entry.wire = wire
 	}
+	policy.onTimeoutKnown = present(object["on_timeout"])
+	policy.onIdleTimeoutKnown = present(object["on_idle_timeout"])
+	policy.lastActivitySourceKnown = present(object["last_activity_source"])
 	policy.LastActivitySource, err = field[string](object, "last_activity_source", false)
 	return policy, err
 }
