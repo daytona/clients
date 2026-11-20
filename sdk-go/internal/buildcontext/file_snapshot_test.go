@@ -42,3 +42,26 @@ func TestFromPathNormalizesDockerfile(t *testing.T) {
 	require.Equal(t, "Dockerfile", result.Dockerfile)
 }
 
+func TestFromPathKeepsHashedBytesWhenCallerChangesFile(t *testing.T) {
+	for _, change := range []string{"overwrite", "replace"} {
+		t.Run(change, func(t *testing.T) {
+			// Given an archive hashed before the caller changes its file.
+			filename := filepath.Join(t.TempDir(), "context.tar")
+			require.NoError(t, os.WriteFile(filename, []byte("original"), 0o600))
+			result, err := FromPath(t.Context(), filename, "")
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, result.Close()) })
+			if change == "replace" {
+				require.NoError(t, os.Rename(filename, filename+".old"))
+			}
+			require.NoError(t, os.WriteFile(filename, []byte("modified"), 0o600))
+
+			// When the uploader opens the prepared artifact.
+			content, err := os.ReadFile(result.Path)
+
+			// Then it reads the hashed bytes, never a new caller-owned baseline.
+			require.NoError(t, err)
+			require.Equal(t, "original", string(content))
+		})
+	}
+}

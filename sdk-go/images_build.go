@@ -58,8 +58,9 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 	return s.submit(ctx, apiRequest{Body: request})
 }
 
-// BuildFromContext archives a local directory or uploads an existing tar file,
-// then submits a build. Caller-owned tar files are never removed.
+// BuildFromContext archives a local directory or snapshots an existing tar file,
+// then uploads it and submits a build. Caller-owned tar files are never removed;
+// edits after preparation do not change the uploaded bytes.
 // It honors Dockerfile-specific ignore rules, otherwise .dockerignore, and
 // refuses contexts over 1 GiB. All sizes upload directly to storage, using the
 // server's multipart layout for large archives, without a 64 MiB API-body cap.

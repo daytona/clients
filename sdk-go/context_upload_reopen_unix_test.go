@@ -22,12 +22,11 @@ import (
 func TestContextUpload_whenArchivePathIsReplacedAfterDeclaration(t *testing.T) {
 	for _, replacement := range []string{"regular", "symlink", "fifo"} {
 		t.Run(replacement, func(t *testing.T) {
-			// Given caller-owned bytes that FromPath hashes without copying.
+			// Given an archive snapshot prepared from caller-owned bytes.
 			input := contextTestArchive(t, []byte("abc"))
 			archive, err := buildcontext.FromPath(t.Context(), input.Path, input.Dockerfile)
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, archive.Close()) })
-			require.Equal(t, input.Path, archive.Path)
 			var puts, completes atomic.Int64
 			storage := contextStorageServer(t, func(w http.ResponseWriter, r *http.Request) {
 				contextDrainRequest(t, r)
@@ -41,6 +40,7 @@ func TestContextUpload_whenArchivePathIsReplacedAfterDeclaration(t *testing.T) {
 						w.WriteHeader(http.StatusInternalServerError)
 						return
 					}
+					t.Cleanup(func() { require.NoError(t, os.Remove(archive.Path+".original")) })
 					if replacement == "fifo" {
 						// This test checks descriptor type. Keep its FIFO open so a
 						// blocking-open regression fails in the bounded test below.
