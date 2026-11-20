@@ -23,6 +23,7 @@ type Sandbox struct {
 	fileSigningScoped  bool
 	auth               *sandboxCredential
 	toolboxClient      *toolboxClient
+	interpreter        *InterpreterService
 }
 
 type sandboxInit struct {
