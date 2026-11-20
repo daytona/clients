@@ -63,7 +63,8 @@ func (c *Client) getSandbox(ctx context.Context, id string) (sandboxObservation,
 }
 
 func pathSegment(value string) (string, error) {
-	if strings.TrimSpace(value) == "" || value == "." || value == ".." || !utf8.ValidString(value) {
+	if strings.TrimSpace(value) == "" || value == "." || value == ".." ||
+		!utf8.ValidString(value) || strings.ContainsRune(value, utf8.RuneError) {
 		return "", badRequest("path identifier must be non-blank, valid UTF-8, and not . or ..")
 	}
 	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20"), nil

@@ -7,6 +7,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"unicode/utf8"
 )
 
 // SandboxSecretsInfo reports attached secret names and their asynchronous apply
@@ -44,6 +45,11 @@ func (s *Sandbox) ReplaceSecrets(
 ) (*SandboxSecretsInfo, error) {
 	if err := sandboxIfMatch(opts); err != nil {
 		return nil, err
+	}
+	for _, name := range secrets {
+		if !utf8.ValidString(name) {
+			return nil, badRequest("sandbox secret names must be valid UTF-8")
+		}
 	}
 	return s.secretsRequest(ctx, apiRequest{
 		Method: http.MethodPut, Headers: http.Header{"If-Match": {opts.IfMatch}},
