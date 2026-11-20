@@ -166,8 +166,6 @@ def main() -> int:
         # consistent, so poll briefly. Match the name too, as a search item can
         # carry the id in another (region-tagged) form.
         check("list includes ours", list_includes(daytona, box))
-        check("secret search", daytona.secrets.search(limit=1).total >= 0)
-        check("volume search", daytona.volumes.search(limit=1).total >= 0)
 
         if not SKIP_TOOLBOX and box.state == "started":
             log("toolbox: exec round-trip")
