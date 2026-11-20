@@ -94,5 +94,8 @@ func (d *desktopDecoder) extras(known ...string) map[string]JSONValue {
 func parseDesktopPoint(raw JSONValue) (*ComputerUsePoint, error) {
 	d := decodeDesktop(raw)
 	result := &ComputerUsePoint{X: d.int32("x"), Y: d.int32("y")}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }

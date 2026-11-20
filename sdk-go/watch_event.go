@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -33,14 +34,18 @@ func parseWatchEvent(message fileSSEMessage) (*FilesystemEvent, error) {
 	default:
 		return nil, nil
 	}
+	description := "filesystem watch event"
+	if message.event == "overflow" {
+		description = "filesystem watch overflow event"
+	}
 	data := []byte(message.data)
 	if len(data) == 0 {
 		data = []byte("{}")
 	}
 	if err := checkJSON(data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", description, err)
 	}
-	object, err := parseObject(data, "filesystem event")
+	object, err := parseObject(data, description)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +53,7 @@ func parseWatchEvent(message fileSSEMessage) (*FilesystemEvent, error) {
 	case "overflow":
 		dropped, fieldErr := field[bool](object, "dropped", true)
 		if fieldErr != nil {
-			return nil, fieldErr
+			return nil, fmt.Errorf("%s: %w", description, fieldErr)
 		}
 		return &FilesystemEvent{Overflow: true, Dropped: dropped}, nil
 	}

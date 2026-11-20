@@ -26,7 +26,7 @@ func (a *ComputerUseA11y) Tree(
 		maxDepth = *opts.MaxDepth
 	}
 	if maxDepth < 0 || maxDepth > computerUseA11yMaxDepth {
-		return nil, badRequest("maxDepth must be an integer between 0 and 256")
+		return nil, badRequest("MaxDepth must be an integer between 0 and 256")
 	}
 	query := url.Values{"scope": {string(scope)}, "maxDepth": {strconv.Itoa(maxDepth)}}
 	if opts != nil && opts.PID != nil {

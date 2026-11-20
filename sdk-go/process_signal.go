@@ -30,7 +30,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 	}{Signal: wire}
 	if options.EscalateAfter != nil {
 		if *options.EscalateAfter < 0 {
-			return badRequest("escalate after must be non-negative")
+			return badRequest("EscalateAfter must be non-negative")
 		}
 		delay := wireMilliseconds(*options.EscalateAfter)
 		body.EscalateAfterMs = &delay
@@ -48,7 +48,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 
 func processSignalWire(signal ProcessSignal) (string, error) {
 	if processSignal(string(signal)) == ProcessSignalUnknown || signal == "" {
-		return "", badRequest("signal must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
+		return "", badRequest("Signal must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
 	}
 	return "SIG" + string(signal), nil
 }

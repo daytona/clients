@@ -142,6 +142,9 @@ func parseInterpreterSession(raw JSONValue) (string, string, error) {
 	if id == "" {
 		return "", "", badRequest("response field id is required")
 	}
+	if err = checkResponseID(id); err != nil {
+		return "", "", err
+	}
 	kernel, err := field[string](object, "kernel", true)
 	return id, kernel, err
 }

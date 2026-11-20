@@ -56,16 +56,16 @@ func fileNonnegative(object jsonObject, name string) (int64, error) {
 	return value, nil
 }
 
-func fileStrings(raw json.RawMessage) ([]string, error) {
-	return fileItems(raw, func(item json.RawMessage) (string, error) {
+func fileStrings(raw json.RawMessage, name string) ([]string, error) {
+	return fileItems(raw, name, func(item json.RawMessage) (string, error) {
 		return field[string](jsonObject{"item": item}, "item", true)
 	})
 }
 
-func fileItems[T any](raw json.RawMessage, parse func(json.RawMessage) (T, error)) ([]T, error) {
+func fileItems[T any](raw json.RawMessage, name string, parse func(json.RawMessage) (T, error)) ([]T, error) {
 	var items []json.RawMessage
 	if err := json.Unmarshal(raw, &items); err != nil || items == nil {
-		return nil, badRequest("expected a response list")
+		return nil, badRequest("response field " + name + " must be a list")
 	}
 	result := make([]T, len(items))
 	for i, item := range items {
@@ -92,7 +92,7 @@ func filePage[T any](raw json.RawMessage, parse func(json.RawMessage) (T, error)
 		}
 		itemsRaw = object["items"]
 	}
-	items, err := fileItems(itemsRaw, parse)
+	items, err := fileItems(itemsRaw, "items", parse)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func parseBulkWrite(raw json.RawMessage) (*BulkWriteResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	files, filesErr := fileItems(object["files"], func(item json.RawMessage) (BulkWriteFile, error) {
+	files, filesErr := fileItems(object["files"], "files", func(item json.RawMessage) (BulkWriteFile, error) {
 		entry, entryErr := parseObject(item, "bulk upload file")
 		if entryErr != nil {
 			return BulkWriteFile{}, entryErr
@@ -138,7 +138,7 @@ func parseBulkWrite(raw json.RawMessage) (*BulkWriteResult, error) {
 		size, sizeErr := fileNonnegative(entry, "bytes")
 		return BulkWriteFile{Path: path, Bytes: size}, errors.Join(pathErr, sizeErr)
 	})
-	messages, messagesErr := fileStrings(object["errors"])
+	messages, messagesErr := fileStrings(object["errors"], "errors")
 	if parseErr := errors.Join(filesErr, messagesErr); parseErr != nil {
 		return nil, parseErr
 	}

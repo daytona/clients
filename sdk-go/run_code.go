@@ -17,8 +17,10 @@ import (
 // local cause through errors.Is. Cleanup is best-effort: its failure does not
 // replace the local error, and a successful interrupt does not confirm cell exit.
 // Writers and callbacks run synchronously and must not block indefinitely.
-// A stream failure returns the partial result with Process.ProcessID and unknown
-// Reason alongside the error, without retrying the stream or interrupting the cell.
+// Any failure after process creation returns the partial result with
+// Process.ProcessID and unknown Reason alongside the error, including without
+// writers or callbacks. Other failures do not retry the stream or trigger
+// additional interruption; Timeout retains its documented interrupt semantics.
 // Reconnect that process to wait, resume its logs, or interrupt it explicitly.
 type RunCodeOptions struct {
 	// Language selects the kernel language; empty defaults to python or Context's language.
@@ -71,7 +73,7 @@ func (s *Interpreter) Run(ctx context.Context, code string, opts *RunCodeOptions
 	if err != nil {
 		return nil, err
 	}
-	timeout, err := processTimeout(options.Timeout)
+	timeout, err := processTimeout("Timeout", options.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -127,10 +129,10 @@ func (s *Interpreter) selectContext(opts RunCodeOptions) (interpreterSelection, 
 	}
 	explicit := opts.Context != nil || opts.ContextID != ""
 	if opts.Isolated && explicit {
-		return interpreterSelection{}, badRequest("isolated runs cannot target an explicit interpreter context")
+		return interpreterSelection{}, badRequest("Isolated cannot target an explicit interpreter context")
 	}
 	if explicit && opts.Env != nil {
-		return interpreterSelection{}, badRequest("env is only supported when creating a context or running implicitly")
+		return interpreterSelection{}, badRequest("Env is only supported when creating a context or running implicitly")
 	}
 	if opts.Context != nil {
 		return s.selectBoundContext(opts.Context, opts.Language)
@@ -153,14 +155,14 @@ func (s *Interpreter) selectBoundContext(
 	bound *InterpreterContext, language string,
 ) (interpreterSelection, error) {
 	if bound.service == nil {
-		return interpreterSelection{}, badRequest("interpreter context must be obtained from Interpreter")
+		return interpreterSelection{}, badRequest("Context must be obtained from Interpreter")
 	}
 	rebound, err := s.ConnectContextJSON(bound.Identity())
 	if err != nil {
 		return interpreterSelection{}, err
 	}
 	if language != "" && language != rebound.language {
-		return interpreterSelection{}, badRequest("language does not match the context's language")
+		return interpreterSelection{}, badRequest("Language does not match the context's language")
 	}
 	return interpreterSelection{id: rebound.id, language: rebound.language}, nil
 }

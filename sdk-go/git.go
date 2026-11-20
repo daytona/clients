@@ -41,7 +41,7 @@ type GitCommitOptions struct {
 // GitResetOptions selects the reset operation.
 type GitResetOptions struct {
 	// Mode selects mixed, soft, hard, merge or keep; empty uses Git's default.
-	Mode string
+	Mode GitResetMode
 	// Target is the commit-ish; empty uses Git's default.
 	Target string
 	// Files contains relative pathspecs; nil omits the restriction.
@@ -82,7 +82,7 @@ func (g *Git) Add(ctx context.Context, path string, files []string) error {
 func (g *Git) Reset(ctx context.Context, path string, opts *GitResetOptions) error {
 	body := wire.ResetRequest{Path: &path}
 	if opts != nil {
-		body.Mode, body.Target = gitOptional(opts.Mode), gitOptional(opts.Target)
+		body.Mode, body.Target = gitOptional(string(opts.Mode)), gitOptional(opts.Target)
 		if opts.Files != nil {
 			paths := append([]string{}, opts.Files...)
 			body.Files = &paths
@@ -105,7 +105,7 @@ func (g *Git) Restore(ctx context.Context, path string, files []string, opts *Gi
 // lookup). Author and Email are required; invalid input returns ErrBadRequest.
 func (g *Git) Commit(ctx context.Context, path, message string, opts *GitCommitOptions) (*GitCommitResponse, error) {
 	if opts == nil || strings.TrimSpace(opts.Author) == "" || strings.TrimSpace(opts.Email) == "" {
-		return nil, badRequest("git.Commit requires author and email")
+		return nil, badRequest("git.Commit: Author and Email must be non-blank")
 	}
 	author, email := strings.TrimSpace(opts.Author), strings.TrimSpace(opts.Email)
 	body := wire.CommitRequest{Path: &path, Message: &message, Author: &author, Email: &email}

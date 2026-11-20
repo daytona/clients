@@ -60,7 +60,10 @@ func (s *ComputerUseDisplays) Info(ctx context.Context) ([]ComputerUseDisplay, e
 		})
 		d.check(entry.err)
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 // Windows returns all desktop windows. This list is not paginated.
@@ -82,5 +85,8 @@ func (s *ComputerUseDisplays) Windows(ctx context.Context) ([]ComputerUseWindow,
 		})
 		d.check(entry.err)
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }

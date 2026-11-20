@@ -32,7 +32,7 @@ func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (*
 		budget = opts.Timeout
 	}
 	if budget < 0 && budget != WaitForever {
-		return nil, badRequest("Docker wait timeout must be positive or WaitForever")
+		return nil, badRequest("Timeout must be positive or WaitForever")
 	}
 	var deadline time.Time
 	if duration := boundedTimeout(budget); duration > 0 {

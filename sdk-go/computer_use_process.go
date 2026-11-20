@@ -95,7 +95,11 @@ func (s *ComputerUseAddons) ProcessStatus(
 		return nil, err
 	}
 	d := decodeDesktop(raw)
-	return &ComputerUseProcessRunningStatus{ProcessName: d.text("processName"), Running: d.boolean("running")}, d.err
+	result := &ComputerUseProcessRunningStatus{ProcessName: d.text("processName"), Running: d.boolean("running")}
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 // Restart restarts a named addon process. Invalid names return ErrBadRequest.
@@ -105,7 +109,11 @@ func (s *ComputerUseAddons) Restart(ctx context.Context, name string) (*Computer
 		return nil, err
 	}
 	d := decodeDesktop(raw)
-	return &ComputerUseProcessRestartResult{Message: d.text("message"), ProcessName: d.text("processName")}, d.err
+	result := &ComputerUseProcessRestartResult{Message: d.text("message"), ProcessName: d.text("processName")}
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 // Logs reads a named addon process's logs.
@@ -115,7 +123,11 @@ func (s *ComputerUseAddons) Logs(ctx context.Context, name string) (*ComputerUse
 		return nil, err
 	}
 	d := decodeDesktop(raw)
-	return &ComputerUseProcessLogs{ProcessName: d.text("processName"), Logs: d.text("logs")}, d.err
+	result := &ComputerUseProcessLogs{ProcessName: d.text("processName"), Logs: d.text("logs")}
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 // Errors reads a named addon process's error log.
@@ -125,7 +137,11 @@ func (s *ComputerUseAddons) Errors(ctx context.Context, name string) (*ComputerU
 		return nil, err
 	}
 	d := decodeDesktop(raw)
-	return &ComputerUseProcessErrors{ProcessName: d.text("processName"), Errors: d.text("errors")}, d.err
+	result := &ComputerUseProcessErrors{ProcessName: d.text("processName"), Errors: d.text("errors")}
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 func (s *ComputerUseAddons) read(ctx context.Context, name, operation string) (JSONValue, error) {
@@ -180,7 +196,10 @@ func parseDesktopProcess(raw JSONValue) (ComputerUseProcessStatus, error) {
 			result.ExtraFields[desktopExtraKey(key)] = value
 		}
 	}
-	return result, d.err
+	if d.err != nil {
+		return ComputerUseProcessStatus{}, d.err
+	}
+	return result, nil
 }
 
 func desktopExtraKey(key string) string {
@@ -200,5 +219,8 @@ func parseDesktopLifecycle(raw JSONValue) (*ComputerUseLifecycleResult, error) {
 	message := d.text("message")
 	status, err := parseDesktopProcesses(d.object["status"])
 	d.check(err)
-	return &ComputerUseLifecycleResult{Message: message, Status: status}, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return &ComputerUseLifecycleResult{Message: message, Status: status}, nil
 }

@@ -34,7 +34,7 @@ func (s *Processes) runStreaming(
 	if err == nil {
 		wait, waitErr := handle.waitRemaining(ctx, started, budget)
 		if waitErr != nil {
-			return nil, waitErr
+			return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), waitErr
 		}
 		return processResult(handle.id, *wait, logs), nil
 	}
@@ -50,9 +50,6 @@ func (s *Processes) runStreaming(
 		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 	}
 	snapshot, readErr := processCollectLogs(ctx, handle, 8)
-	if readErr != nil {
-		return nil, readErr
-	}
 	seen := make(map[string]bool, len(logs))
 	for _, frame := range logs {
 		seen[frame.Cursor] = true
@@ -62,6 +59,9 @@ func (s *Processes) runStreaming(
 		if !seen[frame.Cursor] {
 			logs = append(logs, frame)
 		}
+	}
+	if readErr != nil {
+		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), readErr
 	}
 	return processResult(handle.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil
 }

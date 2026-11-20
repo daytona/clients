@@ -60,6 +60,7 @@ func (s *Session) Start(ctx context.Context, command string, opts *SessionStartO
 
 // Run executes in the persistent shell and collects output. Non-zero ExitCode
 // is not an error. Shell configuration belongs on CreateSession, not this call.
+// Any failure after creation preserves ProcessID and collected output with unknown Reason.
 func (s *Session) Run(ctx context.Context, command string, opts *SessionRunOptions) (*ProcessResult, error) {
 	options := ExecOptions{}
 	if opts != nil {

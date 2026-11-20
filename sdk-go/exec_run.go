@@ -16,12 +16,12 @@ import (
 func (s *Processes) run(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
-	timeout, err := processTimeout(options.Timeout)
+	timeout, err := processTimeout("Timeout", options.Timeout)
 	if err != nil {
 		return nil, err
 	}
 	if body.KeepLogs == ProcessKeepLogsNone {
-		return nil, badRequest("blocking runs require retained logs")
+		return nil, badRequest("KeepLogs must retain logs for blocking runs")
 	}
 	if options.Stdout != nil || options.Stderr != nil {
 		return s.runStreaming(ctx, body, options)
@@ -48,17 +48,29 @@ func (s *Processes) run(
 		return nil, err
 	}
 	handle := s.startedHandle(info, body)
+	page, err := execInlineLogs(raw)
+	if err != nil {
+		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, nil), err
+	}
 	wait := &info.WaitResult
 	if info.State != ProcessStateTerminal {
 		wait, err = handle.waitRemaining(ctx, started, timeout)
 		if err != nil {
-			return nil, err
+			var logs []LogFrame
+			if page != nil {
+				logs = page.Items
+			}
+			return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 		}
 	}
 	info.WaitResult = *wait
-	logs, err := handle.runLogs(ctx, raw, info)
+	limit := 0
+	if info.Reason == ProcessReasonTimedOut {
+		limit = 8
+	}
+	logs, err := handle.collectLogs(ctx, limit, page)
 	if err != nil {
-		return nil, err
+		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 	}
 	return processResult(handle.id, *wait, logs), nil
 }
@@ -76,25 +88,15 @@ func (h *ProcessHandle) waitRemaining(
 	return h.Wait(ctx, &WaitProcessOptions{Timeout: remaining})
 }
 
-func (h *ProcessHandle) runLogs(
-	ctx context.Context, raw json.RawMessage, info *ProcessInfo,
-) ([]LogFrame, error) {
+func execInlineLogs(raw json.RawMessage) (*ProcessLogPage, error) {
 	object, err := parseObject(raw, "process")
 	if err != nil {
 		return nil, err
 	}
-	var page *ProcessLogPage
 	if present(object["logs"]) {
-		page, err = parseProcessLogPage(object["logs"], LogEncodingText)
-		if err != nil {
-			return nil, err
-		}
+		return parseProcessLogPage(object["logs"], LogEncodingText)
 	}
-	limit := 0
-	if info.Reason == ProcessReasonTimedOut {
-		limit = 8
-	}
-	return h.collectLogs(ctx, limit, page)
+	return nil, nil //nolint:nilnil // An absent optional inline page is valid; replay starts at the first page.
 }
 
 func processResult(id string, wait WaitResult, logs []LogFrame) *ProcessResult {

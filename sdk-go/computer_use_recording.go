@@ -88,10 +88,15 @@ func (s *ComputerUseRecordings) List(ctx context.Context) ([]ComputerUseRecordin
 	result := make([]ComputerUseRecording, 0, len(rows))
 	for _, row := range rows {
 		recording, parseErr := parseDesktopRecording(row)
-		d.check(parseErr)
+		if parseErr != nil {
+			return nil, parseErr
+		}
 		result = append(result, *recording)
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 // Get reads one recording. Invalid path IDs return ErrBadRequest.
@@ -133,7 +138,7 @@ func (s *ComputerUseRecordings) Download(
 		limit = opts.MaxResponseBytes
 	}
 	if limit < NoLimit || limit > maxSafeInteger {
-		return nil, badRequest("max response bytes must be NoLimit, zero, or a positive safe integer")
+		return nil, badRequest("MaxResponseBytes must be NoLimit, zero, or a positive safe integer")
 	}
 	var data []byte
 	err = s.s.toolbox().do(ctx, toolboxRequest{
@@ -163,5 +168,8 @@ func parseDesktopRecording(raw JSONValue) (*ComputerUseRecording, error) {
 		size := d.integer("sizeBytes", [2]int64{math.MinInt64, math.MaxInt64})
 		result.SizeBytes = &size
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }

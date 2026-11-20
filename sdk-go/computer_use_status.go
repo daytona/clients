@@ -123,7 +123,10 @@ func parseDesktopStatus(raw JSONValue) (*ComputerUseStatus, error) {
 		}
 		result.Status, result.Desktop = ComputerUseActivityInactive, ComputerUseDesktopFailed
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 func parseDesktopFailure(raw JSONValue) (*ComputerUseDesktopFailure, error) {
@@ -137,7 +140,10 @@ func parseDesktopFailure(raw JSONValue) (*ComputerUseDesktopFailure, error) {
 		"session_ended", "session_replaced", "state_corrupt", "state_persistence_failed":
 		result.Code = ComputerUseDesktopFailureCode(result.RawCode)
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
 
 func parseDesktopRestart(raw JSONValue) (*ComputerUseRestartResult, error) {
@@ -152,5 +158,8 @@ func parseDesktopRestart(raw JSONValue) (*ComputerUseRestartResult, error) {
 	if d.text("desktop") != "ready" {
 		d.check(badRequest("response field desktop must be ready"))
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }

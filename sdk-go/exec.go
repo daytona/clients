@@ -40,8 +40,9 @@ type ExecOptions struct {
 	// five-second budget, and returns a partial result with ProcessID alongside an
 	// SDK error preserving the writer's cause through errors.Is. Cleanup failure
 	// does not replace that error or confirm the process stopped; Reason is unknown.
-	// Stream failures likewise return a partial result with ProcessID and unknown
-	// Reason, but do not stop the process or retry the stream. Reconnect ProcessID
+	// Any failure after process creation returns a partial result with ProcessID
+	// and unknown Reason, including without writers. Non-writer failures do not
+	// stop the process or retry the stream. Reconnect ProcessID
 	// to wait, resume logs from the last delivered cursor, or stop the process.
 	Stdout io.Writer
 	// Stderr receives live stderr, serialized with Stdout calls (the same writer is safe).
@@ -54,6 +55,7 @@ type ExecOptions struct {
 // err means invalid input, cancellation, a local writer failure, a transport/protocol failure or a server
 // error; use errors.Is with ErrProcessNotFound, ErrSessionEnded, etc.
 // Timeout limits observation without killing; ExecutionTimeout stops the tree.
+// Any failure after creation returns a partial result with ProcessID and unknown Reason.
 // For untrusted arguments use ExecArgs; for persistent shell state use CreateSession.
 func (s *Sandbox) Exec(ctx context.Context, command string, opts *ExecOptions) (*ProcessResult, error) {
 	return s.Process().Run(ctx, command, opts)
