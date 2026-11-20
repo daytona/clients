@@ -34,6 +34,13 @@ for event in push pull_request; do
   ' .github/workflows/sdk-go-ci.yaml | grep -qF "'sdk-typescript/tests/unit.test.ts'" \
     || fail "Go SDK CI $event paths omit sdk-typescript/tests/unit.test.ts"
 done
+# Tooling must run this guard when the guarded workflow itself changes.
+awk '
+  /^  pull_request:/ { active=1; next }
+  active && /^  [^ ]/ { exit }
+  active { print }
+' .github/workflows/tooling.yaml | grep -qF "'.github/workflows/sdk-go-ci.yaml'" \
+  || fail "Tooling pull_request paths omit sdk-go-ci.yaml"
 # Model the workflow dependency: publishing runs only after registry-check.
 printf 'bash %q && bash %q\n' "$tmp/registry" "$tmp/publish" > "$tmp/checked-publish"
 
