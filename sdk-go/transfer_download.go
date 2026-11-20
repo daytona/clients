@@ -16,6 +16,7 @@ import (
 // Cancellation preserves context errors and matches ErrTransferCancelled.
 // Writes must return promptly or observe ctx themselves: an arbitrary io.Writer
 // cannot be forcibly interrupted. Partial output is possible on failure.
+// Destination write errors preserve their cause without an ErrConnection category.
 func (f *FileSystem) Download(ctx context.Context, path string, w io.Writer, opts *DownloadOptions) (failure error) {
 	if w == nil {
 		return badRequest("download writer is required")
@@ -45,6 +46,9 @@ func copyFileDownload(ctx context.Context, w io.Writer, download fileDownload) e
 	}
 	writer := &fileDownloadWriter{ctx: ctx, writer: w, progress: progress, total: total}
 	if _, err := io.CopyBuffer(writer, download.response.Body, make([]byte, 64<<10)); err != nil {
+		if writer.failure != nil {
+			return wrapError(err, "write download destination")
+		}
 		return fileTransferError(ctx, err)
 	}
 	if total != nil && writer.bytes != *total {
@@ -65,6 +69,7 @@ type fileDownloadWriter struct {
 	progress *fileProgress
 	total    *int64
 	bytes    int64
+	failure  error
 }
 
 func (w *fileDownloadWriter) Write(p []byte) (int, error) {
@@ -72,6 +77,10 @@ func (w *fileDownloadWriter) Write(p []byte) (int, error) {
 		return 0, err
 	}
 	n, err := w.writer.Write(p)
+	if err == nil && n < len(p) {
+		err = io.ErrShortWrite
+	}
+	w.failure = err
 	w.bytes += int64(n)
 	if n > 0 {
 		w.progress.report(w.bytes, w.total)
