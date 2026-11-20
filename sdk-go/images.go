@@ -70,7 +70,7 @@ func (s *Images) List(ctx context.Context, opts *ListImagesOptions) (*Page[Image
 	case ImagePlatformOnly, ImagePlatformExclude, ImagePlatformAny:
 		query.Set("platform", string(options.Platform))
 	default:
-		return nil, badRequest(`platform must be "true", "false" or "any"`)
+		return nil, badRequest(`Platform must be "true", "false" or "any"`)
 	}
 	reader := artifactListReader{s.client, "/images", &s.client.imageSearchFallback}
 	raw, err := reader.read(ctx, query)
