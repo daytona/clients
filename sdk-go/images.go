@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Images manages reusable sandbox images. Obtain it with Client.Images.
@@ -122,13 +123,14 @@ func (s *Images) Delete(ctx context.Context, id string) error {
 
 // Promote names an anonymous image, making it permanent. It does not rename
 // named images. Name conflicts and reserved prefixes are reported by the API.
+// A blank or invalid UTF-8 name returns ErrBadRequest before any request.
 func (s *Images) Promote(ctx context.Context, id, name string) (*Image, error) {
 	segment, err := pathSegment(id)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(name) == "" {
-		return nil, badRequest("name must be a non-empty string")
+	if strings.TrimSpace(name) == "" || !utf8.ValidString(name) {
+		return nil, badRequest("name must be a non-empty UTF-8 string")
 	}
 	var raw JSONValue
 	err = s.client.api().do(ctx, apiRequest{

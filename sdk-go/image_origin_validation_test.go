@@ -28,3 +28,15 @@ func TestImageGetRecognizesPlatformOrigins(t *testing.T) {
 	}
 }
 
+func TestImagePromoteRejectsInvalidUTF8Name(t *testing.T) {
+	// Given a name encoding/json would silently replace.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"PATCH /images/img": jsonHandler(t, imageFixture("img", "ready")),
+	})
+	client := newTestClient(t, fake.Server)
+	// When naming the image.
+	_, err := client.Images().Promote(t.Context(), "img", "saved\xff")
+	// Then validation fails before the name can be changed on the wire.
+	require.ErrorIs(t, err, ErrBadRequest)
+	require.Empty(t, fake.requests())
+}
