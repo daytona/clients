@@ -5,23 +5,30 @@ package daytona
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"unicode/utf8"
 )
 
 // ReadFile reads exact bytes into memory. The client cap defaults to 1 GiB;
 // opts may replace it or disable it with NoLimit. Transfers use an idle timeout,
-// not a total deadline. Use Download for arbitrarily large files.
+// not a total deadline. A Content-Length mismatch returns ErrConnection.
+// Use Download for arbitrarily large files.
 func (f *FileSystem) ReadFile(ctx context.Context, path string, opts *ReadFileOptions) ([]byte, error) {
 	query, err := filePath(path)
 	if err != nil {
 		return nil, err
 	}
-	var data []byte
-	spec := toolboxRequest{Path: "/files/download", Query: query, Transfer: true, ResponseBody: &data}
+	spec := toolboxRequest{Path: "/files/download", Query: query, Transfer: true}
 	fileReadOptions(&spec, opts)
-	if requestErr := f.sandbox.toolbox().do(ctx, spec); requestErr != nil {
-		return nil, fileTransferError(ctx, requestErr)
+	data, headers, err := f.readFileResponse(ctx, spec)
+	if err != nil {
+		return nil, err
+	}
+	if isJSONMediaType(headers.Get("Content-Type")) && len(data) != 0 {
+		if jsonErr := checkJSON(data); jsonErr != nil {
+			return nil, jsonErr
+		}
 	}
 	return data, nil
 }
@@ -50,6 +57,7 @@ func (f *FileSystem) WriteText(ctx context.Context, path, text string, opts *Wri
 
 // ReadMany reads a multipart batch into memory, capped as one complete response.
 // A missing file appears in Errors; an HTTP failure fails the whole call.
+// A Content-Length mismatch returns ErrConnection, as with ReadFile.
 func (f *FileSystem) ReadMany(ctx context.Context, paths []string, opts *ReadFileOptions) (
 	result *BulkReadResult, failure error,
 ) {
@@ -65,23 +73,36 @@ func (f *FileSystem) ReadMany(ctx context.Context, paths []string, opts *ReadFil
 		Transfer: true,
 	}
 	fileReadOptions(&spec, opts)
-	transport, err := f.sandbox.toolbox().scoped()
+	body, headers, err := f.readFileResponse(ctx, spec)
 	if err != nil {
 		return nil, err
 	}
+	return parseFileMultipart(body, headers.Get("Content-Type"))
+}
+
+func (f *FileSystem) readFileResponse(ctx context.Context, spec toolboxRequest) (
+	body []byte, headers http.Header, failure error,
+) {
+	transport, err := f.sandbox.toolbox().scoped()
+	if err != nil {
+		return nil, nil, err
+	}
 	response, err := transport.stream(ctx, spec)
 	if err != nil {
-		return nil, fileTransferError(ctx, err)
+		return nil, nil, fileTransferError(ctx, err)
 	}
 	defer closeResponse(ctx, response, &failure)
-	body, err := transport.readResponse(ctx, response, spec.MaxResponseBytes)
+	body, err = transport.readResponse(ctx, response, spec.MaxResponseBytes)
 	if err != nil {
-		return nil, fileTransferError(ctx, err)
+		return nil, nil, fileTransferError(ctx, err)
+	}
+	if response.ContentLength >= 0 && int64(len(body)) != response.ContentLength {
+		return nil, nil, transportError(ctx, io.ErrUnexpectedEOF)
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, errorFromResponse(response, body)
+		return nil, nil, errorFromResponse(response, body)
 	}
-	return parseFileMultipart(body, response.Header.Get("Content-Type"))
+	return body, response.Header, nil
 }
 
 func fileReadOptions(spec *toolboxRequest, opts *ReadFileOptions) {
