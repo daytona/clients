@@ -11151,7 +11151,8 @@
           "updated_at",
           "name",
           "used_bytes",
-          "last_used_at"
+          "last_used_at",
+          "size_gib"
         ],
         "type": "string",
         "x-daytona-open-enum": true

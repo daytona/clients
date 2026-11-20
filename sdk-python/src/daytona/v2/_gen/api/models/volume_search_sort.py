@@ -31,6 +31,7 @@ class VolumeSearchSort(str, Enum):
     NAME = 'name'
     USED_BYTES = 'used_bytes'
     LAST_USED_AT = 'last_used_at'
+    SIZE_GIB = 'size_gib'
     UNKNOWN_DEFAULT_OPEN_API = 'unknown_default_open_api'
 
     @classmethod

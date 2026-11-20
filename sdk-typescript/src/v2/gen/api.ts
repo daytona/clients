@@ -8106,7 +8106,7 @@ export interface components {
             /** @description Matching volumes in this page. */
             volumes: components["schemas"]["VolumeSearchListItem"][];
         };
-        VolumeSearchSort: ("created_at" | "updated_at" | "name" | "used_bytes" | "last_used_at") | (string & {});
+        VolumeSearchSort: ("created_at" | "updated_at" | "name" | "used_bytes" | "last_used_at" | "size_gib") | (string & {});
         VolumeSearchStatus: ("ready" | "deleting" | "error") | (string & {});
         VolumeStatus: ("ready" | "deleting" | "deleted" | "error") | (string & {});
         VolumeType: ("disk" | "bucket") | (string & {});

@@ -1936,6 +1936,7 @@ const (
 	VolumeSearchSortCreatedAt  VolumeSearchSort = "created_at"
 	VolumeSearchSortLastUsedAt VolumeSearchSort = "last_used_at"
 	VolumeSearchSortName       VolumeSearchSort = "name"
+	VolumeSearchSortSizeGib    VolumeSearchSort = "size_gib"
 	VolumeSearchSortUpdatedAt  VolumeSearchSort = "updated_at"
 	VolumeSearchSortUsedBytes  VolumeSearchSort = "used_bytes"
 )
@@ -1948,6 +1949,8 @@ func (e VolumeSearchSort) Valid() bool {
 	case VolumeSearchSortLastUsedAt:
 		return true
 	case VolumeSearchSortName:
+		return true
+	case VolumeSearchSortSizeGib:
 		return true
 	case VolumeSearchSortUpdatedAt:
 		return true
