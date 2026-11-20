@@ -18,6 +18,7 @@ import (
 // Writes must return promptly or observe ctx themselves: an arbitrary io.Writer
 // cannot be forcibly interrupted. Partial output is possible on failure.
 // Destination write errors preserve their cause without an ErrConnection category.
+// Invalid Timeout returns ErrBadRequest before any request.
 func (f *FileSystem) Download(ctx context.Context, path string, w io.Writer, opts *DownloadOptions) (failure error) {
 	if w == nil {
 		return badRequest("download writer is required")
@@ -96,6 +97,9 @@ func (f *FileSystem) downloadResponse(ctx context.Context, path string, opts *Do
 	}
 	spec := toolboxRequest{Path: "/files/download", Query: query, Transfer: true}
 	if opts != nil {
+		if optionErr := fileTimeout(opts.Timeout); optionErr != nil {
+			return nil, optionErr
+		}
 		spec.Timeout = opts.Timeout
 	}
 	response, err := f.sandbox.toolbox().stream(ctx, spec)
@@ -110,6 +114,7 @@ func (f *FileSystem) downloadResponse(ctx context.Context, path string, opts *Do
 // success. Failure leaves an existing destination
 // intact and removes staging. Existing permissions are preserved; new files use
 // mode 0600, avoiding process-global umask changes. Streams have no size cap.
+// Invalid Timeout returns ErrBadRequest before any request.
 func (f *FileSystem) DownloadFile(ctx context.Context, remotePath, localPath string, opts *DownloadOptions) (
 	failure error,
 ) {
