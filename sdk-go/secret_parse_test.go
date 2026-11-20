@@ -4,12 +4,27 @@
 package daytona
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestSecretMalformedTimestampsHaveStableOrder(t *testing.T) {
+	// Given both timestamps malformed.
+	fixture := secretFixture()
+	fixture["created_at"], fixture["updated_at"] = "bad", "bad"
+	data, err := json.Marshal(fixture)
+	require.NoError(t, err)
+	// When parsing repeatedly.
+	for range 100 {
+		_, parseErr := parseSecret(data)
+		// Then creation is always checked before the update timestamp.
+		require.ErrorContains(t, parseErr, "created_at")
+	}
+}
 
 func TestSecretsRejectResponse_whenReadFieldIsMalformed(t *testing.T) {
 	for _, tt := range []struct {

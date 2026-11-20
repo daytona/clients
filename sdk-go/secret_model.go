@@ -52,15 +52,18 @@ func parseSecret(raw JSONValue) (Secret, error) {
 		}
 		result.Description = &description
 	}
-	for name, target := range map[string]*time.Time{"created_at": &result.CreatedAt, "updated_at": &result.UpdatedAt} {
-		if !present(object[name]) {
-			return result, badRequest("response field " + name + " is required")
+	for _, entry := range []struct {
+		name   string
+		target *time.Time
+	}{{"created_at", &result.CreatedAt}, {"updated_at", &result.UpdatedAt}} {
+		if !present(object[entry.name]) {
+			return result, badRequest("response field " + entry.name + " is required")
 		}
-		stamp, parseErr := timestampField(object, name)
+		stamp, parseErr := timestampField(object, entry.name)
 		if parseErr != nil {
 			return result, parseErr
 		}
-		*target = stamp
+		*entry.target = stamp
 	}
 	return result, nil
 }
