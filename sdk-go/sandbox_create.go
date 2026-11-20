@@ -12,9 +12,12 @@ import "context"
 // ID (an unknown image returns ErrImageNotFound). Whitespace-only images return
 // ErrBadRequest.
 // Once accepted, SDK wait failures return the last observed handle, whose State
-// may not be Started. Caller cancellation remains an error. A lost POST response
+// may not be Started. If the server accepted the request, the returned *Sandbox
+// is non-nil even when err is non-nil: delete it or keep it. Caller cancellation
+// or deadline expiry remains reachable through errors.Is. A lost POST response
 // returns SandboxCreateConnectionError or SandboxCreateRequestTimeoutError,
-// carrying the idempotency key to reuse with identical options.
+// carrying the idempotency key to reuse with identical options, including when
+// the caller's context interrupted the POST.
 func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) (*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err

@@ -38,7 +38,8 @@ func (e *ImageBuildFailedError) Error() string { return e.SDKError.Error() }
 func (e *ImageBuildFailedError) Unwrap() error { return e.SDKError }
 
 // SandboxCreateRequestTimeoutError preserves the key needed to reconcile a
-// create whose response timed out. Retry with identical options and this key.
+// create whose response timed out, including a caller context deadline.
+// Retry with identical options and this key.
 type SandboxCreateRequestTimeoutError struct {
 	// SDKError is the underlying timeout error.
 	SDKError *Error
@@ -53,7 +54,8 @@ func (e *SandboxCreateRequestTimeoutError) Error() string { return e.SDKError.Er
 func (e *SandboxCreateRequestTimeoutError) Unwrap() error { return e.SDKError }
 
 // SandboxCreateConnectionError preserves the key needed to reconcile a create
-// whose response was lost. Retry with identical options and this key.
+// whose response was lost, including caller cancellation during the request.
+// Retry with identical options and this key.
 type SandboxCreateConnectionError struct {
 	// SDKError is the underlying connection error.
 	SDKError *Error
