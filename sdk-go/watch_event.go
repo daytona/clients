@@ -13,7 +13,7 @@ type FilesystemEvent struct {
 	// Type is the open change vocabulary, including create, write, remove,
 	// rename and chmod. Future values are preserved verbatim.
 	Type string
-	// Name is the changed path.
+	// Name is the path relative to the watched directory.
 	Name string
 	// IsDir reports a directory change.
 	IsDir bool
