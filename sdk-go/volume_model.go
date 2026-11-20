@@ -109,13 +109,19 @@ func parseVolume(raw JSONValue) (Volume, error) {
 		}
 		*entry.target = stamp
 	}
-	for name, target := range map[string]**int64{"size_gib": &result.SizeGiB, "used_bytes": &result.UsedBytes} {
-		if present(object[name]) {
-			value, parseErr := integerField(object, name, true)
+	for _, entry := range []struct {
+		name   string
+		target **int64
+	}{
+		{"size_gib", &result.SizeGiB},
+		{"used_bytes", &result.UsedBytes},
+	} {
+		if present(object[entry.name]) {
+			value, parseErr := integerField(object, entry.name, true)
 			if parseErr != nil {
 				return result, parseErr
 			}
-			*target = &value
+			*entry.target = &value
 		}
 	}
 	result.Options, err = field[map[string]JSONValue](object, "options", false)
