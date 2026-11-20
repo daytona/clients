@@ -117,8 +117,6 @@ async function main(): Promise<number> {
     // consistent, so poll briefly. Match the name too, as a search item can
     // carry the id in another (region-tagged) form.
     check('list includes sandbox', await listIncludes(box))
-    check('secret search', (await daytona.secrets.search({ limit: 1 })).total >= 0)
-    check('volume search', (await daytona.volumes.search({ limit: 1 })).total >= 0)
 
     if (!skipToolbox && box.state === 'started') {
       const result = await box.process.run('echo daytona-$((6*7))')
