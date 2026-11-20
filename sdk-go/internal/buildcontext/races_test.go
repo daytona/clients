@@ -24,7 +24,7 @@ func TestArchiveRejectsReplacedEntry(t *testing.T) {
 				"source/sub/file": "inside", "outside/file": "secret",
 			}})
 			victim := filepath.Join(root, "source/sub/file")
-			item, err := collectEntry(victim, "file")
+			item, err := collectEntry(testRoot(t, filepath.Join(root, "source")), "sub/file")
 			require.NoError(t, err)
 			switch change {
 			case "parent-link":
@@ -74,7 +74,7 @@ func TestArchiveUsesOpenedSize(t *testing.T) {
 			// Given a collected file whose contents change at a fixed I/O boundary.
 			root := fixtureTree(t, treeFixture{Files: map[string]string{"file": "original"}})
 			filename := filepath.Join(root, "file")
-			item, err := collectEntry(filename, "file")
+			item, err := collectEntry(testRoot(t, root), "file")
 			require.NoError(t, err)
 			mutate := func() {
 				value := "original appended"
@@ -118,7 +118,7 @@ func TestArchiveUsesOpenedSize(t *testing.T) {
 func TestArchiveCancellationStopsBeforeFileContent(t *testing.T) {
 	// Given cancellation at the first header write, before file bytes are read.
 	root := fixtureTree(t, treeFixture{Files: map[string]string{"file": "secret"}})
-	item, err := collectEntry(filepath.Join(root, "file"), "file")
+	item, err := collectEntry(testRoot(t, root), "file")
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -135,7 +135,7 @@ func TestArchiveOversizeRemovesTemporaryFile(t *testing.T) {
 	root := fixtureTree(t, treeFixture{Files: map[string]string{"file": "x"}})
 	filename := filepath.Join(root, "file")
 	require.NoError(t, os.Truncate(filename, MaxBytes))
-	item, err := collectEntry(filename, "file")
+	item, err := collectEntry(testRoot(t, root), "file")
 	require.NoError(t, err)
 	temporary := t.TempDir()
 	t.Setenv("TMPDIR", temporary)

@@ -5,6 +5,7 @@ package buildcontext
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 
 type directoryWalk struct {
 	ctx        context.Context
-	root       string
+	root       *os.Root
 	filter     *dockerignore.Filter
 	omitIgnore bool
 	entries    []entry
@@ -24,8 +25,8 @@ func (w *directoryWalk) visit(relative string, kept bool, parent dockerignore.Re
 	if err := w.ctx.Err(); err != nil {
 		return err
 	}
-	directory := filepath.Join(w.root, filepath.FromSlash(relative))
-	names, err := os.ReadDir(directory)
+	directory := filepath.Join(w.root.Name(), filepath.FromSlash(relative))
+	names, err := fs.ReadDir(w.root.FS(), path.Join(".", relative))
 	if err != nil {
 		if denied(err) {
 			if !kept {
@@ -33,7 +34,7 @@ func (w *directoryWalk) visit(relative string, kept bool, parent dockerignore.Re
 			}
 			return invalid("build context directory is not readable: "+quote(directory), err)
 		}
-		return err
+		return invalid("build context directory changed: "+quote(directory), err)
 	}
 	for _, name := range names {
 		if err = w.ctx.Err(); err != nil {
@@ -48,7 +49,7 @@ func (w *directoryWalk) visit(relative string, kept bool, parent dockerignore.Re
 }
 
 func (w *directoryWalk) visitChild(rel string, name os.DirEntry, parent dockerignore.Results) error {
-	current := filepath.Join(w.root, filepath.FromSlash(rel))
+	current := filepath.Join(w.root.Name(), filepath.FromSlash(rel))
 	if err := checkUTF8(current); err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func (w *directoryWalk) visitChild(rel string, name os.DirEntry, parent dockerig
 		return err
 	}
 	if decision.Keep && (!w.omitIgnore || rel != ".dockerignore") {
-		item, collectErr := collectEntry(current, rel)
+		item, collectErr := collectEntry(w.root, rel)
 		if collectErr != nil {
 			return collectErr
 		}
@@ -69,7 +70,7 @@ func (w *directoryWalk) visitChild(rel string, name os.DirEntry, parent dockerig
 			return err
 		}
 		if !decision.Keep && len(w.entries) > before {
-			item, collectErr := collectEntry(current, rel)
+			item, collectErr := collectEntry(w.root, rel)
 			if collectErr != nil {
 				return collectErr
 			}

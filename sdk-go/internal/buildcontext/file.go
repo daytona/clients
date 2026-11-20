@@ -54,7 +54,12 @@ func hashFile(ctx context.Context, absolute, dockerfilePath string) (result *Arc
 	if err != nil {
 		return nil, err
 	}
-	input, err := openRegular(resolved)
+	root, err := os.OpenRoot(filepath.Dir(resolved))
+	if err != nil {
+		return nil, invalid("build context file is not readable: "+quote(absolute), err)
+	}
+	defer func() { err = errors.Join(err, root.Close()) }()
+	input, err := openRegular(root, filepath.Base(resolved))
 	if err != nil {
 		return nil, invalid("build context file is not readable: "+quote(absolute), err)
 	}
