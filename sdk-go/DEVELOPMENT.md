@@ -66,7 +66,14 @@ does it the Go way:
   the typed field holds the `...Unknown` constant and a `Raw...` field the
   server's string.
 - **Models are plain structs** the caller owns; absent optional fields are zero
-  values, pointers only where absent and zero differ.
+  values, pointers only where absent and zero differ. An optional response
+  string whose absence means the same as `""` (no reason, no error, no name) is
+  a plain `string`, not a `*string`.
+- **Returns**: a method that reads or creates one object returns a pointer
+  (`*Image`, `*DockerStatus`, `*FileInfo`); pages and iterators hold values.
+  Identity snapshots (`ProcessHandle.ToJSON`, `Session.ToJSON`,
+  `InterpreterContext.Identity`) are small values that round-trip through the
+  matching `Connect...` method by value.
 - **Handles** (`*Sandbox`, `*ProcessHandle`, ...) are safe for concurrent use
   and expose data through methods (`ID()`, `State()`, `Info()`); `Refresh(ctx)`
   re-reads it.

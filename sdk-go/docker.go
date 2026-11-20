@@ -37,24 +37,22 @@ func parseDockerStatus(raw json.RawMessage) (*DockerStatus, error) {
 		return nil, err
 	}
 	var status DockerStatus
-	var owner, state *string
 	for _, entry := range []struct {
 		name     string
-		target   **string
+		target   *string
 		required bool
 	}{
-		{"owner", &owner, true},
-		{"state", &state, true},
+		{"owner", &status.RawOwner, true},
+		{"state", &status.RawState, true},
 		{"processId", &status.ProcessID, false},
 		{"reason", &status.Reason, false},
 	} {
-		value, fieldErr := field[*string](object, entry.name, entry.required)
+		value, fieldErr := field[string](object, entry.name, entry.required)
 		if fieldErr != nil {
 			return nil, fieldErr
 		}
 		*entry.target = value
 	}
-	status.RawOwner, status.RawState = *owner, *state
 	switch status.RawOwner {
 	case "none":
 		status.Owner = DockerOwnerNone

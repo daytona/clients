@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Absent, null and empty optional strings all read as "": DEVELOPMENT.md keeps
+// pointers for fields whose absence means something other than their zero value.
 func TestDockerR3Status_whenOptionalStringsAreAbsentNullOrEmpty(t *testing.T) {
 	for _, optional := range []string{"", `,"processId":null,"reason":null`, `,"processId":"","reason":""`} {
 		t.Run(optional, func(t *testing.T) {
@@ -22,13 +24,8 @@ func TestDockerR3Status_whenOptionalStringsAreAbsentNullOrEmpty(t *testing.T) {
 			status, err := sandbox.Docker().Status(t.Context())
 			// Then
 			require.NoError(t, err)
-			if optional == `,"processId":"","reason":""` {
-				require.Equal(t, new(""), status.ProcessID)
-				require.Equal(t, new(""), status.Reason)
-			} else {
-				require.Nil(t, status.ProcessID)
-				require.Nil(t, status.Reason)
-			}
+			require.Empty(t, status.ProcessID)
+			require.Empty(t, status.Reason)
 		})
 	}
 }
