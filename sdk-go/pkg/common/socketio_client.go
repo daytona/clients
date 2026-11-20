@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -74,10 +75,27 @@ type socketIOClient struct {
 	eventHandler       socketIOEventHandler
 	onDisconnect       func()
 	disconnectOnce     sync.Once
+	stopOnce           sync.Once // guards closing closeCh and healthStopCh
 	closeCh            chan struct{}
 	healthStopCh       chan struct{}
 	writemu            sync.Mutex // serializes WebSocket writes
+
+	// Outgoing EVENT packets, written in order by writeLoop so emit never
+	// blocks its caller.
+	outMu     sync.Mutex
+	outQueue  []string
+	outSignal chan struct{}
+
+	// Acknowledgement callbacks of emitted events, by packet id. Guarded by
+	// ackMu. Dropped, never invoked, when the connection goes or an ack times out.
+	ackMu       sync.Mutex
+	nextAckID   uint64
+	pendingAcks map[uint64]func(json.RawMessage)
 }
+
+// ackTimeout is how long an acknowledgement callback waits. A server may never
+// acknowledge (older servers do not), so a callback is dropped after it.
+const ackTimeout = 10 * time.Second
 
 // socketIOClientConfig holds configuration for creating a socketIOClient.
 type socketIOClientConfig struct {
@@ -111,6 +129,8 @@ func newSocketIOClient(cfg socketIOClientConfig) (*socketIOClient, error) {
 		disconnectOnce: sync.Once{},
 		closeCh:        make(chan struct{}),
 		healthStopCh:   make(chan struct{}),
+		outSignal:      make(chan struct{}, 1),
+		pendingAcks:    make(map[uint64]func(json.RawMessage)),
 	}
 
 	wsURL, err := buildWebSocketURL(cfg.APIURL, cfg.OrganizationID, cfg.Source, cfg.SdkVersion)
@@ -154,6 +174,7 @@ func newSocketIOClient(cfg socketIOClientConfig) (*socketIOClient, error) {
 	// Start background goroutines
 	go c.readLoop()
 	go c.healthMonitorLoop()
+	go c.writeLoop()
 
 	return c, nil
 }
@@ -175,6 +196,9 @@ func buildWebSocketURL(apiURL string, organizationID string, source string, sdkV
 	query := url.Values{}
 	query.Set("EIO", "4")
 	query.Set("transport", "websocket")
+	// Ask the server to send events only for sandboxes this socket subscribes to.
+	// Servers without support ignore it and keep sending all organization events.
+	query.Set("subscriptionMode", "explicit")
 	if organizationID != "" {
 		query.Set("organizationId", organizationID)
 	}
@@ -282,6 +306,10 @@ func (c *socketIOClient) readLoop() {
 		c.mu.Lock()
 		c.connected = false
 		c.mu.Unlock()
+		// The connection is gone: stop the writer and health monitor now rather
+		// than when the owner calls Close.
+		c.stopBackgroundLoops()
+		c.dropPendingAcks()
 
 		c.disconnectOnce.Do(func() {
 			if c.onDisconnect != nil {
@@ -378,6 +406,9 @@ func (c *socketIOClient) handleSocketIOPacket(data []byte) {
 		// Event: "2[\"event_name\",{...}]"
 		c.handleEvent(data[1:])
 
+	case byte(sioAck):
+		c.handleAck(data[1:])
+
 	case byte(sioDisconnect):
 		// Server-initiated disconnect: close the socket so readLoop unblocks immediately
 		// and its defer runs onDisconnect, letting EventDispatcher reconnect promptly.
@@ -391,6 +422,56 @@ func (c *socketIOClient) handleSocketIOPacket(data []byte) {
 	default:
 		// Other packet types (ACK, etc.) - ignore
 	}
+}
+
+// handleAck runs the callback of an ACK packet: "<id>[args...]", optionally
+// after a "/ns," prefix. The callback gets the first argument. Unknown ids
+// (already timed out or dropped) are ignored.
+func (c *socketIOClient) handleAck(data []byte) {
+	if len(data) > 0 && data[0] == '/' {
+		commaIdx := strings.IndexByte(string(data), ',')
+		if commaIdx < 0 {
+			return
+		}
+		data = data[commaIdx+1:]
+	}
+	digits := 0
+	for digits < len(data) && data[digits] >= '0' && data[digits] <= '9' {
+		digits++
+	}
+	id, err := strconv.ParseUint(string(data[:digits]), 10, 64)
+	if err != nil {
+		return
+	}
+	var args []json.RawMessage
+	if err := json.Unmarshal(data[digits:], &args); err != nil {
+		return
+	}
+
+	select {
+	case <-c.closeCh:
+		return
+	default:
+	}
+	c.ackMu.Lock()
+	callback, ok := c.pendingAcks[id]
+	delete(c.pendingAcks, id)
+	c.ackMu.Unlock()
+	if !ok {
+		return
+	}
+	var first json.RawMessage
+	if len(args) > 0 {
+		first = args[0]
+	}
+	callback(first)
+}
+
+// dropPendingAcks forgets every acknowledgement callback; none is invoked.
+func (c *socketIOClient) dropPendingAcks() {
+	c.ackMu.Lock()
+	c.pendingAcks = make(map[uint64]func(json.RawMessage))
+	c.ackMu.Unlock()
 }
 
 // handleEvent parses and dispatches a Socket.IO EVENT packet.
@@ -483,6 +564,115 @@ func (c *socketIOClient) healthMonitorLoop() {
 	}
 }
 
+// emitWriteTimeout bounds a single queued event write so a stalled connection
+// cannot block the writer goroutine indefinitely.
+const emitWriteTimeout = 10 * time.Second
+
+// emit queues a Socket.IO EVENT packet (42["event",payload]) and returns without
+// waiting for it to be written or acknowledged. Packets are written in queue
+// order; packets still queued when the client closes are dropped.
+func (c *socketIOClient) emit(event string, payload json.RawMessage) error {
+	return c.emitWithAck(event, payload, nil)
+}
+
+// emitWithAck is emit with an acknowledgement callback, called from the read
+// loop with the server's first ack argument. It is called at most once, and
+// not at all if the connection goes or no ack arrives within ackTimeout.
+func (c *socketIOClient) emitWithAck(event string, payload json.RawMessage, onAck func(json.RawMessage)) error {
+	name, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event name: %w", err)
+	}
+
+	select {
+	case <-c.closeCh:
+		return fmt.Errorf("connection is closed")
+	default:
+	}
+
+	ackID := ""
+	if onAck != nil {
+		c.ackMu.Lock()
+		c.nextAckID++
+		id := c.nextAckID
+		c.pendingAcks[id] = onAck
+		c.ackMu.Unlock()
+		time.AfterFunc(ackTimeout, func() {
+			c.ackMu.Lock()
+			delete(c.pendingAcks, id)
+			c.ackMu.Unlock()
+		})
+		ackID = strconv.FormatUint(id, 10)
+	}
+	packet := fmt.Sprintf("%c%c%s[%s,%s]", eioMessage, sioEvent, ackID, name, payload)
+
+	c.outMu.Lock()
+	c.outQueue = append(c.outQueue, packet)
+	c.outMu.Unlock()
+
+	select {
+	case c.outSignal <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+// writeLoop writes queued EVENT packets until the client is closed. A failed
+// write leaves the WebSocket unusable for writing, so it aborts the connection:
+// the read loop then reports the disconnect and the owner reconnects, which
+// re-sends whatever the failed packets carried.
+func (c *socketIOClient) writeLoop() {
+	for {
+		select {
+		case <-c.closeCh:
+			return
+		case <-c.outSignal:
+		}
+
+		c.outMu.Lock()
+		packets := c.outQueue
+		c.outQueue = nil
+		c.outMu.Unlock()
+
+		for _, packet := range packets {
+			select {
+			case <-c.closeCh:
+				return
+			default:
+			}
+			if err := c.writeMessageWithTimeout(packet, emitWriteTimeout); err != nil {
+				c.abort()
+				return
+			}
+		}
+	}
+}
+
+// abort marks the client disconnected and closes the socket so the read loop
+// unblocks and runs onDisconnect.
+func (c *socketIOClient) abort() {
+	c.mu.Lock()
+	c.connected = false
+	c.mu.Unlock()
+	if c.conn != nil {
+		_ = c.conn.Close()
+	}
+}
+
+// writeMessageWithTimeout sends a text message with a write deadline.
+func (c *socketIOClient) writeMessageWithTimeout(msg string, timeout time.Duration) error {
+	c.writemu.Lock()
+	defer c.writemu.Unlock()
+
+	if c.conn == nil {
+		return fmt.Errorf("connection is closed")
+	}
+
+	_ = c.conn.SetWriteDeadline(time.Now().Add(timeout))
+	defer func() { _ = c.conn.SetWriteDeadline(time.Time{}) }()
+	return c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+}
+
 // writeMessage sends a text message on the WebSocket, serializing writes.
 func (c *socketIOClient) writeMessage(msg string) error {
 	c.writemu.Lock()
@@ -502,7 +692,21 @@ func (c *socketIOClient) IsConnected() bool {
 	return c.connected
 }
 
-// Close gracefully closes the Socket.IO and WebSocket connection.
+// stopBackgroundLoops signals the writer and health monitor goroutines to exit.
+// Safe to call more than once and from several goroutines.
+func (c *socketIOClient) stopBackgroundLoops() {
+	c.stopOnce.Do(func() {
+		close(c.closeCh)
+		close(c.healthStopCh)
+	})
+}
+
+// closeWriteTimeout bounds each write of the graceful close, so Close never
+// waits long on a peer that stopped reading.
+const closeWriteTimeout = 250 * time.Millisecond
+
+// Close gracefully closes the Socket.IO and WebSocket connection. It is
+// bounded: a write stalled on a peer that stopped reading is interrupted.
 func (c *socketIOClient) Close() {
 	c.mu.Lock()
 	if !c.connected && c.conn == nil {
@@ -513,29 +717,34 @@ func (c *socketIOClient) Close() {
 	c.mu.Unlock()
 
 	// Signal goroutines to stop
-	select {
-	case <-c.closeCh:
-	default:
-		close(c.closeCh)
+	c.stopBackgroundLoops()
+	c.dropPendingAcks()
+
+	if c.conn == nil {
+		return
 	}
+	c.lockWritesInterrupting()
+	defer c.writemu.Unlock()
 
-	select {
-	case <-c.healthStopCh:
-	default:
-		close(c.healthStopCh)
-	}
+	// Send Engine.IO CLOSE, then a WebSocket close frame.
+	_ = c.conn.SetWriteDeadline(time.Now().Add(closeWriteTimeout))
+	_ = c.conn.WriteMessage(websocket.TextMessage, []byte{byte(eioClose)})
+	_ = c.conn.SetWriteDeadline(time.Now().Add(closeWriteTimeout))
+	_ = c.conn.WriteMessage(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+	)
+	_ = c.conn.Close()
+}
 
-	// Send Engine.IO CLOSE
-	_ = c.writeMessage(string([]byte{byte(eioClose)}))
-
-	// Close WebSocket with proper close frame
-	if c.conn != nil {
-		c.writemu.Lock()
-		_ = c.conn.WriteMessage(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-		)
-		c.writemu.Unlock()
-		c.conn.Close()
+// lockWritesInterrupting acquires writemu. While a write holds it, the write is
+// interrupted through the net.Conn deadline (safe to set concurrently, unlike
+// gorilla's write methods). Repeated because a write that starts after the
+// deadline was set installs its own; writeLoop exits after the interrupted
+// write since closeCh is closed.
+func (c *socketIOClient) lockWritesInterrupting() {
+	for !c.writemu.TryLock() {
+		_ = c.conn.UnderlyingConn().SetWriteDeadline(time.Now())
+		time.Sleep(5 * time.Millisecond)
 	}
 }

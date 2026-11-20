@@ -77,6 +77,30 @@ module Daytona
       end
     end
 
+    # @return [Boolean] Whether the dispatcher currently has a live connection, i.e. whether
+    #   subscribed events can arrive. Always false after #shutdown.
+    def connected?
+      return false if @dispatcher.nil? || @mutex.synchronize { @closed }
+
+      @dispatcher.connected?
+    end
+
+    # @return [Integer] The dispatcher's count of successful connects; it changes on every reconnect, so
+    #   callers can tell whether events may have been missed between two points in time. 0 without a
+    #   dispatcher.
+    def connection_epoch
+      @dispatcher.nil? ? 0 : @dispatcher.connection_epoch
+    end
+
+    # @param resource_id [String]
+    # @return [Boolean] Whether state events for +resource_id+ can arrive now: the manager is open, the
+    #   connection is up and the server serves +resource_id+ (it does not beyond the per-connection cap)
+    def event_backed?(resource_id)
+      return false if @dispatcher.nil? || @mutex.synchronize { @closed }
+
+      @dispatcher.event_backed?(resource_id)
+    end
+
     def unsubscribe(sub_id)
       subscription = @mutex.synchronize do
         removed = @subscriptions.delete(sub_id)

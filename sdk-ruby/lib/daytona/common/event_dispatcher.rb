@@ -8,8 +8,25 @@ require_relative 'socketio_client'
 module Daytona
   # Manages a Socket.IO connection and dispatches events to per-resource handlers.
   # Generic — works for sandboxes, volumes, snapshots, runners, etc.
+  #
+  # The connection opens lazily with the first subscription and closes DISCONNECT_DELAY seconds
+  # after the last one goes away. The server is told which resource ids have listeners
+  # (subscribe / unsubscribe events), so it only sends events for those. Older servers ignore
+  # this and send every organization event; incoming events are always filtered by id.
   class EventDispatcher
     DISCONNECT_DELAY = 30
+
+    # Most resource ids per subscribe / unsubscribe message.
+    SUBSCRIBE_BATCH_SIZE = 100
+
+    # Most resource ids the SDK subscribes to on one connection. A server with a lower limit rejects the
+    # subscribes beyond it with SUBSCRIPTION_LIMIT_EXCEEDED in their acknowledgement, and those ids fall back
+    # to polling. Specs lower it with stub_const.
+    MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
+
+    # Local event, not from the server, passed to the handlers of an id whose subscribe the server rejected:
+    # no events will come for it.
+    SUBSCRIPTION_REJECTED_EVENT = 'daytona.subscription.rejected'
 
     # @param api_url [String]
     # @param token [String]
@@ -22,9 +39,18 @@ module Daytona
       @sdk_version = sdk_version
       @client = nil
       @connected = false
+      # Successful connects so far, reconnects included. Events emitted while disconnected are lost, so a
+      # changed epoch means a gap. Guarded by @mutex.
+      @connection_epoch = 0
       @failed = false
       @fail_error = nil
       @listeners = {}
+      # The ids the server serves, or will after the next connect: at most MAX_SUBSCRIPTIONS_PER_CONNECTION of
+      # the ids with listeners. An id that found no room, or whose subscribe the server rejected, stays
+      # unserved until its last listener goes. Maps each id to the number it was served under, so a late
+      # rejection of an earlier subscribe of the same id cannot unserve a newer one.
+      @served = {}
+      @serve_token = 0
       @registered_events = Set.new
       @mutex = Mutex.new
       @disconnect_timer = nil
@@ -90,8 +116,11 @@ module Daytona
 
       @mutex.synchronize do
         @connected = true
+        @connection_epoch += 1
         @failed = false
         @fail_error = nil
+        # Subscriptions belong to the socket: send the whole set after every (re)connect.
+        emit_subscribe_locked(@served.keys)
         schedule_delayed_disconnect_locked if @listeners.empty?
       end
     rescue StandardError => e
@@ -117,24 +146,24 @@ module Daytona
         @disconnect_timer = nil
         @disconnect_generation += 1
 
+        first_listener = !@listeners.key?(resource_id)
         @listeners[resource_id] ||= []
         @listeners[resource_id] << handler
         # Mark events in filter under lock to avoid dropping first event
         events.each { |evt| @registered_events.add(evt) }
+        serve_locked(resource_id) if first_listener
       end
 
       ensure_connected
 
+      removed = false
       lambda {
-        return if @close_requested || @closed
-
-        should_schedule = false
         @mutex.synchronize do
-          @listeners[resource_id]&.delete(handler)
-          unsubscribe_resource_locked(resource_id) if @listeners[resource_id] && @listeners[resource_id].empty?
-          should_schedule = @listeners.empty?
+          next if removed || @closed
 
-          schedule_delayed_disconnect_locked if should_schedule
+          removed = true
+          remove_listener_locked(resource_id, handler)
+          schedule_delayed_disconnect_locked if @listeners.empty?
         end
       }
     end
@@ -142,6 +171,25 @@ module Daytona
     # @return [Boolean]
     def connected?
       @connected
+    end
+
+    # @param resource_id [String]
+    # @return [Boolean] Whether the server is asked to send events for +resource_id+: it has listeners and
+    #   was within the per-connection cap when it got its first
+    def served?(resource_id)
+      @mutex.synchronize { @served.key?(resource_id) }
+    end
+
+    # @param resource_id [String]
+    # @return [Boolean] Whether events for +resource_id+ can arrive now: the connection is up and the id is
+    #   served, read together under one lock so a disconnect cannot fall between the two reads
+    def event_backed?(resource_id)
+      @mutex.synchronize { @connected && @served.key?(resource_id) }
+    end
+
+    # @return [Integer] The number of successful connects so far
+    def connection_epoch
+      @mutex.synchronize { @connection_epoch }
     end
 
     # @return [Boolean]
@@ -163,8 +211,82 @@ module Daytona
 
     private
 
-    def unsubscribe_resource_locked(resource_id)
+    # Removes this exact handler once (handlers can compare equal, e.g. two Method objects of the same
+    # receiver), and tells the server when the resource loses its last listener.
+    def remove_listener_locked(resource_id, handler)
+      handlers = @listeners[resource_id]
+      return unless handlers
+
+      index = handlers.index { |h| h.equal?(handler) }
+      handlers.delete_at(index) if index
+      return unless handlers.empty?
+
       @listeners.delete(resource_id)
+      emit_ids_locked('unsubscribe', [resource_id]) if @served.delete(resource_id) && @connected
+    end
+
+    # Serves an id that gained its first listener, if the cap has room. While disconnected only the set
+    # changes; the next connect sends it. Beyond the cap nothing is sent: the server would reject it, and
+    # the id's waits poll instead.
+    def serve_locked(resource_id)
+      return if @served.size >= MAX_SUBSCRIPTIONS_PER_CONNECTION
+
+      @served[resource_id] = (@serve_token += 1)
+      emit_subscribe_locked([resource_id]) if @connected
+    end
+
+    # Sends subscribe messages for +ids+, each with an acknowledgement callback that handles a rejection.
+    # Silence is not a rejection: servers that predate explicit subscriptions never acknowledge.
+    def emit_subscribe_locked(ids)
+      client = @client
+      return if ids.empty? || client.nil?
+
+      ids.each_slice(SUBSCRIBE_BATCH_SIZE) do |batch|
+        tokens = batch.to_h { |id| [id, @served[id]] }
+        client.emit_with_ack('subscribe', { sandboxIds: batch }) { |ack| handle_subscribe_ack(client, tokens, ack) }
+      end
+    rescue StandardError
+      nil
+    end
+
+    # Unserves the ids of a rejected subscribe message (any error code) that still have listeners and are
+    # served by that subscribe. They stay unserved until their last listener goes, and their handlers are
+    # told, so that waits read now and poll.
+    #
+    # @param client [SocketIOClient] The connection the subscribe went out on
+    # @param tokens [Hash{String => Integer}] The message's ids, with the number each was served under
+    # @param ack [Object] The acknowledgement: { 'ok' => true } or { 'ok' => false, 'error' => ... }
+    def handle_subscribe_ack(client, tokens, ack)
+      return unless ack.is_a?(Hash) && ack['ok'] == false
+
+      handlers = @mutex.synchronize { @client.equal?(client) ? unserve_rejected_locked(tokens) : [] }
+      handlers.each do |handler|
+        handler.call(SUBSCRIPTION_REJECTED_EVENT, nil)
+      rescue StandardError
+        nil
+      end
+    end
+
+    # @param tokens [Hash{String => Integer}] Rejected ids, with the number each was served under
+    # @return [Array<Proc>] The handlers of the ids unserved: those still served by that subscribe
+    def unserve_rejected_locked(tokens)
+      tokens.flat_map do |id, token|
+        next [] unless @served[id] == token && @listeners[id]&.any?
+
+        @served.delete(id)
+        @listeners[id].dup
+      end
+    end
+
+    # Fire-and-forget; sent under the lock so subscribe / unsubscribe messages keep their order.
+    def emit_ids_locked(event_name, ids)
+      return if ids.empty? || @client.nil?
+
+      ids.each_slice(SUBSCRIBE_BATCH_SIZE) do |batch|
+        @client.emit(event_name, { sandboxIds: batch })
+      end
+    rescue StandardError
+      nil
     end
 
     def schedule_delayed_disconnect_locked
@@ -293,6 +415,7 @@ module Daytona
       @connected = false
       @connecting = false
       @listeners.clear
+      @served.clear
       @registered_events.clear
 
       thread_state

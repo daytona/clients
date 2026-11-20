@@ -61,7 +61,9 @@ import type { AxiosInstance } from 'axios'
 import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
+import { SUBSCRIPTION_REJECTED_EVENT } from './utils/EventDispatcher'
 import { buildSignedFileUrl } from './utils/fileUrlSigning'
+import { WaitPollCadence, isRateLimitError, retryAfterMs } from './utils/WaitPolling'
 import { checkNodeRdma, SandboxNode } from './SandboxNode'
 import type { ExecuteResponse } from './types/ExecuteResponse'
 
@@ -198,14 +200,25 @@ function createSandboxNodeCollection(callbacks: SandboxNodeCollectionCallbacks):
   return nodes as unknown as SandboxNodeCollection
 }
 
-function withEvents<This, Args extends unknown[], Return>(
-  target: (this: This, ...args: Args) => Return,
-  _context: ClassMethodDecoratorContext<This, (this: This, ...args: Args) => Return>,
-): (this: This, ...args: Args) => Return {
-  return function (this: This, ...args: Args): Return {
-    ;(this as { ensureSubscribed(): void }).ensureSubscribed()
-    return target.apply(this, args)
-  }
+/**
+ * A state subscription taken before an operation's request and handed to the operation's wait.
+ * The wait may skip its first read when the subscription was live before the request was sent.
+ */
+type PreparedStateWait = {
+  subId: string
+  live: boolean
+  stateEventCount: number
+  connectionEpoch: number
+  // Set once the cached state comes from the operation's response or a successful read taken after
+  // subscribing; without it the wait must read first.
+  hasFreshState: boolean
+}
+
+// Older servers may return an empty body from lifecycle operations.
+function isSandboxDto(data: unknown): data is SandboxDto {
+  if (typeof data !== 'object' || data === null) return false
+  const state = (data as { state?: unknown }).state
+  return typeof state === 'string' && state !== ''
 }
 
 /**
@@ -350,9 +363,12 @@ export class Sandbox {
     (typeof this.stateWaiters)[number],
     (state: string) => string
   >()
-  private subId: string | undefined
   private signingKey: string | null = null
   private signingKeyFetchedAt = 0
+  // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
+  private stateEventCount = 0
+  // Waits on this sandbox, woken to read at once when the gateway rejects its subscription.
+  private readonly subscriptionRejectedWakers = new Set<() => void>()
 
   /**
    * Creates a new Sandbox instance.
@@ -363,7 +379,7 @@ export class Sandbox {
    * @param {SandboxDto} sandboxDto - The API Sandbox instance
    * @param {SandboxApi} sandboxApi - API client for Sandbox operations
    * @param {InfoApi} infoApi - API client for info operations
-   * @param {EventSubscriptionManager} subscriptionManager - Event subscription manager for real-time updates
+   * @param {EventSubscriptionManager} subscriptionManager - Event subscription manager used while waiting for state changes
    */
   constructor(
     sandboxDto: SandboxDto | SandboxListItemDto,
@@ -404,8 +420,6 @@ export class Sandbox {
     this.systemApi = new SystemApi(this.clientConfig, '', this.axiosInstance)
 
     this.processNodes(sandboxDto)
-
-    this.subscribeToEvents()
   }
 
   private validateNodeOperationTimeout(timeout: number): void {
@@ -526,7 +540,6 @@ export class Sandbox {
    * console.log(`Sandbox user home: ${userHomeDir}`);
    */
   @WithInstrumentation()
-  @withEvents
   public async getUserHomeDir(): Promise<string | undefined> {
     const response = await this.infoApi.getUserHomeDir()
     return response.data.dir
@@ -598,7 +611,6 @@ export class Sandbox {
    * @deprecated Use `getUserHomeDir` instead. This method will be removed in a future version.
    */
   @WithInstrumentation()
-  @withEvents
   public async getUserRootDir(): Promise<string | undefined> {
     return this.getUserHomeDir()
   }
@@ -614,7 +626,6 @@ export class Sandbox {
    * console.log(`Sandbox working directory: ${workDir}`);
    */
   @WithInstrumentation()
-  @withEvents
   public async getWorkDir(): Promise<string | undefined> {
     const response = await this.infoApi.getWorkDir()
     return response.data.dir
@@ -634,7 +645,6 @@ export class Sandbox {
    * const lsp = await sandbox.createLspServer('typescript', 'workspace/project');
    */
   @WithInstrumentation()
-  @withEvents
   public async createLspServer(languageId: LspLanguageId | string, pathToProject: string): Promise<LspServer> {
     return new LspServer(
       languageId as LspLanguageId,
@@ -660,7 +670,6 @@ export class Sandbox {
    * });
    */
   @WithInstrumentation()
-  @withEvents
   public async setLabels(labels: Record<string, string>): Promise<Record<string, string>> {
     this.labels = (await this.sandboxApi.replaceLabels(this.id, { labels })).data.labels
     return this.labels
@@ -682,7 +691,6 @@ export class Sandbox {
    * console.log('Sandbox started successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async start(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -708,7 +716,6 @@ export class Sandbox {
    * await sandbox.recover();
    * console.log('Sandbox recovered successfully');
    */
-  @withEvents
   public async recover(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -739,16 +746,25 @@ export class Sandbox {
    * console.log('Sandbox stopped successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async stop(timeout = 60, force = false): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
     const startTime = Date.now()
-    await this.sandboxApi.stopSandbox(this.id, undefined, force, { timeout: timeout * 1000 })
-    await this.refreshDataSafe()
-    const timeElapsed = Date.now() - startTime
-    await this.waitUntilStopped(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout)
+    const prepared = this.prepareStateWait()
+    try {
+      const response = await this.sandboxApi.stopSandbox(this.id, undefined, force, { timeout: timeout * 1000 })
+      if (isSandboxDto(response.data)) {
+        this.processSandboxDto(response.data)
+        prepared.hasFreshState = true
+      } else {
+        prepared.hasFreshState = await this.refreshDataSafe()
+      }
+      const timeElapsed = Date.now() - startTime
+      await this.waitForStopped(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
+    } finally {
+      this.releasePreparedStateWait(prepared)
+    }
   }
 
   /**
@@ -771,7 +787,6 @@ export class Sandbox {
    * console.log(`Forked sandbox: ${forked.id}`);
    */
   @WithInstrumentation()
-  @withEvents
   public async fork(params?: ForkSandboxParams, timeout = 60): Promise<Sandbox> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -800,9 +815,21 @@ export class Sandbox {
       this.requestTimeoutMs,
     )
 
-    const timeElapsed = Date.now() - startTime
-    const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    await forkedSandbox.waitUntilStarted(remainingTimeout)
+    // The fork's id is only known from the response, so subscribe right after it. The fork endpoint
+    // returns before the new sandbox starts, so the transition still arrives as an event.
+    let prepared: PreparedStateWait | undefined
+    if (forkedSandbox.state !== SandboxState.STARTED) {
+      prepared = forkedSandbox.prepareStateWait()
+      // Fetching a missing proxy URL (older servers) widens the gap before the subscription; read first then.
+      prepared.hasFreshState = isSandboxDto(sandboxDto) && !!sandboxDto.toolboxProxyUrl
+    }
+    try {
+      const timeElapsed = Date.now() - startTime
+      const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
+      await forkedSandbox.waitForStarted(remainingTimeout, prepared)
+    } finally {
+      forkedSandbox.releasePreparedStateWait(prepared)
+    }
     return forkedSandbox
   }
 
@@ -834,7 +861,6 @@ export class Sandbox {
    * console.log('Snapshot created successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async createSnapshot(name: string, timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -897,33 +923,44 @@ export class Sandbox {
    * console.log('Sandbox paused successfully');
    */
   @WithInstrumentation()
-  @withEvents
   public async pause(timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
-    await this.sandboxApi.pauseSandbox(this.id, undefined, {
-      timeout: timeout * 1000,
-    })
+    const prepared = this.prepareStateWait()
+    try {
+      const response = await this.sandboxApi.pauseSandbox(this.id, undefined, {
+        timeout: timeout * 1000,
+      })
 
-    await this.refreshData()
+      if (isSandboxDto(response.data)) {
+        this.processSandboxDto(response.data)
+      } else {
+        await this.refreshData()
+      }
+      prepared.hasFreshState = true
 
-    const timeElapsed = Date.now() - startTime
-    const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
-    // Main's contract: pause completes when the sandbox has *left* PAUSING
-    // (paused, stopped, archived, ...), not only on exactly PAUSED.
-    const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
-    const excludeStates = new Set<string>([SandboxState.PAUSING, ...errorStates])
-    const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
-    await this.waitForState(
-      targetStates,
-      errorStates,
-      remainingTimeout,
-      'Sandbox failed to become paused within the timeout period',
-      (state) => `Sandbox ${this.id} pause failed with state: ${state}, error reason: ${this.errorReason}`,
-    )
+      const timeElapsed = Date.now() - startTime
+      const remainingTimeout = timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout
+      // Main's contract: pause completes when the sandbox has *left* PAUSING
+      // (paused, stopped, archived, ...), not only on exactly PAUSED.
+      const errorStates = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+      const excludeStates = new Set<string>([SandboxState.PAUSING, ...errorStates])
+      const targetStates = Object.values(SandboxState).filter((s) => !excludeStates.has(s))
+      await this.waitForState(
+        targetStates,
+        errorStates,
+        remainingTimeout,
+        'Sandbox failed to become paused within the timeout period',
+        (state) => `Sandbox ${this.id} pause failed with state: ${state}, error reason: ${this.errorReason}`,
+        false,
+        prepared,
+      )
+    } finally {
+      this.releasePreparedStateWait(prepared)
+    }
   }
 
   /**
@@ -940,19 +977,22 @@ export class Sandbox {
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
-  @withEvents
   public async delete(timeout = 60, wait = false): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
 
     const startTime = Date.now()
-    const response = await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
-    if (response.data) {
-      this.processSandboxDto(response.data)
-    }
-
+    const prepared = wait ? this.prepareStateWait() : undefined
     try {
+      const response = await this.sandboxApi.deleteSandbox(this.id, undefined, { timeout: timeout * 1000 })
+      if (response.data) {
+        this.processSandboxDto(response.data)
+      }
+      if (prepared) {
+        prepared.hasFreshState = isSandboxDto(response.data)
+      }
+
       if (wait && this.state !== SandboxState.DESTROYED) {
         const timeElapsed = Date.now() - startTime
         await this.waitForState(
@@ -962,13 +1002,11 @@ export class Sandbox {
           'Sandbox failed to be destroyed within the timeout period',
           (state) => `Sandbox ${this.id} failed to delete with state: ${state}, error reason: ${this.errorReason}`,
           true,
+          prepared,
         )
       }
     } finally {
-      if (this.subId) {
-        this.subscriptionManager.unsubscribe(this.subId)
-        this.subId = undefined
-      }
+      this.releasePreparedStateWait(prepared)
     }
   }
 
@@ -983,9 +1021,13 @@ export class Sandbox {
    * @returns {Promise<void>}
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox ends up in an error state or fails to start within the timeout period.
    */
-  @WithInstrumentation()
-  @withEvents
   public async waitUntilStarted(timeout = 60) {
+    return this.waitForStarted(timeout)
+  }
+
+  // Records under the public wait's span and metric names, so operations that wait keep the same telemetry.
+  @WithInstrumentation({ name: 'Sandbox.waitUntilStarted', labels: { method: 'waitUntilStarted' } })
+  private async waitForStarted(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
@@ -1005,6 +1047,8 @@ export class Sandbox {
       timeout,
       'Sandbox failed to become ready within the timeout period',
       (state) => `Sandbox ${this.id} failed to start with status: ${state}, error reason: ${this.errorReason}`,
+      false,
+      prepared,
     )
   }
 
@@ -1019,9 +1063,13 @@ export class Sandbox {
    * @returns {Promise<void>}
    * @throws {DaytonaError} - `DaytonaError` - If the sandbox fails to stop within the timeout period.
    */
-  @WithInstrumentation()
-  @withEvents
   public async waitUntilStopped(timeout = 60) {
+    return this.waitForStopped(timeout)
+  }
+
+  // Records under the public wait's span and metric names, so operations that wait keep the same telemetry.
+  @WithInstrumentation({ name: 'Sandbox.waitUntilStopped', labels: { method: 'waitUntilStopped' } })
+  private async waitForStopped(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
@@ -1038,6 +1086,7 @@ export class Sandbox {
       'Sandbox failed to become stopped within the timeout period',
       (state) => `Sandbox failed to stop with status: ${state}, error reason: ${this.errorReason}`,
       true,
+      prepared,
     )
   }
 
@@ -1053,7 +1102,6 @@ export class Sandbox {
    * console.log(`Resources: ${sandbox.cpu} CPU, ${sandbox.memory} GiB RAM`);
    */
   @WithInstrumentation()
-  @withEvents
   public async refreshData(): Promise<void> {
     const response = await this.sandboxApi.getSandbox(this.id)
     this.processSandboxDto(response.data)
@@ -1071,7 +1119,6 @@ export class Sandbox {
    * // Keep sandbox activity alive
    * await sandbox.refreshActivity();
    */
-  @withEvents
   public async refreshActivity(): Promise<void> {
     await this.sandboxApi.updateLastActivity(this.id)
   }
@@ -1095,7 +1142,6 @@ export class Sandbox {
    * await sandbox.setAutostopInterval(0);
    */
   @WithInstrumentation()
-  @withEvents
   public async setAutostopInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
       throw new DaytonaInvalidArgumentError('autoStopInterval must be a non-negative integer')
@@ -1120,7 +1166,6 @@ export class Sandbox {
    * // preview.url can now be opened without credentials
    */
   @WithInstrumentation()
-  @withEvents
   public async setPublic(isPublic: boolean): Promise<void> {
     await this.sandboxApi.updatePublicStatus(this.id, isPublic)
     this.public = isPublic
@@ -1204,7 +1249,6 @@ export class Sandbox {
    * await sandbox.setAutoArchiveInterval(0);
    */
   @WithInstrumentation()
-  @withEvents
   public async setAutoArchiveInterval(interval: number): Promise<void> {
     if (!Number.isInteger(interval) || interval < 0) {
       throw new DaytonaInvalidArgumentError('autoArchiveInterval must be a non-negative integer')
@@ -1232,7 +1276,6 @@ export class Sandbox {
    * await sandbox.setAutoDeleteInterval(-1);
    */
   @WithInstrumentation()
-  @withEvents
   public async setAutoDeleteInterval(interval: number): Promise<void> {
     await this.sandboxApi.setAutoDeleteInterval(this.id, interval)
     this.autoDeleteInterval = interval
@@ -1352,7 +1395,6 @@ export class Sandbox {
    * });
    */
   @WithInstrumentation()
-  @withEvents
   public async getPreviewLink(port: number): Promise<PortPreviewUrl> {
     return (await this.sandboxApi.getPortPreviewUrl(this.id, port)).data
   }
@@ -1445,7 +1487,6 @@ export class Sandbox {
    * const signed = await sandbox.getSignedPreviewUrl(3000, 3600);
    * console.log(`Preview URL (valid for one hour): ${signed.url}`);
    */
-  @withEvents
   public async getSignedPreviewUrl(port: number, expiresInSeconds?: number): Promise<SignedPortPreviewUrl> {
     return (await this.sandboxApi.getSignedPortPreviewUrl(this.id, port, undefined, expiresInSeconds)).data
   }
@@ -1457,7 +1498,6 @@ export class Sandbox {
    * @param {string} token - The token to expire the signed preview url on.
    * @returns {Promise<void>}
    */
-  @withEvents
   public async expireSignedPreviewUrl(port: number, token: string): Promise<void> {
     await this.sandboxApi.expireSignedPortPreviewUrl(this.id, port, token)
   }
@@ -1469,10 +1509,13 @@ export class Sandbox {
    * Sandbox must be stopped before archiving.
    */
   @WithInstrumentation()
-  @withEvents
   public async archive(): Promise<void> {
-    await this.sandboxApi.archiveSandbox(this.id)
-    await this.refreshData()
+    const response = await this.sandboxApi.archiveSandbox(this.id)
+    if (isSandboxDto(response.data)) {
+      this.processSandboxDto(response.data)
+    } else {
+      await this.refreshData()
+    }
   }
 
   /**
@@ -1495,7 +1538,6 @@ export class Sandbox {
    * await sandbox.resize({ cpu: 2, memory: 4, disk: 30 })
    */
   @WithInstrumentation()
-  @withEvents
   public async resize(resources: Pick<Resources, 'cpu' | 'memory' | 'disk'>, timeout = 60): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
@@ -1512,12 +1554,22 @@ export class Sandbox {
       memory: resources.memory,
       disk: resources.disk,
     }
-    const response = await this.sandboxApi.resizeSandbox(this.id, resizeRequest, this.organizationId, {
-      timeout: timeout * 1000,
-    })
-    this.processSandboxDto(response.data)
-    const timeElapsed = Date.now() - startTime
-    await this.waitForResizeComplete(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout)
+    const prepared = this.prepareStateWait()
+    try {
+      const response = await this.sandboxApi.resizeSandbox(this.id, resizeRequest, this.organizationId, {
+        timeout: timeout * 1000,
+      })
+      if (isSandboxDto(response.data)) {
+        this.processSandboxDto(response.data)
+      } else {
+        await this.refreshData()
+      }
+      prepared.hasFreshState = true
+      const timeElapsed = Date.now() - startTime
+      await this.waitForResize(timeout ? Math.max(0.001, timeout - timeElapsed / 1000) : timeout, prepared)
+    } finally {
+      this.releasePreparedStateWait(prepared)
+    }
   }
 
   /**
@@ -1529,9 +1581,13 @@ export class Sandbox {
    * @returns {Promise<void>}
    * @throws {DaytonaError} - If the sandbox ends up in an error state or resize times out.
    */
-  @WithInstrumentation()
-  @withEvents
   public async waitForResizeComplete(timeout = 60): Promise<void> {
+    return this.waitForResize(timeout)
+  }
+
+  // Records under the public wait's span and metric names, so operations that wait keep the same telemetry.
+  @WithInstrumentation({ name: 'Sandbox.waitForResizeComplete', labels: { method: 'waitForResizeComplete' } })
+  private async waitForResize(timeout: number, prepared?: PreparedStateWait): Promise<void> {
     if (timeout < 0) {
       throw new DaytonaInvalidArgumentError('Timeout must be a non-negative number')
     }
@@ -1550,6 +1606,8 @@ export class Sandbox {
       timeout,
       'Sandbox resize did not complete within the timeout period',
       (state) => `Sandbox ${this.id} resize failed with state: ${state}, error reason: ${this.errorReason}`,
+      false,
+      prepared,
     )
   }
 
@@ -1560,7 +1618,6 @@ export class Sandbox {
    * @returns {Promise<SshAccessDto>} The SSH access token.
    */
   @WithInstrumentation()
-  @withEvents
   public async createSshAccess(expiresInMinutes?: number): Promise<SshAccessDto> {
     return (await this.sandboxApi.createSshAccess(this.id, undefined, expiresInMinutes)).data
   }
@@ -1572,7 +1629,6 @@ export class Sandbox {
    * @returns {Promise<void>}
    */
   @WithInstrumentation()
-  @withEvents
   public async revokeSshAccess(token: string): Promise<void> {
     await this.sandboxApi.revokeSshAccess(this.id, undefined, token)
   }
@@ -1584,60 +1640,84 @@ export class Sandbox {
    * @returns {Promise<SshAccessValidationDto>} The SSH access validation result.
    */
   @WithInstrumentation()
-  @withEvents
   public async validateSshAccess(token: string): Promise<SshAccessValidationDto> {
     return (await this.sandboxApi.validateSshAccess(token)).data
   }
 
   /**
-   * Subscribes to real-time events for this sandbox.
-   * Auto-updates sandbox metadata on every event.
+   * Subscribes to state events for this sandbox for the duration of one wait.
+   * Returns an empty id when events are unavailable (polling mode or client closed).
    */
-  private subscribeToEvents(): void {
-    if (this.subId) {
+  private subscribeToStateEvents(): string {
+    try {
+      return this.subscriptionManager.subscribe(this.id, this.handleEvent.bind(this), ['sandbox.state.updated'])
+    } catch {
+      return ''
+    }
+  }
+
+  /**
+   * Takes the state subscription for an operation's wait: before the operation's request when the
+   * sandbox id is known, so every state change after the request arrives as an event.
+   */
+  private prepareStateWait(): PreparedStateWait {
+    // Baseline first: any event or reconnect from the subscribe on then changes it, so the wait reads first.
+    const stateEventCount = this.stateEventCount
+    const connectionEpoch = this.subscriptionManager.connectionEpoch
+    const subId = this.subscribeToStateEvents()
+    return {
+      subId,
+      live: subId !== '' && this.subscriptionManager.isEventBacked(this.id),
+      stateEventCount,
+      connectionEpoch,
+      hasFreshState: false,
+    }
+  }
+
+  /** Releases a prepared subscription the wait did not take over (request failed, or no wait was needed). */
+  private releasePreparedStateWait(prepared?: PreparedStateWait): void {
+    if (prepared?.subId) {
+      this.subscriptionManager.unsubscribe(prepared.subId)
+      prepared.subId = ''
+    }
+  }
+
+  /**
+   * Applies the state from a `sandbox.state.updated` event. Payloads may carry only a
+   * subset of the sandbox fields; everything else is picked up by the wait's refreshes.
+   */
+  private handleEvent(eventName: string, data: any): void {
+    if (eventName === SUBSCRIPTION_REJECTED_EVENT) {
+      for (const wake of [...this.subscriptionRejectedWakers]) wake()
       return
     }
-
-    this.subId = this.subscriptionManager.subscribe(this.id, this.handleEvent.bind(this), [
-      'sandbox.state.updated',
-      'sandbox.created',
-    ])
-  }
-
-  private ensureSubscribed(): void {
-    if (this.subId) {
-      if (this.subscriptionManager.refresh(this.subId)) {
-        return
-      }
-
-      this.subId = undefined
-    }
-
-    this.subscribeToEvents()
-  }
-
-  private handleEvent(eventName: string, data: any): void {
     if (!data || typeof data !== 'object') return
     const raw = data.sandbox ?? data
     if (!raw || typeof raw !== 'object') return
 
-    if (eventName === 'sandbox.created') {
-      this.processSandboxDto(raw as SandboxDto)
-      return
-    }
-
+    const newState = raw.state ?? data.newState
+    if (!newState) return
+    this.stateEventCount++
+    const reason = data.sandbox ? raw.errorReason : undefined
     if (data.sandbox) {
       // Set before the state: a wait that ends on an error state reports this reason. The event omits the field
       // when the sandbox has none.
-      this.errorReason = raw.errorReason ?? undefined
+      this.errorReason = reason ?? undefined
     }
-    const newState = raw.state ?? data.newState
-    if (newState) {
-      if (this.nodes.length === 1 && (this.nodeCount === 1 || this.nodes[0].rank > 0)) {
-        this.nodes[0].state = newState
-      }
-      this.applyState(newState)
+    if (this.nodes.length === 1 && (this.nodeCount === 1 || this.nodes[0].rank > 0)) {
+      this.nodes[0].state = newState
     }
+    if (!reason && this.stateWaiters.some((waiter) => waiter.errorStates.has(newState as SandboxState))) {
+      // An error state without its reason: read the sandbox first, so the wait's error carries it.
+      void this.refreshData().then(
+        () => {
+          for (const waiter of [...this.stateWaiters]) this.checkStateWaiter(waiter, this.state)
+        },
+        () => this.applyState(newState),
+      )
+      return
+    }
+    this.applyState(newState)
   }
 
   /**
@@ -1650,6 +1730,7 @@ export class Sandbox {
    * @param timeoutMessage - Error message when timeout is reached.
    * @param errorMessageFn - Function that produces an error message from the current state.
    * @param safeRefresh - If true, use refreshDataSafe() for polling (for delete operations where 404 is expected).
+   * @param prepared - Subscription taken before the operation's request; this wait takes it over.
    */
   private waitForState(
     targetStates: SandboxState[],
@@ -1658,13 +1739,18 @@ export class Sandbox {
     timeoutMessage: string,
     errorMessageFn: (state: string) => string,
     safeRefresh = false,
+    prepared?: PreparedStateWait,
   ): Promise<void> {
-    this.ensureSubscribed()
-
     return new Promise<void>((resolve, reject) => {
       let timeoutTimer: ReturnType<typeof setTimeout> | null = null
       let pollTimer: ReturnType<typeof setTimeout> | null = null
       let settled = false
+      // Event subscription held by this wait only; released on every exit path.
+      let subId = ''
+      if (prepared) {
+        subId = prepared.subId
+        prepared.subId = ''
+      }
 
       const waiter = {
         targetStates: new Set(targetStates),
@@ -1689,7 +1775,12 @@ export class Sandbox {
         settled = true
         if (timeoutTimer) clearTimeout(timeoutTimer)
         if (pollTimer) clearTimeout(pollTimer)
+        this.subscriptionRejectedWakers.delete(wake)
         this.removeStateWaiter(waiter)
+        if (subId) {
+          this.subscriptionManager.unsubscribe(subId)
+          subId = ''
+        }
       }
 
       // Fast-path only on cached *target* states (parity with main's pre-check).
@@ -1698,6 +1789,10 @@ export class Sandbox {
       if (this.state && waiter.targetStates.has(this.state)) {
         waiter.resolve(this.state)
         return
+      }
+
+      if (!subId) {
+        subId = this.subscribeToStateEvents()
       }
 
       if (timeout !== 0) {
@@ -1732,26 +1827,63 @@ export class Sandbox {
         }, timeout * 1000)
       }
 
-      // Poll as a safety net for missed state changes. With an active event subscription
-      // a sparse 1s cadence suffices; without events (polling mode) replicate main's
-      // cadence exactly: 100ms steady for the first 5s, then exponential backoff capped at 1s.
-      const streaming = !!this.subId
+      // Poll as a safety net for missed state changes (see WaitPollCadence). Without a
+      // subscription, replicate main's cadence exactly: 100ms steady for the first 5s, then
+      // exponential backoff capped at 1s. Re-evaluated on every iteration so the cadence
+      // follows the subscription and the connection as they come and go.
       const pollStart = Date.now()
-      let pollInterval = streaming ? 1000 : 100
+      let fastPollInterval = 100
+      const cadence = new WaitPollCadence()
+      let pollInFlight = false
+      const holdsSubscription = (): boolean => {
+        if (!subId) return false
+        // Keep the subscription alive for long waits (subscriptions expire after a TTL).
+        if (!this.subscriptionManager.refresh(subId)) {
+          subId = this.subscribeToStateEvents()
+        }
+        return subId !== ''
+      }
+      const pollMode = (): { subscribed: boolean; eventBacked: boolean } => {
+        const subscribed = holdsSubscription()
+        return { subscribed, eventBacked: subscribed && this.subscriptionManager.isEventBacked(this.id) }
+      }
+      const nextPollDelay = (): number => {
+        const { subscribed, eventBacked } = pollMode()
+        return cadence.next(subscribed, eventBacked, fastPollInterval)
+      }
+      const schedulePoll = (delayMs: number) => {
+        // One timer chain per wait.
+        if (pollTimer) clearTimeout(pollTimer)
+        pollTimer = setTimeout(() => {
+          pollTimer = null
+          void doPoll()
+        }, delayMs)
+      }
       const doPoll = async () => {
         if (settled) return
 
         let refreshed: boolean
+        pollInFlight = true
         try {
           if (safeRefresh) {
-            refreshed = await this.refreshDataSafe()
+            refreshed = await this.refreshDataSafe(true)
           } else {
             await this.refreshData()
             refreshed = true
           }
         } catch (error) {
+          if (isRateLimitError(error)) {
+            // Rate limited, in any mode: back off (see WaitPollCadence.rateLimited).
+            if (!settled) {
+              const { subscribed, eventBacked } = pollMode()
+              schedulePoll(cadence.rateLimited(subscribed, eventBacked, fastPollInterval, retryAfterMs(error)))
+            }
+            return
+          }
           waiter.reject(error instanceof Error ? error : new DaytonaError(String(error)))
           return
+        } finally {
+          pollInFlight = false
         }
 
         if (!settled) {
@@ -1763,17 +1895,49 @@ export class Sandbox {
             return
           }
 
-          if (!streaming && Date.now() - pollStart > 5000) {
-            pollInterval = Math.min(pollInterval * 1.1, 1000)
+          if (Date.now() - pollStart > 5000) {
+            fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
           }
-          pollTimer = setTimeout(() => {
-            void doPoll()
-          }, pollInterval)
+          // Chosen now, after the read: a rejection that came during it already switched the mode.
+          schedulePoll(nextPollDelay())
         }
       }
+      // A rejected subscription means no events: read now. A read already running covers the state, and
+      // the next poll is chosen when it returns.
+      function wake(): void {
+        if (settled || pollInFlight) return
+        if (pollTimer) clearTimeout(pollTimer)
+        pollTimer = null
+        void doPoll()
+      }
+      this.subscriptionRejectedWakers.add(wake)
 
-      // First poll runs immediately (main refreshed before any state evaluation).
-      void doPoll()
+      // The first poll runs immediately (main refreshed before any state evaluation), unless the
+      // subscription was live before the operation's request, the connection did not drop since (events
+      // sent while it was down are lost), and no state event raced the response: then every later change
+      // arrives as an event and the read is redundant. An error or unexpected destroyed state from the
+      // response, or a state not read after subscribing, still gets the read, and so does a subscription
+      // that expired during the request (a new one would have missed the changes in between).
+      const responseState = this.state
+      const responseStateIsFailure =
+        responseState !== undefined &&
+        (waiter.errorStates.has(responseState) ||
+          (responseState === SandboxState.DESTROYED && !waiter.targetStates.has(responseState)))
+      const skipFirstRead =
+        prepared !== undefined &&
+        prepared.live &&
+        prepared.hasFreshState &&
+        subId !== '' &&
+        this.subscriptionManager.refresh(subId) &&
+        this.subscriptionManager.isEventBacked(this.id) &&
+        this.subscriptionManager.connectionEpoch === prepared.connectionEpoch &&
+        this.stateEventCount === prepared.stateEventCount &&
+        !responseStateIsFailure
+      if (skipFirstRead) {
+        schedulePoll(nextPollDelay())
+      } else {
+        void doPoll()
+      }
     })
   }
 
@@ -1932,7 +2096,7 @@ export class Sandbox {
    *          mapped to DESTROYED); false when a transient error was swallowed and
    *          the cached state is stale.
    */
-  private async refreshDataSafe(): Promise<boolean> {
+  private async refreshDataSafe(rethrowRateLimit = false): Promise<boolean> {
     try {
       await this.refreshData()
       return true
@@ -1940,6 +2104,9 @@ export class Sandbox {
       if (error instanceof DaytonaNotFoundError) {
         this.applyState(SandboxState.DESTROYED)
         return true
+      }
+      if (rethrowRateLimit && isRateLimitError(error)) {
+        throw error
       }
       // Other errors are deliberately swallowed (parity with main): transient
       // failures (e.g. 502) mid-poll must not abort stop()/delete() waits.

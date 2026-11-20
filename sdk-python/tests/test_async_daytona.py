@@ -82,14 +82,15 @@ class TestAsyncDaytonaInit:
             _make_async_daytona(DaytonaConfig(jwt_token="jwt", api_url="https://api.test.io", target="us"))
 
     @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
-    def test_init_default_creates_event_dispatcher(self, mock_dispatcher, env_with_api_key):
+    def test_init_creates_event_dispatcher_without_connecting(self, mock_dispatcher, env_with_api_key):
         dispatcher = MagicMock()
         mock_dispatcher.return_value = dispatcher
 
         daytona = _make_async_daytona()
 
         assert daytona._event_dispatcher is dispatcher
-        dispatcher.ensure_connected.assert_called_once_with()
+        dispatcher.ensure_connected.assert_not_called()
+        dispatcher.subscribe.assert_not_called()
 
     @patch(f"{ASYNC_MODULE}.AsyncEventDispatcher")
     def test_deprecated_polling_config_disables_dispatcher(self, mock_dispatcher, env_with_api_key):
@@ -124,7 +125,8 @@ class TestAsyncDaytonaInit:
         )
 
         assert daytona._event_dispatcher is dispatcher
-        dispatcher.ensure_connected.assert_called_once_with()
+        dispatcher.ensure_connected.assert_not_called()
+        dispatcher.subscribe.assert_not_called()
 
 
 class TestAsyncDaytonaContextManager:
@@ -956,3 +958,19 @@ class TestAsyncDaytonaCreateTarget:
         daytona = self._client(sandbox_dto)
         await daytona.create(CreateSandboxFromSnapshotParams())
         assert daytona._sandbox_api.create_sandbox.call_args.args[0].target is None
+
+
+class TestAsyncDaytonaNoEagerSubscriptions:
+    @pytest.mark.asyncio
+    async def test_get_and_list_do_not_subscribe_or_connect(self, env_with_api_key, sandbox_dto):
+        daytona = _make_async_daytona()
+        dispatcher = daytona._event_dispatcher
+        assert dispatcher is not None
+        daytona._sandbox_api.get_sandbox = AsyncMock(return_value=sandbox_dto)
+        daytona._sandbox_api.list_sandboxes = AsyncMock(return_value=MagicMock(items=[sandbox_dto], next_cursor=None))
+
+        _ = await daytona.get("test-sandbox-id")
+        _ = [sb async for sb in daytona.list()]
+
+        assert dispatcher._listeners == {}
+        assert dispatcher._connect_task is None

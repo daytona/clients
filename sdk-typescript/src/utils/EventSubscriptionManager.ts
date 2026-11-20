@@ -30,6 +30,21 @@ export class EventSubscriptionManager {
 
   constructor(private readonly dispatcher: EventDispatcher | null) {}
 
+  /** Whether events are currently being delivered (dispatcher present and connected). */
+  get isConnected(): boolean {
+    return !this._closed && !!this.dispatcher?.isConnected
+  }
+
+  /** Whether events for this id arrive now: connected, and the connection serves the id (within its cap). */
+  isEventBacked(resourceId: string): boolean {
+    return this.isConnected && !!this.dispatcher?.isServed(resourceId)
+  }
+
+  /** Changes on every successful (re)connect; events sent while disconnected are lost. */
+  get connectionEpoch(): number {
+    return this.dispatcher?.connectionEpoch ?? 0
+  }
+
   subscribe(resourceId: string, handler: EventHandler, events: string[]): string {
     // No-op when shut down or when streaming is disabled (no dispatcher) — callers poll.
     if (this._closed || !this.dispatcher) {

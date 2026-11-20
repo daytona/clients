@@ -3,12 +3,11 @@
 
 from __future__ import annotations
 
-import functools
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable
 
 import httpx
 from deprecated import deprecated
@@ -77,6 +76,7 @@ from ..common.errors import (
     DaytonaError,
     DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
+    DaytonaRateLimitError,
     DaytonaSpotEvictedError,
     DaytonaTimeoutError,
     DaytonaValidationError,
@@ -95,6 +95,8 @@ from ..common.sandbox import (
     validate_node_exec_timeout,
     validate_scalar_resources,
 )
+from ..internal import wait_poll
+from ..internal.event_dispatcher import SUBSCRIPTION_REJECTED_EVENT
 from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
 from .code_interpreter import CodeInterpreter
@@ -104,7 +106,21 @@ from .git import Git
 from .lsp_server import LspServer
 from .process import Process
 
-_T = TypeVar("_T")
+# The timeout of a wait off the main thread is raised by an asynchronous exception, which cannot
+# interrupt a blocking Event.wait: wait in slices so it lands within about a second.
+_WAKE_WAIT_SLICE = 1.0
+
+
+def _wait_for_wake(wake: threading.Event, timeout: float) -> bool:
+    """Waits until the wake is set or the timeout passes; returns whether it was set."""
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return wake.is_set()
+        if wake.wait(timeout=min(remaining, _WAKE_WAIT_SLICE)):
+            return True
+
 
 _RDMA_USERSPACE_CHECK = (
     "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && "
@@ -459,25 +475,6 @@ class SandboxNodeCollection(list[SandboxNode]):
         )
 
 
-def with_events(cls: _T) -> _T:
-    for name in list(vars(cls)):
-        if name.startswith("_"):
-            continue
-        method = vars(cls)[name]
-        if not callable(method):
-            continue
-
-        @functools.wraps(method)
-        def wrapper(self: Any, *args: Any, _m: Any = method, **kwargs: Any) -> Any:
-            if getattr(self, "__pydantic_private__", None) is not None:
-                self._ensure_subscribed()
-            return _m(self, *args, **kwargs)
-
-        setattr(cls, name, wrapper)
-    return cls
-
-
-@with_events
 class Sandbox(SandboxDto):
     """Represents a Daytona Sandbox.
 
@@ -567,8 +564,14 @@ class Sandbox(SandboxDto):
     _computer_use: ComputerUse = PrivateAttr()
     _code_interpreter: CodeInterpreter = PrivateAttr()
     _state_waiters: list[Callable[[SandboxState | None], None]] = PrivateAttr(default_factory=list)
+    # Wake the waits on this sandbox for an immediate read (their subscription was rejected).
+    _poll_now_waiters: list[Callable[[], None]] = PrivateAttr(default_factory=list)
     _state_waiters_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
-    _sub_id: str | None = PrivateAttr(default=None)
+    # State events are handled on the dispatcher's thread.
+    _state_event_count: int = PrivateAttr(default=0)
+    # The cached state came from a state event that did not carry the sandbox's error reason.
+    _state_needs_reason: bool = PrivateAttr(default=False)
+    _state_event_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     _toolbox_api_client: ApiClient = PrivateAttr()
     _language: str = PrivateAttr()
 
@@ -604,7 +607,8 @@ class Sandbox(SandboxDto):
             sandbox_dto (SandboxDto | SandboxListItem): The sandbox data from the API.
             toolbox_api (ApiClient): API client for toolbox operations.
             sandbox_api (SandboxApi): API client for Sandbox operations.
-            subscription_manager: SyncEventSubscriptionManager for real-time updates.
+            subscription_manager: SyncEventSubscriptionManager used for state events while waiting
+                for a state change.
             http_client (httpx.Client): Shared pooled client for file transfers.
         """
         node_collection = SandboxNodeCollection(None)
@@ -647,8 +651,6 @@ class Sandbox(SandboxDto):
         self._system_api: SystemApi = SystemApi(self._toolbox_api)
 
         self.__process_nodes(sandbox_dto)
-
-        self._ensure_subscribed()
 
     @property
     def fs(self) -> FileSystem:
@@ -1014,14 +1016,26 @@ class Sandbox(SandboxDto):
             print("Sandbox stopped successfully")
             ```
         """
-        _ = self._sandbox_api.stop_sandbox(
-            self.id,
-            force=force,
-            _request_timeout=http_timeout(timeout),
-        )
-        self.__refresh_data_safe()
-        # This method already handles a timeout, so we don't need to pass one to internal methods
-        self.wait_for_sandbox_stop(timeout=0)
+        subscription: wait_poll.WaitSubscription | None = None
+        # One finally for the request and the wait: a timeout or interrupt between them must not leak
+        # the subscription.
+        try:
+            subscription = self._take_wait_subscription()
+            sandbox_dto = self._sandbox_api.stop_sandbox(
+                self.id,
+                force=force,
+                _request_timeout=http_timeout(timeout),
+            )
+            # The stop response carries the sandbox; refresh only if it came back without a state.
+            if wait_poll.carries_state(sandbox_dto):
+                self.__process_sandbox_dto(sandbox_dto)
+                subscription = subscription.with_state_fresh(True)
+            else:
+                subscription = subscription.with_state_fresh(self.__refresh_data_safe())
+            # This method already handles a timeout, so we don't need to pass one to internal methods
+            self._wait_for_sandbox_stop_after_request(subscription)
+        finally:
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failed to remove sandbox: ")
     @with_timeout()
@@ -1041,19 +1055,26 @@ class Sandbox(SandboxDto):
                 is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
             wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
         """
-        sandbox = self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
-        if sandbox:
-            self.__process_sandbox_dto(sandbox)
-
+        subscription: wait_poll.WaitSubscription | None = None
         try:
-            if wait and self.state != SandboxState.DESTROYED:
+            if wait:
+                subscription = self._take_wait_subscription()
+            sandbox = self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
+            if sandbox:
+                self.__process_sandbox_dto(sandbox)
+                # Only a response with a state can stand in for the wait's first read.
+                if subscription is not None:
+                    subscription = subscription.with_state_fresh(wait_poll.carries_state(sandbox))
+
+            if wait:
                 self._wait_for_state(
                     [SandboxState.DESTROYED],
                     [SandboxState.ERROR, SandboxState.BUILD_FAILED],
                     safe_refresh=True,
+                    subscription=subscription,
                 )
         finally:
-            self._unsubscribe_from_events()
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
     @with_timeout()
@@ -1495,8 +1516,11 @@ class Sandbox(SandboxDto):
                 the operation on the server. Positive values under 1 second are rounded up to 1
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = self._sandbox_api.archive_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
-        self.refresh_data(request_timeout=request_timeout)
+        sandbox_dto = self._sandbox_api.archive_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
+        if wait_poll.carries_state(sandbox_dto):
+            self.__process_sandbox_dto(sandbox_dto)
+        else:
+            self.refresh_data(request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to resize sandbox: ")
     @with_timeout()
@@ -1537,9 +1561,18 @@ class Sandbox(SandboxDto):
             memory=resources.memory,
             disk=resources.disk,
         )
-        sandbox = self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
-        self.__process_sandbox_dto(sandbox)
-        self.wait_for_resize_complete(timeout=0)
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            subscription = self._take_wait_subscription()
+            sandbox = self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
+            if wait_poll.carries_state(sandbox):
+                self.__process_sandbox_dto(sandbox)
+            else:
+                self.refresh_data()
+            subscription = subscription.with_state_fresh(True)
+            self._wait_for_resize_after_request(subscription)
+        finally:
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
     @with_timeout()
@@ -1665,6 +1698,9 @@ class Sandbox(SandboxDto):
             self.id, ForkSandbox(name=name), _request_timeout=http_timeout(timeout)
         )
 
+        # The constructor fetches a missing URL (older servers), which widens the gap before the fork's
+        # subscription: read first then.
+        state_fresh = wait_poll.carries_state(sandbox_dto) and bool(sandbox_dto.toolbox_proxy_url)
         language = sandbox_dto.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL) or ""
 
         forked = Sandbox(
@@ -1676,7 +1712,7 @@ class Sandbox(SandboxDto):
             http_client=self._http_client,
             analytics_api_url_provider=self._analytics_api_url_provider,
         )
-        forked.wait_for_sandbox_start(timeout=0)
+        forked._wait_for_fork_start(state_fresh=state_fresh)
         return forked
 
     @deprecated(reason="Method is deprecated. Use `fork` instead. This method will be removed in a future version.")
@@ -1746,58 +1782,136 @@ class Sandbox(SandboxDto):
         if timeout < 0:
             raise DaytonaError("Timeout must be a non-negative number")
 
-        _ = self._sandbox_api.pause_sandbox(self.id, _request_timeout=timeout if timeout > 0 else None)
-        self.refresh_data()
         error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
         exclude = {SandboxState.PAUSING} | set(error_states)
         target_states = [s for s in SandboxState if s not in exclude]
-        self._wait_for_state(target_states, error_states)
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            subscription = self._take_wait_subscription()
+            sandbox_dto = self._sandbox_api.pause_sandbox(self.id, _request_timeout=timeout if timeout > 0 else None)
+            if wait_poll.carries_state(sandbox_dto):
+                self.__process_sandbox_dto(sandbox_dto)
+            else:
+                self.refresh_data()
+            subscription = subscription.with_state_fresh(True)
+            self._wait_for_state(target_states, error_states, subscription=subscription)
+        finally:
+            self._release_subscription(subscription)
 
-    def _ensure_subscribed(self) -> None:
-        with self._state_waiters_lock:
-            if self._sub_id is not None:
-                if self._subscription_manager.refresh(self._sub_id):
-                    return
-                self._sub_id = None
+    @intercept_errors(message_prefix="Failure during waiting for sandbox to stop: ")
+    @with_instrumentation(name="Sandbox.wait_for_sandbox_stop", labels={"method": "wait_for_sandbox_stop"})
+    def _wait_for_sandbox_stop_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
+        """``wait_for_sandbox_stop`` for ``stop()``, with the subscription taken before the request."""
+        self._wait_for_state(
+            [SandboxState.STOPPED, SandboxState.DESTROYED],
+            [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+            safe_refresh=True,
+            subscription=subscription,
+        )
 
-            subscription_id = self._subscription_manager.subscribe(
-                self.id,
-                self._handle_event,
-                events=["sandbox.state.updated", "sandbox.created"],
+    @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
+    @with_instrumentation(name="Sandbox.wait_for_sandbox_start", labels={"method": "wait_for_sandbox_start"})
+    def _wait_for_fork_start(self, state_fresh: bool) -> None:
+        """``wait_for_sandbox_start`` for a new fork, which can skip the first read of a live wait.
+
+        Args:
+            state_fresh: Whether the fork response carried a state and the toolbox proxy URL; otherwise
+                the wait reads first.
+        """
+        self._raise_destroyed_wait_error([SandboxState.STARTED])
+        if self.state == SandboxState.STARTED:
+            return
+
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            # The id is only known now; the fork completes well after this subscription is live.
+            subscription = self._take_wait_subscription().with_state_fresh(state_fresh)
+            self._wait_for_state(
+                [SandboxState.STARTED],
+                [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+                subscription=subscription,
             )
-            self._sub_id = subscription_id or None
+        finally:
+            self._release_subscription(subscription)
+
+    @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
+    @with_instrumentation(name="Sandbox.wait_for_resize_complete", labels={"method": "wait_for_resize_complete"})
+    def _wait_for_resize_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
+        """``wait_for_resize_complete`` for ``resize()``, with the subscription taken before the request."""
+        if self.state != SandboxState.RESIZING:
+            return
+
+        error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+        exclude = {SandboxState.RESIZING} | set(error_states)
+        target_states = [s for s in SandboxState if s not in exclude]
+        self._wait_for_state(target_states, error_states, subscription=subscription)
 
     def _handle_event(self, event_name: str, data: Any) -> None:
+        """Applies the new state and error reason from a ``sandbox.state.updated`` event.
+
+        A rejected subscription (a local notification from the dispatcher) wakes the waits instead: no
+        events will come, so they read now and fall back to polling.
+        """
+        if event_name == SUBSCRIPTION_REJECTED_EVENT:
+            with self._state_waiters_lock:
+                poll_now_waiters = list(self._poll_now_waiters)
+            for poll_now in poll_now_waiters:
+                poll_now()
+            return
         if not isinstance(data, dict):
             return
         raw: object = data.get("sandbox", data)  # pyright: ignore[reportUnknownVariableType]
-
-        if event_name == "sandbox.created":
-            sandbox_dto = SandboxDto.from_dict(raw)  # pyright: ignore[reportArgumentType]
-            if sandbox_dto is not None:
-                self.__process_sandbox_dto(sandbox_dto)
-        else:
+        new_state = (  # pyright: ignore[reportUnknownVariableType]
+            raw.get("state") if isinstance(raw, dict) else None
+        ) or data.get("newState")
+        if new_state is not None:
+            # Set before the state, so a wait that ends on an error state reports this reason. The event
+            # omits the field when the sandbox has none; a slim event may omit it, and then a wait ending
+            # on an error state reads the sandbox once before failing.
+            has_reason = isinstance(raw, dict) and "errorReason" in raw
             if isinstance(raw, dict) and "sandbox" in data:
-                # Set before the state: a wait that ends on an error state reports this reason. The event omits
-                # the field when the sandbox has none.
                 self.error_reason = raw.get("errorReason")
-            new_state = (  # pyright: ignore[reportUnknownVariableType]
-                raw.get("state") if isinstance(raw, dict) else None
-            ) or data.get("newState")
-            if new_state is not None:
-                try:
-                    state = SandboxState(new_state)
-                    if len(self.nodes) == 1 and (self.node_count == 1 or self.nodes[0].rank > 0):
-                        self.nodes[0].state = state
-                    self._apply_state(state)
-                except ValueError:
-                    pass
+            self._state_needs_reason = not has_reason
+            with self._state_event_lock:
+                self._state_event_count += 1
+            try:
+                state = SandboxState(new_state)
+                if len(self.nodes) == 1 and (self.node_count == 1 or self.nodes[0].rank > 0):
+                    self.nodes[0].state = state
+                self._apply_state(state)
+            except ValueError:
+                pass
 
-    def _unsubscribe_from_events(self) -> None:
-        with self._state_waiters_lock:
-            if self._sub_id is not None:
-                self._subscription_manager.unsubscribe(self._sub_id)
-                self._sub_id = None
+    def _event_backed(self) -> bool:
+        # Connected is not enough: an id past the connection's subscription cap gets no events.
+        return self._subscription_manager.is_event_backed(self.id)
+
+    def _read_state_event_count(self) -> int:
+        with self._state_event_lock:
+            return self._state_event_count
+
+    def _subscribe_state_events(self) -> str:
+        return self._subscription_manager.subscribe(self.id, self._handle_event, events=["sandbox.state.updated"])
+
+    def _take_wait_subscription(self) -> wait_poll.WaitSubscription:
+        """Takes the state subscription of an operation's wait, before its request where the id is known.
+
+        A live subscription sees every later state change, which lets the wait skip its first read
+        (see ``_wait_for_state``).
+        """
+        state_event_count = self._read_state_event_count()
+        connection_epoch = self._subscription_manager.connection_epoch
+        sub_id = self._subscribe_state_events()
+        return wait_poll.WaitSubscription(
+            sub_id=sub_id,
+            live=bool(sub_id) and self._event_backed(),
+            state_event_count=state_event_count,
+            connection_epoch=connection_epoch,
+        )
+
+    def _release_subscription(self, subscription: wait_poll.WaitSubscription | None) -> None:
+        if subscription is not None and subscription.sub_id:
+            self._subscription_manager.unsubscribe(subscription.sub_id)
 
     def _apply_state(self, new_state: SandboxState | None) -> None:
         if new_state == self.state:
@@ -1830,33 +1944,45 @@ class Sandbox(SandboxDto):
         target_states: list[SandboxState],
         error_states: list[SandboxState],
         safe_refresh: bool = False,
+        subscription: wait_poll.WaitSubscription | None = None,
     ) -> None:
         """Wait for sandbox to reach a target state via WebSocket events with periodic polling safety net.
+
+        The wait subscribes to the sandbox's state events for its own duration only. Polls are a safety
+        net: slow while events are flowing, backing off from 1 s to 10 s while they are not (connection
+        down, subscription rejected or past the connection's limit), and fast only without a
+        subscription (see ``internal.wait_poll``). A rate-limited poll does not fail the wait: the next
+        one waits at least the current interval, the fallback backoff and ``Retry-After``.
 
         Args:
             target_states: States that indicate success.
             error_states: States that indicate failure.
             safe_refresh: If True, use safe refresh that treats 404 as destroyed (for delete operations).
+            subscription: A subscription taken before the operation's request (after it, for a fork);
+                the caller releases it. Without one, the wait subscribes itself and always reads
+                first, since the cached state can be arbitrarily stale.
         """
-        self._ensure_subscribed()
-
         # Fast-path only on cached *target* states (parity with main's pre-check).
         # Cached error states are deliberately NOT evaluated here — main always
         # refreshed before failing, so a stale ERROR must survive one refresh.
         if self.state in target_states:
             return
 
-        subscribed = self._sub_id is not None
-        poll_interval = 1.0 if subscribed else 0.1
+        fast_poll_interval = wait_poll.FAST_POLL_INTERVAL
+        fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
+        sub_id = ""
         poll_start = time.monotonic()
         state_resolved = threading.Event()
+        # Set when the state resolves or a read is due now; the loop waits on it between polls.
+        wake = threading.Event()
         resolve_lock = threading.Lock()
         result_state: SandboxState | None = None
-        # The reason that came with result_state; a refresh still in flight may replace self.error_reason after.
+        # The reason that came with result_state; a read still in flight may replace self.error_reason after.
         result_reason: str | None = None
+        result_needs_reason = False
 
         def _waiter(state: SandboxState | None) -> None:
-            nonlocal result_state, result_reason
+            nonlocal result_state, result_reason, result_needs_reason
             if state is None or (state not in target_states and state not in error_states):
                 return
 
@@ -1866,47 +1992,126 @@ class Sandbox(SandboxDto):
 
                 result_state = state
                 result_reason = self.error_reason
+                result_needs_reason = self._state_needs_reason
                 state_resolved.set()
+                wake.set()
+
+        def _poll() -> wait_poll.RateLimited | None:
+            """Reads the sandbox; a rate limit does not fail the wait and is returned instead."""
+            try:
+                if safe_refresh:
+                    _ = self.__refresh_data_safe()
+                else:
+                    self.refresh_data()
+            except DaytonaRateLimitError as e:
+                return wait_poll.RateLimited(wait_poll.retry_after_seconds(e.headers))
+            return None
+
+        def _error_message() -> str:
+            reason = result_reason
+            if result_needs_reason:
+                # The event that ended the wait did not carry the reason: read it once (error path only).
+                try:
+                    if safe_refresh:
+                        _ = self.__refresh_data_safe()
+                    else:
+                        self.refresh_data()
+                    reason = self.error_reason
+                except Exception:
+                    pass
+            return f"Sandbox {self.id} entered error state: {result_state}, error reason: {reason}"
 
         with self._state_waiters_lock:
             self._state_waiters.append(_waiter)
+            self._poll_now_waiters.append(wake.set)
         try:
-            # First poll runs immediately (main always refreshed before state evaluation).
-            if safe_refresh:
-                self.__refresh_data_safe()
+            if subscription is None:
+                sub_id = self._subscribe_state_events()
+                skip_first_read = False
             else:
-                self.refresh_data()
+                sub_id = subscription.sub_id
+                # An operation subscription that expired before the wait (its request outlived the TTL)
+                # missed the events in between: take a new one and read first.
+                still_held = bool(sub_id) and self._subscription_manager.refresh(sub_id)
+                if sub_id and not still_held:
+                    sub_id = self._subscribe_state_events()
+                # Safe only if the cached state came from the response (or a read after subscribing)
+                # and every change since then arrives as an event: an event that came before the
+                # response may have been overwritten by it, and events sent while the connection was
+                # down (a reconnect bumps the epoch) are lost. An error or destroyed response is read
+                # again first, so that it fails as fast as it always has.
+                skip_first_read = (
+                    still_held
+                    and subscription.state_fresh
+                    and subscription.live
+                    and self._event_backed()
+                    and self._subscription_manager.connection_epoch == subscription.connection_epoch
+                    and self._read_state_event_count() == subscription.state_event_count
+                    and self.state not in error_states
+                    and (self.state != SandboxState.DESTROYED or SandboxState.DESTROYED in target_states)
+                )
 
-            self._raise_destroyed_wait_error(target_states)
-            _waiter(self.state)
+            # Unless skipped, the first poll runs immediately: it closes the race between subscribing
+            # and the state change.
+            rate_limited = None if skip_first_read else _poll()
+            if rate_limited is None:
+                self._raise_destroyed_wait_error(target_states)
+                _waiter(self.state)
+            # else: a rate-limited read confirmed nothing; neither resolve nor fail on the cached state.
+            if not state_resolved.is_set():
+                # A wake (rejection) that came during the read is covered by it.
+                wake.clear()
 
             while not state_resolved.is_set():
-                is_set = state_resolved.wait(timeout=poll_interval)
-
-                if is_set:
+                # Keep the subscription alive past the manager's TTL; resubscribe if it already expired.
+                if sub_id and not self._subscription_manager.refresh(sub_id):
+                    sub_id = self._subscribe_state_events()
+                # Re-evaluated every iteration: the connection may come up (or drop) mid-wait.
+                subscribed = bool(sub_id)
+                event_backed = subscribed and self._event_backed()
+                if event_backed and rate_limited is None:
+                    # Back on events: a later fallback starts its backoff over.
+                    fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
+                poll_interval = wait_poll.poll_interval(
+                    subscribed, event_backed, fast_poll_interval, fallback_poll_interval
+                )
+                if rate_limited is not None:
+                    # Rate limited, in any mode: back off, and never sooner than the server asks.
+                    poll_interval = wait_poll.rate_limited_poll_interval(
+                        poll_interval, fallback_poll_interval, rate_limited.retry_after
+                    )
+                    fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
+                _ = _wait_for_wake(wake, poll_interval)
+                if state_resolved.is_set():
                     break
+                wake.clear()
 
-                if safe_refresh:
-                    self.__refresh_data_safe()
-                else:
-                    self.refresh_data()
+                rate_limited = _poll()
+                if rate_limited is None:
+                    self._raise_destroyed_wait_error(target_states)
+                    # The cached state may already be a target or error state that only a rate-limited
+                    # first read left unconfirmed; this read confirms it.
+                    _waiter(self.state)
+                if not state_resolved.is_set():
+                    # A wake that came during the read is covered by it: the next delay is chosen now, for
+                    # whatever the wait's condition is after the read.
+                    wake.clear()
 
-                self._raise_destroyed_wait_error(target_states)
-
-                if subscribed or time.monotonic() - poll_start > 5.0:
-                    poll_interval = min(poll_interval * 1.1, 1.0)
+                # A rate-limited poll advances the backoff once, when the next delay is chosen.
+                if subscribed and not event_backed and rate_limited is None:
+                    fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
+                if time.monotonic() - poll_start > wait_poll.FAST_POLL_PERIOD:
+                    fast_poll_interval = wait_poll.next_fast_poll_interval(fast_poll_interval)
 
             if result_state in error_states:
-                raise DaytonaError(
-                    f"Sandbox {self.id} entered error state: {result_state}, error reason: {result_reason}"
-                )
+                raise DaytonaError(_error_message())
         except Exception as exc:
             # Parity with main: complete one final refresh-then-evaluate before
             # propagating, so a clamped/short timeout still observes the latest state.
             if not state_resolved.is_set():
                 try:
                     if safe_refresh:
-                        self.__refresh_data_safe()
+                        _ = self.__refresh_data_safe()
                     else:
                         self.refresh_data()
                     self._raise_destroyed_wait_error(target_states)
@@ -1916,16 +2121,18 @@ class Sandbox(SandboxDto):
                     pass  # fall through to re-raise below
                 if state_resolved.is_set():
                     if result_state in error_states:
-                        message = (
-                            f"Sandbox {self.id} entered error state: {result_state}, error reason: {result_reason}"
-                        )
-                        raise DaytonaError(message) from exc
+                        raise DaytonaError(_error_message()) from exc
                     return  # Target state reached — suppress the timeout
             raise
         finally:
+            # The caller's subscription is the caller's to release; a renewal taken here is ours.
+            if sub_id and (subscription is None or sub_id != subscription.sub_id):
+                self._subscription_manager.unsubscribe(sub_id)
             with self._state_waiters_lock:
                 if _waiter in self._state_waiters:
                     self._state_waiters.remove(_waiter)
+                if wake.set in self._poll_now_waiters:
+                    self._poll_now_waiters.remove(wake.set)
 
     def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
         self.id: str = sandbox_dto.id
@@ -1946,6 +2153,7 @@ class Sandbox(SandboxDto):
         self.disk: int = sandbox_dto.disk
         self.desired_state: SandboxDesiredState | None = sandbox_dto.desired_state
         self.error_reason: str | None = sandbox_dto.error_reason
+        self._state_needs_reason = False
         self.recoverable: bool | None = sandbox_dto.recoverable
         self.backup_state: str | None = sandbox_dto.backup_state
         self.auto_stop_interval: float | int | None = sandbox_dto.auto_stop_interval
@@ -2065,12 +2273,19 @@ class Sandbox(SandboxDto):
         if reported_node_count:
             self._reported_node_count = reported_node_count
 
-    def __refresh_data_safe(self) -> None:
-        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""
+    def __refresh_data_safe(self) -> bool:
+        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors.
+
+        Returns:
+            bool: Whether the sandbox data was read.
+        """
         try:
             self.refresh_data()
         except DaytonaNotFoundError:
             self._apply_state(SandboxState.DESTROYED)
+            return False
         except Exception as e:
             if not is_validation_error(e):
                 raise
+            return False
+        return True

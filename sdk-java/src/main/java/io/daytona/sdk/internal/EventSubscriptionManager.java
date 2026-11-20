@@ -94,6 +94,30 @@ public class EventSubscriptionManager {
         }
     }
 
+    /**
+     * Returns whether the underlying event connection is currently established.
+     * Always {@code false} in polling mode (no dispatcher) and after shutdown.
+     */
+    public boolean isConnected() {
+        return !closed && dispatcher != null && dispatcher.isConnected();
+    }
+
+    /**
+     * Whether events for this id arrive now: the manager is open, the connection is up and it
+     * serves the id (within its subscription cap).
+     */
+    public boolean isEventBacked(String resourceId) {
+        return !closed && dispatcher != null && dispatcher.isEventBacked(resourceId);
+    }
+
+    /**
+     * Changes on every successful (re)connect of the event connection; events sent while it was
+     * down are lost. Always {@code 0} in polling mode.
+     */
+    public long connectionEpoch() {
+        return dispatcher == null ? 0 : dispatcher.connectionEpoch();
+    }
+
     public void unsubscribe(String subId) {
         Subscription subscription;
         synchronized (lock) {

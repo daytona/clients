@@ -29,17 +29,59 @@ function extractIdFromEvent(data: any): string | undefined {
   return undefined
 }
 
+/** Maximum number of ids sent in one subscribe/unsubscribe message. */
+const SUBSCRIPTION_CHUNK_SIZE = 100
+
+/**
+ * Most sandbox ids one connection subscribes to. A gateway with a lower limit rejects the excess with
+ * `SUBSCRIPTION_LIMIT_EXCEEDED` in the subscribe acknowledgement, which marks those ids rejected.
+ */
+export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
+
+/**
+ * How long the first acknowledged subscribe of a connection waits before the connection counts as one
+ * whose server never acknowledges. Silence never changes an id's state.
+ */
+export const SUBSCRIBE_ACK_TIMEOUT_MS = 10_000
+
+/**
+ * Local notification (never sent by the server) delivered to an id's handlers when the gateway
+ * rejected its subscription: no events will arrive for it until its last listener goes.
+ */
+export const SUBSCRIPTION_REJECTED_EVENT = 'daytona.subscription.rejected'
+
+type SubscribeAck = { ok?: boolean; error?: string; message?: string }
+
 /**
  * Manages a Socket.IO connection to the Daytona notification gateway
  * and dispatches resource events to per-resource handlers.
+ *
+ * The connection is opened lazily by the first {@link subscribe} call and uses
+ * explicit subscription mode: the server only sends events for the resource ids
+ * this client subscribed to. The current id set is re-sent after every
+ * (re)connect. Servers without explicit mode ignore it and send all organization
+ * events, so incoming events are always filtered by resource id.
  */
 export class EventDispatcher {
   private socket: Socket | undefined
   private _connected = false
+  private _connectionEpoch = 0
   private _closed = false
   private _failed = false
   private _failError: string | null = null
   private listeners = new Map<string, Set<EventHandler>>()
+  // Ids the server holds, or will hold after the next connect (at most maxSubscriptions), each with the
+  // token it was served under, so a late rejection of an earlier subscription cannot unserve a newer one.
+  private readonly served = new Map<string, number>()
+  private serveToken = 0
+  // Per connection: whether an acknowledgement arrived, the timer of the first acknowledged subscribe,
+  // and whether the server proved silent. Socket.IO keeps an unanswered acknowledgement until the
+  // disconnect, so a silent server's subscribes go out without one.
+  private acksSeen = false
+  private ackProbeTimer: ReturnType<typeof setTimeout> | null = null
+  private acksSilent = false
+  // Ids whose subscribe the gateway rejected; unserved until their last listener goes.
+  private readonly rejected = new Set<string>()
   private registeredEvents = new Set<string>()
   private connectPromise: Promise<void> | null = null
   private ensureConnectPromise: Promise<void> | null = null
@@ -53,6 +95,7 @@ export class EventDispatcher {
   // Set once on the first Manager 'open' by capability probe, not runtime name.
   // `undefined` (pre-connect) is treated as `false` → ephemeral disconnect.
   private supportsBackgroundUnref: boolean | undefined = undefined
+  private readonly maxSubscriptions: number
 
   constructor(
     private readonly apiUrl: string,
@@ -60,7 +103,14 @@ export class EventDispatcher {
     private readonly organizationId?: string,
     private readonly source?: string,
     private readonly sdkVersion?: string,
-  ) {}
+    maxSubscriptions = MAX_SUBSCRIPTIONS_PER_CONNECTION,
+  ) {
+    // The gateway never accepts more; a non-positive value means the default.
+    this.maxSubscriptions =
+      maxSubscriptions > 0 && maxSubscriptions <= MAX_SUBSCRIPTIONS_PER_CONNECTION
+        ? maxSubscriptions
+        : MAX_SUBSCRIPTIONS_PER_CONNECTION
+  }
 
   /**
    * Idempotent: ensure a connection attempt is in progress or already established.
@@ -143,6 +193,7 @@ export class EventDispatcher {
       if (this.sdkVersion) {
         query.sdkVersion = this.sdkVersion
       }
+      query.subscriptionMode = 'explicit'
 
       this.socket = io(origin, {
         path: socketPath,
@@ -175,9 +226,14 @@ export class EventDispatcher {
       this.socket.on('connect', () => {
         this.clearConnectTimer()
         this._connected = true
+        this._connectionEpoch++
         this._failed = false
         this._failError = null
         this.reconnectAttempts = 0
+        this.resetAckProbe()
+        // Fires on the initial connect and on every reconnect; the server drops
+        // subscriptions with the socket, so send the whole served set.
+        this.emitSubscriptionChange('subscribe', [...this.served.keys()])
         resolve()
       })
 
@@ -200,6 +256,7 @@ export class EventDispatcher {
 
       this.socket.io.on('reconnect', () => {
         this._connected = true
+        this._connectionEpoch++
         this._failed = false
         this._failError = null
         this.reconnectAttempts = 0
@@ -274,20 +331,28 @@ export class EventDispatcher {
     this.disconnectGeneration++
     this.ensureConnected()
 
-    if (!this.listeners.has(resourceId)) {
-      this.listeners.set(resourceId, new Set())
+    let handlers = this.listeners.get(resourceId)
+    if (!handlers) {
+      handlers = new Set()
+      this.listeners.set(resourceId, handlers)
+      // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
+      if (this.served.size < this.maxSubscriptions) {
+        this.served.set(resourceId, ++this.serveToken)
+        this.emitSubscriptionChange('subscribe', [resourceId])
+      }
     }
-    this.listeners.get(resourceId)!.add(handler)
+    handlers.add(handler)
 
     // Register any new events with the Socket.IO client
     this.registerEvents(events)
 
     return () => {
       const handlers = this.listeners.get(resourceId)
-      if (handlers) {
-        handlers.delete(handler)
-        if (handlers.size === 0) {
-          this.listeners.delete(resourceId)
+      if (handlers && handlers.delete(handler) && handlers.size === 0) {
+        this.listeners.delete(resourceId)
+        this.rejected.delete(resourceId)
+        if (this.served.delete(resourceId)) {
+          this.emitSubscriptionChange('unsubscribe', [resourceId])
         }
       }
 
@@ -298,9 +363,24 @@ export class EventDispatcher {
     }
   }
 
+  /** Whether the gateway rejected this id's subscription (until its last listener goes). */
+  isRejected(resourceId: string): boolean {
+    return this.rejected.has(resourceId)
+  }
+
+  /** Whether the server holds (or will hold after the next connect) a subscription for this id. */
+  isServed(resourceId: string): boolean {
+    return this.served.has(resourceId)
+  }
+
   /** Whether the WebSocket is currently connected */
   get isConnected(): boolean {
     return this._connected
+  }
+
+  /** Incremented on every successful connect: the initial one and every reconnect. */
+  get connectionEpoch(): number {
+    return this._connectionEpoch
   }
 
   /** Whether the WebSocket has permanently failed (exhausted reconnection attempts) */
@@ -331,7 +411,10 @@ export class EventDispatcher {
     }
     this._connected = false
     this.listeners.clear()
+    this.served.clear()
+    this.rejected.clear()
     this.registeredEvents.clear()
+    this.resetAckProbe()
   }
 
   /**
@@ -375,6 +458,80 @@ export class EventDispatcher {
     } catch {
       if (this.supportsBackgroundUnref === undefined) this.supportsBackgroundUnref = false
     }
+  }
+
+  /**
+   * Fire-and-forget subscribe/unsubscribe for the given ids, chunked per message.
+   *
+   * Only emits while the socket is connected: Socket.IO would otherwise buffer the
+   * message and replay it on connect, duplicating the full set sent by the connect handler.
+   */
+  private emitSubscriptionChange(event: 'subscribe' | 'unsubscribe', resourceIds: string[]): void {
+    const socket = this.socket
+    if (!socket || !socket.connected) return
+    const epoch = this._connectionEpoch
+    for (let i = 0; i < resourceIds.length; i += SUBSCRIPTION_CHUNK_SIZE) {
+      const chunk = resourceIds.slice(i, i + SUBSCRIPTION_CHUNK_SIZE)
+      try {
+        if (event === 'subscribe' && !this.acksSilent) {
+          // Socket.IO drops pending acknowledgements on disconnect. A late one is handled like any other.
+          const tokens = new Map(chunk.map((id) => [id, this.served.get(id)]))
+          socket.emit(event, { sandboxIds: chunk }, (ack: unknown) => {
+            if (socket === this.socket && epoch === this._connectionEpoch) {
+              // Even a late one: the server acknowledges, so later subscribes ask again.
+              this.acksSeen = true
+              this.acksSilent = false
+              this.handleSubscribeAck(tokens, ack)
+            }
+          })
+          this.armAckProbe(epoch)
+        } else {
+          socket.emit(event, { sandboxIds: chunk })
+        }
+      } catch {
+        // Best effort: event delivery is an optimization, waits keep polling.
+      }
+    }
+  }
+
+  /**
+   * A rejected subscribe (any error code) frees the served slots of its ids and marks them rejected
+   * until their last listener goes; their handlers are told so their waits read now and poll.
+   * No acknowledgement, or `{ok: true}`, changes nothing: servers without explicit mode never ack.
+   */
+  private handleSubscribeAck(tokens: Map<string, number | undefined>, ack: unknown): void {
+    if (!ack || typeof ack !== 'object' || (ack as SubscribeAck).ok !== false) return
+    const error = (ack as SubscribeAck).error
+    for (const [resourceId, token] of tokens) {
+      if (!this.listeners.has(resourceId) || token === undefined || this.served.get(resourceId) !== token) continue
+      this.served.delete(resourceId)
+      this.rejected.add(resourceId)
+      this.dispatch(resourceId, SUBSCRIPTION_REJECTED_EVENT, { id: resourceId, error })
+    }
+  }
+
+  /**
+   * Starts the connection's acknowledgement timer on its first acknowledged subscribe. If no
+   * acknowledgement at all arrives in time, the connection's later subscribes go out without one.
+   */
+  private armAckProbe(epoch: number): void {
+    if (this.ackProbeTimer) return
+    this.ackProbeTimer = setTimeout(() => {
+      if (epoch === this._connectionEpoch && !this.acksSeen) {
+        this.acksSilent = true
+      }
+    }, SUBSCRIBE_ACK_TIMEOUT_MS)
+    // Never keeps the process alive.
+    if (typeof this.ackProbeTimer.unref === 'function') {
+      this.ackProbeTimer.unref()
+    }
+  }
+
+  private resetAckProbe(): void {
+    if (this.ackProbeTimer) clearTimeout(this.ackProbeTimer)
+    this.ackProbeTimer = null
+    this.acksSeen = false
+    this.acksSilent = false
   }
 
   private dispatch(resourceId: string, eventName: string, data: any): void {

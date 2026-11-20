@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -31,6 +32,9 @@ const (
 	SandboxEventStateUpdated SandboxEventType = iota
 	SandboxEventDesiredStateUpdated
 	SandboxEventCreated
+	// SandboxEventSubscriptionRejected is local, not from the server: the
+	// server refused to subscribe the sandbox, so no events will come for it.
+	SandboxEventSubscriptionRejected
 )
 
 type SandboxEvent struct {
@@ -42,6 +46,31 @@ type SandboxEvent struct {
 
 type SandboxEventHandler func(event SandboxEvent)
 
+// maxSubscriptionIDsPerMessage is the most resource ids sent in a single
+// subscribe or unsubscribe message.
+const maxSubscriptionIDsPerMessage = 100
+
+// gatewaySubscriptionLimit is the most resource ids the SDK subscribes to on one
+// connection. A server with a lower limit rejects the subscribes beyond it
+// with SUBSCRIPTION_LIMIT_EXCEEDED in their acknowledgement, and those ids
+// fall back to polling.
+const gatewaySubscriptionLimit = 10000
+
+// MaxSubscriptionsPerConnection is the most resource ids one event connection
+// subscribes to. It may only be lowered (tests do): each dispatcher reads it
+// once, when created, and clamps it to gatewaySubscriptionLimit.
+var MaxSubscriptionsPerConnection = gatewaySubscriptionLimit
+
+// subscriptionMessage is the payload of the subscribe and unsubscribe client
+// events.
+type subscriptionMessage struct {
+	SandboxIDs []string `json:"sandboxIds"`
+}
+
+// EventDispatcher owns the event socket for a client. It connects lazily when
+// the first listener subscribes, tells the server which resource ids currently
+// have listeners (so the server only sends events for those), and still filters
+// incoming events by id because older servers send every organization event.
 type EventDispatcher struct {
 	mu sync.RWMutex
 
@@ -53,12 +82,24 @@ type EventDispatcher struct {
 	client         *socketIOClient
 	clientGen      uint64
 	connected      bool
-	closed         bool
-	failed         bool
-	failError      string
+	// connectEpoch counts successful connects, reconnects included. Events
+	// emitted while disconnected are lost, so a changed epoch means a gap.
+	connectEpoch uint64
+	closed       bool
+	failed       bool
+	failError    string
 
 	listeners map[string]map[int]SandboxEventHandler
 	nextSubID int
+	// served holds the ids the server serves, or will after the next connect:
+	// at most maxSubscriptions of the ids with listeners. An id that found no
+	// room, or whose subscribe the server rejected, stays unserved until its
+	// last listener goes.
+	served map[string]uint64
+	// serveToken numbers each time an id is served, so a late rejection of an
+	// earlier subscribe of the same id cannot unserve a newer one.
+	serveToken       uint64
+	maxSubscriptions int
 
 	registeredEvents map[string]bool
 
@@ -72,6 +113,14 @@ type EventDispatcher struct {
 	closeCh          chan struct{}
 }
 
+// subscriptionLimit clamps a configured per-connection limit to (0, gateway limit].
+func subscriptionLimit(configured int) int {
+	if configured <= 0 || configured > gatewaySubscriptionLimit {
+		return gatewaySubscriptionLimit
+	}
+	return configured
+}
+
 func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string) *EventDispatcher {
 	return &EventDispatcher{
 		apiURL:           apiURL,
@@ -80,6 +129,8 @@ func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string
 		source:           source,
 		sdkVersion:       sdkVersion,
 		listeners:        make(map[string]map[int]SandboxEventHandler),
+		served:           make(map[string]uint64),
+		maxSubscriptions: subscriptionLimit(MaxSubscriptionsPerConnection),
 		registeredEvents: make(map[string]bool),
 		maxReconnects:    100,
 		closeCh:          make(chan struct{}),
@@ -166,10 +217,14 @@ func (es *EventDispatcher) Connect(ctx context.Context) error {
 	}
 	es.client = client
 	es.connected = true
+	es.connectEpoch++
 	es.connecting = false
 	es.failed = false
 	es.failError = ""
 	es.reconnectAttempt = 0
+	// Subscriptions belong to the socket: send the whole current set on every
+	// connect and reconnect.
+	es.emitSubscribeLocked(es.servedIDsLocked())
 	if len(es.listeners) == 0 {
 		es.scheduleDelayedDisconnectLocked()
 	}
@@ -206,6 +261,14 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 	es.nextSubID++
 	if es.listeners[resourceID] == nil {
 		es.listeners[resourceID] = make(map[int]SandboxEventHandler)
+		// First listener for this id. While disconnected the next connect
+		// sends the whole set instead. Beyond the cap nothing is sent: the
+		// server would reject it, and the id's waits poll instead.
+		if len(es.served) < es.maxSubscriptions {
+			es.serveToken++
+			es.served[resourceID] = es.serveToken
+			es.emitSubscribeLocked([]string{resourceID})
+		}
 	}
 	es.listeners[resourceID][subID] = handler
 	// Mark events as registered under lock to prevent drops
@@ -218,9 +281,18 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 
 	return func() {
 		es.mu.Lock()
-		delete(es.listeners[resourceID], subID)
-		if len(es.listeners[resourceID]) == 0 {
-			delete(es.listeners, resourceID)
+		handlers, ok := es.listeners[resourceID]
+		if ok {
+			if _, exists := handlers[subID]; exists {
+				delete(handlers, subID)
+				if len(handlers) == 0 {
+					delete(es.listeners, resourceID)
+					if _, served := es.served[resourceID]; served {
+						delete(es.served, resourceID)
+						es.emitSubscriptionLocked("unsubscribe", []string{resourceID})
+					}
+				}
+			}
 		}
 
 		if len(es.listeners) == 0 {
@@ -230,10 +302,140 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 	}
 }
 
+// emitSubscribeLocked sends subscribe messages for ids like
+// emitSubscriptionLocked, each with an acknowledgement callback that handles a
+// rejection. Silence is not a rejection: servers that predate explicit
+// subscriptions never acknowledge.
+func (es *EventDispatcher) emitSubscribeLocked(ids []string) {
+	if !es.connected || es.client == nil {
+		return
+	}
+	client, clientGen := es.client, es.clientGen
+	for start := 0; start < len(ids); start += maxSubscriptionIDsPerMessage {
+		batch := ids[start:min(start+maxSubscriptionIDsPerMessage, len(ids))]
+		payload, err := json.Marshal(subscriptionMessage{SandboxIDs: batch})
+		if err != nil {
+			return
+		}
+		tokens := make(map[string]uint64, len(batch))
+		for _, id := range batch {
+			tokens[id] = es.served[id]
+		}
+		_ = client.emitWithAck("subscribe", payload, func(ack json.RawMessage) {
+			es.handleSubscribeAck(clientGen, tokens, ack)
+		})
+	}
+}
+
+// subscribeAck is the acknowledgement of a subscribe message.
+type subscribeAck struct {
+	OK      *bool  `json:"ok"`
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
+// handleSubscribeAck unserves the ids of a rejected subscribe message (any
+// error code) that still have listeners and are served by that subscribe.
+// They stay unserved until their last listener goes, and their handlers are
+// told so that waits read now and poll.
+func (es *EventDispatcher) handleSubscribeAck(clientGen uint64, tokens map[string]uint64, raw json.RawMessage) {
+	var ack subscribeAck
+	if err := json.Unmarshal(raw, &ack); err != nil || ack.OK == nil || *ack.OK {
+		return
+	}
+
+	type rejection struct {
+		id       string
+		handlers []SandboxEventHandler
+	}
+	var rejected []rejection
+	es.mu.Lock()
+	if clientGen != es.clientGen {
+		es.mu.Unlock()
+		return
+	}
+	for id, token := range tokens {
+		if es.served[id] != token || len(es.listeners[id]) == 0 {
+			continue
+		}
+		delete(es.served, id)
+		handlers := make([]SandboxEventHandler, 0, len(es.listeners[id]))
+		for _, handler := range es.listeners[id] {
+			handlers = append(handlers, handler)
+		}
+		rejected = append(rejected, rejection{id: id, handlers: handlers})
+	}
+	es.mu.Unlock()
+
+	for _, r := range rejected {
+		event := SandboxEvent{Type: SandboxEventSubscriptionRejected}
+		for _, handler := range r.handlers {
+			func() {
+				defer func() { _ = recover() }()
+				handler(event)
+			}()
+		}
+	}
+}
+
+// servedIDsLocked returns the served resource ids, sorted.
+func (es *EventDispatcher) servedIDsLocked() []string {
+	ids := make([]string, 0, len(es.served))
+	for id := range es.served {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// IsEventBacked reports, under one lock, whether events for resourceID can
+// arrive now: the connection is up and resourceID is served.
+func (es *EventDispatcher) IsEventBacked(resourceID string) bool {
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	_, served := es.served[resourceID]
+	return es.connected && served
+}
+
+// IsServed reports whether the server is asked to send events for resourceID:
+// it has listeners and was within the per-connection cap when it got its first.
+func (es *EventDispatcher) IsServed(resourceID string) bool {
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	_, served := es.served[resourceID]
+	return served
+}
+
+// emitSubscriptionLocked sends a subscribe or unsubscribe message for ids on the
+// current connection, chunked to maxSubscriptionIDsPerMessage ids per message.
+// It is fire-and-forget (acknowledgements are not awaited) and does nothing
+// while disconnected; nothing is buffered for a later connection because every
+// connect re-sends the current set.
+func (es *EventDispatcher) emitSubscriptionLocked(event string, ids []string) {
+	if !es.connected || es.client == nil {
+		return
+	}
+	for start := 0; start < len(ids); start += maxSubscriptionIDsPerMessage {
+		end := min(start+maxSubscriptionIDsPerMessage, len(ids))
+		payload, err := json.Marshal(subscriptionMessage{SandboxIDs: ids[start:end]})
+		if err != nil {
+			return
+		}
+		_ = es.client.emit(event, payload)
+	}
+}
+
 func (es *EventDispatcher) IsConnected() bool {
 	es.mu.RLock()
 	defer es.mu.RUnlock()
 	return es.connected
+}
+
+// ConnectionEpoch returns the number of successful connects so far.
+func (es *EventDispatcher) ConnectionEpoch() uint64 {
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	return es.connectEpoch
 }
 
 func (es *EventDispatcher) IsFailed() bool {
@@ -275,6 +477,7 @@ func (es *EventDispatcher) disconnectLocked(permanent bool) {
 	}
 	es.connected = false
 	es.listeners = make(map[string]map[int]SandboxEventHandler)
+	es.served = make(map[string]uint64)
 	es.registeredEvents = make(map[string]bool)
 }
 
@@ -295,20 +498,37 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 	var event SandboxEvent
 	switch eventName {
 	case "sandbox.state.updated":
-		var stateEvent SandboxStateEvent
-		if err := json.Unmarshal(data, &stateEvent); err != nil {
+		var payload struct {
+			Sandbox  json.RawMessage        `json:"sandbox"`
+			OldState apiclient.SandboxState `json:"oldState"`
+			NewState apiclient.SandboxState `json:"newState"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
 			return
 		}
+		stateEvent := SandboxStateEvent{OldState: payload.OldState, NewState: payload.NewState}
+		// Best effort: waits use only NewState, so a field nothing reads must not drop the transition.
+		_ = unmarshalSandboxLenient(payload.Sandbox, &stateEvent.Sandbox)
 		event = SandboxEvent{
 			Type:       SandboxEventStateUpdated,
 			StateEvent: &stateEvent,
 		}
 
 	case "sandbox.desired-state.updated":
-		var desiredStateEvent SandboxDesiredStateEvent
-		if err := json.Unmarshal(data, &desiredStateEvent); err != nil {
+		var payload struct {
+			Sandbox         json.RawMessage               `json:"sandbox"`
+			OldDesiredState apiclient.SandboxDesiredState `json:"oldDesiredState"`
+			NewDesiredState apiclient.SandboxDesiredState `json:"newDesiredState"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
 			return
 		}
+		desiredStateEvent := SandboxDesiredStateEvent{
+			OldDesiredState: payload.OldDesiredState,
+			NewDesiredState: payload.NewDesiredState,
+		}
+		// Best effort, as for state events: the transition matters more than the snapshot.
+		_ = unmarshalSandboxLenient(payload.Sandbox, &desiredStateEvent.Sandbox)
 		event = SandboxEvent{
 			Type:              SandboxEventDesiredStateUpdated,
 			DesiredStateEvent: &desiredStateEvent,
@@ -329,6 +549,28 @@ func (es *EventDispatcher) handleEvent(eventName string, data json.RawMessage) {
 	}
 
 	es.dispatch(entityID, event)
+}
+
+// lenientSandbox has the fields of apiclient.Sandbox but not its UnmarshalJSON,
+// which rejects objects that miss any required property.
+type lenientSandbox apiclient.Sandbox
+
+// unmarshalSandboxLenient decodes a sandbox object that may carry only a subset
+// of its fields (state events can contain just the id and state-related fields).
+// Absent fields keep their zero values.
+func unmarshalSandboxLenient(data json.RawMessage, out *apiclient.Sandbox) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(data, out); err == nil {
+		return nil
+	}
+	var sandbox lenientSandbox
+	if err := json.Unmarshal(data, &sandbox); err != nil {
+		return err
+	}
+	*out = apiclient.Sandbox(sandbox)
+	return nil
 }
 
 func extractEntityID(data json.RawMessage) string {

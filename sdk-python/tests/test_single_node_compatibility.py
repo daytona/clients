@@ -81,6 +81,10 @@ def test_empty_reported_nodes_round_trip_without_exposing_the_local_head(cls, ap
     kwargs = {"http_client": MagicMock()} if cls is Sandbox else {}
     sandbox = cls(api.Sandbox.from_dict(empty), MagicMock(), MagicMock(), "python", MagicMock(), **kwargs)
 
+    def apply(payload):
+        # Sandboxes subscribe to state events only while waiting; a full sandbox payload reaches them as a DTO.
+        getattr(sandbox, f"_{cls.__name__}__process_sandbox_dto")(api.Sandbox.from_dict(payload))
+
     def assert_empty_membership():
         assert sandbox.nodes[0].id == sandbox.id
         assert sandbox.to_dict()["nodes"] == []
@@ -89,18 +93,18 @@ def test_empty_reported_nodes_round_trip_without_exposing_the_local_head(cls, ap
         assert "nodes" not in sandbox.model_dump(exclude={"nodes"})
 
     assert_empty_membership()
-    sandbox._handle_event("sandbox.created", {"sandbox": full})
+    apply(full)
     assert [node["id"] for node in sandbox.to_dict()["nodes"]] == [sandbox.id]
     assert [node["id"] for node in sandbox.model_dump()["nodes"]] == [sandbox.id]
     sparse = full.copy()
     sparse.pop("nodes")
-    sandbox._handle_event("sandbox.created", {"sandbox": sparse})
+    apply(sparse)
     assert [node["id"] for node in sandbox.to_dict()["nodes"]] == [sandbox.id]
 
-    sandbox._handle_event("sandbox.created", {"sandbox": {**sparse, "incarnation": 2}})
+    apply({**sparse, "incarnation": 2})
     assert sandbox.nodes[0].incarnation == 2
     assert "nodes" not in sandbox.to_dict()
 
-    sandbox._handle_event("sandbox.created", {"sandbox": full})
-    sandbox._handle_event("sandbox.created", {"sandbox": empty})
+    apply(full)
+    apply(empty)
     assert_empty_membership()

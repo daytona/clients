@@ -215,14 +215,17 @@ describe('Daytona', () => {
     expect(mockSnapshotServiceCtor).toHaveBeenCalledTimes(1)
   })
 
-  it('creates and connects an EventDispatcher by default (event streaming mode)', async () => {
+  it('creates an EventDispatcher by default (event streaming mode) without connecting it', async () => {
     const { Daytona } = await import('../Daytona')
     const { EventDispatcher } = await import('../utils/EventDispatcher')
 
     const instance = new Daytona({ apiKey: 'k', apiUrl: 'http://api', target: 'us' })
 
     expect(EventDispatcher).toHaveBeenCalledTimes(1)
-    expect((instance as unknown as { eventDispatcher?: unknown }).eventDispatcher).toBeDefined()
+    const dispatcher = (instance as unknown as { eventDispatcher?: { ensureConnected: jest.Mock } }).eventDispatcher
+    expect(dispatcher).toBeDefined()
+    // The connection is opened lazily by the first sandbox wait, not by the client constructor.
+    expect(dispatcher?.ensureConnected).not.toHaveBeenCalled()
   })
 
   it('does not create an EventDispatcher when useDeprecatedPolling is enabled', async () => {

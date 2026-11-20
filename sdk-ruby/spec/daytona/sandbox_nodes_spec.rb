@@ -58,6 +58,19 @@ RSpec.describe Daytona::SandboxNodes do
     expect(head).to have_attributes(cpu: 6, memory: 12, disk: 40, state: 'stopped')
   end
 
+  it 'builds the rank-zero handle on the refresh that first carries a state, with that state' do
+    stateless = build_sandbox_dto(cpu: 2, state: nil)
+    ordinary = Daytona::Sandbox.new(sandbox_dto: stateless, config: build_config, sandbox_api: api,
+                                    subscription_manager: manager)
+    expect(ordinary.nodes.to_a).to be_empty
+
+    allow(api).to receive(:get_sandbox).with(stateless.id).and_return(build_sandbox_dto(cpu: 2, state: 'started'))
+    ordinary.refresh
+
+    expect(ordinary.nodes.to_a.size).to eq(1)
+    expect(ordinary.nodes.first).to have_attributes(rank: 0, state: 'started')
+  end
+
   it 'waits for member details before exposing ranks on a fresh gang' do
     sparse = gang
     sparse.nodes = nil
