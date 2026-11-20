@@ -125,7 +125,7 @@ func TestLifecycleCloud(t *testing.T) {
 	t.Run("secrets", func(t *testing.T) {
 		// Given
 		secrets, readErr := sandbox.GetSecrets(ctx)
-		require.NoError(t, readErr)
+		require.NoError(t, skipIfServerLacks(t, readErr, "reading sandbox secrets (read:secrets)"))
 		// When: replacing the empty binding set needs no project secret.
 		applied, replaceErr := sandbox.ReplaceSecrets(ctx, nil, &daytona.IfMatchOptions{IfMatch: secrets.ETag})
 		// Then

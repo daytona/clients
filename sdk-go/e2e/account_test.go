@@ -80,7 +80,8 @@ func TestAccountSecrets(t *testing.T) {
 	t.Cleanup(func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		if err := client.Secrets().Delete(cleanupCtx, name); err != nil && !errors.Is(err, daytona.ErrNotFound) {
+		if err := client.Secrets().Delete(cleanupCtx, name); err != nil && !errors.Is(err, daytona.ErrNotFound) &&
+			!errors.Is(err, daytona.ErrForbidden) {
 			t.Errorf("clean up account secret: %v", err)
 		}
 	})
@@ -89,7 +90,7 @@ func TestAccountSecrets(t *testing.T) {
 		AllowedDomains: []string{"api.example.com"}, Description: &description, IfNotExists: true,
 	})
 	// Then
-	require.NoError(t, err)
+	require.NoError(t, skipIfServerLacks(t, err, "setting a project secret (write:secrets)"))
 	require.Equal(t, name, created.Name)
 	require.NotContains(t, fmt.Sprintf("%v %#v", created, created), value)
 
@@ -148,7 +149,7 @@ func TestAccountReads(t *testing.T) {
 		// When
 		limits, err := client.Limits(ctx, nil)
 		// Then
-		require.NoError(t, err)
+		require.NoError(t, skipIfServerLacks(t, err, "reading organization limits (read:limits)"))
 		require.GreaterOrEqual(t, limits.Sandboxes.Total.Usage, int64(0))
 	})
 	t.Run("budget", func(t *testing.T) {
