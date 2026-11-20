@@ -13,10 +13,8 @@ import (
 func (s *Processes) runStreaming(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
-	budget, err := processTimeout(options.Timeout)
-	if err != nil {
-		return nil, err
-	}
+	// run already validated the timeout before choosing the streaming path.
+	budget := boundedTimeout(options.Timeout)
 	requestTimeout := time.Duration(0)
 	if options.Timeout != 0 && budget == 0 {
 		requestTimeout = NoTimeout
@@ -48,7 +46,7 @@ func (s *Processes) runStreaming(
 	if ctx.Err() != nil {
 		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), transportError(ctx, err)
 	}
-	if !errors.Is(streamCtx.Err(), context.DeadlineExceeded) {
+	if !errors.Is(streamCtx.Err(), context.DeadlineExceeded) || !errors.Is(err, context.DeadlineExceeded) {
 		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 	}
 	snapshot, readErr := processCollectLogs(ctx, handle, 8)
