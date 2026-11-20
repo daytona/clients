@@ -67,7 +67,8 @@ func filePaths(paths []string) ([]string, error) {
 }
 
 // List returns one directory listing, accepting legacy arrays and page envelopes.
-// There is no cursor input on the server's directory endpoint.
+// There is no cursor input on the server's directory endpoint, so the page
+// holds the whole listing and its NextCursor cannot be followed.
 func (f *FileSystem) List(ctx context.Context, path string, opts *ListFilesOptions) (*Page[FileInfo], error) {
 	query, err := filePath(path)
 	if err != nil {

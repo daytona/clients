@@ -11,7 +11,9 @@ import (
 
 // ExecOptions configures a blocking command. Nil selects defaults.
 type ExecOptions struct {
-	// Cwd overrides the working directory.
+	// Cwd overrides the working directory. Empty starts in the user's home
+	// directory when it is available (not with an explicit User), otherwise the
+	// sandbox's working directory.
 	Cwd string
 	// Env adds environment variables. Nil omits env; an empty non-nil map sends {}.
 	Env map[string]string
@@ -30,7 +32,9 @@ type ExecOptions struct {
 	// With output writers, the wait budget starts after creation. The create request
 	// uses the client timeout unless Timeout is explicitly unlimited.
 	Timeout time.Duration
-	// ExecutionTimeout is a server deadline that kills the process tree.
+	// ExecutionTimeout is a server deadline that kills the process tree. Zero,
+	// NoTimeout, or a value above the longest timer every SDK shares (about
+	// 24.8 days) means no deadline, as in the other SDKs.
 	// Zero or NoTimeout means no execution deadline.
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl. none is refused because output requires logs.

@@ -24,7 +24,9 @@ type ProcessStartOptions struct {
 	Name string
 	// Tag groups commands; 1..128 ASCII letters, digits, '.', '_' or '-', excluding '.' and '..'.
 	Tag string
-	// Cwd is the working directory; empty uses the sandbox default.
+	// Cwd is the working directory. Empty starts in the user's home directory
+	// when it is available (not with an explicit User), otherwise the sandbox's
+	// working directory.
 	Cwd string
 	// Env adds environment variables. Nil omits env; an empty non-nil map sends {}.
 	Env map[string]string
@@ -36,7 +38,9 @@ type ProcessStartOptions struct {
 	Login *bool
 	// Stdin defaults to closed. Use open for Write/CloseStdin.
 	Stdin ProcessStdinMode
-	// ExecutionTimeout kills the process tree on expiry. Zero or NoTimeout disables it.
+	// ExecutionTimeout kills the process tree on expiry. Zero, NoTimeout, or a
+	// value above the longest timer every SDK shares (about 24.8 days) means no
+	// deadline, as in the other SDKs.
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl.
 	KeepLogs ProcessKeepLogs

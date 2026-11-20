@@ -7,7 +7,9 @@ import "time"
 
 // PTYOptions configures a detached or connected terminal. Nil selects defaults.
 type PTYOptions struct {
-	// Cwd is the working directory; empty uses the sandbox default.
+	// Cwd is the working directory. Empty starts in the user's home directory
+	// when it is available (not with an explicit User), otherwise the sandbox's
+	// working directory.
 	Cwd string
 	// Env adds environment variables. Nil omits env and an empty non-nil map
 	// sends {}, before PTY defaults are applied: both still add
@@ -25,7 +27,8 @@ type PTYOptions struct {
 	Login *bool
 	// Stdin defaults to ProcessStdinOpen.
 	Stdin ProcessStdinMode
-	// ExecutionTimeout is a server-side deadline. Zero or NoTimeout disables it.
+	// ExecutionTimeout is a server-side deadline. Zero, NoTimeout, or a value
+	// above the longest timer every SDK shares (about 24.8 days) means no deadline.
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to ProcessKeepLogsUntilCleanup.
 	KeepLogs ProcessKeepLogs

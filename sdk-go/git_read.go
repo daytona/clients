@@ -59,6 +59,10 @@ func (g *Git) History(ctx context.Context, path string) (*Page[GitCommit], error
 	}
 	var rows []jsonObject
 	var cursor string
+	var list []json.RawMessage
+	if json.Unmarshal(raw, &list) == nil && list != nil && json.Unmarshal(raw, &rows) != nil {
+		return nil, badRequest("git history response items must be objects")
+	}
 	if decodeErr := json.Unmarshal(raw, &rows); decodeErr != nil || rows == nil {
 		object, err := parseObject(raw, "git history")
 		if err != nil {
