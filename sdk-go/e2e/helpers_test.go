@@ -122,14 +122,39 @@ func rawSandbox(t *testing.T, name string) string {
 	}
 }
 
+// rawAPI sends one API request with plain HTTP. Idempotent requests (GET,
+// DELETE) are retried a few times on a gateway error (502, 503, 504), which
+// the live deployment answers now and then; everything else is returned.
 func rawAPI(ctx context.Context, method, path string, body []byte, out any) error {
+	attempts := 1
+	if method == http.MethodGet || method == http.MethodDelete {
+		attempts = 3
+	}
+	var err error
+	for attempt := range attempts {
+		var status int
+		status, err = rawAPIOnce(ctx, method, path, body, out)
+		if err == nil || (status != http.StatusBadGateway && status != http.StatusServiceUnavailable &&
+			status != http.StatusGatewayTimeout) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(time.Duration(attempt+1) * time.Second):
+		}
+	}
+	return err
+}
+
+func rawAPIOnce(ctx context.Context, method, path string, body []byte, out any) (int, error) {
 	base := strings.TrimRight(os.Getenv("DAYTONA_V2_API_URL"), "/")
 	if base == "" {
 		base = daytona.DefaultAPIURL
 	}
 	req, err := http.NewRequestWithContext(ctx, method, base+path, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("DAYTONA_API_KEY"))
 	if body != nil {
@@ -137,23 +162,23 @@ func rawAPI(ctx context.Context, method, path string, body []byte, out any) erro
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	closeErr := resp.Body.Close()
 	if readErr != nil {
-		return readErr
+		return resp.StatusCode, readErr
 	}
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, data)
+		return resp.StatusCode, fmt.Errorf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, data)
 	}
 	if closeErr != nil {
-		return closeErr
+		return resp.StatusCode, closeErr
 	}
 	if out == nil {
-		return nil
+		return resp.StatusCode, nil
 	}
-	return json.Unmarshal(data, out)
+	return resp.StatusCode, json.Unmarshal(data, out)
 }
 
 // eventually retries check every half second until it reports true or the
