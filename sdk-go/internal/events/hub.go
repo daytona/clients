@@ -51,8 +51,9 @@ type Hub[T any] struct {
 	closed       bool
 	regions      map[endpointKey]*session[T]
 	destinations map[string]string
-	known        map[string]uint64
-	sequence     uint64
+	known        map[string]*knownID
+	oldest       *knownID
+	newest       *knownID
 }
 
 type listener[T any] struct {
@@ -101,7 +102,7 @@ func New[T any](ctx context.Context, config Config[T]) *Hub[T] {
 	config.IdleClose = min(config.IdleClose, maxTimer)
 	return &Hub[T]{
 		ctx: owned, cancel: cancel, config: config, clock: wallClock{}, random: rand.Float64,
-		regions: make(map[endpointKey]*session[T]), known: make(map[string]uint64),
+		regions: make(map[endpointKey]*session[T]), known: make(map[string]*knownID),
 		destinations: make(map[string]string),
 	}
 }

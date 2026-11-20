@@ -86,17 +86,39 @@ func (s *session[T]) dispatchError(f frame) {
 	}
 }
 
+// knownID links the bounded history in least-to-most-recent observation order.
+// All links and the lookup map are protected by the hub lock.
+type knownID struct {
+	id             string
+	previous, next *knownID
+}
+
 func (h *Hub[T]) remember(id string) {
-	h.sequence++
-	h.known[id] = h.sequence
-	if len(h.known) <= 10000 {
+	entry := h.known[id]
+	switch entry {
+	case nil:
+		entry = &knownID{id: id}
+		h.known[id] = entry
+	case h.newest:
 		return
-	}
-	oldest, sequence := "", h.sequence
-	for key, seen := range h.known {
-		if seen < sequence {
-			oldest, sequence = key, seen
+	default:
+		if entry.previous == nil {
+			h.oldest = entry.next
+		} else {
+			entry.previous.next = entry.next
 		}
+		entry.next.previous = entry.previous
 	}
-	delete(h.known, oldest)
+	entry.previous, entry.next = h.newest, nil
+	if h.newest == nil {
+		h.oldest = entry
+	} else {
+		h.newest.next = entry
+	}
+	h.newest = entry
+	if len(h.known) > 10000 {
+		delete(h.known, h.oldest.id)
+		h.oldest = h.oldest.next
+		h.oldest.previous = nil
+	}
 }
