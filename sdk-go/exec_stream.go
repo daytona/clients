@@ -59,6 +59,9 @@ func (o ExecOptions) consume(ctx context.Context, handle *ProcessHandle) ([]LogF
 		if err != nil {
 			return nil, err
 		}
+		if ctx.Err() != nil {
+			return nil, transportError(ctx, ctx.Err())
+		}
 		var writer io.Writer
 		switch frame.Channel {
 		case LogChannelStdout, LogChannelPTY:
