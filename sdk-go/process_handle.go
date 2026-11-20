@@ -66,9 +66,10 @@ func (h *ProcessHandle) Kind() ProcessKind {
 	return h.kind
 }
 
-// ToJSON returns an identity that ConnectIdentity accepts on another worker.
-func (h *ProcessHandle) ToJSON() ProcessHandleJSON {
-	return ProcessHandleJSON{SandboxID: h.sandbox.ID(), ProcessID: h.id, Kind: h.kind}
+// ToJSON returns a caller-owned identity snapshot. Pass its value to
+// ConnectIdentity on another worker.
+func (h *ProcessHandle) ToJSON() *ProcessHandleJSON {
+	return &ProcessHandleJSON{SandboxID: h.sandbox.ID(), ProcessID: h.id, Kind: h.kind}
 }
 
 // Get fetches current metadata, including the live cwd of a shell session.

@@ -82,9 +82,10 @@ func (s *Session) ID() string { return s.handle.ID() }
 // SandboxID returns the owning sandbox.
 func (s *Session) SandboxID() string { return s.handle.SandboxID() }
 
-// ToJSON returns a credential-free identity accepted by ConnectSessionIdentity.
-func (s *Session) ToJSON() SessionJSON {
-	return SessionJSON{SandboxID: s.SandboxID(), SessionID: s.ID()}
+// ToJSON returns a caller-owned, credential-free identity snapshot.
+// Pass its value to ConnectSessionIdentity.
+func (s *Session) ToJSON() *SessionJSON {
+	return &SessionJSON{SandboxID: s.SandboxID(), SessionID: s.ID()}
 }
 
 // Get reads live shell metadata, including its current working directory.

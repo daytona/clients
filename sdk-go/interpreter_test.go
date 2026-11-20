@@ -85,7 +85,7 @@ func TestInterpreterListContexts_whenShellAndUnknownLanguages(t *testing.T) {
 	// Then
 	require.NoError(t, err)
 	require.Len(t, contexts, 1)
-	require.Equal(t, InterpreterContextJSON{
+	require.Equal(t, &InterpreterContextJSON{
 		SandboxID: "sbx", ContextID: "future", Language: "future-language",
 	}, contexts[0].Identity())
 }

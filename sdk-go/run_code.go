@@ -155,7 +155,7 @@ func (s *Interpreter) selectBoundContext(
 	if bound.service == nil {
 		return interpreterSelection{}, badRequest("interpreter context must be obtained from Interpreter")
 	}
-	rebound, err := s.ConnectContextJSON(bound.Identity())
+	rebound, err := s.ConnectContextJSON(*bound.Identity())
 	if err != nil {
 		return interpreterSelection{}, err
 	}
