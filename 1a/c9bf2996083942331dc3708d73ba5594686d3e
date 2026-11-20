@@ -1,0 +1,19 @@
+sdk-go/README.md
+  s_12257b84f26bcc::t_4468b2785e19f6 3-6,11-20,23-40,42-53,57-61,63-65,68-131,135-156,158-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ac9bf2996083942331dc3708d73ba5594686d3e",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
