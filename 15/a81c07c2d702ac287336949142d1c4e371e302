@@ -1,0 +1,69 @@
+sdk-go/internal/events/socket.go
+  s_3456b2013a20e2::t_bf8e1798f7293a 1-40,44-79,81-110,113-130,132-137,139-142,149-175
+  s_3456b2013a20e2::t_2b524d4efd2d96 111-112
+  s_3456b2013a20e2::t_1866722e28a536 41-43
+  s_3456b2013a20e2::t_0fc5e5330c7827 80,131,138,143-148
+sdk-go/internal/events/routing_test.go
+  s_3456b2013a20e2::t_af78a98c9995ff 1-76
+  s_3456b2013a20e2::t_d989151ae512d3 103-122
+  s_3456b2013a20e2::t_d26e581cf425cd 77-102
+sdk-go/internal/events/hub_test.go
+  s_3456b2013a20e2::t_401b984b34ea9f 1-163
+sdk-go/internal/events/subscriptions.go
+  s_3456b2013a20e2::t_bf8e1798f7293a 1-85
+sdk-go/internal/events/shutdown_test.go
+  s_3456b2013a20e2::t_74ba047040fa52 94-116
+  s_3456b2013a20e2::t_1167c5d363b9da 1-93
+sdk-go/internal/events/helpers_test.go
+  s_3456b2013a20e2::t_94d7176477a98c 144
+  s_3456b2013a20e2::t_401b984b34ea9f 1-8,11-102,104,107-114,120-137,142-143,145-201
+  s_3456b2013a20e2::t_196f3793016966 9-10,103,105-106,115-119,138-141
+sdk-go/internal/events/routing.go
+  s_3456b2013a20e2::t_f0f56c774109c5 10
+  s_3456b2013a20e2::t_2b524d4efd2d96 1-7,15-16,21-25,33-45,51-54,63-64,71,77-99,101-110,113-115,117-119
+  s_3456b2013a20e2::t_1866722e28a536 26-32,57-59,61-62,65,68,70,72-75,100
+  s_3456b2013a20e2::t_9661042e33a919 8-9,11-14,46-50,55-56,60,111-112,116
+  s_3456b2013a20e2::t_f1cf289f7ce306 17-20,66-67,69,76
+sdk-go/internal/events/liveness_test.go
+  s_3456b2013a20e2::t_640b3482e0acef 113
+  s_3456b2013a20e2::t_4249ee366e0984 1-112,114-128
+sdk-go/internal/events/reconnect.go
+  s_3456b2013a20e2::t_cb390a916bcc39 1-14,16,29,32,35,37-59,61-109,124-125
+  s_3456b2013a20e2::t_f1cf289f7ce306 60
+  s_3456b2013a20e2::t_9661042e33a919 19
+  s_3456b2013a20e2::t_1167c5d363b9da 110-123
+  s_3456b2013a20e2::t_1866722e28a536 15,17-18,20-28,30-31,33-34,36
+sdk-go/internal/events/clock.go
+  s_3456b2013a20e2::t_cb390a916bcc39 1-47
+sdk-go/internal/events/dispatch.go
+  s_3456b2013a20e2::t_2b524d4efd2d96 73-78
+  s_3456b2013a20e2::t_bf8e1798f7293a 1-64,66-72,79-102
+  s_3456b2013a20e2::t_401b984b34ea9f 65
+sdk-go/internal/events/hub.go
+  s_3456b2013a20e2::t_2b524d4efd2d96 53,61,95,105,122,125,131,137,146
+  s_3456b2013a20e2::t_f1cf289f7ce306 209
+  s_3456b2013a20e2::t_640b3482e0acef 148-161
+  s_3456b2013a20e2::t_cb390a916bcc39 1-43,56-58,62-64,66-76,91-94,96-103,106-120,124,126-130,132-136,138-145,147,163-208,210-228
+  s_3456b2013a20e2::t_1866722e28a536 83,162
+  s_3456b2013a20e2::t_0ee32ebb0f5798 44-51,54-55,59-60,65,82
+  s_3456b2013a20e2::t_9661042e33a919 52,104,121,123
+  s_3456b2013a20e2::t_2e11b2a12cf3eb 77-81,84-90
+sdk-go/internal/events/timers_test.go
+  s_3456b2013a20e2::t_af78a98c9995ff 1-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15a81c07c2d702ac287336949142d1c4e371e302",
+  "prompts": {},
+  "sessions": {
+    "s_3456b2013a20e2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b48b98ffeB8ycU3gMzAwvzt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
