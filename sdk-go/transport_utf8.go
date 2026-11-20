@@ -64,7 +64,13 @@ func requestUTF8Field(value reflect.Value, path string, depth int) error {
 func requestUTF8Struct(value reflect.Value, path string, depth int) error {
 	for index := range value.NumField() {
 		field := value.Type().Field(index)
-		if !field.IsExported() {
+		fieldType := field.Type
+		if fieldType.Kind() == reflect.Pointer {
+			fieldType = fieldType.Elem()
+		}
+		// encoding/json promotes exported fields from unexported embedded
+		// structs, including embedded pointers to those structs.
+		if !field.IsExported() && (!field.Anonymous || fieldType.Kind() != reflect.Struct) {
 			continue
 		}
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
