@@ -81,6 +81,9 @@ func (s *Images) BuildFromContextReader(
 	if r == nil {
 		return nil, badRequest("build context reader must not be nil")
 	}
+	if size <= 0 {
+		return nil, badRequest("build context size must be positive")
+	}
 	return s.buildFromContext(ctx, func(ctx context.Context, dockerfile string) (*buildcontext.Archive, error) {
 		return buildcontext.FromReader(ctx, io.NewSectionReader(r, 0, size), dockerfile)
 	}, opts)

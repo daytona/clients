@@ -14,6 +14,7 @@ on:
       - 'scripts/sdk-go-publish_test.sh'
       - 'scripts/release-channel*.sh'
       - '.github/workflows/sdk_publish.yaml'
+      - '.github/workflows/sdk-go-ci.yaml'
       - '.github/workflows/tooling.yaml'
 
 permissions:
