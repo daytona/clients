@@ -150,7 +150,7 @@ func (h *ProcessHandle) collectLogs(ctx context.Context, maxPages int, initial *
 	for ; maxPages == 0 || pages < maxPages; pages++ {
 		page, err := h.LogPage(ctx, &ProcessLogsOptions{Cursor: cursor})
 		if err != nil {
-			return nil, err
+			return logs, err
 		}
 		logs = append(logs, page.Items...)
 		if page.EOF || page.NextCursor == "" || len(page.Items) == 0 || seen[page.NextCursor] {

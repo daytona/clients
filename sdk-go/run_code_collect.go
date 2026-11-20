@@ -16,13 +16,17 @@ func (s *Interpreter) collectCode(
 		options.OnOutput != nil || options.OnError != nil || options.OnLog != nil {
 		return s.streamCode(ctx, handle, execution)
 	}
+	output := newRunCodeOutput(options)
 	wait, err := s.waitCode(ctx, handle, execution.budget)
 	if err != nil {
-		return nil, err
+		return output.finish(InterpreterProcess{
+			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+		}), err
 	}
-	output := newRunCodeOutput(options)
 	if err = output.collect(ctx, handle, wait); err != nil {
-		return nil, err
+		return output.finish(InterpreterProcess{
+			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+		}), err
 	}
 	return output.finish(InterpreterProcess{ProcessID: handle.ID(), WaitResult: *wait}), nil
 }
@@ -32,16 +36,13 @@ func (o *runCodeOutput) collect(ctx context.Context, handle *ProcessHandle, wait
 	if wait.Reason == ProcessReasonTimedOut {
 		maxPages = 8
 	}
-	frames, err := processCollectLogs(ctx, handle, maxPages)
-	if err != nil {
-		return err
-	}
+	frames, readErr := processCollectLogs(ctx, handle, maxPages)
 	for _, frame := range frames {
-		if err = o.append(frame); err != nil {
+		if err := o.append(frame); err != nil {
 			return err
 		}
 	}
-	return nil
+	return readErr
 }
 
 type runCodeWait struct {
@@ -95,7 +96,13 @@ func (s *Interpreter) streamCode(
 		// The kernel may still be running after interrupt grace. Read a bounded
 		// snapshot and deduplicate frames already delivered through the stream.
 		if err := output.collect(ctx, handle, wait.result); err != nil {
-			return nil, err
+			var deliveryErr *outputDeliveryError
+			if errors.As(err, &deliveryErr) {
+				handle.stopAfterOutputFailure(ctx, ProcessSignalInterrupt)
+			}
+			return output.finish(InterpreterProcess{
+				ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+			}), err
 		}
 	}
 	return output.finish(InterpreterProcess{ProcessID: handle.ID(), WaitResult: *wait.result}), nil
