@@ -82,10 +82,12 @@
 //
 // # Errors
 //
-// Every error the SDK returns is, or wraps, an [*Error]. Match a category
+// Every error an SDK call returns is, or wraps, an [*Error]. Match a category
 // with errors.Is(err, [ErrNotFound]) or a specific code with
 // errors.Is(err, [ErrSandboxNotRunning]), and read the details with errors.As.
-// Context cancellation stays reachable through errors.Is.
+// Context cancellation stays reachable through errors.Is. Streams that
+// implement io.Reader follow its contract instead: [PTYConnection.Read]
+// returns io.EOF, unwrapped, when the terminal closes normally.
 //
 // # Configuration
 //
