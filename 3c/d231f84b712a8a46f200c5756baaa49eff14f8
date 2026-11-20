@@ -1,0 +1,30 @@
+changelog.d/cli-ssh-sandbox-token.changed.md
+  s_f31cd6233478dd::t_3174be8da0fc0f 1
+cli/README.md
+  s_f31cd6233478dd::t_3174be8da0fc0f 208-209,212,686
+  s_a270e1a444fc75::t_baa558bd02b4e2 210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3cd231f84b712a8a46f200c5756baaa49eff14f8",
+  "prompts": {},
+  "sessions": {
+    "s_a270e1a444fc75": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e07835d41ffeb4CjsU1v9UXDCE",
+        "model": "unknown"
+      },
+      "human_author": null
+    },
+    "s_f31cd6233478dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06c22b87ffep80ARFF8iVLzQB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

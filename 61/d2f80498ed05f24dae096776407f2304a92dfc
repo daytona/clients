@@ -1,0 +1,27 @@
+scripts/ax-evals/setup/_common.sh
+  s_12257b84f26bcc::t_4d4ed38616e019 52-54,56
+scripts/ax-evals/evals.json
+  s_12257b84f26bcc::t_e5d8001276c896 48-56
+  s_12257b84f26bcc::t_33aaf391f284e9 130-135
+scripts/ax-evals/ax-evals.test.js
+  s_12257b84f26bcc::t_112ede6730b1b6 115,117-118,124
+  s_12257b84f26bcc::t_c56b1d23c424b9 188
+scripts/ax-evals/setup/go.sh
+  s_12257b84f26bcc::t_4d4ed38616e019 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61d2f80498ed05f24dae096776407f2304a92dfc",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
