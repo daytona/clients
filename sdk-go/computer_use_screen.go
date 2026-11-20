@@ -103,7 +103,7 @@ func (s *ComputerUseScreen) Screenshot(
 	if decodeErr != nil {
 		d.check(badRequest("response field screenshot must contain base64 image bytes"))
 	}
-	result := &ComputerUseScreenshot{Data: data, SizeBytes: d.safeInteger("sizeBytes")}
+	result := &ComputerUseScreenshot{Data: data, SizeBytes: d.nonnegativeInteger("sizeBytes")}
 	if present(d.object["cursorPosition"]) {
 		cursor, parseErr := parseDesktopPoint(d.object["cursorPosition"])
 		d.check(parseErr)

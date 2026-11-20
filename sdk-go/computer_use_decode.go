@@ -64,6 +64,10 @@ func (d *desktopDecoder) safeInteger(name string) int64 {
 	return d.integer(name, [2]int64{0, 1<<53 - 1})
 }
 
+func (d *desktopDecoder) nonnegativeInteger(name string) int64 {
+	return d.integer(name, [2]int64{0, math.MaxInt64})
+}
+
 func (d *desktopDecoder) timestamp(name string, required bool) time.Time {
 	if required {
 		d.text(name)
