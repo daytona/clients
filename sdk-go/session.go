@@ -27,7 +27,8 @@ type CreateSessionOptions struct {
 	Tag string
 	// Cwd sets the initial directory.
 	Cwd string
-	// Env adds environment variables to the shell.
+	// Env adds environment variables to the shell. Nil omits env;
+	// an empty non-nil map sends {}.
 	Env map[string]string
 	// Shell selects a POSIX shell (bash/sh/dash/zsh/ksh).
 	Shell string

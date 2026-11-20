@@ -9,7 +9,9 @@ import "time"
 type PTYOptions struct {
 	// Cwd is the working directory; empty uses the sandbox default.
 	Cwd string
-	// Env adds environment variables. TERM defaults to xterm-256color unless set.
+	// Env adds environment variables. Nil omits env and an empty non-nil map
+	// sends {}, before PTY defaults are applied: both still add
+	// TERM=xterm-256color unless explicitly set.
 	Env map[string]string
 	// Name is an optional live alias.
 	Name string

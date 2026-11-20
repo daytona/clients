@@ -13,7 +13,7 @@ import (
 type ExecOptions struct {
 	// Cwd overrides the working directory.
 	Cwd string
-	// Env adds environment variables.
+	// Env adds environment variables. Nil omits env; an empty non-nil map sends {}.
 	Env map[string]string
 	// User overrides the OS user.
 	User string
