@@ -82,7 +82,7 @@ func WithRequestTimeout(timeout time.Duration) Option {
 func WithMaxResponseBytes(limit int64) Option {
 	return func(c *clientConfig) error {
 		if limit < NoLimit || limit > maxSafeInteger {
-			return badRequest("maxResponseBytes must be between 0 and 9007199254740991, or NoLimit")
+			return badRequest("WithMaxResponseBytes must be between 0 and 9007199254740991, or NoLimit")
 		}
 		if limit != 0 {
 			c.maxResponseBytes = limit
@@ -97,7 +97,7 @@ func WithMaxResponseBytes(limit int64) Option {
 func WithHTTPClient(client *http.Client) Option {
 	return func(c *clientConfig) error {
 		if client == nil {
-			return badRequest("httpClient must not be nil")
+			return badRequest("WithHTTPClient requires a non-nil client")
 		}
 		c.httpClient = client
 		return nil
@@ -108,7 +108,7 @@ func WithHTTPClient(client *http.Client) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(c *clientConfig) error {
 		if logger == nil {
-			return badRequest("logger must not be nil")
+			return badRequest("WithLogger requires a non-nil logger")
 		}
 		c.logger = logger
 		return nil

@@ -17,11 +17,14 @@ const DefaultAPIURL = "https://api.daytona.com"
 var legacyURLWarning sync.Once
 
 func (c *clientConfig) resolveEnvironment() error {
-	for name, value := range map[string]*string{
-		"apiKey": c.apiKey, "jwtToken": c.jwtToken, "projectId": c.projectID,
+	for _, option := range []struct {
+		name  string
+		value *string
+	}{
+		{"WithAPIKey", c.apiKey}, {"WithJWTToken", c.jwtToken}, {"WithProjectID", c.projectID},
 	} {
-		if value != nil && *value == "" {
-			return badRequest(name + " must be a non-empty string when provided")
+		if option.value != nil && *option.value == "" {
+			return badRequest(option.name + " requires a non-empty string")
 		}
 	}
 	explicitKey, explicitJWT := c.apiKey != nil, c.jwtToken != nil
@@ -35,12 +38,12 @@ func (c *clientConfig) resolveEnvironment() error {
 	switch {
 	case c.apiKey == nil && c.jwtToken == nil:
 		return newSDKError("UNAUTHORIZED", 401,
-			"configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)")
+			"configure authentication with WithAPIKey or WithJWTToken (or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)")
 	case c.apiKey != nil && c.jwtToken != nil:
 		return badRequest(
-			"configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)")
+			"configure exactly one of WithAPIKey or WithJWTToken (or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)")
 	case c.jwtToken != nil && c.projectID == nil:
-		return badRequest("projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)")
+		return badRequest("JWT authentication requires WithProjectID or DAYTONA_PROJECT_ID")
 	}
 	c.baseURL = strings.TrimRight(strings.TrimSpace(os.Getenv("DAYTONA_V2_API_URL")), "/")
 	if c.baseURL == "" {
