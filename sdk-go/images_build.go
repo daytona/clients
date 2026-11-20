@@ -32,9 +32,6 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 		return nil, err
 	}
 	if builder.hasLocalSources() {
-		if err = imageContextOptions(request); err != nil {
-			return nil, err
-		}
 		archive, prepareErr := builder.prepare(ctx)
 		if prepareErr != nil {
 			return nil, prepareErr
@@ -99,9 +96,6 @@ func (s *Images) buildFromContext(
 	}
 	request, err := imageOptions(options.BuildImageOptions)
 	if err != nil {
-		return nil, err
-	}
-	if err = imageContextOptions(request); err != nil {
 		return nil, err
 	}
 	if options.Timeout < 0 && options.Timeout != NoTimeout {

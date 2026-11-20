@@ -33,9 +33,6 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 	if err != nil {
 		return nil, err
 	}
-	if err = imageContextOptions(body); err != nil {
-		return nil, err
-	}
 	segment, err := pathSegment(s.ID())
 	if err != nil {
 		return nil, err
