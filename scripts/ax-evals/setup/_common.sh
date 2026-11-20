@@ -50,9 +50,8 @@ cd /opt/clients
 echo "build under test: $(git log --oneline -1)"
 
 # Install go.mod's preferred toolchain, or its Go version (default: the CLI's).
-# GOTOOLCHAIN=local
-# makes the check report the installed Go instead of auto-switching (and
-# downloading).
+# GOTOOLCHAIN=local makes the check report the installed Go instead of
+# auto-switching (and downloading).
 install_go() {
   GO_VERSION=$(awk '
     /^go / { version=$2 }
