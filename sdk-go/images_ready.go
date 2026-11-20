@@ -106,11 +106,10 @@ func (s *Images) hold(ctx context.Context, id string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	request := apiRequest{Query: url.Values{"wait": {"ready"}}, Timeout: NoTimeout}
-	if _, bounded := ctx.Deadline(); bounded {
-		hold, timeout := artifactHold(ctx)
-		request.Query.Set("timeout_ms", strconv.FormatInt(wireMilliseconds(hold), 10))
-		request.Timeout = timeout
+	hold, timeout := artifactHold(ctx)
+	request := apiRequest{
+		Query:   url.Values{"wait": {"ready"}, "timeout_ms": {strconv.FormatInt(wireMilliseconds(hold), 10)}},
+		Timeout: timeout,
 	}
 	reader := artifactReader[*Image]{s.client, path, parseImage}
 	return reader.read(ctx, request)
