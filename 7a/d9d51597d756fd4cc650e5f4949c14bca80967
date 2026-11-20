@@ -1,0 +1,21 @@
+sdk-go/e2e/lifecycle_test.go
+  s_12257b84f26bcc::t_e3bf26de001d2b 128
+sdk-go/e2e/account_test.go
+  s_12257b84f26bcc::t_e3bf26de001d2b 83-84,93,152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ad9d51597d756fd4cc650e5f4949c14bca80967",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
