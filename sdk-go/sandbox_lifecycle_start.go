@@ -15,6 +15,9 @@ import (
 // start immediately and lets the API decide whether it can accept the request.
 // Timeout returns ErrRequestTimeout; terminal failures return *SandboxTerminalStateError.
 func (s *Sandbox) Start(ctx context.Context, opts *LifecycleWaitOptions) error {
+	if err := s.client.ensureOpen(); err != nil {
+		return err
+	}
 	budget, err := lifecycleOptions(opts)
 	if err != nil {
 		return err
@@ -75,7 +78,9 @@ func (s *Sandbox) startObserved(ctx context.Context, w *sandboxWait, acceptedOnl
 		}
 	}
 	if acceptedOnly {
-		return nil
+		info := s.Info()
+		_, err := w.readOutcome(stateObservation{State: info.State, RawState: info.RawState, Reason: info.Error})
+		return err
 	}
 	return w.run(ctx)
 }
