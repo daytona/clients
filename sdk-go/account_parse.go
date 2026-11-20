@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 )
@@ -24,7 +25,12 @@ func accountResponse(data json.RawMessage, description string) accountObject {
 
 func (o accountObject) fail(name string, err error) {
 	if err != nil && *o.err == nil {
-		*o.err = badRequest(o.path + "." + name + ": " + err.Error())
+		message := err.Error()
+		var sdkError *Error
+		if errors.As(err, &sdkError) {
+			message = sdkError.Message
+		}
+		*o.err = badRequest(o.path + "." + name + ": " + message)
 	}
 }
 
