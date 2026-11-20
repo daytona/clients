@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 // Download streams a remote file to w without a total size cap. It does not close w.
@@ -115,7 +116,8 @@ func (f *FileSystem) DownloadFile(ctx context.Context, remotePath, localPath str
 	if err != nil {
 		return err
 	}
-	defer closeResponse(ctx, response, &failure)
+	finishResponse := sync.OnceFunc(func() { closeResponse(ctx, response, &failure) })
+	defer finishResponse()
 	staging, err := os.CreateTemp(filepath.Dir(localPath), ".daytona-dl-*")
 	if err != nil {
 		return wrapError(err, "create download staging file")
@@ -133,8 +135,10 @@ func (f *FileSystem) DownloadFile(ctx context.Context, remotePath, localPath str
 			}
 		}
 	}()
-	if copyErr := copyFileDownload(ctx, staging, fileDownload{response: response, options: opts}); copyErr != nil {
-		return copyErr
+	failure = copyFileDownload(ctx, staging, fileDownload{response: response, options: opts})
+	finishResponse()
+	if failure != nil {
+		return failure
 	}
 	info, statErr := os.Stat(localPath)
 	switch {
