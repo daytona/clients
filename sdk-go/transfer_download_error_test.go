@@ -42,7 +42,7 @@ func TestDownload_whenDestinationFails_preservesLocalCause(t *testing.T) {
 			var sdkError *Error
 			require.ErrorAs(t, err, &sdkError)
 			require.Same(t, sdkError, err)
-			require.Equal(t, "write download destination", sdkError.Message)
+			require.Equal(t, "write download destination: "+test.cause.Error(), sdkError.Message)
 		})
 	}
 }
