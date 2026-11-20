@@ -25,8 +25,10 @@ type ExecOptions struct {
 	Name string
 	// Tag groups this process for List and KillAll.
 	Tag string
-	// Timeout bounds waiting, not execution. Zero or WaitForever waits indefinitely.
+	// Timeout bounds waiting, not execution. Zero, WaitForever or NoTimeout waits indefinitely.
 	// Expiry returns reason timed_out; reconnect ProcessID to observe or stop the process.
+	// With output writers, the wait budget starts after creation. The create request
+	// uses the client timeout unless Timeout is explicitly unlimited.
 	Timeout time.Duration
 	// ExecutionTimeout is a server deadline that kills the process tree.
 	// Zero or NoTimeout means no execution deadline.

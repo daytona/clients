@@ -30,7 +30,8 @@ type SessionRunOptions struct {
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl; none is refused.
 	KeepLogs ProcessKeepLogs
-	// Timeout bounds the caller's wait, without killing. Zero or WaitForever is unlimited.
+	// Timeout bounds the caller's wait, without killing. See ExecOptions.Timeout
+	// for defaults and streaming creation semantics.
 	Timeout time.Duration
 	// Stdout receives live output; writes are serialized with Stderr.
 	Stdout io.Writer
