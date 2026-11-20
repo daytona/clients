@@ -24,7 +24,7 @@ import (
 
 func TestFilesystem(t *testing.T) {
 	// Given: one isolated sandbox, always removed by rawSandbox's cleanup.
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-fs"))
 	sb, err := client.Get(ctx, id, nil)
