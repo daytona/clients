@@ -80,10 +80,13 @@ func (s *Sandbox) secretsRequest(ctx context.Context, request apiRequest) (*Sand
 		return nil, badRequest("sandbox secrets response is missing the ETag header")
 	}
 	result := &SandboxSecretsInfo{ETag: etag}
-	for name, target := range map[string]*string{
-		"status": &result.Status, "error": &result.Error, "capture_status": &result.CaptureStatus,
+	for _, entry := range []struct {
+		name   string
+		target *string
+	}{
+		{"status", &result.Status}, {"error", &result.Error}, {"capture_status", &result.CaptureStatus},
 	} {
-		*target, err = field[string](object, name, false)
+		*entry.target, err = field[string](object, entry.name, false)
 		if err != nil {
 			return nil, err
 		}
