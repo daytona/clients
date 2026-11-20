@@ -10,6 +10,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 
+// The Go SDK target's variables, as GitHub defines them when it is not
+// requested: every `env:` entry exists, empty. The Go paths are tested by
+// scripts/sdk-go-publish_test.sh.
+const goTargetOff = {
+  PUBLISH_GO: 'false', GO_VERSION: '', GO_TAG: '', GO_MODULE: '', GO_BUILD: 'skipped', GO_PUBLISH: '',
+};
+
 const workflow = readFileSync(new URL('../../.github/workflows/sdk_publish.yaml', import.meta.url), 'utf8');
 const testUpgrade = readFileSync(new URL('../../scripts/test-upgrade.sh', import.meta.url), 'utf8');
 
@@ -62,7 +69,7 @@ for (const tag of ['alpha', 'beta', 'next', 'latest', '', 'stable', 'latest\ninj
     const valid = ['alpha', 'beta', 'next', 'latest'].includes(tag);
     // When: running the credential-bearing publish step with the supplied dist-tag.
     const result = spawnSync('bash', ['-c', step('Publish the migration tool to npm (OIDC)')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         NPM_DIST_TAG: tag, NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log,
         // The npm latest guard has its own tests (publish-channels.test.mjs).
         NPM_LATEST_GUARD: 'echo "guard $*" >> "$GUARD_LOG"', GUARD_LOG: join(root, 'guard') },
@@ -88,7 +95,7 @@ for (const [code, published] of [['200', false], ['404', true], ['503', false]])
     const log = join(root, 'published');
     // When
     const result = spawnSync('bash', ['-c', step('Publish the migration tool to npm (OIDC)')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         NPM_DIST_TAG: 'alpha', NPM_VERSION: '2.0.0-alpha.8', RESUME: 'true', PUBLISH_LOG: log },
     });
     // Then: only an absent version publishes; an unknown answer fails closed.
@@ -110,7 +117,7 @@ for (const version of ['1.2.3', '1.2.4']) {
     executable(join(root, 'bin/npm'), 'if [ "$1" = pack ]; then cp "$SOURCE_TARBALL" "$RUNNER_TEMP/upgrade-npm/artifact.tgz"; fi');
     // When: executing the publish job's actual packaging and artifact checks.
     const result = spawnSync('bash', ['-c', step('Build and pack the npm migration tool')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         SOURCE_TARBALL: join(root, 'artifact.tgz'), RUNNER_TEMP: root, NPM_VERSION: '1.2.3' },
     });
     // Then: only the artifact with the tag's version is publishable.
@@ -135,7 +142,7 @@ for (const state of ['installed', 'incomplete', 'absent']) {
     // When: executing the real SDK-install guard from scripts/test-upgrade.sh.
     const log = join(root, 'npm.log');
     const result = spawnSync('bash', ['-c', recipe], { cwd: root, encoding: 'utf8',
-      env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`, INSTALL_LOG: log } });
+      env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`, INSTALL_LOG: log } });
     // Then: a clean install runs only when the compiler package is missing.
     assert.equal(result.status, 0, result.stderr);
     if (installed) assert.throws(() => readFileSync(log), { code: 'ENOENT' });
@@ -165,7 +172,7 @@ for (const [title, inputs, codes, expected] of [
     ].join('\n'));
     // When
     const result = spawnSync('bash', ['-c', step('Refuse a version the registry already has (unless force_republish)')], {
-      encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         NPM_VERSION: '2.0.0-alpha.8', PYPI_VERSION: '2.0.0a8', CLI_VERSION: '', FORCE: 'false',
         UPGRADE_NPM: '2.0.0-alpha.8', UPGRADE_PYPI: '2.0.0a8', GH_TOKEN: '', SDK_CODE: codes.sdk, TOOL_CODE: codes.tool, ...inputs },
     });
@@ -184,7 +191,7 @@ for (const [code, published] of [['200', true], ['404', false]]) {
     writeFileSync(join(root, 'clock'), '0');
     // When
     const result = spawnSync('bash', ['-c', step('Wait until @daytona/sdk ${{ needs.gate.outputs.upgrade_npm }} is on npm')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         URL: 'https://registry.npmjs.org/@daytona%2fsdk/2.0.0-alpha.8', CLOCK: join(root, 'clock') },
     });
     // Then: a visible SDK lets the tool publish; an invisible one fails after the deadline.
@@ -215,7 +222,7 @@ for (const [name, version, published] of [['@daytona/upgrade', '2.0.0-alpha.8', 
     const log = join(root, 'published');
     // When
     const result = spawnSync('bash', ['-c', step('Publish the migration tool to npm (OIDC)')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         NPM_DIST_TAG: 'alpha', NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log },
     });
     // Then
@@ -234,7 +241,7 @@ for (const [files, valid] of [[['daytona_upgrade-2.0.0a8-py3-none-any.whl', 'day
     for (const file of files) writeFileSync(join(root, 'upgrade-pypi', file), '');
     // When
     const result = spawnSync('bash', ['-c', step("The migration tool's PyPI distributions are exactly the tool's")], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PYPI_VERSION: '2.0.0a8' },
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PYPI_VERSION: '2.0.0a8' },
     });
     // Then: an SDK distribution never rides along under the tool's publisher.
     assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
@@ -265,7 +272,7 @@ for (const [tagged, expected] of [[false, 1], [true, 0]]) {
     const end = lines.findIndex((line) => line.trim() !== '' && !line.startsWith(' '.repeat(10)));
     const script = lines.slice(0, end === -1 ? undefined : end).map((line) => line.slice(10)).join('\n');
     const result = spawnSync('bash', ['-c', script], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, VERSION_INPUT: 'v2.0.0-alpha.8', SOURCE_SHA: sha, GITHUB_OUTPUT: output,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, VERSION_INPUT: 'v2.0.0-alpha.8', SOURCE_SHA: sha, GITHUB_OUTPUT: output,
         PUBLISH_PYPI: 'false', PUBLISH_NPM: 'false', PUBLISH_CLI: 'false', PUBLISH_UPGRADE: 'true' },
     });
     // Then: without the tag, the run cannot prove the SDKs came from this commit,
@@ -288,7 +295,7 @@ for (const [name, version, valid] of [['@daytona/sdk', '2.0.0-alpha.8', true], [
     const log = join(root, 'published');
     // When
     const result = spawnSync('bash', ['-c', step('Publish @daytona/sdk ${{ needs.gate.outputs.npm }} to npm (OIDC)')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`,
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PATH: `${root}/bin:${process.env.PATH}`,
         NPM_DIST_TAG: 'alpha', NPM_VERSION: '2.0.0-alpha.8', RESUME: 'false', PUBLISH_LOG: log },
     });
     // Then: the tool's package never goes up under this step.
@@ -308,7 +315,7 @@ for (const [files, valid] of [[['daytona-2.0.0a8-py3-none-any.whl', 'daytona-2.0
     for (const file of files) writeFileSync(join(root, 'pypi-dist', file), '');
     // When
     const result = spawnSync('bash', ['-c', step("The PyPI distributions are exactly the SDK's")], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PYPI_VERSION: '2.0.0a8' },
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PYPI_VERSION: '2.0.0a8' },
     });
     // Then: a tool distribution never rides along under the SDK's upload.
     assert.equal(result.status, valid ? 0 : 1, result.stdout + result.stderr);
@@ -327,7 +334,7 @@ for (const [lockstep, expected] of [[true, 0], [false, 1]]) {
     }
     // When
     const result = spawnSync('bash', ['-c', step('Require the sdk-python/ and sdk-typescript/ layout')], {
-      cwd: root, encoding: 'utf8', env: { ...process.env, PUBLISH_UPGRADE: 'true' },
+      cwd: root, encoding: 'utf8', env: { ...process.env, ...goTargetOff, PUBLISH_UPGRADE: 'true' },
     });
     // Then: an older tool would write its own fixed range, not this release.
     assert.equal(result.status, expected, result.stdout + result.stderr);

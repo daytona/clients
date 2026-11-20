@@ -18,6 +18,7 @@ Generate the reports first (each from its package directory):
   (cd sdk-python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
   (cd sdk-typescript && npx jest --coverage --coverageReporters=lcov)
   (cd cli && go test ./... -coverprofile=coverage.out)
+  (cd sdk-go && go test ./... -coverprofile=coverage.out)
 
 Exit codes: 0 = target met, 1 = below target or a changed component's report
 is missing, 2 = usage/environment error.
@@ -37,6 +38,7 @@ COMPONENTS = [
     ("python", "sdk-python", "sdk-python/coverage.xml", "cobertura"),
     ("typescript", "sdk-typescript", "sdk-typescript/coverage/lcov.info", "lcov"),
     ("cli", "cli", "cli/coverage.out", "gocover"),
+    ("go", "sdk-go", "sdk-go/coverage.out", "gocover"),
 ]
 
 # Changed lines under these never count: tests, examples, live e2e, entry
@@ -46,6 +48,7 @@ IGNORE_GLOBS = [
     "e2e/**", "**/main.go",
     "sdk-python/src/daytona/v2/_gen/**", "sdk-python/src/daytona/v2/_sync/**",
     "sdk-typescript/src/v2/gen/**", "cli/gen/**",
+    "sdk-go/internal/gen/**", "sdk-go/codes_catalog_*.go", "sdk-go/codes_dispatch.go",
     "sdk-python/gen/**", "sdk-typescript/scripts/**", "scripts/**",
 ]
 

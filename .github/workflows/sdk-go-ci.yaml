@@ -1,0 +1,88 @@
+name: Go SDK CI
+
+# Build, test and lint the Go SDK (go.daytona.com/sdk/v2, sdk-go/).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk-go/**'
+      - 'contract/**'
+      - 'sdk-typescript/src/v2/codes.ts'
+      - 'sdk-typescript/tests/unit.test.ts'
+      - 'sdk-python/tests/fixtures/**'
+      - 'cli/internal/dockerignore/testdata/buildkit_cases.json'
+      - '.github/workflows/sdk-go-ci.yaml'
+  pull_request:
+    paths:
+      - 'sdk-go/**'
+      - 'contract/**'
+      - 'sdk-typescript/src/v2/codes.ts'
+      - 'sdk-typescript/tests/unit.test.ts'
+      - 'sdk-python/tests/fixtures/**'
+      - 'cli/internal/dockerignore/testdata/buildkit_cases.json'
+      - '.github/workflows/sdk-go-ci.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    name: Go SDK vet, test, lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk-go
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: sdk-go/go.mod
+          cache-dependency-path: sdk-go/go.sum
+      - name: go.mod and go.sum are tidy
+        run: go mod tidy -diff
+      - run: go vet ./...
+      - name: Unit tests (race detector, shuffled)
+        env:
+          # Fail instead of skipping when a shared fixture or sibling source moves.
+          DAYTONA_SDK_GO_REQUIRE_FIXTURES: "1"
+        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out ./...
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-go
+          path: sdk-go/coverage.out
+          retention-days: 14
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.1
+          working-directory: sdk-go
+      - name: Build the live e2e tests
+        run: go vet -tags e2e ./...
+      - name: A consumer module builds against the module path
+        # Proves the published shape: a separate module requires
+        # go.daytona.com/sdk/v2 (resolved to this checkout) and imports the
+        # package as `daytona`.
+        run: |
+          consumer=$(mktemp -d)
+          cat >"$consumer/go.mod" <<EOF
+          module example.com/consumer
+
+          go $(go mod edit -json | jq -r .Go)
+
+          require go.daytona.com/sdk/v2 v2.0.0
+
+          replace go.daytona.com/sdk/v2 => $PWD
+          EOF
+          cat >"$consumer/main.go" <<'EOF'
+          package main
+
+          import "go.daytona.com/sdk/v2"
+
+          func main() { _, _ = daytona.New() }
+          EOF
+          (cd "$consumer" && GOFLAGS=-mod=mod go build ./...)
