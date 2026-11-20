@@ -34,6 +34,11 @@ func (s *Processes) runStreaming(
 	defer cancel()
 	logs, err := options.consume(streamCtx, handle)
 	if err != nil {
+		var deliveryErr *outputDeliveryError
+		if errors.As(err, &deliveryErr) {
+			handle.stopAfterOutputFailure(ctx, ProcessSignalTerminate)
+			return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
+		}
 		if ctx.Err() != nil {
 			return nil, transportError(ctx, err)
 		}
@@ -71,12 +76,17 @@ func (o ExecOptions) consume(ctx context.Context, handle *ProcessHandle) ([]LogF
 		case LogChannelSetup, LogChannelDisplay, LogChannelExecuteResult, LogChannelError, LogChannelUnknown:
 			// Other frames remain available through the result.
 		}
+		logs = append(logs, frame)
 		if writer != nil {
-			if _, err = io.WriteString(writer, frame.Data); err != nil {
-				return nil, wrapError(err, "write process output")
+			var written int
+			written, err = io.WriteString(writer, frame.Data)
+			if err == nil && written != len(frame.Data) {
+				err = io.ErrShortWrite
+			}
+			if err != nil {
+				return logs, &outputDeliveryError{wrapError(err, "write process output")}
 			}
 		}
-		logs = append(logs, frame)
 	}
 	return logs, nil
 }
