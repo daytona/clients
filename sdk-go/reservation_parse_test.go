@@ -167,7 +167,10 @@ func TestReservationsRejectBadNestedNumbers(t *testing.T) {
 					_, err := client.Reservations().Get(t.Context(), "id")
 					// Then
 					require.ErrorIs(t, err, ErrBadRequest)
-					require.ErrorContains(t, err, name)
+					var sdkError *Error
+					require.ErrorAs(t, err, &sdkError)
+					require.Same(t, sdkError, err)
+					require.ErrorContains(t, err, parent+"."+name)
 				})
 			}
 		}
