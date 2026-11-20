@@ -53,9 +53,10 @@ func TestComputerUseA11yTreeMapsOrderedNodes(t *testing.T) {
 	// Then
 	require.NoError(t, err)
 	require.True(t, tree.Truncated)
-	require.Equal(t, int32(-2147483648), tree.Root.Bounds.X)
-	require.Equal(t, int32(2147483647), tree.Root.Bounds.Y)
-	require.Equal(t, int32(-1), tree.Root.Bounds.Height)
+	require.Equal(t, -2147483648, tree.Root.Bounds.X)
+	require.Equal(t, 2147483647, tree.Root.Bounds.Y)
+	require.Equal(t, -1, tree.Root.Bounds.Height)
+	require.IsType(t, &ComputerUseA11yTreeResponse{}, tree)
 	require.Equal(t, "future-role", tree.Root.Role)
 	require.Equal(t, []string{"future-state"}, tree.Root.States)
 	require.Equal(t, "cut", tree.Root.Children[0].ID)
@@ -90,6 +91,7 @@ func TestComputerUseA11yFindSendsFilters(t *testing.T) {
 
 	// Then
 	require.NoError(t, err)
+	require.IsType(t, &ComputerUseA11yFindResponse{}, found)
 	require.True(t, found.Truncated)
 	require.Equal(t, "first", found.Matches[0].ID)
 	require.True(t, found.Matches[0].ValueTruncated)

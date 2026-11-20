@@ -63,16 +63,16 @@ type ComputerUseA11yInvokeOptions struct {
 }
 
 // ComputerUseAccessibilityBounds is an accessibility node's rectangle in pixels.
-// Coordinates and dimensions are signed 32-bit integers.
+// Coordinates and dimensions are parsed within the signed 32-bit wire range.
 type ComputerUseAccessibilityBounds struct {
 	// X is the horizontal coordinate in pixels.
-	X int32
+	X int
 	// Y is the vertical coordinate in pixels.
-	Y int32
+	Y int
 	// Width is the width in pixels.
-	Width int32
+	Width int
 	// Height is the height in pixels.
-	Height int32
+	Height int
 }
 
 // ComputerUseAccessibilityNode describes one accessibility control.

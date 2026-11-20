@@ -20,13 +20,13 @@ type ComputerUseA11y struct{ s *Sandbox }
 // MaxDepth outside 0–256 or a malformed/deeper response returns ErrBadRequest.
 func (a *ComputerUseA11y) Tree(
 	ctx context.Context, scope ComputerUseA11yScope, opts *ComputerUseA11yTreeOptions,
-) (ComputerUseA11yTreeResponse, error) {
+) (*ComputerUseA11yTreeResponse, error) {
 	maxDepth := computerUseA11yMaxDepth
 	if opts != nil && opts.MaxDepth != nil {
 		maxDepth = *opts.MaxDepth
 	}
 	if maxDepth < 0 || maxDepth > computerUseA11yMaxDepth {
-		return ComputerUseA11yTreeResponse{}, badRequest("maxDepth must be an integer between 0 and 256")
+		return nil, badRequest("maxDepth must be an integer between 0 and 256")
 	}
 	query := url.Values{"scope": {string(scope)}, "maxDepth": {strconv.Itoa(maxDepth)}}
 	if opts != nil && opts.PID != nil {
@@ -36,32 +36,32 @@ func (a *ComputerUseA11y) Tree(
 	if err := a.s.toolbox().do(ctx, toolboxRequest{
 		Path: "/computeruse/a11y/tree", Query: query, Result: &response,
 	}); err != nil {
-		return ComputerUseA11yTreeResponse{}, err
+		return nil, err
 	}
 	wire, err := parseObject(response, "computer-use accessibility tree")
 	if err != nil {
-		return ComputerUseA11yTreeResponse{}, err
+		return nil, err
 	}
 	root, err := field[JSONValue](wire, "root", true)
 	if err != nil {
-		return ComputerUseA11yTreeResponse{}, err
+		return nil, err
 	}
 	truncated, err := field[bool](wire, "truncated", true)
 	if err != nil {
-		return ComputerUseA11yTreeResponse{}, err
+		return nil, err
 	}
 	nodes, err := parseComputerUseA11yNodes([]JSONValue{root}, maxDepth)
 	if err != nil {
-		return ComputerUseA11yTreeResponse{}, err
+		return nil, err
 	}
-	return ComputerUseA11yTreeResponse{Root: nodes[0], Truncated: truncated}, nil
+	return &ComputerUseA11yTreeResponse{Root: nodes[0], Truncated: truncated}, nil
 }
 
 // Find retrieves matching nodes. A malformed response or a match nested more
 // than 256 levels below its root returns ErrBadRequest.
 func (a *ComputerUseA11y) Find(
 	ctx context.Context, scope ComputerUseA11yScope, opts *ComputerUseA11yFindOptions,
-) (ComputerUseA11yFindResponse, error) {
+) (*ComputerUseA11yFindResponse, error) {
 	body := struct {
 		Scope ComputerUseA11yScope `json:"scope"`
 		ComputerUseA11yFindOptions
@@ -77,25 +77,25 @@ func (a *ComputerUseA11y) Find(
 	if err := a.s.toolbox().do(ctx, toolboxRequest{
 		Method: http.MethodPost, Path: "/computeruse/a11y/find", Body: body, Result: &response,
 	}); err != nil {
-		return ComputerUseA11yFindResponse{}, err
+		return nil, err
 	}
 	wire, err := parseObject(response, "computer-use accessibility find")
 	if err != nil {
-		return ComputerUseA11yFindResponse{}, err
+		return nil, err
 	}
 	matches, err := field[[]JSONValue](wire, "matches", true)
 	if err != nil {
-		return ComputerUseA11yFindResponse{}, err
+		return nil, err
 	}
 	truncated, err := field[bool](wire, "truncated", true)
 	if err != nil {
-		return ComputerUseA11yFindResponse{}, err
+		return nil, err
 	}
 	nodes, err := parseComputerUseA11yNodes(matches, computerUseA11yMaxDepth)
 	if err != nil {
-		return ComputerUseA11yFindResponse{}, err
+		return nil, err
 	}
-	return ComputerUseA11yFindResponse{Matches: nodes, Truncated: truncated}, nil
+	return &ComputerUseA11yFindResponse{Matches: nodes, Truncated: truncated}, nil
 }
 
 // Focus focuses the accessibility node identified by id.

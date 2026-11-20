@@ -90,7 +90,7 @@ func parseComputerUseA11yNode(wire jsonObject) (ComputerUseAccessibilityNode, er
 	}
 	for _, part := range []struct {
 		name string
-		into *int32
+		into *int
 	}{
 		{"x", &node.Bounds.X},
 		{"y", &node.Bounds.Y},
@@ -104,7 +104,7 @@ func parseComputerUseA11yNode(wire jsonObject) (ComputerUseAccessibilityNode, er
 		if value < math.MinInt32 || value > math.MaxInt32 {
 			return node, badRequest("response bounds field " + part.name + " must be an int32")
 		}
-		*part.into = int32(value) // Range checked at the response boundary.
+		*part.into = int(value) // Range checked at the response boundary.
 	}
 	return node, nil
 }
