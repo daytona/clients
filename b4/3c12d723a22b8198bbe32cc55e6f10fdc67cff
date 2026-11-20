@@ -1,0 +1,18 @@
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  h_5fc330b445be98 113-116,118,120-128,471-472,479,498,505
+sdk-typescript/tests/desktop-environment.test.ts
+  h_5fc330b445be98 1-109
+sdk-typescript/tests/unit.test.ts
+  h_5fc330b445be98 12136,12144,12149,12151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b43c12d723a22b8198bbe32cc55e6f10fdc67cff",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

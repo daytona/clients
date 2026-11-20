@@ -1,0 +1,16 @@
+sdk-python/src/daytona/v2/_codes.py
+  h_5fc330b445be98 97,104-105,249,256-257,427,434-435
+sdk-python/src/daytona/v2/errors.py
+  h_5fc330b445be98 839,846-847
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02bd25e7fa597472d3439d6e177bb350870d3da2",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

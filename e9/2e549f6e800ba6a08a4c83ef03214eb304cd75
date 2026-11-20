@@ -1,0 +1,18 @@
+cli/gen/api/types.gen.go
+  h_5fc330b445be98 53,80,113,221-222,275-276,341-342,2100-2102,2576,3171,3203,4148-4149,5804-5806,6037-6039,7180-7182,7219-7220,7227-7228,7551-7553
+sdk-typescript/src/v2/gen/api-enums.ts
+  h_5fc330b445be98 3
+sdk-typescript/src/v2/gen/api.ts
+  h_5fc330b445be98 2921,2981-2982,3505,4156,4189,5197-5198,6673-6675,8015-8016,8062-8063,8071-8072,9220,9833,10128-10129,13012,13074
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e92e549f6e800ba6a08a4c83ef03214eb304cd75",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}
