@@ -1,0 +1,70 @@
+api-client/src/models/region-quota.ts
+  ai_agent 55
+api-client-go/model_region_quota.go
+  ai_agent 45,55,491,493,497,500,503,506-515,518,520,551-553
+sdk-python/src/daytona/_sync/daytona.py
+  s_7750b317905afd::t_41479dc42d5442 586-588,591-593,596-598
+openapi-specs/api.json
+  s_7750b317905afd::t_41479dc42d5442 12327,12407,12452,12471
+  s_7750b317905afd::t_f287cd32b40d2b 13363
+sdk-ruby/spec/daytona/sandbox_nodes_spec.rb
+  s_7750b317905afd::t_a2b5e3d1b5b749 49-60
+sdk-python/src/daytona/_async/daytona.py
+  s_7750b317905afd::t_41479dc42d5442 711-713,716-718,721-723
+api-client-python-async/daytona_api_client_async/models/region_quota.py
+  ai_agent 51
+sdk-ruby/lib/daytona/sandbox_nodes.rb
+  s_7750b317905afd::t_c3c7055b7dac94 133-140,189,241-244
+sdk-python/tests/test_single_node_compatibility.py
+  s_7750b317905afd::t_53df36d4e85810 4,68
+  s_7750b317905afd::t_f85d09f033926e 1-3,5-67
+sdk-python/src/daytona/_async/sandbox.py
+  s_7750b317905afd::t_53df36d4e85810 15-20,568-573
+  s_7750b317905afd::t_c3c7055b7dac94 23-25,303-305
+  s_7750b317905afd::t_a2b5e3d1b5b749 553,576-582,2006-2007
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_7750b317905afd::t_53df36d4e85810 4,172-178
+sdk-go/pkg/daytona/sandbox_nodes_test.go
+  s_7750b317905afd::t_a2b5e3d1b5b749 58-82
+hack/python-client/openapi-templates/model_generic.mustache
+  s_7750b317905afd::t_53df36d4e85810 390
+  s_7750b317905afd::t_41479dc42d5442 15-19,39-42,44,245-248,250,389,391-392,394
+sdk-go/pkg/daytona/sandbox_nodes.go
+  s_7750b317905afd::t_c3c7055b7dac94 196-201
+sdk-python/tests/test_async_daytona.py
+  s_7750b317905afd::t_41479dc42d5442 524-526,593-595
+api-client-python/daytona_api_client/models/create_sandbox.py
+  ai_agent 32-34,55,59-60,115,118,121,163,167-168
+sdk-python/src/daytona/_sync/sandbox.py
+  s_7750b317905afd::t_a2b5e3d1b5b749 548,571-577,1989-1990
+  s_7750b317905afd::t_53df36d4e85810 16-21,563-568
+  s_7750b317905afd::t_c3c7055b7dac94 24-26,309-311
+sdk-typescript/src/Daytona.ts
+  s_7750b317905afd::t_c3c7055b7dac94 256,258,619,624
+api-client-java/src/main/java/io/daytona/api/client/model/RegionQuota.java
+  ai_agent 140,458,467,472,599
+api-client-go/api/openapi.yaml
+  ai_agent 9434,13536,13549,13566
+api-client-python/daytona_api_client/models/region_quota.py
+  ai_agent 51
+api-client-python-async/daytona_api_client_async/models/create_sandbox.py
+  ai_agent 32-34,55,59-60,115,118,121,163,167-168
+sdk-python/tests/test_daytona.py
+  s_7750b317905afd::t_41479dc42d5442 214-216,270-272
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "93099cd470aa07a57798030ffb57d90a7a30f6d9",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+sdk-typescript/src/Sandbox.ts
+  s_de18e038cb6c6e::t_d3f817b038cd7c 557-558
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c503c6b272d6fe747db0cdc3e4a0b21338c6d618",
+  "prompts": {},
+  "sessions": {
+    "s_de18e038cb6c6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15a74e0dfferV6TlotuNdR3xm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

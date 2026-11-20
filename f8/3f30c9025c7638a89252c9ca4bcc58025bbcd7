@@ -1,0 +1,100 @@
+sdk-python/src/daytona/v2/daytona.py
+  s_b3e701c41242f9::t_f5a875e09b9551 1879-1887
+  s_b3e701c41242f9::t_7738d38b2fae2c 8,76
+  s_b3e701c41242f9::t_ad997b1c0be515 588-676,1661-1675,1919-1924,1926,1993-1994,1999,2001
+changelog.d/multi-node-gpu-sandboxes.added.md
+  s_b3e701c41242f9::t_dbc5d593b18c8d 1-15
+sdk-typescript/src/v2/clientSearch.ts
+  s_b3e701c41242f9::t_bbcc645db1c176 70
+sdk-python/README.md
+  s_b3e701c41242f9::t_4b51e3c56c410e 819-874
+sdk-typescript/README.md
+  s_b3e701c41242f9::t_4b51e3c56c410e 739-794
+sdk-python/src/daytona/v2/errors.py
+  s_b3e701c41242f9::t_20956d77bb3a86 6
+  s_b3e701c41242f9::t_38fd5392e7e329 575-596,904-906
+  s_b3e701c41242f9::t_fe694410b126b0 221-242
+sdk-python/src/daytona/v2/sandbox_nodes.py
+  s_b3e701c41242f9::t_3f24a822151d39 1-17,19-24,27-29,37-200,211-229,240-266,275-277,279-283,286-312,316-341,343-348,361-488,498-598
+  s_b3e701c41242f9::t_cecc3029ba6698 30-36,342,349-360,489-497
+  s_b3e701c41242f9::t_20956d77bb3a86 25-26
+  s_b3e701c41242f9::t_7f968f0edf873e 18,201-206,208-210,230-235,237-239,267-274,278,284-285,313-315
+sdk-python/src/daytona/v2/_core.py
+  s_b3e701c41242f9::t_20ba764e30ec44 2330,2333
+sdk-typescript/src/v2/sandboxMetadata.ts
+  s_b3e701c41242f9::t_8fb9a2e92f543f 8,20-42,86-94,105-112,114-133,135-142,187-193,225
+  s_b3e701c41242f9::t_596c9257e0bb39 15,113,134
+sdk-typescript/src/v2/codes.ts
+  s_b3e701c41242f9::t_e04e2453a82ed8 110-112,293-295
+sdk-python/src/daytona/v2/_codes.py
+  s_b3e701c41242f9::t_38fd5392e7e329 118-120,270-272,448-450
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_b3e701c41242f9::t_720c889a35335d 10,28-30,62
+sdk-typescript/src/v2/gen/api-types.ts
+  s_b3e701c41242f9::t_0e33051b9d910d 91-97
+sdk-python/src/daytona/v2/_node_resources.py
+  s_b3e701c41242f9::t_ab9dcf6e1b9d45 1-17,19-121
+  s_b3e701c41242f9::t_1da93b4bc3fd55 18
+sdk-python/src/daytona/v2/sandbox.py
+  s_b3e701c41242f9::t_82cf8e344ab491 126,136,233-238,320,340,457-458,467-523,1908,2227,2248-2254,2291-2304,2315-2316
+changelog.d/gpu-sandboxes.added.md
+  s_b3e701c41242f9::t_dbc5d593b18c8d 1-5
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_b3e701c41242f9::t_040747afc7b375 44-45,50
+  s_b3e701c41242f9::t_720c889a35335d 7,10-11,15,40,171-215
+  s_b3e701c41242f9::t_f5a875e09b9551 46-49,51-56,65,67,84-89
+sdk-typescript/tests/gpu-multinode.test.ts
+  s_b3e701c41242f9::t_42e1674af82a13 1-385
+sdk-python/gen/gen_sync.py
+  s_b3e701c41242f9::t_772f1090bcb321 73
+sdk-python/src/daytona/v2/__init__.py
+  s_b3e701c41242f9::t_0bd78ebc3f1f96 78-83,185-187,255,257-259,321,406-421
+sdk-typescript/src/v2/Daytona.ts
+  s_b3e701c41242f9::t_bdebc1e6683521 13,27,34,253-291
+sdk-python/tests/test_gpu_multinode.py
+  s_b3e701c41242f9::t_67a43fd8ebfa16 58-60
+  s_b3e701c41242f9::t_6acf2b286fea5a 1-57,61-188,192-268,274-313,315-336,342-369,373-389,393-399,403-427,431-470,479-517,521-553,557,560-568
+  s_b3e701c41242f9::t_ecb8031c891430 189-191,269-273,337-341,370-372,390-392,400-402,428-430,471-478,518-520,555-556
+  s_b3e701c41242f9::t_cecc3029ba6698 314,554,558-559
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_b3e701c41242f9::t_e04e2453a82ed8 361-393,540-552,729-731,1199-1202
+sdk-typescript/src/v2/types.ts
+  s_b3e701c41242f9::t_596c9257e0bb39 739-757,807,810
+  s_b3e701c41242f9::t_7548a2c3944cbb 238-300,320-326,329,331,333,335,337,339,581-625
+  s_b3e701c41242f9::t_7ad57c110768bc 760,803-806,808-809
+  s_b3e701c41242f9::t_7b5c8204f09a79 738
+sdk-typescript/src/v2/nodeResources.ts
+  s_b3e701c41242f9::t_e04e78fcf3ea53 1-99
+sdk-python/src/daytona/v2/_exports.py
+  s_b3e701c41242f9::t_0bd78ebc3f1f96 9-24
+sdk-typescript/src/v2/Sandbox.ts
+  s_b3e701c41242f9::t_596c9257e0bb39 406-414
+  s_b3e701c41242f9::t_0d8567dd3984b6 84-86,88,365-405,415-419,445-448,478,482-511,678-679
+sdk-typescript/src/v2/index.ts
+  s_b3e701c41242f9::t_68cb0cf2e67d74 78,149-152,198,205-213,234
+sdk-python/src/daytona/v2/types.py
+  s_b3e701c41242f9::t_c4611e0a0ec8c6 137-148,439,449-454,457-476,478,482-522,624,626-632,694
+sdk-typescript/src/v2/clientCreateOptions.ts
+  s_b3e701c41242f9::t_720c889a35335d 20,24-26
+sdk-typescript/src/v2/SandboxNodes.ts
+  s_b3e701c41242f9::t_af4270a3ec8559 25,27-28
+  s_b3e701c41242f9::t_596c9257e0bb39 16,58-59,151,164,182,191,209
+  s_b3e701c41242f9::t_4afc0cab72f034 1-15,18-24,26,29-57,60-88,90-94,96-150,152-163,165-181,183-190,192-208,210-333
+  s_b3e701c41242f9::t_884d3bf3e0b87c 17,89,95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f83f30c9025c7638a89252c9ca4bcc58025bbcd7",
+  "prompts": {},
+  "sessions": {
+    "s_b3e701c41242f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b7f97c1-6295-4839-a27b-f5f1f098b4d1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

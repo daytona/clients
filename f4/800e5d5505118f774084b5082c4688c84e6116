@@ -1,0 +1,29 @@
+sdk-python/tests/test_subscription_acks.py
+  s_098f276a7fe1a7::t_da5806a400a384 1-431
+sdk-typescript/src/utils/WaitPolling.ts
+  s_f183ae858512d6::t_db4251b18000a9 6-7,10-14,18-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4800e5d5505118f774084b5082c4688c84e6116",
+  "prompts": {},
+  "sessions": {
+    "s_098f276a7fe1a7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e16186adfffeApv0FBZ83rV8Wm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f183ae858512d6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e161872b8ffePnIF3JnFxt0s5F",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

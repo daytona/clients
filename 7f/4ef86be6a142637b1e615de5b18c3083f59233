@@ -1,0 +1,16 @@
+cli/go.mod
+  h_e7759ddd73fa65 14
+cli/go.sum
+  h_e7759ddd73fa65 76-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f4ef86be6a142637b1e615de5b18c3083f59233",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,140 @@
+sdk-typescript/src/Sandbox.ts
+  s_f183ae858512d6::t_84dabd343497c1 484,689,725
+  s_f183ae858512d6::t_194fa5a6fc2ca4 1517-1518
+  s_f183ae858512d6::t_3d6814ab4d13f3 485-487
+  s_f183ae858512d6::t_48755c2204b530 686-688
+  s_f183ae858512d6::t_ed25b9de207ed2 690
+  s_f183ae858512d6::t_fec54ec3d129e1 722-724
+  s_f183ae858512d6::t_215f45ef4108a3 726-728
+sdk-python/src/daytona/internal/wait_poll.py
+  s_098f276a7fe1a7::t_ea86d14f8b981a 1-45
+  s_098f276a7fe1a7::t_544f47132a84ae 46-48
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_f183ae858512d6::t_224d1e51e452f0 528-538,540-543,545-553,789,808,811-812,815-817,820,822-824,826,828,837-840,843,845,847-849,854,856-858,860,862,870,872-874,888,903,914,920,926
+  s_f183ae858512d6::t_fb84ea33798be6 1009-1023,1025-1027,1029-1038,1043,1049-1052,1054,1060,1063-1064,1066-1068,1070,1074-1122
+  s_f183ae858512d6::t_f4bfa5ef35d513 786-788
+  s_f183ae858512d6::t_5c9afb268c1a76 790-792,805-807
+  s_f183ae858512d6::t_b2ec3cc124ab70 809-810
+  s_f183ae858512d6::t_d5b1c25bf87282 813-814
+  s_f183ae858512d6::t_07baf0613e36fa 818-819
+  s_f183ae858512d6::t_dce25f50b8a727 821
+  s_f183ae858512d6::t_668ee08aa46761 825
+  s_f183ae858512d6::t_d38d97f2f072b3 827
+  s_f183ae858512d6::t_139ed0c19df08a 829-831,834-836
+  s_f183ae858512d6::t_d5d34ffa673e84 841-842
+  s_f183ae858512d6::t_17fde8ce34c933 844
+  s_f183ae858512d6::t_cc53fe6800ea3f 846
+  s_f183ae858512d6::t_3f3668c71c58ee 850-853
+  s_f183ae858512d6::t_d989f691e07948 855
+  s_f183ae858512d6::t_554a999be5410c 859
+  s_f183ae858512d6::t_eb40720b372b05 861
+  s_f183ae858512d6::t_2b3bf98addeb1d 863-865,867-869
+  s_f183ae858512d6::t_cc40e5b0a3859b 871
+  s_f183ae858512d6::t_ce5d8808850bb4 875-877,885-887
+  s_f183ae858512d6::t_f0f4371d15b0f6 889-891,900-902
+  s_f183ae858512d6::t_9c1c9275ed7f84 904-906,911-913
+  s_f183ae858512d6::t_0c57d8a681cd62 915-919
+  s_f183ae858512d6::t_75c75584b29690 921-925
+  s_f183ae858512d6::t_e97e7eed4cfcba 927-929
+  s_f183ae858512d6::t_59db154ca153ed 1123
+sdk-go/pkg/daytona/sandbox.go
+  s_6fb707fc623639::t_24a5217cdbb632 543,563,566,802,809,1344,1350,1525,2079,2241-2243,2248
+  s_6fb707fc623639::t_92ce544c7f6d2a 645
+  s_6fb707fc623639::t_7ac579a02ca570 532,546,629-638,643-644,816,1339,1511
+  s_6fb707fc623639::t_d8219ac0a29620 171-182,185-186,556
+  s_6fb707fc623639::t_9e1417bd3cdeac 860
+  s_6fb707fc623639::t_8af33db3c3140e 582-601
+  s_6fb707fc623639::t_ca578333698bb5 825
+  s_6fb707fc623639::t_bb4aee28030013 11
+  s_14fd6404979d0e::t_3bc2d27685e438 10
+  s_6fb707fc623639::t_3450a7ae7ad76c 187
+  s_6fb707fc623639::t_61cf5a1e1a9eb0 529-531
+  s_6fb707fc623639::t_5932c8ee605bad 533
+  s_6fb707fc623639::t_9a6a87a3c1fe74 542
+  s_6fb707fc623639::t_8e712b7dc7b51f 544-545
+  s_6fb707fc623639::t_8ea2701d83b5f6 547-549,553-555
+  s_6fb707fc623639::t_63962f7bdae9b3 557-562
+  s_6fb707fc623639::t_3faa77a3d390a7 564-565
+  s_6fb707fc623639::t_f9c9d57096da99 567
+  s_6fb707fc623639::t_0c49cc237694e0 646-647
+  s_6fb707fc623639::t_209e585adf8232 801
+  s_6fb707fc623639::t_59e99d7e20dec1 803-808
+  s_6fb707fc623639::t_cb8ae53a9f1cf0 810-812
+  s_6fb707fc623639::t_ada5446d2dbfe8 814-815
+  s_6fb707fc623639::t_65cde8fdb27fdd 817-819
+  s_6fb707fc623639::t_f007947c671dc0 1338
+  s_6fb707fc623639::t_3b7127906297da 1345-1346
+  s_6fb707fc623639::t_64996923f9634c 1349
+  s_6fb707fc623639::t_211216ae28ebf2 1351
+  s_6fb707fc623639::t_cd088d58aa1a12 1508-1510
+  s_6fb707fc623639::t_e5771df83b2952 1512-1514
+  s_6fb707fc623639::t_4b6dab68e69f43 2077-2078
+  s_6fb707fc623639::t_d265c1cfdab42e 2080-2082
+  s_6fb707fc623639::t_4a07653996c346 2249-2251
+sdk-go/pkg/daytona/sandbox_test.go
+  s_6fb707fc623639::t_2815b34744bfa5 15
+  s_6fb707fc623639::t_0b1b5a08f84ca7 563-602,606-690,902,910,924
+  s_6fb707fc623639::t_b93d17e6d1163e 691
+  s_6fb707fc623639::t_4d32e042ff53b0 899-901
+  s_6fb707fc623639::t_67756d97fe8193 903-905,907-909
+  s_6fb707fc623639::t_8cab73bdb34595 911-913,921-923
+  s_6fb707fc623639::t_7c78f02e22b819 925-927
+sdk-python/tests/test_wait_poll.py
+  s_098f276a7fe1a7::t_b5689dba7d3a8f 1-62
+sdk-python/src/daytona/_async/sandbox.py
+  s_3611466324063e::t_1fbe3c45139a15 75,174,599-613,615,635-644,649,1098-1102,1142-1149,1288-1291,1361-1372,1376-1410,1421,1431-1451,1482,1486-1488,1494-1496,1502,1505,1523-1525,1527-1545,1553,1555-1557,1571-1572
+sdk-python/src/daytona/_sync/sandbox.py
+  s_3611466324063e::t_9bc2063188d908 76,175-177,595-609,611,631-640,645,1087-1091,1131-1138,1275-1278,1348-1357,1361-1395,1406-1407,1417-1441,1473,1477-1479,1485-1487,1493,1496,1518-1520,1522-1540,1548,1550-1552,1565-1566
+sdk-python/tests/test_async_sandbox.py
+  s_3611466324063e::t_ac94cf642adf9d 19,24-32,43,694,696,718,741-742,765-1248
+sdk-python/tests/test_sandbox.py
+  s_3611466324063e::t_54a8f73fb98d6b 20,23-31,42,588-591,619,636-637,657-814,824-1101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "698e9ec93e88ccc59119bac6aa21303a3a6964a8",
+  "prompts": {},
+  "sessions": {
+    "s_098f276a7fe1a7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e16186adfffeApv0FBZ83rV8Wm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_14fd6404979d0e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e161862eeffeV5shnI9AffRkag",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_3611466324063e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15fd8addffeRssYZvvsC8BGsk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6fb707fc623639": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e161862eeffeV5shnI9AffRkag",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f183ae858512d6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e161872b8ffePnIF3JnFxt0s5F",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

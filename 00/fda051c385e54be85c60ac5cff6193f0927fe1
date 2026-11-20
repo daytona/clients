@@ -1,0 +1,19 @@
+scripts/ax-evals/ax-evals.test.js
+  s_939621113733ee::t_bb729f4a13329f 221-231,365-371
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "00fda051c385e54be85c60ac5cff6193f0927fe1",
+  "prompts": {},
+  "sessions": {
+    "s_939621113733ee": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2b8989a4ffenuWwQ5yt3BOFGB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

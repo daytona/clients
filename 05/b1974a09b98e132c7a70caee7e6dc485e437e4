@@ -1,0 +1,48 @@
+sdk-go/pkg/daytona/event_subscriptions_test.go
+  h_e7759ddd73fa65 66-67,106-107,111,118-120,1481-1566
+sdk-go/pkg/daytona/sandbox.go
+  h_e7759ddd73fa65 1007-1012,1073-1074
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  h_e7759ddd73fa65 1401-1404,1407,1455,1476
+sdk-java/src/main/java/io/daytona/sdk/internal/EventDispatcher.java
+  h_e7759ddd73fa65 628,630
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  h_e7759ddd73fa65 1224,1226-1228,1230-1236,1241-1243,1245,1252,1256-1259,1264
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  h_e7759ddd73fa65 431-448
+sdk-python/src/daytona/_async/sandbox.py
+  h_e7759ddd73fa65 2041-2047,2077-2085
+sdk-python/src/daytona/_sync/sandbox.py
+  h_e7759ddd73fa65 109-124,2057-2063,2084,2090-2098
+sdk-python/tests/test_async_sandbox.py
+  h_e7759ddd73fa65 2000-2002,2006,2036-2042,2156-2197
+sdk-python/tests/test_sandbox.py
+  h_e7759ddd73fa65 1036-1039,1041,1800-1803,1805,1808-1810,1814,1848-1854,1956-2020
+sdk-python/tests/test_subscription_acks.py
+  h_e7759ddd73fa65 409-412,414
+sdk-python/tests/test_subscription_cap.py
+  h_e7759ddd73fa65 315-318,320
+sdk-ruby/lib/daytona/sandbox.rb
+  h_e7759ddd73fa65 1363-1367,1370
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  h_e7759ddd73fa65 1649-1690
+sdk-typescript/src/Sandbox.ts
+  h_e7759ddd73fa65 1876,1901,1905-1906,1908
+sdk-typescript/src/__tests__/EventDispatcher.test.ts
+  h_e7759ddd73fa65 390-404
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  h_e7759ddd73fa65 1617,1635,1637,1644-1646,1649,1651-1654,1656
+sdk-typescript/src/utils/EventDispatcher.ts
+  h_e7759ddd73fa65 481,483
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05b1974a09b98e132c7a70caee7e6dc485e437e4",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

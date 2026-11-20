@@ -1,0 +1,27 @@
+sdk-python/src/daytona/v2/_image_text.py
+  s_35c1b93d4ebbc5::t_8afbd3ca6d40bc 14-29,47,50,55,67-69,71-73,85,87-89,91
+sdk-python/tests/fixtures/dockerfile-continuation.json
+  s_35c1b93d4ebbc5::t_f65b7adb00c3ad 379-386
+sdk-python/tests/fixtures/image-builder-parity.json
+  s_35c1b93d4ebbc5::t_ecbab7e2d16f00 344-396
+sdk-typescript/src/v2/ImageBuilder.ts
+  s_35c1b93d4ebbc5::t_4a5cdd2373b7e2 141-142
+sdk-typescript/src/v2/builderText.ts
+  s_35c1b93d4ebbc5::t_d5563bc23137a4 111-142,153,155,157,160,169-171,174-175,181-182,186,188-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0948cddc7dcdd4326d365d78be70298bef914bb2",
+  "prompts": {},
+  "sessions": {
+    "s_35c1b93d4ebbc5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e3aa6ad74ffeiJ5g6UyCZFVAwL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

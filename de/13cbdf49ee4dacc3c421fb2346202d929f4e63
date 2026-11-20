@@ -1,0 +1,19 @@
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  s_de18e038cb6c6e::t_1f5d19bfb3b6a6 321-365
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de13cbdf49ee4dacc3c421fb2346202d929f4e63",
+  "prompts": {},
+  "sessions": {
+    "s_de18e038cb6c6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15a74e0dfferV6TlotuNdR3xm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

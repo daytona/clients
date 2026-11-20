@@ -1,0 +1,27 @@
+changelog.d/gpu-access-under-review.added.md
+  s_0dec247aab7016::t_9e457d9b33459e 1-3
+sdk-python/src/daytona/v2/_codes.py
+  s_0dec247aab7016::t_3677a18e3ffe9c 103,253,429
+sdk-python/src/daytona/v2/errors.py
+  s_0dec247aab7016::t_dcb97bb7543d6d 845
+sdk-typescript/src/v2/codes.ts
+  s_0dec247aab7016::t_61f105445a8142 95,276
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_0dec247aab7016::t_417df53026ebc8 668
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32062ac99b618a37000429fd7a6c43a4df3a789f",
+  "prompts": {},
+  "sessions": {
+    "s_0dec247aab7016": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac52a039-9712-4ff8-ad40-7f8a1af6e44d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    }
+  }
+}

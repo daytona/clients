@@ -1,0 +1,19 @@
+contract/toolbox-openapi.json
+  s_e72da7b238b0d5::t_357f3e152327d1 1255,5411-5420,6099-6108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3b154c6b02a547aed1158d948c8e6c6fa51c7ad",
+  "prompts": {},
+  "sessions": {
+    "s_e72da7b238b0d5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e354a1459ffeJNEQO6wfxMs3zb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+README.md
+  h_e7759ddd73fa65 13-14,18,24,30
+sdk-python/README.md
+  h_e7759ddd73fa65 12,15-16
+sdk-ruby/README.md
+  h_e7759ddd73fa65 14,20,23-24
+sdk-typescript/README.md
+  h_e7759ddd73fa65 12,18,21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e612d9b9644db7746f5c817d797322b2b4735abd",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

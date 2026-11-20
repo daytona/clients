@@ -1,0 +1,53 @@
+cli/gen/api/types.gen.go
+  s_0dec247aab7016::t_b9b59558efa442 53,219-220,2549,7095-7097,7134-7135,7142-7143
+cli/gen/toolbox/types.gen.go
+  s_0dec247aab7016::t_07f3204fa06d52 1228,2009,2027
+contract/api-openapi.json
+  s_5c0ef995cae2d3::t_68c985ced82ea7 418,1977,10889-10892,10961,10973,31914-31918
+contract/toolbox-openapi.json
+  s_5c0ef995cae2d3::t_8e8d43b8a159c6 1512,2388,2416,6559,9575,9848
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_0dec247aab7016::t_148405b843ab79 34
+sdk-python/src/daytona/v2/_gen/api/models/coupon_redemption.py
+  s_0dec247aab7016::t_e0503edacca5cb 40
+sdk-python/src/daytona/v2/_gen/api/models/volume.py
+  s_0dec247aab7016::t_0e8a7dd584634f 23,44,55,100-102,148
+sdk-python/src/daytona/v2/_gen/api/models/volume_mount.py
+  s_0dec247aab7016::t_d8f6b449915653 37,39
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_query.py
+  s_0dec247aab7016::t_c08d89a74cdff8 38
+sdk-python/src/daytona/v2/_gen/toolbox/models/log_frame_dto.py
+  s_0dec247aab7016::t_2f90c7a8b951f9 39
+sdk-python/src/daytona/v2/_gen/toolbox/models/logs_query.py
+  s_0dec247aab7016::t_0a8420669a7bcb 39
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_0dec247aab7016::t_38ead383509653 3
+sdk-typescript/src/v2/gen/api.ts
+  s_0dec247aab7016::t_bc472eb8148332 2921,3503,7959-7960,8006-8007,8015-8016
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_0dec247aab7016::t_1f02a30be8334a 766,2430,2737,2749,7784,7981
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "459925e6a99ad88489c43d30f88b6c5621f79d9f",
+  "prompts": {},
+  "sessions": {
+    "s_0dec247aab7016": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac52a039-9712-4ff8-ad40-7f8a1af6e44d",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    },
+    "s_5c0ef995cae2d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "44f93d69-f8d3-4d7d-b967-e0e9a6cb406d",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "lbrletic <lbrletic@daytona.io>"
+    }
+  }
+}

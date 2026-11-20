@@ -1,0 +1,134 @@
+sdk-python/src/daytona/_async/sandbox.py
+  s_e56cc0aa24921d::t_11b352f43f22f9 1442-1446
+  s_e56cc0aa24921d::t_5e1f6e75f53b2b 1441
+  s_e56cc0aa24921d::t_e979e6b51cede2 1447-1448
+sdk-java/src/main/java/io/daytona/sdk/internal/EventSubscriptionManager.java
+  s_0aae4455ccb615::t_a256adb0b12790 97-104
+sdk-ruby/lib/daytona/common/socketio_client.rb
+  s_7ba24874c3de0c::t_16dc7fae2c6681 369,372-375,379
+  s_7ba24874c3de0c::t_27babbfbb7e0c0 233-235
+  s_7ba24874c3de0c::t_8c57ca4d47a3be 15
+  s_7ba24874c3de0c::t_48d61116e8bba7 154-167
+sdk-java/src/test/java/io/daytona/sdk/internal/FakeEventGateway.java
+  s_0aae4455ccb615::t_d9f899a08bd392 1-142
+  s_f67ad8c805d707::t_c7c6b5240a1dad 143-160
+sdk-go/pkg/common/event_dispatcher_test.go
+  s_9f36fd33712820::t_02a192507e35f3 1-345
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  s_0aae4455ccb615::t_dd90a8e8aba65d 1-189
+sdk-typescript/src/utils/EventSubscriptionManager.ts
+  s_edc1b77793c5f8::t_d2b3eef2e71fd7 33-37
+sdk-typescript/src/__tests__/EventDispatcher.test.ts
+  s_edc1b77793c5f8::t_75a04938c944bf 1-228
+sdk-go/pkg/daytona/event_subscriptions_test.go
+  s_9f36fd33712820::t_4e0076a2b4c7cf 1-382,389,392-393,397-398
+  s_9f36fd33712820::t_c4996fcb04290d 383-388
+  s_9f36fd33712820::t_ce8cafd97384fc 390-391
+  s_9f36fd33712820::t_16a570442ac352 394-396
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_7ba24874c3de0c::t_6721001badbd47 1096-1260
+  s_7ba24874c3de0c::t_8823550cb50e58 1261-1262
+sdk-python/tests/test_async_e2e.py
+  s_a07edcfec74353::t_4bc2027c932dcf 214-215
+sdk-ruby/spec/daytona/event_dispatcher_spec.rb
+  s_7ba24874c3de0c::t_5cb38d344ce655 1-175
+  s_f67ad8c805d707::t_ef354c35a77623 176-184
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  s_0aae4455ccb615::t_db01a4d92a3ccc 104
+artifacts/sdk-docs/java-sdk/sandbox.mdx
+  s_f67ad8c805d707::t_780ffae39cbf29 11-13
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_f67ad8c805d707::t_81b1c3f25a2d44 133-134
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  s_f67ad8c805d707::t_2ced28d9ea8e54 132-133
+artifacts/sdk-docs/typescript-sdk/sandbox.mdx
+  s_f67ad8c805d707::t_209e265075bda0 109
+sdk-go/pkg/common/socketio_client.go
+  s_bb33829f46707b::t_35ed23fd3adfcb 80-85,120,164,186-188,497-566
+sdk-java/src/main/java/io/daytona/sdk/internal/EventDispatcher.java
+  s_bb33829f46707b::t_c4c2cd9966ad86 12-14,37-42,54-57,74-75,168,178,194,200-202,255-261,270-274,403-445
+sdk-ruby/lib/daytona/common/event_dispatcher.rb
+  s_bb33829f46707b::t_0cdc2cdc50ad9b 11-15,19-21,103-104,130,135-136,141,144,146-148,177-186,188-199
+sdk-ruby/lib/daytona/common/event_subscription_manager.rb
+  s_bb33829f46707b::t_e549206c8f4218 80-87
+sdk-ruby/lib/daytona/daytona.rb
+  s_bb33829f46707b::t_a9007397c3f707 84-85
+sdk-ruby/lib/daytona/sandbox.rb
+  s_f67ad8c805d707::t_7a7bb5b2808051 1204-1206,1214-1216,1218-1232,1236-1237,1290-1292,1331,1404-1408,1410-1412,1414-1418,1420,1423-1427,1430-1431,1437-1438,1443,1450-1452
+sdk-typescript/src/Daytona.ts
+  s_bb33829f46707b::t_d376e610717d88 472
+sdk-typescript/src/utils/EventDispatcher.ts
+  s_bb33829f46707b::t_23558648b65592 32-34,38-43,155,191-193,290-294,296,303-305,394-411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "94e12403491b2fd5433dc5f3ff620603d6543351",
+  "prompts": {},
+  "sessions": {
+    "s_0aae4455ccb615": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1765fdecffeFb9q7mqYJq87fa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7ba24874c3de0c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e176603f5ffe9fMMNb4xo3r7Lg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_9f36fd33712820": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e17660a9effeDXZNSeRd4a6o8B",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a07edcfec74353": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e17a2a8feffe5IcWTGNNKttKRg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_bb33829f46707b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29fb2f6fffeE373ZzXHM8jc1e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e56cc0aa24921d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1766134affe4m6VGmdLfuuSY1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_edc1b77793c5f8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e17661ac4ffeJdnH6s3wbpicrd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f67ad8c805d707": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1761de6affeR7nQ4hvjjfhHU3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

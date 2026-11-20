@@ -1,0 +1,37 @@
+cli/cmd/snapshot.go
+  s_9544f87cdf9188::t_29ea9b824b654c 45
+sdk-python/src/daytona/v2/sandbox.py
+  s_9544f87cdf9188::t_0caacf3c1af48d 1703,1732
+  s_9544f87cdf9188::t_29ea9b824b654c 1704,1729-1731,1733-1735
+changelog.d/598-capture-permissions.changed.md
+  s_9544f87cdf9188::t_f48efe8b7a6a76 1-6
+cli/README.md
+  s_9544f87cdf9188::t_768957c31a24de 182-183
+cli/cmd/image.go
+  s_9544f87cdf9188::t_29ea9b824b654c 91
+sdk-typescript/README.md
+  s_9544f87cdf9188::t_768957c31a24de 546-548
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_9544f87cdf9188::t_0405acfac4aeb5 78-79,129-135
+sdk-python/README.md
+  s_9544f87cdf9188::t_768957c31a24de 617-619
+sdk-typescript/src/v2/Sandbox.ts
+  s_9544f87cdf9188::t_29ea9b824b654c 1090,1102-1103,1105-1107
+  s_9544f87cdf9188::t_0caacf3c1af48d 1089,1104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d758da8349096c7d0f5a7c7622d79699af89e39",
+  "prompts": {},
+  "sessions": {
+    "s_9544f87cdf9188": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e33d621e6ffeskNUfm2Ere9F2X",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+scripts/ax-evals/ax-evals.test.js
+  h_e7759ddd73fa65 313-317,431-432
+scripts/ax-evals/report.js
+  h_e7759ddd73fa65 63-65,67,69
+scripts/ax-evals/save-result.js
+  h_e7759ddd73fa65 13-14,50-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1682f0b365b19f661732f7f2416cb36fe24d8ce3",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

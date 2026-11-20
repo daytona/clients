@@ -1,0 +1,65 @@
+sdk-python/src/daytona/v2/_gen/api/models/create_disk_volume_request.py
+  s_e1e9ca1c8cb3a0::t_ea108890408036 1-104
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_e1e9ca1c8cb3a0::t_530861b8b0bba4 85
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload_state.py
+  s_e1e9ca1c8cb3a0::t_1b4b1c50c773db 1-55
+sdk-python/src/daytona/v2/_gen/api/models/create_build_context_upload_request.py
+  s_e1e9ca1c8cb3a0::t_642b991d934e88 1-121
+sdk-python/src/daytona/v2/_gen/api/models/organization.py
+  s_e1e9ca1c8cb3a0::t_23c7085203741a 42
+sdk-python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  s_e1e9ca1c8cb3a0::t_623d5dda2e11a0 43
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_timeout_limits.py
+  s_e1e9ca1c8cb3a0::t_7f45b5a94a72f4 1-112
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_e1e9ca1c8cb3a0::t_fd6e21a3598f4e 8253
+sdk-python/src/daytona/v2/_gen/api/models/complete_build_context_upload_request.py
+  s_e1e9ca1c8cb3a0::t_c9bad40f0a88a8 1-97
+sdk-python/src/daytona/v2/_gen/api/models/organization_limits.py
+  s_e1e9ca1c8cb3a0::t_35c50602f40a4e 26,49,54,114-116,148
+sdk-python/src/daytona/v2/_gen/api/models/update_organization_request.py
+  s_e1e9ca1c8cb3a0::t_2261a64da671e4 37
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload_part.py
+  s_e1e9ca1c8cb3a0::t_80b24d1ef4e682 1-114
+cli/cmd/org_limits_test.go
+  s_e1e9ca1c8cb3a0::t_eae0d98e01318e 28
+sdk-python/src/daytona/v2/_gen/api/models/create_image_request.py
+  s_e1e9ca1c8cb3a0::t_8e571f16bfef4b 38,45,91-95,138
+sdk-python/src/daytona/v2/_gen/api/models/create_bucket_volume_request.py
+  s_e1e9ca1c8cb3a0::t_b8d9298162faec 1-108
+sdk-python/src/daytona/v2/_gen/api/models/build_context_upload.py
+  s_e1e9ca1c8cb3a0::t_3d1191120864ef 1-160
+sdk-python/src/daytona/v2/_gen/api/models/plan_limits.py
+  s_e1e9ca1c8cb3a0::t_70b1a8ddf06ccc 41,43,113-117,133-134
+cli/internal/input/request_fields_gen.go
+  s_e1e9ca1c8cb3a0::t_6ad680ca78e3cc 12
+sdk-typescript/src/v2/gen/api.ts
+  s_e1e9ca1c8cb3a0::t_6d9b806048af4f 64-103,2414-2418,2426-2459,2873-2937,3061-3068,3178-3230,3238-3239,3264-3271,4807,4923-4924,5149-5153,5838-5840,5987-5999,6477,7222-7352,7598,7638,7649-7659,8602,14497,14732-14733,14791,17108-17242
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_e1e9ca1c8cb3a0::t_a239051a6c7343 7
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_e1e9ca1c8cb3a0::t_09b17e5829b498 34-36,51,59-61,223
+cli/gen/api/types.gen.go
+  s_e1e9ca1c8cb3a0::t_cec0511f2e2030 743-760,2043-2096,2163-2170,2290-2329,2333-2334,2357-2362,3772,3919-3921,3947,4205-4207,4981-4983,5245-5253,5752,6629-6630,6841-6846,7016-7017,7020-7025
+sdk-python/tests/test_core.py
+  s_e1e9ca1c8cb3a0::t_13e1332f12ff7f 5360
+sdk-typescript/tests/unit.test.ts
+  s_e1e9ca1c8cb3a0::t_60036d71961eb2 8394
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "a86a9d4d7497996f228acc5c97295054ea2d5e73",
+  "prompts": {},
+  "sessions": {
+    "s_e1e9ca1c8cb3a0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e8675ac92ffeJtfCeFM4WGMY6B",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Bruno Grbavac <bruno.grbavac@outlook.com>"
+    }
+  }
+}
