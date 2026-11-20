@@ -38,7 +38,7 @@ func TestSandboxVolumesPull_whenWaitIsSpecified(t *testing.T) {
 			result, err := sandbox.Volumes().Pull(t.Context(), "volume_1", "request_1", test.opts)
 			// Then
 			require.NoError(t, err)
-			require.Equal(t, PullVolumeResult{RequestID: "request_1", Status: PullVolumeStatusPending, RawStatus: "pending"}, result)
+			require.Equal(t, &PullVolumeResult{RequestID: "request_1", Status: PullVolumeStatusPending, RawStatus: "pending"}, result)
 			require.Len(t, fake.requests(), 1)
 			require.JSONEq(t, test.body, string(fake.requests()[0].Body))
 			require.Equal(t, "application/json", fake.requests()[0].Header.Get("Content-Type"))
@@ -70,7 +70,7 @@ func TestSandboxVolumesPull_whenServerReturnsOutcome(t *testing.T) {
 			result, err := sandbox.Volumes().Pull(t.Context(), id, id, nil)
 			// Then
 			require.NoError(t, err)
-			require.Equal(t, PullVolumeResult{RequestID: id, Status: test.want, RawStatus: test.raw, ManifestID: test.manifest}, result)
+			require.Equal(t, &PullVolumeResult{RequestID: id, Status: test.want, RawStatus: test.raw, ManifestID: test.manifest}, result)
 			require.Len(t, fake.requests(), 1)
 		})
 	}

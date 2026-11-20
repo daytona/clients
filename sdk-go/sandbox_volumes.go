@@ -61,19 +61,19 @@ type PullVolumeResult struct {
 // a positive wait retries pending, unavailable or rate-limited work.
 func (v *SandboxVolumes) Pull(
 	ctx context.Context, volumeID, requestID string, opts *PullVolumeOptions,
-) (PullVolumeResult, error) {
+) (*PullVolumeResult, error) {
 	if err := parsePullVolumeID(volumeID, "volumeID"); err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	if err := parsePullVolumeID(requestID, "requestID"); err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	var timeout time.Duration
 	if opts != nil {
 		timeout = opts.Timeout
 	}
 	if timeout < 0 && timeout != NoWait || timeout > 30*time.Second {
-		return PullVolumeResult{}, badRequest("volume pull timeout must be in 0..30 seconds or NoWait")
+		return nil, badRequest("volume pull timeout must be in 0..30 seconds or NoWait")
 	}
 	body := toolbox.PullVolumeRequest{RequestId: requestID}
 	wait := 30 * time.Second
@@ -93,7 +93,7 @@ func (v *SandboxVolumes) Pull(
 		Body: body, Timeout: wait + 5*time.Second, Result: &raw,
 	})
 	if err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	return parsePullVolume(raw)
 }
@@ -112,25 +112,25 @@ func parsePullVolumeID(value, name string) error {
 	return nil
 }
 
-func parsePullVolume(raw json.RawMessage) (PullVolumeResult, error) {
+func parsePullVolume(raw json.RawMessage) (*PullVolumeResult, error) {
 	object, err := parseObject(raw, "volume pull")
 	if err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	requestID, err := field[string](object, "requestId", true)
 	if err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	status, err := field[string](object, "status", true)
 	if err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	if _, exists := object["manifestId"]; !exists {
-		return PullVolumeResult{}, badRequest("response field manifestId is required")
+		return nil, badRequest("response field manifestId is required")
 	}
 	manifest, err := field[*string](object, "manifestId", false)
 	if err != nil {
-		return PullVolumeResult{}, err
+		return nil, err
 	}
 	result := PullVolumeResult{RequestID: requestID, ManifestID: manifest, RawStatus: status}
 	switch status {
@@ -143,5 +143,5 @@ func parsePullVolume(raw json.RawMessage) (PullVolumeResult, error) {
 	default:
 		result.Status = PullVolumeStatusUnknown
 	}
-	return result, nil
+	return &result, nil
 }
