@@ -3,6 +3,8 @@
 
 package daytona
 
+import "math"
+
 func parseNetworkPolicyInfo(raw JSONValue, etag string) (*NetworkPolicyInfo, error) {
 	object, err := parseObject(raw, "network policy")
 	if err != nil {
@@ -11,9 +13,14 @@ func parseNetworkPolicyInfo(raw JSONValue, etag string) (*NetworkPolicyInfo, err
 	if etag == "" {
 		return nil, badRequest("network policy response is missing the ETag header")
 	}
-	result := &NetworkPolicyInfo{
-		ETag: etag, AppliedStartID: optionalErrorString(object, "applied_start_id"),
-		Status: optionalErrorString(object, "status"), Error: optionalErrorString(object, "error"),
+	result := &NetworkPolicyInfo{ETag: etag}
+	for name, target := range map[string]*string{
+		"applied_start_id": &result.AppliedStartID, "status": &result.Status, "error": &result.Error,
+	} {
+		*target, err = field[string](object, name, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	result.DesiredRevision, err = integerField(object, "desired_revision", true)
 	if err != nil {
@@ -45,6 +52,9 @@ func parseNetworkPolicy(raw JSONValue, name string) (*NetworkPolicy, error) {
 	policy.Version, err = integerField(object, "version", true)
 	if err != nil {
 		return nil, err
+	}
+	if policy.Version < math.MinInt32 || policy.Version > math.MaxInt32 {
+		return nil, badRequest("response field " + name + ".version must be an int32")
 	}
 	policy.BlockAll, err = field[bool](object, "block_all", true)
 	if err != nil {
