@@ -6,7 +6,7 @@ package daytona
 import (
 	"bytes"
 	"encoding/json"
-	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -91,14 +91,28 @@ func integerField(object jsonObject, name string, required bool) (int64, error) 
 	if err != nil {
 		return 0, err
 	}
+	if !present(object[name]) {
+		return 0, nil
+	}
+	raw := strings.TrimSpace(string(object[name]))
 	// Preserve exact integer literals; accept 3.0 as TypeScript does too.
-	if integer, parseErr := strconv.ParseInt(string(object[name]), 10, 64); parseErr == nil {
+	if integer, parseErr := strconv.ParseInt(raw, 10, 64); parseErr == nil {
 		return integer, nil
 	}
-	if math.Trunc(number) != number || number < math.MinInt64 || number >= -float64(math.MinInt64) {
+	// A zero double may be an underflowed fraction. Handle it without allocating
+	// a rational denominator proportional to an untrusted exponent.
+	if number == 0 {
+		mantissa, _, _ := strings.Cut(strings.ToLower(raw), "e")
+		if strings.Trim(mantissa, "-.0") == "" {
+			return 0, nil
+		}
 		return 0, badRequest("response field " + name + " must be an int64")
 	}
-	return int64(number), nil
+	exact, ok := new(big.Rat).SetString(raw)
+	if !ok || !exact.IsInt() || !exact.Num().IsInt64() {
+		return 0, badRequest("response field " + name + " must be an int64")
+	}
+	return exact.Num().Int64(), nil
 }
 
 func optionalErrorString(object jsonObject, name string) string {
