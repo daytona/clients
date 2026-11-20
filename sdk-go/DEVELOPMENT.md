@@ -120,6 +120,11 @@ golangci-lint run ./...
 DAYTONA_API_KEY=... go test -tags e2e -count=1 ./e2e/...
 ```
 
+From the repository root, `./e2e/run.sh go` runs the same live suite the way CI's
+`e2e.yaml` does, and `./e2e/run.sh all` runs it with the Python and TypeScript
+suites. `SMOKE_IMAGE`, `DAYTONA_SKIP_TOOLBOX` and `DAYTONA_SKIP_DOCKERFILE`
+narrow it for deployments without those features.
+
 ## Releases
 
 The SDK publish workflow releases the module with the other SDKs: it pushes

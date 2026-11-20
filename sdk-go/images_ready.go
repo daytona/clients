@@ -34,7 +34,7 @@ func (s *Images) Pull(ctx context.Context, ref string, opts *PullImageOptions) (
 	if !wait {
 		return image, nil
 	}
-	return s.ready(pullCtx, image)
+	return s.ready(pullCtx, image, "image pull "+image.ID+" failed")
 }
 
 // BuildAndWait builds an image and waits until ready, raising
@@ -57,15 +57,17 @@ func (s *Images) BuildAndWait(ctx context.Context, builder *ImageBuilder, opts *
 	case ImageStatusReady:
 		return image, nil
 	case ImageStatusFailed, ImageStatusError:
-		return s.ready(ctx, image)
+		return s.ready(ctx, image, "image "+image.ID+" build failed")
 	case ImageStatusUnknown, ImageStatusPending, ImageStatusBuilding:
 	}
 	waitCtx, cancel := artifactWaitContext(ctx, options.Timeout, "image build did not finish before timeout")
 	defer cancel()
-	return s.ready(waitCtx, image)
+	return s.ready(waitCtx, image, "image "+image.ID+" build failed")
 }
 
-func (s *Images) ready(ctx context.Context, initial *Image) (*Image, error) {
+// ready waits for initial to settle; failed is the message for a failure the
+// server recorded no error for.
+func (s *Images) ready(ctx context.Context, initial *Image, failed string) (*Image, error) {
 	image := initial
 	for {
 		if err := ctx.Err(); err != nil {
@@ -77,7 +79,7 @@ func (s *Images) ready(ctx context.Context, initial *Image) (*Image, error) {
 		case ImageStatusFailed, ImageStatusError:
 			message := image.Error
 			if message == "" {
-				message = "image " + image.ID + " build failed"
+				message = failed
 			}
 			return nil, &ImageBuildFailedError{
 				SDKError: newSDKError(CodeImageBuildFailed, 409, message),

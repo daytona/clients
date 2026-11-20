@@ -6,6 +6,7 @@ package daytona
 import (
 	"context"
 	"crypto/rand"
+	"math"
 	"net/http"
 	"unicode/utf8"
 )
@@ -82,13 +83,18 @@ func (s *Reservations) CreateBulk(
 		return nil, err
 	}
 	batch := &MacReservationBatch{}
-	batch.Requested, err = integerField(object, "requested", true)
-	if err != nil {
-		return nil, err
-	}
-	batch.Reserved, err = integerField(object, "reserved", true)
-	if err != nil {
-		return nil, err
+	for _, entry := range []struct {
+		name   string
+		target *int64
+	}{{"requested", &batch.Requested}, {"reserved", &batch.Reserved}} {
+		value, parseErr := integerField(object, entry.name, true)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		if value < math.MinInt32 || value > math.MaxInt32 {
+			return nil, badRequest("response field " + entry.name + " must be a 32-bit integer")
+		}
+		*entry.target = value
 	}
 	rows, err := field[[]JSONValue](object, "reservations", true)
 	if err != nil {
