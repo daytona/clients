@@ -123,7 +123,7 @@ func (c *Client) parseCreated(raw JSONValue, prepared preparedCreate) (*Sandbox,
 			Class: prepared.class, RawClass: string(prepared.class), Region: prepared.body.Region,
 			ReservationID: createResponseText(object, "reservation_id"),
 		},
-		ToolboxURL: createResponseText(object, "toolbox_proxy_url"), FromCreate: true,
+		ToolboxURL: createResponseToolboxURL(object, id), FromCreate: true,
 	}
 	if init.Info.Region == "" {
 		init.Info.Region = regionOf(id)
@@ -163,6 +163,16 @@ func createResponseText(object jsonObject, name string) string {
 	// Once accepted, absent or mistyped optional response fields remain unknown.
 	value, err := field[string](object, name, false)
 	if err != nil {
+		return ""
+	}
+	return value
+}
+
+func createResponseToolboxURL(object jsonObject, id string) string {
+	value := createResponseText(object, "toolbox_proxy_url")
+	if _, err := scopedToolboxURL(value, id, ""); err != nil {
+		// The sandbox already exists. An unusable optional destination must
+		// not lose its handle; a later detail read can supply a usable URL.
 		return ""
 	}
 	return value
