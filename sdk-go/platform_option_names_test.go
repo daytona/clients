@@ -63,12 +63,12 @@ func TestPlatformValidation_whenInvalidInputNamesGoField(t *testing.T) {
 		{"reservation region", func(c *Client) error {
 			_, err := c.Reservations().Create(t.Context(), "\xff", nil)
 			return err
-		}, []string{"Region", "Model"}},
+		}, []string{"region", "Model"}},
 		{"reservation model", func(c *Client) error {
 			_, err := c.Reservations().CreateBulk(t.Context(), "region", 1,
 				&CreateReservationsBulkOptions{Model: "\xff"})
 			return err
-		}, []string{"Region", "Model"}},
+		}, []string{"region", "Model"}},
 		{"page limit", func(c *Client) error {
 			_, err := c.Images().List(t.Context(), &ListImagesOptions{Limit: -1})
 			return err
