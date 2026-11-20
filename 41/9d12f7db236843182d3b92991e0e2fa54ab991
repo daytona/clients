@@ -1,0 +1,20 @@
+sdk-go/e2e/account_test.go
+  s_19310f0c160a00::t_9af6a1a31804d3 12,155-160
+  s_19310f0c160a00::t_af87fdc0991c74 1-11,13-154,161-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "419d12f7db236843182d3b92991e0e2fa54ab991",
+  "prompts": {},
+  "sessions": {
+    "s_19310f0c160a00": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b42edbffeHOMZ5LQKqX780G",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
