@@ -26,7 +26,7 @@ func ExampleVolumes_Create() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Print(volume.ID, volume.State)
+	log.Print(volume.ID, volume.Status)
 	if deleteErr := client.Volumes().Delete(ctx, volume.ID, &daytona.DeleteVolumeOptions{IDOnly: true}); deleteErr != nil {
 		log.Print(deleteErr)
 	}
