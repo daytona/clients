@@ -834,8 +834,6 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
     codes.ENTITLEMENT_REQUIRED: ForbiddenError,
     codes.FEATURE_NOT_ENABLED: FeatureNotEnabledError,
-    codes.GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
-    codes.SANDBOX_ABUSE_HOLD: ForbiddenError,
     codes.INVALID_FOR_SOURCE: BadRequestError,
     codes.LIMIT_EXCEEDED: LimitExceededError,
     codes.USAGE_UNAVAILABLE: ServiceUnavailableError,

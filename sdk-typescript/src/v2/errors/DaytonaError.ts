@@ -663,8 +663,6 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
   ENTITLEMENT_REQUIRED: ForbiddenError,
   FEATURE_NOT_ENABLED: FeatureNotEnabledError,
-  GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
-  SANDBOX_ABUSE_HOLD: ForbiddenError,
   INVALID_FOR_SOURCE: BadRequestError,
   LIMIT_EXCEEDED: LimitExceededError,
   USAGE_UNAVAILABLE: ServiceUnavailableError,
