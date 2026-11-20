@@ -76,6 +76,15 @@ for version in v2.1.0 2.2.0-alpha.1 v2.1.0-rc.2 v3.0.0 v10.20.30; do
   [ "$out" = "$want" ] || fail "Go $version: got $out, want $want"
 done
 for declaration in \
+  'module go.daytona.com/sdk/v2 // Go SDK module' \
+  $'\tmodule\tgo.daytona.com/sdk/v2\t// release module' \
+  'module go.daytona.com/sdk/v2 //'; do
+  printf '%s\n' "$declaration" > "$TMP_MOD"
+  out=$(./sdk-version.sh --go v2.1.0 "$TMP_MOD") || fail "Go trailing comment: $declaration"
+  want=$'go=v2.1.0\ngo_tag=sdk-go/v2.1.0\ngo_module=go.daytona.com/sdk/v2'
+  [ "$out" = "$want" ] || fail "Go trailing comment: got $out, want $want"
+done
+for declaration in \
   'module go.daytona.com/sdk/v2' \
   'module go.daytona.com/sdk/v3' \
   'module github.com/daytona/clients/sdk-go' \
@@ -84,6 +93,9 @@ for declaration in \
   'module go.daytona.com/sdk/v2/extra' \
   'module "go.daytona.com/sdk/v2"' \
   'module go.daytona.com/sdk/v2 extra' \
+  'module go.daytona.com/sdk/v2 extra // not a valid declaration' \
+  'module go.daytona.com/sdk/v3 // wrong major' \
+  'module go.daytona.com/sdk/v2//not-a-comment' \
   $'module go.daytona.com/sdk/v2\nmodule go.daytona.com/sdk/v2' \
   ''; do
   printf '%s\n' "$declaration" > "$TMP_MOD"
