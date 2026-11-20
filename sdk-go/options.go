@@ -1,0 +1,129 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package daytona
+
+import (
+	"log/slog"
+	"net/http"
+	"time"
+)
+
+// Option configures a Client. Construct options with the With functions.
+type Option func(*clientConfig) error
+
+type clientConfig struct {
+	apiKey, jwtToken, projectID *string
+	baseURL                     string
+	timeout                     time.Duration
+	maxResponseBytes            int64
+	httpClient                  *http.Client
+	logger                      *slog.Logger
+	events                      SandboxEventsConfig
+}
+
+// SandboxEventsConfig configures sandbox state subscriptions. A nil Enabled
+// defaults to enabled. Zero durations keep hub defaults; NoTimeout disables
+// idle closing. The events hub is independent of ordinary request timeouts.
+type SandboxEventsConfig struct {
+	// Enabled defaults to true when nil.
+	Enabled *bool
+	// ReconcileInterval is the hub reconciliation interval; zero uses its default.
+	ReconcileInterval time.Duration
+	// IdleClose is the idle connection lifetime; NoTimeout keeps it open.
+	IdleClose time.Duration
+}
+
+// WithAPIKey selects API-key authentication, suppressing an ambient JWT.
+// An empty explicit value returns ErrBadRequest.
+func WithAPIKey(key string) Option {
+	return func(c *clientConfig) error {
+		c.apiKey = &key
+		return nil
+	}
+}
+
+// WithJWTToken selects JWT authentication, suppressing an ambient API key.
+// WithProjectID or DAYTONA_PROJECT_ID must also select a project.
+func WithJWTToken(token string) Option {
+	return func(c *clientConfig) error {
+		c.jwtToken = &token
+		return nil
+	}
+}
+
+// WithProjectID selects the project for JWT token exchange. Empty is invalid.
+func WithProjectID(id string) Option {
+	return func(c *clientConfig) error {
+		c.projectID = &id
+		return nil
+	}
+}
+
+// WithRequestTimeout sets the total ordinary-request budget (default 60 seconds).
+// Zero keeps the default; NoTimeout or values above 2,147,483.647 seconds disable
+// it. Transfers use this duration as an idle timeout instead.
+func WithRequestTimeout(timeout time.Duration) Option {
+	return func(c *clientConfig) error {
+		if timeout < 0 && timeout != NoTimeout {
+			return badRequest("requestTimeout must be a non-negative duration or NoTimeout")
+		}
+		if timeout != 0 {
+			c.timeout = boundedTimeout(timeout)
+		}
+		return nil
+	}
+}
+
+// WithMaxResponseBytes caps buffered decoded response bodies (default 1 GiB).
+// Zero keeps the default; NoLimit disables the cap. Streams are never capped.
+func WithMaxResponseBytes(limit int64) Option {
+	return func(c *clientConfig) error {
+		if limit < NoLimit || limit > maxSafeInteger {
+			return badRequest("maxResponseBytes must be between 0 and 9007199254740991, or NoLimit")
+		}
+		if limit != 0 {
+			c.maxResponseBytes = limit
+		}
+		return nil
+	}
+}
+
+// WithHTTPClient uses a shallow copy of client, preserving its RoundTripper.
+// The SDK disables its cookie jar, redirects, and total Timeout, replacing that
+// timeout with WithRequestTimeout. The caller retains ownership of its transport.
+func WithHTTPClient(client *http.Client) Option {
+	return func(c *clientConfig) error {
+		if client == nil {
+			return badRequest("httpClient must not be nil")
+		}
+		c.httpClient = client
+		return nil
+	}
+}
+
+// WithLogger selects the logger for SDK diagnostics (default slog.Default).
+func WithLogger(logger *slog.Logger) Option {
+	return func(c *clientConfig) error {
+		if logger == nil {
+			return badRequest("logger must not be nil")
+		}
+		c.logger = logger
+		return nil
+	}
+}
+
+// WithSandboxEvents configures state subscriptions. Configuration is copied.
+func WithSandboxEvents(events SandboxEventsConfig) Option {
+	return func(c *clientConfig) error {
+		if events.ReconcileInterval < 0 || (events.IdleClose < 0 && events.IdleClose != NoTimeout) {
+			return badRequest("events durations must be non-negative (IdleClose also accepts NoTimeout)")
+		}
+		c.events = events
+		if events.Enabled != nil {
+			enabled := *events.Enabled
+			c.events.Enabled = &enabled
+		}
+		return nil
+	}
+}

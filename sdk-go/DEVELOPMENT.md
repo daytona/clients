@@ -105,3 +105,77 @@ The SDK publish workflow releases the module with the other SDKs: it pushes
 fetch it. The tag is the version: there is no version file and no follow-up
 commit (`debug.ReadBuildInfo` reports the version for the `User-Agent`). Once
 the proxy has a version it cannot be deleted, only retracted by a later one.
+
+## Internal transport API
+
+All area implementations live in package `daytona`; do not create a second HTTP
+client, auth cache, response reader, or error hierarchy.
+
+```go
+var response wireResponse // an internal wire struct or JSONValue
+err := c.api().do(ctx, apiRequest{
+    Method: http.MethodPost, Path: "/sandboxes/" + segment + "/operation",
+    Body: wireRequest, Result: &response,
+    Query: url.Values{"wait_seconds": {"30"}},
+    Headers: http.Header{"If-Match": {revision}},
+    IdempotencyKey: key,
+})
+err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
+```
+
+- `apiRequest` and `toolboxRequest` share a description. Zero `Method` is GET;
+  `Path` must be relative. Use `pathSegment(id)` for every path identifier.
+  JSON `Body`/`Result` are encoding boundaries, never domain `any` values.
+  Exact `application/json` responses are checked even with no `Result`.
+- `Timeout` replaces the whole request budget, including auth, refresh and the
+  sole 401 retry. Zero uses the client default; `NoTimeout` disables it.
+  Waits/long polls must supply their own budget or `NoTimeout`.
+- `MaxResponseBytes` overrides the buffered-body cap; zero uses the client
+  default and `NoLimit` disables it. `ResponseBody` receives buffered raw bytes
+  when needed, and `ResponseHeaders` receives a cloned header map.
+- `stream(ctx, request) (*http.Response, error)` is available on both transports.
+  The caller **must close `response.Body`**. Its total timeout stops at response
+  headers; caller cancellation and `Client.Close` still interrupt the body.
+  Set `Transfer: true` for uploads/downloads: the request timeout becomes an
+  idle bound across authentication, connecting, upload, headers, and body reads.
+  Streaming bodies have no total size cap.
+- `BodyReader` is a one-shot upload. It is never replayed after 401.
+  `BodyFactory func(context.Context) (io.ReadCloser, error)` supplies a fresh body
+  for each attempt when retry is safe. Readers must unblock on cancellation;
+  the HTTP transport closes acquired bodies. Prefer a context-aware closer for
+  a reader backed by a potentially blocking producer.
+- `s.toolbox().connectionInfo(ctx)` returns the current base URL plus identity
+  and Authorization headers for a future WebSocket dialer. Dialers must preserve
+  context cancellation and refuse redirects. It does not implement WebSockets.
+- `newSDKError(code, status, message)`, `badRequest(message)`,
+  `wrapError(cause, message)`, `transportError(ctx, cause)` and
+  `errorFromResponse(response, bytes)` keep failures in the shared hierarchy.
+  Extra-data errors carry `SDKError *Error` and unwrap to it. Docker status
+  types needed by those errors are already defined in `errors_docker.go`.
+- `field[T]`, `integerField`, `timestampField` and `parseObject` are boundary
+  parsing helpers. Generated wire models may be used internally, never publicly.
+  Sandbox parsing deliberately checks only fields the SDK reads: generated
+  int32/UUID constraints would reject values the TypeScript boundary accepts.
+- `c.newSandbox(sandboxInit{Info: info, ToolboxURL: proxyBase})` constructs a
+  handle for create/fork workers. `ToolboxURL` is an API-trusted **unscoped base**.
+  `Info` is copied; `Options.ToolboxURL` is a trusted direct override. For
+  API-issued initial access tokens set `FromCreate: true`, `Info.AccessToken`
+  and `Info.AccessTokenExpiresAt`; caller tokens are never automatically minted
+  over. `Refresh` updates observations but preserves a direct URL override.
+- `wireSeconds` and `wireMilliseconds` round positive durations upward;
+  `boundedTimeout` treats a budget above 2,147,483.647 seconds as unbounded.
+  Zero is the public option default; `NoWait`, `WaitForever`, `NoTimeout` and
+  `NoLimit` are explicit, distinct sentinels.
+- `paginate(ctx, initialCursor, fetch)` adapts a
+  `func(context.Context, string) (*Page[T], error)` into `iter.Seq2[T, error]`.
+  It stops on a repeated cursor and never fetches after the consumer breaks.
+- `Client.stateSource` is a `sandboxStateSource`. Its
+  `watch(ctx, sandboxID, region) (<-chan stateObservation, func())` returns an
+  idempotent release. A nil channel means unavailable: use API reads. The
+  producer owns closing the channel. The core installs `noopStateSource`;
+  the events worker owns hub installation and shutdown integration.
+- Tests share `newFakeServer`, `writeJSON`, `jsonHandler`, `sandboxFixture` and
+  `newTestClient`; see the usage comment at the top of `helpers_test.go`.
+  The client helper uses `t.Setenv`, so its tests must not call `t.Parallel`.
+- `go run codes_generate.go` refreshes the code constants/sentinels from the
+  sibling SDK's contract-checked catalog. A drift test checks every source/code.
