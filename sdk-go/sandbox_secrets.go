@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"math"
 	"net/http"
 )
 
@@ -26,7 +27,7 @@ type SandboxSecretsInfo struct {
 	// CaptureStatus is the server's open secret-capture status vocabulary.
 	CaptureStatus string
 	// CaptureUnresolvedCount is nil unless an unresolved count was reported.
-	CaptureUnresolvedCount *int64
+	CaptureUnresolvedCount *int32
 }
 
 // GetSecrets reads attached secret names, revision ETag and apply state.
@@ -72,9 +73,14 @@ func (s *Sandbox) secretsRequest(ctx context.Context, request apiRequest) (*Sand
 	if etag == "" {
 		return nil, badRequest("sandbox secrets response is missing the ETag header")
 	}
-	result := &SandboxSecretsInfo{
-		ETag: etag, Status: optionalErrorString(object, "status"),
-		Error: optionalErrorString(object, "error"), CaptureStatus: optionalErrorString(object, "capture_status"),
+	result := &SandboxSecretsInfo{ETag: etag}
+	for name, target := range map[string]*string{
+		"status": &result.Status, "error": &result.Error, "capture_status": &result.CaptureStatus,
+	} {
+		*target, err = field[string](object, name, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	result.Secrets, err = sandboxStringList(object, "secrets", true)
 	if err != nil {
@@ -88,9 +94,16 @@ func (s *Sandbox) secretsRequest(ctx context.Context, request apiRequest) (*Sand
 	if err != nil {
 		return nil, err
 	}
-	result.CaptureUnresolvedCount, err = sandboxOptionalInteger(object, "capture_unresolved_count")
+	count, err := sandboxOptionalInteger(object, "capture_unresolved_count")
 	if err != nil {
 		return nil, err
+	}
+	if count != nil {
+		if *count < math.MinInt32 || *count > math.MaxInt32 {
+			return nil, badRequest("response field capture_unresolved_count must be an int32")
+		}
+		value := int32(*count)
+		result.CaptureUnresolvedCount = &value
 	}
 	return result, nil
 }

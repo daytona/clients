@@ -31,7 +31,7 @@ func TestSandboxSecretsGet(t *testing.T) {
 	require.Equal(t, `"revision-7"`, info.ETag)
 	require.Equal(t, int64(7), info.DesiredRevision)
 	require.Equal(t, int64(0), *info.AppliedRevision)
-	require.Equal(t, int64(0), *info.CaptureUnresolvedCount)
+	require.Equal(t, int32(0), *info.CaptureUnresolvedCount)
 	require.Equal(t, "future-status", info.Status)
 	require.Equal(t, "future-capture", info.CaptureStatus)
 	require.Equal(t, "apply detail", info.Error)
