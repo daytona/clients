@@ -153,7 +153,8 @@ func processListQuery(opts *ListProcessesOptions) (url.Values, error) {
 		return nil, badRequest("kind must be exec, pty, code or session")
 	}
 	for key, value := range map[string]string{
-		"tag": opts.Tag, "state": opts.State, "kind": string(opts.Kind), "sessionId": opts.SessionID, "name": opts.Name,
+		"tag": opts.Tag, "state": string(opts.State), "kind": string(opts.Kind),
+		"sessionId": opts.SessionID, "name": opts.Name,
 	} {
 		if value != "" {
 			query.Set(key, value)

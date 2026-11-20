@@ -71,7 +71,9 @@ func TestListFiltersLocallyWhenServerIgnoresTag(t *testing.T) {
 		"GET /processes": jsonHandler(t, map[string]any{"items": []any{a, b, c}}),
 	})
 	// When listing tagged commands.
-	page, err := sandbox.Process().List(t.Context(), &ListProcessesOptions{Tag: "wanted", Kind: ProcessKindExec, State: "running"})
+	page, err := sandbox.Process().List(t.Context(), &ListProcessesOptions{
+		Tag: "wanted", Kind: ProcessKindExec, State: ProcessListStateRunning,
+	})
 	// Then untagged processes cannot leak into a tag-scoped operation.
 	require.NoError(t, err)
 	require.Len(t, page.Items, 1)

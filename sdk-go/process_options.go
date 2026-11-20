@@ -5,6 +5,19 @@ package daytona
 
 import "time"
 
+// ProcessListState selects a process-list state filter, not a process lifecycle state.
+// The zero value omits the filter (all); unsupported values return ErrBadRequest.
+type ProcessListState string
+
+const (
+	// ProcessListStateAll selects processes in every state.
+	ProcessListStateAll ProcessListState = "all"
+	// ProcessListStateRunning selects live processes.
+	ProcessListStateRunning ProcessListState = "running"
+	// ProcessListStateTerminal selects processes whose execution has ended.
+	ProcessListStateTerminal ProcessListState = "terminal"
+)
+
 // ProcessStartOptions configures a background command; nil selects all defaults.
 type ProcessStartOptions struct {
 	// Name is an optional live alias.
@@ -59,7 +72,7 @@ type ListProcessesOptions struct {
 	// Tag selects only matching processes, even with older servers that ignore it.
 	Tag string
 	// State is running, terminal, or all; empty selects all.
-	State string
+	State ProcessListState
 	// Kind filters by execution backend.
 	Kind ProcessKind
 	// SessionID filters by shell session or interpreter context.
