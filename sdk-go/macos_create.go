@@ -3,10 +3,13 @@
 
 package daytona
 
-import "context"
+import (
+	"context"
+	"unicode/utf8"
+)
 
 // CreateMacOS creates a macOS sandbox from an image name or ID. Image cannot be
-// blank. Wait and uncertain-request errors behave as on Create. macOS CPU and
+// blank or invalid UTF-8. Wait and uncertain-request errors behave as on Create. macOS CPU and
 // sizing minima are checked locally; reservation availability is decided by the API.
 // Once accepted, a wait that times out, fails a read, or ends in a terminal
 // state returns a nil error; check the returned sandbox's State() or Info().
@@ -17,6 +20,9 @@ func (c *Client) CreateMacOS(ctx context.Context, image string, opts *CreateMacO
 	}
 	if createTrim(image) == "" {
 		return nil, badRequest("image must be a non-empty string")
+	}
+	if !utf8.ValidString(image) {
+		return nil, badRequest("image must be valid UTF-8")
 	}
 	options := CreateMacOSOptions{}
 	if opts != nil {

@@ -3,14 +3,17 @@
 
 package daytona
 
-import "context"
+import (
+	"context"
+	"unicode/utf8"
+)
 
 // Create creates a Linux sandbox from an image of this project, by name or
 // img_ ID. Empty image boots the platform default image (Python 3 included).
 // A registry reference such as "python:3.12" is not a create source: import it
 // once with client.Images().Pull and create from the returned image's name or
 // ID (an unknown image returns ErrImageNotFound). Whitespace-only images return
-// ErrBadRequest.
+// ErrBadRequest, as do invalid UTF-8 image identifiers.
 // Once accepted, a wait that times out, fails a read, or ends in a terminal
 // state returns the last observed handle with a nil error; check State() or
 // Info() before using it. If the server accepted the request, the returned
@@ -29,6 +32,9 @@ func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) 
 	}
 	if image != "" && createTrim(image) == "" {
 		return nil, badRequest("image must be a non-empty string")
+	}
+	if !utf8.ValidString(image) {
+		return nil, badRequest("image must be valid UTF-8")
 	}
 	prepared, err := prepareCreateCommon(CreateFromSnapshotOptions{
 		Name: options.Name, Labels: options.Labels, Ports: options.Ports,
@@ -60,7 +66,7 @@ func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) 
 }
 
 // CreateFromSnapshot restores a Linux sandbox from a snapshot name or ID.
-// Snapshot cannot be blank. Wait and uncertain-request errors behave as on Create;
+// Snapshot cannot be blank or invalid UTF-8. Wait and uncertain-request errors behave as on Create;
 // resource sizing is carried by the snapshot.
 // Once accepted, a wait that times out, fails a read, or ends in a terminal
 // state returns a nil error; check the returned sandbox's State() or Info().
@@ -73,6 +79,9 @@ func (c *Client) CreateFromSnapshot(
 	}
 	if createTrim(snapshot) == "" {
 		return nil, badRequest("snapshot must be a non-empty string")
+	}
+	if !utf8.ValidString(snapshot) {
+		return nil, badRequest("snapshot must be valid UTF-8")
 	}
 	options := CreateFromSnapshotOptions{}
 	if opts != nil {
