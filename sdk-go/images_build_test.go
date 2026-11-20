@@ -23,7 +23,7 @@ func TestImagesBuildSubmitsSourceWhenBuilderHasNoSteps(t *testing.T) {
 
 	// When submitting without waiting.
 	image, err := client.Images().Build(t.Context(), NewImageBuilder("python:3.12"), &BuildImageOptions{
-		Name: "reusable", Region: "us", CPUArch: ImageCPUArchARM64,
+		Name: "reusable", Region: "us", CPUArch: CPUArchARM64,
 	})
 
 	// Then the registry source is not silently converted into a Dockerfile build.

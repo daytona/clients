@@ -59,7 +59,7 @@ func prepareLinuxCreate(image string, options CreateOptions) (preparedCreate, er
 		return prepared, err
 	}
 	switch options.CPUArch {
-	case "", "amd64", "arm64":
+	case "", CPUArchAMD64, CPUArchARM64:
 	default:
 		return prepared, badRequest("CPUArch must be amd64 or arm64")
 	}

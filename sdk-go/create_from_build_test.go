@@ -38,7 +38,7 @@ func TestCreateFromBuild_whenImageBecomesReady(t *testing.T) {
 	require.NoError(t, renderErr)
 	options := &CreateFromBuildOptions{
 		CreateOptions: CreateOptions{
-			Name: "build-and-boot", Region: "us", CPUArch: "arm64", Wait: 73 * time.Second,
+			Name: "build-and-boot", Region: "us", CPUArch: CPUArchARM64, Wait: 73 * time.Second,
 			Env: map[string]string{"APP": "demo"}, Resources: &Resources{CPU: 2, MemoryGiB: 1},
 			User: "app", CPUType: "shared",
 		},
