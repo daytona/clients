@@ -130,7 +130,9 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
 - `apiRequest` and `toolboxRequest` share a description. Zero `Method` is GET;
   `Path` must be relative. Use `pathSegment(id)` for every path identifier.
   JSON `Body`/`Result` are encoding boundaries, never domain `any` values.
-  Exact `application/json` responses are checked even with no `Result`.
+  Non-empty responses declared exactly `application/json` are checked even
+  with no `Result`. With no `Result`, empty or non-JSON success bodies are
+  accepted without JSON validation; a `Result` requires a non-empty JSON body.
 - `Timeout` replaces the whole request budget, including auth, refresh and the
   sole 401 retry. Zero uses the client default; `NoTimeout` disables it.
   Waits/long polls must supply their own budget or `NoTimeout`.

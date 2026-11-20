@@ -76,7 +76,8 @@ func WithRequestTimeout(timeout time.Duration) Option {
 }
 
 // WithMaxResponseBytes caps buffered decoded response bodies (default 1 GiB).
-// Zero keeps the default; NoLimit disables the cap. Streams are never capped.
+// Zero keeps the default; NoLimit disables the cap. Streamed bodies are not
+// buffered or capped as a whole, but individual SSE events use this limit.
 func WithMaxResponseBytes(limit int64) Option {
 	return func(c *clientConfig) error {
 		if limit < NoLimit || limit > maxSafeInteger {
