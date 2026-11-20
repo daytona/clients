@@ -33,6 +33,9 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 			return badRequest("EscalateAfter must be non-negative")
 		}
 		delay := wireMilliseconds(*options.EscalateAfter)
+		if delay > 600000 {
+			return badRequest("EscalateAfter must round to at most 600000 milliseconds")
+		}
 		body.EscalateAfterMs = &delay
 		target := options.EscalateTo
 		if target == "" {

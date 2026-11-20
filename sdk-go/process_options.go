@@ -54,7 +54,8 @@ type KillProcessOptions struct {
 	// Signal defaults to TERM and must be a bare name, not SIGTERM.
 	Signal ProcessSignal
 	// EscalateAfter sends EscalateTo after this delay; nil disables escalation.
-	// A pointer permits explicit immediate escalation (zero).
+	// A pointer permits explicit immediate escalation (zero). The delay rounds up
+	// to milliseconds and must be at most 10 minutes; otherwise Kill returns ErrBadRequest.
 	EscalateAfter *time.Duration
 	// EscalateTo defaults to KILL when EscalateAfter is set.
 	EscalateTo ProcessSignal
@@ -79,6 +80,7 @@ type ListProcessesOptions struct {
 	SessionID string
 	// Name filters by live alias.
 	Name string
-	// PID filters by OS process ID; nil omits it.
+	// PID filters by OS process ID; nil omits it. Values outside 0..2147483647
+	// return ErrBadRequest before any request.
 	PID *int
 }
