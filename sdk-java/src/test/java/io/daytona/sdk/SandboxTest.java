@@ -1332,14 +1332,12 @@ class SandboxTest {
         worker.start();
         verify(manager, timeout(5000).times(2)).refresh("mock-sub-id");
 
-        long start = System.nanoTime();
         handlerOf(manager, "sb-s").accept("sandbox.state.updated", new ObjectMapper().readTree(
                 "{\"sandbox\":{\"id\":\"sb-s\",\"state\":\"error\"},\"newState\":\"error\"}"));
         // Well under the next poll (4-6 s) and the 30 s timeout.
         worker.join(3000);
 
         assertThat(worker.isAlive()).isFalse();
-        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(3000);
         assertThat(error.get()).isNotInstanceOf(DaytonaTimeoutException.class)
                 .hasMessageStartingWith("Sandbox sb-s entered error state: error");
         verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
