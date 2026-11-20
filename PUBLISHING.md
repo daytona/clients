@@ -133,7 +133,7 @@ To ship a 0.x release, run **Prepare Release**, **Release** and **SDK and CLI Pu
 - refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead. A package never published to npm must be published once before a release branch can publish it with `latest`;
 - never update the Homebrew tap, except `release/v0` after the [cutover](#cutting-over-to-the-2x-line), which updates the `daytona-v0` formula, and also the `daytona` formula until the first stable 2.x release ([below](#the-daytona-formula-until-2x-is-stable)).
 
-PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site ([`hack/go-vanity`](hack/go-vanity/README.md)) deploys from `release/v0`.
+PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The 0.x Go modules are published under `github.com/daytona/clients/...` and do not use the `go.daytona.com` vanity site, which serves the 2.x Go SDK and deploys from `main`.
 
 ### Cutting over to the 2.x line
 
