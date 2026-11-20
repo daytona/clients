@@ -16,7 +16,6 @@ import (
 )
 
 // WriteFile uploads exact bytes to path, optionally atomically. Nil data is an empty file.
-// Four arguments follow the SDK convention: context, path, content, optional settings.
 func (f *FileSystem) WriteFile(ctx context.Context, path string, data []byte, opts *WriteFileOptions) error {
 	size := int64(len(data))
 	source := fileUploadSource{

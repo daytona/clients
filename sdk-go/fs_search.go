@@ -79,7 +79,6 @@ func fileSkipped(object jsonObject) ([]string, error) {
 
 // Replace substitutes a literal substring in each requested file.
 // Per-file failures are returned as FileReplaceResult values.
-// Four inputs are intentional: context plus the three required wire operands.
 func (f *FileSystem) Replace(ctx context.Context, files []string, pattern, replacement string) (
 	*Page[FileReplaceResult], error,
 ) {
