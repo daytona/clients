@@ -19,8 +19,7 @@ func errorFromResponse(response *http.Response, body []byte) error {
 		result.Message = "unexpected redirect (the SDK does not follow redirects)"
 		return result
 	}
-	result.RequestID = response.Header.Get("X-Request-ID")
-	result.TraceID = response.Header.Get("X-Trace-ID")
+	result.TraceID = response.Header.Get("X-Daytona-Trace-Id")
 	result.RetryAfter = parseRetryAfter(response.Header.Get("Retry-After"))
 	if len(body) == 0 {
 		return result
