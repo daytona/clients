@@ -22,7 +22,6 @@ type fileSSE struct {
 	started    bool
 	completed  int64
 	frameBytes int64
-	pendingLF  bool
 	first      bool
 }
 
@@ -35,22 +34,6 @@ func (s *fileSSE) byte() (byte, error) {
 	value, err := s.reader.ReadByte()
 	if err != nil {
 		return 0, err
-	}
-	skip := s.pendingLF && value == '\n'
-	s.pendingLF = false
-	if skip {
-		if s.frameBytes == 0 {
-			s.completed++
-		} else {
-			s.frameBytes++
-		}
-		if boundErr := s.checkBound(); boundErr != nil {
-			return 0, boundErr
-		}
-		value, err = s.reader.ReadByte()
-		if err != nil {
-			return 0, err
-		}
 	}
 	s.frameBytes++
 	if boundErr := s.checkBound(); boundErr != nil {
@@ -78,7 +61,18 @@ func (s *fileSSE) line() (string, error) {
 		}
 		switch value {
 		case '\r':
-			s.pendingLF = true
+			// Resolve CRLF before dispatch/reset, even across body reads.
+			next, peekErr := s.reader.Peek(1)
+			switch {
+			case errors.Is(peekErr, io.EOF):
+				return line.String(), nil
+			case peekErr != nil:
+				return "", peekErr
+			case next[0] == '\n':
+				if _, readErr := s.byte(); readErr != nil {
+					return "", readErr
+				}
+			}
 			return line.String(), nil
 		case '\n':
 			return line.String(), nil
