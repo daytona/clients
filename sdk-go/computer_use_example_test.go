@@ -61,7 +61,7 @@ func ExampleComputerUseRecordings_Download() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	recordings := sandbox.ComputerUse().Recording()
+	recordings := sandbox.ComputerUse().Recordings()
 	recording, err := recordings.Start(ctx, nil)
 	if err != nil {
 		log.Fatal(err)

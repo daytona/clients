@@ -44,7 +44,7 @@ func TestComputerUseRecording_whenOptionalFieldsAbsent(t *testing.T) {
 		"startTime":"2026-11-20T00:00:00Z","endTime":null,"durationSeconds":null,"sizeBytes":null
 	}`)))
 	// When
-	got, err := sandbox.ComputerUse().Recording().Get(t.Context(), "r")
+	got, err := sandbox.ComputerUse().Recordings().Get(t.Context(), "r")
 	// Then
 	require.NoError(t, err)
 	require.True(t, got.EndTime.IsZero())
@@ -92,7 +92,7 @@ func TestComputerUseRecordingDownload_whenBodyReadCanceled(t *testing.T) {
 	done := make(chan error, 1)
 	// When
 	go func() {
-		_, err := sandbox.ComputerUse().Recording().Download(ctx, "r", nil)
+		_, err := sandbox.ComputerUse().Recordings().Download(ctx, "r", nil)
 		done <- err
 	}()
 	<-entered

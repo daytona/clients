@@ -56,7 +56,7 @@ func TestComputerUse_whenRequiredResponseFieldMalformed(t *testing.T) {
 		}},
 		{
 			"recording", `{"id":"r","fileName":"r.mp4","filePath":"/r.mp4","startTime":"2026-11-20T09:00:00Z","status":"recording"}`,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recording().Get(ctx, "r"); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recordings().Get(ctx, "r"); return err },
 		},
 	}
 	for _, tc := range cases {
@@ -114,16 +114,16 @@ func TestComputerUse_whenNumericOrNestedResponseMalformed(t *testing.T) {
 			func(ctx context.Context, c *ComputerUse) error { _, err := c.Screen().Screenshot(ctx, nil); return err },
 		},
 		{"bad display list", `{"displays":[null]}`, func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Display().Info(ctx)
+			_, err := c.Displays().Info(ctx)
 			return err
 		}},
 		{
 			"negative display", `{"displays":[{"id":0,"x":0,"y":0,"width":-1,"height":0,"isActive":true}]}`,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Display().Info(ctx); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Displays().Info(ctx); return err },
 		},
 		{
 			"bad window", `{"windows":[{"id":9007199254740992,"title":"x","x":0,"y":0,"width":0,"height":0,"isActive":true}]}`,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Display().Windows(ctx); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Displays().Windows(ctx); return err },
 		},
 		{"bad inventory", `{"wm":null}`, func(ctx context.Context, c *ComputerUse) error {
 			_, err := c.Addons().Status(ctx)
@@ -139,15 +139,15 @@ func TestComputerUse_whenNumericOrNestedResponseMalformed(t *testing.T) {
 		},
 		{
 			"bad timestamp", strings.Replace(desktopRecordingFixture, "2026-11-20T09:00:00Z", "yesterday", 1),
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recording().Get(ctx, "r"); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recordings().Get(ctx, "r"); return err },
 		},
 		{
 			"infinite duration", strings.Replace(desktopRecordingFixture, `"durationSeconds":1.25`, `"durationSeconds":1e309`, 1),
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recording().Get(ctx, "r"); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recordings().Get(ctx, "r"); return err },
 		},
 		{
 			"bad recording list", `{"recordings":[{}]}`,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recording().List(ctx); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recordings().List(ctx); return err },
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

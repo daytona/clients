@@ -23,7 +23,7 @@ func TestComputerUseRecordings_whenOperationSent(t *testing.T) {
 		{
 			"start default", "POST", "/computeruse/recordings/start", `{}`, desktopRecordingFixture,
 			func(ctx context.Context, c *ComputerUse) error {
-				got, err := c.Recording().Start(ctx, nil)
+				got, err := c.Recordings().Start(ctx, nil)
 				if err == nil {
 					require.Equal(t, "rec-1", got.ID)
 					require.Equal(t, "capture.mp4", got.FileName)
@@ -41,25 +41,28 @@ func TestComputerUseRecordings_whenOperationSent(t *testing.T) {
 			"start label", "POST", "/computeruse/recordings/start", `{"label":""}`, desktopRecordingFixture,
 			func(ctx context.Context, c *ComputerUse) error {
 				label := ""
-				_, err := c.Recording().Start(ctx, &ComputerUseRecordingStartOptions{Label: &label})
+				_, err := c.Recordings().Start(ctx, &ComputerUseRecordingStartOptions{Label: &label})
 				return err
 			},
 		},
 		{
 			"stop", "POST", "/computeruse/recordings/stop", `{"id":"rec-1"}`, desktopRecordingFixture,
 			func(ctx context.Context, c *ComputerUse) error {
-				_, err := c.Recording().Stop(ctx, "rec-1")
+				_, err := c.Recordings().Stop(ctx, "rec-1")
 				return err
 			},
 		},
 		{
 			"get escaped", "GET", "/computeruse/recordings/rec%2F1", "", desktopRecordingFixture,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Recording().Get(ctx, "rec/1"); return err },
+			func(ctx context.Context, c *ComputerUse) error {
+				_, err := c.Recordings().Get(ctx, "rec/1")
+				return err
+			},
 		},
 		{
 			"list", "GET", "/computeruse/recordings", "", `{"recordings":[` + desktopRecordingFixture + `]}`,
 			func(ctx context.Context, c *ComputerUse) error {
-				got, err := c.Recording().List(ctx)
+				got, err := c.Recordings().List(ctx)
 				if err == nil {
 					require.Len(t, got, 1)
 					require.Equal(t, "rec-1", got[0].ID)
@@ -69,7 +72,7 @@ func TestComputerUseRecordings_whenOperationSent(t *testing.T) {
 		},
 		{
 			"delete", "DELETE", "/computeruse/recordings/rec-1", "", `{}`,
-			func(ctx context.Context, c *ComputerUse) error { return c.Recording().Delete(ctx, "rec-1") },
+			func(ctx context.Context, c *ComputerUse) error { return c.Recordings().Delete(ctx, "rec-1") },
 		},
 	})
 }
@@ -96,7 +99,7 @@ func TestComputerUseRecordingDownload_whenCapSelected(t *testing.T) {
 			})
 			sandbox.client.config.maxResponseBytes = 3
 			// When
-			got, err := sandbox.ComputerUse().Recording().Download(t.Context(), "rec/1", tc.opts)
+			got, err := sandbox.ComputerUse().Recordings().Download(t.Context(), "rec/1", tc.opts)
 			// Then
 			if tc.large {
 				require.ErrorIs(t, err, ErrPayloadTooLarge)
