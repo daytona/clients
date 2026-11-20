@@ -1336,7 +1336,8 @@ public class Sandbox {
             return 0;
         }
         value = value.trim();
-        if (value.matches("\\d+(\\.\\d+)?")) {
+        // Whole seconds only (RFC 9110 delay-seconds), as in the other SDKs.
+        if (value.matches("\\d+")) {
             double seconds = Double.parseDouble(value);
             return Double.isFinite(seconds) ? (long) Math.min(seconds * 1000, MAX_RETRY_AFTER_MILLIS) : 0;
         }

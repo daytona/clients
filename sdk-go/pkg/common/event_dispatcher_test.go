@@ -799,11 +799,17 @@ func TestEventDispatcherUnservesRejectedSubscriptions(t *testing.T) {
 	defer es.Subscribe(idA, handlerFor(idA), stateEvents)()
 	require.Eventually(t, es.IsConnected, 5*time.Second, 10*time.Millisecond)
 	defer es.Subscribe(idB, handlerFor(idB), stateEvents)()
-	require.Eventually(t, func() bool { return !es.IsServed(idB) }, 5*time.Second, 10*time.Millisecond)
+	// The served set changes before the handlers run, so wait for the handlers.
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(rejections) > 0
+	}, 5*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
 	assert.Equal(t, []string{idB}, rejections, "the rejected id's handlers are told")
 	mu.Unlock()
+	assert.False(t, es.IsServed(idB))
 	assert.True(t, es.IsServed(idA), "an accepted id stays served")
 	assert.True(t, manager.IsEventBacked(idA))
 	assert.False(t, manager.IsEventBacked(idB))

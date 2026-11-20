@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import threading
+import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -456,3 +458,41 @@ class TestSyncWaitOnARejectedSubscription:
         assert sandbox.state == SandboxState.STOPPED
         manager.shutdown()
         dispatcher.disconnect()
+
+
+class TestPendingAckPruning:
+    @staticmethod
+    def _client_with_pending(count: int) -> tuple[MagicMock, Any, list[Any]]:
+        sio = MagicMock()
+        callbacks = [lambda *_args: None for _ in range(count)]
+        sio.callbacks = {"/": {0: object(), **{i + 1: cb for i, cb in enumerate(callbacks)}}}
+        pending: Any = collections.deque()
+        return sio, pending, callbacks
+
+    def test_removes_exactly_the_expired_acks(self) -> None:
+        sio, pending, callbacks = self._client_with_pending(4)
+        now = time.monotonic()
+        for i, callback in enumerate(callbacks):
+            pending.append((now - 1 if i < 2 else now + 60, callback))
+        acked = callbacks[1]
+        del sio.callbacks["/"][2]  # already answered: no longer in the table, still in the deque
+
+        event_dispatcher_module._prune_pending_acks(sio, pending)
+
+        assert list(sio.callbacks["/"].values())[1:] == callbacks[2:]
+        assert 0 in sio.callbacks["/"]  # python-socketio's id counter entry is left alone
+        assert [cb for _, cb in pending] == callbacks[2:]
+        assert acked not in sio.callbacks["/"].values()
+
+    def test_pruning_ten_thousand_expired_acks_is_linear(self) -> None:
+        sio, pending, callbacks = self._client_with_pending(10_000)
+        expired_at = time.monotonic() - 1
+        for callback in callbacks:
+            pending.append((expired_at, callback))
+
+        start = time.perf_counter()
+        event_dispatcher_module._prune_pending_acks(sio, pending)
+        elapsed = time.perf_counter() - start
+
+        assert list(sio.callbacks["/"]) == [0] and not pending
+        assert elapsed < 0.2

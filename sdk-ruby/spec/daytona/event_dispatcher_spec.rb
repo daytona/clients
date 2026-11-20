@@ -27,10 +27,15 @@ RSpec.describe Daytona::EventDispatcher do
         @mutex.synchronize { @emitted << [event_name, data] }
       end
 
-      # Records like #emit; #acknowledge then answers the nth acknowledged event.
+      # Records like #emit, with the packet and its callback together, so a test that sees the packet can
+      # #acknowledge it; #acknowledge answers the nth acknowledged event.
       def emit_with_ack(event_name, data, &on_ack)
-        emit(event_name, data)
-        @mutex.synchronize { (@acks ||= []) << on_ack }
+        raise IOError, 'socket closed' if @failing_emit
+
+        @mutex.synchronize do
+          @emitted << [event_name, data]
+          (@acks ||= []) << on_ack
+        end
       end
 
       def acknowledge(index, ack)
@@ -254,7 +259,17 @@ RSpec.describe Daytona::EventDispatcher do
       end
     end
 
-    it 'keeps the id served on an ok acknowledgement or without one' do
+    it 'keeps the id served while its subscribe is not acknowledged' do
+      subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
+      dispatcher.subscribe('sandbox-b', events:, &recording('sandbox-b'))
+      expect(wait_until { emitted.size == 2 }).to be(true)
+
+      expect(notices).to be_empty
+      expect(dispatcher.event_backed?('sandbox-a')).to be(true)
+      expect(dispatcher.event_backed?('sandbox-b')).to be(true)
+    end
+
+    it 'keeps the id served on an ok acknowledgement' do
       subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
       dispatcher.subscribe('sandbox-b', events:, &recording('sandbox-b'))
       expect(wait_until { emitted.size == 2 }).to be(true)

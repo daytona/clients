@@ -1000,14 +1000,14 @@ class SandboxTest {
 
     @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {
-            "inf", "-inf", "nan", "NaN", "Infinity", "-Infinity", "-1", "-0.5", "1e400", "", "soon"})
+            "inf", "-inf", "nan", "NaN", "Infinity", "-Infinity", "-1", "-0.5", "1e400", "", "soon", "59.5", "1.5"})
     void retryAfterTreatsNonFiniteNegativeOrUnparseableValuesAsAbsent(String value) {
         DaytonaException limited = new DaytonaException(429, "slow down", Map.of("Retry-After", value));
         assertThat(Sandbox.retryAfterMillis(limited, 0)).isZero();
     }
 
     @ParameterizedTest
-    @org.junit.jupiter.params.provider.CsvSource({"3, 3000", "59.5, 59500", "60, 60000", "120, 60000",
+    @org.junit.jupiter.params.provider.CsvSource({"3, 3000", "59, 59000", "60, 60000", "120, 60000",
             "99999999999999999999, 60000"})
     void retryAfterReadsSecondsCappedAtSixtySeconds(String value, long expected) {
         DaytonaException limited = new DaytonaException(429, "slow down", Map.of("Retry-After", value));

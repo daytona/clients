@@ -900,19 +900,22 @@ def _prune_pending_acks(
     connection's lifetime. Reads python-socketio internals (``callbacks["/"]``).
     """
     now = time.monotonic()
+    expired: set[int] = set()
     while pending and pending[0][0] <= now:
-        _, callback = pending.popleft()
-        callbacks: object = getattr(sio, "callbacks", None)
-        if not isinstance(callbacks, dict):
-            continue
-        table: object = cast(dict[str, object], callbacks).get("/")
-        if not isinstance(table, dict):
-            continue
-        by_id = cast(dict[object, object], table)
-        for ack_id, pending_callback in list(by_id.items()):
-            if pending_callback is callback:
-                _ = by_id.pop(ack_id, None)
-                break
+        expired.add(id(pending.popleft()[1]))
+    if not expired:
+        return
+    callbacks: object = getattr(sio, "callbacks", None)
+    if not isinstance(callbacks, dict):
+        return
+    table: object = cast(dict[str, object], callbacks).get("/")
+    if not isinstance(table, dict):
+        return
+    by_id = cast(dict[object, object], table)
+    # One pass over one snapshot: linear in the table, however many acknowledgements expired at once.
+    # The expired callbacks are still referenced by the table until popped, so their ids are not reused.
+    for ack_id in [ack_id for ack_id, callback in by_id.items() if id(callback) in expired]:
+        _ = by_id.pop(ack_id, None)
 
 
 def _websocket_closed(sio: socketio.AsyncClient) -> asyncio.Future[None] | None:

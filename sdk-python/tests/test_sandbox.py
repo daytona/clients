@@ -1785,7 +1785,7 @@ class TestSandboxFallbackBackoffAndRateLimits:
         assert mock_sandbox_api.get_sandbox.call_count == 3
 
 
-class TestSandboxReviewRound9:
+class TestSandboxWaitRejectionAndRateLimits:
     @pytest.fixture(autouse=True)
     def _stub_jitter(self, monkeypatch):
         monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
@@ -1955,7 +1955,7 @@ def test_proxy_refresh_updates_existing_node_clients(mock_toolbox_api_client, mo
     assert all(node._toolbox_api._toolbox_base_url == "https://new.example/toolbox" for node in handles)
 
 
-class TestSandboxReviewRound10:
+class TestSandboxWaitTimeoutsAndCachedErrors:
     @pytest.fixture(autouse=True)
     def _stub_jitter(self, monkeypatch):
         monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
