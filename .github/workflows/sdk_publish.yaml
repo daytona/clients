@@ -766,7 +766,8 @@ jobs:
               echo "::error::Go vanity site ${vanity_url}: transfer failed; ${vanity_dependency}"; exit 1
             fi
             # Require the complete meta element, not its content as plain text.
-            if [ "$code" != 200 ] || ! grep -qF '<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">' "$RUNNER_TEMP/go-vanity.html"; then
+            # Module paths use the vanity site's 404.html; Go reads its meta too.
+            if { [ "$code" != 200 ] && [ "$code" != 404 ]; } || ! grep -qF '<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">' "$RUNNER_TEMP/go-vanity.html"; then
               echo "::error::Go vanity site ${vanity_url}: HTTP ${code:-000} or missing required go-import meta mapping go.daytona.com/sdk to https://github.com/daytona/clients sdk-go; ${vanity_dependency}"; exit 1
             fi
             ref=$(gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/${GO_TAG}" \
@@ -786,6 +787,10 @@ jobs:
             case "$code" in
               200)
                 if grep -qxF "$GO_VERSION" "$RUNNER_TEMP/go-versions.txt"; then
+                  if [ -z "$ref" ]; then
+                    echo "::error::${GO_MODULE}@${GO_VERSION} is already on the Go module proxy but ${GO_TAG} is absent; refusing to recreate an immutable version"
+                    exit 1
+                  fi
                   if [ "$FORCE" != true ]; then
                     echo "::error::${GO_MODULE}@${GO_VERSION} is already on the Go module proxy — publish the next version or set force_republish to resume"
                     exit 1
