@@ -13,6 +13,9 @@ trap 'rm -rf "$tmp"' EXIT
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+# The default-case assertions must not see overrides from the caller's environment.
+unset DOMAIN PREFIX SUBDIR REPO BRANCH
+
 bash "$here/go-vanity-site.sh" "$tmp/site" >/dev/null
 want='<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">'
 for page in index.html 404.html; do
