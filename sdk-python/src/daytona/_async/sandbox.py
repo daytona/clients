@@ -21,7 +21,6 @@ from pydantic import (
     model_serializer,
 )
 from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import CoreSchema
 from typing_extensions import override
 
 from daytona_analytics_api_client_async import ApiClient as AnalyticsApiClient
@@ -319,7 +318,7 @@ class AsyncSandboxNodeCollection(list[AsyncSandboxNode]):
     """Live, rank-ordered async node collection with aggregate and topology operations."""
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, _schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
+    def __get_pydantic_json_schema__(cls, _schema: object, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         return handler(TypeAdapter(list[SandboxNodeDto]).core_schema)
 
     def __init__(self, sandbox: AsyncSandbox | None) -> None:
