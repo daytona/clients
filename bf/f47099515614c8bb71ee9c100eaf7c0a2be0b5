@@ -1,0 +1,50 @@
+sdk-go/sandbox_wait_retry_decisive_test.go
+  s_339b2c2f3d14d9::t_b3d139515745f4 90,112-117
+  s_339b2c2f3d14d9::t_6c9631f928a356 1-89,91-111,118-151
+sdk-go/sandbox_wait_retry_policy_test.go
+  s_339b2c2f3d14d9::t_1220b0122b94ab 1-30,33-54,80-149
+  s_339b2c2f3d14d9::t_b3d139515745f4 31-32,55-79
+sdk-go/sandbox_wait_retry.go
+  s_339b2c2f3d14d9::t_7c63865dd762fc 7,51-56,79,81-96
+  s_339b2c2f3d14d9::t_4d31bd72948e0c 1-6,8,10-17,19-23,25-26,29,32,34-43,49-50,57,64-78,80,97-99
+  s_339b2c2f3d14d9::t_b3d139515745f4 9,18,24,27-28,30-31,33,44-48,58-63
+sdk-go/sandbox_wait_read.go
+  s_339b2c2f3d14d9::t_6c9631f928a356 107-116
+sdk-go/sandbox_wait.go
+  s_339b2c2f3d14d9::t_7c63865dd762fc 124
+  s_339b2c2f3d14d9::t_6c9631f928a356 23-24,130-131
+  s_339b2c2f3d14d9::t_4d31bd72948e0c 22,27,92,94,96,115,118-119,125-127,129,134
+  s_339b2c2f3d14d9::t_b3d139515745f4 25-26,90,98-100,102,116
+sdk-go/sandbox_wait_retry_after_test.go
+  s_339b2c2f3d14d9::t_c4a7aa84a3cc77 1-118
+sdk-go/sandbox_wait_retry_budget_test.go
+  s_339b2c2f3d14d9::t_6482f181a169bf 1-94,96-135,162-191
+  s_339b2c2f3d14d9::t_1383d5c1d3b4f7 95,136-161
+sdk-go/sandbox_wait_retry_test.go
+  s_339b2c2f3d14d9::t_1220b0122b94ab 106,114-115
+  s_339b2c2f3d14d9::t_2aef4d42626e8e 1-53,55-105,107-113,116,119-145
+  s_339b2c2f3d14d9::t_6482f181a169bf 54,117-118
+sdk-go/sandbox_wait_events.go
+  s_339b2c2f3d14d9::t_7c63865dd762fc 47,49,51
+  s_339b2c2f3d14d9::t_4d31bd72948e0c 16-18,52,54-55,57
+  s_339b2c2f3d14d9::t_b3d139515745f4 48
+  s_339b2c2f3d14d9::t_6c9631f928a356 58-59
+sdk-go/events.go
+  s_339b2c2f3d14d9::t_b3d139515745f4 45,48,50-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bff47099515614c8bb71ee9c100eaf7c0a2be0b5",
+  "prompts": {},
+  "sessions": {
+    "s_339b2c2f3d14d9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06490279ffe2pAVYXkXuZ1sb3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
