@@ -1,0 +1,23 @@
+.github/workflows/go-vanity-pages.yaml
+  s_12257b84f26bcc::t_69887ff4471a74 23-24,26-27,71
+scripts/go-vanity-site.sh
+  s_12257b84f26bcc::t_52b7dbf9967c20 51-56
+scripts/go-vanity-site_test.sh
+  s_12257b84f26bcc::t_766b8563c811bb 29-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "94f3d2bcdaa11551ad28f37b9f6bb102cdf10587",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
