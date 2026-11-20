@@ -128,11 +128,27 @@ func parseProcessFrame(raw json.RawMessage, encoding LogEncoding) (LogFrame, err
 }
 
 func processCollectLogs(ctx context.Context, handle *ProcessHandle, maxPages int) ([]LogFrame, error) {
+	return handle.collectLogs(ctx, maxPages, nil)
+}
+
+func (h *ProcessHandle) collectLogs(ctx context.Context, maxPages int, initial *ProcessLogPage) ([]LogFrame, error) {
 	logs := make([]LogFrame, 0)
 	cursor := ""
 	seen := make(map[string]bool)
-	for pages := 0; maxPages == 0 || pages < maxPages; pages++ {
-		page, err := handle.LogPage(ctx, &ProcessLogsOptions{Cursor: cursor})
+	pages := 0
+	if initial != nil {
+		logs = append(logs, initial.Items...)
+		if initial.EOF {
+			return logs, nil
+		}
+		// The create snapshot predates waiting; even an empty snapshot can
+		// have output after it by the time replay begins.
+		cursor = initial.NextCursor
+		seen[cursor] = true
+		pages++
+	}
+	for ; maxPages == 0 || pages < maxPages; pages++ {
+		page, err := h.LogPage(ctx, &ProcessLogsOptions{Cursor: cursor})
 		if err != nil {
 			return nil, err
 		}

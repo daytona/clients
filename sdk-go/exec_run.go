@@ -83,20 +83,18 @@ func (h *ProcessHandle) runLogs(
 	if err != nil {
 		return nil, err
 	}
+	var page *ProcessLogPage
 	if present(object["logs"]) {
-		page, parseErr := parseProcessLogPage(object["logs"], LogEncodingText)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		if info.State == ProcessStateTerminal && page.EOF {
-			return page.Items, nil
+		page, err = parseProcessLogPage(object["logs"], LogEncodingText)
+		if err != nil {
+			return nil, err
 		}
 	}
 	limit := 0
 	if info.Reason == ProcessReasonTimedOut {
 		limit = 8
 	}
-	return processCollectLogs(ctx, h, limit)
+	return h.collectLogs(ctx, limit, page)
 }
 
 func processResult(id string, wait WaitResult, logs []LogFrame) *ProcessResult {
