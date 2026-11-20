@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"io"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -20,6 +21,15 @@ func TestProcessSSECountsCRLFWhenSplitAcrossReads(t *testing.T) {
 				reader := newProcessSSEReader(iotest.OneByteReader(strings.NewReader(body)), int64(allowance))
 				// When reading under an exact or one-byte-too-small cap.
 				message, err := reader.next()
+				// A final CR dispatches immediately; a split optional LF can
+				// only be inspected (and bounded) on the subsequent read.
+				if err == nil {
+					_, err = reader.next()
+					if allowance == len(body) {
+						require.ErrorIs(t, err, io.EOF)
+						err = nil
+					}
+				}
 				// Then framing bytes count, including split CRLF and the final blank line.
 				if allowance == len(body) {
 					require.NoError(t, err)
