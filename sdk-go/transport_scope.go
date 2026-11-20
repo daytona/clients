@@ -114,7 +114,7 @@ func (b *responseBody) Read(data []byte) (int, error) {
 func (b *responseBody) Close() error {
 	b.scope.close()
 	if err := b.ReadCloser.Close(); err != nil {
-		return transportError(b.scope.ctx, err)
+		return wrapError(err, "close response body")
 	}
 	return nil
 }
