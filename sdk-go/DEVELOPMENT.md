@@ -74,6 +74,9 @@ does it the Go way:
   Identity snapshots (`ProcessHandle.ToJSON`, `Session.ToJSON`,
   `InterpreterContext.Identity`) are small values that round-trip through the
   matching `Connect...` method by value.
+  `Sandbox.ToJSON` returns the shared credential- and URL-free
+  `SandboxHandleJSON` metadata snapshot (GiB capacity, seconds for lifecycle
+  budgets, verbatim wire timestamps); resume with `client.Get(ctx, json.SandboxID, nil)`.
 - **Handles** (`*Sandbox`, `*ProcessHandle`, ...) are safe for concurrent use
   and expose data through methods (`ID()`, `State()`, `Info()`); `Refresh(ctx)`
   re-reads it.

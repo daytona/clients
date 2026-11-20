@@ -78,6 +78,13 @@ func sandboxStrings(object jsonObject, result *sandboxObservation) error {
 		}
 		*entry.target = value
 	}
+	known := &result.info.jsonKnown
+	known.name = true
+	known.error = present(object["error"])
+	known.user = present(object["user"])
+	known.forkedFrom = present(object["forked_from"])
+	known.reservationID = present(object["reservation_id"])
+	known.imageBuildID = present(object["image_build_id"])
 	return nil
 }
 
@@ -120,40 +127,51 @@ func sandboxResources(object jsonObject, resources *Resources) error {
 }
 
 func sandboxTimestamps(object jsonObject, info *SandboxInfo) error {
+	// Detail responses always carry the required capacity fields, even zero.
+	info.jsonKnown.resources = true
 	for _, entry := range []struct {
 		name   string
 		target *time.Time
+		wire   *string
 	}{
-		{"created_at", &info.CreatedAt},
-		{"updated_at", &info.UpdatedAt},
-		{"started_at", &info.StartedAt},
-		{"stopped_at", &info.StoppedAt},
-		{"last_activity_at", &info.LastActivityAt},
-		{"create_timeout_at", &info.CreateTimeoutAt},
-		{"spot_evicted_at", &info.SpotEvictedAt},
+		{"created_at", &info.CreatedAt, nil},
+		{"updated_at", &info.UpdatedAt, nil},
+		{"started_at", &info.StartedAt, nil},
+		{"stopped_at", &info.StoppedAt, nil},
+		{"last_activity_at", &info.LastActivityAt, nil},
+		{"create_timeout_at", &info.CreateTimeoutAt, nil},
+		{"spot_evicted_at", &info.SpotEvictedAt, &info.spotEvictedAtWire},
 	} {
-		value, err := timestampField(object, entry.name)
+		value, wire, err := timestampWireField(object, entry.name)
 		if err != nil {
 			return err
 		}
 		*entry.target = value
+		if entry.wire != nil {
+			*entry.wire = wire
+		}
 	}
 	return nil
 }
 
 func timestampField(object jsonObject, name string) (time.Time, error) {
+	value, _, err := timestampWireField(object, name)
+	return value, err
+}
+
+func timestampWireField(object jsonObject, name string) (time.Time, string, error) {
 	if !present(object[name]) {
-		return time.Time{}, nil
+		return time.Time{}, "", nil
 	}
 	value, err := field[string](object, name, true)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, "", err
 	}
 	stamp, err := parseTimestamp(value)
 	if err != nil {
-		return time.Time{}, badRequest("response field " + name + " is not RFC 3339")
+		return time.Time{}, "", badRequest("response field " + name + " is not RFC 3339")
 	}
-	return stamp, nil
+	return stamp, value, nil
 }
 
 func parseTimestamp(value string) (time.Time, error) {

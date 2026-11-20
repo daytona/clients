@@ -41,7 +41,8 @@ type SandboxInfo struct {
 	// Spot reports interruptible capacity; nil means not reported.
 	Spot *bool
 	// SpotEvictedAt is zero until an eviction is reported.
-	SpotEvictedAt time.Time
+	SpotEvictedAt     time.Time
+	spotEvictedAtWire string
 	// LifecyclePolicy is the observed automatic expiry policy.
 	LifecyclePolicy *LifecyclePolicy
 	// ForkedFrom identifies the source sandbox of a fork.
@@ -63,7 +64,14 @@ type SandboxInfo struct {
 	// CreateTimeoutAt is the create deadline, or zero when absent.
 	CreateTimeoutAt time.Time
 	// PortMap contains observed port assignments.
-	PortMap []PortAssignment
+	PortMap   []PortAssignment
+	jsonKnown sandboxJSONKnown
+}
+
+// Presence is retained separately from the public model's convenient zero
+// values, so JSON snapshots distinguish unknown from reported empty/zero.
+type sandboxJSONKnown struct {
+	name, resources, error, imageBuildID, forkedFrom, reservationID, user bool
 }
 
 // ImageRef identifies the image a sandbox booted.
@@ -71,7 +79,8 @@ type ImageRef struct {
 	// ID identifies the image.
 	ID string
 	// Name is the optional image name.
-	Name string
+	Name      string
+	nameKnown bool
 }
 
 // SnapshotRef identifies the memory snapshot a sandbox resumed.
@@ -79,7 +88,8 @@ type SnapshotRef struct {
 	// ID identifies the snapshot.
 	ID string
 	// Name is the optional snapshot name.
-	Name string
+	Name      string
+	nameKnown bool
 }
 
 // Resources describes sandbox capacity. CPU and CPUMax are cores; memory and
@@ -117,17 +127,21 @@ type LifecyclePolicy struct {
 	// OnTimeout is the action taken at the lifetime deadline.
 	OnTimeout LifecycleAction
 	// TimeoutAt is the effective lifetime deadline.
-	TimeoutAt time.Time
+	TimeoutAt     time.Time
+	timeoutAtWire string
 	// IdleExpiry is the idle budget; nil is absent and zero disables expiry.
 	IdleExpiry *time.Duration
 	// OnIdleTimeout is the action taken at the idle deadline.
 	OnIdleTimeout LifecycleAction
 	// IdleTimeoutAt is the effective idle deadline.
-	IdleTimeoutAt time.Time
+	IdleTimeoutAt     time.Time
+	idleTimeoutAtWire string
 	// LastActivityAt is the activity observation timestamp.
-	LastActivityAt time.Time
+	LastActivityAt     time.Time
+	lastActivityAtWire string
 	// LastActivitySource is the open server activity source.
-	LastActivitySource string
+	LastActivitySource                                          string
+	onTimeoutKnown, onIdleTimeoutKnown, lastActivitySourceKnown bool
 }
 
 // LifecycleAction is an open server-defined lifecycle action.
