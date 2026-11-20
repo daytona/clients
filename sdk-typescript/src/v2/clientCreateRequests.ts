@@ -11,10 +11,13 @@ import { assertCreateNestedOptions, withoutNullOptions, CREATE_KEYS, SNAPSHOT_CR
 import { createRegion, rejectV0Target, createWaitSeconds, wireWaitSeconds, createTimeoutSeconds, linuxMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
+import type { DesktopConfig } from './desktop.js'
 
 // `image` is optional: an imageless Linux create boots the platform default.
-type LinuxCreateRequest = Omit<api.CreateSandboxRequest, 'image'> & {
+type LinuxCreateRequest = Omit<api.CreateSandboxRequest, 'image' | 'desktop'> & {
   readonly image?: string
+  // The API defaults each member; preserve an empty opt-in without filling them.
+  readonly desktop?: DesktopConfig
   readonly network_policy?: Record<string, unknown> | null
 }
 
@@ -64,6 +67,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     name: options.name,
     ...(source !== undefined ? { image: source } : {}),
     env: options.env,
+    desktop: options.desktop,
     region_id: createRegion(options),
     cpu: options.resources?.cpu,
     cores_max: options.resources?.cpuMax,

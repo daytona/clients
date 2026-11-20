@@ -67,6 +67,7 @@ from ._core import (
     sandbox_state,
     wait_budget_seconds,
 )
+from ._desktop_core import desktop_settings_from_wire
 from ._events import WaitHub, WaitOutcome, _TargetPredicate, endpoint_from_headers, region_of, wait_query_key
 from ._gen.api import (
     Sandbox as SandboxDto,
@@ -86,6 +87,7 @@ from .build_logs import (
     read_build_logs,
 )
 from .computer_use import AsyncComputerUseService
+from .desktop import DesktopSettings
 from .docker import AsyncDockerService
 from .errors import (
     AuthenticationError,
@@ -217,6 +219,7 @@ class AsyncSandbox:
             "raw_sandbox_class",
             "mac_boot_mode",
             "persistent",
+            "desktop",
             "spot",
             "spot_evicted_at",
             "lifecycle_policy",
@@ -462,6 +465,16 @@ class AsyncSandbox:
     def persistent(self) -> Optional[bool]:
         """macOS only: whether a stop keeps the disk; ``None`` until known."""
         return self._info.persistent
+
+    @property
+    def desktop(self) -> DesktopSettings | None:
+        """Resolved create-time settings, not live status or current settings.
+
+        Desktop restarts may change settings; ``computer_use.display.info()``
+        reports the live display size. ``None`` means no desktop was requested,
+        except when metadata is unknown or omitted (including batch-wait snapshots).
+        """
+        return self._info.desktop
 
     @property
     def spot(self) -> Optional[bool]:
@@ -790,6 +803,15 @@ class AsyncSandbox:
             payload["rawSandboxClass"] = info.raw_sandbox_class
         if info.persistent is not None:
             payload["persistent"] = info.persistent
+        if info.desktop is not None:
+            payload["desktop"] = {
+                "environment": info.desktop.environment,
+                "rawEnvironment": info.desktop.raw_environment,
+                "resolution": {
+                    "width": info.desktop.resolution.width,
+                    "height": info.desktop.resolution.height,
+                },
+            }
         if info.spot is not None:
             payload["spot"] = info.spot
         if info.spot_evicted_at is not None:
@@ -2178,6 +2200,7 @@ def _sandbox_info_from_wire(data: Mapping[str, JsonValue]) -> _SandboxInfo:
         raw_sandbox_class=raw_class,
         mac_boot_mode=_wire_text(data.get("mac_boot_mode")),
         persistent=persistent if isinstance(persistent, bool) else None,
+        desktop=desktop_settings_from_wire(data.get("desktop")),
         spot=spot if isinstance(spot, bool) else None,
         spot_evicted_at=parse_timestamp(data.get("spot_evicted_at")),
         lifecycle_policy=parse_lifecycle(lifecycle) if isinstance(lifecycle, dict) else None,

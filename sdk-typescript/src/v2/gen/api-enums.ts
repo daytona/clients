@@ -9,6 +9,7 @@ export const BuildLogDoneReason = ["terminal","deadline","not_applicable","resou
 export const BuildLogGapReason = ["truncated"] as const
 export const ChargeStatus = ["succeeded","pending","failed"] as const
 export const CpuArchitecture = ["amd64","arm64"] as const
+export const DesktopEnvironment = ["xfce","gnome"] as const
 export const ExternalBucketOrigin = ["external"] as const
 export const ImageOrigin = ["registry","dockerfile","capture","windows","macos"] as const
 export const ImagePlatformFilter = ["true","false","any"] as const

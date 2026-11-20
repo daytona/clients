@@ -4019,6 +4019,12 @@ export interface components {
              */
             create_timeout_seconds?: number | null;
             /**
+             * @description Provision a Linux desktop. An empty object selects XFCE at 1280×720.
+             *     Requires desktop creates to be enabled. Boot limits must be at least
+             *     1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME.
+             */
+            desktop?: components["schemas"]["DesktopConfig"];
+            /**
              * Format: int32
              * @description Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when
              *     restoring a snapshot, it must equal the captured disk size or be absent.
@@ -4146,6 +4152,47 @@ export interface components {
         DeclineInvitationRequest: {
             /** @description The invitation token. */
             token: string;
+        };
+        /** @description Desktop settings. Omit a member for its default: xfce, 1280×720. */
+        DesktopConfig: {
+            /**
+             * @description Desktop session: xfce or gnome. Omitted = xfce.
+             * @default xfce
+             */
+            environment: components["schemas"]["DesktopEnvironment"];
+            /**
+             * @description Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+             * @default {
+             *       "height": 720,
+             *       "width": 1280
+             *     }
+             */
+            resolution: components["schemas"]["DesktopResolution"];
+        };
+        /** @description Linux desktop session selected at create time. */
+        DesktopEnvironment: ("xfce" | "gnome") | (string & {});
+        /** @description Supported display geometry: 1024×768, 1280×720, or 1920×1080. */
+        DesktopResolution: {
+            /**
+             * Format: int32
+             * @description Height in pixels.
+             */
+            height: number;
+            /**
+             * Format: int32
+             * @description Width in pixels.
+             */
+            width: number;
+        };
+        /**
+         * @description Concrete create-time desktop settings. This records the request, not the
+         *     live guest state; GET /computeruse/display/info reports the live display size.
+         */
+        DesktopSettings: {
+            /** @description Desktop session the sandbox was created with. */
+            environment: components["schemas"]["DesktopEnvironment"];
+            /** @description Exactly 1024×768, 1280×720, or 1920×1080. */
+            resolution: components["schemas"]["DesktopResolution"];
         };
         EffectiveLifecyclePolicies: {
             /** @description Effective Linux sandbox policies. */
@@ -6622,6 +6669,13 @@ export interface components {
              * @description When the sandbox was created.
              */
             created_at?: string | null;
+            /**
+             * @description Resolved create-time desktop request, not live state: a desktop restart
+             *     can change its settings. GET /computeruse/display/info reports the live
+             *     display size. Omitted when no desktop was requested, and from batch-wait
+             *     (`GET /sandboxes/batch-wait`) snapshots.
+             */
+            desktop?: components["schemas"]["DesktopSettings"];
             /**
              * Format: int32
              * @description Maximum writable disk size in MiB.

@@ -31,6 +31,7 @@ from typing import (
 from typing_extensions import NotRequired, Required, Self
 
 from . import _gen
+from .desktop import DesktopSettings, DesktopSettingsJSON
 from .errors import create_error
 
 MacReservationStatus = Literal[
@@ -550,6 +551,7 @@ class _SandboxInfo:
     raw_sandbox_class: Optional[str] = None
     mac_boot_mode: Optional[MacBootMode] = None
     persistent: Optional[bool] = None
+    desktop: DesktopSettings | None = None
     spot: Optional[bool] = None
     spot_evicted_at: Optional[datetime] = None
     lifecycle_policy: Optional[SandboxLifecycle] = None
@@ -612,6 +614,7 @@ class SandboxHandleJSON(TypedDict, total=False):
     sandboxClass: Literal["linux", "macos", "unknown"]
     rawSandboxClass: str
     persistent: bool
+    desktop: DesktopSettingsJSON
     spot: bool
     spotEvictedAt: str
     lifecyclePolicy: SandboxLifecycleJSON

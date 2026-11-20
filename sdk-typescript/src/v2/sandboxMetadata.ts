@@ -4,6 +4,7 @@
  */
 
 import { artifactRefOf } from './Image.js'
+import { checkDesktopResponse, parseDesktop } from './desktop.js'
 import { regionOf } from './events.js'
 import { SandboxClass as SANDBOX_CLASSES } from './gen/api-enums.js'
 import { parseSandboxLifecycle, sandboxState } from './http.js'
@@ -84,6 +85,7 @@ export function assertSandboxResponse(sandbox: unknown): asserts sandbox is Sand
   // An empty or blank id or class is as unusable as a missing one.
   if (isBlank(checked.id)) throw badRequest('sandbox response is missing its id')
   if (checked.class !== undefined && isBlank(checked.class)) throw badRequest('sandbox response is missing its class')
+  checkDesktopResponse(checked.desktop)
 }
 
 export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
@@ -109,6 +111,7 @@ export function metadataFromSandbox(sandbox: SandboxDto): SandboxMetadata {
     rawSandboxClass: sandbox.class ?? undefined,
     region: region(sandbox.id, sandbox.region_id),
     persistent: sandbox.persistent ?? undefined,
+    desktop: parseDesktop(sandbox.desktop),
     user: sandbox.user ?? undefined,
     spot: sandbox.spot ?? undefined,
     spotEvictedAt: sandbox.spot_evicted_at ?? undefined,
@@ -140,6 +143,7 @@ export function metadataFromInfo(info: SandboxInfo): SandboxMetadata {
     rawSandboxClass: info.rawSandboxClass ?? info.sandboxClass,
     region: region(info.sandboxId, info.region),
     persistent: info.persistent,
+    desktop: info.desktop === undefined ? undefined : Object.freeze({ ...info.desktop, resolution: Object.freeze({ ...info.desktop.resolution }) }),
     user: info.user,
     spot: info.spot,
     spotEvictedAt: info.spotEvictedAt,
@@ -198,6 +202,7 @@ export function sandboxHandleJSON(id: string, data: SandboxMetadata): SandboxHan
     sandboxClass: data.sandboxClass,
     rawSandboxClass: data.rawSandboxClass,
     persistent: data.persistent,
+    desktop: data.desktop === undefined ? undefined : { ...data.desktop, resolution: { ...data.desktop.resolution } },
     spot: data.spot,
     spotEvictedAt: data.spotEvictedAt,
     lifecyclePolicy: lifecycleJSON(data.lifecyclePolicy),

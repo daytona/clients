@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ROOT_EXPORTS = [
+    "DesktopConfig",
+    "DesktopEnvironment",
+    "DesktopResolution",
+    "DesktopResolutionConfig",
+    "DesktopResolutionJSON",
+    "DesktopSettings",
+    "DesktopSettingsJSON",
     "PullVolumeResult",
     "PullVolumeStatus",
     "AsyncSandboxVolumesService",

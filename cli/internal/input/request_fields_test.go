@@ -93,6 +93,9 @@ func isUnion(t reflect.Type) bool {
 // which the contract's schema of the same name declares.
 func unionFields(t reflect.Type, depth int) *Fields {
 	schema := contractSchema(t.Name())
+	if schema == nil {
+		return inlineUnionFields(t, depth)
+	}
 	oneOf, _ := schema["oneOf"].([]any)
 	if len(oneOf) == 0 {
 		fieldsFailure("%s: no oneOf schema %q in the contract", t, t.Name())

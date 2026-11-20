@@ -348,6 +348,10 @@ export class Sandbox {
   /** macOS only: whether the sandbox preserves its disk when stopped; undefined on a
     *  handle whose metadata has not been loaded yet. */
   public get persistent(): boolean | undefined { return this.observed.persistent }
+  /** Resolved create-time settings, not live status. Guest desktop restarts may
+   * change live settings; use computerUse.display.info() for the live display size.
+   * Absent until reported; batch-wait omits this metadata. */
+  public get desktop(): SandboxHandleJSON['desktop'] { return this.observed.desktop }
   public get spot(): boolean | undefined { return this.observed.spot }
   public get spotEvictedAt(): string | undefined { return this.observed.spotEvictedAt }
   public get lifecyclePolicy(): SandboxLifecycle | undefined { return this.observed.lifecyclePolicy }

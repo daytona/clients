@@ -839,6 +839,24 @@ func (e CpuArchitecture) Valid() bool {
 	}
 }
 
+// Defines values for DesktopEnvironment.
+const (
+	Gnome DesktopEnvironment = "gnome"
+	Xfce  DesktopEnvironment = "xfce"
+)
+
+// Valid indicates whether the value is a known member of the DesktopEnvironment enum.
+func (e DesktopEnvironment) Valid() bool {
+	switch e {
+	case Gnome:
+		return true
+	case Xfce:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ExternalBucketOrigin.
 const (
 	External ExternalBucketOrigin = "external"
@@ -3017,6 +3035,11 @@ type CreateSandboxRequest struct {
 	// CreateTimeoutSeconds Seconds allowed for the sandbox to reach `running`. Defaults to 3600; `-1` uses the maximum.
 	CreateTimeoutSeconds *int64 `json:"create_timeout_seconds,omitempty"`
 
+	// Desktop Provision a Linux desktop. An empty object selects XFCE at 1280×720.
+	// Requires desktop creates to be enabled. Boot limits must be at least
+	// 1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME.
+	Desktop *DesktopConfig `json:"desktop,omitempty"`
+
 	// DiskMaxMib Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when
 	// restoring a snapshot, it must equal the captured disk size or be absent.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
@@ -3143,6 +3166,47 @@ type CreateVolumeRequest struct {
 type DeclineInvitationRequest struct {
 	// Token The invitation token.
 	Token string `json:"token"`
+}
+
+// DesktopConfig Desktop settings. Omit a member for its default: xfce, 1280×720.
+type DesktopConfig struct {
+	// Environment Desktop session: xfce or gnome. Omitted = xfce.
+	Environment *DesktopConfig_Environment `json:"environment,omitempty"`
+
+	// Resolution Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+	Resolution *DesktopConfig_Resolution `json:"resolution,omitempty"`
+}
+
+// DesktopConfig_Environment Desktop session: xfce or gnome. Omitted = xfce.
+type DesktopConfig_Environment struct {
+	union json.RawMessage
+}
+
+// DesktopConfig_Resolution Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+type DesktopConfig_Resolution struct {
+	union json.RawMessage
+}
+
+// DesktopEnvironment Linux desktop session selected at create time.
+type DesktopEnvironment string
+
+// DesktopResolution Supported display geometry: 1024×768, 1280×720, or 1920×1080.
+type DesktopResolution struct {
+	// Height Height in pixels.
+	Height int32 `json:"height"`
+
+	// Width Width in pixels.
+	Width int32 `json:"width"`
+}
+
+// DesktopSettings Concrete create-time desktop settings. This records the request, not the
+// live guest state; GET /computeruse/display/info reports the live display size.
+type DesktopSettings struct {
+	// Environment Desktop session the sandbox was created with.
+	Environment DesktopEnvironment `json:"environment"`
+
+	// Resolution Exactly 1024×768, 1280×720, or 1920×1080.
+	Resolution DesktopResolution `json:"resolution"`
 }
 
 // EffectiveLifecyclePolicies defines model for EffectiveLifecyclePolicies.
@@ -5737,6 +5801,12 @@ type Sandbox struct {
 	// CreatedAt When the sandbox was created.
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 
+	// Desktop Resolved create-time desktop request, not live state: a desktop restart
+	// can change its settings. GET /computeruse/display/info reports the live
+	// display size. Omitted when no desktop was requested, and from batch-wait
+	// (`GET /sandboxes/batch-wait`) snapshots.
+	Desktop *DesktopSettings `json:"desktop,omitempty"`
+
 	// DiskMaxMib Maximum writable disk size in MiB.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
 
@@ -5963,6 +6033,12 @@ type SandboxListItem struct {
 
 	// Cursor Opaque token that resumes immediately after this sandbox.
 	Cursor string `json:"cursor"`
+
+	// Desktop Resolved create-time desktop request, not live state: a desktop restart
+	// can change its settings. GET /computeruse/display/info reports the live
+	// display size. Omitted when no desktop was requested, and from batch-wait
+	// (`GET /sandboxes/batch-wait`) snapshots.
+	Desktop *DesktopSettings `json:"desktop,omitempty"`
 
 	// DiskMaxMib Maximum writable disk size in MiB.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
@@ -8202,6 +8278,78 @@ type SetSecretJSONRequestBody = SetSecretRequest
 
 // CreateVolumeJSONRequestBody defines body for CreateVolume for application/json ContentType.
 type CreateVolumeJSONRequestBody = CreateVolumeRequest
+
+// AsDesktopEnvironment returns the union data inside the DesktopConfig_Environment as a DesktopEnvironment
+func (t DesktopConfig_Environment) AsDesktopEnvironment() (DesktopEnvironment, error) {
+	var body DesktopEnvironment
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDesktopEnvironment overwrites any union data inside the DesktopConfig_Environment as the provided DesktopEnvironment
+func (t *DesktopConfig_Environment) FromDesktopEnvironment(v DesktopEnvironment) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDesktopEnvironment performs a merge with any union data inside the DesktopConfig_Environment, using the provided DesktopEnvironment
+func (t *DesktopConfig_Environment) MergeDesktopEnvironment(v DesktopEnvironment) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DesktopConfig_Environment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DesktopConfig_Environment) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsDesktopResolution returns the union data inside the DesktopConfig_Resolution as a DesktopResolution
+func (t DesktopConfig_Resolution) AsDesktopResolution() (DesktopResolution, error) {
+	var body DesktopResolution
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDesktopResolution overwrites any union data inside the DesktopConfig_Resolution as the provided DesktopResolution
+func (t *DesktopConfig_Resolution) FromDesktopResolution(v DesktopResolution) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDesktopResolution performs a merge with any union data inside the DesktopConfig_Resolution, using the provided DesktopResolution
+func (t *DesktopConfig_Resolution) MergeDesktopResolution(v DesktopResolution) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DesktopConfig_Resolution) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DesktopConfig_Resolution) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // AsImageSourceValue0 returns the union data inside the ImageSourceValue as a ImageSourceValue0
 func (t ImageSourceValue) AsImageSourceValue0() (ImageSourceValue0, error) {

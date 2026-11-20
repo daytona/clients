@@ -69,11 +69,13 @@ from ._core import (
     search_params,
     wait_budget_seconds,
 )
+from ._desktop_core import desktop_settings_from_wire
 from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import Sandbox as SandboxDto
 from ._gen.api import SandboxListItem
 from ._otel import load_opentelemetry_support
 from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
+from .desktop import DesktopConfig
 from .errors import (
     AuthenticationError,
     ClientClosedError,
@@ -141,6 +143,7 @@ CreateConfigValue = (
     | Sequence[VolumeMount]
     | Sequence[str]
     | NetworkPolicyInput
+    | DesktopConfig
     | None
 )
 CreateConfig = dict[str, CreateConfigValue]
@@ -276,6 +279,7 @@ class AsyncDaytona:
         env: Optional[Mapping[str, str]] = None,
         labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
+        desktop: DesktopConfig | None = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
@@ -300,6 +304,12 @@ class AsyncDaytona:
         whitespace-only ``image`` is still an error, raised before any request.
         Snapshots and image builds have their own methods:
         :meth:`create_from_snapshot`, :meth:`create_from_build`.
+
+        ``desktop`` overrides desktop settings on image/default creates only;
+        ``{}`` is sent unchanged to select XFCE at 1280x720. See
+        :class:`DesktopConfig` for supported resolutions, boot LIMITS floors
+        and server 400 cases. The returned ``sandbox.desktop`` reports resolved
+        create-time settings, not live desktop status. Batch-wait omits them.
 
         **Waiting.** The server holds this create briefly, so a sandbox that
         reaches ``started`` within that hold returns in one round trip; the SDK
@@ -365,6 +375,8 @@ class AsyncDaytona:
             wait_seconds=wait_seconds,
             create_timeout_seconds=create_timeout_seconds,
         )
+        if desktop is not None:
+            config["desktop"] = desktop
         return await self._create_with_wait(
             config,
             idempotency_key=idempotency_key,
@@ -592,6 +604,7 @@ class AsyncDaytona:
         env: Optional[Mapping[str, str]] = None,
         labels: Optional[Mapping[str, str]] = None,
         resources: Optional[Resources] = None,
+        desktop: DesktopConfig | None = None,
         ports: Optional[Sequence[PortMapping]] = None,
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
@@ -718,6 +731,7 @@ class AsyncDaytona:
             env=env,
             labels=labels,
             resources=resources,
+            desktop=desktop,
             ports=ports,
             volumes=volumes,
             secrets=secrets,
@@ -816,6 +830,7 @@ class AsyncDaytona:
         # the create route fixes (linux, or macos for create_macos); the rest
         # is unknown until a detail read. The response's `image` is canonical when present.
         booted = artifact_ref_from_wire(data.get("image"))
+        desktop = desktop_settings_from_wire(data.get("desktop"))
         info = _SandboxInfo(
             id=sandbox_id,
             name=str(data.get("name")) if isinstance(data.get("name"), str) else None,
@@ -823,6 +838,7 @@ class AsyncDaytona:
             raw_state=raw_status,
             image=ImageRef(id=booted.id, name=booted.name) if booted is not None else image_ref,
             snapshot=snapshot_ref,
+            desktop=desktop,
             region=target,
             # The create route fixes the class (linux or macos).
             sandbox_class=sandbox_class,
@@ -1753,6 +1769,11 @@ def _create_body(config: CreateConfig) -> CreateBody:
         if isinstance(spot, bool):
             body["spot"] = spot
     if route == "linux" and source_kind == "image":
+        desktop = config.get("desktop")
+        if desktop is not None:
+            # Preserve explicit empty objects and let the API resolve defaults
+            # and reject unsupported values, members and explicit nulls.
+            body["desktop"] = desktop
         cpu_arch = config.get("cpu_arch")
         if isinstance(cpu_arch, str):
             body["cpu_arch"] = cpu_arch

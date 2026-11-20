@@ -584,6 +584,31 @@ linux = d.v2.create("py312", wait_seconds=60)
 snapshot = d.v2.create_from_snapshot("worker-after-setup", wait_seconds=60)
 ```
 
+Image/default `create()` also takes `desktop: DesktopConfig`. Its optional
+`environment` is `"xfce"` or `"gnome"`; its optional `resolution` carries
+`width` and `height` in pixels. Supported pairs are 1024×768, 1280×720 and
+1920×1080. `desktop={}` is sent unchanged to select XFCE at 1280×720;
+omitting it (or passing `None`) sends no desktop override.
+
+```python
+sandbox = d.v2.create(desktop={"environment": "gnome", "resolution": {"width": 1920, "height": 1080}})
+```
+
+The server returns 403 `FEATURE_NOT_ENABLED` if desktop support is disabled on the deployment.
+It returns 400 `BAD_REQUEST` if values or resolutions are invalid, unknown members
+or explicit JSON nulls are supplied, or the boot **resource limits** are below the desktop floor:
+XFCE needs 1 CPU and 2048 MiB, GNOME 2 CPUs and 8192 MiB. These floors apply
+to boot limits, not the guaranteed resource requests.
+
+`sandbox.desktop` is immutable, resolved **create-time metadata**, not live
+desktop status or current settings. Desktop restarts may change settings; use
+`sandbox.computer_use.display.info()` for the live display size. An unrecognized
+environment becomes `"unknown"`, with the original in `raw_environment`.
+Absent metadata is `None` when no desktop was requested (or the API omitted
+metadata, including batch-wait snapshots). Snapshot creates, forks and macOS
+creates do not take desktop overrides. `create_from_build()` forwards them
+to the final image-based sandbox create, not the image build.
+
 `d.v2.create_from_build()` is the slow path: it builds an anonymous image
 first, always waits for that image to become ready, then creates the sandbox
 from the image id. The build submission is an ordinary request, bounded by
