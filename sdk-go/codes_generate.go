@@ -87,8 +87,12 @@ func writeGroup(entries []entry, group int) error {
 	out := header()
 	for _, item := range entries {
 		name := goName(item.code)
+		sources := strings.Join(item.sources, ", ")
+		if sources == "" {
+			sources = "SDK"
+		}
 		fmt.Fprintf(out, "// Code%s is %s (%s).\nconst Code%s = %q\n\n",
-			name, item.code, strings.Join(item.sources, ", "), name, item.code)
+			name, item.code, sources, name, item.code)
 		if slices.Contains([]string{
 			"BadRequest", "Conflict", "Forbidden", "Gone", "InternalServerError",
 			"MethodNotAllowed", "NotFound", "PayloadTooLarge", "ServiceUnavailable",

@@ -9,7 +9,8 @@ const CodeBuildLogInterrupted = "BUILD_LOG_INTERRUPTED"
 // ErrBuildLogInterrupted matches a build-log observation interrupted before completion.
 var ErrBuildLogInterrupted = codeSentinel{code: CodeBuildLogInterrupted}
 
-// ErrTransferCancelled matches an explicitly cancelled file transfer.
+// ErrTransferCancelled is an alias of ErrRequestCancelled and matches every
+// REQUEST_CANCELLED error, not only cancelled file transfers.
 var ErrTransferCancelled = codeSentinel{code: CodeRequestCancelled, status: 499}
 
 // BuildLogInterruptedError preserves the last successfully delivered checkpoint.
