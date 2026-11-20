@@ -84,10 +84,10 @@ func paginate[T any](ctx context.Context, cursor string,
 
 func pageQuery(cursor string, limit int) (url.Values, error) {
 	if !utf8.ValidString(cursor) {
-		return nil, badRequest("cursor must be valid UTF-8")
+		return nil, badRequest("Cursor must be valid UTF-8")
 	}
 	if limit < 0 || limit > 200 {
-		return nil, badRequest("Limit must be an integer between 1 and 200")
+		return nil, badRequest("Limit must be 0 (server default) or 1 to 200")
 	}
 	params := make(url.Values)
 	if cursor != "" {

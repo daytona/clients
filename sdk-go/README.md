@@ -150,9 +150,9 @@ if err != nil {
 
 All create options are checked before the billed build. The shared `CPUArch` type
 provides `CPUArchAMD64` and `CPUArchARM64` for both sandbox and image options.
-`Region` and `CPUArch`
-apply to both stages. `BuildTimeout` bounds readiness separately (zero or
-`WaitForever` means no SDK deadline); the sandbox then receives its full `Wait`.
+`Region` and `CPUArch` apply to both stages. `BuildTimeout` bounds readiness
+separately (zero or `WaitForever` means no SDK deadline); the sandbox then
+receives its full `Wait`.
 Build failures return `*ImageBuildFailedError` without creating a sandbox.
 Anonymous images expire under their idle-retention policy.
 

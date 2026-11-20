@@ -16,7 +16,8 @@ type SessionStartOptions struct {
 	// Stdin defaults to closed; open permits writing through the returned handle.
 	Stdin ProcessStdinMode
 	// ExecutionTimeout starts when the command starts, after earlier queued commands.
-	// Zero or NoTimeout disables it. The shell normally survives a command timeout.
+	// Zero, NoTimeout, or a value above the longest timer every SDK shares (about
+	// 24.8 days) disables it. The shell normally survives a command timeout.
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl.
 	KeepLogs ProcessKeepLogs
@@ -27,6 +28,8 @@ type SessionRunOptions struct {
 	// Name is an optional command alias.
 	Name string
 	// ExecutionTimeout stops the command on expiry, normally preserving the shell.
+	// Zero, NoTimeout, or a value above the longest timer every SDK shares (about
+	// 24.8 days) disables it.
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl; none is refused.
 	KeepLogs ProcessKeepLogs

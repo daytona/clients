@@ -56,8 +56,8 @@
 // Paths inside the sandbox are absolute ("/workspace/data.csv"); file
 // operations refuse relative paths, and uploads create missing parent
 // directories. Commands without [ExecOptions].Cwd start in the user's home
-// directory when it is available, otherwise in the sandbox's working directory;
-// `pwd` prints it.
+// directory when it is available (not with an explicit [ExecOptions].User),
+// otherwise in the sandbox's working directory; `pwd` prints it.
 //
 // # Calls, options and durations
 //

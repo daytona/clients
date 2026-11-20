@@ -27,7 +27,9 @@ type Error struct {
 	Message string
 	// RequestID identifies the server request, when reported.
 	RequestID string
-	// TraceID identifies the server trace, when reported.
+	// TraceID identifies the server trace, when reported: the error body's
+	// trace_id, else the x-daytona-trace-id response header (so it is also set
+	// for non-JSON gateway errors).
 	TraceID string
 	// RetryAfter is a retry hint, not an automatic retry policy.
 	RetryAfter time.Duration

@@ -35,7 +35,6 @@ type ExecOptions struct {
 	// ExecutionTimeout is a server deadline that kills the process tree. Zero,
 	// NoTimeout, or a value above the longest timer every SDK shares (about
 	// 24.8 days) means no deadline, as in the other SDKs.
-	// Zero or NoTimeout means no execution deadline.
 	ExecutionTimeout time.Duration
 	// KeepLogs defaults to on_exit_ttl. none is refused because output requires logs.
 	KeepLogs ProcessKeepLogs

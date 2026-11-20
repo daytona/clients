@@ -83,7 +83,7 @@ func (s *Reservations) CreateBulk(
 
 func checkReservationPurchase(body reservationPurchase) error {
 	if !utf8.ValidString(body.Region) || !utf8.ValidString(body.Model) {
-		return badRequest("Region and Model must be valid UTF-8")
+		return badRequest("region and Model must be valid UTF-8")
 	}
 	return nil
 }
