@@ -15,6 +15,8 @@ import (
 // A spent budget returns ErrRequestTimeout with source SDK; an incompatible
 // terminal state returns *SandboxTerminalStateError, including its raw status
 // and any reason read from the server. Unknown server states keep waiting.
+// A terminal event without a reason borrows only a matching full read's
+// reason, never an earlier event's explanation.
 // An event reporting a known sandbox's disappearance returns ErrNotFound with source SDK.
 // A healthy events socket suppresses early API probes; a quiet socket permits
 // a probe after about ten seconds (sooner for a short wait with no frames).

@@ -16,10 +16,13 @@ import (
 // Sandbox is a concurrency-safe live handle. Obtain one from Client.Get, List,
 // Search or FindByName. Metadata getters do not perform I/O.
 type Sandbox struct {
-	client             *Client
-	id                 string
-	mu                 sync.RWMutex
-	info               SandboxInfo
+	client *Client
+	id     string
+	mu     sync.RWMutex
+	info   SandboxInfo
+	// reasonFromRead permits borrowing info.Error only until an event replaces
+	// the observation. It is protected with info by mu.
+	reasonFromRead     bool
 	toolboxURL         string
 	explicitToolboxURL bool
 	// toolboxScoped records whether the toolbox URL is scoped to this
@@ -53,7 +56,9 @@ func (c *Client) newSandbox(init sandboxInit) (*Sandbox, error) {
 	}
 	sandbox := &Sandbox{
 		client: c, id: init.Info.ID, info: cloneSandboxInfo(init.Info),
-		toolboxURL: endpoint, explicitToolboxURL: init.Options.ToolboxURL != "",
+		// Initial reasons come from API metadata (Get/List), never events.
+		reasonFromRead: init.Info.Error != "",
+		toolboxURL:     endpoint, explicitToolboxURL: init.Options.ToolboxURL != "",
 		toolboxScoped: toolboxOverrideScoped(init.Options.ToolboxURL, init.Info.ID),
 	}
 	token := init.Options.AccessToken
@@ -125,6 +130,7 @@ func (s *Sandbox) Refresh(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.info = observation.info
+	s.reasonFromRead = true
 	s.info.ID = s.id
 	if !s.explicitToolboxURL && endpoint != "" {
 		s.toolboxURL = endpoint

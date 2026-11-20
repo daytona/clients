@@ -93,6 +93,7 @@ func (w *sandboxWait) accept(result waitReadResult) (stateObservation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.info = result.detail.info
+	s.reasonFromRead = true
 	s.info.ID = s.id
 	if !s.explicitToolboxURL && endpoint != "" {
 		s.toolboxURL = endpoint
@@ -119,4 +120,16 @@ func (s *Sandbox) observeWait(outcome stateObservation) {
 	defer s.mu.Unlock()
 	s.info.State, s.info.RawState = outcome.State, outcome.RawState
 	s.info.Error = outcome.Reason
+	s.reasonFromRead = false
+}
+
+// Read the reason and its provenance under one lock; never carry the lock into
+// the confirming network read. Public Info still includes event-backed reasons.
+func (s *Sandbox) readReasonFor(outcome stateObservation) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.reasonFromRead && s.info.State == outcome.State && s.info.RawState == outcome.RawState {
+		return s.info.Error
+	}
+	return ""
 }

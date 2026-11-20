@@ -146,10 +146,9 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 		return true, newSDKError(CodeNotFound, 404,
 			"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
 	}
-	seen := w.sandbox.Info()
 	reported := event
-	if reported.Reason == "" && seen.State == reported.State && seen.RawState == reported.RawState {
-		reported.Reason = seen.Error
+	if reported.Reason == "" {
+		reported.Reason = w.sandbox.readReasonFor(event)
 	}
 	w.sandbox.observeWait(reported)
 	success := w.target(event.State)
