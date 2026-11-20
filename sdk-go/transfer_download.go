@@ -106,18 +106,13 @@ func (f *FileSystem) downloadResponse(ctx context.Context, path string, opts *Do
 }
 
 // DownloadFile streams through an exclusive, private temporary file next to
-// localPath and renames it only on success. Failure leaves an existing destination
+// localPath, created before opening the remote stream, and renames it only on
+// success. Failure leaves an existing destination
 // intact and removes staging. Existing permissions are preserved; new files use
 // mode 0600, avoiding process-global umask changes. Streams have no size cap.
 func (f *FileSystem) DownloadFile(ctx context.Context, remotePath, localPath string, opts *DownloadOptions) (
 	failure error,
 ) {
-	response, err := f.downloadResponse(ctx, remotePath, opts)
-	if err != nil {
-		return err
-	}
-	finishResponse := sync.OnceFunc(func() { closeResponse(ctx, response, &failure) })
-	defer finishResponse()
 	staging, err := os.CreateTemp(filepath.Dir(localPath), ".daytona-dl-*")
 	if err != nil {
 		return wrapError(err, "create download staging file")
@@ -135,6 +130,12 @@ func (f *FileSystem) DownloadFile(ctx context.Context, remotePath, localPath str
 			}
 		}
 	}()
+	response, err := f.downloadResponse(ctx, remotePath, opts)
+	if err != nil {
+		return err
+	}
+	finishResponse := sync.OnceFunc(func() { closeResponse(ctx, response, &failure) })
+	defer finishResponse()
 	failure = copyFileDownload(ctx, staging, fileDownload{response: response, options: opts})
 	finishResponse()
 	if failure != nil {
