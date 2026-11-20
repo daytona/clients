@@ -70,7 +70,7 @@ func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEven
 		message, err := reader.next()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				err = io.ErrUnexpectedEOF
+				return false, wrapError(transportError(ctx, io.ErrUnexpectedEOF), "process log stream ended before eof")
 			}
 			return false, transportError(ctx, err)
 		}

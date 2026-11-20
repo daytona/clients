@@ -77,13 +77,19 @@ func (s *Interpreter) streamCode(
 		}), streamErr
 	}
 	if streamErr != nil && !errors.Is(streamErr, context.Canceled) {
-		return nil, streamErr
+		return output.finish(InterpreterProcess{
+			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+		}), streamErr
 	}
 	if wait.err != nil {
-		return nil, wait.err
+		return output.finish(InterpreterProcess{
+			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+		}), wait.err
 	}
 	if streamErr != nil && wait.result.Reason != ProcessReasonTimedOut {
-		return nil, streamErr
+		return output.finish(InterpreterProcess{
+			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+		}), streamErr
 	}
 	if wait.result.Reason == ProcessReasonTimedOut {
 		// The kernel may still be running after interrupt grace. Read a bounded

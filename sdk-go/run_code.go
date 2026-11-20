@@ -17,6 +17,9 @@ import (
 // local cause through errors.Is. Cleanup is best-effort: its failure does not
 // replace the local error, and a successful interrupt does not confirm cell exit.
 // Writers and callbacks run synchronously and must not block indefinitely.
+// A stream failure returns the partial result with Process.ProcessID and unknown
+// Reason alongside the error, without retrying the stream or interrupting the cell.
+// Reconnect that process to wait, resume its logs, or interrupt it explicitly.
 type RunCodeOptions struct {
 	// Language selects the kernel language; empty defaults to python or Context's language.
 	Language string

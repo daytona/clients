@@ -34,6 +34,7 @@ type SessionRunOptions struct {
 	// for defaults and streaming creation semantics.
 	Timeout time.Duration
 	// Stdout receives live output; writes are serialized with Stderr.
+	// Failures preserve the partial result as described on ExecOptions.Stdout.
 	Stdout io.Writer
 	// Stderr receives live error output.
 	Stderr io.Writer

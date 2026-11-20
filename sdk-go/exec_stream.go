@@ -46,10 +46,10 @@ func (s *Processes) runStreaming(
 		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 	}
 	if ctx.Err() != nil {
-		return nil, transportError(ctx, err)
+		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), transportError(ctx, err)
 	}
 	if !errors.Is(streamCtx.Err(), context.DeadlineExceeded) {
-		return nil, err
+		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
 	}
 	snapshot, readErr := processCollectLogs(ctx, handle, 8)
 	if readErr != nil {
