@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"math"
 	"time"
 )
 
@@ -12,7 +13,7 @@ import (
 type SystemMetrics struct {
 	// Timestamp is when the sandbox sampled these metrics.
 	Timestamp time.Time
-	// CPUCount is the nonnegative number of CPUs.
+	// CPUCount is the nonnegative number of CPUs, at most 2^31-1.
 	CPUCount int64
 	// CPUUtilization is the fraction of CPU capacity in use, from zero to one.
 	CPUUtilization float64
@@ -52,19 +53,27 @@ func (s *Sandbox) Metrics(ctx context.Context) (*SystemMetrics, error) {
 	if result.CPUUtilization < 0 || result.CPUUtilization > 1 {
 		return nil, badRequest("system metrics cpuUtilization must be in 0..1")
 	}
-	for name, target := range map[string]*int64{
-		"cpuCount": &result.CPUCount, "memoryUsageBytes": &result.MemoryUsageBytes,
-		"memoryTotalBytes": &result.MemoryTotalBytes, "diskUsageBytes": &result.DiskUsageBytes,
-		"diskTotalBytes": &result.DiskTotalBytes,
+	for _, entry := range []struct {
+		name   string
+		target *int64
+	}{
+		{"cpuCount", &result.CPUCount},
+		{"memoryUsageBytes", &result.MemoryUsageBytes},
+		{"memoryTotalBytes", &result.MemoryTotalBytes},
+		{"diskUsageBytes", &result.DiskUsageBytes},
+		{"diskTotalBytes", &result.DiskTotalBytes},
 	} {
-		value, parseErr := integerField(object, name, true)
+		value, parseErr := integerField(object, entry.name, true)
 		if parseErr != nil {
 			return nil, parseErr
 		}
 		if value < 0 {
-			return nil, badRequest("system metrics " + name + " must be nonnegative")
+			return nil, badRequest("system metrics " + entry.name + " must be nonnegative")
 		}
-		*target = value
+		if entry.name == "cpuCount" && value > math.MaxInt32 {
+			return nil, badRequest("response field cpuCount must be an int32")
+		}
+		*entry.target = value
 	}
 	return result, nil
 }

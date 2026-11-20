@@ -43,7 +43,7 @@ func TestSandboxAccessTokenRequest(t *testing.T) {
 			require.JSONEq(t, tc.body, string(fake.requests()[0].Body))
 			require.Equal(t, "delegated-"+"credential", token.AccessToken)
 			require.Equal(t, []string{"future:operation"}, token.Operations)
-			require.Equal(t, []int64{3000}, token.Ports)
+			require.Equal(t, []int{3000}, token.Ports)
 			require.Equal(t, "Bearer", token.TokenType)
 			require.Equal(t, 2030, token.ExpiresAt.Year())
 			require.Equal(t, "caller-"+"credential", sandbox.auth.cache.snapshot().token)

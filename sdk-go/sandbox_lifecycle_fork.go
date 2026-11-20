@@ -129,7 +129,7 @@ func (s *Sandbox) parseFork(raw JSONValue, source SandboxInfo) (*Sandbox, error)
 	if err != nil {
 		return nil, err
 	}
-	if _, pathErr := pathSegment(id); pathErr != nil {
+	if pathErr := checkResponseID(id); pathErr != nil {
 		return nil, badRequest("sandbox fork response is missing the sandbox id")
 	}
 	status, from := createResponseText(object, "status"), createResponseText(object, "forked_from")
@@ -141,7 +141,7 @@ func (s *Sandbox) parseFork(raw JSONValue, source SandboxInfo) (*Sandbox, error)
 			ID: id, State: sandboxState(status), RawState: status,
 			Class: source.Class, RawClass: source.RawClass, ForkedFrom: from, Region: regionOf(id),
 		},
-		ToolboxURL: createResponseText(object, "toolbox_proxy_url"),
+		ToolboxURL: createResponseToolboxURL(object, id),
 	})
 }
 

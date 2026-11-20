@@ -142,16 +142,17 @@ func transportError(ctx context.Context, err error) error {
 	if errors.Is(context.Cause(ctx), ErrClientClosed) {
 		return closedError()
 	}
-	if errors.Is(context.Cause(ctx), context.DeadlineExceeded) {
-		err = context.DeadlineExceeded
-	} else if ctx.Err() != nil {
+	if ctx.Err() != nil {
 		err = ctx.Err()
+		if cause := context.Cause(ctx); cause != nil && !errors.Is(err, cause) {
+			err = errors.Join(err, cause)
+		}
 	}
 	var sdkError *Error
 	if errors.As(err, &sdkError) {
 		return err
 	}
-	if errors.Is(err, context.Canceled) {
+	if errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 		return wrapError(err, "operation cancelled")
 	}
 	var network net.Error

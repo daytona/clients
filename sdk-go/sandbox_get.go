@@ -64,10 +64,20 @@ func (c *Client) getSandbox(ctx context.Context, id string) (sandboxObservation,
 
 func pathSegment(value string) (string, error) {
 	if strings.TrimSpace(value) == "" || value == "." || value == ".." ||
-		!utf8.ValidString(value) || strings.ContainsRune(value, utf8.RuneError) {
+		!utf8.ValidString(value) {
 		return "", badRequest("path identifier must be non-blank, valid UTF-8, and not . or ..")
 	}
 	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20"), nil
+}
+
+func checkResponseID(value string) error {
+	// encoding/json replaces lone surrogates with U+FFFD. Response IDs must
+	// reject that lossy representation; literal caller input remains valid.
+	if strings.ContainsRune(value, utf8.RuneError) {
+		return badRequest("response path identifier must not contain a replacement character")
+	}
+	_, err := pathSegment(value)
+	return err
 }
 
 func headerText(value, name string) error {

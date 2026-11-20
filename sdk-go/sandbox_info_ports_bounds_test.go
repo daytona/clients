@@ -35,9 +35,9 @@ func TestSandboxInfoPortAssignmentBounds(t *testing.T) {
 				require.NoError(t, err)
 				got := sandbox.Info().PortMap[0]
 				if field == "host_port" {
-					require.Equal(t, int64(port), got.HostPort)
+					require.Equal(t, port, got.HostPort)
 				} else {
-					require.Equal(t, int64(port), got.VMPort)
+					require.Equal(t, port, got.VMPort)
 				}
 				require.Equal(t, "future-protocol", got.Protocol)
 			})
