@@ -39,10 +39,11 @@ func FromPath(ctx context.Context, filename, dockerfilePath string) (result *Arc
 	if dockerfilePath == "" {
 		dockerfilePath = "Dockerfile"
 	}
-	if blank(dockerfilePath) {
-		return nil, invalid("dockerfile must be a non-empty path", nil)
+	name, err := relativeDockerfilePath(dockerfilePath)
+	if err != nil {
+		return nil, err
 	}
-	return hashFile(ctx, absolute, dockerfilePath)
+	return hashFile(ctx, absolute, name)
 }
 
 func hashFile(ctx context.Context, absolute, dockerfilePath string) (result *Archive, err error) {
