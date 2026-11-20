@@ -63,10 +63,6 @@ type Volume struct {
 	UsedBytes *int64
 	// UsedBytesAt is zero when the usage observation timestamp is absent.
 	UsedBytesAt time.Time
-	// PendingFinalCommits lists ended sandboxes whose last writes are not saved
-	// yet. Mounting is refused with ErrVolumeFinalCommitPending until empty.
-	// An older server that omits the list reads as empty.
-	PendingFinalCommits []VolumePendingFinalCommit
 }
 
 func parseVolume(raw JSONValue) (Volume, error) {
@@ -126,8 +122,7 @@ func parseVolume(raw JSONValue) (Volume, error) {
 	if err != nil {
 		return result, err
 	}
-	result.PendingFinalCommits, err = parseVolumeFinalCommits(object)
-	return result, err
+	return result, nil
 }
 
 func volumeState(raw string) VolumeState {
