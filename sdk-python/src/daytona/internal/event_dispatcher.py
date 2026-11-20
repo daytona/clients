@@ -273,6 +273,22 @@ class AsyncEventDispatcher:
         current = asyncio.current_task()
         cancelled: list[asyncio.Task[None]] = []
 
+        # Between aiohttp's WebSocket upgrade and Engine.IO's OPEN packet, the new WebSocket lives
+        # only in python-engineio's connect coroutine. Give that connection attempt a bounded chance
+        # to publish eio.ws before cancellation; when it does, the normal cleanup below can close both
+        # the WebSocket response and its aiohttp connection wrapper. A still-pending task falls through
+        # to the existing bounded cancellation path.
+        connect_task = self._connect_task
+        sio = self._sio
+        if (
+            connect_task is not None
+            and not connect_task.done()
+            and connect_task is not current
+            and sio is not None
+            and getattr(getattr(sio, "eio", None), "ws", None) is None
+        ):
+            _ = await asyncio.wait([connect_task], timeout=self._CLOSE_TIMEOUT)
+
         if self._connect_task and not self._connect_task.done() and self._connect_task is not current:
             _ = self._connect_task.cancel()
             cancelled.append(self._connect_task)

@@ -6,6 +6,9 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+import aiohttp
+from aiohttp import WSMsgType, web
+
 from daytona.internal.event_dispatcher import AsyncEventDispatcher
 
 
@@ -98,6 +101,127 @@ class TestAsyncEventDispatcherDisconnect:
 
         assert sio.disconnected
         assert sio.connection_lost.done()
+
+    async def test_disconnect_during_engineio_open_wait_releases_provisional_websocket(self, monkeypatch):
+        """Regression: disconnecting after the WebSocket upgrade but before Engine.IO's OPEN packet
+        must close the provisional aiohttp WebSocket that Engine.IO has not assigned to ``eio.ws`` yet.
+        """
+        websocket_created = asyncio.Event()
+        allow_open = asyncio.Event()
+        disconnect_entered = asyncio.Event()
+        provisional_websockets: list[aiohttp.ClientWebSocketResponse] = []
+
+        original_ws_connect = aiohttp.ClientSession.ws_connect
+
+        async def tracked_ws_connect(
+            session: aiohttp.ClientSession, *args: object, **kwargs: object
+        ) -> aiohttp.ClientWebSocketResponse:
+            websocket = await original_ws_connect(session, *args, **kwargs)
+            provisional_websockets.append(websocket)
+            websocket_created.set()
+            return websocket
+
+        monkeypatch.setattr(aiohttp.ClientSession, "ws_connect", tracked_ws_connect)
+
+        async def socketio_handler(request: web.Request) -> web.WebSocketResponse:
+            websocket = web.WebSocketResponse()
+            await websocket.prepare(request)
+            await allow_open.wait()
+
+            if not websocket.closed:
+                await websocket.send_str(
+                    '0{"sid":"engineio-test","upgrades":[],"pingInterval":25000,'
+                    '"pingTimeout":20000,"maxPayload":1000000}'
+                )
+
+            async for message in websocket:
+                if message.type is WSMsgType.TEXT and message.data.startswith("40"):
+                    await websocket.send_str('40{"sid":"socketio-test"}')
+                elif message.type is WSMsgType.TEXT and message.data == "2":
+                    await websocket.send_str("3")
+            return websocket
+
+        app = web.Application()
+        app.router.add_get("/api/socket.io/", socketio_handler)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        assert site._server is not None
+        sockets = site._server.sockets
+        assert sockets is not None
+        port = sockets[0].getsockname()[1]
+
+        dispatcher = AsyncEventDispatcher(f"http://127.0.0.1:{port}/api", "test-token")
+        dispatcher.ensure_connected()
+        disconnect_task: asyncio.Task[None] | None = None
+        original_disconnect = dispatcher._disconnect
+
+        async def tracked_disconnect(expected_generation: int | None = None) -> None:
+            disconnect_entered.set()
+            await original_disconnect(expected_generation)
+
+        monkeypatch.setattr(dispatcher, "_disconnect", tracked_disconnect)
+
+        test_error: BaseException | None = None
+        try:
+            await asyncio.wait_for(websocket_created.wait(), timeout=2)
+            assert len(provisional_websockets) == 1
+            websocket = provisional_websockets[0]
+            connection = websocket._conn
+            assert connection is not None
+            sock = websocket.get_extra_info("socket")
+            assert sock is not None
+            sio = dispatcher._sio
+            assert sio is not None
+
+            disconnect_task = asyncio.create_task(dispatcher.disconnect())
+            await asyncio.wait_for(disconnect_entered.wait(), timeout=2)
+            assert sio.eio.ws is None
+            assert not allow_open.is_set()
+            allow_open.set()
+            await asyncio.wait_for(disconnect_task, timeout=2)
+
+            connection_released = connection._protocol is None
+            socket_closed = sock.fileno() == -1
+            assert websocket.closed and connection_released and socket_closed, (
+                "provisional WebSocket resources were not fully released: "
+                f"websocket.closed={websocket.closed}, "
+                f"connection_released={connection_released}, "
+                f"socket_closed={socket_closed}"
+            )
+        except BaseException as error:
+            test_error = error
+
+        cleanup_errors: list[BaseException] = []
+        allow_open.set()
+        try:
+            if disconnect_task is not None and not disconnect_task.done():
+                await asyncio.wait_for(disconnect_task, timeout=2)
+            elif not dispatcher._closed:
+                await dispatcher.disconnect()
+        except BaseException as error:
+            cleanup_errors.append(error)
+
+        for websocket in provisional_websockets:
+            try:
+                if not websocket.closed:
+                    await websocket.close()
+            except BaseException as error:
+                cleanup_errors.append(error)
+
+        try:
+            await runner.cleanup()
+        except BaseException as error:
+            cleanup_errors.append(error)
+
+        cleanup_error = RuntimeError(f"test cleanup errors: {cleanup_errors!r}") if cleanup_errors else None
+        if test_error is not None:
+            if cleanup_error is not None:
+                raise test_error.with_traceback(test_error.__traceback__) from cleanup_error
+            raise test_error.with_traceback(test_error.__traceback__)
+        if cleanup_error is not None:
+            raise cleanup_error
 
     async def test_is_bounded_when_a_task_ignores_cancellation(self):
         dispatcher = _dispatcher()
