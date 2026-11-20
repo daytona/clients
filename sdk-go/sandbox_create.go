@@ -11,9 +11,10 @@ import "context"
 // once with client.Images().Pull and create from the returned image's name or
 // ID (an unknown image returns ErrImageNotFound). Whitespace-only images return
 // ErrBadRequest.
-// Once accepted, SDK wait failures return the last observed handle, whose State
-// may not be Started. If the server accepted the request, the returned *Sandbox
-// is non-nil even when err is non-nil: delete it or keep it. Caller cancellation
+// Once accepted, a wait that times out, fails a read, or ends in a terminal
+// state returns the last observed handle with a nil error; check State() or
+// Info() before using it. If the server accepted the request, the returned
+// *Sandbox is non-nil even when err is non-nil: delete it or keep it. Caller cancellation
 // or deadline expiry remains reachable through errors.Is. A lost POST response
 // returns SandboxCreateConnectionError or SandboxCreateRequestTimeoutError,
 // carrying the idempotency key to reuse with identical options, including when
@@ -61,6 +62,9 @@ func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) 
 // CreateFromSnapshot restores a Linux sandbox from a snapshot name or ID.
 // Snapshot cannot be blank. Wait and uncertain-request errors behave as on Create;
 // resource sizing is carried by the snapshot.
+// Once accepted, a wait that times out, fails a read, or ends in a terminal
+// state returns a nil error; check the returned sandbox's State() or Info().
+// Caller cancellation and deadline expiry remain errors.
 func (c *Client) CreateFromSnapshot(
 	ctx context.Context, snapshot string, opts *CreateFromSnapshotOptions,
 ) (*Sandbox, error) {

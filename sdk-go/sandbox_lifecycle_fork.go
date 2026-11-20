@@ -27,7 +27,8 @@ type ForkOptions struct {
 // source waits for Started; a paused Linux memory fork waits for Paused; all
 // other forks wait for Stopped. Waiting forks refresh the source before POST.
 // NoWait skips every GET, including the source refresh. Accepted forks return
-// their handle despite SDK wait failures. If the server accepted the request,
+// their handle with a nil error when the wait times out, fails a read, or ends
+// in a terminal state; check State() or Info(). If the server accepted the request,
 // the returned *Sandbox is non-nil even when err is non-nil: delete it or keep it.
 // Caller cancellation or deadline expiry remains reachable through errors.Is.
 // If the POST itself is interrupted, the outcome is unknown. Fork has no
@@ -168,6 +169,8 @@ func (s *Sandbox) observeFork(ctx context.Context, target SandboxState, budget t
 		return s, acceptedWaitError(ctx, err)
 	}
 	if toolbox != "" {
+		// Match Sandbox.ts fork: prefer the fork POST's toolbox destination on
+		// this initial detail refresh; never inherit the source's override.
 		s.mu.Lock()
 		s.toolboxURL = toolbox
 		s.mu.Unlock()

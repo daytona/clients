@@ -8,6 +8,9 @@ import "context"
 // CreateMacOS creates a macOS sandbox from an image name or ID. Image cannot be
 // blank. Wait and uncertain-request errors behave as on Create. macOS CPU and
 // sizing minima are checked locally; reservation availability is decided by the API.
+// Once accepted, a wait that times out, fails a read, or ends in a terminal
+// state returns a nil error; check the returned sandbox's State() or Info().
+// Caller cancellation and deadline expiry remain errors.
 func (c *Client) CreateMacOS(ctx context.Context, image string, opts *CreateMacOSOptions) (*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err
