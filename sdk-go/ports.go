@@ -17,7 +17,7 @@ type Ports struct{ sandbox *Sandbox }
 func (s *Sandbox) Ports() *Ports { return &Ports{sandbox: s} }
 
 // List returns every listening TCP port in one non-pageable page.
-// The toolbox reports int32 values, without a port-range constraint.
+// The toolbox reports non-negative int32 values, without a 65535 upper bound.
 func (p *Ports) List(ctx context.Context) (*Page[int], error) {
 	var raw JSONValue
 	if err := p.sandbox.toolbox().do(ctx, toolboxRequest{Path: "/port", Result: &raw}); err != nil {
@@ -37,8 +37,8 @@ func (p *Ports) List(ctx context.Context) (*Page[int], error) {
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		if port < math.MinInt32 || port > math.MaxInt32 {
-			return nil, badRequest("response field ports must contain int32 values")
+		if port < 0 || port > math.MaxInt32 {
+			return nil, badRequest("response field ports must contain non-negative int32 values")
 		}
 		items = append(items, int(port))
 	}

@@ -33,14 +33,14 @@ func previewEndpointFixture() map[string]any {
 func TestPortsList_whenToolboxReportsInt32Values(t *testing.T) {
 	// Given
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
-		"GET /toolbox/port": jsonHandler(t, map[string]any{"ports": []int{-2147483648, 8080, 2147483647}}),
+		"GET /toolbox/port": jsonHandler(t, map[string]any{"ports": []int{0, 8080, 2147483647}}),
 	})
 	sandbox := portsTestSandbox(t, fake)
 	// When
 	page, err := sandbox.Ports().List(t.Context())
 	// Then
 	require.NoError(t, err)
-	require.Equal(t, []int{-2147483648, 8080, 2147483647}, page.Items)
+	require.Equal(t, []int{0, 8080, 2147483647}, page.Items)
 	require.Empty(t, page.NextCursor)
 	request := fake.requests()[0]
 	require.Equal(t, "Bearer caller-token", request.Header.Get("Authorization"))
