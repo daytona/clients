@@ -3,6 +3,7 @@ module go.daytona.com/sdk/v2
 go 1.26.10
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/oapi-codegen/runtime v1.8.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/goleak v1.3.0
