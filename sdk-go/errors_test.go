@@ -129,14 +129,27 @@ func TestCatalog_whenReferenceAddsCode(t *testing.T) {
 		require.NoError(t, parseErr)
 		statusByCode[match[1]] = status
 	}
-	for _, catalog := range catalogs.FindAllStringSubmatch(string(source), -1) {
+	parsedCatalogs := catalogs.FindAllStringSubmatch(string(source), -1)
+	require.NotEmpty(t, parsedCatalogs, "TypeScript catalog parser matched no catalogs")
+	require.NotEmpty(t, statusByCode, "TypeScript status parser matched no entries")
+	parsedCodes := make(map[string]struct{})
+	for _, catalog := range parsedCatalogs {
 		for _, code := range codes.FindAllStringSubmatch(catalog[2], -1) {
+			parsedCodes[code[1]] = struct{}{}
 			// When
 			got := catalogStatus("DAYTONA_"+catalog[1], code[1])
 			// Then
 			require.Equal(t, statusByCode[code[1]], got, "%s/%s", catalog[1], code[1])
 		}
 	}
+	// REQUEST_CANCELLED is a Go-only cancellation sentinel. CLIENT_CLOSED is
+	// in the TS SDK catalog but has no HTTP status in either SDK.
+	require.NotEmpty(t, parsedCodes, "TypeScript catalog parser matched no codes")
+	require.Len(t, parsedCodes, len(statusByCode)+1)
+	generatedCodes := generatedCatalogCodes(t)
+	require.Len(t, generatedCodes, len(parsedCodes)+1)
+	parsedCodes[CodeRequestCancelled] = struct{}{}
+	require.Equal(t, parsedCodes, generatedCodes, "catalog entries must agree in both directions")
 }
 
 func TestErrors_whenJSONDepthExceedsLimit(t *testing.T) {
