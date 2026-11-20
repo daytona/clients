@@ -49,7 +49,7 @@ func TestDockerStatus_whenKnownOrFutureEnums(t *testing.T) {
 			status, err := sandbox.Docker().Status(t.Context())
 			// Then
 			require.NoError(t, err)
-			require.Equal(t, DockerStatus{State: test.wantState, RawState: test.state, Owner: test.wantOwner, RawOwner: test.owner, ProcessID: "p", Reason: "explanation"}, status)
+			require.Equal(t, DockerStatus{State: test.wantState, RawState: test.state, Owner: test.wantOwner, RawOwner: test.owner, ProcessID: new("p"), Reason: new("explanation")}, status)
 			requests := fake.requests()
 			require.Len(t, requests, 1)
 			require.Empty(t, requests[0].Query)
@@ -78,8 +78,8 @@ func TestDockerWait_whenReadyOrTerminal(t *testing.T) {
 				require.ErrorAs(t, err, &terminal)
 				require.ErrorIs(t, err, ErrConflict)
 				require.Equal(t, state, terminal.Status.RawState)
-				require.Equal(t, "docker-process", terminal.Status.ProcessID)
-				require.Equal(t, "reason", terminal.Status.Reason)
+				require.Equal(t, new("docker-process"), terminal.Status.ProcessID)
+				require.Equal(t, new("reason"), terminal.Status.Reason)
 			}
 			require.Len(t, fake.requests(), 1)
 			require.Equal(t, "1000", fake.requests()[0].Query.Get("waitMs"))

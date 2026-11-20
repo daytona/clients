@@ -59,8 +59,8 @@ func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (DockerStatu
 		case DockerStateFailed, DockerStateNotPresent, DockerStateDisabled,
 			DockerStateUnmanaged, DockerStateUnsupported:
 			message := "docker is " + status.RawState
-			if status.Reason != "" {
-				message += ": " + status.Reason
+			if status.Reason != nil && *status.Reason != "" {
+				message += ": " + *status.Reason
 			}
 			return DockerStatus{}, &DockerNotReadyError{SDKError: newSDKError("CONFLICT", 409, message), Status: status}
 		case DockerStateStarting, DockerStateDeferred, DockerStateUnknown:
