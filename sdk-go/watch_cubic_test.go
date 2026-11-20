@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"bufio"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -49,6 +50,10 @@ func TestFileSSE_whenLineTerminatorEndsAtReadBoundary(t *testing.T) {
 			// Then
 			require.NoError(t, err)
 			require.Equal(t, "first", message.data)
+			// A split optional LF is accounted on the next read, not by
+			// blocking delivery of the CR-terminated event.
+			_, err = parser.next()
+			require.ErrorIs(t, err, io.EOF)
 			require.Equal(t, int64(len(frame)), parser.completed)
 		})
 	}

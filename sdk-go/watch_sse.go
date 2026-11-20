@@ -23,6 +23,11 @@ type fileSSE struct {
 	completed  int64
 	frameBytes int64
 	first      bool
+	pendingLF  bool
+	// A deferred LF retains both the completed frame's bytes and startup bound,
+	// even if handshake() sets started before the next read.
+	frameEnded bool
+	startupEnd bool
 }
 
 type fileSSEMessage struct {
@@ -31,19 +36,41 @@ type fileSSEMessage struct {
 }
 
 func (s *fileSSE) byte() (byte, error) {
-	value, err := s.reader.ReadByte()
-	if err != nil {
-		return 0, err
+	for {
+		value, err := s.reader.ReadByte()
+		if err != nil {
+			if s.frameEnded {
+				s.completed += s.frameBytes
+				s.frameBytes = 0
+				s.frameEnded = false
+			}
+			return 0, err
+		}
+		if s.pendingLF {
+			s.pendingLF = false
+			if value == '\n' {
+				s.frameBytes++
+				if boundErr := s.checkBound(); boundErr != nil {
+					return 0, boundErr
+				}
+				continue
+			}
+		}
+		if s.frameEnded {
+			s.completed += s.frameBytes
+			s.frameBytes = 0
+			s.frameEnded = false
+		}
+		s.frameBytes++
+		if boundErr := s.checkBound(); boundErr != nil {
+			return 0, boundErr
+		}
+		return value, nil
 	}
-	s.frameBytes++
-	if boundErr := s.checkBound(); boundErr != nil {
-		return 0, boundErr
-	}
-	return value, nil
 }
 
 func (s *fileSSE) checkBound() error {
-	if !s.started && s.completed+s.frameBytes > fileWatchStartupBytes {
+	if (!s.started || s.frameEnded && s.startupEnd) && s.completed+s.frameBytes > fileWatchStartupBytes {
 		return badRequest("filesystem watch exceeded 1 MiB before start")
 	}
 	if s.limit > 0 && s.frameBytes > s.limit {
@@ -61,16 +88,17 @@ func (s *fileSSE) line() (string, error) {
 		}
 		switch value {
 		case '\r':
-			// Resolve CRLF before dispatch/reset, even across body reads.
-			next, peekErr := s.reader.Peek(1)
-			switch {
-			case errors.Is(peekErr, io.EOF):
-				return line.String(), nil
-			case peekErr != nil:
-				return "", peekErr
-			case next[0] == '\n':
-				if _, readErr := s.byte(); readErr != nil {
-					return "", readErr
+			// Only inspect buffered bytes: a lone CR dispatches immediately.
+			// byte() charges a delayed LF before finalizing this frame.
+			s.pendingLF = s.reader.Buffered() == 0
+			consumed, readErr := consumeBufferedSSELF(s.reader)
+			if readErr != nil {
+				return "", readErr
+			}
+			if consumed {
+				s.frameBytes++
+				if boundErr := s.checkBound(); boundErr != nil {
+					return "", boundErr
 				}
 			}
 			return line.String(), nil
@@ -95,8 +123,12 @@ func (s *fileSSE) next() (fileSSEMessage, error) {
 			s.first = true
 		}
 		if line == "" {
-			s.completed += s.frameBytes
-			s.frameBytes = 0
+			s.frameEnded = s.pendingLF
+			s.startupEnd = !s.started
+			if !s.frameEnded {
+				s.completed += s.frameBytes
+				s.frameBytes = 0
+			}
 			if data != nil {
 				return fileSSEMessage{event: event, data: strings.Join(data, "\n")}, nil
 			}
