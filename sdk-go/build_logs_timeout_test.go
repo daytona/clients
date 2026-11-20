@@ -95,6 +95,8 @@ func TestBuildLogsObservationTimeoutStopsBody(t *testing.T) {
 		// Then timeout identity and the starting checkpoint survive.
 		var interrupted *BuildLogInterruptedError
 		require.ErrorAs(t, err, &interrupted)
+		require.ErrorIs(t, err, ErrBuildLogInterrupted)
+		require.ErrorIs(t, err, ErrRequestTimeout)
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 		require.Equal(t, CodeRequestTimeout, interrupted.SDKError.Code)
 		require.Equal(t, "resume", interrupted.Cursor)
