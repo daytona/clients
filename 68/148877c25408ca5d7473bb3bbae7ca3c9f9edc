@@ -1,0 +1,21 @@
+contract/api-openapi.json
+  s_67b025aa04a837::t_72253e9f90b913 18750
+sdk-typescript/src/v2/gen/api.ts
+  s_67b025aa04a837::t_dc674447fb039d 1111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68148877c25408ca5d7473bb3bbae7ca3c9f9edc",
+  "prompts": {},
+  "sessions": {
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
