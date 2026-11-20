@@ -1,0 +1,25 @@
+cli/gen/api/types.gen.go
+  s_9f5179767e23c5::t_6cec2c5f72bc68 6347-6349,6352,6358,6361,6364
+contract/api-openapi.json
+  s_9f5179767e23c5::t_de2bd217c116ba 9260-9262,9264-9274,9276,30578,31982
+sdk-python/src/daytona/v2/_gen/api/models/secret_search_list_item.py
+  s_9f5179767e23c5::t_875d06e137b060 38-42,45,116-117
+sdk-typescript/src/v2/gen/api.ts
+  s_9f5179767e23c5::t_4b24cf5ab0004f 7138,19655,20352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4314a52179ab5e5cee3fe5ee9a516a366d6a521",
+  "prompts": {},
+  "sessions": {
+    "s_9f5179767e23c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0c0c34b2ffeZhmepWHNxNSdfx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

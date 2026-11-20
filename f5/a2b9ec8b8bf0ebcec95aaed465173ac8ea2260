@@ -1,0 +1,31 @@
+sdk-go/pkg/daytona/event_subscriptions_test.go
+  s_de18e038cb6c6e::t_8dd6e9731ca105 1050,1061-1090
+sdk-go/pkg/daytona/sandbox.go
+  s_de18e038cb6c6e::t_fc3c18fc1b79cb 1515-1516,1519,1521,2402-2410
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  s_de18e038cb6c6e::t_0b6793d97213e2 54,1196,1202,1208-1211,1231-1232,1246-1248,1288-1305,1309-1310,1314-1315
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  s_de18e038cb6c6e::t_9533a21849dc60 280-320
+sdk-typescript/src/Sandbox.ts
+  s_de18e038cb6c6e::t_a172bba0eb7aee 82-84
+sdk-typescript/src/__tests__/EventDispatcher.test.ts
+  s_de18e038cb6c6e::t_3c0a1b24078e98 191-232
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  s_de18e038cb6c6e::t_0edc2bd7c1f4a6 1069
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5a2b9ec8b8bf0ebcec95aaed465173ac8ea2260",
+  "prompts": {},
+  "sessions": {
+    "s_de18e038cb6c6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15a74e0dfferV6TlotuNdR3xm",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,289 @@
+changelog.d/drop-lsp-error-codes.breaking.md
+  s_bb33829f46707b::t_88883a7e9801cc 1-5
+cli/gen/toolbox/types.gen.go
+  s_bb33829f46707b::t_0379d14cf10646 1145,1839,1857
+contract/toolbox-openapi.json
+  s_bb33829f46707b::t_149f4c6e40655a 1358,2209,2237,3459,6228,8487-8490,8496,8500-8525,8529,8533,8535,8656,8929
+sdk-python/src/daytona/v2/_gen/toolbox/models/add_remote_request.py
+  s_bb33829f46707b::t_fa4a3f7f2086a5 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/add_request.py
+  s_bb33829f46707b::t_f13ef334863370 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/attach_query.py
+  s_bb33829f46707b::t_cbbe26cf497800 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/branch_list.py
+  s_bb33829f46707b::t_1bc590f1b257b7 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/branch_request.py
+  s_bb33829f46707b::t_788ee3775997fe 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/bulk_download_request.py
+  s_bb33829f46707b::t_7605b57b104ab4 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/bulk_upload_query.py
+  s_bb33829f46707b::t_94fd193c846a2f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/bulk_upload_response.py
+  s_bb33829f46707b::t_e294af9d380d8f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/checkout_request.py
+  s_bb33829f46707b::t_48e86eaf8d6c7e 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/clone_request.py
+  s_bb33829f46707b::t_021a8849178fcc 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/commit_info.py
+  s_bb33829f46707b::t_2b986e76d25a8b 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/commit_request.py
+  s_bb33829f46707b::t_5e9fb820a419e5 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/commit_response.py
+  s_bb33829f46707b::t_c8febcc89db200 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_find_request.py
+  s_bb33829f46707b::t_b93f72adc2b441 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_find_response.py
+  s_bb33829f46707b::t_2c3a2c4df2d937 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_node_request.py
+  s_bb33829f46707b::t_dac07925f584f5 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_tree_query.py
+  s_bb33829f46707b::t_f117cf9dd7a980 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_a11y_tree_response.py
+  s_bb33829f46707b::t_aa12c86db8f4a4 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_accessibility_bounds.py
+  s_bb33829f46707b::t_98929c9ba3d8d2 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_accessibility_node.py
+  s_bb33829f46707b::t_229533de3d5c4a 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_activity_status.py
+  s_bb33829f46707b::t_6373ea1f447e6a 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_failure.py
+  s_bb33829f46707b::t_6de63ff7e04cee 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_failure_code.py
+  s_bb33829f46707b::t_c1ce549105f96a 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_desktop_state.py
+  s_bb33829f46707b::t_af7537a1ccaa87 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_display.py
+  s_bb33829f46707b::t_1e63b462281301 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_display_info_response.py
+  s_bb33829f46707b::t_14ee0cb73df616 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_display_windows_response.py
+  s_bb33829f46707b::t_8f6bddfb1999d9 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_keyboard_hotkey_request.py
+  s_bb33829f46707b::t_ade1dd936e05dc 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_keyboard_key_request.py
+  s_bb33829f46707b::t_550abd4c2c2070 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_keyboard_type_request.py
+  s_bb33829f46707b::t_b356655f880b19 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_lifecycle_response.py
+  s_bb33829f46707b::t_8121d516fd6d29 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_click_request.py
+  s_bb33829f46707b::t_51644b6b900e88 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_drag_request.py
+  s_bb33829f46707b::t_c4813a46d35eaf 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_move_request.py
+  s_bb33829f46707b::t_2b86a8590768ee 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_mouse_scroll_request.py
+  s_bb33829f46707b::t_6d1c7a92719ce0 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_point.py
+  s_bb33829f46707b::t_c3b3501a09b9d1 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_process_errors_response.py
+  s_bb33829f46707b::t_cea8b2e9f2dacb 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_process_logs_response.py
+  s_bb33829f46707b::t_1f8147cfbe6445 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_process_restart_response.py
+  s_bb33829f46707b::t_7e943f27fe36f8 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_process_running_status.py
+  s_bb33829f46707b::t_25253e6feb8582 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_process_status.py
+  s_bb33829f46707b::t_f31dd67e6fff16 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_recording.py
+  s_bb33829f46707b::t_787becf711cc6f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_recording_start_request.py
+  s_bb33829f46707b::t_2a289864098cc7 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_recording_stop_request.py
+  s_bb33829f46707b::t_973b118ddf7ece 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_recordings_response.py
+  s_bb33829f46707b::t_5695e95c66743d 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_resolution.py
+  s_bb33829f46707b::t_1bf3530ff25f8b 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_restart_response.py
+  s_bb33829f46707b::t_7c074d8e5d8cdc 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_query.py
+  s_bb33829f46707b::t_0f8a14976e6431 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_response.py
+  s_bb33829f46707b::t_6abda23855abd8 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_scroll_response.py
+  s_bb33829f46707b::t_3769eded7f7418 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_start_request.py
+  s_bb33829f46707b::t_f77d60c2858fae 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  s_bb33829f46707b::t_69f2dd62398106 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_window.py
+  s_bb33829f46707b::t_ce189b883d1edf 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_query.py
+  s_bb33829f46707b::t_0ce715f076a8b2 6,38
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  s_bb33829f46707b::t_1c86eac17e50b2 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_session_request.py
+  s_bb33829f46707b::t_c68ccceba2e9a4 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/delete_query.py
+  s_bb33829f46707b::t_af351066994122 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/docker_owner.py
+  s_bb33829f46707b::t_7c35dc39381d32 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/docker_state.py
+  s_bb33829f46707b::t_d64ab5479b46ec 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/docker_status.py
+  s_bb33829f46707b::t_80a2bb273180fb 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/docker_status_query.py
+  s_bb33829f46707b::t_ca5581c648897f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/env_request.py
+  s_bb33829f46707b::t_c2036290e9398d 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/error_code.py
+  s_bb33829f46707b::t_c41a461bd5223e 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/error_envelope.py
+  s_bb33829f46707b::t_d1e0632feb3f2f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/exit_result.py
+  s_bb33829f46707b::t_ee08600a8af657 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/file_info.py
+  s_bb33829f46707b::t_a5bb5cd30f8784 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/file_status.py
+  s_bb33829f46707b::t_9f8e7a024d0d01 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/find_response.py
+  s_bb33829f46707b::t_34a19d16790655 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/fs_path_query.py
+  s_bb33829f46707b::t_1ef0b29dfcf24f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/git_config_query.py
+  s_bb33829f46707b::t_d6405f03755327 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/git_config_response.py
+  s_bb33829f46707b::t_66474550c24698 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/git_path_query.py
+  s_bb33829f46707b::t_54f4ab31b8a61e 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/git_remote.py
+  s_bb33829f46707b::t_8a4423a8a039ba 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/info_response.py
+  s_bb33829f46707b::t_8dc2e2f48b7147 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/init_request.py
+  s_bb33829f46707b::t_7d3a7a77e98cb1 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/is_port_in_use_response.py
+  s_bb33829f46707b::t_26808adc48d5f6 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/keep_logs.py
+  s_bb33829f46707b::t_502bd8e64c12b5 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/kernel_kind.py
+  s_bb33829f46707b::t_ac6faf9912d2d4 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/kill_processes_request.py
+  s_bb33829f46707b::t_7390579e75c68b 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/kill_processes_response.py
+  s_bb33829f46707b::t_71c4afda2a5cd5 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/kind.py
+  s_bb33829f46707b::t_c6d83d95b028fc 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/list_query.py
+  s_bb33829f46707b::t_da793822770853 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/list_remotes_response.py
+  s_bb33829f46707b::t_282231d8345820 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/log_frame_dto.py
+  s_bb33829f46707b::t_cf0469592a9cd2 6,39
+sdk-python/src/daytona/v2/_gen/toolbox/models/logs_query.py
+  s_bb33829f46707b::t_4cc52625c0bac2 6,39
+sdk-python/src/daytona/v2/_gen/toolbox/models/match.py
+  s_bb33829f46707b::t_ddd0d012e3ca9f 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/metrics.py
+  s_bb33829f46707b::t_a45d11af617481 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/move_query.py
+  s_bb33829f46707b::t_1461682bbf0c07 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/path_mode_query.py
+  s_bb33829f46707b::t_e8b493057c978e 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/permissions_query.py
+  s_bb33829f46707b::t_44cb119a2f3940 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/port_list.py
+  s_bb33829f46707b::t_ba04f11f8c6113 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_dto.py
+  s_bb33829f46707b::t_b0ac5a71fa7e98 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_eof_event_dto.py
+  s_bb33829f46707b::t_dd9f1a9fba5d88 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_error_event_dto.py
+  s_bb33829f46707b::t_7c687fc31ccd65 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_list_response.py
+  s_bb33829f46707b::t_eb74f13c955eee 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_logs_response.py
+  s_bb33829f46707b::t_225b4c0347e696 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_record.py
+  s_bb33829f46707b::t_82ec7fb99f8048 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_state_event_dto.py
+  s_bb33829f46707b::t_9d06b5ceb1b7b0 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_warning_event_dto.py
+  s_bb33829f46707b::t_aaf7efad8aae2a 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/pull_volume_request.py
+  s_bb33829f46707b::t_f6dcba71917640 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/pull_volume_response.py
+  s_bb33829f46707b::t_888aa9fb6935a3 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/pull_volume_status.py
+  s_bb33829f46707b::t_7b1eadda8a8cda 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/reason.py
+  s_bb33829f46707b::t_ffda98e64052cb 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/replace_request.py
+  s_bb33829f46707b::t_3255531a6b8dbf 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/replace_result.py
+  s_bb33829f46707b::t_ad53d74f50975d 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/repo_request.py
+  s_bb33829f46707b::t_af022cc38ef6f3 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/reset_request.py
+  s_bb33829f46707b::t_7b0de6d63813eb 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/resize_request.py
+  s_bb33829f46707b::t_fbdaa1349fbd02 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/restore_request.py
+  s_bb33829f46707b::t_80724dd8c043ad 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/search_query.py
+  s_bb33829f46707b::t_c0486311090cba 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/search_response.py
+  s_bb33829f46707b::t_b42c3b86c5dd60 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/session_dto.py
+  s_bb33829f46707b::t_08defb3bf3e280 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/session_list_response.py
+  s_bb33829f46707b::t_5886cbab824fc2 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/set_config_request.py
+  s_bb33829f46707b::t_82f671b052e881 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/signal_request.py
+  s_bb33829f46707b::t_ea9fc433582b36 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/state.py
+  s_bb33829f46707b::t_8e3600f4df4f46 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/status_response.py
+  s_bb33829f46707b::t_cbb0f25ff7048b 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/stdin_mode.py
+  s_bb33829f46707b::t_824694edee2108 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/stdin_request.py
+  s_bb33829f46707b::t_5ca5b8bc3d97e5 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/terminal_size.py
+  s_bb33829f46707b::t_fbe064a9484ccb 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/upload_query.py
+  s_bb33829f46707b::t_eb3e7a24b6f16a 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/uploaded_file.py
+  s_bb33829f46707b::t_d4244ad60e882d 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/version_response.py
+  s_bb33829f46707b::t_8b9dc6424074d4 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/wait_query.py
+  s_bb33829f46707b::t_ac045e413dcfcb 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/watch_fs_event.py
+  s_bb33829f46707b::t_3995ccb39bc749 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/watch_overflow_event.py
+  s_bb33829f46707b::t_654cb47f54e5b0 6
+sdk-python/src/daytona/v2/_gen/toolbox/models/watch_query.py
+  s_bb33829f46707b::t_d20fb1fbdc052a 6
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_bb33829f46707b::t_805e4e84c0a15c 110-113
+sdk-python/src/daytona/v2/sandbox.py
+  s_bb33829f46707b::t_c10a34005fdfe0 1861-1864
+sdk-python/tests/test_toolbox_surface.py
+  s_bb33829f46707b::t_7592586e4939fa 2054,2056-2058
+sdk-typescript/src/v2/gen/toolbox-enums.ts
+  s_bb33829f46707b::t_4f982fea1a48ed 8
+sdk-typescript/src/v2/gen/toolbox.ts
+  s_bb33829f46707b::t_95f7dbfa748cab 766,2240,2354,2538,2550,7054,7251
+sdk-typescript/src/v2/types.ts
+  s_bb33829f46707b::t_733104faa56867 677-678
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "29aa7a489b259d961dfab2dbf766a3d935072452",
+  "prompts": {},
+  "sessions": {
+    "s_bb33829f46707b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29fb2f6fffeE373ZzXHM8jc1e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

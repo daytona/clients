@@ -1,0 +1,16 @@
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 1016-1021
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 406-410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "118e31d6bf6626a5aff59c9466d123afdf50ef28",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+scripts/v0-sdk-version
+  h_e7759ddd73fa65 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb4df69cd5f14ad44d12ffab64793ad2b4024558",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

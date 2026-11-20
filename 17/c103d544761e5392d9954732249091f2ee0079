@@ -1,0 +1,18 @@
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  h_e7759ddd73fa65 1102-1106
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  h_e7759ddd73fa65 1323-1347
+sdk-python/tests/test_subscription_acks.py
+  h_e7759ddd73fa65 13,493-503,506-507
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17c103d544761e5392d9954732249091f2ee0079",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

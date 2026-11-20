@@ -1,0 +1,21 @@
+cli/hack/stage-release-assets.test.sh
+  s_595fadedb5176f::t_cf0002a75bd576 158-221
+cli/install-v0.ps1
+  s_595fadedb5176f::t_ebb314975d244c 1-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "128766a93d0566f805cb110099a9970e7d0413e6",
+  "prompts": {},
+  "sessions": {
+    "s_595fadedb5176f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1b7c52ffffeFG65dTePfzIkAQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

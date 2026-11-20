@@ -1,0 +1,19 @@
+sdk-go/pkg/daytona/sandbox_nodes.go
+  s_7750b317905afd::t_4ffa6fa776183b 432
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "80f7b066af7ee53482a7dd312934e0f43ef3ae30",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+changelog.d/secret-volume-search-name.breaking.md
+  s_57322031358fb0::t_55bbce8152c97b 2-4
+cli/README.md
+  s_57322031358fb0::t_c555d52a87ed9c 365-368,373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55c784cd474f1530586a2e5409299c4d16153336",
+  "prompts": {},
+  "sessions": {
+    "s_57322031358fb0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0ad0d113ffet9qo3KTg2BjFMb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

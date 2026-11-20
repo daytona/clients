@@ -1,0 +1,39 @@
+sdk-go/pkg/daytona/sandbox_nodes_test.go
+  s_7750b317905afd::t_5596181ea59334 200
+  s_7750b317905afd::t_67908e04be4249 1-73,78-100,104-199,201-227,261
+  s_7750b317905afd::t_d7a354adbc4201 74-77,101-103,228-260
+sdk-go/pkg/daytona/client.go
+  s_7750b317905afd::t_ae28bf5a54117b 407-408,555-559
+  s_7750b317905afd::t_1e9f744108de6a 466,477-487
+hack/go-client/patch-api-spec.mjs
+  s_7750b317905afd::t_79e411a36f2b87 5,19-21,33-35,42
+  s_7750b317905afd::t_c4a27f1880cba8 24-32,48
+sdk-go/README.md
+  s_7750b317905afd::t_09f97b87e7ea64 355-395
+sdk-go/pkg/daytona/sandbox_nodes.go
+  s_7750b317905afd::t_d7a354adbc4201 156
+  s_7750b317905afd::t_edf9c8340c3b5a 94-96,290-292,346-348
+  s_7750b317905afd::t_b58162b62c112f 27-29,319-345,349-419
+  s_7750b317905afd::t_f7a64aca599612 1-26,30-93,97-155,157-186
+  s_7750b317905afd::t_363e48719f37b3 187-289,293-318,420
+sdk-go/pkg/types/types.go
+  s_7750b317905afd::t_1e9f744108de6a 169-179
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_7750b317905afd::t_d7a354adbc4201 5590
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e387bb4d191a3b0b7838e21533f99ed646c6c243",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}
