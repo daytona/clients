@@ -1863,7 +1863,7 @@ export interface paths {
         head?: never;
         /**
          * Update the project limits
-         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` can no longer be set: send null or omit them.
+         * @description A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` can not be set on a project: send null or omit them.
          */
         patch: operations["update_project_limits"];
         trace?: never;
@@ -7590,14 +7590,14 @@ export interface components {
             /**
              * Format: int64
              * @deprecated
-             * @description Projects can no longer limit their persistent sandbox count. Send null
+             * @description Can not be set on a project: projects do not limit their persistent sandbox count. Send null
              *     or omit it; an integer is refused.
              */
             max_persistent_vms?: number | null;
             /**
              * Format: int64
              * @deprecated
-             * @description Projects can no longer limit their total sandbox count. Send null or
+             * @description Can not be set on a project: projects do not limit their total sandbox count. Send null or
              *     omit it; an integer is refused.
              */
             max_total_vms?: number | null;
@@ -16083,7 +16083,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectLimits"];
                 };
             };
-            /** @description A limit is outside the accepted range, a limit projects can no longer set is given a value, or the body carries an unknown field (`BAD_REQUEST`) */
+            /** @description A limit is outside the accepted range, a limit that can not be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];

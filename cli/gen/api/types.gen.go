@@ -6797,12 +6797,12 @@ type UpdateProjectLimitsRequest struct {
 	// limit.
 	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
 
-	// MaxPersistentVms Projects can no longer limit their persistent sandbox count. Send null
+	// MaxPersistentVms Can not be set on a project: projects do not limit their persistent sandbox count. Send null
 	// or omit it; an integer is refused.
 	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
 
-	// MaxTotalVms Projects can no longer limit their total sandbox count. Send null or
+	// MaxTotalVms Can not be set on a project: projects do not limit their total sandbox count. Send null or
 	// omit it; an integer is refused.
 	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`
