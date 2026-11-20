@@ -29,12 +29,14 @@ func TestWatchLiveness_whenAnyFrameArrives_updatesSharedSocketTime(t *testing.T)
 			f.clock.advance(time.Second)
 			awaitTimer(t, f.clock, f.clock.Now().Add(time.Second))
 
-			// When: await the socket loop's next timer as the processing barrier.
+			// When: the frame is processed. The manual clock does not move, so
+			// the frame time equals Now exactly once the loop has seen it.
 			send(t, p, payload)
-			awaitTimer(t, f.clock, f.clock.Now().Add(time.Second))
+			require.Eventually(t, func() bool {
+				return activity.Frame().LastFrameAt.Equal(f.clock.Now())
+			}, 5*time.Second, time.Millisecond)
 
 			// Then: socket-wide frames count without moving the watch's start.
-			require.Equal(t, f.clock.Now(), activity.Frame().LastFrameAt)
 			require.Equal(t, registered, activity.RegisteredAt)
 			require.Equal(t, time.Second, activity.Frame().LastFrameAt.Sub(registered))
 		})
