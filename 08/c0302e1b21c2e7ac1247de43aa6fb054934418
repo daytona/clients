@@ -1,0 +1,26 @@
+sdk-go/sandbox_wait_events.go
+  s_f3c35abb815091::t_c9a66b51580697 38
+  s_f3c35abb815091::t_39c558853ef55e 57-60,87,127
+sdk-go/sandbox_wait_probe_decisive_test.go
+  s_f3c35abb815091::t_753ff45f50912d 1-64
+sdk-go/sandbox_wait_probe.go
+  s_f3c35abb815091::t_c9a66b51580697 20,36,38,47,51-55
+sdk-go/DEVELOPMENT.md
+  s_f3c35abb815091::t_3d5f2988ca747b 228-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08c0302e1b21c2e7ac1247de43aa6fb054934418",
+  "prompts": {},
+  "sessions": {
+    "s_f3c35abb815091": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589e913ffePrGqaUnM7te6IH",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
