@@ -72,6 +72,6 @@ func gitConfigOptions(opts *GitConfigOptions) (GitConfigOptions, error) {
 	case GitConfigScopeGlobal, GitConfigScopeLocal:
 		return options, nil
 	default:
-		return GitConfigOptions{}, badRequest("scope must be global or local")
+		return GitConfigOptions{}, badRequest("Scope must be global or local")
 	}
 }

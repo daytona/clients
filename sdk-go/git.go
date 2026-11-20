@@ -105,7 +105,7 @@ func (g *Git) Restore(ctx context.Context, path string, files []string, opts *Gi
 // lookup). Author and Email are required; invalid input returns ErrBadRequest.
 func (g *Git) Commit(ctx context.Context, path, message string, opts *GitCommitOptions) (*GitCommitResponse, error) {
 	if opts == nil || strings.TrimSpace(opts.Author) == "" || strings.TrimSpace(opts.Email) == "" {
-		return nil, badRequest("git.Commit requires author and email")
+		return nil, badRequest("git.Commit: Author and Email must be non-blank")
 	}
 	author, email := strings.TrimSpace(opts.Author), strings.TrimSpace(opts.Email)
 	body := wire.CommitRequest{Path: &path, Message: &message, Author: &author, Email: &email}

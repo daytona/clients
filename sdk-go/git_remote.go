@@ -64,7 +64,7 @@ func (g *Git) Clone(ctx context.Context, url, path string, opts *GitCloneOptions
 		options = *opts
 	}
 	if options.Depth < 0 || int64(options.Depth) > math.MaxInt32 {
-		return badRequest("depth must be a positive int32, or zero to omit")
+		return badRequest("Depth must be a positive int32, or zero to omit")
 	}
 	credentials, err := gitCredentials(GitCredentialOptions{
 		Username: options.Username, Password: options.Password, Timeout: options.Timeout,
@@ -125,7 +125,7 @@ func (g *Git) Push(ctx context.Context, path string, opts *GitPushOptions) error
 
 func gitCredentials(options GitCredentialOptions) (wire.RepoRequest, error) {
 	if options.Timeout < 0 && options.Timeout != NoTimeout {
-		return wire.RepoRequest{}, badRequest("git timeout must be non-negative or NoTimeout")
+		return wire.RepoRequest{}, badRequest("Timeout must be non-negative or NoTimeout")
 	}
 	return wire.RepoRequest{
 		Username: gitOptional(options.Username), Password: gitOptional(options.Password),
