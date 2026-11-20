@@ -23,13 +23,13 @@ type DockerWaitOptions struct {
 // Terminal states return *DockerNotReadyError; a spent SDK budget returns
 // *DockerWaitTimeoutError, carrying the last status if one arrived.
 // Caller cancellation/deadlines and Client.Close interrupt both polls and pauses.
-func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (DockerStatus, error) {
+func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (*DockerStatus, error) {
 	budget := time.Minute
 	if opts != nil && opts.Timeout != 0 {
 		budget = opts.Timeout
 	}
 	if budget < 0 && budget != WaitForever {
-		return DockerStatus{}, badRequest("Docker wait timeout must be positive or WaitForever")
+		return nil, badRequest("Docker wait timeout must be positive or WaitForever")
 	}
 	var deadline time.Time
 	if duration := boundedTimeout(budget); duration > 0 {
@@ -38,21 +38,21 @@ func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (D
 	return d.waitReady(ctx, deadline)
 }
 
-func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (DockerStatus, error) {
+func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (*DockerStatus, error) {
 	var last *DockerStatus
 	for {
 		if err := ctx.Err(); err != nil {
-			return DockerStatus{}, transportError(ctx, err)
+			return nil, transportError(ctx, err)
 		}
 		if err := d.sandbox.client.ensureOpen(); err != nil {
-			return DockerStatus{}, err
+			return nil, err
 		}
 		pollStarted := time.Now()
 		status, err := d.poll(ctx, deadline, last)
 		if err != nil {
-			return DockerStatus{}, err
+			return nil, err
 		}
-		last = &status
+		last = status
 		switch status.State {
 		case DockerStateReady:
 			return status, nil
@@ -62,7 +62,7 @@ func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (DockerStatu
 			if status.Reason != nil && *status.Reason != "" {
 				message += ": " + *status.Reason
 			}
-			return DockerStatus{}, &DockerNotReadyError{SDKError: newSDKError("CONFLICT", 409, message), Status: status}
+			return nil, &DockerNotReadyError{SDKError: newSDKError("CONFLICT", 409, message), Status: *status}
 		case DockerStateStarting, DockerStateDeferred, DockerStateUnknown:
 			// Unknown future states remain eligible for polling.
 		}
@@ -74,19 +74,19 @@ func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (DockerStatu
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return DockerStatus{}, transportError(ctx, ctx.Err())
+			return nil, transportError(ctx, ctx.Err())
 		case <-d.sandbox.client.ctx.Done():
 			timer.Stop()
-			return DockerStatus{}, closedError()
+			return nil, closedError()
 		case <-timer.C:
 		}
 	}
 }
 
-func (d *Docker) poll(ctx context.Context, deadline time.Time, last *DockerStatus) (DockerStatus, error) {
+func (d *Docker) poll(ctx context.Context, deadline time.Time, last *DockerStatus) (*DockerStatus, error) {
 	hold, timeout := dockerPollBudget(deadline, time.Now())
 	if hold <= 0 {
-		return DockerStatus{}, dockerWaitTimeout(last, nil)
+		return nil, dockerWaitTimeout(last, nil)
 	}
 	status, err := d.readStatus(ctx, toolboxRequest{
 		Path: "/docker/status", Query: url.Values{"waitMs": {strconv.FormatInt(wireMilliseconds(hold), 10)}},
@@ -94,7 +94,7 @@ func (d *Docker) poll(ctx context.Context, deadline time.Time, last *DockerStatu
 	})
 	if ctx.Err() == nil && errors.Is(err, ErrClientTimeout) &&
 		!deadline.IsZero() && !time.Now().Before(deadline) {
-		return DockerStatus{}, dockerWaitTimeout(last, err)
+		return nil, dockerWaitTimeout(last, err)
 	}
 	return status, err
 }

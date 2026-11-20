@@ -49,7 +49,7 @@ func TestDockerStatus_whenKnownOrFutureEnums(t *testing.T) {
 			status, err := sandbox.Docker().Status(t.Context())
 			// Then
 			require.NoError(t, err)
-			require.Equal(t, DockerStatus{State: test.wantState, RawState: test.state, Owner: test.wantOwner, RawOwner: test.owner, ProcessID: new("p"), Reason: new("explanation")}, status)
+			require.Equal(t, &DockerStatus{State: test.wantState, RawState: test.state, Owner: test.wantOwner, RawOwner: test.owner, ProcessID: new("p"), Reason: new("explanation")}, status)
 			requests := fake.requests()
 			require.Len(t, requests, 1)
 			require.Empty(t, requests[0].Query)
@@ -72,8 +72,12 @@ func TestDockerWait_whenReadyOrTerminal(t *testing.T) {
 			switch state {
 			case "ready":
 				require.NoError(t, err)
-				require.Equal(t, DockerStateReady, status.State)
+				require.Equal(t, &DockerStatus{
+					State: DockerStateReady, RawState: "ready", Owner: DockerOwnerDaemon, RawOwner: "daemon",
+					ProcessID: new("docker-process"), Reason: new("reason"),
+				}, status)
 			default:
+				require.Nil(t, status)
 				var terminal *DockerNotReadyError
 				require.ErrorAs(t, err, &terminal)
 				require.ErrorIs(t, err, ErrConflict)

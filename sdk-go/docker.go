@@ -17,24 +17,24 @@ func (s *Sandbox) Docker() *Docker { return &Docker{sandbox: s} }
 
 // Status returns this boot's current Docker status without waiting.
 // An unavailable endpoint returns ErrNotFound.
-func (d *Docker) Status(ctx context.Context) (DockerStatus, error) {
+func (d *Docker) Status(ctx context.Context) (*DockerStatus, error) {
 	return d.readStatus(ctx, toolboxRequest{Path: "/docker/status"})
 }
 
-func (d *Docker) readStatus(ctx context.Context, request toolboxRequest) (DockerStatus, error) {
+func (d *Docker) readStatus(ctx context.Context, request toolboxRequest) (*DockerStatus, error) {
 	var raw json.RawMessage
 	spec := request
 	spec.Result = &raw
 	if err := d.sandbox.toolbox().do(ctx, spec); err != nil {
-		return DockerStatus{}, err
+		return nil, err
 	}
 	return parseDockerStatus(raw)
 }
 
-func parseDockerStatus(raw json.RawMessage) (DockerStatus, error) {
+func parseDockerStatus(raw json.RawMessage) (*DockerStatus, error) {
 	object, err := parseObject(raw, "docker status")
 	if err != nil {
-		return DockerStatus{}, err
+		return nil, err
 	}
 	var status DockerStatus
 	var owner, state *string
@@ -50,7 +50,7 @@ func parseDockerStatus(raw json.RawMessage) (DockerStatus, error) {
 	} {
 		value, fieldErr := field[*string](object, entry.name, entry.required)
 		if fieldErr != nil {
-			return DockerStatus{}, fieldErr
+			return nil, fieldErr
 		}
 		*entry.target = value
 	}
@@ -85,5 +85,5 @@ func parseDockerStatus(raw json.RawMessage) (DockerStatus, error) {
 	default:
 		status.State = DockerStateUnknown
 	}
-	return status, nil
+	return &status, nil
 }
