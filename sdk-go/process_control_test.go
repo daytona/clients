@@ -89,7 +89,7 @@ func TestProcessIdentityWhenReconnectedAcrossWorkers(t *testing.T) {
 	// Then code replay identity survives without any network request.
 	require.NoError(t, err)
 	require.Equal(t, ProcessKindCode, handle.Kind())
-	require.Equal(t, &identity, handle.ToJSON())
+	require.Equal(t, identity, handle.ToJSON())
 	require.Empty(t, fake.requests())
 }
 

@@ -47,10 +47,9 @@ func (c *InterpreterContext) Language() string { return c.language }
 // SandboxID returns the sandbox containing the context.
 func (c *InterpreterContext) SandboxID() string { return c.service.sandbox.ID() }
 
-// Identity returns a caller-owned, credential-free identity snapshot.
-// Pass its value to ConnectContextJSON.
-func (c *InterpreterContext) Identity() *InterpreterContextJSON {
-	return &InterpreterContextJSON{SandboxID: c.SandboxID(), ContextID: c.id, Language: c.language}
+// Identity returns a credential-free identity suitable for ConnectContextJSON.
+func (c *InterpreterContext) Identity() InterpreterContextJSON {
+	return InterpreterContextJSON{SandboxID: c.SandboxID(), ContextID: c.id, Language: c.language}
 }
 
 // Close deletes the context and its kernel state. ErrSessionNotFound is returned

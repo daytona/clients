@@ -25,7 +25,7 @@ func TestSessionCreatesShellWhenConfigured(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, `{"kind":"session","tag":"job","cwd":"/app","env":{"CI":"1"},"shell":"bash","login":true,"name":"build"}`,
 		string(fake.requests()[0].Body))
-	require.Equal(t, &SessionJSON{SandboxID: "sbx", SessionID: "shell/one"}, session.ToJSON())
+	require.Equal(t, SessionJSON{SandboxID: "sbx", SessionID: "shell/one"}, session.ToJSON())
 }
 
 func TestSessionCommandRetainsSessionWhenRun(t *testing.T) {
