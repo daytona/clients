@@ -71,7 +71,10 @@ func (s *Interpreter) streamCode(
 	}
 	wait := <-done // Always join the waiter before returning or releasing the queue.
 	if deliveryFailed {
-		return nil, streamErr
+		handle.stopAfterOutputFailure(ctx, ProcessSignalInterrupt)
+		return output.finish(InterpreterProcess{
+			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
+		}), streamErr
 	}
 	if streamErr != nil && !errors.Is(streamErr, context.Canceled) {
 		return nil, streamErr
@@ -100,7 +103,8 @@ func (o *runCodeOutput) stream(ctx context.Context, handle *ProcessHandle) (bool
 		switch value := event.(type) {
 		case ProcessLogFrameEvent:
 			if err = o.append(value.Frame); err != nil {
-				return true, err
+				var deliveryErr *outputDeliveryError
+				return errors.As(err, &deliveryErr), err
 			}
 		case ProcessLogStateEvent, ProcessLogWarningEvent, ProcessLogEOFEvent:
 			// Wait owns the outcome; only log frames contribute interpreter output.

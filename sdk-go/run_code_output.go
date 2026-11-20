@@ -31,7 +31,7 @@ func (o *runCodeOutput) append(frame LogFrame) error {
 	o.seen[frame.Cursor] = struct{}{}
 	if o.options.OnLog != nil {
 		if err := o.options.OnLog(frame); err != nil {
-			return wrapError(err, "interpreter log callback failed")
+			return &outputDeliveryError{wrapError(err, "interpreter log callback failed")}
 		}
 	}
 	switch frame.Channel {
@@ -59,7 +59,7 @@ func (o *runCodeOutput) appendOutput(frame LogFrame) error {
 	o.result.Results = append(o.result.Results, output)
 	if o.options.OnOutput != nil {
 		if err = o.options.OnOutput(cloneInterpreterOutput(output)); err != nil {
-			return wrapError(err, "interpreter output callback failed")
+			return &outputDeliveryError{wrapError(err, "interpreter output callback failed")}
 		}
 	}
 	return nil
@@ -75,7 +75,7 @@ func (o *runCodeOutput) appendError(payload string) error {
 		copyError := exception
 		copyError.Traceback = slices.Clone(exception.Traceback)
 		if err = o.options.OnError(copyError); err != nil {
-			return wrapError(err, "interpreter error callback failed")
+			return &outputDeliveryError{wrapError(err, "interpreter error callback failed")}
 		}
 	}
 	return nil
@@ -93,10 +93,10 @@ func writeInterpreterOutput(writer io.Writer, data string) error {
 	}
 	written, err := io.WriteString(writer, data)
 	if err != nil {
-		return wrapError(err, "write interpreter output")
+		return &outputDeliveryError{wrapError(err, "write interpreter output")}
 	}
 	if written != len(data) {
-		return wrapError(io.ErrShortWrite, "write interpreter output")
+		return &outputDeliveryError{wrapError(io.ErrShortWrite, "write interpreter output")}
 	}
 	return nil
 }
