@@ -6,7 +6,6 @@ package toolbox
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"strings"
 
 	genapi "github.com/daytona/clients/cli/gen/api"
@@ -133,8 +132,11 @@ func MintSSHAccessToken(ctx context.Context, apiClient *api.Client, sandboxID st
 		Ports:      &[]int32{},
 		TtlSeconds: &ttl,
 	}
+	if id := strings.TrimSpace(sandboxID); id == "" || id == "." || id == ".." {
+		return "", cerr.New(cerr.ExitFailure, "invalid sandbox id %q", sandboxID)
+	}
 	var token genapi.SandboxAccessToken
-	if err := apiClient.Do(ctx, http.MethodPost, "/sandboxes/"+url.PathEscape(sandboxID)+"/access-token", nil, body, &token); err != nil {
+	if err := apiClient.Do(ctx, http.MethodPost, "/sandboxes/"+strictPathSegment(sandboxID)+"/access-token", nil, body, &token); err != nil {
 		return "", err
 	}
 	if token.AccessToken == "" {

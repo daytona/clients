@@ -206,10 +206,13 @@ an attacker intercepting the first connection could supply the trusted key.
 SSH options you forward after the sandbox id (for example
 `-o StrictHostKeyChecking=no` or `-o UserKnownHostsFile=…`) override this
 policy. The gateway login carries a short-lived sandbox access token limited
-to SSH, minted for each run, so the CLI replaces it with `<redacted>` wherever
-`ssh` prints it on stderr (an authentication failure, `-v` output). Standard output is passed through byte for byte and is not
-redacted: `-G`, which prints the resolved configuration there, includes the
-short-lived token in its `user` line, so do not log that output.
+to SSH, minted for each run; `sandbox ssh` does not fall back to a project API
+key, so if the API cannot mint the token, ssh is not started. The CLI replaces
+the token with `<redacted>` wherever `ssh` prints it on stderr (an
+authentication failure, `-v` output). Standard output is passed through byte
+for byte and is not redacted: `-G`, which prints the resolved configuration
+there, includes the short-lived token in its `user` line, so do not log that
+output.
 
 ### macOS sandboxes
 
@@ -429,8 +432,8 @@ never prompts:
   modes. With `--no-wait` the sandbox is read once right after the request.
   If a delete has already removed the sandbox, the API's `{"id", "status"}` is
   printed instead; if a create's read fails, `{"id", "name", "status"}` from the
-  create's answer is printed with a warning on stderr. No command
-  prints a sandbox access token.
+  create's answer is printed with a warning on stderr. No lifecycle
+  command prints a sandbox access token.
 - `sandbox wait --for` takes a settled status: `running`, `stopped`, `paused`
   or `deleted`, or the SDK state names `started` and `destroyed`; anything else
   is a usage error (exit 2) before any request. `sandbox start` on a running

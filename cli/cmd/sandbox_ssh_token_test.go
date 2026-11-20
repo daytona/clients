@@ -137,3 +137,25 @@ func TestToolboxSSH_usesPlatformToken_whenBrowserLoginIsAvailable(t *testing.T) 
 	require.NoError(t, err)
 	require.True(t, called)
 }
+
+func TestToolboxSSH_mintsNoToken_whenSSHIsNotInstalled(t *testing.T) {
+	// Given no ssh binary on PATH and an API that must not be reached.
+	t.Setenv("DAYTONA_CONFIG_DIR", cfgDir(t))
+	t.Setenv("PATH", t.TempDir())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+	a, err := app.Load(app.Globals{APIURL: server.URL, APIKey: "project-key-fixture", APIKeySet: true, Output: "json"}, &bytes.Buffer{}, &bytes.Buffer{}, nil)
+	require.NoError(t, err)
+	cmd := newSandboxSSHSubcommand()
+	cmd.SetContext(context.WithValue(t.Context(), ctxKey{}, a))
+
+	// When connecting.
+	err = cmd.RunE(cmd, []string{"sbx"})
+
+	// Then the usage error comes before any request.
+	require.Error(t, err)
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+}

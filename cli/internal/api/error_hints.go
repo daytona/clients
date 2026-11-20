@@ -49,7 +49,7 @@ func hintFor(ae *APIError) string {
 	case ae.Status == http.StatusServiceUnavailable && ae.Code == CodeSearchUnavailable:
 		return "sandbox search is temporarily unavailable; retry, or use `sandbox list`"
 	case ae.Status == http.StatusServiceUnavailable && ae.Method == http.MethodPost && strings.HasPrefix(ae.Path, "/sandboxes/") && strings.HasSuffix(ae.Path, "/access-token"):
-		return "sandbox access tokens are temporarily unavailable; retry shortly"
+		return "retry shortly; if it keeps failing, this deployment does not issue sandbox access tokens and `sandbox ssh` cannot sign in"
 	case ae.Status == http.StatusNotImplemented && ae.Code == CodeBillingDisabled:
 		return "billing is disabled on this deployment"
 	case ae.Status == http.StatusBadGateway && ae.Code == CodeBillingUnreachable:

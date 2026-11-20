@@ -35,6 +35,10 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			sshBinary, err := exec.LookPath("ssh")
+			if err != nil {
+				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
+			}
 			a := FromContext(cmd.Context())
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
@@ -58,10 +62,6 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			token, err := toolboxclient.MintSSHAccessToken(cmd.Context(), apiClient, target.Detail.Id)
 			if err != nil {
 				return err
-			}
-			sshBinary, err := exec.LookPath("ssh")
-			if err != nil {
-				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
 			}
 			invocation, err := toolboxclient.BuildSSHInvocation(
 				toolboxclient.SSHTarget{Host: target.SSHHost, Port: target.SSHPort, SandboxID: target.Detail.Id, Credential: token},
