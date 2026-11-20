@@ -1,0 +1,37 @@
+sdk-go/secret_model.go
+  s_19310f0c160a00::t_6e8f8f8847d8fc 1-66
+sdk-go/secret_test.go
+  s_19310f0c160a00::t_e3f3c0e2c6ee4d 1-175,184,209-221
+  s_19310f0c160a00::t_08872807e9c4c6 176-183,185-208
+sdk-go/secret_parse_test.go
+  s_19310f0c160a00::t_1a868c9c52e004 1-18,30-48,50,53-64
+  s_19310f0c160a00::t_08872807e9c4c6 19-29,49,51-52
+sdk-go/secret.go
+  s_19310f0c160a00::t_9af6a1a31804d3 55-57
+  s_19310f0c160a00::t_07ec802f8e3a47 156
+  s_19310f0c160a00::t_495ef52d49253b 121-123,146-155,157-161
+  s_19310f0c160a00::t_6e8f8f8847d8fc 1-54,59-84,87-112,115-120,125-135,137,140-145,162-177
+  s_19310f0c160a00::t_4435f28c182050 58,85-86,113-114,124,136,138-139
+sdk-go/volume_pagination_test.go
+  s_19310f0c160a00::t_08872807e9c4c6 130-133
+  s_19310f0c160a00::t_1a868c9c52e004 1-129,134-161
+sdk-go/secret_example_test.go
+  s_19310f0c160a00::t_1a868c9c52e004 1-19,22-33,36-37
+  s_19310f0c160a00::t_4435f28c182050 20-21,34-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "20afa24e05e1adfb9a6ea396a322e5e02959c0ea",
+  "prompts": {},
+  "sessions": {
+    "s_19310f0c160a00": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b42edbffeHOMZ5LQKqX780G",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
