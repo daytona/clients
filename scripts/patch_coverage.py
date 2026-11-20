@@ -4,14 +4,24 @@
 
 """Patch coverage of a diff: the share of added, coverable lines that tests run.
 
-Merges CI reports with added lines of `git diff <base>`; target: 60%.
-Only reported, non-ignored lines are coverable. Generate reports first:
+Merges the coverage reports the CI workflows produce (Cobertura XML for
+Python, lcov for TypeScript, a Go coverprofile for the CLI), intersects them
+with the added lines of `git diff <base>`, and compares the covered ratio
+against PATCH_TARGET (60%).
+
+A line added by the diff counts as *coverable* only if some report mentions
+it, so comments, blank lines, docs and generated or test files never count
+against you.
+
+Generate the reports first (each from its package directory):
+
   (cd sdk-python && .venv/bin/python -m pytest -q --cov=daytona --cov-report=xml)
   (cd sdk-typescript && npx jest --coverage --coverageReporters=lcov)
   (cd cli && go test ./... -coverprofile=coverage.out)
   (cd sdk-go && go test ./... -coverprofile=coverage.out)
 
-Exit codes: 0 = target met, 1 = below target or missing report, 2 = usage/environment error.
+Exit codes: 0 = target met, 1 = below target or a changed component's report
+is missing, 2 = usage/environment error.
 """
 
 import argparse
@@ -38,7 +48,7 @@ IGNORE_GLOBS = [
     "e2e/**", "**/main.go",
     "sdk-python/src/daytona/v2/_gen/**", "sdk-python/src/daytona/v2/_sync/**",
     "sdk-typescript/src/v2/gen/**", "cli/gen/**",
-    "sdk-go/internal/gen/**", "sdk-go/codes_catalog_*.go",
+    "sdk-go/internal/gen/**", "sdk-go/codes_catalog_*.go", "sdk-go/codes_dispatch.go",
     "sdk-python/gen/**", "sdk-typescript/scripts/**", "scripts/**",
 ]
 
@@ -54,14 +64,18 @@ def run(cmd, cwd):
                           text=True).stdout
 
 
-def ignored(path: str) -> bool:
-    # fnmatch's "*" crosses "/"; the second pattern also matches direct children.
-    return any(fnmatch.fnmatch(path, glob) or fnmatch.fnmatch("/" + path, "*/" + glob)
-               for glob in IGNORE_GLOBS)
+def ignored(path):
+    for glob in IGNORE_GLOBS:
+        # fnmatch's "*" crosses "/" so it handles "**" too;
+        # additionally match "dir/**" against files directly under "dir".
+        if fnmatch.fnmatch(path, glob) or fnmatch.fnmatch("/" + path, "*/" + glob):
+            return True
+    return False
 
 
 def resolve_path(raw, comp_dir, repo_root):
-    """Map absolute, repo-relative or component-relative report paths to repo-relative paths."""
+    """Map a report path (absolute, repo-relative, or component-relative)
+    to a repo-relative path."""
     candidates = []
     if os.path.isabs(raw):
         candidates.append(os.path.relpath(raw, repo_root))
@@ -162,9 +176,13 @@ def added_lines(base, repo_root):
     return added
 
 
-def component_of(path: str) -> tuple[str, str, str, str] | None:
-    return max((component for component in COMPONENTS if path.startswith(component[1] + "/")),
-               key=lambda component: len(component[1]), default=None)
+def component_of(path):
+    best = None
+    for flag, comp_dir, report, fmt in COMPONENTS:
+        prefix = comp_dir + "/"
+        if path.startswith(prefix) and (best is None or len(comp_dir) > len(best[1])):
+            best = (flag, comp_dir, report, fmt)
+    return best
 
 
 def as_ranges(nums):

@@ -14,11 +14,13 @@ printf 'module go.daytona.com/sdk/v2\n\ngo 1.26.0\n' > sdk-go/go.mod
 printf 'package daytona\n\nfunc covered() int { return 1 }\n' > sdk-go/covered.go
 printf 'package api\n\nconst Generated = 1\n' > sdk-go/internal/gen/api/api.go
 printf 'package daytona\n\nconst Generated = 1\n' > sdk-go/codes_catalog_0.go
+printf '// Code generated. DO NOT EDIT.\npackage daytona\n\nfunc generated() {}\n' > sdk-go/codes_dispatch.go
 git add .
 git -c user.name=Test -c user.email=test@example.com commit -qm fixture
 printf 'package daytona\n\nfunc covered() int { return 2 }\n' > sdk-go/covered.go
 printf 'package api\n\nconst Generated = 2\n' > sdk-go/internal/gen/api/api.go
 printf 'package daytona\n\nconst Generated = 2\n' > sdk-go/codes_catalog_0.go
+printf '// Code generated. DO NOT EDIT.\npackage daytona\n\nfunc generated() { return }\n' > sdk-go/codes_dispatch.go
 
 run_case() {
   local expected=$1 status=0
@@ -31,11 +33,11 @@ run_case() {
 run_case 1
 # Then the SDK is a measured component and generated files are excluded.
 grep -qF 'MISSING REPORT: sdk-go/coverage.out' output
-grep -qF 'ignored (generated/test/example): 2 file(s)' output
+grep -qF 'ignored (generated/test/example): 3 file(s)' output
 echo "PASS: Go SDK report required; generated files ignored"
 
 # Given a profile whose module path is the Go SDK's vanity path.
-printf 'mode: set\ngo.daytona.com/sdk/v2/covered.go:3.1,3.33 1 1\n' > sdk-go/coverage.out
+printf 'mode: set\ngo.daytona.com/sdk/v2/covered.go:3.1,3.33 1 1\ngo.daytona.com/sdk/v2/codes_dispatch.go:4.1,4.28 1 0\n' > sdk-go/coverage.out
 # When measuring covered added lines.
 run_case 0
 # Then those lines count toward patch coverage.
