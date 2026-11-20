@@ -1,0 +1,61 @@
+sdk-go/audit.go
+  s_2659dd35fd6fb9::t_963ebcaf6827d1 1-48
+sdk-go/account_malformed_test.go
+  s_2659dd35fd6fb9::t_1d76f254cd2bb2 1-152,155-165
+  s_2659dd35fd6fb9::t_22b5ebb58b4f14 153-154
+sdk-go/limits_test.go
+  s_2659dd35fd6fb9::t_dda2ff6a398a77 130-132
+  s_2659dd35fd6fb9::t_e7d9c0050dcfba 1-125,127-129,133-165,169,176,178-180,193
+  s_2659dd35fd6fb9::t_64b41b006c4424 126,166-168,170-175,177,181-192
+sdk-go/limits_types.go
+  s_2659dd35fd6fb9::t_7ff68538dd584c 1-82
+sdk-go/client.go
+  s_2659dd35fd6fb9::t_433f641ca52417 31
+sdk-go/account_test.go
+  s_2659dd35fd6fb9::t_3c3266bfd15b02 1-98,100-101,103-159,161-181
+  s_2659dd35fd6fb9::t_f9ee7d3299c10c 99,102
+  s_2659dd35fd6fb9::t_dda2ff6a398a77 160
+sdk-go/budget.go
+  s_2659dd35fd6fb9::t_f9ee7d3299c10c 49-53
+  s_2659dd35fd6fb9::t_963ebcaf6827d1 1-48,54-67
+sdk-go/account_example_test.go
+  s_2659dd35fd6fb9::t_ae736b743937eb 19-23,38-42,55-59,74-78
+  s_2659dd35fd6fb9::t_7ff68538dd584c 1-18,24-37,43-54,60-73,79-87
+sdk-go/api_key.go
+  s_2659dd35fd6fb9::t_963ebcaf6827d1 1-80
+sdk-go/account_fixtures_test.go
+  s_2659dd35fd6fb9::t_3c3266bfd15b02 1-37,39-44,48-94
+  s_2659dd35fd6fb9::t_f9ee7d3299c10c 38,45-47
+sdk-go/limits.go
+  s_2659dd35fd6fb9::t_d2b2cbb77cf1b2 14
+  s_2659dd35fd6fb9::t_ae736b743937eb 40,68,77,87
+  s_2659dd35fd6fb9::t_7ff68538dd584c 1-13,15-39,41-61,65-67,69-76,78-86,88
+  s_2659dd35fd6fb9::t_f9ee7d3299c10c 62-64
+sdk-go/account_values_test.go
+  s_2659dd35fd6fb9::t_dda2ff6a398a77 126-128
+  s_2659dd35fd6fb9::t_fd338962a87c75 1-125,129-141
+sdk-go/account_parse.go
+  s_2659dd35fd6fb9::t_ae736b743937eb 52-53,65
+  s_2659dd35fd6fb9::t_963ebcaf6827d1 1-51,54-64,66-106
+sdk-go/limits_cache.go
+  s_2659dd35fd6fb9::t_7ff68538dd584c 1-56
+sdk-go/limits_cache_test.go
+  s_2659dd35fd6fb9::t_16124934d3c30c 1-17,19-126
+  s_2659dd35fd6fb9::t_14fe6df4c46094 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b12154ba09d0a5306e36637484378534bf32fb53",
+  "prompts": {},
+  "sessions": {
+    "s_2659dd35fd6fb9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b3911dffe3zqTGL6djHsG4S",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
