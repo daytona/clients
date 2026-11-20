@@ -12,16 +12,18 @@
 //	defer client.Close()
 //
 //	sandbox, err := client.Create(ctx, "", nil) // "" = the default image, with Python 3
+//	if sandbox != nil {
+//		defer sandbox.Delete(context.WithoutCancel(ctx), nil)
+//	}
 //	if err != nil {
 //		return err
 //	}
-//	defer sandbox.Delete(ctx, nil)
 //
 //	result, err := sandbox.Exec(ctx, `python3 -c "print(6 * 7)"`, nil)
 //	if err != nil {
 //		return err // the call failed; a non-zero exit code is not an error
 //	}
-//	fmt.Println(*result.ExitCode, result.Stdout)
+//	fmt.Println(result.Reason, result.Stdout)
 //
 // # Where things are
 //
@@ -53,6 +55,9 @@
 // [time.Duration]: operations that wait (create, start, stop, delete, image
 // builds) wait 60 seconds by default, [NoWait] returns once the server
 // accepted the request, and [WaitForever] removes the SDK's deadline.
+// Once a create or fork is accepted, its handle is returned even if the caller's
+// context ends the wait with an error. Delete the non-nil handle or keep it;
+// cleanup needs a context that has not been cancelled.
 //
 // # Deleting resources
 //
