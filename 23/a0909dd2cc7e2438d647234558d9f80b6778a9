@@ -1,0 +1,22 @@
+sdk-go/r4_create_toolbox_test.go
+  s_2c70f73a0d3ac5::t_8724a706a90595 1-81
+sdk-go/create_submit.go
+  s_2c70f73a0d3ac5::t_383eeae1784707 170-174
+  s_2c70f73a0d3ac5::t_7594582ce771ae 175-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23a0909dd2cc7e2438d647234558d9f80b6778a9",
+  "prompts": {},
+  "sessions": {
+    "s_2c70f73a0d3ac5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05fe723dffeS3c4uvqJsp9k19",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
