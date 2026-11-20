@@ -122,9 +122,34 @@ link, err := sandbox.Ports().SignedPreviewLink(ctx, 8080,
 
 Pass `nil` options or zero `ExpiresIn` for the server's default lifetime.
 
-**Images.** A sandbox starts from an image of your project. Import a registry
-image once with `Images().Pull`, or build one with an `ImageBuilder`, then
-create sandboxes from its name or ID:
+**Images.** Use `CreateFromBuild` to build an anonymous image and boot a
+sandbox in one call:
+
+```go
+sandbox, err := client.CreateFromBuild(ctx,
+	daytona.NewImageBuilder("python:3.12-slim").PipInstall("six==1.17.0"),
+	&daytona.CreateFromBuildOptions{
+		CreateOptions: daytona.CreateOptions{Wait: time.Minute},
+		BuildTimeout:  4 * time.Minute,
+		IdleExpiry:    time.Hour,
+	})
+if sandbox != nil {
+	defer sandbox.Delete(context.WithoutCancel(ctx), nil)
+}
+if err != nil {
+	return err
+}
+// Use sandbox.Exec; sandbox.Info().Image.ID identifies the built image.
+```
+
+All create options are checked before the billed build. `Region` and `CPUArch`
+apply to both stages. `BuildTimeout` bounds readiness separately (zero or
+`WaitForever` means no SDK deadline); the sandbox then receives its full `Wait`.
+Build failures return `*ImageBuildFailedError` without creating a sandbox.
+Anonymous images expire under their idle-retention policy.
+
+To keep the image for reuse, use `Images().BuildAndWait` instead. You can also
+import a registry image once with `Images().Pull`, then create from its name or ID:
 
 ```go
 image, err := client.Images().BuildAndWait(ctx,

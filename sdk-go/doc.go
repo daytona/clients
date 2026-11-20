@@ -27,7 +27,8 @@
 //
 // # Where things are
 //
-//   - Sandboxes: [Client.Create], [Client.Get], [Client.List], [Client.FindByName],
+//   - Sandboxes: [Client.Create], [Client.CreateFromBuild], [Client.Get],
+//     [Client.List], [Client.FindByName],
 //     [Sandbox.Delete], [Sandbox.Start], [Sandbox.Stop], [Sandbox.Fork].
 //   - Commands and code: [Sandbox.Exec] (shell), [Sandbox.ExecArgs] (argv),
 //     [Sandbox.RunCode] (stateful Python), [Sandbox.Process] returns
@@ -45,7 +46,8 @@
 //     (nil options or zero uses the server default).
 //   - Images: [Client.Images] returns [*Images] — [Images.Pull] imports a
 //     registry image, [Images.BuildAndWait] builds one from an [ImageBuilder];
-//     create sandboxes from the image's name or ID. [Client.Snapshots],
+//     create sandboxes from the image's name or ID, or use [Client.CreateFromBuild]
+//     to build and boot in one call. [Client.Snapshots],
 //     [Client.Volumes], [Client.Secrets] manage the other project resources.
 //
 // A registry reference such as "python:3.12" is not a [Client.Create] source:
