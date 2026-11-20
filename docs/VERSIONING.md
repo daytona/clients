@@ -1,7 +1,8 @@
 # Versioning Policy
 
 The Daytona SDKs — Python [`daytona`](https://pypi.org/project/daytona/)
-(import `daytona`) and TypeScript [`@daytona/sdk`](https://www.npmjs.com/package/@daytona/sdk) —
+(import `daytona`), TypeScript [`@daytona/sdk`](https://www.npmjs.com/package/@daytona/sdk)
+and Go `go.daytona.com/sdk/v2` —
 and the `daytona` CLI carry the **platform version**: a
 [Semantic Versioning 2.0.0](https://semver.org/) `MAJOR.MINOR.PATCH`, with a
 `-alpha.N` / `-rc.N` pre-release identifier on a pre-release: on the way to
@@ -166,12 +167,12 @@ release assembles into the `### BREAKING` section of
 [CHANGELOG.md](../CHANGELOG.md). Since `2.0.0`, a breaking change in a stable
 release requires a MAJOR bump.
 
-## Two SDKs, one version line
+## SDKs, one version line
 
-Python and TypeScript are **always released together on the same version
+Python, TypeScript and Go are **released together on the same version
 number**. There is
 no per-SDK patch: a fix in one SDK ships when the next release is published,
-and the other SDK is republished at the same number so that the two never
+and the other SDKs are republished at the same number so that they never
 diverge. Note which SDK a change affects in the PR's changelog fragment.
 
 Version sources of truth:
@@ -181,6 +182,7 @@ Version sources of truth:
 | The version | the `version` input of the publish run, recorded as the `v*` tag on the published commit | **authoritative** |
 | Python manifest | `sdk-python/pyproject.toml` → `[project].version` (PEP 440 spelling) | placeholder, restamped from the tag at publish |
 | TypeScript manifest | `sdk-typescript/package.json` → `version`, mirrored into `sdk-typescript/src/version.ts` by `npm run stamp-version` | placeholder, restamped from the tag at publish |
+| Go module | `sdk-go/go.mod` → `module go.daytona.com/sdk/v2`; tag `sdk-go/vX.Y.Z[-pre.N]` | module major checked against the release; tag records the version, no stamp |
 | CLI | `cli/internal/app/app.go` `Version` (`0.0.0-dev` default) | stamped from the tag by `hack/build.sh` ldflags at publish |
 
 The derivation from the version, per target:
@@ -188,6 +190,7 @@ The derivation from the version, per target:
 | Target | From `v2.0.0-alpha.3` |
 |---|---|
 | npm `@daytona/sdk` | `2.0.0-alpha.3` |
+| Go `go.daytona.com/sdk/v2` | `v2.0.0-alpha.3`, tag `sdk-go/v2.0.0-alpha.3` |
 | CLI GitHub Release (and tag) | `v2.0.0-alpha.3` |
 | PyPI `daytona` | `2.0.0a3` (PEP 440: `-alpha.N` → `aN`, `-beta.N` → `bN`, `-rc.N` → `rcN`; stable unchanged) |
 | npm `@daytona/upgrade`, PyPI `daytona-upgrade` (the migration tool) | `2.0.0-alpha.3`, `2.0.0a3` — the SDK's spellings |
@@ -196,6 +199,19 @@ The migration tool is versioned with the SDKs and migrates projects to the SDK
 release of its own version (pinned for a pre-release, `^X.Y.Z` /
 `>=X.Y.Z,<X+1` for a stable one); see [RELEASING.md](RELEASING.md), "The
 migration tool".
+
+### The Go module
+
+The Go SDK is package `daytona`, module `go.daytona.com/sdk/v2` in `sdk-go/`.
+Its `/v2` suffix is the major version, not an API namespace: the next major
+uses a new module path, `go.daytona.com/sdk/v3`. The vanity path maps to the
+repository subdirectory, so Go reads tags `sdk-go/vX.Y.Z[-pre.N]`, not the
+platform's bare `vX.Y.Z` tags. The publish gate requires the release major
+to match `go.mod` and to be at least 2: **never tag `sdk-go/v0.*` or
+`sdk-go/v1.*` from main**. Those tags would be consumed by the 0.x Go module,
+`github.com/daytona/clients/sdk-go`, which stays on `release/v0`.
+There is no bundled v0 namespace in Go: Go builds two major versions side
+by side through their distinct module paths.
 
 ## Compatibility between an SDK and the API
 

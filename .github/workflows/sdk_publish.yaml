@@ -3,7 +3,8 @@ name: SDK Publish
 # Publishes the Python SDK (`daytona`, PyPI), the TypeScript SDK
 # (`@daytona/sdk`, npm), the `daytona` CLI (a GitHub Release of this
 # repository plus the Homebrew formula) and the 0.x → 2.x migration tool
-# (`daytona-upgrade` on PyPI, `@daytona/upgrade` on npm) on demand. PyPI and
+# (`daytona-upgrade` on PyPI, `@daytona/upgrade` on npm), and the Go SDK
+# (`go.daytona.com/sdk/v2`, a Git tag + Go module proxy fetch) on demand. PyPI and
 # npm use OIDC Trusted Publishing — no long-lived registry tokens.
 #
 # ── How to publish ───────────────────────────────────────────────────────────
@@ -12,7 +13,7 @@ name: SDK Publish
 #   gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.3 \
 #     [-f source_ref=feat/my-branch] \
 #     [-f publish_pypi=false] [-f publish_npm=false] [-f publish_cli=false] \
-#     [-f publish_upgrade=false] [-f force_republish=true]
+#     [-f publish_upgrade=false] [-f publish_go=false] [-f force_republish=true]
 #
 # ── Two refs, on purpose ─────────────────────────────────────────────────────
 # `--ref` (the DISPATCH ref) selects which copy of THIS FILE and of scripts/
@@ -22,7 +23,7 @@ name: SDK Publish
 # `source_ref` (an input, default: the dispatch ref) selects which commit is
 # BUILT and published — a feature branch may ship a pre-release this way. Its
 # code runs only in the tokenless build jobs; the publish job uploads the
-# built artifacts and never executes them.
+# built artifacts (or creates the Go tag) and never executes them.
 #
 # One version goes to every target; the gate derives each registry's spelling
 # with scripts/sdk-version.sh —
@@ -32,6 +33,13 @@ name: SDK Publish
 #                   →  PyPI daytona     2.0.0a3  (PEP 440: -alpha.N → aN,
 #                                        -beta.N → bN, -rc.N → rcN)
 #                   →  npm @daytona/upgrade, PyPI daytona-upgrade: the same
+#                   →  Go go.daytona.com/sdk/v2: tag sdk-go/v2.0.0-alpha.3
+#
+# Go's vanity go-import subdirectory field maps `go.daytona.com/sdk` to sdk-go/.
+# Only sdk-go/vX.Y.Z tags release it, on the same source SHA as vX.Y.Z.
+# The gate requires major >= 2 and an exact go.daytona.com/sdk/vMAJOR module
+# declaration in the source go.mod. sdk-go/v0.* or sdk-go/v1.* from main is
+# impossible here: those tags would be read by the 0.x module on release/v0.
 #
 # ── The migration tool is published in lockstep ──────────────────────────────
 # `daytona-upgrade` carries the version of the SDK release it ships with and
@@ -78,16 +86,17 @@ name: SDK Publish
 # whether this run's credentials can be used at all. gate and the build jobs
 # are kept OFF the environment so no environment secret is ever visible to
 # code under test. Inside the job the targets run in order — PyPI, npm, the
-# migration tool (PyPI, then npm, each once its SDK is visible), CLI release,
-# Homebrew — so a failed target stops the ones after it.
+# migration tool (PyPI, then npm, each once its SDK is visible), Go tag/proxy,
+# CLI release, Homebrew — so a failed target stops the ones after it.
 #
 # The gate refuses a version a target registry ALREADY has (npm registry API,
-# PyPI JSON API, this repository's releases), because a second run for the
-# same version is a no-op for users. `force_republish=true` skips that check
+# PyPI JSON API, Go module proxy, this repository's releases), because a second
+# run for the same version is a no-op for users. `force_republish=true` skips that check
 # to RESUME a run that half-landed: targets already on their registry are
 # skipped (PyPI `skip-existing`, an npm pre-check, the CLI release's own
 # identical-checksums resume) and only the missing ones are published. It
-# never overwrites — registries refuse re-uploads regardless. Re-running the
+# never overwrites — registries refuse re-uploads regardless, and a Go tag at
+# a different source commit is refused even with force_republish. Re-running the
 # failed publish job of the same run ("Re-run failed jobs") resumes the same
 # way: on a re-run attempt the publish job skips what is already published.
 #
@@ -119,6 +128,11 @@ name: SDK Publish
 #        (requires npm CLI >= 11.5.1 in the job, installed below)
 # Tool  the same two registrations for PyPI project `daytona-upgrade` and npm
 #        package `@daytona/upgrade` (workflow sdk_publish.yaml, environment release)
+# Go    no registry account or secret: deploy scripts/go-vanity-site.sh's site
+#        at go.daytona.com; /sdk must map to this repository's sdk-go/ directory.
+#        Go proxy versions are permanent; only a later release can retract one.
+#        Add refs/tags/sdk-go/v* to the repository's protected "Release tags"
+#        ruleset, allowing this workflow's token to create (never move) tags.
 # CLI   environment secret GITHUBBOT_TOKEN — dispatches the Homebrew formula
 #        update to daytonaio/homebrew-cli (a token that spans both orgs). The
 #        GitHub Release itself is created with this run's own token.
@@ -157,6 +171,11 @@ on:
         default: true
       publish_upgrade:
         description: 'Publish the migration tool (npm `@daytona/upgrade`, PyPI `daytona-upgrade`) at the same version; it writes exactly this SDK release into migrated projects'
+        required: false
+        type: boolean
+        default: true
+      publish_go:
+        description: 'Release the Go SDK go.daytona.com/sdk/v2: tag sdk-go/<version> on the source commit and have the Go module proxy fetch it'
         required: false
         type: boolean
         default: true
@@ -213,6 +232,9 @@ jobs:
       homebrew_workflow: ${{ steps.versions.outputs.homebrew_workflow }}
       upgrade_npm: ${{ steps.versions.outputs.upgrade_npm }}
       upgrade_pypi: ${{ steps.versions.outputs.upgrade_pypi }}
+      go: ${{ steps.versions.outputs.go }}
+      go_tag: ${{ steps.versions.outputs.go_tag }}
+      go_module: ${{ steps.versions.outputs.go_module }}
       source_sha: ${{ steps.source.outputs.sha }}
       v0_tag: ${{ steps.v0.outputs.tag }}
       v0_sha: ${{ steps.v0.outputs.sha }}
@@ -234,10 +256,11 @@ jobs:
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           PUBLISH_CLI: ${{ inputs.publish_cli }}
           PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
+          PUBLISH_GO: ${{ inputs.publish_go }}
         run: |
           set -euo pipefail
-          if [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ] && [ "$PUBLISH_CLI" != true ] && [ "$PUBLISH_UPGRADE" != true ]; then
-            echo "::error::nothing to publish — enable publish_pypi, publish_npm, publish_cli and/or publish_upgrade"
+          if [ "$PUBLISH_PYPI" != true ] && [ "$PUBLISH_NPM" != true ] && [ "$PUBLISH_CLI" != true ] && [ "$PUBLISH_UPGRADE" != true ] && [ "$PUBLISH_GO" != true ]; then
+            echo "::error::nothing to publish — enable publish_pypi, publish_npm, publish_cli, publish_upgrade and/or publish_go"
             exit 1
           fi
       # The source to build. Full history + tags: the stable-version check
@@ -281,6 +304,7 @@ jobs:
           PUBLISH_NPM: ${{ inputs.publish_npm }}
           PUBLISH_CLI: ${{ inputs.publish_cli }}
           PUBLISH_UPGRADE: ${{ inputs.publish_upgrade }}
+          PUBLISH_GO: ${{ inputs.publish_go }}
         run: |
           set -euo pipefail
           # version=, npm=, cli=, cli_tag=, pypi= — or exit 1 with nothing printed.
@@ -291,6 +315,14 @@ jobs:
           cli=$(sed -n 's/^cli=//p' <<<"$derived")
           pypi=$(sed -n 's/^pypi=//p' <<<"$derived")
           tag="v${version}"
+          go="" go_tag="" go_module=""
+          if [ "$PUBLISH_GO" = true ]; then
+            # Trusted helper reads the SOURCE tree's go.mod, never runs it.
+            go_out=$(.publish-tools/scripts/sdk-version.sh --go "$VERSION_INPUT" sdk-go/go.mod)
+            go=$(sed -n 's/^go=//p' <<<"$go_out")
+            go_tag=$(sed -n 's/^go_tag=//p' <<<"$go_out")
+            go_module=$(sed -n 's/^go_module=//p' <<<"$go_out")
+          fi
           # The 2.x line publishes here; 0.x publishes from release/v0.
           case "$version" in
             0.*) echo "::error::${version} is a 0.x version — the 0.x line publishes from release/v0"; exit 1 ;;
@@ -401,6 +433,9 @@ jobs:
             echo "cli=$cli"
             echo "upgrade_npm=$upgrade_npm"
             echo "upgrade_pypi=$upgrade_pypi"
+            echo "go=$go"
+            echo "go_tag=$go_tag"
+            echo "go_module=$go_module"
           } >> "$GITHUB_OUTPUT"
       # The publish job dispatches one event to the Homebrew tap and then
       # waits for the tap run named after this version. Check the tap (a
@@ -521,6 +556,7 @@ jobs:
           optional=()
           if [ -e .v0-src ]; then optional+=(.v0-src); fi
           if [ -e upgrade ]; then optional+=(upgrade); fi
+          if [ -e sdk-go ]; then optional+=(sdk-go); fi
           tar --exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='dist' \
             --exclude='.git' \
             -czf /tmp/sdk-src.tgz sdk-python sdk-typescript contract cli scripts "${optional[@]}"
@@ -543,6 +579,7 @@ jobs:
           IN_NPM: ${{ inputs.publish_npm }}
           IN_CLI: ${{ inputs.publish_cli }}
           IN_UPGRADE: ${{ inputs.publish_upgrade }}
+          IN_GO: ${{ inputs.publish_go }}
           IN_V0_TAG: ${{ inputs.v0_tag }}
           IN_ALLOW_UNPINNED_V0: ${{ inputs.allow_unpinned_v0 }}
           IN_FORCE: ${{ inputs.force_republish }}
@@ -557,6 +594,9 @@ jobs:
           HOMEBREW_FORMULA: ${{ steps.versions.outputs.homebrew_formula }}
           UPGRADE_NPM: ${{ steps.versions.outputs.upgrade_npm }}
           UPGRADE_PYPI: ${{ steps.versions.outputs.upgrade_pypi }}
+          GO_VERSION: ${{ steps.versions.outputs.go }}
+          GO_TAG: ${{ steps.versions.outputs.go_tag }}
+          GO_MODULE: ${{ steps.versions.outputs.go_module }}
           V0_TAG: ${{ steps.v0.outputs.tag }}
           V0_SHA: ${{ steps.v0.outputs.sha }}
           V0_UNVERIFIED: ${{ steps.v0.outputs.unverified }}
@@ -600,6 +640,7 @@ jobs:
             echo "| \`publish_npm\` | \`${IN_NPM}\` |"
             echo "| \`publish_cli\` | \`${IN_CLI}\` |"
             echo "| \`publish_upgrade\` | \`${IN_UPGRADE}\` |"
+            echo "| \`publish_go\` | \`${IN_GO}\` |"
             echo "| \`v0_tag\` | ${v0_cell} |"
             echo "| \`allow_unpinned_v0\` | \`${IN_ALLOW_UNPINNED_V0}\` |"
             echo "| \`force_republish\` | \`${IN_FORCE}\` |"
@@ -617,6 +658,7 @@ jobs:
               target "TypeScript \`@daytona/sdk\` (npm)" "$NPM" "npm, dist-tag \`${NPM_DIST_TAG:-—}\`"
               target "Migration tool \`daytona-upgrade\` (PyPI)" "$UPGRADE_PYPI" "pypi.org/project/daytona-upgrade, once \`daytona\` is visible"
               target "Migration tool \`@daytona/upgrade\` (npm)" "$UPGRADE_NPM" "npm, once \`@daytona/sdk\` is visible"
+              target "Go \`${GO_MODULE:-go.daytona.com/sdk/v2}\`" "$GO_VERSION" "tag \`${GO_TAG:-—}\` + proxy.golang.org"
               target "CLI \`daytona\`" "$CLI" "GitHub Release \`v${CLI}\`$([ "$CHANNEL" = stable ] || echo ' (pre-release)') + Homebrew \`daytonaio/cli/${HOMEBREW_FORMULA:-—}\` (moved only forward)"
               echo
               echo "After approval the \`publish\` job runs the targets in the order above (a failed target stops the ones after it)$([ "$IN_FORCE" = true ] && echo ', skipping any already on its registry (force_republish)')."
@@ -625,7 +667,7 @@ jobs:
 
   # ── Build jobs: run the dispatched code with NO token, NO environment, NO cache ─
   # The already-published check runs in its own job with NO checkout: it only
-  # needs the derived versions and talks to npm/PyPI/GitHub.
+  # needs the derived versions and talks to npm/PyPI/Go proxy/GitHub.
   registry-check:
     name: Refuse a version a registry already has
     needs: gate
@@ -642,6 +684,10 @@ jobs:
           UPGRADE_PYPI: ${{ needs.gate.outputs.upgrade_pypi }}
           NPM_DIST_TAG: ${{ needs.gate.outputs.npm_dist_tag }}
           FORCE: ${{ inputs.force_republish }}
+          GO_VERSION: ${{ needs.gate.outputs.go }}
+          GO_TAG: ${{ needs.gate.outputs.go_tag }}
+          GO_MODULE: ${{ needs.gate.outputs.go_module }}
+          SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
           GH_TOKEN: ${{ github.token }}   # read-only
         run: |
           set -euo pipefail
@@ -707,6 +753,30 @@ jobs:
                 exit 1
               fi
             done
+          fi
+          # Even force_republish may NEVER accept a Go tag at another commit.
+          if [ -n "$GO_VERSION" ]; then
+            ref=$(gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/${GO_TAG}" \
+              --jq ".[] | select(.ref == \"refs/tags/${GO_TAG}\") | .ref")
+            if [ -n "$ref" ]; then
+              # The commits API peels annotated tags too.
+              existing=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GO_TAG}" --jq .sha)
+              [ "$existing" = "$SOURCE_SHA" ] || { echo "::error::Go tag ${GO_TAG} points at ${existing}, not source ${SOURCE_SHA}; tags are never moved"; exit 1; }
+              echo "::notice::Go tag ${GO_TAG} already at source ${SOURCE_SHA}; tag creation will be skipped"
+            fi
+            if ! code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "https://proxy.golang.org/${GO_MODULE}/@v/${GO_VERSION}.info"); then
+              echo "::error::could not check the Go module proxy (transfer failed)"; exit 1
+            fi
+            case "$code" in
+              200)
+                if [ "$FORCE" != true ]; then
+                  echo "::error::${GO_MODULE}@${GO_VERSION} is already on the Go module proxy — publish the next version or set force_republish to resume"
+                  exit 1
+                fi
+                echo "::notice::${GO_MODULE}@${GO_VERSION} already on the proxy; its existing version will be confirmed on resume" ;;
+              404|410) ;; # Go proxy uses 410 Gone for an unavailable module too.
+              *) echo "::error::Go module proxy answered HTTP ${code:-000}; cannot tell whether it is published"; exit 1 ;;
+            esac
           fi
           if [ "$FORCE" = true ]; then
             echo "::notice::force_republish set — skipping the already-published check; targets already on their registry are skipped by the publish job, not overwritten"
@@ -918,6 +988,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7   # outlives the wait for the publish approval
 
+  build-go:
+    name: Build Go SDK ${{ needs.gate.outputs.go }}
+    needs: [gate, registry-check]
+    if: needs.gate.outputs.go != ''
+    runs-on: ubuntu-latest
+    permissions: {}
+    defaults:
+      run:
+        working-directory: sdk-go
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdk-src
+          path: /tmp/sdk-src
+      - name: Unpack source snapshot (no git checkout in this job)
+        working-directory: ${{ github.workspace }}
+        run: tar -xzf /tmp/sdk-src/sdk-src.tgz
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: sdk-go/go.mod
+          cache: false
+      - name: Verify, build, vet and test the Go SDK
+        run: |
+          set -euo pipefail
+          go mod verify
+          go build ./...
+          go vet ./...
+          go test -count=1 ./...
+
   build-cli:
     name: Build daytona CLI ${{ needs.gate.outputs.cli }}
     needs: [gate, registry-check]
@@ -1048,11 +1147,11 @@ jobs:
   # and nobody is asked to approve. Each target's steps key on its version
   # output, empty when the target is disabled. Targets run in order — PyPI,
   # npm, the migration tool (PyPI, then npm, each once the SDK it pins is
-  # visible), CLI release, Homebrew — and a failure stops the ones after it. The
-  # package artifacts are kept 7 days: approve (or re-run) within that.
+  # visible), Go tag/proxy, CLI release, Homebrew — and a failure stops the ones
+  # after it. The package artifacts are kept 7 days: approve (or re-run) within that.
   publish:
     name: Publish ${{ needs.gate.outputs.tag }}
-    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, build-go]
     if: >-
       !cancelled() && needs.gate.result == 'success' && needs.registry-check.result == 'success'
       && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
@@ -1060,7 +1159,7 @@ jobs:
     environment: release
     permissions:
       id-token: write   # OIDC token for PyPI and npm Trusted Publishing
-      contents: write   # create the CLI release (and its tag) on this repository
+      contents: write   # create the Go tag and CLI release (and its tag) on this repository
       actions: read     # a stable Homebrew update waits for running release/v0 publishes
     # Per-target results for the summary: a target "failure" if any of its
     # steps failed, otherwise its last step's outcome (skipped = disabled, or
@@ -1070,6 +1169,7 @@ jobs:
       npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.npm_download.outcome == 'failure') && 'failure') || steps.npm_publish.outcome }}
       upgrade_pypi: ${{ ((steps.upgrade_pypi_wait.outcome == 'failure' || steps.upgrade_pypi_download.outcome == 'failure' || steps.upgrade_pypi_files.outcome == 'failure') && 'failure') || steps.upgrade_pypi_publish.outcome }}
       upgrade_npm: ${{ ((steps.npm_node.outcome == 'failure' || steps.npm_tool.outcome == 'failure' || steps.upgrade_npm_wait.outcome == 'failure' || steps.upgrade_npm_download.outcome == 'failure') && 'failure') || steps.upgrade_npm_publish.outcome }}
+      go: ${{ steps.go_publish.outcome }}
       cli: ${{ (steps.cli_download.outcome == 'failure' && 'failure') || steps.cli_release.outcome }}
       homebrew: ${{ steps.homebrew.outcome }}
       latest: ${{ steps.latest.outcome }}
@@ -1159,6 +1259,8 @@ jobs:
           NPM_VERSION: ${{ needs.gate.outputs.npm }}
           CLI_VERSION: ${{ needs.gate.outputs.cli }}
           UPGRADE_VERSION: ${{ needs.gate.outputs.upgrade_npm }}
+          GO_VERSION: ${{ needs.gate.outputs.go }}
+          GO_BUILD: ${{ needs.build-go.result }}
           PY_BUILD: ${{ needs.build-python.result }}
           NPM_BUILD: ${{ needs.build-npm.result }}
           CLI_BUILD: ${{ needs.build-cli.result }}
@@ -1176,7 +1278,8 @@ jobs:
           check npm "$NPM_VERSION" "$NPM_BUILD"
           check CLI "$CLI_VERSION" "$CLI_BUILD"
           check daytona-upgrade "$UPGRADE_VERSION" "$UPGRADE_BUILD"
-          [ -n "$PYPI_VERSION$NPM_VERSION$CLI_VERSION$UPGRADE_VERSION" ] || { echo "::error::no target requested"; ok=0; }
+          check Go "$GO_VERSION" "$GO_BUILD"
+          [ -n "$PYPI_VERSION$NPM_VERSION$CLI_VERSION$UPGRADE_VERSION$GO_VERSION" ] || { echo "::error::no target requested"; ok=0; }
           [ "$ok" -eq 1 ]
 
       # ── PyPI: daytona ──
@@ -1395,6 +1498,56 @@ jobs:
           if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard check @daytona/upgrade "$NPM_VERSION"; fi
           npm publish "./$tgz" --registry https://registry.npmjs.org --access public --ignore-scripts --tag "$NPM_DIST_TAG"
           if [ "$NPM_DIST_TAG" = latest ]; then bash -c "$NPM_LATEST_GUARD" guard verify @daytona/upgrade "$NPM_VERSION"; fi
+
+      # ── Go: immutable source tag, then have the module proxy fetch it ──
+      - name: Release the Go SDK tag and wait for the module proxy
+        id: go_publish
+        if: needs.gate.outputs.go != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GO_VERSION: ${{ needs.gate.outputs.go }}
+          GO_TAG: ${{ needs.gate.outputs.go_tag }}
+          GO_MODULE: ${{ needs.gate.outputs.go_module }}
+          SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          # No source checkout or execution in this job. Re-read the live ref:
+          # registry-check ran before the builds and the release approval.
+          ref=$(gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/${GO_TAG}" \
+            --jq ".[] | select(.ref == \"refs/tags/${GO_TAG}\") | .ref")
+          if [ -n "$ref" ]; then
+            existing=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GO_TAG}" --jq .sha)
+            [ "$existing" = "$SOURCE_SHA" ] || { echo "::error::Go tag ${GO_TAG} points at ${existing}, not source ${SOURCE_SHA}; tags are never moved"; exit 1; }
+            echo "::notice::Go tag ${GO_TAG} already at ${SOURCE_SHA}; skipping tag creation"
+          else
+            # Create only, never PATCH/force. A racing create fails closed.
+            gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${GO_TAG}" -f sha="$SOURCE_SHA" >/dev/null
+            echo "created ${GO_TAG} at ${SOURCE_SHA}"
+          fi
+          url="https://proxy.golang.org/${GO_MODULE}/@v/${GO_VERSION}.info"
+          deadline=$(( SECONDS + 600 ))
+          while :; do
+            code=000
+            if ! code=$(curl -sS --max-time 30 -o "$RUNNER_TEMP/go-version.info" -w '%{http_code}' "$url"); then code=000; fi
+            case "$code" in
+              200)
+                jq -e --arg version "$GO_VERSION" '.Version == $version' "$RUNNER_TEMP/go-version.info" >/dev/null \
+                  || { echo "::error::Go proxy returned invalid metadata or a different Version for ${GO_MODULE}@${GO_VERSION}"; exit 1; }
+                if [ "$RESUME" = true ]; then
+                  echo "::notice::${GO_MODULE}@${GO_VERSION} is on the Go module proxy — skipping (force_republish or re-run)"
+                else
+                  echo "Go module proxy fetched ${GO_MODULE}@${GO_VERSION}"
+                fi
+                echo "Go SDK: \`go get ${GO_MODULE}@${GO_VERSION}\` (tag \`${GO_TAG}\` at \`${SOURCE_SHA}\`)" >> "$GITHUB_STEP_SUMMARY"
+                break ;;
+              000|404|410|429|5??) ;;
+              *) echo "::error::Go proxy answered HTTP ${code} for ${url}"; exit 1 ;;
+            esac
+            [ "$SECONDS" -lt "$deadline" ] || { echo "::error::Go proxy did not fetch ${GO_MODULE}@${GO_VERSION} within 10 minutes (last HTTP ${code}); the tag remains — resume this run, never move it"; exit 1; }
+            echo "Go proxy HTTP ${code}; retrying in 10s"
+            sleep 10
+          done
 
       # ── CLI: GitHub Release + the channel's Homebrew formula ──
       - name: Download the CLI release assets
@@ -1689,7 +1842,7 @@ jobs:
 
   summary:
     name: Publish summary
-    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, publish, record-tag]
+    needs: [gate, registry-check, build-python, build-npm, build-cli, build-upgrade, build-go, publish, record-tag]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
@@ -1716,6 +1869,11 @@ jobs:
           PUBLISH_RESULT: ${{ needs.publish.result }}
           PY_PUBLISH: ${{ needs.publish.outputs.pypi }}
           NPM_PUBLISH: ${{ needs.publish.outputs.npm }}
+          GO_VERSION: ${{ needs.gate.outputs.go }}
+          GO_TAG: ${{ needs.gate.outputs.go_tag }}
+          GO_MODULE: ${{ needs.gate.outputs.go_module }}
+          GO_BUILD: ${{ needs.build-go.result }}
+          GO_PUBLISH: ${{ needs.publish.outputs.go }}
           CLI_PUBLISH: ${{ needs.publish.outputs.cli }}
           HOMEBREW_PUBLISH: ${{ needs.publish.outputs.homebrew }}
           LATEST_PIN: ${{ needs.publish.outputs.latest }}
@@ -1785,6 +1943,9 @@ jobs:
             row "TypeScript \`@daytona/sdk\`" "$NPM_VERSION" "$(status "$NPM_VERSION" "$NPM_BUILD" "$NPM_PUBLISH")" \
                 "${NPM_VERSION:+\`npm install @daytona/sdk@${NPM_VERSION}\` (dist-tag \`${NPM_DIST_TAG}\`)}" \
                 "${NPM_VERSION:+https://www.npmjs.com/package/@daytona/sdk/v/${NPM_VERSION}}"
+            row "Go \`${GO_MODULE:-go.daytona.com/sdk/v2}\` (tag \`${GO_TAG:-—}\`)" "$GO_VERSION" "$(status "$GO_VERSION" "$GO_BUILD" "$GO_PUBLISH")" \
+                "${GO_VERSION:+\`go get ${GO_MODULE}@${GO_VERSION}\`}" \
+                "${GO_VERSION:+https://proxy.golang.org/${GO_MODULE}/@v/${GO_VERSION}.info}"
             row "CLI \`daytona\`" "$CLI_VERSION" "$(status "$CLI_VERSION" "$CLI_BUILD" "$cli_outcome")" \
                 "${CLI_VERSION:+\`brew install daytonaio/cli/${HOMEBREW_FORMULA}\` · \`install.sh --version ${CLI_VERSION}\`}" \
                 "${CLI_VERSION:+${SERVER}/${REPO}/releases/tag/v${CLI_VERSION}}"
@@ -1798,12 +1959,12 @@ jobs:
               && { [ -z "$PYPI_VERSION" ] || [ "$PY_PUBLISH" = success ]; } && { [ -z "$NPM_VERSION" ] || [ "$NPM_PUBLISH" = success ]; }; then
               echo
               pypi_spelling=$(printf '%s' "$VERSION" | sed -E 's/-alpha\./a/; s/-beta\./b/; s/-rc\./rc/')
-              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${pypi_spelling}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
+              echo "> **The migration tool was left out** (\`publish_upgrade=false\`), but this release's SDKs name \`npx @daytona/upgrade@${VERSION}\` / \`uvx daytona-upgrade@${pypi_spelling}\` in their 0.x guidance. Publish it at the same version from the same commit: re-dispatch with \`publish_pypi=false publish_npm=false publish_cli=false publish_go=false\` and \`source_ref=${SOURCE_SHA}\` (once both SDKs are published)."
             fi
             echo
             echo "Nothing was committed; the versions above were stamped into the runner's checkout only. Registries refuse re-uploads — to finish a half-landed run, re-run the failed publish job, or re-dispatch the same version from the same commit with \`force_republish=true\` (already-published targets are skipped)."
           } >> "$GITHUB_STEP_SUMMARY"
-          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$UPGRADE_BUILD" "$PUBLISH_RESULT" "$TAG_RESULT"; do
+          for r in "$GATE_RESULT" "$REGISTRY_RESULT" "$PY_BUILD" "$NPM_BUILD" "$CLI_BUILD" "$UPGRADE_BUILD" "$GO_BUILD" "$PUBLISH_RESULT" "$TAG_RESULT"; do
             case "$r" in failure|cancelled) exit 1;; esac
           done
           exit 0
