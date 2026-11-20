@@ -164,6 +164,10 @@ class FakeAsyncClient:
         self.emitted: list[tuple[str, Any]] = []
         self.fail_emit = False
         self.disconnect_calls = 0
+        # Mirrors python-socketio: pending ack callbacks by namespace and ack id, dropped on disconnect.
+        self.callbacks: dict[str, dict[int, Any]] = {}
+        self.sent_callbacks: list[Any] = []  # the ack callback of each emitted message, or None
+        self._ack_ids = 0
         FakeAsyncClient.instances.append(self)
 
     def event(self, handler: Any) -> Any:
@@ -183,12 +187,27 @@ class FakeAsyncClient:
 
     async def simulate_disconnect(self) -> None:
         self.connected = False
+        self.callbacks = {}
         await self.handlers["disconnect"]()
 
-    async def emit(self, event: str, data: Any) -> None:
+    async def ack(self, message_index: int, *args: Any) -> None:
+        """Delivers the server's acknowledgement of the emitted message at ``message_index``."""
+        callback = self.sent_callbacks[message_index]
+        pending = self.callbacks.get("/", {})
+        ack_id = next((i for i, cb in pending.items() if cb is callback), None)
+        if ack_id is None:
+            return  # unknown ack id: ignored, as python-socketio does
+        del pending[ack_id]
+        await callback(*args)
+
+    async def emit(self, event: str, data: Any, callback: Any = None) -> None:
         if self.fail_emit or not self.connected:
             raise RuntimeError("/ is not a connected namespace.")
         self.emitted.append((event, data))
+        self.sent_callbacks.append(callback)
+        if callback is not None:
+            self._ack_ids += 1
+            self.callbacks.setdefault("/", {})[self._ack_ids] = callback
         if self.after_emit is not None:
             self.after_emit()
         await asyncio.sleep(0)  # like a real send, give other tasks a turn
@@ -213,6 +232,10 @@ class FakeSyncClient:
         self.emitted: list[tuple[str, Any]] = []
         self.fail_emit = False
         self.disconnect_calls = 0
+        # Mirrors python-socketio: pending ack callbacks by namespace and ack id, dropped on disconnect.
+        self.callbacks: dict[str, dict[int, Any]] = {}
+        self.sent_callbacks: list[Any] = []  # the ack callback of each emitted message, or None
+        self._ack_ids = 0
         FakeSyncClient.instances.append(self)
 
     def event(self, handler: Any) -> Any:
@@ -234,12 +257,27 @@ class FakeSyncClient:
 
     def simulate_disconnect(self) -> None:
         self.connected = False
+        self.callbacks = {}
         self.handlers["disconnect"]()
 
-    def emit(self, event: str, data: Any) -> None:
+    def ack(self, message_index: int, *args: Any) -> None:
+        """Delivers the server's acknowledgement of the emitted message at ``message_index``."""
+        callback = self.sent_callbacks[message_index]
+        pending = self.callbacks.get("/", {})
+        ack_id = next((i for i, cb in pending.items() if cb is callback), None)
+        if ack_id is None:
+            return  # unknown ack id: ignored, as python-socketio does
+        del pending[ack_id]
+        callback(*args)
+
+    def emit(self, event: str, data: Any, callback: Any = None) -> None:
         if self.fail_emit or not self.connected:
             raise RuntimeError("/ is not a connected namespace.")
         self.emitted.append((event, data))
+        self.sent_callbacks.append(callback)
+        if callback is not None:
+            self._ack_ids += 1
+            self.callbacks.setdefault("/", {})[self._ack_ids] = callback
 
     def disconnect(self) -> None:
         self.disconnect_calls += 1

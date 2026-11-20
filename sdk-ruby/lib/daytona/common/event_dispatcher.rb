@@ -19,9 +19,14 @@ module Daytona
     # Most resource ids per subscribe / unsubscribe message.
     SUBSCRIBE_BATCH_SIZE = 100
 
-    # Most resource ids one connection may subscribe to; the gateway's wire contract rejects a subscribe
-    # beyond it whole. Specs lower it with stub_const.
-    MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000
+    # Most resource ids the SDK subscribes to on one connection. A server with a lower limit rejects the
+    # subscribes beyond it with SUBSCRIPTION_LIMIT_EXCEEDED in their acknowledgement, and those ids fall back
+    # to polling. Specs lower it with stub_const.
+    MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
+
+    # Local event, not from the server, passed to the handlers of an id whose subscribe the server rejected:
+    # no events will come for it.
+    SUBSCRIPTION_REJECTED_EVENT = 'daytona.subscription.rejected'
 
     # @param api_url [String]
     # @param token [String]
@@ -41,8 +46,11 @@ module Daytona
       @fail_error = nil
       @listeners = {}
       # The ids the server serves, or will after the next connect: at most MAX_SUBSCRIPTIONS_PER_CONNECTION of
-      # the ids with listeners. An id that found no room stays unserved until its last listener goes.
-      @served = Set.new
+      # the ids with listeners. An id that found no room, or whose subscribe the server rejected, stays
+      # unserved until its last listener goes. Maps each id to the number it was served under, so a late
+      # rejection of an earlier subscribe of the same id cannot unserve a newer one.
+      @served = {}
+      @serve_token = 0
       @registered_events = Set.new
       @mutex = Mutex.new
       @disconnect_timer = nil
@@ -112,7 +120,7 @@ module Daytona
         @failed = false
         @fail_error = nil
         # Subscriptions belong to the socket: send the whole set after every (re)connect.
-        emit_ids_locked('subscribe', @served.to_a)
+        emit_subscribe_locked(@served.keys)
         schedule_delayed_disconnect_locked if @listeners.empty?
       end
     rescue StandardError => e
@@ -169,14 +177,14 @@ module Daytona
     # @return [Boolean] Whether the server is asked to send events for +resource_id+: it has listeners and
     #   was within the per-connection cap when it got its first
     def served?(resource_id)
-      @mutex.synchronize { @served.include?(resource_id) }
+      @mutex.synchronize { @served.key?(resource_id) }
     end
 
     # @param resource_id [String]
     # @return [Boolean] Whether events for +resource_id+ can arrive now: the connection is up and the id is
     #   served, read together under one lock so a disconnect cannot fall between the two reads
     def event_backed?(resource_id)
-      @mutex.synchronize { @connected && @served.include?(resource_id) }
+      @mutex.synchronize { @connected && @served.key?(resource_id) }
     end
 
     # @return [Integer] The number of successful connects so far
@@ -214,7 +222,7 @@ module Daytona
       return unless handlers.empty?
 
       @listeners.delete(resource_id)
-      emit_ids_locked('unsubscribe', [resource_id]) if @served.delete?(resource_id) && @connected
+      emit_ids_locked('unsubscribe', [resource_id]) if @served.delete(resource_id) && @connected
     end
 
     # Serves an id that gained its first listener, if the cap has room. While disconnected only the set
@@ -223,8 +231,51 @@ module Daytona
     def serve_locked(resource_id)
       return if @served.size >= MAX_SUBSCRIPTIONS_PER_CONNECTION
 
-      @served.add(resource_id)
-      emit_ids_locked('subscribe', [resource_id]) if @connected
+      @served[resource_id] = (@serve_token += 1)
+      emit_subscribe_locked([resource_id]) if @connected
+    end
+
+    # Sends subscribe messages for +ids+, each with an acknowledgement callback that handles a rejection.
+    # Silence is not a rejection: servers that predate explicit subscriptions never acknowledge.
+    def emit_subscribe_locked(ids)
+      client = @client
+      return if ids.empty? || client.nil?
+
+      ids.each_slice(SUBSCRIBE_BATCH_SIZE) do |batch|
+        tokens = batch.to_h { |id| [id, @served[id]] }
+        client.emit_with_ack('subscribe', { sandboxIds: batch }) { |ack| handle_subscribe_ack(client, tokens, ack) }
+      end
+    rescue StandardError
+      nil
+    end
+
+    # Unserves the ids of a rejected subscribe message (any error code) that still have listeners and are
+    # served by that subscribe. They stay unserved until their last listener goes, and their handlers are
+    # told, so that waits read now and poll.
+    #
+    # @param client [SocketIOClient] The connection the subscribe went out on
+    # @param tokens [Hash{String => Integer}] The message's ids, with the number each was served under
+    # @param ack [Object] The acknowledgement: { 'ok' => true } or { 'ok' => false, 'error' => ... }
+    def handle_subscribe_ack(client, tokens, ack)
+      return unless ack.is_a?(Hash) && ack['ok'] == false
+
+      handlers = @mutex.synchronize { @client.equal?(client) ? unserve_rejected_locked(tokens) : [] }
+      handlers.each do |handler|
+        handler.call(SUBSCRIPTION_REJECTED_EVENT, nil)
+      rescue StandardError
+        nil
+      end
+    end
+
+    # @param tokens [Hash{String => Integer}] Rejected ids, with the number each was served under
+    # @return [Array<Proc>] The handlers of the ids unserved: those still served by that subscribe
+    def unserve_rejected_locked(tokens)
+      tokens.flat_map do |id, token|
+        next [] unless @served[id] == token && @listeners[id]&.any?
+
+        @served.delete(id)
+        @listeners[id].dup
+      end
     end
 
     # Fire-and-forget; sent under the lock so subscribe / unsubscribe messages keep their order.

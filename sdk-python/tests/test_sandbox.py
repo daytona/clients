@@ -658,7 +658,8 @@ class TestSandboxWaitScopedSubscriptions:
 
         sandbox.wait_for_sandbox_start(timeout=0)
 
-        assert [interval for interval, _ in poll_intervals] == pytest.approx([1.0, 1.0, 5.0, 5.0, 1.0])
+        # Fallback backoff 1 s, 1.5 s; 5 s while event-backed; the backoff starts over at 1 s after it.
+        assert [interval for interval, _ in poll_intervals] == pytest.approx([1.0, 1.5, 5.0, 5.0, 1.0])
 
     @pytest.mark.parametrize(("random_value", "expected_interval"), [(0.0, 4.0), (1.0, 6.0)])
     def test_event_backed_wait_polls_again_only_after_four_to_six_seconds(
@@ -683,9 +684,9 @@ class TestSandboxWaitScopedSubscriptions:
         assert poll_intervals == [(pytest.approx(expected_interval), 1)]
         assert mock_sandbox_api.get_sandbox.call_count == 2
 
-    @pytest.mark.parametrize(("random_value", "expected_interval"), [(0.0, 0.8), (1.0, 1.2)])
-    def test_subscribed_wait_without_connection_polls_about_every_second(
-        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, random_value, expected_interval
+    @pytest.mark.parametrize(("random_value", "jitter"), [(0.0, 0.8), (1.0, 1.2)])
+    def test_subscribed_wait_without_connection_backs_off_from_one_second(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch, random_value, jitter
     ):
         poll_intervals = _record_poll_intervals(monkeypatch)
         monkeypatch.setattr(wait_poll, "random_unit", lambda: random_value)
@@ -701,7 +702,9 @@ class TestSandboxWaitScopedSubscriptions:
 
         sandbox.wait_for_sandbox_start(timeout=0)
 
-        assert [interval for interval, _ in poll_intervals] == pytest.approx([expected_interval] * 3)
+        assert [interval for interval, _ in poll_intervals] == pytest.approx(
+            [1.0 * jitter, 1.5 * jitter, 2.25 * jitter]
+        )
 
     def test_unsubscribed_wait_keeps_the_fast_cadence(self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch):
         poll_intervals = _record_poll_intervals(monkeypatch)
@@ -1365,3 +1368,121 @@ class TestSandboxForkAndDeleteResponses:
         assert sandbox.labels == {"deleted-by": "test"}
         mock_sandbox_api.get_sandbox.assert_not_called()
         manager.subscribe.assert_not_called()
+
+
+def _rate_limited(retry_after: str | None = None) -> Exception:
+    from daytona_api_client.exceptions import ApiException
+
+    exc = ApiException(status=429, reason="Too Many Requests")
+    exc.headers = {"Retry-After": retry_after} if retry_after is not None else {}
+    return exc
+
+
+class TestSandboxFallbackBackoffAndRateLimits:
+    @pytest.fixture(autouse=True)
+    def _stub_jitter(self, monkeypatch):
+        monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
+
+    def _waiting_sandbox(self, toolbox_api, sandbox_api, connected: bool = False):
+        manager = _subscription_manager(connected=connected)
+        return manager, _make_with_manager(
+            make_sandbox_dto(state=SandboxState.STARTING), toolbox_api, sandbox_api, manager
+        )
+
+    def test_not_event_backed_wait_backs_off_up_to_ten_seconds(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        _, sandbox = self._waiting_sandbox(mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [make_sandbox_dto(state=SandboxState.STARTING)] * 9 + [
+            make_sandbox_dto(state=SandboxState.STARTED)
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert [i for i, _ in poll_intervals] == pytest.approx(
+            [1.0, 1.5, 2.25, 3.375, 5.0625, 7.59375, 10.0, 10.0, 10.0]
+        )
+
+    def test_backoff_starts_over_after_a_stretch_of_events(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        manager, sandbox = self._waiting_sandbox(mock_toolbox_api_client, mock_sandbox_api)
+        connected = iter([False, False, False, True, False, False])
+        reads = 0
+
+        def get_sandbox(*_args, **_kwargs):
+            nonlocal reads
+            reads += 1
+            manager.dispatcher.is_connected = next(connected, False)
+            return make_sandbox_dto(state=SandboxState.STARTED if reads == 7 else SandboxState.STARTING)
+
+        mock_sandbox_api.get_sandbox.side_effect = get_sandbox
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert [i for i, _ in poll_intervals] == pytest.approx([1.0, 1.5, 2.25, 5.0, 1.0, 1.5])
+
+    def test_rate_limited_poll_waits_for_retry_after_and_the_wait_resolves(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        _, sandbox = self._waiting_sandbox(mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_sandbox_dto(state=SandboxState.STARTING),
+            _rate_limited("3"),
+            make_sandbox_dto(state=SandboxState.STARTED),
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert [i for i, _ in poll_intervals] == pytest.approx([1.0, 3.0])
+        assert sandbox.state == SandboxState.STARTED
+
+    def test_rate_limited_poll_without_retry_after_waits_the_current_interval(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        _, sandbox = self._waiting_sandbox(mock_toolbox_api_client, mock_sandbox_api, connected=True)
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_sandbox_dto(state=SandboxState.STARTING),
+            _rate_limited(),
+            make_sandbox_dto(state=SandboxState.STARTED),
+        ]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        assert [i for i, _ in poll_intervals] == pytest.approx([5.0, 5.0])
+        assert sandbox.state == SandboxState.STARTED
+
+    def test_rate_limited_first_read_does_not_fail_the_wait(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        poll_intervals = _record_poll_intervals(monkeypatch)
+        _, sandbox = self._waiting_sandbox(mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [_rate_limited("2"), make_sandbox_dto(state=SandboxState.STARTED)]
+
+        sandbox.wait_for_sandbox_start(timeout=0)
+
+        # The rate limit also advanced the backoff: max(1.5 s, Retry-After 2 s).
+        assert [i for i, _ in poll_intervals] == pytest.approx([2.0])
+
+    def test_server_error_during_a_poll_still_fails_the_wait(
+        self, mock_toolbox_api_client, mock_sandbox_api, monkeypatch
+    ):
+        from daytona_api_client.exceptions import ApiException
+
+        _ = _record_poll_intervals(monkeypatch)
+        _, sandbox = self._waiting_sandbox(mock_toolbox_api_client, mock_sandbox_api)
+        mock_sandbox_api.get_sandbox.side_effect = [
+            make_sandbox_dto(state=SandboxState.STARTING),
+            ApiException(status=500, reason="Internal Server Error"),
+            make_sandbox_dto(state=SandboxState.STARTING),
+        ]
+
+        with pytest.raises(DaytonaError, match="Internal Server Error"):
+            sandbox.wait_for_sandbox_start(timeout=0)
+
+        # The poll's error, then the final read of the error path, as before.
+        assert mock_sandbox_api.get_sandbox.call_count == 3

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { io } from 'socket.io-client'
-import { EventDispatcher } from '../utils/EventDispatcher'
+import { EventDispatcher, SUBSCRIPTION_REJECTED_EVENT } from '../utils/EventDispatcher'
 import { EventSubscriptionManager } from '../utils/EventSubscriptionManager'
 
 jest.mock('socket.io-client', () => ({ io: jest.fn() }))
@@ -36,6 +36,19 @@ class FakeSocket extends FakeEmitter {
   auth: unknown
   readonly io = new FakeEmitter()
   readonly emit = jest.fn()
+  // Acknowledgement callbacks of the messages sent through timeout(), with their timeouts.
+  readonly acks: {
+    event: string
+    payload: unknown
+    timeoutMs: number
+    ack: (err: unknown, response?: unknown) => void
+  }[] = []
+  readonly timeout = jest.fn((timeoutMs: number) => ({
+    emit: (event: string, payload: unknown, ack: (err: unknown, response?: unknown) => void) => {
+      this.emit(event, payload)
+      this.acks.push({ event, payload, timeoutMs, ack })
+    },
+  }))
   readonly connect = jest.fn(() => this)
   readonly disconnect = jest.fn(() => {
     this.connected = false
@@ -187,9 +200,129 @@ describe('EventDispatcher', () => {
     expect(new EventSubscriptionManager(null).connectionEpoch).toBe(0)
   })
 
+  describe('subscribe acknowledgements', () => {
+    const makeCapped = (): EventDispatcher => {
+      const dispatcher = new EventDispatcher(
+        'https://api.example.test/api',
+        'token',
+        undefined,
+        undefined,
+        undefined,
+        2,
+      )
+      dispatchers.push(dispatcher)
+      return dispatcher
+    }
+
+    const ackFor = (socket: FakeSocket, id: string) => {
+      const entry = socket.acks.find(
+        ({ event, payload }) => event === 'subscribe' && (payload as { sandboxIds: string[] }).sandboxIds.includes(id),
+      )
+      if (!entry) throw new Error(`no subscribe with an ack for ${id}`)
+      return entry
+    }
+
+    it('sends every subscribe with a 10 s acknowledgement and every unsubscribe without one', () => {
+      const dispatcher = makeDispatcher()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      const release = dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      release()
+
+      expect(socket.acks.map(({ payload, timeoutMs }) => [payload, timeoutMs])).toEqual([
+        [{ sandboxIds: [uuid(1)] }, 10_000],
+        [{ sandboxIds: [uuid(2)] }, 10_000],
+      ])
+      expect(socket.emit).toHaveBeenLastCalledWith('unsubscribe', { sandboxIds: [uuid(2)] })
+    })
+
+    it('a rejection frees the slot, marks the id rejected, tells its handlers and keeps it out of the reconnect set', () => {
+      const dispatcher = makeCapped()
+      const manager = new EventSubscriptionManager(dispatcher)
+      const handler = jest.fn()
+      dispatcher.subscribe(uuid(1), handler, SANDBOX_EVENTS)
+      dispatcher.subscribe(uuid(2), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      dispatcher.subscribe(uuid(3), noop, SANDBOX_EVENTS)
+      expect(manager.isEventBacked(uuid(1))).toBe(true)
+
+      ackFor(socket, uuid(1)).ack(null, { ok: false, error: 'OVERLOADED', message: 'shedding' })
+
+      expect(dispatcher.isServed(uuid(1))).toBe(false)
+      expect(dispatcher.isRejected(uuid(1))).toBe(true)
+      expect(manager.isEventBacked(uuid(1))).toBe(false)
+      expect(handler).toHaveBeenCalledWith(SUBSCRIPTION_REJECTED_EVENT, { id: uuid(1), error: 'OVERLOADED' })
+      // The ack covered the whole message: the other id in it is rejected too.
+      expect(dispatcher.isRejected(uuid(2))).toBe(true)
+
+      // Its slot is free for the next new id; the over-cap id is not promoted.
+      dispatcher.subscribe(uuid(4), noop, SANDBOX_EVENTS)
+      expect(dispatcher.isServed(uuid(4))).toBe(true)
+      expect(dispatcher.isServed(uuid(3))).toBe(false)
+
+      socket.emit.mockClear()
+      socket.drop()
+      socket.serverAccepts()
+      expect(socket.emit.mock.calls).toEqual([['subscribe', { sandboxIds: [uuid(4)] }]])
+    })
+
+    it('a rejected id sends no unsubscribe and is forgotten when its last listener goes', () => {
+      const dispatcher = makeDispatcher()
+      const release = dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      ackFor(socket, uuid(1)).ack(null, { ok: false, error: 'RATE_LIMITED' })
+      socket.emit.mockClear()
+
+      release()
+
+      expect(socket.emit).not.toHaveBeenCalled()
+      expect(dispatcher.isRejected(uuid(1))).toBe(false)
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      expect(dispatcher.isServed(uuid(1))).toBe(true)
+    })
+
+    test.each([
+      ['{ok: true}', null, { ok: true }],
+      ['no acknowledgement (timeout)', new Error('operation has timed out'), undefined],
+      ['a malformed acknowledgement', null, 'ok'],
+    ])('%s changes nothing', (_name, err, response) => {
+      const dispatcher = makeDispatcher()
+      const manager = new EventSubscriptionManager(dispatcher)
+      const handler = jest.fn()
+      dispatcher.subscribe(uuid(1), handler, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+
+      ackFor(socket, uuid(1)).ack(err, response)
+
+      expect(dispatcher.isServed(uuid(1))).toBe(true)
+      expect(dispatcher.isRejected(uuid(1))).toBe(false)
+      expect(manager.isEventBacked(uuid(1))).toBe(true)
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it('ignores a late rejection from before a reconnect', () => {
+      const dispatcher = makeDispatcher()
+      dispatcher.subscribe(uuid(1), noop, SANDBOX_EVENTS)
+      const socket = lastSocket()
+      socket.serverAccepts()
+      const stale = ackFor(socket, uuid(1))
+      socket.drop()
+      socket.serverAccepts()
+
+      stale.ack(null, { ok: false, error: 'OVERLOADED' })
+
+      expect(dispatcher.isServed(uuid(1))).toBe(true)
+      expect(dispatcher.isRejected(uuid(1))).toBe(false)
+    })
+  })
+
   describe('per-connection subscription cap', () => {
     test.each([
-      ['above the gateway limit', 5000],
+      ['above the gateway limit', 20_000],
       ['zero', 0],
       ['negative', -1],
     ])('a limit %s is clamped to the gateway limit', (_name, limit) => {
@@ -205,13 +338,13 @@ describe('EventDispatcher', () => {
       dispatcher.subscribe(uuid(0), noop, SANDBOX_EVENTS)
       const socket = lastSocket()
       socket.serverAccepts()
-      for (let i = 1; i <= 1000; i++) dispatcher.subscribe(uuid(i), noop, SANDBOX_EVENTS)
+      for (let i = 1; i <= 10_000; i++) dispatcher.subscribe(uuid(i), noop, SANDBOX_EVENTS)
 
       const sent = socket.emit.mock.calls.flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
-      expect(sent).toHaveLength(1000)
-      expect(dispatcher.isServed(uuid(999))).toBe(true)
-      expect(dispatcher.isServed(uuid(1000))).toBe(false)
-      expect(sent).not.toContain(uuid(1000))
+      expect(sent).toHaveLength(10_000)
+      expect(dispatcher.isServed(uuid(9_999))).toBe(true)
+      expect(dispatcher.isServed(uuid(10_000))).toBe(false)
+      expect(sent).not.toContain(uuid(10_000))
     })
 
     it('a lowered limit is kept', () => {

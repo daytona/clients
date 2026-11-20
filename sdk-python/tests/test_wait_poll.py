@@ -62,3 +62,48 @@ class TestFastPollInterval:
         assert wait_poll.next_fast_poll_interval(0.1) == pytest.approx(0.11)
         assert wait_poll.next_fast_poll_interval(0.95) == 1.0
         assert wait_poll.next_fast_poll_interval(1.0) == 1.0
+
+
+class TestFallbackPollInterval:
+    BACKOFF = [1.0, 1.5, 2.25, 3.375, 5.0625, 7.59375, 10.0, 10.0]
+
+    def test_backoff_grows_by_half_up_to_ten_seconds(self):
+        interval = wait_poll.FALLBACK_POLL_INTERVAL
+        sequence = []
+        for _ in self.BACKOFF:
+            sequence.append(interval)
+            interval = wait_poll.next_fallback_poll_interval(interval)
+        assert sequence == pytest.approx(self.BACKOFF)
+
+    @pytest.mark.parametrize(("value", "jitter"), [(0.0, 0.8), (1.0, 1.2)])
+    def test_fallback_interval_carries_the_jitter(self, stub_random, value, jitter):
+        stub_random(value)
+        intervals = [
+            wait_poll.poll_interval(
+                subscribed=True, event_backed=False, fast_poll_interval=0.1, fallback_poll_interval=step
+            )
+            for step in self.BACKOFF
+        ]
+        assert intervals == pytest.approx([step * jitter for step in self.BACKOFF])
+
+    def test_event_backed_and_unsubscribed_ignore_the_fallback_interval(self, stub_random):
+        stub_random(0.5)
+        assert wait_poll.poll_interval(True, True, 0.1, fallback_poll_interval=7.5) == pytest.approx(5.0)
+        assert wait_poll.poll_interval(False, False, 0.1, fallback_poll_interval=7.5) == 0.1
+
+
+class TestRetryAfter:
+    def test_seconds(self):
+        assert wait_poll.retry_after_seconds({"Retry-After": "3"}) == 3.0
+        assert wait_poll.retry_after_seconds({"retry-after": " 2.5 "}) == 2.5
+
+    def test_http_date(self):
+        from datetime import datetime, timezone
+
+        now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        assert wait_poll.retry_after_seconds({"Retry-After": "Thu, 01 Jan 2026 12:00:07 GMT"}, now=now) == 7.0
+        assert wait_poll.retry_after_seconds({"Retry-After": "Thu, 01 Jan 2026 11:59:00 GMT"}, now=now) == 0.0
+
+    @pytest.mark.parametrize("headers", [{}, {"Retry-After": "soon"}, {"Retry-After": "-4"}, {"Other": "3"}])
+    def test_missing_or_unusable(self, headers):
+        assert wait_poll.retry_after_seconds(headers) == 0.0

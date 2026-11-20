@@ -6,15 +6,20 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Callable
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from typing import Any, Callable
 
 # Events are flowing, so the poll only guards against a missed event.
 EVENT_BACKED_POLL_INTERVAL = 5.0
-# Subscribed but not event-backed (the connection is connecting, reconnecting or failed, or the id is
-# past the connection's subscription cap): poll at the subscribed rate instead of the fast one, so a
-# gateway outage does not multiply the poll load.
-SUBSCRIBED_POLL_INTERVAL = 1.0
+# Subscribed but not event-backed (the connection is connecting, reconnecting or failed, or the server
+# rejected the id or it is past the connection's subscription limit): poll from 1 s, backing off x1.5
+# per poll up to 10 s, so many such waits do not spend the request budget or run into rate limits.
+FALLBACK_POLL_INTERVAL = 1.0
+FALLBACK_POLL_GROWTH = 1.5
+FALLBACK_POLL_MAX_INTERVAL = 10.0
 # Spreads the polls of many concurrent waits.
 POLL_JITTER = 0.2
 # Without a subscription the wait polls fast at first, then backs off up to FAST_POLL_MAX_INTERVAL
@@ -36,18 +41,53 @@ def carries_state(sandbox_dto: object | None) -> bool:
     return sandbox_dto is not None and bool(getattr(sandbox_dto, "state", None))
 
 
-def poll_interval(subscribed: bool, event_backed: bool, fast_poll_interval: float) -> float:
+def poll_interval(
+    subscribed: bool,
+    event_backed: bool,
+    fast_poll_interval: float,
+    fallback_poll_interval: float = FALLBACK_POLL_INTERVAL,
+) -> float:
     """Returns the delay before the next safety-net poll of a wait.
 
     Args:
         subscribed: Whether the wait holds a state event subscription.
         event_backed: Whether events for the id arrive: connected, and the server holds the id.
         fast_poll_interval: The current fast interval, used as is when not subscribed.
+        fallback_poll_interval: The current fallback interval, used when subscribed but not event-backed.
     """
     if not subscribed:
         return fast_poll_interval
-    base = EVENT_BACKED_POLL_INTERVAL if event_backed else SUBSCRIBED_POLL_INTERVAL
+    base = EVENT_BACKED_POLL_INTERVAL if event_backed else fallback_poll_interval
     return base * (1 - POLL_JITTER + 2 * POLL_JITTER * random_unit())
+
+
+def next_fallback_poll_interval(fallback_poll_interval: float) -> float:
+    """Returns the fallback interval after one more poll that was not event-backed (or was rate limited)."""
+    return min(fallback_poll_interval * FALLBACK_POLL_GROWTH, FALLBACK_POLL_MAX_INTERVAL)
+
+
+def retry_after_seconds(headers: Mapping[str, Any], now: datetime | None = None) -> float:
+    """Returns the delay a rate-limited response asks for in ``Retry-After``, or 0 without a usable one.
+
+    Args:
+        headers: The response headers; the name is matched case-insensitively.
+        now: The current time, for an HTTP-date value; defaults to the system clock.
+    """
+    value = next((v for k, v in headers.items() if str(k).lower() == "retry-after"), None)
+    if value is None:
+        return 0.0
+    text = str(value).strip()
+    try:
+        return max(0.0, float(text))
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(text)
+    except (TypeError, ValueError):
+        return 0.0
+    if retry_at.tzinfo is None:
+        retry_at = retry_at.replace(tzinfo=timezone.utc)
+    return max(0.0, (retry_at - (now or datetime.now(timezone.utc))).total_seconds())
 
 
 def next_fast_poll_interval(fast_poll_interval: float) -> float:

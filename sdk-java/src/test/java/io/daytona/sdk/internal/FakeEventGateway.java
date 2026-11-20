@@ -31,15 +31,27 @@ public final class FakeEventGateway implements AutoCloseable {
     private static final String ENGINE_OPEN =
             "0{\"sid\":\"engine\",\"upgrades\":[],\"pingInterval\":25000,\"pingTimeout\":20000,\"maxPayload\":1000000}";
 
-    /** Event emitted by the client: name plus first argument. */
+    /** Event emitted by the client: name plus first argument, and its acknowledgement id if it asked for one. */
     public static final class Emitted {
         public final String event;
         public final JsonNode payload;
+        public final Integer ackId;
+        final WebSocket socket;
 
-        Emitted(String event, JsonNode payload) {
+        Emitted(String event, JsonNode payload, Integer ackId, WebSocket socket) {
             this.event = event;
             this.payload = payload;
+            this.ackId = ackId;
+            this.socket = socket;
         }
+    }
+
+    /** Answers the client's acknowledgement callback of {@code message} with {@code jsonResponse}. */
+    public void ack(Emitted message, String jsonResponse) {
+        if (message.ackId == null) {
+            throw new IllegalStateException(message.event + " did not ask for an acknowledgement");
+        }
+        message.socket.send("43" + message.ackId + "[" + jsonResponse + "]");
     }
 
     private final MockWebServer server = new MockWebServer();
@@ -149,8 +161,13 @@ public final class FakeEventGateway implements AutoCloseable {
                 }
             } else if (text.startsWith("42")) {
                 try {
-                    JsonNode packet = MAPPER.readTree(text.substring(2));
-                    emitted.add(new Emitted(packet.get(0).asText(), packet.get(1)));
+                    int start = 2;
+                    while (start < text.length() && Character.isDigit(text.charAt(start))) {
+                        start++;
+                    }
+                    Integer ackId = start > 2 ? Integer.valueOf(text.substring(2, start)) : null;
+                    JsonNode packet = MAPPER.readTree(text.substring(start));
+                    emitted.add(new Emitted(packet.get(0).asText(), packet.get(1), ackId, webSocket));
                 } catch (IOException e) {
                     throw new IllegalStateException(e);
                 }

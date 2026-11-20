@@ -30,6 +30,7 @@ module Daytona
     SIO_CONNECT       = '0'
     SIO_DISCONNECT    = '1'
     SIO_EVENT         = '2'
+    SIO_ACK           = '3'
     SIO_CONNECT_ERROR = '4'
 
     attr_reader :connected
@@ -61,7 +62,15 @@ module Daytona
       @last_server_activity = Time.now
       @ws = nil
       @close_requested = false
+      # Acknowledgement callbacks of emitted events, by packet id, with the monotonic time they expire. Guarded
+      # by @mutex, like @connected: dropped, never invoked, when the connection goes or they expire.
+      @pending_acks = {}
+      @next_ack_id = 0
     end
+
+    # How long an acknowledgement callback waits. A server may never acknowledge (older servers do not), so a
+    # callback is dropped after it.
+    ACK_TIMEOUT = 10
 
     # Establish the WebSocket connection and perform Socket.IO handshake.
     # @return [Boolean] true if connection succeeded
@@ -93,21 +102,12 @@ module Daytona
         end
 
         ws.on :error do |_e|
-          was_connected = client.instance_variable_get(:@mutex).synchronize do
-            prev = client.instance_variable_get(:@connected)
-            client.instance_variable_set(:@connected, false)
-            prev
-          end
+          was_connected = client.send(:mark_disconnected)
           connected_queue.push(:error) unless was_connected
         end
 
         ws.on :close do
-          mutex = client.instance_variable_get(:@mutex)
-          was_connected = mutex.synchronize do
-            prev = client.instance_variable_get(:@connected)
-            client.instance_variable_set(:@connected, false)
-            prev
-          end
+          was_connected = client.send(:mark_disconnected)
           on_disconnect = client.instance_variable_get(:@on_disconnect)
           close_requested = client.instance_variable_get(:@close_requested)
           begin
@@ -165,6 +165,33 @@ module Daytona
       false
     end
 
+    # #emit with an acknowledgement callback, called on the reader thread with the server's first ack
+    # argument. It is called at most once, and not at all if the connection goes or no ack arrives within
+    # ACK_TIMEOUT seconds.
+    #
+    # @param event_name [String]
+    # @param data [Object] JSON-serializable payload
+    # @yieldparam ack [Object, nil] The first acknowledgement argument
+    # @return [Boolean] true if the event was written to the socket
+    def emit_with_ack(event_name, data, &on_ack)
+      ack_id = @mutex.synchronize do
+        next unless @connected
+
+        now = monotonic_now
+        @pending_acks.delete_if { |_id, (_callback, expires_at)| expires_at <= now }
+        @next_ack_id += 1
+        @pending_acks[@next_ack_id] = [on_ack, now + ACK_TIMEOUT]
+        @next_ack_id
+      end
+      return false unless ack_id
+
+      sent = send_raw("#{EIO_MESSAGE}#{SIO_EVENT}#{ack_id}#{JSON.generate([event_name, data])}")
+      @mutex.synchronize { @pending_acks.delete(ack_id) } unless sent
+      sent
+    rescue StandardError
+      false
+    end
+
     # Gracefully close the connection.
     def close
       @close_requested = true
@@ -173,7 +200,7 @@ module Daytona
 
       send_raw(EIO_CLOSE) if @ws
       @ws&.close
-      @mutex.synchronize { @connected = false }
+      mark_disconnected
     rescue StandardError
       # Ignore errors during close
     end
@@ -280,7 +307,7 @@ module Daytona
         handle_socketio_packet(raw[1..], connected_queue)
 
       when EIO_CLOSE
-        @mutex.synchronize { @connected = false }
+        mark_disconnected
       end
     end
 
@@ -302,21 +329,55 @@ module Daytona
         rescue JSON::ParserError
           data[1..]
         end
-        @mutex.synchronize { @connected = false }
+        mark_disconnected
         connected_queue&.push("Auth rejected: #{error_msg}")
 
       when SIO_EVENT
         handle_event(data[1..])
 
+      when SIO_ACK
+        handle_ack(data[1..])
+
       when SIO_DISCONNECT
-        was_connected = @mutex.synchronize do
-          prev = @connected
-          @connected = false
-          prev
-        end
+        was_connected = mark_disconnected
         @on_disconnect&.call if was_connected && !@close_requested
       end
     end
+
+    # Marks the connection down and drops the pending acknowledgement callbacks.
+    #
+    # @return [Boolean] Whether it was connected
+    def mark_disconnected
+      @mutex.synchronize do
+        was_connected = @connected
+        @connected = false
+        @pending_acks.clear
+        was_connected
+      end
+    end
+
+    # Runs the callback of an ACK packet, "<id>[args...]" (optionally after a "/ns," prefix), with its first
+    # argument. Unknown, expired or dropped ids are ignored.
+    def handle_ack(data)
+      match = %r{\A(?:/[^,]*,)?(\d+)(\[.*)\z}m.match(data.to_s)
+      return unless match
+
+      args = JSON.parse(match[2])
+      take_pending_ack(match[1].to_i)&.call(args.is_a?(Array) ? args.first : nil)
+    rescue StandardError
+      # A malformed ack or a failing callback must not break the reader
+      nil
+    end
+
+    # @return [Proc, nil] The callback of +ack_id+, removed; nil when unknown or expired
+    def take_pending_ack(ack_id)
+      @mutex.synchronize do
+        callback, expires_at = @pending_acks.delete(ack_id)
+        callback if expires_at && expires_at > monotonic_now
+      end
+    end
+
+    def monotonic_now = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
 
     def handle_event(json_str)
       return unless @on_event
@@ -354,7 +415,7 @@ module Daytona
 
           if Time.now - @last_server_activity > @ping_interval + @ping_timeout
             # No server activity within expected window — connection is dead
-            @mutex.synchronize { @connected = false }
+            mark_disconnected
             @on_disconnect&.call unless @close_requested
             # Force-close the dead WebSocket to ensure cleanup
             @ws&.close rescue nil # rubocop:disable Style/RescueModifier

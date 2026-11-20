@@ -1348,6 +1348,35 @@ RSpec.describe Daytona::Sandbox do
           .to eq([0.8, 1.0, 1.2])
       end
 
+      # The fallback intervals of one wait that is not event-backed, at a fixed jitter draw.
+      def fallback_sequence(random, count)
+        allow(subscription_manager).to receive(:event_backed?).and_return(false)
+        allow(sandbox).to receive(:poll_jitter_random).and_return(random)
+        backoff = { interval: 1.0 }
+        Array.new(count) do
+          sandbox.send(:next_poll_interval, subscription: { id: 'sub-123' }, fast_poll_interval: 0.1, backoff:)
+        end
+      end
+
+      def about(*values) = values.map { |v| be_within(1e-9).of(v) }
+
+      it 'backs off x1.5 from 1 s to a 10 s cap while not event-backed, with up to 20 % jitter' do
+        expect(fallback_sequence(0.5, 8)).to match(about(1, 1.5, 2.25, 3.375, 5.0625, 7.59375, 10, 10))
+        expect(fallback_sequence(0.0, 8)).to match(about(0.8, 1.2, 1.8, 2.7, 4.05, 6.075, 8, 8))
+        expect(fallback_sequence(1.0, 8)).to match(about(1.2, 1.8, 2.7, 4.05, 6.075, 9.1125, 12, 12))
+      end
+
+      it 'starts the backoff over after a stretch of being event-backed' do
+        allow(subscription_manager).to receive(:event_backed?).and_return(false, false, false, true, true, false, false)
+        allow(sandbox).to receive(:poll_jitter_random).and_return(0.5)
+        backoff = { interval: 1.0 }
+        intervals = Array.new(7) do
+          sandbox.send(:next_poll_interval, subscription: { id: 'sub-123' }, fast_poll_interval: 0.1, backoff:)
+        end
+
+        expect(intervals).to eq([1.0, 1.5, 2.25, 5.0, 5.0, 1.0, 1.5])
+      end
+
       it 'is the fast cadence, without jitter, when the wait holds no subscription' do
         allow(sandbox).to receive(:poll_jitter_random)
 
@@ -1376,12 +1405,75 @@ RSpec.describe Daytona::Sandbox do
       expect(poll_times_until_started(2)).to eq([0.0, 4.0, 10.0])
     end
 
-    it 'polls about every second, not every 100 ms, while subscribed but disconnected' do
+    it 'backs off from 1 s, not every 100 ms, while subscribed but disconnected' do
       allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
       allow(subscription_manager).to receive(:event_backed?).and_return(false)
       allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
 
-      expect(poll_times_until_started(3)).to eq([0.0, 1.0, 2.0, 3.0])
+      # Gaps of 1, 1.5, 2.25, 3.375, 5.0625, 7.59375, then the 10 s cap.
+      expect(poll_times_until_started(7)).to eq([0.0, 1.0, 2.5, 4.75, 8.125, 13.1875, 20.78125, 30.78125])
+    end
+
+    it 'starts the backoff over at 1 s after being event-backed' do
+      allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+      allow(subscription_manager).to receive(:event_backed?).and_return(false, false, true, false)
+      allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+
+      expect(poll_times_until_started(4)).to eq([0.0, 1.0, 2.5, 7.5, 8.5])
+    end
+
+    def rate_limited(headers = {})
+      DaytonaApiClient::ApiError.new(code: 429, response_headers: headers, message: 'Too Many Requests')
+    end
+
+    # Records the stubbed wait clock at every poll; the first poll fails with +error+.
+    def poll_times_after_failure(error)
+      clock = stub_wait_clock
+      times = []
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        times << clock.call
+        raise error if times.size == 1
+
+        build_sandbox_dto(state: 'started')
+      end
+      pending_sandbox.wait_for_sandbox_start(60)
+      times
+    end
+
+    context 'when a poll is rate limited' do
+      before do
+        allow(Timeout).to receive(:timeout) { |*_args, &block| block.call }
+        allow(subscription_manager).to receive(:event_backed?).and_return(false)
+        allow(pending_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+      end
+
+      it 'polls again after Retry-After seconds and still resolves' do
+        expect(poll_times_after_failure(rate_limited('Retry-After' => '3'))).to eq([0.0, 3.0])
+        expect(pending_sandbox.state).to eq('started')
+      end
+
+      it 'honours a Retry-After HTTP date' do
+        times = poll_times_after_failure(rate_limited('retry-after' => (Time.now + 4).httpdate))
+
+        expect(times.last).to be_between(2.5, 4.5)
+      end
+
+      it 'polls again after the current interval without Retry-After' do
+        expect(poll_times_after_failure(rate_limited)).to eq([0.0, 1.0])
+      end
+
+      it 'never polls sooner than the current interval' do
+        expect(poll_times_after_failure(rate_limited('Retry-After' => '0'))).to eq([0.0, 1.0])
+      end
+    end
+
+    it 'still fails the wait on a server error' do
+      allow(sandbox_api).to receive(:get_sandbox).and_raise(DaytonaApiClient::ApiError.new(code: 500, message: 'boom'))
+
+      expect { pending_sandbox.wait_for_sandbox_start }.to raise_error(DaytonaApiClient::ApiError) { |e|
+        expect(e.code).to eq(500)
+      }
+      expect(sandbox_api).to have_received(:get_sandbox).once
     end
 
     it 'polls fast when no subscription could be created' do
@@ -1454,6 +1546,44 @@ RSpec.describe Daytona::Sandbox do
           end
         end
       end
+    end
+
+    it 'stop: reads at once when the subscription is rejected while waiting, then polls at the fallback cadence' do
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
+      gets = 0
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        gets += 1
+        build_sandbox_dto(state: 'stopping')
+      end
+      allow(started_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+      rejected = false
+      allow(subscription_manager).to receive(:event_backed?) { !rejected }
+      intervals = []
+      gets_at_wait = []
+      allow(ConditionVariable).to receive(:new).and_wrap_original do |original|
+        original.call.tap do |cv|
+          allow(cv).to receive(:wait).and_wrap_original do |wait, mutex, seconds|
+            intervals << seconds
+            gets_at_wait << gets
+            if intervals.size == 1
+              Thread.new do
+                rejected = true
+                handler.last.call(Daytona::EventDispatcher::SUBSCRIPTION_REJECTED_EVENT, nil)
+              end
+            else
+              Thread.new { state_event('stopped') }
+            end
+            wait.call(mutex, seconds)
+          end
+        end
+      end
+
+      elapsed = Benchmark.realtime { started_sandbox.stop(30) }
+
+      expect(elapsed).to be < 2.5
+      expect(intervals).to eq([5.0, 1.0])
+      expect(gets_at_wait).to eq([0, 1])
+      expect(started_sandbox.state).to eq('stopped')
     end
 
     it 'stop: skips the first read when the subscription was live, and ends on the event' do
@@ -1773,6 +1903,11 @@ RSpec.describe Daytona::Sandbox do
       allow(Daytona::SocketIOClient).to receive(:new) do
         double('SocketIOClient', connect: nil, close: nil).tap do |client|
           allow(client).to receive(:emit) { |name, data|
+            emit_lock.synchronize {
+              emitted << [name, data[:sandboxIds]]
+            }
+          }
+          allow(client).to receive(:emit_with_ack) { |name, data|
             emit_lock.synchronize {
               emitted << [name, data[:sandboxIds]]
             }

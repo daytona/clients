@@ -32,6 +32,9 @@ const (
 	SandboxEventStateUpdated SandboxEventType = iota
 	SandboxEventDesiredStateUpdated
 	SandboxEventCreated
+	// SandboxEventSubscriptionRejected is local, not from the server: the
+	// server refused to subscribe the sandbox, so no events will come for it.
+	SandboxEventSubscriptionRejected
 )
 
 type SandboxEvent struct {
@@ -47,15 +50,15 @@ type SandboxEventHandler func(event SandboxEvent)
 // subscribe or unsubscribe message.
 const maxSubscriptionIDsPerMessage = 100
 
-// gatewaySubscriptionLimit is the most resource ids the gateway's wire contract
-// lets one connection subscribe to; a subscribe beyond it is rejected whole,
-// and the client is not told.
-const gatewaySubscriptionLimit = 1000
+// gatewaySubscriptionLimit is the most resource ids the SDK subscribes to on one
+// connection. A server with a lower limit rejects the subscribes beyond it
+// with SUBSCRIPTION_LIMIT_EXCEEDED in their acknowledgement, and those ids
+// fall back to polling.
+const gatewaySubscriptionLimit = 10000
 
 // MaxSubscriptionsPerConnection is the most resource ids one event connection
 // subscribes to. It may only be lowered (tests do): each dispatcher reads it
-// once, when created, and clamps it to the gateway's limit, so a larger value
-// never sends subscribes the gateway would silently reject.
+// once, when created, and clamps it to gatewaySubscriptionLimit.
 var MaxSubscriptionsPerConnection = gatewaySubscriptionLimit
 
 // subscriptionMessage is the payload of the subscribe and unsubscribe client
@@ -90,8 +93,12 @@ type EventDispatcher struct {
 	nextSubID int
 	// served holds the ids the server serves, or will after the next connect:
 	// at most maxSubscriptions of the ids with listeners. An id that found no
-	// room stays unserved until its last listener goes.
-	served           map[string]struct{}
+	// room, or whose subscribe the server rejected, stays unserved until its
+	// last listener goes.
+	served map[string]uint64
+	// serveToken numbers each time an id is served, so a late rejection of an
+	// earlier subscribe of the same id cannot unserve a newer one.
+	serveToken       uint64
 	maxSubscriptions int
 
 	registeredEvents map[string]bool
@@ -122,7 +129,7 @@ func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string
 		source:           source,
 		sdkVersion:       sdkVersion,
 		listeners:        make(map[string]map[int]SandboxEventHandler),
-		served:           make(map[string]struct{}),
+		served:           make(map[string]uint64),
 		maxSubscriptions: subscriptionLimit(MaxSubscriptionsPerConnection),
 		registeredEvents: make(map[string]bool),
 		maxReconnects:    100,
@@ -217,7 +224,7 @@ func (es *EventDispatcher) Connect(ctx context.Context) error {
 	es.reconnectAttempt = 0
 	// Subscriptions belong to the socket: send the whole current set on every
 	// connect and reconnect.
-	es.emitSubscriptionLocked("subscribe", es.servedIDsLocked())
+	es.emitSubscribeLocked(es.servedIDsLocked())
 	if len(es.listeners) == 0 {
 		es.scheduleDelayedDisconnectLocked()
 	}
@@ -258,8 +265,9 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 		// sends the whole set instead. Beyond the cap nothing is sent: the
 		// server would reject it, and the id's waits poll instead.
 		if len(es.served) < es.maxSubscriptions {
-			es.served[resourceID] = struct{}{}
-			es.emitSubscriptionLocked("subscribe", []string{resourceID})
+			es.serveToken++
+			es.served[resourceID] = es.serveToken
+			es.emitSubscribeLocked([]string{resourceID})
 		}
 	}
 	es.listeners[resourceID][subID] = handler
@@ -291,6 +299,82 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 			es.scheduleDelayedDisconnectLocked()
 		}
 		es.mu.Unlock()
+	}
+}
+
+// emitSubscribeLocked sends subscribe messages for ids like
+// emitSubscriptionLocked, each with an acknowledgement callback that handles a
+// rejection. Silence is not a rejection: servers that predate explicit
+// subscriptions never acknowledge.
+func (es *EventDispatcher) emitSubscribeLocked(ids []string) {
+	if !es.connected || es.client == nil {
+		return
+	}
+	client, clientGen := es.client, es.clientGen
+	for start := 0; start < len(ids); start += maxSubscriptionIDsPerMessage {
+		batch := ids[start:min(start+maxSubscriptionIDsPerMessage, len(ids))]
+		payload, err := json.Marshal(subscriptionMessage{SandboxIDs: batch})
+		if err != nil {
+			return
+		}
+		tokens := make(map[string]uint64, len(batch))
+		for _, id := range batch {
+			tokens[id] = es.served[id]
+		}
+		_ = client.emitWithAck("subscribe", payload, func(ack json.RawMessage) {
+			es.handleSubscribeAck(clientGen, tokens, ack)
+		})
+	}
+}
+
+// subscribeAck is the acknowledgement of a subscribe message.
+type subscribeAck struct {
+	OK      *bool  `json:"ok"`
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
+// handleSubscribeAck unserves the ids of a rejected subscribe message (any
+// error code) that still have listeners and are served by that subscribe.
+// They stay unserved until their last listener goes, and their handlers are
+// told so that waits read now and poll.
+func (es *EventDispatcher) handleSubscribeAck(clientGen uint64, tokens map[string]uint64, raw json.RawMessage) {
+	var ack subscribeAck
+	if err := json.Unmarshal(raw, &ack); err != nil || ack.OK == nil || *ack.OK {
+		return
+	}
+
+	type rejection struct {
+		id       string
+		handlers []SandboxEventHandler
+	}
+	var rejected []rejection
+	es.mu.Lock()
+	if clientGen != es.clientGen {
+		es.mu.Unlock()
+		return
+	}
+	for id, token := range tokens {
+		if es.served[id] != token || len(es.listeners[id]) == 0 {
+			continue
+		}
+		delete(es.served, id)
+		handlers := make([]SandboxEventHandler, 0, len(es.listeners[id]))
+		for _, handler := range es.listeners[id] {
+			handlers = append(handlers, handler)
+		}
+		rejected = append(rejected, rejection{id: id, handlers: handlers})
+	}
+	es.mu.Unlock()
+
+	for _, r := range rejected {
+		event := SandboxEvent{Type: SandboxEventSubscriptionRejected}
+		for _, handler := range r.handlers {
+			func() {
+				defer func() { _ = recover() }()
+				handler(event)
+			}()
+		}
 	}
 }
 
@@ -393,7 +477,7 @@ func (es *EventDispatcher) disconnectLocked(permanent bool) {
 	}
 	es.connected = false
 	es.listeners = make(map[string]map[int]SandboxEventHandler)
-	es.served = make(map[string]struct{})
+	es.served = make(map[string]uint64)
 	es.registeredEvents = make(map[string]bool)
 }
 

@@ -60,4 +60,61 @@ RSpec.describe Daytona::SocketIOClient do
       expect(client.emit('subscribe', { sandboxIds: ['a'] })).to be(false)
     end
   end
+
+  describe '#emit_with_ack' do
+    let(:acks) { [] }
+
+    before do
+      client.instance_variable_set(:@ws, socket)
+      client.instance_variable_set(:@connected, true)
+    end
+
+    def emit_recording(name, ids)
+      client.emit_with_ack('subscribe', { sandboxIds: ids }) { |ack| acks << [name, ack] }
+    end
+
+    it 'gives each acknowledged event a packet id and runs its callback once, on the matching ACK' do
+      emit_recording('first', ['a'])
+      emit_recording('second', ['b'])
+      client.emit('unsubscribe', { sandboxIds: ['c'] })
+      expect(socket.sent).to eq(['421["subscribe",{"sandboxIds":["a"]}]', '422["subscribe",{"sandboxIds":["b"]}]',
+                                 '42["unsubscribe",{"sandboxIds":["c"]}]'])
+
+      client.send(:handle_socketio_packet, '32[{"ok":false,"error":"OVERLOADED"}]', nil)
+      client.send(:handle_socketio_packet, '399[{"ok":true}]', nil)
+      client.send(:handle_socketio_packet, '31[{"ok":true}]', nil)
+      client.send(:handle_socketio_packet, '31[{"ok":true}]', nil)
+
+      expect(acks).to eq([['second', { 'ok' => false, 'error' => 'OVERLOADED' }], ['first', { 'ok' => true }]])
+    end
+
+    it 'drops the pending callbacks when the connection goes' do
+      emit_recording('first', ['a'])
+
+      client.send(:handle_socketio_packet, '1', nil)
+      client.instance_variable_set(:@connected, true)
+      client.send(:handle_socketio_packet, '31[{"ok":false,"error":"OVERLOADED"}]', nil)
+
+      expect(acks).to be_empty
+    end
+
+    it 'drops a callback whose acknowledgement did not come in time' do
+      now = 100.0
+      allow(Process).to receive(:clock_gettime).and_call_original
+      allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { now }
+      emit_recording('first', ['a'])
+
+      now += described_class::ACK_TIMEOUT
+      client.send(:handle_socketio_packet, '31[{"ok":true}]', nil)
+
+      expect(acks).to be_empty
+    end
+
+    it 'sends nothing and registers no callback while not connected' do
+      client.instance_variable_set(:@connected, false)
+
+      expect(emit_recording('first', ['a'])).to be(false)
+      expect(socket.sent).to be_empty
+    end
+  end
 end

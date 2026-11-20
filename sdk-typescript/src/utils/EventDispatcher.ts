@@ -33,10 +33,21 @@ function extractIdFromEvent(data: any): string | undefined {
 const SUBSCRIPTION_CHUNK_SIZE = 100
 
 /**
- * Most sandbox ids one connection may subscribe to. Set by the gateway's wire contract: a subscribe
- * that would exceed it is rejected whole, and the client is not told.
+ * Most sandbox ids one connection subscribes to. A gateway with a lower limit rejects the excess with
+ * `SUBSCRIPTION_LIMIT_EXCEEDED` in the subscribe acknowledgement, which marks those ids rejected.
  */
-export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000
+export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
+
+/** How long a subscribe waits for its acknowledgement; silence leaves the ids as they are. */
+const SUBSCRIBE_ACK_TIMEOUT_MS = 10_000
+
+/**
+ * Local notification (never sent by the server) delivered to an id's handlers when the gateway
+ * rejected its subscription: no events will arrive for it until its last listener goes.
+ */
+export const SUBSCRIPTION_REJECTED_EVENT = 'daytona.subscription.rejected'
+
+type SubscribeAck = { ok?: boolean; error?: string; message?: string }
 
 /**
  * Manages a Socket.IO connection to the Daytona notification gateway
@@ -58,6 +69,8 @@ export class EventDispatcher {
   private listeners = new Map<string, Set<EventHandler>>()
   // Ids the server holds, or will hold after the next connect; at most maxSubscriptions.
   private readonly served = new Set<string>()
+  // Ids whose subscribe the gateway rejected; unserved until their last listener goes.
+  private readonly rejected = new Set<string>()
   private registeredEvents = new Set<string>()
   private connectPromise: Promise<void> | null = null
   private ensureConnectPromise: Promise<void> | null = null
@@ -325,6 +338,7 @@ export class EventDispatcher {
       const handlers = this.listeners.get(resourceId)
       if (handlers && handlers.delete(handler) && handlers.size === 0) {
         this.listeners.delete(resourceId)
+        this.rejected.delete(resourceId)
         if (this.served.delete(resourceId)) {
           this.emitSubscriptionChange('unsubscribe', [resourceId])
         }
@@ -335,6 +349,11 @@ export class EventDispatcher {
         this.scheduleDelayedDisconnect()
       }
     }
+  }
+
+  /** Whether the gateway rejected this id's subscription (until its last listener goes). */
+  isRejected(resourceId: string): boolean {
+    return this.rejected.has(resourceId)
   }
 
   /** Whether the server holds (or will hold after the next connect) a subscription for this id. */
@@ -381,6 +400,7 @@ export class EventDispatcher {
     this._connected = false
     this.listeners.clear()
     this.served.clear()
+    this.rejected.clear()
     this.registeredEvents.clear()
   }
 
@@ -436,12 +456,38 @@ export class EventDispatcher {
   private emitSubscriptionChange(event: 'subscribe' | 'unsubscribe', resourceIds: string[]): void {
     const socket = this.socket
     if (!socket || !socket.connected) return
+    const epoch = this._connectionEpoch
     for (let i = 0; i < resourceIds.length; i += SUBSCRIPTION_CHUNK_SIZE) {
+      const chunk = resourceIds.slice(i, i + SUBSCRIPTION_CHUNK_SIZE)
       try {
-        socket.emit(event, { sandboxIds: resourceIds.slice(i, i + SUBSCRIPTION_CHUNK_SIZE) })
+        if (event === 'subscribe') {
+          // Socket.IO drops pending acknowledgements on disconnect, and the timeout frees them.
+          socket.timeout(SUBSCRIBE_ACK_TIMEOUT_MS).emit(event, { sandboxIds: chunk }, (err: unknown, ack: unknown) => {
+            if (!err && socket === this.socket && epoch === this._connectionEpoch) {
+              this.handleSubscribeAck(chunk, ack)
+            }
+          })
+        } else {
+          socket.emit(event, { sandboxIds: chunk })
+        }
       } catch {
         // Best effort: event delivery is an optimization, waits keep polling.
       }
+    }
+  }
+
+  /**
+   * A rejected subscribe (any error code) frees the served slots of its ids and marks them rejected
+   * until their last listener goes; their handlers are told so their waits read now and poll.
+   * No acknowledgement, or `{ok: true}`, changes nothing: servers without explicit mode never ack.
+   */
+  private handleSubscribeAck(resourceIds: string[], ack: unknown): void {
+    if (!ack || typeof ack !== 'object' || (ack as SubscribeAck).ok !== false) return
+    const error = (ack as SubscribeAck).error
+    for (const resourceId of resourceIds) {
+      if (!this.listeners.has(resourceId) || !this.served.delete(resourceId)) continue
+      this.rejected.add(resourceId)
+      this.dispatch(resourceId, SUBSCRIPTION_REJECTED_EVENT, { id: resourceId, error })
     }
   }
 

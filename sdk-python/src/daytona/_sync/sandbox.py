@@ -62,6 +62,7 @@ from ..common.errors import (
     DaytonaError,
     DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
+    DaytonaRateLimitError,
     DaytonaSpotEvictedError,
     DaytonaValidationError,
 )
@@ -74,6 +75,7 @@ from ..common.sandbox import (
     sandbox_metrics_from_system_metrics,
 )
 from ..internal import wait_poll
+from ..internal.event_dispatcher import SUBSCRIPTION_REJECTED_EVENT
 from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
 from .code_interpreter import CodeInterpreter
@@ -171,6 +173,8 @@ class Sandbox(SandboxDto):
     _computer_use: ComputerUse = PrivateAttr()
     _code_interpreter: CodeInterpreter = PrivateAttr()
     _state_waiters: list[Callable[[SandboxState | None], None]] = PrivateAttr(default_factory=list)
+    # Wake the waits on this sandbox for an immediate read (their subscription was rejected).
+    _poll_now_waiters: list[Callable[[], None]] = PrivateAttr(default_factory=list)
     _state_waiters_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     # State events are handled on the dispatcher's thread.
     _state_event_count: int = PrivateAttr(default=0)
@@ -1420,8 +1424,18 @@ class Sandbox(SandboxDto):
         target_states = [s for s in SandboxState if s not in exclude]
         self._wait_for_state(target_states, error_states, subscription=subscription)
 
-    def _handle_event(self, _event_name: str, data: Any) -> None:
-        """Applies the new state from a ``sandbox.state.updated`` event; other payload fields are ignored."""
+    def _handle_event(self, event_name: str, data: Any) -> None:
+        """Applies the new state from a ``sandbox.state.updated`` event; other payload fields are ignored.
+
+        A rejected subscription (a local notification from the dispatcher) wakes the waits instead: no
+        events will come, so they read now and fall back to polling.
+        """
+        if event_name == SUBSCRIPTION_REJECTED_EVENT:
+            with self._state_waiters_lock:
+                poll_now_waiters = list(self._poll_now_waiters)
+            for poll_now in poll_now_waiters:
+                poll_now()
+            return
         if not isinstance(data, dict):
             return
         raw: object = data.get("sandbox", data)  # pyright: ignore[reportUnknownVariableType]
@@ -1503,8 +1517,10 @@ class Sandbox(SandboxDto):
         """Wait for sandbox to reach a target state via WebSocket events with periodic polling safety net.
 
         The wait subscribes to the sandbox's state events for its own duration only. Polls are a safety
-        net: slow while events are flowing, at the subscribed rate while the event connection is down,
-        and fast only without a subscription (see ``internal.wait_poll``).
+        net: slow while events are flowing, backing off from 1 s to 10 s while they are not (connection
+        down, subscription rejected or past the connection's limit), and fast only without a
+        subscription (see ``internal.wait_poll``). A rate-limited poll does not fail the wait: the next
+        one waits for ``Retry-After``, and at least the current interval.
 
         Args:
             target_states: States that indicate success.
@@ -1521,9 +1537,12 @@ class Sandbox(SandboxDto):
             return
 
         fast_poll_interval = wait_poll.FAST_POLL_INTERVAL
+        fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
         sub_id = ""
         poll_start = time.monotonic()
         state_resolved = threading.Event()
+        # Set when the state resolves or a read is due now; the loop waits on it between polls.
+        wake = threading.Event()
         resolve_lock = threading.Lock()
         result_state: SandboxState | None = None
 
@@ -1538,9 +1557,22 @@ class Sandbox(SandboxDto):
 
                 result_state = state
                 state_resolved.set()
+                wake.set()
+
+        def _poll() -> float | None:
+            """Reads the sandbox; on a rate limit returns the Retry-After delay (0 without one)."""
+            try:
+                if safe_refresh:
+                    _ = self.__refresh_data_safe()
+                else:
+                    self.refresh_data()
+            except DaytonaRateLimitError as e:
+                return wait_poll.retry_after_seconds(e.headers)
+            return None
 
         with self._state_waiters_lock:
             self._state_waiters.append(_waiter)
+            self._poll_now_waiters.append(wake.set)
         try:
             if subscription is None:
                 sub_id = self._subscribe_state_events()
@@ -1564,11 +1596,9 @@ class Sandbox(SandboxDto):
 
             # Unless skipped, the first poll runs immediately: it closes the race between subscribing
             # and the state change.
-            if not skip_first_read:
-                if safe_refresh:
-                    _ = self.__refresh_data_safe()
-                else:
-                    self.refresh_data()
+            retry_after = None if skip_first_read else _poll()
+            if retry_after is not None:
+                fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
 
             self._raise_destroyed_wait_error(target_states)
             _waiter(self.state)
@@ -1580,19 +1610,25 @@ class Sandbox(SandboxDto):
                 # Re-evaluated every iteration: the connection may come up (or drop) mid-wait.
                 subscribed = bool(sub_id)
                 event_backed = subscribed and self._event_backed()
-                poll_interval = wait_poll.poll_interval(subscribed, event_backed, fast_poll_interval)
-                is_set = state_resolved.wait(timeout=poll_interval)
-
-                if is_set:
+                if event_backed:
+                    # Back on events: a later fallback starts its backoff over.
+                    fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
+                poll_interval = wait_poll.poll_interval(
+                    subscribed, event_backed, fast_poll_interval, fallback_poll_interval
+                )
+                if retry_after is not None:
+                    # Rate limited: never sooner than the server asks, nor than the current interval.
+                    poll_interval = max(poll_interval, retry_after)
+                _ = wake.wait(timeout=poll_interval)
+                if state_resolved.is_set():
                     break
+                wake.clear()
 
-                if safe_refresh:
-                    _ = self.__refresh_data_safe()
-                else:
-                    self.refresh_data()
-
+                retry_after = _poll()
                 self._raise_destroyed_wait_error(target_states)
 
+                if (subscribed and not event_backed) or retry_after is not None:
+                    fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
                 if time.monotonic() - poll_start > wait_poll.FAST_POLL_PERIOD:
                     fast_poll_interval = wait_poll.next_fast_poll_interval(fast_poll_interval)
 
@@ -1629,6 +1665,8 @@ class Sandbox(SandboxDto):
             with self._state_waiters_lock:
                 if _waiter in self._state_waiters:
                     self._state_waiters.remove(_waiter)
+                if wake.set in self._poll_now_waiters:
+                    self._poll_now_waiters.remove(wake.set)
 
     def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
         self.id: str = sandbox_dto.id

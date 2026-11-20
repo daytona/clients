@@ -282,7 +282,7 @@ class TestAsyncSandboxWaitsPastTheCap:
             await start_stop(sandbox_id)
 
         assert _sent(sio) == [("subscribe", ["sb-1"]), ("subscribe", ["sb-2"])]
-        # The overflow wait reads first and polls at the subscribed rate; the others skip and wait 5 s.
+        # The overflow wait reads first and polls at the fallback rate; the others skip and wait 5 s.
         assert [c.args[0] for c in sandbox_api.get_sandbox.await_args_list] == ["sb-3"]
         assert polls == {"sb-1": [pytest.approx(5.0)], "sb-2": [pytest.approx(5.0)], "sb-3": [pytest.approx(1.0)]}
 
@@ -365,7 +365,7 @@ class TestSyncSandboxWaitsPastTheCap:
             start_stop(sandbox_id)
 
         assert _sent(sio) == [("subscribe", ["sb-1"]), ("subscribe", ["sb-2"])]
-        # The overflow wait reads first and polls at the subscribed rate; the others skip and wait 5 s.
+        # The overflow wait reads first and polls at the fallback rate; the others skip and wait 5 s.
         assert [c.args[0] for c in sandbox_api.get_sandbox.call_args_list] == ["sb-3"]
         assert polls == {"sb-1": [pytest.approx(5.0)], "sb-2": [pytest.approx(5.0)], "sb-3": [pytest.approx(1.0)]}
 

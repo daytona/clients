@@ -27,6 +27,16 @@ RSpec.describe Daytona::EventDispatcher do
         @mutex.synchronize { @emitted << [event_name, data] }
       end
 
+      # Records like #emit; #acknowledge then answers the nth acknowledged event.
+      def emit_with_ack(event_name, data, &on_ack)
+        emit(event_name, data)
+        @mutex.synchronize { (@acks ||= []) << on_ack }
+      end
+
+      def acknowledge(index, ack)
+        @mutex.synchronize { @acks[index] }.call(ack)
+      end
+
       def emitted_events
         @mutex.synchronize { @emitted.dup }
       end
@@ -204,6 +214,69 @@ RSpec.describe Daytona::EventDispatcher do
     expect(dispatcher.served?('sandbox-1')).to be(true)
     expect(dispatcher.event_backed?('sandbox-1')).to be(false)
     expect(Daytona::EventSubscriptionManager.new(dispatcher).event_backed?('sandbox-1')).to be(false)
+  end
+
+  it 'subscribes to at most 10,000 ids per connection' do
+    expect(described_class::MAX_SUBSCRIPTIONS_PER_CONNECTION).to eq(10_000)
+  end
+
+  describe 'subscribe acknowledgements' do
+    let(:overloaded) { { 'ok' => false, 'error' => 'OVERLOADED', 'message' => 'shedding' } }
+    let(:notices) { [] }
+
+    def recording(resource_id)
+      proc { |event_name, _data| notices << [resource_id, event_name] }
+    end
+
+    context 'with the per-connection subscription cap lowered to 2' do
+      before { stub_const('Daytona::EventDispatcher::MAX_SUBSCRIPTIONS_PER_CONNECTION', 2) }
+
+      it 'unserves a rejected id, tells its handlers, frees its slot and leaves it out of the reconnect' do
+        subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
+        dispatcher.subscribe('sandbox-b', events:, &recording('sandbox-b'))
+        expect(wait_until { emitted.size == 2 }).to be(true)
+
+        clients.last.acknowledge(1, overloaded)
+        clients.last.acknowledge(0, { 'ok' => true })
+
+        expect(notices).to eq([['sandbox-b', Daytona::EventDispatcher::SUBSCRIPTION_REJECTED_EVENT]])
+        expect(dispatcher.served?('sandbox-b')).to be(false)
+        expect(dispatcher.event_backed?('sandbox-b')).to be(false)
+        expect(dispatcher.event_backed?('sandbox-a')).to be(true)
+
+        dispatcher.subscribe('sandbox-c', events:, &noop)
+        expect(emitted.last).to eq(['subscribe', { sandboxIds: ['sandbox-c'] }])
+
+        clients.first.options[:on_disconnect].call
+        await_reconnect(sent: 1)
+        expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: %w[sandbox-a sandbox-c] }]])
+        expect(dispatcher.served?('sandbox-b')).to be(false)
+      end
+    end
+
+    it 'keeps the id served on an ok acknowledgement or without one' do
+      subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
+      dispatcher.subscribe('sandbox-b', events:, &recording('sandbox-b'))
+      expect(wait_until { emitted.size == 2 }).to be(true)
+
+      clients.last.acknowledge(0, { 'ok' => true })
+
+      expect(notices).to be_empty
+      expect(dispatcher.event_backed?('sandbox-a')).to be(true)
+      expect(dispatcher.event_backed?('sandbox-b')).to be(true)
+    end
+
+    it 'ignores a rejection from an earlier connection' do
+      subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
+      first_client = clients.first
+      first_client.options[:on_disconnect].call
+      await_reconnect(sent: 1)
+
+      first_client.acknowledge(0, overloaded)
+
+      expect(notices).to be_empty
+      expect(dispatcher.served?('sandbox-a')).to be(true)
+    end
   end
 
   it 'removes only the released subscription when the same handler is subscribed twice' do

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -84,7 +85,17 @@ type socketIOClient struct {
 	outMu     sync.Mutex
 	outQueue  []string
 	outSignal chan struct{}
+
+	// Acknowledgement callbacks of emitted events, by packet id. Guarded by
+	// ackMu. Dropped, never invoked, when the connection goes or an ack times out.
+	ackMu       sync.Mutex
+	nextAckID   uint64
+	pendingAcks map[uint64]func(json.RawMessage)
 }
+
+// ackTimeout is how long an acknowledgement callback waits. A server may never
+// acknowledge (older servers do not), so a callback is dropped after it.
+const ackTimeout = 10 * time.Second
 
 // socketIOClientConfig holds configuration for creating a socketIOClient.
 type socketIOClientConfig struct {
@@ -119,6 +130,7 @@ func newSocketIOClient(cfg socketIOClientConfig) (*socketIOClient, error) {
 		closeCh:        make(chan struct{}),
 		healthStopCh:   make(chan struct{}),
 		outSignal:      make(chan struct{}, 1),
+		pendingAcks:    make(map[uint64]func(json.RawMessage)),
 	}
 
 	wsURL, err := buildWebSocketURL(cfg.APIURL, cfg.OrganizationID, cfg.Source, cfg.SdkVersion)
@@ -297,6 +309,7 @@ func (c *socketIOClient) readLoop() {
 		// The connection is gone: stop the writer and health monitor now rather
 		// than when the owner calls Close.
 		c.stopBackgroundLoops()
+		c.dropPendingAcks()
 
 		c.disconnectOnce.Do(func() {
 			if c.onDisconnect != nil {
@@ -393,6 +406,9 @@ func (c *socketIOClient) handleSocketIOPacket(data []byte) {
 		// Event: "2[\"event_name\",{...}]"
 		c.handleEvent(data[1:])
 
+	case byte(sioAck):
+		c.handleAck(data[1:])
+
 	case byte(sioDisconnect):
 		// Server-initiated disconnect: close the socket so readLoop unblocks immediately
 		// and its defer runs onDisconnect, letting EventDispatcher reconnect promptly.
@@ -406,6 +422,56 @@ func (c *socketIOClient) handleSocketIOPacket(data []byte) {
 	default:
 		// Other packet types (ACK, etc.) - ignore
 	}
+}
+
+// handleAck runs the callback of an ACK packet: "<id>[args...]", optionally
+// after a "/ns," prefix. The callback gets the first argument. Unknown ids
+// (already timed out or dropped) are ignored.
+func (c *socketIOClient) handleAck(data []byte) {
+	if len(data) > 0 && data[0] == '/' {
+		commaIdx := strings.IndexByte(string(data), ',')
+		if commaIdx < 0 {
+			return
+		}
+		data = data[commaIdx+1:]
+	}
+	digits := 0
+	for digits < len(data) && data[digits] >= '0' && data[digits] <= '9' {
+		digits++
+	}
+	id, err := strconv.ParseUint(string(data[:digits]), 10, 64)
+	if err != nil {
+		return
+	}
+	var args []json.RawMessage
+	if err := json.Unmarshal(data[digits:], &args); err != nil {
+		return
+	}
+
+	select {
+	case <-c.closeCh:
+		return
+	default:
+	}
+	c.ackMu.Lock()
+	callback, ok := c.pendingAcks[id]
+	delete(c.pendingAcks, id)
+	c.ackMu.Unlock()
+	if !ok {
+		return
+	}
+	var first json.RawMessage
+	if len(args) > 0 {
+		first = args[0]
+	}
+	callback(first)
+}
+
+// dropPendingAcks forgets every acknowledgement callback; none is invoked.
+func (c *socketIOClient) dropPendingAcks() {
+	c.ackMu.Lock()
+	c.pendingAcks = make(map[uint64]func(json.RawMessage))
+	c.ackMu.Unlock()
 }
 
 // handleEvent parses and dispatches a Socket.IO EVENT packet.
@@ -506,17 +572,39 @@ const emitWriteTimeout = 10 * time.Second
 // waiting for it to be written or acknowledged. Packets are written in queue
 // order; packets still queued when the client closes are dropped.
 func (c *socketIOClient) emit(event string, payload json.RawMessage) error {
+	return c.emitWithAck(event, payload, nil)
+}
+
+// emitWithAck is emit with an acknowledgement callback, called from the read
+// loop with the server's first ack argument. It is called at most once, and
+// not at all if the connection goes or no ack arrives within ackTimeout.
+func (c *socketIOClient) emitWithAck(event string, payload json.RawMessage, onAck func(json.RawMessage)) error {
 	name, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event name: %w", err)
 	}
-	packet := fmt.Sprintf("%c%c[%s,%s]", eioMessage, sioEvent, name, payload)
 
 	select {
 	case <-c.closeCh:
 		return fmt.Errorf("connection is closed")
 	default:
 	}
+
+	ackID := ""
+	if onAck != nil {
+		c.ackMu.Lock()
+		c.nextAckID++
+		id := c.nextAckID
+		c.pendingAcks[id] = onAck
+		c.ackMu.Unlock()
+		time.AfterFunc(ackTimeout, func() {
+			c.ackMu.Lock()
+			delete(c.pendingAcks, id)
+			c.ackMu.Unlock()
+		})
+		ackID = strconv.FormatUint(id, 10)
+	}
+	packet := fmt.Sprintf("%c%c%s[%s,%s]", eioMessage, sioEvent, ackID, name, payload)
 
 	c.outMu.Lock()
 	c.outQueue = append(c.outQueue, packet)
@@ -630,6 +718,7 @@ func (c *socketIOClient) Close() {
 
 	// Signal goroutines to stop
 	c.stopBackgroundLoops()
+	c.dropPendingAcks()
 
 	if c.conn == nil {
 		return

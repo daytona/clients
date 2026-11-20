@@ -53,6 +53,14 @@ type eventTestServer struct {
 	// subscribed holds the ids the current socket subscribed to, as the
 	// gateway tracks them; state events go out only for these.
 	subscribed map[string]bool
+	// subscribeAck, when set, answers each subscribe that asks for an
+	// acknowledgement ("" sends none). A rejection subscribes nothing. While
+	// ackGate is set, acknowledgements wait until it is closed.
+	subscribeAck func(ids []string) string
+	ackGate      chan struct{}
+	// getStatus, when set, picks the response to the nth sandbox GET (from 1):
+	// a status code other than 200 and its headers.
+	getStatus func(n int) (int, http.Header)
 }
 
 func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestServer {
@@ -89,11 +97,23 @@ func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestSe
 		s.mu.Lock()
 		state := s.state
 		operation := s.operation
+		status, header := http.StatusOK, http.Header(nil)
 		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/sandbox/") {
 			s.getTimes = append(s.getTimes, time.Now())
 			s.getIDs = append(s.getIDs, id)
+			if s.getStatus != nil {
+				status, header = s.getStatus(len(s.getTimes))
+			}
 		}
 		s.mu.Unlock()
+
+		if status != http.StatusOK {
+			for name, values := range header {
+				w.Header()[name] = values
+			}
+			writeJSONResponse(t, w, status, map[string]any{"message": http.StatusText(status), "statusCode": status})
+			return
+		}
 
 		if operation != nil && r.Method != http.MethodGet {
 			operation(w, r)
@@ -147,8 +167,14 @@ func (s *eventTestServer) serveSocket(upgrader websocket.Upgrader, w http.Respon
 		if !strings.HasPrefix(string(msg), "42") {
 			continue
 		}
+		rest := msg[2:]
+		digits := 0
+		for digits < len(rest) && rest[digits] >= '0' && rest[digits] <= '9' {
+			digits++
+		}
+		ackID := string(rest[:digits])
 		var packet []json.RawMessage
-		if err := json.Unmarshal(msg[2:], &packet); err != nil || len(packet) != 2 {
+		if err := json.Unmarshal(rest[digits:], &packet); err != nil || len(packet) != 2 {
 			continue
 		}
 		var name string
@@ -159,15 +185,32 @@ func (s *eventTestServer) serveSocket(upgrader websocket.Upgrader, w http.Respon
 		_ = json.Unmarshal(packet[1], &payload)
 		s.mu.Lock()
 		s.received = append(s.received, name+":"+strings.Join(payload.SandboxIDs, ","))
-		for _, id := range payload.SandboxIDs {
-			switch name {
-			case "subscribe":
-				s.subscribed[id] = true
-			case "unsubscribe":
-				delete(s.subscribed, id)
+		reply := ""
+		if name == "subscribe" && ackID != "" && s.subscribeAck != nil {
+			reply = s.subscribeAck(payload.SandboxIDs)
+		}
+		gate := s.ackGate
+		if !strings.Contains(reply, `"ok":false`) {
+			for _, id := range payload.SandboxIDs {
+				switch name {
+				case "subscribe":
+					s.subscribed[id] = true
+				case "unsubscribe":
+					delete(s.subscribed, id)
+				}
 			}
 		}
 		s.mu.Unlock()
+		if reply != "" {
+			go func() {
+				if gate != nil {
+					<-gate
+				}
+				s.writeMu.Lock()
+				defer s.writeMu.Unlock()
+				_ = conn.WriteMessage(websocket.TextMessage, []byte("43"+ackID+"["+reply+"]"))
+			}()
+		}
 	}
 }
 
@@ -605,7 +648,7 @@ func TestWaitSubscriptionResubscribesAfterExpiry(t *testing.T) {
 func stubNoScheduledPolls(t *testing.T) {
 	t.Helper()
 	original := waitForStateNextPoll
-	waitForStateNextPoll = func(time.Duration, waitPollMode) time.Duration { return time.Hour }
+	waitForStateNextPoll = func(*waitPollSchedule, waitPollMode) time.Duration { return time.Hour }
 	t.Cleanup(func() { waitForStateNextPoll = original })
 }
 
@@ -1088,4 +1131,172 @@ func TestResizeWithoutStateInResponseWaitsForTheResize(t *testing.T) {
 	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.currentState())
 	assert.Equal(t, 1, srv.gets(), "one read stands in for the missing state; the event ends the wait")
 	assert.GreaterOrEqual(t, time.Since(start), 250*time.Millisecond, "the wait lasts until the resize ends")
+}
+
+const overloadedAck = `{"ok":false,"error":"OVERLOADED","message":"shedding"}`
+
+func TestRejectedSubscriptionMakesTheWaitReadAtOnceAndPollAtTheFallbackCadence(t *testing.T) {
+	var mu sync.Mutex
+	var modes []waitPollMode
+	original := waitForStateNextPoll
+	waitForStateNextPoll = func(_ *waitPollSchedule, mode waitPollMode) time.Duration {
+		mu.Lock()
+		modes = append(modes, mode)
+		mu.Unlock()
+		return time.Hour
+	}
+	t.Cleanup(func() { waitForStateNextPoll = original })
+	recordedModes := func() []waitPollMode {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]waitPollMode(nil), modes...)
+	}
+
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPING)
+	release := make(chan struct{})
+	srv.mu.Lock()
+	srv.subscribeAck = func(ids []string) string {
+		if slices.Contains(ids, eventTestSandboxID) {
+			return overloadedAck
+		}
+		return `{"ok":true}`
+	}
+	srv.ackGate = release
+	srv.mu.Unlock()
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	client := newEventTestClient(t, srv)
+	connectEvents(t, client)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- sandbox.doStopWithTimeout(ctx, 0, false) }()
+
+	// The wait skipped its first read while the subscribe is unanswered.
+	require.Eventually(t, func() bool { return len(recordedModes()) == 1 }, 10*time.Second, 10*time.Millisecond)
+	assert.Equal(t, []waitPollMode{waitPollEventBacked}, recordedModes())
+	assert.Equal(t, 0, srv.gets())
+
+	close(release)
+	require.Eventually(t, func() bool { return srv.gets() == 1 }, 5*time.Second, 10*time.Millisecond, "the rejection makes the wait read")
+	require.Eventually(t, func() bool { return len(recordedModes()) == 2 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, []waitPollMode{waitPollEventBacked, waitPollSubscribed}, recordedModes(), "then it polls at the fallback cadence")
+	assert.False(t, client.subscriptionManager.IsEventBacked(eventTestSandboxID))
+
+	cancel()
+	require.ErrorIs(t, <-done, context.Canceled)
+}
+
+func TestFallbackWaitPollsFollowTheBackoff(t *testing.T) {
+	stubWaitForStatePollRandom(t, 0.5)
+	var mu sync.Mutex
+	var delays []time.Duration
+	original := waitForStateNextPoll
+	waitForStateNextPoll = func(schedule *waitPollSchedule, mode waitPollMode) time.Duration {
+		delay := original(schedule, mode)
+		mu.Lock()
+		delays = append(delays, delay)
+		mu.Unlock()
+		return delay / 100
+	}
+	t.Cleanup(func() { waitForStateNextPoll = original })
+
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
+	srv.mu.Lock()
+	srv.rejectSockets = true
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
+	require.Eventually(t, func() bool { return srv.gets() >= 8 }, 10*time.Second, 10*time.Millisecond)
+	cancel()
+	require.ErrorIs(t, <-done, context.Canceled)
+
+	mu.Lock()
+	defer mu.Unlock()
+	seconds := func(values ...float64) []time.Duration {
+		out := make([]time.Duration, len(values))
+		for i, v := range values {
+			out[i] = time.Duration(v * float64(time.Second))
+		}
+		return out
+	}
+	assert.Equal(t, seconds(1, 1.5, 2.25, 3.375, 5.0625, 7.59375, 10), delays[:7])
+}
+
+func TestRateLimitedPollBacksOff(t *testing.T) {
+	tests := []struct {
+		name       string
+		retryAfter string
+		minGap     time.Duration
+		maxGap     time.Duration
+	}{
+		{"Retry-After in seconds", "3", 2500 * time.Millisecond, 4500 * time.Millisecond},
+		{"Retry-After as an HTTP date", "", 0, 0},
+		{"no Retry-After", "", 500 * time.Millisecond, 2500 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubWaitForStatePollRandom(t, 0.5)
+			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
+			retryAfter := tt.retryAfter
+			minGap, maxGap := tt.minGap, tt.maxGap
+			if tt.name == "Retry-After as an HTTP date" {
+				retryAfter = time.Now().Add(4 * time.Second).UTC().Format(http.TimeFormat)
+				minGap, maxGap = 2*time.Second, 5*time.Second
+			}
+			srv.mu.Lock()
+			srv.rejectSockets = true
+			srv.getStatus = func(n int) (int, http.Header) {
+				if n > 1 {
+					return http.StatusOK, nil
+				}
+				header := http.Header{}
+				if retryAfter != "" {
+					header.Set("Retry-After", retryAfter)
+				}
+				return http.StatusTooManyRequests, header
+			}
+			srv.mu.Unlock()
+			client := newEventTestClient(t, srv)
+			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
+
+			require.NoError(t, sandbox.doWaitForStart(context.Background(), 30*time.Second))
+			times := srv.getTimesCopy()
+			require.Len(t, times, 2)
+			gap := times[1].Sub(times[0])
+			assert.GreaterOrEqual(t, gap, minGap)
+			assert.Less(t, gap, maxGap)
+		})
+	}
+}
+
+func TestServerErrorOnPollStillFailsTheWait(t *testing.T) {
+	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTED)
+	srv.mu.Lock()
+	srv.rejectSockets = true
+	srv.getStatus = func(int) (int, http.Header) { return http.StatusInternalServerError, nil }
+	srv.mu.Unlock()
+	client := newEventTestClient(t, srv)
+	sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTING)
+
+	start := time.Now()
+	err := sandbox.doWaitForStart(context.Background(), 30*time.Second)
+	require.ErrorIs(t, err, errors.ErrInternalServer)
+	assert.Less(t, time.Since(start), 2*time.Second)
+	assert.Equal(t, 1, srv.gets())
 }

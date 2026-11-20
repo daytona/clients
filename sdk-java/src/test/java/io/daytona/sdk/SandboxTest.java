@@ -951,26 +951,180 @@ class SandboxTest {
     }
 
     @Test
-    void pollIntervalIsFastAndUnjitteredWithoutASubscription() {
+    void pollCadenceIsFastAndUnjitteredWithoutASubscription() {
         java.util.function.DoubleSupplier random = () -> {
             throw new AssertionError("jitter must not apply without a subscription");
         };
-        assertThat(Sandbox.pollIntervalMillis(false, false, random)).isEqualTo(250);
-        assertThat(Sandbox.pollIntervalMillis(false, true, random)).isEqualTo(250);
+        Sandbox.WaitPollCadence cadence = new Sandbox.WaitPollCadence(random);
+        assertThat(cadence.millis(false, false)).isEqualTo(250);
+        assertThat(cadence.millis(false, true)).isEqualTo(250);
     }
 
     @Test
-    void pollIntervalIsFiveSecondsWithJitterWhenEventBacked() {
-        assertThat(Sandbox.pollIntervalMillis(true, true, () -> 0.0)).isEqualTo(4000);
-        assertThat(Sandbox.pollIntervalMillis(true, true, () -> 0.5)).isEqualTo(5000);
-        assertThat(Sandbox.pollIntervalMillis(true, true, () -> 1.0)).isEqualTo(6000);
+    void pollCadenceIsFiveSecondsWithJitterWhenEventBacked() {
+        assertThat(new Sandbox.WaitPollCadence(() -> 0.0).millis(true, true)).isEqualTo(4000);
+        assertThat(new Sandbox.WaitPollCadence(() -> 0.5).millis(true, true)).isEqualTo(5000);
+        assertThat(new Sandbox.WaitPollCadence(() -> 1.0).millis(true, true)).isEqualTo(6000);
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"0.0, 0.8", "0.5, 1.0", "1.0, 1.2"})
+    void pollCadenceBacksOffFromOneSecondByHalfUpToTenSecondsWhenNotEventBacked(double random, double factor) {
+        Sandbox.WaitPollCadence cadence = new Sandbox.WaitPollCadence(() -> random);
+        double[] base = {1000, 1500, 2250, 3375, 5062.5, 7593.75, 10_000, 10_000};
+        for (double interval : base) {
+            assertThat(cadence.millis(true, false)).isEqualTo(Math.round(interval * factor));
+        }
     }
 
     @Test
-    void pollIntervalIsOneSecondWithJitterWhenSubscribedButDisconnected() {
-        assertThat(Sandbox.pollIntervalMillis(true, false, () -> 0.0)).isEqualTo(800);
-        assertThat(Sandbox.pollIntervalMillis(true, false, () -> 0.5)).isEqualTo(1000);
-        assertThat(Sandbox.pollIntervalMillis(true, false, () -> 1.0)).isEqualTo(1200);
+    void pollCadenceRestartsTheBackoffAfterAStretchOfBeingEventBacked() {
+        Sandbox.WaitPollCadence cadence = new Sandbox.WaitPollCadence(() -> 0.5);
+        assertThat(List.of(cadence.millis(true, false), cadence.millis(true, false), cadence.millis(true, false)))
+                .containsExactly(1000L, 1500L, 2250L);
+        assertThat(cadence.millis(true, true)).isEqualTo(5000);
+        assertThat(List.of(cadence.millis(true, false), cadence.millis(true, false))).containsExactly(1000L, 1500L);
+    }
+
+    @Test
+    void aNotEventBackedWaitFollowsTheBackoffAndRestartsItAfterBeingEventBacked() throws Exception {
+        EventSubscriptionManager manager = mockSubscriptionManager();
+        // Event-backed only on the 9th and 10th poll decision.
+        java.util.concurrent.atomic.AtomicInteger decisions = new java.util.concurrent.atomic.AtomicInteger();
+        when(manager.isEventBacked(any())).thenAnswer(inv -> {
+            int n = decisions.incrementAndGet();
+            return n == 9 || n == 10;
+        });
+        Sandbox sb = startingSandbox("sb-c", manager);
+        // The real cadence picks the intervals; the polls themselves run 1 ms apart, so no real waiting.
+        List<Long> intervals = new CopyOnWriteArrayList<>();
+        Sandbox.WaitPollCadence cadence = new Sandbox.WaitPollCadence(() -> 0.5);
+        sb.pollDelay = (subscribed, eventBacked) -> {
+            intervals.add(cadence.millis(subscribed, eventBacked));
+            return 1;
+        };
+        lenient().when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv -> TestSupport.mainSandbox("sb-c",
+                intervals.size() >= 12 ? SandboxState.STARTED : SandboxState.STARTING));
+
+        sb.waitUntilStarted(30);
+
+        assertThat(intervals.subList(0, 12)).containsExactly(
+                1000L, 1500L, 2250L, 3375L, 5063L, 7594L, 10_000L, 10_000L, 5000L, 5000L, 1000L, 1500L);
+    }
+
+    @Test
+    void aRejectedSubscriptionMakesItsWaitReadAtOnceThenPollAtTheFallbackCadence() throws Exception {
+        try (FakeEventGateway gateway = new FakeEventGateway()) {
+            EventDispatcher dispatcher = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "test");
+            EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
+            try {
+                dispatcher.ensureConnected();
+                awaitCondition(dispatcher::isConnected);
+                AtomicBoolean stopped = new AtomicBoolean(false);
+                when(sandboxApi.stopSandbox("sb-r", null, null)).thenReturn(TestSupport.mainSandbox("sb-r", SandboxState.STOPPING));
+                lenient().when(sandboxApi.getSandbox("sb-r", null, null)).thenAnswer(inv ->
+                        TestSupport.mainSandbox("sb-r", stopped.get() ? SandboxState.STOPPED : SandboxState.STOPPING));
+                Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-r", SandboxState.STARTED), () -> null, manager);
+                // The real cadence picks the intervals; event-backed polls are an hour apart, so a read
+                // right after the rejection can only come from the rejection itself.
+                List<String> decisions = new CopyOnWriteArrayList<>();
+                Sandbox.WaitPollCadence cadence = new Sandbox.WaitPollCadence(() -> 0.5);
+                sb.pollDelay = (subscribed, eventBacked) -> {
+                    decisions.add(eventBacked + ":" + cadence.millis(subscribed, eventBacked));
+                    return eventBacked ? TimeUnit.HOURS.toMillis(1) : 20;
+                };
+                AtomicReference<Throwable> error = new AtomicReference<>();
+                Thread worker = new Thread(() -> runCapturing(() -> sb.stop(60), error));
+                worker.start();
+
+                FakeEventGateway.Emitted subscribe = gateway.takeEmitted(5000);
+                assertSubscribed(subscribe, "subscribe", "sb-r");
+                awaitCondition(() -> decisions.contains("true:5000"));
+                verify(sandboxApi, never()).getSandbox("sb-r", null, null);
+
+                gateway.ack(subscribe, "{\"ok\":false,\"error\":\"OVERLOADED\",\"message\":\"shedding\"}");
+
+                verify(sandboxApi, timeout(2000)).getSandbox("sb-r", null, null);
+                awaitCondition(() -> decisions.size() >= 3);
+                assertThat(decisions.subList(0, 3)).containsExactly("true:5000", "false:1000", "false:1500");
+                assertThat(dispatcher.isRejected("sb-r")).isTrue();
+                assertThat(manager.isEventBacked("sb-r")).isFalse();
+
+                stopped.set(true);
+                worker.join(5000);
+                assertThat(worker.isAlive()).isFalse();
+                assertThat(error.get()).isNull();
+                // A rejected id was never served at its release, so it sends no unsubscribe.
+                assertThat(gateway.takeEmitted(400)).isNull();
+            } finally {
+                manager.shutdown();
+                dispatcher.shutdown();
+            }
+        }
+    }
+
+    @Test
+    void aRateLimitedPollWaitsForRetryAfterAndTheWaitStillResolves() throws Exception {
+        Sandbox sb = startingSandbox("sb-c", mockSubscriptionManager());
+        sb.pollDelay = (subscribed, eventBacked) -> 200;
+        List<Long> reads = new CopyOnWriteArrayList<>();
+        when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv -> {
+            reads.add(System.nanoTime());
+            if (reads.size() == 1) {
+                throw new io.daytona.api.client.ApiException(429, Map.of("Retry-After", List.of("3")), "{\"message\":\"slow down\"}");
+            }
+            return TestSupport.mainSandbox("sb-c", SandboxState.STARTED);
+        });
+
+        sb.waitUntilStarted(30);
+
+        assertThat(reads).hasSize(2);
+        // The regular interval is 200 ms here, so this gap can only come from Retry-After: 3.
+        assertThat(TimeUnit.NANOSECONDS.toMillis(reads.get(1) - reads.get(0))).isGreaterThanOrEqualTo(2500);
+    }
+
+    @Test
+    void aRateLimitedPollWithoutRetryAfterWaitsTheCurrentInterval() throws Exception {
+        Sandbox sb = startingSandbox("sb-c", mockSubscriptionManager());
+        List<Long> intervals = new CopyOnWriteArrayList<>();
+        // When each interval was picked: one pick per poll tick, so the 429 must not add a tick of its own.
+        List<Long> picks = new CopyOnWriteArrayList<>();
+        Sandbox.WaitPollCadence cadence = new Sandbox.WaitPollCadence(() -> 0.5);
+        sb.pollDelay = (subscribed, eventBacked) -> {
+            long interval = cadence.millis(subscribed, eventBacked);
+            intervals.add(interval);
+            picks.add(System.nanoTime());
+            return interval;
+        };
+        List<Long> reads = new CopyOnWriteArrayList<>();
+        when(sandboxApi.getSandbox("sb-c", null, null)).thenAnswer(inv -> {
+            reads.add(System.nanoTime());
+            if (reads.size() == 1) {
+                throw new io.daytona.api.client.ApiException(429, Map.of(), "{\"message\":\"slow down\"}");
+            }
+            return TestSupport.mainSandbox("sb-c", reads.size() >= 3 ? SandboxState.STARTED : SandboxState.STARTING);
+        });
+
+        sb.waitUntilStarted(30);
+
+        assertThat(reads).hasSize(3);
+        // The poll after the 429 kept the current 1 s interval, and the backoff went on as usual.
+        assertThat(intervals.subList(0, 2)).containsExactly(1000L, 1500L);
+        // The intervals are checked exactly above; the timings only rule out an early extra tick, with
+        // margin for the reads running a little after their ticks.
+        assertThat(TimeUnit.NANOSECONDS.toMillis(picks.get(1) - reads.get(0))).isGreaterThanOrEqualTo(500);
+        assertThat(TimeUnit.NANOSECONDS.toMillis(reads.get(1) - reads.get(0))).isGreaterThanOrEqualTo(500);
+        assertThat(TimeUnit.NANOSECONDS.toMillis(reads.get(2) - reads.get(1))).isGreaterThanOrEqualTo(1000);
+    }
+
+    @Test
+    void aServerErrorDuringAPollFailsTheWaitAsBefore() {
+        Sandbox sb = startingSandbox("sb-c", mockSubscriptionManager());
+        when(sandboxApi.getSandbox("sb-c", null, null))
+                .thenThrow(new io.daytona.api.client.ApiException(500, "boom", Map.of(), "{\"message\":\"boom\"}"));
+
+        assertThatThrownBy(() -> sb.waitUntilStarted(30)).isInstanceOf(DaytonaServerException.class).hasMessage("boom");
+        verify(sandboxApi, times(1)).getSandbox("sb-c", null, null);
     }
 
     @Test
@@ -1200,8 +1354,8 @@ class SandboxTest {
             assertThat(eventBacked).containsExactlyInAnyOrder("sb-a", "sb-b");
             assertThat(notEventBacked).containsOnly("sb-c");
             assertReadFirst("sb-c");
-            // pollIntervalMillis(true, false, ...) is the 1 s x jitter cadence.
-            assertThat(Sandbox.pollIntervalMillis(true, false, () -> 1.0)).isEqualTo(1200);
+            // Not event-backed is the fallback cadence: 1 s x jitter first.
+            assertThat(new Sandbox.WaitPollCadence(() -> 1.0).millis(true, false)).isEqualTo(1200);
             verify(sandboxApi, never()).getSandbox("sb-a", null, null);
             verify(sandboxApi, never()).getSandbox("sb-b", null, null);
 

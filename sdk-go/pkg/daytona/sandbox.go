@@ -11,6 +11,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -62,8 +63,11 @@ type Sandbox struct {
 	signingKey          string
 	signingKeyFetchedAt time.Time
 
-	mu                  sync.RWMutex
-	stateWaiters        []chan apiclient.SandboxState
+	mu           sync.RWMutex
+	stateWaiters []chan apiclient.SandboxState
+	// rejectionWaiters wake the running waits when the server rejects this
+	// sandbox's subscription.
+	rejectionWaiters    []chan struct{}
 	subscriptionManager *common.EventSubscriptionManager
 	// stateEvents counts state events received; handlers run on the dispatcher's goroutines.
 	stateEvents atomic.Uint64
@@ -175,9 +179,12 @@ const (
 
 	// State events drive event-backed waits; polling is only a safety net.
 	waitForStateEventBackedPollInterval = 5 * time.Second
-	// Keeps GET load at the polling-only steady state while the event
-	// connection is down, instead of the fast start-up cadence.
-	waitForStateSubscribedPollInterval = 1 * time.Second
+	// A subscribed wait without events (connection down, subscription rejected
+	// or over the limit) starts at 1 s and backs off, so many such waits do not
+	// spend the request budget.
+	waitForStateFallbackPollInterval    = 1 * time.Second
+	waitForStateFallbackPollGrowth      = 1.5
+	waitForStateFallbackPollMaxInterval = 10 * time.Second
 	// Spreads safety-net polls of concurrent waits apart.
 	waitForStatePollJitter = 0.2
 )
@@ -193,7 +200,9 @@ var subscribeStateEvents = func(manager *common.EventSubscriptionManager, sandbo
 
 // waitForStateNextPoll schedules a wait's polls after the first. Tests stub it
 // to tell the immediate read apart from scheduled polls without timing.
-var waitForStateNextPoll = waitForStatePollInterval
+var waitForStateNextPoll = func(schedule *waitPollSchedule, mode waitPollMode) time.Duration {
+	return schedule.next(mode)
+}
 
 // sandboxDTO is the common subset of fields exposed by both [apiclient.Sandbox]
 // (returned by single-sandbox endpoints) and [apiclient.SandboxListItem]
@@ -663,18 +672,54 @@ func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration) 
 	return next
 }
 
-// waitForStatePollInterval picks the delay before the next poll of a wait.
-// pollingInterval is the fast cadence, used as is when no subscription is held.
-func waitForStatePollInterval(pollingInterval time.Duration, mode waitPollMode) time.Duration {
+// waitPollSchedule is the poll cadence of one wait.
+type waitPollSchedule struct {
+	// fast is the cadence without a subscription, used as is.
+	fast time.Duration
+	// fallback is the next fallback interval, before jitter.
+	fallback time.Duration
+}
+
+func newWaitPollSchedule() *waitPollSchedule {
+	return &waitPollSchedule{fast: waitForStatePollingInitialInterval, fallback: waitForStateFallbackPollInterval}
+}
+
+// next returns the delay before the next poll in mode. A subscribed wait
+// without events backs off from 1 s to 10 s; while event-backed it polls every
+// 5 s, and its backoff starts over.
+func (p *waitPollSchedule) next(mode waitPollMode) time.Duration {
 	switch mode {
 	case waitPollEventBacked:
+		p.fallback = waitForStateFallbackPollInterval
 		return jitterWaitForStatePollInterval(waitForStateEventBackedPollInterval)
 	case waitPollSubscribed:
-		return jitterWaitForStatePollInterval(waitForStateSubscribedPollInterval)
+		delay := jitterWaitForStatePollInterval(p.fallback)
+		p.fallback = min(time.Duration(float64(p.fallback)*waitForStateFallbackPollGrowth), waitForStateFallbackPollMaxInterval)
+		return delay
 	case waitPollUnsubscribed:
-		return pollingInterval
+		return p.fast
 	}
-	return pollingInterval
+	return p.fast
+}
+
+// rateLimitRetryAfter reports whether err is a 429, and the delay its
+// Retry-After header asks for (seconds or an HTTP date; 0 if absent).
+func rateLimitRetryAfter(err error) (time.Duration, bool) {
+	var de *errors.DaytonaError
+	if !stderrors.As(err, &de) || de.StatusCode != http.StatusTooManyRequests {
+		return 0, false
+	}
+	value := strings.TrimSpace(de.Headers.Get("Retry-After"))
+	if value == "" {
+		return 0, true
+	}
+	if seconds, convErr := strconv.Atoi(value); convErr == nil {
+		return max(time.Duration(seconds)*time.Second, 0), true
+	}
+	if at, parseErr := http.ParseTime(value); parseErr == nil {
+		return max(time.Until(at), 0), true
+	}
+	return 0, true
 }
 
 func jitterWaitForStatePollInterval(interval time.Duration) time.Duration {
@@ -688,6 +733,15 @@ func (s *Sandbox) handleEvent(event common.SandboxEvent) {
 		if event.StateEvent != nil {
 			s.stateEvents.Add(1)
 			s.applyState(event.StateEvent.NewState)
+		}
+	case common.SandboxEventSubscriptionRejected:
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		for _, waiter := range s.rejectionWaiters {
+			select {
+			case waiter <- struct{}{}:
+			default:
+			}
 		}
 	}
 }
@@ -778,8 +832,10 @@ func (s *Sandbox) waitForStateWith(
 	defer func() { sub.close() }()
 
 	stateCh := make(chan apiclient.SandboxState, 1)
+	rejectedCh := make(chan struct{}, 1)
 	s.mu.Lock()
 	s.stateWaiters = append(s.stateWaiters, stateCh)
+	s.rejectionWaiters = append(s.rejectionWaiters, rejectedCh)
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -788,6 +844,12 @@ func (s *Sandbox) waitForStateWith(
 		for i, waiter := range s.stateWaiters {
 			if waiter == stateCh {
 				s.stateWaiters = append(s.stateWaiters[:i], s.stateWaiters[i+1:]...)
+				break
+			}
+		}
+		for i, waiter := range s.rejectionWaiters {
+			if waiter == rejectedCh {
+				s.rejectionWaiters = append(s.rejectionWaiters[:i], s.rejectionWaiters[i+1:]...)
 				break
 			}
 		}
@@ -848,18 +910,35 @@ func (s *Sandbox) waitForStateWith(
 		return evaluate()
 	}
 
+	// A 429 on a poll does not end the wait: the next poll comes no sooner than
+	// the server's Retry-After, nor than the regular interval.
+	schedule := newWaitPollSchedule()
+	var retryAfter time.Duration
+	poll := func() (done bool, err error) {
+		done, err = refresh(ctx)
+		if wait, limited := rateLimitRetryAfter(err); limited {
+			retryAfter = wait
+			return false, nil
+		}
+		return done, err
+	}
+	nextPoll := func() time.Duration {
+		delay := max(waitForStateNextPoll(schedule, sub.pollMode()), retryAfter)
+		retryAfter = 0
+		return delay
+	}
+
 	// First poll runs immediately (main refreshed at t=0 before any wait),
 	// unless the operation's response stands in for it.
 	if skipFirstRead {
 		if done, err := evaluate(); done || err != nil {
 			return err
 		}
-	} else if done, err := refresh(ctx); done || err != nil {
+	} else if done, err := poll(); done || err != nil {
 		return err
 	}
 
-	pollingInterval := waitForStatePollingInitialInterval
-	pollTimer := time.NewTimer(waitForStateNextPoll(pollingInterval, sub.pollMode()))
+	pollTimer := time.NewTimer(nextPoll())
 	defer pollTimer.Stop()
 	startTime := time.Now()
 
@@ -888,13 +967,20 @@ func (s *Sandbox) waitForStateWith(
 			if containsSandboxState(targetStates, newState) {
 				return nil
 			}
+		case <-rejectedCh:
+			// No events will come: read now, then poll at the fallback cadence.
+			pollTimer.Stop()
+			if done, err := poll(); done || err != nil {
+				return err
+			}
+			pollTimer.Reset(nextPoll())
 		case <-pollTimer.C:
-			if done, err := refresh(ctx); done || err != nil {
+			if done, err := poll(); done || err != nil {
 				return err
 			}
 
-			pollingInterval = nextWaitForStatePollInterval(pollingInterval, time.Since(startTime))
-			pollTimer.Reset(waitForStateNextPoll(pollingInterval, sub.pollMode()))
+			schedule.fast = nextWaitForStatePollInterval(schedule.fast, time.Since(startTime))
+			pollTimer.Reset(nextPoll())
 		}
 	}
 }

@@ -278,20 +278,21 @@ class EventDispatcherTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(ints = {5000, 0, -1})
+    @org.junit.jupiter.params.provider.ValueSource(ints = {20_000, 0, -1})
     void aLimitAboveTheGatewayOrNotPositiveIsClampedToTheGatewayLimit(int limit) throws Exception {
         EventDispatcher clamped = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", limit);
         try {
-            clamped.subscribe("sb-0", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-0"));
-            for (int i = 1; i <= 1000; i++) {
+            // Subscribed while the connect is held, so the connect sends the whole served set in chunks.
+            gateway.holdConnects();
+            for (int i = 0; i <= 10_000; i++) {
                 clamped.subscribe("sb-" + i, NOOP, STATE_EVENTS);
             }
+            gateway.resumeAccepting();
 
-            // Wait for each expected subscribe, so slow emission cannot cut the count short; then
-            // nothing may follow, since the 1001st id is past the gateway limit.
-            List<String> sent = new ArrayList<>(List.of("sb-0"));
-            while (sent.size() < 1000) {
+            // Wait for each expected chunk, so slow emission cannot cut the count short; then nothing
+            // may follow, since the 10001st id is past the gateway limit.
+            List<String> sent = new ArrayList<>();
+            while (sent.size() < 10_000) {
                 FakeEventGateway.Emitted message = gateway.takeEmitted(WAIT_MILLIS);
                 assertThat(message).as("subscribe messages up to the gateway limit").isNotNull();
                 assertThat(message.event).isEqualTo("subscribe");
@@ -299,15 +300,156 @@ class EventDispatcherTest {
             }
             assertThat(gateway.takeEmitted(QUIET_MILLIS)).as("nothing past the gateway limit").isNull();
             List<String> expected = new ArrayList<>();
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 10_000; i++) {
                 expected.add("sb-" + i);
             }
             assertThat(sent).containsExactlyInAnyOrderElementsOf(expected);
-            assertThat(clamped.isServed("sb-999")).isTrue();
-            assertThat(clamped.isServed("sb-1000")).isFalse();
+            assertThat(clamped.isServed("sb-9999")).isTrue();
+            assertThat(clamped.isServed("sb-10000")).isFalse();
         } finally {
             clamped.shutdown();
         }
+    }
+
+    @Test
+    void sendsEverySubscribeWithAnAcknowledgementAndEveryUnsubscribeWithout() throws Exception {
+        Runnable release = dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted subscribe = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(subscribe, "subscribe", Set.of("sb-1"));
+        assertThat(subscribe.ackId).isNotNull();
+
+        release.run();
+        FakeEventGateway.Emitted unsubscribe = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(unsubscribe, "unsubscribe", Set.of("sb-1"));
+        assertThat(unsubscribe.ackId).isNull();
+    }
+
+    @Test
+    void aRejectionFreesTheSlotMarksTheIdRejectedTellsItsHandlersAndKeepsItOutOfTheReconnectSet() throws Exception {
+        EventDispatcher capped = cappedDispatcher();
+        EventSubscriptionManager manager = new EventSubscriptionManager(capped);
+        try {
+            BlockingQueue<String> notified = new LinkedBlockingQueue<>();
+            capped.subscribe("sb-1", (event, data) -> notified.add(event + " " + data.path("error").asText()), STATE_EVENTS);
+            FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
+            assertEmitted(first, "subscribe", Set.of("sb-1"));
+            capped.subscribe("sb-2", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
+            capped.subscribe("sb-3", NOOP, STATE_EVENTS);
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+            assertThat(manager.isEventBacked("sb-1")).isTrue();
+
+            gateway.ack(first, "{\"ok\":false,\"error\":\"OVERLOADED\",\"message\":\"shedding\"}");
+
+            assertThat(notified.poll(WAIT_MILLIS, TimeUnit.MILLISECONDS))
+                    .isEqualTo(EventDispatcher.SUBSCRIPTION_REJECTED_EVENT + " OVERLOADED");
+            assertThat(capped.isServed("sb-1")).isFalse();
+            assertThat(capped.isRejected("sb-1")).isTrue();
+            assertThat(manager.isEventBacked("sb-1")).isFalse();
+
+            // Its slot is free for the next new id; the over-limit id is not promoted.
+            capped.subscribe("sb-4", NOOP, STATE_EVENTS);
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-4"));
+            assertThat(capped.isServed("sb-3")).isFalse();
+
+            gateway.dropConnection();
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2", "sb-4"));
+            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+            assertThat(capped.isRejected("sb-1")).isTrue();
+        } finally {
+            manager.shutdown();
+            capped.shutdown();
+        }
+    }
+
+    // Shortened acknowledgement timeout for these tests, and how long they wait past it.
+    private static final long ACK_TIMEOUT_MILLIS = 300;
+    private static final long PAST_ACK_TIMEOUT_MILLIS = 1000;
+
+    @Test
+    void aConnectionWhoseFirstAcknowledgedSubscribeGetsNoAckSendsTheRestWithoutOneUntilItReconnects() throws Exception {
+        dispatcher.subscribeAckTimeoutMillis = ACK_TIMEOUT_MILLIS;
+        dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(first, "subscribe", Set.of("sb-1"));
+        assertThat(first.ackId).isNotNull();
+        Thread.sleep(PAST_ACK_TIMEOUT_MILLIS);
+
+        dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted second = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(second, "subscribe", Set.of("sb-2"));
+        assertThat(second.ackId).as("fire-and-forget after the silent timeout").isNull();
+
+        // A reconnect asks again, and a late acknowledgement from the old connection changes nothing.
+        gateway.dropConnection();
+        FakeEventGateway.Emitted resent = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(resent, "subscribe", Set.of("sb-1", "sb-2"));
+        assertThat(resent.ackId).isNotNull();
+        gateway.ack(first, "{\"ok\":false,\"error\":\"OVERLOADED\"}");
+        assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+        assertThat(dispatcher.isRejected("sb-1")).isFalse();
+        assertThat(dispatcher.isServed("sb-1")).isTrue();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"{\"ok\":true}", "{\"ok\":false,\"error\":\"RATE_LIMITED\"}"})
+    void anyAcknowledgementKeepsTheConnectionAskingForThem(String response) throws Exception {
+        dispatcher.subscribeAckTimeoutMillis = ACK_TIMEOUT_MILLIS;
+        dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
+        gateway.ack(first, response);
+        Thread.sleep(PAST_ACK_TIMEOUT_MILLIS);
+
+        dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted second = gateway.takeEmitted(WAIT_MILLIS);
+        assertEmitted(second, "subscribe", Set.of("sb-2"));
+        assertThat(second.ackId).isNotNull();
+    }
+
+    @Test
+    void aLateAcknowledgementAfterTheSwitchIsStillHandled() throws Exception {
+        dispatcher.subscribeAckTimeoutMillis = ACK_TIMEOUT_MILLIS;
+        BlockingQueue<String> notified = new LinkedBlockingQueue<>();
+        dispatcher.subscribe("sb-1", (event, data) -> notified.add(event), STATE_EVENTS);
+        FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
+        Thread.sleep(PAST_ACK_TIMEOUT_MILLIS);
+        dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
+        assertThat(gateway.takeEmitted(WAIT_MILLIS).ackId).isNull();
+
+        gateway.ack(first, "{\"ok\":false,\"error\":\"OVERLOADED\"}");
+
+        assertThat(notified.poll(WAIT_MILLIS, TimeUnit.MILLISECONDS)).isEqualTo(EventDispatcher.SUBSCRIPTION_REJECTED_EVENT);
+        assertThat(dispatcher.isRejected("sb-1")).isTrue();
+        assertThat(dispatcher.isServed("sb-1")).isFalse();
+    }
+
+    @Test
+    void aRejectedIdSendsNoUnsubscribeAndIsForgottenWhenItsLastListenerGoes() throws Exception {
+        Runnable release = dispatcher.subscribe("sb-1", NOOP, STATE_EVENTS);
+        FakeEventGateway.Emitted subscribe = gateway.takeEmitted(WAIT_MILLIS);
+        gateway.ack(subscribe, "{\"ok\":false,\"error\":\"RATE_LIMITED\"}");
+        waitUntil(() -> dispatcher.isRejected("sb-1"));
+
+        release.run();
+
+        assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+        assertThat(dispatcher.isRejected("sb-1")).isFalse();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"{\"ok\":true}", "\"ok\"", ""})
+    void anAcceptedMalformedOrMissingAcknowledgementChangesNothing(String response) throws Exception {
+        BlockingQueue<String> notified = new LinkedBlockingQueue<>();
+        dispatcher.subscribe("sb-1", (event, data) -> notified.add(event), STATE_EVENTS);
+        FakeEventGateway.Emitted subscribe = gateway.takeEmitted(WAIT_MILLIS);
+        if (!response.isEmpty()) {
+            gateway.ack(subscribe, response);
+        }
+
+        assertThat(notified.poll(QUIET_MILLIS, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(dispatcher.isServed("sb-1")).isTrue();
+        assertThat(dispatcher.isRejected("sb-1")).isFalse();
+        assertThat(dispatcher.isEventBacked("sb-1")).isTrue();
     }
 
     @Test

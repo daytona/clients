@@ -1267,10 +1267,13 @@ module Daytona
       started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       fast_poll_interval = INITIAL_POLL_INTERVAL
       poll_interval = INITIAL_POLL_INTERVAL
+      backoff = { interval: FALLBACK_POLL_INTERVAL }
 
       mutex = Mutex.new
       state_changed = ConditionVariable.new
       result_state = nil
+      # Set when the server rejects this Sandbox's subscription: no events will come, so read now.
+      read_now = false
 
       waiter = {
         matches: lambda do |new_state|
@@ -1281,6 +1284,12 @@ module Daytona
             next if result_state
 
             result_state = new_state
+            state_changed.signal
+          end
+        end,
+        read_now: lambda do
+          mutex.synchronize do
+            read_now = true
             state_changed.signal
           end
         end
@@ -1303,7 +1312,7 @@ module Daytona
             current = state.to_s
             result_state ||= current if error_strings.include?(current)
           end
-          poll_interval = next_poll_interval(subscription:, fast_poll_interval:)
+          poll_interval = next_poll_interval(subscription:, fast_poll_interval:, backoff:)
         end
 
         until mutex.synchronize { result_state }
@@ -1311,7 +1320,9 @@ module Daytona
             should_refresh = mutex.synchronize do
               next false if result_state
 
-              state_changed.wait(mutex, deadline ? deadline.remaining.clamp(0, poll_interval) : poll_interval)
+              wait_seconds = deadline ? deadline.remaining.clamp(0, poll_interval) : poll_interval
+              state_changed.wait(mutex, wait_seconds) unless read_now
+              read_now = false
               result_state.nil?
             end
             next unless should_refresh
@@ -1320,7 +1331,9 @@ module Daytona
 
           raise Sdk::TimeoutError, deadline.message if deadline&.expired?
 
-          poll_refresh(safe: safe_refresh, http_timeout: deadline&.remaining, deadline:)
+          retry_after = poll_rate_limited do
+            poll_refresh(safe: safe_refresh, http_timeout: deadline&.remaining, deadline:, raise_rate_limit: true)
+          end
           raise_destroyed_lifecycle_error_if_needed(target_strings)
 
           mutex.synchronize do
@@ -1332,7 +1345,7 @@ module Daytona
 
           fast_poll_interval = next_fast_poll_interval(current_interval: fast_poll_interval, started_at:)
           renew_state_subscription(subscription)
-          poll_interval = next_poll_interval(subscription:, fast_poll_interval:)
+          poll_interval = [next_poll_interval(subscription:, fast_poll_interval:, backoff:), retry_after || 0].max
         end
 
         if result_state && error_strings.include?(result_state)
@@ -1379,9 +1392,12 @@ module Daytona
     end
 
     # @param api [DaytonaApiClient::SandboxApi] sandbox_api, or a copy of it with an HTTP timeout
-    def refresh_data_safe(api = sandbox_api)
+    # @param raise_rate_limit [Boolean] Raise a 429 instead of swallowing it
+    def refresh_data_safe(api = sandbox_api, raise_rate_limit: false)
       refresh_through(api)
     rescue DaytonaApiClient::ApiError => e
+      raise if raise_rate_limit && e.code == 429
+
       apply_state(DaytonaApiClient::SandboxState::DESTROYED) if e.code == 404
     rescue StandardError # rubocop:disable Lint/SuppressedException
     end
@@ -1403,11 +1419,12 @@ module Daytona
     # @param safe [Boolean] Swallow errors as #refresh_data_safe does, a timed out request included
     # @param http_timeout [Numeric, nil] Most seconds the request may take; nil leaves the API client's timeout
     # @param deadline [WaitDeadline, nil] Deadline that http_timeout is the time left on, if any
+    # @param raise_rate_limit [Boolean] Raise a 429 even when +safe+ (the wait backs off on it)
     # @return [void]
     # @raise [Daytona::Sdk::TimeoutError] If safe is false and the request times out at the deadline
-    def poll_refresh(safe:, http_timeout:, deadline: nil)
+    def poll_refresh(safe:, http_timeout:, deadline: nil, raise_rate_limit: false)
       api = http_timeout ? sandbox_api_with_timeout(http_timeout) : sandbox_api
-      safe ? refresh_data_safe(api) : refresh_through(api)
+      safe ? refresh_data_safe(api, raise_rate_limit:) : refresh_through(api)
     rescue DaytonaApiClient::ApiError => e
       raise unless deadline && deadline_timed_out?(e, http_timeout)
 
@@ -1484,11 +1501,46 @@ module Daytona
     # @param subscription [Hash] { id: String, nil }
     # @param fast_poll_interval [Float] The polling-only cadence, used as is when the wait holds no subscription
     # @return [Float] Seconds until the next poll
-    def next_poll_interval(subscription:, fast_poll_interval:)
+    def next_poll_interval(subscription:, fast_poll_interval:, backoff: { interval: FALLBACK_POLL_INTERVAL })
       return fast_poll_interval unless subscription[:id]
 
-      interval = @subscription_manager.event_backed?(id) ? EVENT_BACKED_POLL_INTERVAL : SUBSCRIBED_POLL_INTERVAL
-      interval * (1 + (POLL_JITTER * ((2 * poll_jitter_random) - 1)))
+      if @subscription_manager.event_backed?(id)
+        backoff[:interval] = FALLBACK_POLL_INTERVAL
+        return jittered(EVENT_BACKED_POLL_INTERVAL)
+      end
+
+      interval = backoff[:interval]
+      backoff[:interval] = [interval * FALLBACK_POLL_GROWTH, FALLBACK_POLL_MAX_INTERVAL].min
+      jittered(interval)
+    end
+
+    # @param interval [Float]
+    # @return [Float] +interval+ with up to POLL_JITTER either way
+    def jittered(interval) = interval * (1 + (POLL_JITTER * ((2 * poll_jitter_random) - 1)))
+
+    # Runs a wait's poll. A 429 does not end the wait: the next poll comes no sooner than the server's
+    # Retry-After, nor than the regular interval.
+    #
+    # @return [Float, nil] nil unless rate limited; otherwise the seconds Retry-After asks for (0 without one)
+    def poll_rate_limited
+      yield
+      nil
+    rescue DaytonaApiClient::ApiError => e
+      raise unless e.code == 429
+
+      retry_after_seconds(e.response_headers)
+    end
+
+    # @param headers [Hash, nil]
+    # @return [Float] The delay a Retry-After header asks for (seconds or an HTTP date), 0 when absent
+    def retry_after_seconds(headers)
+      text = Array(headers&.find { |name, _| name.to_s.casecmp?('retry-after') }&.last).first.to_s.strip
+      return text.to_f if text.match?(/\A\d+\z/)
+      return 0.0 if text.empty?
+
+      [Time.httpdate(text) - Time.now, 0.0].max
+    rescue ArgumentError
+      0.0
     end
 
     # @return [Float] Uniform in [0, 1); stubbed in specs
@@ -1548,8 +1600,21 @@ module Daytona
       !sandbox_dto.nil? && !sandbox_dto.state.to_s.empty?
     end
 
+    # The server rejected this Sandbox's subscription: the running waits read now and poll from then on.
+    def wake_waits_to_read
+      @waiter_mutex.synchronize { @state_waiters.each { |waiter| waiter[:read_now].call } }
+      nil
+    end
+
     # Accepts both the full and the slim state payload: { sandbox: { id, state, ... }, oldState, newState }.
-    def handle_event(_event_name, data)
+    def handle_event(event_name, data)
+      return wake_waits_to_read if event_name == EventDispatcher::SUBSCRIPTION_REJECTED_EVENT
+
+      apply_state_event(data)
+    end
+
+    # @param data [Object] A state event payload
+    def apply_state_event(data)
       return unless data.is_a?(Hash)
 
       raw = data['sandbox'] || data
@@ -1584,10 +1649,16 @@ module Daytona
     EVENT_BACKED_POLL_INTERVAL = 5.0
     private_constant :EVENT_BACKED_POLL_INTERVAL
 
-    # Keeps GET load at the polling-only steady state while the event connection is down, instead of the
-    # fast start-up cadence.
-    SUBSCRIBED_POLL_INTERVAL = 1.0
-    private_constant :SUBSCRIBED_POLL_INTERVAL
+    # A subscribed wait without events (connection down, subscription rejected or over the limit) starts at
+    # 1 s and backs off, so many such waits do not spend the request budget.
+    FALLBACK_POLL_INTERVAL = 1.0
+    private_constant :FALLBACK_POLL_INTERVAL
+
+    FALLBACK_POLL_GROWTH = 1.5
+    private_constant :FALLBACK_POLL_GROWTH
+
+    FALLBACK_POLL_MAX_INTERVAL = 10.0
+    private_constant :FALLBACK_POLL_MAX_INTERVAL
 
     # Spreads safety-net polls of concurrent waits apart.
     POLL_JITTER = 0.2

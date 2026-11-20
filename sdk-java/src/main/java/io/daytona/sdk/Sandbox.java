@@ -24,8 +24,10 @@ import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaQueueTimeoutException;
+import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaSpotEvictedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
+import io.daytona.sdk.internal.EventDispatcher;
 import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.sdk.model.SandboxMetrics;
 import io.daytona.toolbox.client.api.SystemApi;
@@ -42,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -79,9 +82,11 @@ public class Sandbox {
     private static final long POLL_ONLY_INTERVAL_MILLIS = 250;
     // State events drive waits; polling is only a safety net, so keep it sparse while events flow.
     private static final long EVENT_BACKED_POLL_INTERVAL_MILLIS = 5000;
-    // Subscribed but no events arrive (connection down, or the id is over the connection's subscription
-    // cap): stay at 1 s so a gateway outage does not multiply GET load.
-    private static final long SUBSCRIBED_POLL_INTERVAL_MILLIS = 1000;
+    // Subscribed but no events arrive (connection down, subscription rejected or over the connection's
+    // limit): start at 1 s and back off, so thousands of such waits do not exhaust the request budget.
+    static final long FALLBACK_POLL_INTERVAL_MILLIS = 1000;
+    static final double FALLBACK_POLL_GROWTH = 1.5;
+    static final long FALLBACK_POLL_MAX_INTERVAL_MILLIS = 10_000;
     // Spreads the polls of concurrent waits apart.
     private static final double POLL_JITTER = 0.2;
     private static final String SANDBOX_STATE_UPDATED_EVENT = "sandbox.state.updated";
@@ -139,9 +144,11 @@ public class Sandbox {
     private final CopyOnWriteArrayList<StateWaiter> stateWaiters = new CopyOnWriteArrayList<>();
     // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
     private final AtomicLong stateEventCount = new AtomicLong();
-    // Package-private so tests can drive the poll cadence without real-time sleeps.
-    PollDelay pollDelay = (subscribed, eventBacked) ->
-            pollIntervalMillis(subscribed, eventBacked, () -> ThreadLocalRandom.current().nextDouble());
+    // Package-private so tests can drive the poll cadence without real-time sleeps; when null, each
+    // wait gets its own WaitPollCadence.
+    PollDelay pollDelay;
+    // Pollers of the waits on this sandbox, woken to read at once when its subscription is rejected.
+    private final Set<Poller> activePollers = ConcurrentHashMap.newKeySet();
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
     private String id;
@@ -1027,6 +1034,12 @@ public class Sandbox {
 
     // Reads only the state, so slim payloads ({sandbox: {id, state, ...}, oldState, newState}) work.
     private void handleEvent(String eventName, JsonNode data) {
+        if (EventDispatcher.SUBSCRIPTION_REJECTED_EVENT.equals(eventName)) {
+            for (Poller poller : activePollers) {
+                poller.wake();
+            }
+            return;
+        }
         if (data == null || !data.isObject()) {
             return;
         }
@@ -1116,7 +1129,7 @@ public class Sandbox {
     /**
      * Waits for one of {@code targetStates}. The wait holds its own subscription to this
      * Sandbox's state events for its whole duration and releases it on every exit, and polls
-     * the state as a safety net at the interval chosen by {@link #pollIntervalMillis}, which is
+     * the state as a safety net at the interval chosen by {@link WaitPollCadence}, which is
      * re-evaluated before every poll.
      */
     private void waitForState(Set<String> targetStates, Set<String> errorStates,
@@ -1201,15 +1214,70 @@ public class Sandbox {
     }
 
     /**
-     * Delay before a wait's next poll. Without a subscription the fast interval applies unchanged;
-     * with one, the interval is jittered by {@code random}, a uniform source in [0, 1].
+     * The poll cadence of one wait; it keeps the fallback backoff between polls. Without a
+     * subscription the fast interval applies unchanged; with one, every interval is jittered by
+     * {@code random}, a uniform source in [0, 1]. A stretch of being event-backed restarts the
+     * fallback backoff at its first interval. Not thread-safe: the poller calls it under its lock.
      */
-    static long pollIntervalMillis(boolean subscribed, boolean eventBacked, DoubleSupplier random) {
-        if (!subscribed) {
-            return POLL_ONLY_INTERVAL_MILLIS;
+    static final class WaitPollCadence implements PollDelay {
+        private final DoubleSupplier random;
+        private double fallbackIntervalMillis = FALLBACK_POLL_INTERVAL_MILLIS;
+
+        WaitPollCadence(DoubleSupplier random) {
+            this.random = random;
         }
-        long base = eventBacked ? EVENT_BACKED_POLL_INTERVAL_MILLIS : SUBSCRIBED_POLL_INTERVAL_MILLIS;
-        return Math.round(base * (1 + POLL_JITTER * (2 * random.getAsDouble() - 1)));
+
+        @Override
+        public long millis(boolean subscribed, boolean eventBacked) {
+            if (!subscribed) {
+                return POLL_ONLY_INTERVAL_MILLIS;
+            }
+            if (eventBacked) {
+                fallbackIntervalMillis = FALLBACK_POLL_INTERVAL_MILLIS;
+                return jitter(EVENT_BACKED_POLL_INTERVAL_MILLIS);
+            }
+            double interval = fallbackIntervalMillis;
+            advance();
+            return jitter(interval);
+        }
+
+        private void advance() {
+            fallbackIntervalMillis = Math.min(fallbackIntervalMillis * FALLBACK_POLL_GROWTH, FALLBACK_POLL_MAX_INTERVAL_MILLIS);
+        }
+
+        private long jitter(double intervalMillis) {
+            return Math.round(intervalMillis * (1 + POLL_JITTER * (2 * random.getAsDouble() - 1)));
+        }
+    }
+
+    /** The {@code Retry-After} of a rate-limit error in milliseconds (seconds or an HTTP date), or 0. */
+    static long retryAfterMillis(DaytonaException error, long nowMillis) {
+        String value = null;
+        for (Map.Entry<String, String> header : error.getHeaders().entrySet()) {
+            if ("retry-after".equalsIgnoreCase(header.getKey())) {
+                value = header.getValue();
+            }
+        }
+        if (value == null || value.trim().isEmpty()) {
+            return 0;
+        }
+        value = value.trim();
+        try {
+            return Math.max(0, Math.round(Double.parseDouble(value) * 1000));
+        } catch (NumberFormatException notSeconds) {
+            try {
+                long date = java.time.ZonedDateTime.parse(value, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+                        .toInstant().toEpochMilli();
+                return Math.max(0, date - nowMillis);
+            } catch (java.time.format.DateTimeParseException notADate) {
+                return 0;
+            }
+        }
+    }
+
+    static boolean isRateLimit(Throwable error) {
+        return error instanceof DaytonaRateLimitException
+                || (error instanceof DaytonaException && ((DaytonaException) error).getStatusCode() == 429);
     }
 
     /**
@@ -1221,9 +1289,13 @@ public class Sandbox {
         private final boolean safeRefresh;
         private final AtomicBoolean refreshInFlight = new AtomicBoolean(false);
         private final Object pollLock = new Object();
+        private final PollDelay cadence = pollDelay != null
+                ? pollDelay
+                : new WaitPollCadence(() -> ThreadLocalRandom.current().nextDouble());
         private boolean stopped;
         private String subId;
         private ScheduledFuture<?> next;
+        private long nextAtNanos;
 
         Poller(StateWaiter waiter, boolean safeRefresh) {
             this.waiter = waiter;
@@ -1234,6 +1306,7 @@ public class Sandbox {
             synchronized (pollLock) {
                 subId = subscribe();
             }
+            activePollers.add(this);
             schedule(0);
         }
 
@@ -1241,10 +1314,44 @@ public class Sandbox {
             synchronized (pollLock) {
                 subId = preparedSubId;
             }
+            activePollers.add(this);
             schedule(skipFirstRead && preparedSubId != null ? nextPollDelayMillis() : 0);
         }
 
+        /** The subscription was rejected, so no events come: read now unless a read is already running. */
+        void wake() {
+            synchronized (pollLock) {
+                if (stopped || refreshInFlight.get()) {
+                    return;
+                }
+                if (next != null) {
+                    next.cancel(false);
+                }
+            }
+            schedule(0);
+        }
+
+        /**
+         * A poll was rate limited: the next one keeps the current interval (whose pick already took the
+         * backoff step), or comes after {@code Retry-After} when that is later.
+         */
+        void onRateLimited(long retryAfterMillis) {
+            synchronized (pollLock) {
+                if (stopped) {
+                    return;
+                }
+                long remainingMillis = TimeUnit.NANOSECONDS.toMillis(nextAtNanos - System.nanoTime());
+                if (retryAfterMillis > remainingMillis) {
+                    if (next != null) {
+                        next.cancel(false);
+                    }
+                    schedule(retryAfterMillis);
+                }
+            }
+        }
+
         void stop() {
+            activePollers.remove(this);
             String toRelease;
             synchronized (pollLock) {
                 stopped = true;
@@ -1270,6 +1377,7 @@ public class Sandbox {
                 if (stopped) {
                     return;
                 }
+                nextAtNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(delayMillis);
                 next = POLL_SCHEDULER.schedule(this::tick, delayMillis, TimeUnit.MILLISECONDS);
             }
         }
@@ -1281,7 +1389,7 @@ public class Sandbox {
             if (refreshInFlight.compareAndSet(false, true)) {
                 REFRESH_EXECUTOR.submit(() -> {
                     try {
-                        runPollingRefresh(waiter, safeRefresh);
+                        runPollingRefresh(waiter, safeRefresh, this);
                     } finally {
                         refreshInFlight.set(false);
                     }
@@ -1300,7 +1408,7 @@ public class Sandbox {
                     subId = subscribe();
                 }
                 boolean subscribed = subId != null;
-                return pollDelay.millis(subscribed, subscribed && subscriptionManager.isEventBacked(id));
+                return cadence.millis(subscribed, subscribed && subscriptionManager.isEventBacked(id));
             }
         }
     }
@@ -1315,7 +1423,7 @@ public class Sandbox {
         }
     }
 
-    private void runPollingRefresh(StateWaiter waiter, boolean safeRefresh) {
+    private void runPollingRefresh(StateWaiter waiter, boolean safeRefresh, Poller poller) {
         try {
             if (safeRefresh) {
                 refreshDataSafe();
@@ -1326,6 +1434,11 @@ public class Sandbox {
             // notify the waiter after each successful refresh.
             notifyWaiterOfCurrentState(waiter);
         } catch (Exception e) {
+            if (isRateLimit(e)) {
+                // A rate-limited poll backs off instead of failing the wait.
+                poller.onRateLimited(retryAfterMillis((DaytonaException) e, System.currentTimeMillis()));
+                return;
+            }
             waiter.onPollError(e instanceof RuntimeException ? (RuntimeException) e : new DaytonaException(e.getMessage(), e));
         }
     }

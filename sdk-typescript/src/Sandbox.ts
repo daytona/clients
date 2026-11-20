@@ -60,8 +60,9 @@ import type { AxiosInstance } from 'axios'
 import { CodeInterpreter } from './CodeInterpreter'
 import { WithInstrumentation } from './utils/otel.decorator'
 import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
+import { SUBSCRIPTION_REJECTED_EVENT } from './utils/EventDispatcher'
 import { buildSignedFileUrl } from './utils/fileUrlSigning'
-import { waitPollIntervalMs } from './utils/WaitPolling'
+import { WaitPollCadence, isRateLimitError, retryAfterMs } from './utils/WaitPolling'
 
 /**
  * A state subscription taken before an operation's request and handed to the operation's wait.
@@ -222,6 +223,8 @@ export class Sandbox {
   private signingKeyFetchedAt = 0
   // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
   private stateEventCount = 0
+  // Waits on this sandbox, woken to read at once when the gateway rejects its subscription.
+  private readonly subscriptionRejectedWakers = new Set<() => void>()
 
   /**
    * Creates a new Sandbox instance.
@@ -1421,7 +1424,11 @@ export class Sandbox {
    * Applies the state from a `sandbox.state.updated` event. Payloads may carry only a
    * subset of the sandbox fields; everything else is picked up by the wait's refreshes.
    */
-  private handleEvent(_eventName: string, data: any): void {
+  private handleEvent(eventName: string, data: any): void {
+    if (eventName === SUBSCRIPTION_REJECTED_EVENT) {
+      for (const wake of [...this.subscriptionRejectedWakers]) wake()
+      return
+    }
     if (!data || typeof data !== 'object') return
     const raw = data.sandbox ?? data
     if (!raw || typeof raw !== 'object') return
@@ -1488,6 +1495,7 @@ export class Sandbox {
         settled = true
         if (timeoutTimer) clearTimeout(timeoutTimer)
         if (pollTimer) clearTimeout(pollTimer)
+        this.subscriptionRejectedWakers.delete(wake)
         this.removeStateWaiter(waiter)
         if (subId) {
           this.subscriptionManager.unsubscribe(subId)
@@ -1539,12 +1547,14 @@ export class Sandbox {
         }, timeout * 1000)
       }
 
-      // Poll as a safety net for missed state changes (see waitPollIntervalMs). Without a
+      // Poll as a safety net for missed state changes (see WaitPollCadence). Without a
       // subscription, replicate main's cadence exactly: 100ms steady for the first 5s, then
       // exponential backoff capped at 1s. Re-evaluated on every iteration so the cadence
       // follows the subscription and the connection as they come and go.
       const pollStart = Date.now()
       let fastPollInterval = 100
+      const cadence = new WaitPollCadence()
+      let pollInFlight = false
       const holdsSubscription = (): boolean => {
         if (!subId) return false
         // Keep the subscription alive for long waits (subscriptions expire after a TTL).
@@ -1555,26 +1565,39 @@ export class Sandbox {
       }
       const nextPollDelay = (): number => {
         const subscribed = holdsSubscription()
-        return waitPollIntervalMs(
-          subscribed,
-          subscribed && this.subscriptionManager.isEventBacked(this.id),
-          fastPollInterval,
-        )
+        return cadence.next(subscribed, subscribed && this.subscriptionManager.isEventBacked(this.id), fastPollInterval)
+      }
+      const schedulePoll = (delayMs: number) => {
+        pollTimer = setTimeout(() => {
+          pollTimer = null
+          void doPoll()
+        }, delayMs)
       }
       const doPoll = async () => {
         if (settled) return
 
         let refreshed: boolean
+        pollInFlight = true
         try {
           if (safeRefresh) {
-            refreshed = await this.refreshDataSafe()
+            refreshed = await this.refreshDataSafe(true)
           } else {
             await this.refreshData()
             refreshed = true
           }
         } catch (error) {
+          if (isRateLimitError(error)) {
+            // Rate limited: retry no sooner than the current interval (which takes the poll's backoff
+            // step, as every fallback poll does) or Retry-After.
+            if (!settled) {
+              schedulePoll(Math.max(nextPollDelay(), retryAfterMs(error) ?? 0))
+            }
+            return
+          }
           waiter.reject(error instanceof Error ? error : new DaytonaError(String(error)))
           return
+        } finally {
+          pollInFlight = false
         }
 
         if (!settled) {
@@ -1589,11 +1612,17 @@ export class Sandbox {
           if (Date.now() - pollStart > 5000) {
             fastPollInterval = Math.min(fastPollInterval * 1.1, 1000)
           }
-          pollTimer = setTimeout(() => {
-            void doPoll()
-          }, nextPollDelay())
+          schedulePoll(nextPollDelay())
         }
       }
+      // A rejected subscription means no events: read now unless a read is already running.
+      function wake(): void {
+        if (settled || pollInFlight) return
+        if (pollTimer) clearTimeout(pollTimer)
+        pollTimer = null
+        void doPoll()
+      }
+      this.subscriptionRejectedWakers.add(wake)
 
       // The first poll runs immediately (main refreshed before any state evaluation), unless the
       // subscription was live before the operation's request, the connection did not drop since (events
@@ -1615,9 +1644,7 @@ export class Sandbox {
         this.stateEventCount === prepared.stateEventCount &&
         !responseStateIsFailure
       if (skipFirstRead) {
-        pollTimer = setTimeout(() => {
-          void doPoll()
-        }, nextPollDelay())
+        schedulePoll(nextPollDelay())
       } else {
         void doPoll()
       }
@@ -1709,7 +1736,7 @@ export class Sandbox {
    *          mapped to DESTROYED); false when a transient error was swallowed and
    *          the cached state is stale.
    */
-  private async refreshDataSafe(): Promise<boolean> {
+  private async refreshDataSafe(rethrowRateLimit = false): Promise<boolean> {
     try {
       await this.refreshData()
       return true
@@ -1717,6 +1744,9 @@ export class Sandbox {
       if (error instanceof DaytonaNotFoundError) {
         this.applyState(SandboxState.DESTROYED)
         return true
+      }
+      if (rethrowRateLimit && isRateLimitError(error)) {
+        throw error
       }
       // Other errors are deliberately swallowed (parity with main): transient
       // failures (e.g. 502) mid-poll must not abort stop()/delete() waits.

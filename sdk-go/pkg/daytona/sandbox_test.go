@@ -590,7 +590,7 @@ func TestWaitForStatePollInterval(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stubWaitForStatePollRandom(t, tt.random)
-			assert.Equal(t, tt.want, waitForStatePollInterval(waitForStatePollingInitialInterval, tt.mode))
+			assert.Equal(t, tt.want, newWaitPollSchedule().next(tt.mode))
 		})
 	}
 
@@ -602,8 +602,43 @@ func TestWaitForStatePollInterval(t *testing.T) {
 		}
 		t.Cleanup(func() { waitForStatePollRandom = original })
 
-		assert.Equal(t, waitForStatePollingInitialInterval, waitForStatePollInterval(waitForStatePollingInitialInterval, waitPollUnsubscribed))
-		assert.Equal(t, 110*time.Millisecond, waitForStatePollInterval(110*time.Millisecond, waitPollUnsubscribed))
+		schedule := newWaitPollSchedule()
+		assert.Equal(t, waitForStatePollingInitialInterval, schedule.next(waitPollUnsubscribed))
+		schedule.fast = 110 * time.Millisecond
+		assert.Equal(t, 110*time.Millisecond, schedule.next(waitPollUnsubscribed))
+	})
+}
+
+func TestWaitPollScheduleFallbackBacksOff(t *testing.T) {
+	seconds := func(values ...float64) []time.Duration {
+		out := make([]time.Duration, len(values))
+		for i, v := range values {
+			out[i] = time.Duration(v * float64(time.Second))
+		}
+		return out
+	}
+	sequence := func(random float64, n int) []time.Duration {
+		stubWaitForStatePollRandom(t, random)
+		schedule := newWaitPollSchedule()
+		out := make([]time.Duration, n)
+		for i := range out {
+			out[i] = schedule.next(waitPollSubscribed)
+		}
+		return out
+	}
+	// 1 s growing x1.5 up to 10 s, each with +-20 % jitter.
+	assert.Equal(t, seconds(1, 1.5, 2.25, 3.375, 5.0625, 7.59375, 10, 10), sequence(0.5, 8))
+	assert.Equal(t, seconds(0.8, 1.2, 1.8, 2.7, 4.05, 6.075, 8, 8), sequence(0, 8))
+	assert.Equal(t, seconds(1.2, 1.8, 2.7, 4.05, 6.075, 9.1125, 12, 12), sequence(1, 8))
+
+	t.Run("starts over after a stretch of being event-backed", func(t *testing.T) {
+		stubWaitForStatePollRandom(t, 0.5)
+		schedule := newWaitPollSchedule()
+		var got []time.Duration
+		for _, mode := range []waitPollMode{waitPollSubscribed, waitPollSubscribed, waitPollSubscribed, waitPollEventBacked, waitPollEventBacked, waitPollSubscribed, waitPollSubscribed} {
+			got = append(got, schedule.next(mode))
+		}
+		assert.Equal(t, seconds(1, 1.5, 2.25, 5, 5, 1, 1.5), got)
 	})
 }
 

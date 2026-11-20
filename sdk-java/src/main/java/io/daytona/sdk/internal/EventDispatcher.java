@@ -5,6 +5,7 @@ package io.daytona.sdk.internal;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.client.SocketOptionBuilder;
@@ -55,10 +56,21 @@ public class EventDispatcher {
     static final String SUBSCRIPTION_MODE = "explicit";
     static final int MAX_IDS_PER_MESSAGE = 100;
     /**
-     * Most sandbox ids one connection may subscribe to. Set by the gateway's wire contract: a
-     * subscribe that would exceed it is rejected whole, and the client is not told.
+     * Most sandbox ids one connection subscribes to. A gateway with a lower limit rejects the excess
+     * with {@code SUBSCRIPTION_LIMIT_EXCEEDED} in the subscribe acknowledgement, which marks those ids
+     * rejected.
      */
-    public static final int MAX_SUBSCRIPTIONS_PER_CONNECTION = 1000;
+    public static final int MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000;
+    /**
+     * How long the first acknowledged subscribe of a connection waits before the connection counts as
+     * one whose server never acknowledges. Silence never changes an id's state.
+     */
+    static final long SUBSCRIBE_ACK_TIMEOUT_MILLIS = 10_000;
+    /**
+     * Local notification (never sent by the server) delivered to an id's handlers when the gateway
+     * rejected its subscription: no events will arrive for it until its last listener goes.
+     */
+    public static final String SUBSCRIPTION_REJECTED_EVENT = "daytona.subscription.rejected";
     static final String SUBSCRIBE_EVENT = "subscribe";
     static final String UNSUBSCRIBE_EVENT = "unsubscribe";
 
@@ -77,11 +89,21 @@ public class EventDispatcher {
     private final Set<String> socketBoundEvents = new HashSet<>();
     // Ids the server holds, or will hold after the next connect; at most maxSubscriptions. Guarded by lock.
     private final Set<String> served = new LinkedHashSet<>();
+    // Ids whose subscribe the gateway rejected; unserved until their last listener goes. Guarded by lock.
+    private final Set<String> rejected = new HashSet<>();
     private final ScheduledExecutorService scheduler;
     private ScheduledFuture<?> disconnectTimer;
     private long disconnectGeneration;
     // Incremented on every connect; guarded by lock. Lets queued emits detect a newer connection.
     private long connectionGeneration;
+    // Package-private so tests can shorten it.
+    volatile long subscribeAckTimeoutMillis = SUBSCRIBE_ACK_TIMEOUT_MILLIS;
+    // Per connection, guarded by lock: whether an acknowledgement arrived, whether the first acknowledged
+    // subscribe started its timeout, and whether the server proved silent. The client keeps an unanswered
+    // acknowledgement until the disconnect, so a silent server's subscribes go out without one.
+    private boolean acksSeen;
+    private boolean ackProbeArmed;
+    private boolean acksSilent;
 
     private volatile boolean connected;
     private volatile boolean connecting;
@@ -122,6 +144,8 @@ public class EventDispatcher {
             return t;
         });
         scheduler.setRemoveOnCancelPolicy(true); // Eagerly remove canceled tasks to prevent queue buildup from refresh()
+        // A pending acknowledgement timeout must not hold up shutdown.
+        scheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         this.scheduler = scheduler;
     }
 
@@ -225,6 +249,9 @@ public class EventDispatcher {
                     failed = false;
                     failError = "";
                     connectionGeneration++;
+                    acksSeen = false;
+                    ackProbeArmed = false;
+                    acksSilent = false;
                     // The server drops subscriptions on disconnect: send the whole served set again.
                     emitIdsLocked(sock, SUBSCRIBE_EVENT, new ArrayList<>(served));
                 }
@@ -339,6 +366,13 @@ public class EventDispatcher {
         }
     }
 
+    /** Whether the gateway rejected this id's subscription (until its last listener goes). */
+    public boolean isRejected(String resourceId) {
+        synchronized (lock) {
+            return rejected.contains(resourceId);
+        }
+    }
+
     /** Whether events for this id arrive now: connected and served, read together under one lock. */
     public boolean isEventBacked(String resourceId) {
         synchronized (lock) {
@@ -380,6 +414,7 @@ public class EventDispatcher {
             connecting = false;
             socketBoundEvents.clear();
             served.clear();
+            rejected.clear();
         }
         listeners.clear();
         registeredEvents.clear();
@@ -457,6 +492,7 @@ public class EventDispatcher {
 
     private void unsubscribeResourceLocked(String resourceId) {
         listeners.remove(resourceId);
+        rejected.remove(resourceId);
         if (served.remove(resourceId)) {
             emitIdsLocked(socket, UNSUBSCRIBE_EVENT, Collections.singletonList(resourceId));
         }
@@ -492,7 +528,13 @@ public class EventDispatcher {
                             }
                             JSONObject payload = new JSONObject();
                             payload.put("sandboxIds", sandboxIds);
-                            sock.emit(event, payload);
+                            if (SUBSCRIBE_EVENT.equals(event) && !acksSilent) {
+                                // The client drops pending acknowledgements on disconnect.
+                                sock.emit(event, new Object[]{payload}, new SubscribeAck(sock, generation, chunk));
+                                armAckProbeLocked(generation);
+                            } else {
+                                sock.emit(event, payload);
+                            }
                         } catch (Exception e) {
                             LOG.log(Level.FINE, "Failed to send " + event, e);
                         }
@@ -501,6 +543,86 @@ public class EventDispatcher {
             });
         } catch (Exception e) {
             LOG.log(Level.FINE, "Failed to schedule " + event, e);
+        }
+    }
+
+    /**
+     * Starts this connection's acknowledgement timeout on its first acknowledged subscribe. If no
+     * acknowledgement at all arrives in time, the connection's later subscribes go out without one.
+     */
+    private void armAckProbeLocked(long generation) {
+        if (ackProbeArmed) {
+            return;
+        }
+        ackProbeArmed = true;
+        try {
+            scheduler.schedule(() -> {
+                synchronized (lock) {
+                    if (generation == connectionGeneration && !acksSeen) {
+                        acksSilent = true;
+                    }
+                }
+            }, subscribeAckTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // Shutting down: nothing more is sent anyway.
+        }
+    }
+
+    /** Acknowledgement of one subscribe message; a late one is handled like any other. */
+    private final class SubscribeAck implements Ack {
+        private final Socket sock;
+        private final long generation;
+        private volatile List<String> ids;
+
+        SubscribeAck(Socket sock, long generation, List<String> ids) {
+            this.sock = sock;
+            this.generation = generation;
+            this.ids = new ArrayList<>(ids);
+        }
+
+        @Override
+        public void call(Object... args) {
+            List<String> pending = ids;
+            ids = null;
+            if (pending != null) {
+                handleSubscribeAck(sock, generation, pending, args);
+            }
+        }
+    }
+
+    /**
+     * A rejected subscribe (any error code) frees the served slots of its ids and marks them rejected
+     * until their last listener goes; their handlers are told so their waits read now and poll.
+     * No acknowledgement, or {@code {ok: true}}, changes nothing: servers without explicit mode never ack.
+     */
+    private void handleSubscribeAck(Socket sock, long generation, List<String> ids, Object[] args) {
+        synchronized (lock) {
+            if (generation == connectionGeneration) {
+                acksSeen = true;
+            }
+        }
+        if (args == null || args.length == 0 || !(args[0] instanceof JSONObject)) {
+            return;
+        }
+        JSONObject ack = (JSONObject) args[0];
+        if (!Boolean.FALSE.equals(ack.opt("ok"))) {
+            return;
+        }
+        String error = ack.optString("error", "");
+        List<String> newlyRejected = new ArrayList<>();
+        synchronized (lock) {
+            if (closed || sock != socket || generation != connectionGeneration) {
+                return;
+            }
+            for (String id : ids) {
+                if (listeners.containsKey(id) && served.remove(id)) {
+                    rejected.add(id);
+                    newlyRejected.add(id);
+                }
+            }
+        }
+        for (String id : newlyRejected) {
+            dispatch(id, SUBSCRIPTION_REJECTED_EVENT, MAPPER.createObjectNode().put("id", id).put("error", error));
         }
     }
 

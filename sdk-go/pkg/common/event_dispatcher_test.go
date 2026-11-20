@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -38,13 +39,35 @@ type fakeSocketIOServer struct {
 	// stopReading makes the server stop reading new sockets after the
 	// handshake, so the client's writes back up.
 	stopReading atomic.Bool
-	done        chan struct{}
+	// ackReply, when set, answers each client event that asked for an
+	// acknowledgement with its result ("" sends none).
+	ackReply atomic.Pointer[func(receivedEvent) string]
+	done     chan struct{}
 
 	mu       sync.Mutex
 	queries  []url.Values
 	conns    []*websocket.Conn
 	writeMu  sync.Mutex
 	received []receivedEvent
+	// ackIDs holds, per received event, the acknowledgement id it asked for
+	// ("" for none).
+	ackIDs []string
+}
+
+// parseClientEvent splits a client EVENT packet, 42[<ackID>][name,payload].
+func parseClientEvent(msg []byte) (ackID string, packet []json.RawMessage, ok bool) {
+	if !strings.HasPrefix(string(msg), "42") {
+		return "", nil, false
+	}
+	rest := msg[2:]
+	digits := 0
+	for digits < len(rest) && rest[digits] >= '0' && rest[digits] <= '9' {
+		digits++
+	}
+	if err := json.Unmarshal(rest[digits:], &packet); err != nil {
+		return "", nil, false
+	}
+	return string(rest[:digits]), packet, true
 }
 
 type receivedEvent struct {
@@ -99,11 +122,8 @@ func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 				}
 				return
 			}
-			if !strings.HasPrefix(string(msg), "42") {
-				continue
-			}
-			var packet []json.RawMessage
-			if err := json.Unmarshal(msg[2:], &packet); err != nil || len(packet) != 2 {
+			ackID, packet, ok := parseClientEvent(msg)
+			if !ok || len(packet) != 2 {
 				continue
 			}
 			var event receivedEvent
@@ -113,7 +133,15 @@ func newFakeSocketIOServer(t *testing.T) *fakeSocketIOServer {
 			event.SandboxIDs = payload.SandboxIDs
 			f.mu.Lock()
 			f.received = append(f.received, event)
+			f.ackIDs = append(f.ackIDs, ackID)
 			f.mu.Unlock()
+			if reply := f.ackReply.Load(); reply != nil && ackID != "" {
+				if result := (*reply)(event); result != "" {
+					f.writeMu.Lock()
+					_ = conn.WriteMessage(websocket.TextMessage, []byte("43"+ackID+"["+result+"]"))
+					f.writeMu.Unlock()
+				}
+			}
 		}
 	}))
 	t.Cleanup(f.server.Close)
@@ -125,6 +153,16 @@ func (f *fakeSocketIOServer) connectionCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.conns)
+}
+
+func (f *fakeSocketIOServer) setAckReply(reply func(receivedEvent) string) {
+	f.ackReply.Store(&reply)
+}
+
+func (f *fakeSocketIOServer) eventAckIDs() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.ackIDs...)
 }
 
 func (f *fakeSocketIOServer) events() []receivedEvent {
@@ -606,11 +644,16 @@ func TestHandleEventParsesSlimAndFullStatePayloads(t *testing.T) {
 }
 
 func TestEventDispatcherClampsTheSubscriptionLimitToTheGateways(t *testing.T) {
-	for _, configured := range []int{gatewaySubscriptionLimit + 1, 5000, 0, -1} {
+	for _, configured := range []int{gatewaySubscriptionLimit + 1, 50000, 0, -1} {
 		lowerSubscriptionCap(t, configured)
 		if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != gatewaySubscriptionLimit {
 			t.Fatalf("configured %d: maxSubscriptions = %d, want %d", configured, got, gatewaySubscriptionLimit)
 		}
+	}
+
+	lowerSubscriptionCap(t, 10000)
+	if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != 10000 {
+		t.Fatalf("the limit is 10000: maxSubscriptions = %d", got)
 	}
 
 	lowerSubscriptionCap(t, 2)
@@ -645,4 +688,165 @@ func TestHandleEventDeliversTransitionsWhenTheSandboxDoesNotDecode(t *testing.T)
 	// A payload that does not decode at all is still dropped.
 	es.handleEvent("sandbox.state.updated", json.RawMessage(fmt.Sprintf(`{"sandbox":{"id":%q},"newState":7}`, id)))
 	assert.Len(t, got, 2)
+}
+
+// newDetachedSocketIOClient is a client without a connection, enough to
+// exercise its packet handling.
+func newDetachedSocketIOClient() *socketIOClient {
+	return &socketIOClient{
+		closeCh:      make(chan struct{}),
+		healthStopCh: make(chan struct{}),
+		outSignal:    make(chan struct{}, 1),
+		pendingAcks:  make(map[uint64]func(json.RawMessage)),
+	}
+}
+
+func TestSocketIOClientMatchesAcksToCallbacks(t *testing.T) {
+	client := newDetachedSocketIOClient()
+	var got []string
+	record := func(name string) func(json.RawMessage) {
+		return func(arg json.RawMessage) { got = append(got, name+":"+string(arg)) }
+	}
+	require.NoError(t, client.emitWithAck("subscribe", json.RawMessage(`{"sandboxIds":["a"]}`), record("first")))
+	require.NoError(t, client.emitWithAck("subscribe", json.RawMessage(`{"sandboxIds":["b"]}`), record("second")))
+	require.NoError(t, client.emit("unsubscribe", json.RawMessage(`{"sandboxIds":["c"]}`)))
+	assert.Equal(t, []string{
+		`421["subscribe",{"sandboxIds":["a"]}]`,
+		`422["subscribe",{"sandboxIds":["b"]}]`,
+		`42["unsubscribe",{"sandboxIds":["c"]}]`,
+	}, client.outQueue, "acked events carry a packet id; others do not")
+
+	client.handleSocketIOPacket([]byte(`32[{"ok":false,"error":"OVERLOADED"}]`))
+	client.handleSocketIOPacket([]byte(`399[{"ok":true}]`))
+	client.handleSocketIOPacket([]byte(`3/ns,1[{"ok":true}]`))
+	client.handleSocketIOPacket([]byte(`31[{"ok":true}]`))
+	assert.Equal(t, []string{`second:{"ok":false,"error":"OVERLOADED"}`, `first:{"ok":true}`}, got)
+
+	got = nil
+	client.handleSocketIOPacket([]byte(`31[{"ok":true}]`))
+	assert.Empty(t, got, "a callback runs at most once")
+}
+
+func TestSocketIOClientDropsPendingAcksOnDisconnect(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	disconnected := make(chan struct{})
+	client, err := newSocketIOClient(socketIOClientConfig{
+		APIURL:       f.server.URL,
+		Token:        "test-token",
+		OnDisconnect: func() { close(disconnected) },
+	})
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+	require.Eventually(t, func() bool { return f.connectionCount() == 1 }, 5*time.Second, 10*time.Millisecond)
+
+	called := make(chan struct{}, 1)
+	require.NoError(t, client.emitWithAck("subscribe", json.RawMessage(`{"sandboxIds":["a"]}`), func(json.RawMessage) { called <- struct{}{} }))
+	require.Eventually(t, func() bool { return len(f.eventAckIDs()) == 1 }, 5*time.Second, 10*time.Millisecond)
+
+	f.dropConnections()
+	select {
+	case <-disconnected:
+	case <-time.After(5 * time.Second):
+		t.Fatal("client did not report the disconnect")
+	}
+	client.ackMu.Lock()
+	pending := len(client.pendingAcks)
+	client.ackMu.Unlock()
+	assert.Zero(t, pending)
+	client.handleSocketIOPacket([]byte(`31[{"ok":false,"error":"OVERLOADED"}]`))
+	select {
+	case <-called:
+		t.Fatal("a callback ran after the disconnect")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// ackRejecting answers subscribes that carry one of ids with an OVERLOADED
+// rejection, and every other subscribe with ok.
+func ackRejecting(ids ...string) func(receivedEvent) string {
+	return func(event receivedEvent) string {
+		if event.Name != "subscribe" {
+			return ""
+		}
+		for _, id := range event.SandboxIDs {
+			if slices.Contains(ids, id) {
+				return `{"ok":false,"error":"OVERLOADED","message":"shedding"}`
+			}
+		}
+		return `{"ok":true}`
+	}
+}
+
+func TestEventDispatcherUnservesRejectedSubscriptions(t *testing.T) {
+	lowerSubscriptionCap(t, 2)
+	f := newFakeSocketIOServer(t)
+	idA, idB, idC := testSandboxID(1), testSandboxID(2), testSandboxID(3)
+	f.setAckReply(ackRejecting(idB))
+	es := newTestDispatcher(t, f)
+	manager := NewEventSubscriptionManager(es)
+
+	var mu sync.Mutex
+	var rejections []string
+	handlerFor := func(id string) SandboxEventHandler {
+		return func(event SandboxEvent) {
+			if event.Type == SandboxEventSubscriptionRejected {
+				mu.Lock()
+				rejections = append(rejections, id)
+				mu.Unlock()
+			}
+		}
+	}
+	defer es.Subscribe(idA, handlerFor(idA), stateEvents)()
+	require.Eventually(t, es.IsConnected, 5*time.Second, 10*time.Millisecond)
+	defer es.Subscribe(idB, handlerFor(idB), stateEvents)()
+	require.Eventually(t, func() bool { return !es.IsServed(idB) }, 5*time.Second, 10*time.Millisecond)
+
+	mu.Lock()
+	assert.Equal(t, []string{idB}, rejections, "the rejected id's handlers are told")
+	mu.Unlock()
+	assert.True(t, es.IsServed(idA), "an accepted id stays served")
+	assert.True(t, manager.IsEventBacked(idA))
+	assert.False(t, manager.IsEventBacked(idB))
+	for _, ackID := range f.eventAckIDs() {
+		assert.NotEmpty(t, ackID, "every subscribe asks for an acknowledgement")
+	}
+
+	// The rejected id's slot is free again.
+	defer es.Subscribe(idC, handlerFor(idC), stateEvents)()
+	require.Eventually(t, func() bool { return len(f.events()) == 3 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, receivedEvent{"subscribe", []string{idC}}, f.events()[2])
+	assert.True(t, es.IsServed(idC))
+
+	// A reconnect re-sends the served ids only.
+	before := len(f.events())
+	f.dropConnections()
+	require.Eventually(t, func() bool { return f.connectionCount() == 2 && len(f.events()) > before }, 10*time.Second, 20*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, []receivedEvent{{"subscribe", []string{idA, idC}}}, f.events()[before:])
+	assert.False(t, es.IsServed(idB), "a rejected id stays unserved until its last listener goes")
+}
+
+func TestEventDispatcherKeepsSubscriptionsWithoutARejection(t *testing.T) {
+	for name, reply := range map[string]func(receivedEvent) string{
+		"no ack": func(receivedEvent) string { return "" },
+		"ok":     func(receivedEvent) string { return `{"ok":true}` },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeSocketIOServer(t)
+			f.setAckReply(reply)
+			es := newTestDispatcher(t, f)
+			id := testSandboxID(1)
+			var rejected atomic.Bool
+			defer es.Subscribe(id, func(event SandboxEvent) {
+				if event.Type == SandboxEventSubscriptionRejected {
+					rejected.Store(true)
+				}
+			}, stateEvents)()
+			require.Eventually(t, func() bool { return es.IsConnected() && len(f.events()) == 1 }, 5*time.Second, 10*time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
+			assert.True(t, es.IsServed(id))
+			assert.True(t, es.IsEventBacked(id))
+			assert.False(t, rejected.Load())
+		})
+	}
 }
