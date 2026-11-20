@@ -1,0 +1,21 @@
+sdk-go/internal/buildcontext/file_snapshot_test.go
+  s_7543d111369670::t_3a1c45e8815092 1-44
+sdk-go/internal/buildcontext/file.go
+  s_7543d111369670::t_43fd9329177344 42-44,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3b5046efcc93cb193c8f284c77f7e40533a9d8d",
+  "prompts": {},
+  "sessions": {
+    "s_7543d111369670": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e6938ffe5f1hUO4eNLQjo8",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
