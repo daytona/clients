@@ -13,6 +13,8 @@ on:
       - 'scripts/sdk-version*.sh'
       - 'scripts/sdk-go-publish_test.sh'
       - 'scripts/release-channel*.sh'
+      - 'scripts/patch_coverage*'
+      - 'scripts/ax-evals/setup/**'
       - '.github/workflows/sdk_publish.yaml'
       - '.github/workflows/sdk-go-ci.yaml'
       - '.github/workflows/tooling.yaml'
@@ -43,3 +45,7 @@ jobs:
           bash scripts/sdk-version_test.sh
           bash scripts/sdk-go-publish_test.sh
           bash scripts/release-channel_test.sh
+      - name: Patch coverage and AX setup helpers
+        run: |
+          bash scripts/patch_coverage_test.sh
+          bash scripts/ax-evals/setup/go_test.sh

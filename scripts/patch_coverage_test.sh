@@ -8,14 +8,14 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 cd "$tmp"
-GIT_MASTER=1 git init -q
+git init -q
 mkdir -p sdk-go/internal/gen/api
 printf 'module go.daytona.com/sdk/v2\n\ngo 1.26.0\n' > sdk-go/go.mod
 printf 'package daytona\n\nfunc covered() int { return 1 }\n' > sdk-go/covered.go
 printf 'package api\n\nconst Generated = 1\n' > sdk-go/internal/gen/api/api.go
 printf 'package daytona\n\nconst Generated = 1\n' > sdk-go/codes_catalog_0.go
-GIT_MASTER=1 git add .
-GIT_MASTER=1 git -c user.name=Test -c user.email=test@example.com commit -qm fixture
+git add .
+git -c user.name=Test -c user.email=test@example.com commit -qm fixture
 printf 'package daytona\n\nfunc covered() int { return 2 }\n' > sdk-go/covered.go
 printf 'package api\n\nconst Generated = 2\n' > sdk-go/internal/gen/api/api.go
 printf 'package daytona\n\nconst Generated = 2\n' > sdk-go/codes_catalog_0.go

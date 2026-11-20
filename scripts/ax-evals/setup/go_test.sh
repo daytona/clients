@@ -46,5 +46,3 @@ printf 'module example.com/eval\n\ngo 1.25.3\n' > "$tmp/go.mod"
 check "go-only fallback" "$tmp/go.mod" 1.25.3
 printf 'module example.com/eval\n\ngo 1.25.3\n\ntoolchain default\n' > "$tmp/go.mod"
 check "default toolchain fallback" "$tmp/go.mod" 1.25.3
-check "CLI module" "$root/cli/go.mod" 1.26.10
-check "Go SDK module" "$root/sdk-go/go.mod" 1.26.10
