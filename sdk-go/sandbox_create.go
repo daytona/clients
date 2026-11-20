@@ -27,8 +27,16 @@ func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) 
 	if opts != nil {
 		options = *opts
 	}
+	prepared, err := prepareLinuxCreate(image, options)
+	if err != nil {
+		return nil, err
+	}
+	return c.submitCreate(ctx, prepared)
+}
+
+func prepareLinuxCreate(image string, options CreateOptions) (preparedCreate, error) {
 	if image != "" && createTrim(image) == "" {
-		return nil, badRequest("image must be a non-empty string")
+		return preparedCreate{}, badRequest("image must be a non-empty string")
 	}
 	prepared, err := prepareCreateCommon(CreateFromSnapshotOptions{
 		Name: options.Name, Labels: options.Labels, Ports: options.Ports,
@@ -36,27 +44,27 @@ func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) 
 		Wait: options.Wait, CreateTimeout: options.CreateTimeout, IdempotencyKey: options.IdempotencyKey,
 	})
 	if err != nil {
-		return nil, err
+		return prepared, err
 	}
 	if err = lifecyclePolicyClassSupport(options.LifecyclePolicy, SandboxInfo{Class: SandboxClassLinux}); err != nil {
-		return nil, err
+		return prepared, err
 	}
 	switch options.CPUArch {
 	case "", "amd64", "arm64":
 	default:
-		return nil, badRequest("cpuArch must be amd64 or arm64")
+		return prepared, badRequest("cpuArch must be amd64 or arm64")
 	}
 	if err = prepareCreateAttachments(&prepared.body, &options); err != nil {
-		return nil, err
+		return prepared, err
 	}
 	if err = prepareLinuxResources(&prepared.body, options.Resources); err != nil {
-		return nil, err
+		return prepared, err
 	}
 	prepared.path, prepared.class = "/sandboxes", SandboxClassLinux
 	prepared.body.Image = createTrim(image)
 	prepared.body.CPUArch, prepared.body.CPUType = options.CPUArch, options.CPUType
 	prepared.body.User, prepared.body.Spot = options.User, clonePointer(options.Spot)
-	return c.submitCreate(ctx, prepared)
+	return prepared, nil
 }
 
 // CreateFromSnapshot restores a Linux sandbox from a snapshot name or ID.
