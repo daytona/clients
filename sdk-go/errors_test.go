@@ -154,6 +154,22 @@ func TestCatalog_whenReferenceAddsCode(t *testing.T) {
 	require.Len(t, generatedCodes, len(parsedCodes)+1)
 	parsedCodes[CodeRequestCancelled] = struct{}{}
 	require.Equal(t, parsedCodes, generatedCodes, "catalog entries must agree in both directions")
+	// When: the sibling adds a per-code envelope extra, Go must retain it too.
+	extras := regexp.MustCompile(`(?s)export const (\w+)_CODE_EXTRAS:[^\n]+ = frozenExtras\(\{(.*?)\}\)`)
+	extraNames := regexp.MustCompile(`'([^']+)'`)
+	parsedExtras := extras.FindAllStringSubmatch(string(source), -1)
+	require.Len(t, parsedExtras, 4, "TypeScript extras parser must cover every source")
+	// These keys are handled by populateErrorDetails (including RetryAfter).
+	handled := []string{
+		"entitlement", "feature", "replacement", "firstAvailableCursor", "stated", "actual",
+		"region", "limit", "current", "max", "max_bytes", "bytes", "retry_after_seconds",
+	}
+	for _, catalog := range parsedExtras {
+		for _, extra := range extraNames.FindAllStringSubmatch(catalog[2], -1) {
+			// Then
+			require.Contains(t, handled, extra[1], "%s extra needs an envelope mapping", catalog[1])
+		}
+	}
 }
 
 func TestErrors_whenJSONDepthExceedsLimit(t *testing.T) {
