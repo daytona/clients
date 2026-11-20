@@ -1,0 +1,176 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+// Package dockerignore implements POSIX build-context ignore rules.
+// Its implementation is derived from the Apache-licensed SDKs and shared
+// behavioral fixtures, without using the CLI implementation.
+package dockerignore
+
+import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"io"
+	"path"
+	"regexp"
+	"strings"
+)
+
+// Error is an invalid ignore-file line or pattern.
+type Error struct {
+	// Message describes the invalid input.
+	Message string
+}
+
+// Error describes the invalid ignore input.
+func (e *Error) Error() string { return e.Message }
+
+func patternError(raw, reason string) error {
+	quoted, err := json.Marshal(raw)
+	if err != nil {
+		return &Error{Message: "invalid pattern: " + reason}
+	}
+	return &Error{Message: "invalid pattern " + string(quoted) + ": " + reason}
+}
+
+// ReadPatterns reads Docker ignore-file text, including BOM and negation rules.
+// Lines of 64 KiB or more return *Error.
+func ReadPatterns(text string) ([]string, error) {
+	return ReadPatternsFrom(strings.NewReader(text))
+}
+
+// ReadPatternsFrom incrementally reads ignore-file lines, bounding each line
+// to less than 64 KiB. Reader failures, including cancellation, are preserved.
+func ReadPatternsFrom(reader io.Reader) ([]string, error) {
+	var patterns []string
+	scanner := bufio.NewScanner(reader)
+	first := true
+	for scanner.Scan() {
+		line := strings.ToValidUTF8(scanner.Text(), "\ufffd")
+		if first {
+			line = strings.TrimPrefix(line, "\ufeff")
+			first = false
+		}
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		invert := strings.HasPrefix(line, "!")
+		if invert {
+			line = strings.TrimSpace(line[1:])
+		}
+		if line != "" {
+			line = path.Clean(line)
+			if len(line) > 1 {
+				line = strings.TrimPrefix(line, "/")
+			}
+		}
+		if invert {
+			line = "!" + line
+		}
+		patterns = append(patterns, line)
+	}
+	if err := scanner.Err(); err != nil {
+		if errors.Is(err, bufio.ErrTooLong) {
+			return nil, &Error{Message: "dockerignore line exceeds 64 KiB"}
+		}
+		return nil, err
+	}
+	return patterns, nil
+}
+
+type patternKind uint8
+
+const (
+	exactPattern patternKind = iota
+	prefixPattern
+	suffixPattern
+	regexpPattern
+)
+
+type pattern struct {
+	text      string
+	exclusion bool
+	kind      patternKind
+	expr      *regexp.Regexp
+	err       error
+}
+
+func (p pattern) matches(name string) bool {
+	switch p.kind {
+	case exactPattern:
+		return p.text == name
+	case prefixPattern:
+		return strings.HasPrefix(name, strings.TrimSuffix(p.text, "**"))
+	case suffixPattern:
+		suffix := p.text[2:] // Deliberately byte-based, including a retained BOM.
+		return strings.HasSuffix(name, suffix) || strings.HasPrefix(suffix, "/") && name == suffix[1:]
+	case regexpPattern:
+		return p.expr.MatchString(name)
+	}
+	return false
+}
+
+func compilePattern(text string) pattern {
+	p := pattern{text: text, kind: exactPattern}
+	var expression strings.Builder
+	expression.WriteByte('^')
+	runes := []rune(strings.TrimPrefix(text, "\ufeff"))
+	for i, token := 0, 0; i < len(runes); i, token = i+1, token+1 {
+		ch := runes[i]
+		switch {
+		case ch == '*' && i+1 < len(runes) && runes[i+1] == '*':
+			i++
+			if i+1 < len(runes) && runes[i+1] == '/' {
+				i++
+			}
+			p.doubleStar(&expression, i+1 == len(runes), token == 0)
+		case ch == '*':
+			expression.WriteString("[^/]*")
+			p.kind = regexpPattern
+		case ch == '?':
+			expression.WriteString("[^/]")
+			p.kind = regexpPattern
+		case strings.ContainsRune(".+()|{}$", ch):
+			expression.WriteByte('\\')
+			expression.WriteRune(ch)
+		case ch == '\\':
+			expression.WriteByte('\\')
+			if i+1 < len(runes) {
+				i++
+				expression.WriteRune(runes[i])
+				p.kind = regexpPattern
+			} else {
+				expression.WriteByte('\\')
+			}
+		default:
+			expression.WriteRune(ch)
+			if ch == '[' || ch == ']' {
+				p.kind = regexpPattern
+			}
+		}
+	}
+	if p.kind == regexpPattern {
+		expression.WriteByte('$')
+		p.expr, p.err = regexp.Compile(expression.String())
+	}
+	return p
+}
+
+func (p *pattern) doubleStar(expression *strings.Builder, last, first bool) {
+	if last && p.kind == exactPattern {
+		p.kind = prefixPattern
+	} else if last {
+		expression.WriteString(".*")
+		p.kind = regexpPattern
+	} else {
+		expression.WriteString("(.*/)?")
+		p.kind = regexpPattern
+	}
+	if first {
+		p.kind = suffixPattern
+	}
+}
