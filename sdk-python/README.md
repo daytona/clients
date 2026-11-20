@@ -533,7 +533,7 @@ not when deletion finishes.
 and `statuses` accepts `"ready"`, `"deleting"`, `"error"`, or a sequence.
 `imported` filters imported volumes. Created, updated, and last-used bounds use
 `*_start_at` (inclusive) and `*_end_at` (exclusive). Use `sort`
-(`created_at`, `updated_at`, `name`, `used_bytes`, or `last_used_at`), `order`,
+(`created_at`, `updated_at`, `name`, `used_bytes`, `last_used_at`, or `size_gib`), `order`,
 `limit`, and `cursor` for ordering and paging. The `SearchResult` carries
 `total` and `total_relation` (`"eq"` for an exact count, `"gte"` for a lower
 bound). Search is eventually consistent, so use
