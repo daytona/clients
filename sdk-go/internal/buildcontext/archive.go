@@ -132,6 +132,16 @@ func FromDirectory(ctx context.Context, directory, dockerfilePath string) (resul
 // Source contents are read now; non-link sources cannot be redirected by links.
 func FromSources(ctx context.Context, dockerfile string, sources []Source) (result *Archive, err error) {
 	defer classify(&err)
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	var sourceHeader int64
+	if len(sources) != 0 {
+		sourceHeader = tarBlock
+	}
+	if err = checkEntrySize(sourceHeader, int64(len(dockerfile))); err != nil {
+		return nil, err
+	}
 	entries := []entry{{name: "Dockerfile", kind: bytesEntry, mode: 0o644, content: []byte(dockerfile)}}
 	if len(sources) != 0 {
 		entries = append(entries, entry{name: ".daytona-context/", kind: dirEntry, mode: 0o755})
