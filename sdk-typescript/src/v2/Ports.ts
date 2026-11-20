@@ -348,7 +348,7 @@ export class PortsService {
 
   private requireToolbox(): HttpTransport {
     if (!this.transport) {
-      throw createDaytonaError('toolbox transport is not available for sandbox port inspection', 400, 'UNSUPPORTED_OPERATION', 'SDK')
+      throw createDaytonaError('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     }
     return this.transport
   }

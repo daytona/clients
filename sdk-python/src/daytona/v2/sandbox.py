@@ -1880,10 +1880,10 @@ class AsyncSandbox:
         job, or a browser instead of a project API key.
 
         ``operations`` is the sandbox-operation vocabulary (``toolbox``,
-        ``toolbox:exec``, ``toolbox:fs``, ``toolbox:git``, ``toolbox:lsp``,
-        ``desktop``, ``ssh``, ``sandbox:stop``, ``sandbox:pause``,
-        ``sandbox:delete``); omitted means the minter's full grantable set, and
-        ``[]`` is a valid ports-only grant. ``toolbox:git`` without
+        ``toolbox:exec``, ``toolbox:fs``, ``toolbox:git``, ``desktop``,
+        ``ssh``, ``sandbox:stop``, ``sandbox:pause``, ``sandbox:delete``);
+        omitted means the minter's full grantable set, and ``[]`` is a valid
+        ports-only grant. ``toolbox:git`` without
         ``toolbox:exec`` covers the git operations except writing git config:
         ``git.set_config()`` with such a token raises :class:`ForbiddenError`
         (403); ``git.get_config()`` still works. ``ports`` names the private-preview

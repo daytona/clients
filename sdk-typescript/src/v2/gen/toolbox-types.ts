@@ -78,17 +78,10 @@ export type ComputerUseStatusResponse = Omit<OptionalizeNullable<Schema<"Compute
   cause?: ComputerUseDesktopFailure
 }
 export type ComputerUseWindow = OptionalizeNullable<Schema<"ComputerUseWindow">>
-export type CompletionContext = OptionalizeNullable<Schema<"CompletionContext">>
-export type CompletionItem = OptionalizeNullable<Schema<"CompletionItem">>
-export type CompletionList = Omit<OptionalizeNullable<Schema<"CompletionList">>, 'items'> & {
-  items: CompletionItem[]
-}
-export type CompletionRequest = OptionalizeNullable<Schema<"CompletionRequest">>
 export type CreateProcessRequest = OptionalizeNullable<Schema<"CreateProcessRequest">>
 export type KillProcessesRequest = OptionalizeNullable<Schema<"KillProcessesRequest">>
 export type KillProcessesResponse = OptionalizeNullable<Schema<"KillProcessesResponse">>
 export type CreateSessionRequest = OptionalizeNullable<Schema<"CreateSessionRequest">>
-export type DocumentRequest = OptionalizeNullable<Schema<"DocumentRequest">>
 export type DockerOwner = Schema<"DockerOwner">
 export type DockerState = Schema<"DockerState">
 export type DockerStatus = OptionalizeNullable<Schema<"DockerStatus">>
@@ -99,7 +92,6 @@ export type GitStatus = OptionalizeNullable<Schema<"StatusResponse">>
 export type LogFrameDto = OptionalizeNullable<Schema<"LogFrameDto">>
 export type GitRemote = OptionalizeNullable<Schema<"GitRemote">>
 export type ListRemotesResponse = OptionalizeNullable<Schema<"ListRemotesResponse">>
-export type MarkupContent = OptionalizeNullable<Schema<"MarkupContent">>
 export type Match = OptionalizeNullable<Schema<"Match">>
 export type Metrics = OptionalizeNullable<Schema<"Metrics">>
 export type BulkUploadResponse = OptionalizeNullable<Schema<"BulkUploadResponse">>
@@ -134,14 +126,9 @@ export type ReplaceResult = OptionalizeNullable<Schema<"ReplaceResult">>
 export type RepoRequest = OptionalizeNullable<Schema<"RepoRequest">>
 export type ResizeRequest = OptionalizeNullable<Schema<"ResizeRequest">>
 export type SearchResponse = OptionalizeNullable<Schema<"SearchResponse">>
-export type ServerRequest = OptionalizeNullable<Schema<"ServerRequest">>
 export type SessionDto = OptionalizeNullable<Schema<"SessionDto">>
 export type SessionListResponse = OptionalizeNullable<Schema<"SessionListResponse">>
 export type SignalRequest = OptionalizeNullable<Schema<"SignalRequest">>
-export type SymbolInfo = OptionalizeNullable<Schema<"SymbolInfo">>
-export type SymbolLocation = OptionalizeNullable<Schema<"SymbolLocation">>
-export type SymbolPosition = OptionalizeNullable<Schema<"SymbolPosition">>
-export type SymbolRange = OptionalizeNullable<Schema<"SymbolRange">>
 export type StdinRequest = OptionalizeNullable<Schema<"StdinRequest">>
 export type TerminalSize = OptionalizeNullable<Schema<"TerminalSize">>
 export type PullVolumeRequest = Omit<Schema<"PullVolumeRequest">, "waitMs"> & { readonly waitMs?: Schema<"PullVolumeRequest">["waitMs"] }

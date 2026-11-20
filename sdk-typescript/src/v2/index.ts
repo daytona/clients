@@ -163,8 +163,6 @@ export {
   SnapshotTooLargeError,
   SandboxNotRunningError,
   KernelUnavailableError,
-  LspNotStartedError,
-  LspServerUnavailableError,
   AddonUnavailableError,
   FileNotFoundError,
   InvalidFilePathError,

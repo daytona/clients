@@ -285,160 +285,6 @@
         ],
         "type": "object"
       },
-      "CompletionContext": {
-        "description": "Extra context for a completion request.",
-        "properties": {
-          "triggerCharacter": {
-            "description": "Trigger character when the completion was opened by one; omitted otherwise.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "triggerKind": {
-            "description": "LSP trigger kind enum value.",
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "triggerKind"
-        ],
-        "type": "object"
-      },
-      "CompletionDocumentation": {
-        "description": "Completion documentation as plain text or structured markup.",
-        "oneOf": [
-          {
-            "description": "Plain-text documentation.",
-            "type": "string"
-          },
-          {
-            "$ref": "#/components/schemas/MarkupContent",
-            "description": "Marked-up documentation."
-          }
-        ]
-      },
-      "CompletionItem": {
-        "description": "One normalized completion item.",
-        "properties": {
-          "detail": {
-            "description": "Short detail string shown beside the label; omitted when absent.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "documentation": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CompletionDocumentation",
-                "description": "Item documentation; omitted when absent."
-              }
-            ]
-          },
-          "filterText": {
-            "description": "Filter key from the language server; omitted when absent.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "insertText": {
-            "description": "Text inserted on accept; omitted when absent.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "kind": {
-            "description": "LSP completion item kind enum value; omitted when the server left it unset.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "label": {
-            "description": "Human-visible completion label.",
-            "type": "string"
-          },
-          "sortText": {
-            "description": "Sort key from the language server; omitted when absent.",
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "label"
-        ],
-        "type": "object"
-      },
-      "CompletionList": {
-        "description": "Normalized completion response shape.",
-        "properties": {
-          "isIncomplete": {
-            "description": "Whether the server considers the list incomplete and expects re-querying.",
-            "type": "boolean"
-          },
-          "items": {
-            "description": "Completion items, with non-contract keys pruned.",
-            "items": {
-              "$ref": "#/components/schemas/CompletionItem"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "isIncomplete",
-          "items"
-        ],
-        "type": "object"
-      },
-      "CompletionRequest": {
-        "description": "Completion request body forwarded to `textDocument/completion`.",
-        "properties": {
-          "context": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CompletionContext",
-                "description": "Additional completion trigger context; omitted when none was provided."
-              }
-            ]
-          },
-          "languageId": {
-            "description": "The LSP language key (`python`, `typescript`).",
-            "type": "string"
-          },
-          "pathToProject": {
-            "description": "Absolute project root path used as the server's workspace root.",
-            "type": "string"
-          },
-          "position": {
-            "$ref": "#/components/schemas/SymbolPosition",
-            "description": "Cursor position for which completions are requested."
-          },
-          "uri": {
-            "description": "Document URI, typically a `file://` URI.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "languageId",
-          "pathToProject",
-          "uri",
-          "position"
-        ],
-        "type": "object"
-      },
       "ComputerUseA11yFindRequest": {
         "description": "Accessibility find request.",
         "properties": {
@@ -1509,7 +1355,7 @@
         "description": "Query parameters that change the call shape of `POST /processes`.",
         "properties": {
           "logs": {
-            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.",
+            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.",
             "type": [
               "string",
               "null"
@@ -1815,29 +1661,6 @@
         },
         "type": "object"
       },
-      "DocumentRequest": {
-        "description": "Identifies one document within a language-server workspace.",
-        "properties": {
-          "languageId": {
-            "description": "The LSP language key (`python`, `typescript`).",
-            "type": "string"
-          },
-          "pathToProject": {
-            "description": "Absolute project root path used as the server's workspace root.",
-            "type": "string"
-          },
-          "uri": {
-            "description": "Document URI, typically a `file://` URI.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "languageId",
-          "pathToProject",
-          "uri"
-        ],
-        "type": "object"
-      },
       "EnvRequest": {
         "additionalProperties": false,
         "description": "Update environment variables for processes, PTYs, and sessions created after this call.",
@@ -1889,8 +1712,6 @@
           "GIT_REPO_NOT_FOUND",
           "GIT_BRANCH_NOT_FOUND",
           "GIT_BRANCH_EXISTS",
-          "LSP_SERVER_UNAVAILABLE",
-          "LSP_NOT_STARTED",
           "ADDON_UNAVAILABLE",
           "DESKTOP_NOT_READY"
         ],
@@ -2385,7 +2206,7 @@
             "type": "string"
           },
           "data": {
-            "description": "Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).",
+            "description": "Frame payload in the requested encoding. With `text`, the bytes of a character that the next frame on the same channel completes move to that frame, so `data` can be empty. `base64` is the frame's exact bytes, standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding).",
             "type": "string"
           },
           "timestamp": {
@@ -2413,7 +2234,7 @@
             ]
           },
           "encoding": {
-            "description": "Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.",
+            "description": "Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.",
             "type": [
               "string",
               "null"
@@ -2435,24 +2256,6 @@
             ]
           }
         },
-        "type": "object"
-      },
-      "MarkupContent": {
-        "description": "Rich-text documentation attached to a completion item.",
-        "properties": {
-          "kind": {
-            "description": "Markup kind, typically `markdown` or `plaintext`.",
-            "type": "string"
-          },
-          "value": {
-            "description": "Rendered documentation body.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "value"
-        ],
         "type": "object"
       },
       "Match": {
@@ -3296,24 +3099,6 @@
         ],
         "type": "object"
       },
-      "ServerRequest": {
-        "description": "Identifies a language-server instance for one language and one project root.",
-        "properties": {
-          "languageId": {
-            "description": "The LSP language key (`python`, `typescript`).",
-            "type": "string"
-          },
-          "pathToProject": {
-            "description": "Absolute project root path used as the server's workspace root.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "languageId",
-          "pathToProject"
-        ],
-        "type": "object"
-      },
       "SessionDto": {
         "description": "Session information returned by create, list, and get operations.",
         "properties": {
@@ -3509,122 +3294,6 @@
         },
         "type": "object"
       },
-      "SymbolInfo": {
-        "description": "One document or workspace symbol.",
-        "properties": {
-          "kind": {
-            "description": "LSP symbol kind enum value.",
-            "format": "int64",
-            "type": "integer"
-          },
-          "location": {
-            "$ref": "#/components/schemas/SymbolLocation",
-            "description": "Symbol location. Hierarchical symbols without an LSP `location` are normalized to an empty URI and zero range."
-          },
-          "name": {
-            "description": "Human-visible symbol name.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "location",
-          "name"
-        ],
-        "type": "object"
-      },
-      "SymbolLocation": {
-        "description": "Location of a symbol in a document.",
-        "properties": {
-          "range": {
-            "$ref": "#/components/schemas/SymbolRange",
-            "description": "Symbol range in that document."
-          },
-          "uri": {
-            "description": "Document URI, typically a `file://` URI.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "uri",
-          "range"
-        ],
-        "type": "object"
-      },
-      "SymbolPosition": {
-        "description": "Zero-based line/character location within a document.",
-        "properties": {
-          "character": {
-            "description": "Zero-based UTF-16 character offset on the line.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "line": {
-            "description": "Zero-based line number.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "line",
-          "character"
-        ],
-        "type": "object"
-      },
-      "SymbolRange": {
-        "description": "Half-open range within a document.",
-        "properties": {
-          "end": {
-            "$ref": "#/components/schemas/SymbolPosition",
-            "description": "Range end position."
-          },
-          "start": {
-            "$ref": "#/components/schemas/SymbolPosition",
-            "description": "Range start position."
-          }
-        },
-        "required": [
-          "start",
-          "end"
-        ],
-        "type": "object"
-      },
-      "SymbolsQuery": {
-        "description": "Query parameters shared by the symbol routes.",
-        "properties": {
-          "languageId": {
-            "description": "The LSP language key (`python`, `typescript`); required by both symbol routes.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "pathToProject": {
-            "description": "Absolute project root path used as the server's workspace root; required by both symbol routes.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "query": {
-            "description": "Workspace-symbol search string; required on `/lsp/workspacesymbols`, omitted on `/lsp/document-symbols`.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "uri": {
-            "description": "Document URI for `/lsp/document-symbols`; omitted on `/lsp/workspacesymbols`.",
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "type": "object"
-      },
       "TerminalSize": {
         "description": "Terminal dimensions for PTY processes.",
         "properties": {
@@ -3787,7 +3456,7 @@
     }
   },
   "info": {
-    "description": "The sandbox toolbox API: processes, sessions, files, Git, language servers, ports, metrics, volume pulls, and desktop automation. Every documented 4xx/5xx response uses `ErrorEnvelope`; codes and their HTTP statuses are listed in `x-daytona-error-codes` and `x-daytona-generic-codes`.",
+    "description": "The sandbox toolbox API: processes, sessions, files, Git, ports, metrics, volume pulls, and desktop automation. Every documented 4xx/5xx response uses `ErrorEnvelope`; codes and their HTTP statuses are listed in `x-daytona-error-codes` and `x-daytona-generic-codes`.",
     "title": "Daytona toolbox API",
     "version": "0.0.0-dev"
   },
@@ -6556,7 +6225,7 @@
     },
     "/files/bulk-upload": {
       "post": {
-        "description": "Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user\u2019s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.",
+        "description": "Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. A malformed or truncated multipart body is reported as an entry in `errors`, beside the files written before it. New files and directories belong to the configured sandbox user, and writes require that user\u2019s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.",
         "operationId": "bulk_upload",
         "parameters": [
           {
@@ -8815,594 +8484,6 @@
         ]
       }
     },
-    "/lsp/completions": {
-      "post": {
-        "description": "Request `textDocument/completion` and return a `CompletionList`.",
-        "operationId": "lsp_completions",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CompletionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CompletionList"
-                }
-              }
-            },
-            "description": "Normalized completion list."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON, unsupported language, invalid request data, or the language server returned a request error."
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`REQUEST_TIMEOUT` \u2014 the language server did not answer in time."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 no matching server is running."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match `CompletionRequest`."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          }
-        },
-        "summary": "Request completions",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
-    "/lsp/did-close": {
-      "post": {
-        "description": "Send `textDocument/didClose` to the running language server.",
-        "operationId": "lsp_did_close",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DocumentRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Close notification sent."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or invalid request data."
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`REQUEST_TIMEOUT` \u2014 the language server did not accept the notification in time."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 no matching server is running."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match `DocumentRequest`."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          }
-        },
-        "summary": "Notify LSP did-close",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
-    "/lsp/did-open": {
-      "post": {
-        "description": "Read the document from disk and send `textDocument/didOpen` to the running language server.",
-        "operationId": "lsp_did_open",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DocumentRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Open notification sent."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON, invalid request data, or the document could not be read."
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`REQUEST_TIMEOUT` \u2014 the language server did not accept the notification in time."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 no matching server is running."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match `DocumentRequest`."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          }
-        },
-        "summary": "Notify LSP did-open",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
-    "/lsp/document-symbols": {
-      "get": {
-        "description": "Query `textDocument/documentSymbol` for one document and normalize the result to flat `SymbolInfo` items.",
-        "operationId": "lsp_document_symbols",
-        "parameters": [
-          {
-            "description": "Workspace-symbol search string; required on `/lsp/workspacesymbols`, omitted on `/lsp/document-symbols`.",
-            "in": "query",
-            "name": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "The LSP language key (`python`, `typescript`); required by both symbol routes.",
-            "in": "query",
-            "name": "languageId",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Absolute project root path used as the server's workspace root; required by both symbol routes.",
-            "in": "query",
-            "name": "pathToProject",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Document URI for `/lsp/document-symbols`; omitted on `/lsp/workspacesymbols`.",
-            "in": "query",
-            "name": "uri",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SymbolInfo"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Normalized document symbols."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 required query parameters are missing, unsupported language was requested, or the language server returned a request error."
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`REQUEST_TIMEOUT` \u2014 the language server did not answer in time."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 no matching server is running."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          }
-        },
-        "summary": "List document symbols",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
-    "/lsp/start": {
-      "post": {
-        "description": "Start or reuse the language server for one `(languageId, pathToProject)` workspace.",
-        "operationId": "lsp_start",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ServerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Server started or was already running."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON, unsupported language, or invalid request data."
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`REQUEST_TIMEOUT` \u2014 the language server did not answer during initialization."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 the start finished after being superseded by another start."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match `ServerRequest`."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_SERVER_UNAVAILABLE` \u2014 the requested language server is unavailable or could not start."
-          }
-        },
-        "summary": "Start an LSP server",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
-    "/lsp/stop": {
-      "post": {
-        "description": "Stop the language server for one `(languageId, pathToProject)` workspace.",
-        "operationId": "lsp_stop",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ServerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Server stopped."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 malformed JSON or invalid request data."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 no matching server is running."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`UNPROCESSABLE_ENTITY` \u2014 the JSON body does not match `ServerRequest`."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          }
-        },
-        "summary": "Stop an LSP server",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
-    "/lsp/workspacesymbols": {
-      "get": {
-        "description": "Query `workspace/symbol` for one workspace and normalize the result to flat `SymbolInfo` items.",
-        "operationId": "lsp_workspace_symbols",
-        "parameters": [
-          {
-            "description": "Workspace-symbol search string; required on `/lsp/workspacesymbols`, omitted on `/lsp/document-symbols`.",
-            "in": "query",
-            "name": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "The LSP language key (`python`, `typescript`); required by both symbol routes.",
-            "in": "query",
-            "name": "languageId",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Absolute project root path used as the server's workspace root; required by both symbol routes.",
-            "in": "query",
-            "name": "pathToProject",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Document URI for `/lsp/document-symbols`; omitted on `/lsp/workspacesymbols`.",
-            "in": "query",
-            "name": "uri",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SymbolInfo"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Normalized workspace symbols."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`BAD_REQUEST` \u2014 required query parameters are missing, unsupported language was requested, or the language server returned a request error."
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`REQUEST_TIMEOUT` \u2014 the language server did not answer in time."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "`LSP_NOT_STARTED` \u2014 no matching server is running."
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            },
-            "description": "Internal error."
-          }
-        },
-        "summary": "List workspace symbols",
-        "tags": [
-          "lsp"
-        ]
-      }
-    },
     "/port": {
       "get": {
         "description": "Returns all listening TCP ports inside the sandbox.",
@@ -9572,7 +8653,7 @@
             }
           },
           {
-            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.",
+            "description": "Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding.",
             "in": "query",
             "name": "logs",
             "required": false,
@@ -9845,7 +8926,7 @@
             }
           },
           {
-            "description": "Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.",
+            "description": "Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames.",
             "in": "query",
             "name": "encoding",
             "required": false,
@@ -10710,10 +9791,6 @@
       "name": "git"
     },
     {
-      "description": "Language servers: lifecycle, document sync, completions and symbols.",
-      "name": "lsp"
-    },
-    {
       "description": "Listening-port discovery.",
       "name": "ports"
     },
@@ -10803,16 +9880,6 @@
       "status": 400
     },
     "KERNEL_UNAVAILABLE": {
-      "extras": [],
-      "source": "DAYTONA_DAEMON",
-      "status": 503
-    },
-    "LSP_NOT_STARTED": {
-      "extras": [],
-      "source": "DAYTONA_DAEMON",
-      "status": 409
-    },
-    "LSP_SERVER_UNAVAILABLE": {
       "extras": [],
       "source": "DAYTONA_DAEMON",
       "status": 503

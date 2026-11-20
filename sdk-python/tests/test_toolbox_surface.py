@@ -2051,10 +2051,11 @@ async def test_a_nested_object_field_that_is_not_an_object_is_a_malformed_respon
 
 def test_a_one_of_field_keeps_its_non_object_values() -> None:
     from daytona.v2._core import _check_container_fields
-    from daytona.v2._gen.toolbox import CompletionItem
+    from daytona.v2._gen.api import Image
 
-    # documentation is a string or a markup object: the model decides.
-    _check_container_fields({"label": "x", "documentation": "plain text"}, CompletionItem, "completion item")
+    # source is a oneOf wrapper: its value's shape is the model's to decide,
+    # so a non-object value is not refused as a malformed nested object.
+    _check_container_fields({"source": "plain text"}, Image, "image")
 
 
 @pytest.mark.anyio
