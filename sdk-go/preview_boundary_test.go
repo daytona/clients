@@ -36,7 +36,7 @@ func portsOperations() map[string]portsOperation {
 			return err
 		}},
 		"signed": {"POST /sandboxes/sbx/ports/8080/signed-preview-urls", func(ctx context.Context, p *Ports) error {
-			_, err := p.SignedPreviewLink(ctx, 8080, 0)
+			_, err := p.SignedPreviewLink(ctx, 8080, nil)
 			return err
 		}},
 		"unexpose": {"DELETE /sandboxes/sbx/ports/8080", func(ctx context.Context, p *Ports) error {

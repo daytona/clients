@@ -130,8 +130,16 @@ func TestPortsPreviewLink_whenCallerSuppliedTokenKeepsAdvisoryExpiry(t *testing.
 }
 
 func TestPortsSignedPreviewLink_whenLifetimeSelected(t *testing.T) {
-	for _, lifetime := range []time.Duration{0, 300 * time.Second} {
-		t.Run(lifetime.String(), func(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		opts *SignedPreviewLinkOptions
+		body string
+	}{
+		{"nil", nil, `{}`},
+		{"zero", &SignedPreviewLinkOptions{}, `{}`},
+		{"explicit", &SignedPreviewLinkOptions{ExpiresIn: 300 * time.Second}, `{"expires_in_seconds":300}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			// Given
 			fake := newFakeServer(t, map[string]http.HandlerFunc{
 				"POST /sandboxes/sbx/ports/8080/signed-preview-urls": jsonHandler(t, map[string]string{
@@ -139,18 +147,14 @@ func TestPortsSignedPreviewLink_whenLifetimeSelected(t *testing.T) {
 				}),
 			})
 			sandbox := portsTestSandbox(t, fake)
-			body := `{}`
-			if lifetime != 0 {
-				body = `{"expires_in_seconds":300}`
-			}
 			// When
-			link, err := sandbox.Ports().SignedPreviewLink(t.Context(), 8080, lifetime)
+			link, err := sandbox.Ports().SignedPreviewLink(t.Context(), 8080, test.opts)
 			// Then
 			require.NoError(t, err)
 			require.Equal(t, "https://signed.invalid", link.URL)
 			require.Equal(t, "signed", link.Token)
 			require.Equal(t, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), link.ExpiresAt)
-			require.JSONEq(t, body, string(fake.requests()[0].Body))
+			require.JSONEq(t, test.body, string(fake.requests()[0].Body))
 		})
 	}
 }
@@ -162,7 +166,7 @@ func TestPortsSignedPreviewLink_whenLifetimeInvalid(t *testing.T) {
 			fake := newFakeServer(t, nil)
 			sandbox := portsTestSandbox(t, fake)
 			// When
-			_, err := sandbox.Ports().SignedPreviewLink(t.Context(), 8080, lifetime)
+			_, err := sandbox.Ports().SignedPreviewLink(t.Context(), 8080, &SignedPreviewLinkOptions{ExpiresIn: lifetime})
 			// Then
 			require.ErrorIs(t, err, ErrBadRequest)
 			require.Empty(t, fake.requests())

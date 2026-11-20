@@ -76,12 +76,13 @@ func (p *Ports) PreviewLink(ctx context.Context, port int) (*PreviewLink, error)
 }
 
 // SignedPreviewLink returns a self-contained URL needing no headers or other
-// credentials. A zero ttl selects the 60-second server default. Positive TTLs
-// must be whole seconds; the deployment caps the maximum, typically seven days. Invalid ports,
-// reserved daemon ports, and non-whole-second or negative lifetimes return
+// credentials. Nil options or zero ExpiresIn selects the 60-second server default.
+// Positive lifetimes must be whole seconds; the deployment caps the maximum,
+// typically seven days. Invalid ports, reserved daemon ports, and
+// non-whole-second or negative lifetimes return
 // ErrBadRequest locally. Unavailable sandboxes may return ErrConflict.
 func (p *Ports) SignedPreviewLink(
-	ctx context.Context, port int, ttl time.Duration,
+	ctx context.Context, port int, opts *SignedPreviewLinkOptions,
 ) (*SignedPreviewLink, error) {
 	if err := validatePreviewPort(port); err != nil {
 		return nil, err
@@ -89,10 +90,14 @@ func (p *Ports) SignedPreviewLink(
 	body := struct {
 		ExpiresInSeconds int64 `json:"expires_in_seconds,omitempty"`
 	}{}
-	if ttl < 0 || ttl%time.Second != 0 {
-		return nil, badRequest("ttl must be a positive whole-second duration, or zero for the default")
+	var expiresIn time.Duration
+	if opts != nil {
+		expiresIn = opts.ExpiresIn
 	}
-	body.ExpiresInSeconds = int64(ttl / time.Second)
+	if expiresIn < 0 || expiresIn%time.Second != 0 {
+		return nil, badRequest("ExpiresIn must be a positive whole-second duration, or zero for the default")
+	}
+	body.ExpiresInSeconds = int64(expiresIn / time.Second)
 	path, err := p.portPath(port)
 	if err != nil {
 		return nil, err

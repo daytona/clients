@@ -78,7 +78,7 @@ func ExamplePorts_SignedPreviewLink() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	link, err := sandbox.Ports().SignedPreviewLink(ctx, 8080, 5*time.Minute)
+	link, err := sandbox.Ports().SignedPreviewLink(ctx, 8080, &daytona.SignedPreviewLinkOptions{ExpiresIn: 5 * time.Minute})
 	if err != nil {
 		log.Fatal(err)
 	}
