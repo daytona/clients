@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"encoding/json"
+	"math"
 	"time"
 )
 
@@ -121,37 +122,52 @@ func parseLifecycle(raw json.RawMessage) (*LifecyclePolicy, error) {
 		return nil, err
 	}
 	policy := &LifecyclePolicy{}
-	for name, target := range map[string]**time.Duration{
-		"timeout_seconds": &policy.Timeout, "idle_expiry_seconds": &policy.IdleExpiry,
+	// Ordered, so a response with several malformed fields always names the
+	// same one.
+	for _, entry := range []struct {
+		name   string
+		target **time.Duration
+	}{
+		{"timeout_seconds", &policy.Timeout}, {"idle_expiry_seconds", &policy.IdleExpiry},
 	} {
-		if !present(object[name]) {
+		if !present(object[entry.name]) {
 			continue
 		}
-		seconds, parseErr := integerField(object, name, false)
+		seconds, parseErr := integerField(object, entry.name, false)
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		value := saturatedDuration(seconds, time.Second)
-		*target = &value
+		if seconds < math.MinInt32 || seconds > math.MaxInt32 {
+			return nil, badRequest("response field lifecycle_policy." + entry.name + " must be an int32")
+		}
+		value := time.Duration(seconds) * time.Second
+		*entry.target = &value
 	}
-	for name, target := range map[string]*LifecycleAction{
-		"on_timeout": &policy.OnTimeout, "on_idle_timeout": &policy.OnIdleTimeout,
+	for _, entry := range []struct {
+		name   string
+		target *LifecycleAction
+	}{
+		{"on_timeout", &policy.OnTimeout}, {"on_idle_timeout", &policy.OnIdleTimeout},
 	} {
-		value, parseErr := field[string](object, name, false)
+		value, parseErr := field[string](object, entry.name, false)
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		*target = LifecycleAction(value)
+		*entry.target = LifecycleAction(value)
 	}
-	for name, target := range map[string]*time.Time{
-		"timeout_at": &policy.TimeoutAt, "idle_timeout_at": &policy.IdleTimeoutAt,
-		"last_activity_at": &policy.LastActivityAt,
+	for _, entry := range []struct {
+		name   string
+		target *time.Time
+	}{
+		{"timeout_at", &policy.TimeoutAt},
+		{"idle_timeout_at", &policy.IdleTimeoutAt},
+		{"last_activity_at", &policy.LastActivityAt},
 	} {
-		value, parseErr := timestampField(object, name)
+		value, parseErr := timestampField(object, entry.name)
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		*target = value
+		*entry.target = value
 	}
 	policy.LastActivitySource, err = field[string](object, "last_activity_source", false)
 	return policy, err
