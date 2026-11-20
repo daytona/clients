@@ -96,9 +96,12 @@ func TestLifecycleCloud(t *testing.T) {
 		originalETag := policy.ETag
 		blockAll := false
 		// When
-		updated, updateErr := sandbox.UpdateNetworkPolicy(ctx,
-			daytona.NetworkPolicySpec{BlockAll: &blockAll},
-			&daytona.IfMatchOptions{IfMatch: originalETag})
+		updated, updateErr := whileTransitioning(ctx, daytona.ErrNetworkPolicyTransitionInProgress,
+			func() (*daytona.NetworkPolicyInfo, error) {
+				return sandbox.UpdateNetworkPolicy(ctx,
+					daytona.NetworkPolicySpec{BlockAll: &blockAll},
+					&daytona.IfMatchOptions{IfMatch: originalETag})
+			})
 		// Then: asynchronous application must settle before another mutation.
 		require.NoError(t, updateErr)
 		eventually(ctx, t, 30*time.Second, func() (bool, error) {
@@ -110,13 +113,19 @@ func TestLifecycleCloud(t *testing.T) {
 		})
 		t.Run("stale_revision", func(t *testing.T) {
 			// When
-			_, staleErr := sandbox.ResetNetworkPolicy(ctx, &daytona.IfMatchOptions{IfMatch: originalETag})
+			_, staleErr := whileTransitioning(ctx, daytona.ErrNetworkPolicyTransitionInProgress,
+				func() (*daytona.NetworkPolicyInfo, error) {
+					return sandbox.ResetNetworkPolicy(ctx, &daytona.IfMatchOptions{IfMatch: originalETag})
+				})
 			// Then: a real server error preserves its typed code.
 			require.ErrorIs(t, staleErr, daytona.ErrStaleNetworkPolicyRevision)
 		})
 		t.Run("reset", func(t *testing.T) {
 			// When
-			reset, resetErr := sandbox.ResetNetworkPolicy(ctx, &daytona.IfMatchOptions{IfMatch: updated.ETag})
+			reset, resetErr := whileTransitioning(ctx, daytona.ErrNetworkPolicyTransitionInProgress,
+				func() (*daytona.NetworkPolicyInfo, error) {
+					return sandbox.ResetNetworkPolicy(ctx, &daytona.IfMatchOptions{IfMatch: updated.ETag})
+				})
 			// Then
 			require.NoError(t, resetErr)
 			require.Nil(t, reset.Desired)
@@ -127,7 +136,10 @@ func TestLifecycleCloud(t *testing.T) {
 		secrets, readErr := sandbox.GetSecrets(ctx)
 		require.NoError(t, skipIfServerLacks(t, readErr, "reading sandbox secrets (read:secrets)"))
 		// When: replacing the empty binding set needs no project secret.
-		applied, replaceErr := sandbox.ReplaceSecrets(ctx, nil, &daytona.IfMatchOptions{IfMatch: secrets.ETag})
+		applied, replaceErr := whileTransitioning(ctx, daytona.ErrSecretsTransitionInProgress,
+			func() (*daytona.SandboxSecretsInfo, error) {
+				return sandbox.ReplaceSecrets(ctx, nil, &daytona.IfMatchOptions{IfMatch: secrets.ETag})
+			})
 		// Then
 		require.NoError(t, replaceErr)
 		require.Empty(t, applied.Secrets)

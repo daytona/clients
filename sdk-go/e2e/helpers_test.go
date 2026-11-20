@@ -217,3 +217,22 @@ func skipIfServerLacks(t *testing.T, err error, what string) error {
 	}
 	return err
 }
+
+// whileTransitioning retries a network-policy or secrets mutation while the
+// platform is still applying an earlier transition (409 *_TRANSITION_IN_PROGRESS),
+// which a sandbox that just started can be. Any other result is returned at once.
+func whileTransitioning[T any](ctx context.Context, transient error, call func() (T, error)) (T, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	for {
+		value, err := call()
+		if !errors.Is(err, transient) {
+			return value, err
+		}
+		select {
+		case <-ctx.Done():
+			return value, err
+		case <-time.After(time.Second):
+		}
+	}
+}

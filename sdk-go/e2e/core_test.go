@@ -30,6 +30,13 @@ func TestGetSearchAndFindByName(t *testing.T) {
 	if sb.ID() != id || sb.Name() != name {
 		t.Fatalf("Get returned %s/%s, want %s/%s", sb.ID(), sb.Name(), id, name)
 	}
+	// A read right after another can still report the earlier state (seen
+	// live: running, then assigned), so wait for started through the SDK.
+	if sb.State() != daytona.SandboxStateStarted {
+		if waitErr := sb.Wait(ctx, nil); waitErr != nil {
+			t.Fatalf("Wait: %v", waitErr)
+		}
+	}
 	if state := sb.State(); state != daytona.SandboxStateStarted {
 		t.Fatalf("State() = %s (raw %q), want started", state, sb.Info().RawState)
 	}
