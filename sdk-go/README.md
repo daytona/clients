@@ -180,8 +180,11 @@ Delete the image only after its sandboxes have been deleted.
 
 ## Errors
 
-Every error the SDK returns is, or wraps, a `*daytona.Error`. Match a category
-or a specific code with `errors.Is`, and read details with `errors.As`:
+Every error an SDK call returns is, or wraps, a `*daytona.Error`. Match a
+category or a specific code with `errors.Is`, and read details with `errors.As`.
+Streams that implement `io.Reader` follow its contract instead:
+`PTYConnection.Read` returns `io.EOF`, unwrapped, when the terminal closes
+normally.
 
 ```go
 if errors.Is(err, daytona.ErrNotFound) { /* any 404 */ }

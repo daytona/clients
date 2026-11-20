@@ -30,6 +30,10 @@
 //   - Sandboxes: [Client.Create], [Client.CreateFromBuild], [Client.Get],
 //     [Client.List], [Client.FindByName],
 //     [Sandbox.Delete], [Sandbox.Start], [Sandbox.Stop], [Sandbox.Fork].
+//     A *Sandbox keeps its last observation: [Sandbox.ID], [Sandbox.State],
+//     [Sandbox.Info]; [Sandbox.Refresh] re-reads it. A *ProcessHandle keeps
+//     its identity ([ProcessHandle.ID], [ProcessHandle.Kind]);
+//     [ProcessHandle.Get] reads the process.
 //   - Commands and code: [Sandbox.Exec] (shell), [Sandbox.ExecArgs] (argv),
 //     [Sandbox.RunCode] (stateful Python), [Sandbox.Process] returns
 //     [*Processes] (background processes, sessions), [Sandbox.PTY] returns
