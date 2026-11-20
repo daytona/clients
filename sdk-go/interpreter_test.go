@@ -54,6 +54,23 @@ func TestInterpreterCreateContext_whenValid(t *testing.T) {
 		string(requests[0].Body))
 }
 
+func TestInterpreterCreateContext_whenResponseMalformed_returnsTopLevelSDKError(t *testing.T) {
+	// Given an accepted named context whose response omits the kernel.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"POST /sessions": jsonHandler(t, map[string]string{"id": "requested"}),
+	})
+	service := interpreterTestSandbox(t, fake).Interpreter()
+	// When creation cannot parse the accepted response.
+	_, err := service.CreateContext(t.Context(), "python", &CreateInterpreterContextOptions{ContextID: "requested"})
+	// Then errors.As returns the top-level SDK error, retaining the uncertain ID and cause.
+	var sdkError *Error
+	require.ErrorAs(t, err, &sdkError)
+	require.Same(t, sdkError, err)
+	require.Contains(t, sdkError.Message, `context "requested" may have been created`)
+	require.ErrorIs(t, sdkError.Err, ErrBadRequest)
+	require.ErrorIs(t, err, ErrBadRequest)
+}
+
 func TestInterpreterListContexts_whenShellAndUnknownLanguages(t *testing.T) {
 	// Given
 	fake := newFakeServer(t, map[string]http.HandlerFunc{

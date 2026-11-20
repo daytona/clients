@@ -22,6 +22,8 @@ type interpreterContextRequest struct {
 
 // CreateContext creates independent kernel state. Language is case-sensitive
 // and server-defined; unsupported languages return ErrUnsupportedOperation.
+// If a named context's response is malformed, the error identifies the context
+// that may exist and preserves the parse failure as its cause.
 func (s *Interpreter) CreateContext(
 	ctx context.Context, language string, opts *CreateInterpreterContextOptions,
 ) (*InterpreterContext, error) {
@@ -52,7 +54,7 @@ func (s *Interpreter) createContext(
 	id, _, err := parseInterpreterSession(raw)
 	if err != nil {
 		if body.ID != "" {
-			return nil, fmt.Errorf("context %q may have been created: %w", body.ID, err)
+			return nil, wrapError(err, fmt.Sprintf("context %q may have been created", body.ID))
 		}
 		return nil, err
 	}
