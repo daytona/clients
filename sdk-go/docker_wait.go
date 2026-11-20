@@ -24,6 +24,9 @@ type DockerWaitOptions struct {
 // *DockerWaitTimeoutError, carrying the last status if one arrived.
 // Caller cancellation/deadlines and Client.Close interrupt both polls and pauses.
 func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (*DockerStatus, error) {
+	if err := d.sandbox.client.ensureOpen(); err != nil {
+		return nil, err
+	}
 	budget := time.Minute
 	if opts != nil && opts.Timeout != 0 {
 		budget = opts.Timeout
