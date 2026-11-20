@@ -91,7 +91,7 @@ func (t *transport) send(ctx context.Context, scope *requestScope, spec apiReque
 	if spec.Transfer {
 		scope.kick()
 		if request.Body != nil {
-			request.Body = &uploadBody{ReadCloser: request.Body, scope: scope}
+			request.Body = newTransferCancelBody(ctx, &uploadBody{ReadCloser: request.Body, scope: scope})
 		}
 	}
 	response, err := t.owner.http.Do(request)
