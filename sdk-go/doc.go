@@ -63,8 +63,10 @@
 // Every call that talks to Daytona takes a [context.Context] first; cancelling
 // it stops the call, including waits. Optional settings are an options struct
 // pointer last, and nil means all defaults. Every duration is a
-// [time.Duration]: operations that wait (create, start, stop, delete, image
-// builds) wait 60 seconds by default, [NoWait] returns once the server
+// [time.Duration]. Sandbox creates and lifecycle calls (start, stop, delete)
+// wait 60 seconds by default; image readiness waits ([Images.Pull],
+// [Images.BuildAndWait], the build in [Client.CreateFromBuild]) have no SDK
+// deadline unless their timeout is set. [NoWait] returns once the server
 // accepted the request, and [WaitForever] removes the SDK's deadline.
 // Once a create or fork is accepted, its handle is returned even if the caller's
 // context ends the wait with an error. Delete the non-nil handle or keep it;
