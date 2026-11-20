@@ -85,6 +85,9 @@ func (h *ProcessHandle) waitOnce(ctx context.Context, deadline time.Time) (*Wait
 	}
 	// timed_out can mean a server execution deadline, not only an expired hold.
 	_, requestTimeout = processWaitBudget(deadline)
+	if deadline.IsZero() {
+		requestTimeout = 0 // Ordinary metadata reads retain the client request timeout.
+	}
 	if err = h.request(ctx, toolboxRequest{Result: &raw, Timeout: requestTimeout}); err != nil {
 		return nil, false, err
 	}

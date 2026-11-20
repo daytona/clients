@@ -47,6 +47,13 @@ func (PreviewLink) String() string { return "daytona.PreviewLink" }
 // GoString returns a credential-free description.
 func (p PreviewLink) GoString() string { return p.String() }
 
+// SignedPreviewLinkOptions selects the lifetime of a signed preview URL.
+type SignedPreviewLinkOptions struct {
+	// ExpiresIn is a positive whole-second lifetime; zero uses the server
+	// default of 60 seconds. The deployment sets the maximum lifetime.
+	ExpiresIn time.Duration
+}
+
 // SignedPreviewLink is a self-contained URL requiring no authentication header.
 type SignedPreviewLink struct {
 	// URL includes the signed token in its hostname.

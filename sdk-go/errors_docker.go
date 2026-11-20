@@ -48,9 +48,11 @@ type DockerStatus struct {
 	// RawOwner is the server owner verbatim.
 	RawOwner string
 	// ProcessID identifies the process whose logs contain Docker output.
-	ProcessID string
-	// Reason is the server's explanation.
-	Reason string
+	// Nil means absent or null; a pointer to "" preserves an empty server value.
+	ProcessID *string
+	// Reason is the server's explanation. Nil means absent or null; a pointer
+	// to "" preserves an empty server value.
+	Reason *string
 	// State is the normalized Docker state.
 	State DockerState
 	// RawState is the server state verbatim.

@@ -15,15 +15,23 @@ func parseFileInfo(raw json.RawMessage) (FileInfo, error) {
 		return FileInfo{}, err
 	}
 	var info FileInfo
-	for key, target := range map[string]*string{
-		"name": &info.Name, "path": &info.Path, "mode": &info.Mode, "permissions": &info.Permissions,
-		"owner": &info.Owner, "group": &info.Group, "modTime": &info.ModTime,
+	for _, entry := range []struct {
+		name   string
+		target *string
+	}{
+		{"name", &info.Name},
+		{"path", &info.Path},
+		{"mode", &info.Mode},
+		{"permissions", &info.Permissions},
+		{"owner", &info.Owner},
+		{"group", &info.Group},
+		{"modTime", &info.ModTime},
 	} {
-		value, fieldErr := field[string](object, key, true)
+		value, fieldErr := field[string](object, entry.name, true)
 		if fieldErr != nil {
 			return FileInfo{}, fieldErr
 		}
-		*target = value
+		*entry.target = value
 	}
 	size, sizeErr := fileNonnegative(object, "size")
 	isDir, dirErr := field[bool](object, "isDir", true)

@@ -138,7 +138,7 @@ func TestPortsLive(t *testing.T) {
 	})
 	t.Run("signed preview", func(t *testing.T) {
 		// When
-		link, linkErr := sandbox.Ports().SignedPreviewLink(ctx, 8080, 5*time.Minute)
+		link, linkErr := sandbox.Ports().SignedPreviewLink(ctx, 8080, &daytona.SignedPreviewLinkOptions{ExpiresIn: 5 * time.Minute})
 		// Then
 		require.NoError(t, linkErr)
 		require.NotEmpty(t, link.Token)

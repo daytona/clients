@@ -13,6 +13,7 @@ import (
 // ReadFile reads exact bytes into memory. The client cap defaults to 1 GiB;
 // opts may replace it or disable it with NoLimit. Transfers use an idle timeout,
 // not a total deadline. A Content-Length mismatch returns ErrConnection.
+// Content-Type never changes the returned bytes. Invalid Timeout returns ErrBadRequest.
 // Use Download for arbitrarily large files.
 func (f *FileSystem) ReadFile(ctx context.Context, path string, opts *ReadFileOptions) ([]byte, error) {
 	query, err := filePath(path)
@@ -21,14 +22,9 @@ func (f *FileSystem) ReadFile(ctx context.Context, path string, opts *ReadFileOp
 	}
 	spec := toolboxRequest{Path: "/files/download", Query: query, Transfer: true}
 	fileReadOptions(&spec, opts)
-	data, headers, err := f.readFileResponse(ctx, spec)
+	data, _, err := f.readFileResponse(ctx, spec)
 	if err != nil {
 		return nil, err
-	}
-	if isJSONMediaType(headers.Get("Content-Type")) && len(data) != 0 {
-		if jsonErr := checkJSON(data); jsonErr != nil {
-			return nil, jsonErr
-		}
 	}
 	return data, nil
 }
@@ -58,6 +54,7 @@ func (f *FileSystem) WriteText(ctx context.Context, path, text string, opts *Wri
 // ReadMany reads a multipart batch into memory, capped as one complete response.
 // A missing file appears in Errors; an HTTP failure fails the whole call.
 // A Content-Length mismatch returns ErrConnection, as with ReadFile.
+// Invalid Timeout returns ErrBadRequest before any request.
 func (f *FileSystem) ReadMany(ctx context.Context, paths []string, opts *ReadFileOptions) (
 	result *BulkReadResult, failure error,
 ) {
@@ -83,6 +80,9 @@ func (f *FileSystem) ReadMany(ctx context.Context, paths []string, opts *ReadFil
 func (f *FileSystem) readFileResponse(ctx context.Context, spec toolboxRequest) (
 	body []byte, headers http.Header, failure error,
 ) {
+	if err := fileTimeout(spec.Timeout); err != nil {
+		return nil, nil, err
+	}
 	transport, err := f.sandbox.toolbox().scoped()
 	if err != nil {
 		return nil, nil, err

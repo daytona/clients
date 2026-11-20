@@ -100,7 +100,7 @@ func TestPortsValidation_whenPortOutsideRange(t *testing.T) {
 			"in use":   func(ctx context.Context, p *Ports) error { _, err := p.IsInUse(ctx, port); return err },
 			"expose":   func(ctx context.Context, p *Ports) error { _, err := p.Expose(ctx, port, nil); return err },
 			"preview":  func(ctx context.Context, p *Ports) error { _, err := p.PreviewLink(ctx, port); return err },
-			"signed":   func(ctx context.Context, p *Ports) error { _, err := p.SignedPreviewLink(ctx, port, 0); return err },
+			"signed":   func(ctx context.Context, p *Ports) error { _, err := p.SignedPreviewLink(ctx, port, nil); return err },
 			"unexpose": func(ctx context.Context, p *Ports) error { return p.Unexpose(ctx, port) },
 		} {
 			t.Run(name+"/"+strconv.Itoa(port), func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestPortsValidation_whenPreviewPortReserved(t *testing.T) {
 		for name, call := range map[string]func(context.Context, *Ports) error{
 			"expose":  func(ctx context.Context, p *Ports) error { _, err := p.Expose(ctx, port, nil); return err },
 			"preview": func(ctx context.Context, p *Ports) error { _, err := p.PreviewLink(ctx, port); return err },
-			"signed":  func(ctx context.Context, p *Ports) error { _, err := p.SignedPreviewLink(ctx, port, 0); return err },
+			"signed":  func(ctx context.Context, p *Ports) error { _, err := p.SignedPreviewLink(ctx, port, nil); return err },
 		} {
 			t.Run(name+"/"+strconv.Itoa(port), func(t *testing.T) {
 				// Given

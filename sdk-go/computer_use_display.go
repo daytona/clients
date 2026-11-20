@@ -54,7 +54,7 @@ func (s *ComputerUseDisplays) Info(ctx context.Context) ([]ComputerUseDisplay, e
 	for _, row := range rows {
 		entry := decodeDesktop(row)
 		result = append(result, ComputerUseDisplay{
-			ID: entry.safeInteger("id"), X: entry.int32("x"), Y: entry.int32("y"),
+			ID: entry.nonnegativeInteger("id"), X: entry.int32("x"), Y: entry.int32("y"),
 			Width: entry.nonnegative32("width"), Height: entry.nonnegative32("height"),
 			IsActive: entry.boolean("isActive"),
 		})

@@ -39,8 +39,10 @@
 //   - Git: [Sandbox.Git] returns [*Git] — Clone, CreateBranch, CheckoutBranch,
 //     Add, Commit (author name and email are required), Push, History.
 //   - Ports and URLs: [Sandbox.Ports] returns [*Ports] — [Ports.Expose] with
-//     Public: true gives a URL that opens without credentials; PreviewLink and
-//     SignedPreviewLink give private ones.
+//     Public: true gives a URL that opens without credentials; PreviewLink
+//     preserves the endpoint's visibility. SignedPreviewLink gives a private
+//     token-bearing URL, with its lifetime in [SignedPreviewLinkOptions].ExpiresIn
+//     (nil options or zero uses the server default).
 //   - Images: [Client.Images] returns [*Images] — [Images.Pull] imports a
 //     registry image, [Images.BuildAndWait] builds one from an [ImageBuilder];
 //     create sandboxes from the image's name or ID. [Client.Snapshots],
