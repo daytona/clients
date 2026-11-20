@@ -1,0 +1,14 @@
+sdk-go/doc.go
+  h_e7759ddd73fa65 66-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "538e3eacba8a9b9028031ab85f91ca8b183f9bae",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
