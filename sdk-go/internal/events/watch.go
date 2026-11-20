@@ -21,6 +21,7 @@ type FrameStamp struct {
 // Frame follows the watch when routing moves it to another socket. Jitter
 // applies the hub's +/-10% scheduling jitter. Both functions are non-nil for
 // an available watch; a watch without an observation channel has zero liveness.
+// Timestamps use the hub clock, which is the wall clock in production.
 type WatchLiveness struct {
 	RegisteredAt time.Time
 	Frame        func() FrameStamp
