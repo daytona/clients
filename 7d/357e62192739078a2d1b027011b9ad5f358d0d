@@ -1,0 +1,45 @@
+cli/gen/api/types.gen.go
+  s_d1b89578d6ceb5::t_ce6658d609944e 4060-4062,4420,4449,5259-5264,5283-5285,5339-5342,5345-5347,5950-5951,6652-6653,6656-6657,6660-6661,6792-6795,6800-6802,6805-6807,6878-6880
+contract/api-openapi.json
+  s_67b025aa04a837::t_f1b7d61aaff890 5838,5878,7355-7367,7400-7403,7410-7411,7523-7524,7528-7529,8759-8760,9954-9955,9959-9960,9964-9965,10225-10232,10242-10243,10251-10252,10425,24168,24209
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_d1b89578d6ceb5::t_d7daa672b14066 207
+sdk-python/src/daytona/v2/_gen/api/models/member_limits.py
+  s_d1b89578d6ceb5::t_a29aba86926cd9 37
+sdk-python/src/daytona/v2/_gen/api/models/organization_limits.py
+  s_d1b89578d6ceb5::t_b3fce1efcaae4f 42
+sdk-python/src/daytona/v2/_gen/api/models/project_image_build_limits.py
+  s_d1b89578d6ceb5::t_0e38e29aa3491d 1-114
+sdk-python/src/daytona/v2/_gen/api/models/project_limits.py
+  s_d1b89578d6ceb5::t_43e975d6a0bf00 22,39,42,87-89,110
+sdk-python/src/daytona/v2/_gen/api/models/update_project_limits_request.py
+  s_d1b89578d6ceb5::t_c05df70360901c 37,39-41,84-88,116
+sdk-python/src/daytona/v2/_gen/api/models/usage_limit.py
+  s_d1b89578d6ceb5::t_8d4e54784175b0 37
+sdk-typescript/src/v2/gen/api.ts
+  s_d1b89578d6ceb5::t_42d1c23aa22c8a 1866,5486,5506,6191-6195,6211-6212,6262-6265,6268-6272,6855-6858,7427-7430,7432-7435,7437-7440,7578-7583,7592-7594,7599-7601,7682-7684,16086
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d357e62192739078a2d1b027011b9ad5f358d0d",
+  "prompts": {},
+  "sessions": {
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    },
+    "s_d1b89578d6ceb5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a3f3654ffeXE8ydBHCTsQrQ7",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

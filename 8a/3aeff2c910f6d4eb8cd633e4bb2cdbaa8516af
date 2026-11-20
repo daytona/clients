@@ -1,0 +1,25 @@
+sdk-python/README.md
+  s_9f5179767e23c5::t_4ec3bc25f5f106 536
+sdk-python/src/daytona/v2/services.py
+  s_9f5179767e23c5::t_cadd3de4da01bf 851
+sdk-typescript/README.md
+  s_9f5179767e23c5::t_3ea5abcd749eb4 515
+sdk-typescript/src/v2/Volume.ts
+  s_9f5179767e23c5::t_0dea667182f5bd 74,142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a3aeff2c910f6d4eb8cd633e4bb2cdbaa8516af",
+  "prompts": {},
+  "sessions": {
+    "s_9f5179767e23c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0c0c34b2ffeZhmepWHNxNSdfx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

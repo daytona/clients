@@ -1,0 +1,23 @@
+changelog.d/secret-volume-search.added.md
+  s_13dc1dfef3c825::t_193d045ab7b47e 1-3
+changelog.d/secret-volume-search-name.breaking.md
+  s_13dc1dfef3c825::t_193d045ab7b47e 1-3
+changelog.d/secret-volume-search-first.changed.md
+  s_13dc1dfef3c825::t_193d045ab7b47e 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a9ca5194b0bffa40126d0b844add016a8bea0120",
+  "prompts": {},
+  "sessions": {
+    "s_13dc1dfef3c825": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b4d9187ffe82XBcuic15esKW",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
