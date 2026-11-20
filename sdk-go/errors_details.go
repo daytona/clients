@@ -85,8 +85,9 @@ func (e *SandboxCreateRequestTimeoutError) Unwrap() error {
 
 // SandboxCreateConnectionError preserves the key needed to reconcile a create
 // whose response was lost, including caller cancellation or client closure
-// during the request.
-// Retry with identical options and this key.
+// during the request. It can also report a failure before the POST was sent,
+// such as bearer exchange failure or client closure. Retrying with identical
+// options and this key is safe in either case.
 type SandboxCreateConnectionError struct {
 	// SDKError is the underlying connection error.
 	SDKError *Error
