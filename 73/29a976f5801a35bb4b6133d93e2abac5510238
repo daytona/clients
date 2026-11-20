@@ -1,0 +1,24 @@
+sdk-go/pkg/daytona/sandbox_nodes.go
+  s_7750b317905afd::t_280c6d0e5960cc 421,424-432,434
+  s_7750b317905afd::t_296d1942ba7e8d 420,422-423,435,437-440
+  s_7750b317905afd::t_b284b191f29342 11,408,412-413
+sdk-go/pkg/daytona/sandbox_nodes_test.go
+  s_7750b317905afd::t_ad30f7bd877dc3 273-287,293-308,313-314
+  s_7750b317905afd::t_5f87c8c54d0655 288-292,309-312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7329a976f5801a35bb4b6133d93e2abac5510238",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+changelog.d/create-handle-lifecycle.fixed.md
+  h_e7759ddd73fa65 7-9
+cli/gen/api/types.gen.go
+  h_e7759ddd73fa65 5870-5875
+contract/api-openapi.json
+  h_e7759ddd73fa65 8619
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 1017-1019
+sdk-typescript/src/v2/gen/api.ts
+  h_e7759ddd73fa65 6788-6793
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 406-408
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "721683ed5685d03cba1cdb13018e3697f73a847c",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

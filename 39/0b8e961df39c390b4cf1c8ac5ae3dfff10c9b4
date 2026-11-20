@@ -1,0 +1,34 @@
+sdk-go/watch_event.go
+  s_8ddc3f7076678c::t_560bca5f0a92f5 1-27,29-46,52-58,61-63
+  s_8ddc3f7076678c::t_8e7846748b98c9 28,47-51,59-60
+sdk-go/watch_test.go
+  s_8ddc3f7076678c::t_35bcf4944b896d 1-23,35-52,56-78,83-91,97-123,128-160
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 24-34,53-55,79-82,92-96,124-127
+sdk-go/watch_sse.go
+  s_8ddc3f7076678c::t_560bca5f0a92f5 1-13,15-19,24,27-30,32-38,45-46,54-55,58-137
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 14,20-23,25-26,31
+  s_8ddc3f7076678c::t_8e7846748b98c9 39-44,47-53,56-57
+sdk-go/watch_edges_test.go
+  s_8ddc3f7076678c::t_081adc170baeb3 32-35,81
+  s_8ddc3f7076678c::t_fd3e8e1f4c0cc2 1-31,36-80,82-114
+sdk-go/watch.go
+  s_8ddc3f7076678c::t_560bca5f0a92f5 1-31,41-42,45-49,51-67,74-78,81,84-196,203-225,228-243
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 32-40,43-44
+  s_8ddc3f7076678c::t_8e7846748b98c9 50,68-73,79-80,82-83,197-202,226-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "390b8e961df39c390b4cf1c8ac5ae3dfff10c9b4",
+  "prompts": {},
+  "sessions": {
+    "s_8ddc3f7076678c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b47cdcffebUAXlziizykrvb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

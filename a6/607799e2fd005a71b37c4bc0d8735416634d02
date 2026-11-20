@@ -1,0 +1,29 @@
+cli/gen/api/types.gen.go
+  s_9f5179767e23c5::t_ab2d28c013fb3a 844,850,1913-1933,7268-7270,8245-8247
+contract/api-openapi.json
+  s_9f5179767e23c5::t_071243fbc4dfc6 11029-11037,31873-31886
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_9f5179767e23c5::t_cb89701cedbbda 335
+sdk-python/src/daytona/v2/_gen/api/models/volume_bucket_origin.py
+  s_9f5179767e23c5::t_8c3b72793e185c 1-56
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_9f5179767e23c5::t_649c29d797a8c3 55
+sdk-typescript/src/v2/gen/api.ts
+  s_9f5179767e23c5::t_56eb68eec850cf 8060,20314-20315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a6607799e2fd005a71b37c4bc0d8735416634d02",
+  "prompts": {},
+  "sessions": {
+    "s_9f5179767e23c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0c0c34b2ffeZhmepWHNxNSdfx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

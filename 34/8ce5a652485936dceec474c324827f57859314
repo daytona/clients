@@ -1,0 +1,21 @@
+sdk-go/volume_model.go
+  s_12257b84f26bcc::t_d7e2d527f31eb9 125
+sdk-go/errors.go
+  s_12257b84f26bcc::t_1259b2688fc9f1 116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "348ce5a652485936dceec474c324827f57859314",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

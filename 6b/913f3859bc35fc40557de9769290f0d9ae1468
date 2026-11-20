@@ -1,0 +1,160 @@
+sdk-go/client.go
+  s_12257b84f26bcc::t_689121e046cd5b 33
+  s_12257b84f26bcc::t_3d60149c00ecd0 19-32,34
+sdk-go/build_logs.go
+  s_12257b84f26bcc::t_ab4b7435435875 1-104
+sdk-go/build_logs_cancel_test.go
+  s_12257b84f26bcc::t_43fb35c4fc9d31 1-167
+sdk-go/build_logs_errors_test.go
+  s_12257b84f26bcc::t_2c0924db03881a 1-133
+sdk-go/build_logs_example_test.go
+  s_12257b84f26bcc::t_f0d1c9df31c1b6 1-67
+sdk-go/build_logs_follow.go
+  s_12257b84f26bcc::t_dd9fa0ab28c455 1-219
+sdk-go/build_logs_identity.go
+  s_12257b84f26bcc::t_76e492c1279fcf 1-123
+sdk-go/build_logs_identity_test.go
+  s_12257b84f26bcc::t_6534ded2daf8a2 1-126
+sdk-go/build_logs_models.go
+  s_12257b84f26bcc::t_aa992430f67436 1-154
+sdk-go/build_logs_observer.go
+  s_12257b84f26bcc::t_def2bc32bcd1a3 1-71
+sdk-go/build_logs_parse.go
+  s_12257b84f26bcc::t_6255aa06266b99 1-168
+sdk-go/build_logs_protocol_test.go
+  s_12257b84f26bcc::t_6b70e11f697679 1-139
+sdk-go/build_logs_request.go
+  s_12257b84f26bcc::t_6578675e6c9dcc 1-157
+sdk-go/build_logs_retry_test.go
+  s_12257b84f26bcc::t_fb5336f805e9f6 1-149
+sdk-go/build_logs_snapshot_test.go
+  s_12257b84f26bcc::t_981fc555164407 1-110
+sdk-go/build_logs_sse.go
+  s_12257b84f26bcc::t_f64ca973ced4ec 1-107
+sdk-go/build_logs_test.go
+  s_12257b84f26bcc::t_e2b491f8cf083f 1-138
+sdk-go/build_logs_timeout_test.go
+  s_12257b84f26bcc::t_87727137b15800 1-132
+sdk-go/builder.go
+  s_12257b84f26bcc::t_e5239872722579 1-105
+sdk-go/builder_archive_test.go
+  s_12257b84f26bcc::t_fb7a191bb3a42b 1-77
+sdk-go/builder_commands.go
+  s_12257b84f26bcc::t_86759f67b4b13a 1-79
+sdk-go/builder_context.go
+  s_12257b84f26bcc::t_27ded2c43d5cd4 1-105
+sdk-go/builder_contract_test.go
+  s_12257b84f26bcc::t_8a2551dcf3c995 1-85
+sdk-go/builder_directive.go
+  s_12257b84f26bcc::t_46b84787d5f2a1 1-87
+sdk-go/builder_env.go
+  s_12257b84f26bcc::t_75416e770afde9 1-69
+sdk-go/builder_example_test.go
+  s_12257b84f26bcc::t_b79b1369ca18cd 1-43
+sdk-go/builder_fixtures_test.go
+  s_12257b84f26bcc::t_dedbcf54e4e701 1-178
+sdk-go/builder_parity_test.go
+  s_12257b84f26bcc::t_eab4521561bf99 1-136
+sdk-go/builder_text.go
+  s_12257b84f26bcc::t_178878c5b151b4 1-107
+sdk-go/capture.go
+  s_12257b84f26bcc::t_6d608f37120019 1-78
+sdk-go/capture_test.go
+  s_12257b84f26bcc::t_5420a41af207e7 1-200
+sdk-go/context_upload.go
+  s_12257b84f26bcc::t_9e6d8b17ec6985 1-169
+sdk-go/context_upload_body.go
+  s_12257b84f26bcc::t_4cfa4eca3ccffd 1-82
+sdk-go/context_upload_cleanup_test.go
+  s_12257b84f26bcc::t_a9ccb1293bd8fd 1-135
+sdk-go/context_upload_concurrency_test.go
+  s_12257b84f26bcc::t_243f09d2a68bdd 1-172
+sdk-go/context_upload_helpers_test.go
+  s_12257b84f26bcc::t_86e437d49a7db9 1-69
+sdk-go/context_upload_open_other.go
+  s_12257b84f26bcc::t_516b0772b5bbdd 1-20
+sdk-go/context_upload_open_unix.go
+  s_12257b84f26bcc::t_282d020c2dfa96 1-17
+sdk-go/context_upload_parts.go
+  s_12257b84f26bcc::t_8686d5885d332d 1-137
+sdk-go/context_upload_reopen_unix_test.go
+  s_12257b84f26bcc::t_968e369baf99d1 1-152
+sdk-go/context_upload_response.go
+  s_12257b84f26bcc::t_9fb08b3bbdfa5c 1-131
+sdk-go/context_upload_response_test.go
+  s_12257b84f26bcc::t_6783a823fd602d 1-124
+sdk-go/context_upload_retry_test.go
+  s_12257b84f26bcc::t_37ae63b55fafa4 1-169
+sdk-go/context_upload_test.go
+  s_12257b84f26bcc::t_be5b6ca21f850c 1-157
+sdk-go/context_upload_timeout_test.go
+  s_12257b84f26bcc::t_5bd609736118ac 1-191
+sdk-go/e2e/images_test.go
+  s_12257b84f26bcc::t_1224b70f7921f5 1-169
+sdk-go/image.go
+  s_12257b84f26bcc::t_4411ddc9d7ca08 1-118
+sdk-go/image_list.go
+  s_12257b84f26bcc::t_2333779ef62848 1-87
+sdk-go/image_options.go
+  s_12257b84f26bcc::t_b8062e20a54252 1-118
+sdk-go/image_parse.go
+  s_12257b84f26bcc::t_b3f7007aabee63 1-173
+sdk-go/image_parse_test.go
+  s_12257b84f26bcc::t_01413c6653d598 1-188
+sdk-go/image_resource_clock_test.go
+  s_12257b84f26bcc::t_53f5723b5c931e 1-90
+sdk-go/image_resource_deadline_test.go
+  s_12257b84f26bcc::t_f491c49f95093f 1-130
+sdk-go/image_resource_lists_test.go
+  s_12257b84f26bcc::t_ce5c77804ec124 1-154
+sdk-go/image_resource_operations_test.go
+  s_12257b84f26bcc::t_f22bc2a6fc8b0f 1-183
+sdk-go/image_resource_pull_deadline_test.go
+  s_12257b84f26bcc::t_8d353a18a5b664 1-153
+sdk-go/image_resource_pull_test.go
+  s_12257b84f26bcc::t_165e0b5ce96a12 1-196
+sdk-go/image_source.go
+  s_12257b84f26bcc::t_1e094d05784645 1-115
+sdk-go/image_wait.go
+  s_12257b84f26bcc::t_c3d48e8289c7e5 1-138
+sdk-go/image_wait_test.go
+  s_12257b84f26bcc::t_9eb4c3ac4dcbfe 1-157
+sdk-go/images.go
+  s_12257b84f26bcc::t_34dd6b61836aa6 1-141
+sdk-go/images_build.go
+  s_12257b84f26bcc::t_4da42c785826b4 1-134
+sdk-go/images_build_test.go
+  s_12257b84f26bcc::t_91012dfc82ccf4 1-142
+sdk-go/images_context_test.go
+  s_12257b84f26bcc::t_9199037da2c475 1-103
+sdk-go/images_example_test.go
+  s_12257b84f26bcc::t_2c5555c0076d42 1-76
+sdk-go/images_ready.go
+  s_12257b84f26bcc::t_e4a38da005a720 1-117
+sdk-go/images_test.go
+  s_12257b84f26bcc::t_e1017a86046a17 1-187
+sdk-go/snapshot.go
+  s_12257b84f26bcc::t_e94e9f364f6b3c 1-80
+sdk-go/snapshot_parse.go
+  s_12257b84f26bcc::t_7bee3f493e40db 1-68
+sdk-go/snapshots.go
+  s_12257b84f26bcc::t_68729851137e94 1-85
+sdk-go/snapshots_test.go
+  s_12257b84f26bcc::t_6cf3df72f6e9b7 1-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b913f3859bc35fc40557de9769290f0d9ae1468",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

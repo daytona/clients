@@ -1,0 +1,33 @@
+changelog.d/volume-bucket-role-arn.added.md
+  s_3418d739688acc::t_8c45aade47936f 1
+cli/cmd/volume.go
+  s_3418d739688acc::t_33042d9ce63768 44,48,74-76,104,140,143
+cli/cmd/volume_helpers.go
+  s_3418d739688acc::t_5bfb46a88b4149 19,56,83,85-94,102-108,180-186
+cli/cmd/volume_more_test.go
+  s_3418d739688acc::t_24586134ae8ab1 38,64-73
+sdk-python/src/daytona/v2/_codes.py
+  s_3418d739688acc::t_67a5a767144a67 99-100,251-252,429-430
+sdk-python/src/daytona/v2/errors.py
+  s_3418d739688acc::t_f33d4eca222ec8 833-834
+sdk-typescript/src/v2/codes.ts
+  s_3418d739688acc::t_2f99aea0af535c 91-92,274-275
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_3418d739688acc::t_568542d12f061b 662-663
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "2b86e6dd5d993dcc8884fb903385c678ca45ccf2",
+  "prompts": {},
+  "sessions": {
+    "s_3418d739688acc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b84a715ffeRI1DbQqZEkh5gk",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Bruno Grbavac <bruno.grbavac@outlook.com>"
+    }
+  }
+}

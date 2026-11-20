@@ -1,0 +1,35 @@
+sdk-go/mac_model_parse.go
+  s_fb751722ce9f7a::t_c57322349c417f 109-111,138-140
+  s_fb751722ce9f7a::t_5972de014f192f 7,55-57
+  s_fb751722ce9f7a::t_fd8d11b3adc998 1-6,8-54,58-108,112-137,141-168
+sdk-go/mac_model_parse_test.go
+  s_fb751722ce9f7a::t_002cf3fee40e54 1-142
+  s_fb751722ce9f7a::t_5cd82f54f806cb 143-148
+sdk-go/mac_model_test.go
+  s_fb751722ce9f7a::t_002cf3fee40e54 47
+  s_fb751722ce9f7a::t_47391c0b7581f7 1-46,48-175
+sdk-go/mac_model_example_test.go
+  s_fb751722ce9f7a::t_002cf3fee40e54 1-20,23-41,44-59
+  s_fb751722ce9f7a::t_c57322349c417f 21-22,42-43
+sdk-go/mac_model.go
+  s_fb751722ce9f7a::t_fd8d11b3adc998 1-35,39-63
+  s_fb751722ce9f7a::t_c57322349c417f 36-38
+sdk-go/mac_model_types.go
+  s_fb751722ce9f7a::t_fd8d11b3adc998 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c805eda97cf8ec9bfe601b53e5d609742da4e4af",
+  "prompts": {},
+  "sessions": {
+    "s_fb751722ce9f7a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b3a7f6ffeDVVFCTtABTRhW6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

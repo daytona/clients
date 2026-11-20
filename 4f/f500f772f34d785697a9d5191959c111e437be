@@ -1,0 +1,29 @@
+sdk-python/src/daytona/_async/sandbox.py
+  s_7750b317905afd::t_53b9874473ecc3 555,572,577,2003,2005-2006,2019-2020,2061-2062
+  ai_agent 94
+sdk-python/tests/test_single_node_compatibility.py
+  s_7750b317905afd::t_8560eeafee2f6a 75-94,105-106
+  s_7750b317905afd::t_53b9874473ecc3 13
+  s_7750b317905afd::t_752ab0b34258fb 95-104
+sdk-python/src/daytona/_sync/sandbox.py
+  ai_agent 95
+  s_7750b317905afd::t_53b9874473ecc3 550,567,572,1986,1988-1989,2002-2003,2044-2045
+sdk-python/src/daytona/common/sandbox.py
+  s_7750b317905afd::t_53b9874473ecc3 9,22-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4ff500f772f34d785697a9d5191959c111e437be",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

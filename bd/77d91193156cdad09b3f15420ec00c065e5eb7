@@ -1,0 +1,457 @@
+api-client-python/daytona_api_client/models/create_sandbox.py
+  ai_agent 23,50-51,55-58,70,127-141,167-168,172-175
+api-client-ruby/lib/daytona_api_client/models/create_sandbox.rb
+  ai_agent 57,60-62,72,75-78,81-83,131,136,138,178-179,183-186,203-205,287-292,313-318,323-328,379-390,398-400,404-433,453,458,460,482
+api-client-go/model_job.go
+  ai_agent 43,345,398,401,471-472
+api-client-go/model_sandbox_state.go
+  ai_agent 23-44,155
+api-client-go/api_volumes.go
+  ai_agent 23,27,29-30,39,41-43,51,53-55,64,66-68,77,79-80,93-95,117-118,123,128,131-134,211-213,230-232,237-238,245-247,311-313,330-332,337-338,343,346-349,422-424,441-443,448-449,454,457-460,533-534,536,558-559,564,569,572-575
+sdk-go/pkg/daytona/process_test.go
+  s_7750b317905afd::t_bd3af9bf387bda 497-498,501
+api-client-go/model_otel_config.go
+  ai_agent 29,143,180,183,246-247
+api-client-go/model_update_identity_provider.go
+  ai_agent 36,284,384-385
+api-client/src/models/create-sandbox.ts
+  ai_agent 79-86,99-114
+api-client-go/model_workos_sso_connection.go
+  ai_agent 17,38,237,280,283,350-351
+sdk-typescript/src/Daytona.ts
+  s_7750b317905afd::t_c0917a6558def3 183-189,255,257,618,623,747,757,759
+  s_7750b317905afd::t_99bdf47d66c42e 253
+api-client-go/model_paginated_snapshots.go
+  ai_agent 24-27,151,188,191,255-256
+api-client-go/model_runner_class.go
+  ai_agent 23,113
+api-client-go/api_users.go
+  ai_agent 23,27,29-30,38,40-42,50,52-54,62,64,66-67,76,78-79,88,90,92-93,95,104,106-107,116,118,120-121,133,144-145,150,157-159,219,221,231-233,238-239,246-248,309,311,321-323,328-329,336-338,399,412-413,418,423,426-429,498,509-510,515,520,523-526,595-596,614-615,622,630-632,697,708-709,714,719,722-725,794,807-808,813,820-822
+api-client-go/model_identity_provider.go
+  ai_agent 17,46,345,396,399,470-471
+api-client-go/model_create_runner.go
+  ai_agent 25,29,181,220,223,287-288
+sdk-java/src/test/java/io/daytona/sdk/CreateSandboxResourceSerializationTest.java
+  s_7750b317905afd::t_f1e78c0fa9443b 16,18,20
+  s_7750b317905afd::t_c0917a6558def3 8,14-15,17,19,21-22,26-33
+sdk-python/tests/test_common.py
+  s_7750b317905afd::t_9e540261bcf859 168
+  s_7750b317905afd::t_c0917a6558def3 165,169-171
+sdk-python/tests/test_async_daytona.py
+  s_7750b317905afd::t_c0917a6558def3 583,585,593,595
+api-client-go/api_object_storage.go
+  ai_agent 22,26,28-29,42-43,60-61,66,71,74-77
+api-client-go/model_account_provider.go
+  ai_agent 29,128,163,166,229-230
+api-client-go/model_metrics_response.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_paginated_jobs.go
+  ai_agent 24-27,151,188,191,255-256
+sdk-ruby/spec/daytona/daytona_spec.rb
+  s_7750b317905afd::t_bd3af9bf387bda 389-402,420
+api-client-go/model_oidc_config.go
+  ai_agent 35,223,266,269,335-336
+api-client-go/model_update_warm_pool.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_create_warm_pool.go
+  ai_agent 29,135,171,174,237-238
+api-client-go/model_signed_port_preview_url.go
+  ai_agent 31,155,192,195,259-260
+api-client-go/model_snapshot_state.go
+  ai_agent 23-31,129
+api-client-go/model_create_organization_invitation.go
+  ai_agent 17,32,165,203,206,270-271
+api-client-go/model_sandbox_list_item.go
+  ai_agent 99,1262,1392,1395,1493-1494
+sdk-ruby/lib/daytona/daytona.rb
+  s_7750b317905afd::t_c0917a6558def3 345,349
+  s_7750b317905afd::t_b1f4e949be8b2b 346-348
+api-client-go/model_webhook_event.go
+  ai_agent 23-30,125
+api-client-go/model_sandbox_desired_state.go
+  ai_agent 23-28,123
+api-client-go/api_warm_pools.go
+  ai_agent 23,27,29-30,39,41-43,51,53-54,63,65-67,80-82,104-105,110,115,118-121,198-200,217-219,224-225,232-234,298-299,316-317,322,327,330-333,405-408,430-432,437-438,443,446-449
+sdk-ruby/lib/daytona/sandbox.rb
+  s_7750b317905afd::t_c0917a6558def3 808
+sdk-go/pkg/daytona/sandbox.go
+  s_7750b317905afd::t_bd3af9bf387bda 862
+api-client-go/model_gpu_type.go
+  ai_agent 23-31,129
+api-client-go/model_region_quota.go
+  ai_agent 24-34,490,552,555,631-632
+api-client-go/model_toolbox_proxy_url.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_trace_span.go
+  ai_agent 41,311,361,364,433-434
+api-client-go/model_organization.go
+  ai_agent 17,95,1046,1150,1153,1248-1249
+api-client-go/model_preview_warning.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_update_sandbox_network_settings.go
+  ai_agent 28,148,232-233
+api-client-go/model_fork_sandbox.go
+  ai_agent 24,80,156-157
+api-client-go/model_metric_data_point.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_paginated_logs.go
+  ai_agent 31,155,192,195,259-260
+api-client-go/model_snapshot_removed_webhook.go
+  ai_agent 17,36,210,251,254,320-321
+api-client-go/model_sandbox_identity.go
+  ai_agent 27,101,134,137,199-200
+sdk-python/src/daytona/_async/snapshot.py
+  s_7750b317905afd::t_9e540261bcf859 25,168
+api-client-go/model_job_type.go
+  ai_agent 23-33,35-39,143
+sdk-java/src/test/java/io/daytona/sdk/DaytonaTest.java
+  s_7750b317905afd::t_c0917a6558def3 170-172,263,265-266
+api-client-go/model_sso_oidc_config.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/go.sum
+  ai_agent 1-11
+sdk-ruby/spec/daytona/snapshot_service_spec.rb
+  s_7750b317905afd::t_c0917a6558def3 172
+api-client-go/model_region.go
+  ai_agent 43,402,456,459,529-530
+api-client-go/model_volume_state.go
+  ai_agent 23-29,125
+api-client-go/model_organization_invitation.go
+  ai_agent 17,46,345,396,399,470-471
+api-client-go/model_gpu_capacity_response.go
+  ai_agent 17,26-27,101,134,137,199-200
+api-client-go/model_trace_summary.go
+  ai_agent 37,243,287,290,357-358
+api-client-go/model_update_docker_registry.go
+  ai_agent 33,196,237,240,305-306
+api-client-go/model_organization_usage_overview.go
+  ai_agent 24-28,177,216,219,284-285
+sdk-python/tests/test_daytona.py
+  s_7750b317905afd::t_c0917a6558def3 260,262,270,272
+api-client-go/api_snapshots.go
+  ai_agent 23,27,29-31,40,42-43,52,54-56,64,66-67,76,78-80,89,91,93-95,97,106,108-110,119,121-123,135-137,154-156,161-162,167,170-173,246-248,270-271,276,281,284-287,364-366,383-385,390-391,398-400,464-465,467-472,524-525,530,535,538-541,647-649,666-668,673-674,679,682-685,758-760,762,786-788,795-796,804-806,873-875,892-894,899-900,905,908-911,984-986,1003-1005,1010-1011,1018-1020
+api-client-go/model_create_organization.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_runner_state.go
+  ai_agent 23-27,121
+api-client-go/model_docker_registry.go
+  ai_agent 17,40,264,309,312,380-381
+api-client-go/model_test_identity_provider_connection.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_update_last_activity.go
+  ai_agent 24,80,156-157
+api-client-go/model_oidc_id_p_config.go
+  ai_agent 31,162,200,203,267-268
+api-client-go/model_runner_health_metrics.go
+  ai_agent 51,439,498,501,575-576
+api-client-go/model_announcement.go
+  ai_agent 27,108,142,145,207-208
+api-client-go/model_create_runner_response.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/api_regions.go
+  ai_agent 22,26,28-29,42,53-54,59,64,67-70
+api-client-go/model_runner.go
+  ai_agent 92,1057,1168,1171,1263-1264
+api-client-go/model_sandbox_labels.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_poll_jobs_response.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/api/openapi.yaml
+  ai_agent 9043,9065,9076,9157-9160,9182-9185,9187-9190,9301,9303,9305,9310,9312,9314-9315,9317,9321,9325,9336-9338,9345,9348-9349,9352-9353
+sdk-python/src/daytona/_async/daytona.py
+  s_7750b317905afd::t_c0917a6558def3 69,707-710
+  s_7750b317905afd::t_b1f4e949be8b2b 711-716
+api-client-go/model_rate_limit_config.go
+  ai_agent 32,216,308-309
+api-client-go/model_resolve_sandbox_secrets_200_response_inner.go
+  ai_agent 23-26,178,266-267
+api-client-go/model_region_usage_overview.go
+  ai_agent 24-37,44,539,605,608,686-687
+sdk-python/src/daytona/_sync/daytona.py
+  s_7750b317905afd::t_c0917a6558def3 57,576-579
+  s_7750b317905afd::t_b1f4e949be8b2b 580-585
+api-client-go/model_sandbox_created_webhook.go
+  ai_agent 17,38,237,280,283,350-351
+api-client-go/model_sandbox_list_sort_direction.go
+  ai_agent 23-24,115
+api-client-go/model_create_organization_role.go
+  ai_agent 29,128,163,166,229-230
+api-client-go/model_paginated_traces.go
+  ai_agent 31,155,192,195,259-260
+api-client-go/model_sandbox.go
+  ai_agent 1528,1680,1683,1789-1790
+api-client-go/api_sandbox.go
+  ai_agent 22,26,29,31-33,42,44,46-48,50,60,62-63,72,74-76,85,87-89,98,100-102,111,113-117,125,127-129,138,140,142-144,146,155,157-159,168,170-172,181,183-186,195,197-199,208,210,212-214,223,225-227,236,238-240,249,251,253-255,264,266,268-270,279,281-283,292,294-296,305,307,309-312,321,323,325-327,336,338-339,348,350-353,362,364-366,375,377,379-380,389,391-393,402,404-406,415,417-419,428,430-432,441,443-445,454,456-458,467,469-471,480,482-485,494,496-499,508,510-513,522,524-527,536,538-541,550,552,554-556,565,567,569-571,580,582-584,592,594,596-598,607,609-612,621,623,625-627,636,638-640,648,650-651,664-666,683-685,689-690,696,699-702,775-777,796-798,804-805,811,815-818,891-893,915-916,921,926,929-932,1009-1012,1034-1036,1040-1041,1047,1050-1053,1131-1133,1135,1157-1159,1163-1164,1170,1173-1176,1252-1254,1271-1273,1277-1278,1284,1287-1290,1363-1367,1380-1388,1392-1393,1395-1396,1403-1405,1471-1474,1496-1498,1502-1503,1509,1512-1515,1593-1595,1597,1621-1623,1629-1630,1639-1641,1708-1710,1727-1729,1733-1734,1740,1743-1746,1819-1821,1838-1840,1845-1846,1851,1854-1857,1930-1933,1950-1953,1957-1958,1960,1965,1968-1971,2045-2047,2064-2066,2071-2072,2077,2080-2083,2156-2158,2160,2184-2186,2190-2191,2197,2200-2203,2279-2281,2298-2300,2304-2305,2311,2314-2317,2390-2392,2394,2415-2417,2421-2422,2428,2431-2434,2510-2514,2516-2519,2573-2575,2580-2581,2586,2589-2592,2701-2705,2707,2743-2745,2750-2751,2756,2759-2762,2854-2856,2873-2875,2879-2880,2886,2889-2892,2965-2967,2984-2986,2991-2992,2997,3000-3003,3076-3079,3098-3101,3106-3108,3113,3116-3119,3193-3197,3199-3200,3242-3244,3249-3250,3255,3258-3261,3356-3359,3388-3389,3394,3399,3402-3405,3483-3486,3488,3510-3513,3517-3518,3520,3525,3528-3531,3608-3610,3627-3629,3634-3635,3640,3643-3646,3719-3720,3722-3750,3942-3943,3948,3953,3956-3959,4092-4093,4095-4102,4161-4164,4169,4174-4175,4179,4181-4183,4185-4188,4194-4195,4197-4200,4203,4208,4272-4275,4277,4280-4282,4286-4288,4292-4293,4297,4299-4301,4303-4306,4312-4313,4315-4318,4321,4326,4333-4335,4337,4394-4397,4419-4421,4425-4426,4432,4435-4438,4516-4519,4541-4543,4547-4548,4554,4557-4560,4638-4640,4657-4659,4664-4665,4670,4673-4676,4749-4751,4753,4775-4777,4781-4782,4788,4791-4794,4870-4872,4889-4891,4896-4897,4902,4905-4908,4981-4984,5001-5004,5008-5009,5011,5016,5019-5022,5096-5099,5116-5119,5123-5124,5126,5131,5134-5137,5211-5214,5231-5234,5238-5239,5241,5246,5249-5252,5326-5329,5346-5349,5353-5354,5356,5361,5364-5367,5441-5444,5461-5464,5468-5469,5471,5476,5479-5482,5556-5558,5577-5579,5583-5584,5590,5593-5596,5669-5671,5673,5697-5699,5703-5704,5710,5713-5716,5792-5794,5796,5817-5819,5824-5825,5832-5834,5900-5902,5904,5927-5929,5933-5934,5940,5943-5946,6024-6027,6044-6047,6051-6052,6054,6059,6062-6065,6139-6142,6166-6168,6172-6173,6179,6182-6185,6263-6266,6288-6290,6295-6296,6303-6305,6374-6376,6399-6400,6405,6410,6413-6416
+api-client-go/client.go
+  ai_agent 35,42,180,188,192,208-209,211-217,220-238,240-244,246-251,253-256,258-272,277-286,331-333,387,391
+api-client-go/api_runners.go
+  ai_agent 23,27,29-30,39,41-43,51,53-54,63,65-67,76,78-80,89,91-93,102,104-105,114,116-117,126,128-129,138,140,142-143,151,153-155,164,166-168,181-183,205-206,211,216,219-222,299-302,325-327,332-333,340-342,409,420-421,426,431,434-437,506-508,525-527,532-533,538,541-544,617,619,629-631,636-637,642,645-648,718,720,730-732,737-738,743,746-749,819,821,837-838,843,848,851-854,927,938-939,944,949,952-955,1024-1026,1049-1050,1055,1060,1063-1066,1141-1142,1160-1161,1166,1173-1175,1240-1242,1259-1261,1266-1267,1272,1275-1278,1351-1353,1370-1372,1377-1378,1383,1386-1389
+api-client-go/model_create_identity_provider.go
+  ai_agent 37,276,323,326,393-394
+sdk-ruby/lib/daytona/snapshot_service.rb
+  s_7750b317905afd::t_c0917a6558def3 93
+api-client-go/model_create_region_response.go
+  ai_agent 34,250,293,296,361-362
+api-client-go/model_pending_sso_link.go
+  ai_agent 30-32,208,249,252,318-319
+api-client-go/model_region_type.go
+  ai_agent 23-25,117
+api-client-go/configuration.go
+  ai_agent 69,71,92-95,97,101-102
+api-client-go/model_create_snapshot.go
+  ai_agent 45,414,475,478,549-550
+api-client-go/api_config.go
+  ai_agent 22,26,28-29,42,53-54,59,64,67-70
+api-client-go/api_health.go
+  ai_agent 22,26,28-29,38,40-41,53,64-65,70,75,78-81,141-142,160,171-172,177,184-186
+api-client-go/model_audit_target_scenario.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_snapshot_dto.go
+  ai_agent 17,25-34,36-38,40-42,54,719,804,807,890-891
+api-client-go/model_test_identity_provider_connection_response.go
+  ai_agent 29,142,179,182,245-246
+api-client-go/model_list_secrets_response.go
+  ai_agent 29,130,165,168,231-232
+api-client-go/model_health_controller_check_200_response.go
+  ai_agent 23-26,180,268-269
+api-client-go/model_update_sandbox_state_dto.go
+  ai_agent 142,179,182,245-246
+api-client-go/model_resize_sandbox.go
+  ai_agent 28,148,232-233
+cli/mcp/tools/create_sandbox.go
+  s_7750b317905afd::t_eb9c92b1ba997e 221,225,229
+api-client-go/model_runner_full.go
+  ai_agent 96,1118,1234,1237,1331-1332
+api-client-go/model_update_organization_member_access.go
+  ai_agent 27,103,136,139,201-202
+api-client-go/model_directory_sync_status.go
+  ai_agent 23-25,117
+api-client-go/model_update_oidc_id_p_config.go
+  ai_agent 30,182,270-271
+api-client-go/model_create_sandbox.go
+  ai_agent 48-50,56-60,80,528,530,538,554-555,656,658,666,682-683,688,690,698,714-715,1040,1228-1229
+api-client-go/model_health_controller_check_200_response_info_value.go
+  ai_agent 24,73,104,107,168-169
+api-client-go/model_organization_role.go
+  ai_agent 17,38,237,280,283,350-351
+api-client-go/model_runner_healthcheck.go
+  ai_agent 35,244,290,293,359-360
+api-client-go/model_storage_access_dto.go
+  ai_agent 37,236,279,282,349-350
+api-client-go/model_create_docker_registry.go
+  ai_agent 33,189,229,232,297-298
+api-client-go/model_update_sandbox_secrets.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_update_secret.go
+  ai_agent 28,148,232-233
+openapi-specs/api.json
+  s_7750b317905afd::t_eb9c92b1ba997e 12406-12412,12414-12418,12431,12446-12452,12454-12458,12465-12471,12473-12477
+  s_7750b317905afd::t_fde6e3e369a2ea 12459-12461,12479-12480
+  s_7750b317905afd::t_9ca81492553142 12413,12453,12472
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_7750b317905afd::t_c0917a6558def3 519
+api-client-go/api_organizations.go
+  ai_agent 23,27,29-31,40,42-45,53,55-56,65,67-69,78,80-82,91,93-95,104,106-107,116,118-120,128,130-132,140,142-145,153,155-158,166,168-170,178,180-183,191,193-195,203,205-207,216,218,220-222,231,233-235,244,246-249,258,260-261,270,272-274,283,285-287,296,298-300,309,311-313,322,324-326,335,337-339,347,349-350,359,361-363,372,374-376,385,387-389,398,400-401,410,412-414,423,425-427,436,438-439,448,450-452,461,463-465,474,476-478,487,489-491,500,502-504,512,514-516,525,527-530,539,541-543,551,553-555,563,565-568,577,579-582,591,593-595,603,605-608,617,619-621,633-634,645-647,651-652,658,661-664,734-735,737,747-750,754-755,757,764-766,828-829,845-846,851,856,859-862,936-938,954-956,960-961,967,970-973,1048-1050,1066-1068,1072-1073,1079,1082-1085,1160-1162,1178-1180,1184-1185,1191,1194-1197,1272-1274,1296-1297,1302,1307,1310-1313,1390-1391,1402-1404,1408-1409,1417-1419,1480-1481,1492-1494,1498-1499,1507-1509,1570-1571,1573,1583-1586,1590-1591,1593,1600-1602,1664-1665,1667,1677-1680,1684-1685,1687,1694-1696,1758-1759,1770-1772,1776-1777,1785-1787,1848-1849,1851,1861-1864,1868-1869,1871,1878-1880,1942-1944,1961-1963,1968-1969,1976-1978,2042-2044,2060-2062,2066-2067,2073,2076-2079,2154-2155,2168-2170,2174-2175,2181,2184-2187,2257-2258,2269-2271,2275-2276,2282,2285-2288,2358-2359,2361,2371-2374,2378-2379,2381,2386,2389-2392,2463,2474-2475,2480,2485,2488-2491,2560-2561,2572-2574,2578-2579,2585,2588-2591,2661,2663,2673-2675,2680-2681,2686,2689-2692,2762-2763,2774-2776,2780-2781,2787,2790-2793,2863-2865,2882-2884,2889-2890,2895,2898-2901,2974,2976,2986-2988,2993-2994,2999,3002-3005,3075-3076,3087-3089,3093-3094,3102-3104,3165-3166,3183-3184,3189,3194,3197-3200,3272-3273,3284-3286,3290-3291,3297,3300-3303,3373-3374,3385-3387,3391-3392,3398,3401-3404,3474-3475,3486-3488,3492-3493,3499,3502-3505,3575,3586-3587,3592,3597,3600-3603,3672-3673,3684-3686,3690-3691,3697,3700-3703,3773-3774,3785-3787,3791-3792,3798,3801-3804,3874,3885-3886,3891,3896,3899-3902,3971-3972,3983-3985,3989-3990,3996,3999-4002,4072-4074,4091-4093,4098-4099,4104,4107-4110,4183-4185,4202-4204,4209-4210,4215,4218-4221,4294-4296,4313-4315,4320-4321,4326,4329-4332,4405-4407,4423-4425,4429-4430,4438-4440,4506-4508,4524-4526,4530-4531,4537,4540-4543,4618-4621,4637-4640,4644-4645,4647,4652,4655-4658,4734-4735,4737,4753-4755,4759-4760,4768-4770,4833-4835,4851-4853,4857-4858,4866-4868,4934-4937,4953-4956,4960-4961,4963,4968,4971-4974,5050-5053,5069-5072,5076-5077,5079,5084,5087-5090,5166-5167,5169,5184-5186,5190-5191,5199-5201,5267-5270,5286-5289,5293-5294,5296,5301,5304-5307,5383-5386,5408-5410,5415-5416,5423-5425
+api-client-go/model_api_key_response.go
+  ai_agent 17,34,185,224,227,292-293
+api-client-go/model_snapshot_manager_credentials.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_create_runner_sandbox_class.go
+  ai_agent 23-25,117
+api-client-go/model_registry_push_access_dto.go
+  ai_agent 35,209,250,253,319-320
+api-client-go/model_ssh_access_dto.go
+  ai_agent 17,38,237,280,283,350-351
+sdk-go/pkg/daytona/client.go
+  s_7750b317905afd::t_6999214d29a662 658,667,670
+  s_7750b317905afd::t_bd3af9bf387bda 776,922,930
+sdk-ruby/README.md
+  s_7750b317905afd::t_c0917a6558def3 298
+sdk-ruby/lib/daytona/common/resources.rb
+  s_7750b317905afd::t_c0917a6558def3 8,11,14,23-34,37-45,49-51,61-62,66
+sdk-python/src/daytona/_sync/snapshot.py
+  s_7750b317905afd::t_9e540261bcf859 24,159
+api-client-go/model_cli_oidc_config.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_create_secret.go
+  ai_agent 31,169,208,211,275-276
+api-client-go/model_create_api_key.go
+  ai_agent 17,30,146,182,185,248-249
+api-client-go/model_posthog_config.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_sandbox_state_updated_webhook.go
+  ai_agent 17,38,237,280,283,350-351
+api-client-go/model_list_sandboxes_response.go
+  ai_agent 27,103,136,139,201-202
+sdk-go/pkg/daytona/process.go
+  s_7750b317905afd::t_bd3af9bf387bda 741,794,803,814,818,821,823,825
+api-client-go/model_oidc_id_p_config_response.go
+  ai_agent 29,135,171,174,237-238
+api-client-go/model_organization_user.go
+  ai_agent 17,40,264,309,312,380-381
+api-client-go/model_runner_service_health.go
+  ai_agent 29,135,171,174,237-238
+api-client-go/model_audit_scenarios.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_ssh_access_validation_dto.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_string_filter.go
+  ai_agent 30,182,270-271
+api-client-go/model_update_job_status.go
+  ai_agent 29,142,179,182,245-246
+api-client-go/model_port_preview_url.go
+  ai_agent 29,128,163,166,229-230
+api-client-go/model_log_entry.go
+  ai_agent 41,311,361,364,433-434
+api-client-go/model_update_organization_invitation.go
+  ai_agent 17,30,136,172,175,238-239
+sdk-ruby/spec/daytona/sandbox_nodes_spec.rb
+  s_7750b317905afd::t_c0917a6558def3 215-219
+sdk-python/src/daytona/_async/sandbox.py
+  s_7750b317905afd::t_9e540261bcf859 1542
+api-client-go/api_webhooks.go
+  ai_agent 23,27,29-31,40,42-44,53,55-57,66,68-70,82-84,101-103,107-108,114,117-120,193-195,212-214,218-219,225,228-231,304-306,323-325,329-330,336,339-342,415-417,434-436,440-441,449-451
+api-client-go/model_update_region.go
+  ai_agent 30,222,310-311
+api-client-go/model_int_filter.go
+  ai_agent 38,318,422-423
+api-client-go/model_webhook_app_portal_access.go
+  ai_agent 27,101,134,137,199-200
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  ai_agent 1468-1480
+api-client-go/model_user_public_key.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/api_jobs.go
+  ai_agent 23,27,29-31,40,42,44-45,54,56,58-59,68,70-72,85,87,97-99,104-105,110,113-116,186,188-191,227-228,233,238,241-244,333,335-336,360-361,366,371,374-377,452-454,470-472,477-478,483,486-489
+api-client-go/model_audit_log.go
+  ai_agent 17,25-40,541,613,616,692-693
+api-client-go/model_create_build_info.go
+  ai_agent 27,108,142,145,207-208
+api-client-go/model_available_sandbox_class.go
+  ai_agent 24-27,158,196,199,263-264
+api-client-go/model_update_organization_default_queue_timeout.go
+  ai_agent 25,76,107,110,171-172
+sdk-java/src/main/java/io/daytona/sdk/Daytona.java
+  s_7750b317905afd::t_c0917a6558def3 211-212,215-218
+api-client-go/model_snapshot_created_webhook.go
+  ai_agent 17,38,237,280,283,350-351
+api-client-go/model_update_organization_default_region.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_url.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_volume_created_webhook.go
+  ai_agent 17,38,237,280,283,350-351
+api-client-go/model_sandbox_volume.go
+  ai_agent 29,135,171,174,237-238
+api-client-go/model_warm_pool.go
+  ai_agent 24,26-27,31-39,430,488,491,565-566
+api-client-go/model_webhook_initialization_status.go
+  ai_agent 35,213,254,257,323-324
+api-client-go/project.json
+  ai_agent 29-30,40,42
+api-client-go/utils.go
+  ai_agent 362
+api-client-go/model_create_volume.go
+  ai_agent 24,73,104,107,168-169
+api-client-go/api_api_keys.go
+  ai_agent 23,27,29-30,39,41-43,51,53-56,64,66-68,77,79-80,89,91-92,105-107,129-130,135,140,143-146,223-225,242-244,249-250,257-259,323-326,343-346,351-353,360-362,427-429,446-448,453-454,459,462-465,538-539,556-557,562,567,570-573,645-646,663-664,669,674,677-680
+api-client-go/model_paginated_audit_logs.go
+  ai_agent 24-27,29,185,225,228,293-294
+api-client-go/model_rate_limit_entry.go
+  ai_agent 26,114,194-195
+api-client-go/model_user.go
+  ai_agent 17,40,278,325,328,396-397
+api-client-python-async/daytona_api_client_async/models/create_sandbox.py
+  ai_agent 23,50-51,55-58,70,127-141,167-168,172-175
+api-client-go/api_secret.go
+  ai_agent 23,27,29-30,39,41-43,51,53-55,64,66,68-69,71,81,83-84,93,95-97,110-112,134-135,140,145,148-151,228-230,247-249,254-255,262-264,328-330,347-349,354-355,360,363-366,439-440,459-460,467,472,476-479,551-552,554-558,604-605,610,615,618-621,720-723,745-747,752-753,758,761-764
+api-client-go/model_daytona_configuration.go
+  ai_agent 75,854,950,953,1039-1040
+sdk-typescript/src/__tests__/Daytona.test.ts
+  s_7750b317905afd::t_c0917a6558def3 4,175-176,619,621,627,629
+api-client-go/model_sandbox_class.go
+  ai_agent 23-25,117
+api-client-go/model_build_info.go
+  ai_agent 17,34,197,238,241,306-307
+api-client-go/model_health_controller_check_503_response.go
+  ai_agent 23-26,180,268-269
+api-client-go/model_update_organization_role.go
+  ai_agent 29,128,163,166,229-230
+sdk-go/pkg/types/types.go
+  s_7750b317905afd::t_6999214d29a662 86,88-92
+api-client-go/model_job_status.go
+  ai_agent 23-26,119
+api-client-go/model_create_region.go
+  ai_agent 33,250,293,296,361-362
+api-client-go/model_regenerate_api_key_response.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_workos_admin_portal_link.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_api_key_list.go
+  ai_agent 17,40,275,321,324,392-393
+api-client-go/model_workos_admin_portal_intent.go
+  ai_agent 23-24,115
+api-client-go/model_snapshot_state_updated_webhook.go
+  ai_agent 17,40,264,309,312,380-381
+api-client-go/api_docker_registry.go
+  ai_agent 23,27,29-30,39,41-43,51,53-55,64,66-67,76,78-79,88,90-92,105-107,129-130,135,140,143-146,223-225,242-244,249-250,257-259,323-325,342-344,349-350,355,358-361,434-435,437,459-460,465,470,473-476,551-552,569-570,575,580,583-586,658-661,683-685,690-691,696,699-702
+hack/go-client/patch-api-spec.mjs
+  s_7750b317905afd::t_99bdf47d66c42e 1-3
+  s_7750b317905afd::t_bd3af9bf387bda 4-56
+api-client-go/model_create_linked_account.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_volume_dto.go
+  ai_agent 39,282,328,331,399-400
+api-client-go/api_audit.go
+  ai_agent 24,28,30,32-33,42,44-46,59,72-73,78,83,86-89,158-168,171-175,277-279,283-284,290,293-296
+sdk-python/src/daytona/common/sandbox.py
+  s_7750b317905afd::t_9e540261bcf859 79,100-106
+  s_7750b317905afd::t_99bdf47d66c42e 84-94
+  s_7750b317905afd::t_c0917a6558def3 82-83,97-99
+api-client-go/model_secret.go
+  ai_agent 17,38,244,288,291,358-359
+api-client-go/model_create_sandbox_snapshot.go
+  ai_agent 27,112,146,149,211-212
+cli/cmd/sandbox/create.go
+  s_7750b317905afd::t_eb9c92b1ba997e 77,83,86
+api-client-go/model_runner_snapshot_dto.go
+  ai_agent 29,135,171,174,237-238
+sdk-python/src/daytona/_sync/sandbox.py
+  s_7750b317905afd::t_9e540261bcf859 1522
+api-client-go/model_metric_series.go
+  ai_agent 27,101,134,137,199-200
+api-client-go/model_sandbox_list_sort_field.go
+  ai_agent 23-28,123
+api-client-go/model_generate_workos_admin_portal_link.go
+  ai_agent 25,74,105,108,169-170
+api-client-go/model_gpu_capacity.go
+  ai_agent 28,127,162,165,228-229
+api-client-go/api_preview.go
+  ai_agent 23,27,29-32,41,43-45,54,56-58,67,69-71,80,82-84,93,95-98,111-112,114,124-127,131-132,134,139,142-145,216,218,228-230,235-236,241,244-247,317,319,329-331,336-337,342,345-348,418,420-421,437-439,444-445,450,453-456,529,531,541-543,548-549,554,557-560,630,632-633,643-646,651-653,658,661-664
+api-client-go/model_volume_state_updated_webhook.go
+  ai_agent 17,40,264,309,312,380-381
+api-client-java/src/main/java/io/daytona/api/client/model/CreateSandbox.java
+  ai_agent 31,129-134,154-159,164-169,487,493,497,501,506-532,598,604,608,612,617-644,650,654,658,663-689,964,969,971,985-988,991-998,1019,1024,1026,1056,1099-1101,1107-1109,1111-1113
+sdk-python/tests/test_single_node_compatibility.py
+  s_7750b317905afd::t_c0917a6558def3 22-23
+api-client-go/model_date_filter.go
+  ai_agent 31,183,271-272
+api-client-java/src/test/java/io/daytona/api/client/model/CreateSandboxTest.java
+  ai_agent 30,160-167,200-207,216-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bd77d91193156cdad09b3f15420ec00c065e5eb7",
+  "prompts": {},
+  "sessions": {
+    "s_7750b317905afd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb40-781c-7172-bd20-74b13e3368bd",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+sdk-go/sandbox.go
+  s_8ddc3f7076678c::t_5f78bc4019dbd4 23
+  s_8ddc3f7076678c::t_3d14fa40c7a6d7 46
+sdk-go/fs_signed_test.go
+  s_8ddc3f7076678c::t_35bcf4944b896d 1-27,31-40,45-77,97-99,102-110,112-115
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 111
+  s_8ddc3f7076678c::t_cda64445490d27 78-82,87-96
+  s_8ddc3f7076678c::t_5f78bc4019dbd4 83-86
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 28-30,41-44,100-101
+sdk-go/fs_signed.go
+  s_8ddc3f7076678c::t_3d14fa40c7a6d7 110,115-117,120-132
+  s_8ddc3f7076678c::t_72fcf2c496d68e 1-29,33-44,48-70,73-75,77,80-91,94-109,111-114,118-119,133
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 30-32,76,78-79,92-93
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 45-47,71-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "411ac0d86b886f02163b6010167037a0a8444ec8",
+  "prompts": {},
+  "sessions": {
+    "s_8ddc3f7076678c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b47cdcffebUAXlziizykrvb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,153 @@
+sdk-go/sandbox_secrets.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-96
+sdk-go/create_idempotency_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-101
+sdk-go/network_policy.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-95
+sdk-go/sandbox_wait_example_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-44
+sdk-go/sandbox_metrics.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-70
+sdk-go/sandbox.go
+  s_12257b84f26bcc::t_66553715db1f9d 11
+  s_12257b84f26bcc::t_737fe72653382f 9,25-31,57,169-185
+  s_12257b84f26bcc::t_49940cac718f7d 186
+sdk-go/sandbox_secrets_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-110
+sdk-go/sandbox_access.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-135
+sdk-go/sandbox_lifecycle_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-189
+sdk-go/sandbox_lifecycle_fork_errors_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-150
+sdk-go/sandbox_create_example_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-69
+sdk-go/create_wire_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-164
+sdk-go/sandbox_create.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-80
+sdk-go/macos_options.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-58
+sdk-go/events_test.go
+  s_12257b84f26bcc::t_555ca168472575 50,115,172
+sdk-go/sandbox_labels_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-97
+sdk-go/create_hold_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-73
+sdk-go/network_policy_parse.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-93
+sdk-go/sandbox_lifecycle_fork_example_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-42
+sdk-go/create_wait_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-131
+sdk-go/sandbox_wait_read.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-111
+sdk-go/events_states_test.go
+  s_12257b84f26bcc::t_555ca168472575 58,85
+sdk-go/sandbox_labels.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-63
+sdk-go/create_options.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-94
+sdk-go/create_response_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-156
+sdk-go/create_wait_validation_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-26
+sdk-go/macos_create.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-53
+sdk-go/sandbox_env.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-57
+sdk-go/sandbox_lifecycle.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-129
+sdk-go/create_errors_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-153
+sdk-go/sandbox_policy.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-115
+sdk-go/sandbox_policy_example_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-63
+sdk-go/sandbox_policy_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-19,21-156
+  s_12257b84f26bcc::t_81f8ac6480e99d 20
+sdk-go/wait_options.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-140
+sdk-go/sandbox_env_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-70
+sdk-go/create_submit.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-147,149-151,153-163
+  s_12257b84f26bcc::t_81f8ac6480e99d 148,152
+sdk-go/sandbox_access_signing.go
+  s_12257b84f26bcc::t_737fe72653382f 20,22-24
+  s_12257b84f26bcc::t_66553715db1f9d 1-19,21,25-29
+sdk-go/fs_signed.go
+  s_12257b84f26bcc::t_737fe72653382f 108
+sdk-go/e2e/lifecycle_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-204
+sdk-go/sandbox_wait_terminal_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-103
+sdk-go/sandbox_wait_events_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-187
+sdk-go/sandbox_wait_helpers_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-49
+sdk-go/helpers_test.go
+  s_12257b84f26bcc::t_dcafb90c6b8c52 17,120-123
+  s_12257b84f26bcc::t_555ca168472575 128-134
+sdk-go/create_validation_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-139
+sdk-go/create_wire.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-58
+sdk-go/sandbox_policy_errors_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-133
+sdk-go/create_prepare_fields.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-86
+sdk-go/sandbox_lifecycle_fork_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-18,20-165
+  s_12257b84f26bcc::t_81f8ac6480e99d 19
+sdk-go/sandbox_network_parse_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-95
+sdk-go/sandbox_access_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-127,129-146
+  s_12257b84f26bcc::t_81f8ac6480e99d 128
+sdk-go/sandbox_metrics_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-60
+sdk-go/create_prepare.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-116
+sdk-go/sandbox_network.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-59
+sdk-go/sandbox_wait.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-149
+sdk-go/sandbox_network_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-138
+sdk-go/sandbox_lifecycle_fork.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-188
+sdk-go/sandbox_lifecycle_start.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-78
+sdk-go/sandbox_policy_reset_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-130
+sdk-go/sandbox_wait_budget_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-168
+sdk-go/sandbox_policy_options.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-94
+sdk-go/events_connect_test.go
+  s_12257b84f26bcc::t_555ca168472575 31,54,73,95,122
+sdk-go/sandbox_wait_events.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-165
+sdk-go/create_resources.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-118
+sdk-go/sandbox_wait_test.go
+  s_12257b84f26bcc::t_66553715db1f9d 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bfe4e7bc48dff28a3fbb4826ca774f4df6890283",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

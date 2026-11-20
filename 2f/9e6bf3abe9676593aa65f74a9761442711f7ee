@@ -1,0 +1,44 @@
+sdk-go/pty_test.go
+  s_3073d5d86539bf::t_735c7247672211 1-76,78-145
+  s_3073d5d86539bf::t_4a0ba26aba3ff2 77
+sdk-go/pty.go
+  s_3073d5d86539bf::t_c1d8fda8dae6af 1-49,52-111,114-116
+  s_3073d5d86539bf::t_4a0ba26aba3ff2 50-51,112-113
+sdk-go/pty_connection_test.go
+  s_3073d5d86539bf::t_38ca3d2f0ce6ce 1-210
+sdk-go/pty_delete_test.go
+  s_3073d5d86539bf::t_0a7961b5db7518 45,92
+  s_3073d5d86539bf::t_735c7247672211 1-44,46-91,93-110
+sdk-go/pty_connection.go
+  s_3073d5d86539bf::t_c1d8fda8dae6af 1-76,79-168
+  s_3073d5d86539bf::t_4a0ba26aba3ff2 77-78
+sdk-go/pty_lifetime_test.go
+  s_3073d5d86539bf::t_4a0ba26aba3ff2 103-104
+  s_3073d5d86539bf::t_5b5944cecc7e34 109
+  s_3073d5d86539bf::t_38ca3d2f0ce6ce 1-102,105-108,110-126
+sdk-go/go.mod
+  s_3073d5d86539bf::t_2cfa04435bd588 6
+sdk-go/pty_attach_test.go
+  s_3073d5d86539bf::t_d6432338fa306a 1-59,62-160
+  s_3073d5d86539bf::t_0a7961b5db7518 60-61
+sdk-go/pty_options.go
+  s_3073d5d86539bf::t_c1d8fda8dae6af 1-33
+sdk-go/go.sum
+  s_3073d5d86539bf::t_08f0634c61cd30 5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f9e6bf3abe9676593aa65f74a9761442711f7ee",
+  "prompts": {},
+  "sessions": {
+    "s_3073d5d86539bf": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b28550ffeiSoY2yA9Dng1K0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

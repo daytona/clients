@@ -1,0 +1,28 @@
+scripts/go-vanity-site.sh
+  s_12257b84f26bcc::t_65a1fda4a254b3 1-54
+docs/RELEASING.md
+  s_12257b84f26bcc::t_907bd20025cd7c 85-90
+.github/workflows/go-vanity-pages.yaml
+  s_12257b84f26bcc::t_458e478a8e12db 1-62,66-68,70-76
+  s_12257b84f26bcc::t_8729eb90255c39 63-65,69
+scripts/go-vanity-site_test.sh
+  s_12257b84f26bcc::t_1cf947b3280c45 1-28
+.gitignore
+  s_12257b84f26bcc::t_1166cd07f61efe 31-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f62032fb81be58b63af9374fba4583fef0cd011",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

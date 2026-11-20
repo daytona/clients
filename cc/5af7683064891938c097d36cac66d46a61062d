@@ -1,0 +1,33 @@
+cli/cmd/sandbox_ssh.go
+  s_f31cd6233478dd::t_3174be8da0fc0f 20,39-48,58-61,67,74-77
+cli/cmd/sandbox_ssh_flags_test.go
+  s_f31cd6233478dd::t_ad32d52909fce9 39-43
+cli/internal/api/error_hints.go
+  s_f31cd6233478dd::t_3174be8da0fc0f 51-52
+cli/internal/toolbox/ssh.go
+  s_f31cd6233478dd::t_3174be8da0fc0f 21-22,47-48
+cli/internal/toolbox/target.go
+  s_f31cd6233478dd::t_3174be8da0fc0f 9,127-143
+  s_f31cd6233478dd::t_8d46276426ddcb 144-145
+cli/cmd/sandbox_ssh_token_test.go
+  s_f31cd6233478dd::t_d8a44f2d9bb2b6 107
+  s_f31cd6233478dd::t_ad32d52909fce9 1-106,108-139
+cli/cmd/sandbox_ssh_test.go
+  s_f31cd6233478dd::t_ad32d52909fce9 23-24,27,29-43,47,61-62,68-69,74-75,79,87-92,96,109-111,119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc5af7683064891938c097d36cac66d46a61062d",
+  "prompts": {},
+  "sessions": {
+    "s_f31cd6233478dd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06c22b87ffep80ARFF8iVLzQB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+sdk-go/transport_request.go
+  s_8ddc3f7076678c::t_8a9eb89e2b385d 94
+sdk-go/transfer_upload.go
+  s_8ddc3f7076678c::t_f2dd14ca782999 1-21,26-51,54-59,62-72,74-76,79,82-86,90-93,96-97,101,104-114,116-119,126,129-132,140-141,143-147,150-154,156,161-181
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 22-25,52-53,60-61,80-81,87-88,134,157-160
+  s_8ddc3f7076678c::t_9b5822f6b7a356 73,89,98,115,120-123,133,135-139,142,155
+  s_8ddc3f7076678c::t_8e7846748b98c9 77-78,94-95,99-100,102-103,124-125,127-128,148-149
+sdk-go/transfer_download.go
+  s_8ddc3f7076678c::t_8e7846748b98c9 117-118,122-123,127-128,133-134,140-141,143-144,146-147
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 33,63-64,66-67
+  s_8ddc3f7076678c::t_9b5822f6b7a356 1-32,34-62,65,68-116,119-121,124-126,129-132,135-139,142,145,148-151
+sdk-go/transfer_cancel.go
+  s_8ddc3f7076678c::t_8dfe7efebe1da8 17,19
+  s_8ddc3f7076678c::t_8a9eb89e2b385d 1-16,18,20-36
+sdk-go/transfer_test.go
+  s_8ddc3f7076678c::t_5c57ccf640ef7c 1-29,33-69,73-90,94-116,120-149
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 30-32,70-72,91-93,117-119
+sdk-go/transfer_body.go
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 81-82,85-86,90-91
+  s_8ddc3f7076678c::t_f2dd14ca782999 1-80,83-84,87-89,92-100
+sdk-go/transfer_options.go
+  s_8ddc3f7076678c::t_aabe9c3a5eff5a 86-88,90
+  s_8ddc3f7076678c::t_f2dd14ca782999 1-85,89,91-96,103-110
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 97-102
+sdk-go/transfer_edges_test.go
+  s_8ddc3f7076678c::t_0254ba07f2ae07 79-81
+  s_8ddc3f7076678c::t_8a9eb89e2b385d 30-31
+  s_8ddc3f7076678c::t_081adc170baeb3 70,74,92-93,100-102
+  s_8ddc3f7076678c::t_fd3e8e1f4c0cc2 1-29,32-69,71-73,75-78,82-91,94-99,103-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a3b1f3fbe321173209bfa5268260f457009b11e",
+  "prompts": {},
+  "sessions": {
+    "s_8ddc3f7076678c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b47cdcffebUAXlziizykrvb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
