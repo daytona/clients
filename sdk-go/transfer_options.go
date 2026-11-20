@@ -71,6 +71,9 @@ func fileTransferError(ctx context.Context, err error) error {
 	if errors.Is(ctx.Err(), context.Canceled) {
 		result := newSDKError(CodeRequestCancelled, 499, "file transfer cancelled")
 		result.Err = context.Canceled
+		if cause := context.Cause(ctx); cause != nil && !errors.Is(result.Err, cause) {
+			result.Err = errors.Join(result.Err, cause)
+		}
 		return result
 	}
 	return transportError(ctx, err)

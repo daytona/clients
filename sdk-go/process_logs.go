@@ -134,8 +134,7 @@ func processCollectLogs(ctx context.Context, handle *ProcessHandle, maxPages int
 func (h *ProcessHandle) collectLogs(ctx context.Context, maxPages int, initial *ProcessLogPage) ([]LogFrame, error) {
 	logs := make([]LogFrame, 0)
 	cursor := ""
-	seen := make(map[string]bool)
-	pages := 0
+	remaining := maxPages
 	if initial != nil {
 		logs = append(logs, initial.Items...)
 		if initial.EOF {
@@ -144,10 +143,21 @@ func (h *ProcessHandle) collectLogs(ctx context.Context, maxPages int, initial *
 		// The create snapshot predates waiting; even an empty snapshot can
 		// have output after it by the time replay begins.
 		cursor = initial.NextCursor
-		seen[cursor] = true
-		pages++
+		if maxPages > 0 {
+			remaining--
+			if remaining == 0 {
+				return logs, nil
+			}
+		}
 	}
-	for ; maxPages == 0 || pages < maxPages; pages++ {
+	tail, err := h.collectLogPages(ctx, cursor, remaining)
+	return append(logs, tail...), err
+}
+
+func (h *ProcessHandle) collectLogPages(ctx context.Context, cursor string, maxPages int) ([]LogFrame, error) {
+	logs := make([]LogFrame, 0)
+	seen := map[string]bool{cursor: true}
+	for pages := 0; maxPages == 0 || pages < maxPages; pages++ {
 		page, err := h.LogPage(ctx, &ProcessLogsOptions{Cursor: cursor})
 		if err != nil {
 			return logs, err

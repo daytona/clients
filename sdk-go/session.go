@@ -27,7 +27,8 @@ type CreateSessionOptions struct {
 	Tag string
 	// Cwd sets the initial directory.
 	Cwd string
-	// Env adds environment variables to the shell.
+	// Env adds environment variables to the shell. Nil omits env;
+	// an empty non-nil map sends {}.
 	Env map[string]string
 	// Shell selects a POSIX shell (bash/sh/dash/zsh/ksh).
 	Shell string
@@ -38,6 +39,7 @@ type CreateSessionOptions struct {
 }
 
 // CreateSession creates a persistent shell. Non-POSIX shells are refused by the server.
+// A malformed create response with a valid ID returns a reconnectable session alongside the error.
 func (s *Processes) CreateSession(ctx context.Context, opts *CreateSessionOptions) (*Session, error) {
 	options := CreateSessionOptions{}
 	if opts != nil {
@@ -52,10 +54,10 @@ func (s *Processes) CreateSession(ctx context.Context, opts *CreateSessionOption
 		Kind: ProcessKindSession, Tag: options.Tag, Cwd: options.Cwd, Env: maps.Clone(options.Env),
 		Shell: options.Shell, Login: clonePointer(options.Login), Name: options.Name,
 	}, 0)
-	if err != nil {
+	if handle == nil {
 		return nil, err
 	}
-	return &Session{handle: handle}, nil
+	return &Session{handle: handle}, err
 }
 
 // ConnectSession binds a shell session ID without a request.

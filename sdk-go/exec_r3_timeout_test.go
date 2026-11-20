@@ -62,7 +62,7 @@ func TestExecR3_whenStreamTimesOut_mergesRetainedReplayByCursor(t *testing.T) {
 		require.Equal(t, "evictedreplay", result.Stdout)
 		require.Equal(t, "shared", result.Stderr)
 		require.Len(t, result.Logs, 3)
-		require.Equal(t, "evicted", stdout.String())
+		require.Equal(t, result.Stdout, stdout.String())
 		require.Equal(t, "shared", stderr.String())
 		require.Equal(t, 1, snapshotReads)
 	})

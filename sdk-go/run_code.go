@@ -33,8 +33,9 @@ type RunCodeOptions struct {
 	Isolated bool
 	// Cwd overrides the execution's working directory.
 	Cwd string
-	// Env sets environment variables for implicit or isolated runs. An explicit
-	// context takes its environment at creation and rejects even an empty Env map.
+	// Env sets environment variables for implicit or isolated runs. Nil omits env;
+	// an empty non-nil map sends {}. An explicit context takes its environment
+	// at creation and rejects even an empty Env map.
 	Env map[string]string
 	// Timeout bounds queueing, setup and execution; expiry interrupts the kernel.
 	// Zero waits indefinitely while keeping the client's setup request timeout.

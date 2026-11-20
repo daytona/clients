@@ -19,6 +19,7 @@ func (s *Sandbox) PTY() *PTY { return &PTY{sandbox: s} }
 // Start starts a detached terminal. An empty command selects the sandbox's
 // default shell. Defaults are 80 columns, 24 rows, TERM=xterm-256color, open
 // stdin and logs retained until cleanup. Invalid options return ErrBadRequest.
+// A malformed create response with a valid ID returns a reconnectable handle alongside the error.
 func (s *PTY) Start(ctx context.Context, command string, opts *PTYOptions) (*ProcessHandle, error) {
 	options := PTYOptions{}
 	if opts != nil {
@@ -61,22 +62,21 @@ func (s *PTY) Start(ctx context.Context, command string, opts *PTYOptions) (*Pro
 }
 
 // Create starts a terminal and attaches to it. The context bounds the returned
-// connection's lifetime. If attaching fails, Create attempts to delete the
+// connection's lifetime. If an accepted create record is malformed or attaching fails, Create attempts to delete the
 // process with a separate, at-most-five-second cleanup budget and returns the
-// original attach error.
+// original error.
 func (s *PTY) Create(ctx context.Context, command string, opts *PTYOptions) (*PTYConnection, error) {
 	handle, err := s.Start(ctx, command, opts)
-	if err != nil {
-		return nil, err
+	var connection *PTYConnection
+	if err == nil {
+		connection, err = handle.Attach(ctx)
 	}
-	connection, err := handle.Attach(ctx)
-	if err != nil {
+	if err != nil && handle != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		handle.Delete(cleanupCtx) //nolint:errcheck // Best-effort rollback preserves the original attach error.
-		return nil, err
+		handle.Delete(cleanupCtx) //nolint:errcheck // Best-effort rollback preserves the original error.
 	}
-	return connection, nil
+	return connection, err
 }
 
 // Connect attaches to an existing terminal by process ID or live alias.

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"iter"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -162,6 +163,9 @@ func processListQuery(opts *ListProcessesOptions) (url.Values, error) {
 		}
 	}
 	if opts.PID != nil {
+		if *opts.PID < 0 || *opts.PID > math.MaxInt32 {
+			return nil, badRequest("PID must be between 0 and 2147483647")
+		}
 		query.Set("pid", strconv.Itoa(*opts.PID))
 	}
 	return query, nil
