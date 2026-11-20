@@ -55,7 +55,7 @@ func TestEventsObservationsNormalizeWireStatesWhenWatching(t *testing.T) {
 					}
 				},
 			})
-			client := newTestClient(t, fake.Server)
+			client := newEventsTestClient(t, fake.Server)
 			t.Cleanup(func() {
 				require.NoError(t, client.Close())
 				<-finished
@@ -82,7 +82,7 @@ func TestEventsConnectionKeepsBasePathWhenAPIHasPrefix(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		},
 	})
-	newTestClient(t, fake.Server) // Install isolated credential environment.
+	newEventsTestClient(t, fake.Server) // Install isolated credential environment.
 	t.Setenv("DAYTONA_V2_API_URL", fake.Server.URL+"/prefix")
 	client, err := New()
 	require.NoError(t, err)

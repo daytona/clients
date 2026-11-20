@@ -6,7 +6,9 @@ package daytona
 import (
 	"context"
 	"maps"
+	"net/url"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,10 +22,13 @@ type Sandbox struct {
 	info               SandboxInfo
 	toolboxURL         string
 	explicitToolboxURL bool
-	fileSigningScoped  bool
-	auth               *sandboxCredential
-	toolboxClient      *toolboxClient
-	interpreter        *InterpreterService
+	// toolboxScoped records whether the toolbox URL is scoped to this
+	// sandbox (see toolboxOverrideScoped); signed file URLs and signing key
+	// rotation require it.
+	toolboxScoped bool
+	auth          *sandboxCredential
+	toolboxClient *toolboxClient
+	interpreter   *InterpreterService
 }
 
 type sandboxInit struct {
@@ -49,7 +54,7 @@ func (c *Client) newSandbox(init sandboxInit) (*Sandbox, error) {
 	sandbox := &Sandbox{
 		client: c, id: init.Info.ID, info: cloneSandboxInfo(init.Info),
 		toolboxURL: endpoint, explicitToolboxURL: init.Options.ToolboxURL != "",
-		fileSigningScoped: fileSigningOverrideScoped(init.Options.ToolboxURL, init.Info.ID),
+		toolboxScoped: toolboxOverrideScoped(init.Options.ToolboxURL, init.Info.ID),
 	}
 	token := init.Options.AccessToken
 	if token == "" {
@@ -161,3 +166,21 @@ func (s *Sandbox) String() string { return "daytona.Sandbox(" + s.id + ")" }
 
 // GoString returns a credential-free description.
 func (s *Sandbox) GoString() string { return s.String() }
+
+// toolboxOverrideScoped reports whether a caller's toolbox URL override is
+// scoped to sandbox id: no override (the API-provided URL is always scoped), a
+// {sandboxId} or {sandbox_id} template, or a URL whose path ends with the ID.
+// It is decided from the original override, because once a template is
+// expanded it cannot be told apart from a literal URL.
+func toolboxOverrideScoped(override, id string) bool {
+	if override == "" || strings.Contains(override, "{sandboxId}") || strings.Contains(override, "{sandbox_id}") {
+		return true
+	}
+	parsed, err := url.Parse(override)
+	if err != nil {
+		return false
+	}
+	escaped := strings.TrimRight(parsed.EscapedPath(), "/")
+	decoded := strings.TrimRight(parsed.Path, "/")
+	return strings.HasSuffix(escaped, "/"+url.PathEscape(id)) || strings.HasSuffix(decoded, "/"+id)
+}

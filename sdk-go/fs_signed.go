@@ -7,9 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -107,7 +105,7 @@ func (f *FileSystem) signingBase() (string, error) {
 		return "", err
 	}
 	s.mu.RLock()
-	base, scoped := s.toolboxURL, s.fileSigningScoped
+	base, scoped := s.toolboxURL, s.toolboxScoped
 	s.mu.RUnlock()
 	if base == "" {
 		return "", badRequest("sandbox handle has no toolbox URL")
@@ -117,17 +115,4 @@ func (f *FileSystem) signingBase() (string, error) {
 			"signed file URLs require a sandbox-scoped toolbox URL")
 	}
 	return base, nil
-}
-
-// Preserve whether the original override explicitly scoped the sandbox. Once
-// core expands a placeholder it cannot be distinguished from a literal URL.
-func fileSigningOverrideScoped(override, id string) bool {
-	if override == "" || strings.Contains(override, "{sandboxId}") || strings.Contains(override, "{sandbox_id}") {
-		return true
-	}
-	parsed, err := url.Parse(override)
-	if err != nil {
-		return false
-	}
-	return strings.HasSuffix(strings.TrimRight(parsed.Path, "/"), "/"+id)
 }

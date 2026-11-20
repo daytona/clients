@@ -28,7 +28,7 @@ func TestEventsConnectHonorsRetryAfterWhenMintOrUpgradeIsThrottled(t *testing.T)
 			fake := newFakeServer(t, map[string]http.HandlerFunc{
 				"POST /events/a/ticket": mint, "GET /events/a": throttle,
 			})
-			client := newTestClient(t, fake.Server)
+			client := newEventsTestClient(t, fake.Server)
 
 			// When
 			result, err := client.connectSandboxEvents(t.Context(), "a")
@@ -51,7 +51,7 @@ func TestEventsUpgradePermanentlyDisablesWhenWorkloadPlaneElsewhere(t *testing.T
 			writeJSON(t, w, map[string]string{"code": CodeWorkloadPlaneElsewhere, "source": SourceAPI})
 		},
 	})
-	client := newTestClient(t, fake.Server)
+	client := newEventsTestClient(t, fake.Server)
 
 	// When
 	result, err := client.connectSandboxEvents(t.Context(), "a")
@@ -70,7 +70,7 @@ func TestEventsUpgradeRefusesRedirectWhenServerSuppliesLocation(t *testing.T) {
 			http.Redirect(w, r, target.Server.URL, http.StatusTemporaryRedirect)
 		},
 	})
-	client := newTestClient(t, fake.Server)
+	client := newEventsTestClient(t, fake.Server)
 
 	// When
 	_, err := client.connectSandboxEvents(t.Context(), "a")
@@ -92,7 +92,7 @@ func TestEventsCloseCancelsMintWhenRequestIsBlocked(t *testing.T) {
 			close(exited)
 		},
 	})
-	client := newTestClient(t, fake.Server)
+	client := newEventsTestClient(t, fake.Server)
 	ch, release := client.stateSource.watch(t.Context(), "bare", "a")
 	defer release()
 	<-entered
@@ -119,7 +119,7 @@ func TestEventsWatchCancelInterruptsMintWhenLastWatchLeaves(t *testing.T) {
 		close(exited)
 	}))
 	defer server.Close()
-	client := newTestClient(t, server)
+	client := newEventsTestClient(t, server)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	_, release := client.stateSource.watch(ctx, "bare", "a")

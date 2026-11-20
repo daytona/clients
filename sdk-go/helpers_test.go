@@ -14,6 +14,7 @@ package daytona
 // sandboxFixture returns a fresh, complete minimal detail, with an inert toolbox
 // URL; replace toolbox_proxy_url with fake.Server.URL+"/toolbox" for toolbox tests.
 // newTestClient isolates environment with t.Setenv: do not use it with t.Parallel.
+// It turns the sandbox events hub off; pass WithSandboxEvents to turn it on.
 
 import (
 	"encoding/json"
@@ -116,8 +117,18 @@ func newTestClient(t *testing.T, server *httptest.Server, opts ...Option) *Clien
 	t.Setenv("DAYTONA_JWT_TOKEN", "")
 	t.Setenv("DAYTONA_PROJECT_ID", "")
 	t.Setenv("DAYTONA_API_URL", "")
-	client, err := New(opts...)
+	// The sandbox events hub stays off unless a test turns it on (a later
+	// WithSandboxEvents option wins), so fakes see only the requests under test.
+	off := false
+	client, err := New(append([]Option{WithSandboxEvents(SandboxEventsConfig{Enabled: &off})}, opts...)...)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	return client
+}
+
+// newEventsTestClient is newTestClient with the sandbox events hub on.
+func newEventsTestClient(t *testing.T, server *httptest.Server) *Client {
+	t.Helper()
+	on := true
+	return newTestClient(t, server, WithSandboxEvents(SandboxEventsConfig{Enabled: &on}))
 }

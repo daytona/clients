@@ -47,7 +47,7 @@ func TestEventsSourceMintsTicketAndDecodesStatesWhenWatching(t *testing.T) {
 			}
 		},
 	})
-	client := newTestClient(t, fake.Server)
+	client := newEventsTestClient(t, fake.Server)
 	t.Cleanup(func() {
 		require.NoError(t, client.Close())
 		<-finished
@@ -112,7 +112,7 @@ func TestEventsPermanentlyFallsBackWhenTicketEndpointUnavailable(t *testing.T) {
 					writeJSON(t, w, map[string]string{"code": "WORKLOAD_PLANE_ELSEWHERE", "source": "API"})
 				},
 			})
-			client := newTestClient(t, fake.Server)
+			client := newEventsTestClient(t, fake.Server)
 
 			// When
 			ch, release := client.stateSource.watch(t.Context(), "sbx-region-a", "")
@@ -169,7 +169,7 @@ func TestEventsLearnDestinationWhenMutationHasNoResult(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 		},
 	})
-	client := newTestClient(t, fake.Server)
+	client := newEventsTestClient(t, fake.Server)
 	for _, id := range []string{"sbx-region-a", "sbx-region-b"} {
 		require.NoError(t, client.api().do(t.Context(), apiRequest{Method: http.MethodPost, Path: "/sandboxes/" + id + "/stop"}))
 	}
