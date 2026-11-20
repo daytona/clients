@@ -73,7 +73,7 @@ func (v *SandboxVolumes) Pull(
 		timeout = opts.Timeout
 	}
 	if timeout < 0 && timeout != NoWait || timeout > 30*time.Second {
-		return nil, badRequest("volume pull timeout must be in 0..30 seconds or NoWait")
+		return nil, badRequest("Timeout must be in 0..30 seconds or NoWait")
 	}
 	body := toolbox.PullVolumeRequest{RequestId: requestID}
 	wait := 30 * time.Second
