@@ -148,13 +148,15 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 		return true, newSDKError(CodeNotFound, 404,
 			"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
 	}
-	w.sandbox.observeWait(event)
+	seen := w.sandbox.Info()
+	reported := event
+	if reported.Reason == "" && seen.State == reported.State && seen.RawState == reported.RawState {
+		reported.Reason = seen.Error
+	}
+	w.sandbox.observeWait(reported)
 	success := w.target(event.State)
 	if event.State == SandboxStateDestroyed || waitRemaining(w.deadline) == 0 {
-		if success {
-			return true, nil
-		}
-		return true, w.terminalError(event)
+		return w.readOutcome(reported)
 	}
 	fresh, err := w.read(ctx, waitReadOptions{deadline: w.deadline})
 	if err != nil && (ctx.Err() != nil || errors.Is(err, ErrClientClosed)) {
@@ -165,7 +167,7 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 		return true, nil
 	}
 	if err != nil {
-		return true, w.terminalError(event)
+		return true, w.terminalError(reported)
 	}
 	if w.target(fresh.State) {
 		return true, nil
