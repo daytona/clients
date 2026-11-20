@@ -41,7 +41,7 @@ type GitCommitOptions struct {
 // GitResetOptions selects the reset operation.
 type GitResetOptions struct {
 	// Mode selects mixed, soft, hard, merge or keep; empty uses Git's default.
-	Mode string
+	Mode GitResetMode
 	// Target is the commit-ish; empty uses Git's default.
 	Target string
 	// Files contains relative pathspecs; nil omits the restriction.
@@ -82,7 +82,7 @@ func (g *Git) Add(ctx context.Context, path string, files []string) error {
 func (g *Git) Reset(ctx context.Context, path string, opts *GitResetOptions) error {
 	body := wire.ResetRequest{Path: &path}
 	if opts != nil {
-		body.Mode, body.Target = gitOptional(opts.Mode), gitOptional(opts.Target)
+		body.Mode, body.Target = gitOptional(string(opts.Mode)), gitOptional(opts.Target)
 		if opts.Files != nil {
 			paths := append([]string{}, opts.Files...)
 			body.Files = &paths

@@ -55,7 +55,7 @@ func TestGitMutations_whenOptionsAreProvided(t *testing.T) {
 		{
 			"reset", "POST", "/git/reset", `{"path":"repo","mode":"mixed","target":"HEAD~1","files":["relative"]}`,
 			func(ctx context.Context, g *Git) error {
-				return g.Reset(ctx, "repo", &GitResetOptions{Mode: "mixed", Target: "HEAD~1", Files: []string{"relative"}})
+				return g.Reset(ctx, "repo", &GitResetOptions{Mode: GitResetModeMixed, Target: "HEAD~1", Files: []string{"relative"}})
 			},
 		},
 		{
