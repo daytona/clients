@@ -82,9 +82,8 @@ func (o accountObject) nested(name string, optional bool) *accountObject {
 	if optional && !present(o.fields[name]) {
 		return nil
 	}
-	fields, err := parseObject(o.fields[name], o.path+"."+name)
-	o.fail(name, err)
-	return &accountObject{fields: fields, path: o.path + "." + name, err: o.err}
+	child := o.objectItem(name, o.fields[name])
+	return &child
 }
 
 func (o accountObject) array(name string) []json.RawMessage {
@@ -107,6 +106,8 @@ func (o accountObject) strings(name string) []string {
 
 func (o accountObject) objectItem(name string, raw json.RawMessage) accountObject {
 	fields, err := parseObject(raw, o.path+"."+name)
-	o.fail(name, err)
+	if *o.err == nil {
+		*o.err = err
+	}
 	return accountObject{fields: fields, path: o.path + "." + name, err: o.err}
 }
