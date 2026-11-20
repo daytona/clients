@@ -76,7 +76,21 @@ func addFilePart(result *BulkReadResult, disposition string, data []byte) error 
 func filePartName(disposition string, params map[string]string) (string, error) {
 	// mime.ParseMediaType silently ignores invalid RFC 5987 encodings. The SDK
 	// contract rejects them instead; decode this attribute before using fallback.
-	for _, parameter := range strings.Split(disposition, ";") {
+	header := disposition + ";"
+	start, quoted := 0, false
+	for i := 0; i < len(header); i++ {
+		if header[i] == '\\' && quoted {
+			i++
+			continue
+		}
+		if header[i] == '"' {
+			quoted = !quoted
+		}
+		if header[i] != ';' || quoted {
+			continue
+		}
+		parameter := header[start:i]
+		start = i + 1
 		name, value, found := strings.Cut(strings.TrimSpace(parameter), "=")
 		if found && strings.EqualFold(name, "filename*") {
 			value = strings.Trim(value, "\"")
