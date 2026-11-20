@@ -31,7 +31,7 @@ const (
 // ComputerUseTypeOptions controls typing cadence.
 type ComputerUseTypeOptions struct {
 	// Delay is the pause between key presses, rounded up to milliseconds.
-	// Zero uses the server default; negative durations return ErrBadRequest.
+	// Zero uses the server default (no delay); negative durations return ErrBadRequest.
 	Delay time.Duration
 }
 
@@ -41,7 +41,7 @@ type ComputerUseKeyOptions struct {
 	Modifiers []ComputerUseKeyboardModifier
 }
 
-// Type types text. Nil options use the server's default inter-key delay.
+// Type types text. Nil options use the server's default of no inter-key delay.
 func (k *ComputerUseKeyboard) Type(ctx context.Context, text string, opts *ComputerUseTypeOptions) error {
 	body := struct {
 		Text  string `json:"text"`
@@ -49,7 +49,7 @@ func (k *ComputerUseKeyboard) Type(ctx context.Context, text string, opts *Compu
 	}{Text: text}
 	if opts != nil && opts.Delay != 0 {
 		if opts.Delay < 0 {
-			return badRequest("delay must be non-negative")
+			return badRequest("Delay must be non-negative")
 		}
 		delay := wireMilliseconds(opts.Delay)
 		body.Delay = &delay

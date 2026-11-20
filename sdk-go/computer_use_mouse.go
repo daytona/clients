@@ -166,5 +166,9 @@ func (m *ComputerUseMouse) Scroll(
 		return nil, err
 	}
 	d := decodeDesktop(raw)
-	return &ComputerUseScrollResult{Success: d.boolean("success")}, d.err
+	result := &ComputerUseScrollResult{Success: d.boolean("success")}
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }

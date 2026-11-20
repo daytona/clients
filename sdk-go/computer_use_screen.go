@@ -109,5 +109,8 @@ func (s *ComputerUseScreen) Screenshot(
 		d.check(parseErr)
 		result.CursorPosition = cursor
 	}
-	return result, d.err
+	if d.err != nil {
+		return nil, d.err
+	}
+	return result, nil
 }
