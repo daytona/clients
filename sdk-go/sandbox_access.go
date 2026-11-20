@@ -16,7 +16,7 @@ type CreateAccessTokenOptions struct {
 	// Unknown operations are rejected by the API, never silently narrowed.
 	Operations []string
 	// Ports is nil for the server default; an empty slice grants no ports.
-	// Each port must be in 1..65535.
+	// Each port must be in 1..65535 and not reserved for the sandbox daemon.
 	Ports []int
 	// TTL is a positive whole-second lifetime. Zero uses the server default.
 	// The API enforces its maximum lifetime.
@@ -70,8 +70,8 @@ func (s *Sandbox) CreateAccessToken(ctx context.Context, opts *CreateAccessToken
 	if options.Ports != nil {
 		ports := slices.Clone(options.Ports)
 		for _, port := range ports {
-			if port < 1 || port > 65535 {
-				return nil, badRequest("port must be an integer in 1..65535")
+			if err := validatePreviewPort(port); err != nil {
+				return nil, err
 			}
 		}
 		body.Ports = &ports
