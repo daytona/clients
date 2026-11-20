@@ -40,12 +40,15 @@ func (r artifactListReader) read(ctx context.Context, query url.Values) (JSONVal
 }
 
 func artifactFilters(query url.Values, name, sandboxID string) error {
-	for key, value := range map[string]string{"name": name, "sandbox_id": sandboxID} {
-		if !utf8.ValidString(value) {
-			return badRequest(key + " must be valid UTF-8")
+	for _, filter := range []struct{ key, value string }{
+		{"name", name},
+		{"sandbox_id", sandboxID},
+	} {
+		if !utf8.ValidString(filter.value) {
+			return badRequest(filter.key + " must be valid UTF-8")
 		}
-		if value != "" {
-			query.Set(key, value)
+		if filter.value != "" {
+			query.Set(filter.key, filter.value)
 		}
 	}
 	return nil
