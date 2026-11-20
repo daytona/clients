@@ -18,7 +18,7 @@ import (
 
 func TestDirectorySharedBuildKitCases(t *testing.T) {
 	data, err := os.ReadFile("../../../cli/internal/dockerignore/testdata/buildkit_cases.json")
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) && os.Getenv("DAYTONA_SDK_GO_REQUIRE_FIXTURES") == "" {
 		t.Skip("shared CLI fixtures are not included in the Go module")
 	}
 	require.NoError(t, err)

@@ -1033,6 +1033,9 @@ jobs:
           go-version-file: sdk-go/go.mod
           cache: false
       - name: Verify, build, vet and test the Go SDK
+        env:
+          # The snapshot must carry every sibling the tests read.
+          DAYTONA_SDK_GO_REQUIRE_FIXTURES: "1"
         run: |
           set -euo pipefail
           go mod verify

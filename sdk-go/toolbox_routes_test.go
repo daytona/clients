@@ -104,7 +104,7 @@ func scanSDKRoutes(t *testing.T) sdkRouteScan {
 func readRouteSibling(t *testing.T, path string) []byte {
 	t.Helper()
 	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) && os.Getenv("DAYTONA_SDK_GO_REQUIRE_FIXTURES") == "" {
 		t.Skip("route drift requires optional repository sibling: " + path)
 	}
 	require.NoError(t, err)

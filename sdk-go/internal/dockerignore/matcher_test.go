@@ -16,7 +16,7 @@ import (
 func TestMatcherSharedGoSemantics(t *testing.T) {
 	// Given shared expectations generated with Go 1.26, read without copying.
 	data, err := os.ReadFile("../../../sdk-python/tests/fixtures/dockerignore-edge-cases.json")
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) && os.Getenv("DAYTONA_SDK_GO_REQUIRE_FIXTURES") == "" {
 		t.Skip("shared Python fixtures are not included in the Go module")
 	}
 	require.NoError(t, err)
@@ -45,7 +45,7 @@ func TestMatcherSharedGoSemantics(t *testing.T) {
 func TestMatcherSharedRefusals(t *testing.T) {
 	// Given syntax failures shared by the SDKs.
 	data, err := os.ReadFile("../../../sdk-python/tests/fixtures/dockerignore-refused.json")
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) && os.Getenv("DAYTONA_SDK_GO_REQUIRE_FIXTURES") == "" {
 		t.Skip("shared Python fixtures are not included in the Go module")
 	}
 	require.NoError(t, err)

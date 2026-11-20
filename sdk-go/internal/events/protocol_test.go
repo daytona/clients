@@ -16,7 +16,7 @@ import (
 func TestDecoderAcceptsContractFramesWhenProtocolAddsUnknownFields(t *testing.T) {
 	// Given
 	data, err := os.ReadFile("../../../contract/sandbox-events-protocol.json")
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, os.ErrNotExist) && os.Getenv("DAYTONA_SDK_GO_REQUIRE_FIXTURES") == "" {
 		t.Skip("protocol drift requires the repository's contract fixture")
 	}
 	require.NoError(t, err)

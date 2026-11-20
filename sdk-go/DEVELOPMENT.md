@@ -210,3 +210,8 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
 - `go run codes_generate.go` refreshes the code constants/sentinels from the
   sibling SDK's contract-checked catalog. A drift test checks every source/code.
   Regenerate after `sdk-typescript/src/v2/codes.ts` changes.
+- Drift and shared-fixture tests read files outside `sdk-go/` (`contract/`, the
+  TypeScript catalog and route list, the Python and CLI fixtures). They skip
+  when a file is absent, because the published module zip holds only `sdk-go/`.
+  The repository's CI sets `DAYTONA_SDK_GO_REQUIRE_FIXTURES=1`, which turns a
+  missing file into a failure, so a rename cannot silently disable a guard.
