@@ -6,6 +6,8 @@ package daytona
 import (
 	"context"
 	"encoding/json"
+	"math"
+	"time"
 )
 
 // Limits returns organization limits and usage. The credential needs read:limits.
@@ -55,7 +57,8 @@ func parseOrganizationLimits(raw json.RawMessage) (*OrganizationLimits, error) {
 			Concurrent: parseAccountUsage(sandboxes.nested("concurrent", false)),
 			Total:      parseAccountUsage(sandboxes.nested("total", false)),
 		},
-		ImageBuilds: ImageBuildLimits{Concurrent: parseAccountUsage(builds.nested("concurrent", false))},
+		SandboxTimeout: parseSandboxTimeoutLimits(object.nested("sandbox_timeout", false)),
+		ImageBuilds:    ImageBuildLimits{Concurrent: parseAccountUsage(builds.nested("concurrent", false))},
 		Storage: StorageLimits{
 			Volumes:   parseAccountUsage(storage.nested("volumes", false)),
 			Images:    parseAccountUsage(storage.nested("images", false)),
@@ -83,6 +86,22 @@ func parseOrganizationLimits(raw json.RawMessage) (*OrganizationLimits, error) {
 		return nil, *object.err
 	}
 	return result, nil
+}
+
+func parseSandboxTimeoutLimits(object *accountObject) SandboxTimeoutLimits {
+	var result SandboxTimeoutLimits
+	for _, entry := range []struct {
+		name   string
+		target *time.Duration
+	}{{"max_seconds", &result.Max}, {"ceiling_seconds", &result.Ceiling}} {
+		seconds := object.integer(entry.name)
+		if seconds > math.MaxInt64/int64(time.Second) || seconds < math.MinInt64/int64(time.Second) {
+			object.fail(entry.name, badRequest("value overflows time.Duration"))
+			continue
+		}
+		*entry.target = time.Duration(seconds) * time.Second
+	}
+	return result
 }
 
 func parseAccountUsage(object *accountObject) UsageLimit {

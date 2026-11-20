@@ -3,6 +3,8 @@
 
 package daytona
 
+import "time"
+
 // GetLimitsOptions selects the organization whose limits are read.
 type GetLimitsOptions struct {
 	// OrganizationID selects an organization. Empty uses the API key's
@@ -24,6 +26,14 @@ type SandboxLimits struct {
 	Concurrent UsageLimit
 	// Total counts all sandboxes.
 	Total UsageLimit
+}
+
+// SandboxTimeoutLimits describes the organization's sandbox timeout maximums.
+type SandboxTimeoutLimits struct {
+	// Max is the longest timeout a sandbox may currently have.
+	Max time.Duration
+	// Ceiling is the highest value the organization's own cap may be set to.
+	Ceiling time.Duration
 }
 
 // ImageBuildLimits describes image-build count limits.
@@ -62,6 +72,8 @@ type MemberLimits struct {
 type OrganizationLimits struct {
 	// Sandboxes contains sandbox count limits.
 	Sandboxes SandboxLimits
+	// SandboxTimeout contains the required sandbox timeout maximums.
+	SandboxTimeout SandboxTimeoutLimits
 	// ImageBuilds contains image-build count limits.
 	ImageBuilds ImageBuildLimits
 	// Storage contains storage resource count limits.
