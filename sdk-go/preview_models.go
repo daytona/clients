@@ -72,6 +72,9 @@ func parsePreviewEndpoint(raw JSONValue) (*PreviewEndpoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	if port < 1 || port > 65535 {
+		return nil, badRequest("response field port must be within 1..65535")
+	}
 	isPublic, err := field[bool](object, "public", true)
 	if err != nil {
 		return nil, err

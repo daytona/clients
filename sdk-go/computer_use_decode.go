@@ -45,11 +45,19 @@ func (d *desktopDecoder) integer(name string, bounds [2]int64) int64 {
 }
 
 func (d *desktopDecoder) int32(name string) int {
-	return int(d.integer(name, [2]int64{math.MinInt32, math.MaxInt32}))
+	value := d.integer(name, [2]int64{math.MinInt32, math.MaxInt32})
+	if value < math.MinInt32 || value > math.MaxInt32 {
+		return 0 // d.integer recorded the range error
+	}
+	return int(value)
 }
 
 func (d *desktopDecoder) nonnegative32(name string) int {
-	return int(d.integer(name, [2]int64{0, math.MaxInt32}))
+	value := d.integer(name, [2]int64{0, math.MaxInt32})
+	if value < 0 || value > math.MaxInt32 {
+		return 0 // d.integer recorded the range error
+	}
+	return int(value)
 }
 
 func (d *desktopDecoder) safeInteger(name string) int64 {
