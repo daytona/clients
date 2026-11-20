@@ -18,8 +18,8 @@ import (
 )
 
 // SSHInvocation is what `sandbox ssh` execs: the argv for OpenSSH plus a
-// temporary ssh_config that carries the credential-bearing username, so the
-// project key never appears in the process list. Call Cleanup when ssh exits.
+// temporary ssh_config that carries the short-lived sandbox access token in
+// the username, keeping it out of the process list. Call Cleanup when ssh exits.
 type SSHInvocation struct {
 	Args       []string
 	ConfigPath string
@@ -44,8 +44,8 @@ func (i SSHInvocation) Cleanup() {
 }
 
 // BuildSSHInvocation prepares an OpenSSH call to the sandbox's SSH gateway.
-// The gateway protocol carries the credential in the username
-// (`<sandbox_id>#<api_key>`); put on the command line that username is
+// The gateway protocol carries a short-lived sandbox access token in the
+// username (`<sandbox_id>#<access_token>`); on the command line that username is
 // readable by every local user via `ps`. So the CLI writes it as `User` in a
 // 0600 temp ssh_config selected with -F and passes only a host alias in argv.
 // Command.Options (the user's own ssh flags) come first so they may override.

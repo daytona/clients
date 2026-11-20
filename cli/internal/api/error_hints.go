@@ -48,6 +48,8 @@ func hintFor(ae *APIError) string {
 		return "sandbox search is not enabled; use `sandbox list` (with --region to narrow) instead"
 	case ae.Status == http.StatusServiceUnavailable && ae.Code == CodeSearchUnavailable:
 		return "sandbox search is temporarily unavailable; retry, or use `sandbox list`"
+	case ae.Status == http.StatusServiceUnavailable && ae.Method == http.MethodPost && strings.HasPrefix(ae.Path, "/sandboxes/") && strings.HasSuffix(ae.Path, "/access-token"):
+		return "sandbox access tokens are temporarily unavailable; retry shortly"
 	case ae.Status == http.StatusNotImplemented && ae.Code == CodeBillingDisabled:
 		return "billing is disabled on this deployment"
 	case ae.Status == http.StatusBadGateway && ae.Code == CodeBillingUnreachable:

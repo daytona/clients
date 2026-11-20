@@ -6,6 +6,7 @@ package toolbox
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	genapi "github.com/daytona/clients/cli/gen/api"
@@ -121,6 +122,25 @@ func ResolveSSHGateway(ctx context.Context, apiClient *api.Client, target *Targe
 	target.SSHHost = strings.TrimSpace(config.SshGateway.Host)
 	target.SSHPort = int(config.SshGateway.Port)
 	return nil
+}
+
+// MintSSHAccessToken mints a fresh sandbox access token limited to SSH,
+// with no preview ports and a five-minute lifetime.
+func MintSSHAccessToken(ctx context.Context, apiClient *api.Client, sandboxID string) (string, error) {
+	ttl := int64(300)
+	body := genapi.MintSandboxAccessTokenRequest{
+		Operations: &[]string{"ssh"},
+		Ports:      &[]int32{},
+		TtlSeconds: &ttl,
+	}
+	var token genapi.SandboxAccessToken
+	if err := apiClient.Do(ctx, http.MethodPost, "/sandboxes/"+url.PathEscape(sandboxID)+"/access-token", nil, body, &token); err != nil {
+		return "", err
+	}
+	if token.AccessToken == "" {
+		return "", cerr.New(cerr.ExitFailure, "sandbox SSH access token response has an empty access_token")
+	}
+	return token.AccessToken, nil
 }
 
 func resolveSSHGateway(detail genapi.Sandbox) (string, int) {
