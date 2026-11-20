@@ -3,6 +3,9 @@ version: "2"
 run:
   timeout: 5m
   tests: true
+  # Lint the live e2e tests too.
+  build-tags:
+    - e2e
 
 linters:
   default: none
