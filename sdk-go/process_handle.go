@@ -30,7 +30,7 @@ type ProcessHandleJSON struct {
 }
 
 // Connect binds a process ID or live alias without a request.
-func (s *ProcessService) Connect(id string) (*ProcessHandle, error) {
+func (s *Processes) Connect(id string) (*ProcessHandle, error) {
 	if _, err := pathSegment(id); err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *ProcessService) Connect(id string) (*ProcessHandle, error) {
 }
 
 // ConnectIdentity reconnects a serialized handle, refusing cross-sandbox identities.
-func (s *ProcessService) ConnectIdentity(identity ProcessHandleJSON) (*ProcessHandle, error) {
+func (s *Processes) ConnectIdentity(identity ProcessHandleJSON) (*ProcessHandle, error) {
 	if identity.SandboxID != s.sandbox.ID() {
 		return nil, badRequest("process belongs to a different sandbox")
 	}

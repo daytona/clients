@@ -52,7 +52,7 @@ func (s *Sandbox) RunCode(ctx context.Context, code string, opts *RunCodeOptions
 // Timeout includes time queued behind another run in the same context. An
 // expired queued run returns ProcessReasonTimedOut with an empty ProcessID.
 // Callbacks must not synchronously run more code in the same context.
-func (s *InterpreterService) Run(ctx context.Context, code string, opts *RunCodeOptions) (*RunCodeResult, error) {
+func (s *Interpreter) Run(ctx context.Context, code string, opts *RunCodeOptions) (*RunCodeResult, error) {
 	options := RunCodeOptions{}
 	if opts != nil {
 		options = *opts
@@ -112,7 +112,7 @@ type runCodeExecution struct {
 	budget    runCodeBudget
 }
 
-func (s *InterpreterService) selectContext(opts RunCodeOptions) (interpreterSelection, error) {
+func (s *Interpreter) selectContext(opts RunCodeOptions) (interpreterSelection, error) {
 	if opts.Context != nil && opts.ContextID != "" {
 		return interpreterSelection{}, badRequest("Context and ContextID cannot both be supplied")
 	}
@@ -140,7 +140,7 @@ func (s *InterpreterService) selectContext(opts RunCodeOptions) (interpreterSele
 	return interpreterSelection{language: language}, nil
 }
 
-func (s *InterpreterService) selectBoundContext(
+func (s *Interpreter) selectBoundContext(
 	bound *InterpreterContext, language string,
 ) (interpreterSelection, error) {
 	if bound.service == nil {

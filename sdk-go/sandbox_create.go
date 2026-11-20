@@ -5,8 +5,12 @@ package daytona
 
 import "context"
 
-// Create creates a Linux sandbox from an image name or ID. Empty image selects
-// the platform default; whitespace-only images return ErrBadRequest.
+// Create creates a Linux sandbox from an image of this project, by name or
+// img_ ID. Empty image boots the platform default image (Python 3 included).
+// A registry reference such as "python:3.12" is not a create source: import it
+// once with client.Images().Pull and create from the returned image's name or
+// ID (an unknown image returns ErrImageNotFound). Whitespace-only images return
+// ErrBadRequest.
 // Once accepted, SDK wait failures return the last observed handle, whose State
 // may not be Started. Caller cancellation remains an error. A lost POST response
 // returns SandboxCreateConnectionError or SandboxCreateRequestTimeoutError,

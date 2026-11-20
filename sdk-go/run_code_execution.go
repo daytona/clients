@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func (s *InterpreterService) runQueued(
+func (s *Interpreter) runQueued(
 	ctx context.Context, code string, execution runCodeExecution,
 ) (*RunCodeResult, error) {
 	queueID := execution.selection.id
@@ -48,7 +48,7 @@ func (s *InterpreterService) runQueued(
 	return s.collectCode(ctx, handle, execution)
 }
 
-func (s *InterpreterService) runIsolated(
+func (s *Interpreter) runIsolated(
 	ctx context.Context, code string, execution runCodeExecution,
 ) (*RunCodeResult, error) {
 	cleanupID := "isolated-" + execution.selection.language + "-" + rand.Text()
@@ -86,7 +86,7 @@ func timedOutRunCodeResult() *RunCodeResult {
 	}
 }
 
-func (s *InterpreterService) waitCode(
+func (s *Interpreter) waitCode(
 	ctx context.Context, handle *ProcessHandle, budget runCodeBudget,
 ) (*WaitResult, error) {
 	result := &WaitResult{Reason: ProcessReasonTimedOut}

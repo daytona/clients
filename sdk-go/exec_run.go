@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func (s *ProcessService) run(
+func (s *Processes) run(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
 	timeout, err := processTimeout(options.Timeout)

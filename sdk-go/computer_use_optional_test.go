@@ -69,7 +69,7 @@ func TestComputerUseProcess_whenRequiredInventoryFieldMissing(t *testing.T) {
 			}
 			sandbox, _ := computerUseTestSandbox(t, jsonHandler(t, map[string]map[string]JSONValue{"wm": changed}))
 			// When
-			_, err := sandbox.ComputerUse().Service().Status(t.Context())
+			_, err := sandbox.ComputerUse().Addons().Status(t.Context())
 			// Then
 			require.ErrorIs(t, err, ErrBadRequest)
 		})

@@ -11,7 +11,7 @@ import (
 	daytona "go.daytona.com/sdk/v2"
 )
 
-func ExamplePTYService_Create() {
+func ExamplePTY_Create() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // Cancelling ctx closes the terminal connection.
 	client, err := daytona.New()

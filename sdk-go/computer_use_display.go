@@ -5,8 +5,8 @@ package daytona
 
 import "context"
 
-// ComputerUseDisplayService reads desktop display and window information.
-type ComputerUseDisplayService struct{ s *Sandbox }
+// ComputerUseDisplays reads desktop display and window information.
+type ComputerUseDisplays struct{ s *Sandbox }
 
 // ComputerUseDisplay describes one connected display.
 type ComputerUseDisplay struct {
@@ -43,7 +43,7 @@ type ComputerUseWindow struct {
 }
 
 // Info returns all connected displays. This list is not paginated.
-func (s *ComputerUseDisplayService) Info(ctx context.Context) ([]ComputerUseDisplay, error) {
+func (s *ComputerUseDisplays) Info(ctx context.Context) ([]ComputerUseDisplay, error) {
 	raw, err := desktopRead(ctx, s.s, toolboxRequest{Path: "/computeruse/display/info"})
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (s *ComputerUseDisplayService) Info(ctx context.Context) ([]ComputerUseDisp
 }
 
 // Windows returns all desktop windows. This list is not paginated.
-func (s *ComputerUseDisplayService) Windows(ctx context.Context) ([]ComputerUseWindow, error) {
+func (s *ComputerUseDisplays) Windows(ctx context.Context) ([]ComputerUseWindow, error) {
 	raw, err := desktopRead(ctx, s.s, toolboxRequest{Path: "/computeruse/display/windows"})
 	if err != nil {
 		return nil, err

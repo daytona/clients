@@ -28,7 +28,7 @@ type Sandbox struct {
 	toolboxScoped bool
 	auth          *sandboxCredential
 	toolboxClient *toolboxClient
-	interpreter   *InterpreterService
+	interpreter   *Interpreter
 }
 
 type sandboxInit struct {

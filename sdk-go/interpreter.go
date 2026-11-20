@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// InterpreterService runs code in stateful language kernels. Obtain it from
+// Interpreter runs code in stateful language kernels. Obtain it from
 // Sandbox.Interpreter. Its handles and execution queues are concurrency-safe.
-type InterpreterService struct {
+type Interpreter struct {
 	sandbox *Sandbox
 	mu      sync.Mutex
 	queues  map[string]*interpreterQueue
@@ -19,11 +19,11 @@ type InterpreterService struct {
 }
 
 // Interpreter returns the sandbox's shared interpreter service.
-func (s *Sandbox) Interpreter() *InterpreterService {
+func (s *Sandbox) Interpreter() *Interpreter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.interpreter == nil {
-		s.interpreter = &InterpreterService{
+		s.interpreter = &Interpreter{
 			sandbox: s, queues: make(map[string]*interpreterQueue), now: time.Now,
 		}
 	}
@@ -33,7 +33,7 @@ func (s *Sandbox) Interpreter() *InterpreterService {
 // InterpreterContext is an independent kernel's concurrency-safe handle.
 // Obtain it from CreateContext, ConnectContext, ConnectContextJSON or ListContexts.
 type InterpreterContext struct {
-	service  *InterpreterService
+	service  *Interpreter
 	id       string
 	language string
 }

@@ -13,11 +13,11 @@ import (
 	"go.daytona.com/sdk/v2/internal/gen/toolbox"
 )
 
-// SandboxVolumesService pulls attached volumes, distinct from Client.Volumes.
-type SandboxVolumesService struct{ sandbox *Sandbox }
+// SandboxVolumes pulls attached volumes, distinct from Client.Volumes.
+type SandboxVolumes struct{ sandbox *Sandbox }
 
 // Volumes returns the sandbox's attached-volume pull service.
-func (s *Sandbox) Volumes() *SandboxVolumesService { return &SandboxVolumesService{sandbox: s} }
+func (s *Sandbox) Volumes() *SandboxVolumes { return &SandboxVolumes{sandbox: s} }
 
 // PullVolumeOptions configures one volume submission/check.
 type PullVolumeOptions struct {
@@ -59,7 +59,7 @@ type PullVolumeResult struct {
 // volumeID and requestID require 1–128 ASCII letters, digits, "_" or "-".
 // NoWait submits new work or retrieves a known identity without retrying it;
 // a positive wait retries pending, unavailable or rate-limited work.
-func (v *SandboxVolumesService) Pull(
+func (v *SandboxVolumes) Pull(
 	ctx context.Context, volumeID, requestID string, opts *PullVolumeOptions,
 ) (PullVolumeResult, error) {
 	if err := parsePullVolumeID(volumeID, "volumeID"); err != nil {

@@ -12,7 +12,7 @@ import (
 	daytona "go.daytona.com/sdk/v2"
 )
 
-func ExampleDockerService_WaitUntilReady() {
+func ExampleDocker_WaitUntilReady() {
 	ctx := context.Background()
 	client, err := daytona.New()
 	if err != nil {

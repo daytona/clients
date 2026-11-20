@@ -11,9 +11,9 @@ import (
 	"unicode"
 )
 
-// AddonProcessesService controls individual desktop addon processes.
+// ComputerUseAddons controls individual desktop addon processes.
 // It is distinct from the sandbox's general-purpose process engine.
-type AddonProcessesService struct{ s *Sandbox }
+type ComputerUseAddons struct{ s *Sandbox }
 
 // ComputerUseProcessStatus describes an addon-managed process.
 type ComputerUseProcessStatus struct {
@@ -78,7 +78,7 @@ type ComputerUseProcessErrors struct {
 }
 
 // Status returns all addon processes (an unpaginated map).
-func (s *AddonProcessesService) Status(ctx context.Context) (map[string]ComputerUseProcessStatus, error) {
+func (s *ComputerUseAddons) Status(ctx context.Context) (map[string]ComputerUseProcessStatus, error) {
 	raw, err := desktopRead(ctx, s.s, toolboxRequest{Path: "/computeruse/process-status"})
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (s *AddonProcessesService) Status(ctx context.Context) (map[string]Computer
 }
 
 // ProcessStatus returns one addon's running status. Invalid names return ErrBadRequest.
-func (s *AddonProcessesService) ProcessStatus(
+func (s *ComputerUseAddons) ProcessStatus(
 	ctx context.Context, name string,
 ) (*ComputerUseProcessRunningStatus, error) {
 	raw, err := s.read(ctx, name, "status")
@@ -99,7 +99,7 @@ func (s *AddonProcessesService) ProcessStatus(
 }
 
 // Restart restarts a named addon process. Invalid names return ErrBadRequest.
-func (s *AddonProcessesService) Restart(ctx context.Context, name string) (*ComputerUseProcessRestartResult, error) {
+func (s *ComputerUseAddons) Restart(ctx context.Context, name string) (*ComputerUseProcessRestartResult, error) {
 	raw, err := s.read(ctx, name, "restart")
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (s *AddonProcessesService) Restart(ctx context.Context, name string) (*Comp
 }
 
 // Logs reads a named addon process's logs.
-func (s *AddonProcessesService) Logs(ctx context.Context, name string) (*ComputerUseProcessLogs, error) {
+func (s *ComputerUseAddons) Logs(ctx context.Context, name string) (*ComputerUseProcessLogs, error) {
 	raw, err := s.read(ctx, name, "logs")
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (s *AddonProcessesService) Logs(ctx context.Context, name string) (*Compute
 }
 
 // Errors reads a named addon process's error log.
-func (s *AddonProcessesService) Errors(ctx context.Context, name string) (*ComputerUseProcessErrors, error) {
+func (s *ComputerUseAddons) Errors(ctx context.Context, name string) (*ComputerUseProcessErrors, error) {
 	raw, err := s.read(ctx, name, "errors")
 	if err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func (s *AddonProcessesService) Errors(ctx context.Context, name string) (*Compu
 	return &ComputerUseProcessErrors{ProcessName: d.text("processName"), Errors: d.text("errors")}, d.err
 }
 
-func (s *AddonProcessesService) read(ctx context.Context, name, operation string) (JSONValue, error) {
+func (s *ComputerUseAddons) read(ctx context.Context, name, operation string) (JSONValue, error) {
 	segment, err := pathSegment(name)
 	if err != nil {
 		return nil, err

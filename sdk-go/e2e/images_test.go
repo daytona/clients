@@ -100,7 +100,7 @@ func TestImagesListSnapshots(t *testing.T) {
 	page, err := client.Snapshots().List(ctx, &daytona.ListSnapshotsOptions{Limit: 1})
 
 	// Then the endpoint yields a typed page, even when no snapshots exist.
-	require.NoError(t, err)
+	require.NoError(t, skipIfServerLacks(t, err, "listing snapshots (read:snapshots)"))
 	require.LessOrEqual(t, len(page.Items), 1)
 }
 

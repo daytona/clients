@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -176,4 +177,18 @@ func eventually(ctx context.Context, t *testing.T, bound time.Duration, check fu
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
+}
+
+// skipIfServerLacks skips the test when err is a server answer that means the
+// deployment or the API key does not support the operation yet (a missing
+// permission or feature), naming it, so the suite reports what it could not
+// check instead of failing on account setup. Every other error is returned.
+func skipIfServerLacks(t *testing.T, err error, what string) error {
+	t.Helper()
+	var apiErr *daytona.Error
+	if errors.As(err, &apiErr) && (apiErr.Code == daytona.CodeFeatureNotEnabled ||
+		(apiErr.StatusCode == http.StatusForbidden && strings.Contains(apiErr.Message, "permission"))) {
+		t.Skipf("%s: not available to this key on this deployment: %v", what, err)
+	}
+	return err
 }

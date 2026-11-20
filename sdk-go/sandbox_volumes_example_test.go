@@ -11,7 +11,7 @@ import (
 	daytona "go.daytona.com/sdk/v2"
 )
 
-func ExampleSandboxVolumesService_Pull() {
+func ExampleSandboxVolumes_Pull() {
 	ctx := context.Background()
 	client, err := daytona.New()
 	if err != nil {

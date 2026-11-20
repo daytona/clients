@@ -8,7 +8,7 @@ import (
 	"errors"
 )
 
-func (s *InterpreterService) collectCode(
+func (s *Interpreter) collectCode(
 	ctx context.Context, handle *ProcessHandle, execution runCodeExecution,
 ) (*RunCodeResult, error) {
 	options := execution.options
@@ -49,7 +49,7 @@ type runCodeWait struct {
 	err    error
 }
 
-func (s *InterpreterService) streamCode(
+func (s *Interpreter) streamCode(
 	ctx context.Context, handle *ProcessHandle, execution runCodeExecution,
 ) (*RunCodeResult, error) {
 	waitCtx, cancelWait := context.WithCancel(ctx)

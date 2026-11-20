@@ -23,7 +23,7 @@ type DockerWaitOptions struct {
 // Terminal states return *DockerNotReadyError; a spent SDK budget returns
 // *DockerWaitTimeoutError, carrying the last status if one arrived.
 // Caller cancellation/deadlines and Client.Close interrupt both polls and pauses.
-func (d *DockerService) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (DockerStatus, error) {
+func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (DockerStatus, error) {
 	budget := time.Minute
 	if opts != nil && opts.Timeout != 0 {
 		budget = opts.Timeout
@@ -38,7 +38,7 @@ func (d *DockerService) WaitUntilReady(ctx context.Context, opts *DockerWaitOpti
 	return d.waitReady(ctx, deadline)
 }
 
-func (d *DockerService) waitReady(ctx context.Context, deadline time.Time) (DockerStatus, error) {
+func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (DockerStatus, error) {
 	var last *DockerStatus
 	for {
 		if err := ctx.Err(); err != nil {
@@ -83,7 +83,7 @@ func (d *DockerService) waitReady(ctx context.Context, deadline time.Time) (Dock
 	}
 }
 
-func (d *DockerService) poll(ctx context.Context, deadline time.Time, last *DockerStatus) (DockerStatus, error) {
+func (d *Docker) poll(ctx context.Context, deadline time.Time, last *DockerStatus) (DockerStatus, error) {
 	hold, timeout := dockerPollBudget(deadline, time.Now())
 	if hold <= 0 {
 		return DockerStatus{}, dockerWaitTimeout(last, nil)

@@ -35,19 +35,19 @@ func TestComputerUse_whenRequiredResponseFieldMalformed(t *testing.T) {
 			return err
 		}},
 		{"process running", `{"processName":"wm","running":true}`, func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Service().ProcessStatus(ctx, "wm")
+			_, err := c.Addons().ProcessStatus(ctx, "wm")
 			return err
 		}},
 		{"process restart", `{"processName":"wm","message":"ok"}`, func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Service().Restart(ctx, "wm")
+			_, err := c.Addons().Restart(ctx, "wm")
 			return err
 		}},
 		{"process logs", `{"processName":"wm","logs":"output"}`, func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Service().Logs(ctx, "wm")
+			_, err := c.Addons().Logs(ctx, "wm")
 			return err
 		}},
 		{"process errors", `{"processName":"wm","errors":"output"}`, func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Service().Errors(ctx, "wm")
+			_, err := c.Addons().Errors(ctx, "wm")
 			return err
 		}},
 		{"screenshot", `{"screenshot":"AA==","sizeBytes":1}`, func(ctx context.Context, c *ComputerUse) error {
@@ -126,16 +126,16 @@ func TestComputerUse_whenNumericOrNestedResponseMalformed(t *testing.T) {
 			func(ctx context.Context, c *ComputerUse) error { _, err := c.Display().Windows(ctx); return err },
 		},
 		{"bad inventory", `{"wm":null}`, func(ctx context.Context, c *ComputerUse) error {
-			_, err := c.Service().Status(ctx)
+			_, err := c.Addons().Status(ctx)
 			return err
 		}},
 		{
 			"bad process count", `{"wm":` + strings.Replace(desktopProcessFixture, `"RestartAttempts":2`, `"RestartAttempts":-1`, 1) + `}`,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Service().Status(ctx); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Addons().Status(ctx); return err },
 		},
 		{
 			"bad backoff", `{"wm":` + strings.Replace(desktopProcessFixture, `"RestartBackoffMs":1250`, `"RestartBackoffMs":9007199254740992`, 1) + `}`,
-			func(ctx context.Context, c *ComputerUse) error { _, err := c.Service().Status(ctx); return err },
+			func(ctx context.Context, c *ComputerUse) error { _, err := c.Addons().Status(ctx); return err },
 		},
 		{
 			"bad timestamp", strings.Replace(desktopRecordingFixture, "2026-11-20T09:00:00Z", "yesterday", 1),

@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// ComputerUseRecordingService manages desktop recordings.
-type ComputerUseRecordingService struct{ s *Sandbox }
+// ComputerUseRecordings manages desktop recordings.
+type ComputerUseRecordings struct{ s *Sandbox }
 
 // ComputerUseRecording describes a recording stored in the sandbox.
 type ComputerUseRecording struct {
@@ -47,7 +47,7 @@ type ComputerUseRecordingDownloadOptions struct {
 }
 
 // Start starts recording. Nil options leave the label unset.
-func (s *ComputerUseRecordingService) Start(
+func (s *ComputerUseRecordings) Start(
 	ctx context.Context, opts *ComputerUseRecordingStartOptions,
 ) (*ComputerUseRecording, error) {
 	body := ComputerUseRecordingStartOptions{}
@@ -64,7 +64,7 @@ func (s *ComputerUseRecordingService) Start(
 }
 
 // Stop stops the specified recording.
-func (s *ComputerUseRecordingService) Stop(ctx context.Context, id string) (*ComputerUseRecording, error) {
+func (s *ComputerUseRecordings) Stop(ctx context.Context, id string) (*ComputerUseRecording, error) {
 	body := struct {
 		ID string `json:"id"`
 	}{ID: id}
@@ -78,7 +78,7 @@ func (s *ComputerUseRecordingService) Stop(ctx context.Context, id string) (*Com
 }
 
 // List returns every recording. The server does not paginate this list.
-func (s *ComputerUseRecordingService) List(ctx context.Context) ([]ComputerUseRecording, error) {
+func (s *ComputerUseRecordings) List(ctx context.Context) ([]ComputerUseRecording, error) {
 	raw, err := desktopRead(ctx, s.s, toolboxRequest{Path: "/computeruse/recordings"})
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (s *ComputerUseRecordingService) List(ctx context.Context) ([]ComputerUseRe
 }
 
 // Get reads one recording. Invalid path IDs return ErrBadRequest.
-func (s *ComputerUseRecordingService) Get(ctx context.Context, id string) (*ComputerUseRecording, error) {
+func (s *ComputerUseRecordings) Get(ctx context.Context, id string) (*ComputerUseRecording, error) {
 	segment, err := pathSegment(id)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (s *ComputerUseRecordingService) Get(ctx context.Context, id string) (*Comp
 }
 
 // Delete removes a recording. Invalid path IDs return ErrBadRequest.
-func (s *ComputerUseRecordingService) Delete(ctx context.Context, id string) error {
+func (s *ComputerUseRecordings) Delete(ctx context.Context, id string) error {
 	segment, err := pathSegment(id)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func (s *ComputerUseRecordingService) Delete(ctx context.Context, id string) err
 // Download buffers a recording in memory. Transfers have no total deadline, but
 // the client's request timeout bounds idle gaps. The response cap is enforced
 // while reading; oversized bodies return ErrPayloadTooLarge.
-func (s *ComputerUseRecordingService) Download(
+func (s *ComputerUseRecordings) Download(
 	ctx context.Context, id string, opts *ComputerUseRecordingDownloadOptions,
 ) ([]byte, error) {
 	segment, err := pathSegment(id)

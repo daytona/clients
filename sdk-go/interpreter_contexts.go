@@ -22,7 +22,7 @@ type interpreterContextRequest struct {
 
 // CreateContext creates independent kernel state. Language is case-sensitive
 // and server-defined; unsupported languages return ErrUnsupportedOperation.
-func (s *InterpreterService) CreateContext(
+func (s *Interpreter) CreateContext(
 	ctx context.Context, language string, opts *CreateInterpreterContextOptions,
 ) (*InterpreterContext, error) {
 	body := interpreterContextRequest{Kernel: language}
@@ -32,7 +32,7 @@ func (s *InterpreterService) CreateContext(
 	return s.createContext(ctx, body, 0)
 }
 
-func (s *InterpreterService) createContext(
+func (s *Interpreter) createContext(
 	ctx context.Context, body interpreterContextRequest, timeout time.Duration,
 ) (*InterpreterContext, error) {
 	if body.Kernel == "" {
@@ -61,7 +61,7 @@ func (s *InterpreterService) createContext(
 
 // ConnectContext binds an existing context ID and language without a request.
 // Empty languages and invalid path IDs return ErrBadRequest.
-func (s *InterpreterService) ConnectContext(id, language string) (*InterpreterContext, error) {
+func (s *Interpreter) ConnectContext(id, language string) (*InterpreterContext, error) {
 	if _, err := pathSegment(id); err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (s *InterpreterService) ConnectContext(id, language string) (*InterpreterCo
 
 // ConnectContextJSON reconnects a serialized identity without a request.
 // Identities belonging to another sandbox return ErrBadRequest.
-func (s *InterpreterService) ConnectContextJSON(identity InterpreterContextJSON) (*InterpreterContext, error) {
+func (s *Interpreter) ConnectContextJSON(identity InterpreterContextJSON) (*InterpreterContext, error) {
 	if identity.SandboxID != s.sandbox.ID() {
 		return nil, badRequest("interpreter context belongs to a different sandbox")
 	}
@@ -82,7 +82,7 @@ func (s *InterpreterService) ConnectContextJSON(identity InterpreterContextJSON)
 
 // ListContexts returns all interpreter contexts in one request. Shell sessions
 // are excluded; unknown kernel languages are preserved.
-func (s *InterpreterService) ListContexts(ctx context.Context) ([]*InterpreterContext, error) {
+func (s *Interpreter) ListContexts(ctx context.Context) ([]*InterpreterContext, error) {
 	var raw JSONValue
 	if err := s.sandbox.toolbox().do(ctx, toolboxRequest{Path: "/sessions", Result: &raw}); err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (s *InterpreterService) ListContexts(ctx context.Context) ([]*InterpreterCo
 
 // DeleteContext deletes kernel state by ID. ErrSessionNotFound is returned
 // unchanged; a failed deletion preserves execution serialization.
-func (s *InterpreterService) DeleteContext(ctx context.Context, id string) error {
+func (s *Interpreter) DeleteContext(ctx context.Context, id string) error {
 	segment, err := pathSegment(id)
 	if err != nil {
 		return err

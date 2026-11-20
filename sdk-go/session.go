@@ -38,7 +38,7 @@ type CreateSessionOptions struct {
 }
 
 // CreateSession creates a persistent shell. Non-POSIX shells are refused by the server.
-func (s *ProcessService) CreateSession(ctx context.Context, opts *CreateSessionOptions) (*Session, error) {
+func (s *Processes) CreateSession(ctx context.Context, opts *CreateSessionOptions) (*Session, error) {
 	options := CreateSessionOptions{}
 	if opts != nil {
 		options = *opts
@@ -59,7 +59,7 @@ func (s *ProcessService) CreateSession(ctx context.Context, opts *CreateSessionO
 }
 
 // ConnectSession binds a shell session ID without a request.
-func (s *ProcessService) ConnectSession(id string) (*Session, error) {
+func (s *Processes) ConnectSession(id string) (*Session, error) {
 	handle, err := s.Connect(id)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (s *ProcessService) ConnectSession(id string) (*Session, error) {
 }
 
 // ConnectSessionIdentity reconnects a serialized shell, rejecting another sandbox.
-func (s *ProcessService) ConnectSessionIdentity(identity SessionJSON) (*Session, error) {
+func (s *Processes) ConnectSessionIdentity(identity SessionJSON) (*Session, error) {
 	if identity.SandboxID != s.sandbox.ID() {
 		return nil, badRequest("session belongs to a different sandbox")
 	}

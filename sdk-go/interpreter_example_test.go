@@ -43,7 +43,7 @@ func ExampleSandbox_RunCode() {
 	}
 }
 
-func ExampleInterpreterService_CreateContext() {
+func ExampleInterpreter_CreateContext() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := daytona.New()

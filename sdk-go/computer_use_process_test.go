@@ -23,7 +23,7 @@ func TestComputerUseProcesses_whenInventoryRead(t *testing.T) {
 		"wm": JSONValue(desktopProcessFixture),
 	}))
 	// When
-	got, err := sandbox.ComputerUse().Service().Status(t.Context())
+	got, err := sandbox.ComputerUse().Addons().Status(t.Context())
 	// Then
 	require.NoError(t, err)
 	require.Len(t, got, 1)
@@ -45,7 +45,7 @@ func TestComputerUseProcesses_whenNamedOperationSent(t *testing.T) {
 		{
 			"status escaped", "GET", "/computeruse/process/wm%2Fhelper/status", "", `{"processName":"wm/helper","running":true}`,
 			func(ctx context.Context, c *ComputerUse) error {
-				got, err := c.Service().ProcessStatus(ctx, "wm/helper")
+				got, err := c.Addons().ProcessStatus(ctx, "wm/helper")
 				if err == nil {
 					require.Equal(t, "wm/helper", got.ProcessName)
 					require.True(t, got.Running)
@@ -56,7 +56,7 @@ func TestComputerUseProcesses_whenNamedOperationSent(t *testing.T) {
 		{
 			"restart", "POST", "/computeruse/process/wm/restart", "", `{"processName":"wm","message":"restarted"}`,
 			func(ctx context.Context, c *ComputerUse) error {
-				got, err := c.Service().Restart(ctx, "wm")
+				got, err := c.Addons().Restart(ctx, "wm")
 				if err == nil {
 					require.Equal(t, "restarted", got.Message)
 				}
@@ -66,7 +66,7 @@ func TestComputerUseProcesses_whenNamedOperationSent(t *testing.T) {
 		{
 			"logs", "GET", "/computeruse/process/wm/logs", "", `{"processName":"wm","logs":"stdout"}`,
 			func(ctx context.Context, c *ComputerUse) error {
-				got, err := c.Service().Logs(ctx, "wm")
+				got, err := c.Addons().Logs(ctx, "wm")
 				if err == nil {
 					require.Equal(t, "stdout", got.Logs)
 				}
@@ -76,7 +76,7 @@ func TestComputerUseProcesses_whenNamedOperationSent(t *testing.T) {
 		{
 			"errors", "GET", "/computeruse/process/wm/errors", "", `{"processName":"wm","errors":"stderr"}`,
 			func(ctx context.Context, c *ComputerUse) error {
-				got, err := c.Service().Errors(ctx, "wm")
+				got, err := c.Addons().Errors(ctx, "wm")
 				if err == nil {
 					require.Equal(t, "stderr", got.Errors)
 				}

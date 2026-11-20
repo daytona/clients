@@ -9,17 +9,17 @@ import (
 	"time"
 )
 
-// PTYService manages interactive terminals in one sandbox.
+// PTY manages interactive terminals in one sandbox.
 // Obtain it from Sandbox.PTY.
-type PTYService struct{ sandbox *Sandbox }
+type PTY struct{ sandbox *Sandbox }
 
 // PTY returns the sandbox's interactive terminal namespace.
-func (s *Sandbox) PTY() *PTYService { return &PTYService{sandbox: s} }
+func (s *Sandbox) PTY() *PTY { return &PTY{sandbox: s} }
 
 // Start starts a detached terminal. An empty command selects the sandbox's
 // default shell. Defaults are 80 columns, 24 rows, TERM=xterm-256color, open
 // stdin and logs retained until cleanup. Invalid options return ErrBadRequest.
-func (s *PTYService) Start(ctx context.Context, command string, opts *PTYOptions) (*ProcessHandle, error) {
+func (s *PTY) Start(ctx context.Context, command string, opts *PTYOptions) (*ProcessHandle, error) {
 	options := PTYOptions{}
 	if opts != nil {
 		options = *opts
@@ -64,7 +64,7 @@ func (s *PTYService) Start(ctx context.Context, command string, opts *PTYOptions
 // connection's lifetime. If attaching fails, Create attempts to delete the
 // process with a separate, at-most-five-second cleanup budget and returns the
 // original attach error.
-func (s *PTYService) Create(ctx context.Context, command string, opts *PTYOptions) (*PTYConnection, error) {
+func (s *PTY) Create(ctx context.Context, command string, opts *PTYOptions) (*PTYConnection, error) {
 	handle, err := s.Start(ctx, command, opts)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (s *PTYService) Create(ctx context.Context, command string, opts *PTYOption
 
 // Connect attaches to an existing terminal by process ID or live alias.
 // The context bounds the returned connection's lifetime.
-func (s *PTYService) Connect(ctx context.Context, id string) (*PTYConnection, error) {
+func (s *PTY) Connect(ctx context.Context, id string) (*PTYConnection, error) {
 	handle, err := s.sandbox.Process().Connect(id)
 	if err != nil {
 		return nil, err
@@ -90,14 +90,14 @@ func (s *PTYService) Connect(ctx context.Context, id string) (*PTYConnection, er
 }
 
 // List returns one envelope containing the sandbox's terminal processes.
-func (s *PTYService) List(ctx context.Context) (*Page[ProcessInfo], error) {
+func (s *PTY) List(ctx context.Context) (*Page[ProcessInfo], error) {
 	return s.sandbox.Process().List(ctx, &ListProcessesOptions{Kind: ProcessKindPTY})
 }
 
 // Delete stops a terminal and deletes its record and logs. It checks the
 // server's process kind first and returns ErrUnsupportedOperation for every
 // non-PTY kind, including unknown future kinds, without sending a signal.
-func (s *PTYService) Delete(ctx context.Context, id string) error {
+func (s *PTY) Delete(ctx context.Context, id string) error {
 	handle, err := s.sandbox.Process().Connect(id)
 	if err != nil {
 		return err

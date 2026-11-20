@@ -15,8 +15,8 @@ type ComputerUse struct{ s *Sandbox }
 // ComputerUse returns a concurrency-safe desktop automation namespace.
 func (s *Sandbox) ComputerUse() *ComputerUse { return &ComputerUse{s: s} }
 
-// Service returns diagnostics and controls for the addon's individual processes.
-func (c *ComputerUse) Service() *AddonProcessesService { return &AddonProcessesService{s: c.s} }
+// Addons returns diagnostics and controls for the addon's individual processes.
+func (c *ComputerUse) Addons() *ComputerUseAddons { return &ComputerUseAddons{s: c.s} }
 
 // Mouse returns desktop pointer controls.
 func (c *ComputerUse) Mouse() *ComputerUseMouse { return &ComputerUseMouse{s: c.s} }
@@ -28,14 +28,14 @@ func (c *ComputerUse) Keyboard() *ComputerUseKeyboard { return &ComputerUseKeybo
 func (c *ComputerUse) Screen() *ComputerUseScreen { return &ComputerUseScreen{s: c.s} }
 
 // Display returns desktop display and window information.
-func (c *ComputerUse) Display() *ComputerUseDisplayService { return &ComputerUseDisplayService{s: c.s} }
+func (c *ComputerUse) Display() *ComputerUseDisplays { return &ComputerUseDisplays{s: c.s} }
 
 // A11y returns accessibility tree inspection and controls.
 func (c *ComputerUse) A11y() *ComputerUseA11y { return &ComputerUseA11y{s: c.s} }
 
 // Recording returns desktop recording operations.
-func (c *ComputerUse) Recording() *ComputerUseRecordingService {
-	return &ComputerUseRecordingService{s: c.s}
+func (c *ComputerUse) Recording() *ComputerUseRecordings {
+	return &ComputerUseRecordings{s: c.s}
 }
 
 // ComputerUseResolution is a desktop size in pixels (1024x768, 1280x720 or 1920x1080).

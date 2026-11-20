@@ -60,7 +60,7 @@ func ExampleSandbox_ExecArgs() {
 	fmt.Println(result.ProcessID)
 }
 
-func ExampleProcessService_Start() {
+func ExampleProcesses_Start() {
 	ctx := context.Background()
 	client, err := daytona.New()
 	if err != nil {
@@ -85,7 +85,7 @@ func ExampleProcessService_Start() {
 	}
 }
 
-func ExampleProcessService_CreateSession() {
+func ExampleProcesses_CreateSession() {
 	ctx := context.Background()
 	client, err := daytona.New()
 	if err != nil {

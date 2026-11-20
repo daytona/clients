@@ -45,7 +45,7 @@ func ExampleSandbox_ComputerUse() {
 	fmt.Printf("Captured %d bytes\n", len(image.Data))
 }
 
-func ExampleComputerUseRecordingService_Download() {
+func ExampleComputerUseRecordings_Download() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := daytona.New()

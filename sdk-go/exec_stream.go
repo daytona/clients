@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func (s *ProcessService) runStreaming(
+func (s *Processes) runStreaming(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
 	budget, err := processTimeout(options.Timeout)

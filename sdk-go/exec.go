@@ -56,7 +56,7 @@ func (s *Sandbox) ExecArgs(ctx context.Context, argv []string, opts *ExecOptions
 }
 
 // Run is the process namespace form of Sandbox.Exec.
-func (s *ProcessService) Run(ctx context.Context, command string, opts *ExecOptions) (*ProcessResult, error) {
+func (s *Processes) Run(ctx context.Context, command string, opts *ExecOptions) (*ProcessResult, error) {
 	options := execOptions(opts)
 	body, err := processStartBody(&command, nil, options.startOptions())
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *ProcessService) Run(ctx context.Context, command string, opts *ExecOpti
 }
 
 // RunArgs is the process namespace form of Sandbox.ExecArgs.
-func (s *ProcessService) RunArgs(ctx context.Context, argv []string, opts *ExecOptions) (*ProcessResult, error) {
+func (s *Processes) RunArgs(ctx context.Context, argv []string, opts *ExecOptions) (*ProcessResult, error) {
 	if len(argv) == 0 {
 		return nil, badRequest("argv must not be empty")
 	}

@@ -35,7 +35,12 @@ func TestEventsObserveStoppedSandbox(t *testing.T) {
 	var created struct {
 		ID string `json:"id"`
 	}
-	require.NoError(t, rawAPI(ctx, http.MethodPost, "/sandboxes", body, &created))
+	if createErr := rawAPI(ctx, http.MethodPost, "/sandboxes", body, &created); createErr != nil {
+		if strings.Contains(createErr.Error(), "FEATURE_NOT_ENABLED") {
+			t.Skipf("stopping needs a persistent sandbox, not enabled for this organization: %v", createErr)
+		}
+		require.NoError(t, createErr)
+	}
 	id := created.ID
 	t.Cleanup(func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

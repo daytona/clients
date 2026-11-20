@@ -18,7 +18,7 @@ type interpreterWaiter struct {
 	granted bool
 }
 
-func (s *InterpreterService) acquire(ctx context.Context, id string) (func(), error) {
+func (s *Interpreter) acquire(ctx context.Context, id string) (func(), error) {
 	s.mu.Lock()
 	queue := s.queues[id]
 	if queue == nil {
@@ -45,7 +45,7 @@ func (s *InterpreterService) acquire(ctx context.Context, id string) (func(), er
 	}
 }
 
-func (s *InterpreterService) cancelWaiter(id string, queue *interpreterQueue, waiter *interpreterWaiter) {
+func (s *Interpreter) cancelWaiter(id string, queue *interpreterQueue, waiter *interpreterWaiter) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if waiter.granted {
@@ -60,13 +60,13 @@ func (s *InterpreterService) cancelWaiter(id string, queue *interpreterQueue, wa
 	}
 }
 
-func (s *InterpreterService) releaseQueue(id string, queue *interpreterQueue) {
+func (s *Interpreter) releaseQueue(id string, queue *interpreterQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.advanceQueue(id, queue)
 }
 
-func (s *InterpreterService) advanceQueue(id string, queue *interpreterQueue) {
+func (s *Interpreter) advanceQueue(id string, queue *interpreterQueue) {
 	if len(queue.waiters) > 0 {
 		next := queue.waiters[0]
 		queue.waiters[0] = nil
@@ -81,7 +81,7 @@ func (s *InterpreterService) advanceQueue(id string, queue *interpreterQueue) {
 	}
 }
 
-func (s *InterpreterService) evictQueue(id string) {
+func (s *Interpreter) evictQueue(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	queue := s.queues[id]

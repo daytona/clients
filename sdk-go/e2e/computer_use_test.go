@@ -57,7 +57,7 @@ func TestComputerUseDesktop(t *testing.T) {
 		require.NotEmpty(t, displays)
 	})
 	t.Run("processes", func(t *testing.T) {
-		processes, processErr := desktop.Service().Status(ctx)
+		processes, processErr := desktop.Addons().Status(ctx)
 		require.NoError(t, processErr)
 		require.NotEmpty(t, processes)
 	})

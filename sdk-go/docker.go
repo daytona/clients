@@ -8,20 +8,20 @@ import (
 	"encoding/json"
 )
 
-// DockerService reads Docker Engine status; it never starts or restarts Docker.
+// Docker reads Docker Engine status; it never starts or restarts Docker.
 // Obtain it through Sandbox.Docker.
-type DockerService struct{ sandbox *Sandbox }
+type Docker struct{ sandbox *Sandbox }
 
 // Docker returns the sandbox's read-only Docker Engine service.
-func (s *Sandbox) Docker() *DockerService { return &DockerService{sandbox: s} }
+func (s *Sandbox) Docker() *Docker { return &Docker{sandbox: s} }
 
 // Status returns this boot's current Docker status without waiting.
 // An unavailable endpoint returns ErrNotFound.
-func (d *DockerService) Status(ctx context.Context) (DockerStatus, error) {
+func (d *Docker) Status(ctx context.Context) (DockerStatus, error) {
 	return d.readStatus(ctx, toolboxRequest{Path: "/docker/status"})
 }
 
-func (d *DockerService) readStatus(ctx context.Context, request toolboxRequest) (DockerStatus, error) {
+func (d *Docker) readStatus(ctx context.Context, request toolboxRequest) (DockerStatus, error) {
 	var raw json.RawMessage
 	spec := request
 	spec.Result = &raw

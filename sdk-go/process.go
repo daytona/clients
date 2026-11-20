@@ -13,16 +13,16 @@ import (
 	"time"
 )
 
-// ProcessService manages commands and persistent shells in one sandbox.
-type ProcessService struct{ sandbox *Sandbox }
+// Processes manages commands and persistent shells in one sandbox.
+type Processes struct{ sandbox *Sandbox }
 
 // Process returns the sandbox's process namespace.
-func (s *Sandbox) Process() *ProcessService { return &ProcessService{sandbox: s} }
+func (s *Sandbox) Process() *Processes { return &Processes{sandbox: s} }
 
 // Start launches a background shell command and returns immediately. Use
 // StartArgs for untrusted arguments; use CreateSession to retain shell state.
 // ExecutionTimeout stops the process tree; context cancellation only stops the request.
-func (s *ProcessService) Start(ctx context.Context, command string, opts *ProcessStartOptions) (*ProcessHandle, error) {
+func (s *Processes) Start(ctx context.Context, command string, opts *ProcessStartOptions) (*ProcessHandle, error) {
 	body, err := processStartBody(&command, nil, opts)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (s *ProcessService) Start(ctx context.Context, command string, opts *Proces
 }
 
 // StartArgs launches argv without a shell. argv must contain at least the executable.
-func (s *ProcessService) StartArgs(
+func (s *Processes) StartArgs(
 	ctx context.Context, argv []string, opts *ProcessStartOptions,
 ) (*ProcessHandle, error) {
 	if len(argv) == 0 {
@@ -46,7 +46,7 @@ func (s *ProcessService) StartArgs(
 	return s.start(ctx, body, 0)
 }
 
-func (s *ProcessService) start(
+func (s *Processes) start(
 	ctx context.Context, body processCreateRequest, timeout time.Duration,
 ) (*ProcessHandle, error) {
 	var raw json.RawMessage
@@ -62,7 +62,7 @@ func (s *ProcessService) start(
 	return s.startedHandle(info, body), nil
 }
 
-func (s *ProcessService) startedHandle(info *ProcessInfo, body processCreateRequest) *ProcessHandle {
+func (s *Processes) startedHandle(info *ProcessInfo, body processCreateRequest) *ProcessHandle {
 	kind := info.Kind
 	if kind == ProcessKindUnknown {
 		kind = body.Kind
@@ -74,7 +74,7 @@ func (s *ProcessService) startedHandle(info *ProcessInfo, body processCreateRequ
 }
 
 // Get fetches metadata by process ID or live alias. Missing processes return ErrProcessNotFound.
-func (s *ProcessService) Get(ctx context.Context, id string) (*ProcessInfo, error) {
+func (s *Processes) Get(ctx context.Context, id string) (*ProcessInfo, error) {
 	handle, err := s.Connect(id)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (s *ProcessService) Get(ctx context.Context, id string) (*ProcessInfo, erro
 
 // Delete stops a process and removes its record and logs. A running code cell
 // may return ErrUnsupportedOperation; interrupt it first.
-func (s *ProcessService) Delete(ctx context.Context, id string) error {
+func (s *Processes) Delete(ctx context.Context, id string) error {
 	handle, err := s.Connect(id)
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func (s *ProcessService) Delete(ctx context.Context, id string) error {
 }
 
 // List returns one envelope of processes. The server does not paginate this list.
-func (s *ProcessService) List(ctx context.Context, opts *ListProcessesOptions) (*Page[ProcessInfo], error) {
+func (s *Processes) List(ctx context.Context, opts *ListProcessesOptions) (*Page[ProcessInfo], error) {
 	query, err := processListQuery(opts)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (s *ProcessService) List(ctx context.Context, opts *ListProcessesOptions) (
 }
 
 // ListAll iterates List lazily. Breaking iteration performs no additional requests.
-func (s *ProcessService) ListAll(ctx context.Context, opts *ListProcessesOptions) iter.Seq2[ProcessInfo, error] {
+func (s *Processes) ListAll(ctx context.Context, opts *ListProcessesOptions) iter.Seq2[ProcessInfo, error] {
 	var copied *ListProcessesOptions
 	if opts != nil {
 		value := *opts
@@ -168,7 +168,7 @@ func processListQuery(opts *ListProcessesOptions) (url.Values, error) {
 // KillAll stops tagged processes and their descendants, retaining logs and records.
 // It returns stopped IDs. ErrProcessKillIncomplete is safe to retry;
 // ErrUnsupportedOperation indicates unavailable process containment (including macOS).
-func (s *ProcessService) KillAll(ctx context.Context, tag string, opts *KillAllProcessesOptions) ([]string, error) {
+func (s *Processes) KillAll(ctx context.Context, tag string, opts *KillAllProcessesOptions) ([]string, error) {
 	if err := processTag(tag); err != nil {
 		return nil, err
 	}
