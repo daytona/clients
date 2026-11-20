@@ -15,7 +15,7 @@ import (
 
 func limitsFixture() map[string]any {
 	usageLimit := func(usage int, limit any) map[string]any { return map[string]any{"usage": usage, "limit": limit} }
-	concurrent, total, snapshots, macReservations := int64(10), int64(50), int64(100), int64(10)
+	concurrent, total, snapshots, volumes, macReservations := int64(10), int64(50), int64(100), int64(20), int64(10)
 	return map[string]any{
 		// Generated types supply every required contract field, including
 		// fields that this CLI does not display in its table.
@@ -31,6 +31,7 @@ func limitsFixture() map[string]any {
 		"storage": gen.StorageLimits{
 			Images:    gen.UsageLimit{Usage: 5},
 			Snapshots: gen.UsageLimit{Usage: 7, Limit: &snapshots},
+			Volumes:   gen.UsageLimit{Usage: 2, Limit: &volumes},
 		},
 		"secrets_per_project":       usageLimit(2, 100),
 		"api_keys_per_project":      usageLimit(1, 10),

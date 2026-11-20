@@ -2236,6 +2236,19 @@ describe('V2 model', () => {
     expect(() => sandbox.process).toThrow('sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)')
   })
 
+  it('ports.list() and ports.isInUse() on a handle without a toolbox URL say to fetch it with get(id)', async () => {
+    const client = new Daytona({ apiKey: 'key' })
+    const sandbox = lazySandbox(client, { sandboxId: 'sbx' })
+    const expected = {
+      message: 'sandbox handle has no toolbox URL; fetch the sandbox with get(id) (or pass toolboxUrl)',
+      statusCode: 400,
+      code: 'UNSUPPORTED_OPERATION',
+      source: 'SDK',
+    }
+    await expect(sandbox.ports.list()).rejects.toMatchObject(expected)
+    await expect(sandbox.ports.isInUse(3000)).rejects.toMatchObject(expected)
+  })
+
   it('ignores DAYTONA_TOOLBOX_URL for a metadata-less handle', () => {
     const previous = process.env.DAYTONA_TOOLBOX_URL
     process.env.DAYTONA_TOOLBOX_URL = 'http://ignored.invalid/sandbox-api'

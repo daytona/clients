@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -25,6 +26,16 @@ func TestSpecialCodes_areInContractCatalogs(t *testing.T) {
 
 	routerCodes := loadProxyCodes(t, "router-errors.json")
 	requireCatalogContains(t, "router", routerCodes, SpecialRouterCodes)
+}
+
+func TestSpecialAPICodes_includeEmailAccessDenied(t *testing.T) {
+	t.Parallel()
+
+	// The contract check above only covers registered codes, so pin the
+	// registration itself.
+	if !slices.Contains(SpecialAPICodes, CodeEmailAccessDenied) {
+		t.Fatalf("%s is not registered in SpecialAPICodes", CodeEmailAccessDenied)
+	}
 }
 
 func loadOpenAPIEnum(t *testing.T, fileName, schema string) map[string]struct{} {

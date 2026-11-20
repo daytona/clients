@@ -208,7 +208,9 @@ func errorOutputIsJSON(root *cobra.Command, stdout io.Writer) bool {
 func printErrorJSON(w io.Writer, err error) {
 	details := cerr.DetailsOf(err)
 	details.Message = strings.TrimSpace(details.Message)
-	_ = json.NewEncoder(w).Encode(struct {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(struct {
 		Error cerr.Details `json:"error"`
 	}{details})
 }
