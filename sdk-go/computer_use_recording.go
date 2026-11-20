@@ -126,6 +126,7 @@ func (s *ComputerUseRecordings) Delete(ctx context.Context, id string) error {
 // Download buffers a recording in memory. Transfers have no total deadline, but
 // the client's request timeout bounds idle gaps. The response cap is enforced
 // while reading; oversized bodies return ErrPayloadTooLarge.
+// Any error, including a response-body close failure, returns nil data.
 func (s *ComputerUseRecordings) Download(
 	ctx context.Context, id string, opts *ComputerUseRecordingDownloadOptions,
 ) ([]byte, error) {
@@ -145,7 +146,10 @@ func (s *ComputerUseRecordings) Download(
 		Path:     "/computeruse/recordings/" + segment + "/download",
 		Transfer: true, MaxResponseBytes: limit, ResponseBody: &data,
 	})
-	return data, err
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func parseDesktopRecording(raw JSONValue) (*ComputerUseRecording, error) {
