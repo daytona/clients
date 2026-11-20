@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,14 +33,13 @@ type Error struct {
 	RetryAfter time.Duration
 	// Err is the underlying cause, including context cancellation.
 	Err error
-	// Details holds the optional data a server error carries for specific
-	// codes; its fields are zero for every other error.
+	// Details holds optional server error data; absent fields are zero.
 	Details  ErrorDetails
 	category errorCategory
 }
 
-// ErrorDetails is the optional data some server errors carry. Each field is set
-// only by the codes its comment names and is zero otherwise.
+// ErrorDetails is optional server error data, typically set by the codes named
+// in each field's comment. Absent or mistyped fields are zero.
 type ErrorDetails struct {
 	// Feature is the feature the organization lacks (CodeFeatureNotEnabled).
 	Feature string
@@ -75,13 +75,9 @@ type ErrorDetails struct {
 	Bytes *int64
 }
 
-// Error returns the server's message, or an HTTP/code fallback.
-// Error returns "daytona: <message> (<code>, HTTP <status>)", leaving out the
-// parts the error does not have. Message holds the explanation alone.
+// Error returns the message with its code and HTTP status, omitting absent or
+// duplicate parts. Message holds the explanation alone.
 func (e *Error) Error() string {
-	var text strings.Builder
-	text.WriteString("daytona: ")
-	text.WriteString(e.Message)
 	var tags []string
 	if e.Code != "" {
 		tags = append(tags, e.Code)
@@ -89,16 +85,17 @@ func (e *Error) Error() string {
 	if e.StatusCode != 0 {
 		tags = append(tags, "HTTP "+strconv.Itoa(e.StatusCode))
 	}
-	switch {
-	case len(tags) == 0 && e.Message == "":
-		text.WriteString("error")
-	case len(tags) == 0:
-	case e.Message == "":
-		text.WriteString(strings.Join(tags, ", "))
-	default:
-		text.WriteString(" (" + strings.Join(tags, ", ") + ")")
+	tag := strings.Join(tags, ", ")
+	if e.Message == "" || e.Message == tag || slices.Contains(tags, e.Message) {
+		if tag == "" {
+			return "daytona: error"
+		}
+		return "daytona: " + tag
 	}
-	return text.String()
+	if tag == "" {
+		return "daytona: " + e.Message
+	}
+	return "daytona: " + e.Message + " (" + tag + ")"
 }
 
 // Unwrap exposes the original cause.
