@@ -14,10 +14,13 @@ func parseNetworkPolicyInfo(raw JSONValue, etag string) (*NetworkPolicyInfo, err
 		return nil, badRequest("network policy response is missing the ETag header")
 	}
 	result := &NetworkPolicyInfo{ETag: etag}
-	for name, target := range map[string]*string{
-		"applied_start_id": &result.AppliedStartID, "status": &result.Status, "error": &result.Error,
+	for _, entry := range []struct {
+		name   string
+		target *string
+	}{
+		{"applied_start_id", &result.AppliedStartID}, {"status", &result.Status}, {"error", &result.Error},
 	} {
-		*target, err = field[string](object, name, false)
+		*entry.target, err = field[string](object, entry.name, false)
 		if err != nil {
 			return nil, err
 		}
@@ -30,15 +33,18 @@ func parseNetworkPolicyInfo(raw JSONValue, etag string) (*NetworkPolicyInfo, err
 	if err != nil {
 		return nil, err
 	}
-	for name, target := range map[string]**NetworkPolicy{"desired": &result.Desired, "applied": &result.Applied} {
-		if !present(object[name]) {
+	for _, entry := range []struct {
+		name   string
+		target **NetworkPolicy
+	}{{"desired", &result.Desired}, {"applied", &result.Applied}} {
+		if !present(object[entry.name]) {
 			continue
 		}
-		policy, parseErr := parseNetworkPolicy(object[name], name)
+		policy, parseErr := parseNetworkPolicy(object[entry.name], entry.name)
 		if parseErr != nil {
 			return nil, parseErr
 		}
-		*target = policy
+		*entry.target = policy
 	}
 	return result, nil
 }
@@ -48,23 +54,28 @@ func parseNetworkPolicy(raw JSONValue, name string) (*NetworkPolicy, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Qualify keys once at the boundary so every nested parser names its policy.
+	object = jsonObject{
+		name + ".version": object["version"], name + ".block_all": object["block_all"],
+		name + ".allow_cidrs": object["allow_cidrs"], name + ".allow_domains": object["allow_domains"],
+	}
 	policy := &NetworkPolicy{}
-	policy.Version, err = integerField(object, "version", true)
+	policy.Version, err = integerField(object, name+".version", true)
 	if err != nil {
 		return nil, err
 	}
 	if policy.Version < math.MinInt32 || policy.Version > math.MaxInt32 {
 		return nil, badRequest("response field " + name + ".version must be an int32")
 	}
-	policy.BlockAll, err = field[bool](object, "block_all", true)
+	policy.BlockAll, err = field[bool](object, name+".block_all", true)
 	if err != nil {
 		return nil, err
 	}
-	policy.AllowCIDRs, err = sandboxStringList(object, "allow_cidrs", true)
+	policy.AllowCIDRs, err = sandboxStringList(object, name+".allow_cidrs", true)
 	if err != nil {
 		return nil, err
 	}
-	policy.AllowDomains, err = sandboxStringList(object, "allow_domains", false)
+	policy.AllowDomains, err = sandboxStringList(object, name+".allow_domains", false)
 	if err != nil {
 		return nil, err
 	}
