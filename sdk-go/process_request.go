@@ -21,7 +21,7 @@ type processCreateRequest struct {
 	Tag          string            `json:"tag,omitempty"`
 	SessionID    string            `json:"sessionId,omitempty"`
 	Cwd          string            `json:"cwd,omitempty"`
-	Env          map[string]string `json:"env,omitempty"`
+	Env          map[string]string `json:"env,omitzero"`
 	User         string            `json:"user,omitempty"`
 	Shell        string            `json:"shell,omitempty"`
 	Login        *bool             `json:"login,omitempty"`
