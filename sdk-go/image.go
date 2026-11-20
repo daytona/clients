@@ -103,6 +103,10 @@ const (
 	ImageOriginDockerfile ImageOrigin = "dockerfile"
 	// ImageOriginCapture identifies a sandbox filesystem capture.
 	ImageOriginCapture ImageOrigin = "capture"
+	// ImageOriginWindows identifies a Windows image.
+	ImageOriginWindows ImageOrigin = "windows"
+	// ImageOriginMacOS identifies a macOS image.
+	ImageOriginMacOS ImageOrigin = "macos"
 )
 
 // ImageRetention identifies an image's retention policy.

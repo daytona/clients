@@ -156,6 +156,10 @@ func imageOrigin(raw string) ImageOrigin {
 		return ImageOriginDockerfile
 	case "capture":
 		return ImageOriginCapture
+	case "windows":
+		return ImageOriginWindows
+	case "macos":
+		return ImageOriginMacOS
 	default:
 		return ImageOriginUnknown
 	}
