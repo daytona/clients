@@ -17,6 +17,14 @@ func (s *Processes) runStreaming(
 	if err != nil {
 		return nil, err
 	}
+	requestTimeout := time.Duration(0)
+	if options.Timeout != 0 && budget == 0 {
+		requestTimeout = NoTimeout
+	}
+	handle, err := s.start(ctx, body, requestTimeout)
+	if err != nil {
+		return nil, err
+	}
 	started := time.Now()
 	streamCtx, cancel := context.WithCancel(ctx)
 	if budget > 0 {
@@ -24,14 +32,6 @@ func (s *Processes) runStreaming(
 		streamCtx, cancel = context.WithTimeout(ctx, budget)
 	}
 	defer cancel()
-	requestTimeout := time.Duration(0)
-	if options.Timeout != 0 && budget == 0 {
-		requestTimeout = NoTimeout
-	}
-	handle, err := s.start(streamCtx, body, requestTimeout)
-	if err != nil {
-		return nil, err
-	}
 	logs, err := options.consume(streamCtx, handle)
 	if err != nil {
 		if ctx.Err() != nil {
