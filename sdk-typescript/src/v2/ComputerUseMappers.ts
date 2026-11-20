@@ -20,8 +20,10 @@ import type {
   ComputerUseProcessRestartResponse,
   ComputerUseProcessRunningStatus,
   ComputerUseProcessStatus,
+  ComputerUseReadyStatus,
   ComputerUseRecording,
   ComputerUseRecordingsResponse,
+  ComputerUseResolution,
   ComputerUseRestartResponse,
   ComputerUseScreenshotResponse,
   ComputerUseScrollResponse,
@@ -33,6 +35,7 @@ import { knownOrUnknown } from './knownValue.js'
 import { bool, int, int32, malformedResponse, nonNegativeInt, nonNegativeInt32, nonNegativeSafeInt, num, optional, record, str, strList, timestamp } from './toolboxModels.js'
 import type { WireRecord } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
+import { MAX_INT32 } from './options.js'
 import { enumerableSymbolKey } from './symbolKeys.js'
 import type { KeyedObject } from './symbolKeys.js'
 
@@ -103,19 +106,39 @@ function mapWireCause(cause: unknown): ComputerUseDesktopFailure | undefined {
   return mapComputerUseDesktopFailure(cause)
 }
 
+// `null` and an absent field both mean the guest reports no resolution. Only
+// width and height are read: the type is also the request's.
+function mapWireResolution(resolution: unknown): ComputerUseResolution | undefined {
+  if (resolution === undefined || resolution === null) {
+    return undefined
+  }
+  if (!isPlainObject(resolution)) throw invalid(INVALID_STATUS_RESPONSE, 'resolution must be null or an object')
+  // The contract's int32, as the Python SDK checks it.
+  const { width, height } = resolution
+  if (typeof width !== 'number' || !Number.isInteger(width) || width < 0 || width > MAX_INT32) {
+    throw invalid(INVALID_STATUS_RESPONSE, 'resolution.width must be a non-negative int32')
+  }
+  if (typeof height !== 'number' || !Number.isInteger(height) || height < 0 || height > MAX_INT32) {
+    throw invalid(INVALID_STATUS_RESPONSE, 'resolution.height must be a non-negative int32')
+  }
+  return { width, height }
+}
+
 export function mapComputerUseStatusResponse(
   response: unknown,
 ): ComputerUseStatusResponse {
   if (!isPlainObject(response)) throw invalid(INVALID_STATUS_RESPONSE, 'the body must be an object')
 
-  const { status, desktop, cause, ...extraFields } = response
+  const { status, desktop, cause, resolution, ...extraFields } = response
 
   if (typeof status !== 'string') throw invalid(INVALID_STATUS_RESPONSE, 'status must be a string')
   if (typeof desktop !== 'string') throw invalid(INVALID_STATUS_RESPONSE, 'desktop must be a string')
 
   const mappedCause = mapWireCause(cause)
-  const extras: { extraFields?: Record<string, unknown> } =
-    Object.keys(extraFields).length > 0 ? { extraFields } : {}
+  const mappedResolution = mapWireResolution(resolution)
+  const extras: Mutable<Pick<ComputerUseReadyStatus, 'resolution' | 'extraFields'>> = {}
+  if (mappedResolution !== undefined) extras.resolution = mappedResolution
+  if (Object.keys(extraFields).length > 0) extras.extraFields = extraFields
 
   // Outside the failed state the contract allows `cause` to be omitted or null.
   if (status === 'inactive' && (desktop === 'not_started' || desktop === 'starting')) {
