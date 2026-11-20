@@ -1,0 +1,23 @@
+sdk-go/errors_docker.go
+  s_a99d88c8e0ddc8::t_09c77cc29ee15d 68-74,76-82,92-98,100-106
+sdk-go/errors_details.go
+  s_a99d88c8e0ddc8::t_09c77cc29ee15d 18-24,26-32,44-50,52-58,70-76,78-84,87-88,97-103,105-111
+sdk-go/errors_wrappers_test.go
+  s_a99d88c8e0ddc8::t_a357b763a5eb41 1-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61b99e74467743a9e66a685e1e6f69cd0ead10ba",
+  "prompts": {},
+  "sessions": {
+    "s_a99d88c8e0ddc8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0648e88effezwJA4YepwI2chB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
