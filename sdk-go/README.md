@@ -112,8 +112,15 @@ endpoint, err := sandbox.Ports().Expose(ctx, 8080, &daytona.ExposePortOptions{Pu
 fmt.Println(endpoint.URL)
 ```
 
-`Ports().PreviewLink` and `Ports().SignedPreviewLink` return private links that
-carry a token instead.
+`Ports().PreviewLink` preserves the endpoint's visibility (public endpoints have
+no token). `Ports().SignedPreviewLink` returns a token-bearing private link:
+
+```go
+link, err := sandbox.Ports().SignedPreviewLink(ctx, 8080,
+	&daytona.SignedPreviewLinkOptions{ExpiresIn: 5 * time.Minute})
+```
+
+Pass `nil` options or zero `ExpiresIn` for the server's default lifetime.
 
 **Images.** A sandbox starts from an image of your project. Import a registry
 image once with `Images().Pull`, or build one with an `ImageBuilder`, then
