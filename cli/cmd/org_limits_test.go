@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -16,7 +17,7 @@ import (
 
 func limitsFixture() map[string]any {
 	usageLimit := func(usage int, limit any) map[string]any { return map[string]any{"usage": usage, "limit": limit} }
-	concurrent, total, snapshots, macReservations := int64(10), int64(50), int64(100), int64(10)
+	concurrent, total, snapshots, volumes, macReservations := int64(10), int64(50), int64(100), int64(20), int64(10)
 	return map[string]any{
 		// Generated types supply every required contract field, including
 		// fields that this CLI does not display in its table.
@@ -32,6 +33,7 @@ func limitsFixture() map[string]any {
 		"storage": gen.StorageLimits{
 			Images:    gen.UsageLimit{Usage: 5},
 			Snapshots: gen.UsageLimit{Usage: 7, Limit: &snapshots},
+			Volumes:   gen.UsageLimit{Usage: 2, Limit: &volumes},
 		},
 		"secrets_per_project":       usageLimit(2, 100),
 		"api_keys_per_project":      usageLimit(1, 10),
@@ -74,6 +76,15 @@ func TestOrgLimits(t *testing.T) {
 	}
 	if has(out, "Usage in") {
 		t.Fatalf("per-domain usage rows must not render:\n%s", out)
+	}
+	volumesRow := ""
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Volumes") {
+			volumesRow = line
+		}
+	}
+	if !has(volumesRow, "2 / 20") {
+		t.Fatalf("table lacks the Volumes row:\n%s", out)
 	}
 
 	_, errb, code = run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "json", "org", "limits")
@@ -247,7 +258,7 @@ func TestOrgLimitsOmitsUnreportedGroups(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("%d %s", code, errb)
 	}
-	for _, absent := range []string{"Images", "Snapshots"} {
+	for _, absent := range []string{"Images", "Snapshots", "Volumes"} {
 		if has(out, absent) {
 			t.Fatalf("an unreported %q row must be omitted:\n%s", absent, out)
 		}
