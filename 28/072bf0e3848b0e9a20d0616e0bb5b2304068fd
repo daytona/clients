@@ -1,0 +1,22 @@
+sdk-go/sandbox_access_signing_closed_test.go
+  s_2ef02cb3c131db::t_8d175ded3fd959 19
+  s_2ef02cb3c131db::t_af74c3c10ca1d7 1-18,20-31
+sdk-go/sandbox_access_signing.go
+  s_2ef02cb3c131db::t_6de7d5a2daabd8 14,16-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28072bf0e3848b0e9a20d0616e0bb5b2304068fd",
+  "prompts": {},
+  "sessions": {
+    "s_2ef02cb3c131db": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065dfbf8ffe3EO1HikYgdaS6o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
