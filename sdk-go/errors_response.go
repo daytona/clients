@@ -74,7 +74,7 @@ func populateErrorDetails(result *Error, object jsonObject) {
 	result.Details.LimitMax = optionalErrorInteger(object, "max")
 	result.Details.MaxBytes = optionalErrorInteger(object, "max_bytes")
 	result.Details.Bytes = optionalErrorInteger(object, "bytes")
-	if seconds := optionalErrorInteger(object, "retry_after_seconds"); seconds != nil {
+	if seconds := optionalErrorInteger(object, "retry_after_seconds"); seconds != nil && *seconds >= 0 {
 		result.RetryAfter = saturatedDuration(*seconds, time.Second)
 	}
 	if ms := optionalErrorInteger(object, "retryAfterMs"); ms != nil && *ms >= 0 {
