@@ -36,7 +36,7 @@ type SandboxAccessToken struct {
 	// Operations contains the granted operations, including future server values.
 	Operations []string
 	// Ports contains the granted ports; nil means unrestricted ports.
-	Ports []int64
+	Ports []int
 }
 
 // String returns a credential-free token description.
@@ -142,14 +142,14 @@ func sandboxTokenString(object jsonObject, name string) (string, error) {
 	return value, nil
 }
 
-func sandboxTokenPorts(object jsonObject) ([]int64, error) {
+func sandboxTokenPorts(object jsonObject) ([]int, error) {
 	ports, err := field[[]JSONValue](object, "ports", false)
 	if err != nil {
 		return nil, err
 	}
-	var result []int64
+	var result []int
 	if ports != nil {
-		result = make([]int64, len(ports))
+		result = make([]int, len(ports))
 		for index, port := range ports {
 			value, parseErr := integerField(jsonObject{"ports": port}, "ports", true)
 			if parseErr != nil {
@@ -158,7 +158,7 @@ func sandboxTokenPorts(object jsonObject) ([]int64, error) {
 			if value < 0 || value > math.MaxInt32 {
 				return nil, badRequest("response field ports must be a non-negative int32")
 			}
-			result[index] = value
+			result[index] = int(value)
 		}
 	}
 	return result, nil

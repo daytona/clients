@@ -108,7 +108,7 @@ func parsePorts(object jsonObject) ([]PortAssignment, error) {
 		if protocolErr != nil {
 			return nil, protocolErr
 		}
-		result = append(result, PortAssignment{HostPort: host, VMPort: vm, Protocol: protocol})
+		result = append(result, PortAssignment{HostPort: int(host), VMPort: int(vm), Protocol: protocol})
 	}
 	return result, nil
 }

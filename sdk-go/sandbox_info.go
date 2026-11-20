@@ -102,9 +102,9 @@ type Resources struct {
 // PortAssignment is an observed sandbox port assignment.
 type PortAssignment struct {
 	// HostPort is the host-side port.
-	HostPort int64
+	HostPort int
 	// VMPort is the sandbox-side port.
-	VMPort int64
+	VMPort int
 	// Protocol is the open server protocol name.
 	Protocol string
 }
